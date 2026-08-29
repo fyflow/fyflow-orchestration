@@ -7,11 +7,20 @@
 As of 2026-08-30: `doc/concept.md` is v0.1, **Q1 and Q2 are resolved** as
 [ADR 0001-0002](decisions/), **Q4 is deferred to a spike**, and
 **[P1](plans/p1-what-satisfies-a-join.md)** is planned with five work items. `spec/` is still empty
-— W1 is what fills it. 18 questions remain open.
+— W1 is what fills it. 19 questions remain open.
 
 **What is decided:** routing executes in the driver, outside the scheduler (0001) · the flow
-definition is data and predicates are registered by name, failing at instantiation (0002) · pinned
-to `fyflow-scheduler` 0.2.1 (Q3).
+definition is data and predicates are registered by name, failing at instantiation (0002) · **the
+driver normalizes every event into an immutable outcome record at the listener boundary** (0007) ·
+pinned to `fyflow-scheduler` 0.2.1 (Q3).
+
+**Upstream is changing the event surface**, and
+[`RESOURCE_EVENTS_PLAN.md`](../../fyflow-scheduler/RESOURCE_EVENTS_PLAN.md) has been read against
+this repo — the S-id map and the four consequences are in
+[scheduler-upstream.md](scheduler-upstream.md). Short version: **our S4 (timestamps) is being
+implemented**, our S5 is deferred with our workaround intact, the resource events are largely not
+ours, and **their S8 — event details are live references, documented rather than fixed — forced
+[ADR 0007](decisions/0007-the-driver-normalizes-events-into-an-immutable-outcome-record.md)**.
 
 **What is deliberately *not* decided:** [Q4](open-questions.md), what satisfies a join. The argument
 for live-token accounting is strong and was refused as *sufficient* — P1 builds **both** policies
@@ -56,10 +65,10 @@ wins.
 |---|---|
 | [concept.md](concept.md) | **Read first.** What we are building, the substrate fact that shapes everything, and the one structural idea - run state is a pure fold of an event log |
 | [workflow.md](workflow.md) | **Read before any work item.** The loop, the verification ladder, the test rules, how work is split. Inherited and unproven - its adaptations are listed at the end for the first retro to judge |
-| [decisions/](decisions/) | ADR 0001-0002. These are the contract until `spec/` exists |
+| [decisions/](decisions/) | ADR 0001, 0002, 0007. These are the contract until `spec/` exists |
 | [plans/p1-...](plans/p1-what-satisfies-a-join.md) | **The active plan.** Five work items, one exit artifact: does arrival-counting actually break |
-| [open-questions.md](open-questions.md) | The register. 18 open, 3 resolved |
-| [scheduler-upstream.md](scheduler-upstream.md) | S1-S6 - what we want from `fyflow-scheduler`. **Nothing here blocks us**; S3 is declined before asking, and S4/S5 are shared with `fyflow-react-components` and must be raised jointly |
+| [open-questions.md](open-questions.md) | The register. 19 open, 4 resolved |
+| [scheduler-upstream.md](scheduler-upstream.md) | S1-S8, plus **the S-id map for reading `RESOURCE_EVENTS_PLAN.md`**, which uses `fyflow-react-components`' numbering. **Nothing here blocks us**; S3 is declined by us and S8 by upstream |
 | [../spec/README.md](../spec/README.md) | The normative layer and the rules for changing it. **Empty until W1** |
 | [work-items/](work-items/) | One file per work item. None written yet - [TEMPLATE.md](work-items/TEMPLATE.md) |
 
@@ -68,11 +77,11 @@ wins.
 | Document | Status | Notes |
 |---|---|---|
 | `concept.md` | v0.1, stable | Section 2 is the load-bearing part and is verified against the library at 0.2.1 rather than assumed. Section 6's leanings are now two ADRs and one spike; the routing and definition rows there are **superseded by ADR 0001-0002** and should be read as history |
-| `open-questions.md` | live | **18 open, 3 resolved.** Q4 is `deferred` in the specific sense that a spike decides it |
+| `open-questions.md` | live | **19 open, 4 resolved.** Q4 is `deferred` in the specific sense that a spike decides it |
 | `workflow.md` | v0.1, **unproven** | Never run here, and never run in the repo it came from either. P1's retro is its first real test, and the adaptation table at the end is what that retro should judge |
-| `decisions/` | 2 ADRs, both accepted | None superseded. **0003 is reserved for Q4's answer** and is written when W4 has run. Both existing ADRs went to the stated leaning, which the index flags as worth watching rather than celebrating |
+| `decisions/` | 3 ADRs, all accepted | None superseded. **0003 is reserved for Q4's answer** and is written when W4 has run. 0001 and 0002 went to the stated leaning; **0007 is the first that no leaning predicted** - a constraint forced it |
 | `plans/p1` | planning | Work-item files not yet written |
-| `scheduler-upstream.md` | live | 5 candidates + **S3 declined**. None raised yet. Raise order: **S1 first and alone**, then S4+S5 jointly with `fyflow-react-components` |
+| `scheduler-upstream.md` | live | 6 candidates + **S3 declined by us, S8 by upstream**. Revised 2026-08-30: **S4 is being implemented, S5 deferred** - three of the original six settled without us raising anything. Raise order now: **S1 first and alone**, then **S7 while `RESOURCE_EVENTS_PLAN.md` §8 is still asking** |
 | `spec/README.md` | v0.1 | Rules only. W1 writes the first document |
 
 ## Sibling repositories
@@ -93,7 +102,7 @@ Deliberate overlaps, which are coordination points rather than duplication:
 2. **Three questions are literally shared** - `user_action` at the top level (our Q17, their Q16),
    unbounded retention (our Q19, their Q14), one-driver-one-scheduler (our Q20, their Q15).
    **Answering these differently in two repos is a bug with two homes.**
-3. **Two upstream wants are shared** - our S4/S5 are their S2/S1. Raise once, jointly.
+3. **Two upstream wants were shared** - our S4/S5 are their S2/S1. Both are now answered via that repo (S4 implemented, S5 deferred), so the joint-raise is done. What remains shared is the *pattern*: raise once, from whichever repo has the stronger case. **Their S8 is our S8** and is the one that changed our architecture.
 4. **They cannot see flow structure.** Which node, which branch, what a join is waiting on - none of
    it reaches the scheduler, so no UI can show it today. Whether we become a second envelope source
    family for them is [Q21](open-questions.md).

@@ -75,6 +75,7 @@ because P1 builds both join policies behind one interface rather than needing th
 |---|---|---|---|
 | Q19 | **Is per-run retained state bounded?** `FLOW_PLANNING.md` targets 1000s-10000s of concurrent workloads. If Q8 or Q11 retains every node output, a run's footprint is proportional to its node count and the total is that times the run count. The scheduler already has this problem and answers it with `maxCompletedTasks` and eviction; we would inherit the answer *and* its sharp edge (eviction is silent). Cross-references `fyflow-react-components` **Q14**, which is the same question one layer up | open | no owner - needs a measured run |
 | Q20 | **Does one orchestrator ever drive more than one scheduler, and is a run id global?** Expected topology is one-to-one. This row exists so the assumption is written down rather than assumed, which is the same reason `fyflow-react-components` carries its **Q15** | open | no owner |
+| Q32 | **How does P1 tell a stuck join apart from a silently dropped task?** `core/FyflowScheduler.ts:848` shifts a task out of a blocked queue and **drops it** when its pool is missing - never requeued, no event ([S7](scheduler-upstream.md)). The run then waits forever for an outcome that will never arrive: **nothing queued, nothing running, no error** - byte-for-byte the signature P1 is trying to attribute to a join policy. `addTasks` validates worker types so it should be unreachable, and "should be unreachable" is exactly the standing an experiment cannot rely on. Minimum answer: W5 asserts every dispatched node eventually produces an outcome record, so a hang is attributable | open | W5 |
 | Q21 | **Do we emit an event family for `fyflow-react-components`?** Flow structure is invisible to the scheduler, so today no UI can show which node a run is at, which branch it took, or what a join is waiting on. That repo has already decided the envelope shape - per-source families ([ADR 0002](https://github.com/fyflow/fyflow-react-components) there), sequence numbers, collector-stamped time, payloads redacted by default - so this is *"do we become a second source family"*, not *"design a wire format"*. **The redaction default is inherited, not optional**, if we do | open | no owner - not before P1 |
 
 ## Resolved
@@ -83,9 +84,30 @@ because P1 builds both join policies behind one interface rather than needing th
 |---|---|---|
 | Q1 | Where does routing execute? | **The driver, outside the scheduler** - [ADR 0001](decisions/0001-routing-executes-in-the-driver-outside-the-scheduler.md). The driver is the only thing that touches the scheduler; a worker computes and does not route; routing is a pure function of `(definition, run state, outcome)`. Decided by two library facts rather than by preference: spawn is lineage and cannot join, and a worker that routes owns part of the definition. **The cost is accepted, not dodged** - a serialization point on a hot path, and the driver holding the only copy of run truth until Q15 |
 | Q2 | Is a flow definition data, code, or data with registered predicates? | **Data, with predicates registered by name** - [ADR 0002](decisions/0002-a-flow-definition-is-data-and-a-predicate-is-registered-by-name.md). The graph is JSON-serializable with no functions in it; an edge names a predicate; an unknown name fails **at instantiation**, mirroring `addTask` throwing on an unknown `workerType`. Keeps Q15 and Q21 open, which is most of what it was protecting. Rule 5 carries the honest half-truth: the *definition* is portable, the *deployment* is not |
+| Q31 | Can the driver retain a scheduler event's `detail`? | **No, and one event lies about its own name** - [ADR 0007](decisions/0007-the-driver-normalizes-events-into-an-immutable-outcome-record.md). Verified in the source: `detail` **is** the live `FyflowTask` (`core/FyflowScheduler.ts:727, 775, 777, 974`) and `scheduler.completed`'s detail is `this.stats`, mutated in place. Separately, a non-optional task out of retries sets `state = 'user_action'` and then dispatches **both** `task.failed` and `task.user_action` for the same object, so a driver reading event names double-counts and routes a human-intervention case down an error edge. The driver copies declared fields at the listener boundary and keys the outcome record on terminal state. Upstream declined to fix the first half in code ([S8](scheduler-upstream.md)), which is what made it ours |
 | Q3 | Which `fyflow-scheduler` version do we pin? | **0.2.1**, matching `fyflow-react-components`. Same maintainer across all three repositories, so a pre-1.0 bump is coordinated rather than discovered. No ADR - this is a note, not an architecture. It becomes one the day the three repos need to disagree |
 
 ## Notes
+
+**2026-08-30, later - reading `../fyflow-scheduler/RESOURCE_EVENTS_PLAN.md` cost us an ADR and
+raised two questions.** The plan is a counter-proposal to `fyflow-react-components`' upstream spec,
+so most of it is about resource gauges we do not consume. Two paragraphs in it were ours:
+
+- **§11, four lines long, is the one that mattered.** Event details are live references, and
+  upstream has declined to fix that in code. Our whole architecture is a fold of a log, and a log of
+  aliases is not a log — so this became
+  [ADR 0007](decisions/0007-the-driver-normalizes-events-into-an-immutable-outcome-record.md)
+  (Q31). Checking it in the source then turned up the sharper half, which the plan does not mention:
+  a non-optional task out of retries dispatches **`task.failed` and `task.user_action` for the same
+  object**, in that order, with `state` already set to `user_action` before either. That is
+  [Q17](#live) answered by accident, and it would have been found by W3 debugging a double-count
+  instead.
+- **§4.4's exit (c)** — a blocked task dropped with no event — produces exactly the signature P1 is
+  trying to attribute to a join policy. Q32.
+
+**The general lesson, worth a rule if it recurs:** the useful part of an upstream document written
+for a *different* consumer was not the part addressed to a consumer at all. Reading only the sections
+that name our concerns would have missed both.
 
 **2026-08-30 - the three gating questions are cleared, two of them by deciding.** Q1 and Q2 became
 [ADR 0001](decisions/0001-routing-executes-in-the-driver-outside-the-scheduler.md) and

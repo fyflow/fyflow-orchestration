@@ -79,9 +79,9 @@ branch-routed-away case decide, as a test. If arrival-counting survives, the sim
 Start at **[doc/README.md](doc/README.md)** — current state, reading order, and what happens next.
 
 - [doc/concept.md](doc/concept.md) — what we are building and why
-- [doc/decisions/](doc/decisions/) — ADR 0001-0002, the contract until `spec/` exists
+- [doc/decisions/](doc/decisions/) — ADR 0001, 0002, 0007 — the contract until `spec/` exists
 - [doc/plans/p1-...](doc/plans/p1-what-satisfies-a-join.md) — the active plan
-- [doc/open-questions.md](doc/open-questions.md) — the register (18 open, 3 resolved)
+- [doc/open-questions.md](doc/open-questions.md) — the register (19 open, 4 resolved)
 - [doc/workflow.md](doc/workflow.md) — how work is planned, split and verified
 - [doc/scheduler-upstream.md](doc/scheduler-upstream.md) — what we want from the scheduler
 - [spec/](spec/) — the normative layer (empty; the first plan fills it)

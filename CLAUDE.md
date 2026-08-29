@@ -12,11 +12,13 @@ Full context: [doc/concept.md](doc/concept.md). Do not re-derive it — read it.
 
 ## Current state: **the gating questions are cleared, P1 is planned, no code exists**
 
-[ADR 0001-0002](doc/decisions/) settle the architecture so far: **routing executes in the driver,
-outside the scheduler** — a worker computes and does not route, and `context.spawnTask()` is not
-used for flow control; and **a flow definition is data with predicates registered by name**, where
-an unknown name fails at instantiation rather than at routing time. Pinned to `fyflow-scheduler`
-0.2.1.
+[ADR 0001, 0002 and 0007](doc/decisions/) settle the architecture so far: **routing executes in the
+driver, outside the scheduler** — a worker computes and does not route, and `context.spawnTask()` is
+not used for flow control; **a flow definition is data with predicates registered by name**, where
+an unknown name fails at instantiation rather than at routing time; and **the driver normalizes
+every scheduler event into an immutable outcome record at the listener boundary**, because event
+details are live mutable objects and `task.failed` also fires for `user_action` tasks. Pinned to
+`fyflow-scheduler` 0.2.1.
 
 **[P1](doc/plans/p1-what-satisfies-a-join.md) is planned** with five work items. `spec/` is still
 empty — **W1 is what fills it**, and it is serial: everything waits on it. What happens next, in
@@ -111,6 +113,18 @@ paths from the repo root in prose; only markdown links are relative.
 Grounded in its `AGENTS.md` at 0.2.1; re-check there rather than trusting this list if it matters.
 
 - **No dependencies, no ordering** — see above. This is the big one.
+- **An event's `detail` is the live object, not a snapshot.** `detail` **is** the `FyflowTask` for
+  `task.running`/`completed`/`failed`/`user_action`, and `scheduler.completed`'s detail is `stats`,
+  mutated in place. **Never retain `e.detail`** — copy declared fields synchronously in the
+  listener. `{...e.detail}` is *not* compliance: it still aliases `payload`, `result` and `error`.
+  [ADR 0007](doc/decisions/0007-the-driver-normalizes-events-into-an-immutable-outcome-record.md);
+  upstream declined to fix it in code ([S8](doc/scheduler-upstream.md)).
+- **A `user_action` task fires TWO events, and the first is called `task.failed`.** For a
+  non-optional task out of retries the scheduler sets `state = 'user_action'` and then dispatches
+  `task.failed` *and* `task.user_action` with the same object
+  (`core/FyflowScheduler.ts:764-778`). Key outcomes on **terminal state, not event name**, or you
+  double-count and route a human-intervention case down an error edge. An *optional* task takes the
+  other branch: `state = 'failed'`, `resolve(null)`, and only `task.failed` fires.
 - Task states are `pending -> running -> done | failed`, **plus `user_action`** for a non-optional
   task out of retries. Five states, not four, and it is the one every design drops (Q17).
 - **Reusing a task id overwrites, silently.** Our id scheme is a correctness rule with a refusal

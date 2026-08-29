@@ -68,21 +68,49 @@ Per `doc/workflow.md` section 7 rule 3 — decide, then fan out.
 |---|---|
 | Routing executes in the driver, outside the scheduler | [ADR 0001](../decisions/0001-routing-executes-in-the-driver-outside-the-scheduler.md) |
 | The graph is data; predicates are registered by name; an unknown name fails at instantiation | [ADR 0002](../decisions/0002-a-flow-definition-is-data-and-a-predicate-is-registered-by-name.md) |
+| The driver copies declared fields at the listener boundary; the outcome record is keyed on terminal state, not event name | [ADR 0007](../decisions/0007-the-driver-normalizes-events-into-an-immutable-outcome-record.md) — **binds W1 (the record shape), W2 (the fold) and W3 (the listener)** |
 | Run state is a fold of an ordered outcome log | `doc/concept.md` section 5. Still a leaning as far as Q14 is concerned — **W2 is what tests it** |
 | Both join policies are built | This plan. They meet at one interface, which is W1's job to define |
 
 **Q4 itself is deliberately still open.** Building both is the method, and a work item that picks a
 winner before W4 has run has skipped the plan.
 
+## The threat to this plan's validity
+
+**A silently dropped task is indistinguishable from a stuck join** ([Q32](../open-questions.md),
+[S7](../scheduler-upstream.md)). `core/FyflowScheduler.ts:848` shifts a task out of a blocked queue
+and drops it when its pool is missing — never requeued, no event. The run then waits forever with
+nothing queued, nothing running and no error, which is **exactly** the signature this plan is trying
+to attribute to a join policy.
+
+An experiment whose null result has a second possible cause has not run. So:
+
+1. **W5 asserts that every dispatched node eventually produces an outcome record.** Any hang is then
+   attributable before it is interpreted. This is a gate on W5, not a nice-to-have.
+2. **W4's matrix distinguishes *"the policy did not fire"* from *"the outcome never arrived"*.** They
+   are different cells and must not share one.
+3. `addTasks` validates worker types, so the drop *should* be unreachable — and "should be
+   unreachable" is precisely the standing an experiment cannot rest on.
+
+**Detecting a stuck join is ours, and the upstream resource events do not help.**
+`RESOURCE_EVENTS_PLAN.md` acceptance criterion 3 makes a *scheduler-level* stall visible via
+`resource.blocked`. A stuck join has **nothing blocked and nothing queued** — no resource is short —
+so no such event fires. [Q7](../open-questions.md) is untouched by that work, and W4 needs its own
+detection or it can only report a hang as a timeout.
+
 ## Work items
 
 | Id | Item | Owns | Depends on | Gate |
 |---|---|---|---|---|
-| W1 | The definition spec + task id scheme — **and the join-policy interface** | `spec/**` | nothing | L0, spec review |
+| W1 | The definition spec + task id scheme + **the outcome-record shape** (ADR 0007) + the join-policy interface | `spec/**` | nothing | L0, spec review |
 | W2 | The fold: outcome log → run state, both policies behind W1's interface | `src/fold/**` | W1 | L0-L3 |
-| W3 | The driver: subscribe, route, dispatch | `src/driver/**` | W1 | L0-L2 |
+| W3 | The driver: subscribe, normalize at the boundary, route, dispatch | `src/driver/**` | W1 | L0-L2 |
 | W4 | The join/failure matrix — every Q5 outcome × both policies | `test/matrix/**` | W2 | L0-L5 |
-| W5 | One real fan-out flow on a real scheduler | `examples/**` | W2, W3 | L0-L6 |
+| W5 | One real fan-out flow on a real scheduler, **plus the every-node-settles assertion** (Q32) | `examples/**` | W2, W3 | L0-L6 |
+
+**W1 grew.** ADR 0007 makes the outcome record a normative shape rather than an internal type: it is
+what rule 1's "declared fields" means, and it is what lets a reviewer tell a compliant copy from a
+`{...e.detail}` spread that still aliases `payload`, `result` and `error`.
 
 W2 and W3 run in parallel **because W1's spec separates them** — they meet at the definition and the
 outcome-log shape, never at each other's code (`doc/workflow.md` section 7 rule 1). W1 is serial and
@@ -100,7 +128,8 @@ Each has its own file under `doc/work-items/`. This table is an index, not the d
 | [Q10](../open-questions.md) | What happens when no decision edge matches. Reachable in P1's own flow, so it needs an answer here | W1 |
 | [Q13](../open-questions.md) | The task id scheme. Fan-out forces it; a collision silently overwrites | W1 |
 | [Q14](../open-questions.md) | Is run state a fold, and of whose log | W2 |
-| [Q17](../open-questions.md) | How `user_action` surfaces at flow level. It is a row in the matrix, so P1 cannot avoid it | W4 |
+| [Q17](../open-questions.md) | How `user_action` surfaces at flow level. It is a row in the matrix, so P1 cannot avoid it — and [ADR 0007](../decisions/0007-the-driver-normalizes-events-into-an-immutable-outcome-record.md) rule 2 has already answered the *detection* half | W4 |
+| [Q32](../open-questions.md) | Telling a stuck join apart from a silently dropped task. **A threat to this plan's validity**, not a side question — see the section above | W5 |
 
 Q6, Q12, Q15, Q16, Q18-Q21 are **not** carried — see Scope/Out.
 
