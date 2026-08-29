@@ -1,0 +1,35 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# build output
+dist/
+build/
+out/
+*.tsbuildinfo
+
+# test + tool caches
+coverage/
+.vite/
+.turbo/
+.cache/
+test-results/
+
+# env + local
+.env
+.env.*
+!.env.example
+*.local
+
+# editors + os
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+# settings.json here is per-machine, not shared project config. If shared editor
+# settings are ever wanted, add a specific allowlist.
+
+# agent scratch
+.claude/worktrees/
+.claude/jobs/
