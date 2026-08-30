@@ -254,7 +254,27 @@ a row that does not name its runtimes ran in one.
 | **test adequacy** | **RAN** — **10 blocking, 3 defects, ~12 notes** | n/a | a second reader on *"would these tests have noticed"*, by mutation, in an isolated git worktree |
 | re-run at `<sha>` | **RAN** — pass | all five, and both L6 runtimes | the gate above **is** the re-run acting on both passes; it lacks only the commit that carries it |
 
-**Six passes have now run in this repository and not one has come back empty.**
+**Eleven reader-passes have now run in this repository and not one has come back empty** — W1 ×3,
+W3 ×3, W2 ×1, W4 ×2, W5 ×2.
+
+*This Record first said "six", inheriting a running total that had been wrong since W4 and adding to
+it. P1's retro counted them. It is a third instance of the class W5 itself raised — a claim in
+`doc/` that nobody ran — and the mildest of the three, which is why it went unnoticed longest.*
+
+**Outputs — what was actually built.** The table `doc/work-items/TEMPLATE.md` gained from P1's retro,
+filled in retrospectively for the item that produced the retro. One row per item on the `Outputs:`
+line, and for each, the thing that **would fail if it did not exist**. A blank cell is the finding;
+there are none, and W5's own `examples/**` rung is why — it was predicted in Scope 6 rather than
+found in a Record.
+
+| Declared output | Exists | What would fail without it |
+|---|---|---|
+| six real runs reaching a run-state outcome with no clock | **yes**, and eight | `examples/l6.ts`'s per-row `RN-R12` assertion — added by the review, because until then a 1 ms timer passed everything |
+| the every-node-settles assertion (Q32) | **yes** | two assertions per row, one over the driver's records and one over the **scheduler's own settlement events** |
+| an ordered `FoldInput` sequence, plus ADR 0014 | **yes** | `test/driver/fold-inputs.test.ts`, 15 assertions; deleting any `append` site fails L2 |
+| `stuck` as a run outcome, plus ADR 0015 | **yes** | `test/fold/stuck.test.ts`, 16 assertions, and two L6 rows |
+| Q33's answer in `RT-R10` | **yes** | `npm run test:l6:deno` — the rule is only true while the second runtime is in the gate |
+| a rendered run table a person can read | **yes** | nothing. **It is L7 material and no assertion covers it** — the table is a by-product of values the assertions do use, which is the most that can honestly be claimed |
 
 **The exit artifact.** Eight rows; every expected value written from `spec/` before the first run,
 and every one matched first time in both runtimes.

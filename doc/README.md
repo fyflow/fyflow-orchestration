@@ -2,12 +2,18 @@
 
 ## Current state
 
-**[P1](plans/p1-what-satisfies-a-join.md) is complete, and W5's spec-conformity pass is the one gate
-clause outstanding.** All five work items are built. [Q4](open-questions.md) is answered —
+**[P1](plans/p1-what-satisfies-a-join.md) is complete — five work items, eleven reader-passes, and
+its retro is run.** [Q4](open-questions.md) is answered:
 [ADR 0003](decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md), **a join is
-satisfied when its region has no live branches** — and **W5 ran it on a real scheduler**:
+satisfied when its region has no live branches** — and **W5 ran it on a real scheduler**, where
 `p1-routed-away` completes under `live-token` and is **`stuck`** under `arrival-count`, with the
-join's successor never dispatched. **279 assertions in five runtimes, plus 72 at ladder L6 in two.**
+join's successor never dispatched. **288 assertions in five runtimes, plus 118 at ladder L6 in two.**
+
+**The retro is in [P1's Record](plans/p1-what-satisfies-a-join.md) and `doc/workflow.md` is v0.3.**
+Its central measurement, which should shape how the next plan reads that document: **of the eight
+defect classes P1 produced, five have no rung on the ladder at all — and every one of those five was
+found by the conformity pass.** Four changes adopted; several findings deliberately left as findings.
+**Nothing is planned next**; the repository is between plans.
 
 **What W5 changed, beyond running the flow.** Three ADRs, and each came from a different kind of
 gap:
@@ -36,9 +42,15 @@ gap:
 **Node and Deno**, not Node only, because the premise *"a real worker file per runtime"* is false at
 Node 24. The browser half is [Q52](open-questions.md).
 
-Five spec-conformity passes have run and every finding is acted on; blocking findings ran 4, then 5,
-then 1, then 4 — and **no pass has yet come back empty**, which is the strongest thing this repo
-knows about its own process.
+**Eleven reader-passes have run and every finding is acted on** — W1 ×3, W3 ×3, W2 ×1, W4 ×2,
+W5 ×2 — with blocking findings of 4, 5, 1 · 1, 1, 4 · 4 · 2, 2 · 3, 10. **Not one has come back
+empty**, which is the strongest thing this repo knows about its own process.
+
+*Until P1's retro this paragraph said **"five passes"**, then "six", and gave the sequence as
+"4, then 5, then 1, then 4" — W1's three plus W2's, silently dropping W3's three. **It is the
+most-repeated self-descriptive claim in the repository and nobody had counted it.** Corrected by the
+retro, which also names the class it belongs to: `doc/` is upstream of every check here and is
+checked by nothing.*
 
 **The first four found the same shape four times: the code was correct and the tests were pointed
 at the wrong half.** W1's pass found an assertion that could not fail; W3's second found a half of
@@ -64,7 +76,7 @@ with five normative documents and answered [Q10](open-questions.md) and
 which became **[ADR 0004](decisions/0004-a-non-success-outcome-routes-only-where-an-edge-opts-in-and-user-action-suspends.md)**.
 **W3 built the driver and the validator**, and **W2 built the fold, both join policies and the
 sixth spec document** — answering [Q14](open-questions.md) and [Q25](open-questions.md).
-**28 questions remain open, 13 resolved.**
+**29 questions remain open, 13 resolved.**
 
 **What is decided:** routing executes in the driver, outside the scheduler (0001) · the flow
 definition is data and predicates are registered by name, failing at instantiation (0002) · **a
@@ -125,20 +137,17 @@ longer rests on our own reading. [S1](scheduler-upstream.md).
 
 **What happens next:**
 
-1. **W5's spec-conformity pass** — `doc/workflow.md` section 6, fresh context, spec first and code
-   second. **Five have run here and not one came back empty**, and this one reads an item that
-   changed `src/`, two `spec/` documents and the toolchain, and that wrote three ADRs. Budget for
-   it. W4's proposal — that section 6's two questions want two readers — is worth trying here,
-   because W5's two halves (a `src/` change and an L6 harness) suit the split.
-2. **Then P1's retro** — `doc/workflow.md` section 6 pass 3, its first real test, and it judges the
-   adaptations tabled at the end of `workflow.md`. **Five proposals are waiting in P1's Record**,
-   including two that are now five-for-five: *"a declared output with no rung"*, and *"a written
-   claim nobody ran"* — the second of which now has an instance in
-   [open-questions.md](open-questions.md) itself, which is the one artifact here read as
-   authoritative and checked by nothing.
-3. **[S9](scheduler-upstream.md) is ready to raise**, and it is the only live item in that register.
+1. **[S9](scheduler-upstream.md) is ready to raise**, and it is the only live item in that register.
    Two one-line changes with a measurement behind each: `import type` in
    `core/threadWrapper.ts:5`, and `AGENTS.md` §3's claim that a Node worker must be JavaScript.
+2. **P2, whenever it is written, starts from [Q24](open-questions.md)** — `JP-R7` and `JP-R8`, the
+   two one-line policy refinements ADR 0003 names as the first thing a reader should look at. The
+   other live candidates are [Q6](open-questions.md) (nested fan-out, scoped out of P1 and nearly
+   free under `live-token`) and [Q12](open-questions.md) (map-style fan-out, which is what makes the
+   count dynamic).
+3. **Read `doc/workflow.md` v0.3 before starting it**, and in particular the two things P1's retro
+   refused to turn into rules — those are the ones most likely to bite. **A register row you are
+   about to act on is unverified until you have.**
 4. **Five traps are live for whoever comes next.**
    - **`JP-R7` and `JP-R8`** ([Q24](open-questions.md)) — the two one-line policy refinements, and
      **the live question**. `test/matrix/variants.test.ts` runs both under their own ids. **W1 wrote
@@ -178,7 +187,7 @@ wins.
 |---|---|---|
 | `concept.md` | **v0.2** | Section 7's *"controlling a run from a UI"* non-goal now carries one narrow, cited exception (ADR 0004). Section 2 is the load-bearing part and is verified against the library rather than assumed - **re-checked unchanged at 0.3.0**. Section 3 was re-verified line by line at 0.3.0 and gained three constraints. Section 6's leanings are now two ADRs and one spike; the routing and definition rows there are **superseded by ADR 0001-0002** and should be read as history |
 | `open-questions.md` | live | **28 open, 13 resolved.** **Q33, Q41, Q42, Q43 and Q51 closed with W5**; Q4 and Q17 with W4, Q14 and Q25 with W2. **Q24 is the live one.** Q44 and Q45 are narrowed rather than answered. **W5 found a register entry that was false** (Q43) — this file is read before every work item and checked by nothing, which is the retro’s |
-| `workflow.md` | **v0.2**, still unproven | **The ladder gained a runtime axis** (section 4) and section 8 now splits the budget: one runtime in the edit loop, all three at the plan gate. Never run here, and never run in the repo it came from either. P1's retro is its first real test, and the adaptation table at the end is what that retro should judge |
+| `workflow.md` | **v0.3 — run once, end to end** | **P1's retro acted on it.** Four changes adopted: the TEMPLATE gains an **Outputs** table (six occurrences, four items, of a declared output nobody built); pass 2 is **two readers** (1 overlap in 13, then 3 in ~35); a new check is **negative-tested at birth** (section 5 rule 7); and section 7 rule 2 is about **concurrent** items, with a serial one declaring its exceptions. Several findings were deliberately **not** turned into rules. The adaptation table at the end now carries a verdict per row |
 | `decisions/` | **8 ADRs**, all accepted | None superseded. **0003 answers Q4** and carries this repository’s first in-place *Correction*. **W5 wrote 0013-0015 and is the first item to spend its whole ADR block** — one from measuring an environment, one from a gate that could not otherwise be written honestly, one from a register entry being wrong |
 | `plans/p1` | **complete — question answered and exit artifact produced** | All five work items built. [ADR 0003](decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md) is the answer; `examples/l6.ts` is the artifact. **279 assertions in five runtimes plus 72 at L6 in two.** W4 used Q42-Q50 and ADR 0003; **W5 used Q51-Q52 and ADR 0013-0015** |
 | `scheduler-upstream.md` | live | **9 items, 5 closed** (S1 answered, S3 declined by us, S4 done, S7 fixed, S8 declined by upstream), S5 deferred, S2/S6 waiting on a real need, and **[S9](scheduler-upstream.md) live and ready to raise** — found by W5, the first item to load the library rather than a structural stand-in for it |

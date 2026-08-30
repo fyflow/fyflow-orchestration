@@ -10,7 +10,7 @@ flows with sequence, **decision** routing, **fan-out** and **join**, instantiate
 
 Full context: [doc/concept.md](doc/concept.md). Do not re-derive it — read it.
 
-## Current state: **P1 is complete and reviewed; its retro is what remains**
+## Current state: **P1 is complete, reviewed and retro'd; the repository is between plans**
 
 [ADR 0001, 0002 and 0007](doc/decisions/) settle the architecture so far: **routing executes in the
 driver, outside the scheduler** — a worker computes and does not route, and `context.spawnTask()` is
@@ -24,12 +24,15 @@ details are live mutable objects and `task.failed` also fires for `user_action` 
 normative documents and 71 numbered rules**; `src/` holds the definition validator, the driver and
 the fold with **both** join policies; `test/matrix/` holds the join/failure matrix; `examples/` holds
 ladder **L6**. **288 assertions in five runtimes** — Node 24, Deno, chromium, firefox, webkit —
-identical in all of them, **plus 118 at L6 in Node and Deno**. Outstanding: **P1's retro** — W5's two review
-passes are run and every finding is acted on. What happens next, in order: [doc/README.md](doc/README.md).
+identical in all of them, **plus 118 at L6 in Node and Deno**. **P1's retro is run and `doc/workflow.md`
+is v0.3** — four changes adopted, several findings deliberately left as findings. What happens next,
+in order: [doc/README.md](doc/README.md).
 
-**Six spec-conformity passes have run and not one came back empty** — 4, then 5, then 1, then 4, and
-then **13 blocking across two readers**. All found the same shape: *the code was correct and the tests were pointed at the
-wrong half.* Budget for the pass; it is not a formality here.
+**Eleven reader-passes have run and not one came back empty** — W1 ×3, W3 ×3, W2 ×1, W4 ×2, W5 ×2,
+with blocking findings of 4, 5, 1 · 1, 1, 4 · 4 · 2, 2 · 3, 10. Most found the same shape: *the code
+was correct and the tests were pointed at the wrong half.* **Budget for the pass; it is not a
+formality here, and section 6 now asks for two readers** — measured at 1 overlapping finding in 13
+and 3 in ~35.
 
 **W5 ran P1's case on a real scheduler and it behaves exactly as the matrix said.** `p1-routed-away`
 completes under `live-token` and is **`stuck`** under `arrival-count`, with the join's successor
@@ -133,7 +136,8 @@ that depends on fan-out completion order.
 
 ## How work is done
 
-**[doc/workflow.md](doc/workflow.md) — read it before starting any work item.** The short form:
+**[doc/workflow.md](doc/workflow.md) — read it before starting any work item. It is v0.3, and P1's
+retro is the reason: it has now been run to completion once.** The short form:
 
 ```
 concept -> plan -> work items -> verify (ladder, spec conformity, retro) -> record

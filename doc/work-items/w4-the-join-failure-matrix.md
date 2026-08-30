@@ -142,6 +142,9 @@ a row that does not name its runtimes ran in one.
 
 **Five passes have now run in this repository and not one has come back empty.**
 
+*Corrected by P1's retro: **eight** reader-passes had run by the end of W4 — W1 ×3, W3 ×3, W2 ×1,
+and W4's two readers counted as one here. The claim about emptiness holds; the count did not.*
+
 **What broke.**
 
 **1. `optional: true` was inert, so the flow this item added to reach `branch.lost` by settling

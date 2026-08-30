@@ -1,13 +1,20 @@
 # Workflow
 
-**Status:** v0.1 - adapted from `fyflow-react-components`, applies from the first plan onward
+**Status:** v0.3 - **run to completion once**, by [P1](plans/p1-what-satisfies-a-join.md)
 **Read this before starting any work item.** Paths are relative to the repo root unless they are
 markdown links.
 
-This document is **inherited and unproven here.** It has never been run in this repository, and the
-sibling it came from had not run it either at the time of copying. Section 6 pass 3 is where it
-gets tested; the adaptations are listed at the end of this file so the retro can judge them
-specifically rather than in general.
+**v0.3 is P1's retro acting on itself.** This document was inherited from
+`fyflow-react-components` and had never been run - there or here. P1 ran it end to end across five
+work items and **eleven reader-passes**; the retro adopted four changes and refused several more,
+and all of it is in [P1's Record](plans/p1-what-satisfies-a-join.md), including a verdict on every
+row of the adaptation table at the end of this file. That table stays, for the next plan to
+re-judge.
+
+**The retro's central measurement, because it should shape how the next plan reads this document:**
+of the eight defect classes P1 produced, **five have no rung on the ladder at all - and every one of
+those five was found by the conformity pass.** The ladder is good at what it covers; section 6 is
+carrying what it does not.
 
 ---
 
@@ -43,6 +50,10 @@ Four rules that make the loop worth having:
    first. If you cannot, the decomposition is wrong and starting will not fix it.
 2. **Tests are part of the work item, never follow-up.** A work item is done when the code works,
    the tests exist, and someone who did not write them has read them against the spec.
+   **This rule was followed by all five of P1's items and every one still shipped an assertion that
+   could not fail**, because the author who misreads the spec writes the code and the test from the
+   same misreading. Writing tests inside the item does not make them falsifiable; section 5 rule 3,
+   and the procedure in rule 7, are what do.
 3. **A decision that is not in `spec/`, an ADR, or a plan did not happen.** Chat transcripts are
    not the record.
 4. **Say what you skipped.** A skipped check reported as passed makes the whole ladder worthless.
@@ -130,6 +141,17 @@ where it is required to run:
 something an L<=6 assertion could have caught. If a human finds a bug a machine check could have
 found, the fix is to **add the check**, not just fix the bug.
 
+> **What the ladder does not cover, measured over P1's five items.** Five defect classes have **no
+> rung**, and all five were found by section 6's conformity pass rather than by any level here: an
+> assertion that cannot fail; **a declared output that was never built**; a spec asserting what its
+> own inputs cannot supply; a false claim in `doc/`; and a check that does not exist but is reported
+> as having run.
+>
+> **They are not made rungs, and the reason is that L0-L6 are commands.** *"Did you build what you
+> said"* is not one. The first is addressed by `doc/work-items/TEMPLATE.md`'s **Outputs** table,
+> where an output nobody built is a blank cell a reviewer can see, and the last by section 5 rule 7.
+> The middle three are the conformity pass's, and knowing which is which is the point of the list.
+
 ## 5. Tests are a deliverable, and tests can be wrong
 
 ```
@@ -164,22 +186,40 @@ Rules:
    its join (Q4), a task ending in `user_action` (Q17), no decision edge matching (Q10), a
    duplicate task id (Q13), a nested fan-out (Q6) - each missing test is a hole with a citation,
    not a vague gap.
+7. **A new check is negative-tested at birth, and the Record names the provocation.** Rule 3 says an
+   assertion must be able to fail; this is how you know one can. Write the check, break the thing it
+   checks, watch it fail, put it back. **P1's evidence is one-sided:** every check provoked at birth
+   worked - `check-source.mjs`'s ten and `check-scheduler.mjs`'s five - and the one that was
+   hand-run once and written into a Record as though it were a gate, `RT-R4`'s grep, **did not exist
+   at all.** A check written to close a review finding needs this most: two of W5's failed their own
+   first negative test, one because it searched text it had already blanked.
 
 ## 6. Verify: the three passes
 
 **Pass 1 - the ladder.** Section 4. Report which levels ran and which did not, per work item.
 
-**Pass 2 - spec conformity.** A reader who did not write the code, who **reads the spec first and
-the code second**. Reading the code first reconstructs the author's misunderstanding and confirms
-it. It answers two questions, and they are different:
+**Pass 2 - spec conformity. Two readers, one question each.**
 
-| looks at | asks |
-|---|---|
-| the code | does this do what the spec says, including the refusals and the edge cases |
-| the tests | would these tests have noticed if it did not |
+| reader | reads | asks | method |
+|---|---|---|---|
+| **conformity** | the spec first, the code second | does this do what the spec says, including the refusals and the edge cases | reading, and re-deriving the item's expected values independently before looking at them |
+| **adequacy** | the spec first, the tests second | **would these tests have noticed if it did not** | mutation, chosen by walking the rule ids rather than by intuition |
 
-Run it with a fresh context, or as a separate session. It **reports; it does not fix** - a reviewer
-that patches what it found has reviewed its own work.
+Both **read the spec before the artifact.** Reading the code first reconstructs the author's
+misunderstanding and confirms it. Both run with a fresh context or as a separate session, and both
+**report; they do not fix** - a reviewer that patches what it found has reviewed its own work.
+
+**Why two readers rather than one asking both questions**, which is what earlier versions said.
+Measured over the two items that split it: **W4 - 13 findings, 1 overlap. W5 - about 35 findings, 3
+overlaps**, and each overlap arrived from a different direction. One reader answers whichever
+question it read first.
+
+**The cost is roughly double, and the counter-evidence is on the record:** W1's and W3's single
+readers ran mutation sweeps too - 85, 146 and 100 mutations - and found a great deal. What the split
+buys is **marginal coverage rather than coverage**; the second reader finds what the first was not
+looking for, which is what the overlap number measures. An author's own sweep is worth running and
+substitutes for neither: W5's author ran 19 mutations and found 2 survivors, and its adequacy reader
+ran 148 and found 38.
 
 **Pass 3 - retro.** Once the plan's work items are merged, review the *method*, not the product:
 
@@ -201,8 +241,12 @@ that patches what it found has reviewed its own work.
    convention, they are one item. The flow definition and the run-state shape in `spec/` are what
    let the definition validator and the driver be built by two agents who never see each other's
    work.
-2. **If two work items would edit the same file, they are one work item.** Merge cost exceeds the
-   parallel saving every time.
+2. **If two CONCURRENT work items would edit the same file, they are one work item.** Merge cost
+   exceeds the parallel saving every time. **A serial item pays none of that cost and the rule does
+   not bind it** — it declares an **exceptions table** instead: every file it edits outside its
+   `Owns`, named, with the reason, before it starts. W4 took one exception and W5 took seven, and
+   both were right to. The table is not paperwork: **W5's conformity pass used it to find the one
+   file W5 had edited and not listed.**
 3. **Fan out on execution, not on design.** Parallel agents given an under-specified goal produce
    designs that do not compose. Decide, then fan out. **Q1, Q2 and Q4 are the decisions this rule
    is about here** - fanning out before they land produces a driver, a definition format and a join
@@ -234,16 +278,27 @@ verification step nobody waits for is a verification step nobody runs.
 
 ---
 
-## What was adapted, and what the retro should judge
+## What was adapted, and what the retro judged
 
-Recorded so pass 3 can assess the changes specifically. The sibling's version is at
-`../fyflow-react-components/doc/workflow.md`.
+Recorded so pass 3 could assess the changes specifically. The sibling's version is at
+`../fyflow-react-components/doc/workflow.md`. **The verdict column is P1's** - the first plan to run
+this document end to end - and the table stays for the next plan to re-judge rather than being
+deleted now that it has been answered once.
 
-| Change | Why | What would show it was wrong |
+| Change | What would show it was wrong | **P1's verdict** |
 |---|---|---|
-| Ladder rungs 1-5 rewritten | The sibling's rungs are about a wire codec, a reducer and browser rendering. None of that exists here | A defect class with no rung, found at L6 or by a human |
-| **L5 is a join/failure matrix**, not Storybook | The join is this repo's hard part (Q4-Q7), and an enumerated matrix is the only honest test of a Q5 answer | The matrix is mostly "undefined" cells, meaning the spec was not ready |
-| **L2 is routing-from-a-fixture-log** | The equivalent of the sibling's cheap high-value rung. It is also the check that the driver has not leaked into the fold | L2 needs a scheduler to run |
-| Section 3 gains a cross-repo id rule | Two repos, two Q sequences, same questions (`open-questions.md` notes) | Someone cites a bare Q id and the wrong repo is read |
-| Section 7 rule 3 names Q1/Q2/Q4 | The sibling's rule is abstract; here the specific decisions that gate fan-out are known in advance | Fan-out happens anyway and the pieces do not compose |
-| No jsdom rule carried over | No DOM in this repo at all | - |
+| Ladder rungs 1-5 rewritten | A defect class with no rung, found at L6 or by a human | **Right, and the failure prediction was wrong in an instructive way.** Five classes have no rung - and **every one was found by the conformity pass**, not at L6 and not by a person. The rungs are sound; what was mispredicted is who catches what falls between them |
+| **L5 is a join/failure matrix**, not Storybook | The matrix is mostly "undefined" cells, meaning the spec was not ready | **Right.** All eighteen cells filled, hand-derived from `spec/` before running, and it is what produced [ADR 0003](decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md) |
+| **L2 is routing-from-a-fixture-log** | L2 needs a scheduler to run | **Right, and the cheapest thing in this document.** Four items used it; the fake scheduler is 22 lines in W3 and 30 in W5 |
+| Section 3 gains a cross-repo id rule | Someone cites a bare Q id and the wrong repo is read | **Unproven.** No cross-repo citation occurred in P1. Kept; nothing was learned either way |
+| Section 7 rule 3 names Q1/Q2/Q4 | Fan-out happens anyway and the pieces do not compose | **Right.** W2 and W3 ran in parallel against W1's spec and met at the definition and the log shape. The one place they did not compose - `Region` never produced in its declared shape - was caught by W3's own pass |
+| No jsdom rule carried over | - | n/a |
+
+**The adaptation this table does not list is the one that mattered most: the runtime axis in section
+4.** W1 added it after the three-runtime requirement surfaced from outside every check in the
+repository, and it is what found `RT-R9` - a construct all four typecheckers accept and Node refuses
+to load. `RT-R1` read as ceremony and was not.
+
+**And the adaptation P1 made to itself:** v0.3's four changes, above. The full retro, including the
+findings it refused to turn into rules and why, is in
+[P1's Record](plans/p1-what-satisfies-a-join.md).

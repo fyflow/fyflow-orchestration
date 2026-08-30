@@ -3,3 +3,6 @@ dist/
 dev-dist/
 test-results/
 playwright-report/
+
+# Editor
+.vscode/

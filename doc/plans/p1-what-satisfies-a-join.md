@@ -210,25 +210,181 @@ documents, **70 numbered rules**, eight ADRs, 279 assertions in five runtimes pl
 and **five spec-conformity passes of which not one came back empty** — W5's is the sixth and is
 outstanding.
 
-**Retro.** *`doc/workflow.md` section 6 pass 3, and it runs after W5's conformity pass. "No change"
-is an expected verdict. This retro also judges the workflow adaptations tabled at the end of
-`doc/workflow.md`, since P1 is their first run.* What it should judge, collected as the plan ran:
+**Retro.** `doc/workflow.md` section 6 pass 3, and **the first time this workflow has been run to
+completion anywhere** — it was copied from `fyflow-react-components`, which had not run it either.
+It judges the method, not the product, and it also judges the adaptation table at the end of
+`workflow.md`.
 
-1. **Section 6 defines pass 2 as one reader asking two questions, and W4 ran it as two readers.**
-   Thirteen findings, **one overlap**. W4's proposal: the two questions are different enough that
-   one reader answers whichever it read first.
-2. **"A declared output with no rung" is now five-for-five.** W1, W3, W2, W4 (L0 did not cover
-   `test/**`) and W5 (nothing covered `examples/**` until it added `tsconfig.examples.json`). W5
-   predicted its own instance in its declaration, which is the first time the pattern was caught
-   before the fact rather than in a Record.
-3. **A written claim nobody ran is this repository's most common defect**, and W5 added a new
-   variety: not a spec claim by its implementer (`spec/run-state.md` section 5's three) but a
-   **register entry by a reader** — [Q43](../open-questions.md)'s *"`regions` already holds the
-   data"*, which is false. The register has no conformity pass.
-4. **W5 widened its `Owns` to six declared exceptions and the widening was right**, which is either
-   a sign that the last item of a plan is structurally different from the others or a sign that
-   `doc/workflow.md` section 7 rule 2 needs a serial-item clause. One occurrence; W4's smaller
-   version (one line in W3's file) is the second.
-5. **Three of the four facts ADR 0013 rests on contradicted something this repository had written
-   down**, and all four were one command away. The retro should ask what else is asserted here that
-   nobody has run.
+**Who ran it, and the bias.** The same session that built W5. Section 6 requires a fresh context for
+pass 2 and does not for pass 3, and the evidence here is the five Records rather than anyone's
+memory — four of which were written by other sessions. Where a finding rests only on W5 it is marked
+as one occurrence.
+
+### What the method produced
+
+| | |
+|---|---|
+| work items | 5, each declared before it started |
+| **reader-passes** | **11** — W1 ×3, W3 ×3, W2 ×1, W4 ×2, W5 ×2 |
+| blocking findings, in order | 4, 5, 1 · 1, 1, 4 · 4 · 2, 2 · 3, 10 |
+| **passes that came back empty** | **0** |
+| assertions at the end | 288 in five runtimes, 118 at L6 in two |
+| ADRs | 8, of which 4 carry dated in-place corrections |
+| full plan gate, measured | **55 s** — `npm run gate` 46 s, plus firefox and webkit 9 s |
+
+**The running total this repository quotes about itself was wrong, and had been since W4.**
+`doc/README.md`, `CLAUDE.md` and three Records say *"five passes"*, then *"six"*, and give the
+blocking sequence as *"4, then 5, then 1, then 4"* — which is W1's three plus W2's, silently dropping
+W3's three. Eleven passes have run. **It is the single most-repeated self-descriptive claim in the
+repository and nobody had counted it**, which is finding 5 below in miniature. Corrected everywhere
+in this change.
+
+### Rules that were followed and did not work
+
+Section 6 pass 3 rule 3 — *"a rule that was **followed** and failed anyway means the mechanism is
+wrong and needs replacing, not restating."* Three qualify.
+
+**1. Section 1 rule 2 — *"tests are part of the work item, never follow-up"* — was followed by every
+item, and every item still shipped assertions that could not fail.** W1: one. W3: three shapes of it
+across three passes. W2: two, including `RN-R8`'s, which applied `stopped` last so the guard it was
+testing could be deleted. W4: three, one of which was **its own mutation sweep's fix from the day
+before**. W5: one in its own first draft, plus a new check that failed its own negative test and an
+ordering test pointed at a flow that could not reach the branch it named.
+
+The rule makes tests a deliverable. **Nothing makes them falsifiable**, and writing them inside the
+work item does not: the author who misreads the spec writes the code and the test from the same
+misreading. What did work, every time it was run, is **mutation** — and the second mechanism, quieter
+and cheaper, is **negative-testing a check at birth**: W3's `S1`-`S6` were each provoked and each
+fired, while `RT-R4`'s grep was hand-run once and written into a Record as though it were a gate,
+and did not exist. W5's `S10` failed its own negative test *first*, which is the mechanism working.
+
+**2. Section 4's ladder has no rung for a declared output that was not built. Six occurrences, four
+items.** W3: the join seam (the largest behaviour in the item — no `joinPolicy`, no `status()` call —
+and **all 132 assertions passed**), the `Region` accessor, and `RT-R4`'s grep. W2: the `OR-R7` and
+`OR-R8` tests its own declaration promises verbatim. W4: `test/**` typechecked by no config. W5:
+`examples/**`, the same, **predicted in its own declaration before the fact**.
+
+W3's Record put it at three occurrences and said that was enough to bring here; W2 added a fourth and
+noted the ladder still had no rung; W5 made it five-for-five. The ladder climbs over behaviour that
+*exists* and never asks whether the item produced what it promised.
+
+**3. Section 7 rule 2 — *"if two work items would edit the same file, they are one work item"* — was
+broken by the last two items and was right to be.** W4 edited one line of W3's suite; W5 declared
+**seven** exceptions and needed every one. The rule prices merge cost between **concurrent** items,
+and a serial final item pays none of it: W2, W3 and W4 were all finished. Two occurrences, two items.
+
+The mechanism that worked was not the rule — it was **W5's declared exceptions table**, and its value
+is measurable: the conformity pass used it to find the one file W5 edited and had *not* listed
+(`doc/concept.md`).
+
+### Name the rung
+
+Pass 3 rule 5 — for every defect class, which ladder level should have caught it.
+
+| defect class | rung | |
+|---|---|---|
+| an assertion that cannot fail | **none** | L0-L6 all *run* tests; nothing asks whether one could fail |
+| a declared output that was not built | **none** | finding 2 above |
+| a spec asserting what its own inputs cannot supply | **none** | pass 2 caught all four; no rung can |
+| a false claim in `doc/` | **none** | finding 5 below |
+| a check that does not exist but is reported as run | **none** | `RT-R4`'s grep, W3 |
+| Node refusing syntax every typechecker accepts | **L1, and only because `RT-R1` forces it** | `RT-R9`; the rung existed, the *runtime axis* is what found it |
+| the sibling's `dist/` silently stale | **L0, now** | `check-scheduler.mjs`. Before W5: none |
+| a stuck join reported as a completed run | **L1** | it had a rung and no test — `RN-R10` |
+
+**Five of eight have no rung at all**, and every one of the five was found by pass 2. That is the
+retro's central measurement: **the ladder is good at what it covers and the conformity pass is
+carrying the classes it does not cover.** The adaptation table predicted this row and predicted the
+wrong detector — see below.
+
+### Adopted
+
+Each states what it replaces (pass 3 rule 4).
+
+**A. Every declared output names the assertion that would fail if it were absent.**
+`doc/work-items/TEMPLATE.md`'s Record gains an **Outputs** table beside the Gate table, one row per
+item on the `Outputs:` line. **Replaces nothing; it is the missing half of section 1 rule 1** — the
+declaration states outputs and the Record accounts for clauses, so an output that was never built has
+nowhere to show up. All six occurrences would have been a blank cell a reviewer could see.
+
+Deliberately **not** a new ladder rung: L0-L6 are commands, and *"did you build what you said"* is not
+one. This is a hole in the **Record's shape**, and the fix is a table with a blank in it.
+
+**B. Pass 2 is two readers, and the two questions are the split.**
+**Replaces** section 6's *"It answers two questions"* framing for one reader. W4: 13 findings, **1
+overlap**. W5: ~35 findings, **3 overlaps**, and each overlap arrived from a different direction —
+both readers killed `RT-R10`'s structural claim, one by bundling directly and one by running the
+build script; both hit `S7`, on **different holes**. Two occurrences, two items.
+
+**The honest cost:** roughly twice the pass. And the honest counter-evidence: W1's and W3's single
+readers ran mutation sweeps too (85/146/100) and found a great deal. What the split buys is **marginal
+coverage, not coverage** — the second reader finds what the first was not looking for, which is
+exactly the overlap number.
+
+**C. A new check is negative-tested at birth, and the Record names the provocation.**
+**Sharpens** section 5 rule 3 from a property into a procedure. Rule 3 says assertions must be able
+to fail; nothing said how you know. W3's `S1`-`S6` and W5's `S1`-`S10` and `D1`-`D5` were each
+provoked; `RT-R4`'s grep was not, and did not exist. Two occurrences, two items.
+
+**D. Section 7 rule 2 is about concurrent items, and a serial item declares its exceptions.**
+**Replaces** the absolute phrasing. Finding 3 above.
+
+### No change
+
+Pass 3 rule 1 — *"a retro that always finds three improvements is measuring its own output."*
+
+- **Section 1 rule 1 — a work item that cannot state its gate is not ready.** The most productive
+  rule in the document. W1 and W3 each found a decomposition error by filling the header block, and
+  **W5's `Inputs:` line could not be written at all** — which produced ADR 0013 and four measured
+  facts that contradicted what this repository believed. Unchanged.
+- **Section 7 rule 3 — decide, then fan out.** W2 and W3 ran in parallel against W1's spec and met at
+  the definition and the log shape. The one place they did not compose — `Region` never produced in
+  its declared shape — was caught by W3's own pass. Unchanged.
+- **L2's definition (routing from a fixture log, no scheduler).** The adaptation table says it is
+  wrong if L2 needs a scheduler. W3's fake is 22 lines and W5's is 30. Unchanged.
+- **L5's definition (the join/failure matrix).** The table says it is wrong if the matrix is mostly
+  undefined cells. All eighteen were filled, hand-derived, and matched on first run. Unchanged.
+- **Section 8's budget.** *"Plan gate (L0-L6) < 90 s."* **Measured at 55 s** with five runtimes at
+  L0-L5 and two at L6. The budget holds with room, and it holds *because* L6 is Node and Deno rather
+  than three runtimes. Unchanged.
+- **Section 5 rules 1, 2, 4 and 5.** No counter-evidence in five items. Rule 5 earned itself late:
+  W5 wrote an overlap assertion, measured it varying run to run, and deleted it.
+
+### Named and not fixed
+
+**5. Every check in this repository is downstream of `doc/`, and `doc/` is checked by nothing.**
+Two occurrences, two items, opposite directions. **W1**: the three-runtime requirement was in no
+document — L0 checks the spec's self-consistency, pass 2 checks the artifact against the spec, and
+both ran clean on a `spec/` that did not know the library had to run on Deno. **W5**: `Q43` in
+`doc/open-questions.md` stated a reason that was false, and the item that acted on it paid for that
+in a new field and a new input. The pass-count error at the top of this retro is a third, milder
+instance.
+
+**No mechanism is proposed, deliberately.** The two that suggest themselves — *review `doc/`* and
+*extend pass 2 to the register* — are both prose guards, and W1's Record already measured what those
+are worth: a block-quote warning about reflexive reachability did not stop `FD-V19` making the same
+mistake one version later, because *"a prose guard is a reminder for whoever reads that paragraph; it
+is not a check."* Extending pass 2 would not have helped either: W5's reader **did** read Q43, and it
+took *acting on it* to find it false.
+
+So this is recorded as a structural property of the method rather than a defect with a fix:
+**`doc/` is the only layer with no check below it, and it is the layer every check trusts.** The next
+plan should treat a register row it is about to act on as unverified until it has been.
+
+### The adaptation table, judged
+
+P1 is its first run. One verdict per row.
+
+| Change | Verdict |
+|---|---|
+| Ladder rungs 1-5 rewritten | **Right, and its failure prediction was wrong in an instructive way.** It said the sign of trouble would be *"a defect class with no rung, found at L6 or by a human"*. Five classes have no rung — and **every one was found by pass 2**, not by L6 and not by a person. The rungs are sound; what the table mispredicted is who catches what falls between them |
+| **L5 is a join/failure matrix** | **Right.** Its stated failure mode — mostly-undefined cells — did not occur, and the matrix is what produced ADR 0003 and the finding that arrival-counting fails on the ordinary case |
+| **L2 is routing-from-a-fixture-log** | **Right, and the cheapest thing in the document.** Its stated failure mode — L2 needing a scheduler — did not occur in any of four items that used it |
+| Section 3's cross-repo id rule | **Unproven.** No cross-repo citation occurred in P1. Keep; nothing was learned |
+| Section 7 rule 3 names Q1/Q2/Q4 | **Right.** Fan-out was gated on the two ADRs and on P1 building both join policies, and W2/W3 composed |
+| No jsdom rule | n/a |
+
+**The adaptation the table does not list, and the one that mattered most: the runtime axis.** It was
+added to section 4 by W1 after the gap surfaced from outside every check, and it is what found
+`RT-R9` — a construct all four typecheckers accept and Node refuses to load. `RT-R1` read as ceremony
+and was not.
