@@ -113,6 +113,19 @@ id colliding (Q13), a `workerType` that is not a registered pool, or a driver li
 slow on a hot path. Do not skip it because 0-5 are green; every one of them is downstream of
 fixtures we wrote ourselves.
 
+**The ladder has a second dimension: the runtime.** This library targets **Deno, Node >= 24 and the
+browser from one source tree** (`spec/runtime-targets.md`), so a rung is not green until it is green
+where it is required to run:
+
+| Rungs | Where they run | Why |
+|---|---|---|
+| **L0-L5** | **all three** | pure logic over fixtures. Three cheap passes, and L0 in particular is the only thing that catches a `node:` import before a Deno consumer does (`RT-R3`, `RT-R4`) |
+| **L6** | **open — [Q33](open-questions.md)** | the only rung with real workers, and therefore the only one whose cost is per-runtime rather than per-pass |
+| **L7** | once | a person does not read the same trace three times |
+
+**A rung reported green without saying which runtimes it ran in is a rung that ran in one.** Section
+1 rule 4 applies to this axis exactly as it applies to skipped levels.
+
 **Levels 0-6 are the agent's job. Level 7 is where a person enters.** Never spend a person on
 something an L<=6 assertion could have caught. If a human finds a bug a machine check could have
 found, the fix is to **add the check**, not just fix the bug.
@@ -205,11 +218,16 @@ question; a quick edit to `spec/` to make a test pass.
 
 The loop has to be seconds or the discipline above stops being run.
 
-| | Target |
-|---|---|
-| Single test file (watch) | < 2 s |
-| Work-item gate (L0-L3) | < 15 s |
-| Plan gate (L0-L6) | < 90 s |
+| | Target | |
+|---|---|---|
+| Single test file (watch) | < 2 s | one runtime - whichever you are editing in |
+| Work-item gate (L0-L3) | < 15 s | **one runtime.** The other two run at the join |
+| Plan gate (L0-L6) | < 90 s | **L0-L5 in all three**, L6 per [Q33](open-questions.md) |
+
+**The three-runtime requirement lands on the plan gate, not on the edit loop**, and that split is
+deliberate: L0-L5 are pure logic over fixtures, so the second and third pass find configuration
+errors rather than logic errors, and configuration errors do not need to be caught in two seconds.
+Running all three on every keystroke is how a budget gets blown and then abandoned.
 
 A gate over budget gets a fast subset on every change and the full version at the join. A
 verification step nobody waits for is a verification step nobody runs.

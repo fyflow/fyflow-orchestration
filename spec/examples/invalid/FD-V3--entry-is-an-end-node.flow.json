@@ -1,0 +1,9 @@
+{
+  "flowId": "entry-is-end",
+  "version": 1,
+  "entry": "done",
+  "nodes": [
+    { "id": "score", "kind": "task", "workerType": "ScoreWorker", "edges": [ { "to": "done" } ] },
+    { "id": "done",  "kind": "end",  "outcome": "completed" }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "flowId": "dup-id",
+  "version": 1,
+  "entry": "score",
+  "nodes": [
+    { "id": "score", "kind": "task", "workerType": "ScoreWorker",  "edges": [ { "to": "done" } ] },
+    { "id": "score", "kind": "task", "workerType": "PublishWorker","edges": [ { "to": "done" } ] },
+    { "id": "done",  "kind": "end",  "outcome": "completed" }
+  ]
+}

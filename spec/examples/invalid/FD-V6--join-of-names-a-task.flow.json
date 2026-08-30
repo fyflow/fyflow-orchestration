@@ -1,0 +1,10 @@
+{
+  "flowId": "join-without-fanout",
+  "version": 1,
+  "entry": "ingest",
+  "nodes": [
+    { "id": "ingest",  "kind": "task", "workerType": "IngestWorker", "edges": [ { "to": "collect" } ] },
+    { "id": "collect", "kind": "join", "of": "ingest",               "edges": [ { "to": "done" } ] },
+    { "id": "done",    "kind": "end",  "outcome": "completed" }
+  ]
+}

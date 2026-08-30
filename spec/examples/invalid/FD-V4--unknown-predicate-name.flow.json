@@ -1,0 +1,13 @@
+{
+  "flowId": "unknown-predicate",
+  "version": 1,
+  "entry": "score",
+  "nodes": [
+    { "id": "score", "kind": "task", "workerType": "ScoreWorker", "edges": [
+        { "when": "isLowConfidenc", "to": "review" },
+        { "to": "done" }
+    ] },
+    { "id": "review", "kind": "end", "outcome": "needs-review" },
+    { "id": "done",   "kind": "end", "outcome": "completed" }
+  ]
+}

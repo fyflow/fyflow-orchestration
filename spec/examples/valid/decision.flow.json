@@ -1,0 +1,15 @@
+{
+  "flowId": "decision",
+  "version": 1,
+  "entry": "score",
+  "nodes": [
+    { "id": "score", "kind": "task", "workerType": "ScoreWorker", "edges": [
+        { "when": "isLowConfidence", "to": "review" },
+        { "to": "publish" }
+    ] },
+    { "id": "review",   "kind": "task", "workerType": "ReviewWorker",  "edges": [ { "to": "reviewed" } ] },
+    { "id": "publish",  "kind": "task", "workerType": "PublishWorker", "edges": [ { "to": "done" } ] },
+    { "id": "reviewed", "kind": "end",  "outcome": "needs-review" },
+    { "id": "done",     "kind": "end",  "outcome": "completed" }
+  ]
+}

@@ -1,12 +1,15 @@
 # P1 — What satisfies a join
 
-**Status:** planning
+**Status:** in progress - W1 at v0.3, W2-W5 not declared
 **Question this plan answers:** *When a decision inside a fan-out branch routes that branch away
 from its join, does expected-arrival counting actually break — and does live-token accounting
 actually survive it?*
 **Exit artifact:** the branch-routed-away case as an executable test, run against **both** join
 policies, plus one real fan-out flow completing on a real scheduler.
 **Reserves:** W1-W5, Q22-Q30, ADR 0003-0006
+**Q block exhausted:** W1 allocated Q22-Q30 in full (five of them raised by its own spec-conformity
+pass) **and then Q33-Q35**, from the three-runtime requirement. **W2-W5 reserve from Q36 onward.**
+ADR 0003 is still held for Q4; W1 took 0004; 0005-0006 are free.
 
 ---
 
@@ -59,6 +62,11 @@ Q5-Q7 are one question or several.
 - **An event family for `fyflow-react-components` (Q21).** Not before the shape of run state is
   settled by this plan.
 - **Performance at scale (Q19).** P1 measures a join at modest width to get a number, not to tune.
+- **Proving portability.** `spec/runtime-targets.md` binds every work item from now on — L0-L5 run in
+  all three runtimes — but **P1 exists to answer Q4, not to demonstrate that the layer runs in a
+  browser.** Whether W5's real run happens once or three times is [Q33](../open-questions.md),
+  answered at W5 rather than assumed here. The plan gate is budgeted at 90 s
+  (`doc/workflow.md` section 8) and a three-runtime L6 does not fit in it.
 
 ## Decisions taken before fan-out
 
@@ -70,6 +78,7 @@ Per `doc/workflow.md` section 7 rule 3 — decide, then fan out.
 | The graph is data; predicates are registered by name; an unknown name fails at instantiation | [ADR 0002](../decisions/0002-a-flow-definition-is-data-and-a-predicate-is-registered-by-name.md) |
 | The driver copies declared fields at the listener boundary; the outcome record is keyed on terminal state, not event name | [ADR 0007](../decisions/0007-the-driver-normalizes-events-into-an-immutable-outcome-record.md) — **binds W1 (the record shape), W2 (the fold) and W3 (the listener)** |
 | Run state is a fold of an ordered outcome log | `doc/concept.md` section 5. Still a leaning as far as Q14 is concerned — **W2 is what tests it** |
+| A non-success outcome routes only through an edge that opts in; `user_action` **suspends** and is resumed by a resolution record | [ADR 0004](../decisions/0004-a-non-success-outcome-routes-only-where-an-edge-opts-in-and-user-action-suspends.md) — raised by **W1's spec-conformity pass**, not by design. It is the only decision here taken *after* fan-out was cleared, and it was taken before W2 or W3 wrote a line |
 | Both join policies are built | This plan. They meet at one interface, which is W1's job to define |
 
 **Q4 itself is deliberately still open.** Building both is the method, and a work item that picks a
@@ -107,15 +116,25 @@ report a hang as a timeout.
 
 | Id | Item | Owns | Depends on | Gate |
 |---|---|---|---|---|
-| W1 | The definition spec + task id scheme + **the outcome-record shape** (ADR 0007) + the join-policy interface | `spec/**` | nothing | L0, spec review |
+| W1 | The definition spec + task id scheme + **the outcome-record shape** (ADR 0007) + the join-policy interface + **the runtime targets** | `spec/**`, `scripts/check-spec.mjs`, `.node-version` | nothing | L0, spec review — **L0 run three times, spec review run twice**. The first review produced [ADR 0004](../decisions/0004-a-non-success-outcome-routes-only-where-an-edge-opts-in-and-user-action-suspends.md); the second found the same defect class the first had, under a new id |
 | W2 | The fold: outcome log → run state, both policies behind W1's interface | `src/fold/**` | W1 | L0-L3 |
-| W3 | The driver: subscribe, normalize at the boundary, route, dispatch | `src/driver/**` | W1 | L0-L2 |
+| W3 | The driver: subscribe, normalize at the boundary, route, dispatch, **validate a definition at instantiation**, accept a resolution | `src/driver/**`, `src/definition/**` | W1 | L0-L2, **L4** |
 | W4 | The join/failure matrix — every Q5 outcome × both policies | `test/matrix/**` | W2 | L0-L5 |
-| W5 | One real fan-out flow on a real scheduler, **plus the every-node-settles assertion** (Q32) | `examples/**` | W2, W3 | L0-L6 |
+| W5 | One real fan-out flow on a real scheduler, **plus the every-node-settles assertion** (Q32) | `examples/**` | W2, W3 | L0-L6 — **L0-L5 in all three runtimes** (`RT-R1`); whether **L6** runs in all three is [Q33](../open-questions.md), and W5 is where it is answered |
 
-**W1 grew.** ADR 0007 makes the outcome record a normative shape rather than an internal type: it is
-what rule 1's "declared fields" means, and it is what lets a reviewer tell a compliant copy from a
-`{...e.detail}` spread that still aliases `payload`, `result` and `error`.
+**W1 grew, twice.** ADR 0007 made the outcome record a normative shape rather than an internal type:
+it is what rule 1's "declared fields" means, and it is what lets a reviewer tell a compliant copy
+from a `{...e.detail}` spread that still aliases `payload`, `result` and `error`. Then its own
+spec-conformity pass produced **[ADR 0004](../decisions/0004-a-non-success-outcome-routes-only-where-an-edge-opts-in-and-user-action-suspends.md)** —
+routing is opt-in per terminal state and `user_action` suspends — which added a **resolution record**
+to the log and two non-terminal region events to the join vocabulary.
+
+**W3 grew too, and the argument is ADR 0002's.** The definition validator had no owner: W2's gate is
+L0-L3 over `src/fold/**` and ladder **L4 was in nobody's**, leaving W1's twenty refusals and the
+whole example corpus ungated (`doc/workflow.md` section 1 rule 1). ADR 0002 rule 3 validates a
+definition *at instantiation*, and instantiation is a driver action — so W3 owns it. W3 also owns
+the inbound resolution API that ADR 0004 rule 5 creates, which is the only place anything outside
+this process can change a run.
 
 W2 and W3 run in parallel **because W1's spec separates them** — they meet at the definition and the
 outcome-log shape, never at each other's code (`doc/workflow.md` section 7 rule 1). W1 is serial and
@@ -128,12 +147,12 @@ Each has its own file under `doc/work-items/`. This table is an index, not the d
 | Q | | Owner |
 |---|---|---|
 | [Q4](../open-questions.md) | What satisfies a join — arrivals or live tokens. **The plan's whole question** | W4 |
-| [Q5](../open-questions.md) | What a join does when a branch fails / is `user_action` / is optional-null / is routed away. The matrix's rows | W4 |
+| [Q5](../open-questions.md) | What a join does when a branch fails / is `user_action` / is optional-null / is routed away. The matrix's rows. **Narrowed by ADR 0004: the four cases are three region events, and two of the four are the same scheduler outcome** — `optional`-null *is* `terminalState: 'failed'`. `user_action` is not a loss at all; the branch suspends and the join keeps waiting | W4 |
 | [Q7](../open-questions.md) | Whether a join can time out. P1 must at least **detect** a stuck join, or W4 cannot report a failure as anything but a hang | W4 |
-| [Q10](../open-questions.md) | What happens when no decision edge matches. Reachable in P1's own flow, so it needs an answer here | W1 |
-| [Q13](../open-questions.md) | The task id scheme. Fan-out forces it; a collision silently overwrites | W1 |
+| [Q10](../open-questions.md) | What happens when no decision edge matches. Reachable in P1's own flow, so it needs an answer here. **Answered** — `FD-V7` at instantiation, `FD-R1` as the assertion | ~~W1~~ **done** |
+| [Q13](../open-questions.md) | The task id scheme. Fan-out forces it; a collision silently overwrites. **Answered** — and the source says worse than "overwrites": both tasks run and two records land under one key | ~~W1~~ **done** |
 | [Q14](../open-questions.md) | Is run state a fold, and of whose log | W2 |
-| [Q17](../open-questions.md) | How `user_action` surfaces at flow level. It is a row in the matrix, so P1 cannot avoid it — and [ADR 0007](../decisions/0007-the-driver-normalizes-events-into-an-immutable-outcome-record.md) rule 2 has already answered the *detection* half | W4 |
+| [Q17](../open-questions.md) | How `user_action` surfaces at flow level. **Detection** was answered by [ADR 0007](../decisions/0007-the-driver-normalizes-events-into-an-immutable-outcome-record.md) rule 2 and the **mechanism** by ADR 0004 rules 3-6 — it suspends, and an external resolution record resumes it. What is left for W4 is what a join does while a branch is suspended, and for W2 what the run-level outcome is called (Q25) | W4 |
 | [Q32](../open-questions.md) | Telling a stuck join apart from a silently dropped task. **A threat to this plan's validity**, not a side question — see the section above | W5 |
 
 Q6, Q12, Q15, Q16, Q18-Q21 are **not** carried — see Scope/Out.

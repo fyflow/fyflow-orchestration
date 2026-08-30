@@ -1,0 +1,16 @@
+{
+  "flowId": "outside-edge-to-join",
+  "version": 1,
+  "entry": "ingest",
+  "nodes": [
+    { "id": "ingest",  "kind": "task",   "workerType": "IngestWorker", "edges": [
+        { "when": "isLowConfidence", "to": "collect" },
+        { "to": "split" }
+    ] },
+    { "id": "split",   "kind": "fanout", "branches": [ "scoreA", "scoreB" ] },
+    { "id": "scoreA",  "kind": "task",   "workerType": "ScoreWorker",  "edges": [ { "to": "collect" } ] },
+    { "id": "scoreB",  "kind": "task",   "workerType": "ScoreWorker",  "edges": [ { "to": "collect" } ] },
+    { "id": "collect", "kind": "join",   "of": "split",                "edges": [ { "to": "done" } ] },
+    { "id": "done",    "kind": "end",    "outcome": "completed" }
+  ]
+}

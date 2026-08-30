@@ -1,0 +1,22 @@
+{
+  "flowId": "fanout-failure",
+  "version": 1,
+  "entry": "ingest",
+  "nodes": [
+    { "id": "ingest",  "kind": "task",   "workerType": "IngestWorker", "edges": [ { "to": "split" } ] },
+    { "id": "split",   "kind": "fanout", "branches": [ "scoreA", "reviewB" ] },
+    { "id": "scoreA",  "kind": "task",   "workerType": "ScoreWorker", "optional": true, "edges": [
+        { "on": [ "failed" ], "to": "droppedA" },
+        { "to": "collect" }
+    ] },
+    { "id": "reviewB", "kind": "task",   "workerType": "ReviewWorker", "edges": [
+        { "on": [ "failed" ], "to": "droppedB" },
+        { "to": "collect" }
+    ] },
+    { "id": "droppedA", "kind": "end",   "outcome": "branch-dropped" },
+    { "id": "droppedB", "kind": "end",   "outcome": "branch-abandoned-by-human" },
+    { "id": "collect", "kind": "join",   "of": "split",                 "edges": [ { "to": "publish" } ] },
+    { "id": "publish", "kind": "task",   "workerType": "PublishWorker", "edges": [ { "to": "done" } ] },
+    { "id": "done",    "kind": "end",    "outcome": "completed" }
+  ]
+}

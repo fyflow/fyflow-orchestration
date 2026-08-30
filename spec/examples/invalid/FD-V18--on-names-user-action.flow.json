@@ -1,0 +1,13 @@
+{
+  "flowId": "on-user-action",
+  "version": 1,
+  "entry": "review",
+  "nodes": [
+    { "id": "review", "kind": "task", "workerType": "ReviewWorker", "edges": [
+        { "on": [ "user_action" ], "to": "manual" },
+        { "to": "done" }
+    ] },
+    { "id": "manual", "kind": "end", "outcome": "manual-review" },
+    { "id": "done",   "kind": "end", "outcome": "completed" }
+  ]
+}

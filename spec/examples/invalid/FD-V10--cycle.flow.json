@@ -1,0 +1,13 @@
+{
+  "flowId": "cycle",
+  "version": 1,
+  "entry": "score",
+  "nodes": [
+    { "id": "score", "kind": "task", "workerType": "ScoreWorker", "edges": [
+        { "when": "isLowConfidence", "to": "retry" },
+        { "to": "done" }
+    ] },
+    { "id": "retry", "kind": "task", "workerType": "ScoreWorker", "edges": [ { "to": "score" } ] },
+    { "id": "done",  "kind": "end",  "outcome": "completed" }
+  ]
+}

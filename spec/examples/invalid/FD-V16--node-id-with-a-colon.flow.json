@@ -1,0 +1,9 @@
+{
+  "flowId": "bad-charset",
+  "version": 1,
+  "entry": "score:v2",
+  "nodes": [
+    { "id": "score:v2", "kind": "task", "workerType": "ScoreWorker", "edges": [ { "to": "done" } ] },
+    { "id": "done",     "kind": "end",  "outcome": "completed" }
+  ]
+}

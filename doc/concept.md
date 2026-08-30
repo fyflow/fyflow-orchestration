@@ -17,6 +17,15 @@ onward based on what a worker returned. Routing can **fan out** into parallel br
 
 The scheduler runs tasks. This repo decides *which task runs next, and why*.
 
+**It runs wherever the scheduler runs: Deno, Node >= 24 and the browser, from one source tree,
+published to JSR and npm** ([spec/runtime-targets.md](../spec/runtime-targets.md)). That is
+inherited rather than chosen — a consumer who can run `fyflow-scheduler` in the browser and cannot
+run the layer above it has been handed a library that does not compose with the one it wraps. It is
+stated *here*, in the concept, because every check in this repo is downstream of these documents:
+L0 checks the spec against itself and the conformity pass checks the artifact against the spec, so
+**a delivery constraint that is written nowhere is invisible to both**. This one was, until
+2026-08-30.
+
 Superseded input: `../fyflow-scheduler/FLOW_PLANNING.md`. Read section 2 before trusting it - it is
 written against an API that does not exist.
 
@@ -181,10 +190,18 @@ evidence wearing the same confident prose.
 - **A visual flow editor.** Definitions are authored in code or a document.
 - **Controlling a run from a UI** (pause, cancel, retry a node). Read-only observation first - and
   [S2](scheduler-upstream.md) is missing anyway.
+  **One exception, added 2026-08-30 and deliberately narrow:
+  [ADR 0004](decisions/0004-a-non-success-outcome-routes-only-where-an-edge-opts-in-and-user-action-suspends.md)
+  rules 4-6 let an external actor *resolve a suspended `user_action` node*, because a run that stops
+  for a human and can never be restarted is not read-only observation - it is a dead run.** It is
+  not pause, not cancel and not retry: it supplies the outcome for a dispatch that already happened
+  ([Q28](open-questions.md)), and it arrives as an appended log record rather than as a mutation, so
+  section 5's invariant is untouched.
 - **Ingestion transports.** Kafka and friends from `FLOW_PLANNING.md` are a consumer of this
   library, not part of it.
-- **Supporting more than one `fyflow-scheduler` version.** We pin **0.2.1** (Q3), the same version
-  `fyflow-react-components` pins.
+- **Supporting more than one `fyflow-scheduler` version.** We pin **0.3.0** (Q3), landed 2026-08-30
+  and not yet on npm. `fyflow-react-components` still pins 0.2.1 and **needs the same bump** - the
+  two repos being on different versions is a coordination point, not a steady state.
 
 Things we want *from* `fyflow-scheduler` go in [scheduler-upstream.md](scheduler-upstream.md), never
 into a workaround comment.

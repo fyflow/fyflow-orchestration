@@ -1,0 +1,18 @@
+{
+  "flowId": "p1-routed-away",
+  "version": 1,
+  "entry": "ingest",
+  "nodes": [
+    { "id": "ingest",  "kind": "task",   "workerType": "IngestWorker", "edges": [ { "to": "split" } ] },
+    { "id": "split",   "kind": "fanout", "branches": [ "scoreA", "scoreB" ] },
+    { "id": "scoreA",  "kind": "task",   "workerType": "ScoreWorker",  "edges": [ { "to": "collect" } ] },
+    { "id": "scoreB",  "kind": "task",   "workerType": "ScoreWorker",  "edges": [
+        { "when": "isLowConfidence", "to": "abandoned" },
+        { "to": "collect" }
+    ] },
+    { "id": "abandoned", "kind": "end",  "outcome": "branch-abandoned" },
+    { "id": "collect", "kind": "join",   "of": "split",                 "edges": [ { "to": "publish" } ] },
+    { "id": "publish", "kind": "task",   "workerType": "PublishWorker", "edges": [ { "to": "done" } ] },
+    { "id": "done",    "kind": "end",    "outcome": "completed" }
+  ]
+}

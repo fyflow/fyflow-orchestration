@@ -1,0 +1,11 @@
+{
+  "flowId": "single-branch-fanout",
+  "version": 1,
+  "entry": "split",
+  "nodes": [
+    { "id": "split",   "kind": "fanout", "branches": [ "scoreA" ] },
+    { "id": "scoreA",  "kind": "task",   "workerType": "ScoreWorker", "edges": [ { "to": "collect" } ] },
+    { "id": "collect", "kind": "join",   "of": "split",               "edges": [ { "to": "done" } ] },
+    { "id": "done",    "kind": "end",    "outcome": "completed" }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "flowId": "no-default-edge",
+  "version": 1,
+  "entry": "score",
+  "nodes": [
+    { "id": "score", "kind": "task", "workerType": "ScoreWorker", "edges": [
+        { "when": "isLowConfidence", "to": "review" },
+        { "when": "isHighConfidence", "to": "publish" }
+    ] },
+    { "id": "review",  "kind": "end", "outcome": "needs-review" },
+    { "id": "publish", "kind": "end", "outcome": "completed" }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "flowId": "unknown-kind",
+  "version": 1,
+  "entry": "score",
+  "nodes": [
+    { "id": "score", "kind": "task", "workerType": "ScoreWorker", "edges": [ { "to": "pick" } ] },
+    { "id": "pick",  "kind": "decision", "edges": [
+        { "when": "isLowConfidence", "to": "review" },
+        { "to": "done" }
+    ] },
+    { "id": "review", "kind": "end", "outcome": "needs-review" },
+    { "id": "done",   "kind": "end", "outcome": "completed" }
+  ]
+}

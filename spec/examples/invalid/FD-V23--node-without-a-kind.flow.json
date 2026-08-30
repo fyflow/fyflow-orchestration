@@ -1,0 +1,9 @@
+{
+  "flowId": "missing-kind",
+  "version": 1,
+  "entry": "score",
+  "nodes": [
+    { "id": "score", "workerType": "ScoreWorker", "edges": [ { "to": "done" } ] },
+    { "id": "done",  "kind": "end", "outcome": "completed" }
+  ]
+}

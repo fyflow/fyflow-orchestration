@@ -1,0 +1,11 @@
+{
+  "flowId": "bad-optional-type",
+  "version": 1,
+  "entry": "extract",
+  "nodes": [
+    { "id": "extract", "kind": "task", "workerType": "ExtractWorker", "optional": "yes", "edges": [
+        { "to": "done" }
+    ] },
+    { "id": "done", "kind": "end", "outcome": "completed" }
+  ]
+}

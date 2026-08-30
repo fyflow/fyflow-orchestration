@@ -1,0 +1,9 @@
+{
+  "flowId": "end-with-edges",
+  "version": 1,
+  "entry": "score",
+  "nodes": [
+    { "id": "score", "kind": "task", "workerType": "ScoreWorker", "edges": [ { "to": "done" } ] },
+    { "id": "done",  "kind": "end",  "outcome": "completed",      "edges": [ { "to": "score" } ] }
+  ]
+}
