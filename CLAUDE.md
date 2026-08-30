@@ -10,7 +10,7 @@ flows with sequence, **decision** routing, **fan-out** and **join**, instantiate
 
 Full context: [doc/concept.md](doc/concept.md). Do not re-derive it — read it.
 
-## Current state: **P1 is complete, reviewed and retro'd; the repository is between plans**
+## Current state: **P1 is complete and retro'd; [P2](doc/plans/p2-the-non-success-half-on-a-real-scheduler.md) is open with W6 declared**
 
 [ADR 0001, 0002 and 0007](doc/decisions/) settle the architecture so far: **routing executes in the
 driver, outside the scheduler** — a worker computes and does not route, and `context.spawnTask()` is
@@ -25,8 +25,15 @@ normative documents and 71 numbered rules**; `src/` holds the definition validat
 the fold with **both** join policies; `test/matrix/` holds the join/failure matrix; `examples/` holds
 ladder **L6**. **288 assertions in five runtimes** — Node 24, Deno, chromium, firefox, webkit —
 identical in all of them, **plus 118 at L6 in Node and Deno**. **P1's retro is run and `doc/workflow.md`
-is v0.3** — four changes adopted, several findings deliberately left as findings. What happens next,
-in order: [doc/README.md](doc/README.md).
+is v0.3** — four changes adopted, several findings deliberately left as findings.
+
+**[P2](doc/plans/p2-the-non-success-half-on-a-real-scheduler.md) is the active plan and it adds no
+features.** Of `spec/run-state.md`'s six run outcomes, ladder L6 reaches `completed`, `failed` and
+`stuck`; it has never reached **`awaiting_action` or `stopped`**, and `branch.suspended` /
+`branch.resumed` have never occurred outside a fixture. P2 asks whether the non-success half behaves
+on a real scheduler the way the fixtures say — which matters because **every time this repository has
+run something real, a fixture turned out to be wrong.** What happens next, in order:
+[doc/README.md](doc/README.md).
 
 **Eleven reader-passes have run and not one came back empty** — W1 ×3, W3 ×3, W2 ×1, W4 ×2, W5 ×2,
 with blocking findings of 4, 5, 1 · 1, 1, 4 · 4 · 2, 2 · 3, 10. Most found the same shape: *the code

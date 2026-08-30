@@ -13,7 +13,12 @@ join's successor never dispatched. **288 assertions in five runtimes, plus 118 a
 Its central measurement, which should shape how the next plan reads that document: **of the eight
 defect classes P1 produced, five have no rung on the ladder at all — and every one of those five was
 found by the conformity pass.** Four changes adopted; several findings deliberately left as findings.
-**Nothing is planned next**; the repository is between plans.
+
+**[P2](plans/p2-the-non-success-half-on-a-real-scheduler.md) is open**, with
+[W6](work-items/w6-the-non-success-rows-at-l6.md) declared: *does the non-success half of a flow —
+a failure that **routes**, a human resolving a suspended branch, and a refusal that stops a run —
+behave on a real scheduler the way the fixtures say?* Of `spec/run-state.md`'s six outcomes, L6
+reaches three; **`awaiting_action` and `stopped` it has never reached at all.**
 
 **What W5 changed, beyond running the flow.** Three ADRs, and each came from a different kind of
 gap:
@@ -76,7 +81,7 @@ with five normative documents and answered [Q10](open-questions.md) and
 which became **[ADR 0004](decisions/0004-a-non-success-outcome-routes-only-where-an-edge-opts-in-and-user-action-suspends.md)**.
 **W3 built the driver and the validator**, and **W2 built the fold, both join policies and the
 sixth spec document** — answering [Q14](open-questions.md) and [Q25](open-questions.md).
-**29 questions remain open, 13 resolved.**
+**30 questions remain open, 13 resolved.**
 
 **What is decided:** routing executes in the driver, outside the scheduler (0001) · the flow
 definition is data and predicates are registered by name, failing at instantiation (0002) · **a
@@ -140,14 +145,18 @@ longer rests on our own reading. [S1](scheduler-upstream.md).
 1. **[S9](scheduler-upstream.md) is ready to raise**, and it is the only live item in that register.
    Two one-line changes with a measurement behind each: `import type` in
    `core/threadWrapper.ts:5`, and `AGENTS.md` §3's claim that a Node worker must be JavaScript.
-2. **P2, whenever it is written, starts from [Q24](open-questions.md)** — `JP-R7` and `JP-R8`, the
-   two one-line policy refinements ADR 0003 names as the first thing a reader should look at. The
-   other live candidates are [Q6](open-questions.md) (nested fan-out, scoped out of P1 and nearly
-   free under `live-token`) and [Q12](open-questions.md) (map-style fan-out, which is what makes the
-   count dynamic).
-3. **Read `doc/workflow.md` v0.3 before starting it**, and in particular the two things P1's retro
-   refused to turn into rules — those are the ones most likely to bite. **A register row you are
-   about to act on is unverified until you have.**
+2. **[W6](work-items/w6-the-non-success-rows-at-l6.md)** — P2's only declared item. Three L6 rows,
+   no new features, and **two facts were measured before it was declared**: the real `user_action`
+   event pair (which confirms [ADR 0007](decisions/0007-the-driver-normalizes-events-into-an-immutable-outcome-record.md)
+   rule 2 against behaviour for the first time) and [Q61](open-questions.md).
+3. **After P2, a feature plan starts from [Q24](open-questions.md)** — `JP-R7` and `JP-R8`, which
+   ADR 0003 names as the first thing a reader should look at. The other candidates are
+   [Q6](open-questions.md) (nested fan-out, nearly free under `live-token`) and
+   [Q12](open-questions.md) (map-style fan-out, which makes the count dynamic).
+4. **Read `doc/workflow.md` v0.3 first**, and in particular the two things P1's retro refused to
+   turn into rules — those are the ones most likely to bite. **A register row you are about to act
+   on is unverified until you have.** P2 is the first plan to run the amended document, and its
+   retro judges the four changes.
 4. **Five traps are live for whoever comes next.**
    - **`JP-R7` and `JP-R8`** ([Q24](open-questions.md)) — the two one-line policy refinements, and
      **the live question**. `test/matrix/variants.test.ts` runs both under their own ids. **W1 wrote
@@ -176,6 +185,7 @@ wins.
 | [workflow.md](workflow.md) | **Read before any work item.** The loop, the verification ladder, the test rules, how work is split. Inherited and unproven - its adaptations are listed at the end for the first retro to judge |
 | [decisions/](decisions/) | ADR 0001, 0002, 0007. They bind `spec/` rather than being superseded by it - 0007 in particular is what [outcome-record.md](../spec/outcome-record.md) makes checkable |
 | [plans/p1-...](plans/p1-what-satisfies-a-join.md) | **Complete**, pending W5’s conformity pass. Five work items, and its Record carries the exit artifact and five proposals for the retro |
+| [plans/p2-...](plans/p2-the-non-success-half-on-a-real-scheduler.md) | **The active plan.** One question, one work item, no new features: does the non-success half survive a real scheduler. Two facts measured before it was written, both of which changed it |
 | [open-questions.md](open-questions.md) | The register. **29 open, 13 resolved** - and **it is the one artifact here that is read as authoritative and checked by nothing**, which W5 found the hard way ([Q43](open-questions.md)) |
 | [scheduler-upstream.md](scheduler-upstream.md) | S1-S8, plus **the S-id map for reading `RESOURCE_EVENTS_PLAN.md`**, which uses `fyflow-react-components`' numbering. **Nothing here blocks us, and nothing is left to raise** |
 | [../spec/README.md](../spec/README.md) | **The normative layer.** Six documents, an example corpus, and the rules for changing it. Five written by W1, [run-state.md](../spec/run-state.md) by W2 |
@@ -226,3 +236,4 @@ Deliberate overlaps, which are coordination points rather than duplication:
 | P | Question it answered | Exit artifact | Date |
 |---|---|---|---|
 | [P1](plans/p1-what-satisfies-a-join.md) | **Yes — and worse than predicted.** Arrival-counting breaks on **six of nine** matrix rows, not on the one exotic case, and an ordinary `optional` failure is enough. Live tokens survive: [ADR 0003](decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md) | `test/matrix/matrix.test.ts` (18 hand-derived cells × 2 policies) and **`examples/l6.ts`** (6 real runs on a real scheduler, Node and Deno). The row that is the plan: `p1-routed-away` under `arrival-count` is **`stuck`**, with the join's successor never dispatched | 2026-08-30 |
+| [P2](plans/p2-the-non-success-half-on-a-real-scheduler.md) | *in progress* — does the non-success half behave on a real scheduler the way the fixtures say? | three more L6 rows, and `awaiting_action` and `stopped` reached on real workers for the first time | — |
