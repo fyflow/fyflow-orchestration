@@ -1,0 +1,45 @@
+{
+  "name": "fyflow-orchestration",
+  "version": "0.1.0",
+  "description": "Flow orchestration over fyflow-scheduler: sequence, decision, fan-out and join",
+  "type": "module",
+  "main": "./dist/node/index.js",
+  "browser": "./dist/browser/index.js",
+  "types": "./dist/types/index.d.ts",
+  "exports": {
+    ".": {
+      "node": {
+        "types": "./dist/types/index.d.ts",
+        "default": "./dist/node/index.js"
+      },
+      "browser": {
+        "types": "./dist/types/index.d.ts",
+        "default": "./dist/browser/index.js"
+      },
+      "types": "./dist/types/index.d.ts",
+      "default": "./dist/node/index.js"
+    }
+  },
+  "files": [
+    "dist/**/*",
+    "README.md"
+  ],
+  "scripts": {
+    "check:spec": "node scripts/check-spec.mjs",
+    "typecheck:node": "tsc -p tsconfig.node.json",
+    "typecheck:browser": "tsc -p tsconfig.browser.json",
+    "typecheck:deno": "deno check index.ts src/",
+    "typecheck": "npm run typecheck:node && npm run typecheck:browser && npm run typecheck:deno",
+    "test": "node test/runner.ts",
+    "test:deno": "deno run --allow-read test/runner.ts",
+    "gate": "npm run check:spec && npm run typecheck && npm run test && npm run test:deno"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^24.13.3",
+    "typescript": "^5.9.2"
+  }
+}

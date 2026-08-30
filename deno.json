@@ -1,0 +1,32 @@
+{
+  "name": "@fyflow/orchestration",
+  "version": "0.1.0",
+  "license": "MIT",
+  "exports": "./index.ts",
+  "publish": {
+    "exclude": [
+      "**",
+      "!index.ts",
+      "!src/definition/types.ts",
+      "!src/definition/regions.ts",
+      "!src/definition/validate.ts",
+      "!src/driver/ids.ts",
+      "!src/driver/log.ts",
+      "!src/driver/listener.ts",
+      "!src/driver/routing.ts",
+      "!src/driver/events.ts",
+      "!src/driver/driver.ts",
+      "!README.md"
+    ]
+  },
+  "compilerOptions": {
+    "lib": ["deno.ns", "dom", "dom.iterable", "esnext"],
+    "strict": true
+  },
+  "lint": { "rules": { "tags": ["recommended"], "exclude": ["no-explicit-any"] } },
+  "fmt": { "useTabs": false, "lineWidth": 100 },
+  "tasks": {
+    "check": "deno check index.ts src/",
+    "test": "deno run --allow-read test/runner.ts"
+  }
+}
