@@ -1,6 +1,7 @@
 # Workflow
 
-**Status:** v0.3 - **run to completion once**, by [P1](plans/p1-what-satisfies-a-join.md)
+**Status:** v0.4 - **run to completion twice**, by [P1](plans/p1-what-satisfies-a-join.md) and
+[P2](plans/p2-the-non-success-half-on-a-real-scheduler.md)
 **Read this before starting any work item.** Paths are relative to the repo root unless they are
 markdown links.
 
@@ -11,7 +12,18 @@ and all of it is in [P1's Record](plans/p1-what-satisfies-a-join.md), including 
 row of the adaptation table at the end of this file. That table stays, for the next plan to
 re-judge.
 
-**The retro's central measurement, because it should shape how the next plan reads this document:**
+**v0.4 is P2's retro, and it is a smaller edit than P1's because two of v0.3's four changes needed
+nothing.** The two-reader split is settled - four items, four overlap measurements, flat at about
+10% - and the `Outputs` table earned itself. The two that changed had both been *followed* and
+failed anyway, which section 6 pass 3 rule 3 calls the sharpest kind of finding: **rule 7's
+provocations are now checked in rather than run once** (a probe that ran once is a claim about the
+past), and **section 7 rule 2's declared-exceptions mechanism is replaced by a check**, after three
+consecutive items answered *"did you edit outside your `Owns`"* with *"yes, and I did not notice"*.
+**Rule 8 is new**, and it has the strongest evidence of any rule here: three items in a row shipped a
+fix for a review finding that could not fail. Full reasoning in
+[P2's Record](plans/p2-the-non-success-half-on-a-real-scheduler.md).
+
+**P1's central measurement, still the one that should shape how a plan reads this document:**
 of the eight defect classes P1 produced, **five have no rung on the ladder at all - and every one of
 those five was found by the conformity pass.** The ladder is good at what it covers; section 6 is
 carrying what it does not.
@@ -40,8 +52,8 @@ carrying what it does not.
                     3. retro - what the work taught, and what changes in the docs
                   |
                   v
-   record          fill in the work item's Record section, mark it done,
-                  then update the plan's Record and doc/README.md
+   record          fill in the work item's Record section, mark it done, then update
+                  the plan's Record, doc/README.md, CLAUDE.md and README.md
 ```
 
 Four rules that make the loop worth having:
@@ -57,6 +69,10 @@ Four rules that make the loop worth having:
 3. **A decision that is not in `spec/`, an ADR, or a plan did not happen.** Chat transcripts are
    not the record.
 4. **Say what you skipped.** A skipped check reported as passed makes the whole ladder worthless.
+5. **The record step's files are part of finishing an item, not exceptions to its `Owns`.** Those
+   four and no others: the plan's Record, `doc/README.md`, `CLAUDE.md`, `README.md`. **Anything else
+   outside `Owns` is declared** - and after W5, W6 and W9 each miscounted, it is checked rather than
+   declared alone (section 7 rule 2).
 
 ## 2. The unit of work
 
@@ -186,13 +202,40 @@ Rules:
    its join (Q4), a task ending in `user_action` (Q17), no decision edge matching (Q10), a
    duplicate task id (Q13), a nested fan-out (Q6) - each missing test is a hole with a citation,
    not a vague gap.
-7. **A new check is negative-tested at birth, and the Record names the provocation.** Rule 3 says an
+7. **A new check is negative-tested at birth, and the provocations are checked in.** Rule 3 says an
    assertion must be able to fail; this is how you know one can. Write the check, break the thing it
-   checks, watch it fail, put it back. **P1's evidence is one-sided:** every check provoked at birth
-   worked - `check-source.mjs`'s ten and `check-scheduler.mjs`'s five - and the one that was
-   hand-run once and written into a Record as though it were a gate, `RT-R4`'s grep, **did not exist
-   at all.** A check written to close a review finding needs this most: two of W5's failed their own
-   first negative test, one because it searched text it had already blanked.
+   checks, watch it fail, put it back - **and commit the breaking, so it can be re-run.** Three
+   requirements, each from a failure of the weaker form:
+   - **Checked in and runnable**, not run once by hand. W9 ran five probes in a scratch directory;
+     its adequacy reader then disabled the script's own machinery one piece at a time - `if (false)`
+     on two of its checks and on its final `process.exit(1)` - and **8 of 9 survived**. Made
+     re-runnable, the same five probes became twelve, and **seven of the holes were found by the
+     act of re-running them.** `scripts/check-docs-selftest.mjs` is the worked example.
+   - **Each probe asserts that it changed its input.** A probe whose edit matches nothing passes for
+     the wrong reason, which is the vacuity this whole rule exists to refuse.
+   - **A probe names which check refused it**, not merely that something exited non-zero. W6's
+     ten mutations included **one that was a syntax error rather than a mutation**; the harness read
+     only the exit code, so a parse failure was indistinguishable from a caught mutation, and it
+     became that Record's most confident false claim.
+
+   **P1's evidence for the rule was one-sided and remains so:** every check provoked at birth worked
+   - `check-source.mjs`'s ten and `check-scheduler.mjs`'s five - and the one hand-run once and
+   written into a Record as though it were a gate, `RT-R4`'s grep, **did not exist at all.** A check
+   written to close a review finding needs this most: two of W5's failed their own first negative
+   test, one because it searched text it had already blanked.
+
+8. **When you act on a review finding, break the fix and watch the gate go red.** Rule 7 for fixes
+   rather than for checks, and it exists because **three consecutive items shipped a repair that
+   could not fail**:
+   - W4 - the join's `null` payload could become `{}` and survive 251 assertions.
+   - W5 - the L6 gate's termination predicate replaced by `setTimeout(1)`, every assertion still
+     passing, because `scheduler.shutdown()` drained the run while the fold kept advancing.
+   - W9 - the reference's flagship snippet wrote three records for one settlement and stopped its
+     own run, while its assertion passed **because a refusal fired before the dispatch it counted**.
+
+   Each was correct work done in response to a finding, and none was *shown* to be correct. **No rung
+   of section 4 covers this**: L0-L6 all check the product, and nothing checks the repair. Record the
+   provocation beside the fix, the way rule 7 asks of a check.
 
 ## 6. Verify: the three passes
 
@@ -244,9 +287,17 @@ ran 148 and found 38.
 2. **If two CONCURRENT work items would edit the same file, they are one work item.** Merge cost
    exceeds the parallel saving every time. **A serial item pays none of that cost and the rule does
    not bind it** — it declares an **exceptions table** instead: every file it edits outside its
-   `Owns`, named, with the reason, before it starts. W4 took one exception and W5 took seven, and
-   both were right to. The table is not paperwork: **W5's conformity pass used it to find the one
-   file W5 had edited and not listed.**
+   `Owns` and outside section 1's record step, named, with the reason, before it starts. W4 took one
+   exception and W5 took seven, and both were right to.
+
+   **The declaration is checked, because three items running showed that declaring is not enough.**
+   W5 edited one file it had not listed; **W6 declared its table empty and had edited two**, found by
+   its conformity reader running `git show --stat`; and **W9 — the next item, with W6's warning
+   already written down — undercounted by six**, including a new file in nobody's `Owns` and an edit
+   into W6's `examples/l6.ts`. Three consecutive items answered *"did you edit outside your `Owns`"*
+   with *"yes, and I did not notice."* A rule read in full before every item, followed and failing
+   three times, is a mechanism problem: `git diff --name-only` against the `Owns` block is what
+   settles it, and until that check exists **run it by hand before filling in the Record.**
 3. **Fan out on execution, not on design.** Parallel agents given an under-specified goal produce
    designs that do not compose. Decide, then fan out. **Q1, Q2 and Q4 are the decisions this rule
    is about here** - fanning out before they land produces a driver, a definition format and a join
@@ -299,6 +350,21 @@ deleted now that it has been answered once.
 repository, and it is what found `RT-R9` - a construct all four typecheckers accept and Node refuses
 to load. `RT-R1` read as ceremony and was not.
 
-**And the adaptation P1 made to itself:** v0.3's four changes, above. The full retro, including the
+**And the adaptation P1 made to itself:** v0.3's four changes. The full retro, including the
 findings it refused to turn into rules and why, is in
 [P1's Record](plans/p1-what-satisfies-a-join.md).
+
+**What P2 did to those four**, in one table, so the next plan judges v0.4's changes the same way:
+
+| v0.3 change | What would show it was wrong | **P2's verdict** |
+|---|---|---|
+| TEMPLATE gains an **`Outputs`** table | every row reads "yes", making it a formality | **Right, for a reason P1 did not predict.** The load-bearing column is *"what would fail without it"*, not *Exists* - two of W6's rows could not answer it, and both were findings |
+| **Pass 2 is two readers** | the overlap rises, meaning one would have done | **Right, and settled - stop re-litigating.** W4 1/13, W5 3/~35, W6 3/~25, W9 3/~30: flat at ~10%, and it has not risen with practice |
+| **A new check is negative-tested at birth** | a check ships that cannot fail | **Right in aim, wrong in mechanism - amended (rule 7).** Followed twice, failed twice: a malformed probe indistinguishable from a caught one, and probes that were never committed |
+| **Section 7 rule 2's exceptions table** | an item's exception list is wrong | **Wrong as written - replaced by a check.** Three consecutive items miscounted, the third with the warning already in this file |
+
+**The one thing four plans have observed and no rule names:** `doc/` is upstream of every check here
+and is checked by nothing - a false register entry (Q43), an index claiming reader-passes were
+outstanding when they had run, a file header saying twelve at thirteen. P1's retro named it and
+refused to make a rule; **P2's retro did the same, and said why**: both candidate mechanisms are
+worse than the problem. It stays the thing most likely to bite next.

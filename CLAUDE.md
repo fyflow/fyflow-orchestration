@@ -15,7 +15,7 @@ the only document that does. **Every snippet in it is extracted and executed by 
 (`scripts/check-docs.mjs`), so it cannot rot the way a hand-maintained reference does. If you change
 the public surface, that check is what tells you the reference is now wrong.
 
-## Current state: **P1 is complete and retro'd; [P2](doc/plans/p2-the-non-success-half-on-a-real-scheduler.md) is open with W6 declared**
+## Current state: **P1 and P2 are complete and retro'd; [P3](doc/plans/p3-a-consumer-reference-the-gate-keeps-true.md) is the active plan**
 
 [ADR 0001, 0002 and 0007](doc/decisions/) settle the architecture so far: **routing executes in the
 driver, outside the scheduler** — a worker computes and does not route, and `context.spawnTask()` is
@@ -29,23 +29,38 @@ details are live mutable objects and `task.failed` also fires for `user_action` 
 normative documents and 71 numbered rules**; `src/` holds the definition validator, the driver and
 the fold with **both** join policies; `test/matrix/` holds the join/failure matrix; `examples/` holds
 ladder **L6**. **288 assertions in five runtimes** — Node 24, Deno, chromium, firefox, webkit —
-identical in all of them, **plus 219 at L6 in Node and Deno**. **P1's retro is run and `doc/workflow.md`
-is v0.3** — four changes adopted, several findings deliberately left as findings.
+identical in all of them, **plus 219 at L6 in Node and Deno**. **`doc/workflow.md` is v0.4**, run to
+completion by two plans.
 
-**[P2](doc/plans/p2-the-non-success-half-on-a-real-scheduler.md) is the active plan, it adds no
-features, and [W6](doc/work-items/w6-the-non-success-rows-at-l6.md) is built with both readers
-outstanding.** Ladder L6 is **twelve rows, 186 assertions**, in Node and Deno, and **all six run
-outcomes and all six region events now occur there** — `awaiting_action`, `stopped`,
-`branch.suspended` and `branch.resumed` for the first time. **Thirteen rows, 219 assertions**, after
-both readers. **Nothing in `src/` broke**, which is the
-weaker result P2 predicted when it measured `user_action` before the plan was written. What happens
-next, in order: [doc/README.md](doc/README.md).
+**[P2](doc/plans/p2-the-non-success-half-on-a-real-scheduler.md) is complete and added no features.**
+Ladder L6 is **thirteen rows, 219 assertions**, in Node and Deno, and **all six run outcomes and all
+six region events now occur there** — `awaiting_action`, `stopped`, `branch.suspended` and
+`branch.resumed` for the first time. **Nothing in `src/` broke**, which is the weaker result P2
+predicted when it measured `user_action` before the plan was written: **all nine of W6's findings
+were in the gate that was supposed to be checking `src/`.**
 
-**Eleven reader-passes have run and not one came back empty** — W1 ×3, W3 ×3, W2 ×1, W4 ×2, W5 ×2,
-with blocking findings of 4, 5, 1 · 1, 1, 4 · 4 · 2, 2 · 3, 10. Most found the same shape: *the code
-was correct and the tests were pointed at the wrong half.* **Budget for the pass; it is not a
-formality here, and section 6 now asks for two readers** — measured at 1 overlapping finding in 13
-and 3 in ~35.
+**The one behavioural surprise was not in the non-success half at all.** The join had **never once
+been fired from the `lost` or `exited` path** across twelve rows, because the arriving branch always
+settled last — so `settleJoin` could be deleted from both other paths and nothing noticed. That is
+P1's own case, and `spec/join-policy.md` section 4 exists for it. Fixed by **arranging** the causal
+order with per-role delays rather than hoping for it.
+
+**[P3](doc/plans/p3-a-consumer-reference-the-gate-keeps-true.md) is the active plan and
+[W9](doc/work-items/w9-the-consumer-reference-and-its-extractor.md) is done.**
+**[AGENTS.md](AGENTS.md) is the consumer reference** and `npm run gate` extracts, typechecks and
+executes its snippets. Its two readers measured the thing to know about it: **the gate covers about
+16% of the reference**, and the other 84% is prose that can be inverted with the gate green. The
+response was not to guard the prose but to **move the load-bearing claims into assertions** — 7 `run`
+snippets became 11, and the six-outcome precedence table, the `user_action` event pair and a double
+`resolve()` are now executed rather than asserted in a sentence. What happens next, in order:
+[doc/README.md](doc/README.md).
+
+**Fifteen reader-passes have run and not one came back empty** — W1 ×3, W3 ×3, W2 ×1, W4 ×2, W5 ×2,
+W6 ×2, W9 ×2. Most found the same shape: *the code was correct and the tests were pointed at the
+wrong half.* **Budget for the pass; it is not a formality here, and section 6 asks for two readers.**
+**That question is now settled and should not be re-litigated:** four items, four overlap
+measurements — W4 **1 in 13**, W5 **3 in ~35**, W6 **3 in ~25**, W9 **3 in ~30** — flat at about 10%,
+and it has not risen with practice.
 
 **W5 ran P1's case on a real scheduler and it behaves exactly as the matrix said.** `p1-routed-away`
 completes under `live-token` and is **`stuck`** under `arrival-count`, with the join's successor
@@ -149,8 +164,14 @@ that depends on fan-out completion order.
 
 ## How work is done
 
-**[doc/workflow.md](doc/workflow.md) — read it before starting any work item. It is v0.3, and P1's
-retro is the reason: it has now been run to completion once.** The short form:
+**[doc/workflow.md](doc/workflow.md) — read it before starting any work item. It is v0.4, run to
+completion by two plans.** **Rule 8 is the newest and has the strongest evidence of any rule in it:**
+*when you act on a review finding, break the fix and watch the gate go red* — because W4, W5 and W9
+each shipped a repair that could not fail, and **no rung of the ladder covers the repair.** The other
+two v0.4 changes replace mechanisms that were *followed* and failed anyway: a new check's
+provocations are now **checked in** rather than run once, and `Owns` is **checked** rather than
+declared, after three consecutive items answered *"did you edit outside it"* with *"yes, and I did
+not notice."* The short form:
 
 ```
 concept -> plan -> work items -> verify (ladder, spec conformity, retro) -> record
