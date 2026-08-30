@@ -1,6 +1,6 @@
 # W3 — The driver, the definition validator, and the toolchain the layer is built with
 
-**Status:** in review
+**Status:** in review — gate complete, second conformity pass outstanding
 **Plan:** [P1](../plans/p1-what-satisfies-a-join.md)
 
 ```
@@ -175,7 +175,7 @@ that does not name its runtimes ran in one (`doc/workflow.md` section 4).
 | L1 unit | **RAN** — pass | **Node 24, Deno** | the log, the listener boundary, ids. 20 assertions |
 | L2 routing | **RAN** — pass | **Node 24, Deno** | a fixture log in, an asserted node sequence out, **no scheduler**. 17 assertions |
 | L4 conformance | **RAN** — pass | **Node 24, Deno** | 6 valid flows clean, 23 invalid each rejected naming its own rule, `FD-V14` has no case, `p1-routed-away` still valid. 31 assertions |
-| **browser at L1/L2/L4** | **NOT RUN** | — | the suite typechecks under the browser config but has not been *executed* in a browser: that needs esbuild plus a Playwright harness, which is not built. **`RT-R1` is therefore satisfied for Node and Deno and NOT for the browser**, and this row is the honest form of that |
+| **browser at L1/L2/L4** | **RAN** — pass | **chromium, firefox, webkit** | 105 assertions in each, the *same suites*: `scripts/build-browser-tests.mjs` inlines the corpus and generates the entry from the same glob, `scripts/run-browser-tests.mjs` serves the ESM bundle from a loopback origin. **`RT-R1` is now satisfied for all three runtimes.** Two things bit: the corpus assignment had to move into a module imported first, because ES imports hoist above it and the suites loaded fixtures before it ran; and a module script will not execute from an opaque origin |
 | L0 source check | **RAN** — pass | n/a | `node scripts/check-source.mjs`, 5 checks, **each negative-tested**. This is `RT-R4`'s mandated grep, which W3 shipped without: the negative tests had been run by hand once and reported as a gate |
 | L0 lint | **RAN** — pass | n/a | `deno lint src/ test/ index.ts` |
 | spec-conformity | **RAN** — **1 blocking, 10 defects, 10 notes** | n/a | **85 mutations, 48 caught, 37 survived.** Four of the five mutations that would have mattered most were caught; `JP-R5`'s was not. Every finding acted on below |

@@ -2,7 +2,7 @@
 
 ## Current state
 
-**`spec/` exists and has been through three conformity passes, all acted on. Blocking findings ran
+**`spec/` exists and has been through three conformity passes, all acted on; W1 and W3 are built and their gates run in all three runtimes. Blocking findings ran
 4, then 5, then 1 — and the third pass reproduced the corpus verification independently rather than
 taking the author's word for it.** No `src/` yet.
 

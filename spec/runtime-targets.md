@@ -1,13 +1,14 @@
 # spec/runtime-targets — three runtimes, one source tree
 
-**Status:** v0.5 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.6 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2 acts on the second spec-conformity pass**,
 which found that v0.1's central claim — *a `node:` import is fatal to a Deno build* — is **false at
 Deno 2**, and that the `*.node.ts` mechanism it described does not exist in the form it described.
 **v0.3** acted on the third pass, which measured section 1's replacement claim and found *it* wrong
 too — in the opposite direction, and contradicted by `RT-R3` in the same document. **v0.4 adds
 `RT-R9`**, found by W3 the first time it ran its own tests: a construct `deno check` typechecks
-clean and Node cannot execute.
+clean and Node cannot execute. **v0.6 records the browser rung actually running,
+which makes `RT-R1` true for all three runtimes for the first time.**
 **Normative.** These rules constrain what the source may import and what a gate must run in.
 **Inherited, not chosen.** `fyflow-scheduler` runs on Deno, Node and the browser from one source
 tree and publishes to JSR and npm. **We are a layer over it, so its reach is our floor** — a
@@ -75,7 +76,7 @@ each of its five assertions was negative-tested.
 
 | id | | Test owed by |
 |---|---|---|
-| `RT-R1` | **A runtime is supported only if the gate runs in it.** Ladder **L0-L5** run in all three — they are pure logic over fixtures and cost three cheap passes rather than three expensive ones. **L6** is the exception and is [Q33](../doc/open-questions.md). A claim of support with no gate behind it is the thing `doc/workflow.md` section 1 rule 4 forbids | **every item that ships a gate** — W2, W3, W4 and W5 |
+| `RT-R1` | **A runtime is supported only if the gate runs in it.** Ladder **L0-L5** run in all three — they are pure logic over fixtures and cost three cheap passes rather than three expensive ones. **L6** is the exception and is [Q33](../doc/open-questions.md). A claim of support with no gate behind it is the thing `doc/workflow.md` section 1 rule 4 forbids. **Satisfied for all three since W3**: Node 24 and Deno execute the suites directly, and `scripts/build-browser-tests.mjs` + `scripts/run-browser-tests.mjs` run the *same* suites in chromium, firefox and webkit | **every item that ships a gate** — W2, W3, W4 and W5 |
 | `RT-R2` | **One source tree. No per-runtime fork, and no runtime branch in ordinary logic.** A `typeof Deno !== 'undefined'` test inside the fold or the driver is a defect: it makes run state depend on the host, which `doc/concept.md` section 5 does not allow. Where a difference is genuinely unavoidable, section 3 says how it is expressed | W2 and W3 |
 | `RT-R3` | **A published file typechecks under all three configurations** — Deno's `deno.json` `compilerOptions`, `tsconfig.node.json`, and `tsconfig.browser.json`. This is ladder L0, run three times. It catches a **browser** violation of `RT-R4` if and only if the browser config sets `types: []` and omits `deno.ns`; it does **not** catch a `node:` import on its own, and `RT-R4` is what does | W2 and W3 |
 
@@ -149,6 +150,40 @@ per-runtime implementation and `spec/outcome-record.md` section 4 would be a dif
 > `RT-R5` wants, to make `document` an error — reports **`TS2304: Cannot find name
 > 'structuredClone'`**. Measured. `@types/node` declares it globally, so `types: ["node"]` on that
 > config is what makes both rules hold at once: DOM stays out, `structuredClone` comes back.
+
+### How the browser rung actually runs, and the two things that made it awkward
+
+Recorded because the shape is not obvious and the next person to touch it will
+otherwise rediscover both.
+
+1. **A browser has no filesystem, and L4's fixtures are files.** The corpus is
+   inlined into the bundle rather than fetched, and `test/harness.ts` prefers the
+   inlined copy when it is present. **The suites are byte-identical in all three
+   runtimes** — only the fixture *source* differs, and that lives in tooling, which
+   `RT-R7` exempts. A suite that had to branch on its host would defeat the point
+   of running it three times.
+2. **The corpus must be set by a module imported first, not by a statement.** ES
+   module imports are hoisted, so an assignment written at the top of the entry
+   runs *after* every suite has already loaded its fixtures at module scope — and
+   the harness then falls through to its Node branch, in a browser. This failed
+   exactly that way once. The generated entry imports a generated corpus module
+   before anything else.
+
+The bundle is **ESM rather than IIFE** (the suites use top-level await), and a
+module script does not execute from `about:blank` or a `data:` URL — both are
+opaque origins. So the runner serves it from a loopback HTTP server on an
+ephemeral port and shuts it down after. No dev-server dependency, no configured
+port, nothing to collide.
+
+**The entry is generated from the same glob the Node and Deno runner uses**, never
+maintained by hand — a bundle cannot dynamically import a local path, and a
+hand-listed entry would be exactly the shared mutable list W3's declaration
+forbids.
+
+**One external, and it is the evidence.** `esbuild` is given `external: ['node:fs']`
+for the harness's Node branch, which the browser branch short-circuits before
+reaching. That this is the **only** external is the check: no published module and
+no suite reaches for a Node builtin, or the bundle would not build.
 
 ## 5. Release
 

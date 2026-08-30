@@ -317,7 +317,7 @@ suite('the dispatched task carries what the definition declared', (test) => {
 });
 
 suite('ID-R2 — the charset is enforced at run creation, not just in the helper', (test) => {
-  test('Driver.start refuses a malformed runId before ANY side effect', async () => {
+  test('Driver.start refuses a malformed runId before ANY side effect', () => {
     // The earlier test called assertRunId directly, which proves the regex works
     // rather than that the driver applies it. Removing the call from start() then
     // survived, because buildTaskId re-checks — so the charset is still enforced,

@@ -79,12 +79,34 @@ export function deepEqual(a: unknown, b: unknown): boolean {
   return true;
 }
 
-// --- cross-runtime file access, for the L4 corpus fixtures --------------------
+// --- cross-runtime fixture access, for the L4 corpus --------------------------
+// Three runtimes, three ways to reach a file, and the browser has no files at all.
+// `scripts/build-browser-tests.mjs` inlines the corpus into the bundle and sets
+// `__FYFLOW_CORPUS__`; when it is present it wins, so the suites themselves are
+// identical in all three. Tooling, so `RT-R7` exempts the branch — but note the
+// SUITES stay branch-free, which is what `RT-R1` is actually asking for.
 declare const Deno: { readDirSync?: unknown; readTextFileSync?: (p: string) => string } | undefined;
 
 const isDeno = typeof (globalThis as Record<string, unknown>).Deno !== 'undefined';
 
+/** path (posix, relative to the repo root) -> contents. Set only in a browser bundle. */
+type Corpus = Record<string, string>;
+const corpus = (): Corpus | undefined =>
+  (globalThis as Record<string, unknown>).__FYFLOW_CORPUS__ as Corpus | undefined;
+
+const norm = (p: string) => p.split('\\').join('/').replace('/__repo__/', '');
+
 export async function listDir(dir: string): Promise<string[]> {
+  const c = corpus();
+  if (c) {
+    const prefix = norm(dir).replace(/\/$/, '') + '/';
+    const names = new Set<string>();
+    for (const key of Object.keys(c)) {
+      if (!key.startsWith(prefix)) continue;
+      names.add(key.slice(prefix.length).split('/')[0]!);
+    }
+    return [...names].sort();
+  }
   if (isDeno) {
     const D = (globalThis as unknown as { Deno: { readDirSync: (p: string) => Iterable<{ name: string; isFile: boolean; isDirectory: boolean }> } }).Deno;
     return [...D.readDirSync(dir)].map((e) => e.name).sort();
@@ -94,6 +116,11 @@ export async function listDir(dir: string): Promise<string[]> {
 }
 
 export async function isDir(path: string): Promise<boolean> {
+  const c = corpus();
+  if (c) {
+    const p = norm(path).replace(/\/$/, '');
+    return Object.keys(c).some((k) => k.startsWith(p + '/'));
+  }
   if (isDeno) {
     const D = (globalThis as unknown as { Deno: { statSync: (p: string) => { isDirectory: boolean } } }).Deno;
     try { return D.statSync(path).isDirectory; } catch { return false; }
@@ -103,6 +130,13 @@ export async function isDir(path: string): Promise<boolean> {
 }
 
 export async function readText(path: string): Promise<string> {
+  const c = corpus();
+  if (c) {
+    const key = norm(path);
+    const found = c[key];
+    if (found === undefined) throw new Error(`fixture not inlined in the browser bundle: ${key}`);
+    return found;
+  }
   if (isDeno) {
     const D = (globalThis as unknown as { Deno: { readTextFileSync: (p: string) => string } }).Deno;
     return D.readTextFileSync(path);
@@ -111,5 +145,11 @@ export async function readText(path: string): Promise<string> {
   return readFileSync(path, 'utf8');
 }
 
-/** Repository root, derived from this file's location so the runner works from any cwd. */
-export const ROOT = new URL('..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
+/**
+ * Repository root, derived from this file's location so the runner works from any
+ * cwd. In a browser bundle `import.meta.url` is meaningless, so it degrades to a
+ * marker the corpus lookup strips.
+ */
+export const ROOT = corpus()
+  ? '/__repo__/'
+  : new URL('..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
