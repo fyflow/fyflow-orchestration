@@ -21,7 +21,7 @@ in [W1's record](../doc/work-items/w1-the-normative-layer.md).
 | [flow-definition.md](flow-definition.md) | node kinds, edges, which outcomes route, how fan-out and join are paired, and 23 refusals. Answers [Q10](../doc/open-questions.md) | **v0.5** |
 | [task-id.md](task-id.md) | how `(run, node, branch path, attempt)` becomes a scheduler task id, and why a collision is a refusal rather than an overwrite. Answers [Q13](../doc/open-questions.md) | **v0.2** |
 | [outcome-record.md](outcome-record.md) | the log: the eleven fields written when a task settles — what [ADR 0007](../doc/decisions/0007-the-driver-normalizes-events-into-an-immutable-outcome-record.md) rule 1's *"declared fields"* means — the **resolution record** that resumes a suspended node ([ADR 0004](../doc/decisions/0004-a-non-success-outcome-routes-only-where-an-edge-opts-in-and-user-action-suspends.md) rule 6), and the **effective outcome** that routing reads instead of the log | **v0.4** |
-| [join-policy.md](join-policy.md) | the interface both join policies sit behind, and the region event vocabulary. **Not** which policy wins — that is W4 and ADR 0003 | **v0.5** |
+| [join-policy.md](join-policy.md) | the interface both join policies sit behind, and the region event vocabulary. **Not** which policy wins — that is W4 and ADR 0003 | **v0.6** |
 | [runtime-targets.md](runtime-targets.md) | the three runtimes the source must run in, what it may import, and what a gate must run in. Inherited from `fyflow-scheduler`, not chosen | **v0.6** |
 | **Run state** | what a run holds, what a join is waiting on, and the terminal outcomes - which are more than `done` and `failed` (Q17) | **not written — W2** |
 
@@ -44,7 +44,7 @@ node scripts/check-spec.mjs
 
 Ladder **L0** for a document-only work item, redefined from *typecheck, lint, format* because there
 is no code here to compile — the reasoning is in
-[W1's declaration](../doc/work-items/w1-the-normative-layer.md). Seven checks: examples parse, rule
+[W1's declaration](../doc/work-items/w1-the-normative-layer.md). Eight checks: examples parse, rule
 ids are declared exactly once, every invalid example names a real rule, every definition refusal has
 at least one case, every intra-spec link resolves, every rule no example can express names the item
 owing its test, the valid corpus resolves against `examples/registry.json`, and this README's

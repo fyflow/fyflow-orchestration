@@ -13,7 +13,8 @@
  */
 import { equal, ok, suite, throws } from '../harness.ts';
 import { readText, ROOT } from '../harness.ts';
-import { Driver, DuplicateTaskId, InvalidDefinition } from '../../src/driver/driver.ts';
+import { Driver, DuplicateTaskId, InvalidDefinition, MissingJoinPolicy } from '../../src/driver/driver.ts';
+import type { JoinPolicy, Region } from '../../src/driver/policy.ts';
 import type { RegionEvent } from '../../src/driver/events.ts';
 import type { FlowDefinition } from '../../src/definition/types.ts';
 import { selectEdge, type Predicate } from '../../src/driver/routing.ts';
@@ -46,9 +47,30 @@ class FakeScheduler {
   }
 }
 
-function harness(def: FlowDefinition, predicates: Record<string, Predicate> = {}) {
+/**
+ * A STUB policy, and deliberately a naive one: `N` from the declared branch count,
+ * satisfied on `N` arrivals, never `unsatisfiable`. It exists to exercise W3's
+ * SEAM, not to be a policy — both real ones are W2's (`JP-R7`, `JP-R8`) and which
+ * is right is W4's question. **W3 ships no policy**, and this one lives in the
+ * test tree so it cannot be mistaken for one.
+ */
+interface StubState { need: number; seen: number }
+const stubPolicy: JoinPolicy<StubState> = {
+  id: 'stub-arrival',
+  open: (r: Region) => ({ need: r.branches.length, seen: 0 }),
+  step: (st, e) => (e.type === 'branch.arrived' ? { ...st, seen: st.seen + 1 } : st),
+  status: (st) => (st.seen >= st.need ? 'satisfied' : 'waiting'),
+  describe: (st) => ({ need: st.need, seen: st.seen }),
+};
+
+function harness(
+  def: FlowDefinition,
+  predicates: Record<string, Predicate> = {},
+  over: { joinPolicy?: JoinPolicy<never> } = {},
+) {
   const scheduler = new FakeScheduler();
   const events: RegionEvent[] = [];
+  const unsatisfiable: unknown[] = [];
   let clock = 1000;
   const driver = new Driver(def, {
     scheduler,
@@ -57,8 +79,10 @@ function harness(def: FlowDefinition, predicates: Record<string, Predicate> = {}
     workerTypes: reg.workerTypes,
     now: () => ++clock,
     onRegionEvent: (e) => events.push(e),
+    joinPolicy: (over.joinPolicy ?? stubPolicy) as unknown as JoinPolicy,
+    onUnsatisfiableJoin: (i) => unsatisfiable.push(i),
   });
-  return { scheduler, driver, events, ids: () => scheduler.added.map((t) => t.id) };
+  return { scheduler, driver, events, unsatisfiable, ids: () => scheduler.added.map((t) => t.id) };
 }
 
 const alwaysFalse: Predicate = () => false;
@@ -275,6 +299,122 @@ suite('JP-R5 — branch.lost and branch.resumed, which nothing drove before', (t
       ['branch.arrived', 'branch.exited', 'branch.lost'].includes(e.type));
     equal(terminals.length, 1, 'exactly one terminal event, after the resume');
     equal(h.events.at(-1)!.type, 'branch.arrived', 'and it comes last for that branch');
+  });
+});
+
+suite('the join seam — the driver asks a policy and acts on the answer', (test) => {
+  test('a satisfied join routes out through its single edge', async () => {
+    // Before this seam existed the driver emitted `branch.arrived` for every
+    // branch and then stopped: the join could never fire, and the run looked
+    // exactly like the hang P1 exists to attribute to a policy.
+    const h = harness(await load('valid/fanout-join.flow.json'));
+    h.driver.start('r1', {});
+    h.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
+    h.scheduler.settle('r1:scoreA:0:0', 'done', { result: {} });
+    equal(h.ids().includes('r1:publish:-:0'), false, 'one arrival is not two — the join waits');
+    h.scheduler.settle('r1:scoreB:1:0', 'done', { result: {} });
+    equal(h.ids().at(-1), 'r1:publish:-:0', 'the second arrival satisfies it and the join routes');
+  });
+
+  test('a join fires at most once', async () => {
+    const always = {
+      id: 'always', open: () => null, step: (st: null) => st,
+      status: () => 'satisfied' as const, describe: () => null,
+    };
+    const h = harness(await load('valid/fanout-join.flow.json'), {}, { joinPolicy: always as never });
+    h.driver.start('r1', {});
+    h.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
+    h.scheduler.settle('r1:scoreA:0:0', 'done', { result: {} });
+    h.scheduler.settle('r1:scoreB:1:0', 'done', { result: {} });
+    equal(h.ids().filter((i) => i === 'r1:publish:-:0').length, 1,
+      'a policy satisfied from its first event must still dispatch the join exactly once');
+  });
+
+  test('the policy is opened before the first branch.opened, and sees every event', async () => {
+    const seen: string[] = [];
+    const recorder = {
+      id: 'recorder', open: () => { seen.push('open'); return null; },
+      step: (st: null, e: { type: string }) => { seen.push(e.type); return st; },
+      status: () => 'waiting' as const, describe: () => null,
+    };
+    const h = harness(await load('valid/p1-routed-away.flow.json'), { isLowConfidence: alwaysTrue },
+      { joinPolicy: recorder as never });
+    h.driver.start('r1', {});
+    h.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
+    h.scheduler.settle('r1:scoreA:0:0', 'done', { result: {} });
+    h.scheduler.settle('r1:scoreB:1:0', 'done', { result: { c: 0.1 } });
+    equal(seen, ['open', 'branch.opened', 'branch.opened', 'branch.arrived', 'branch.exited'],
+      'JP-R4: the vocabulary is sized for the richer policy, so the driver forwards all six and ' +
+      "lets a policy ignore what it does not need — one that never saw branch.exited could not " +
+      "survive P1's case");
+  });
+
+  test('an unsatisfiable join is reported, and the driver invents no run outcome', async () => {
+    const dead = {
+      id: 'dead', open: () => null, step: (st: null) => st,
+      status: () => 'unsatisfiable' as const, describe: () => ({ why: 'test' }),
+    };
+    const h = harness(await load('valid/fanout-join.flow.json'), {}, { joinPolicy: dead as never });
+    h.driver.start('r1', {});
+    h.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
+    h.scheduler.settle('r1:scoreA:0:0', 'done', { result: {} });
+    equal(h.unsatisfiable.length, 1, 'the driver reports it');
+    equal(h.unsatisfiable[0],
+      { fanoutId: 'split', joinId: 'collect', describe: { why: 'test' }, policyId: 'dead' },
+      "and carries the policy's own account — the run-level outcome is W2's (Q25), not this file's");
+    equal(h.ids().includes('r1:publish:-:0'), false, 'and does not route out of the join');
+  });
+
+  test('a fan-out definition with no policy is refused at construction', async () => {
+    const def = await load('valid/fanout-join.flow.json');
+    throws(
+      () => new Driver(def, {
+        scheduler: new FakeScheduler(), createTask: (c) => c,
+        predicates: new Map(), workerTypes: reg.workerTypes,
+      }),
+      'MissingJoinPolicy',
+      'a driver with a fan-out and no policy produces a run that stops with no error — a SECOND ' +
+        'cause behind the observation P1 turns on, so it is refused up front',
+    );
+    ok(new MissingJoinPolicy('x') instanceof Error, 'MissingJoinPolicy is an Error');
+  });
+
+  test('a flow with no fan-out needs no policy', async () => {
+    const def = await load('valid/linear.flow.json');
+    const d = new Driver(def, {
+      scheduler: new FakeScheduler(), createTask: (c) => c,
+      predicates: new Map(), workerTypes: reg.workerTypes,
+    });
+    ok(d instanceof Driver, 'the refusal is scoped to definitions that actually have a region');
+  });
+
+  test('regionsForPolicies returns the shape spec/join-policy.md section 1 fixes', async () => {
+    const h = harness(await load('valid/p1-routed-away.flow.json'), { isLowConfidence: alwaysTrue });
+    equal(h.driver.regionsForPolicies(), [{
+      fanoutId: 'split', joinId: 'collect',
+      branches: ['scoreA', 'scoreB'],
+      members: ['abandoned', 'scoreA', 'scoreB'],
+    }], 'four fields only, branches in declaration order, members SORTED so the value is stable ' +
+        'across folds. branchOf and after are the validator\u2019s working set and are not handed over');
+  });
+});
+
+suite("P1's case is now mechanically observable, which is what the plan needs", (test) => {
+  test('naive arrival-counting leaves the join waiting, and can say why', async () => {
+    // P1's exit artifact, reachable at ladder L2 with no scheduler. The stub is
+    // the naive arrival counter Q4 describes; the point is that the hang is a
+    // REPORTABLE state rather than silence.
+    const h = harness(await load('valid/p1-routed-away.flow.json'), { isLowConfidence: alwaysTrue });
+    h.driver.start('r1', {});
+    h.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
+    h.scheduler.settle('r1:scoreA:0:0', 'done', { result: {} });
+    h.scheduler.settle('r1:scoreB:1:0', 'done', { result: { c: 0.1 } });
+
+    equal(h.ids().includes('r1:publish:-:0'), false,
+      'the join never fires — one branch legitimately left the region');
+    equal(h.driver.joinStatusOf('split'), { status: 'waiting', describe: { need: 2, seen: 1 } },
+      'and the driver can say what it is waiting for, which is the whole of Q7 detection today ' +
+      '(spec/join-policy.md section 4) — neither pinned policy ever returns unsatisfiable');
   });
 });
 

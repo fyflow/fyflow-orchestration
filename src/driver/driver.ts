@@ -13,13 +13,14 @@
  * spec rather than a thing to build.
  */
 import type { FlowDefinition, FlowNode, Registry, TerminalState } from '../definition/types.ts';
-import { allRegions, buildGraph, type Graph, type RegionSets } from '../definition/regions.ts';
+import { allRegions, buildGraph, toRegion, type Graph, type RegionSets } from '../definition/regions.ts';
 import { validateDefinition, violatedRules } from '../definition/validate.ts';
 import { assertRunId, buildTaskId, parseTaskId } from './ids.ts';
 import { effectiveOutcome, isSuspended, type LogRecord, type OutcomeRecord } from './log.ts';
 import { normalizeEvent, type TaskDetailLike } from './listener.ts';
 import { selectEdge, type PredicateRegistry } from './routing.ts';
 import type { RegionEvent } from './events.ts';
+import type { JoinPolicy, Region, UnsatisfiableJoin } from './policy.ts';
 
 export class InvalidDefinition extends Error {
   /**
@@ -40,6 +41,31 @@ export class InvalidDefinition extends Error {
 }
 export class DuplicateTaskId extends Error {}
 
+/**
+ * A record copy that does not alias `result`. Ten of the eleven outcome fields
+ * are primitives; `result` is the one that is not, which is
+ * `spec/outcome-record.md` section 4's argument applied to the way OUT.
+ * `Object.freeze` is shallow and a spread aliases `result`, so neither is enough
+ * on its own.
+ */
+function cloneRecord<T extends { result?: unknown }>(r: T): T {
+  return r.result === null || r.result === undefined
+    ? { ...r }
+    : { ...r, result: structuredClone(r.result) };
+}
+
+/**
+ * A definition with a fan-out was instantiated without a join policy.
+ *
+ * Refused at construction rather than at the join, because the alternative is a
+ * run that dispatches every branch, sees every one arrive, and then stops — with
+ * no error and nothing queued. **That is the signature P1 exists to attribute to
+ * a join policy** (`doc/plans/p1-what-satisfies-a-join.md`), and shipping a driver
+ * that produces it for a *configuration* mistake would put a second cause behind
+ * the observation the whole plan turns on.
+ */
+export class MissingJoinPolicy extends Error {}
+
 /** What the driver needs from a scheduler. Structural, so W3 is testable without one. */
 export interface SchedulerLike {
   addTask(task: unknown, options?: { createPromise?: boolean }): unknown;
@@ -59,6 +85,19 @@ export interface DriverOptions {
   createTask: TaskFactory;
   predicates: PredicateRegistry;
   workerTypes: Iterable<string>;
+  /**
+   * Required when the definition contains a fan-out. **W3 ships none** — both
+   * policies are W2's and which is right is W4's question (`JP-R7`, `JP-R8`), so
+   * a driver that decided satisfaction itself would answer Q4 from inside W3.
+   */
+  joinPolicy?: JoinPolicy;
+  /**
+   * Called when a policy reports a join can never fire. **The driver does not
+   * invent a run-level outcome** — that vocabulary is run state's
+   * ([Q25](../../doc/open-questions.md)) and neither pinned policy returns
+   * `unsatisfiable` at all, which is itself Q7's finding rather than a gap.
+   */
+  onUnsatisfiableJoin?: (info: UnsatisfiableJoin) => void;
   /** Injected so the fold stays deterministic under test and `observedAt` is not a hidden global. */
   now?: () => number;
   onRegionEvent?: (e: RegionEvent) => void;
@@ -80,6 +119,10 @@ export class Driver {
   private readonly now: () => number;
   private readonly opts: DriverOptions;
   private readonly def: FlowDefinition;
+  /** Per fanout id: the policy's opaque state. Opened when the fanout is entered. */
+  private readonly joinState = new Map<string, unknown>();
+  /** A join fires at most once, however many terminal events follow it. */
+  private readonly firedJoins = new Set<string>();
 
   /**
    * Validates the definition IN FULL before anything is queued (ADR 0002 rule 3),
@@ -104,6 +147,15 @@ export class Driver {
     this.now = opts.now ?? (() => Date.now());
     this.graph = buildGraph(definition);
     this.regions = allRegions(this.graph, definition);
+
+    if (this.regions.length > 0 && !opts.joinPolicy) {
+      throw new MissingJoinPolicy(
+        `MissingJoinPolicy: definition "${definition.flowId}" has ${this.regions.length} ` +
+          `fan-out region(s) and no joinPolicy. ` +
+          'Without one every branch would arrive and the join would never fire, which is ' +
+          'indistinguishable from the case P1 exists to measure.',
+      );
+    }
 
     for (const name of SETTLEMENT_EVENTS) {
       // ADR 0007 rule 1: the normalization happens HERE, synchronously, while the
@@ -186,6 +238,7 @@ export class Driver {
       const region = this.regionOf(nodeId);
       if (region) {
         this.emit({ type: 'branch.lost', regionId: region.fanoutId, branchPath, reason: 'failed' });
+        this.settleJoin(runId, region, outcome.result);
       }
       return;
     }
@@ -212,6 +265,12 @@ export class Driver {
         // without it a live-token policy can see the count reach zero while a
         // branch is still running, and W4 would read that as a property of the
         // policy rather than of this loop.
+        // The policy is opened BEFORE the first `branch.opened`, so `emit` has
+        // state to step. `JP-R5`'s ordering rule and this are the same constraint
+        // seen from two sides.
+        if (this.opts.joinPolicy) {
+          this.joinState.set(region.fanoutId, this.opts.joinPolicy.open(toRegion(region) as Region));
+        }
         region.branches.forEach((_b, i) => {
           this.emit({ type: 'branch.opened', regionId: region.fanoutId, branchPath: String(i) });
         });
@@ -220,10 +279,14 @@ export class Driver {
       }
 
       case 'join': {
-        // The driver reports arrival. Whether the join is SATISFIED is a policy's
-        // answer (W2) and which policy is right is W4's — deliberately not decided here.
+        // The driver reports arrival and then ASKS. Whether the join is satisfied
+        // is a policy's answer (W2) and which policy is right is W4's; what the
+        // driver does with the answer is this file's (`spec/join-policy.md`
+        // section 4's owner table).
         const region = this.regions.find((r) => r.joinId === nodeId);
-        if (region) this.emit({ type: 'branch.arrived', regionId: region.fanoutId, branchPath: fromBranch });
+        if (!region) return;
+        this.emit({ type: 'branch.arrived', regionId: region.fanoutId, branchPath: fromBranch });
+        this.settleJoin(runId, region, payload);
         return;
       }
 
@@ -233,6 +296,7 @@ export class Driver {
           // NOT "left the region" — the `end` is inside region(F). The condition is
           // "reached a node of kind `end`", which is local and computable.
           this.emit({ type: 'branch.exited', regionId: region.fanoutId, branchPath: fromBranch, at: nodeId });
+          this.settleJoin(runId, region, payload);
         }
         return;
       }
@@ -271,8 +335,54 @@ export class Driver {
     return this.regions.find((r) => r.members.has(nodeId));
   }
 
+  /**
+   * Every region event goes to the policy and to the observer, in that order.
+   * A policy that never saw `branch.exited` could not survive P1's case, and
+   * `JP-R4` says the vocabulary is sized for the richer policy — so the driver
+   * forwards all six and lets a policy ignore what it does not need.
+   */
   private emit(e: RegionEvent): void {
+    const policy = this.opts.joinPolicy;
+    if (policy) {
+      const prior = this.joinState.get(e.regionId);
+      if (prior !== undefined) this.joinState.set(e.regionId, policy.step(prior, e));
+    }
     this.opts.onRegionEvent?.(e);
+  }
+
+  /**
+   * Ask the policy, and act on the answer.
+   *
+   * Called after every terminal region event, not only on arrival: a join can
+   * become satisfied because the last live branch was **lost** or **exited**
+   * without anything arriving at it, which is exactly P1's case.
+   */
+  private settleJoin(runId: string, region: RegionSets, payload: unknown): void {
+    const policy = this.opts.joinPolicy;
+    if (!policy || this.firedJoins.has(region.fanoutId)) return;
+    const state = this.joinState.get(region.fanoutId);
+    if (state === undefined) return;
+
+    const status = policy.status(state);
+    if (status === 'waiting') return;
+
+    if (status === 'unsatisfiable') {
+      this.firedJoins.add(region.fanoutId);
+      this.opts.onUnsatisfiableJoin?.({
+        fanoutId: region.fanoutId,
+        joinId: region.joinId,
+        describe: policy.describe(state),
+        policyId: policy.id,
+      });
+      return;
+    }
+
+    // satisfied — route out of the join, exactly once.
+    this.firedJoins.add(region.fanoutId);
+    const join = this.graph.byId.get(region.joinId);
+    if (!join || join.kind !== 'join') return;
+    const edge = join.edges?.[0];
+    if (edge) this.enter(runId, edge.to, payload);
   }
 
   /**
@@ -281,8 +391,9 @@ export class Driver {
    * which is what `OR-R7` and `RS-R1` both assume.
    */
   snapshot(): readonly LogRecord[] {
-    return Object.freeze(this.log.map((r) => Object.freeze({ ...r }))) as readonly LogRecord[];
+    return Object.freeze(this.log.map((r) => Object.freeze(cloneRecord(r)))) as readonly LogRecord[];
   }
+
 
   /** Task ids dispatched in this driver, for `ID-R1`'s assertion. */
   dispatchedIds(): readonly string[] {
@@ -290,9 +401,42 @@ export class Driver {
   }
 
   /** Copied, never the stored record by reference — `effectiveOutcome` returns the settlement itself when there is no resolution. */
+  /**
+   * The regions in the shape `spec/join-policy.md` section 1 fixes — `members`
+   * sorted, and only the four fields a policy may see. This is the value W2's
+   * policies are opened with, exposed so W2 can build fixtures against the same
+   * projection the driver uses rather than re-deriving the region maths, which
+   * `src/definition/regions.ts` exists to keep in one place.
+   */
+  regionsForPolicies(): Region[] {
+    return this.regions.map((r) => toRegion(r) as Region);
+  }
+
+  /**
+   * What the join policy currently says, per fan-out. `null` when there is no
+   * policy or the region has not been entered.
+   *
+   * `spec/join-policy.md` section 4 assigns W3 *"how it detects a stuck one when
+   * no policy says so"* — and neither pinned policy ever returns `unsatisfiable`,
+   * so this accessor is the whole of that detection today. Anything more is
+   * [Q7](../../doc/open-questions.md), which is W4's.
+   */
+  joinStatusOf(fanoutId: string): { status: string; describe: unknown } | null {
+    const policy = this.opts.joinPolicy;
+    const state = this.joinState.get(fanoutId);
+    if (!policy || state === undefined) return null;
+    return { status: policy.status(state), describe: policy.describe(state) };
+  }
+
+  /**
+   * Deep-copied, never the stored record by reference: `effectiveOutcome` returns
+   * the settlement record itself when there is no resolution, and a spread of it
+   * would still alias `result` — the mirror of the hazard `OR-R2` exists for on
+   * the way in.
+   */
   effectiveOutcomeOf(taskId: string): OutcomeRecord | null {
     const o = effectiveOutcome(this.log, taskId);
-    return o === null ? null : { ...o };
+    return o === null ? null : (cloneRecord(o) as OutcomeRecord);
   }
 
   terminalStateOf(taskId: string): TerminalState | null {

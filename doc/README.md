@@ -98,7 +98,7 @@ wins.
 | [open-questions.md](open-questions.md) | The register. 27 open, 8 resolved |
 | [scheduler-upstream.md](scheduler-upstream.md) | S1-S8, plus **the S-id map for reading `RESOURCE_EVENTS_PLAN.md`**, which uses `fyflow-react-components`' numbering. **Nothing here blocks us, and nothing is left to raise** |
 | [../spec/README.md](../spec/README.md) | **The normative layer.** Four documents, an example corpus, and the rules for changing it. Written by W1 |
-| [work-items/](work-items/) | One file per work item. [W1](work-items/w1-the-normative-layer.md) **done**, [W3](work-items/w3-the-driver-and-the-validator.md) **declared**; W2, W4, W5 not yet - [TEMPLATE.md](work-items/TEMPLATE.md) |
+| [work-items/](work-items/) | One file per work item. [W1](work-items/w1-the-normative-layer.md) **done**, [W3](work-items/w3-the-driver-and-the-validator.md) **built, two conformity passes**; W2, W4, W5 not yet - [TEMPLATE.md](work-items/TEMPLATE.md) |
 
 ## Document status
 
@@ -110,7 +110,7 @@ wins.
 | `decisions/` | **4 ADRs**, all accepted | None superseded. **0003 is still reserved for Q4's answer** and is written when W4 has run. 0001 and 0002 went to the stated leaning; 0007 and **0004** are the two no leaning predicted - and 0004 was raised by a *reader*, in W1's spec-conformity pass, rather than by an author |
 | `plans/p1` | **in progress** | W1 **done and merged** (`a6edc92`), three conformity passes. **W3 declared**, runs next. **Both reserve blocks are spent** - W2/W4/W5 take Q ids from Q41 and ADRs from 0008 |
 | `scheduler-upstream.md` | live | 8 items, **5 closed** (S1 answered, S3 declined by us, S4 done, S7 fixed, S8 declined by upstream), S5 deferred, S2/S6 waiting on a real need. **Nothing left to raise** |
-| `spec/` | **five documents** | `flow-definition`, `outcome-record`, `join-policy` at v0.4, `runtime-targets` at v0.3, `task-id` at v0.2, plus 29 hand-written examples, a declared registry, and 55 numbered rules. **Three conformity passes, all acted on**; the third reproduced the corpus check independently and fuzzed `ID-R1`'s unstated soundness assumption. v0.2 acts on the conformity pass. **Run state is not there and that is deliberate** - it is W2's, because Q14 is what W2 tests. L0 is `node scripts/check-spec.mjs`, six checks |
+| `spec/` | **five documents** | `flow-definition` v0.5, `outcome-record` v0.4, `join-policy` v0.6, `runtime-targets` v0.6, `task-id` v0.2, plus 30 hand-written examples, a declared registry, and 56 numbered rules. **Three conformity passes, all acted on**; the third reproduced the corpus check independently and fuzzed `ID-R1`'s unstated soundness assumption. v0.2 acts on the conformity pass. **Run state is not there and that is deliberate** - it is W2's, because Q14 is what W2 tests. L0 is `node scripts/check-spec.mjs` (eight checks) plus `check-source.mjs` (five) |
 
 ## Sibling repositories
 

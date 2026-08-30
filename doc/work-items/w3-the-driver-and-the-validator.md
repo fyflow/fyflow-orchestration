@@ -1,6 +1,6 @@
 # W3 — The driver, the definition validator, and the toolchain the layer is built with
 
-**Status:** in review — gate complete, second conformity pass outstanding
+**Status:** in review — two conformity passes run and acted on; a third has not
 **Plan:** [P1](../plans/p1-what-satisfies-a-join.md)
 
 ```
@@ -178,12 +178,13 @@ that does not name its runtimes ran in one (`doc/workflow.md` section 4).
 | **browser at L1/L2/L4** | **RAN** — pass | **chromium, firefox, webkit** | 105 assertions in each, the *same suites*: `scripts/build-browser-tests.mjs` inlines the corpus and generates the entry from the same glob, `scripts/run-browser-tests.mjs` serves the ESM bundle from a loopback origin. **`RT-R1` is now satisfied for all three runtimes.** Two things bit: the corpus assignment had to move into a module imported first, because ES imports hoist above it and the suites loaded fixtures before it ran; and a module script will not execute from an opaque origin |
 | L0 source check | **RAN** — pass | n/a | `node scripts/check-source.mjs`, 5 checks, **each negative-tested**. This is `RT-R4`'s mandated grep, which W3 shipped without: the negative tests had been run by hand once and reported as a gate |
 | L0 lint | **RAN** — pass | n/a | `deno lint src/ test/ index.ts` |
-| spec-conformity | **RAN** — **1 blocking, 10 defects, 10 notes** | n/a | **85 mutations, 48 caught, 37 survived.** Four of the five mutations that would have mattered most were caught; `JP-R5`'s was not. Every finding acted on below |
+| spec-conformity | **RAN** — **1 blocking, 10 defects, 10 notes** | n/a | **85 mutations, 48 caught, 37 survived.** Four of the five mutations that would have mattered most were caught; `JP-R5`'s was not. Every finding acted on |
+| spec-conformity, 2nd | **RAN** — **1 blocking, 8 defects, 4 notes** | n/a | **146 mutations, 104 caught, 42 survived** (~20 demonstrably equivalent). It found that **the join could never fire**: no policy seam existed at all. Every finding acted on below |
 | **mutations re-run** | **RAN** — pass | Node 24 | every genuine survivor is now caught: M10, M11, M16, M46, M48, M51, M53, M54, M59, M74, and D10's four divergences. Two survivors are **equivalent mutants** and are recorded as such rather than chased |
 | re-run at `<sha>` | **NOT RUN** | — | |
 
-**105 assertions after the pass, up from 68.** The additions are clause-level rather than
-rule-level, which is what the survivors were about.
+**132 assertions after the second pass, from 68 at first submission.** The additions are
+clause-level rather than rule-level, and cover shapes the corpus deliberately does not hold.
 
 **L2 cost twelve lines of fake scheduler**, which is `doc/workflow.md` section 4's own test of
 whether the driver leaked: *"if level 2 is hard to write, the driver has reached for the scheduler
@@ -235,8 +236,48 @@ somewhere it should not have."* It did not.
    covers what no typechecker does — including `localStorage`, which the Node config misses because
    `@types/node` declares it globally, and `RT-R9`, which nothing checks at all.
 
+9. **The join could never fire, and nothing in the gate could see it.** The driver emitted
+   `branch.arrived` for every branch and then stopped: `publish` was never dispatched even with both
+   branches arrived. There was **no policy seam** — no `joinPolicy` option, no `status()` call, no
+   accessor for `Region`. W3's own declaration said *"W3 emits the vocabulary (`JP-R5`) **and calls
+   `status()`**"*, and `spec/join-policy.md` section 4's owner table assigns *"what the driver does
+   when a join is `unsatisfiable`, and how it detects a stuck one"* to W3. Neither was built and
+   neither was recorded as deferred. **Every one of the 132 assertions passed anyway**, because
+   every test asserted on the event stream and none asserted that a run completed.
+10. **`Region` was never produced in the shape the spec fixes.** `spec/join-policy.md` section 1
+    declares `members: string[]` *"sorted by node id so the value is stable across folds"*; the
+    driver had only the internal `RegionSets` with a `Set` in traversal order, `private`, no
+    accessor. That is the one interface W1 wrote *specifically* so W2 and W3 would meet at the
+    document and never at each other's code (`spec/README.md` rule 3), and it was the one thing that
+    did not arrive in its declared shape.
+11. **The three `end`-node exemptions were correct and covered by nothing.** Dropping any of
+    `FD-V13`'s, `FD-V19`'s or `FD-V22`'s `end` exemption survived the whole suite, because no valid
+    example shares an `end` between branches, or places one in both `region(F)` and `after(F)`, or
+    enters one from outside a region. **An over-refusal is the exact defect that shipped twice in
+    `spec/`**, and L4 — the check W3 exists to make permanent — could not see it.
+12. **`snapshot()` and `effectiveOutcomeOf` handed out a live `result`.** `Object.freeze` is shallow
+    and `{ ...r }` is a shallow spread, so both froze the sequence and each record and still aliased
+    the one field that is not a primitive. Their own comments claimed otherwise. This is the mirror
+    of `OR-R2` — *"copying the field copies the reference"* — repeated on the way out by the code
+    written to respect it on the way in.
+13. **The browser rung could run fewer assertions than Node and still report "all passed".** L4
+    enumerates its cases from `listDir`, which in a browser reads the *generated* corpus, so a
+    fixture missing from the bundle produces one fewer case rather than a failure. `RT-R1`'s claim
+    rests on the suites being **the same**; nothing compared them. The runner now establishes a Node
+    baseline and fails on a count mismatch — verified by dropping one fixture (exit 1).
+
 **What this taught.**
 
+- **A gate can be green because every test asserts on the same half of the system.** 132 assertions
+  covered the event stream, the log, the validator and three runtimes — and not one of them asserted
+  that a fan-out run *completes*. The missing seam was not a subtle defect; it was the largest thing
+  in the item, and the shape of the suite made it invisible. **The question a suite cannot answer is
+  the one nothing in it asks.**
+- **A declared output that was not built has no rung on the ladder.** `doc/workflow.md` section 4
+  climbs L0-L7 over behaviour that exists. Nothing in it asks *"did this item produce what its
+  declaration said it would"*, and both the join seam and the `Region` accessor fell through that
+  gap for a whole pass. The spec-conformity reader is currently the only thing that checks a
+  declaration against its output — one occurrence, so not yet a rule.
 - **Mutation testing answered "would the tests have noticed" in a way no amount of reading could.**
   Three document passes argued about coverage; this one broke the code 85 times and counted. The
   four mutations that mattered most were caught — `{...e.detail}`, the missing `structuredClone`,

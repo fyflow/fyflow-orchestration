@@ -113,6 +113,29 @@ export function allRegions(g: Graph, doc: FlowDefinition): RegionSets[] {
 }
 
 /**
+ * The shape `spec/join-policy.md` section 1 fixes, derived from the internal one.
+ *
+ * Two things the internal `RegionSets` does not guarantee and the spec does:
+ * `members` is a **sorted array**, not a Set in traversal order — *"so the value
+ * is stable across folds"* — and the value carries only the four fields a policy
+ * is allowed to see. `branchOf` and `after` are the validator's working set and
+ * are deliberately not handed to a policy.
+ */
+export function toRegion(sets: RegionSets): {
+  fanoutId: string;
+  joinId: string;
+  branches: string[];
+  members: string[];
+} {
+  return {
+    fanoutId: sets.fanoutId,
+    joinId: sets.joinId,
+    branches: [...sets.branches],
+    members: [...sets.members].sort(),
+  };
+}
+
+/**
  * Which region a node belongs to, and via which branch — the value the task id's
  * `branchPath` segment is derived from (`spec/task-id.md` section 1).
  *
