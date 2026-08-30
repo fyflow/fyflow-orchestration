@@ -103,7 +103,12 @@ consumer installs whichever version it wants.
 
 ## Documentation
 
-Start at **[doc/README.md](doc/README.md)** — current state, reading order, and what happens next.
+**Using the library: [AGENTS.md](AGENTS.md)** — the reference. Twelve sections, from a minimal
+working program to what does not exist. **Every snippet in it is extracted, typechecked and executed
+by `npm run gate`**, so a stale snippet is a failing gate rather than a lie.
+
+**Working on the library: [doc/README.md](doc/README.md)** — current state, reading order, and what
+happens next.
 
 - [doc/concept.md](doc/concept.md) — what we are building and why
 - [spec/](spec/README.md) — **the normative layer**: six documents, 71 numbered rules, 29 hand-written examples

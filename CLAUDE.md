@@ -10,6 +10,11 @@ flows with sequence, **decision** routing, **fan-out** and **join**, instantiate
 
 Full context: [doc/concept.md](doc/concept.md). Do not re-derive it — read it.
 
+**[AGENTS.md](AGENTS.md) is the consumer reference** — what the library looks like from outside, and
+the only document that does. **Every snippet in it is extracted and executed by `npm run gate`**
+(`scripts/check-docs.mjs`), so it cannot rot the way a hand-maintained reference does. If you change
+the public surface, that check is what tells you the reference is now wrong.
+
 ## Current state: **P1 is complete and retro'd; [P2](doc/plans/p2-the-non-success-half-on-a-real-scheduler.md) is open with W6 declared**
 
 [ADR 0001, 0002 and 0007](doc/decisions/) settle the architecture so far: **routing executes in the

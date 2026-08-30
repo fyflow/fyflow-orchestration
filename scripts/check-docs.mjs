@@ -1,0 +1,169 @@
+#!/usr/bin/env node
+// Ladder L0/L1 — **every snippet in `AGENTS.md` is extracted, typechecked, and run.**
+//
+// [P3](../doc/plans/p3-a-consumer-reference-the-gate-keeps-true.md) exists because
+// this repository's thirteen reader-passes have found the same defect eleven
+// times: **a written claim nobody ran.** A hand-written API reference is that
+// failure mode with a larger surface and no reader assigned to it.
+//
+// The sibling tried the weaker form and reported the result. Its
+// `tests/suites/docs.ts` transcribes each published snippet into a test by hand,
+// and its own header says why: *"instead of rotting silently the way
+// `onCompleteDescendants()` and the benchmark efficiency metric both did."*
+// Transcription is a copy kept in step by a person. **Extraction is not a copy**:
+// the snippet in the document IS the code that runs, so a stale snippet is a
+// failing gate rather than a lie.
+//
+//   node scripts/check-docs.mjs
+//
+// Exits 0 when every snippet typechecks and every `run` snippet executes.
+// It reports; it does not fix.
+
+import { readFileSync, writeFileSync, mkdirSync, rmSync, existsSync } from 'node:fs';
+import { join, dirname, resolve, relative } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { spawnSync } from 'node:child_process';
+
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const OUT = join(ROOT, 'dev-dist', 'docs');
+const DOCS = ['AGENTS.md'];
+
+const failures = [];
+const fail = (check, msg) => failures.push(`${check}: ${msg}`);
+
+/**
+ * **The bare specifier a consumer actually writes.** The published snippet says
+ * `from 'fyflow-orchestration'`, which is what someone who installed the package
+ * types; the extractor rewrites it to a relative path so the same text is also
+ * runnable. Without this the reference would have to show an import no consumer
+ * would ever write, which is where a reference starts being a different program
+ * from the one it documents.
+ *
+ * `fyflow-scheduler` needs no rewriting — it resolves through `node_modules`
+ * (ADR 0013 rule 3).
+ */
+const PKG = 'fyflow-orchestration';
+
+/**
+ * A block is `run` (executed), `check` (typechecked only — for a snippet whose
+ * point is a type, or that would need a live scheduler), or **untagged**, which is
+ * refused unless the line above it says why. An unchecked snippet in a reference
+ * is precisely what this script exists to prevent, so opting out costs a sentence
+ * a reader can see.
+ */
+const FENCE = /^```ts(?:[ \t]+(\w+))?[ \t]*$/;
+
+function extract(docPath) {
+  const text = readFileSync(join(ROOT, docPath), 'utf8');
+  const lines = text.split(/\r?\n/);
+  const blocks = [];
+  for (let i = 0; i < lines.length; i++) {
+    const m = FENCE.exec(lines[i]);
+    if (!m) continue;
+    const start = i;
+    let end = i + 1;
+    while (end < lines.length && lines[end].trimEnd() !== '```') end++;
+    if (end >= lines.length) {
+      fail('X1', `${docPath}:${start + 1} opens a \`\`\`ts fence that is never closed`);
+      break;
+    }
+    const tag = m[1];
+    const body = lines.slice(start + 1, end).join('\n');
+    // The justification for an untagged block, if any: the preceding non-blank line.
+    let prev = start - 1;
+    while (prev >= 0 && lines[prev].trim() === '') prev--;
+    blocks.push({ doc: docPath, line: start + 1, tag, body, prevLine: prev >= 0 ? lines[prev] : '' });
+    i = end;
+  }
+  return blocks;
+}
+
+const all = DOCS.filter((d) => existsSync(join(ROOT, d))).flatMap(extract);
+if (DOCS.some((d) => !existsSync(join(ROOT, d)))) {
+  fail('X1', `${DOCS.filter((d) => !existsSync(join(ROOT, d))).join(', ')} does not exist`);
+}
+if (all.length === 0 && !failures.length) {
+  // A check that finds nothing to check is the vacuous kind this repository has
+  // shipped twice; say so rather than passing.
+  fail('X1', 'no ```ts blocks were found — either the reference has none, or the fence syntax changed');
+}
+
+// X2 — an untagged block must carry a stated reason on the line above it.
+for (const b of all) {
+  if (b.tag === 'run' || b.tag === 'check') continue;
+  if (!/not checked|illustration|prose|pseudo/i.test(b.prevLine)) {
+    fail('X2', `${b.doc}:${b.line} is an untagged \`\`\`ts block. Tag it \`run\` or \`check\`, or say ` +
+      'on the line above why it is not checked (the words "not checked", "illustration", "prose" or ' +
+      '"pseudo"). An unchecked snippet in a reference is what this check exists to prevent');
+  }
+}
+
+// Write every tagged block out, together, so they typecheck as one program set.
+rmSync(OUT, { recursive: true, force: true });
+mkdirSync(OUT, { recursive: true });
+const written = [];
+for (const [i, b] of all.entries()) {
+  if (b.tag !== 'run' && b.tag !== 'check') continue;
+  const rel = relative(OUT, join(ROOT, 'index.ts')).replace(/\\/g, '/');
+  const code = b.body.replaceAll(`'${PKG}'`, `'${rel}'`).replaceAll(`"${PKG}"`, `'${rel}'`);
+  const name = `${String(i).padStart(2, '0')}-line${b.line}.${b.tag}.ts`;
+  writeFileSync(join(OUT, name), code + '\n');
+  written.push({ ...b, name });
+}
+
+// X3 — they all typecheck, together, against the real `index.ts`.
+if (written.length) {
+  // **`tsconfig.docs.json`, not a pile of flags**, so the snippets are checked
+  // under the same configuration the rest of this repository compiles with.
+  //
+  // Writing the flags by hand got this wrong on the first try: they pulled the
+  // **DOM** lib into scope, and a real `FyflowScheduler` is not assignable to
+  // `SchedulerLike` when it is — see [Q71](../doc/open-questions.md), which this
+  // check found and does not cover.
+  // The compiler is invoked through `process.execPath` and TypeScript's own entry
+  // rather than through `npx`, which on Windows is a `.cmd` shim that `spawnSync`
+  // reports as a non-zero exit with no output — a failure indistinguishable from a
+  // real one, which is the shape this repository keeps finding.
+  const tsc = spawnSync(
+    process.execPath,
+    [join(ROOT, 'node_modules', 'typescript', 'bin', 'tsc'), '-p', join(ROOT, 'tsconfig.docs.json')],
+    { cwd: ROOT, encoding: 'utf8' },
+  );
+  if (tsc.status !== 0) {
+    const out = `${tsc.stdout ?? ''}${tsc.stderr ?? ''}`.trim();
+    for (const line of out.split('\n').filter((l) => l.includes('error TS')).slice(0, 12)) {
+      const m = /docs[\\/](\d+)-line(\d+)\./.exec(line);
+      fail('X3', m ? `AGENTS.md:${m[2]} — ${line.split('): ').slice(1).join('): ') || line}` : line);
+    }
+    if (!out.includes('error TS')) fail('X3', `tsc failed: ${out.slice(0, 300)}`);
+  }
+}
+
+// X4 — every `run` snippet executes, and a non-zero exit is the snippet's failure.
+for (const w of written.filter((x) => x.tag === 'run')) {
+  const r = spawnSync(process.execPath, [join(OUT, w.name)], { cwd: ROOT, encoding: 'utf8', timeout: 30_000 });
+  if (r.status !== 0) {
+    const err = `${r.stderr ?? ''}`.trim().split('\n').slice(0, 4).join(' | ');
+    fail('X4', `AGENTS.md:${w.line} — the snippet does not run: ${err || `exit ${r.status}`}`);
+  }
+}
+
+const checks = [
+  'X1 the reference exists and its fences parse',
+  'X2 every ```ts block is tagged, or says why it is not',
+  'X3 every tagged snippet typechecks against index.ts',
+  'X4 every `run` snippet executes',
+];
+const runCount = written.filter((x) => x.tag === 'run').length;
+console.log(`docs check — ${all.length} snippet(s): ${runCount} run, ` +
+  `${written.length - runCount} check, ${all.length - written.length} untagged\n`);
+for (const c of checks) {
+  const bad = failures.filter((f) => f.startsWith(c.slice(0, 2) + ':'));
+  console.log(`  ${bad.length ? 'FAIL' : 'ok  '}  ${c}${bad.length ? ` (${bad.length})` : ''}`);
+}
+if (failures.length) {
+  console.log('\n' + failures.map((f) => '  ' + f).join('\n'));
+  console.log(`\n${failures.length} failure(s).`);
+  process.exit(1);
+}
+console.log('\nAll checks passed.');
