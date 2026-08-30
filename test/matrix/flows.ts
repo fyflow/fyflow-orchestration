@@ -22,6 +22,12 @@
  *      suspension and a resumption on the arriving one. `JP-R4` asks W4 for *"a
  *      matrix column that exercises every event"*, and no two-branch flow can
  *      carry three distinct terminal events.
+ *   3. `matrix-two-regions` — **two sequential fan-outs sharing one `end` node.**
+ *      Every other fixture in the repository has exactly one `fanout`. `FD-V15`
+ *      refuses *nested* fan-out; sequential fan-out is legal, and a shared `end`
+ *      is legal too because `end` nodes are exempt from `FD-V13`, `FD-V19` and
+ *      `FD-V22`. See its own comment — this one was added by a reviewer's
+ *      finding, not by the plan.
  *
  * Both are defined here rather than added to `spec/examples/`, because the corpus
  * is W1's and a spec change is its own change with its own rationale
@@ -90,6 +96,63 @@ export const sixEvents: FlowDefinition = {
     { id: 'arriveC', kind: 'task', workerType: 'ReviewWorker', edges: [{ to: 'collect' }] },
     { id: 'abandoned', kind: 'end', outcome: 'branch-abandoned' },
     { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'publish' }] },
+    { id: 'publish', kind: 'task', workerType: 'PublishWorker', edges: [{ to: 'done' }] },
+    { id: 'done', kind: 'end', outcome: 'completed' },
+  ],
+};
+
+/**
+ * **Two sequential fan-outs that share one `end` node** — the region shape
+ * nothing in this repository covered, added by W4's test-adequacy pass rather
+ * than by the plan.
+ *
+ * `src/driver/driver.ts` attributes a `branch.exited` to *the region the branch
+ * was OPENED in*, not to the region containing the `end` node, and its comment
+ * says why: attributing by node *"made the wrong join see a second terminal event
+ * for a branch that had already arrived, breaking JP-R5"*. **That regression had
+ * no test.** Reverting it here does not throw and does not report a failure — the
+ * second join simply never fires and the run stops, which is the silent hang
+ * [ADR 0003](../../doc/decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md)
+ * claims is now attributable.
+ *
+ * The shape is legal on purpose. `end` nodes are exempt from `FD-V13`, `FD-V19`
+ * and `FD-V22` (`spec/flow-definition.md` section 3), and `FD-V15` refuses only
+ * **nested** fan-out — so `shared` sits in `region(split1)` **and**
+ * `region(split2)`, and a driver resolving it by node id cannot tell which.
+ *
+ * `a2` carries a decision edge that is never taken (`isHighConfidence` is `false`
+ * in this scenario) purely to put `shared` inside region 1's member set. Without
+ * that edge the ambiguity does not exist and the flow proves nothing.
+ *
+ * Whether `spec/` should refuse this shape, support it explicitly, or leave it as
+ * it is, is [Q45](../../doc/open-questions.md).
+ */
+export const twoRegions: FlowDefinition = {
+  flowId: 'matrix-two-regions',
+  version: 1,
+  entry: 'ingest',
+  nodes: [
+    { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'split1' }] },
+    { id: 'split1', kind: 'fanout', branches: ['a1', 'a2'] },
+    { id: 'a1', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'collect1' }] },
+    {
+      id: 'a2',
+      kind: 'task',
+      workerType: 'ScoreWorker',
+      edges: [{ when: 'isHighConfidence', to: 'shared' }, { to: 'collect1' }],
+    },
+    { id: 'collect1', kind: 'join', of: 'split1', edges: [{ to: 'mid' }] },
+    { id: 'mid', kind: 'task', workerType: 'MergeWorker', edges: [{ to: 'split2' }] },
+    { id: 'split2', kind: 'fanout', branches: ['b1', 'b2'] },
+    { id: 'b1', kind: 'task', workerType: 'ReviewWorker', edges: [{ to: 'collect2' }] },
+    {
+      id: 'b2',
+      kind: 'task',
+      workerType: 'ReviewWorker',
+      edges: [{ when: 'isLowConfidence', to: 'shared' }, { to: 'collect2' }],
+    },
+    { id: 'shared', kind: 'end', outcome: 'branch-abandoned' },
+    { id: 'collect2', kind: 'join', of: 'split2', edges: [{ to: 'publish' }] },
     { id: 'publish', kind: 'task', workerType: 'PublishWorker', edges: [{ to: 'done' }] },
     { id: 'done', kind: 'end', outcome: 'completed' },
   ],

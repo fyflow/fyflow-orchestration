@@ -1,6 +1,6 @@
 # P1 — What satisfies a join
 
-**Status:** in progress - **the plan's question is ANSWERED.** W1, W3 and W2 are done; **W4 is built and gated in five runtimes and its result is [ADR 0003](../decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md) - live tokens**, with the matrix as evidence. W4's spec-conformity pass has not run, and **W5 is what closes the plan**: one real fan-out flow on a real scheduler
+**Status:** in progress - **the plan's question is ANSWERED and four of five work items are done.** W1, W2, W3 and **W4** are complete; the result is [ADR 0003](../decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md) - **live tokens**, with the matrix as evidence and two review passes acted on. **W5 closes the plan**: one real fan-out flow on a real scheduler, and it inherits Q41-Q45
 **Question this plan answers:** *When a decision inside a fan-out branch routes that branch away
 from its join, does expected-arrival counting actually break — and does live-token accounting
 actually survive it?*
@@ -122,7 +122,7 @@ report a hang as a timeout.
 | W1 | The definition spec + task id scheme + **the outcome-record shape** (ADR 0007) + the join-policy interface + **the runtime targets** | `spec/**`, `scripts/check-spec.mjs`, `.node-version` | nothing | L0, spec review — **L0 run three times, spec review run twice**. The first review produced [ADR 0004](../decisions/0004-a-non-success-outcome-routes-only-where-an-edge-opts-in-and-user-action-suspends.md); the second found the same defect class the first had, under a new id |
 | W2 | The fold: outcome log → run state, both policies behind W1's interface, **and `spec/run-state.md`** | `spec/run-state.md`, `src/fold/**`, `test/fold/**` | W1 (and W3 by sequencing) | L0-L3 in **all five runtimes** |
 | ~~W3~~ | The driver, the validator, the join seam, the toolchain | `src/driver/**`, `src/definition/**`, `test/{driver,definition}/**`, the toolchain | W1 | **done** — L0-L2 and L4 in **five runtimes**, 142 assertions, plus **three** spec-conformity passes |
-| ~~W4~~ | The join/failure matrix — every Q5 outcome × both policies, **and ADR 0003** | `test/matrix/**`, `doc/decisions/0003-*.md` | W2, W3 | **built** — L0-L5 in **all five runtimes**, 42 new assertions, [ADR 0003 written](../decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md). **The spec-conformity pass has not run** |
+| ~~W4~~ | The join/failure matrix — every Q5 outcome × both policies, **and ADR 0003** | `test/matrix/**`, `doc/decisions/0003-*.md` | W2, W3 | **done** — L0-L5 in **all five runtimes**, 47 assertions, [ADR 0003](../decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md) with one dated in-place correction, and **two** review passes: 4 blocking, 9 defects, 13 notes |
 | W5 | One real fan-out flow on a real scheduler, **plus the every-node-settles assertion** (Q32) | `examples/**` | W2, W3 | L0-L6 — **L0-L5 in all three runtimes** (`RT-R1`); whether **L6** runs in all three is [Q33](../open-questions.md), and W5 is where it is answered |
 
 **W1 grew, twice.** ADR 0007 made the outcome record a normative shape rather than an internal type:

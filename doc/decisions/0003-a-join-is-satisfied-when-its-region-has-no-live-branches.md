@@ -1,7 +1,7 @@
 # ADR 0003 — A join is satisfied when its region has no live branches, not when N branches have arrived
 
 **Date:** 2026-08-30
-**Status:** accepted
+**Status:** accepted — **one false statement corrected in place, 2026-08-30**, see *Correction*
 **Raised by:** [Q4](../open-questions.md), decided by [W4](../work-items/w4-the-join-failure-matrix.md)
 under [P1](../plans/p1-what-satisfies-a-join.md)
 
@@ -35,13 +35,19 @@ from `spec/join-policy.md` sections 2-4 before it was run, green in all five run
 | **six-events** — one lost, one exited, one suspended-resumed-arrived | `waiting` / **stuck** | `satisfied` / joined |
 
 **The result is larger than the question asked for.** P1 predicted that arrival-counting breaks on
-one exotic case — a decision inside a branch routing away from its join. The matrix says it breaks
-on **six of nine rows**, and only *one* of those six is that case. The other five are an `optional`
-task failing, a human declining a task, an optional-null, every branch ending, and a mixed run.
+one exotic case — a decision inside a fan-out branch routing away from its join. The matrix says it
+breaks on **six of nine rows**, and those six are **two distinct mechanisms**, only one of which P1
+named:
+
+| mechanism | rows | is it exotic? |
+|---|---|---|
+| the branch **reached an `end` node** — `branch.exited` | `routed-away`, `optional-null`, `all-exit`, and one branch of `six-events` | this is P1's case. `optional-null` and `all-exit` reach it by an `on: ["failed"]` edge rather than by a `when`, but the event is the same and both policies are indifferent to the difference |
+| the branch was **lost with no eligible edge** — `branch.lost` | `lost-settled`, `lost-resolved`, and one branch of `six-events` | **no.** An `optional` task failing, or a human declining one, with no edge opting into `failed`. This is an ordinary Tuesday |
+
 Fixed-`N` is wrong whenever *"how many branches will arrive"* differs from *"how many branches
 opened"* — and **every non-success outcome makes it differ.** Q4's framing treated the routed-away
-branch as the sharp edge; it is the ordinary case that decides this, and an `optional` node failing
-is not exotic at all.
+branch as the sharp edge; the second mechanism decides this, and an `optional` node failing is not
+exotic at all.
 
 **And the failure mode is a silent hang.** `arrival-count` never returns `unsatisfiable` — that is
 its section 3 definition, not an oversight — so on all six rows it reports `waiting` forever with
@@ -107,8 +113,34 @@ survived all 251 assertions in five runtimes. The matrix asserts it now.
 
 | | why not |
 |---|---|
-| **`arrival-count`** — `N` fixed at `open` from `region.branches.length` | It hangs on six of the matrix's nine rows, and reports `waiting` while doing it. Five of those six have nothing to do with the routed-away case Q4 was written about: an `optional` failure alone is enough. **It was a real candidate and it lost on evidence**, which is what P1 asked for |
+| **`arrival-count`** — `N` fixed at `open` from `region.branches.length` | It hangs on six of the matrix's nine rows, and reports `waiting` while doing it. **Two of those six have nothing to do with the routed-away case Q4 was written about** — an `optional` failure with no edge opting into it, and a human declining a task — so an ordinary failure alone is enough. **It was a real candidate and it lost on evidence**, which is what P1 asked for |
 | **`arrival-count` with `N` decremented on `branch.exited`** (`JP-R7`) | A third policy, and one shaped like the single test it was written to pass. It still hangs on both `branch.lost` rows, because a lost branch is not an exited one — and `test/matrix/variants.test.ts` runs exactly that. Building it needs its own id and its own reason, which is [Q24](../open-questions.md) |
 | **`live-token` requiring one arrival before `satisfied`** (`JP-R8`) | Very possibly the right answer, and **not decidable inside this comparison**: giving one side a graceful `unsatisfiable` that the other is structurally denied is not a comparison of the two. Deferred to [Q24](../open-questions.md) with the all-exit row as its motivating case |
 | **Per-join configuration — the author picks a policy** | [Q5](../open-questions.md)'s remainder, and premature: it presumes there are two answers worth offering, and the matrix says one of them hangs. Revisit if Q24 produces a second policy that does not |
-| **Deciding by argument, without the matrix** | It would have reached the same policy and missed the finding: that the failure is ordinary rather than exotic, and that it costs a `branch.exited` at all is the *smaller* half of the reason. The argument P1 refused as sufficient was, in the end, right about the winner and wrong about the size of the effect |
+| **Deciding by argument, without the matrix** | It would have reached the same policy and missed the finding: that the failure is ordinary rather than exotic, and that `branch.exited` — the event P1 was written around — is only *half* the reason. The argument P1 refused as sufficient was, in the end, right about the winner and wrong about the size of the effect |
+
+## Correction — 2026-08-30
+
+**Found by W4's spec-conformity pass and independently by its test-adequacy pass**, both run against
+the commit that first carried this ADR.
+
+The *Context* section originally read: *"only **one** of those six is that case. The other five are
+an `optional` task failing, a human declining a task, an optional-null, every branch ending, and a
+mixed run."* **That enumerated five mechanisms where there are two.** `optional-null` and `all-exit`
+both reach an `end` node — the first through an `on: ["failed"]` edge rather than a `when` — so
+their region event streams are branch-index permutations of `routed-away`'s, and both policies are
+indifferent to the permutation. The matrix distinguishes **two** mechanisms across six rows, not
+six, and the table above now says so.
+
+The same paragraph is corrected in the *Alternatives rejected* row for `arrival-count`: **two** of
+the six, not five, are unrelated to the routed-away case.
+
+**The decision is unchanged and so is the reason for it.** The substantive claim — that
+arrival-counting fails on an ordinary `optional` failure and not only on P1's exotic case — is
+carried by `lost-settled` and `lost-resolved`, which are genuinely the second mechanism, and both
+are asserted (`test/matrix/matrix.test.ts`). What was wrong was the count of *kinds*, not the count
+of rows: *"six of nine rows"* is asserted as an exact list and reproduces. A reader who acted on the
+old text and one who acts on this one would do the same thing.
+
+Left visible rather than edited away, per `doc/decisions/README.md`: *"Deleting the correction
+notice would be the violation, not the edit."*

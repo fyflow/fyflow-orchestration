@@ -328,6 +328,16 @@ suite('the join seam — the driver asks a policy and acts on the answer', (test
     h.scheduler.settle('r1:scoreB:1:0', 'done', { result: {} });
     equal(h.ids().filter((i) => i === 'r1:publish:-:0').length, 1,
       'a policy satisfied from its first event must still dispatch the join exactly once');
+    // **This line is what makes the one above able to fail**, and it was added by
+    // W4's test-adequacy pass rather than by W3. Removing the `firedJoins` latch
+    // leaves the count at 1 anyway: the second `settleJoin` re-enters the join's
+    // edge, `ID-R1` refuses the duplicate BEFORE `addTask` sees it, and the throw
+    // is caught at the listener boundary and turned into a silent `failRun`. So
+    // the test named for `spec/join-policy.md` section 4's *"at most once"* was
+    // passing on `ID-R1`'s refusal, and the run it described was dead.
+    equal(h.driver.hasFailed('r1'), false,
+      'and it fires once because the JOIN is latched, not because ID-R1 refused a second ' +
+      'dispatch. A run that reached this line with hasFailed() true has already stopped routing');
   });
 
   test('the policy is opened before the first branch.opened, and sees every event', async () => {

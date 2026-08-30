@@ -89,14 +89,15 @@ longer rests on our own reading. [S1](scheduler-upstream.md).
 
 **What happens next:**
 
-1. **[W4](work-items/w4-the-join-failure-matrix.md)'s spec-conformity pass.** The matrix is built
-   and green in five runtimes and **ADR 0003 is written**; the pass is the one gate clause
-   outstanding. Four have run in this repo and **none came back empty** — this is the first to read
-   a *test-only* item.
-2. **Then [W5](plans/p1-what-satisfies-a-join.md)** — one real fan-out flow on a real scheduler,
-   which closes P1. It also owns three of W4's findings: [Q41](open-questions.md) (nothing composes
-   the fold's input sequence), [Q42](open-questions.md) (the stuck-join predicate exists only in a
-   test), and [Q43](open-questions.md) (**run state calls a permanently stuck run `completed`**).
+1. **[W5](plans/p1-what-satisfies-a-join.md) — one real fan-out flow on a real scheduler, and it
+   closes P1.** Four of five work items are done. W5 inherits five questions: [Q41](open-questions.md)
+   (nothing composes the fold's input sequence), [Q42](open-questions.md) (the stuck-join predicate
+   exists only in a test), [Q43](open-questions.md) (**run state calls a permanently stuck run
+   `completed`**), [Q44](open-questions.md) (what `spec/examples/` is for) and
+   [Q45](open-questions.md) (two fan-outs sharing an `end`).
+2. **Then P1's retro** — `doc/workflow.md` section 6 pass 3, and its first real test. Two proposals
+   are already waiting in W4's Record: that section 6's two questions are different enough to want
+   two readers, and that **four items in a row** have hit *"a declared output with no rung"*.
 3. **Four traps are live for whoever writes W5.**
    - **`FD-V14`** — the well-formedness rule whose *absence* keeps P1's case authorable, stated in
      the **all-paths** form because the *can-reach* form forbids nothing.
@@ -126,7 +127,7 @@ wins.
 | [workflow.md](workflow.md) | **Read before any work item.** The loop, the verification ladder, the test rules, how work is split. Inherited and unproven - its adaptations are listed at the end for the first retro to judge |
 | [decisions/](decisions/) | ADR 0001, 0002, 0007. They bind `spec/` rather than being superseded by it - 0007 in particular is what [outcome-record.md](../spec/outcome-record.md) makes checkable |
 | [plans/p1-...](plans/p1-what-satisfies-a-join.md) | **The active plan.** Five work items, one exit artifact: does arrival-counting actually break |
-| [open-questions.md](open-questions.md) | The register. 31 open, 12 resolved |
+| [open-questions.md](open-questions.md) | The register. 32 open, 12 resolved |
 | [scheduler-upstream.md](scheduler-upstream.md) | S1-S8, plus **the S-id map for reading `RESOURCE_EVENTS_PLAN.md`**, which uses `fyflow-react-components`' numbering. **Nothing here blocks us, and nothing is left to raise** |
 | [../spec/README.md](../spec/README.md) | **The normative layer.** Six documents, an example corpus, and the rules for changing it. Five written by W1, [run-state.md](../spec/run-state.md) by W2 |
 | [work-items/](work-items/) | One file per work item. [W1](work-items/w1-the-normative-layer.md), [W3](work-items/w3-the-driver-and-the-validator.md) and [W2](work-items/w2-the-fold-and-both-join-policies.md) **done**; [W4](work-items/w4-the-join-failure-matrix.md) **in review** - built, gated, ADR written, conformity pass outstanding; W5 not yet - [TEMPLATE.md](work-items/TEMPLATE.md) |
@@ -136,9 +137,9 @@ wins.
 | Document | Status | Notes |
 |---|---|---|
 | `concept.md` | **v0.2** | Section 7's *"controlling a run from a UI"* non-goal now carries one narrow, cited exception (ADR 0004). Section 2 is the load-bearing part and is verified against the library rather than assumed - **re-checked unchanged at 0.3.0**. Section 3 was re-verified line by line at 0.3.0 and gained three constraints. Section 6's leanings are now two ADRs and one spike; the routing and definition rows there are **superseded by ADR 0001-0002** and should be read as history |
-| `open-questions.md` | live | **31 open, 12 resolved.** **Q4 and Q17 closed with W4**, Q14 and Q25 with W2. Q5, Q7 and Q24 all read differently now that Q4 is answered, and Q42-Q44 are what the matrix turned up |
+| `open-questions.md` | live | **32 open, 12 resolved.** **Q4 and Q17 closed with W4**, Q14 and Q25 with W2. Q5, Q7 and Q24 all read differently now that Q4 is answered, and Q42-Q44 are what the matrix turned up |
 | `workflow.md` | **v0.2**, still unproven | **The ladder gained a runtime axis** (section 4) and section 8 now splits the budget: one runtime in the edit loop, all three at the plan gate. Never run here, and never run in the repo it came from either. P1's retro is its first real test, and the adaptation table at the end is what that retro should judge |
-| `decisions/` | **5 ADRs**, all accepted | None superseded. **0003 is still reserved for Q4's answer** and is written when W4 has run. 0001 and 0002 went to the stated leaning; 0007 and **0004** are the two no leaning predicted - and 0004 was raised by a *reader*, in W1's spec-conformity pass, rather than by an author |
+| `decisions/` | **5 ADRs**, all accepted | None superseded. **0003 answers Q4** and carries this repository's first in-place *Correction* - a false statement inside a decision, found by both of W4's review passes and left visible per `decisions/README.md`. 0001, 0002 and 0003 all went to the stated leaning; 0007 and **0004** are the two no leaning predicted - and 0004 was raised by a *reader*, in W1's spec-conformity pass, rather than by an author |
 | `plans/p1` | **in progress — but its question is answered** | **W1, W3, W2 done and W4 built**, with [ADR 0003](decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md) as the result. 252 assertions in five runtimes - Node 24, Deno, chromium, firefox, webkit - identical in all of them. **W5 closes the plan.** W4 used Q42-Q44 and ADR 0003, skipping 0010-0012; W5 reserves from Q51 and 0013 |
 | `scheduler-upstream.md` | live | 8 items, **5 closed** (S1 answered, S3 declined by us, S4 done, S7 fixed, S8 declined by upstream), S5 deferred, S2/S6 waiting on a real need. **Nothing left to raise** |
 | `spec/` | **six documents** | `flow-definition` v0.6, `outcome-record` v0.5, `join-policy` v0.7, `runtime-targets` v0.6, `task-id` v0.3, **`run-state` v0.2**, plus 29 hand-written examples, a declared registry, and **66 numbered rules**. **Four conformity passes, all acted on.** `run-state` section 5 is the one thing to read if you read one section: it records three claims v0.1 made that its own inputs could not supply, rather than editing them away. L0 is `node scripts/check-spec.mjs` (eight checks) plus `check-source.mjs` (six) and `deno publish --dry-run` |

@@ -103,9 +103,18 @@ suite('JP-R8 — requiring an arrival before satisfied is a third policy', (test
     equal(status('all-exit', liveToken as JoinPolicy), 'satisfied',
       'the named policy: the count reached zero having been positive, so the join fires with ' +
       'zero arrivals and carries `null` downstream');
-    equal(status('all-exit', liveTokenRequiringArrival as JoinPolicy), 'unsatisfiable',
+    const variant = runCell(SCENARIOS.find((s) => s.key === 'all-exit')!, liveTokenRequiringArrival as JoinPolicy);
+    equal(variant.status, 'unsatisfiable',
       'the variant: a graceful, reportable answer — and arrival-count has no way to produce ' +
       'one, because nothing in its definition can distinguish "not yet" from "never"');
+    // `spec/join-policy.md` section 4: on `unsatisfiable` the driver **reports**
+    // with the policy's own describe and **routes nowhere**. Reading only
+    // `.status` would let a driver that routed anyway pass this row.
+    equal(variant.joinFired, false, 'and the driver routes NOWHERE — an unsatisfiable join is ' +
+      'not a satisfied one, and inventing a run-level outcome for it belongs to run state (Q25)');
+    equal(variant.unsatisfiable, [{ fanoutId: 'split', policyId: 'live-token-requiring-arrival' }],
+      'it is reported once, with the policy that said it — that report is the whole of what Q7 ' +
+      'calls detection, on the one row in this repository where a policy can say it at all');
     equal(status('all-exit', arrivalCount as JoinPolicy), 'waiting',
       'which is the whole of the asymmetry: one policy refined until it can say `unsatisfiable` ' +
       'while the other is held to its section 3 wording is not a comparison of the two');

@@ -41,7 +41,7 @@ const EXPECTED: Record<string, Expected> = {
   // The control row. If the two policies disagreed here the experiment would have
   // no baseline and every other row would be unreadable.
   'all-arrive': {
-    events: ['opened(0)', 'opened(1)', 'arrived(0)', 'arrived(1)'],
+    events: ['opened(split:0)', 'opened(split:1)', 'arrived(split:0)', 'arrived(split:1)'],
     ac: satisfied(ac(2, ['0', '1'])),
     lt: satisfied(lt(0)),
   },
@@ -51,13 +51,13 @@ const EXPECTED: Record<string, Expected> = {
   // `waiting` rather than `unsatisfiable` — which is why the verdict, not the
   // status, is what reports the hang.
   'routed-away': {
-    events: ['opened(0)', 'opened(1)', 'arrived(0)', 'exited(1)'],
+    events: ['opened(split:0)', 'opened(split:1)', 'arrived(split:0)', 'exited(split:1)'],
     ac: waiting(ac(2, ['0']), 'stuck'),
     lt: satisfied(lt(0)),
   },
 
   'lost-settled': {
-    events: ['opened(0)', 'opened(1)', 'arrived(0)', 'lost(1)'],
+    events: ['opened(split:0)', 'opened(split:1)', 'arrived(split:0)', 'lost(split:1)'],
     ac: waiting(ac(2, ['0']), 'stuck'),
     lt: satisfied(lt(0)),
   },
@@ -66,7 +66,7 @@ const EXPECTED: Record<string, Expected> = {
   // resolving a suspended node `failed` (`RS-R3`). Two rows, one event — which is
   // section 2's claim, checked rather than restated.
   'lost-resolved': {
-    events: ['opened(0)', 'opened(1)', 'arrived(0)', 'suspended(1)', 'resumed(1)', 'lost(1)'],
+    events: ['opened(split:0)', 'opened(split:1)', 'arrived(split:0)', 'suspended(split:1)', 'resumed(split:1)', 'lost(split:1)'],
     ac: waiting(ac(2, ['0']), 'stuck'),
     lt: satisfied(lt(0)),
   },
@@ -77,7 +77,7 @@ const EXPECTED: Record<string, Expected> = {
   // the branch exits rather than being lost. Indistinguishable from `routed-away`
   // at the policy, which is the point.
   'optional-null': {
-    events: ['opened(0)', 'opened(1)', 'exited(0)', 'arrived(1)'],
+    events: ['opened(split:0)', 'opened(split:1)', 'exited(split:0)', 'arrived(split:1)'],
     ac: waiting(ac(2, ['1']), 'stuck'),
     lt: satisfied(lt(0)),
   },
@@ -86,14 +86,14 @@ const EXPECTED: Record<string, Expected> = {
   // say `waiting` and both are RIGHT; a matrix that reported this as a hang would
   // be making the exact mistake ADR 0004 and `branch.suspended` exist to prevent.
   suspended: {
-    events: ['opened(0)', 'opened(1)', 'arrived(0)', 'suspended(1)'],
+    events: ['opened(split:0)', 'opened(split:1)', 'arrived(split:0)', 'suspended(split:1)'],
     ac: waiting(ac(2, ['0']), 'waiting-on-human'),
     lt: waiting(lt(1), 'waiting-on-human'),
   },
 
   // Suspension is not terminal (ADR 0004 rule 4). Both policies agree again.
   resumed: {
-    events: ['opened(0)', 'opened(1)', 'arrived(0)', 'suspended(1)', 'resumed(1)', 'arrived(1)'],
+    events: ['opened(split:0)', 'opened(split:1)', 'arrived(split:0)', 'suspended(split:1)', 'resumed(split:1)', 'arrived(split:1)'],
     ac: satisfied(ac(2, ['0', '1'])),
     lt: satisfied(lt(0)),
   },
@@ -103,7 +103,7 @@ const EXPECTED: Record<string, Expected> = {
   // waits forever on a count that started at two. Neither is obviously right, and
   // that is the finding rather than a tie.
   'all-exit': {
-    events: ['opened(0)', 'opened(1)', 'exited(0)', 'suspended(1)', 'resumed(1)', 'exited(1)'],
+    events: ['opened(split:0)', 'opened(split:1)', 'exited(split:0)', 'suspended(split:1)', 'resumed(split:1)', 'exited(split:1)'],
     ac: waiting(ac(2, []), 'stuck'),
     lt: satisfied(lt(0)),
   },
@@ -111,8 +111,8 @@ const EXPECTED: Record<string, Expected> = {
   // `JP-R4`'s column: all six events in one stream, on three branches.
   'six-events': {
     events: [
-      'opened(0)', 'opened(1)', 'opened(2)',
-      'lost(0)', 'exited(1)', 'suspended(2)', 'resumed(2)', 'arrived(2)',
+      'opened(split:0)', 'opened(split:1)', 'opened(split:2)',
+      'lost(split:0)', 'exited(split:1)', 'suspended(split:2)', 'resumed(split:2)', 'arrived(split:2)',
     ],
     ac: waiting(ac(3, ['2']), 'stuck'),
     lt: satisfied(lt(0)),
@@ -235,7 +235,7 @@ suite('L5 — what the matrix says as a whole', (test) => {
       'though it were a result');
   });
 
-  test('a satisfied join carries `null`, on every row where one fired', () => {
+  test('a satisfied join carries `null` — and an ordinary edge does not', () => {
     // `spec/join-policy.md` section 4, and **nothing in the repository asserted
     // it**: replacing the driver's `null` with `{}` survived all 251 assertions in
     // five runtimes. The claim is not cosmetic — WHICH terminal event satisfies a
@@ -243,15 +243,68 @@ suite('L5 — what the matrix says as a whole', (test) => {
     // 5 calls genuinely non-deterministic, so a join that forwarded the last
     // branch's result would make a run's DATA order-dependent. That is worse than
     // a flaky test: it is a flaky result.
+    //
+    // **The second half is what makes the first half a test.** Asserting only
+    // "the join's payload is null" passed a harness that returned `null`
+    // unconditionally, because every payload in every cell was null. Both
+    // assertions now read the same `payloads` map, so a constant satisfies
+    // neither.
     const fired = ALL.flatMap(({ scenario, cells }) =>
-      cells.filter((c) => c.joinFired).map((c) => [`${scenario.key}/${c.policyId}`, c.downstreamPayload] as const));
-    ok(fired.length >= 10, `only ${fired.length} cells fired a join — too few to be a check`);
+      cells.filter((c) => c.joinFired)
+        .map((c) => [`${scenario.key}/${c.policyId}`, c.payloads[scenario.downstream]] as const));
+    equal(fired.length, 10,
+      'ten of the eighteen cells fire a join: both policies on the three rows they agree about, ' +
+      'and live-token alone on the six where they diverge, less the one where nothing fires. ' +
+      'An inexact bound here would let the loop below shrink without anything saying so');
     for (const [where, payload] of fired) {
       equal(payload, null,
         `${where}: the join dispatched its downstream task with ${JSON.stringify(payload)}. ` +
         'What a join SHOULD carry is Q36 and is deliberately unanswered; carrying `null` is how ' +
         'the driver refuses to invent it rather than picking a branch arbitrarily');
     }
+
+    const allArrive = ALL.find((r) => r.scenario.key === 'all-arrive')!;
+    for (const c of allArrive.cells) {
+      equal(c.payloads['r1:scoreA:0:0'], { from: 'ingest' },
+        `${c.policyId}: an ordinary edge forwards the previous node's result ` +
+        '(`spec/outcome-record.md` section 4), so `null` is a decision the JOIN makes and not ' +
+        'something this harness reports for everything');
+    }
+  });
+
+  test('the join\'s answer does not depend on the order branches settle in', () => {
+    // `doc/concept.md` section 5 and `CLAUDE.md`: fan-out completion order is
+    // genuinely non-deterministic and nothing may depend on it. `JP-R1`'s
+    // determinism test re-runs the SAME order twice, which proves purity — not
+    // order-independence. These are different properties and only one of them
+    // was checked.
+    const six = SCENARIOS.find((s) => s.key === 'six-events')!;
+    const [ingest, lost, exited, suspend, resolve] = six.steps;
+    const orders = [
+      six.steps,
+      [ingest!, exited!, lost!, suspend!, resolve!],
+      [ingest!, suspend!, lost!, exited!, resolve!],
+    ];
+    for (const policy of [arrivalCount, liveToken]) {
+      const verdicts = orders.map((steps) => {
+        const c = runCell({ ...six, steps }, policy as JoinPolicy);
+        return { status: c.status, verdict: c.verdict, joinFired: c.joinFired };
+      });
+      equal(verdicts[1], verdicts[0],
+        `${policy.id}: reordering two terminal settlements changed the join's answer`);
+      equal(verdicts[2], verdicts[0],
+        `${policy.id}: suspending the third branch first changed the join's answer`);
+    }
+    // **And the honest half:** `arrival-count`'s `describe` IS order-dependent —
+    // `arrived` is a list in arrival order. That is a display value (`JP-R2`), not
+    // the answer, and the assertions above are on `status` for exactly that
+    // reason. Recorded here rather than left for a reader to discover.
+    const flip = { ...SCENARIOS.find((s) => s.key === 'all-arrive')!, key: 'flipped' };
+    const [ing, a, b] = flip.steps;
+    const swapped = runCell({ ...flip, steps: [ing!, b!, a!] }, arrivalCount as JoinPolicy);
+    equal(swapped.status, 'satisfied', 'the ANSWER is the same whichever branch arrives first');
+    equal(swapped.describe, { need: 2, arrived: ['1', '0'] },
+      'and the describe is not — which is why nothing routes on it');
   });
 
   test('JP-R1: the whole matrix is deterministic', () => {
@@ -279,11 +332,24 @@ suite('L5 — what the matrix says as a whole', (test) => {
       'section 3). Q24 variants are compared in variants.test.ts, under their own ids');
   });
 
-  test('the rendered table has a cell for every row and every policy', () => {
+  test('the rendered table carries every row\'s status, verdict and describe', () => {
+    // The first version asserted only that each row key appeared and that the
+    // line count was right — so emptying every cell body survived it. A table
+    // that is W4's declared Output (2) and is copied by hand into ADR 0003 needs
+    // its CONTENT checked, not its shape.
     const table = renderTable(ALL, POLICY_IDS);
-    for (const { scenario } of ALL) {
-      ok(table.includes(`**${scenario.key}**`), `${scenario.key} is missing from the table`);
+    const lines = table.split('\n');
+    equal(lines.length, ALL.length + 2, 'header, rule, and one line per row');
+    for (const [i, { scenario, cells }] of ALL.entries()) {
+      const line = lines[i + 2]!;
+      ok(line.includes(`**${scenario.key}**`), `${scenario.key} is missing from the table`);
+      for (const c of cells) {
+        ok(line.includes(`\`${c.status}\``), `${scenario.key}: no "${c.status}" for ${c.policyId}`);
+        ok(line.includes(`**${c.verdict}**`), `${scenario.key}: no "${c.verdict}" for ${c.policyId}`);
+        ok(line.includes(JSON.stringify(c.describe)),
+          `${scenario.key}: ${c.policyId}'s describe is not in the table, so a reader cannot see ` +
+          'what the policy thought it was waiting for — which is the only reason to print it');
+      }
     }
-    equal(table.split('\n').length, ALL.length + 2, 'header, rule, and one line per row');
   });
 });

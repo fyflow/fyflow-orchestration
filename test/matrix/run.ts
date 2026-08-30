@@ -9,11 +9,24 @@
  * says a snapshot is not a test.
  *
  * The fake scheduler is W4's own rather than shared with `test/driver/`. It is
- * eight lines, and the alternative is a helper two work items own — which is the
- * shape `doc/workflow.md` section 1 rule 2 asks items to avoid. Its one piece of
- * real knowledge is the `user_action` pairing: a non-optional task out of retries
- * dispatches `task.failed` AND `task.user_action` with the same object, and an
- * `optional` one dispatches only `task.failed` (`CLAUDE.md`; ADR 0007 rule 2).
+ * short, and the alternative is a helper two work items own — which is the shape
+ * `doc/workflow.md` section 1 rule 2 asks items to avoid. It models two facts
+ * about `fyflow-scheduler` 0.3.0, and **both are refusals rather than
+ * decoration** — W4's first version stated them in this comment and enforced
+ * neither, which both review passes found:
+ *
+ *   1. **Only an `optional` task can settle `failed`.** Both `state = 'failed'`
+ *      assignments live inside `if (task.optional)`
+ *      (`../fyflow-scheduler/core/FyflowScheduler.ts:894-897`); a non-optional
+ *      task out of retries goes to `user_action` instead. A fake that emits
+ *      `failed` for a non-optional node produces an event stream the real
+ *      scheduler cannot, and the `lost-settled` row then proves nothing about the
+ *      road it names. **It throws** rather than warning: a scenario that scripts
+ *      an impossible settlement is a broken fixture, not a cell.
+ *   2. **The `user_action` pairing.** A non-optional task out of retries
+ *      dispatches `task.failed` AND `task.user_action` with the same object; an
+ *      `optional` one dispatches only `task.failed` (`CLAUDE.md`; ADR 0007 rule
+ *      2). The driver keys on terminal state, not event name.
  */
 import { Driver } from '../../src/driver/driver.ts';
 import type { RegionEvent } from '../../src/driver/events.ts';
@@ -52,28 +65,44 @@ export type Verdict = 'joined' | 'waiting-on-human' | 'in-flight' | 'stuck';
 
 export interface Cell {
   policyId: string;
-  /** The region event stream, as `type(branchPath)` — the policy's whole input. */
+  /**
+   * The region event stream, as `type(regionId:branchPath)` — the policy's whole
+   * input.
+   *
+   * **The region id is in the string because a flow may have more than one.**
+   * `end` nodes are exempt from `FD-V13`/`FD-V19`/`FD-V22`, so two sequential
+   * fan-outs may share one, and a driver that attributed a terminal event to the
+   * region *containing* the node rather than the one the branch was *opened in*
+   * would send it to the wrong join. Without the id in the stream that is
+   * invisible: `exited(1)` reads the same either way.
+   */
   events: string[];
   status: string;
   describe: JsonValue;
   joinFired: boolean;
   /**
-   * What the downstream task was dispatched WITH. `spec/join-policy.md` section 4:
-   * a satisfied join carries `null`, because which terminal event satisfied it is
-   * decided by fan-out completion order — so a join that forwarded "whichever
-   * branch finished last" would make a run's DATA order-dependent.
-   * `undefined` when the join did not fire.
+   * What every dispatched task was dispatched WITH, keyed by task id.
+   *
+   * Two claims read this one map, and that is deliberate. `spec/join-policy.md`
+   * section 4: **a satisfied join carries `null`**, because which terminal event
+   * satisfied it is decided by fan-out completion order — so a join forwarding
+   * "whichever branch finished last" would make a run's DATA order-dependent.
+   * And `spec/outcome-record.md` section 4: an ordinary edge **does** carry the
+   * previous node's result forward. Asserting only the first let a harness that
+   * hard-coded `null` pass; asserting both from the same map does not.
    */
-  downstreamPayload: unknown;
+  payloads: Record<string, unknown>;
+  /** Reported by the driver when a policy says a join can never fire. */
+  unsatisfiable: { fanoutId: string; policyId: string }[];
   verdict: Verdict;
 }
 
 class Fake {
-  added: { id: string; payload?: unknown }[] = [];
+  added: { id: string; payload?: unknown; optional?: boolean }[] = [];
   private listeners = new Map<string, ((e: { detail: unknown }) => void)[]>();
 
   addTask(t: unknown) {
-    this.added.push(t as { id: string; payload?: unknown });
+    this.added.push(t as { id: string; payload?: unknown; optional?: boolean });
   }
 
   addEventListener(type: string, fn: (e: { detail: unknown }) => void) {
@@ -81,6 +110,22 @@ class Fake {
   }
 
   settle(id: string, state: string, result: unknown) {
+    // Fact 1 above. The scheduler cannot produce this, so neither may the fake —
+    // and it is checked against what the DRIVER dispatched rather than against the
+    // definition, so a driver that dropped `optional` on the way out is caught
+    // here too.
+    if (state === 'failed') {
+      const task = this.added.find((t) => t.id === id);
+      if (!task) throw new Error(`matrix fixture: settled "${id}", which was never dispatched`);
+      if (task.optional !== true) {
+        throw new Error(
+          `matrix fixture: "${id}" settled \`failed\` but was dispatched with ` +
+            `optional=${String(task.optional)}. Only an \`optional\` task can settle failed ` +
+            '(FyflowScheduler.ts:894-897); a non-optional one reaches `user_action`. ' +
+            'This event stream cannot occur.',
+        );
+      }
+    }
     const detail = { id, state, result, attempts: 0, timestamp: 1, startTime: 1, endTime: 2, executionTime: 1 };
     if (state === 'done') return this.fire('task.completed', detail);
     // Both other states fire `task.failed` first. Only a non-optional task out of
@@ -100,6 +145,7 @@ export const RUN = 'r1';
 export function runCell(scenario: Scenario, policy: JoinPolicy): Cell {
   const scheduler = new Fake();
   const events: RegionEvent[] = [];
+  const unsatisfiable: { fanoutId: string; policyId: string }[] = [];
   const driver = new Driver(scenario.flow, {
     scheduler,
     createTask: (c) => c,
@@ -108,27 +154,35 @@ export function runCell(scenario: Scenario, policy: JoinPolicy): Cell {
     now: () => 1,
     joinPolicy: policy,
     onRegionEvent: (e) => events.push(e),
+    onUnsatisfiableJoin: (i) => unsatisfiable.push({ fanoutId: i.fanoutId, policyId: i.policyId }),
   });
 
   driver.start(RUN, {});
   for (const step of scenario.steps) {
-    if (step.do === 'settle') scheduler.settle(step.taskId, step.state, step.result ?? null);
-    else driver.resolve(step.taskId, step.resolvedAs, { result: null, error: 'matrix', actor: 'ops' });
+    if (step.do === 'settle') {
+      scheduler.settle(step.taskId, step.state, step.result ?? null);
+    } else {
+      // `RS-R1` refuses a resolution whose task is not suspended, and returns
+      // `false` rather than throwing. Discarding it made a mis-scripted step a
+      // silent no-op, which is a fixture that quietly stops testing.
+      const accepted = driver.resolve(step.taskId, step.resolvedAs, { result: null, error: 'matrix', actor: 'ops' });
+      if (!accepted) throw new Error(`matrix fixture: resolve("${step.taskId}") was REFUSED — not suspended`);
+    }
   }
 
   const reported = driver.joinStatusOf(scenario.fanoutId);
-  const downstream = scheduler.added.find((t) => t.id === scenario.downstream);
-  const joinFired = downstream !== undefined;
+  const joinFired = scheduler.added.some((t) => t.id === scenario.downstream);
 
   return {
     policyId: policy.id,
-    events: events.map((e) => `${e.type.replace('branch.', '')}(${e.branchPath})`),
+    events: events.map((e) => `${e.type.replace('branch.', '')}(${e.regionId}:${e.branchPath})`),
     // `JP-R3` — status is total. There is no fourth answer and no blank cell, so
     // a missing report is itself a finding rather than something to paper over.
     status: reported?.status ?? '<no report>',
     describe: (reported?.describe ?? null) as JsonValue,
     joinFired,
-    downstreamPayload: downstream?.payload,
+    payloads: Object.fromEntries(scheduler.added.map((t) => [t.id, t.payload])),
+    unsatisfiable,
     verdict: verdictOf(driver, joinFired),
   };
 }
