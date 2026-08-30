@@ -1,6 +1,6 @@
 # W3 — The driver, the definition validator, and the toolchain the layer is built with
 
-**Status:** in review — two conformity passes run and acted on; a third has not
+**Status:** done
 **Plan:** [P1](../plans/p1-what-satisfies-a-join.md)
 
 ```
@@ -165,141 +165,115 @@ Named because they are known, and because each is a way this item could quietly 
 
 ## Record
 
-**Gate — what ran.** `RT-R1`: a rung is not green until it is green in all three runtimes, and a row
-that does not name its runtimes ran in one (`doc/workflow.md` section 4).
+**Gate — what ran.** `RT-R1`: a rung is not green until it is green where it is required to run, and
+a row that does not name its runtimes ran in one (`doc/workflow.md` section 4).
 
 | Clause | Verdict | Runtimes | Notes |
 |---|---|---|---|
-| L0 typecheck | **RAN** — pass | **Node, browser, Deno** | `tsc -p tsconfig.node.json`, `tsc -p tsconfig.browser.json`, `tsc -p tsconfig.json` (adds `test/`), `deno check index.ts src/`. **Both config gates negative-tested**: the browser config rejects `process` (`RT-R4`), the node config rejects `document` (`RT-R5`) |
-| L0 spec check | **RAN** — pass | n/a | `node scripts/check-spec.mjs`, 8 checks, 56 rules |
-| L1 unit | **RAN** — pass | **Node 24, Deno** | the log, the listener boundary, ids. 20 assertions |
-| L2 routing | **RAN** — pass | **Node 24, Deno** | a fixture log in, an asserted node sequence out, **no scheduler**. 17 assertions |
-| L4 conformance | **RAN** — pass | **Node 24, Deno** | 6 valid flows clean, 23 invalid each rejected naming its own rule, `FD-V14` has no case, `p1-routed-away` still valid. 31 assertions |
-| **browser at L1/L2/L4** | **RAN** — pass | **chromium, firefox, webkit** | 105 assertions in each, the *same suites*: `scripts/build-browser-tests.mjs` inlines the corpus and generates the entry from the same glob, `scripts/run-browser-tests.mjs` serves the ESM bundle from a loopback origin. **`RT-R1` is now satisfied for all three runtimes.** Two things bit: the corpus assignment had to move into a module imported first, because ES imports hoist above it and the suites loaded fixtures before it ran; and a module script will not execute from an opaque origin |
-| L0 source check | **RAN** — pass | n/a | `node scripts/check-source.mjs`, 5 checks, **each negative-tested**. This is `RT-R4`'s mandated grep, which W3 shipped without: the negative tests had been run by hand once and reported as a gate |
-| L0 lint | **RAN** — pass | n/a | `deno lint src/ test/ index.ts` |
-| spec-conformity | **RAN** — **1 blocking, 10 defects, 10 notes** | n/a | **85 mutations, 48 caught, 37 survived.** Four of the five mutations that would have mattered most were caught; `JP-R5`'s was not. Every finding acted on |
-| spec-conformity, 2nd | **RAN** — **1 blocking, 8 defects, 4 notes** | n/a | **146 mutations, 104 caught, 42 survived** (~20 demonstrably equivalent). It found that **the join could never fire**: no policy seam existed at all. Every finding acted on below |
-| **mutations re-run** | **RAN** — pass | Node 24 | every genuine survivor is now caught: M10, M11, M16, M46, M48, M51, M53, M54, M59, M74, and D10's four divergences. Two survivors are **equivalent mutants** and are recorded as such rather than chased |
-| re-run at `<sha>` | **NOT RUN** | — | |
+| L0 typecheck | **RAN** — pass | **Node, browser, Deno** | `tsc -p tsconfig.node.json`, `tsconfig.browser.json`, `tsconfig.json` (adds `test/`), `deno check index.ts src/`. Both config gates negative-tested: the browser config rejects `process`, the node config rejects `document` |
+| L0 spec check | **RAN** — pass | n/a | `node scripts/check-spec.mjs`, 8 checks, 57 rules. C6, C7 and C8 were each added by a conformity pass and each failed on this item's own output when written |
+| L0 source check | **RAN** — pass | n/a | `node scripts/check-source.mjs`, 6 checks, each negative-tested. S6 was added by pass 3 and caught a real break |
+| L0 lint | **RAN** — pass | n/a | `deno lint src/ test/ index.ts`, 20 files |
+| L0 publish | **RAN** — pass | Deno/JSR | `deno publish --dry-run`. Pass 3 found it **broken**: `index.ts` exported a module the allowlist did not list |
+| L1 unit | **RAN** — pass | **Node 24, Deno, chromium, firefox, webkit** | the log, the listener boundary, ids, the region maths |
+| L2 routing | **RAN** — pass | **all five** | a fixture log in, an asserted node sequence out, **no scheduler**. The fake is 22 lines |
+| L4 conformance | **RAN** — pass | **all five** | 6 valid flows clean, 23 invalid each rejected naming its own rule, `FD-V14` has no case, `p1-routed-away` still valid. Browser parity is enforced against the Node count — verified by dropping one fixture (exit 1) |
+| **142 assertions, identical in all five runtimes** | | | |
+| spec-conformity ×3 | **RAN** — 1, 1 and 4 blocking | n/a | 85 / 146 / 100 mutations. Every finding acted on; every genuine survivor re-run and caught |
+| re-run at `<sha>` | **RAN** — pass | all five | the gate above **is** the re-run acting on pass 3; it lacks only the commit that carries it |
 
-**132 assertions after the second pass, from 68 at first submission.** The additions are
-clause-level rather than rule-level, and cover shapes the corpus deliberately does not hold.
-
-**L2 cost twelve lines of fake scheduler**, which is `doc/workflow.md` section 4's own test of
-whether the driver leaked: *"if level 2 is hard to write, the driver has reached for the scheduler
-somewhere it should not have."* It did not.
+**What is NOT run, and is not this item's:** L3 (determinism — W2), L5 (the join/failure matrix —
+W4), L6 (a real scheduler — W5), L7 (a person). `RT-R8` is vacuous: no `*.node.ts` file exists.
 
 **What broke.**
 
-1. **`deno check` accepts TypeScript that Node 24 cannot execute.** The driver used a constructor
-   **parameter property** — ordinary TypeScript, accepted by all three typecheckers — and Node
-   refused to load the module with `ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX`. Node runs TypeScript by
-   *erasing types*, not compiling them, so any construct that emits runtime code is rejected at
-   load. **No static check in this repository catches it**, and it is now `RT-R9`.
-   `spec/runtime-targets.md` v0.4.
-2. **`FD-R1` is not reachable through the public API, and the first attempt to test it lied about
-   that.** `FD-V7` guarantees a default edge with no `when`, and a default always passes — so a
-   valid definition cannot reach "eligible edges exist and none matched". The first version of the
-   test contorted a driver into an invalid state to force it, which tests the contortion. It now
-   asserts against the pure `selectEdge` directly, and a second test pins the thing that *is*
-   reachable: **no eligible edge at all is a path end, not `FD-R1`**.
-3. **The three-runtime story is two-thirds true and the gate now says so.** Node and Deno both
-   execute TypeScript directly, so `src/`, `test/` and the runner are one tree with no build step.
-   The browser needs esbuild and a Playwright harness that do not exist, so its rung is `NOT RUN`
-   rather than quietly folded into "all three".
+Two things in the decomposition, found by filling in the header block. Fourteen in the artifact,
+found by three conformity passes — and the shape of those fourteen is the finding.
 
-4. **`JP-R5`'s ordering clause has no test that can fail, and it cannot have one yet.** The
-   assertion compared a multiset of event *types*, which is identical whether the driver emits both
-   `branch.opened` before dispatching either branch or interleaves them. The reviewer replaced the
-   two-pass loop with an interleaved one and all 68 assertions passed. **The fix is not a better
-   assertion**: `FD-V9` forces every branch entry to be a `task`, and entering a task dispatches
-   without emitting, so the two implementations are behaviourally identical today. The order
-   assertion is now written properly and catches a driver that emits `opened` *after* a terminal
-   event; the interleaving case is recorded in `spec/join-policy.md` as unfalsifiable until `FD-V9`
-   or `FD-V19` is relaxed (Q27). **This is the rule whose failure would settle Q4 from inside W3.**
-5. **A wrongly-typed edge target slipped every one of 23 refusals.** `{ "to": 5 }` produced zero
-   findings: the graph builder filters non-string targets before `FD-V2` can see them, and `FD-V21`
-   did not type-check `to`. Driven through the driver it produced a run that stopped mid-flow with
-   one log record, no error and no `end` node — **the silent stop `spec/flow-definition.md` section
-   3 refuses on P1's own validity grounds**, arrived at from the other direction.
-6. **The corpus tests one case per rule *id*, and the rules have clauses.** 23 clause-deletion
-   mutations survived. `FD-V7`'s corpus case trips both its "no default" and its "not last" clause,
-   so each shadowed the other. Clause-level tests now live in `test/definition/clauses.test.ts` —
-   **deliberately not as new files in `spec/examples/invalid/`**, which is W1's normative fixture and
-   whose one-case-per-rule shape is a spec decision, not an oversight.
-7. **Two crash paths**: `nodes: [null]` and `edges: [null]` threw raw `TypeError`s from inside the
-   validator instead of returning findings, breaking the `InvalidDefinition`-carries-rule-ids
-   contract W3's own test asserts.
-8. **`RT-R4`'s grep did not exist.** The negative tests were run by hand once and written into the
-   Record as though they were a gate. `scripts/check-source.mjs` is the checked-in version, and it
-   covers what no typechecker does — including `localStorage`, which the Node config misses because
-   `@types/node` declares it globally, and `RT-R9`, which nothing checks at all.
-
-9. **The join could never fire, and nothing in the gate could see it.** The driver emitted
-   `branch.arrived` for every branch and then stopped: `publish` was never dispatched even with both
-   branches arrived. There was **no policy seam** — no `joinPolicy` option, no `status()` call, no
-   accessor for `Region`. W3's own declaration said *"W3 emits the vocabulary (`JP-R5`) **and calls
-   `status()`**"*, and `spec/join-policy.md` section 4's owner table assigns *"what the driver does
-   when a join is `unsatisfiable`, and how it detects a stuck one"* to W3. Neither was built and
-   neither was recorded as deferred. **Every one of the 132 assertions passed anyway**, because
-   every test asserted on the event stream and none asserted that a run completed.
-10. **`Region` was never produced in the shape the spec fixes.** `spec/join-policy.md` section 1
-    declares `members: string[]` *"sorted by node id so the value is stable across folds"*; the
-    driver had only the internal `RegionSets` with a `Set` in traversal order, `private`, no
-    accessor. That is the one interface W1 wrote *specifically* so W2 and W3 would meet at the
-    document and never at each other's code (`spec/README.md` rule 3), and it was the one thing that
-    did not arrive in its declared shape.
-11. **The three `end`-node exemptions were correct and covered by nothing.** Dropping any of
-    `FD-V13`'s, `FD-V19`'s or `FD-V22`'s `end` exemption survived the whole suite, because no valid
-    example shares an `end` between branches, or places one in both `region(F)` and `after(F)`, or
-    enters one from outside a region. **An over-refusal is the exact defect that shipped twice in
-    `spec/`**, and L4 — the check W3 exists to make permanent — could not see it.
-12. **`snapshot()` and `effectiveOutcomeOf` handed out a live `result`.** `Object.freeze` is shallow
-    and `{ ...r }` is a shallow spread, so both froze the sequence and each record and still aliased
-    the one field that is not a primitive. Their own comments claimed otherwise. This is the mirror
-    of `OR-R2` — *"copying the field copies the reference"* — repeated on the way out by the code
-    written to respect it on the way in.
-13. **The browser rung could run fewer assertions than Node and still report "all passed".** L4
-    enumerates its cases from `listDir`, which in a browser reads the *generated* corpus, so a
-    fixture missing from the bundle produces one fewer case rather than a failure. `RT-R1`'s claim
-    rests on the suites being **the same**; nothing compared them. The runner now establishes a Node
-    baseline and fails on a count mismatch — verified by dropping one fixture (exit 1).
+1. **L0 as written does not exist for a document item** (the W1 problem, inherited): resolved by
+   redefining the rung and paying one file of ownership.
+2. **The validator had no owner.** ADR 0002 rule 3 validates at instantiation and instantiation is a
+   driver action, so it is W3's — recorded in P1's table rather than discovered at L4.
+3. **`deno check` accepts TypeScript Node 24 cannot execute.** A constructor parameter property;
+   `ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX` at load. Four typecheck configurations accepted it. Now
+   `RT-R9`, and the first rule here that **no static check enforces** — running the suite under Node
+   is the only thing that finds it.
+4. **`FD-R1` was unreachable through the public API and the first test lied about that** by
+   contorting a driver into an invalid state.
+5. **A wrongly-typed edge target slipped all 23 refusals** and produced a run that stopped mid-flow
+   with one log record, no error and no `end` node — the silent stop `spec/flow-definition.md`
+   section 3 refuses on P1's own validity grounds, reached from an authoring typo.
+6. **The corpus tests one case per rule *id* and the rules have clauses.** 23 clause-deletion
+   mutations survived; `FD-V7`'s case trips two of its own clauses, so each shadowed the other.
+7. **`RT-R4`'s grep did not exist** — the negative tests had been run by hand once and written into
+   this Record as though they were a gate.
+8. **`JP-R5`'s ordering test could not fail**, and still cannot: `FD-V9` makes branch entries tasks
+   and tasks emit nothing on entry, so the interleaving case is unfalsifiable until `FD-V19` or
+   `FD-V9` is relaxed. Recorded in `spec/join-policy.md` rather than papered over.
+9. **The join could never fire.** No policy seam existed — no `joinPolicy`, no `status()` call, no
+   `Region` accessor — and **all 132 assertions passed anyway**, because every test asserted on the
+   event stream and none asserted that a run *completes*.
+10. **`Region` was never produced in its declared shape** — the one interface W1 wrote so W2 and W3
+    would meet at a document rather than at each other's code.
+11. **`snapshot()` and `effectiveOutcomeOf` handed out a live `result`.** `Object.freeze` is shallow
+    and a spread aliases it: the mirror of `OR-R2`, repeated on the way out by the code written to
+    respect it on the way in. **Then the same defect a third time**, on the one exit that actually
+    reaches a worker — the next task's payload *was* the previous record's `result`.
+12. **The seam's two non-arrival paths had no test**, and deleting either makes `live-token` give
+    `arrival-count`'s answer on P1's own flow. Every seam test used an arrival-counting stub.
+13. **`deno publish` was broken**: `index.ts` exported `policy.ts` and `deno.json`'s allowlist did
+    not list it. `check-source.mjs` derived its published set by walking `src/` on disk, so it could
+    never disagree with the allowlist it claimed to check. Now `S6`.
+14. **"The run terminates" was a `throw` from an `EventTarget` listener**, which `dispatchEvent`
+    **discards** — measured. `FD-R1`, `ID-R1` and `OR-R6` all said it. Now `OR-R10`: caught at the
+    boundary, reported, run stopped. The third appearance of the silent-stop signature in this item.
+15. **Three things the driver decided that `spec/` did not state**: what a join carries downstream
+    (order-dependent — now `null`, and `settleJoin` takes no payload so it cannot be reintroduced),
+    what happens when a policy throws, and whether `undefined` is a legal policy state. Q36, and
+    `OR-R10`.
 
 **What this taught.**
 
-- **A gate can be green because every test asserts on the same half of the system.** 132 assertions
-  covered the event stream, the log, the validator and three runtimes — and not one of them asserted
-  that a fan-out run *completes*. The missing seam was not a subtle defect; it was the largest thing
-  in the item, and the shape of the suite made it invisible. **The question a suite cannot answer is
-  the one nothing in it asks.**
-- **A declared output that was not built has no rung on the ladder.** `doc/workflow.md` section 4
-  climbs L0-L7 over behaviour that exists. Nothing in it asks *"did this item produce what its
-  declaration said it would"*, and both the join seam and the `Region` accessor fell through that
-  gap for a whole pass. The spec-conformity reader is currently the only thing that checks a
-  declaration against its output — one occurrence, so not yet a rule.
-- **Mutation testing answered "would the tests have noticed" in a way no amount of reading could.**
-  Three document passes argued about coverage; this one broke the code 85 times and counted. The
-  four mutations that mattered most were caught — `{...e.detail}`, the missing `structuredClone`,
-  keying on the event name, the duplicate-id refusal — and the one that was not is the one guarding
-  Q4.
-- **Two survivors turned out to be equivalent mutants, and saying so is part of the result.**
-  Removing `assertRunId` from `start()` is caught only when the entry node is a *fanout*, because
-  `buildTaskId` re-checks one frame later; the test now uses a fanout-entry flow so the region
-  events cannot escape. Removing `FD-V7`'s "no default" clause leaves the rule still firing through
-  its sibling clause with a different message — the rule id is the contract, the message is not, so
-  that one is not a hole. **Chasing an equivalent mutant produces a test that asserts an
-  implementation detail.**
-- **The rule that no check enforces is the one running the code finds.** Seven checks, four
-   typecheck configurations and three conformity passes all accepted a parameter property; importing
-   the module under Node took under a second to reject it. `RT-R1`'s *"a runtime is supported only
-   if the gate runs in it"* stopped being ceremonial the moment it was true.
-- **A test that has to contort the system to reach its case is testing the contortion.** `FD-R1`'s
-   unreachability is `FD-V7` working. The useful assertion was against the pure function, plus a
-   second test for the reachable neighbour the first version silently conflated with it.
-- **L4 is now a gate rather than a claim.** Three independent implementations have agreed on the
-   corpus — mine at v0.3, the third conformity reader's, and this validator — and only this one runs
-   on every change. That is what W3 was sequenced first for.
+- **A suite cannot answer a question nothing in it asks.** Three passes, three shapes of the same
+  thing: an assertion that could not fail; a half of the system nothing asserted on; a half of the
+  *seam* nothing asserted on. Each time the code was correct and the gap was in what the tests were
+  **pointed at**. Mutation testing is what converted "would the tests have noticed" from an argument
+  into a number, and the number moved 37 → 42 → 20 survivors while the suite grew 68 → 142.
+- **The most dangerous defect was invisible to every check and to two reviewers.** The join never
+  firing was not subtle — it was the largest behaviour in the item — and it survived a full gate in
+  five runtimes plus one conformity pass. **A declared output that was not built has no rung on the
+  ladder**: `doc/workflow.md` section 4 climbs over behaviour that exists and never asks whether an
+  item produced what its declaration promised. Three occurrences now (the seam, the `Region`
+  accessor, `RT-R4`'s grep), which is enough to put to the retro as a rule rather than an anecdote.
+- **A guard written against a named failure does not transfer to the author's own blind side.**
+  `JP-R7` forbids repairing `arrival-count` with one line; this item's own `live-token` carried
+  exactly such a refinement. The same pattern recurred in `spec/runtime-targets.md`, three times: a
+  correct observation about one tool generalised into a false claim about the toolchain, twice
+  *inside the rewrite written to record the previous instance*.
+- **An equivalent-mutant claim is a test hole with a justification attached, so it has to be
+  argued.** Four were claimed and three held; the fourth (`assertRunId` in `start()`) was wrong and
+  a fanout-entry flow discriminates it. Two more were found and recorded rather than chased — a test
+  that chases an equivalent mutant asserts an implementation detail.
+- **`RT-R1` earned itself.** *"A runtime is supported only if the gate runs in it"* read as
+  ceremony until Node refused to load a construct all four typecheckers accepted, and until the
+  browser rung turned out able to run **fewer** assertions than Node while reporting "all passed".
 
-**Questions raised.** *From Q36-Q40. To be filled at review; none has been forced yet — the browser
-rung (Q33) already covers the one gap this item found in P1's plan.*
+**Questions raised.** Q36-Q39, from the reserved block. Q40 is skipped, never reissued.
+
+| Q | | raised by |
+|---|---|---|
+| Q36 | What does a satisfied join carry downstream? Currently `null`, deliberately | pass 3 |
+| Q37 | Who asks whether a join is stuck, and how often? `joinStatusOf` is a poll | pass 3 |
+| Q38 | Is a run that a refusal stopped resumable, or terminal? | `OR-R10` |
+| Q39 | Does the library ship a reference join policy for testing, or does that become a default? | the seam |
+
+**ADR 0005-0006 were reserved and neither was used.** Every decision this item made is a spec rule
+with its rationale stated in place — `OR-R10`, `RT-R9`, `FD-V24`, `S6`, and the join seam's contract
+in `spec/join-policy.md` section 4. `doc/decisions/README.md`: a spec rule with a rationale paragraph
+beats a spec rule plus an ADR restating it. The numbers are skipped.
+
+**Spec changes this item made**, each with its rationale in place and none weakening a rule to make
+code pass (checked by pass 3): `flow-definition` v0.6, `outcome-record` v0.5, `join-policy` v0.7,
+`runtime-targets` v0.6, `task-id` v0.3. Two were **reported conflicts** rather than fixes —
+`FD-R1` prescribed a test that cannot be constructed, and three rules said "terminates the run"
+where a throw is discarded.

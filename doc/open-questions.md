@@ -17,7 +17,7 @@ settled until an ADR says so.
 
 ## The shape of the register
 
-Thirty-five questions in five clusters - 27 open, 8 resolved. They are **not** equally hard, and treating them as a flat
+Thirty-nine questions in five clusters - 31 open, 8 resolved. They are **not** equally hard, and treating them as a flat
 list is the first way to get this wrong:
 
 | Cluster | Q | Why it is grouped |
@@ -25,7 +25,7 @@ list is the first way to get this wrong:
 | **Control flow** | ~~Q1, Q2~~ | **Resolved 2026-08-30** - ADR 0001 and ADR 0002. Everything else was downstream of these two |
 | **The join** | Q4-Q7, Q23, Q24, Q27 | The genuinely hard part. Q4 is load-bearing for the other three, and is **deferred to a spike** rather than argued. Q23, Q24 and Q27 are W1's, and **Q24 is the pair of one-line changes that would have deleted the spike** - one of which W1 wrote before its own conformity pass caught it |
 | **Decisions and data** | Q8-Q12, Q22 | Ordinary design, but Q12 hides two different features under one word |
-| **Identity, state, failure** | ~~Q13~~, Q14-Q18, Q25, Q26, Q28-Q30 | Where the library's sharp edges land on us. **Q13 resolved by W1**, and Q17's *mechanism* by ADR 0004 - Q28-Q30 are what that ADR left open |
+| **Identity, state, failure** | ~~Q13~~, Q14-Q18, Q25, Q26, Q28-Q30, Q36-Q39 | Where the library's sharp edges land on us. **Q13 resolved by W1**, and Q17's *mechanism* by ADR 0004 - Q28-Q30 are what that ADR left open |
 | **Scale and interop** | Q19-Q21, Q33-Q35 | Answerable late, but Q19 changes the run representation if it lands badly. Q33-Q35 are the three runtimes: what a gate must run in, and what a published floor commits to |
 | **Raised late** | Q31, Q32 | Both from upstream documents rather than from our own design. Q31 became ADR 0007; **Q32 dissolved when 0.3.0 fixed the bug behind it** |
 
@@ -77,6 +77,10 @@ because P1 builds both join policies behind one interface rather than needing th
 | Q28 | **What may a resolution do?** `RS-R2` allows exactly one thing: supply an outcome for a dispatch that already happened. The two obvious wants are refused - *"run that node again"* is flow-level retry (Q16) and would have to mint a new task id, and *"send it to node X instead"* is a second routing mechanism competing with the definition, which is the thing [ADR 0001](decisions/0001-routing-executes-in-the-driver-outside-the-scheduler.md) rule 3 exists to prevent. Both are real requests a consuming application will make | open | no owner |
 | Q29 | **Is a resolution's `actor` interpreted, and who is allowed to resolve?** Today it is an opaque string the library never reads and never authenticates - which is honest for a library and useless for an audit trail. Authorization belongs to the consuming application; **attribution** arguably belongs in the log, since the log is the only record of why a run resumed. **Against doing more:** any answer richer than a string starts specifying an identity model this library has no business owning | open | no owner |
 | Q30 | **May an edge opt in to `user_action`, bypassing suspension?** `FD-V18` refuses it. *"If this node needs a human, route it to the manual-review sub-flow"* is a reasonable thing to want and would be one value in an array. **Against:** it gives one concept two mechanisms - a node in `user_action` would be sometimes parked and sometimes routed, and no reader of the definition could tell which without evaluating the edges | open - refused in P1 | no owner |
+| Q36 | **What does a satisfied join carry downstream?** The driver currently forwards **`null`**, and `settleJoin` takes no payload parameter so the choice cannot be quietly reintroduced. That is a placeholder, not an answer: `status` is asked after every terminal event, so *which* event satisfies a join is decided by fan-out completion order — and a join that forwarded "whichever branch finished last" would make a run's **data** order-dependent, which `doc/concept.md` section 5 and `CLAUDE.md` both forbid for tests and is worse for results. Candidates: the arrived branches' results keyed by branch, a declared reducer on the join node, or nothing. Interacts with [Q11](#live) (what a node receives) and [Q8](#live) (what a decision sees) | open | W2 |
+| Q37 | **Who asks whether a join is stuck, and how often?** `Driver.joinStatusOf(fanoutId)` is the whole of stuck-join detection today (`spec/join-policy.md` section 4), and it is a **poll**: something has to decide to call it. Neither pinned policy ever returns `unsatisfiable`, so a genuinely stuck join is silent until someone asks. **Against a push model:** a driver that notices staleness needs a clock, and a clock in the driver is the thing that makes [Q7](#live)'s timeout question real rather than deferrable | open | W4 |
+| Q38 | **Is a run that a refusal stopped resumable, or is it terminal?** `OR-R10` marks a run failed and stops routing it; nothing un-marks it. For `ID-R1` and `FD-R1` that is right — both mean the driver's own bookkeeping is wrong. For `OR-R6` (an uncloneable result) and for a policy that threw, a consuming application might reasonably fix the cause and continue. Interacts with [Q15](#live) (durability) and [Q28](#live) (what a resolution may do) | open | no owner |
+| Q39 | **Does the library ship a reference join policy for testing?** W3 ships none deliberately — a default would answer [Q4](#live) from inside the driver. But every consumer, and W5's real run, needs *some* policy to make a fan-out flow complete, and a stub written fresh each time is a stub written wrong each time. **Against shipping one:** whatever ships becomes the de-facto default, which is exactly what `JP-R7` and `JP-R8` guard against. Perhaps only after W4 has answered | open | after W4 |
 | Q18 | **What does cancelling a run actually do?** The scheduler **cannot cancel a queued task** (`AGENTS.md` section 1, not implemented), so cancellation can stop *routing* but not stop already-dispatched work from running. That makes "cancelled" a claim we cannot fully honour, and pretending otherwise is worse than saying so. Recorded upstream as [S2](scheduler-upstream.md) | open | no owner |
 
 ### Scale and interop
@@ -103,6 +107,28 @@ because P1 builds both join policies behind one interface rather than needing th
 | Q32 | How does P1 tell a stuck join apart from a silently dropped task? | **The question dissolved - 0.3.0 fixed the drop** ([S7](scheduler-upstream.md)). `_failOrphanedTask` now fails an orphaned waiter terminally with `task.failed`, `task.user_action`, a rejected promise and a `stats.failed` increment, and sweeps it out of every blocked queue with an `orphaned` exit each. A dropped task no longer produces silence, so a P1 hang can no longer be a lost task masquerading as a stuck join. W5's every-node-settles assertion stays as **cheap insurance** rather than a validity gate - it now checks a property the library asserts rather than one it violated |
 
 ## Notes
+
+**2026-08-30 - three conformity passes on W3, and each found a different shape of gap.** 85, then
+146, then 100 mutations. The arc is worth recording because it is not the arc anyone predicts:
+
+- **Pass 1** found an assertion that could not fail (`JP-R5`'s ordering test compared a multiset of
+  event types), a wrongly-typed edge target that slipped all 23 refusals, and `RT-R4`'s mandated
+  grep simply absent.
+- **Pass 2** found that **the join could never fire.** There was no policy seam at all — and all 132
+  assertions passed, because every test asserted on the event stream and none asserted that a run
+  *completes*. The largest thing in the item was missing and the gate was green.
+- **Pass 3** found the other half of that seam untested: both `settleJoin` calls on the non-arrival
+  paths survived deletion, and **deleting one makes `live-token` give `arrival-count`'s answer on
+  P1's own flow** — the false result `JP-R7` and `JP-R8` exist to forbid, reachable by a one-line
+  regression nothing would report. Every seam test had used an arrival-counting stub, so every one
+  of them asked only the question `arrival-count` can answer.
+
+**The through-line: a suite cannot answer a question nothing in it asks.** Three times the code was
+correct and the gap was in what the tests were shaped to look at. Pass 3 also found that *"the run
+terminates"* — said by `FD-R1`, `ID-R1` and `OR-R6` — was implemented as a `throw` from a scheduler
+listener, which `EventTarget.dispatchEvent` **discards**; that is `OR-R10`, and it was the third
+appearance in this layer of the silent-stop signature `spec/flow-definition.md` section 3 refuses on
+P1's own validity grounds.
 
 **2026-08-30 - W3's conformity pass ran 85 mutations and 37 survived, which is a different kind of
 result from the three that came before.** Those read documents and argued; this one broke the code

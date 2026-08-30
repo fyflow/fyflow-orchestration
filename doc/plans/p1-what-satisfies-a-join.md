@@ -7,7 +7,7 @@ actually survive it?*
 **Exit artifact:** the branch-routed-away case as an executable test, run against **both** join
 policies, plus one real fan-out flow completing on a real scheduler.
 **Reserves:** W1-W5, Q22-Q30, ADR 0003-0006
-**Both reserve blocks are spent.** W1 allocated Q22-Q30 in full (five of them raised by its own
+**Both reserve blocks are spent.** W3 used Q36-Q39 and no ADR. W1 allocated Q22-Q30 in full (five of them raised by its own
 spec-conformity pass) **and then Q33-Q35**, from the three-runtime requirement; **W3 takes Q36-Q40
 and ADR 0005-0006**, the last of the ADR block. ADR 0003 is still held for Q4 and is W4's; W1 took
 0004; 0007 came from outside the block. **W2, W4 and W5 reserve Q ids from Q41 and ADRs from 0008.**
@@ -119,7 +119,7 @@ report a hang as a timeout.
 |---|---|---|---|---|
 | W1 | The definition spec + task id scheme + **the outcome-record shape** (ADR 0007) + the join-policy interface + **the runtime targets** | `spec/**`, `scripts/check-spec.mjs`, `.node-version` | nothing | L0, spec review — **L0 run three times, spec review run twice**. The first review produced [ADR 0004](../decisions/0004-a-non-success-outcome-routes-only-where-an-edge-opts-in-and-user-action-suspends.md); the second found the same defect class the first had, under a new id |
 | W2 | The fold: outcome log → run state, both policies behind W1's interface | `src/fold/**` | W1 | L0-L3 |
-| W3 | The driver: subscribe, normalize at the boundary, route, dispatch, **validate a definition at instantiation**, accept a resolution | `src/driver/**`, `src/definition/**` | W1 | L0-L2, **L4** |
+| ~~W3~~ | The driver, the validator, the join seam, the toolchain | `src/driver/**`, `src/definition/**`, `test/{driver,definition}/**`, the toolchain | W1 | **done** — L0-L2 and L4 in **five runtimes**, 142 assertions, plus **three** spec-conformity passes |
 | W4 | The join/failure matrix — every Q5 outcome × both policies | `test/matrix/**` | W2 | L0-L5 |
 | W5 | One real fan-out flow on a real scheduler, **plus the every-node-settles assertion** (Q32) | `examples/**` | W2, W3 | L0-L6 — **L0-L5 in all three runtimes** (`RT-R1`); whether **L6** runs in all three is [Q33](../open-questions.md), and W5 is where it is answered |
 

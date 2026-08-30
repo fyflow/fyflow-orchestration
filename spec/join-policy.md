@@ -1,6 +1,6 @@
 # spec/join-policy — the interface both join policies sit behind
 
-**Status:** v0.6 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.7 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2 acts on the W1 spec-conformity pass**:
 `branch.lost` is redefined against
 [ADR 0004](../doc/decisions/0004-a-non-success-outcome-routes-only-where-an-edge-opts-in-and-user-action-suspends.md)
@@ -11,7 +11,8 @@ the second pass**: `branch.exited` was defined against a condition that is never
 invariant that a legal run breaks, and the Q5 table restated a clause ADR 0004 had corrected.
 **v0.5 records what W3's pass found about `JP-R5`'s ordering clause**: it is currently implied by
 `FD-V9` and cannot be falsified. **v0.6 pins the driver side of section 4**, after W3's second pass
-found the driver had no policy seam at all and the join could never fire.
+found the driver had no policy seam at all and the join could never fire. **v0.7 records what a
+satisfied join carries downstream**, which nothing said and the code was deciding.
 **Normative.**
 
 > **This document does not answer [Q4](../doc/open-questions.md) and must not be read as leaning.**
@@ -225,9 +226,21 @@ a policy.
 | **open** | The driver calls `open(region)` when the fanout is entered, **before the first `branch.opened`** — the same constraint `JP-R5` states from the other side |
 | **step** | **Every** region event is forwarded, all six. `JP-R4` sizes the vocabulary for the richer policy, so a policy ignores what it does not need; a driver that filtered would decide Q4 by omission |
 | **status** | Asked after **every terminal event**, not only on arrival — a join can become satisfiable because the last live branch was `lost` or `exited` without anything arriving, which is P1's case |
-| **satisfied** | The driver routes out of the join's single edge, **at most once** per region however many events follow |
+| **satisfied** | The driver routes out of the join's single edge, **at most once** per region however many events follow. **It carries `null`** — see below |
 | **unsatisfiable** | The driver **reports** it with the policy's own `describe`, and routes nowhere. It does **not** invent a run-level outcome: that vocabulary is run state's ([Q25](../doc/open-questions.md)) |
 | **no policy at all** | A definition containing a fan-out is **refused at instantiation**. The alternative is a run that dispatches every branch, sees every one arrive and stops silently — a second cause behind the observation P1 turns on |
+
+**A satisfied join carries `null` downstream, and that is a placeholder rather than an answer.**
+`status` is asked after every terminal event, so *which* event satisfies a join is decided by
+fan-out completion order — which `doc/concept.md` section 5 calls genuinely non-deterministic and
+`CLAUDE.md` says nothing may depend on. A join that forwarded "whichever branch finished last" would
+make a run's **data** order-dependent, which is worse than a flaky test: it is a flaky *result*.
+
+So the driver forwards nothing rather than picking arbitrarily, and `settleJoin` takes no payload
+parameter at all so the choice cannot be quietly reintroduced. **What a join should actually carry —
+the arrived branches' results, a declared reducer, or nothing — is
+[Q36](../doc/open-questions.md)**, and it interacts with [Q11](../doc/open-questions.md) (what a node
+receives) and [Q8](../doc/open-questions.md) (what a decision sees).
 
 **The driver ships no policy.** Both are W2's, `JP-R7` and `JP-R8` pin what their names mean, and
 W4 decides. A driver carrying a default would answer [Q4](../doc/open-questions.md) from inside W3.

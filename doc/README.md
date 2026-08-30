@@ -62,23 +62,24 @@ longer rests on our own reading. [S1](scheduler-upstream.md).
 
 **What happens next:**
 
-1. **[W3](work-items/w3-the-driver-and-the-validator.md) — declared, not started.** The driver, the
-   definition validator and the toolchain. **It runs before W2 rather than beside it**, because P1
-   is being run sequentially and W3 is the item that owns ladder **L4** — the check that turns
-   "every valid example passes every rule" from a property of one version into a property of every
-   version. Two of the four versions of `spec/flow-definition.md` shipped a refusal rule that
-   rejected the valid corpus.
-2. **Then W2** — the fold and both join policies, separated from W3 by
-   [`spec/`](../spec/README.md) rather than by intuition. They meet at
-   [outcome-record.md](../spec/outcome-record.md) and [join-policy.md](../spec/join-policy.md), and
-   **W2 owns the run-state document W1 deliberately did not write** (Q14 is what W2 tests). Then W4,
-   the join/failure matrix, which is what actually answers Q4, and W5.
-3. **Three traps are live for whoever writes W2 and W3.** `FD-V14` — the well-formedness rule whose
-   *absence* is what keeps P1's case authorable, stated in the **all-paths** form because the
-   *can-reach* form forbids nothing. `JP-R7` and `JP-R8`/[Q24](open-questions.md) — the two one-line
-   policy refinements that would make the spike return *"the two policies are equivalent"* as a
-   passing test; **W1 wrote one of them itself** before the conformity pass caught it. And `OR-R1`,
-   where a `{...e.detail}` spread looks like compliance and is not.
+1. **W2 — the fold, and both join policies.** It owns `src/fold/**` and the run-state document
+   W1 deliberately did not write ([Q14](open-questions.md) is what W2 tests). It reserves Q ids from
+   **Q41** and ADRs from **0008**; P1's blocks are spent. The interfaces it builds against are
+   real and exercised: [outcome-record.md](../spec/outcome-record.md)'s log and effective outcome,
+   and [join-policy.md](../spec/join-policy.md)'s `JoinPolicy` — which the driver now opens, steps
+   with all six events, and acts on.
+2. **Then W4**, the join/failure matrix, which is what actually answers Q4 — and then W5.
+3. **Four traps are live for whoever writes W2 and W4.**
+   - **`FD-V14`** — the well-formedness rule whose *absence* keeps P1's case authorable, stated in
+     the **all-paths** form because the *can-reach* form forbids nothing.
+   - **`JP-R7` and `JP-R8`** ([Q24](open-questions.md)) — the two one-line policy refinements that
+     would make the spike return *"the two policies are equivalent"* as a passing test. **W1 wrote
+     one of them itself** before a conformity pass caught it.
+   - **`OR-R1`** — where a `{...e.detail}` spread looks like compliance and is not.
+   - **The seam's non-arrival paths.** W3's pass 3 found that deleting `status`'s call after
+     `branch.exited` makes `live-token` give `arrival-count`'s answer on P1's own flow. **A stub
+     that counts arrivals only asks the question `arrival-count` can answer**, which is how that
+     survived a green suite in five runtimes.
 4. **Nothing upstream needs raising.** Every item in [scheduler-upstream.md](scheduler-upstream.md)
    is closed, deferred with a costless workaround, or declined. S2 is the next candidate and P1 is
    what would produce the number that justifies it.
@@ -95,7 +96,7 @@ wins.
 | [workflow.md](workflow.md) | **Read before any work item.** The loop, the verification ladder, the test rules, how work is split. Inherited and unproven - its adaptations are listed at the end for the first retro to judge |
 | [decisions/](decisions/) | ADR 0001, 0002, 0007. They bind `spec/` rather than being superseded by it - 0007 in particular is what [outcome-record.md](../spec/outcome-record.md) makes checkable |
 | [plans/p1-...](plans/p1-what-satisfies-a-join.md) | **The active plan.** Five work items, one exit artifact: does arrival-counting actually break |
-| [open-questions.md](open-questions.md) | The register. 27 open, 8 resolved |
+| [open-questions.md](open-questions.md) | The register. 31 open, 8 resolved |
 | [scheduler-upstream.md](scheduler-upstream.md) | S1-S8, plus **the S-id map for reading `RESOURCE_EVENTS_PLAN.md`**, which uses `fyflow-react-components`' numbering. **Nothing here blocks us, and nothing is left to raise** |
 | [../spec/README.md](../spec/README.md) | **The normative layer.** Four documents, an example corpus, and the rules for changing it. Written by W1 |
 | [work-items/](work-items/) | One file per work item. [W1](work-items/w1-the-normative-layer.md) **done**, [W3](work-items/w3-the-driver-and-the-validator.md) **built, two conformity passes**; W2, W4, W5 not yet - [TEMPLATE.md](work-items/TEMPLATE.md) |
@@ -105,10 +106,10 @@ wins.
 | Document | Status | Notes |
 |---|---|---|
 | `concept.md` | **v0.2** | Section 7's *"controlling a run from a UI"* non-goal now carries one narrow, cited exception (ADR 0004). Section 2 is the load-bearing part and is verified against the library rather than assumed - **re-checked unchanged at 0.3.0**. Section 3 was re-verified line by line at 0.3.0 and gained three constraints. Section 6's leanings are now two ADRs and one spike; the routing and definition rows there are **superseded by ADR 0001-0002** and should be read as history |
-| `open-questions.md` | live | **27 open, 8 resolved.** Q4 is `deferred` in the specific sense that a spike decides it |
+| `open-questions.md` | live | **31 open, 8 resolved.** Q4 is `deferred` in the specific sense that a spike decides it |
 | `workflow.md` | **v0.2**, still unproven | **The ladder gained a runtime axis** (section 4) and section 8 now splits the budget: one runtime in the edit loop, all three at the plan gate. Never run here, and never run in the repo it came from either. P1's retro is its first real test, and the adaptation table at the end is what that retro should judge |
 | `decisions/` | **4 ADRs**, all accepted | None superseded. **0003 is still reserved for Q4's answer** and is written when W4 has run. 0001 and 0002 went to the stated leaning; 0007 and **0004** are the two no leaning predicted - and 0004 was raised by a *reader*, in W1's spec-conformity pass, rather than by an author |
-| `plans/p1` | **in progress** | W1 **done and merged** (`a6edc92`), three conformity passes. **W3 declared**, runs next. **Both reserve blocks are spent** - W2/W4/W5 take Q ids from Q41 and ADRs from 0008 |
+| `plans/p1` | **in progress** | **W1 and W3 done.** W3's gate runs in five runtimes, 142 assertions, three conformity passes. **Both reserve blocks are spent** - W2/W4/W5 take Q ids from Q41 and ADRs from 0008 |
 | `scheduler-upstream.md` | live | 8 items, **5 closed** (S1 answered, S3 declined by us, S4 done, S7 fixed, S8 declined by upstream), S5 deferred, S2/S6 waiting on a real need. **Nothing left to raise** |
 | `spec/` | **five documents** | `flow-definition` v0.5, `outcome-record` v0.4, `join-policy` v0.6, `runtime-targets` v0.6, `task-id` v0.2, plus 30 hand-written examples, a declared registry, and 56 numbered rules. **Three conformity passes, all acted on**; the third reproduced the corpus check independently and fuzzed `ID-R1`'s unstated soundness assumption. v0.2 acts on the conformity pass. **Run state is not there and that is deliberate** - it is W2's, because Q14 is what W2 tests. L0 is `node scripts/check-spec.mjs` (eight checks) plus `check-source.mjs` (five) |
 

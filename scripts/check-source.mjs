@@ -106,11 +106,25 @@ for (const p of files) {
   }
 }
 
-// RT-R4's other half: nothing named *.node.ts may be in the JSR publish set.
+// RT-R4's other half, and S6: the allowlist must actually describe the tree.
+//
+// S5/S6 exist because the third conformity pass found `deno publish` broken —
+// `index.ts` exported a module the allowlist did not list, so the JSR package
+// would have shipped a dangling export. `published()` above walks `src/` on disk,
+// so on its own it could never disagree with `deno.json`; this is the comparison
+// that makes the allowlist checkable rather than decorative.
 const denoJson = JSON.parse(readFileSync(join(ROOT, 'deno.json'), 'utf8'));
-for (const entry of denoJson.publish?.exclude ?? []) {
-  if (entry.startsWith('!') && /\.node\.ts$/.test(entry)) {
-    fail('S5', `deno.json publishes ${entry.slice(1)}, a *.node.ts file — RT-R4`);
+const allowed = new Set(
+  (denoJson.publish?.exclude ?? []).filter((e) => e.startsWith('!')).map((e) => e.slice(1)),
+);
+for (const entry of allowed) {
+  if (/\.node\.ts$/.test(entry)) fail('S5', `deno.json publishes ${entry}, a *.node.ts file — RT-R4`);
+}
+for (const p of files) {
+  const name = rel(p);
+  if (!allowed.has(name)) {
+    fail('S6', `${name} is published source but is not in deno.json's publish allowlist — ` +
+      'JSR ships TypeScript source, so an unlisted module referenced by an export fails at publish');
   }
 }
 
@@ -120,6 +134,7 @@ const checks = [
   'S3 no DOM global in published source',
   'S4 no syntax Node cannot type-strip',
   'S5 no *.node.ts in the JSR publish set',
+  'S6 every published file is in the JSR allowlist',
 ];
 console.log(`source check — ${files.length} published files\n`);
 for (const c of checks) {

@@ -15,6 +15,7 @@
       "!src/driver/listener.ts",
       "!src/driver/routing.ts",
       "!src/driver/events.ts",
+      "!src/driver/policy.ts",
       "!src/driver/driver.ts",
       "!README.md"
     ]

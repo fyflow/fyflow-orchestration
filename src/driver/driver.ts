@@ -48,6 +48,10 @@ export class DuplicateTaskId extends Error {}
  * `Object.freeze` is shallow and a spread aliases `result`, so neither is enough
  * on its own.
  */
+function cloneValue(v: unknown): unknown {
+  return v === null || v === undefined ? v : structuredClone(v);
+}
+
 function cloneRecord<T extends { result?: unknown }>(r: T): T {
   return r.result === null || r.result === undefined
     ? { ...r }
@@ -65,6 +69,35 @@ function cloneRecord<T extends { result?: unknown }>(r: T): T {
  * the observation the whole plan turns on.
  */
 export class MissingJoinPolicy extends Error {}
+
+/**
+ * The run has failed and the driver has stopped routing it.
+ *
+ * **`spec/` says three refusals "terminate the run" — `FD-R1`, `ID-R1`, `OR-R6` —
+ * and a `throw` cannot do that.** Every one of them is reached from inside a
+ * `scheduler.addEventListener` callback, and `EventTarget.dispatchEvent`
+ * **discards a listener throw**: measured on Node 24, the remaining listeners
+ * still run, `dispatchEvent` returns normally, and the error resurfaces
+ * out-of-band on `process.nextTick`. In a browser it is a `window.onerror` report
+ * and the page carries on.
+ *
+ * So the run would have kept draining with nothing told — the silent stop
+ * `spec/flow-definition.md` section 3 refuses on P1's own validity grounds, which
+ * is the third time that signature has appeared in this file.
+ *
+ * The driver therefore **catches its own refusals at the listener boundary**,
+ * marks the run failed so nothing routes again, and reports through
+ * `onRunFailure`. The refusal classes are unchanged and still carry their names;
+ * what changed is that "terminates the run" is a thing the driver *does* rather
+ * than a thing it throws.
+ */
+export interface RunFailure {
+  runId: string;
+  /** `DuplicateTaskId` | `UncloneableResult` | `NoMatchingEdge` | the policy's own error name. */
+  kind: string;
+  message: string;
+  cause: unknown;
+}
 
 /** What the driver needs from a scheduler. Structural, so W3 is testable without one. */
 export interface SchedulerLike {
@@ -98,6 +131,12 @@ export interface DriverOptions {
    * `unsatisfiable` at all, which is itself Q7's finding rather than a gap.
    */
   onUnsatisfiableJoin?: (info: UnsatisfiableJoin) => void;
+  /**
+   * Called when a refusal terminates a run. See `RunFailure` — a `throw` from a
+   * listener is discarded by `dispatchEvent`, so this is the only way the failure
+   * `FD-R1`, `ID-R1` and `OR-R6` describe can actually reach a caller.
+   */
+  onRunFailure?: (failure: RunFailure) => void;
   /** Injected so the fold stays deterministic under test and `observedAt` is not a hidden global. */
   now?: () => number;
   onRegionEvent?: (e: RegionEvent) => void;
@@ -123,6 +162,8 @@ export class Driver {
   private readonly joinState = new Map<string, unknown>();
   /** A join fires at most once, however many terminal events follow it. */
   private readonly firedJoins = new Set<string>();
+  /** Runs the driver has stopped routing. Nothing dispatches for one again. */
+  private readonly failedRuns = new Set<string>();
 
   /**
    * Validates the definition IN FULL before anything is queued (ADR 0002 rule 3),
@@ -167,7 +208,14 @@ export class Driver {
   /** `ID-R2` — the half `FD-V16` cannot check. Then dispatch the entry node. */
   start(runId: string, payload: unknown): void {
     assertRunId(runId);
-    this.enter(runId, this.def.entry, payload);
+    try {
+      this.enter(runId, this.def.entry, payload);
+    } catch (e) {
+      // `start` is called by the caller, not by a listener, so it BOTH reports
+      // and rethrows: the caller is on the stack and can act on it.
+      this.failRun(runId, e);
+      throw e;
+    }
   }
 
   // --- inbound: the one thing outside this process that can change a run -------
@@ -209,11 +257,42 @@ export class Driver {
   // --- the scheduler's side ----------------------------------------------------
 
   private onEvent(name: string, detail: TaskDetailLike): void {
+    // The listener boundary is also the FAILURE boundary: a throw from here is
+    // discarded by dispatchEvent, so it is caught, reported, and the run stops.
+    let runId = '<unknown>';
+    try {
+      runId = typeof detail?.id === 'string' ? parseTaskId(detail.id).runId : runId;
+    } catch { /* a malformed id is reported by the catch below */ }
+    try {
+      this.onEventOrThrow(name, detail);
+    } catch (e) {
+      this.failRun(runId, e);
+    }
+  }
+
+  /** Whether this run has been stopped by a refusal. */
+  hasFailed(runId: string): boolean {
+    return this.failedRuns.has(runId);
+  }
+
+  private failRun(runId: string, cause: unknown): void {
+    this.failedRuns.add(runId);
+    const err = cause instanceof Error ? cause : new Error(String(cause));
+    this.opts.onRunFailure?.({
+      runId,
+      kind: err.constructor?.name ?? 'Error',
+      message: err.message,
+      cause,
+    });
+  }
+
+  private onEventOrThrow(name: string, detail: TaskDetailLike): void {
     const record = normalizeEvent(name, detail, this.now());
     if (!record) return; // OR-R3/OR-R4: this event writes nothing
     this.log.push(record);
 
     const { runId, nodeId, branchPath } = parseTaskId(record.taskId);
+    if (this.failedRuns.has(runId)) return;
     if (record.terminalState === 'user_action') {
       // Not a loss. The branch is still live and the join keeps waiting; a run
       // waiting on a person must not be reported as stuck (Q7).
@@ -232,24 +311,40 @@ export class Driver {
     const outcome = effectiveOutcome(this.log, taskId);
     if (!outcome) return; // suspended, or not settled
 
-    const result = selectEdge(node, runId, outcome.terminalState, { outcome }, this.opts.predicates);
+    // The predicate sees a COPY. `effectiveOutcome` returns the stored settlement
+    // record by reference when there is no resolution, and a predicate is ordinary
+    // user code (ADR 0002 rule 4 asks it to be pure; nothing enforces that — Q9).
+    const ctx = { outcome: cloneRecord(outcome) };
+    const result = selectEdge(node, runId, outcome.terminalState, ctx, this.opts.predicates);
     if (result.taken === null) {
       // No edge opts into this state. The path ends — declared by omission.
       const region = this.regionOf(nodeId);
       if (region) {
         this.emit({ type: 'branch.lost', regionId: region.fanoutId, branchPath, reason: 'failed' });
-        this.settleJoin(runId, region, outcome.result);
+        this.settleJoin(runId, region);
       }
       return;
     }
-    this.enter(runId, result.taken.to, outcome.result, branchPath);
+    // **Deep-copied on the way to the next task.** `outcome.result` is the stored
+    // record's field: handing it to `createTask` makes the next task's payload the
+    // previous record's `result`, and an inline worker that mutates what it was
+    // given mutates a record already in the log. `spec/outcome-record.md` section
+    // 4 — *"copying the field copies the reference"* — applied to the one exit
+    // that actually reaches a worker.
+    // The source node's region travels with the hop. A non-`end` node is in at
+    // most one region (FD-V19, FD-V22), so `regionOf` is unambiguous HERE — it is
+    // only `end` nodes, which are exempt from those rules, that can be in two.
+    this.enter(
+      runId, result.taken.to, cloneValue(outcome.result), branchPath,
+      this.regionOf(nodeId)?.fanoutId,
+    );
   }
 
   /**
    * Walk into a node. `fanout`, `join` and `end` dispatch nothing and are passed
    * through within this turn; only a `task` becomes a scheduler task.
    */
-  private enter(runId: string, nodeId: string, payload: unknown, fromBranch = '-'): void {
+  private enter(runId: string, nodeId: string, payload: unknown, fromBranch = '-', fromRegion?: string): void {
     const node = this.graph.byId.get(nodeId);
     if (!node) return;
 
@@ -274,7 +369,7 @@ export class Driver {
         region.branches.forEach((_b, i) => {
           this.emit({ type: 'branch.opened', regionId: region.fanoutId, branchPath: String(i) });
         });
-        region.branches.forEach((b, i) => this.enter(runId, b, payload, String(i)));
+        region.branches.forEach((b, i) => this.enter(runId, b, payload, String(i), region.fanoutId));
         return;
       }
 
@@ -286,17 +381,25 @@ export class Driver {
         const region = this.regions.find((r) => r.joinId === nodeId);
         if (!region) return;
         this.emit({ type: 'branch.arrived', regionId: region.fanoutId, branchPath: fromBranch });
-        this.settleJoin(runId, region, payload);
+        this.settleJoin(runId, region);
         return;
       }
 
       case 'end': {
-        const region = this.regionOf(nodeId);
+        // Attributed by the region the branch was OPENED in, not by `regionOf`,
+        // which returns the first region containing the node. `end` nodes are
+        // exempt from FD-V13/FD-V19/FD-V22, so one may belong to two regions —
+        // and a definition with two sequential fan-outs sharing an `end`
+        // validates clean. Attributing by node made the wrong join see a second
+        // terminal event for a branch that had already arrived, breaking JP-R5.
+        const region = fromRegion
+          ? this.regions.find((r) => r.fanoutId === fromRegion)
+          : undefined;
         if (region && fromBranch !== '-') {
           // NOT "left the region" — the `end` is inside region(F). The condition is
           // "reached a node of kind `end`", which is local and computable.
           this.emit({ type: 'branch.exited', regionId: region.fanoutId, branchPath: fromBranch, at: nodeId });
-          this.settleJoin(runId, region, payload);
+          this.settleJoin(runId, region);
         }
         return;
       }
@@ -343,9 +446,12 @@ export class Driver {
    */
   private emit(e: RegionEvent): void {
     const policy = this.opts.joinPolicy;
-    if (policy) {
-      const prior = this.joinState.get(e.regionId);
-      if (prior !== undefined) this.joinState.set(e.regionId, policy.step(prior, e));
+    // `has`, not `!== undefined`: `S` is the policy's own opaque state type and
+    // `undefined` is a legal value of it. An `open()` returning `undefined` used to
+    // silently disable the whole seam — no event reached `step`, the join never
+    // fired, and `joinStatusOf` reported "not entered" about a region that was.
+    if (policy && this.joinState.has(e.regionId)) {
+      this.joinState.set(e.regionId, policy.step(this.joinState.get(e.regionId), e));
     }
     this.opts.onRegionEvent?.(e);
   }
@@ -357,21 +463,32 @@ export class Driver {
    * become satisfied because the last live branch was **lost** or **exited**
    * without anything arriving at it, which is exactly P1's case.
    */
-  private settleJoin(runId: string, region: RegionSets, payload: unknown): void {
+  /**
+   * Deliberately takes NO payload. `settleJoin` is reached from three sites and
+   * which one arrives is decided by fan-out completion order — so a signature
+   * that accepted one would make the join's downstream data order-dependent by
+   * construction. Removing the parameter is what makes Q36 a question rather
+   * than a convention someone can quietly break.
+   */
+  private settleJoin(runId: string, region: RegionSets): void {
     const policy = this.opts.joinPolicy;
     if (!policy || this.firedJoins.has(region.fanoutId)) return;
+    if (!this.joinState.has(region.fanoutId)) return;
     const state = this.joinState.get(region.fanoutId);
-    if (state === undefined) return;
 
     const status = policy.status(state);
     if (status === 'waiting') return;
 
     if (status === 'unsatisfiable') {
+      // `describe` is computed BEFORE the region is latched. The other order means
+      // a throwing `describe` marks the join fired and loses the report
+      // permanently — even a caller that catches never learns why.
+      const describe = policy.describe(state);
       this.firedJoins.add(region.fanoutId);
       this.opts.onUnsatisfiableJoin?.({
         fanoutId: region.fanoutId,
         joinId: region.joinId,
-        describe: policy.describe(state),
+        describe,
         policyId: policy.id,
       });
       return;
@@ -382,7 +499,17 @@ export class Driver {
     const join = this.graph.byId.get(region.joinId);
     if (!join || join.kind !== 'join') return;
     const edge = join.edges?.[0];
-    if (edge) this.enter(runId, edge.to, payload);
+    // **The join passes `null`, deliberately.** `settleJoin` is reached from three
+    // sites with three different payloads, and which one arrives is decided by
+    // fan-out completion order — which `doc/concept.md` section 5 says is
+    // genuinely non-deterministic and CLAUDE.md says nothing may depend on. A
+    // join that forwarded "whichever branch finished last" would make a run's
+    // DATA order-dependent, which is worse than a flaky test.
+    //
+    // `spec/` says nothing about what a join carries downstream
+    // ([Q36](../../doc/open-questions.md)), so this refuses to invent it rather
+    // than picking a branch arbitrarily.
+    if (edge) this.enter(runId, edge.to, null);
   }
 
   /**
@@ -423,9 +550,17 @@ export class Driver {
    */
   joinStatusOf(fanoutId: string): { status: string; describe: unknown } | null {
     const policy = this.opts.joinPolicy;
+    if (!policy || !this.joinState.has(fanoutId)) return null;
     const state = this.joinState.get(fanoutId);
-    if (!policy || state === undefined) return null;
-    return { status: policy.status(state), describe: policy.describe(state) };
+    try {
+      return { status: policy.status(state), describe: policy.describe(state) };
+    } catch {
+      // A detector that takes its caller down when the policy misbehaves is worse
+      // than one that says nothing. `spec/join-policy.md` section 4 calls this
+      // accessor "the whole of stuck-join detection today", and something asking
+      // whether a run is stuck must not itself become the failure.
+      return null;
+    }
   }
 
   /**

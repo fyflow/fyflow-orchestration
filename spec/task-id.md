@@ -1,9 +1,10 @@
 # spec/task-id — the scheduler task id scheme
 
-**Status:** v0.2 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.3 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2 acts on the W1 spec-conformity pass**:
 section 2 point 3 was **wrong about the source** and is corrected (finding D7), `branchPath` is
 pinned against convergent branches (B3), and the rules name the item owing their test (D8, N19).
+**v0.3** points `ID-R1` at `OR-R10`: a refusal reached from a listener is reported, not thrown.
 **Normative.** Answers [Q13](../doc/open-questions.md).
 **This is a correctness rule, not a naming convention.** Section 2 is why.
 
@@ -118,7 +119,7 @@ the owning item's gate; **W1's L0 does not check it**
 
 | id | The run terminates when | Test owed by |
 |---|---|---|
-| `ID-R1` | the driver is about to dispatch a task id already in the run's dispatched-id set. `addTask` is **not** called; the run fails with `DuplicateTaskId` naming the id. Test: a driver driven to repeat an id, asserting the refusal and asserting the scheduler received nothing | W3 |
+| `ID-R1` | the driver is about to dispatch a task id already in the run's dispatched-id set. `addTask` is **not** called; the run fails with `DuplicateTaskId` naming the id, **reported** rather than thrown when it is reached from a listener (`OR-R10`). Test: a driver driven to repeat an id, asserting the refusal and asserting the scheduler received nothing | W3 |
 | `ID-R2` | a `runId` does not match its charset at run creation. Node ids are covered by `FD-V16` at instantiation; this is the half the definition cannot check. Test: run creation with a `runId` containing `:`, asserting the refusal | W3 |
 
 **`ID-R1` is a refusal rather than a guard because the collision should be impossible.**

@@ -1,12 +1,13 @@
 # spec/outcome-record — the log the driver writes
 
-**Status:** v0.4 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.5 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2 acts on the W1 spec-conformity pass**: the
 resolution record arrives from
 [ADR 0004](../doc/decisions/0004-a-non-success-outcome-routes-only-where-an-edge-opts-in-and-user-action-suspends.md)
 rule 6 (finding B1), and findings D8 and D11 are addressed in place. **v0.3 acts on the second
 pass**: section 6 defines the **effective outcome**, without which routing after a resolution had
-three conformant readings. **v0.4 acts on the third**: `observedAt` still had two.
+three conformant readings. **v0.5 corrects how a run terminates** — the third pass measured that a
+`throw` from a scheduler listener never reaches anybody. **v0.4 acts on the third**: `observedAt` still had two.
 **Normative.** This document is what
 [ADR 0007](../doc/decisions/0007-the-driver-normalizes-events-into-an-immutable-outcome-record.md)
 rule 1's *"declared fields"* means.
@@ -202,7 +203,31 @@ shape.
 is what *not resolving it* is. And it cannot invent a fourth state, because the run-level outcome
 vocabulary is run state's ([Q25](../doc/open-questions.md)) rather than this record's.
 
-## 6. The effective outcome
+## 6. How a run terminates — corrected
+
+**Three rules in this layer say a refusal "terminates the run": `FD-R1`, `ID-R1` and `OR-R6`.
+A `throw` cannot do that, and until W3's third conformity pass all three were implemented as one.**
+
+Every one of them is reached from inside a `scheduler.addEventListener` callback, and
+`EventTarget.dispatchEvent` **discards a listener throw**. Measured on Node 24 against
+`../fyflow-scheduler/core/FyflowScheduler.ts:212` (`export class FyflowScheduler extends
+EventTarget`): the remaining listeners still run, `dispatchEvent` returns normally, and the error
+resurfaces out of band on `process.nextTick`. In a browser it becomes a `window.onerror` report and
+the page carries on.
+
+So the run would have continued draining with the outcome record already appended, routing
+abandoned, and **nothing told** — which is the silent stop `spec/flow-definition.md` section 3
+refuses on P1's own validity grounds, and the third time that signature has appeared in this layer.
+
+| id | | Test owed by |
+|---|---|---|
+| `OR-R10` | **A refusal that terminates a run is caught at the listener boundary, reported, and stops the run.** The driver marks the run failed so nothing routes for it again, and reports through a failure callback carrying the refusal's name. **It does not throw out of a listener**, because that is discarded. The refusal classes and their names are unchanged; what changed is that terminating a run is a thing the driver *does* rather than a thing it throws. Test: each of `FD-R1`, `ID-R1` and `OR-R6` driven through a real `EventTarget`, asserting the failure is reported and that no further task is dispatched for that run | W3 |
+
+**A caller-initiated refusal still throws.** `Driver.start()` is called by the consumer, not by a
+listener, so it both reports and rethrows: the caller is on the stack and can act on it. The
+distinction is the stack, not the rule.
+
+## 7. The effective outcome
 
 **Routing never reads the log directly.** It reads one derived record per node, and this section is
 what makes that record well defined.

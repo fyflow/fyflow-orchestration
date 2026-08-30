@@ -1,12 +1,13 @@
 # spec/flow-definition — the flow definition format
 
-**Status:** v0.5 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.6 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2** acted on the first spec-conformity pass
 (ADR 0004, and `region(F)` made computable). **v0.3** acted on the second, which found that `FD-V19`
 had reintroduced the v0.1 defect class under a new id — a refusal rule rejecting the valid corpus.
 **v0.4** acted on the third, which found the opposite failure: a document this section could not
-refuse at all. **v0.5 acts on W3's pass**, which found `FD-R1` prescribing a test that cannot be
-constructed.
+refuse at all. **v0.5** acted on W3's pass, which found `FD-R1` prescribing a test that cannot be constructed.
+**v0.6** points `FD-R1` at `OR-R10`: *"terminates the run"* is a thing the driver does, not a throw
+from a listener, which is discarded.
 **Binds:** [ADR 0002](../doc/decisions/0002-a-flow-definition-is-data-and-a-predicate-is-registered-by-name.md)
 (the graph is data; a predicate is a name; an unknown name fails at instantiation) and
 [ADR 0004](../doc/decisions/0004-a-non-success-outcome-routes-only-where-an-edge-opts-in-and-user-action-suspends.md)
@@ -102,7 +103,7 @@ exactly inverted for the resolution road, which only non-optional nodes can take
 
 **Routing, in order:**
 
-1. A node's **effective outcome** ([spec/outcome-record.md](outcome-record.md) section 6) supplies a
+1. A node's **effective outcome** ([spec/outcome-record.md](outcome-record.md) section 7) supplies a
    `terminalState`, which selects the **eligible** edges — those whose `on` contains it (ADR 0004
    rules 1-2). Eligibility is checked before anything else.
 2. Among the eligible edges, **in declaration order**, the first whose `when` predicate returns true
@@ -334,7 +335,7 @@ owning item's gate, **not W1's L0**.
 
 | id | The run terminates when | Test owed by |
 |---|---|---|
-| `FD-R1` | routing reaches a node, eligible edges exist for the settled terminal state, and none evaluates true. Error names the run id and the node id. **Unreachable through a valid definition**, and that is `FD-V7` working rather than a gap — see below. Test: assert against the routing function directly, with a node whose eligible edges are all guarded and a registry whose predicates all return false; **and a companion test that the reachable neighbour is not this rule** — no eligible edge at all is a declared path end (section 3) | W3 |
+| `FD-R1` | routing reaches a node, eligible edges exist for the settled terminal state, and none evaluates true. The failure names the run id and the node id and is **reported** rather than thrown out of a listener (`OR-R10`). **Unreachable through a valid definition**, and that is `FD-V7` working rather than a gap — see below. Test: assert against the routing function directly, with a node whose eligible edges are all guarded and a registry whose predicates all return false; **and a companion test that the reachable neighbour is not this rule** — no eligible edge at all is a declared path end (section 3) | W3 |
 
 ### FD-R1's test, corrected
 
