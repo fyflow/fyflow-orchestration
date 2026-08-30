@@ -1,5 +1,5 @@
 /**
- * **Ladder L6 — the gate.** Twelve real runs on a real scheduler: P1's exit
+ * **Ladder L6 — the gate.** Thirteen real runs on a real scheduler: P1's exit
  * artifact, and P2's.
  *
  * ```

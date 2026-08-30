@@ -26,7 +26,13 @@ import { spawnSync } from 'node:child_process';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = join(ROOT, 'dev-dist', 'docs');
-const DOCS = ['AGENTS.md'];
+// `CHECK_DOCS_DOC` exists for `--self-test` below and for nothing else: the probes
+// need to run this script against a deliberately broken copy of the reference.
+const DOCS = [process.env.CHECK_DOCS_DOC || 'AGENTS.md'];
+if (process.argv.includes('--self-test')) {
+  const { selfTest } = await import(pathToFileURL(join(ROOT, 'scripts', 'check-docs-selftest.mjs')));
+  process.exit(await selfTest(ROOT));
+}
 
 const failures = [];
 const fail = (check, msg) => failures.push(`${check}: ${msg}`);
@@ -47,11 +53,29 @@ const PKG = 'fyflow-orchestration';
 /**
  * A block is `run` (executed), `check` (typechecked only — for a snippet whose
  * point is a type, or that would need a live scheduler), or **untagged**, which is
- * refused unless the line above it says why. An unchecked snippet in a reference
- * is precisely what this script exists to prevent, so opting out costs a sentence
- * a reader can see.
+ * refused unless the line above it carries the marker. An unchecked snippet in a
+ * reference is precisely what this script exists to prevent, so opting out costs a
+ * line a reader can see.
+ *
+ * **`NEAR_FENCE` is why this is two patterns and not one.** W9's adequacy reader
+ * found that ` ```typescript run `, ` ```TS run ` and three spaces of indentation
+ * each made a block invisible to the extractor with the gate still green — a
+ * one-character edit that silently deletes a snippet from the gate, while X1's
+ * vacuity guard stayed satisfied by the other thirteen. So anything that LOOKS
+ * like a TypeScript fence is matched, and one that is not exactly ` ```ts run ` or
+ * ` ```ts check ` is a failure rather than a skip.
  */
 const FENCE = /^```ts(?:[ \t]+(\w+))?[ \t]*$/;
+const NEAR_FENCE = /^[ \t]*`{3,}[ \t]*(ts|typescript)\b/i;
+
+/**
+ * The escape hatch for a block that is deliberately not checked. It was a word
+ * list (`not checked|illustration|prose|pseudo`) tested against the preceding
+ * line, which the same reader tripped with an ordinary English sentence and with a
+ * heading ending in the word "prose". An escape must be deliberate, so it is now
+ * an explicit marker and nothing else.
+ */
+const OPT_OUT = /<!--\s*check-docs:\s*not checked\s*(?:—|--|-)\s*\S/;
 
 function extract(docPath) {
   const text = readFileSync(join(ROOT, docPath), 'utf8');
@@ -59,7 +83,16 @@ function extract(docPath) {
   const blocks = [];
   for (let i = 0; i < lines.length; i++) {
     const m = FENCE.exec(lines[i]);
-    if (!m) continue;
+    if (!m) {
+      // Anything that reads as a TypeScript fence but is not exactly ` ```ts run `
+      // or ` ```ts check ` is refused, rather than skipped in silence.
+      if (NEAR_FENCE.test(lines[i])) {
+        fail('X1', `${docPath}:${i + 1} — \`${lines[i].trim()}\` is not an extractable fence. ` +
+          'Write exactly ```ts run or ```ts check; a variant spelling silently removes the snippet ' +
+          'from the gate');
+      }
+      continue;
+    }
     const start = i;
     let end = i + 1;
     while (end < lines.length && lines[end].trimEnd() !== '```') end++;
@@ -88,13 +121,42 @@ if (all.length === 0 && !failures.length) {
   fail('X1', 'no ```ts blocks were found — either the reference has none, or the fence syntax changed');
 }
 
-// X2 — an untagged block must carry a stated reason on the line above it.
+// X2 — an untagged block must carry the explicit opt-out marker on the line above it.
 for (const b of all) {
   if (b.tag === 'run' || b.tag === 'check') continue;
-  if (!/not checked|illustration|prose|pseudo/i.test(b.prevLine)) {
-    fail('X2', `${b.doc}:${b.line} is an untagged \`\`\`ts block. Tag it \`run\` or \`check\`, or say ` +
-      'on the line above why it is not checked (the words "not checked", "illustration", "prose" or ' +
-      '"pseudo"). An unchecked snippet in a reference is what this check exists to prevent');
+  if (!OPT_OUT.test(b.prevLine)) {
+    fail('X2', `${b.doc}:${b.line} is an untagged \`\`\`ts block. Tag it \`run\` or \`check\`, or put ` +
+      '`<!-- check-docs: not checked — <reason> -->` on the line above. An unchecked snippet in a ' +
+      'reference is what this check exists to prevent, so opting out is deliberate and visible');
+  }
+}
+
+// X4a — a `run` snippet that asserts nothing proves only that it exits zero, which
+// is the vacuous shape this repository has shipped twice. W9's adequacy reader
+// deleted a snippet's assertions and inserted `process.exit(0)` before them, and
+// both passed.
+for (const b of all.filter((x) => x.tag === 'run')) {
+  const body = b.body.replace(/\/\/.*$/gm, '');
+  if (!/\bthrow\b/.test(body)) {
+    fail('X4', `${b.doc}:${b.line} is a \`run\` snippet with no \`throw\`. Executing is not asserting: ` +
+      'a snippet that cannot fail proves only that it exits zero. Assert what the surrounding prose ' +
+      'claims, or tag it `check`');
+  }
+  if (/process\.exit\(/.test(body)) {
+    fail('X4', `${b.doc}:${b.line} calls process.exit(), which makes the exit code independent of ` +
+      'the assertions below it');
+  }
+}
+
+// X4b — the converse. A `check` snippet that throws is a `run` snippet that was
+// downgraded, and the run/check split is otherwise on the honour system: the same
+// reader inverted an assertion, re-tagged the block `check`, and the gate went green.
+for (const b of all.filter((x) => x.tag === 'check')) {
+  const body = b.body.replace(/\/\/.*$/gm, '');
+  if (/\bthrow\b/.test(body)) {
+    fail('X2', `${b.doc}:${b.line} is a \`check\` snippet containing \`throw\`. A snippet with an ` +
+      'assertion belongs in `run`, where the assertion is executed; tagging it `check` hides a ' +
+      'runtime failure behind a typecheck');
   }
 }
 
@@ -148,15 +210,52 @@ for (const w of written.filter((x) => x.tag === 'run')) {
   }
 }
 
+// X5 — the same snippets under the lib set a BROWSER-targeting consumer compiles
+// with. **Reported, never failed**, because the one snippet that breaks is
+// [Q71](../doc/open-questions.md) and this item is not permitted to fix it.
+//
+// Its value is the number. W9 shipped Q71 as a rhetorical caveat — *"if your
+// tsconfig includes the DOM lib"* — without measuring how much of the reference it
+// costs. That is the shape of defect this whole script exists to refuse, so the
+// caveat is now pinned at a count that moves if it gets worse.
+let domFailing = 'not run';
+if (written.length) {
+  const domCfg = join(OUT, 'tsconfig.dom.json');
+  writeFileSync(domCfg, JSON.stringify({
+    extends: relative(OUT, join(ROOT, 'tsconfig.json')).replace(/\\/g, '/'),
+    compilerOptions: { lib: ['ES2022', 'DOM', 'DOM.Iterable'], types: ['node'], noEmit: true },
+    include: ['*.ts'],
+  }));
+  const dom = spawnSync(
+    process.execPath,
+    [join(ROOT, 'node_modules', 'typescript', 'bin', 'tsc'), '-p', domCfg],
+    { cwd: ROOT, encoding: 'utf8' },
+  );
+  const hit = new Set(
+    `${dom.stdout ?? ''}`.split('\n')
+      .filter((l) => l.includes('error TS'))
+      .map((l) => /(\d+)-line(\d+)\./.exec(l)?.[2])
+      .filter(Boolean),
+  );
+  domFailing = `${hit.size} of ${written.length} (${[...hit].map((l) => `AGENTS.md:${l}`).join(', ') || 'none'})`;
+  // Q71 is one snippet. If it ever becomes more, that is a regression nothing else sees.
+  if (hit.size > 1) {
+    fail('X5', `${hit.size} snippets fail under the DOM lib, and Q71 accounts for one. ` +
+      `Newly failing: ${[...hit].map((l) => `AGENTS.md:${l}`).join(', ')}`);
+  }
+}
+
 const checks = [
   'X1 the reference exists and its fences parse',
-  'X2 every ```ts block is tagged, or says why it is not',
+  'X2 every ```ts block is tagged run or check, or opts out explicitly',
   'X3 every tagged snippet typechecks against index.ts',
-  'X4 every `run` snippet executes',
+  'X4 every `run` snippet executes, and asserts something',
+  'X5 how much of the reference the DOM lib costs (Q71) — reported',
 ];
 const runCount = written.filter((x) => x.tag === 'run').length;
 console.log(`docs check — ${all.length} snippet(s): ${runCount} run, ` +
-  `${written.length - runCount} check, ${all.length - written.length} untagged\n`);
+  `${written.length - runCount} check, ${all.length - written.length} untagged`);
+console.log(`             under the DOM lib, failing: ${domFailing}\n`);
 for (const c of checks) {
   const bad = failures.filter((f) => f.startsWith(c.slice(0, 2) + ':'));
   console.log(`  ${bad.length ? 'FAIL' : 'ok  '}  ${c}${bad.length ? ` (${bad.length})` : ''}`);

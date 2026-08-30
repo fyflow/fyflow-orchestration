@@ -15,7 +15,9 @@ defect classes P1 produced, five have no rung on the ladder at all — and every
 found by the conformity pass.** Four changes adopted; several findings deliberately left as findings.
 
 **[P2](plans/p2-the-non-success-half-on-a-real-scheduler.md) is open and
-[W6](work-items/w6-the-non-success-rows-at-l6.md) is built**, with both readers outstanding. Ladder
+[W6](work-items/w6-the-non-success-rows-at-l6.md) is built and reviewed** - both readers run, every
+finding acted on. **What P2 still owes is its retro**, and it is the first plan to run
+`doc/workflow.md` v0.3, so it has more to judge than most. Ladder
 L6 is now **thirteen rows and 219 assertions** in Node and Deno, and **all six run outcomes occur
 there** — `awaiting_action` and `stopped` for the first time, along with `branch.suspended` and
 `branch.resumed`. **Nothing in `src/` broke**, which is the weaker result P2 predicted when it
@@ -196,7 +198,7 @@ wins.
 | [open-questions.md](open-questions.md) | The register. **34 open, 13 resolved** - and **it is the one artifact here that is read as authoritative and checked by nothing**, which W5 found the hard way ([Q43](open-questions.md)) |
 | [scheduler-upstream.md](scheduler-upstream.md) | S1-S8, plus **the S-id map for reading `RESOURCE_EVENTS_PLAN.md`**, which uses `fyflow-react-components`' numbering. **Nothing here blocks us, and nothing is left to raise** |
 | [../spec/README.md](../spec/README.md) | **The normative layer.** Six documents, an example corpus, and the rules for changing it. Five written by W1, [run-state.md](../spec/run-state.md) by W2 |
-| [work-items/](work-items/) | One file per work item. [W1](work-items/w1-the-normative-layer.md), [W3](work-items/w3-the-driver-and-the-validator.md), [W2](work-items/w2-the-fold-and-both-join-policies.md) and [W4](work-items/w4-the-join-failure-matrix.md) **done**; [W5](work-items/w5-one-real-fan-out-flow-on-a-real-scheduler.md) **in review** — built, gated at L6 in two runtimes, three ADRs written, conformity pass outstanding. [TEMPLATE.md](work-items/TEMPLATE.md) |
+| [work-items/](work-items/) | One file per work item. [W1](work-items/w1-the-normative-layer.md), [W3](work-items/w3-the-driver-and-the-validator.md), [W2](work-items/w2-the-fold-and-both-join-policies.md) and [W4](work-items/w4-the-join-failure-matrix.md) **done**; [W5](work-items/w5-one-real-fan-out-flow-on-a-real-scheduler.md) and [W6](work-items/w6-the-non-success-rows-at-l6.md) **done**; [W9](work-items/w9-the-consumer-reference-and-its-extractor.md) **in review** — built, both readers run and acted on, awaiting only its commit. [TEMPLATE.md](work-items/TEMPLATE.md) |
 
 ## Document status
 
@@ -243,5 +245,5 @@ Deliberate overlaps, which are coordination points rather than duplication:
 | P | Question it answered | Exit artifact | Date |
 |---|---|---|---|
 | [P1](plans/p1-what-satisfies-a-join.md) | **Yes — and worse than predicted.** Arrival-counting breaks on **six of nine** matrix rows, not on the one exotic case, and an ordinary `optional` failure is enough. Live tokens survive: [ADR 0003](decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md) | `test/matrix/matrix.test.ts` (18 hand-derived cells × 2 policies) and **`examples/l6.ts`** (**eight** real runs at P1's close, thirteen after P2's W6). The row that is the plan: `p1-routed-away` under `arrival-count` is **`stuck`**, with the join's successor never dispatched | 2026-08-30 |
-| [P2](plans/p2-the-non-success-half-on-a-real-scheduler.md) | *in progress* — does the non-success half behave on a real scheduler the way the fixtures say? **W6 built; readers outstanding** | ladder L6 at **thirteen rows**, with all six run outcomes and all six region events occurring on real workers | — |
-| [P3](plans/p3-a-consumer-reference-the-gate-keeps-true.md) | *in progress* — what does a consumer need, and can a reference be kept true by the **gate** rather than by discipline? **W9 built; readers outstanding** | [AGENTS.md](../AGENTS.md), with every snippet extracted, typechecked and executed by `npm run gate` | — |
+| [P2](plans/p2-the-non-success-half-on-a-real-scheduler.md) | *in progress* — does the non-success half behave on a real scheduler the way the fixtures say? **W6 built and reviewed; the retro is what P2 still owes** | ladder L6 at **thirteen rows**, with all six run outcomes and all six region events occurring on real workers | — |
+| [P3](plans/p3-a-consumer-reference-the-gate-keeps-true.md) | *in progress* — what does a consumer need, and can a reference be kept true by the **gate** rather than by discipline? **W9 built; both readers run, ~30 findings, all acted on** | [AGENTS.md](../AGENTS.md), with every snippet extracted, typechecked and executed by `npm run gate` | — |
