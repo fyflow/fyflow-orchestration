@@ -1,11 +1,13 @@
 # spec/runtime-targets — three runtimes, one source tree
 
-**Status:** v0.3 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.4 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2 acts on the second spec-conformity pass**,
 which found that v0.1's central claim — *a `node:` import is fatal to a Deno build* — is **false at
 Deno 2**, and that the `*.node.ts` mechanism it described does not exist in the form it described.
-**v0.3 acts on the third pass**, which measured section 1's replacement claim and found *it* wrong
-too — in the opposite direction, and contradicted by `RT-R3` in the same document.
+**v0.3** acted on the third pass, which measured section 1's replacement claim and found *it* wrong
+too — in the opposite direction, and contradicted by `RT-R3` in the same document. **v0.4 adds
+`RT-R9`**, found by W3 the first time it ran its own tests: a construct `deno check` typechecks
+clean and Node cannot execute.
 **Normative.** These rules constrain what the source may import and what a gate must run in.
 **Inherited, not chosen.** `fyflow-scheduler` runs on Deno, Node and the browser from one source
 tree and publishes to JSR and npm. **We are a layer over it, so its reach is our floor** — a
@@ -106,6 +108,7 @@ configs that must not see it **and** from the JSR publish allowlist, in every pl
 | `RT-R4` | **No `node:` specifier and no Node-only global outside a `*.node.ts` file** — and no `*.node.ts` file inside the JSR publish set. The globals are enumerated, not left to judgement: **`process`, `Buffer`, `__dirname`, `__filename`, `require`, `global`, `setImmediate`, `clearImmediate`**. Check: a grep over the published file list for **`node:` in any import form** — `from "node:…"`, a bare side-effect `import "node:…"`, and `import("node:…")` — plus a bare `require(`, and each name above as a free identifier. Run as part of L0. **The browser typecheck catches the globals and the browser bundle catches the imports** (section 1); this grep is what works before either exists, and the only thing that covers a file neither build reaches | **W2 and W3** — both ship published source |
 | `RT-R5` | **No DOM API.** No `document`, no `window`, no `localStorage`. **The mechanism is the Node tsconfig, not the Deno one**: the sibling's `deno.json` sets `lib: ["deno.ns", "dom", "dom.iterable", "esnext"]`, so a Deno typecheck sees the DOM and will not object. `tsconfig.node.json` with `lib: ["ES2022"], types: ["node"]` is the configuration that catches it | W3 |
 | `RT-R6` | **The driver accepts a caller-supplied `runId` and never requires a particular id source.** Concretely this rules out reaching for `crypto.randomUUID()` as the only path: it is **secure-context-only in browsers**, so a driver that depends on it works on `localhost` and fails on a plain-HTTP page — the worst shape of portability bug, because the failure is environmental rather than logical and no fixture test can reach it. `crypto.getRandomValues` carries no such restriction and is a fine default. See [Q34](../doc/open-questions.md) | W3 |
+| `RT-R9` | **Published source uses only TypeScript syntax Node can strip.** No parameter properties, no `enum`, no `namespace`, no decorators, no `import x = require()`. Node 24 runs TypeScript by **erasing types, not compiling them**, so any construct that emits runtime code is `ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX` — and **no typecheck catches this**: `deno check`, `tsc -p tsconfig.node.json` and `tsc -p tsconfig.browser.json` all accept a parameter property that Node refuses to load. Running the suite under Node is the only thing that finds it, which makes `RT-R1`'s *"the gate runs in it"* load-bearing rather than ceremonial. Test: the existing suite, run under Node — it fails at import time, before any assertion | W2 and W3 |
 | `RT-R7` | **Repository tooling is exempt.** `scripts/check-spec.mjs`, the build config and the test harness may use `node:` freely and are not published. Only what a consumer receives is constrained, and the publish allowlist is what draws the line | — process rule, no test |
 
 ### The APIs this library is actually allowed to assume
@@ -125,6 +128,14 @@ the same objection [Q9](../doc/open-questions.md) raises against *"please write 
 **`structuredClone` being universal is what makes `OR-R2` portable**, and it is the single most
 load-bearing entry in this table: if it were not, the outcome record's copy rule would need a
 per-runtime implementation and `spec/outcome-record.md` section 4 would be a different document.
+
+> **`RT-R9` is the first rule here that no static check enforces, and it was found by running the
+> code rather than by reading it.** W3's driver used a constructor parameter property — ordinary
+> TypeScript, accepted by all three typecheckers — and Node 24 refused to load the module. The
+> asymmetry is structural: a typechecker asks *"is this well typed"* and Node's loader asks *"can
+> this be turned into JavaScript by deleting characters"*, and those are different questions. This
+> is the concrete form of the gap section 1 keeps circling: **each runtime rejects a different
+> thing, and no single tool sees the union.**
 
 > **One catch for whoever writes `tsconfig.node.json`.** `structuredClone` is declared in the DOM
 > lib, not in `lib.es2022`. So a Node config with `lib: ["ES2022"]` and `types: []` — which is what

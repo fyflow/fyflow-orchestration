@@ -1,6 +1,6 @@
 # W3 — The driver, the definition validator, and the toolchain the layer is built with
 
-**Status:** todo
+**Status:** in review
 **Plan:** [P1](../plans/p1-what-satisfies-a-join.md)
 
 ```
@@ -165,25 +165,55 @@ Named because they are known, and because each is a way this item could quietly 
 
 ## Record
 
-*Filled in when the item is done. Delete the italic lines.*
-
-**Gate — what ran.** One row per clause. Each verdict starts with `RAN` or `NOT RUN`; a clause with
-no row reads as *did not run*. **`RT-R1` means a rung is not green until it is green in all three
-runtimes, and a row that does not name its runtimes ran in one** (`doc/workflow.md` section 4).
+**Gate — what ran.** `RT-R1`: a rung is not green until it is green in all three runtimes, and a row
+that does not name its runtimes ran in one (`doc/workflow.md` section 4).
 
 | Clause | Verdict | Runtimes | Notes |
 |---|---|---|---|
-| L0 | | | |
-| L1 | | | |
-| L2 | | | |
-| L4 | | | |
-| spec-conformity | | | reviewer, and what it found |
-| re-run at `<sha>` | | | |
+| L0 typecheck | **RAN** — pass | **Node, browser, Deno** | `tsc -p tsconfig.node.json`, `tsc -p tsconfig.browser.json`, `tsc -p tsconfig.json` (adds `test/`), `deno check index.ts src/`. **Both config gates negative-tested**: the browser config rejects `process` (`RT-R4`), the node config rejects `document` (`RT-R5`) |
+| L0 spec check | **RAN** — pass | n/a | `node scripts/check-spec.mjs`, 8 checks, 56 rules |
+| L1 unit | **RAN** — pass | **Node 24, Deno** | the log, the listener boundary, ids. 20 assertions |
+| L2 routing | **RAN** — pass | **Node 24, Deno** | a fixture log in, an asserted node sequence out, **no scheduler**. 17 assertions |
+| L4 conformance | **RAN** — pass | **Node 24, Deno** | 6 valid flows clean, 23 invalid each rejected naming its own rule, `FD-V14` has no case, `p1-routed-away` still valid. 31 assertions |
+| **browser at L1/L2/L4** | **NOT RUN** | — | the suite typechecks under the browser config but has not been *executed* in a browser: that needs esbuild plus a Playwright harness, which is not built. **`RT-R1` is therefore satisfied for Node and Deno and NOT for the browser**, and this row is the honest form of that |
+| spec-conformity | **NOT RUN** | — | the remaining half of the gate |
+| re-run at `<sha>` | **NOT RUN** | — | |
+
+**L2 cost twelve lines of fake scheduler**, which is `doc/workflow.md` section 4's own test of
+whether the driver leaked: *"if level 2 is hard to write, the driver has reached for the scheduler
+somewhere it should not have."* It did not.
 
 **What broke.**
 
-**What this taught.** *What changes in the spec, the plan, or `doc/workflow.md` - or "nothing",
-which is a legitimate answer.*
+1. **`deno check` accepts TypeScript that Node 24 cannot execute.** The driver used a constructor
+   **parameter property** — ordinary TypeScript, accepted by all three typecheckers — and Node
+   refused to load the module with `ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX`. Node runs TypeScript by
+   *erasing types*, not compiling them, so any construct that emits runtime code is rejected at
+   load. **No static check in this repository catches it**, and it is now `RT-R9`.
+   `spec/runtime-targets.md` v0.4.
+2. **`FD-R1` is not reachable through the public API, and the first attempt to test it lied about
+   that.** `FD-V7` guarantees a default edge with no `when`, and a default always passes — so a
+   valid definition cannot reach "eligible edges exist and none matched". The first version of the
+   test contorted a driver into an invalid state to force it, which tests the contortion. It now
+   asserts against the pure `selectEdge` directly, and a second test pins the thing that *is*
+   reachable: **no eligible edge at all is a path end, not `FD-R1`**.
+3. **The three-runtime story is two-thirds true and the gate now says so.** Node and Deno both
+   execute TypeScript directly, so `src/`, `test/` and the runner are one tree with no build step.
+   The browser needs esbuild and a Playwright harness that do not exist, so its rung is `NOT RUN`
+   rather than quietly folded into "all three".
 
-**Questions raised.** *Q ids from Q36-Q40, with one line each. They also go in
-`doc/open-questions.md`.*
+**What this taught.**
+
+- **The rule that no check enforces is the one running the code finds.** Seven checks, four
+   typecheck configurations and three conformity passes all accepted a parameter property; importing
+   the module under Node took under a second to reject it. `RT-R1`'s *"a runtime is supported only
+   if the gate runs in it"* stopped being ceremonial the moment it was true.
+- **A test that has to contort the system to reach its case is testing the contortion.** `FD-R1`'s
+   unreachability is `FD-V7` working. The useful assertion was against the pure function, plus a
+   second test for the reachable neighbour the first version silently conflated with it.
+- **L4 is now a gate rather than a claim.** Three independent implementations have agreed on the
+   corpus — mine at v0.3, the third conformity reader's, and this validator — and only this one runs
+   on every change. That is what W3 was sequenced first for.
+
+**Questions raised.** *From Q36-Q40. To be filled at review; none has been forced yet — the browser
+rung (Q33) already covers the one gap this item found in P1's plan.*
