@@ -147,6 +147,26 @@ suite('OR-R8 and OR-R9 — the effective outcome', (test) => {
     equal(eff.kind, 'outcome', 'an effective outcome has an outcome record’s shape (OR-R9: one shape)');
   });
 
+  test("observedAt is the resolution's BY POSITION, not the later of the two clocks", () => {
+    // The fixture above has the resolution later, so `Math.max` and "the
+    // resolution's" agree and the distinction spec section 6 exists for is not
+    // pinned. Here the driver's clock has stepped BACKWARDS between the settlement
+    // and the resolution — an NTP correction or a resumed VM, and for a suspended
+    // node the gap is hours rather than milliseconds. `Math.max` returns the
+    // settlement's stamp and claims it is the moment the outcome became final.
+    const log: LogRecord[] = [
+      { ...settled, observedAt: NOW + 5_000 },
+      { kind: 'resolution', taskId: id, resolvedAs: 'done', result: null, error: null,
+        actor: 'ops:jane', observedAt: NOW },
+    ];
+    equal(
+      effectiveOutcome(log, id)!.observedAt,
+      NOW,
+      "observedAt is the resolution's because it is the later record BY APPEND ORDER — " +
+        'OR-R5 refuses ordering two records by comparing two Date.now() reads',
+    );
+  });
+
   test('the effective outcome is derived, never appended', () => {
     const log: LogRecord[] = [
       settled,
@@ -157,6 +177,30 @@ suite('OR-R8 and OR-R9 — the effective outcome', (test) => {
     effectiveOutcome(log, id);
     effectiveOutcome(log, id);
     equal(log.length, before, 'deriving it twice must not grow the log (OR-R8)');
+  });
+});
+
+suite('spec/outcome-record.md section 2 — every declared field comes from its source', (test) => {
+  // Six of the eleven were never asserted on a record `normalizeEvent` produced:
+  // hardcoding `attempts` to 0 and nulling the three timing fields both survived
+  // W3's mutation pass. Section 2 is a field-by-field source table and says
+  // "eleven fields, and the list is closed".
+  test('all eleven fields, read from the detail and not invented', () => {
+    const r = normalizeEvent('task.completed', liveTask({
+      attempts: 3, startTime: NOW - 500, endTime: NOW - 10, executionTime: 490, timestamp: NOW - 9,
+    }), NOW)!;
+    equal(r.kind, 'outcome', 'kind');
+    equal(r.taskId, 'r7c1f:score:-:0', 'taskId from d.id');
+    equal(r.terminalState, 'done', 'terminalState from d.state');
+    equal(r.result, { score: 0.41 }, 'result, deep-copied');
+    equal(r.error, null, 'error');
+    equal(r.attempts, 3, "attempts is the SCHEDULER's retry count, carried through, not zeroed");
+    equal(r.schedulerTimestamp, NOW - 9, 'schedulerTimestamp from d.timestamp');
+    equal(r.observedAt, NOW, "observedAt from the driver's clock");
+    equal(r.startTime, NOW - 500, 'startTime');
+    equal(r.endTime, NOW - 10, 'endTime');
+    equal(r.executionTime, 490, 'executionTime, worker-measured');
+    equal(Object.keys(r).length, 11, 'eleven fields, and the list is closed');
   });
 });
 

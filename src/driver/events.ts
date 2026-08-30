@@ -27,6 +27,11 @@ export interface BranchResumed {
 export type RegionEvent =
   | BranchOpened | BranchArrived | BranchExited | BranchLost | BranchSuspended | BranchResumed;
 
+/**
+ * The three terminal event types. Exported because `JP-R5`'s "at most one terminal
+ * event per branch" is a property W4's matrix and W5's run both assert over a
+ * stream, and both need the same list.
+ */
 export const TERMINAL_EVENTS = ['branch.arrived', 'branch.exited', 'branch.lost'] as const;
 
 export function isTerminalEvent(e: RegionEvent): boolean {

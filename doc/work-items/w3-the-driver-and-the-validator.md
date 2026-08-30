@@ -176,8 +176,14 @@ that does not name its runtimes ran in one (`doc/workflow.md` section 4).
 | L2 routing | **RAN** — pass | **Node 24, Deno** | a fixture log in, an asserted node sequence out, **no scheduler**. 17 assertions |
 | L4 conformance | **RAN** — pass | **Node 24, Deno** | 6 valid flows clean, 23 invalid each rejected naming its own rule, `FD-V14` has no case, `p1-routed-away` still valid. 31 assertions |
 | **browser at L1/L2/L4** | **NOT RUN** | — | the suite typechecks under the browser config but has not been *executed* in a browser: that needs esbuild plus a Playwright harness, which is not built. **`RT-R1` is therefore satisfied for Node and Deno and NOT for the browser**, and this row is the honest form of that |
-| spec-conformity | **NOT RUN** | — | the remaining half of the gate |
+| L0 source check | **RAN** — pass | n/a | `node scripts/check-source.mjs`, 5 checks, **each negative-tested**. This is `RT-R4`'s mandated grep, which W3 shipped without: the negative tests had been run by hand once and reported as a gate |
+| L0 lint | **RAN** — pass | n/a | `deno lint src/ test/ index.ts` |
+| spec-conformity | **RAN** — **1 blocking, 10 defects, 10 notes** | n/a | **85 mutations, 48 caught, 37 survived.** Four of the five mutations that would have mattered most were caught; `JP-R5`'s was not. Every finding acted on below |
+| **mutations re-run** | **RAN** — pass | Node 24 | every genuine survivor is now caught: M10, M11, M16, M46, M48, M51, M53, M54, M59, M74, and D10's four divergences. Two survivors are **equivalent mutants** and are recorded as such rather than chased |
 | re-run at `<sha>` | **NOT RUN** | — | |
+
+**105 assertions after the pass, up from 68.** The additions are clause-level rather than
+rule-level, which is what the survivors were about.
 
 **L2 cost twelve lines of fake scheduler**, which is `doc/workflow.md` section 4's own test of
 whether the driver leaked: *"if level 2 is hard to write, the driver has reached for the scheduler
@@ -202,8 +208,47 @@ somewhere it should not have."* It did not.
    The browser needs esbuild and a Playwright harness that do not exist, so its rung is `NOT RUN`
    rather than quietly folded into "all three".
 
+4. **`JP-R5`'s ordering clause has no test that can fail, and it cannot have one yet.** The
+   assertion compared a multiset of event *types*, which is identical whether the driver emits both
+   `branch.opened` before dispatching either branch or interleaves them. The reviewer replaced the
+   two-pass loop with an interleaved one and all 68 assertions passed. **The fix is not a better
+   assertion**: `FD-V9` forces every branch entry to be a `task`, and entering a task dispatches
+   without emitting, so the two implementations are behaviourally identical today. The order
+   assertion is now written properly and catches a driver that emits `opened` *after* a terminal
+   event; the interleaving case is recorded in `spec/join-policy.md` as unfalsifiable until `FD-V9`
+   or `FD-V19` is relaxed (Q27). **This is the rule whose failure would settle Q4 from inside W3.**
+5. **A wrongly-typed edge target slipped every one of 23 refusals.** `{ "to": 5 }` produced zero
+   findings: the graph builder filters non-string targets before `FD-V2` can see them, and `FD-V21`
+   did not type-check `to`. Driven through the driver it produced a run that stopped mid-flow with
+   one log record, no error and no `end` node — **the silent stop `spec/flow-definition.md` section
+   3 refuses on P1's own validity grounds**, arrived at from the other direction.
+6. **The corpus tests one case per rule *id*, and the rules have clauses.** 23 clause-deletion
+   mutations survived. `FD-V7`'s corpus case trips both its "no default" and its "not last" clause,
+   so each shadowed the other. Clause-level tests now live in `test/definition/clauses.test.ts` —
+   **deliberately not as new files in `spec/examples/invalid/`**, which is W1's normative fixture and
+   whose one-case-per-rule shape is a spec decision, not an oversight.
+7. **Two crash paths**: `nodes: [null]` and `edges: [null]` threw raw `TypeError`s from inside the
+   validator instead of returning findings, breaking the `InvalidDefinition`-carries-rule-ids
+   contract W3's own test asserts.
+8. **`RT-R4`'s grep did not exist.** The negative tests were run by hand once and written into the
+   Record as though they were a gate. `scripts/check-source.mjs` is the checked-in version, and it
+   covers what no typechecker does — including `localStorage`, which the Node config misses because
+   `@types/node` declares it globally, and `RT-R9`, which nothing checks at all.
+
 **What this taught.**
 
+- **Mutation testing answered "would the tests have noticed" in a way no amount of reading could.**
+  Three document passes argued about coverage; this one broke the code 85 times and counted. The
+  four mutations that mattered most were caught — `{...e.detail}`, the missing `structuredClone`,
+  keying on the event name, the duplicate-id refusal — and the one that was not is the one guarding
+  Q4.
+- **Two survivors turned out to be equivalent mutants, and saying so is part of the result.**
+  Removing `assertRunId` from `start()` is caught only when the entry node is a *fanout*, because
+  `buildTaskId` re-checks one frame later; the test now uses a fanout-entry flow so the region
+  events cannot escape. Removing `FD-V7`'s "no default" clause leaves the rule still firing through
+  its sibling clause with a different message — the rule id is the contract, the message is not, so
+  that one is not a hole. **Chasing an equivalent mutant produces a test that asserts an
+  implementation detail.**
 - **The rule that no check enforces is the one running the code finds.** Seven checks, four
    typecheck configurations and three conformity passes all accepted a parameter property; importing
    the module under Node took under a second to reject it. `RT-R1`'s *"a runtime is supported only

@@ -60,6 +60,10 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
 
   // ---- per node ----
   for (const n of nodes) {
+    if (n === null || typeof n !== 'object') {
+      add('FD-V21', null, `nodes contains ${JSON.stringify(n)}, which is not a node object`);
+      continue;
+    }
     const nd = n as unknown as Record<string, unknown>;
     const where = typeof nd?.id === 'string' ? (nd.id as string) : '<node with no id>';
     if (nd?.id === undefined) add('FD-V23', where, 'node is missing required key "id"');
@@ -104,12 +108,20 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
     }
     if (nd.kind === 'end') {
       if (nd.edges !== undefined) add('FD-V8', where, 'end node has edges');
+      // Both rules apply and section 5 names both: FD-V8 owns "absent or empty",
+      // FD-V21 explicitly enumerates "`outcome` not a string".
+      if (nd.outcome !== undefined && typeof nd.outcome !== 'string') {
+        add('FD-V21', where, 'end node outcome must be a string');
+      }
       if (typeof nd.outcome !== 'string' || nd.outcome.length === 0) {
         add('FD-V8', where, 'end node outcome is absent or empty');
       }
     }
-    if (nd.kind === 'fanout' && nd.edges !== undefined) {
-      add('FD-V9', where, 'fanout has edges');
+    if (nd.kind === 'fanout') {
+      if (nd.edges !== undefined) add('FD-V9', where, 'fanout has edges');
+      if (nd.branches !== undefined && !Array.isArray(nd.branches)) {
+        add('FD-V21', where, 'fanout branches must be an array');
+      }
     }
     if (nd.edges !== undefined && !Array.isArray(nd.edges)) {
       add('FD-V21', where, 'edges must be an array');
@@ -119,9 +131,20 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
     // ---- per edge: FD-V23, FD-V17, FD-V18, FD-V4 ----
     const edges: Edge[] = Array.isArray(nd.edges) ? (nd.edges as Edge[]) : [];
     edges.forEach((e, i) => {
-      const ed = e as unknown as Record<string, unknown>;
       const at = `${where}#edge${i}`;
+      if (e === null || typeof e !== 'object') {
+        add('FD-V21', at, `edge is ${JSON.stringify(e)}, which is not an edge object`);
+        return;
+      }
+      const ed = e as unknown as Record<string, unknown>;
       if (ed?.to === undefined) add('FD-V23', at, 'edge is missing required key "to"');
+      else if (typeof ed.to !== 'string') {
+        // Without this the graph builder filters the non-string target out before
+        // FD-V2 can see it, the driver reaches `byId.get(5) === undefined`, and the
+        // run ends with no error and no `end` node — the silent stop section 3
+        // refuses on P1's own validity grounds.
+        add('FD-V21', at, `edge.to must be a string, got ${JSON.stringify(ed.to)}`);
+      }
       for (const k of Object.keys(ed ?? {})) {
         if (!EDGE_KEYS.req.includes(k) && !EDGE_KEYS.opt.includes(k)) {
           add('FD-V17', at, `edge carries undeclared key "${k}"`);
@@ -145,7 +168,7 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
   }
 
   // ---- FD-V1: duplicate ids ----
-  const ids = nodes.map((n) => (n as { id?: unknown }).id).filter((x): x is string => typeof x === 'string');
+  const ids = nodes.map((n) => (n as { id?: unknown } | null)?.id).filter((x): x is string => typeof x === 'string');
   const dupes = ids.filter((id, i) => ids.indexOf(id) !== i);
   for (const id of new Set(dupes)) add('FD-V1', id, 'two nodes share this id');
 
@@ -159,7 +182,10 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
       if (!g.byId.has(t)) add('FD-V2', n.id, `references node "${t}", which does not exist`);
     }
     if (n.kind === 'join' && typeof n.of === 'string' && !g.byId.has(n.of)) {
+      // FD-V2 owns "names a node that does not exist"; FD-V6 owns "does not name a
+      // fanout", and a node that does not exist is not a fanout. Both are reported.
       add('FD-V2', n.id, `join.of names "${n.of}", which does not exist`);
+      add('FD-V6', n.id, `join.of names "${n.of}", which is not a fanout`);
     }
   }
 
@@ -187,12 +213,17 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
   for (const n of nodes) {
     if (typeof n?.id !== 'string') continue;
     if (n.kind === 'task') {
-      const edges: Edge[] = Array.isArray(n.edges) ? n.edges : [];
+      // Malformed entries were already reported as FD-V21 above; dropping them here
+      // keeps FD-V7 a statement about the edges that exist rather than a crash.
+      const edges: Edge[] = (Array.isArray(n.edges) ? n.edges : []).filter(
+        (e): e is Edge => e !== null && typeof e === 'object',
+      );
       if (edges.length === 0) {
         add('FD-V7', n.id, 'task node has no edges');
         continue;
       }
-      const onOf = (e: Edge) => (Array.isArray(e.on) && e.on.length ? e.on : (['done'] as const));
+      const onOf = (e: Edge | null | undefined) =>
+        (Array.isArray(e?.on) && e.on.length ? e.on : (['done'] as const));
       const states = new Set<string>();
       for (const e of edges) for (const s of onOf(e)) states.add(s as string);
       if (!states.has('done')) add('FD-V7', n.id, 'no edge of this task node is eligible for "done"');
@@ -243,8 +274,11 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
   }
   if (cyclic) add('FD-V10', null, 'the graph contains a cycle');
 
-  // ---- FD-V11: reachability. Skipped when entry is unresolvable — FD-V3 owns that. ----
-  if (typeof doc?.entry === 'string' && g.byId.has(doc.entry) && !cyclic) {
+  // ---- FD-V11: reachability. Skipped when entry is unresolvable — FD-V3 owns that.
+  // NOT skipped when the graph is cyclic: reachability holds independently of
+  // FD-V10, `reachFrom` is iterative with a seen set so a cycle cannot hang it,
+  // and suppressing it hid a violation the spec says is present. ----
+  if (typeof doc?.entry === 'string' && g.byId.has(doc.entry)) {
     const seen = new Set([doc.entry, ...Array.from(reachFrom(g, doc.entry))]);
     for (const id of g.byId.keys()) {
       if (!seen.has(id)) add('FD-V11', id, 'node is not reachable from entry');
@@ -252,6 +286,8 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
   }
 
   // ---- the region family: FD-V12, FD-V13, FD-V15, FD-V19, FD-V20, FD-V22 ----
+  // Guarded on acyclicity deliberately, unlike FD-V11 above: `region(F)` is not
+  // meaningful on a cyclic graph, so these would be noise rather than findings.
   if (!cyclic) {
     for (const r of allRegions(g, doc)) {
       for (const b of r.branches) {

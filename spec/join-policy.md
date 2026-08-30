@@ -1,6 +1,6 @@
 # spec/join-policy — the interface both join policies sit behind
 
-**Status:** v0.4 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.5 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2 acts on the W1 spec-conformity pass**:
 `branch.lost` is redefined against
 [ADR 0004](../doc/decisions/0004-a-non-success-outcome-routes-only-where-an-edge-opts-in-and-user-action-suspends.md)
@@ -9,6 +9,8 @@ pinned to Q4's own wording (D10), and every rule names the item owing its test (
 the second pass**: `branch.exited` was defined against a condition that is never true, and
 `branch.lost` could not fire for a resolved branch. **v0.4 acts on the third**: `JP-R5` asserted an
 invariant that a legal run breaks, and the Q5 table restated a clause ADR 0004 had corrected.
+**v0.5 records what W3's pass found about `JP-R5`'s ordering clause**: it is currently implied by
+`FD-V9` and cannot be falsified.
 **Normative.**
 
 > **This document does not answer [Q4](../doc/open-questions.md) and must not be read as leaning.**
@@ -114,6 +116,27 @@ rather than an oversight.
 | `JP-R4` | **The vocabulary is sized for the richer policy.** A policy that needs fewer events ignores the rest. Designing it around what arrival-counting needs would delete `branch.exited` and `branch.lost` — and deleting `branch.exited` makes P1's case unobservable, which decides Q4 by omission | W4, as a matrix column that exercises every event |
 | `JP-R5` | **At most one terminal event per branch, with nothing after it, and every `branch.opened` for a region precedes any other event for that region.** A branch is `opened` once, may be `suspended`/`resumed` any number of times, and then `arrived`, `exited` or `lost` **at most** once — **not** exactly once: a branch that suspends and is never resolved emits no terminal event at all, which section 4 says is a legal and expected state, and neither does any branch in a run still in flight. An assertion written `count === 1` fails on Q5's `user_action` row. The opening rule is a **driver obligation**, not a policy's problem — see below. **`FD-V22` is what makes the one-`opened`-per-branch half true**: without it a token can enter a branch from outside the region and arrive at a join that never opened it. Test: assert both properties over the event stream of every W5 run, including a run where a branch is resolved | W3 |
 | `JP-R6` | **Adding an event is a spec change with its own rationale** (`spec/README.md` rule 1), never a side effect of making a policy work | — |
+
+### JP-R5's ordering clause is currently unfalsifiable, and that is `FD-V9` doing it
+
+**Stated because a reader will otherwise mistake the driver's two-pass emission for the thing making
+this true, or mistake a passing test for evidence.** `FD-V9` requires every branch entry to be a
+`task`, and entering a task **dispatches without emitting** — so no event can appear between two
+`branch.opened`s no matter how the driver is written. W3's conformity pass replaced its two-pass
+loop with an interleaved one and the whole suite still passed, because the two implementations are
+**behaviourally identical under `FD-V9`**.
+
+Three consequences, and the third is the one that matters:
+
+1. The rule is not redundant. It is **insurance**, and it becomes load-bearing the moment `FD-V9` or
+   `FD-V19` is relaxed ([Q27](../doc/open-questions.md)) — a branch entry that is an `end`, or a
+   shared node, emits on entry and the order becomes observable.
+2. **No test can currently distinguish a conforming driver from a non-conforming one**, so a green
+   suite is not evidence for this clause. W3's test asserts the invariant over a real stream, which
+   catches a driver that emits `branch.opened` *after* a terminal event; it cannot catch
+   interleaving.
+3. **A driver written after `FD-V9` is relaxed will not be caught by the existing test**, which is
+   why this paragraph exists rather than a `TODO`.
 
 ### Why JP-R5 fixes the opening order, and why that is not a thumb on the scale
 

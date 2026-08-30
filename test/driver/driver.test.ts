@@ -171,18 +171,50 @@ suite('ID-R1 — a duplicate dispatch is refused before addTask sees it', (test)
 
 suite('JP-R5 — the region event stream', (test) => {
   test('every branch.opened precedes any other event for the region', async () => {
+    // The assertion this replaces compared a multiset of event TYPES, which is
+    // identical whether the driver emits both `opened` before dispatching either
+    // branch or interleaves emit and dispatch — dispatch emits nothing
+    // synchronously. W3's conformity pass replaced the two-pass loop with an
+    // interleaved one and all 68 assertions still passed. `JP-R5` is the rule
+    // whose failure would settle Q4 from inside W3, and its test could not fail.
+    //
+    // This asserts the ORDER, over a run that produces both kinds of event: the
+    // last `branch.opened` must precede the first event that is not one.
     const h = harness(await load('valid/fanout-join.flow.json'));
     h.driver.start('r1', {});
     h.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
-    equal(
-      h.events.map((e) => e.type),
-      ['branch.opened', 'branch.opened'],
-      'the fanout opens both branches before dispatching either — without this a live-token ' +
-        'policy can see the count reach zero while a branch is still running',
-    );
-    equal(h.ids().slice(1), ['r1:scoreA:0:0', 'r1:scoreB:1:0'], 'branch index is the third id segment');
-
     h.scheduler.settle('r1:scoreA:0:0', 'done', { result: {} });
+
+    const types = h.events.map((e) => e.type);
+    const lastOpened = types.lastIndexOf('branch.opened');
+    const firstOther = types.findIndex((t) => t !== 'branch.opened');
+    ok(
+      lastOpened >= 0 && firstOther >= 0,
+      `the run must produce both an opened and a non-opened event; got ${types.join(', ')}`,
+    );
+    ok(
+      lastOpened < firstOther,
+      'every branch.opened for a region must precede any other event for it — a live-token ' +
+        'policy sees the count reach zero while a branch is still running otherwise.\n' +
+        `    order was: ${types.join(', ')}`,
+    );
+    equal(
+      types.filter((t) => t === 'branch.opened').length,
+      2,
+      'one branch.opened per declared branch, no more and no fewer',
+    );
+    // **This assertion cannot currently distinguish the two-pass emission in
+    // `Driver.enter` from an interleaved one, and that is a property of the spec
+    // rather than a weak test.** `FD-V9` requires every branch entry to be a
+    // `task`, and entering a task dispatches without emitting, so no event can
+    // appear between two `branch.opened`s. The mutation is equivalent today.
+    //
+    // The two-pass loop is kept as insurance: it is what keeps `JP-R5` true if
+    // `FD-V9` or `FD-V19` is ever relaxed (Q27), and the assertion above starts
+    // discriminating the moment a branch entry can emit on entry. Recorded in
+    // `spec/join-policy.md` so the next reader does not mistake it for coverage.
+    equal(h.ids().slice(1, 3), ['r1:scoreA:0:0', 'r1:scoreB:1:0'], 'branch index is the third id segment');
+
     equal(h.events.at(-1), { type: 'branch.arrived', regionId: 'split', branchPath: '0' }, 'branch 0 arrives');
     h.scheduler.settle('r1:scoreB:1:0', 'done', { result: {} });
     equal(h.events.at(-1), { type: 'branch.arrived', regionId: 'split', branchPath: '1' }, 'branch 1 arrives');
@@ -196,6 +228,53 @@ suite('JP-R5 — the region event stream', (test) => {
     h.scheduler.settle('r1:scoreA:0:0', 'done', { result: {} });
     const terminals = h.events.filter((e) => e.type !== 'branch.opened');
     equal(terminals.length, 1, 'JP-R5 says AT MOST one — branch 1 has not settled and emits nothing');
+  });
+});
+
+suite('JP-R5 — branch.lost and branch.resumed, which nothing drove before', (test) => {
+  // Both are reachable with the existing corpus and neither was asserted: the
+  // RS-R3 test checked only `events.at(-1)`, so deleting `branch.resumed`
+  // entirely survived the suite.
+  test('a resolved-to-failed branch with no eligible edge emits the full sequence', async () => {
+    const h = harness(await load('valid/fanout-join.flow.json'));
+    h.driver.start('r1', {});
+    h.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
+    h.scheduler.settle('r1:scoreA:0:0', 'user_action', { error: 'needs a human' });
+    h.driver.resolve('r1:scoreA:0:0', 'failed', { error: 'gave up', actor: 'ops:sam' });
+    h.scheduler.settle('r1:scoreB:1:0', 'done', { result: {} });
+
+    equal(
+      h.events.map((e) => `${e.type}:${e.branchPath}`),
+      [
+        'branch.opened:0', 'branch.opened:1',
+        'branch.suspended:0', 'branch.resumed:0', 'branch.lost:0',
+        'branch.arrived:1',
+      ],
+      'the whole Q5 row: suspend, resume, and lose the branch because `scoreA` has no ' +
+        'on:["failed"] edge — while branch 1 arrives normally',
+    );
+    const lost = h.events.find((e) => e.type === 'branch.lost') as { reason: string };
+    equal(lost.reason, 'failed', "the vocabulary's single permitted reason today");
+    const resumed = h.events.find((e) => e.type === 'branch.resumed') as { at: string; resolvedAs: string };
+    equal(resumed.at, 'scoreA', 'branch.resumed names the node that was suspended');
+    equal(resumed.resolvedAs, 'failed', 'and the state the human chose');
+  });
+
+  test('branch.suspended and branch.resumed are NOT terminal', async () => {
+    // JP-R5: at most one terminal event per branch, with nothing after it. A
+    // suspend/resume pair sits before the terminal one rather than being it.
+    const h = harness(await load('valid/fanout-join.flow.json'));
+    h.driver.start('r1', {});
+    h.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
+    h.scheduler.settle('r1:scoreA:0:0', 'user_action', { error: 'x' });
+    const terminalsBefore = h.events.filter((e) =>
+      ['branch.arrived', 'branch.exited', 'branch.lost'].includes(e.type)).length;
+    equal(terminalsBefore, 0, 'a suspended branch has emitted no terminal event — it is still live');
+    h.driver.resolve('r1:scoreA:0:0', 'done', { result: {}, actor: 'a' });
+    const terminals = h.events.filter((e) =>
+      ['branch.arrived', 'branch.exited', 'branch.lost'].includes(e.type));
+    equal(terminals.length, 1, 'exactly one terminal event, after the resume');
+    equal(h.events.at(-1)!.type, 'branch.arrived', 'and it comes last for that branch');
   });
 });
 
@@ -217,6 +296,53 @@ suite("P1's case — a decision inside a branch routes away from the join", (tes
     const exited = h.events.find((e) => e.type === 'branch.exited') as { at: string };
     equal(exited.at, 'abandoned', '`at` names the `end` node reached, which is INSIDE region(split)');
     equal(h.ids().includes('r1:publish:-:0'), false, 'the join has not fired: no policy said it was satisfied');
+  });
+});
+
+suite('the dispatched task carries what the definition declared', (test) => {
+  // Replacing workerType with a wrong one, and forcing `optional` to false, both
+  // survived W3's mutation pass. `optional` is not cosmetic: at 0.3.0 it is the
+  // library's own branch (FyflowScheduler.ts:894-897), so forcing it false turns
+  // every optional node's failure into a user_action suspend.
+  test('workerType and optional are passed through from the node', async () => {
+    const h = harness(await load('valid/fanout-failure.flow.json'));
+    h.driver.start('r1', {});
+    equal(h.scheduler.added[0]!.workerType, 'IngestWorker', 'workerType comes from the node');
+    h.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
+    const byId = Object.fromEntries(h.scheduler.added.map((t) => [t.id, t]));
+    equal(byId['r1:scoreA:0:0']!.workerType, 'ScoreWorker', 'each node dispatches under its own workerType');
+    equal(byId['r1:scoreA:0:0']!.optional, true, 'optional: true reaches the scheduler task');
+    equal(byId['r1:reviewB:1:0']!.optional, false, 'and the default reaches it as false');
+  });
+});
+
+suite('ID-R2 — the charset is enforced at run creation, not just in the helper', (test) => {
+  test('Driver.start refuses a malformed runId before ANY side effect', async () => {
+    // The earlier test called assertRunId directly, which proves the regex works
+    // rather than that the driver applies it. Removing the call from start() then
+    // survived, because buildTaskId re-checks — so the charset is still enforced,
+    // just one frame later.
+    //
+    // That is only equivalent when the entry node is a task. With a FANOUT entry,
+    // `enter` emits every `branch.opened` before dispatching anything, so a check
+    // deferred to buildTaskId lets region events escape for a run that was never
+    // valid. This flow is built here rather than added to spec/examples/, which is
+    // W1's normative corpus.
+    const fanoutEntry = {
+      flowId: 'fanout-entry', version: 1, entry: 'split',
+      nodes: [
+        { id: 'split', kind: 'fanout', branches: ['scoreA', 'scoreB'] },
+        { id: 'scoreA', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'collect' }] },
+        { id: 'scoreB', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'collect' }] },
+        { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'done' }] },
+        { id: 'done', kind: 'end', outcome: 'completed' },
+      ],
+    } as unknown as FlowDefinition;
+
+    const h = harness(fanoutEntry);
+    throws(() => h.driver.start('run:1', {}), 'not [A-Za-z0-9_-]', 'a colon would make the parse ambiguous');
+    equal(h.scheduler.added.length, 0, 'nothing was dispatched');
+    equal(h.events, [], 'and no region event escaped — ID-R2 fires at run creation, before enter()');
   });
 });
 
@@ -259,6 +385,20 @@ suite('ADR 0004 — user_action suspends, and a resolution resumes the path', (t
     const len = h.driver.snapshot().length;
     equal(h.driver.resolve(susp, 'failed', { error: 'again', actor: 'b' }), false, 'refused, not thrown');
     equal(h.driver.snapshot().length, len, 'nothing appended — a rejected command, not a run failure');
+  });
+
+  test("a resolution's result is deep-copied on the way in, like OR-R2", async () => {
+    const h = harness(await load('valid/fanout-failure.flow.json'));
+    h.driver.start('r1', {});
+    h.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
+    h.scheduler.settle(susp, 'user_action', { error: 'x' });
+    const answer = { deep: { approved: true } };
+    h.driver.resolve(susp, 'done', { result: answer, actor: 'ops:jane' });
+    answer.deep.approved = false;
+    const rec = h.driver.snapshot().find((r) => r.kind === 'resolution')!;
+    equal((rec as { result: unknown }).result, { deep: { approved: true } },
+      'section 5: "Deep-copied on the way in, for the same reason as OR-R2"');
+    equal((rec as { actor: string }).actor, 'ops:jane', 'the actor is carried, not invented');
   });
 
   test('RS-R2 — a resolution supplies an outcome and never re-dispatches', async () => {

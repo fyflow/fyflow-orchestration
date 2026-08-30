@@ -26,13 +26,15 @@
   ],
   "scripts": {
     "check:spec": "node scripts/check-spec.mjs",
+    "check:source": "node scripts/check-source.mjs",
+    "lint": "deno lint src/ test/ index.ts",
     "typecheck:node": "tsc -p tsconfig.node.json",
     "typecheck:browser": "tsc -p tsconfig.browser.json",
     "typecheck:deno": "deno check index.ts src/",
     "typecheck": "npm run typecheck:node && npm run typecheck:browser && npm run typecheck:deno",
     "test": "node test/runner.ts",
     "test:deno": "deno run --allow-read test/runner.ts",
-    "gate": "npm run check:spec && npm run typecheck && npm run test && npm run test:deno"
+    "gate": "npm run check:spec && npm run check:source && npm run lint && npm run typecheck && npm run test && npm run test:deno"
   },
   "engines": {
     "node": ">=22"

@@ -27,6 +27,8 @@
   "fmt": { "useTabs": false, "lineWidth": 100 },
   "tasks": {
     "check": "deno check index.ts src/",
+    "check:source": "deno run --allow-read scripts/check-source.mjs",
+    "lint": "deno lint src/ test/ index.ts",
     "test": "deno run --allow-read test/runner.ts"
   }
 }

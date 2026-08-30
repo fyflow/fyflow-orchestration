@@ -17,7 +17,7 @@ settled until an ADR says so.
 
 ## The shape of the register
 
-Thirty-five questions in five clusters - 28 open, 7 resolved. They are **not** equally hard, and treating them as a flat
+Thirty-five questions in five clusters - 27 open, 8 resolved. They are **not** equally hard, and treating them as a flat
 list is the first way to get this wrong:
 
 | Cluster | Q | Why it is grouped |
@@ -84,8 +84,8 @@ because P1 builds both join policies behind one interface rather than needing th
 | Q | Question | Status | Owner |
 |---|---|---|---|
 | Q33 | **Must ladder L6 - a real scheduler with real workers - run in all three runtimes, and does P1's W5 do it?** `RT-R1` puts L0-L5 in all three because they are pure logic over fixtures and cost three cheap passes. L6 is different: it needs a real worker file per runtime (`.ts` for Deno, `.js` for Node and the browser, `AGENTS.md` section 3) and a browser harness, which is where the sibling spends Playwright. **Leaning: L6 runs in all three before release, and P1's W5 runs it in Node only** - P1 exists to answer Q4, not to prove portability, and its plan gate is budgeted at 90 s (`doc/workflow.md` section 8). **Against:** a portability defect found after W5 is found with the whole layer built on top of it | open | P1, at W5 |
-| Q34 | **How is a `runId` generated portably?** `RT-R6` refuses `crypto.randomUUID()` as a required path because it is **secure-context-only in browsers** - a driver depending on it works on `localhost` and fails on a plain-HTTP page, which is a failure of the environment rather than of the logic and so survives every fixture test. `crypto.getRandomValues` has no such restriction. Open: whether the driver generates one at all or always takes one from the caller, which is also how [Q20](#live) - is a run id global - gets its answer | open | W3 |
-| Q35 | **Is the *published* Node floor 24, or is 24 only the development pin?** `fyflow-scheduler` publishes `engines.node: ">=22"`. We develop on **>= 24** via fnm and `.node-version`, which is a statement about the machine that runs the gate. Publishing `>=24` locks out a consumer who can run the scheduler but not the layer above it, **for no reason this repo can currently name** - no API we have committed to needs 24 over 22. **Leaning: publish `>=22` to match the sibling and keep the dev pin at 24**, and revisit the moment something actually requires it | open | W3, when `package.json` is written |
+| Q34 | **How is a `runId` generated portably?** **Half answered by W3, and the half that is answered is the one that mattered:** the driver **generates none**. `Driver.start(runId, payload)` takes one from the caller and enforces the charset there (`ID-R2`), so `RT-R6`'s refusal of `crypto.randomUUID()` costs nothing — there is no id source to be portable about. Still open: whether the library should *offer* a generator at all, and if so on what, which is also how [Q20](#live) - is a run id global - gets its answer | open - **narrowed by W3** | W3 |
+| Q35 | Is the *published* Node floor 24, or is 24 only the development pin? | **Resolved by W3: the published floor is `>=22`, the development pin stays 24.** `package.json` carries `engines.node: ">=22"`, matching `fyflow-scheduler`, and `.node-version` pins 24 for the machine that runs the gate. Nothing this layer has committed to needs 24 over 22 — `structuredClone` is global from 17 — and publishing `>=24` would lock a consumer out of the layer above the scheduler for no reason the repo can name. **Node 24 is a *toolchain* requirement**: it is what runs TypeScript without a build step, which is a fact about the gate rather than about the package | **resolved - W3** | W3 |
 | Q19 | **Is per-run retained state bounded?** `FLOW_PLANNING.md` targets 1000s-10000s of concurrent workloads. If Q8 or Q11 retains every node output, a run's footprint is proportional to its node count and the total is that times the run count. The scheduler already has this problem and answers it with `maxCompletedTasks` and eviction; we would inherit the answer *and* its sharp edge (eviction is silent). Cross-references `fyflow-react-components` **Q14**, which is the same question one layer up | open | no owner - needs a measured run |
 | Q20 | **Does one orchestrator ever drive more than one scheduler, and is a run id global?** Expected topology is one-to-one. This row exists so the assumption is written down rather than assumed, which is the same reason `fyflow-react-components` carries its **Q15** | open | no owner |
 | Q21 | **Do we emit an event family for `fyflow-react-components`?** Flow structure is invisible to the scheduler, so today no UI can show which node a run is at, which branch it took, or what a join is waiting on. That repo has already decided the envelope shape - per-source families ([ADR 0002](https://github.com/fyflow/fyflow-react-components) there), sequence numbers, collector-stamped time, payloads redacted by default - so this is *"do we become a second source family"*, not *"design a wire format"*. **The redaction default is inherited, not optional**, if we do | open | no owner - not before P1 |
@@ -103,6 +103,27 @@ because P1 builds both join policies behind one interface rather than needing th
 | Q32 | How does P1 tell a stuck join apart from a silently dropped task? | **The question dissolved - 0.3.0 fixed the drop** ([S7](scheduler-upstream.md)). `_failOrphanedTask` now fails an orphaned waiter terminally with `task.failed`, `task.user_action`, a rejected promise and a `stats.failed` increment, and sweeps it out of every blocked queue with an `orphaned` exit each. A dropped task no longer produces silence, so a P1 hang can no longer be a lost task masquerading as a stuck join. W5's every-node-settles assertion stays as **cheap insurance** rather than a validity gate - it now checks a property the library asserts rather than one it violated |
 
 ## Notes
+
+**2026-08-30 - W3's conformity pass ran 85 mutations and 37 survived, which is a different kind of
+result from the three that came before.** Those read documents and argued; this one broke the code
+and watched. What it produced:
+
+- **The four mutations that would have mattered most were caught.** `{...e.detail}` for the field
+  copy, a missing `structuredClone`, keying on the event name instead of `detail.state`, and
+  removing the duplicate-id refusal all fail the suite.
+- **`JP-R5`'s ordering clause turned out to be unfalsifiable**, and not because the test was lazy:
+  `FD-V9` forces every branch entry to be a `task`, and entering a task dispatches without emitting,
+  so a conforming and a non-conforming driver are behaviourally identical today. Recorded in
+  `spec/join-policy.md` rather than papered over with a passing assertion.
+- **The corpus tests one case per *rule id* and the rules have clauses.** `FD-V7`'s two hardest
+  clauses shadowed each other — its corpus case trips both, so deleting either was invisible.
+  Clause-level unit tests now live in `test/definition/`, deliberately not in `spec/examples/`,
+  which is W1's normative fixture.
+- **A wrongly-typed edge target slipped every refusal** and produced a run that stopped mid-flow with
+  no error and no `end` node — the exact silent stop `spec/flow-definition.md` section 3 refuses on
+  P1's own validity grounds. The rule existed; nothing checked the type.
+- **`FD-R1`'s prescribed test was impossible to construct**, which W3 annotated in a code comment
+  instead of reporting as a spec conflict (`spec/README.md` rule 2). Now corrected in the spec.
 
 **2026-08-30, later still again (3) - the three-runtime requirement was surfaced by the maintainer,
 not by the documents.** `spec/runtime-targets.md` records it: Deno via JSR, Node and the browser via

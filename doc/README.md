@@ -95,7 +95,7 @@ wins.
 | [workflow.md](workflow.md) | **Read before any work item.** The loop, the verification ladder, the test rules, how work is split. Inherited and unproven - its adaptations are listed at the end for the first retro to judge |
 | [decisions/](decisions/) | ADR 0001, 0002, 0007. They bind `spec/` rather than being superseded by it - 0007 in particular is what [outcome-record.md](../spec/outcome-record.md) makes checkable |
 | [plans/p1-...](plans/p1-what-satisfies-a-join.md) | **The active plan.** Five work items, one exit artifact: does arrival-counting actually break |
-| [open-questions.md](open-questions.md) | The register. 28 open, 7 resolved |
+| [open-questions.md](open-questions.md) | The register. 27 open, 8 resolved |
 | [scheduler-upstream.md](scheduler-upstream.md) | S1-S8, plus **the S-id map for reading `RESOURCE_EVENTS_PLAN.md`**, which uses `fyflow-react-components`' numbering. **Nothing here blocks us, and nothing is left to raise** |
 | [../spec/README.md](../spec/README.md) | **The normative layer.** Four documents, an example corpus, and the rules for changing it. Written by W1 |
 | [work-items/](work-items/) | One file per work item. [W1](work-items/w1-the-normative-layer.md) **done**, [W3](work-items/w3-the-driver-and-the-validator.md) **declared**; W2, W4, W5 not yet - [TEMPLATE.md](work-items/TEMPLATE.md) |
@@ -105,7 +105,7 @@ wins.
 | Document | Status | Notes |
 |---|---|---|
 | `concept.md` | **v0.2** | Section 7's *"controlling a run from a UI"* non-goal now carries one narrow, cited exception (ADR 0004). Section 2 is the load-bearing part and is verified against the library rather than assumed - **re-checked unchanged at 0.3.0**. Section 3 was re-verified line by line at 0.3.0 and gained three constraints. Section 6's leanings are now two ADRs and one spike; the routing and definition rows there are **superseded by ADR 0001-0002** and should be read as history |
-| `open-questions.md` | live | **28 open, 7 resolved.** Q4 is `deferred` in the specific sense that a spike decides it |
+| `open-questions.md` | live | **27 open, 8 resolved.** Q4 is `deferred` in the specific sense that a spike decides it |
 | `workflow.md` | **v0.2**, still unproven | **The ladder gained a runtime axis** (section 4) and section 8 now splits the budget: one runtime in the edit loop, all three at the plan gate. Never run here, and never run in the repo it came from either. P1's retro is its first real test, and the adaptation table at the end is what that retro should judge |
 | `decisions/` | **4 ADRs**, all accepted | None superseded. **0003 is still reserved for Q4's answer** and is written when W4 has run. 0001 and 0002 went to the stated leaning; 0007 and **0004** are the two no leaning predicted - and 0004 was raised by a *reader*, in W1's spec-conformity pass, rather than by an author |
 | `plans/p1` | **in progress** | W1 **done and merged** (`a6edc92`), three conformity passes. **W3 declared**, runs next. **Both reserve blocks are spent** - W2/W4/W5 take Q ids from Q41 and ADRs from 0008 |

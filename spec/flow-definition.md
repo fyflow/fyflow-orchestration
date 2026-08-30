@@ -1,11 +1,12 @@
 # spec/flow-definition — the flow definition format
 
-**Status:** v0.4 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.5 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2** acted on the first spec-conformity pass
 (ADR 0004, and `region(F)` made computable). **v0.3** acted on the second, which found that `FD-V19`
 had reintroduced the v0.1 defect class under a new id — a refusal rule rejecting the valid corpus.
-**v0.4 acts on the third**, which found the opposite failure: a document this section could not
-refuse at all.
+**v0.4** acted on the third, which found the opposite failure: a document this section could not
+refuse at all. **v0.5 acts on W3's pass**, which found `FD-R1` prescribing a test that cannot be
+constructed.
 **Binds:** [ADR 0002](../doc/decisions/0002-a-flow-definition-is-data-and-a-predicate-is-registered-by-name.md)
 (the graph is data; a predicate is a name; an unknown name fails at instantiation) and
 [ADR 0004](../doc/decisions/0004-a-non-success-outcome-routes-only-where-an-edge-opts-in-and-user-action-suspends.md)
@@ -333,7 +334,24 @@ owning item's gate, **not W1's L0**.
 
 | id | The run terminates when | Test owed by |
 |---|---|---|
-| `FD-R1` | routing reaches a node, eligible edges exist for the settled terminal state, and none evaluates true. Error names the run id and the node id. Unreachable given `FD-V7`; this is the assertion that `FD-V7` held. Test: a registry whose predicates all return false against a definition that passed `FD-V7`, asserting the named failure | W3 |
+| `FD-R1` | routing reaches a node, eligible edges exist for the settled terminal state, and none evaluates true. Error names the run id and the node id. **Unreachable through a valid definition**, and that is `FD-V7` working rather than a gap — see below. Test: assert against the routing function directly, with a node whose eligible edges are all guarded and a registry whose predicates all return false; **and a companion test that the reachable neighbour is not this rule** — no eligible edge at all is a declared path end (section 3) | W3 |
+
+### FD-R1's test, corrected
+
+**v0.4 and earlier prescribed a test that cannot be built**: *"a registry whose predicates all
+return false against a definition that passed `FD-V7`"*. `FD-V7` guarantees a **bare** last edge for
+every state any edge opts into, and a bare edge has no predicate to return false — so no definition
+that passed `FD-V7` can reach `FD-R1` through the driver, whatever the registry says.
+
+That is the rule working, not a hole. But an impossible prescribed test is a spec defect, and
+`spec/README.md` rule 2 asks for the conflict to be **reported** rather than annotated in code.
+W3 hit it, tested the routing function directly, and left the reasoning in a comment; this is that
+finding written down where the rule lives.
+
+**The corrected shape has two halves, and the second is the one that was missing:** assert `FD-R1`
+against the pure routing function, *and* assert that the reachable neighbour is a different thing.
+*No eligible edge at all* is a declared path end (section 3) and *no matching edge among eligible
+ones* is `FD-R1`; a test for the first alone reads like coverage of the second.
 
 ## 7. Examples
 

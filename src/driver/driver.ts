@@ -67,7 +67,12 @@ export interface DriverOptions {
 const SETTLEMENT_EVENTS = ['task.completed', 'task.failed', 'task.user_action'] as const;
 
 export class Driver {
-  readonly log: LogRecord[] = [];
+  /**
+   * `OR-R7` — nothing outside the inbound API writes to run state. Private, and
+   * `snapshot()` is the only way out: a public `readonly` array still accepts
+   * `.push()`, which would let a caller forge a settlement and bypass `RS-R1`.
+   */
+  private readonly log: LogRecord[] = [];
 
   private readonly graph: Graph;
   private readonly regions: RegionSets[];
@@ -75,8 +80,6 @@ export class Driver {
   private readonly now: () => number;
   private readonly opts: DriverOptions;
   private readonly def: FlowDefinition;
-  /** Set once a region has opened, so `JP-R5`'s ordering rule can be asserted rather than hoped for. */
-  private readonly openedRegions = new Set<string>();
 
   /**
    * Validates the definition IN FULL before anything is queued (ADR 0002 rule 3),
@@ -209,7 +212,6 @@ export class Driver {
         // without it a live-token policy can see the count reach zero while a
         // branch is still running, and W4 would read that as a property of the
         // policy rather than of this loop.
-        this.openedRegions.add(region.fanoutId);
         region.branches.forEach((_b, i) => {
           this.emit({ type: 'branch.opened', regionId: region.fanoutId, branchPath: String(i) });
         });
@@ -273,9 +275,13 @@ export class Driver {
     this.opts.onRegionEvent?.(e);
   }
 
-  /** Read-only view for tests and for W2's fold. The driver never hands out a mutable log. */
+  /**
+   * A frozen copy for tests and for W2's fold. The array is copied and each record
+   * frozen, so neither the sequence nor a record can be edited from outside —
+   * which is what `OR-R7` and `RS-R1` both assume.
+   */
   snapshot(): readonly LogRecord[] {
-    return this.log.slice();
+    return Object.freeze(this.log.map((r) => Object.freeze({ ...r }))) as readonly LogRecord[];
   }
 
   /** Task ids dispatched in this driver, for `ID-R1`'s assertion. */
@@ -283,8 +289,10 @@ export class Driver {
     return [...this.dispatched];
   }
 
+  /** Copied, never the stored record by reference — `effectiveOutcome` returns the settlement itself when there is no resolution. */
   effectiveOutcomeOf(taskId: string): OutcomeRecord | null {
-    return effectiveOutcome(this.log, taskId);
+    const o = effectiveOutcome(this.log, taskId);
+    return o === null ? null : { ...o };
   }
 
   terminalStateOf(taskId: string): TerminalState | null {

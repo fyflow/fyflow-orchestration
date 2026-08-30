@@ -1,6 +1,6 @@
 # spec/runtime-targets — three runtimes, one source tree
 
-**Status:** v0.4 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.5 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2 acts on the second spec-conformity pass**,
 which found that v0.1's central claim — *a `node:` import is fatal to a Deno build* — is **false at
 Deno 2**, and that the `*.node.ts` mechanism it described does not exist in the form it described.
@@ -44,12 +44,19 @@ What actually happens, per target:
 | Deno | **works**, via node-compat | mostly works, via node-compat |
 | Node | works | works |
 | **Browser — esbuild bundle** | **build failure** — cannot resolve it | **bundles silently**, all six |
-| **Browser — `tsconfig.browser.json`** | not caught (esbuild's job) | **build failure** — `TS2591` for `process`/`Buffer`, `TS2304` for `__dirname`/`setImmediate`/`clearImmediate` |
+| **Browser — `tsconfig.browser.json`** | **build failure** — `TS2307: Cannot find module 'node:fs'`, because `types: []` takes `@types/node` out of scope | **build failure** — `TS2591` for `process`/`Buffer`, `TS2304` for `__dirname`/`setImmediate`/`clearImmediate` |
 
-**So the browser catches both, by two different mechanisms, and neither one catches both.** The
-esbuild browser bundle rejects the *import*; the browser **typecheck** rejects the *global*. Measured
-against esbuild 0.25.10 and tsc 5.9.2 with `../fyflow-scheduler/tsconfig.browser.json:7-8`'s exact
-settings (`lib: ["ES2022","DOM","DOM.Iterable","WebWorker"]`, `types: []`).
+**So the browser catches both — and the typecheck alone catches both, which v0.4 also got wrong in
+the other direction.** Measured at tsc 5.9.2 with this repository's `tsconfig.browser.json`: a
+`node:` import is `TS2307` and a Node global is `TS2591`/`TS2304`. The esbuild bundle independently
+rejects the import.
+
+**That does not retire `RT-R4`'s grep, and the reason is the word *because*.** The typecheck catches
+these only *because* `types: []` removes `@types/node` from scope — a one-word config change
+silently disables it, and `RT-R5` already documents one API (`localStorage`) that the **Node**
+config misses for exactly the mirror-image reason. A check whose coverage is a side effect of an
+unrelated setting is not a check. `scripts/check-source.mjs` is the grep, it runs in the gate, and
+each of its five assertions was negative-tested.
 
 > **v0.2 of this document said a Node global *"fails nowhere at build time"*, and that is false** —
 > it fails the browser typecheck, which is ladder L0 run three times. `RT-R3` below already said so
