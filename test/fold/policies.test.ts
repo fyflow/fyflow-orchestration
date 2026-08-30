@@ -193,6 +193,37 @@ suite('JP-R1 — both policies are pure', (test) => {
     });
   }
 
+  test("live-token's satisfied does not latch: a late branch.opened puts it back to waiting", () => {
+    // `status` is a pure function of state (`JP-R3`), and `live-token`'s state has
+    // one latch — `positive` — and it is deliberately the ONLY one. So a region
+    // that reached zero and is then opened again reports `waiting`, not
+    // `satisfied`. This is the last untested half of that shape: the conformity
+    // pass checked the latch turning ON and nothing checked it not turning the
+    // verdict permanent.
+    let s = liveToken.open(REGION);
+    for (const e of [opened('0'), opened('1'), arrived('0'), arrived('1')]) s = liveToken.step(s, e);
+    equal(liveToken.status(s), 'satisfied', 'both branches arrived, so the count is back to zero');
+
+    const late = liveToken.step(s, opened('2'));
+    equal(liveToken.status(late), 'waiting',
+      'the verdict follows the live count, and one branch is live again. A policy that cached ' +
+      '"satisfied" would fire a join whose region still has work in it');
+    equal(liveToken.describe(late), { live: 1, positive: true },
+      '`positive` stays latched — that is the pin JP-R8 names — while `live` is what moves');
+
+    // And the same stream on `arrival-count`, because a test that ran one policy
+    // could not tell these two apart. Its counter has no notion of a branch
+    // opening at all, so it stays satisfied — the two DIVERGE here, and that
+    // divergence is the point.
+    let a = arrivalCount.open(REGION);
+    for (const e of [opened('0'), opened('1'), arrived('0'), arrived('1')]) a = arrivalCount.step(a, e);
+    equal(arrivalCount.status(a), 'satisfied', 'two distinct arrivals against a need of two');
+    equal(arrivalCount.status(arrivalCount.step(a, opened('2'))), 'satisfied',
+      'arrival-count ignores every event but an arrival, so a third branch opening is invisible ' +
+      'to it. Neither answer is wrong here — the stream is not conformant (JP-R5 puts opens ' +
+      'first) — and which behaviour a join WANTS is exactly what W4 measures');
+  });
+
   test('the two are the only ones shipped', () => {
     equal(Object.keys(POLICIES).sort(), ['arrival-count', 'live-token'],
       "W2 ships the two P1 named and nothing else. Q24's variants are built after W4, if at all — " +

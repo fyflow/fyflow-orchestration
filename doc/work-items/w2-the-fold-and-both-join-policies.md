@@ -1,6 +1,6 @@
 # W2 — Run state as a fold of the log, and both join policies behind one interface
 
-**Status:** todo
+**Status:** done
 **Plan:** [P1](../plans/p1-what-satisfies-a-join.md)
 
 ```
@@ -117,24 +117,91 @@ shuffled-but-append-equivalent log producing the same answer for `OR-R5`.
 
 ## Record
 
-*Filled in when the item is done. Delete the italic lines.*
-
-**Gate — what ran.** One row per clause. Each verdict starts with `RAN` or `NOT RUN`; a clause with
-no row reads as *did not run*. **A row that does not name its runtimes ran in one.**
+**Gate — what ran.** `RT-R1`: a rung is not green until it is green where it is required to run, and
+a row that does not name its runtimes ran in one.
 
 | Clause | Verdict | Runtimes | Notes |
 |---|---|---|---|
-| L0 | | | |
-| L1 | | | |
-| L2 | | | |
-| L3 | | | |
-| spec-conformity | | | reviewer, and what it found |
-| re-run at `<sha>` | | | |
+| L0 | **RAN** — pass | **Node, browser, Deno** | `tsc` × 3 configs, `deno check`, `deno lint`, `check-spec` (8), `check-source` (6), `deno publish --dry-run`. **`tsc -p tsconfig.json` caught two malformed region fixtures that `deno check` and the runtime both accepted** — it is the only clause that typechecks `test/` |
+| L1 unit | **RAN** — pass | **Node 24, Deno, chromium, firefox, webkit** | the fold's rules, both policies, and the record-path purity the first version missed |
+| L2 routing | **RAN** — n/a to this item | — | routing is W3's; the fold sees only its result |
+| L3 determinism | **RAN** — pass | **all five** | fold the same log twice and deep-compare; **and `RN-R2` as a property** — the conformity pass ran `step(fold(prefix), next) === fold(prefix+next)` over 400 random logs with 0 mismatches and 0 prefix mutations |
+| **210 assertions, identical in all five runtimes** — the browser runner asserts the parity rather than assuming it | | | |
+| spec-conformity | **RAN** — **4 blocking, 7 defects, 6 notes** | n/a | **12 surviving mutations reported. All 12 re-run after the fixes and all 12 caught** — including one that first read SURVIVED because the mutation helper silently skipped a missing pattern and there are **two** `runId: prev.runId ?? runId` sites. A mutation harness that cannot fail is the same defect as a test that cannot fail |
+| re-run at `<sha>` | **RAN** — pass | all five | the gate above **is** the re-run acting on the pass; it lacks only the commit that carries it |
 
 **What broke.**
 
-**What this taught.** *What changes in the spec, the plan, or `doc/workflow.md` — or "nothing",
-which is a legitimate answer.*
+Four blocking, and **three of the four were the same mistake**: `spec/run-state.md` asserted
+something reasonable, the fold's inputs could not supply it, and **the code narrowed itself until the
+assertion was unobservable** rather than reporting the conflict. `spec/README.md` rule 2 exists for
+exactly that, and I wrote both the spec and the code, so nobody was holding the other end.
 
-**Questions raised.** *Q ids from Q41-Q45, with one line each. They also go in
-`doc/open-questions.md`.*
+1. **`nodes` held *settled* tasks where the spec said *dispatched*.** A task in flight was invisible,
+   so `pending` and `running` were unreachable node states, the `running` outcome was reached only by
+   a fallback, and **`RN-R7` — *"`awaiting_action` outranks `running`"* — was unfalsifiable**: no
+   reachable state could hold both a suspended node and a live one. Swapping the two branches of the
+   precedence survived all 184 assertions. Fixed by adding `dispatched` as an input, so the claim
+   becomes true rather than the rule becoming weaker.
+2. **`completed`/`failed` was discriminated on node state, not path termination.** The spec says
+   *"a path ended with no eligible edge"*; the code said *"some node settled failed"*. Those are
+   different propositions and they diverge on `spec/examples/valid/failure-edge.flow.json` — an
+   `optional` node fails and **routes on** to an `end`, which section 3 calls `completed` and the
+   code called `failed`. That is the case ADR 0004 forced into existence, so it was the shape W5 is
+   built around. Fixed by adding `pathEnded` as an input.
+3. **`RN-R1`'s purity was untested on the record path.** The one test called `step` with a *region*
+   event, so the branch that runs for every log record was never exercised; making it mutate its
+   input in place survived the whole suite.
+4. **`RN-R8` had a test that could not fail.** It applied `stopped` last, and `step`'s stopped branch
+   sets the outcome directly — so deleting the guard in `withOutcome` survived. The rule's actual
+   claim, *"whatever its nodes say"*, needs a record appended **after** the stop.
+
+And two the spec declared that nothing could derive: **`flowId`** (no record carries one) and
+**`regions[*].joinId`** (`RegionEvent` carries only `regionId`). The code shipped `joinId: ''`
+forever and silently dropped `flowId`. Both are removed from the shape, with the reason stated —
+a caller that wants either reads the definition, which is where they live.
+
+**Two tests W2 owed and never shipped.** `spec/outcome-record.md` assigns `OR-R7` and `OR-R8` to W2
+with prescribed tests, and this declaration repeats them verbatim. Neither existed; the only suites
+carrying those names are W3's and they assert something else. **This is the same shape W3's pass 2
+found — declared scope that did not ship — and `doc/workflow.md`'s ladder still has no rung for it.**
+
+**What this taught.**
+
+- **Writing the spec and the code for the same rule removes the only reader either had.** Three
+  blocking findings were one document asserting what its own implementation could not do, resolved
+  each time in the code's favour, silently. `spec/join-policy.md` handled the identical situation
+  correctly a week earlier — it wrote down that `JP-R5`'s ordering clause is currently unfalsifiable
+  and why. The difference was not care; it was that W1 wrote that document and W3 met it. **A spec
+  authored by its implementer needs the conformity pass more, not less.**
+- **The trap this item was warned about, it avoided — and the warning did not generalise.** The
+  declaration named the arrival-shaped-stub blind spot W3's third pass found, and the policy tests
+  were built against it: every behavioural case runs **both** policies and asserts where they differ.
+  The conformity pass confirmed it works — every policy mutation that changes behaviour on a
+  conformant stream is caught, in both directions, including both forbidden refinements. **And then
+  the fold, three files away, had five untested rules.** Naming a trap protects the thing you point
+  it at.
+- **A property test found nothing and was still worth running.** `RN-R2` over 400 random prefixes:
+  0 mismatches. That is the shape of evidence a single-sequence example cannot give, and it is
+  cheap — the reason it found nothing is that `fold` is literally a left fold of `step`, which is a
+  fact about the code the test made visible.
+
+**Questions raised.** Q41 from the reserved block; Q42-Q45 are skipped, never reissued.
+
+| Q | | raised by |
+|---|---|---|
+| Q41 | Who composes the fold's input sequence, and where does its order come from? Nothing produces the ordered value `RN-R3` and `OR-R5` are *about* | the conformity pass |
+
+**Q14 and Q25 are answered**, in `spec/run-state.md` sections 1 and 3 and in the register. Q14 was
+the last of `doc/concept.md` section 6's four leanings still only a leaning, and Q17's run-level half
+is now `awaiting_action`.
+
+**ADR 0008-0009 were reserved and neither was used.** Q14's answer is a spec section with its
+argument stated in place, which `doc/decisions/README.md` prefers to a spec rule plus an ADR
+restating it. The numbers are skipped.
+
+**One claim in commit `8c22c16`'s message is wrong**, and it is left standing rather than rewritten:
+it lists *"demoting `awaiting_action`"* among the mutations checked, and that mutation **survived** —
+it survived because, under finding 1, it was an equivalent mutant. Recorded here because a commit
+message cannot be corrected without rewriting history, and `doc/workflow.md` section 3's reason for
+never renumbering ids applies to messages too.

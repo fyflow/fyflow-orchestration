@@ -1,6 +1,6 @@
 # P1 — What satisfies a join
 
-**Status:** in progress - W1 done and merged (`a6edc92`); **W3 declared and running next**; W2, W4, W5 not declared
+**Status:** in progress - **W1, W3 and W2 done**, each with its gate run in five runtimes and its spec-conformity pass acted on; **W4 is next** and it is what answers the plan's question; W5 not declared
 **Question this plan answers:** *When a decision inside a fan-out branch routes that branch away
 from its join, does expected-arrival counting actually break — and does live-token accounting
 actually survive it?*
@@ -152,8 +152,9 @@ Each has its own file under `doc/work-items/`. This table is an index, not the d
 | [Q7](../open-questions.md) | Whether a join can time out. P1 must at least **detect** a stuck join, or W4 cannot report a failure as anything but a hang | W4 |
 | [Q10](../open-questions.md) | What happens when no decision edge matches. Reachable in P1's own flow, so it needs an answer here. **Answered** — `FD-V7` at instantiation, `FD-R1` as the assertion | ~~W1~~ **done** |
 | [Q13](../open-questions.md) | The task id scheme. Fan-out forces it; a collision silently overwrites. **Answered** — and the source says worse than "overwrites": both tasks run and two records land under one key | ~~W1~~ **done** |
-| [Q14](../open-questions.md) | Is run state a fold, and of whose log | W2 |
-| [Q17](../open-questions.md) | How `user_action` surfaces at flow level. **Detection** was answered by [ADR 0007](../decisions/0007-the-driver-normalizes-events-into-an-immutable-outcome-record.md) rule 2 and the **mechanism** by ADR 0004 rules 3-6 — it suspends, and an external resolution record resumes it. What is left for W4 is what a join does while a branch is suspended, and for W2 what the run-level outcome is called (Q25) | W4 |
+| [Q14](../open-questions.md) | Is run state a fold, and of whose log. **Answered** - yes, and of *our* log, not the scheduler's: `spec/run-state.md` section 1. The last of `doc/concept.md` section 6's four leanings to land | ~~W2~~ **done** |
+| [Q25](../open-questions.md) | Where the flow-level outcome vocabulary lives. **Answered** - run state's, five outcomes, and `end.outcome` stays a label the driver never interprets | ~~W2~~ **done** |
+| [Q17](../open-questions.md) | How `user_action` surfaces at flow level. **Detection** was answered by [ADR 0007](../decisions/0007-the-driver-normalizes-events-into-an-immutable-outcome-record.md) rule 2 and the **mechanism** by ADR 0004 rules 3-6 — it suspends, and an external resolution record resumes it. What is left for W4 is what a join does while a branch is suspended, and it is **`awaiting_action`** at run level (Q25, answered by `spec/run-state.md` section 3) - it outranks `running`, because the fact a human is needed is the thing a reader must not miss | W4 |
 | [Q32](../open-questions.md) | Telling a stuck join apart from a silently dropped task. **A threat to this plan's validity**, not a side question — see the section above | W5 |
 
 Q6, Q12, Q15, Q16, Q18-Q21 are **not** carried — see Scope/Out.

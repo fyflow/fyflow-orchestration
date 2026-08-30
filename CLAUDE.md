@@ -10,7 +10,7 @@ flows with sequence, **decision** routing, **fan-out** and **join**, instantiate
 
 Full context: [doc/concept.md](doc/concept.md). Do not re-derive it — read it.
 
-## Current state: **the gating questions are cleared, P1 is planned, no code exists**
+## Current state: **three of P1's five work items are done; W4 is next and it answers Q4**
 
 [ADR 0001, 0002 and 0007](doc/decisions/) settle the architecture so far: **routing executes in the
 driver, outside the scheduler** — a worker computes and does not route, and `context.spawnTask()` is
@@ -20,9 +20,16 @@ every scheduler event into an immutable outcome record at the listener boundary*
 details are live mutable objects and `task.failed` also fires for `user_action` tasks. Pinned to
 `fyflow-scheduler` **0.3.0** (landed 2026-08-30, not yet on npm).
 
-**[P1](doc/plans/p1-what-satisfies-a-join.md) is planned** with five work items. `spec/` is still
-empty — **W1 is what fills it**, and it is serial: everything waits on it. What happens next, in
-order: [doc/README.md](doc/README.md).
+**[P1](doc/plans/p1-what-satisfies-a-join.md)** has five work items and **W1, W3 and W2 are done**:
+`spec/` holds **six normative documents and 66 numbered rules**, and `src/` holds the definition
+validator, the driver, and the fold with **both** join policies. The suite runs in **five runtimes**
+— Node 24, Deno, chromium, firefox, webkit — and is identical in all of them. **W4 is next**: the
+join/failure matrix, which is what answers Q4 and writes ADR 0003. What happens next, in order:
+[doc/README.md](doc/README.md).
+
+**Four spec-conformity passes have run and not one came back empty** — 4, then 5, then 1, then 4
+blocking findings. All four found the same shape: *the code was correct and the tests were pointed
+at the wrong half.* Budget for the pass; it is not a formality here.
 
 **Q4 — what satisfies a join — is deliberately undecided**, and this is the thing most likely to be
 got wrong by a well-meaning reader. The argument for live-token accounting is strong and was
