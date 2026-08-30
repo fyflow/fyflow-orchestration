@@ -1,15 +1,16 @@
 # P1 — What satisfies a join
 
-**Status:** in progress - W1 at v0.3, W2-W5 not declared
+**Status:** in progress - W1 done and merged (`a6edc92`); **W3 declared and running next**; W2, W4, W5 not declared
 **Question this plan answers:** *When a decision inside a fan-out branch routes that branch away
 from its join, does expected-arrival counting actually break — and does live-token accounting
 actually survive it?*
 **Exit artifact:** the branch-routed-away case as an executable test, run against **both** join
 policies, plus one real fan-out flow completing on a real scheduler.
 **Reserves:** W1-W5, Q22-Q30, ADR 0003-0006
-**Q block exhausted:** W1 allocated Q22-Q30 in full (five of them raised by its own spec-conformity
-pass) **and then Q33-Q35**, from the three-runtime requirement. **W2-W5 reserve from Q36 onward.**
-ADR 0003 is still held for Q4; W1 took 0004; 0005-0006 are free.
+**Both reserve blocks are spent.** W1 allocated Q22-Q30 in full (five of them raised by its own
+spec-conformity pass) **and then Q33-Q35**, from the three-runtime requirement; **W3 takes Q36-Q40
+and ADR 0005-0006**, the last of the ADR block. ADR 0003 is still held for Q4 and is W4's; W1 took
+0004; 0007 came from outside the block. **W2, W4 and W5 reserve Q ids from Q41 and ADRs from 0008.**
 
 ---
 
