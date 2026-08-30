@@ -44,9 +44,9 @@ Two consequences, and both catch people:
    a design input without reading `doc/concept.md` section 2 first.
 2. **`SpawnTaskConfig.parents` is declared and dead.** `../fyflow-scheduler/core/workerInterface.ts:50`
    declares it; nothing reads it; the spawn path (`core/FyflowScheduler.ts:1468-1473`) drops it
-   silently. It typechecks and does nothing. **Still true at 0.3.0** — it survived the whole
-   resource-events pass, and is now the only open item in
-   [doc/scheduler-upstream.md](doc/scheduler-upstream.md) worth raising.
+   silently. It typechecks and does nothing. **Confirmed by the maintainer (2026-08-30): it stays
+   dead and will eventually be removed — never pass it.** [S1](doc/scheduler-upstream.md) is closed;
+   do not re-raise it.
 
 **So sequence, decision, fan-out and join are built here, not wrapped from below.**
 

@@ -40,11 +40,14 @@ Verified rather than assumed - originally at 0.2.1, **re-verified unchanged at 0
 | Claim | Evidence |
 |---|---|
 | No dependency field on `FyflowTask` | No `dependsOn`/`parents` in `core/FyflowScheduler.ts`; the only hits are `spawnedChildren`, which is lineage |
-| `SpawnTaskConfig.parents` exists but is **dead** | Declared at `core/workerInterface.ts:50`, read **nowhere** in the repo. The spawn path (`core/FyflowScheduler.ts:1468-1473` at 0.3.0) constructs the task from `id`, `workerType`, `payload`, `optional`, `retryPolicy`, `workerGroups` and **silently drops `parents`**. **Still true at 0.3.0** - it survived the whole resource-events pass |
+| `SpawnTaskConfig.parents` exists but is **dead** | Declared at `core/workerInterface.ts:50`, read **nowhere** in the repo. The spawn path (`core/FyflowScheduler.ts:1468-1473` at 0.3.0) constructs the task from `id`, `workerType`, `payload`, `optional`, `retryPolicy`, `workerGroups` and **silently drops `parents`**. **Confirmed vestigial by the maintainer** (2026-08-30): it stays dead and will eventually be removed |
 | Spawning is not sequencing | `AGENTS.md` section 7: *"This is lineage, not a dependency: spawning never changes dispatch order."* |
 
 That dead field is the worst kind: it typechecks, it reads like the feature exists, and it does
-nothing. Recorded as [S1](scheduler-upstream.md).
+nothing. **This is now confirmed rather than inferred** — the maintainer's answer to
+[S1](scheduler-upstream.md) is that it will remain dead and eventually be removed. So section 2's
+argument no longer rests on our own reading of the source: the field is vestigial by statement, and
+`FLOW_PLANNING.md`'s premise has no support anywhere.
 
 **So every ordering primitive this repo promises - sequence, decision, fan-out, join - is ours to
 build.** The scheduler contributes execution, pooling, resource limits and retry. It contributes no

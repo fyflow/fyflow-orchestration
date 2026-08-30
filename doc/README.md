@@ -26,7 +26,8 @@ been re-verified against **the code, not the plan** — details and the S-id map
   needed no rule changed** — but every line reference moved, a second dispatch site appeared, and
   timestamps arrived as a **mutable field on the live task**, which makes rule 1 protect *more* than
   it did at 0.2.1.
-- **[S1](scheduler-upstream.md) survived the whole pass** and is now the only item worth raising.
+- **[S1](scheduler-upstream.md) is answered** — the dead `parents` field stays dead and will
+  eventually be removed. **The upstream register now has nothing left to raise.**
 
 **What is deliberately *not* decided:** [Q4](open-questions.md), what satisfies a join. The argument
 for live-token accounting is strong and was refused as *sufficient* — P1 builds **both** policies
@@ -48,7 +49,8 @@ them, which is a different project of a different size. Details and evidence:
 
 The trap that made it plausible: `SpawnTaskConfig.parents` is **declared** at
 `../fyflow-scheduler/core/workerInterface.ts:50` and **read nowhere** - the spawn path drops it
-silently. It typechecks and does nothing. Recorded as [S1](scheduler-upstream.md).
+silently. It typechecks and does nothing — **confirmed vestigial by the maintainer**, so this no
+longer rests on our own reading. [S1](scheduler-upstream.md).
 
 **What happens next:**
 
@@ -58,8 +60,9 @@ silently. It typechecks and does nothing. Recorded as [S1](scheduler-upstream.md
    correctness rule with a refusal test).
 2. **W2 and W3 fan out off W1** — the fold and the driver, separated by the spec rather than by
    intuition. Then W4, the join/failure matrix, which is what actually answers Q4.
-3. **[S1](scheduler-upstream.md) can be raised at any time** - it is a one-line deletion upstream,
-   independent of everything above, and it removes the trap that produced the misdirected plan.
+3. **Nothing upstream needs raising.** Every item in [scheduler-upstream.md](scheduler-upstream.md)
+   is closed, deferred with a costless workaround, or declined. S2 is the next candidate and P1 is
+   what would produce the number that justifies it.
 
 **The fan-out gate is cleared** (`workflow.md` section 7 rule 3) — not because Q4 is answered, but
 because P1 builds both of its candidate answers, so W2 and W3 can be written without knowing which
@@ -74,7 +77,7 @@ wins.
 | [decisions/](decisions/) | ADR 0001, 0002, 0007. These are the contract until `spec/` exists |
 | [plans/p1-...](plans/p1-what-satisfies-a-join.md) | **The active plan.** Five work items, one exit artifact: does arrival-counting actually break |
 | [open-questions.md](open-questions.md) | The register. 18 open, 5 resolved |
-| [scheduler-upstream.md](scheduler-upstream.md) | S1-S8, plus **the S-id map for reading `RESOURCE_EVENTS_PLAN.md`**, which uses `fyflow-react-components`' numbering. **Nothing here blocks us**; S3 is declined by us and S8 by upstream |
+| [scheduler-upstream.md](scheduler-upstream.md) | S1-S8, plus **the S-id map for reading `RESOURCE_EVENTS_PLAN.md`**, which uses `fyflow-react-components`' numbering. **Nothing here blocks us, and nothing is left to raise** |
 | [../spec/README.md](../spec/README.md) | The normative layer and the rules for changing it. **Empty until W1** |
 | [work-items/](work-items/) | One file per work item. None written yet - [TEMPLATE.md](work-items/TEMPLATE.md) |
 
@@ -87,7 +90,7 @@ wins.
 | `workflow.md` | v0.1, **unproven** | Never run here, and never run in the repo it came from either. P1's retro is its first real test, and the adaptation table at the end is what that retro should judge |
 | `decisions/` | 3 ADRs, all accepted | None superseded. **0003 is reserved for Q4's answer** and is written when W4 has run. 0001 and 0002 went to the stated leaning; **0007 is the first that no leaning predicted** - a constraint forced it |
 | `plans/p1` | planning | Work-item files not yet written |
-| `scheduler-upstream.md` | live | 8 items, **4 closed at 0.3.0** (S4 done, S7 fixed, S8 declined, S3 declined by us) and S5 deferred. **S1 is the only thing left worth raising** |
+| `scheduler-upstream.md` | live | 8 items, **5 closed** (S1 answered, S3 declined by us, S4 done, S7 fixed, S8 declined by upstream), S5 deferred, S2/S6 waiting on a real need. **Nothing left to raise** |
 | `spec/README.md` | v0.1 | Rules only. W1 writes the first document |
 
 ## Sibling repositories

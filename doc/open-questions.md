@@ -94,8 +94,10 @@ because P1 builds both join policies behind one interface rather than needing th
 the code, not the plan.** That distinction paid twice. **Q32 dissolved**: the plan proposed making
 the orphaned-task drop *observable* and deferred the fix, but `634e23a` fixed it properly - so the
 confounder that threatened P1's validity is gone, and W5's assertion drops from a gate to cheap
-insurance. **[S1](scheduler-upstream.md) did not**: the dead `parents` field survived the whole
-pass, and is now the only item in the upstream register worth raising.
+insurance. **[S1](scheduler-upstream.md) did not** - the dead `parents` field survived the whole
+pass - **and was then answered directly the same day**: it stays dead and will eventually be
+removed. The upstream register now has nothing left to raise, which is a fine place for it to sit
+while P1 runs.
 
 **ADR 0007 needed no rule changed, which is the outcome to be slightly suspicious of.** Every line
 reference moved and one new dispatch site appeared, but all four rules held. The one substantive
@@ -157,7 +159,8 @@ by starting to build, which is the cheap way to find it.
 **`SpawnTaskConfig.parents` is the trap that made it plausible.** The field is declared
 (`core/workerInterface.ts:50`) and read nowhere; the spawn path drops it silently. Anyone writing
 `spawnTask({ ..., parents: [...] })` gets a clean typecheck and no dependency.
-[S1](scheduler-upstream.md).
+**Confirmed vestigial by the maintainer on 2026-08-30** - it stays dead and will eventually be
+removed - so the finding is now a statement rather than an inference. [S1](scheduler-upstream.md).
 
 **Three questions are shared with `fyflow-react-components` rather than merely similar** - Q17 with
 their Q16 (`user_action` is missing from every design), Q19 with their Q14 (unbounded retention),

@@ -9,10 +9,10 @@ blocker, and it belongs in a plan instead.
 **Nothing here has been raised by us.** Pinned to `fyflow-scheduler` **0.3.0** (landed 2026-08-30,
 not yet published to npm). Line references are against 0.3.0 unless a row says otherwise.
 
-**0.3.0 settled four of these without us asking** - S4 implemented, S7 fixed, S8 declined and
-documented, S5 still deferred. The whole register was re-verified against the landed code rather
-than against `RESOURCE_EVENTS_PLAN.md`, and **one item the plan implied would be handled was not**:
-see S1.
+**Every item in this register is now closed, deferred, or declined. There is nothing left to
+raise.** 0.3.0 settled four without us asking - S4 implemented, S7 fixed, S8 declined and
+documented - and S1 was answered directly by the maintainer on 2026-08-30. S5 stays deferred with a
+costless workaround; S2 and S6 wait for a real need.
 
 `fyflow-react-components` keeps [its own register](https://github.com/fyflow/fyflow-react-components)
 with an independent `S` sequence. **Two items overlap and must be raised jointly, not twice** - see
@@ -24,7 +24,7 @@ the last section.
 
 | S | Want | Blocks us? | Status |
 |---|---|---|---|
-| [S1](#s1--spawntaskconfigparents-is-declared-and-never-read) | Remove or implement `SpawnTaskConfig.parents` | no - but it is actively misleading | **still open at 0.3.0** |
+| [S1](#s1--spawntaskconfigparents-is-declared-and-never-read) | Remove or implement `SpawnTaskConfig.parents` | no | ✅ **answered - dead, will be removed** |
 | [S2](#s2--cancel-a-queued-task) | Cancel a queued task | no - it caps what "cancel" can mean | not raised |
 | [S3](#s3--a-join-or-barrier-primitive) | A join/barrier primitive | **declined by us** | will not raise |
 | [S4](#s4--scheduler-side-timestamps-on-every-event) | Timestamps on every event | no | ✅ **done in 0.3.0** |
@@ -84,8 +84,8 @@ the other is an easy and expensive mistake, so:
 - **`released.reason: 'settled'` is per *attempt*, not per task.** A retried or requeued task emits
   one pair per attempt. Relevant to [Q16](open-questions.md), where flow-level and task-level retry
   counts compose into a product nobody intended.
-- **[S1](#s1--spawntaskconfigparents-is-declared-and-never-read) is still there.** The dead
-  `parents` field survived the whole pass.
+- **[S1](#s1--spawntaskconfigparents-is-declared-and-never-read) is still there in the code**, and
+  has since been **answered directly**: it stays dead and will eventually be removed.
 
 ---
 
@@ -96,9 +96,23 @@ in the repository reads it. The spawn path — `core/FyflowScheduler.ts:1468-147
 1015-1020 at 0.2.1 — builds the task from `id`, `workerType`, `payload`, `optional`, `retryPolicy`
 and `workerGroups`, and **drops `parents` silently**.
 
-**Still open at 0.3.0.** Re-checked in the landed code: the field is at the same line, still read
-nowhere. `RESOURCE_EVENTS_PLAN.md` §10 did say S1 was out of scope, so this is not a surprise — but
-it is now the **only** item in this register that a maintainer pass has gone past twice.
+**✅ Answered 2026-08-30 by the maintainer** — *"will remain dead and eventually removed, don't rely
+on it."* Closed; do not re-raise.
+
+**This is a better answer than the deletion we asked for**, for our purposes. The ask was really
+*"stop this field claiming a dependency graph exists"*, and an explicit statement that it is
+vestigial and going does that immediately, while a deletion would have been a breaking type change
+for anyone currently passing it.
+
+**What it changes for us: nothing, which is the point.**
+[ADR 0001](decisions/0001-routing-executes-in-the-driver-outside-the-scheduler.md) rule 2 means we
+never call `spawnTask` for flow control at all, so we could not have relied on it. What it *does*
+settle is the reading in `doc/concept.md` section 2: the field is now **confirmed vestigial by the
+maintainer**, not merely observed-to-be-unread by us. The concept's argument no longer rests on our
+own grep.
+
+**One forward note.** When the field goes, that is a breaking change to `SpawnTaskConfig` for anyone
+who passed it — not us, and worth nothing more than this sentence.
 
 **Why it matters more than a dead field usually would.** The library's headline refusal is that it
 has no dependency graph (`AGENTS.md` section 1). This field contradicts that refusal *in the type
@@ -289,16 +303,14 @@ Revised **2026-08-30 against the landed 0.3.0 code**. **Four of the eight are se
 none of them** — S4 implemented, S7 fixed better than asked, S8 declined-and-documented, S5
 deferred with our workaround intact. What is left:
 
-1. **S1, on its own, and it is now the whole list of things worth raising.** A one-line deletion
-   that removes the trap which produced a misdirected planning document. It has survived two
-   maintainer passes over this exact file region — `RESOURCE_EVENTS_PLAN.md` §10 put it out of
-   scope, and the review pass in `bccbeea` did not reach it. Best ratio in the register by a wide
-   margin.
-2. **S2 when a fan-out is real.** Much stronger with a measured number for wasted branch execution.
-   Do not raise it on principle.
-3. **S6 last.** Nothing in the first set needs it.
-4. **S3, S7 and S8 are closed.** S3 declined by us, S7 fixed, S8 declined by upstream and absorbed
-   into ADR 0007.
+**There is nothing to raise today.** S1 was the last live item and it has been answered.
+
+1. **S2 when a fan-out is real.** Much stronger with a measured number for wasted branch execution.
+   Do not raise it on principle — and P1 is what would produce the number.
+2. **S6 last.** Nothing in the first set needs it.
+3. **S1, S3, S7 and S8 are closed.** S1 answered (dead, will be removed), S3 declined by us, S7
+   fixed in 0.3.0, S8 declined by upstream and absorbed into ADR 0007.
+4. **S5 stays parked**, deferred upstream with a workaround that costs us nothing.
 
 **The joint-raise machinery is spent.** S4 and S5 were both carried by
 `fyflow-react-components` and both came back answered. What remains shared is the *pattern*: raise
