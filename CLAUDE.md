@@ -27,13 +27,13 @@ ladder **L6**. **288 assertions in five runtimes** — Node 24, Deno, chromium, 
 identical in all of them, **plus 118 at L6 in Node and Deno**. **P1's retro is run and `doc/workflow.md`
 is v0.3** — four changes adopted, several findings deliberately left as findings.
 
-**[P2](doc/plans/p2-the-non-success-half-on-a-real-scheduler.md) is the active plan and it adds no
-features.** Of `spec/run-state.md`'s six run outcomes, ladder L6 reaches `completed`, `failed` and
-`stuck`; it has never reached **`awaiting_action` or `stopped`**, and `branch.suspended` /
-`branch.resumed` have never occurred outside a fixture. P2 asks whether the non-success half behaves
-on a real scheduler the way the fixtures say — which matters because **every time this repository has
-run something real, a fixture turned out to be wrong.** What happens next, in order:
-[doc/README.md](doc/README.md).
+**[P2](doc/plans/p2-the-non-success-half-on-a-real-scheduler.md) is the active plan, it adds no
+features, and [W6](doc/work-items/w6-the-non-success-rows-at-l6.md) is built with both readers
+outstanding.** Ladder L6 is **twelve rows, 186 assertions**, in Node and Deno, and **all six run
+outcomes and all six region events now occur there** — `awaiting_action`, `stopped`,
+`branch.suspended` and `branch.resumed` for the first time. **Nothing in `src/` broke**, which is the
+weaker result P2 predicted when it measured `user_action` before the plan was written. What happens
+next, in order: [doc/README.md](doc/README.md).
 
 **Eleven reader-passes have run and not one came back empty** — W1 ×3, W3 ×3, W2 ×1, W4 ×2, W5 ×2,
 with blocking findings of 4, 5, 1 · 1, 1, 4 · 4 · 2, 2 · 3, 10. Most found the same shape: *the code
@@ -160,7 +160,7 @@ concept -> plan -> work items -> verify (ladder, spec conformity, retro) -> reco
 
   ```bash
   npm run gate            # everything, both L6 runtimes included
-  npm run test:l6         # ladder L6, node 24
+  npm run test:l6         # ladder L6, node 24 - twelve real runs
   npm run test:l6:deno    # ladder L6, deno
   ```
 

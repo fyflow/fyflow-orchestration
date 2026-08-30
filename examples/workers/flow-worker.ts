@@ -27,7 +27,7 @@ export interface Confidence {
   confidence: number;
 }
 
-type Role = 'ingest' | 'score' | 'publish' | 'fail';
+type Role = 'ingest' | 'score' | 'publish' | 'fail' | 'uncloneable';
 
 export default class FlowWorker extends BaseWorker {
   private readonly role: Role;
@@ -67,6 +67,13 @@ export default class FlowWorker extends BaseWorker {
         // `failed`, so the branch is LOST and the region empties by a road that is
         // not P1's exotic case.
         throw new Error('flaky worker: this task is meant to fail');
+      case 'uncloneable':
+        // **A result `structuredClone` refuses**, which is `OR-R6`'s whole
+        // condition. It reaches the driver only from an **inline** pool: across a
+        // worker-thread boundary the scheduler refuses it first and the task ends
+        // `user_action` with no result at all ([Q61](../../doc/open-questions.md)).
+        // A function is the smallest such value.
+        return { fn: () => 1 };
       case 'publish':
         // **The payload here is `null`.** A satisfied join carries nothing
         // downstream ([Q36](../../doc/open-questions.md)), which is a placeholder

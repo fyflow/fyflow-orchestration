@@ -37,9 +37,9 @@
 // Everything from the package entry, never from `src/` — an example that reached
 // past `index.ts` would be exercising a surface no consumer has.
 import {
-  Driver, emptyState, isTerminal, step,
+  Driver, buildTaskId, emptyState, isTerminal, step,
   type FlowDefinition, type FoldInput, type JoinPolicy, type LogRecord,
-  type Predicate, type RunState,
+  type Predicate, type RunOutcome, type RunState,
 } from '../index.ts';
 import { FyflowScheduler, FyflowTask, WorkerManager } from 'fyflow-scheduler';
 
@@ -113,6 +113,21 @@ export interface RunReport {
    * (`doc/concept.md` section 5).
    */
   branchesOverlapped: boolean;
+  /**
+   * Every distinct run-state outcome the incremental fold passed through, in
+   * first-seen order. **W6's, and it is how a transient outcome is asserted at
+   * all**: `awaiting_action` is real and durable — a branch is parked on a person
+   * — but a run that is later resolved ends `completed`, so the final state does
+   * not record that it ever happened.
+   *
+   * **Read as an inclusion, never as an exclusion.** `spec/run-state.md` section
+   * 3 says the precedence is defined at a quiescent point, and this samples every
+   * element, so it also contains mid-turn artefacts. *Did this run ever reach X*
+   * is answerable from it; *did it never reach Y* is not.
+   */
+  outcomesSeen: readonly RunOutcome[];
+  /** Task ids resolved by the inbound step, in the order it resolved them. */
+  resolved: readonly string[];
   /** Anything `onRunFailure` or `onUnsatisfiableJoin` reported. Empty on every run W5 declares. */
   failures: readonly string[];
 }
@@ -129,6 +144,20 @@ export interface RunOptions {
   threaded?: boolean;
   /** Backstop only. Reaching it fails the run; it never decides that a run finished. */
   backstopMs?: number;
+  /**
+   * **The inbound step — W6, and the one piece of design P2 named before it was
+   * hit.** Keyed by branch path: when that branch suspends, resolve it this way.
+   *
+   * A suspended run **never finishes**, because `RN-R12` makes `awaiting_action`
+   * explicitly non-terminal — correctly, since a run waiting on a person is not
+   * over. So without this a row that suspends waits for its backstop and reports
+   * a failure. This is the human, and `Driver.resolve()` is the only inbound API
+   * the library has (ADR 0004 rule 5).
+   *
+   * **Driven by the sequence, not by a clock**, exactly as termination is: it
+   * fires on the `branch.suspended` element rather than after an interval.
+   */
+  resolveOnSuspend?: Record<string, { as: 'done' | 'failed'; result?: unknown; actor: string }>;
 }
 
 export async function runFlow(opts: RunOptions): Promise<RunReport> {
@@ -154,16 +183,25 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
     // or an id collision would show.
     ScoreWorker: pool('score', opts.threaded === true, 2),
     PublishWorker: pool('publish', false),
-    // Reached only by a flow that names it. Its worker always throws, and the
-    // node that uses it is `optional`, so the scheduler settles it `failed` —
-    // which is the only way a branch is LOST by settling rather than by a human
-    // declining a suspended one.
+    // Reached only by a flow that names it. Its worker always throws — and what
+    // that produces is decided by the NODE, not by the pool: `optional: true`
+    // settles `failed` (a branch LOST), `optional: false` ends in `user_action`
+    // (a branch SUSPENDED). One worker, two outcomes, chosen by the definition.
+    // Measured before W6 was declared; ADR 0007 rule 2.
     ReviewWorker: pool('fail', false),
+    ExtractWorker: pool('fail', false),
+    // **Inline, and it must be.** A result `structuredClone` refuses reaches the
+    // driver intact from an inline pool, which is what makes `OR-R6` reachable at
+    // all; from a thread pool the scheduler refuses it first and the task ends
+    // `user_action` with no result ever reaching us. [Q61](../doc/open-questions.md).
+    MergeWorker: pool('uncloneable', false),
   });
 
   const inputs: FoldInput[] = [];
   const failures: string[] = [];
   const lateInputs: string[] = [];
+  const outcomesSeen: RunOutcome[] = [];
+  const resolved: string[] = [];
   let state = emptyState();
   let settle: (() => void) | null = null;
   const finished = new Promise<void>((resolve) => { settle = resolve; });
@@ -202,12 +240,35 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
     scheduler,
     createTask: (config) => new FyflowTask(config),
     predicates: opts.predicates ?? new Map<string, Predicate>(),
-    workerTypes: ['IngestWorker', 'ScoreWorker', 'PublishWorker', 'ReviewWorker'],
+    workerTypes: ['IngestWorker', 'ScoreWorker', 'PublishWorker', 'ReviewWorker',
+      'ExtractWorker', 'MergeWorker'],
     joinPolicy: policy,
     onFoldInput: (input) => {
       inputs.push(input);
       state = step(state, input);
+      if (!outcomesSeen.includes(state.outcome)) outcomesSeen.push(state.outcome);
       if (declaredFinished) lateInputs.push(input.kind);
+
+      // **The inbound step.** A branch has parked on a person; this is the person.
+      // Deferred to a microtask rather than called here: `resolve()` appends and
+      // routes, and doing that re-entrantly from inside an append would interleave
+      // the sequence with itself. The same boundary termination uses, and the same
+      // reason — the driver's turn finishes first.
+      if (input.kind === 'region' && input.event.type === 'branch.suspended') {
+        const how = opts.resolveOnSuspend?.[input.event.branchPath];
+        const at = input.event.at;
+        const branchPath = input.event.branchPath;
+        if (how) {
+          queueMicrotask(() => {
+            const taskId = buildTaskId(runId, at, Number(branchPath), 0);
+            if (driver.resolve(taskId, how.as, { result: how.result, actor: how.actor })) {
+              resolved.push(taskId);
+            } else {
+              failures.push(`resolve() refused ${taskId} — RS-R1 says it was not suspended`);
+            }
+          });
+        }
+      }
       if (checkQueued) return;
       checkQueued = true;
       // **A boundary, not a timeout.** The driver routes synchronously inside the
@@ -261,6 +322,8 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
     log: driver.snapshot(),
     settledByScheduler: [...settledByScheduler],
     wallMs,
+    outcomesSeen,
+    resolved,
     finishedBy,
     timedOut: finishedBy === 'backstop',
     failures,

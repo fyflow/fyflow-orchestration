@@ -14,11 +14,17 @@ Its central measurement, which should shape how the next plan reads that documen
 defect classes P1 produced, five have no rung on the ladder at all — and every one of those five was
 found by the conformity pass.** Four changes adopted; several findings deliberately left as findings.
 
-**[P2](plans/p2-the-non-success-half-on-a-real-scheduler.md) is open**, with
-[W6](work-items/w6-the-non-success-rows-at-l6.md) declared: *does the non-success half of a flow —
-a failure that **routes**, a human resolving a suspended branch, and a refusal that stops a run —
-behave on a real scheduler the way the fixtures say?* Of `spec/run-state.md`'s six outcomes, L6
-reaches three; **`awaiting_action` and `stopped` it has never reached at all.**
+**[P2](plans/p2-the-non-success-half-on-a-real-scheduler.md) is open and
+[W6](work-items/w6-the-non-success-rows-at-l6.md) is built**, with both readers outstanding. Ladder
+L6 is now **twelve rows and 186 assertions** in Node and Deno, and **all six run outcomes occur
+there** — `awaiting_action` and `stopped` for the first time, along with `branch.suspended` and
+`branch.resumed`. **Nothing in `src/` broke**, which is the weaker result P2 predicted when it
+measured `user_action` before the plan was written.
+
+**The pair to read is `suspend / resolve / resume` against `suspend / nobody comes`** — the same
+flow, distinguished only by whether a human turns up. The second is `awaiting_action` and **not
+`stuck`**, which is what `branch.suspended` exists for, and it is the one row whose expected result
+is the backstop: a run parked on a person is not over.
 
 **What W5 changed, beyond running the flow.** Three ADRs, and each came from a different kind of
 gap:
@@ -236,4 +242,4 @@ Deliberate overlaps, which are coordination points rather than duplication:
 | P | Question it answered | Exit artifact | Date |
 |---|---|---|---|
 | [P1](plans/p1-what-satisfies-a-join.md) | **Yes — and worse than predicted.** Arrival-counting breaks on **six of nine** matrix rows, not on the one exotic case, and an ordinary `optional` failure is enough. Live tokens survive: [ADR 0003](decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md) | `test/matrix/matrix.test.ts` (18 hand-derived cells × 2 policies) and **`examples/l6.ts`** (6 real runs on a real scheduler, Node and Deno). The row that is the plan: `p1-routed-away` under `arrival-count` is **`stuck`**, with the join's successor never dispatched | 2026-08-30 |
-| [P2](plans/p2-the-non-success-half-on-a-real-scheduler.md) | *in progress* — does the non-success half behave on a real scheduler the way the fixtures say? | three more L6 rows, and `awaiting_action` and `stopped` reached on real workers for the first time | — |
+| [P2](plans/p2-the-non-success-half-on-a-real-scheduler.md) | *in progress* — does the non-success half behave on a real scheduler the way the fixtures say? **W6 built; readers outstanding** | ladder L6 at **twelve rows**, with all six run outcomes and all six region events occurring on real workers | — |

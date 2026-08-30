@@ -1,0 +1,9 @@
+{
+  "flowId": "uncloneable",
+  "version": 1,
+  "entry": "merge",
+  "nodes": [
+    { "id": "merge", "kind": "task", "workerType": "MergeWorker", "edges": [ { "to": "done" } ] },
+    { "id": "done",  "kind": "end",  "outcome": "completed" }
+  ]
+}
