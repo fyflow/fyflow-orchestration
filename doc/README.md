@@ -62,9 +62,10 @@ longer rests on our own reading. [S1](scheduler-upstream.md).
 
 **What happens next:**
 
-1. **W2 — the fold, and both join policies.** It owns `src/fold/**` and the run-state document
-   W1 deliberately did not write ([Q14](open-questions.md) is what W2 tests). It reserves Q ids from
-   **Q41** and ADRs from **0008**; P1's blocks are spent. The interfaces it builds against are
+1. **[W2](work-items/w2-the-fold-and-both-join-policies.md) — declared, in progress.** The fold,
+   both join policies, and the run-state document W1 deliberately did not write
+   ([Q14](open-questions.md) is what W2 tests). It reserves **Q41-Q45** and **ADR 0008-0009**;
+   P1's blocks are spent. The interfaces it builds against are
    real and exercised: [outcome-record.md](../spec/outcome-record.md)'s log and effective outcome,
    and [join-policy.md](../spec/join-policy.md)'s `JoinPolicy` — which the driver now opens, steps
    with all six events, and acts on.
