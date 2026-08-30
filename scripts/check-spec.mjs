@@ -17,7 +17,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SPEC = join(ROOT, 'spec');
 
-const RULE_ID = /\b(FD-V\d+|FD-R\d+|ID-R\d+|OR-R\d+|RS-R\d+|RT-R\d+|JP-R\d+)\b/g;
+const RULE_ID = /\b(FD-V\d+|FD-R\d+|ID-R\d+|OR-R\d+|RS-R\d+|RN-R\d+|RT-R\d+|JP-R\d+)\b/g;
 const failures = [];
 const notes = [];
 const fail = (check, msg) => failures.push(`${check}: ${msg}`);
@@ -61,7 +61,7 @@ for (const p of mdFiles) {
   const text = readFileSync(p, 'utf8');
   for (const m of text.matchAll(RULE_ID)) mentioned.add(m[1]);
   for (const line of text.split(/\r?\n/)) {
-    const m = /^\|\s*`(FD-V\d+|FD-R\d+|ID-R\d+|OR-R\d+|RS-R\d+|RT-R\d+|JP-R\d+)`\s*\|(.*)$/.exec(line);
+    const m = /^\|\s*`(FD-V\d+|FD-R\d+|ID-R\d+|OR-R\d+|RS-R\d+|RN-R\d+|RT-R\d+|JP-R\d+)`\s*\|(.*)$/.exec(line);
     if (!m) continue;
     if (!declared.has(m[1])) declared.set(m[1], []);
     declared.get(m[1]).push(rel(p));

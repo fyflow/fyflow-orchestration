@@ -17,6 +17,8 @@
       "!src/driver/events.ts",
       "!src/driver/policy.ts",
       "!src/driver/driver.ts",
+      "!src/fold/run-state.ts",
+      "!src/fold/policies.ts",
       "!README.md"
     ]
   },

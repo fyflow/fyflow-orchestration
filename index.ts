@@ -8,3 +8,5 @@ export * from "./src/driver/routing.ts";
 export * from "./src/driver/events.ts";
 export * from "./src/driver/driver.ts";
 export * from "./src/driver/policy.ts";
+export * from "./src/fold/run-state.ts";
+export * from "./src/fold/policies.ts";

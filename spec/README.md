@@ -23,13 +23,14 @@ in [W1's record](../doc/work-items/w1-the-normative-layer.md).
 | [outcome-record.md](outcome-record.md) | the log: the eleven fields written when a task settles — what [ADR 0007](../doc/decisions/0007-the-driver-normalizes-events-into-an-immutable-outcome-record.md) rule 1's *"declared fields"* means — the **resolution record** that resumes a suspended node ([ADR 0004](../doc/decisions/0004-a-non-success-outcome-routes-only-where-an-edge-opts-in-and-user-action-suspends.md) rule 6), and the **effective outcome** that routing reads instead of the log | **v0.5** |
 | [join-policy.md](join-policy.md) | the interface both join policies sit behind, and the region event vocabulary. **Not** which policy wins — that is W4 and ADR 0003 | **v0.7** |
 | [runtime-targets.md](runtime-targets.md) | the three runtimes the source must run in, what it may import, and what a gate must run in. Inherited from `fyflow-scheduler`, not chosen | **v0.6** |
-| **Run state** | what a run holds, what a join is waiting on, and the terminal outcomes - which are more than `done` and `failed` (Q17) | **not written — W2** |
+| [run-state.md](run-state.md) | what a run holds, what a join is waiting on, and the five run-level outcomes - more than `done` and `failed`, because `awaiting_action` is the fifth. **Answers [Q14](../doc/open-questions.md)** (run state is a fold, of our own log) and [Q25](../doc/open-questions.md) | **v0.1** |
 
-**Run state is deliberately not W1's.** `doc/concept.md` section 4 names it here, and
-`doc/workflow.md` section 7 rule 1 names the run-state shape as what separates two parallel items —
-but whether run state is a fold at all is [Q14](../doc/open-questions.md), and **W2 is the item that
-tests it**. A spec that answered it first would make W2's gate vacuous. What W2 and W3 actually meet
-at is the outcome log and the join-policy state, and both are above.
+**Run state was deliberately not W1's, and that is why it arrived last.** `doc/concept.md` section
+4 names it here and `doc/workflow.md` section 7 rule 1 names the run-state shape as what separates
+two parallel items — but whether run state is a fold **at all** is
+[Q14](../doc/open-questions.md), and W2 is the item that tests it. A spec written first would have
+made W2's gate vacuous. What W2 and W3 met at instead was the outcome log and the join-policy
+interface, and both held.
 
 The task id scheme is not a formatting convention. `AGENTS.md` section 5: **reusing a task id
 overwrites**, silently — and the source says worse than that
