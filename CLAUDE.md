@@ -24,14 +24,15 @@ details are live mutable objects and `task.failed` also fires for `user_action` 
 normative documents and 71 numbered rules**; `src/` holds the definition validator, the driver and
 the fold with **both** join policies; `test/matrix/` holds the join/failure matrix; `examples/` holds
 ladder **L6**. **288 assertions in five runtimes** — Node 24, Deno, chromium, firefox, webkit —
-identical in all of them, **plus 118 at L6 in Node and Deno**. **P1's retro is run and `doc/workflow.md`
+identical in all of them, **plus 219 at L6 in Node and Deno**. **P1's retro is run and `doc/workflow.md`
 is v0.3** — four changes adopted, several findings deliberately left as findings.
 
 **[P2](doc/plans/p2-the-non-success-half-on-a-real-scheduler.md) is the active plan, it adds no
 features, and [W6](doc/work-items/w6-the-non-success-rows-at-l6.md) is built with both readers
 outstanding.** Ladder L6 is **twelve rows, 186 assertions**, in Node and Deno, and **all six run
 outcomes and all six region events now occur there** — `awaiting_action`, `stopped`,
-`branch.suspended` and `branch.resumed` for the first time. **Nothing in `src/` broke**, which is the
+`branch.suspended` and `branch.resumed` for the first time. **Thirteen rows, 219 assertions**, after
+both readers. **Nothing in `src/` broke**, which is the
 weaker result P2 predicted when it measured `user_action` before the plan was written. What happens
 next, in order: [doc/README.md](doc/README.md).
 
@@ -160,7 +161,7 @@ concept -> plan -> work items -> verify (ladder, spec conformity, retro) -> reco
 
   ```bash
   npm run gate            # everything, both L6 runtimes included
-  npm run test:l6         # ladder L6, node 24 - twelve real runs
+  npm run test:l6         # ladder L6, node 24 - thirteen real runs
   npm run test:l6:deno    # ladder L6, deno
   ```
 

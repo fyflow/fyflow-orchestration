@@ -1,11 +1,13 @@
 # P2 — The non-success half, on a real scheduler
 
-**Status:** in progress — W6 declared
+**Status:** in progress — W6 built and both readers run; its findings are acted on and the gate is re-run
 **Question this plan answers:** *Does the non-success half of a flow — a failure that **routes**, a
 human resolving a suspended branch, and a refusal that stops a run — behave on a real scheduler the
 way the fixtures say?*
 **Exit artifact:** three more ladder-L6 rows, and the run-state outcomes **`awaiting_action`** and
-**`stopped`** reached on real workers for the first time.
+**`stopped`** reached on real workers for the first time. *(Delivered as **five** rows and thirteen:
+two were added because a negative test survived, which is recorded in W6 rather than smoothed into
+this line.)*
 **Reserves:** W6-W8, Q61-Q70, ADR 0016-0018
 
 ---

@@ -7,7 +7,7 @@ its retro is run.** [Q4](open-questions.md) is answered:
 [ADR 0003](decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md), **a join is
 satisfied when its region has no live branches** — and **W5 ran it on a real scheduler**, where
 `p1-routed-away` completes under `live-token` and is **`stuck`** under `arrival-count`, with the
-join's successor never dispatched. **288 assertions in five runtimes, plus 118 at ladder L6 in two.**
+join's successor never dispatched. **288 assertions in five runtimes, plus 219 at ladder L6 in two.**
 
 **The retro is in [P1's Record](plans/p1-what-satisfies-a-join.md) and `doc/workflow.md` is v0.3.**
 Its central measurement, which should shape how the next plan reads that document: **of the eight
@@ -16,7 +16,7 @@ found by the conformity pass.** Four changes adopted; several findings deliberat
 
 **[P2](plans/p2-the-non-success-half-on-a-real-scheduler.md) is open and
 [W6](work-items/w6-the-non-success-rows-at-l6.md) is built**, with both readers outstanding. Ladder
-L6 is now **twelve rows and 186 assertions** in Node and Deno, and **all six run outcomes occur
+L6 is now **thirteen rows and 219 assertions** in Node and Deno, and **all six run outcomes occur
 there** — `awaiting_action` and `stopped` for the first time, along with `branch.suspended` and
 `branch.resumed`. **Nothing in `src/` broke**, which is the weaker result P2 predicted when it
 measured `user_action` before the plan was written.
@@ -241,5 +241,5 @@ Deliberate overlaps, which are coordination points rather than duplication:
 
 | P | Question it answered | Exit artifact | Date |
 |---|---|---|---|
-| [P1](plans/p1-what-satisfies-a-join.md) | **Yes — and worse than predicted.** Arrival-counting breaks on **six of nine** matrix rows, not on the one exotic case, and an ordinary `optional` failure is enough. Live tokens survive: [ADR 0003](decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md) | `test/matrix/matrix.test.ts` (18 hand-derived cells × 2 policies) and **`examples/l6.ts`** (6 real runs on a real scheduler, Node and Deno). The row that is the plan: `p1-routed-away` under `arrival-count` is **`stuck`**, with the join's successor never dispatched | 2026-08-30 |
-| [P2](plans/p2-the-non-success-half-on-a-real-scheduler.md) | *in progress* — does the non-success half behave on a real scheduler the way the fixtures say? **W6 built; readers outstanding** | ladder L6 at **twelve rows**, with all six run outcomes and all six region events occurring on real workers | — |
+| [P1](plans/p1-what-satisfies-a-join.md) | **Yes — and worse than predicted.** Arrival-counting breaks on **six of nine** matrix rows, not on the one exotic case, and an ordinary `optional` failure is enough. Live tokens survive: [ADR 0003](decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md) | `test/matrix/matrix.test.ts` (18 hand-derived cells × 2 policies) and **`examples/l6.ts`** (**eight** real runs at P1's close, thirteen after P2's W6). The row that is the plan: `p1-routed-away` under `arrival-count` is **`stuck`**, with the join's successor never dispatched | 2026-08-30 |
+| [P2](plans/p2-the-non-success-half-on-a-real-scheduler.md) | *in progress* — does the non-success half behave on a real scheduler the way the fixtures say? **W6 built; readers outstanding** | ladder L6 at **thirteen rows**, with all six run outcomes and all six region events occurring on real workers | — |

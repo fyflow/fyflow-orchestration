@@ -11,7 +11,7 @@ npm run test:l6         # Node 24
 npm run test:l6:deno    # Deno
 ```
 
-Both print the same table and run the same 186 assertions. `RT-R10`: **L6 runs in Node and
+Both print the same table and run the same 219 assertions. `RT-R10`: **L6 runs in Node and
 Deno and not in the browser** — [Q33](../doc/open-questions.md), and the browser half is
 [Q52](../doc/open-questions.md).
 
@@ -19,10 +19,10 @@ Deno and not in the browser** — [Q33](../doc/open-questions.md), and the brows
 
 | | |
 |---|---|
-| [`l6.ts`](l6.ts) | **the gate.** Twelve real runs — every expected value written by hand from `spec/` before anything ran |
+| [`l6.ts`](l6.ts) | **the gate.** Thirteen real runs — every expected value written by hand from `spec/` before anything ran |
 | [`run-flow.ts`](run-flow.ts) | one run: build the scheduler, drive the flow, fold the driver's input sequence, return a report |
 | [`workers/flow-worker.ts`](workers/flow-worker.ts) | **one worker file for both runtimes**, five roles selected by the pool's `config` — one always throws, one returns a value `structuredClone` refuses |
-| [`flows/`](flows/) | the three flows this gate needs that `spec/examples/` cannot express ([Q44](../doc/open-questions.md)) |
+| [`flows/`](flows/) | the four flows this gate needs that `spec/examples/` cannot express — [Q44](../doc/open-questions.md), whose own text said this would not be needed |
 | [`deno-import-map.json`](deno-import-map.json) | how Deno resolves the bare `fyflow-scheduler` specifier — [ADR 0013](../doc/decisions/0013-the-scheduler-is-a-development-dependency-reached-from-the-working-tree.md) rule 3 |
 
 ## Three things a reader should not have to rediscover
@@ -53,13 +53,13 @@ assertion, because `scheduler.shutdown()` drains the run before the report is re
 
 The wall-clock backstop in `run-flow.ts` is **not** how a run is detected. Reaching it is a failure.
 
-**3. Why there are twelve runs and not one.** P1's exit artifact is *"the branch-routed-away case as an
+**3. Why there are thirteen runs and not one.** P1's exit artifact is *"the branch-routed-away case as an
 executable test, run against both policies, plus one real fan-out flow completing on a real
 scheduler"*. The control rows exist so the comparison has a baseline; the high-confidence rows exist
 so `isLowConfidence` is a predicate that can return **both** answers, rather than a constant nothing
 would notice was stuck at `true`.
 
-The last four rows are the ones to look at, and they are ADR 0003's **two** mechanisms:
+Rows five to eight are ADR 0003's **two** mechanisms:
 
 | | `live-token` | `arrival-count` |
 |---|---|---|
@@ -72,7 +72,9 @@ failed**, and arrival-counting hangs anyway. `optional-loss` is defined in
 an `optional` branch node with no `on: ["failed"]` edge — [Q44](../doc/open-questions.md), and this
 is its second occurrence.
 
-**4. What W6 added, and the pair that matters.** P1's rows are all successes or hangs. W6's four are
+**4. What W6 added, and the pair that matters.** *(Five rows after its review, not four — the fifth
+was added because a negative test survived, and so was one of the first four. Both are in W6's
+Record.)* P1's rows are all successes or hangs. W6's four are
 the non-success half: a failure that **routes** rather than being lost; a suspension a person
 resolves; a suspension nobody resolves; and a refusal that stops the run. The pair to read together
 is the middle two — **the same flow, distinguished only by whether a human turns up**:

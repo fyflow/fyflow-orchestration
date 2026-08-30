@@ -60,12 +60,19 @@ export default class FlowWorker extends BaseWorker {
         // of the input and the run is reproducible.
         return { confidence: confidenceOf(payload), score: Math.round(confidenceOf(payload) * 100) };
       case 'fail':
-        // **The ordinary failure ADR 0003 calls decisive.** The node is
-        // `optional: true`, so the scheduler settles it `failed` and resolves
-        // `null` rather than parking it in `user_action` — two lines of one branch
-        // at `core/FyflowScheduler.ts:894-897`. Nothing in the flow opts into
-        // `failed`, so the branch is LOST and the region empties by a road that is
-        // not P1's exotic case.
+        // **One throwing worker; what it produces is decided by the NODE.** Four
+        // flows use this role and they get four different things, which is the
+        // clearest demonstration in the repository that the outcome is a property
+        // of the definition rather than of the worker:
+        //
+        //   optional, no failure edge  -> settles `failed`, branch LOST
+        //   optional, `on:["failed"]`  -> settles `failed`, branch EXITED
+        //   NOT optional               -> ends `user_action`, branch SUSPENDED
+        //   outside a region           -> settles `failed` and routes on
+        //
+        // The first two are `core/FyflowScheduler.ts:894-897`'s `if (task.optional)`
+        // branch; the third is the other one. ADR 0007 rule 2, measured before P2
+        // was written.
         throw new Error('flaky worker: this task is meant to fail');
       case 'uncloneable':
         // **A result `structuredClone` refuses**, which is `OR-R6`'s whole

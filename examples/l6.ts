@@ -55,6 +55,7 @@ import optionalLoss from './flows/optional-loss.flow.json' with { type: 'json' }
 // `user_action`), and none whose task returns a value `structuredClone` refuses.
 import suspendResume from './flows/suspend-resume.flow.json' with { type: 'json' };
 import uncloneable from './flows/uncloneable.flow.json' with { type: 'json' };
+import exitLast from './flows/exit-last.flow.json' with { type: 'json' };
 import failureEdge from '../spec/examples/valid/failure-edge.flow.json' with { type: 'json' };
 
 /**
@@ -78,22 +79,36 @@ interface Expectation {
   outcome: RunOutcome;
   /** From `spec/task-id.md`, in dispatch order. */
   dispatched: string[];
-  /** From ADR 0003's matrix: did the driver route out of the join. */
-  joined: boolean | null;
+  /**
+   * From ADR 0003's matrix: did the driver route out of the join. **Absent on a
+   * flow with no fan-out** — a declared value there would be dead, and a
+   * copy-paste from a fan-out row would carry it silently.
+   */
+  joined?: boolean | null;
   /** From `spec/join-policy.md` section 2 — how each branch left its region. */
-  settled: Record<string, 'arrived' | 'exited' | 'lost'>;
+  settled?: Record<string, 'arrived' | 'exited' | 'lost'>;
   why: string;
 
   // --- W6's rows need three things W5's did not ---
   /** `null` when the flow has no fan-out, and then `regions` must be empty. */
   regionId?: string | null;
   /**
-   * Dispatched ids this row expects to have **no** effective outcome. Empty
-   * everywhere but the refusal row, where `OR-R6` throws at the listener boundary
-   * and therefore writes no record at all.
+   * Dispatched ids this row expects to have **no** effective outcome. **Two rows
+   * declare it, for two different rules**, and the first version of this comment
+   * named only one:
+   *
+   *   - the refusal row — `OR-R6` throws at the listener boundary and therefore
+   *     writes no record at all;
+   *   - `suspend / nobody comes` — `spec/outcome-record.md` section 7: **a
+   *     suspended node has no effective outcome**, because it has not finished and
+   *     nothing routes.
    */
   unsettled?: string[];
-  /** A substring the single reported `onRunFailure` must contain. Absent = none expected. */
+  /**
+   * The `RunFailure.kind` the single reported failure must have. Absent = none
+   * expected. Checked against `kind` rather than against the message text, and
+   * paired with an assertion that the message names the task id (`OR-R6`).
+   */
   runFailure?: string;
   /** Branch paths this row's "human" resolves when they suspend. */
   resolveOnSuspend?: Record<string, { as: 'done' | 'failed'; result?: unknown; actor: string }>;
@@ -101,6 +116,46 @@ interface Expectation {
   backstopMs?: number;
   /** Outcomes the run must have passed through, even if it did not end in them. */
   outcomesSeen?: string[];
+  /**
+   * Outcomes the run must **never** have been in at a quiescent point.
+   *
+   * **Sound only because `outcomesSeen` is sampled at quiescent points.** While it
+   * sampled every element it also contained the artefacts `spec/run-state.md`
+   * section 3 enumerates — rows 10 and 11 both recorded a transient `completed`
+   * and a transient `stuck` — so an exclusion would have been false. It is also
+   * what makes the sampling point itself falsifiable: an inclusion passes whether
+   * the tracker is quiescent or a constant.
+   */
+  outcomesNotSeen?: string[];
+  /**
+   * The region-event stream **for one branch**, in order.
+   *
+   * Per branch rather than across branches, because the order *between* branches
+   * is fan-out completion order and `doc/workflow.md` section 5 rule 5 forbids
+   * asserting it. Within one branch the causal order is fixed by `JP-R5`.
+   */
+  branchEvents?: Record<string, string[]>;
+  /** How each path ended, in order — `spec/run-state.md` section 3's discriminant. */
+  pathEnds?: { reason: string; at: string }[];
+  /**
+   * `regions[*].suspended` — branch paths parked on a person **right now**.
+   *
+   * **`spec/run-state.md` does not fix whether this array is cumulative or
+   * current.** `RN-R6` names it as one of the three fields `regions` carries and
+   * says nothing about its lifetime; the fold clears it on the branch's terminal
+   * event, so it is *current*. Asserted here as the code behaves, and the gap is
+   * reported rather than patched — it is W1's and W2's document. Raised as
+   * [Q62](../doc/open-questions.md).
+   */
+  regionSuspended?: string[];
+  /** `stoppedBy` — set only when a refusal terminated the run (`OR-R10`, `RN-R8`). */
+  stoppedBy?: string;
+  /**
+   * A dispatched node's folded `result`. Used to pin **[Q36](../doc/open-questions.md)**:
+   * a satisfied join carries `null` downstream, which `spec/` does not fix and the
+   * driver chose. W4 asserts it at L5; this is the same claim on real workers.
+   */
+  nodeResults?: Record<string, unknown>;
   /**
    * **This row's run is expected NOT to finish**, and reaching the backstop is
    * its result rather than its failure. True only for a run parked on a person
@@ -116,6 +171,7 @@ const RA = routedAway as unknown as FlowDefinition;
 const OL = optionalLoss as unknown as FlowDefinition;
 const SR = suspendResume as unknown as FlowDefinition;
 const UC = uncloneable as unknown as FlowDefinition;
+const EL = exitLast as unknown as FlowDefinition;
 const FE = failureEdge as unknown as FlowDefinition;
 
 const HIGH = { confidence: 0.9 };
@@ -129,6 +185,9 @@ const EXPECTED: Expectation[] = [
     dispatched: ['r1:ingest:-:0', 'r1:scoreA:0:0', 'r1:scoreB:1:0', 'r1:publish:-:0'],
     joined: true,
     settled: { '0': 'arrived', '1': 'arrived' },
+    // Q36's current answer, on real workers: a satisfied join carries `null`, so
+    // `publish` receives `null` and echoes it back.
+    nodeResults: { 'r1:publish:-:0': { published: true, joinPayload: null } },
     why: 'both branches arrive; the live count reaches zero having been positive (JP section 3)',
   },
   {
@@ -184,7 +243,12 @@ const EXPECTED: Expectation[] = [
   },
   {
     key: 'optional-loss / live-token',
-    definition: OL, policyId: 'live-token', payload: HIGH, threaded: true,
+    // **Inline, so the LOST branch settles last.** With a threaded `ScoreWorker`
+    // the arriving branch always finished after the failing one, so the join was
+    // always fired by the arrival and `settleJoin` on the `lost` path was
+    // unreachable at L6 — deleting it was invisible across twelve rows.
+    definition: OL, policyId: 'live-token', payload: HIGH, threaded: false,
+    branchEvents: { '1': ['branch.opened', 'branch.lost'] },
     outcome: 'failed',
     dispatched: ['r7:ingest:-:0', 'r7:scoreA:0:0', 'r7:flaky:1:0', 'r7:publish:-:0'],
     joined: true,
@@ -196,7 +260,7 @@ const EXPECTED: Expectation[] = [
   },
   {
     key: 'optional-loss / arrival-count',
-    definition: OL, policyId: 'arrival-count', payload: HIGH, threaded: true,
+    definition: OL, policyId: 'arrival-count', payload: HIGH, threaded: false,
     outcome: 'stuck',
     dispatched: ['r8:ingest:-:0', 'r8:scoreA:0:0', 'r8:flaky:1:0'],
     joined: null,
@@ -213,7 +277,7 @@ const EXPECTED: Expectation[] = [
     // One task, and one only: `quarantine` is an `end`, and an `end` dispatches
     // nothing. `review` and `publish` are never reached.
     dispatched: ['r9:extract:-:0'],
-    joined: null, settled: {},
+    pathEnds: [{ reason: 'end', at: 'quarantine' }],
     why: 'W6 row 1 — a failure that ROUTES, the one definition feature no L6 flow reached. ' +
       '`extract` is optional and throws, so it settles `failed`; its FIRST edge opts into ' +
       '`failed` and goes to the `quarantine` end. The path ended AT AN END NODE, so the run is ' +
@@ -232,6 +296,17 @@ const EXPECTED: Expectation[] = [
     // One worker, two outcomes, chosen by the definition.
     resolveOnSuspend: { '1': { as: 'done', result: { confidence: 0.9 }, actor: 'a-person' } },
     outcomesSeen: ['awaiting_action'],
+    // Never quiescently either: `stuck` would mean the join can no longer fire,
+    // and `failed` would mean a path ended with no eligible edge. Both appear if
+    // the outcome is sampled mid-turn instead.
+    outcomesNotSeen: ['stuck', 'failed'],
+    // **The only assertion in the gate that `branch.resumed` reaches.** Deleting
+    // the emission from `src/` was invisible across all twelve rows: the fold
+    // clears `regions[*].suspended` on `branch.arrived` too, so nothing the gate
+    // read could tell. Found by both of W6's readers, independently.
+    branchEvents: { '1': ['branch.opened', 'branch.suspended', 'branch.resumed', 'branch.arrived'] },
+    pathEnds: [{ reason: 'end', at: 'done' }],
+    regionSuspended: [],
     why: 'W6 row 2 — the whole human-in-the-loop half, and the only inbound API the library has. ' +
       'The branch suspends (ADR 0007 rule 2), the join keeps waiting because `branch.suspended` ' +
       'decrements nothing, run state is `awaiting_action` (RN-R7), a person resolves it `done`, ' +
@@ -251,6 +326,12 @@ const EXPECTED: Expectation[] = [
     settled: { '0': 'arrived' },
     unsettled: ['r11:needsAPerson:1:0'],
     outcomesSeen: ['awaiting_action'],
+    outcomesNotSeen: ['stuck', 'completed'],
+    // Branch 1 has **no terminal event at all**, which `JP-R5` permits and which
+    // nothing in this repository had exhibited outside a fixture.
+    branchEvents: { '1': ['branch.opened', 'branch.suspended'] },
+    pathEnds: [],
+    regionSuspended: ['1'],
     expectBackstop: true,
     backstopMs: 400,
     why: 'W6 row 4 — the row that separates WAITING ON A PERSON from STUCK, which ADR 0003 and ' +
@@ -261,17 +342,34 @@ const EXPECTED: Expectation[] = [
       'the effective-outcome mapping falsifiable',
   },
   {
+    key: 'exit-last / join fires on exit',
+    definition: EL, policyId: 'live-token', payload: HIGH, threaded: false,
+    outcome: 'completed',
+    dispatched: ['r12:ingest:-:0', 'r12:scoreA:0:0', 'r12:flaky:1:0', 'r12:publish:-:0'],
+    joined: true,
+    settled: { '0': 'arrived', '1': 'exited' },
+    branchEvents: { '1': ['branch.opened', 'branch.exited'] },
+    pathEnds: [{ reason: 'end', at: 'abandoned' }, { reason: 'end', at: 'done' }],
+    why: 'W6 row 5, added by the adequacy reader. `spec/join-policy.md` section 4 says status is asked ' +
+      'after EVERY terminal event because a join can become satisfiable when the last live branch was ' +
+      'LOST or EXITED - which is P1s case - and no L6 row reached either path: the arriving branch ' +
+      'always settled last, so the join was always fired by the arrival. Deleting settleJoin from ' +
+      'both other paths was invisible across twelve rows. Here the exiting branch is given a longer ' +
+      'delay so it settles LAST, which ARRANGES the causal order rather than depending on one',
+  },
+  {
     key: 'uncloneable / OR-R6',
     definition: UC, policyId: 'live-token', payload: HIGH, threaded: false,
     regionId: null,
     outcome: 'stopped',
-    dispatched: ['r12:merge:-:0'],
-    joined: null, settled: {},
+    dispatched: ['r13:merge:-:0'],
+    pathEnds: [],
     // **`OR-R6` writes no record.** `normalizeEvent` throws before anything is
     // appended, so the task is dispatched and has no effective outcome — the one
     // place in the gate where Q32's property legitimately does not hold.
-    unsettled: ['r12:merge:-:0'],
+    unsettled: ['r13:merge:-:0'],
     runFailure: 'UncloneableResult',
+    stoppedBy: 'UncloneableResult',
     why: 'W6 row 3 — a refusal that stops a run, on a real scheduler. The worker returns a ' +
       'function; from an INLINE pool it reaches the driver intact and our own structuredClone ' +
       'refuses it (Q61). OR-R6, caught at the listener boundary, reported through onRunFailure ' +
@@ -337,6 +435,39 @@ for (const [i, e] of EXPECTED.entries()) {
 
   check(e.key, 'run-state outcome — spec/run-state.md section 3', report.state.outcome, e.outcome);
   check(e.key, 'dispatched task ids, in order — spec/task-id.md', [...report.dispatched], e.dispatched);
+  // **The region-event stream, per branch.** Between branches the order is fan-out
+  // completion order and nothing may assert it (section 5 rule 5); within one
+  // branch `JP-R5` fixes it. This is what makes `branch.resumed` and
+  // `branch.exited` reachable by an assertion at all.
+  for (const [branch, want] of Object.entries(e.branchEvents ?? {})) {
+    const got = report.inputs
+      .filter((x) => x.kind === 'region' && x.event.branchPath === branch)
+      .map((x) => (x as { event: { type: string } }).event.type);
+    check(e.key, `the region events for branch ${branch}, in order — JP-R5`, got, want);
+  }
+  // `spec/run-state.md` section 3's discriminant between `completed` and `failed`,
+  // asserted directly rather than only through the outcome it produces.
+  if (e.pathEnds) {
+    check(e.key, 'pathEnds — section 3 discriminates completed from failed by these',
+      report.state.pathEnds, e.pathEnds);
+  }
+  if (e.regionSuspended) {
+    check(e.key, 'regions[*].suspended — who is parked on a person right now',
+      report.state.regions['split']?.suspended, e.regionSuspended);
+  }
+  if (e.stoppedBy !== undefined) {
+    assertThat(e.key, 'OR-R10: stoppedBy names the refusal that terminated the run',
+      (report.state.stoppedBy ?? '').includes(e.stoppedBy), `stoppedBy: ${report.state.stoppedBy}`);
+  }
+  for (const [id, want] of Object.entries(e.nodeResults ?? {})) {
+    check(e.key, `Q36: what ${id.split(':')[1]} received`, report.state.nodes[id]?.result, want);
+  }
+  for (const never of e.outcomesNotSeen ?? []) {
+    assertThat(e.key, `the run was never quiescently \`${never}\``,
+      !report.outcomesSeen.includes(never as RunOutcome),
+      `saw: ${report.outcomesSeen.join(', ')}`);
+  }
+
   if (e.regionId === null) {
     // A flow with no fan-out enters no region, and `RN-R10` must therefore not
     // be able to call it `stuck` — which is the clause a fan-out-free flow
@@ -409,8 +540,18 @@ for (const [i, e] of EXPECTED.entries()) {
     fromInputs, report.log.map((r) => r.taskId));
 
   if (e.runFailure) {
-    assertThat(e.key, `OR-R10: exactly one run failure, naming ${e.runFailure}`,
-      report.failures.length === 1 && report.failures[0]!.includes(e.runFailure),
+    // **`kind` and `message` are checked separately**, because
+    // `UncloneableResult`'s message begins with its own class name — so a
+    // substring over `${kind}: ${message}` is satisfied by the message alone and
+    // `RunFailure.kind` was pinned by nothing anywhere in the repository. And
+    // `OR-R6`'s wording is *"fails with UncloneableResult **naming the task
+    // id**"*, so the id is the half worth asserting. Found by W6's adequacy
+    // reader.
+    assertThat(e.key, `OR-R10: exactly one run failure, of kind ${e.runFailure}`,
+      report.failures.length === 1 && report.failureKinds[0] === e.runFailure,
+      `kinds: ${report.failureKinds.join(', ') || '(none)'}`);
+    assertThat(e.key, 'OR-R6: and its message names the task id',
+      report.failures.length === 1 && e.dispatched.some((id) => report.failures[0]!.includes(id)),
       report.failures.join('; ') || '(none reported)');
   } else {
     assertThat(e.key, 'no run failure and no unsatisfiable join was reported',
@@ -452,8 +593,18 @@ for (const [i, e] of EXPECTED.entries()) {
   // column in the table below instead, and the cost is named in the Record: the
   // `threaded` and `delayMs` knobs have no assertion behind them.
 
+  // The row's declared extras, derived from the expectation rather than typed, so
+  // adding an optional assertion to a row updates the floor along with it.
+  const extras = (e.outcomesSeen?.length ?? 0)
+    + (e.outcomesNotSeen?.length ?? 0)
+    + Object.keys(e.branchEvents ?? {}).length
+    + Object.keys(e.nodeResults ?? {}).length
+    + (e.pathEnds ? 1 : 0)
+    + (e.runFailure ? 1 : 0)
+    + (e.regionSuspended ? 1 : 0)
+    + (e.stoppedBy !== undefined ? 1 : 0);
   rowCosts.push([e.key, e.regionId === null ? 'no-region' : 'region',
-    passed + failures.length - before, (e.outcomesSeen ?? []).length]);
+    passed + failures.length - before, extras]);
 }
 
 // --- cross-row assertions, which are where the finding lives -------------------
@@ -506,8 +657,8 @@ const w = (s: string, n: number) => s.padEnd(n).slice(0, n);
 // it was true, which is the smallest possible version of the thing this whole
 // review pass was about.
 console.log(`\n  ladder L6 — ${reports.length} real runs on fyflow-scheduler 0.3.0, on ${runtime}\n`);
-console.log(`  ${w('run', 36)}${w('outcome', 11)}${w('join', 7)}${w('branches', 22)}${w('tasks', 6)}${w('ms', 6)}overlap`);
-console.log(`  ${'-'.repeat(94)}`);
+console.log(`  ${w('run', 40)}${w('outcome', 17)}${w('join', 7)}${w('branches', 22)}${w('tasks', 6)}${w('ms', 6)}overlap`);
+console.log(`  ${'-'.repeat(106)}`);
 for (const [i, r] of reports.entries()) {
   const region = r.state.regions['split'];
   const branches = region
@@ -515,7 +666,7 @@ for (const [i, r] of reports.entries()) {
     : '-';
   const joined = region === undefined ? '-' : region.joined === null ? 'never' : String(region.joined);
   console.log(
-    `  ${w(EXPECTED[i]!.key, 36)}${w(r.state.outcome, 11)}${w(joined, 7)}` +
+    `  ${w(EXPECTED[i]!.key, 40)}${w(r.state.outcome, 17)}${w(joined, 7)}` +
     `${w(branches, 22)}${w(String(r.dispatched.length), 6)}${w(String(r.wallMs), 6)}` +
     `${r.branchesOverlapped ? 'yes' : 'no'}`,
   );
@@ -525,7 +676,7 @@ for (const [i, r] of reports.entries()) {
 // carries its own derivation: `doc/workflow.md` section 5 rule 1 — expected
 // values come from the spec, and a reader should not have to take that on trust.
 console.log('\n  why each row reads as it does:');
-for (const e of EXPECTED) console.log(`    ${w(e.key, 36)}${e.why}`);
+for (const e of EXPECTED) console.log(`    ${w(e.key, 40)}${e.why}`);
 
 // **An assertion-count floor, because a skipped assertion reports as a pass.**
 // `doc/workflow.md` section 1 rule 4 at assertion granularity: W5's test-adequacy
@@ -558,9 +709,25 @@ const EXPECTED_TOTAL =
   rowCosts.reduce((n, [, shape, , extras]) => n + base(shape) + extras, 0) + CROSS_ROW;
 if (passed + failures.length !== EXPECTED_TOTAL) {
   failures.push(
-    'gate\n      the assertion count is not what this file declares — a block was skipped\n' +
+    'gate\n      the derived assertion count is not what the rows declare — a block was skipped\n' +
       `      expected: ${EXPECTED_TOTAL}\n` +
       `      actual:   ${passed + failures.length}`,
+  );
+}
+
+// **The absolute anchor, and it is the only number here not derived from the
+// others.** Both checks above read `base()`, so decrementing an assertion **and**
+// the constant that counts it passes them both — measured at 174 assertions and
+// exit 0 by W6's adequacy reader, whose finding is that the Record's claim of
+// *"checked two ways … either alone misses something"* was false, because both
+// ways shared a source. This is the second source: a number a human wrote down.
+const DECLARED_TOTAL = 219;
+if (passed + failures.length !== DECLARED_TOTAL) {
+  failures.push(
+    'gate\n      the assertion count is not the number this file declares outright\n' +
+      `      declared: ${DECLARED_TOTAL}\n` +
+      `      actual:   ${passed + failures.length}\n` +
+      '      If you added or removed an assertion deliberately, update DECLARED_TOTAL.',
   );
 }
 

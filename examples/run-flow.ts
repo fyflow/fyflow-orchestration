@@ -32,7 +32,11 @@
  * timeout**.
  *
  * The wall-clock backstop below is not how the run is detected. It exists so a
- * hang is **reported** rather than hung on, and reaching it is a FAILURE.
+ * hang is **reported** rather than hung on, and reaching it is a failure —
+ * **except on the one row whose declared result it is**: a run parked on a person
+ * cannot finish, because `RN-R12` makes `awaiting_action` non-terminal, so
+ * asserting `finishedBy === 'backstop'` there is asserting that rule's negative
+ * half. `Expectation.expectBackstop` marks it.
  */
 // Everything from the package entry, never from `src/` — an example that reached
 // past `index.ts` would be exercising a surface no consumer has.
@@ -74,8 +78,9 @@ export interface RunReport {
   wallMs: number;
   /**
    * **Which of the two ended the wait.** `'run-state'` means `isTerminal(state)`
-   * became true at a quiescent point — the only acceptable answer. `'backstop'`
-   * means the wall clock did, and the run is a failure whatever else it reports.
+   * became true at a quiescent point. `'backstop'` means the wall clock did —
+   * a failure on every row but the one that declares `expectBackstop`, where a run
+   * parked on a person genuinely cannot finish.
    *
    * This exists because W5's test-adequacy pass replaced the whole termination
    * mechanism with `setTimeout(1)` and **all 72 L6 assertions still passed**:
@@ -120,16 +125,28 @@ export interface RunReport {
    * — but a run that is later resolved ends `completed`, so the final state does
    * not record that it ever happened.
    *
-   * **Read as an inclusion, never as an exclusion.** `spec/run-state.md` section
-   * 3 says the precedence is defined at a quiescent point, and this samples every
-   * element, so it also contains mid-turn artefacts. *Did this run ever reach X*
-   * is answerable from it; *did it never reach Y* is not.
+   * **Sampled at quiescent points only**, in the termination microtask, which is
+   * what makes an *exclusion* sound as well as an inclusion. The first version
+   * sampled every element and therefore contained the mid-turn artefacts
+   * `spec/run-state.md` section 3 enumerates — a transient `completed` and a
+   * transient `stuck` on runs that were neither. Found by W6's conformity reader,
+   * and it was the second occurrence of the failure mode that produced section 3's
+   * quiescence block.
    */
   outcomesSeen: readonly RunOutcome[];
   /** Task ids resolved by the inbound step, in the order it resolved them. */
   resolved: readonly string[];
-  /** Anything `onRunFailure` or `onUnsatisfiableJoin` reported. Empty on every run W5 declares. */
+  /** Anything `onRunFailure` or `onUnsatisfiableJoin` reported, as text. */
   failures: readonly string[];
+  /**
+   * The `kind` of each reported failure, kept separate from its message.
+   *
+   * `RunFailure.kind` was pinned by no test anywhere: row 12's assertion read
+   * `${kind}: ${message}` for a substring, and `UncloneableResult`'s message
+   * begins with its own class name, so forcing `kind` to `'Error'` was green at
+   * L6 **and** at L1-L5. Found by W6's adequacy reader.
+   */
+  failureKinds: readonly string[];
 }
 
 export interface RunOptions {
@@ -156,6 +173,16 @@ export interface RunOptions {
    *
    * **Driven by the sequence, not by a clock**, exactly as termination is: it
    * fires on the `branch.suspended` element rather than after an interval.
+   *
+   * **Deferred to a microtask, and the reason is not the one first written here.**
+   * The original claim — that a re-entrant `resolve()` would interleave the
+   * sequence with itself — is false: `Driver.append` pushes before it notifies, so
+   * a re-entrant append lands after the current element rather than inside it. The
+   * real reason is sharper: resolving inside the driver's own turn means the run is
+   * **never quiescently `awaiting_action`**, which is the state the row exists to
+   * demonstrate. A human who answers within the same synchronous turn is not a
+   * human. W6's adequacy reader found the false claim; the row now fails without
+   * the deferral.
    */
   resolveOnSuspend?: Record<string, { as: 'done' | 'failed'; result?: unknown; actor: string }>;
 }
@@ -165,11 +192,24 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
   const delayMs = opts.delayMs ?? 5;
   const backstopMs = opts.backstopMs ?? 10_000;
 
+  // **A role that must settle LAST is given a longer delay**, so the branch that
+  // arrives is not the branch that finishes. Without it, `settleJoin` on the
+  // `lost` and `exited` paths is unreachable at L6 — the arriving branch always
+  // settled last and the join was always fired by the arrival, so deleting either
+  // of the other two calls was invisible across twelve rows. Found by W6's
+  // adequacy reader.
+  //
+  // This ARRANGES an order rather than depending on one: nothing asserts which
+  // branch finishes first, the flow's own definition decides which branch
+  // arrives, and a 4x delay difference is not a race. `doc/workflow.md` section 5
+  // rule 5 forbids depending on an order the spec does not fix; it does not
+  // forbid choosing inputs that make a causal path reachable.
+  const SETTLES_LAST = new Set(['fail', 'uncloneable']);
   const pool = (role: string, threaded: boolean, maxThreads = 1) =>
     new WorkerManager(WORKER_URL, {
       maxThreads,
       inline: !threaded,
-      config: { role, delayMs },
+      config: { role, delayMs: SETTLES_LAST.has(role) ? delayMs * 4 : delayMs },
       // The pools are torn down by `shutdown()` at the end of the run, so an idle
       // sweep would only race it. Nothing here shares a resident group, which is
       // the one case `AGENTS.md` says `idleTimeout: 0` deadlocks.
@@ -199,6 +239,7 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
 
   const inputs: FoldInput[] = [];
   const failures: string[] = [];
+  const failureKinds: string[] = [];
   const lateInputs: string[] = [];
   const outcomesSeen: RunOutcome[] = [];
   const resolved: string[] = [];
@@ -246,7 +287,6 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
     onFoldInput: (input) => {
       inputs.push(input);
       state = step(state, input);
-      if (!outcomesSeen.includes(state.outcome)) outcomesSeen.push(state.outcome);
       if (declaredFinished) lateInputs.push(input.kind);
 
       // **The inbound step.** A branch has parked on a person; this is the person.
@@ -261,10 +301,18 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
         if (how) {
           queueMicrotask(() => {
             const taskId = buildTaskId(runId, at, Number(branchPath), 0);
-            if (driver.resolve(taskId, how.as, { result: how.result, actor: how.actor })) {
-              resolved.push(taskId);
-            } else {
-              failures.push(`resolve() refused ${taskId} — RS-R1 says it was not suspended`);
+            // `resolve()` is called with no caller on the stack, so a refusal
+            // during the routing it triggers would surface as an uncaught
+            // rejection rather than as a result. The harness's whole design is
+            // that a failure is *reported*; this is that, applied to itself.
+            try {
+              if (driver.resolve(taskId, how.as, { result: how.result, actor: how.actor })) {
+                resolved.push(taskId);
+              } else {
+                failures.push(`resolve() refused ${taskId} — RS-R1 says it was not suspended`);
+              }
+            } catch (e) {
+              failures.push(`resolve() threw for ${taskId}: ${e instanceof Error ? e.message : String(e)}`);
             }
           });
         }
@@ -280,6 +328,19 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
       // during the turn runs after all of it.
       queueMicrotask(() => {
         checkQueued = false;
+        // **Sampled HERE and nowhere else.** `spec/run-state.md` section 3 defines
+        // the precedence at a quiescent point, and this microtask IS that point —
+        // the driver routes synchronously inside the scheduler's listener, so by
+        // now its turn is over. Sampling per element instead recorded `completed`
+        // and `stuck` for runs that were neither: the exact artefacts section 3's
+        // quiescence block enumerates, in a list a row then asserted on. Found by
+        // W6's conformity reader, and it is the second occurrence of the failure
+        // mode that produced that block.
+        //
+        // Being quiescent is what makes an EXCLUSION sound as well as an
+        // inclusion, so a row can now say which outcomes a run must never have
+        // been in.
+        if (!outcomesSeen.includes(state.outcome)) outcomesSeen.push(state.outcome);
         if (!isTerminal(state)) return;
         declaredFinished = true;
         settle?.();
@@ -287,7 +348,7 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
     },
     // A refusal reaches the sequence as `{ kind: 'stopped' }` and the fold reports
     // `stopped`, so this exists only so a failure is legible in the report.
-    onRunFailure: (f) => { failures.push(`${f.kind}: ${f.message}`); },
+    onRunFailure: (f) => { failures.push(`${f.kind}: ${f.message}`); failureKinds.push(f.kind); },
     onUnsatisfiableJoin: (j) => { failures.push(`unsatisfiable join ${j.joinId} under ${j.policyId}`); },
   });
 
@@ -305,21 +366,38 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
   if (timer !== undefined) clearTimeout(timer);
   const wallMs = Date.now() - startedAt;
 
-  await scheduler.shutdown(); // REQUIRED, or the process stays alive (`AGENTS.md` §2).
-
+  // **Read BEFORE `shutdown()`, and the order is the whole point.**
+  //
+  // `shutdown()` drains the scheduler, and a drain does more work: it settles
+  // whatever was still in flight, the driver routes it, and the state advances.
+  // Reading after it therefore reports a *finished* run no matter how the wait
+  // ended — which is how a 1 ms backstop passed every assertion on the one row
+  // whose declared result IS the backstop, and, one item earlier, how replacing
+  // the whole termination mechanism with a timer passed all 72
+  // ([ADR 0014](../doc/decisions/0014-the-driver-produces-the-folds-ordered-input-sequence.md)'s
+  // *Correction*).
+  //
+  // **Twice now, the same shape**: `shutdown()` silently repairing a harness that
+  // stopped waiting too early. Reading first is what makes the wait's outcome
+  // observable at all — and it is safe precisely because `lateInputs` asserts
+  // nothing arrives after a run is declared finished.
   const dispatched = driver.dispatchedIds();
   const settled: Record<string, string | null> = {};
   for (const id of dispatched) settled[id] = driver.terminalStateOf(id);
+  const log = driver.snapshot();
+  const finalState = state;
+
+  await scheduler.shutdown(); // REQUIRED, or the process stays alive (`AGENTS.md` §2).
 
   return {
     runId,
     flowId: definition.flowId,
     policyId: policy.id,
-    state,
+    state: finalState,
     inputs,
     dispatched,
     settled,
-    log: driver.snapshot(),
+    log,
     settledByScheduler: [...settledByScheduler],
     wallMs,
     outcomesSeen,
@@ -327,6 +405,7 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
     finishedBy,
     timedOut: finishedBy === 'backstop',
     failures,
+    failureKinds,
     lateInputs,
     branchesOverlapped,
   };

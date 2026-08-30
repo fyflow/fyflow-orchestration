@@ -1,6 +1,6 @@
 # W6 — The non-success rows at ladder L6, and the harness's inbound step
 
-**Status:** in review - built and gated at L6 in two runtimes; **both readers outstanding**
+**Status:** in review - built, both readers run, every finding acted on and the gate re-run. What remains is the commit
 **Plan:** [P2](../plans/p2-the-non-success-half-on-a-real-scheduler.md) — this item is the whole of it
 
 ```
@@ -24,9 +24,9 @@ Inputs:     fyflow-scheduler 0.3.0 per ADR 0013, unchanged. The driver's inbound
             and OR-R6's reachability being inline-only
 Outputs:    (1) three L6 rows - a failure that routes, a suspend/resolve/resume,
             and a refusal - taking the gate from eight rows to eleven. It
-            delivered FOUR and twelve: the fourth was added because a negative
-            test survived, and the Record says so rather than the declaration
-            being edited to match;
+            delivered FIVE and thirteen: two rows were added because a negative
+            test survived, one before the review and one during it, and the
+            Record says so rather than the declaration being edited to match;
             (2) `awaiting_action` and `stopped` reached on real workers for the
             first time, and `branch.suspended`/`branch.resumed` likewise;
             (3) the harness's inbound step, so a row can resolve a suspended
@@ -113,16 +113,23 @@ driven by the sequence rather than by a timer, exactly as termination is.
 
 ## What this item edits outside its `Owns`
 
-**Nothing.** The table is here and empty on purpose: `doc/workflow.md` section 7 rule 2 as P1's retro
-amended it asks a serial item to declare its exceptions, and the honest answer for this one is that
-it has none. `examples/**` is the whole of it.
+**Declared empty, and it was not.** The first version of this section said *"nothing"* and offered it
+as the first confirmation that `doc/workflow.md` section 7 rule 2's amendment describes something
+real. W6's conformity reader ran `git show --stat` and found two more files. **Corrected here rather
+than argued away**, because the claim was load-bearing: P2 is the plan meant to judge that amendment,
+and a false instance of it is worse than an ordinary undeclared edit.
 
 | file | whose | what, and why it cannot be avoided |
 |---|---|---|
-| *(none)* | | |
+| `doc/README.md` | — | the loop's own **record** step: `doc/workflow.md` section 1 names it as part of finishing a work item, so arguably it is not an exception at all. W5 did not declare it either |
+| `CLAUDE.md` | — | **a genuine exception.** It is named nowhere in `doc/workflow.md`, and W5 kept its front-door edits in a separate commit rather than in its feature commit. W6 did not |
 
-**If that changes, it is a finding and it goes in the Record.** W5 declared six exceptions and needed
-seven; the one it missed was caught by a reader.
+**Two occurrences in two items is what section 6 rule 2 asks of a rule**, and the shape is the same
+both times: an item finishes, updates the front door, and does not think of that as editing something.
+**For P2's retro** — either section 1's record step names the files it covers, so they stop being
+exceptions, or section 7 rule 2 says front-door updates are declared like anything else. What cannot
+stand is the current position, where the honest answer to *"did you edit outside your Owns"* is
+*"yes, twice, and I did not notice."*
 
 ## Verification
 
@@ -130,7 +137,7 @@ seven; the one it missed was caught by a reader.
 |---|---|
 | L0 | `npm run check:spec` (8), `check:source` (10), `check:scheduler` (5), `npm run lint`, `npm run typecheck` (5 configs), `deno publish --dry-run` |
 | L1-L5 | `npm test`, `npm run test:deno`, `npm run test:browser:all` — 288 assertions must stay green. **This item changes no `src/` file, so a failure here is W6's fixture, not the library's** |
-| **L6** | `npm run test:l6` and `npm run test:l6:deno` — **eleven** rows, and the assertion-count floor in `examples/l6.ts` updated to match |
+| **L6** | `npm run test:l6` and `npm run test:l6:deno` — **thirteen** rows after both readers (eleven were declared), and the assertion-count floor in `examples/l6.ts` updated to match |
 | runtimes | L0-L5 in all five; L6 in Node 24 and Deno (`RT-R10`) |
 | pass 2 | **two readers**, per `doc/workflow.md` v0.3: conformity (spec first, code second) and adequacy (mutation, chosen from the rule ids) |
 
@@ -151,115 +158,178 @@ seven; the one it missed was caught by a reader.
 | Clause | Verdict | Runtimes | Notes |
 |---|---|---|---|
 | L0 | **RAN** — pass | Node, Deno | `check-spec` (8), `check-source` (10), `check-scheduler` (5), `deno lint` (37 files), `tsc` × 5 configs, `deno check`, `deno publish --dry-run` |
-| L1-L5 | **RAN** — pass | **all five** — node 24, deno 2.9.6, chromium, firefox, webkit | **288 assertions, unchanged.** This item changed no `src/` file and no `test/` file, which is what its declaration said it would not do |
-| **L6** | **RAN** — pass | **node 24 and deno 2.9.6** | **186 assertions, twelve rows**, up from 118 and eight. Every one of the four new rows matched its hand-written expectation on the first run |
-| negative tests | **RAN** — 10 mutations, 1 survivor, then 0 | Node | `doc/workflow.md` section 5 rule 7, the rule P1's retro added. See *What broke* 2 |
-| conformity reader | **NOT RUN** | — | pass 2 as v0.3 defines it |
-| adequacy reader | **NOT RUN** | — | pass 2 as v0.3 defines it |
-| re-run at `<sha>` | **NOT RUN** | — | follows both readers |
+| L1-L5 | **RAN** — pass | **all five** | **288 assertions, unchanged.** This item changed no `src/` file and no `test/` file |
+| **L6** | **RAN** — pass | **node 24 and deno 2.9.6** | **219 assertions, thirteen rows**, up from 118 and eight. Five rows added, not the three declared |
+| negative tests | **RAN, three times** | Node | mine: 10 mutations, 1 survivor — **and one of the ten was malformed**, see *What broke* 1. The readers': **97 distinct mutations, 35 survivors**. After acting on both: 15 targeted re-runs, **1 survivor, and it is a margin** |
+| **conformity reader** | **RAN** — **1 blocking, 11 defects, 6 notes** | n/a | re-derived all four declared rows independently before opening `examples/l6.ts` and agreed with every cell |
+| **adequacy reader** | **RAN** — **6 blocking, 4 defects** | n/a | 97 mutations in an isolated worktree; every survivor re-run against L1-L5 to separate *"no L6 test"* from *"no test anywhere"* |
+| re-run at `<sha>` | **RAN** — pass | all five, both L6 runtimes | the gate above **is** the re-run acting on both passes; 5 consecutive L6 runs, no flake |
 
-**Outputs — what was actually built.** The table P1's retro added to `TEMPLATE.md`, and W6 is the
-first item to fill it as part of its own gate rather than retrospectively.
+**Thirteen reader-passes have now run in this repository and not one has come back empty.**
+
+**Outputs — what was actually built.**
 
 | Declared output | Exists | What would fail without it |
 |---|---|---|
-| three L6 rows — a failure that routes, a suspend/resolve/resume, a refusal | **yes, and four** — see *What broke* 2 | the assertion-count floor in `examples/l6.ts`, which is now per-row and shape-aware |
-| `awaiting_action` and `stopped` reached on real workers | **yes** | the `outcome` check on rows `suspend / nobody comes` and `uncloneable / OR-R6` |
-| `branch.suspended` and `branch.resumed` reached | **yes** | the `resolved` check — the inbound step fires **on** `branch.suspended`, so a row that declares a resolution and gets none fails |
-| the harness's inbound step | **yes** | three assertions on row `suspend / resolve / resume`; disabling it fails the row's `finishedBy`, `dispatched` and `resolved` |
-| Q61, and whatever else the rows turn up | **yes** — Q61 raised before the item started, and nothing new | nothing. **A question is not a testable output**, and saying so is the point of this cell |
+| three L6 rows — a failure that routes, a suspend/resolve/resume, a refusal | **yes, and five** | each row's `outcome` and `dispatched` checks, plus the assertion-count floor and its absolute anchor |
+| `awaiting_action` and `stopped` reached on real workers | **yes** | `outcome` on rows 11 and 13; and for `stopped`, the new `stoppedBy` assertion — `RN-R8`'s field was populated for the first time and asserted by nothing until the adequacy reader said so |
+| **`branch.suspended`** reached | **yes** | the inbound step fires **on** it, so a row declaring a resolution and getting none fails three ways |
+| **`branch.resumed`** reached | **yes — and it was asserted by nothing until both readers said so** | row 10's `branchEvents` check. Deleting the emission from `src/` passed all 186 assertions: the fold clears `regions[*].suspended` on `branch.arrived` too, so nothing the gate read could tell |
+| the harness's inbound step | **yes** | row 10's `resolved` check, its `finishedBy`, and — since the pre-shutdown read — its `awaiting_action` inclusion |
+| Q61, and whatever else the rows turn up | **yes** — Q61 before the item started, **Q62 and Q63** from the readers | nothing. **A question is not a testable output** |
 
-**The exit artifact**, twelve rows in both runtimes:
+**The exit artifact**, thirteen rows in both runtimes:
 
 ```
-  run                                 outcome    join   branches              tasks ms    overlap
-  ----------------------------------------------------------------------------------------------
-  fanout-join / live-token            completed  true   0:arrived 1:arrived   4     114   yes
-  fanout-join / arrival-count         completed  true   0:arrived 1:arrived   4     122   yes
-  p1-routed-away high / live-token    completed  true   0:arrived 1:arrived   4     106   no
-  p1-routed-away high / arrival-count completed  true   0:arrived 1:arrived   4     108   no
-  p1-routed-away LOW / live-token     completed  true   0:arrived 1:exited    4     110   yes
-  p1-routed-away LOW / arrival-count  stuck      never  0:arrived 1:exited    3     122   no
-  optional-loss / live-token          failed     true   0:arrived 1:lost      4     125   no
-  optional-loss / arrival-count       stuck      never  0:arrived 1:lost      3     135   no
-  failure-edge / routes on            completed  -      -                     1     20    no
-  suspend / resolve / resume          completed  true   0:arrived 1:arrived   4     45    yes
-  suspend / nobody comes              awaiting_a never  0:arrived             3     405   yes
-  uncloneable / OR-R6                 stopped    -      -                     1     16    no
+  run                                     outcome          join   branches              tasks ms    overlap
+  ----------------------------------------------------------------------------------------------------------
+  fanout-join / live-token                completed        true   0:arrived 1:arrived   4     131   yes
+  fanout-join / arrival-count             completed        true   0:arrived 1:arrived   4     106   yes
+  p1-routed-away high / live-token        completed        true   0:arrived 1:arrived   4     137   yes
+  p1-routed-away high / arrival-count     completed        true   0:arrived 1:arrived   4     106   yes
+  p1-routed-away LOW / live-token         completed        true   0:arrived 1:exited    4     107   no
+  p1-routed-away LOW / arrival-count      stuck            never  0:arrived 1:exited    3     94    yes
+  optional-loss / live-token              failed           true   0:arrived 1:lost      4     61    yes
+  optional-loss / arrival-count           stuck            never  0:arrived 1:lost      3     45    yes
+  failure-edge / routes on                completed        -      -                     1     29    no
+  suspend / resolve / resume              completed        true   0:arrived 1:arrived   4     60    yes
+  suspend / nobody comes                  awaiting_action  never  0:arrived             3     413   yes
+  exit-last / join fires on exit          completed        true   0:arrived 1:exited    4     62    yes
+  uncloneable / OR-R6                     stopped          -      -                     1     32    no
 ```
-
-**All six run outcomes now occur at L6** — `running` transiently, and the other five as a row's
-result. Every region event occurs too.
 
 ## What broke
 
-**1. Nothing in `src/`.** Every rule these rows exercise behaved as specified, first time, in both
-runtimes. That is the honest headline and it is a weaker result than P1's items produced — which is
-what P2's plan predicted when it recorded that measuring `user_action` before the plan was written
-**lowered the stakes**. The prediction held.
+**1. I recorded a syntax error as a behavioural finding.** *What broke* 5 of the first Record said
+*"mutating the deferral away hangs the gate rather than failing it"*. It does not: it passes 186
+assertions and exits 0. **My mutation replaced `queueMicrotask(() => {` with `{` and left the closing
+`});` dangling** — a parse failure, which my harness saw as a non-zero exit with no output and
+reported as *caught*.
 
-**2. A row was added because a negative test survived, and it is the best row in the item.** The
-new `asTerminal` mapping folds `running` **and** `suspended` to *not settled*; mutating the
-`suspended` half survived, because **no row ended with a suspended node** — the only suspension was
-resolved before the run finished. The choice was to name it as an empty set, as W5 did for
-`joined: false`, or to make it non-empty.
+W2's Record says it in one line: *"a mutation harness that cannot fail is the same defect as a test
+that cannot fail."* This is that, inside the item running ten negative tests under the rule P1's retro
+had just added. **The negative test needed a negative test.**
 
-Making it non-empty produced `suspend / nobody comes`: the same flow with no human, ending
-`awaiting_action` with the join never fired. **It is the row that separates *waiting on a person*
-from *stuck*** — a distinction ADR 0003 and ADR 0015 both lean on and which no L6 row demonstrated,
-and it is the only row whose **expected result is the backstop**, because `RN-R12` makes such a run
-non-terminal and the harness must not pretend otherwise.
+**And the reason I had written down was false too.** The claim was that a re-entrant `resolve()`
+would interleave the sequence with itself. It cannot: `Driver.append` pushes before it notifies, so a
+re-entrant append lands *after* the current element. The real reason is sharper and is now tested —
+**resolving inside the driver's own turn means the run is never quiescently `awaiting_action`**,
+which is the state the row exists to demonstrate. A human who answers within the same synchronous
+turn is not a human.
 
-**A negative test that survives is not always a missing assertion; sometimes it is a missing case.**
+**2. `shutdown()` was repairing the harness for the second time in two items.** The report was built
+*after* `await scheduler.shutdown()`, and a drain does real work: it settles what was in flight, the
+driver routes it, and the state advances. So every value read afterwards described a *finished* run
+however the wait had ended.
 
-**3. A positional mistake, caught by the assertion that exists for it.** Inserting the new row before
-`uncloneable` shifted both rows' `runId`, which is `r${i+1}` by position, and the hand-written
-`dispatched` lists no longer matched. Four assertions failed, naming the exact ids. **This is
-`spec/task-id.md`'s scheme doing its job in a test rather than in a run** — the ids are derived from
-position and asserted from the spec, so the two cannot drift silently.
+That is how a **1 ms backstop passed every assertion on the one row whose declared result is the
+backstop** — and the comment two lines above claimed it would *"fail loudly"*. It is the same shape as
+[ADR 0014](../decisions/0014-the-driver-produces-the-folds-ordered-input-sequence.md)'s *Correction*
+one item earlier, where replacing the whole termination mechanism with a timer passed all 72.
 
-**4. The assertion-count floor had to become shape-aware, and it is stronger for it.** W5's floor was
-`rows × a constant`; W6's rows are not uniform (a flow with no fan-out asserts one thing about
-`regions` where a fan-out asserts two, and a row may declare extra `outcomesSeen` checks). It is now
-checked **two ways**: every row ran what its shape declares, and the total is what the file declares.
-Either alone misses something — the per-row check misses a uniform reduction, and the total misses a
-row that ran its peers' count by coincidence.
+**The report is now read before `shutdown()`**, and that single change made three previously-invisible
+mutations fail: the 1 ms backstop, the synchronous resolve, and the deferral's absence. It is safe
+precisely because `lateInputs` asserts nothing arrives after a run is declared finished.
 
-**5. The inbound step had to be deferred to a microtask, for the reason termination was.**
-`Driver.resolve()` appends and routes; calling it from inside `onFoldInput` would interleave the
-sequence with itself. Mutating the deferral away hangs the gate rather than failing it, which is the
-loudest available failure and is recorded here because a hang is easy to misread as a slow machine.
+**3. `outcomesSeen` was sampled at every prefix, which is where `spec/run-state.md` section 3 says the
+precedence does not rest.** Rows 10 and 11 recorded `running, completed, stuck, awaiting_action` —
+**two of those four are artefacts**, and one is the fan-out-entry `stuck` ADR 0015's *Correction*
+names. Row 10's `awaiting_action` claim, repeated as a headline in `CLAUDE.md`, `doc/README.md` and
+the commit message, rested on that list.
+
+**Second occurrence of the failure mode that produced section 3's quiescence block**, three weeks
+after it was written to record the first. Sampling now happens in the termination microtask — and
+being quiescent is what makes an **exclusion** sound, so rows can now say which outcomes a run must
+never have been in, which is what makes the sampling point itself falsifiable.
+
+**4. The join was never once fired from the `lost` or `exited` path.** `spec/join-policy.md` section 4
+says `status` is asked after **every** terminal event *"because a join can become satisfiable when the
+last live branch was lost or exited — which is P1's case"*. Deleting `settleJoin` from **both** of
+those paths was invisible across twelve real rows.
+
+The cause is a knob with no assertion: `ScoreWorker` was the only threaded pool, so the *arriving*
+branch always settled last and the join was always fired by the arrival. **Twelve rows systematically
+avoided the firing order P1 is about.**
+
+Fixed by **arranging** the order rather than depending on one: a role that must settle last is given a
+4× delay, `optional-loss` runs inline so its lost branch is last, and a new row `exit-last` makes the
+exiting branch last by giving it a different worker type. Both mutations now fail.
+
+**5. `RunFailure.kind` was pinned by no test anywhere.** Forcing it to `'Error'` was green at L6 *and*
+at L1-L5. Row 13's assertion read `${kind}: ${message}` for a substring, and `UncloneableResult`'s
+message begins with its own class name — so the message satisfied the check and `kind` was free. Now
+checked separately, alongside `OR-R6`'s actual wording: *the message names the task id*.
+
+**6. The assertion-count floor's declared property was false, and the Record repeated it.** *What
+broke* 4 of the first Record said it was *"checked two ways … either alone misses something"*. Both
+ways read the same two constants, so decrementing an assertion **and** the constant that counts it
+passed both — measured at 174 assertions, exit 0. There is now an **absolute anchor**: a total a human
+wrote down, which nothing else derives from.
+
+**7. Three fields were populated for the first time and asserted by nothing** — `stoppedBy`,
+`regions[*].suspended`, and the join's `null` payload reaching a real worker ([Q36](../open-questions.md)).
+All three now have assertions. `regions[*].suspended` turned up a **spec gap** on the way:
+`spec/run-state.md` does not fix whether it is cumulative or current. Reported as
+[Q62](../open-questions.md), not patched — it is W1's and W2's document.
+
+**8. `doc/open-questions.md` was wrong again, for the third time in three items.** [Q44](../open-questions.md)
+said W5's runs *"needed no local flow at all"*; W5 committed one and its own `l6.ts` comment calls it
+the second occurrence. W6 added three more. **The trigger that row named has now fired four times in
+three consecutive items**, which is the answer it was waiting for. Corrected in place.
+
+**9. The exceptions table was declared empty and was not.** The commit edits `CLAUDE.md` and
+`doc/README.md`. `doc/README.md` is arguably section 1's **record** step; `CLAUDE.md` is named nowhere
+in `doc/workflow.md`, and W5 kept its front-door edits in a separate commit. **This was offered as the
+first confirmation that section 7 rule 2's amendment describes something real**, so a false instance
+is worse than an ordinary undeclared edit. Corrected above, and put to P2's retro as two occurrences
+in two items.
+
+**10. Smaller, and all real.** The `unsettled` field's comment covered one of its two users. The
+`fail` worker role's comment described one of its four consumers. `examples/README.md` and the
+harness header both still said reaching the backstop is always a failure. Two front-door files carried
+`118` and *"6 real runs"*. And the human-readable artifact — ladder L7's material — printed
+**`awaiting_acnever`**, garbling the outcome the item exists to demonstrate, in a table the Record
+pasted in unnoticed.
 
 ## What this taught
 
-- **P2's two spikes were worth their cost and one of them paid off in an unexpected place.** Knowing
-  the real `user_action` event pair made row 2's expectations derivable; knowing `OR-R6`'s
-  pool-dependence is what made row 4 use an **inline** pool, and a threaded one would have produced a
-  `user_action` the row was not expecting and a confusing morning.
-- **The first item to run `doc/workflow.md` v0.3's section 5 rule 7 found the rule earning itself
-  immediately.** Ten negative tests, one survivor, and the survivor was the most interesting thing in
-  the item. Under v0.2 that mutation would not have been written.
-- **An empty exceptions table stayed empty**, which is the first confirmation that section 7 rule 2's
-  amendment describes something real: a serial item can be scoped so that it edits only what it owns,
-  and W6 did.
-- **The gate is now slower in a way worth noticing.** `suspend / nobody comes` costs its whole 400 ms
-  backstop by construction — it is the one row that cannot finish early — and L6 is ~1.4 s. The plan
-  gate is still well inside `doc/workflow.md` section 8's 90 s.
+- **Three of the six blocking findings are the same mechanism**: something downstream of the
+  assertions repaired the state before they ran. `shutdown()` twice, and a mid-turn sample once.
+  **The harness's own vantage point is now the thing to check first** — not what it asserts, but
+  *when* it looks.
+- **A negative test can be a broken test, and mine was.** Ten mutations, one malformed, and the
+  malformed one produced the Record's most confident false claim. `doc/workflow.md` v0.3 section 5
+  rule 7 says a new check is negative-tested at birth; **it says nothing about the negative test
+  being well-formed**, and a parse failure is indistinguishable from a caught mutation to a harness
+  that only reads the exit code. **For P2's retro.**
+- **The two-reader split earned itself a third time, and the overlap stayed low.** Roughly 25
+  findings between them; **three overlapped** — `branch.resumed`, the backstop margin, and the
+  Outputs cell. W4: 1 in 13. W5: 3 in ~35. W6: 3 in ~25. Three items, consistent.
+- **The adequacy reader's most valuable output was not a survivor.** It was the list of what L6 does
+  *not* see: every field of the outcome record but `terminalState`, `OR-R2`'s aliasing hazard,
+  `OR-R3`'s one-record-per-settlement. All are covered at L1 — but **L6 is the only place `OR-R2`'s
+  inline-pool hazard is physically reachable**, and L6 does not look.
+- **P2's prediction held and the plan was right to lower its own stakes.** Nothing in `src/` broke.
+  Every finding was in the gate that was supposed to be checking it.
 
 ## Questions raised
 
-**Q61 was raised by P2 before this item started; nothing new.** Q62-Q70 are skipped, never reissued.
+Q61 by P2 before the item started; **Q62 and Q63 by the readers.** Q64-Q70 skipped, never reissued.
 
 | Q | | raised by |
 |---|---|---|
-| Q61 | `OR-R6` is reachable from an inline pool and not from a thread pool, and no document says so | P2's spike |
+| Q61 | `OR-R6` is reachable from an inline pool and not from a thread pool | P2's spike |
+| Q62 | Is `regions[*].suspended` cumulative or current, and does `spec/` care? | the conformity reader |
+| Q63 | `UncloneableResult`'s message begins with its own class name, so `${kind}: ${message}` doubles it | the conformity reader |
 
 ## What is still open in this item, deliberately
 
-- **Both readers.** The gate is not complete until pass 2 has run, and v0.3 asks for two.
-- **`unsatisfiable` is still an empty set at L6**, as it is everywhere: neither shipped policy returns
-  it, so `joined: false` has never occurred outside a stub. Unchanged by this item and named again so
-  the twelve-row table is not read as covering it.
-- **`FD-R1` and `ID-R1` are still L2-only.** Row 4 exercises `OR-R10`'s *reporting* path with a real
-  scheduler, which is the half that matters; the other two refusals remain unreachable through the
-  public API and W3 says so.
+- **The 400 ms backstop has ~10× headroom and nothing depends on the margin.** Measured: 1 ms fails,
+  40 ms passes. Left generous rather than tuned to the edge, because a margin tuned to what currently
+  passes is a flake waiting for a slower machine.
+- **`unsatisfiable` / `joined: false` remains an empty set** at every rung; neither shipped policy
+  returns it.
+- **The outcome record's ten other fields have no L6 assertion**, per *What this taught*. That is
+  coverage the readers named and this item did not take on.
+- **`FD-R1` and `ID-R1` remain L2-only.** Row 13 exercises `OR-R10`'s reporting path with a real
+  scheduler, which is the half that matters.
