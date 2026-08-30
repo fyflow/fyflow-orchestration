@@ -10,7 +10,7 @@ flows with sequence, **decision** routing, **fan-out** and **join**, instantiate
 
 Full context: [doc/concept.md](doc/concept.md). Do not re-derive it — read it.
 
-## Current state: **three of P1's five work items are done; W4 is next and it answers Q4**
+## Current state: **Q4 is answered by ADR 0003; W4 awaits its conformity pass, then W5 closes P1**
 
 [ADR 0001, 0002 and 0007](doc/decisions/) settle the architecture so far: **routing executes in the
 driver, outside the scheduler** — a worker computes and does not route, and `context.spawnTask()` is
@@ -20,23 +20,33 @@ every scheduler event into an immutable outcome record at the listener boundary*
 details are live mutable objects and `task.failed` also fires for `user_action` tasks. Pinned to
 `fyflow-scheduler` **0.3.0** (landed 2026-08-30, not yet on npm).
 
-**[P1](doc/plans/p1-what-satisfies-a-join.md)** has five work items and **W1, W3 and W2 are done**:
-`spec/` holds **six normative documents and 66 numbered rules**, and `src/` holds the definition
-validator, the driver, and the fold with **both** join policies. The suite runs in **five runtimes**
-— Node 24, Deno, chromium, firefox, webkit — and is identical in all of them. **W4 is next**: the
-join/failure matrix, which is what answers Q4 and writes ADR 0003. What happens next, in order:
+**[P1](doc/plans/p1-what-satisfies-a-join.md)** has five work items; **W1, W3 and W2 are done and
+W4 is built.** `spec/` holds **six normative documents and 66 numbered rules**; `src/` holds the
+definition validator, the driver, and the fold with **both** join policies; `test/matrix/` holds
+the join/failure matrix. **252 assertions in five runtimes** — Node 24, Deno, chromium, firefox,
+webkit — identical in all of them. Outstanding: **W4's spec-conformity pass**, then **W5**, which
+closes P1 with one real fan-out flow on a real scheduler. What happens next, in order:
 [doc/README.md](doc/README.md).
 
 **Four spec-conformity passes have run and not one came back empty** — 4, then 5, then 1, then 4
 blocking findings. All four found the same shape: *the code was correct and the tests were pointed
 at the wrong half.* Budget for the pass; it is not a formality here.
 
-**Q4 — what satisfies a join — is deliberately undecided**, and this is the thing most likely to be
-got wrong by a well-meaning reader. The argument for live-token accounting is strong and was
-**refused as sufficient**. P1 builds **both** policies behind one interface and settles it with the
-branch-routed-away case as an executable test. **Do not pick a winner before W4 has run** — and do
-not treat arrival-counting as the straw man, because it winning is a real outcome that would make
-the simpler mechanism correct. ADR **0003** is reserved for the result.
+**Q4 is answered: [ADR 0003](doc/decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md)
+— a join is satisfied when its region has no live branches, having had at least one.** `live-token`
+is the policy an application passes; `arrival-count` stays shipped, because the matrix is only
+meaningful while both columns can be run.
+
+**The result is bigger than the question, and this is the part to carry forward.** P1 predicted that
+arrival-counting breaks on one exotic case — a decision routing a branch away from its join. W4's
+matrix says it hangs on **six of nine rows**, and only one of them is that case: an ordinary
+`optional` task failing is enough. Fixed-`N` is wrong whenever *"how many will arrive"* differs from
+*"how many opened"*, and **every non-success outcome makes it differ.**
+
+**What is now live is [Q24](doc/open-questions.md)** — the two one-line refinements `JP-R7` and
+`JP-R8` pin. They were traps during the spike and are the open question after it; neither belongs in
+`src/fold/policies.ts` without its own decision. ADR 0003 names the motivating case: on the
+all-branches-exited row, `live-token` fires a join **no branch reached**.
 
 ## The fact that reframes the whole repo
 
