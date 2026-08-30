@@ -6,8 +6,13 @@ comment. One row per item, `S1`, `S2`, ... - never reused, never renumbered.
 **Every item must state what we do without it.** An item with no workaround is not a want, it is a
 blocker, and it belongs in a plan instead.
 
-**Nothing here is raised yet.** Pinned to `fyflow-scheduler` 0.2.1; line references are against
-that version and should be re-checked before implementing.
+**Nothing here has been raised by us.** Pinned to `fyflow-scheduler` **0.3.0** (landed 2026-08-30,
+not yet published to npm). Line references are against 0.3.0 unless a row says otherwise.
+
+**0.3.0 settled four of these without us asking** - S4 implemented, S7 fixed, S8 declined and
+documented, S5 still deferred. The whole register was re-verified against the landed code rather
+than against `RESOURCE_EVENTS_PLAN.md`, and **one item the plan implied would be handled was not**:
+see S1.
 
 `fyflow-react-components` keeps [its own register](https://github.com/fyflow/fyflow-react-components)
 with an independent `S` sequence. **Two items overlap and must be raised jointly, not twice** - see
@@ -19,57 +24,81 @@ the last section.
 
 | S | Want | Blocks us? | Status |
 |---|---|---|---|
-| [S1](#s1--spawntaskconfigparents-is-declared-and-never-read) | Remove or implement `SpawnTaskConfig.parents` | no - but it is actively misleading | not raised |
+| [S1](#s1--spawntaskconfigparents-is-declared-and-never-read) | Remove or implement `SpawnTaskConfig.parents` | no - but it is actively misleading | **still open at 0.3.0** |
 | [S2](#s2--cancel-a-queued-task) | Cancel a queued task | no - it caps what "cancel" can mean | not raised |
 | [S3](#s3--a-join-or-barrier-primitive) | A join/barrier primitive | **declined by us** | will not raise |
-| [S4](#s4--scheduler-side-timestamps-on-every-event) | Timestamps on every event | no | ✅ **being implemented** |
-| [S5](#s5--an-event-when-maxcompletedtasks-evicts-a-task) | An event when eviction happens | no | **deferred upstream** |
+| [S4](#s4--scheduler-side-timestamps-on-every-event) | Timestamps on every event | no | ✅ **done in 0.3.0** |
+| [S5](#s5--an-event-when-maxcompletedtasks-evicts-a-task) | An event when eviction happens | no | **still deferred at 0.3.0** |
 | [S6](#s6--pause-and-resume) | Pause and resume | no - not in the first set | not raised |
-| [S7](#s7--exit-c-drops-a-blocked-task-silently) | Fix the blocked-queue task drop | no - but it **confounds P1** | observability half is planned |
-| [S8](#s8--freeze-or-copy-event-details) | Freeze or copy event details | no | **declined upstream** |
+| [S7](#s7--exit-c-drops-a-blocked-task-silently) | Fix the blocked-queue task drop | no longer - **the confounder is gone** | ✅ **fixed in 0.3.0** |
+| [S8](#s8--freeze-or-copy-event-details) | Freeze or copy event details | no | **declined, and now documented** |
 
 ---
 
 ## Reading `RESOURCE_EVENTS_PLAN.md` — the S-id map
 
-`../fyflow-scheduler/RESOURCE_EVENTS_PLAN.md` (2026-08-30, draft) is a counter-proposal to
-**`fyflow-react-components`' upstream spec, and it uses that repo's S numbering throughout.** Ours is
-a different sequence. Reading one as the other is an easy and expensive mistake, so:
+`../fyflow-scheduler/RESOURCE_EVENTS_PLAN.md` **shipped as 0.3.0** (commits `48111fe`, `d86c225`,
+`373a29f`, `bccbeea`, `634e23a`). It is a counter-proposal to **`fyflow-react-components`' upstream
+spec, and it uses that repo's S numbering throughout.** Ours is a different sequence. Reading one as
+the other is an easy and expensive mistake, so:
 
 | Their id | What | Our id |
 |---|---|---|
 | **S1** eviction event | out of scope in that plan | **our S5** |
-| **S2** timestamps | §5, five call sites, **shipping in stage 1** | **our S4** |
+| **S2** timestamps | §5, five call sites - **shipped** | **our S4** |
 | **S5** snapshot accessor | declined by both sides | *not ours* |
 | **S6** resource acquire/release/blocked events | the bulk of the plan | *not in our register* |
 | **S7** admission queue accessor | §6 | *not ours* |
-| **S8** details are live references | §11, **fixed as documentation only** | **our S8** |
+| **S8** details are live references | §11 - **documented, not fixed**, as planned | **our S8** |
 
-**What the plan means for us, in one line each:**
+**What landed, checked against the code rather than the plan:**
 
-1. **Our S4 is being satisfied** in stage 1 — timestamps on `scheduler.completed`, `task.completed`,
-   `task.failed`, `task.user_action`, `task.running`.
-2. **Our S5 is not** — §10 puts it out of scope, *"cheap, and worth revisiting"*.
-3. **Their S8 landed on us as a constraint, not a gift.** It is documented rather than fixed, which
-   is what forced
+1. **Our S4 is done** — every event carries `timestamp`. On the four `task.*` events it is
+   `task.timestamp`, **a mutable field on the live task**, which is a sharper trap than a
+   detail-level field would have been. ADR 0007 rule 4 covers it.
+2. **Our S5 did not land** — `_recordTerminalTask` still evicts silently, no event. Our workaround
+   costs nothing, so this stays parked.
+3. **Their S8 landed on us as a constraint, not a gift**, exactly as expected: documented rather
+   than fixed, which is what forced
    [ADR 0007](decisions/0007-the-driver-normalizes-events-into-an-immutable-outcome-record.md).
-4. **The resource events are mostly not ours.** They make a *scheduler-level* stall visible. A
+   `AGENTS.md` §6 now carries a worked example and calls it *"a documented contract, not an
+   oversight"*.
+4. **Our S7 was fixed, and better than the plan proposed.** §4.4 offered `orphaned` as observability
+   with the fix deferred; `634e23a` fails the task terminally instead. See S7 below — **this
+   retires a threat to P1's validity**.
+5. **The resource events are still mostly not ours.** They make a *scheduler-level* stall visible. A
    stuck **join** is a flow-level condition with nothing queued and nothing blocked, so no
-   `resource.blocked` fires for it — [Q7](open-questions.md) stays entirely ours. Do not let
-   acceptance criterion 3 in that plan read as covering it.
-5. **Two patterns there are worth stealing if [Q21](open-questions.md) lands.** §6.2 — *one
+   `resource.blocked` fires for it — [Q7](open-questions.md) stays entirely ours.
+6. **Two patterns there are worth stealing if [Q21](open-questions.md) lands.** §6.2 — *one
    emitter only*, because a consumer listening to two `EventTarget`s double-counts — and §3.5 —
    *an unrecognised gauge kind renders as `level`*, so a vocabulary can grow without breaking
-   deployed viewers.
+   deployed viewers. Both shipped and are now documented in `AGENTS.md` §6.
+
+**Two things changed that the plan did not flag, and one thing it implied would happen did not:**
+
+- **`task.progress`'s detail shape changed.** At 0.2.1 it was `{ taskId, workerId, progress,
+  message, details }`; at 0.3.0 it is **the task spread flat**, so the id is `id` rather than
+  `taskId`, and the wrapper's `workerType` (`'inline'`/`'thread'`) **overwrites the task's own**.
+  `AGENTS.md` documents both. There is no changelog, so a 0.2.1 consumer reading `detail.taskId`
+  gets `undefined` silently. We do not consume it yet; W3 must not assume the 0.2.1 shape.
+- **`released.reason: 'settled'` is per *attempt*, not per task.** A retried or requeued task emits
+  one pair per attempt. Relevant to [Q16](open-questions.md), where flow-level and task-level retry
+  counts compose into a product nobody intended.
+- **[S1](#s1--spawntaskconfigparents-is-declared-and-never-read) is still there.** The dead
+  `parents` field survived the whole pass.
 
 ---
 
 ## S1 - `SpawnTaskConfig.parents` is declared and never read
 
 **What.** `core/workerInterface.ts:50` declares `parents?: string[]` on `SpawnTaskConfig`. Nothing
-in the repository reads it. The spawn path at `core/FyflowScheduler.ts:1015-1020` builds the task
-from `id`, `workerType`, `payload`, `optional`, `retryPolicy` and `workerGroups`, and **drops
-`parents` silently**.
+in the repository reads it. The spawn path — `core/FyflowScheduler.ts:1468-1473` at 0.3.0, was
+1015-1020 at 0.2.1 — builds the task from `id`, `workerType`, `payload`, `optional`, `retryPolicy`
+and `workerGroups`, and **drops `parents` silently**.
+
+**Still open at 0.3.0.** Re-checked in the landed code: the field is at the same line, still read
+nowhere. `RESOURCE_EVENTS_PLAN.md` §10 did say S1 was out of scope, so this is not a surprise — but
+it is now the **only** item in this register that a maintainer pass has gone past twice.
 
 **Why it matters more than a dead field usually would.** The library's headline refusal is that it
 has no dependency graph (`AGENTS.md` section 1). This field contradicts that refusal *in the type
@@ -138,12 +167,15 @@ the thing happened. Under load those diverge, and every duration we report inher
 **What we do without it.** Stamp on arrival in the driver, and keep any library-supplied timestamp
 in **its own field** from the first version so this landing later is additive rather than breaking.
 
-**Status: being implemented.** `RESOURCE_EVENTS_PLAN.md` §5 names the five call sites —
-`scheduler.completed` (320), `task.completed` (727), `task.failed` (775), `task.user_action` (777),
-`task.running` (974) — uses `Date.now()`, and ships in stage 1 alongside the resource events. **No
-action needed from us**; the "own field" rule is already
+**✅ Done in 0.3.0.** All five events carry a timestamp, plus the new `resource.*` family.
+
+**With one wrinkle worth knowing.** On the four `task.*` events the value is **`task.timestamp`, a
+field set on the live task object** immediately before dispatch — not a field on the event detail.
+So a retained `detail` reports the timestamp of the *most recent* event about that task, not the one
+you received. `AGENTS.md` makes the same point from the other direction: *"this is why `timestamp`
+is not derivable from `startTime` or `endTime`"*. Covered by
 [ADR 0007](decisions/0007-the-driver-normalizes-events-into-an-immutable-outcome-record.md) rule 4,
-which anticipated exactly this.
+whose wording anticipated a detail-level field and applies unchanged to a task-level one.
 
 That plan also warns, correctly, that **`startTime` must not stand in for it** — for the four
 `task.*` events the detail *is* the task, so those fields read as whatever the object holds when the
@@ -196,13 +228,26 @@ nothing queued, nothing running, no error — which is precisely the condition
 [P1](plans/p1-what-satisfies-a-join.md) exists to study. A confounder that mimics the experiment's
 result is worth more to us than to anyone else reading that plan ([Q32](open-questions.md)).
 
-**Ask.** Fix it — requeue, or fail the task loudly. The planned `resource.unblocked` with
-`reason: 'orphaned'` is the **observability half** and is genuinely useful, but §4.4 says plainly
-that emitting *"makes it observable rather than fixing it"*.
+**Ask.** Fix it — requeue, or fail the task loudly.
 
-**What we do without it.** Two things, and both are worth doing regardless: consume the `orphaned`
-reason once it exists, and have W5 assert that **every dispatched node eventually produces an outcome
-record** — so a P1 hang is attributable rather than ambiguous.
+**✅ Fixed in 0.3.0 (`634e23a`), and the fix went further than we asked.** `_failOrphanedTask` now
+fails the task terminally: `task.failed`, then `task.user_action` unless optional, the promise
+rejects, and `stats.failed` increments. Two deliberate departures from the ordinary failure path,
+both of which are the right call and neither of which we would have thought to specify:
+
+1. **Retries are skipped** — the pool is gone, so a retry would requeue into a queue no dispatch can
+   drain and hold `stats.queued` above zero forever, *wedging* `scheduler.completed` rather than
+   unwedging it.
+2. **It does not route through `_settleTask`**, which decrements `stats.running` — a blocked task
+   was never running, so that would decrement a count belonging to a different task.
+
+It is also swept out of **every** blocked queue with one `orphaned` exit each, so a consumer's
+membership fold drains.
+
+**What this retires.** [Q32](open-questions.md) — a dropped task no longer produces silence, so a
+P1 hang can no longer be a silently-lost task masquerading as a stuck join. W5's
+every-node-settles assertion stays, demoted from *a gate on the experiment's validity* to *cheap
+insurance*, because it is now checking a property the library asserts rather than one it violates.
 
 ## S8 - freeze or copy event details
 
@@ -215,9 +260,20 @@ answered rather than missed.
 reference that reads as whatever the object holds later.
 
 **Why upstream is right to decline.** `RESOURCE_EVENTS_PLAN.md` §10 — defensive copying on a hot
-path is the wrong trade for a zero-dependency library — and §11 fixes it as a sentence in
-`AGENTS.md` instead. Listeners run synchronously, so *reading* at that moment is always correct;
-only *storing* is not.
+path is the wrong trade for a zero-dependency library. Listeners run synchronously, so *reading* at
+that moment is always correct; only *storing* is not.
+
+**Shipped as documentation, and done well.** `AGENTS.md` §6 now carries a warning box with a worked
+example — `seen.push(e.detail)` where *"every entry reads `state:'done'`. Nothing threw. The log is
+just wrong."* — the projection idiom as the fix, and an explicit not-affected list
+(`task.progress`, `scheduler.completed`, `resource.*`). It closes with *"a documented contract, not
+an oversight"*.
+
+**One gap remains, and it is small.** The not-affected list does not mention `task.spawn_request` /
+`task.spawn_failed`, whose detail carries `parentTask: task` — a live reference
+(`core/FyflowScheduler.ts:1455`). Not ours to hit:
+[ADR 0001](decisions/0001-routing-executes-in-the-driver-outside-the-scheduler.md) rule 2 means we
+never consume spawn events. Worth passing on as a courtesy, not as a want.
 
 **What we do without it.**
 [ADR 0007](decisions/0007-the-driver-normalizes-events-into-an-immutable-outcome-record.md): the
@@ -229,21 +285,26 @@ of being worked around.
 
 ## Raise order, and the joint items
 
-Revised 2026-08-30 after `RESOURCE_EVENTS_PLAN.md`. **Three of the six original items are now
-settled without us raising anything** — S4 is being implemented, S5 is deferred with our workaround
-intact, and S8 is declined with the consequence absorbed into ADR 0007.
+Revised **2026-08-30 against the landed 0.3.0 code**. **Four of the eight are settled and we raised
+none of them** — S4 implemented, S7 fixed better than asked, S8 declined-and-documented, S5
+deferred with our workaround intact. What is left:
 
-1. **S1 first, on its own.** Still the best ratio in the register: a one-line deletion that removes
-   the trap which produced a whole misdirected planning document. It is explicitly *not* in the
-   resource-events change, so it will not ride along.
-2. **S7 next, and now rather than later.** It is the one item with a live cost to us — it confounds
-   P1 — and the moment to raise it is **while §8 is still asking the question**, not after that plan
-   ships with `orphaned` and the fix is considered handled.
-3. **S2 when a fan-out is real.** Much stronger with a measured number for wasted branch execution.
+1. **S1, on its own, and it is now the whole list of things worth raising.** A one-line deletion
+   that removes the trap which produced a misdirected planning document. It has survived two
+   maintainer passes over this exact file region — `RESOURCE_EVENTS_PLAN.md` §10 put it out of
+   scope, and the review pass in `bccbeea` did not reach it. Best ratio in the register by a wide
+   margin.
+2. **S2 when a fan-out is real.** Much stronger with a measured number for wasted branch execution.
    Do not raise it on principle.
-4. **S6 last.** Nothing in the first set needs it.
-5. **S3 and S8 are never raised.** Both are here to stay declined — S3 by us, S8 by upstream.
+3. **S6 last.** Nothing in the first set needs it.
+4. **S3, S7 and S8 are closed.** S3 declined by us, S7 fixed, S8 declined by upstream and absorbed
+   into ADR 0007.
 
-**S4 and S5 no longer need joint handling**; `fyflow-react-components` already carried them and the
-answers came back. What remains genuinely shared is the *pattern*: raise once, from whichever repo
-has the stronger case.
+**The joint-raise machinery is spent.** S4 and S5 were both carried by
+`fyflow-react-components` and both came back answered. What remains shared is the *pattern*: raise
+once, from whichever repo has the stronger case.
+
+**Worth passing on, but not as register items** — two documentation gaps found while verifying
+0.3.0: the `task.failed`+`task.user_action` pair is still undocumented for the *ordinary* path
+(`AGENTS.md` §5 still reads *"`task.failed` fires once per failed task"*, and only the `orphaned`
+row records the pairing), and the live-reference not-affected list omits the spawn events.

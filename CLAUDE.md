@@ -18,7 +18,7 @@ not used for flow control; **a flow definition is data with predicates registere
 an unknown name fails at instantiation rather than at routing time; and **the driver normalizes
 every scheduler event into an immutable outcome record at the listener boundary**, because event
 details are live mutable objects and `task.failed` also fires for `user_action` tasks. Pinned to
-`fyflow-scheduler` 0.2.1.
+`fyflow-scheduler` **0.3.0** (landed 2026-08-30, not yet on npm).
 
 **[P1](doc/plans/p1-what-satisfies-a-join.md) is planned** with five work items. `spec/` is still
 empty — **W1 is what fills it**, and it is serial: everything waits on it. What happens next, in
@@ -43,8 +43,10 @@ Two consequences, and both catch people:
    constructor with no such field. Its *goals* are still ours; its premise is not. Do not use it as
    a design input without reading `doc/concept.md` section 2 first.
 2. **`SpawnTaskConfig.parents` is declared and dead.** `../fyflow-scheduler/core/workerInterface.ts:50`
-   declares it; nothing reads it; the spawn path (`core/FyflowScheduler.ts:1015-1020`) drops it
-   silently. It typechecks and does nothing. This is [S1](doc/scheduler-upstream.md).
+   declares it; nothing reads it; the spawn path (`core/FyflowScheduler.ts:1468-1473`) drops it
+   silently. It typechecks and does nothing. **Still true at 0.3.0** — it survived the whole
+   resource-events pass, and is now the only open item in
+   [doc/scheduler-upstream.md](doc/scheduler-upstream.md) worth raising.
 
 **So sequence, decision, fan-out and join are built here, not wrapped from below.**
 
@@ -110,21 +112,32 @@ paths from the repo root in prose; only markdown links are relative.
 
 ## Facts about fyflow-scheduler that catch people out
 
-Grounded in its `AGENTS.md` at 0.2.1; re-check there rather than trusting this list if it matters.
+Grounded in its `AGENTS.md` at **0.3.0** (landed 2026-08-30, **not yet published to npm**, and
+there is **no changelog** - a bump means re-reading `AGENTS.md` §6, not reading a diff). Re-check
+there rather than trusting this list if it matters.
 
 - **No dependencies, no ordering** — see above. This is the big one.
 - **An event's `detail` is the live object, not a snapshot.** `detail` **is** the `FyflowTask` for
-  `task.running`/`completed`/`failed`/`user_action`, and `scheduler.completed`'s detail is `stats`,
-  mutated in place. **Never retain `e.detail`** — copy declared fields synchronously in the
-  listener. `{...e.detail}` is *not* compliance: it still aliases `payload`, `result` and `error`.
+  `task.running`/`completed`/`failed`/`user_action` — **including the `timestamp` field**, so a
+  retained detail reports the *most recent* event's time, not the one you received. **Never retain
+  `e.detail`** — copy declared fields synchronously in the listener. `{...e.detail}` is *not*
+  compliance: it still aliases `payload`, `result` and `error`.
   [ADR 0007](doc/decisions/0007-the-driver-normalizes-events-into-an-immutable-outcome-record.md);
-  upstream declined to fix it in code ([S8](doc/scheduler-upstream.md)).
+  upstream declined to fix it in code and documented it instead
+  ([S8](doc/scheduler-upstream.md), `AGENTS.md` §6). *Not* affected: `task.progress`,
+  `scheduler.completed` and `resource.*`, all copies.
 - **A `user_action` task fires TWO events, and the first is called `task.failed`.** For a
   non-optional task out of retries the scheduler sets `state = 'user_action'` and then dispatches
-  `task.failed` *and* `task.user_action` with the same object
-  (`core/FyflowScheduler.ts:764-778`). Key outcomes on **terminal state, not event name**, or you
-  double-count and route a human-intervention case down an error edge. An *optional* task takes the
-  other branch: `state = 'failed'`, `resolve(null)`, and only `task.failed` fires.
+  `task.failed` *and* `task.user_action` with the same object — at 0.3.0 in **two** places,
+  `core/FyflowScheduler.ts:896-910` and `1128-1142` (the orphaned-task path). Key outcomes on
+  **terminal state, not event name**, or you double-count and route a human-intervention case down
+  an error edge. An *optional* task takes the other branch: `state = 'failed'`, `resolve(null)`, and
+  only `task.failed` fires. **`AGENTS.md` still does not document this for the ordinary path** — it
+  says *"`task.failed` fires once per failed task"*, and only the `orphaned` row records the
+  pairing. Trust ADR 0007 rule 2 over that sentence.
+- **`task.progress`'s detail changed shape in 0.3.0.** It is now the task **spread flat** — the id
+  is `id`, *not* `taskId` — and the wrapper's `workerType` (`'inline'`/`'thread'`) overwrites the
+  task's own pool key. A 0.2.1 consumer reading `detail.taskId` silently gets `undefined`.
 - Task states are `pending -> running -> done | failed`, **plus `user_action`** for a non-optional
   task out of retries. Five states, not four, and it is the one every design drops (Q17).
 - **Reusing a task id overwrites, silently.** Our id scheme is a correctness rule with a refusal

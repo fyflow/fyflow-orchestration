@@ -75,28 +75,33 @@ Per `doc/workflow.md` section 7 rule 3 — decide, then fan out.
 **Q4 itself is deliberately still open.** Building both is the method, and a work item that picks a
 winner before W4 has run has skipped the plan.
 
-## The threat to this plan's validity
+## The threat to this plan's validity — **retired 2026-08-30**
 
-**A silently dropped task is indistinguishable from a stuck join** ([Q32](../open-questions.md),
-[S7](../scheduler-upstream.md)). `core/FyflowScheduler.ts:848` shifts a task out of a blocked queue
-and drops it when its pool is missing — never requeued, no event. The run then waits forever with
-nothing queued, nothing running and no error, which is **exactly** the signature this plan is trying
-to attribute to a join policy.
+**It was:** a silently dropped task is indistinguishable from a stuck join. At 0.2.1
+`core/FyflowScheduler.ts:848` shifted a task out of a blocked queue and dropped it when its pool was
+missing — no event, no rejection, no `stats` entry. The run then waited forever with nothing queued,
+nothing running and no error: **exactly** the signature this plan is trying to attribute to a join
+policy, and an experiment whose null result has a second possible cause has not run.
 
-An experiment whose null result has a second possible cause has not run. So:
+**It is gone.** `fyflow-scheduler` 0.3.0 (`634e23a`) fails such a waiter terminally via
+`_failOrphanedTask` — `task.failed`, then `task.user_action` unless optional, a rejected promise, a
+`stats.failed` increment, and one `orphaned` unblocked exit per queue it sat in.
+[Q32](../open-questions.md) is resolved; [S7](../scheduler-upstream.md) is closed.
 
-1. **W5 asserts that every dispatched node eventually produces an outcome record.** Any hang is then
-   attributable before it is interpreted. This is a gate on W5, not a nice-to-have.
-2. **W4's matrix distinguishes *"the policy did not fire"* from *"the outcome never arrived"*.** They
-   are different cells and must not share one.
-3. `addTasks` validates worker types, so the drop *should* be unreachable — and "should be
-   unreachable" is precisely the standing an experiment cannot rest on.
+What survives, deliberately:
 
-**Detecting a stuck join is ours, and the upstream resource events do not help.**
-`RESOURCE_EVENTS_PLAN.md` acceptance criterion 3 makes a *scheduler-level* stall visible via
-`resource.blocked`. A stuck join has **nothing blocked and nothing queued** — no resource is short —
-so no such event fires. [Q7](../open-questions.md) is untouched by that work, and W4 needs its own
-detection or it can only report a hang as a timeout.
+1. **W5 still asserts that every dispatched node eventually produces an outcome record** — now
+   *cheap insurance* rather than a validity gate. It checks a property the library asserts instead
+   of one it violated, which is a much weaker reason to keep a test and still a sufficient one.
+2. **W4's matrix still distinguishes *"the policy did not fire"* from *"the outcome never
+   arrived"*.** They remain different cells. The second is now expected to be empty, and an empty
+   cell that could fill is worth more than a cell that was never there.
+
+**Detecting a stuck join is still entirely ours.** 0.3.0's `resource.blocked` and
+`getAdmissionQueue()` make a *scheduler-level* stall visible and legible. A stuck join has **nothing
+blocked and nothing queued** — no resource is short of anything — so neither fires.
+[Q7](../open-questions.md) is untouched by that work, and W4 needs its own detection or it can only
+report a hang as a timeout.
 
 ## Work items
 

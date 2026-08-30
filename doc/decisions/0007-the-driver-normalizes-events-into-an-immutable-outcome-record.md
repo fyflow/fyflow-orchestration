@@ -17,10 +17,21 @@ facts about `fyflow-scheduler` 0.2.1 say otherwise, and both were verified in th
 taken from the document that raised them.
 
 **1. Event details are live references, not snapshots.** For `task.running`, `task.completed`,
-`task.failed` and `task.user_action` the detail **is** the `FyflowTask` object
-(`core/FyflowScheduler.ts:727, 775, 777, 974` — `detail: task`), and for `scheduler.completed` it is
-`this.stats`, mutated in place (line 320). `arr.push(e.detail)` is the natural thing to write, and
-every entry then reads whatever the object holds later. Nothing throws.
+`task.failed` and `task.user_action` the detail **is** the `FyflowTask` object — `detail: task`.
+`arr.push(e.detail)` is the natural thing to write, and every entry then reads whatever the object
+holds later. Nothing throws.
+
+> **Re-verified at 0.3.0** (`core/FyflowScheduler.ts:857, 907, 909, 1427`, plus a **second**
+> failure site at `1139, 1141` that did not exist at 0.2.1). The library now documents this
+> explicitly in `AGENTS.md` §6 with a worked example, and states it is *"a documented contract, not
+> an oversight"*. `scheduler.completed` **is no longer affected** — it now emits
+> `{ ...this.stats, timestamp }`, a copy (line 401) — which changes rule 3's rationale but not
+> rule 3.
+>
+> **0.3.0 made rule 1 sharper, not weaker.** Timestamps arrived as a **mutable field on the task**
+> (`task.timestamp = Date.now()` immediately before each dispatch), so a retained `detail` reports
+> the timestamp of the *most recent* event about that task, not the one you received. `AGENTS.md`
+> makes the same point: *"this is why `timestamp` is not derivable from `startTime` or `endTime`"*.
 
 For us this is worse than for a viewer: it would make our "log" a bag of aliases to mutable state,
 and **ladder L3 — fold the same log twice, deep-compare — would fail non-deterministically or, far
@@ -33,7 +44,8 @@ for a zero-dependency library. That is a defensible call for the library and it 
 ours. Recorded as [S8](../scheduler-upstream.md).
 
 **2. A non-optional task out of retries dispatches *two* events, and the first one lies about its
-name.** At `core/FyflowScheduler.ts:764-778`, in this order:
+name.** At 0.2.1 `core/FyflowScheduler.ts:764-778`; at 0.3.0 the same pattern at **`896-910`** and
+again at **`1128-1142`**, the new orphaned-task path. In this order:
 
 ```
 task.state = 'user_action'            // set BEFORE either dispatch
@@ -48,6 +60,13 @@ the other branch: `state = 'failed'`, `resolve(null)`, and **only** `task.failed
 A driver that treats `task.failed` as "this node failed" therefore double-counts every
 `user_action`, and routes a human-intervention case down an error edge.
 
+> **Still undocumented at 0.3.0, and now true in two places.** `AGENTS.md` §5 continues to say
+> *"`task.failed` fires once per failed task"*, which reads as though a `user_action` task does not
+> fire it. The pairing is documented in exactly one place — the `orphaned` row of the
+> `unblocked.reason` table, *"`task.failed`, then `user_action` unless it is optional"* — which
+> covers the **new** path and not the ordinary one. So rule 2 is still doing real work: it is the
+> only place either repo records the ordinary case.
+
 ## Decision
 
 The driver converts the scheduler's event surface into our outcome log at the listener boundary, and
@@ -60,9 +79,10 @@ nothing downstream of that boundary ever sees a library object.
    `detail.state === 'user_action'` is **not** a failure — it is the precursor to the
    `task.user_action` that follows for the same task. Exactly one outcome record is written per task
    settlement.
-3. **`scheduler.completed` is never retained**, and its detail is never treated as a per-run signal.
-   It is `stats`, mutated in place, and it fires every time the scheduler drains — routinely,
-   between our steps.
+3. **`scheduler.completed` is never treated as a per-run signal.** It fires every time the scheduler
+   drains — routinely, between our steps. *(At 0.2.1 its detail was also `stats` mutated in place;
+   0.3.0 emits a copy, so the retention half of this rule is now belt-and-braces. The "not a run
+   signal" half is the load-bearing one and is unaffected.)*
 4. **A library-supplied `timestamp` lives in its own field**, separate from the driver's arrival
    stamp, from the first version. The two are not interchangeable and the gap between them is the
    listener's own latency.
@@ -90,11 +110,19 @@ first is caught by review; the second looks like compliance with rule 1 and is n
 outcome-record shape is what makes the difference checkable, which is why rule 1 names *fields*
 rather than *a copy*.
 
-**Version-sensitive.** All of this is read off 0.2.1. `RESOURCE_EVENTS_PLAN.md` §5 will add
-timestamps to the five events that lack them, which rule 4 already anticipates, and §11 will
-document the live-reference behaviour in `AGENTS.md`. **Neither changes the behaviour this ADR
-guards against**, so the decision survives the bump. Re-check rule 2's line numbers, not its
-substance.
+**Version-sensitive — and the bump has now happened.** Written against 0.2.1; **re-verified against
+0.3.0 on 2026-08-30** with no rule changed. What moved:
+
+| | 0.2.1 | 0.3.0 |
+|---|---|---|
+| Live `task.*` details | 727, 775, 777, 974 | **857, 907, 909, 1427** — plus a second failure path at **1139, 1141** |
+| `scheduler.completed` detail | `this.stats`, live (320) | **a copy**, `{...stats, timestamp}` (401) |
+| Timestamps | absent | present — but as **`task.timestamp`, a mutable field on the live object** |
+| The `failed`+`user_action` pair | undocumented | **still undocumented** for the ordinary path |
+
+Rule 4's "own field" wording was written expecting a detail-level field and got a task-level one.
+The rule stands and matters more: because `timestamp` lives on the shared object, it is exactly the
+kind of value that reads correctly in the listener and wrongly anywhere else.
 
 ## Alternatives rejected
 

@@ -1,6 +1,7 @@
 # Concept
 
-**Status:** v0.1 - written 2026-08-29, before any code exists
+**Status:** v0.2 - written 2026-08-29, section 3 re-verified against `fyflow-scheduler` 0.3.0 on
+2026-08-30. No code exists.
 **Read this before any plan.** It states what we are building, the one fact about the substrate
 that shapes everything, and the one structural idea the rest of the repo hangs off.
 
@@ -34,12 +35,12 @@ constructor that has no such field. The document's *goals* survive - flow templa
 worker plugins - but its premise does not: there is nothing to build "on top of the DAG" because
 there is no DAG.
 
-Verified rather than assumed, at `fyflow-scheduler` 0.2.1:
+Verified rather than assumed - originally at 0.2.1, **re-verified unchanged at 0.3.0**:
 
 | Claim | Evidence |
 |---|---|
 | No dependency field on `FyflowTask` | No `dependsOn`/`parents` in `core/FyflowScheduler.ts`; the only hits are `spawnedChildren`, which is lineage |
-| `SpawnTaskConfig.parents` exists but is **dead** | Declared at `core/workerInterface.ts:50`, read **nowhere** in the repo. The spawn path (`core/FyflowScheduler.ts:1015-1020`) constructs the task from `id`, `workerType`, `payload`, `optional`, `retryPolicy`, `workerGroups` and **silently drops `parents`** |
+| `SpawnTaskConfig.parents` exists but is **dead** | Declared at `core/workerInterface.ts:50`, read **nowhere** in the repo. The spawn path (`core/FyflowScheduler.ts:1468-1473` at 0.3.0) constructs the task from `id`, `workerType`, `payload`, `optional`, `retryPolicy`, `workerGroups` and **silently drops `parents`**. **Still true at 0.3.0** - it survived the whole resource-events pass |
 | Spawning is not sequencing | `AGENTS.md` section 7: *"This is lineage, not a dependency: spawning never changes dispatch order."* |
 
 That dead field is the worst kind: it typechecks, it reads like the feature exists, and it does
@@ -51,10 +52,14 @@ control flow at all.
 
 ## 3. What the scheduler does give us
 
+*Verified against **0.3.0** (landed 2026-08-30, not yet published to npm). Was 0.2.1 when this
+section was written; every row below was re-checked rather than carried forward.*
+
 | Surface | What we get |
 |---|---|
 | `addTask` / `addTasks` | dispatch, with `{ createPromise: true }` for a settled result. Throws on unknown `workerType` |
-| Events | `task.running`, `task.completed`, `task.failed`, `task.progress`, `task.user_action`, `task.spawn_request`, `scheduler.completed` |
+| Events | `task.running`, `task.completed`, `task.failed`, `task.progress`, `task.user_action`, `task.spawn_request`, `scheduler.completed` — **all carrying `timestamp` since 0.3.0** |
+| Events (0.3.0, new) | `resource.acquired` / `.released` / `.blocked` / `.unblocked`, and `getAdmissionQueue()`. **Scheduler-level, not flow-level** — useful for diagnosing a stalled pool, useless for a stuck join |
 | `FyflowTask` after the run | `state`, `result`, `error`, `attempts`, `startTime`, `endTime`, `executionTime` |
 | Resource groups | `ConcurrentLimitGroup`, `RateLimitGroup`, `KeyedRateLimitGroup` - per-task and per-worker (`residentGroups`) |
 | Retry | `retryPolicy: { maxRetries, backoffMs }`, per task |
@@ -63,16 +68,27 @@ control flow at all.
 And these constraints, which are design inputs rather than annoyances:
 
 1. **Task states are `pending -> running -> done | failed`, plus `user_action`** for a non-optional
-   task out of retries. Five, not four. A flow that models four is wrong.
+   task out of retries. Five, not four. A flow that models four is wrong. **And such a task
+   dispatches *two* events** — `task.failed` then `task.user_action`, same object, `state` already
+   `user_action` before either. Key on terminal state, not event name
+   ([ADR 0007](decisions/0007-the-driver-normalizes-events-into-an-immutable-outcome-record.md)
+   rule 2).
 2. **`scheduler.completed` fires every time the scheduler drains.** It is not "the run finished" -
    with a flow, the scheduler will drain between steps routinely.
 3. **Reusing a task id overwrites.** Silently. Our id scheme is a correctness concern (Q13).
 4. **A queued task cannot be cancelled.** Not implemented. So cancelling a run cannot un-queue what
    is already dispatched ([S2](scheduler-upstream.md)).
-5. **`maxCompletedTasks` evicts terminal tasks** from `scheduler.tasks` with no event to say so.
-6. **Groups are optimistic** - a limit can be briefly exceeded. Nothing here is a hard cap.
-7. **`onCompleteDescendants()` does not reject when a descendant fails**, only when the tracked task
+5. **An event's `detail` is a live object.** For the four `task.*` events it *is* the `FyflowTask`,
+   `timestamp` included, so a retained reference misreports every field it carries. Documented
+   upstream at 0.3.0 as a contract rather than a bug ([S8](scheduler-upstream.md)); handled by
+   ADR 0007.
+6. **`maxCompletedTasks` evicts terminal tasks** from `scheduler.tasks` with no event to say so.
+7. **Groups are optimistic** - a limit can be briefly exceeded. Nothing here is a hard cap.
+8. **`onCompleteDescendants()` does not reject when a descendant fails**, only when the tracked task
    does. It is not a join.
+9. **A resource release is per *attempt*, not per task** (0.3.0). A retried or requeued task emits
+   one acquire/release pair per attempt, so a task with two retries produces three. Relevant to
+   Q16, where flow-level and task-level retries could compose into a product nobody intended.
 
 ## 4. The three pieces
 
