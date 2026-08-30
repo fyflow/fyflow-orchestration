@@ -64,7 +64,8 @@ control flow at all.
 
 ## 3. What the scheduler does give us
 
-*Verified against **0.3.0** (landed 2026-08-30, not yet published to npm). Was 0.2.1 when this
+*Verified against **0.3.0** (landed 2026-08-30; **on no registry** - npm and JSR both stop at 0.2.1,
+measured by W5). Was 0.2.1 when this
 section was written; every row below was re-checked rather than carried forward.*
 
 | Surface | What we get |

@@ -215,8 +215,18 @@ suite('RN-R7, RN-R8 — the run-level outcome vocabulary and its precedence', (t
       foldLog([settled('r1:a:-:0', 'failed')]).outcome,
       foldLog([settled('r1:a:-:0', 'user_action')]).outcome,
       step(fold([]), { kind: 'stopped', reason: 'x' }).outcome,
+      // **`stuck` is the sixth, added by W5** — `spec/run-state.md` v0.3,
+      // [ADR 0015](../../doc/decisions/0015-a-run-whose-join-can-no-longer-fire-is-stuck.md).
+      // One line in W2's file, and it is here rather than only in
+      // `test/fold/stuck.test.ts` because a test that names the vocabulary closed
+      // and lists five of six is a test that stopped being about closure.
+      step(
+        step(fold([]), { kind: 'region', event: { type: 'branch.opened', regionId: 'f', branchPath: '0' } }),
+        { kind: 'pathEnded', reason: 'end', at: 'done' },
+      ).outcome,
     ]);
-    equal([...outcomes].sort(), ['awaiting_action', 'completed', 'failed', 'running', 'stopped'],
+    equal([...outcomes].sort(),
+      ['awaiting_action', 'completed', 'failed', 'running', 'stopped', 'stuck'],
       'Q25: an author labels WHY a path ended via end.outcome; run state says WHAT the run is, ' +
       'and letting a definition supply that would let a flow invent a state no UI could render');
   });

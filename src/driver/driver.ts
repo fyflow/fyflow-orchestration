@@ -21,6 +21,10 @@ import { normalizeEvent, type TaskDetailLike } from './listener.ts';
 import { selectEdge, type PredicateRegistry } from './routing.ts';
 import type { RegionEvent } from './events.ts';
 import type { JoinPolicy, Region, UnsatisfiableJoin } from './policy.ts';
+// Type-only, so it is erased and there is no runtime cycle with `src/fold/`.
+// The driver PRODUCES this sequence (ADR 0014) and the fold consumes it; the type
+// stays where `spec/run-state.md` defines it rather than being copied here.
+import type { FoldInput } from '../fold/run-state.ts';
 
 export class InvalidDefinition extends Error {
   /**
@@ -42,6 +46,15 @@ export class InvalidDefinition extends Error {
 export class DuplicateTaskId extends Error {}
 
 /**
+ * A second `start()` on a driver that already ran one — `ID-R3`.
+ *
+ * Thrown rather than reported through `onRunFailure`, because `start` is called
+ * by the caller with the caller on the stack, and because nothing has been
+ * appended: there is no run to fail.
+ */
+export class MultipleRuns extends Error {}
+
+/**
  * A record copy that does not alias `result`. Ten of the eleven outcome fields
  * are primitives; `result` is the one that is not, which is
  * `spec/outcome-record.md` section 4's argument applied to the way OUT.
@@ -56,6 +69,21 @@ function cloneRecord<T extends { result?: unknown }>(r: T): T {
   return r.result === null || r.result === undefined
     ? { ...r }
     : { ...r, result: structuredClone(r.result) };
+}
+
+/**
+ * One element of the fold's input sequence, copied and frozen on the way out
+ * (ADR 0014). Only the two record kinds carry a `result`; the other four are flat
+ * and primitive, so a shallow freeze of a fresh object is the whole copy.
+ */
+function freezeInput(i: FoldInput): FoldInput {
+  return Object.freeze(
+    i.kind === 'outcome' || i.kind === 'resolution'
+      ? { ...i, record: Object.freeze(cloneRecord(i.record)) }
+      : i.kind === 'region'
+      ? { ...i, event: Object.freeze({ ...i.event }) }
+      : { ...i },
+  ) as FoldInput;
 }
 
 /**
@@ -140,6 +168,18 @@ export interface DriverOptions {
   /** Injected so the fold stays deterministic under test and `observedAt` is not a hidden global. */
   now?: () => number;
   onRegionEvent?: (e: RegionEvent) => void;
+  /**
+   * **ADR 0014.** Every element of the fold's input sequence, in append order, as
+   * it is appended. A frozen copy, so a listener cannot edit the driver's own
+   * sequence (`OR-R7`).
+   *
+   * This is the push half of `foldInputs()` and it exists for one reason: a
+   * consumer that folds incrementally can tell when a run has **finished** —
+   * `RunState.outcome` leaving `running`/`awaiting_action` — without a clock, a
+   * poll, or `scheduler.completed`, which fires on every drain and is not
+   * "the run finished".
+   */
+  onFoldInput?: (input: FoldInput) => void;
 }
 
 const SETTLEMENT_EVENTS = ['task.completed', 'task.failed', 'task.user_action'] as const;
@@ -151,6 +191,24 @@ export class Driver {
    * `.push()`, which would let a caller forge a settlement and bypass `RS-R1`.
    */
   private readonly log: LogRecord[] = [];
+
+  /**
+   * **ADR 0014 — the fold's input sequence, and the only ordered thing here.**
+   *
+   * `spec/run-state.md` section 6 recorded that `FoldInput` interleaves six kinds
+   * into one ordered value and **nothing produced it** ([Q41](../../doc/open-questions.md)):
+   * records left through `snapshot()`, region events through `onRegionEvent`,
+   * dispatches through nothing at all, and a refusal through `onRunFailure` — four
+   * channels with no shared order, so `RN-R3`'s *"read in append order"* was about
+   * a value no one could hold.
+   *
+   * `log` above is the **record-kind subsequence of this array**, kept as its own
+   * array only because `effectiveOutcome` and `isSuspended` scan it on every
+   * settlement and rebuilding it by filter each time is quadratic. It holds the
+   * same record objects, never copies. `test/driver/` asserts the two agree, so
+   * the redundancy is checked rather than trusted.
+   */
+  private readonly inputs: FoldInput[] = [];
 
   private readonly graph: Graph;
   private readonly regions: RegionSets[];
@@ -164,6 +222,15 @@ export class Driver {
   private readonly firedJoins = new Set<string>();
   /** Runs the driver has stopped routing. Nothing dispatches for one again. */
   private readonly failedRuns = new Set<string>();
+  /**
+   * The one run this driver serves (`ID-R3`), or `null` before `start`.
+   *
+   * `failedRuns` is a **set** and `hasFailed` takes a run id, both from W3 —
+   * shapes that made sense while a driver might serve many runs and are now
+   * redundant. Left alone rather than narrowed: changing the public surface is
+   * W3's and is [Q53](../../doc/open-questions.md).
+   */
+  private startedRun: string | null = null;
 
   /**
    * Validates the definition IN FULL before anything is queued (ADR 0002 rule 3),
@@ -205,9 +272,41 @@ export class Driver {
     }
   }
 
-  /** `ID-R2` — the half `FD-V16` cannot check. Then dispatch the entry node. */
+  /**
+   * `ID-R2` — the half `FD-V16` cannot check. Then dispatch the entry node.
+   *
+   * **`ID-R3` — one Driver, one run.** A second `start` with a different run id
+   * is refused, and the refusal is the point: this driver's `inputs`,
+   * `firedJoins` and `joinState` are keyed per-Driver or per-`fanoutId`, with no
+   * run id anywhere. Without this, a second run's join **never fires** —
+   * `firedJoins.has(fanoutId)` is already true from the first — and
+   * `fold(driver.foldInputs())` merges both runs into one `RunState` carrying the
+   * first run's id and reporting `completed`, for a state containing a
+   * permanently hung run. That is character-for-character the false statement
+   * [ADR 0015](../../doc/decisions/0015-a-run-whose-join-can-no-longer-fire-is-stuck.md)
+   * exists to remove, and it was reachable through this class's own declared
+   * surface until W5's spec-conformity pass measured it.
+   *
+   * **A second `start` with the SAME run id is NOT refused here**, and the
+   * narrowness is deliberate: it falls through to `ID-R1`, which refuses the entry
+   * node's redispatch before `addTask` sees it and stops the run loudly. Widening
+   * `ID-R3` to cover it would have taken away `ID-R1`'s only direct test — W3
+   * provokes a duplicate dispatch by starting the same run twice — which is
+   * trading a tested rule for an untested one. Two runs with one id collide on
+   * every task id anyway; only two *different* ids merge silently, and that is
+   * exactly what this refuses.
+   */
   start(runId: string, payload: unknown): void {
     assertRunId(runId);
+    if (this.startedRun !== null && this.startedRun !== runId) {
+      throw new MultipleRuns(
+        `MultipleRuns: this driver already started run "${this.startedRun}" and cannot start ` +
+          `"${runId}". ID-R3: a Driver serves exactly one run — its input sequence, its fired ` +
+          'joins and its policy state carry no run id, so a second run would silently merge ' +
+          'into the first. Construct a second Driver.',
+      );
+    }
+    this.startedRun ??= runId;
     try {
       this.enter(runId, this.def.entry, payload);
     } catch (e) {
@@ -235,14 +334,24 @@ export class Driver {
   ): boolean {
     if (!isSuspended(this.log, taskId)) return false;
     const { runId, nodeId, branchPath } = parseTaskId(taskId);
-    this.log.push({
+    // `OR-R10` — *"the driver has stopped routing it"*, and that has to hold on
+    // the INBOUND edge too. `onEventOrThrow` checks this; `resolve` did not, so a
+    // resolution for a suspended task in a stopped run appended a record and
+    // dispatched. W5's sequence made it visible: the elements kept arriving after
+    // the `stopped` element, while `withOutcome` pins the outcome to `stopped`,
+    // so nothing reported the work. Refused like any other rejected command.
+    if (this.failedRuns.has(runId)) return false;
+    this.append({
       kind: 'resolution',
-      taskId,
-      resolvedAs,
-      result: resolvedAs === 'done' ? structuredClone(value.result ?? null) : null,
-      error: resolvedAs === 'failed' ? (value.error ?? 'resolved as failed') : null,
-      actor: value.actor,
-      observedAt: this.now(),
+      record: {
+        kind: 'resolution',
+        taskId,
+        resolvedAs,
+        result: resolvedAs === 'done' ? structuredClone(value.result ?? null) : null,
+        error: resolvedAs === 'failed' ? (value.error ?? 'resolved as failed') : null,
+        actor: value.actor,
+        observedAt: this.now(),
+      },
     });
     const region = this.regionOf(nodeId);
     if (region) {
@@ -276,8 +385,15 @@ export class Driver {
   }
 
   private failRun(runId: string, cause: unknown): void {
+    // `RN-R8` — `stopped` outranks everything, and the fold learns it here.
+    // Appended before `failedRuns` is set so a re-entrant `onFoldInput` listener
+    // sees the same order a later `foldInputs()` reader does.
+    const already = this.failedRuns.has(runId);
     this.failedRuns.add(runId);
     const err = cause instanceof Error ? cause : new Error(String(cause));
+    if (!already) {
+      this.append({ kind: 'stopped', reason: `${err.constructor?.name ?? 'Error'}: ${err.message}` });
+    }
     this.opts.onRunFailure?.({
       runId,
       kind: err.constructor?.name ?? 'Error',
@@ -289,9 +405,16 @@ export class Driver {
   private onEventOrThrow(name: string, detail: TaskDetailLike): void {
     const record = normalizeEvent(name, detail, this.now());
     if (!record) return; // OR-R3/OR-R4: this event writes nothing
-    this.log.push(record);
 
+    // **Parsed BEFORE it is appended, and the order is load-bearing.** An id this
+    // driver did not mint cannot be routed on, and `OR-R10` stops the run for it —
+    // but appending the record first leaves an element in the sequence that
+    // `fold` itself throws on, because `step` parses the same id. The run would
+    // then be `stopped` *and* unfoldable, which is a worse failure than the one
+    // being reported. Found by W5's own test, which had to fabricate the case:
+    // every id the scheduler reports is one `dispatch` minted.
     const { runId, nodeId, branchPath } = parseTaskId(record.taskId);
+    this.append({ kind: 'outcome', record });
     if (this.failedRuns.has(runId)) return;
     if (record.terminalState === 'user_action') {
       // Not a loss. The branch is still live and the join keeps waiting; a run
@@ -321,8 +444,14 @@ export class Driver {
       const region = this.regionOf(nodeId);
       if (region) {
         this.emit({ type: 'branch.lost', regionId: region.fanoutId, branchPath, reason: 'failed' });
-        this.settleJoin(runId, region);
       }
+      // `spec/run-state.md` section 3's `failed` — *"a path ended with no eligible
+      // edge, outside or inside a region"*. Reported for BOTH, and appended after
+      // the region event and before `settleJoin`, because the join's downstream
+      // dispatch happens inside that call and must not precede the path end that
+      // led to it.
+      this.append({ kind: 'pathEnded', reason: 'no-eligible-edge', at: nodeId });
+      if (region) this.settleJoin(runId, region);
       return;
     }
     // **Deep-copied on the way to the next task.** `outcome.result` is the stored
@@ -399,8 +528,13 @@ export class Driver {
           // NOT "left the region" — the `end` is inside region(F). The condition is
           // "reached a node of kind `end`", which is local and computable.
           this.emit({ type: 'branch.exited', regionId: region.fanoutId, branchPath: fromBranch, at: nodeId });
-          this.settleJoin(runId, region);
         }
+        // `spec/run-state.md` section 3's `completed` — *"at least one path ended
+        // at an `end` node"*. **Reported whether or not the path was in a region**,
+        // which is the half nothing reported before: outside one there was no
+        // region event either, so `pathEnded` had no producer anywhere (Q41).
+        this.append({ kind: 'pathEnded', reason: 'end', at: nodeId });
+        if (region && fromBranch !== '-') this.settleJoin(runId, region);
         return;
       }
     }
@@ -417,6 +551,10 @@ export class Driver {
       throw new DuplicateTaskId(`DuplicateTaskId: "${taskId}" was already dispatched in run "${runId}"`);
     }
     this.dispatched.add(taskId);
+    // Appended BEFORE `addTask`. `RN-R4` says a node absent from `nodes` was never
+    // dispatched; a scheduler that settled a task inside `addTask` would otherwise
+    // deliver the outcome before the dispatch that caused it.
+    this.append({ kind: 'dispatched', taskId });
 
     this.opts.scheduler.addTask(
       this.opts.createTask({
@@ -444,6 +582,22 @@ export class Driver {
    * `JP-R4` says the vocabulary is sized for the richer policy — so the driver
    * forwards all six and lets a policy ignore what it does not need.
    */
+  /**
+   * Append one element to the fold's input sequence — **the single place append
+   * order is decided** (ADR 0014).
+   *
+   * A record is pushed to `log` as well, by reference: `effectiveOutcome` reads
+   * the stored object and `OR-R8` derives rather than appends, so a second copy
+   * here would be a second truth. What leaves through `onFoldInput` **is** a
+   * copy, frozen, for the same reason `snapshot()` is: a listener holding the
+   * driver's own array could forge a settlement and bypass `RS-R1`.
+   */
+  private append(input: FoldInput): void {
+    this.inputs.push(input);
+    if (input.kind === 'outcome' || input.kind === 'resolution') this.log.push(input.record);
+    if (this.opts.onFoldInput) this.opts.onFoldInput(freezeInput(input));
+  }
+
   private emit(e: RegionEvent): void {
     const policy = this.opts.joinPolicy;
     // `has`, not `!== undefined`: `S` is the policy's own opaque state type and
@@ -453,6 +607,10 @@ export class Driver {
     if (policy && this.joinState.has(e.regionId)) {
       this.joinState.set(e.regionId, policy.step(this.joinState.get(e.regionId), e));
     }
+    // The policy is stepped first and the sequence records second, so that a
+    // `onFoldInput` listener asking `joinStatusOf` sees the status this event
+    // produced rather than the one before it.
+    this.append({ kind: 'region', event: e });
     this.opts.onRegionEvent?.(e);
   }
 
@@ -485,6 +643,10 @@ export class Driver {
       // permanently — even a caller that catches never learns why.
       const describe = policy.describe(state);
       this.firedJoins.add(region.fanoutId);
+      // ADR 0015 — the join is settled and it did NOT fire. Nothing downstream of
+      // it will ever be dispatched, which is what makes the run `stuck` rather
+      // than `completed`.
+      this.append({ kind: 'joinSettled', regionId: region.fanoutId, joinId: region.joinId, fired: false });
       this.opts.onUnsatisfiableJoin?.({
         fanoutId: region.fanoutId,
         joinId: region.joinId,
@@ -496,6 +658,19 @@ export class Driver {
 
     // satisfied — route out of the join, exactly once.
     this.firedJoins.add(region.fanoutId);
+    // **ADR 0015.** Appended before the routing it authorises, so a fold that
+    // reads the sequence sees the join fire and *then* sees what it dispatched.
+    //
+    // This is what [Q43](../../doc/open-questions.md) needed and what its register
+    // entry said was already there: on `p1-routed-away` **both policies produce
+    // the same `regions` value** — every branch settles under both — and the only
+    // difference is whether this line was reached. Without it a permanently stuck
+    // run and a completed one are the same fold.
+    //
+    // It records what the DRIVER did, not what a policy concluded, which is why it
+    // does not violate `RN-R6`: `fired` is "routing left the join", an action, and
+    // the same two policies over the same events still produce identical `regions`.
+    this.append({ kind: 'joinSettled', regionId: region.fanoutId, joinId: region.joinId, fired: true });
     const join = this.graph.byId.get(region.joinId);
     if (!join || join.kind !== 'join') return;
     const edge = join.edges?.[0];
@@ -519,6 +694,25 @@ export class Driver {
    */
   snapshot(): readonly LogRecord[] {
     return Object.freeze(this.log.map((r) => Object.freeze(cloneRecord(r)))) as readonly LogRecord[];
+  }
+
+  /**
+   * **The fold's input sequence — ADR 0014, and [Q41](../../doc/open-questions.md)'s
+   * answer.** A frozen copy, in append order, of everything the fold consumes:
+   * the two record kinds, region events, dispatches, path ends, join settlements
+   * and a stop.
+   *
+   * `fold(driver.foldInputs())` is the whole of turning a run into run state, and
+   * it is the value `RN-R3`'s *"read in append order, never sorted"* is about.
+   * `snapshot()` is the record-kind subsequence of this and remains the right
+   * thing to read when only the log matters.
+   *
+   * **This is not a second copy of run truth** (which W3's scope forbids): it is
+   * the log, plus the facts the driver knew while routing that no record carries.
+   * The driver still computes no run state — `fold` does, and it is pure.
+   */
+  foldInputs(): readonly FoldInput[] {
+    return Object.freeze(this.inputs.map(freezeInput)) as readonly FoldInput[];
   }
 
 

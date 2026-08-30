@@ -1,6 +1,6 @@
 # P1 — What satisfies a join
 
-**Status:** in progress - **the plan's question is ANSWERED and four of five work items are done.** W1, W2, W3 and **W4** are complete; the result is [ADR 0003](../decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md) - **live tokens**, with the matrix as evidence and two review passes acted on. **W5 closes the plan**: one real fan-out flow on a real scheduler, and it inherits Q41-Q45
+**Status:** **complete, pending W5's spec-conformity pass.** All five work items are built. The question is answered - [ADR 0003](../decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md), **live tokens** - and W5 ran it on a real scheduler in two runtimes: `p1-routed-away` completes under `live-token` and is **`stuck`** under `arrival-count`, with `publish` never dispatched. Three more ADRs came out of W5 (0013-0015) and five of the plan's carried questions closed
 **Question this plan answers:** *When a decision inside a fan-out branch routes that branch away
 from its join, does expected-arrival counting actually break — and does live-token accounting
 actually survive it?*
@@ -123,7 +123,7 @@ report a hang as a timeout.
 | W2 | The fold: outcome log → run state, both policies behind W1's interface, **and `spec/run-state.md`** | `spec/run-state.md`, `src/fold/**`, `test/fold/**` | W1 (and W3 by sequencing) | L0-L3 in **all five runtimes** |
 | ~~W3~~ | The driver, the validator, the join seam, the toolchain | `src/driver/**`, `src/definition/**`, `test/{driver,definition}/**`, the toolchain | W1 | **done** — L0-L2 and L4 in **five runtimes**, 142 assertions, plus **three** spec-conformity passes |
 | ~~W4~~ | The join/failure matrix — every Q5 outcome × both policies, **and ADR 0003** | `test/matrix/**`, `doc/decisions/0003-*.md` | W2, W3 | **done** — L0-L5 in **all five runtimes**, 47 assertions, [ADR 0003](../decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md) with one dated in-place correction, and **two** review passes: 4 blocking, 9 defects, 13 notes |
-| W5 | One real fan-out flow on a real scheduler, **plus the every-node-settles assertion** (Q32) | `examples/**` | W2, W3 | L0-L6 — **L0-L5 in all three runtimes** (`RT-R1`); whether **L6** runs in all three is [Q33](../open-questions.md), and W5 is where it is answered |
+| ~~W5~~ | One real fan-out flow on a real scheduler, **plus the every-node-settles assertion** (Q32) | `examples/**`, `scripts/check-scheduler.mjs`, and six declared exceptions | W2, W3, **W4** | **built** — L0-L5 in **all five runtimes** (279 assertions), **L6 in Node 24 and Deno** (72 assertions, six real runs). [Q33](../open-questions.md) answered: **Node and Deno**, `RT-R10`. Three ADRs: **0013** (how the runtimes reach the scheduler), **0014** (the fold's input sequence), **0015** (`stuck`). Conformity pass outstanding |
 
 **W1 grew, twice.** ADR 0007 made the outcome record a normative shape rather than an internal type:
 it is what rule 1's "declared fields" means, and it is what lets a reviewer tell a compliant copy
@@ -155,7 +155,7 @@ Each has its own file under `doc/work-items/`. This table is an index, not the d
 | [Q10](../open-questions.md) | What happens when no decision edge matches. Reachable in P1's own flow, so it needs an answer here. **Answered** — `FD-V7` at instantiation, `FD-R1` as the assertion | ~~W1~~ **done** |
 | [Q13](../open-questions.md) | The task id scheme. Fan-out forces it; a collision silently overwrites. **Answered** — and the source says worse than "overwrites": both tasks run and two records land under one key | ~~W1~~ **done** |
 | [Q14](../open-questions.md) | Is run state a fold, and of whose log. **Answered** - yes, and of *our* log, not the scheduler's: `spec/run-state.md` section 1. The last of `doc/concept.md` section 6's four leanings to land | ~~W2~~ **done** |
-| [Q25](../open-questions.md) | Where the flow-level outcome vocabulary lives. **Answered** - run state's, five outcomes, and `end.outcome` stays a label the driver never interprets | ~~W2~~ **done** |
+| [Q25](../open-questions.md) | Where the flow-level outcome vocabulary lives. **Answered** - run state's, and `end.outcome` stays a label the driver never interprets. **Five outcomes when W2 answered it; six since [ADR 0015](../decisions/0015-a-run-whose-join-can-no-longer-fire-is-stuck.md) added `stuck`** | ~~W2~~ **done** |
 | [Q17](../open-questions.md) | How `user_action` surfaces at flow level. **Detection** was answered by [ADR 0007](../decisions/0007-the-driver-normalizes-events-into-an-immutable-outcome-record.md) rule 2 and the **mechanism** by ADR 0004 rules 3-6 — it suspends, and an external resolution record resumes it. What is left for W4 is what a join does while a branch is suspended, and it is **`awaiting_action`** at run level (Q25, answered by `spec/run-state.md` section 3) - it outranks `running`, because the fact a human is needed is the thing a reader must not miss | W4 |
 | [Q32](../open-questions.md) | Telling a stuck join apart from a silently dropped task. **A threat to this plan's validity**, not a side question — see the section above | W5 |
 
@@ -163,13 +163,72 @@ Q6, Q12, Q15, Q16, Q18-Q21 are **not** carried — see Scope/Out.
 
 ## Record
 
-*Filled in at the join, after the work items are merged.*
+**Exit artifact.** Two halves, both required by this plan's own statement of it.
 
-**Exit artifact.** *Where it is, and how to re-produce it.*
+1. **The branch-routed-away case as an executable test against both policies** —
+   `test/matrix/matrix.test.ts`, nine rows x two policies, eighteen hand-derived cells.
+   `npm test`, and identically in five runtimes.
+2. **One real fan-out flow completing on a real scheduler** — `examples/l6.ts`, and it is six runs
+   rather than one, because the plan's own sentence asks for both a *completing* flow and the
+   *routed-away case*, and a predicate that only ever returns `true` is not a predicate.
 
-**What the plan answered.** *Q4, answered — including "arrival-counting was fine", which is a
-legitimate outcome and would make the simpler mechanism the right one.*
+```bash
+npm run test:l6         # node 24
+npm run test:l6:deno    # deno 2.9.6
+```
 
-**Retro.** *`doc/workflow.md` section 6 pass 3. "No change" is an expected verdict. This retro also
-judges the workflow adaptations tabled at the end of `doc/workflow.md`, since P1 is their first
-run.*
+| run | outcome | join | tasks |
+|---|---|---|---|
+| `fanout-join` / `live-token` | `completed` | fired | 4 |
+| `fanout-join` / `arrival-count` | `completed` | fired | 4 |
+| `p1-routed-away` high / `live-token` | `completed` | fired | 4 |
+| `p1-routed-away` high / `arrival-count` | `completed` | fired | 4 |
+| **`p1-routed-away` low / `live-token`** | **`completed`** | **fired** | **4** |
+| **`p1-routed-away` low / `arrival-count`** | **`stuck`** | **never** | **3** |
+
+**The last row is the plan.** `publish` is never dispatched; the join waits forever with nothing
+queued and nothing running. Every expected value was written from `spec/` before the first run and
+all six matched.
+
+**What the plan answered.** [Q4](../open-questions.md): **live tokens**
+([ADR 0003](../decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md)), decided
+by W4's matrix rather than by the argument the plan refused as sufficient. *"Arrival-counting was
+fine"* was a real possible outcome and it lost on evidence — on **six of nine** matrix rows and on
+the sixth row above, and for a reason the plan did not predict: an ordinary `optional` failure is
+enough, so the sharp edge is the common case rather than the exotic one.
+
+**Nine of the twelve questions this plan carried are closed**, and five of them by W5:
+[Q4](../open-questions.md), [Q10](../open-questions.md), [Q13](../open-questions.md),
+[Q14](../open-questions.md), [Q25](../open-questions.md), [Q17](../open-questions.md),
+[Q32](../open-questions.md), plus W5's [Q33](../open-questions.md), [Q41](../open-questions.md),
+[Q42](../open-questions.md), [Q43](../open-questions.md) and [Q51](../open-questions.md).
+[Q5](../open-questions.md) and [Q7](../open-questions.md) are half-answered and named as such;
+[Q24](../open-questions.md) is the live question the plan deliberately did not settle.
+
+**What the plan cost, in the shape a later plan should budget for.** Five work items, six spec
+documents, **70 numbered rules**, eight ADRs, 279 assertions in five runtimes plus 72 at L6 in two,
+and **five spec-conformity passes of which not one came back empty** — W5's is the sixth and is
+outstanding.
+
+**Retro.** *`doc/workflow.md` section 6 pass 3, and it runs after W5's conformity pass. "No change"
+is an expected verdict. This retro also judges the workflow adaptations tabled at the end of
+`doc/workflow.md`, since P1 is their first run.* What it should judge, collected as the plan ran:
+
+1. **Section 6 defines pass 2 as one reader asking two questions, and W4 ran it as two readers.**
+   Thirteen findings, **one overlap**. W4's proposal: the two questions are different enough that
+   one reader answers whichever it read first.
+2. **"A declared output with no rung" is now five-for-five.** W1, W3, W2, W4 (L0 did not cover
+   `test/**`) and W5 (nothing covered `examples/**` until it added `tsconfig.examples.json`). W5
+   predicted its own instance in its declaration, which is the first time the pattern was caught
+   before the fact rather than in a Record.
+3. **A written claim nobody ran is this repository's most common defect**, and W5 added a new
+   variety: not a spec claim by its implementer (`spec/run-state.md` section 5's three) but a
+   **register entry by a reader** — [Q43](../open-questions.md)'s *"`regions` already holds the
+   data"*, which is false. The register has no conformity pass.
+4. **W5 widened its `Owns` to six declared exceptions and the widening was right**, which is either
+   a sign that the last item of a plan is structurally different from the others or a sign that
+   `doc/workflow.md` section 7 rule 2 needs a serial-item clause. One occurrence; W4's smaller
+   version (one line in W3's file) is the second.
+5. **Three of the four facts ADR 0013 rests on contradicted something this repository had written
+   down**, and all four were one command away. The retro should ask what else is asserted here that
+   nobody has run.

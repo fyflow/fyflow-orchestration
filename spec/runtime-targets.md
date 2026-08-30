@@ -1,6 +1,6 @@
 # spec/runtime-targets — three runtimes, one source tree
 
-**Status:** v0.6 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.7 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2 acts on the second spec-conformity pass**,
 which found that v0.1's central claim — *a `node:` import is fatal to a Deno build* — is **false at
 Deno 2**, and that the `*.node.ts` mechanism it described does not exist in the form it described.
@@ -9,6 +9,9 @@ too — in the opposite direction, and contradicted by `RT-R3` in the same docum
 `RT-R9`**, found by W3 the first time it ran its own tests: a construct `deno check` typechecks
 clean and Node cannot execute. **v0.6 records the browser rung actually running,
 which makes `RT-R1` true for all three runtimes for the first time.**
+**v0.7 is [W5](../doc/work-items/w5-one-real-fan-out-flow-on-a-real-scheduler.md)'s and adds
+`RT-R10`** — [Q33](../doc/open-questions.md)'s answer, which is *Node and Deno*, and which overturns
+the register's leaning because the fact that leaning rested on turned out to be false.
 **Normative.** These rules constrain what the source may import and what a gate must run in.
 **Inherited, not chosen.** `fyflow-scheduler` runs on Deno, Node and the browser from one source
 tree and publishes to JSR and npm. **We are a layer over it, so its reach is our floor** — a
@@ -76,7 +79,8 @@ each of its five assertions was negative-tested.
 
 | id | | Test owed by |
 |---|---|---|
-| `RT-R1` | **A runtime is supported only if the gate runs in it.** Ladder **L0-L5** run in all three — they are pure logic over fixtures and cost three cheap passes rather than three expensive ones. **L6** is the exception and is [Q33](../doc/open-questions.md). A claim of support with no gate behind it is the thing `doc/workflow.md` section 1 rule 4 forbids. **Satisfied for all three since W3**: Node 24 and Deno execute the suites directly, and `scripts/build-browser-tests.mjs` + `scripts/run-browser-tests.mjs` run the *same* suites in chromium, firefox and webkit | **every item that ships a gate** — W2, W3, W4 and W5 |
+| `RT-R1` | **A runtime is supported only if the gate runs in it.** Ladder **L0-L5** run in all three — they are pure logic over fixtures and cost three cheap passes rather than three expensive ones. A claim of support with no gate behind it is the thing `doc/workflow.md` section 1 rule 4 forbids. **Satisfied for all three since W3**: Node 24 and Deno execute the suites directly, and `scripts/build-browser-tests.mjs` + `scripts/run-browser-tests.mjs` run the *same* suites in chromium, firefox and webkit | **every item that ships a gate** — W2, W3, W4 and W5 |
+| `RT-R10` | **L6 runs in Node 24 and Deno, and not in the browser** — [Q33](../doc/open-questions.md), answered by W5 and measured rather than reasoned. Both runtimes load **one** `.ts` worker file and one bare `fyflow-scheduler` specifier resolved in configuration ([ADR 0013](../doc/decisions/0013-the-scheduler-is-a-development-dependency-reached-from-the-working-tree.md) rules 3-4), so the second runtime costs a two-line import map. **Q33's leaning was *Node only for P1*, and its stated reason — *a real worker file per runtime, `.ts` for Deno and `.js` for Node* — is false at Node 24**: a typed `.ts` worker runs there, `inline` and threaded ([S9](../doc/scheduler-upstream.md)). The browser is the genuinely expensive one — Playwright, the worker emitted as a separate bundle asset, and a page to serve it from — and whether it must run before release is [Q52](../doc/open-questions.md). **The exclusion is structural, not a note**: L6 lives in `examples/**`, and `scripts/build-browser-tests.mjs` globs `test/**/*.test.ts`, so nothing that imports a scheduler can reach the browser bundle by accident | **W5** |
 | `RT-R2` | **One source tree. No per-runtime fork, and no runtime branch in ordinary logic.** A `typeof Deno !== 'undefined'` test inside the fold or the driver is a defect: it makes run state depend on the host, which `doc/concept.md` section 5 does not allow. Where a difference is genuinely unavoidable, section 3 says how it is expressed | W2 and W3 |
 | `RT-R3` | **A published file typechecks under all three configurations** — Deno's `deno.json` `compilerOptions`, `tsconfig.node.json`, and `tsconfig.browser.json`. This is ladder L0, run three times. It catches a **browser** violation of `RT-R4` if and only if the browser config sets `types: []` and omits `deno.ns`; it does **not** catch a `node:` import on its own, and `RT-R4` is what does | W2 and W3 |
 

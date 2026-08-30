@@ -31,7 +31,8 @@
   "tasks": {
     "check": "deno check index.ts src/",
     "check:source": "deno run --allow-read scripts/check-source.mjs",
-    "lint": "deno lint src/ test/ index.ts",
-    "test": "deno run --allow-read test/runner.ts"
+    "lint": "deno lint src/ test/ examples/ index.ts",
+    "test": "deno run --allow-read test/runner.ts",
+    "test:l6": "deno run --import-map=examples/deno-import-map.json --allow-read --allow-net --allow-env examples/l6.ts"
   }
 }

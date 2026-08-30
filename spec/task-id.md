@@ -1,10 +1,14 @@
 # spec/task-id — the scheduler task id scheme
 
-**Status:** v0.3 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.4 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2 acts on the W1 spec-conformity pass**:
 section 2 point 3 was **wrong about the source** and is corrected (finding D7), `branchPath` is
 pinned against convergent branches (B3), and the rules name the item owing their test (D8, N19).
 **v0.3** points `ID-R1` at `OR-R10`: a refusal reached from a listener is reported, not thrown.
+**v0.4 adds `ID-R3`** - [W5](../doc/work-items/w5-one-real-fan-out-flow-on-a-real-scheduler.md)'s
+spec-conformity pass **measured** a driver serving two runs and found the second run's join never
+fires and the two runs fold into one `RunState`. It is a rule about a run id, so it lives here with
+`ID-R1` and `ID-R2` rather than with the fold.
 **Normative.** Answers [Q13](../doc/open-questions.md).
 **This is a correctness rule, not a naming convention.** Section 2 is why.
 
@@ -121,6 +125,36 @@ the owning item's gate; **W1's L0 does not check it**
 |---|---|---|
 | `ID-R1` | the driver is about to dispatch a task id already in the run's dispatched-id set. `addTask` is **not** called; the run fails with `DuplicateTaskId` naming the id, **reported** rather than thrown when it is reached from a listener (`OR-R10`). Test: a driver driven to repeat an id, asserting the refusal and asserting the scheduler received nothing | W3 |
 | `ID-R2` | a `runId` does not match its charset at run creation. Node ids are covered by `FD-V16` at instantiation; this is the half the definition cannot check. Test: run creation with a `runId` containing `:`, asserting the refusal | W3 |
+| `ID-R3` | **a driver is asked to start a *second, different* run.** A driver serves exactly one run, and `start` **throws** `MultipleRuns` rather than reporting: nothing has been appended, so there is no run to fail, and the caller is on the stack. Test: `start` twice with two different run ids, asserting the refusal, that the scheduler received nothing for the second, and that the first run's state is unchanged | **W5** |
+
+### `ID-R3` — why one run per driver, and what it costs
+
+**Measured, not reasoned.** A driver's `inputs` (the fold's sequence, ADR 0014), its `firedJoins`
+latch and its per-region policy state carry **no run id** — they are keyed per driver, or per
+`fanoutId`. `failedRuns` and `hasFailed(runId)` are keyed by run, which is what made a second run
+look supported. Two runs of `fanout-join` on one driver:
+
+| | |
+|---|---|
+| the second run's join | **never fires** — `firedJoins.has('split')` is already `true` from the first, so `settleJoin` returns before asking the policy |
+| `fold(driver.foldInputs())` | returns **one** `RunState`, labelled with the **first** run's id, holding both runs' nodes |
+| its outcome | **`completed`** — because region `split` carries `joined: true` from the first run |
+
+That last cell is character-for-character the false statement
+[ADR 0015](../doc/decisions/0015-a-run-whose-join-can-no-longer-fire-is-stuck.md) exists to remove,
+reachable through the driver's own declared surface.
+
+**The rule is deliberately narrow: only a *different* run id is refused.** A second `start` with the
+**same** id falls through to `ID-R1`, which refuses the entry node's redispatch. Widening `ID-R3` to
+cover it would take away `ID-R1`'s only direct test — W3 provokes a duplicate dispatch by starting
+the same run twice — which trades a tested rule for an untested one. Two runs sharing an id collide
+on every task id anyway; only two different ids merge silently.
+
+**What this rule does not fix, and it is the more interesting half.** `Driver.start` takes a run id
+per call, `failedRuns` is a **set**, and `hasFailed(runId)` is public — three shapes that only make
+sense if a driver serves many runs. They are now redundant rather than wrong. Narrowing them is a
+change to the driver's public surface, which is W3's, and it is
+[Q53](../doc/open-questions.md).
 
 **`ID-R1` is a refusal rather than a guard because the collision should be impossible.**
 `FD-V10` forbids cycles, `FD-V15` forbids nested fan-out, and **`FD-V19` forbids convergent

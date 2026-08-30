@@ -6,13 +6,22 @@ comment. One row per item, `S1`, `S2`, ... - never reused, never renumbered.
 **Every item must state what we do without it.** An item with no workaround is not a want, it is a
 blocker, and it belongs in a plan instead.
 
-**Nothing here has been raised by us.** Pinned to `fyflow-scheduler` **0.3.0** (landed 2026-08-30,
-not yet published to npm). Line references are against 0.3.0 unless a row says otherwise.
+**Nothing here has been raised by us.** Pinned to `fyflow-scheduler` **0.3.0** (landed 2026-08-30).
+Line references are against 0.3.0 unless a row says otherwise.
 
-**Every item in this register is now closed, deferred, or declined. There is nothing left to
-raise.** 0.3.0 settled four without us asking - S4 implemented, S7 fixed, S8 declined and
-documented - and S1 was answered directly by the maintainer on 2026-08-30. S5 stays deferred with a
-costless workaround; S2 and S6 wait for a real need.
+**On "not yet published": measured by W5 on 2026-08-30, and it is narrower than this repository has
+been saying.** Both registries carry the package and **both top out at 0.2.1** — npm
+`fyflow-scheduler` (`dist-tags.latest`) and JSR `@fyflow/scheduler` (four versions, 0.1.0 to 0.2.1).
+So `@fyflow/scheduler` **is** on JSR, which `spec/runtime-targets.md` section 1 assumes and nobody
+had checked; it is only **0.3.0** that is unpublished, on either. That is what forces
+[ADR 0013](decisions/0013-the-scheduler-is-a-development-dependency-reached-from-the-working-tree.md).
+
+**Eight of nine items are closed, deferred, or declined; [S9](#s9--the-published-typescript-source-does-not-load-under-node-and-agentsmd-3-says-a-ts-worker-cannot-either)
+is live and is the first thing here worth raising.** 0.3.0 settled four without us asking - S4
+implemented, S7 fixed, S8 declined and documented - and S1 was answered directly by the maintainer on
+2026-08-30. S5 stays deferred with a costless workaround; S2 and S6 wait for a real need. **S9 was
+found by W5**, the first work item to load the library rather than a structural stand-in for it,
+which is the argument for ladder L6 in one sentence.
 
 `fyflow-react-components` keeps [its own register](https://github.com/fyflow/fyflow-react-components)
 with an independent `S` sequence. **Two items overlap and must be raised jointly, not twice** - see
@@ -32,6 +41,7 @@ the last section.
 | [S6](#s6--pause-and-resume) | Pause and resume | no - not in the first set | not raised |
 | [S7](#s7--exit-c-drops-a-blocked-task-silently) | Fix the blocked-queue task drop | no longer - **the confounder is gone** | ✅ **fixed in 0.3.0** |
 | [S8](#s8--freeze-or-copy-event-details) | Freeze or copy event details | no | **declined, and now documented** |
+| [S9](#s9--the-published-typescript-source-does-not-load-under-node-and-agentsmd-3-says-a-ts-worker-cannot-either) | `import type` in `core/threadWrapper.ts`, and correct `AGENTS.md` §3 on `.ts` workers | no - it costs us a build step and a freshness check | **not raised - the only live item** |
 
 ---
 
@@ -297,13 +307,64 @@ of being worked around.
 
 ---
 
+## S9 - the published TypeScript source does not load under Node, and `AGENTS.md` §3 says a `.ts` worker cannot either
+
+**Two findings, one root, both measured at Node 24.20.0 and Deno 2.9.6 on 2026-08-30 by
+[W5](work-items/w5-one-real-fan-out-flow-on-a-real-scheduler.md).** They pull in opposite
+directions: the first is a real defect, the second is the reference being *more* pessimistic than
+the runtime.
+
+**What (a) - `index.ts` cannot be imported by Node.** `import('../fyflow-scheduler/index.ts')` under
+Node 24 throws:
+
+```
+SyntaxError: The requested module './workerInterface.ts' does not provide an
+export named 'BaseWorkerContext'          at core/threadWrapper.ts:5
+```
+
+`BaseWorkerContext` is an `interface` (`core/workerInterface.ts:62`) imported as a **value**
+(`core/threadWrapper.ts:5`, alongside `WorkerInstanceExtensions` and `WorkerInstanceState`, which are
+also interfaces). Node runs TypeScript by **erasing types, not compiling them**, so the named import
+survives erasure and resolves to nothing. `deno check`, `tsc -p tsconfig.node.json` and
+`tsc -p tsconfig.browser.json` all accept it. The fix is one word per name: `import type`, or
+`verbatimModuleSyntax` in `tsconfig.json` to make the whole class a compile error.
+
+**This is our own `RT-R9`** (`spec/runtime-targets.md` section 4), which exists because W3 hit the
+identical shape — *a construct every typechecker accepts and Node's loader refuses* — inside this
+repository. It is a want rather than a blocker only because the npm package ships a bundle.
+
+**What (b) - `AGENTS.md` §3 is stale about `.ts` workers.** It says *"The file must be JavaScript.
+Node cannot import TypeScript, so a `.ts` worker fails with `Unknown file extension \".ts\"`. Compile
+your worker as part of your own build."* Measured: a worker with parameter types, a return type, an
+`interface` and `import type` runs under Node 24 in **both** `inline: true` and `inline: false`
+pools, and the same file runs under Deno. The §3 *"Cross-runtime code"* `typeof Deno !== 'undefined'`
+branch is unnecessary at Node >= 22.6.
+
+**Why it matters to a consumer**, and not only to us: §3's advice makes every Node consumer add a
+worker build step that Node has not needed for two major versions.
+
+**What we do without it.**
+[ADR 0013](decisions/0013-the-scheduler-is-a-development-dependency-reached-from-the-working-tree.md)
+rules 3 and 5 — **Node reads `dist/`, Deno reads the source**, and the gate checks the two are the
+same version. Cost: one build step next door and a freshness check we would not otherwise write.
+(b) costs nothing at all; W5 ships one `.ts` worker for both runtimes on the measurement rather than
+on the documentation.
+
+**This is the first item in this register that we have a reason to raise.** The paragraph above
+saying there was nothing left to raise was true when it was written and is no longer.
+
+---
+
 ## Raise order, and the joint items
 
 Revised **2026-08-30 against the landed 0.3.0 code**. **Four of the eight are settled and we raised
 none of them** — S4 implemented, S7 fixed better than asked, S8 declined-and-documented, S5
 deferred with our workaround intact. What is left:
 
-**There is nothing to raise today.** S1 was the last live item and it has been answered.
+**[S9](#s9--the-published-typescript-source-does-not-load-under-node-and-agentsmd-3-says-a-ts-worker-cannot-either)
+is the one to raise, and it is ready.** Both halves are one-line changes with a measurement behind
+them, and half (b) makes the reference *less* restrictive rather than more. Raise (a) and (b)
+together: they are the same fact about Node's type stripping seen from two sides.
 
 1. **S2 when a fan-out is real.** Much stronger with a measured number for wasted branch execution.
    Do not raise it on principle — and P1 is what would produce the number.

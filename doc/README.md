@@ -2,17 +2,45 @@
 
 ## Current state
 
-**[Q4](open-questions.md) is answered.** W1, W3 and W2 are done and **W4 is built**: `src/` holds
-the validator, the driver and the fold, `test/matrix/` holds the join/failure matrix, and
-[ADR 0003](decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md) records the
-result — **a join is satisfied when its region has no live branches.** 252 assertions, green in five
-runtimes. **W5 closes the plan**, and W4's spec-conformity pass is the one gate clause outstanding.
+**[P1](plans/p1-what-satisfies-a-join.md) is complete, and W5's spec-conformity pass is the one gate
+clause outstanding.** All five work items are built. [Q4](open-questions.md) is answered —
+[ADR 0003](decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md), **a join is
+satisfied when its region has no live branches** — and **W5 ran it on a real scheduler**:
+`p1-routed-away` completes under `live-token` and is **`stuck`** under `arrival-count`, with the
+join's successor never dispatched. **279 assertions in five runtimes, plus 72 at ladder L6 in two.**
 
-Four spec-conformity passes have run and every finding is acted on; blocking findings ran 4, then 5,
+**What W5 changed, beyond running the flow.** Three ADRs, and each came from a different kind of
+gap:
+
+- **[0013](decisions/0013-the-scheduler-is-a-development-dependency-reached-from-the-working-tree.md)
+  — the scheduler is a *development* dependency and the published library depends on it not at all.**
+  The repo had no dependency on it at all until now, deliberately. **Every one of the four facts it
+  rests on contradicted something written or assumed here**, and each was one command away:
+  `fyflow-scheduler`
+  **is** on npm and `@fyflow/scheduler` **is** on JSR (both at 0.2.1, so only 0.3.0 is unpublished);
+  Node **cannot** load the sibling's TypeScript source while Deno can; and a typed `.ts` worker
+  **does** run under Node 24, contrary to its `AGENTS.md` §3. The last two are
+  **[S9](scheduler-upstream.md)** — the first live upstream item since the register was declared
+  empty.
+- **[0014](decisions/0014-the-driver-produces-the-folds-ordered-input-sequence.md) — the driver
+  produces the fold's input sequence** ([Q41](open-questions.md)). `FoldInput` had five variants and
+  **`pathEnded` had no producer anywhere**; two of the six kinds were not observable from outside at
+  all, so no caller could have built the sequence. It is what makes L6 clock-free.
+- **[0015](decisions/0015-a-run-whose-join-can-no-longer-fire-is-stuck.md) — a run whose join can no
+  longer fire is `stuck`** ([Q42](open-questions.md), [Q43](open-questions.md)). Run state called
+  such a run `completed`. **Q43's own stated reason was false** — `regions` does *not* already hold
+  the data, because both policies produce an identical `regions` on that flow, which is exactly what
+  `RN-R6` guarantees. Found by trying to act on the register.
+
+**[Q33](open-questions.md) is answered and its leaning lost its own argument:** ladder L6 runs in
+**Node and Deno**, not Node only, because the premise *"a real worker file per runtime"* is false at
+Node 24. The browser half is [Q52](open-questions.md).
+
+Five spec-conformity passes have run and every finding is acted on; blocking findings ran 4, then 5,
 then 1, then 4 — and **no pass has yet come back empty**, which is the strongest thing this repo
 knows about its own process.
 
-**The four passes found the same shape four times: the code was correct and the tests were pointed
+**The first four found the same shape four times: the code was correct and the tests were pointed
 at the wrong half.** W1's pass found an assertion that could not fail; W3's second found a half of
 the system nothing asserted on (the join never fired); its third found a half of the *seam* nothing
 asserted on; W2's found five of the fold's own rules untestable, because the spec claimed what its
@@ -20,6 +48,13 @@ inputs could not supply and the **code narrowed itself until the claim was unobs
 than reporting the conflict. That last one is what `spec/README.md` rule 2 exists to catch, and it
 happened because W2 wrote both the spec and the code — **a spec authored by its implementer needs
 the conformity pass more, not less.**
+
+**W4 broke the pattern and W5 extended the break.** W4's eighteen cells were all correct and **every
+finding was at the edges** — the fake's fidelity, the harness's own reporting, an untested region
+shape. W5's were at the edges too, and two of them are new in kind: a **latent flake reported as a
+pass** (dropping the L6 harness's microtask boundary survived every assertion, because
+`scheduler.shutdown()` masked it), and a **claim in `open-questions.md` that was simply false**. The
+middle keeps being sound; what is not checked is the instrument and the prose.
 
 As of 2026-08-30: `doc/concept.md` is v0.2, **Q1 and Q2 are resolved** as
 [ADR 0001-0002](decisions/), **Q4 is deferred to a spike**, and
@@ -29,7 +64,7 @@ with five normative documents and answered [Q10](open-questions.md) and
 which became **[ADR 0004](decisions/0004-a-non-success-outcome-routes-only-where-an-edge-opts-in-and-user-action-suspends.md)**.
 **W3 built the driver and the validator**, and **W2 built the fold, both join policies and the
 sixth spec document** — answering [Q14](open-questions.md) and [Q25](open-questions.md).
-30 questions remain open.
+**28 questions remain open, 13 resolved.**
 
 **What is decided:** routing executes in the driver, outside the scheduler (0001) · the flow
 definition is data and predicates are registered by name, failing at instantiation (0002) · **a
@@ -38,10 +73,10 @@ resolution record resumes it** (0004) · the driver normalizes every event into 
 record at the listener boundary (0007) · pinned to `fyflow-scheduler` **0.3.0** (Q3) · **three
 runtimes from one source tree - Deno via JSR, Node >= 24 and the browser via npm** · and the
 normative layer itself, [`spec/`](../spec/README.md), six documents · **run state is a fold of our
-own log, and a run has five outcomes** (Q14's answer lives in `spec/run-state.md` rather than an
-ADR) · **a join is satisfied when its region has no live branches** (0003).
+own log, and a run has SIX outcomes** (Q14's answer lives in `spec/run-state.md` rather than an
+ADR; `stuck` is [ADR 0015](decisions/0015-a-run-whose-join-can-no-longer-fire-is-stuck.md)'s) · **a join is satisfied when its region has no live branches** (0003).
 
-**Upstream shipped: `fyflow-scheduler` 0.3.0 landed 2026-08-30** (not yet on npm) and this repo has
+**Upstream shipped: `fyflow-scheduler` 0.3.0 landed 2026-08-30** (npm and JSR both stop at 0.2.1 - measured by W5) and this repo has
 been re-verified against **the code, not the plan** — details and the S-id map in
 [scheduler-upstream.md](scheduler-upstream.md). Short version:
 
@@ -54,7 +89,8 @@ been re-verified against **the code, not the plan** — details and the S-id map
   timestamps arrived as a **mutable field on the live task**, which makes rule 1 protect *more* than
   it did at 0.2.1.
 - **[S1](scheduler-upstream.md) is answered** — the dead `parents` field stays dead and will
-  eventually be removed. **The upstream register now has nothing left to raise.**
+  eventually be removed. That left the register with nothing to raise, and **W5 changed that**:
+  [S9](scheduler-upstream.md) is live and ready.
 
 **[Q4](open-questions.md) is answered, and the answer is
 [ADR 0003](decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md): a join is
@@ -89,31 +125,35 @@ longer rests on our own reading. [S1](scheduler-upstream.md).
 
 **What happens next:**
 
-1. **[W5](plans/p1-what-satisfies-a-join.md) — one real fan-out flow on a real scheduler, and it
-   closes P1.** Four of five work items are done. W5 inherits five questions: [Q41](open-questions.md)
-   (nothing composes the fold's input sequence), [Q42](open-questions.md) (the stuck-join predicate
-   exists only in a test), [Q43](open-questions.md) (**run state calls a permanently stuck run
-   `completed`**), [Q44](open-questions.md) (what `spec/examples/` is for) and
-   [Q45](open-questions.md) (two fan-outs sharing an `end`).
-2. **Then P1's retro** — `doc/workflow.md` section 6 pass 3, and its first real test. Two proposals
-   are already waiting in W4's Record: that section 6's two questions are different enough to want
-   two readers, and that **four items in a row** have hit *"a declared output with no rung"*.
-3. **Four traps are live for whoever writes W5.**
+1. **W5's spec-conformity pass** — `doc/workflow.md` section 6, fresh context, spec first and code
+   second. **Five have run here and not one came back empty**, and this one reads an item that
+   changed `src/`, two `spec/` documents and the toolchain, and that wrote three ADRs. Budget for
+   it. W4's proposal — that section 6's two questions want two readers — is worth trying here,
+   because W5's two halves (a `src/` change and an L6 harness) suit the split.
+2. **Then P1's retro** — `doc/workflow.md` section 6 pass 3, its first real test, and it judges the
+   adaptations tabled at the end of `workflow.md`. **Five proposals are waiting in P1's Record**,
+   including two that are now five-for-five: *"a declared output with no rung"*, and *"a written
+   claim nobody ran"* — the second of which now has an instance in
+   [open-questions.md](open-questions.md) itself, which is the one artifact here read as
+   authoritative and checked by nothing.
+3. **[S9](scheduler-upstream.md) is ready to raise**, and it is the only live item in that register.
+   Two one-line changes with a measurement behind each: `import type` in
+   `core/threadWrapper.ts:5`, and `AGENTS.md` §3's claim that a Node worker must be JavaScript.
+4. **Five traps are live for whoever comes next.**
+   - **`JP-R7` and `JP-R8`** ([Q24](open-questions.md)) — the two one-line policy refinements, and
+     **the live question**. `test/matrix/variants.test.ts` runs both under their own ids. **W1 wrote
+     one of them itself** before a conformity pass caught it: neither belongs in
+     `src/fold/policies.ts` without its own decision.
    - **`FD-V14`** — the well-formedness rule whose *absence* keeps P1's case authorable, stated in
      the **all-paths** form because the *can-reach* form forbids nothing.
-   - **`JP-R7` and `JP-R8`** ([Q24](open-questions.md)) — the two one-line policy refinements. They
-     were traps *during* the spike, and with ADR 0003 written they are now the **live question**;
-     `test/matrix/variants.test.ts` runs both under their own ids. **W1 wrote one of them itself**
-     before a conformity pass caught it, so the trap half has not expired: neither belongs in
-     `src/fold/policies.ts` without its own decision.
    - **`OR-R1`** — where a `{...e.detail}` spread looks like compliance and is not.
-   - **A normative claim with no assertion.** W4 found that replacing the join's `null` payload
-     with `{}` survived all 251 assertions in five runtimes, though `spec/join-policy.md` section 4
-     spends a paragraph on why it must be `null`. **A rule with a rationale and no test is not
-     protected by either.**
-4. **Nothing upstream needs raising.** Every item in [scheduler-upstream.md](scheduler-upstream.md)
-   is closed, deferred with a costless workaround, or declined. S2 is the next candidate and P1 is
-   what would produce the number that justifies it.
+   - **A normative claim with no assertion.** W4 found the join's `null` payload could become `{}`
+     and survive 251 assertions; W5 found the driver's `joinSettled(fired: false)` could be deleted
+     and survive 278, because **neither shipped policy can reach it**. A seam with two exits and one
+     reachable needs a stub, not a real run.
+   - **`../fyflow-scheduler/dist/` goes stale silently**, and Node reads it while Deno reads the
+     source. `npm run check:scheduler` is the guard; it was written because the directory *was*
+     stale, behind a manifest reading `0.3.0`.
 
 **The fan-out gate is cleared** (`workflow.md` section 7 rule 3) — not because Q4 is answered, but
 because P1 builds both of its candidate answers, so W2 and W3 can be written without knowing which
@@ -126,23 +166,23 @@ wins.
 | [concept.md](concept.md) | **Read first.** What we are building, the substrate fact that shapes everything, and the one structural idea - run state is a pure fold of an event log |
 | [workflow.md](workflow.md) | **Read before any work item.** The loop, the verification ladder, the test rules, how work is split. Inherited and unproven - its adaptations are listed at the end for the first retro to judge |
 | [decisions/](decisions/) | ADR 0001, 0002, 0007. They bind `spec/` rather than being superseded by it - 0007 in particular is what [outcome-record.md](../spec/outcome-record.md) makes checkable |
-| [plans/p1-...](plans/p1-what-satisfies-a-join.md) | **The active plan.** Five work items, one exit artifact: does arrival-counting actually break |
-| [open-questions.md](open-questions.md) | The register. 32 open, 12 resolved |
+| [plans/p1-...](plans/p1-what-satisfies-a-join.md) | **Complete**, pending W5’s conformity pass. Five work items, and its Record carries the exit artifact and five proposals for the retro |
+| [open-questions.md](open-questions.md) | The register. **29 open, 13 resolved** - and **it is the one artifact here that is read as authoritative and checked by nothing**, which W5 found the hard way ([Q43](open-questions.md)) |
 | [scheduler-upstream.md](scheduler-upstream.md) | S1-S8, plus **the S-id map for reading `RESOURCE_EVENTS_PLAN.md`**, which uses `fyflow-react-components`' numbering. **Nothing here blocks us, and nothing is left to raise** |
 | [../spec/README.md](../spec/README.md) | **The normative layer.** Six documents, an example corpus, and the rules for changing it. Five written by W1, [run-state.md](../spec/run-state.md) by W2 |
-| [work-items/](work-items/) | One file per work item. [W1](work-items/w1-the-normative-layer.md), [W3](work-items/w3-the-driver-and-the-validator.md) and [W2](work-items/w2-the-fold-and-both-join-policies.md) **done**; [W4](work-items/w4-the-join-failure-matrix.md) **in review** - built, gated, ADR written, conformity pass outstanding; W5 not yet - [TEMPLATE.md](work-items/TEMPLATE.md) |
+| [work-items/](work-items/) | One file per work item. [W1](work-items/w1-the-normative-layer.md), [W3](work-items/w3-the-driver-and-the-validator.md), [W2](work-items/w2-the-fold-and-both-join-policies.md) and [W4](work-items/w4-the-join-failure-matrix.md) **done**; [W5](work-items/w5-one-real-fan-out-flow-on-a-real-scheduler.md) **in review** — built, gated at L6 in two runtimes, three ADRs written, conformity pass outstanding. [TEMPLATE.md](work-items/TEMPLATE.md) |
 
 ## Document status
 
 | Document | Status | Notes |
 |---|---|---|
 | `concept.md` | **v0.2** | Section 7's *"controlling a run from a UI"* non-goal now carries one narrow, cited exception (ADR 0004). Section 2 is the load-bearing part and is verified against the library rather than assumed - **re-checked unchanged at 0.3.0**. Section 3 was re-verified line by line at 0.3.0 and gained three constraints. Section 6's leanings are now two ADRs and one spike; the routing and definition rows there are **superseded by ADR 0001-0002** and should be read as history |
-| `open-questions.md` | live | **32 open, 12 resolved.** **Q4 and Q17 closed with W4**, Q14 and Q25 with W2. Q5, Q7 and Q24 all read differently now that Q4 is answered, and Q42-Q44 are what the matrix turned up |
+| `open-questions.md` | live | **28 open, 13 resolved.** **Q33, Q41, Q42, Q43 and Q51 closed with W5**; Q4 and Q17 with W4, Q14 and Q25 with W2. **Q24 is the live one.** Q44 and Q45 are narrowed rather than answered. **W5 found a register entry that was false** (Q43) — this file is read before every work item and checked by nothing, which is the retro’s |
 | `workflow.md` | **v0.2**, still unproven | **The ladder gained a runtime axis** (section 4) and section 8 now splits the budget: one runtime in the edit loop, all three at the plan gate. Never run here, and never run in the repo it came from either. P1's retro is its first real test, and the adaptation table at the end is what that retro should judge |
-| `decisions/` | **5 ADRs**, all accepted | None superseded. **0003 answers Q4** and carries this repository's first in-place *Correction* - a false statement inside a decision, found by both of W4's review passes and left visible per `decisions/README.md`. 0001, 0002 and 0003 all went to the stated leaning; 0007 and **0004** are the two no leaning predicted - and 0004 was raised by a *reader*, in W1's spec-conformity pass, rather than by an author |
-| `plans/p1` | **in progress — but its question is answered** | **W1, W3, W2 done and W4 built**, with [ADR 0003](decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md) as the result. 252 assertions in five runtimes - Node 24, Deno, chromium, firefox, webkit - identical in all of them. **W5 closes the plan.** W4 used Q42-Q44 and ADR 0003, skipping 0010-0012; W5 reserves from Q51 and 0013 |
-| `scheduler-upstream.md` | live | 8 items, **5 closed** (S1 answered, S3 declined by us, S4 done, S7 fixed, S8 declined by upstream), S5 deferred, S2/S6 waiting on a real need. **Nothing left to raise** |
-| `spec/` | **six documents** | `flow-definition` v0.6, `outcome-record` v0.5, `join-policy` v0.7, `runtime-targets` v0.6, `task-id` v0.3, **`run-state` v0.2**, plus 29 hand-written examples, a declared registry, and **66 numbered rules**. **Four conformity passes, all acted on.** `run-state` section 5 is the one thing to read if you read one section: it records three claims v0.1 made that its own inputs could not supply, rather than editing them away. L0 is `node scripts/check-spec.mjs` (eight checks) plus `check-source.mjs` (six) and `deno publish --dry-run` |
+| `decisions/` | **8 ADRs**, all accepted | None superseded. **0003 answers Q4** and carries this repository’s first in-place *Correction*. **W5 wrote 0013-0015 and is the first item to spend its whole ADR block** — one from measuring an environment, one from a gate that could not otherwise be written honestly, one from a register entry being wrong |
+| `plans/p1` | **complete — question answered and exit artifact produced** | All five work items built. [ADR 0003](decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md) is the answer; `examples/l6.ts` is the artifact. **279 assertions in five runtimes plus 72 at L6 in two.** W4 used Q42-Q50 and ADR 0003; **W5 used Q51-Q52 and ADR 0013-0015** |
+| `scheduler-upstream.md` | live | **9 items, 5 closed** (S1 answered, S3 declined by us, S4 done, S7 fixed, S8 declined by upstream), S5 deferred, S2/S6 waiting on a real need, and **[S9](scheduler-upstream.md) live and ready to raise** — found by W5, the first item to load the library rather than a structural stand-in for it |
+| `spec/` | **six documents** | `flow-definition` v0.6, `outcome-record` v0.5, `join-policy` v0.7, **`runtime-targets` v0.7**, **`task-id` v0.4**, **`run-state` v0.3**, plus 29 hand-written examples, a declared registry, and **71 numbered rules**. **Six conformity passes, all acted on.** `run-state` section 5 is the one thing to read if you read one section: **four** claims that their own inputs could not supply — and the fourth came from `open-questions.md` rather than from a spec. L0 is `check-spec.mjs` (eight checks), `check-source.mjs` (**ten**), **`check-scheduler.mjs` (five)** and `deno publish --dry-run` |
 
 ## Sibling repositories
 
@@ -176,4 +216,4 @@ Deliberate overlaps, which are coordination points rather than duplication:
 
 | P | Question it answered | Exit artifact | Date |
 |---|---|---|---|
-| [P1](plans/p1-what-satisfies-a-join.md) | *in progress* — does arrival-counting actually break when a branch is routed away from its join? | the branch-routed-away case run against both policies, plus one real fan-out flow | — |
+| [P1](plans/p1-what-satisfies-a-join.md) | **Yes — and worse than predicted.** Arrival-counting breaks on **six of nine** matrix rows, not on the one exotic case, and an ordinary `optional` failure is enough. Live tokens survive: [ADR 0003](decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md) | `test/matrix/matrix.test.ts` (18 hand-derived cells × 2 policies) and **`examples/l6.ts`** (6 real runs on a real scheduler, Node and Deno). The row that is the plan: `p1-routed-away` under `arrival-count` is **`stuck`**, with the join's successor never dispatched | 2026-08-30 |

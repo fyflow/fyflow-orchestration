@@ -21,8 +21,17 @@ import { parseTaskId } from '../driver/ids.ts';
  */
 export type NodeState = 'running' | 'done' | 'failed' | 'suspended';
 
-/** `spec/run-state.md` section 3. Closed, and ours — an author labels why a path ended, not what the run is. */
-export type RunOutcome = 'running' | 'completed' | 'failed' | 'awaiting_action' | 'stopped';
+/**
+ * `spec/run-state.md` section 3. Closed, and ours — an author labels why a path
+ * ended, not what the run is.
+ *
+ * **`stuck` is v0.3's sixth**, added by W5 under
+ * [ADR 0015](../../doc/decisions/0015-a-run-whose-join-can-no-longer-fire-is-stuck.md):
+ * nothing is live, nothing waits on a person, and a region's join has not fired,
+ * so nothing will ever move again. v0.2 called that run **`completed`**.
+ */
+export type RunOutcome =
+  | 'running' | 'completed' | 'failed' | 'awaiting_action' | 'stopped' | 'stuck';
 
 /** How a branch left its region. `null` while it is still live. */
 export type BranchSettlement = 'arrived' | 'exited' | 'lost';
@@ -43,6 +52,20 @@ export interface RegionRun {
   settled: Record<string, BranchSettlement>;
   /** Branch paths currently suspended — live, but waiting on a person. */
   suspended: string[];
+  /**
+   * Whether the driver **routed out of this region's join** — `true` fired,
+   * `false` the join was reported unsatisfiable and never will, `null` neither
+   * yet ([ADR 0015](../../doc/decisions/0015-a-run-whose-join-can-no-longer-fire-is-stuck.md)).
+   *
+   * **This is a routing fact, not a policy's conclusion**, so `RN-R6` still holds:
+   * two policies over the same region events produce the same `opened`,
+   * `settled` and `suspended`, and differ here because they made the driver *do*
+   * different things. It exists because they otherwise did not differ at all —
+   * on `p1-routed-away` every branch settles under both policies, so `settled` is
+   * `{ "0": "arrived", "1": "exited" }` either way and a stuck run was
+   * indistinguishable from a completed one.
+   */
+  joined: boolean | null;
 }
 
 export interface RunState {
@@ -90,12 +113,23 @@ export interface RunState {
  * Neither is a log record, and neither belongs in one: `spec/outcome-record.md`
  * section 1 fixes the log at two kinds. This is the fold's input sequence, which
  * already carried region events and a stop for the same reason.
+ *
+ * **`joinSettled` is W5's, and it is the third fact of this shape**
+ * ([ADR 0015](../../doc/decisions/0015-a-run-whose-join-can-no-longer-fire-is-stuck.md)):
+ * without it `completed` and `stuck` are the same fold, because on
+ * `p1-routed-away` both policies settle every branch and differ only in whether
+ * the driver routed out of the join.
+ *
+ * **`Driver.foldInputs()` is what produces this sequence** — ADR 0014, and
+ * [Q41](../../doc/open-questions.md). Until W5 nothing did, and `pathEnded` in
+ * particular had no producer anywhere.
  */
 export type FoldInput =
   | { kind: 'outcome' | 'resolution'; record: LogRecord }
   | { kind: 'region'; event: RegionEvent }
   | { kind: 'dispatched'; taskId: string }
   | { kind: 'pathEnded'; reason: 'end' | 'no-eligible-edge'; at: string }
+  | { kind: 'joinSettled'; regionId: string; joinId: string; fired: boolean }
   | { kind: 'stopped'; reason: string };
 
 export function emptyState(): RunState {
@@ -133,6 +167,14 @@ export function step(prev: RunState, input: FoldInput): RunState {
     return withOutcome({ ...prev, pathEnds: [...prev.pathEnds, { reason: input.reason, at: input.at }] });
   }
 
+  if (input.kind === 'joinSettled') {
+    const cur = prev.regions[input.regionId] ?? emptyRegion();
+    return withOutcome({
+      ...prev,
+      regions: { ...prev.regions, [input.regionId]: { ...cur, joined: input.fired } },
+    });
+  }
+
   const r = input.record;
   const { runId, nodeId, branchPath } = parseTaskId(r.taskId);
   const nodes = { ...prev.nodes };
@@ -164,12 +206,16 @@ export function step(prev: RunState, input: FoldInput): RunState {
   return withOutcome({ ...prev, runId: prev.runId ?? runId, nodes });
 }
 
+function emptyRegion(): RegionRun {
+  return { opened: [], settled: {}, suspended: [], joined: null };
+}
+
 function applyRegion(prev: RunState, e: RegionEvent): RunState {
   const regions = { ...prev.regions };
   const cur: RegionRun = regions[e.regionId]
     ? { ...regions[e.regionId]!, opened: [...regions[e.regionId]!.opened],
         settled: { ...regions[e.regionId]!.settled }, suspended: [...regions[e.regionId]!.suspended] }
-    : { opened: [], settled: {}, suspended: [] };
+    : emptyRegion();
 
   switch (e.type) {
     case 'branch.opened':
@@ -211,6 +257,22 @@ function withOutcome(s: RunState): RunState {
   if (nodes.some((n) => n.state === 'running')) return { ...s, outcome: 'running' };
   if (nodes.length === 0 && s.pathEnds.length === 0) return { ...s, outcome: 'running' };
 
+  // `RN-R10` — **`stuck` outranks `failed` and `completed`, and only those two.**
+  //
+  // Nothing is live and nothing waits on a person, so no further input can
+  // arrive; if a region's join has not fired, nothing downstream of it ever will.
+  // v0.2 reported that run as `completed`, which is the false statement
+  // [Q43](../../doc/open-questions.md) records and W5 measured on a real
+  // scheduler.
+  //
+  // It sits BELOW `awaiting_action` and `running` because both mean the run can
+  // still move — a suspended branch keeps its join legitimately waiting, which is
+  // the whole of `branch.suspended`'s reason for existing. It sits ABOVE `failed`
+  // because `failed` is a flow outcome an author asked for (a path ended with no
+  // eligible edge) while this is a defect nobody asked for: reporting `failed`
+  // would name a cause and hide that the run is not going to terminate.
+  if (Object.values(s.regions).some((r) => r.joined !== true)) return { ...s, outcome: 'stuck' };
+
   // Section 3's own words, and not "some node settled failed" — which is a
   // different proposition, and mislabels a failed node that ROUTED ON through an
   // `on: ["failed"]` edge to an `end`.
@@ -240,6 +302,23 @@ export function fold(inputs: readonly FoldInput[]): RunState {
 /** Convenience for a log with no region events — the shape most fixtures take. */
 export function foldLog(log: readonly LogRecord[]): RunState {
   return fold(log.map((r) => ({ kind: r.kind, record: r }) as FoldInput));
+}
+
+/**
+ * Whether a run can still change — the predicate an L6 harness resolves on, and
+ * the reason it needs no clock.
+ *
+ * `running` and `awaiting_action` are the two outcomes that say more input is
+ * coming: a dispatched node has not settled, or a person has not answered. Every
+ * other outcome is reached only when nothing is live, so the sequence is
+ * finished. **This is `stuck`'s point:** before
+ * [ADR 0015](../../doc/decisions/0015-a-run-whose-join-can-no-longer-fire-is-stuck.md)
+ * a permanently stuck run was `completed`, so a harness waiting on this predicate
+ * would have reported the hang as a success rather than waiting forever — which
+ * is the worse of the two failures.
+ */
+export function isTerminal(s: RunState): boolean {
+  return s.outcome !== 'running' && s.outcome !== 'awaiting_action';
 }
 
 /** A node's entry, or `null`. Not an outcome record: it has no `attempts` and no timing fields. */

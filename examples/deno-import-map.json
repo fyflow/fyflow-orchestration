@@ -1,0 +1,6 @@
+{
+  "_note": "ADR 0013 rule 3. Deno resolves the bare `fyflow-scheduler` specifier to the pinned 0.3.0 SOURCE next door, because no registry carries 0.3.0 and Deno - unlike Node - can load it. Deliberately NOT in deno.json: that file is the JSR publish manifest, and a path outside the package does not belong in what we publish. Passed with --import-map by the L6 scripts only.",
+  "imports": {
+    "fyflow-scheduler": "../../fyflow-scheduler/index.ts"
+  }
+}

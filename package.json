@@ -27,18 +27,22 @@
   "scripts": {
     "check:spec": "node scripts/check-spec.mjs",
     "check:source": "node scripts/check-source.mjs",
-    "lint": "deno lint src/ test/ index.ts",
+    "check:scheduler": "node scripts/check-scheduler.mjs",
+    "lint": "deno lint src/ test/ examples/ index.ts",
     "typecheck:node": "tsc -p tsconfig.node.json",
     "typecheck:browser": "tsc -p tsconfig.browser.json",
     "typecheck:deno": "deno check index.ts src/",
     "typecheck:tests": "tsc -p tsconfig.json",
-    "typecheck": "npm run typecheck:node && npm run typecheck:browser && npm run typecheck:deno && npm run typecheck:tests",
+    "typecheck:examples": "tsc -p tsconfig.examples.json",
+    "typecheck": "npm run typecheck:node && npm run typecheck:browser && npm run typecheck:deno && npm run typecheck:tests && npm run typecheck:examples",
     "test": "node test/runner.ts",
     "test:deno": "deno run --allow-read test/runner.ts",
     "build:browser-tests": "node scripts/build-browser-tests.mjs",
     "test:browser": "npm run build:browser-tests && node scripts/run-browser-tests.mjs",
     "test:browser:all": "npm run build:browser-tests && node scripts/run-browser-tests.mjs chromium firefox webkit",
-    "gate": "npm run check:spec && npm run check:source && npm run lint && npm run typecheck && npm run test && npm run test:deno && npm run test:browser"
+    "test:l6": "node examples/l6.ts",
+    "test:l6:deno": "deno run --import-map=examples/deno-import-map.json --allow-read --allow-net --allow-env examples/l6.ts",
+    "gate": "npm run check:spec && npm run check:source && npm run check:scheduler && npm run lint && npm run typecheck && npm run test && npm run test:deno && npm run test:browser && npm run test:l6 && npm run test:l6:deno"
   },
   "engines": {
     "node": ">=22"
@@ -47,6 +51,7 @@
   "devDependencies": {
     "@types/node": "^24.13.3",
     "esbuild": "^0.25.12",
+    "fyflow-scheduler": "file:../fyflow-scheduler",
     "playwright": "^1.62.1",
     "typescript": "^5.9.2"
   }
