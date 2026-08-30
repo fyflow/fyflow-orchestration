@@ -1,7 +1,8 @@
 # W_ — <one line, what this item delivers>
 
 **Status:** todo | in progress | in review | done
-**Plan:** [P_](../plans/p_-<slug>.md)
+**Plan:** `[P_](../plans/p_-<slug>.md)` — a real link once the plan exists; left as literal text
+here so a link checker does not chase the placeholder
 
 ```
 Spec:       spec/<file>.md section _        (or: none - this item defines it)

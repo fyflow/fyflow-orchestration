@@ -189,7 +189,8 @@ with a fresh context, spec first and code second, and it reports rather than fix
 
 **A leaning is not a decision, and a leaning's *argument* is worth checking before its conclusion
 is.** All four of `doc/concept.md` section 6's have now landed — two as ADRs, one as P1's spike, and
-run-state-as-a-fold as Q14's answer. The live example is elsewhere: **[Q33](doc/open-questions.md)'s
+run-state-as-a-fold as Q14's answer — **and all four went to the leaning**, which section 6 now says
+in place rather than leaving to a reader to notice. The live example is elsewhere: **[Q33](doc/open-questions.md)'s
 leaning said *L6 in Node only*, on the stated ground that L6 *"needs a real worker file per
 runtime"*, and that ground is false at Node 24.** W5 measured it in one command and the answer
 flipped. Citing a leaning as settled is the most likely way to get this wrong; inheriting the

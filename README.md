@@ -3,8 +3,10 @@
 Flow orchestration over [fyflow-scheduler](https://github.com/fyflow/fyflow-scheduler). Define a
 flow once; run thousands of workloads through it.
 
-> **Status: scaffolding.** There is no code yet. This repository currently holds the concept, the
-> open-question register, the workflow, and the tracking system the work will run through.
+> **Status: the layer is built and gated.** Sequence, decision routing, fan-out and join, with two
+> join policies, a definition validator, and run state as a pure fold. **288 assertions in five
+> runtimes** — Node 24, Deno, chromium, firefox, webkit — **plus 219 against a real scheduler** in
+> Node and Deno. Not published; no version has been released.
 
 ## The idea
 
@@ -22,13 +24,13 @@ join.
 
 The scheduler runs tasks. This repository decides **which task runs next, and why**.
 
-## The thing to know before reading the code that does not exist yet
+## The thing to know before reading the code
 
-**`fyflow-scheduler` has no dependency graph.** No `dependsOn`, no `parents`, no topological order -
+**`fyflow-scheduler` has no dependency graph.** No `dependsOn`, no `parents`, no topological order —
 its own reference lists them under *"Things that do NOT exist"*. Tasks are independent and run as
 soon as a worker slot and their resource limits allow.
 
-So every ordering primitive above - sequence, decision, fan-out, join - **is built here**, not
+So every ordering primitive above — sequence, decision, fan-out, join — **is built here**, not
 wrapped from below. The scheduler contributes execution, pooling, resource limits and retry. It
 contributes no control flow at all.
 
@@ -42,50 +44,79 @@ This matters because the planning document that seeded this repo
 
 The same invariant the sibling
 [fyflow-react-components](https://github.com/fyflow/fyflow-react-components) is built on, adopted
-deliberately. It is what makes a flow testable with no scheduler, no workers and no timers - feed a
-fixture log of task outcomes, assert where the run went - and what keeps durable runs an additive
+deliberately. It is what makes a flow testable with no scheduler, no workers and no timers — feed a
+fixture log of task outcomes, assert where the run went — and what keeps durable runs an additive
 change rather than a rewrite.
 
-## What it will ship
+It became executable in
+[ADR 0014](doc/decisions/0014-the-driver-produces-the-folds-ordered-input-sequence.md): the driver
+produces one ordered input sequence, and `fold(driver.foldInputs())` is the whole of turning a run
+into run state.
+
+## What is here
 
 | | |
 |---|---|
-| **Flow definition** | nodes bound to worker types, decision edges, fan-out and join - one template, many runs |
-| **Driver** | the only component that touches the scheduler: subscribes, routes, dispatches |
-| **Run state** | a fold: where a run is, what each node returned, what a join is waiting on |
-| **Examples** | a real flow against a real scheduler, decisions and a join included |
+| **Flow definition** | nodes bound to worker types, decision edges, fan-out and join — one template, many runs. **24 validation refusals**, every one with a failing example |
+| **Driver** | the only component that touches the scheduler: subscribes, routes, dispatches. The library imports the scheduler **nowhere** — a caller passes its own in |
+| **Run state** | a fold: where a run is, what each node returned, what a join is waiting on. **Six outcomes**, including `stuck` |
+| **Join policies** | `live-token` and `arrival-count`, behind one interface, both shipped |
+| **Examples** | [ladder L6](examples/) — thirteen real flows on a real scheduler, in Node and Deno |
 
-## Where it actually is
+## The hard question, and its answer
 
-Three questions gated everything. Two are decided:
-
-| | |
-|---|---|
-| **[ADR 0001](doc/decisions/0001-routing-executes-in-the-driver-outside-the-scheduler.md)** | Routing executes in the **driver**, outside the scheduler. A worker computes; it does not route |
-| **[ADR 0002](doc/decisions/0002-a-flow-definition-is-data-and-a-predicate-is-registered-by-name.md)** | A definition is **data**; a decision edge names a predicate, resolved against a registry, failing at instantiation |
-
-The third is **deliberately still open**, and it is the hard one.
-
-**Q4 — what satisfies a join?** "Wait for all the fan-out to return" breaks the moment a decision
+**Q4 — what satisfies a join?** *"Wait for all the fan-out to return"* breaks the moment a decision
 inside a branch routes it away from the join: the branch legitimately never arrives, an arrival
 counter never completes, and the run hangs with no error — while the scheduler reports itself idle.
 
-Live-token accounting answers that, and the argument was **refused as sufficient**.
-[P1](doc/plans/p1-what-satisfies-a-join.md) builds both policies behind one interface and lets the
-branch-routed-away case decide, as a test. If arrival-counting survives, the simpler mechanism wins.
+Live-token accounting answers that, and **the argument was refused as sufficient.**
+[P1](doc/plans/p1-what-satisfies-a-join.md) built both policies behind one interface and let the case
+decide, as a test.
+
+**[ADR 0003](doc/decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md): a join
+is satisfied when its region has no live branches, having had at least one.** The result was larger
+than the question — arrival-counting fails on **six of nine** matrix rows, not on the one exotic
+case, and **an ordinary `optional` task failing is enough**. Fixed-`N` is wrong whenever *"how many
+will arrive"* differs from *"how many opened"*, and every non-success outcome makes it differ.
+
+## Running it
+
+Node **24** (`.node-version`, selected with fnm) and a current Deno.
+
+```bash
+npm install
+npm run gate
+```
+
+**`npm install` requires [`fyflow-scheduler`](https://github.com/fyflow/fyflow-scheduler) checked out
+beside this repository**, at `../fyflow-scheduler`. It is pinned to **0.3.0**, which is on no
+registry — npm and JSR both stop at 0.2.1 — so it is reached from the working tree next door. That is
+a development dependency only: **the published library depends on the scheduler not at all**, and a
+consumer installs whichever version it wants.
+[ADR 0013](doc/decisions/0013-the-scheduler-is-a-development-dependency-reached-from-the-working-tree.md).
+
+| | |
+|---|---|
+| `npm run gate` | everything below, in order |
+| `npm test` · `npm run test:deno` · `npm run test:browser:all` | 288 assertions, five runtimes |
+| `npm run test:l6` · `npm run test:l6:deno` | a real scheduler, thirteen flows |
 
 ## Documentation
 
 Start at **[doc/README.md](doc/README.md)** — current state, reading order, and what happens next.
 
 - [doc/concept.md](doc/concept.md) — what we are building and why
-- [doc/decisions/](doc/decisions/) — ADR 0001, 0002, 0007 — the contract until `spec/` exists
-- [doc/plans/p1-...](doc/plans/p1-what-satisfies-a-join.md) — the active plan
-- [doc/open-questions.md](doc/open-questions.md) — the register (18 open, 5 resolved)
+- [spec/](spec/README.md) — **the normative layer**: six documents, 71 numbered rules, 29 hand-written examples
+- [doc/decisions/](doc/decisions/) — eight ADRs
+- [doc/plans/](doc/plans/) — P1 (complete) and P2 (in progress)
+- [doc/open-questions.md](doc/open-questions.md) — the register
 - [doc/workflow.md](doc/workflow.md) — how work is planned, split and verified
 - [doc/scheduler-upstream.md](doc/scheduler-upstream.md) — what we want from the scheduler
-- [spec/](spec/) — the normative layer (empty; the first plan fills it)
+
+**How the work is done is itself documented and is unusual**: every change is a declared work item
+with its own gate, and every one is read afterwards by two reviewers who did not write it — one
+against the spec, one by mutation. **Thirteen such passes have run and not one has come back empty.**
 
 ## Licence
 
-Not yet decided.
+MIT, as declared in `package.json` and `deno.json`. **There is no `LICENSE` file yet.**

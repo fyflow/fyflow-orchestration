@@ -1,7 +1,9 @@
 # Concept
 
-**Status:** v0.2 - written 2026-08-29, section 3 re-verified against `fyflow-scheduler` 0.3.0 on
-2026-08-30. No code exists.
+**Status:** v0.3 - written 2026-08-29, section 3 re-verified against `fyflow-scheduler` 0.3.0 on
+2026-08-30. **v0.3 updates section 6 only**: all four of its leanings have now landed, and the table
+said two of them were still open. The rest of this document has held up and is unchanged - which is
+the more interesting half, since it was written before a line of code existed.
 **Read this before any plan.** It states what we are building, the one fact about the substrate
 that shapes everything, and the one structural idea the rest of the repo hangs off.
 
@@ -155,10 +157,13 @@ what turns unordered reality into that ordered log.
 
 Three clusters, and they are not equally hard.
 
-**The join is the hard one.** "Wait for all the fan-out to return" has more than one meaning, and
-the interesting case is a **decision inside a fan-out branch that routes away from the join** - a
-static "wait for N arrivals" then waits forever. Live-token accounting answers it; expected-arrival
-counting does not. Q4-Q7.
+**The join is the hard one — and it is now answered.** "Wait for all the fan-out to return" has
+more than one meaning, and the case this section named is a **decision inside a fan-out branch that
+routes away from the join**, where a static "wait for N arrivals" waits forever.
+[ADR 0003](decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md) settled it by
+measurement: **live tokens**. What this paragraph got wrong is not the answer but the size of the
+problem — arrival-counting fails on **six of nine** matrix rows, and only one of them is the case
+named here. An ordinary `optional` task failing is enough. Q5-Q7 remain, narrowed.
 
 **The definition's nature is the fork with the widest blast radius.** Data, code, or data with
 registered predicates - it decides whether runs can be persisted, rendered, and versioned at all.
@@ -175,12 +180,20 @@ leaning:**
 |---|---|---|---|
 | Routing locus | the driver, not in-worker spawn | spawn cannot join, and in-worker routing scatters the flow across worker code | **decided** — [ADR 0001](decisions/0001-routing-executes-in-the-driver-outside-the-scheduler.md) |
 | Definition | data, predicates by registered name | mirrors how `workerType` already resolves against `workerPools` | **decided** — [ADR 0002](decisions/0002-a-flow-definition-is-data-and-a-predicate-is-registered-by-name.md) |
-| Join | live-token accounting | it is the only form that survives a branch being routed away | **not decided.** The argument was refused as sufficient; [P1](plans/p1-what-satisfies-a-join.md) builds both policies and lets a test decide |
-| Run state | a fold of an event log | keeps persistence additive | **still a leaning** — Q14, tested by P1's W2 |
+| Join | live-token accounting | it is the only form that survives a branch being routed away | **decided** — [ADR 0003](decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md), by W4's matrix rather than by this argument |
+| Run state | a fold of an event log | keeps persistence additive | **decided** — Q14, answered in `spec/run-state.md` section 1 by W2, and made executable by [ADR 0014](decisions/0014-the-driver-produces-the-folds-ordered-input-sequence.md) |
 
-The join row is the one to notice. Two leanings won on arguments drawn from the library's own
-behaviour; the third rests on a hypothetical case nobody has run, which is a different quality of
-evidence wearing the same confident prose.
+**All four landed, and all four went to the leaning.** That is worth noticing rather than
+celebrating: a leaning that always wins is a leaning that was doing the deciding. Q4 was supposed to
+be the check on it — P1 built the losing policy rather than describing it, and put a matrix in front
+of both — and it agreed.
+
+**The paragraph this replaces was right about the evidence and wrong about the conclusion.** It said
+the join leaning *"rests on a hypothetical case nobody has run, which is a different quality of
+evidence wearing the same confident prose."* The case has now been run twice — at ladder L5 against a
+fake scheduler and at L6 against a real one — and the leaning survived both. What the running
+changed was the **shape** of the answer: the failure is ordinary rather than exotic, which no amount
+of leaning produced.
 
 ## 7. Explicit non-goals for the first set
 
