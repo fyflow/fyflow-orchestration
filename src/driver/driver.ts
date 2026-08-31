@@ -607,11 +607,30 @@ export class Driver {
     if (policy && this.joinState.has(e.regionId)) {
       this.joinState.set(e.regionId, policy.step(this.joinState.get(e.regionId), e));
     }
+    // **`OR-R7` and ADR 0014 — every value the driver hands outward is a frozen
+    // copy, and `onRegionEvent` was the one path that was not** ([Q73](../../doc/open-questions.md)).
+    // It received `e` itself: the object `append` was about to store, so a
+    // listener writing `e.branchPath` rewrote the driver's own `inputs` and the
+    // folded `regions` with it. Measured, not read — `snapshot()`, `foldInputs()`
+    // and `onFoldInput` all froze and this did not.
+    //
+    // **One copy, frozen, stored AND handed out**, so `onRegionEvent` and a later
+    // `foldInputs()` reader cannot be shown different objects. A `RegionEvent`'s
+    // fields are all primitives — checked against **`./events.ts`**, which is what
+    // establishes it; `spec/join-policy.md` section 2 lists the field names and no
+    // types, so citing it for this would be citing the wrong thing (W12's
+    // conformity reader). A shallow freeze is therefore the whole copy, and if
+    // that stops being true `freezeInput` is already wrong in the same way.
+    //
+    // The POLICY is still stepped with `e` above, deliberately: a policy is ours
+    // in a way a listener is not, and freezing what the seam sees is a separate
+    // question this item does not answer.
+    const event = Object.freeze({ ...e }) as RegionEvent;
     // The policy is stepped first and the sequence records second, so that a
     // `onFoldInput` listener asking `joinStatusOf` sees the status this event
     // produced rather than the one before it.
-    this.append({ kind: 'region', event: e });
-    this.opts.onRegionEvent?.(e);
+    this.append({ kind: 'region', event });
+    this.opts.onRegionEvent?.(event);
   }
 
   /**

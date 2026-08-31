@@ -651,9 +651,61 @@ After a refusal the run is **stopped**: nothing routes for it again, and its sta
 - **Retaining a scheduler event's `detail`.** It is the live task object and it mutates — including
   its `timestamp`, so a retained detail reports the *most recent* event's time. `{...e.detail}` is
   **not** compliance: it still aliases `result` and `error`. The driver copies at the listener
-  boundary, so records from `snapshot()` and inputs from `foldInputs()`/`onFoldInput` are frozen
-  and safe. **`onRegionEvent` is the exception** — it hands you the driver's own live object, and
-  mutating it corrupts the fold ([Q73](doc/open-questions.md)). Copy what you need from it.
+  boundary, so the four values that carry the run — records from `snapshot()`, inputs from
+  `foldInputs()` and `onFoldInput`, and events from `onRegionEvent` — are **frozen copies**, safe to
+  hold. **The other accessors return copies that are not frozen** (`dispatchedIds()`,
+  `regionsForPolicies()`, `effectiveOutcomeOf()`, `terminalStateOf()`): writing to one changes
+  nothing in the driver, but it is not a document to edit and hand back.
+- **Assuming `joinStatusOf().describe` is yours.** It is whatever **your** policy's `describe()`
+  returned. The two shipped policies return a fresh object; a policy that returns its own state hands
+  you that state, and writing to it changes what the join decides. Return a copy from `describe()`
+  — [Q82](doc/open-questions.md).
+
+The first half of that is executed rather than asserted:
+
+```ts run
+import { Driver, type FlowDefinition } from 'fyflow-orchestration';
+
+const listeners: ((e: { detail: unknown }) => void)[] = [];
+const scheduler = {
+  addTask() {},
+  addEventListener(_t: string, f: (e: { detail: unknown }) => void) { listeners.push(f); },
+};
+const flow = {
+  flowId: 'f', version: 1, entry: 'a',
+  nodes: [
+    { id: 'a', kind: 'task', workerType: 'W', edges: [{ to: 'split' }] },
+    { id: 'split', kind: 'fanout', branches: ['b', 'c'] },
+    { id: 'b', kind: 'task', workerType: 'W', edges: [{ to: 'j' }] },
+    { id: 'c', kind: 'task', workerType: 'W', edges: [{ to: 'j' }] },
+    { id: 'j', kind: 'join', of: 'split', edges: [{ to: 'e' }] },
+    { id: 'e', kind: 'end', outcome: 'completed' },
+  ],
+} as unknown as FlowDefinition;
+
+const frozen: Record<string, boolean> = {};
+const driver = new Driver(flow, {
+  scheduler, createTask: (c) => c, predicates: new Map(), workerTypes: ['W'],
+  joinPolicy: { id: 'p', open: () => 0, step: (s: number) => s, status: () => 'waiting', describe: () => ({}) },
+  onRegionEvent: (e) => { frozen.onRegionEvent = Object.isFrozen(e); },
+  onFoldInput: (i) => { frozen.onFoldInput = Object.isFrozen(i); },
+});
+driver.start('run-1', {});
+// One settlement, delivered the way the scheduler delivers it, so the fan-out opens.
+const task = { id: 'run-1:a:-:0', state: 'done', result: null, attempts: 0,
+  timestamp: 1, startTime: 1, endTime: 2, executionTime: 1 };
+for (const f of listeners) f({ detail: task });
+
+frozen.snapshot = Object.isFrozen(driver.snapshot()) && driver.snapshot().every(Object.isFrozen);
+frozen.foldInputs = Object.isFrozen(driver.foldInputs()) && driver.foldInputs().every(Object.isFrozen);
+console.log(frozen);   // all four true
+for (const [name, isFrozen] of Object.entries(frozen)) {
+  if (!isFrozen) throw new Error(`${name} handed out something you can write to`);
+}
+if (Object.keys(frozen).length !== 4) {
+  throw new Error(`expected all four paths to be exercised, saw ${Object.keys(frozen).join()}`);
+}
+```
 - **Subscribing to the scheduler yourself and counting `task.failed`.** A `user_action` task fires
   it *and* `task.user_action`. Key on the terminal state — section 7.
 - **Sharing one `Driver` between runs, or one scheduler between `Driver`s.** Section 9. The second

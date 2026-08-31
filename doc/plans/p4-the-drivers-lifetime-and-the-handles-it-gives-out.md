@@ -87,7 +87,7 @@ share the file.
 | `src/driver/driver.ts` | W3 | **W12**, then **W13** | the defects are in it. W12 touches `emit()` only; W13 rewrites the lifetime. **Serial, never concurrent** — that is the whole reason this is two items and not a merge |
 | `test/driver/**` | W3 | **W12**, then **W13** | a fix without its test is not a work item (section 1 rule 2) |
 | `spec/task-id.md` | W1 | **W13** | `ID-R2`, `ID-R3` and the new inbound rule are all in it. **A spec change is its own change with its rationale stated** — here, ADR 0022 and 0023 |
-| `AGENTS.md` | W9 | **W13** | the three apologies are deleted **by this item**, and the gate proves the snippets still run. Deleting them is part of the fix, not follow-up |
+| `AGENTS.md` | W9 | **W13**, and **W12 for §10's one sentence** | the three apologies are deleted **by the item that makes each one false**, and the gate proves the snippets still run. Deleting them is part of the fix, not follow-up. W12 takes §10's `onRegionEvent` exception as a **declared exception** rather than as `Owns`, because one sentence is not a takeover |
 | `test/matrix/run.ts` | W4 | **W13** | two call sites, from the surface change. Nothing about the matrix changes |
 | `examples/**` | W5, then W6 | **W14** | the exit artifact is an L6 row, and `run-flow.ts` needs a two-driver shape it does not have |
 
