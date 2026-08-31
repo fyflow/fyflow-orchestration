@@ -4,7 +4,7 @@ Flow orchestration over [fyflow-scheduler](https://github.com/fyflow/fyflow-sche
 flow once; run thousands of workloads through it.
 
 > **Status: the layer is built and gated.** Sequence, decision routing, fan-out and join, with two
-> join policies, a definition validator, and run state as a pure fold. **One driver serves one run, fixed at construction, and two drivers may share a scheduler.** **326 assertions in five
+> join policies, a definition validator, and run state as a pure fold. **One driver serves one run, fixed at construction, and two drivers may share a scheduler.** **370 assertions in five
 > runtimes** — Node 24, Deno, chromium, firefox, webkit — **plus 240 against a real scheduler** in
 > Node and Deno. Not published; no version has been released.
 
@@ -98,7 +98,7 @@ consumer installs whichever version it wants.
 | | |
 |---|---|
 | `npm run gate` | everything below, in order |
-| `npm test` · `npm run test:deno` · `npm run test:browser:all` | 326 assertions, five runtimes |
+| `npm test` · `npm run test:deno` · `npm run test:browser:all` | 370 assertions, five runtimes |
 | `npm run test:l6` · `npm run test:l6:deno` | a real scheduler, fifteen runs |
 
 ## Documentation

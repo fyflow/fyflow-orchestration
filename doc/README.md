@@ -7,7 +7,7 @@ its retro is run.** [Q4](open-questions.md) is answered:
 [ADR 0003](decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md), **a join is
 satisfied when its region has no live branches** — and **W5 ran it on a real scheduler**, where
 `p1-routed-away` completes under `live-token` and is **`stuck`** under `arrival-count`, with the
-join's successor never dispatched. **326 assertions in five runtimes, plus 240 at ladder L6 in two.**
+join's successor never dispatched. **370 assertions in five runtimes, plus 240 at ladder L6 in two.**
 
 **The retro is in [P1's Record](plans/p1-what-satisfies-a-join.md) and `doc/workflow.md` is v0.3.**
 Its central measurement, which should shape how the next plan reads that document: **of the eight
@@ -55,8 +55,8 @@ gap:
 **Node and Deno**, not Node only, because the premise *"a real worker file per runtime"* is false at
 Node 24. The browser half is [Q52](open-questions.md).
 
-**[P3](plans/p3-a-consumer-reference-the-gate-keeps-true.md) is COMPLETE and its retro is run —
-`doc/workflow.md` is v0.5.** [AGENTS.md](../AGENTS.md) is the consumer reference and every snippet in
+**[P3](plans/p3-a-consumer-reference-the-gate-keeps-true.md) is COMPLETE and its retro is run — it is
+what made `doc/workflow.md` v0.5.** [AGENTS.md](../AGENTS.md) is the consumer reference and every snippet in
 it is extracted, typechecked and executed by `npm run gate`. **The answer to its question is yes, and
 the number is 16%** — the gate covers the snippets and not the sentences between them, and W9's
 response was to move the load-bearing claims **into** assertions rather than to guard the prose.
@@ -175,27 +175,40 @@ longer rests on our own reading. [S1](scheduler-upstream.md).
 1. **[S9](scheduler-upstream.md) is ready to raise**, and it is the only live item in that register.
    Two one-line changes with a measurement behind each: `import type` in
    `core/threadWrapper.ts:5`, and `AGENTS.md` §3's claim that a Node worker must be JavaScript.
-2. **A feature plan starts from [Q24](open-questions.md)** — `JP-R7` and `JP-R8`, which
-   ADR 0003 names as the first thing a reader should look at. It stays the live **feature** question;
-   P4 is deliberately a defect plan. The other candidates are
-   [Q6](open-questions.md) (nested fan-out, nearly free under `live-token`) and
-   [Q12](open-questions.md) (map-style fan-out, which makes the count dynamic).
+2. **[P5](plans/p5-a-third-and-fourth-policy-or-repairs-of-the-first-two.md) is the feature plan and
+   it is running.** [W15](work-items/w15-the-fourth-column-and-the-chain-nothing-runs.md) is
+   **built and its gate is green** — the matrix renders at **four columns**, `JP-R7`'s and `JP-R8`'s
+   variants are asserted as **exact row lists** rather than counts, and the `unsatisfiable` chain
+   runs end to end for the first time (**370** assertions in five runtimes, up from 326). **Both its
+   readers have run and every finding is acted on** — between them they found that the two things
+   W15 *created*, the render and the two promoted variant policies, were the least-guarded things in
+   the item.** Then **W16 takes ADR 0025** — the Q24 decision, which W15 was built first
+   in order not to prejudge — and **W17 puts the `all-exit` row on real workers**, which L6 has never
+   had. The other feature candidates stay where they were: [Q6](open-questions.md) (nested fan-out,
+   nearly free under `live-token`) and [Q12](open-questions.md) (map-style fan-out, which makes the
+   count dynamic).
 3. **Read `doc/workflow.md` v0.6 first**, and in particular the things three retros have refused to
    turn into rules — those are the ones most likely to bite. **A register row you are about to act
    on is unverified until you have**, and P4 is the third plan in a row to find one wrong by trying
    to act on it.
 4. **Five traps are live for whoever comes next.**
    - **`JP-R7` and `JP-R8`** ([Q24](open-questions.md)) — the two one-line policy refinements, and
-     **the live question**. `test/matrix/variants.test.ts` runs both under their own ids. **W1 wrote
-     one of them itself** before a conformity pass caught it: neither belongs in
-     `src/fold/policies.ts` without its own decision.
+     **the live question**. They live in `test/matrix/variants.ts` and W15 runs both as **columns of
+     the matrix**, under their own ids. **W1 wrote one of them itself** before a conformity pass
+     caught it: neither belongs in `src/fold/policies.ts` without its own decision — and W15
+     measured a reason to keep them apart that the counts hid, **[Q91](open-questions.md)**:
+     `JP-R7`'s variant fires a join **zero branches reached**, which is the exact defect `JP-R8`
+     removes.
    - **`FD-V14`** — the well-formedness rule whose *absence* keeps P1's case authorable, stated in
      the **all-paths** form because the *can-reach* form forbids nothing.
    - **`OR-R1`** — where a `{...e.detail}` spread looks like compliance and is not.
    - **A normative claim with no assertion.** W4 found the join's `null` payload could become `{}`
      and survive 251 assertions; W5 found the driver's `joinSettled(fired: false)` could be deleted
      and survive 278, because **neither shipped policy can reach it**. A seam with two exits and one
-     reachable needs a stub, not a real run.
+     reachable needs a stub, not a real run. **W15 found the third of these and it is still open**:
+     the `at most once` latch on the driver's `unsatisfiable` path can be deleted and **all 361
+     assertions still pass**, because the only policy that can say `unsatisfiable` says it on the
+     last terminal event — so nothing follows to re-enter the seam ([Q95](open-questions.md)).
    - **`../fyflow-scheduler/dist/` goes stale silently**, and Node reads it while Deno reads the
      source. `npm run check:scheduler` is the guard; it was written because the directory *was*
      stale, behind a manifest reading `0.3.0`.
@@ -209,7 +222,7 @@ wins.
 | | |
 |---|---|
 | [concept.md](concept.md) | **Read first.** What we are building, the substrate fact that shapes everything, and the one structural idea - run state is a pure fold of an event log |
-| [workflow.md](workflow.md) | **Read before any work item.** The loop, the verification ladder, the test rules, how work is split. **v0.5, run to completion by three plans** - the adaptation tables at the end carry a verdict per row from P1, P2 and P3, and stay for the next plan to re-judge |
+| [workflow.md](workflow.md) | **Read before any work item.** The loop, the verification ladder, the test rules, how work is split. **v0.6, run to completion by four plans** - the adaptation tables at the end carry a verdict per row from P1, P2 and P3, and stay for the next plan to re-judge |
 | [decisions/](decisions/) | ADR 0001, 0002, 0007. They bind `spec/` rather than being superseded by it - 0007 in particular is what [outcome-record.md](../spec/outcome-record.md) makes checkable |
 | [plans/p1-...](plans/p1-what-satisfies-a-join.md) | **Complete.** Five work items, and its Record carries the exit artifact and five proposals for the retro |
 | [plans/p2-...](plans/p2-the-non-success-half-on-a-real-scheduler.md) | **Complete, and its Record carries the retro that made this document v0.4.** One question, one work item, no new features. Two facts measured before it was written, both of which changed it |

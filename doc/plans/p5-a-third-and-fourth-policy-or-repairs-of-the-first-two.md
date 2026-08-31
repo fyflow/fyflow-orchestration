@@ -1,6 +1,6 @@
 # P5 — A third and fourth policy, or repairs of the first two?
 
-**Status:** declared — W15-W17 declared, none started
+**Status:** running — **W15 done: built, gated, both readers run and acted on**; W16 and W17 declared, not started
 **Question this plan answers:** [Q24](../open-questions.md) — *are `JP-R7` and `JP-R8` a third and
 fourth join policy, or repairs of the first two?* The sub-question that decides it, and the one the
 measurements below make visible: **should the policy this library tells you to pass be able to say
@@ -42,7 +42,7 @@ plans running have each found a row wrong by trying to act on it, and this is th
 | **a claim in ADR 0003 and in the register is false** | both say `JP-R7` *"repairs **only** the row P1 named"*. It repairs three. **The ADR's own *Correction* already carries the refutation** — it says `optional-null` and `all-exit` are branch-index permutations of `routed-away` — so the false sentence has been sitting beside its own disproof since P1. The register is corrected; the ADR is W4's file and is **W16**'s, as a *Correction* |
 | **`stuck` does not distinguish reported from silent** | `withOutcome` maps `joined !== true` to `stuck`, so a run whose join was **reported** unsatisfiable and one whose join is **silently** waiting forever are the same outcome. The difference lives in `regions[*].joined` (`false` vs `null`) and in whether `onUnsatisfiableJoin` fired — **and that callback is optional**, so a consumer who omits it learns nothing at all |
 | **L6 has no `all-exit` row** | fourteen rows — **thirteen `key:` entries in `EXPECTED[]` plus the two-driver pair row, which is constructed outside that array** — over four flows in `examples/flows/`, and in none of them does every branch reach an `end`. So the row this whole question is about has never run on real workers, under either policy. **Nor has any L6 row ever reached `joined: false`**: every `stuck` there is the silent `null` kind |
-| **adding a policy to `POLICIES` is a public-surface change** | four assertions pin the set to exactly two (`test/fold/policies.test.ts:228`, `test/matrix/matrix.test.ts:330`, `test/matrix/variants.test.ts:139`, and `examples/l6.ts:76`'s `policyId` union), and `AGENTS.md:284`'s snippet prints it. **`index.ts` needs no edit** — it is `export *` over `src/fold/policies.ts` |
+| **adding a policy to `POLICIES` is a public-surface change** | four assertions pin the set to exactly two (`test/fold/policies.test.ts:228`, `test/matrix/matrix.test.ts:330`, `test/matrix/variants.test.ts:119`, and `examples/l6.ts:76`'s `policyId` union), and `AGENTS.md:284`'s snippet prints it. **`index.ts` needs no edit** — it is `export *` over `src/fold/policies.ts` |
 | **and one thing that snippet does NOT check** | `AGENTS.md:284` is ` ```ts run `, so it executes — but its expected value is a **trailing comment**, `// [ 'arrival-count', 'live-token' ]`, and `check-docs` asserts nothing about it. A third policy would leave that line silently false with the gate green. P3's finding, one layer down: **an output comment in a `run` snippet is prose** |
 
 **What the measurement changed.** Q24 reads as one question about two symmetric refinements, and the
@@ -206,6 +206,37 @@ the register is Q90.
 ## Record
 
 *Filled in when the plan's items are merged and its retro is run.*
+
+**Progress.** [W15](../work-items/w15-the-fourth-column-and-the-chain-nothing-runs.md) is **done**:
+L0-L5 green in all five runtimes (**370** assertions, up from 326; `test/matrix/**` is 91 in four test
+files), **both readers run and every finding acted on** — 4 defects and 5 blocking mutation families,
+with **1 overlap**. It took **no decision and wrote no spec**, which was the fan-out gate. Its full
+Record is in the item; **four things belong to this plan rather than to it**:
+
+1. **[Q91](../open-questions.md) is evidence W16 is entitled to and did not have.** `JP-R7`'s variant
+   fires a join **zero branches reached** on `all-exit` — `need` decremented to 0 against an empty
+   `arrived` — which is the exact cost [ADR 0003](../decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md)
+   records for `live-token` and the exact thing `JP-R8` removes. **The refinements are not merely
+   asymmetric in size; they point in opposite directions**, and the counts *three* and *one* that
+   this plan was declared from did not show it. ADR 0025 has to rule on that, and the plan's
+   *"adopting `JP-R8` and refusing `JP-R7` is the outcome the measurements point at"* now has a
+   second, independent reason — which is exactly why W16 *"is not entitled to inherit it"*.
+2. **[Q94](../open-questions.md) is W16's and is one paste.** ADR 0003 carries a hand-copied
+   **two**-column matrix; `test/matrix/render.ts` now emits four. The divergence arrived because the
+   artifact was extended, not because anyone edited the ADR.
+3. **Rule 7 (c) is still unexercised, for the third plan running.** W15 added no check script and
+   said so in its `Out` list rather than leaving the retro to find it. **W16 or W17 must add one, or
+   this plan's retro reports it a third time.**
+4. **P4's retro prediction 1 has its first answer and it is not the predicted one.** The prediction
+   was that rule 8's *write to the rule* form would produce **fewer reader survivors in the
+   provocation family**. W15's author set was **not** narrow in the old direction — it was complete on
+   the rules and found the one code-level survivor ([Q95](../open-questions.md)) — and both readers
+   still found blocking gaps, because **every probe written to a rule mutates something the suite
+   reads, and neither of the things W15 CREATED was read by the suite**. The renderer was a script
+   the gate never executes; the variants were promoted to columns without inheriting a single
+   clause-level test. **The amendment is right and it is not sufficient**, and the missing half has a
+   name: the `Outputs` table asks a question about the *deliverable*, and the provocation set answers
+   one about the *code*. One sample, and the retro should say so rather than amending again.
 
 **Four things P4 left for this plan's retro**, carried here so they are not lost:
 

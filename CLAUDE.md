@@ -15,7 +15,7 @@ the only document that does. **Every snippet in it is extracted and executed by 
 (`scripts/check-docs.mjs`), so it cannot rot the way a hand-maintained reference does. If you change
 the public surface, that check is what tells you the reference is now wrong.
 
-## Current state: **P1-P4 are complete and retro'd; [Q24](doc/open-questions.md) is the live question**
+## Current state: **P1-P4 are complete and retro'd; [P5](doc/plans/p5-a-third-and-fourth-policy-or-repairs-of-the-first-two.md) is running on [Q24](doc/open-questions.md)**
 
 [ADR 0001, 0002 and 0007](doc/decisions/) settle the architecture so far: **routing executes in the
 driver, outside the scheduler** — a worker computes and does not route, and `context.spawnTask()` is
@@ -28,9 +28,9 @@ details are live mutable objects and `task.failed` also fires for `user_action` 
 **[P1](doc/plans/p1-what-satisfies-a-join.md)'s five work items are all built.** `spec/` holds **six
 normative documents and 72 numbered rules**; `src/` holds the definition validator, the driver and
 the fold with **both** join policies; `test/matrix/` holds the join/failure matrix; `examples/` holds
-ladder **L6**. **326 assertions in five runtimes** — Node 24, Deno, chromium, firefox, webkit —
-identical in all of them, **plus 240 at L6 in Node and Deno**. **`doc/workflow.md` is v0.5**, run to
-completion by three plans.
+ladder **L6**. **370 assertions in five runtimes** — Node 24, Deno, chromium, firefox, webkit —
+identical in all of them, **plus 240 at L6 in Node and Deno**. **`doc/workflow.md` is v0.6**, run to
+completion by four plans.
 
 **[P2](doc/plans/p2-the-non-success-half-on-a-real-scheduler.md) is complete and added no features.**
 Ladder L6 is **fourteen rows, 240 assertions**, in Node and Deno, and **all six run outcomes and all
@@ -45,8 +45,8 @@ settled last — so `settleJoin` could be deleted from both other paths and noth
 P1's own case, and `spec/join-policy.md` section 4 exists for it. Fixed by **arranging** the causal
 order with per-role delays rather than hoping for it.
 
-**[P3](doc/plans/p3-a-consumer-reference-the-gate-keeps-true.md) is complete and retro'd, and
-`doc/workflow.md` is v0.5.** **[AGENTS.md](AGENTS.md) is the consumer reference** and `npm run gate`
+**[P3](doc/plans/p3-a-consumer-reference-the-gate-keeps-true.md) is complete and retro'd, and its
+retro is what made `doc/workflow.md` v0.5.** **[AGENTS.md](AGENTS.md) is the consumer reference** and `npm run gate`
 extracts, typechecks and executes its snippets. Its two readers measured the thing to know about it:
 **the gate covers about 16% of the reference**, and the other 84% is prose that can be inverted with
 the gate green. The response was not to guard the prose but to **move the load-bearing claims into
@@ -73,6 +73,38 @@ changed the design:** filtering `Driver.onEvent` by run id — the mechanism the
 closes **one of four** inbound holes, while `dispatched.has(taskId)` closes all four with state the
 driver already keeps. Run-id-at-construction was spiked in the working tree: `src/` typechecks clean
 and **all thirteen L6 rows pass**. What happens next, in order: [doc/README.md](doc/README.md).
+
+**[P5](doc/plans/p5-a-third-and-fourth-policy-or-repairs-of-the-first-two.md) is the active plan and
+it answers [Q24](doc/open-questions.md) — third and fourth policy, or repairs of the first two?**
+**[W15](doc/work-items/w15-the-fourth-column-and-the-chain-nothing-runs.md) is built, gated, and
+both its readers have run and been acted on.** The matrix renders at **four columns** and every one of its
+nine rows runs against all four policies — 36 cells, where the refinements had previously been
+executed on four. `JP-R7`'s and `JP-R8`'s effects are asserted as **exact sorted row lists** rather
+than as counts, each three ways: the declared literal, a predicate over the row's own region-event
+stream, and what the columns did — 370 assertions, up from 326. And the **`unsatisfiable` chain runs
+end to end for the first time** — a policy's answer, through a real `Driver`, through `foldInputs()`, to
+`RunState.outcome === 'stuck'` — where each of its four links previously had its own stub and nothing
+ran them as one. W15 takes **no decision and writes no spec**, deliberately: ADR 0025 is W16's, and
+building the evidence first is what stops it being written from the argument in P5's prose.
+
+**Its sharpest finding is one the counts hid.** `JP-R7`'s variant, on the all-branches-exited row,
+reaches `need: 0` with nothing arrived — so it **fires a join zero branches reached**, which is
+precisely the cost ADR 0003 records for `live-token` and precisely what `JP-R8` removes. **The two
+refinements point in opposite directions** ([Q91](doc/open-questions.md)). And its **one surviving
+provocation of twenty-two**: the `at most once` latch on the driver's `unsatisfiable` path can be
+deleted with all 361 assertions still green, because the only policy that can say `unsatisfiable`
+says it on the last terminal event ([Q95](doc/open-questions.md)).
+
+**Its readers found what its own provocations structurally could not, and the lesson generalises.**
+Twenty-two probes, written to the rules' clauses as `doc/workflow.md` v0.6 asks, all mutated something
+the suite reads — so **both** of the things W15 *created* went unmeasured: the four-column render was
+produced by a script `npm run gate` never executes (**seven** surviving mutations, one of which
+printed a two-column table with the whole gate green), and the two variant policies were promoted to
+columns and to ADR 0025's evidence **without inheriting one of the clause-level tests the shipped pair
+has** (four survivors, each with a named test for `arrival-count` or `live-token`). Both are closed:
+the render is now a function the suite asserts field by field, and the variants are held to `JP-R1`,
+`JP-R2` and `JP-R3` in `test/matrix/variants.test.ts`. **For P5's retro: writing provocations to the
+rule finds holes in the CODE and is blind to the DELIVERABLE.**
 
 **Twenty-one reader-passes have run and not one came back empty** — W1 ×3, W3 ×3, W2 ×1, W4 ×2,
 W5 ×2, W6 ×2, W9 ×2, W12 ×2, W13 ×2, W14 ×2. Most found the same shape: *the code was correct and the tests were pointed at the
@@ -183,8 +215,13 @@ that depends on fan-out completion order.
 
 ## How work is done
 
-**[doc/workflow.md](doc/workflow.md) — read it before starting any work item. It is v0.5, run to
-completion by three plans.** **v0.5 is P3's retro and it changes one requirement of one rule**: a
+**[doc/workflow.md](doc/workflow.md) — read it before starting any work item. It is v0.6, run to
+completion by four plans.** **v0.6 is P4's retro and its three changes all replace mechanisms that
+were *followed* and failed anyway**: rule 8's provocations are written to the **rule** rather than to
+the fix; the **adequacy reader works in an isolated copy**, after three reader pairs ran concurrently
+against one checkout; and section 1 rule 5's record-step list gains **`doc/open-questions.md`**,
+which **retires `check-owns.mjs`** — three `Owns` miscounts were caused by the list being wrong, not
+by the discipline. **v0.5 is P3's retro and it changes one requirement of one rule**: a
 negative-test probe declares the **set** of checks it must trip and the set must match exactly,
 because naming one check does not discriminate — a merely *malformed* probe trips two at once, which
 is W6's original defect surviving the requirement written for it. Measured over `check-docs`' twelve
