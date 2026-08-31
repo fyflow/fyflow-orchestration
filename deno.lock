@@ -1,0 +1,22 @@
+{
+  "version": "5",
+  "specifiers": {
+    "jsr:@fyflow/scheduler@0.3.0": "0.3.0"
+  },
+  "jsr": {
+    "@fyflow/scheduler@0.3.0": {
+      "integrity": "4c23a5b2597038cc395c61d035b4b7365e8633c69a0ace052f74c3a9a52893b1"
+    }
+  },
+  "workspace": {
+    "packageJson": {
+      "dependencies": [
+        "npm:@types/node@^24.13.3",
+        "npm:esbuild@~0.25.12",
+        "npm:fyflow-scheduler@0.3.0",
+        "npm:playwright@^1.62.1",
+        "npm:typescript@^5.9.2"
+      ]
+    }
+  }
+}

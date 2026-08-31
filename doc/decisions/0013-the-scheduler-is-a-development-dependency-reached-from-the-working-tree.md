@@ -1,7 +1,11 @@
 # ADR 0013 — `fyflow-scheduler` is a **development** dependency, reached from the working tree next door, and the published library depends on it not at all
 
 **Date:** 2026-08-30
-**Status:** accepted — **two clauses corrected in place, 2026-08-30**, see *Correction*
+**Status:** accepted — **rules 3 and 5 superseded 2026-08-31 by
+[ADR 0029](0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)**,
+after both registries began carrying 0.3.0. **Rules 1, 2 and 4 stand unchanged**, and rule 1 — the
+published library depends on the scheduler *not at all* — is the load-bearing one and is untouched.
+The title of this document is now historical: the scheduler is a **registry** dependency — **two clauses corrected in place, 2026-08-30**, see *Correction*
 **Raised by:** [Q51](../open-questions.md), taken by [W5](../work-items/w5-one-real-fan-out-flow-on-a-real-scheduler.md)
 under [P1](../plans/p1-what-satisfies-a-join.md)
 

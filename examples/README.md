@@ -23,17 +23,20 @@ Deno and not in the browser** — [Q33](../doc/open-questions.md), and the brows
 | [`run-flow.ts`](run-flow.ts) | one run: build the scheduler, drive the flow, fold the driver's input sequence, return a report |
 | [`workers/flow-worker.ts`](workers/flow-worker.ts) | **one worker file for both runtimes**, five roles selected by the pool's `config` — one always throws, one returns a value `structuredClone` refuses |
 | [`flows/`](flows/) | the four flows this gate needs that `spec/examples/` cannot express — [Q44](../doc/open-questions.md), whose own text said this would not be needed |
-| [`deno-import-map.json`](deno-import-map.json) | how Deno resolves the bare `fyflow-scheduler` specifier — [ADR 0013](../doc/decisions/0013-the-scheduler-is-a-development-dependency-reached-from-the-working-tree.md) rule 3 |
+| [`deno-import-map.json`](deno-import-map.json) | how Deno resolves the bare `fyflow-scheduler` specifier — to `jsr:@fyflow/scheduler@0.3.0`, at the same version `package.json` pins for npm ([ADR 0029](../doc/decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md) rule 2) |
 
 ## Three things a reader should not have to rediscover
 
-**1. `fyflow-scheduler` 0.3.0 is on no registry, and the two runtimes reach it differently.**
-npm has `fyflow-scheduler` and JSR has `@fyflow/scheduler`, and **both stop at 0.2.1** — so the pin
-comes from the working tree next door. Node reads its `dist/` build; Deno reads its TypeScript
+**1. The two runtimes reach the scheduler through two registries, and the version is written down
+twice.** Node installs `fyflow-scheduler@0.3.0` from **npm** and reads its `dist/` build; Deno
+resolves the same bare specifier to **`jsr:@fyflow/scheduler@0.3.0`** and reads its TypeScript
 source, because **Node cannot** (`core/threadWrapper.ts:5` value-imports an `interface`, which type
-stripping cannot erase — [S9](../doc/scheduler-upstream.md)). `npm run check:scheduler` is what stops
-the two runtimes silently running different versions. All of this is ADR 0013, and none of it is
-visible to a consumer: the published library depends on the scheduler **not at all**.
+stripping cannot erase — [S9](../doc/scheduler-upstream.md)). `npm run check:scheduler` **D3** is what
+stops the two runtimes silently running different versions — the hazard survived the move from a
+working-tree link and only changed address. All of this is
+[ADR 0029](../doc/decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md),
+and none of it is visible to a consumer: the published library depends on the scheduler **not at
+all**.
 
 **2. How a run is known to be over, with no clock.** The three obvious answers are wrong:
 `scheduler.completed` fires **every time the scheduler drains**, `stats` reads `queued=0 running=0`

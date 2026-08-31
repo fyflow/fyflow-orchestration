@@ -1,36 +1,36 @@
 #!/usr/bin/env node
-// Ladder L0 — **the pinned scheduler is present, is the version we pin, and the
-// build Node loads is not older than the source Deno loads.**
+// Ladder L0 — **the pinned scheduler is installed from a registry, is the version
+// this repository pins, and BOTH runtimes reach that same version.**
 //
-// [ADR 0013](../doc/decisions/0013-the-scheduler-is-a-development-dependency-reached-from-the-working-tree.md)
-// rule 5. `fyflow-scheduler` 0.3.0 is on **no registry** — npm and JSR both stop
-// at 0.2.1, measured — so the pin is reached from the working tree next door, and
-// the two runtimes reach it by different roads:
+// **Rewritten 2026-08-31, and the hazard it guards changed shape.** Until then
+// `fyflow-scheduler` 0.3.0 was on **no registry** — npm and JSR both stopped at
+// 0.2.1, measured by W5 — so the pin was a `file:../fyflow-scheduler` link into a
+// working tree, Node loaded that tree's gitignored `dist/` and Deno loaded its
+// TypeScript source, and this file existed to stop the two diverging by a stale
+// build. **Both registries now carry 0.3.0**, so:
 //
-//   Node   node_modules/fyflow-scheduler -> ../fyflow-scheduler, `exports` ->
-//          dist/node/index.js            ...a BUILD, which goes stale
-//   Deno   examples/deno-import-map.json -> ../fyflow-scheduler/index.ts
-//                                         ...the SOURCE, which cannot
+//   Node   node_modules/fyflow-scheduler   npm  fyflow-scheduler@0.3.0  -> dist/
+//   Deno   examples/deno-import-map.json   JSR  @fyflow/scheduler@0.3.0 -> source
 //
-// That asymmetry is the whole reason this file exists. Node cannot read the
-// source at all: `core/threadWrapper.ts:5` value-imports an `interface`, and
-// Node runs TypeScript by erasing types rather than compiling them
-// ([S9](../doc/scheduler-upstream.md)). So ladder L6 can silently run 0.2.x under
-// Node and 0.3.0 under Deno and report both green.
+// **What that removes.** A published tarball cannot go stale against a source it
+// no longer ships, so the old D3/D4 mtime comparison has nothing to compare and
+// is gone. `npm install` no longer runs a build in another repository, which was
+// [ADR 0013](../doc/decisions/0013-the-scheduler-is-a-development-dependency-reached-from-the-working-tree.md)'s
+// stated cost — the one write this repository made outside itself. And nothing on
+// this machine can reach the sibling checkout through `node_modules`, which is
+// the concrete accident that prompted the change: a junction placed there was
+// followed by a recursive delete and took most of the sibling repository with it.
 //
-// **It is not hypothetical.** `../fyflow-scheduler/dist/` was found stale at the
-// start of W5 — a pre-0.3.0 build with no `_failOrphanedTask` and no
-// `getAdmissionQueue` in it, behind a `package.json` reading `0.3.0`. `npm
-// install` runs the sibling's `prepare` today, and npm 11.19 already warns that
-// it may stop; more ordinarily, the sibling's source changes without our install
-// running.
+// **What it replaces it with, because the hazard did not disappear — it moved.**
+// Two runtimes now reach two different registries, and they can pin different
+// versions with both green. `D3` is that comparison, and it is this file's whole
+// remaining reason to exist.
 //
 //   node scripts/check-scheduler.mjs
 //
-// Exits 0 when every check passes, 1 otherwise. It reports; it does not fix, and
-// it never runs a build in another repository.
+// Exits 0 when every check passes, 1 otherwise. It reports; it does not fix.
 
-import { readFileSync, statSync, realpathSync } from 'node:fs';
+import { existsSync, lstatSync, readFileSync } from 'node:fs';
 import { join, dirname, resolve, relative } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -39,9 +39,13 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 /**
  * The pin, in one place. [Q3](../doc/open-questions.md) — and there is **no
  * changelog** upstream, so a bump here means re-reading its `AGENTS.md` section 6
- * rather than reading a diff.
+ * rather than reading a diff. That reference ships inside the npm package, so it
+ * is at `node_modules/fyflow-scheduler/AGENTS.md` rather than next door.
  */
 const PIN = '0.3.0';
+
+/** The JSR package Deno resolves the same specifier to. */
+const JSR_NAME = '@fyflow/scheduler';
 
 const failures = [];
 const fail = (check, msg) => failures.push(`${check}: ${msg}`);
@@ -49,22 +53,24 @@ const fail = (check, msg) => failures.push(`${check}: ${msg}`);
 const ran = { D1: false, D2: false, D3: false, D4: false, D5: false };
 const rel = (p) => relative(ROOT, p).replace(/\\/g, '/');
 
-/**
- * Resolved through `node_modules`, never hard-coded — this checks **what Node
- * will actually load**, so a link that points somewhere unexpected is a finding
- * rather than something the check reads past.
- */
-let pkgDir = null;
-try {
-  pkgDir = realpathSync(join(ROOT, 'node_modules', 'fyflow-scheduler'));
-} catch {
-  fail('D1', 'node_modules/fyflow-scheduler is missing. ADR 0013 rule 3: the pin is a ' +
-    '`file:../fyflow-scheduler` devDependency, so `../fyflow-scheduler` must be checked out ' +
-    'beside this repository. Run `npm install`');
-}
-
+// --- D1: installed, readable, and NOT a link into a working tree --------------
+//
+// The link half is new and it is a regression guard with an incident behind it.
+// `realpathSync` was what the old version used, deliberately, to check "what Node
+// will actually load"; here the point is the opposite — a `node_modules` entry
+// that is a junction or symlink means someone has reinstated the working-tree
+// pin, and every recursive tool that touches this directory then reaches into
+// another repository.
+const pkgDir = join(ROOT, 'node_modules', 'fyflow-scheduler');
 let manifest = null;
-if (pkgDir) {
+if (!existsSync(pkgDir)) {
+  fail('D1', 'node_modules/fyflow-scheduler is missing. The pin is a registry devDependency ' +
+    `(\`fyflow-scheduler\`@${PIN} on npm); run \`npm install\``);
+} else if (lstatSync(pkgDir).isSymbolicLink()) {
+  fail('D1', 'node_modules/fyflow-scheduler is a LINK, not an installed package. The pin is a ' +
+    'registry version; a link points at a working tree, which is what this repository moved ' +
+    'away from — and a recursive delete that follows one deletes the other repository');
+} else {
   ran.D1 = true;
   try {
     manifest = JSON.parse(readFileSync(join(pkgDir, 'package.json'), 'utf8'));
@@ -73,117 +79,121 @@ if (pkgDir) {
   }
 }
 
-if (manifest) ran.D2 = true;
-if (manifest && manifest.version !== PIN) {
-  fail('D2', `the linked scheduler is ${manifest.version}, and this repository pins ${PIN} ` +
-    '(Q3). Either the sibling moved or the pin did; a version bump means re-reading its ' +
-    'AGENTS.md section 6, because there is no changelog');
-}
-
-// D3 — the build is not older than the source.
-//
-// "The source" is the sibling's OWN `deno.json` publish allowlist, so this cannot
-// drift from what it considers its source: a new module it starts publishing is
-// one this check starts watching, with no edit here.
-if (pkgDir) {
-  ran.D3 = true;
-  ran.D4 = true;
-  let allowed = [];
+// --- D2: it is the pin, and package.json asks for exactly the pin --------------
+if (manifest) {
+  ran.D2 = true;
+  if (manifest.version !== PIN) {
+    fail('D2', `the installed scheduler is ${manifest.version} and this repository pins ${PIN} ` +
+      '(Q3). A version bump means re-reading its AGENTS.md section 6, because there is no changelog');
+  }
+  let own = null;
   try {
-    const denoJson = JSON.parse(readFileSync(join(pkgDir, 'deno.json'), 'utf8'));
-    allowed = (denoJson.publish?.exclude ?? [])
-      .filter((e) => e.startsWith('!') && e.endsWith('.ts'))
-      .map((e) => e.slice(1));
+    own = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
   } catch (e) {
-    fail('D3', `${rel(pkgDir)}/deno.json is unreadable, so "its own source list" has no source: ${e.message}`);
+    fail('D2', `package.json is unreadable: ${e.message}`);
   }
-
-  if (allowed.length === 0 && !failures.some((f) => f.startsWith('D3'))) {
-    fail('D3', `${rel(pkgDir)}/deno.json publishes no .ts file, which cannot be right — ` +
-      'the allowlist this check reads has changed shape');
+  const spec = own?.devDependencies?.['fyflow-scheduler'];
+  if (spec === undefined) {
+    fail('D2', 'package.json does not declare fyflow-scheduler as a devDependency. It must never ' +
+      'be a runtime dependency — ADR 0013 rule 1, and `check-source.mjs` S8 refuses that half');
+  } else if (spec !== PIN) {
+    fail('D2', `package.json asks for "${spec}" and this check pins ${PIN}. A range would let ` +
+      'the two runtimes drift on an ordinary install, which is exactly what D3 exists to stop; ' +
+      'a `file:` specifier would reinstate the working-tree link');
   }
+}
 
-  // `core/workerWrapperUrl.ts` is rewritten BY THE BUILD — `esbuild.config.js`
-  // swaps in a stub before emitting types and restores it after
-  // (`:253-268`), so its mtime is always a few seconds AFTER the dist it
-  // produced. Comparing against it makes D4 fail every time, immediately after a
-  // successful build. Excluded by name, with the citation, rather than by a
-  // tolerance window that would hide a real staleness of the same size.
-  const SELF_WRITTEN = new Set(['core/workerWrapperUrl.ts']);
-
-  let newestSource = 0;
-  let newestName = '';
-  for (const name of allowed) {
-    if (SELF_WRITTEN.has(name)) continue;
-    try {
-      const m = statSync(join(pkgDir, name)).mtimeMs;
-      if (m > newestSource) { newestSource = m; newestName = name; }
-    } catch {
-      fail('D3', `${rel(pkgDir)}/deno.json lists ${name}, which does not exist`);
-    }
+// --- D3: BOTH runtimes reach the same version ---------------------------------
+//
+// **The replacement hazard, and the only reason this file still exists.** Node
+// resolves the bare specifier through npm and Deno resolves it through JSR, so
+// the version is written down twice — and ladder L6 runs in both. Before, the two
+// roads could differ by a stale build; now they can differ by a version, with
+// every check green and L6 reporting 0.3.0 under one runtime and something else
+// under the other. Same failure, new address.
+{
+  const mapPath = join(ROOT, 'examples', 'deno-import-map.json');
+  let map = null;
+  try {
+    map = JSON.parse(readFileSync(mapPath, 'utf8'));
+  } catch (e) {
+    fail('D3', `${rel(mapPath)} is unreadable, so the Deno half of the pin has no source: ${e.message}`);
   }
-
-  // The guard `D3` and `D5` both carry and `D4` did not: with nothing left to
-  // compare against, the `if (newestSource && ...)` below short-circuits and D4
-  // reports `ok` having measured nothing. Reachable by growing `SELF_WRITTEN`,
-  // which exists precisely because it is expected to grow. Found by W5's
-  // test-adequacy pass.
-  if (newestSource === 0 && !failures.some((f) => f.startsWith('D3'))) {
-    fail('D4', 'no source file was left to compare dist/ against, so this check would pass ' +
-      'having measured nothing — SELF_WRITTEN has swallowed the allowlist');
-  }
-
-  // Every artifact `exports` can select. A partial build is as wrong as no build.
-  const artifacts = ['dist/node/index.js', 'dist/browser/index.js', 'dist/types/index.d.ts'];
-  for (const a of artifacts) {
-    let built;
-    try {
-      built = statSync(join(pkgDir, a)).mtimeMs;
-    } catch {
-      fail('D4', `${a} is missing from the linked scheduler. Node's \`exports\` selects it, ` +
-        'so ladder L6 cannot run. Fix: `npm run build` in ../fyflow-scheduler');
-      continue;
-    }
-    if (newestSource && built < newestSource) {
-      const age = Math.round((newestSource - built) / 1000);
-      fail('D4', `${a} is ${age}s older than ${newestName}, so Node would load a build that ` +
-        'predates the source Deno loads — ADR 0013 cost 2. Fix: `npm run build` in ' +
-        '../fyflow-scheduler');
+  if (map) {
+    ran.D3 = true;
+    const spec = map.imports?.['fyflow-scheduler'];
+    if (!spec) {
+      fail('D3', `${rel(mapPath)} does not map the bare \`fyflow-scheduler\` specifier, so Deno ` +
+        'cannot resolve it and ladder L6 cannot run there');
+    } else if (spec.startsWith('.') || spec.startsWith('/') || spec.includes('..')) {
+      fail('D3', `${rel(mapPath)} resolves the scheduler to a PATH ("${spec}"). The pin is a ` +
+        'registry version; a path reinstates the working-tree dependency this repository removed');
+    } else {
+      const m = /^jsr:(@[\w.-]+\/[\w.-]+)@([\d.]+)$/.exec(spec);
+      if (!m) {
+        fail('D3', `${rel(mapPath)} maps the scheduler to "${spec}", which is not a pinned JSR ` +
+          `specifier of the form jsr:${JSR_NAME}@<version>`);
+      } else {
+        if (m[1] !== JSR_NAME) {
+          fail('D3', `${rel(mapPath)} points Deno at "${m[1]}" and this check expects ${JSR_NAME}`);
+        }
+        if (m[2] !== PIN) {
+          fail('D3', `Deno would load ${m[1]}@${m[2]} and Node would load fyflow-scheduler@${PIN}. ` +
+            'Ladder L6 runs in both, so this reports two runtimes green against two different ' +
+            'schedulers — which is the divergence this check exists for');
+        }
+      }
     }
   }
 }
 
-// D5 — the build LOADS, and exposes what the source says it exports.
+// --- D4: every artifact Node's `exports` can select is present -----------------
 //
-// D4 compares timestamps, which is the right tool for "stale" and the wrong one
-// for "half-built" — a build that died after `dist/node` would pass it. The
-// export list is **derived from the sibling's own `index.ts`** rather than
-// hard-coded, so it needs no maintenance when its API moves: a value export it
-// adds is one this check starts requiring.
-if (pkgDir) {
+// A published tarball can be partial the way a build can. Cheap, and it is what
+// turns "cannot resolve" at L6 into a named L0 failure.
+if (manifest) {
+  ran.D4 = true;
+  for (const a of ['dist/node/index.js', 'dist/browser/index.js', 'dist/types/index.d.ts']) {
+    if (!existsSync(join(pkgDir, a))) {
+      fail('D4', `${a} is missing from the installed package. Node's \`exports\` selects it, so ` +
+        'ladder L6 cannot run. Reinstall, or the published tarball is incomplete');
+    }
+  }
+}
+
+// --- D5: it LOADS, and exposes what its own declarations say it exports --------
+//
+// The expected list is **derived from the package's own `dist/types/index.d.ts`**
+// rather than hard-coded, so it needs no maintenance when the API moves: a value
+// export it adds is one this check starts requiring. That file replaces the
+// sibling's `index.ts`, which the npm tarball does not ship — the source of truth
+// moved with the dependency, and this is the one check the move rewrote rather
+// than deleted.
+if (manifest) {
   ran.D5 = true;
-  let expected = [];
+  const dts = join(pkgDir, 'dist', 'types', 'index.d.ts');
+  const expected = [];
   try {
-    const src = readFileSync(join(pkgDir, 'index.ts'), 'utf8');
+    const src = readFileSync(dts, 'utf8');
     // `export { A, B } from '...'` — and NOT `export type { ... }`, which erases.
-    for (const m of src.matchAll(/^\s*export\s*\{([^}]*)\}\s*from/gm)) {
-      const line = src.slice(Math.max(0, m.index - 12), m.index + 12);
-      if (/export\s+type/.test(line)) continue;
+    for (const line of src.split(/\r?\n/)) {
+      const m = /^\s*export\s*\{([^}]*)\}\s*from/.exec(line);
+      if (!m || /^\s*export\s+type/.test(line)) continue;
       for (const part of m[1].split(',')) {
         const name = part.trim().split(/\s+as\s+/).pop()?.trim();
         if (name) expected.push(name);
       }
     }
   } catch (e) {
-    fail('D5', `${rel(pkgDir)}/index.ts is unreadable, so there is nothing to compare against: ${e.message}`);
+    fail('D5', `${rel(dts)} is unreadable, so there is nothing to compare against: ${e.message}`);
   }
 
   // An empty list would make this check pass unconditionally, which is the
   // assertion-that-cannot-fail `doc/workflow.md` section 5 rule 3 forbids. The
-  // sibling exports ten values; zero means the parse broke, not that it stopped.
+  // package exports nine values; zero means the parse broke, not that it stopped.
   if (expected.length === 0 && !failures.some((f) => f.startsWith('D5'))) {
-    fail('D5', `no value exports were parsed out of ${rel(pkgDir)}/index.ts. Either its export ` +
-      'style changed or this check is silently vacuous — the second is worse');
+    fail('D5', `no value exports were parsed out of ${rel(dts)}. Either its declaration style ` +
+      'changed or this check is silently vacuous — the second is worse');
   }
 
   if (expected.length) {
@@ -192,29 +202,34 @@ if (pkgDir) {
       const missing = expected.filter((n) => !(n in mod));
       if (missing.length) {
         fail('D5', `dist/node/index.js is missing ${missing.length} value export(s) its own ` +
-          `index.ts declares: ${missing.join(', ')}. A partial or failed build. ` +
-          'Fix: `npm run build` in ../fyflow-scheduler');
+          `declarations name: ${missing.join(', ')}. A partial or mismatched publish`);
       }
     } catch (e) {
-      fail('D5', `dist/node/index.js does not load: ${e.message}. Fix: \`npm run build\` in ../fyflow-scheduler`);
+      fail('D5', `dist/node/index.js does not load: ${e.message}`);
     }
   }
 }
 
+if (process.argv.includes('--self-test')) {
+  const { selfTest } = await import('./check-scheduler-selftest.mjs');
+  process.exit(await selfTest(ROOT));
+}
+
 // **A check that did not run is reported as `NOT RUN`, never as `ok`.**
 // `doc/workflow.md` section 1 rule 4: *"a skipped check reported as passed makes
-// the whole ladder worthless"*. D2-D5 are all guarded by `if (pkgDir)`, so with the
-// link missing this printed four `ok` lines for four checks that never executed —
-// in a script whose own header says it reports rather than fixes. Found by W5's
-// test-adequacy pass. `ran` is set inside each block that actually runs.
+// the whole ladder worthless"*. Every block above was once guarded by one
+// `if (pkgDir)`, so with the link missing this printed four `ok` lines for four
+// checks that never executed — found by W5's test-adequacy pass. `ran` is set
+// inside each block that actually runs.
 const checks = [
-  ['D1', ran.D1, `D1 the pinned scheduler is linked and readable`],
-  ['D2', ran.D2, `D2 it is ${PIN}, the version this repository pins`],
-  ['D3', ran.D3, `D3 its own publish allowlist names the source to compare against`],
-  ['D4', ran.D4, `D4 its dist/ is not older than that source`],
-  ['D5', ran.D5, `D5 its dist/ loads and exports what its index.ts declares`],
+  ['D1', ran.D1, `D1 the pinned scheduler is installed from a registry, not linked`],
+  ['D2', ran.D2, `D2 it is ${PIN}, and package.json asks for exactly ${PIN}`],
+  ['D3', ran.D3, `D3 Deno's JSR pin is the same version as Node's npm pin`],
+  ['D4', ran.D4, `D4 every artifact \`exports\` selects is present`],
+  ['D5', ran.D5, `D5 it loads and exports what its own declarations name`],
 ];
-console.log(`scheduler check — ${pkgDir ? rel(pkgDir) : '<not linked>'}\n`);
+console.log(`scheduler check — fyflow-scheduler@${manifest?.version ?? '<not installed>'} ` +
+  `(npm) / ${JSR_NAME} (JSR)\n`);
 for (const [id, didRun, label] of checks) {
   const bad = failures.filter((f) => f.startsWith(id + ':'));
   const verdict = bad.length ? 'FAIL   ' : didRun ? 'ok     ' : 'NOT RUN';

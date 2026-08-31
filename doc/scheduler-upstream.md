@@ -41,7 +41,7 @@ the last section.
 | [S6](#s6--pause-and-resume) | Pause and resume | no - not in the first set | not raised |
 | [S7](#s7--exit-c-drops-a-blocked-task-silently) | Fix the blocked-queue task drop | no longer - **the confounder is gone** | ✅ **fixed in 0.3.0** |
 | [S8](#s8--freeze-or-copy-event-details) | Freeze or copy event details | no | **declined, and now documented** |
-| [S9](#s9--the-published-typescript-source-does-not-load-under-node-and-agentsmd-3-says-a-ts-worker-cannot-either) | `import type` in `core/threadWrapper.ts`, and correct `AGENTS.md` §3 on `.ts` workers | no - it costs us a build step and a freshness check | **not raised - the only live item** |
+| [S9](#s9--the-published-typescript-source-does-not-load-under-node-and-agentsmd-3-says-a-ts-worker-cannot-either) | `import type` in `core/threadWrapper.ts`, and correct `AGENTS.md` §3 on `.ts` workers | no - Node reads npm's `dist/` and Deno reads JSR's source | **not raised - the only live item.** Its *publication* half is closed: 0.3.0 is on npm and JSR since 2026-08-31 ([ADR 0029](decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)), so the cost is no longer a build step in a sibling checkout - it is that **neither one-line fix can be tried locally without unpinning**, which is that ADR's stated cost |
 
 ---
 
