@@ -7,7 +7,8 @@ its retro is run.** [Q4](open-questions.md) is answered:
 [ADR 0003](decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md), **a join is
 satisfied when its region has no live branches** — and **W5 ran it on a real scheduler**, where
 `p1-routed-away` completes under `live-token` and is **`stuck`** under `arrival-count`, with the
-join's successor never dispatched. **370 assertions in five runtimes, plus 240 at ladder L6 in two.**
+join's successor never dispatched. **386 assertions in five runtimes, plus 240 at ladder L6 in two.**
+*(That number is the runner's count of `test()` cases rather than of `equal`/`ok` calls — [Q98](open-questions.md), raised by W16 while re-deriving it.)*
 
 **The retro is in [P1's Record](plans/p1-what-satisfies-a-join.md) and `doc/workflow.md` is v0.3.**
 Its central measurement, which should shape how the next plan reads that document: **of the eight
@@ -123,7 +124,7 @@ normative layer itself, [`spec/`](../spec/README.md), six documents · **run sta
 own log, and a run has SIX outcomes** (Q14's answer lives in `spec/run-state.md` rather than an
 ADR; `stuck` is [ADR 0015](decisions/0015-a-run-whose-join-can-no-longer-fire-is-stuck.md)'s) · **a join is satisfied when its region has no live branches** (0003).
 
-**Upstream shipped: `fyflow-scheduler` 0.3.0 landed 2026-08-30** (npm and JSR both stop at 0.2.1 - measured by W5) and this repo has
+**Upstream shipped: `fyflow-scheduler` 0.3.0 landed 2026-08-30**, and **both registries carry it since 2026-08-31** - which is what [ADR 0029](decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md) acts on. This repo has
 been re-verified against **the code, not the plan** — details and the S-id map in
 [scheduler-upstream.md](scheduler-upstream.md). Short version:
 
@@ -148,17 +149,25 @@ and an ordinary `optional` task failing is enough. Fixed-`N` is wrong whenever *
 arrive"* differs from *"how many opened"*, and every non-success outcome makes it differ. **The
 argument was right about the winner and wrong about the size of the effect.**
 
-**What is deliberately *not* decided:** [Q24](open-questions.md) — whether either one-line
-refinement of the two policies should be built. It is the live question now, and ADR 0003 names it
-as the first thing a reader should look at: on the all-branches-exited row, `live-token` fires a
-join **no branch reached**.
+**Q24 is answered too, by [ADR 0025](decisions/0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md),
+and the two one-line refinements got DIFFERENT answers.** `JP-R8`'s is **adopted** — as a third
+policy under its own id, `live-token-requiring-arrival`, which is what `JP-R8` itself prescribes — so
+a flow that treats a join reached by nothing as a failure can now say so, and the run folds to
+**`stuck`** rather than `completed`. `JP-R7`'s is **refused**: over the nine matrix rows it is
+`live-token` weakened and never strengthened, differing from it only by reporting `waiting` where
+`live-token` is `satisfied`, and it fires a join **zero branches reached** on the **third** of the
+**three** rows it repairs — which is `Correction 2`'s point, and the reason *"repairs only P1's row"*
+was never the objection.
+**`live-token` and `arrival-count` are byte-identical**, so ADR 0003 rules 1-4 stand and not one of
+the 36 matrix cells changed. **`liveToken` is still what the library tells you to pass**
+([Q96](open-questions.md)).
 
 **The one thing to know before reading anything else:**
 
 > `fyflow-scheduler` **has no dependency graph** - no `dependsOn`, no `parents`, no ordering. Its
 > own reference lists them under *"Things that do NOT exist"*.
 
-So the input document, [`../fyflow-scheduler/FLOW_PLANNING.md`](../../fyflow-scheduler/FLOW_PLANNING.md),
+So the input document, [`FLOW_PLANNING.md`](https://github.com/fyflow/fyflow-scheduler/blob/main/FLOW_PLANNING.md) in the scheduler's repository,
 **is written against an API that is not there.** It calls the library "the existing FyFlow DAG
 scheduler" and passes `parents: ['extract']` to a constructor with no such field. Its goals survive;
 its premise does not. This repo **builds** sequence, decision, fan-out and join rather than wrapping
@@ -176,17 +185,20 @@ longer rests on our own reading. [S1](scheduler-upstream.md).
    Two one-line changes with a measurement behind each: `import type` in
    `core/threadWrapper.ts:5`, and `AGENTS.md` §3's claim that a Node worker must be JavaScript.
 2. **[P5](plans/p5-a-third-and-fourth-policy-or-repairs-of-the-first-two.md) is the feature plan and
-   it is running.** [W15](work-items/w15-the-fourth-column-and-the-chain-nothing-runs.md) is
-   **built and its gate is green** — the matrix renders at **four columns**, `JP-R7`'s and `JP-R8`'s
-   variants are asserted as **exact row lists** rather than counts, and the `unsatisfiable` chain
-   runs end to end for the first time (**370** assertions in five runtimes, up from 326). **Both its
-   readers have run and every finding is acted on** — between them they found that the two things
-   W15 *created*, the render and the two promoted variant policies, were the least-guarded things in
-   the item.** Then **W16 takes ADR 0025** — the Q24 decision, which W15 was built first
-   in order not to prejudge — and **W17 puts the `all-exit` row on real workers**, which L6 has never
-   had. The other feature candidates stay where they were: [Q6](open-questions.md) (nested fan-out,
-   nearly free under `live-token`) and [Q12](open-questions.md) (map-style fan-out, which makes the
-   count dynamic).
+   it is running.** [W15](work-items/w15-the-fourth-column-and-the-chain-nothing-runs.md) is **done**
+   — the matrix renders at **four columns**, `JP-R7`'s and `JP-R8`'s variants are asserted as
+   **exact row lists** rather than counts, and the `unsatisfiable` chain runs end to end for the
+   first time. Both its readers ran and between them found that the two things W15 *created*, the
+   render and the two promoted variant policies, were the least-guarded things in the item.
+   **[W16](work-items/w16-the-decision-and-what-it-ships.md) is built and gated and its two readers
+   are outstanding**: [ADR 0025](decisions/0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md)
+   answers Q24, adopting `JP-R8`'s refinement as a third policy and refusing `JP-R7`'s, with **not
+   one of the 36 matrix cells changed** (386 assertions, up from 370). It also fired
+   **`doc/workflow.md` rule 7 (c) for the first time in three plans** — `scripts/check-policies.mjs`
+   holds the new `JP-R9`, and **three of its ten checked-in probes failed at birth**. Then **W17 puts
+   the `all-exit` row on real workers**, which L6 has never had. The other feature candidates stay
+   where they were: [Q6](open-questions.md) (nested fan-out, nearly free under `live-token`) and
+   [Q12](open-questions.md) (map-style fan-out, which makes the count dynamic).
 3. **[P6](plans/p6-what-may-share-a-scheduler-with-a-driver.md) is DECLARED and runs after P5** — *what may share a scheduler with a driver?*
    It takes the three questions P5 ruled on but could not own, because **no P5 item takes
    `src/driver/**`**: [Q86](open-questions.md) as **ADR 0027** (is an unparseable task id a defect
@@ -203,13 +215,16 @@ longer rests on our own reading. [S1](scheduler-upstream.md).
    on is unverified until you have**, and P4 is the third plan in a row to find one wrong by trying
    to act on it.
 5. **Five traps are live for whoever comes next.**
-   - **`JP-R7` and `JP-R8`** ([Q24](open-questions.md)) — the two one-line policy refinements, and
-     **the live question**. They live in `test/matrix/variants.ts` and W15 runs both as **columns of
-     the matrix**, under their own ids. **W1 wrote one of them itself** before a conformity pass
-     caught it: neither belongs in `src/fold/policies.ts` without its own decision — and W15
-     measured a reason to keep them apart that the counts hid, **[Q91](open-questions.md)**:
-     `JP-R7`'s variant fires a join **zero branches reached**, which is the exact defect `JP-R8`
-     removes.
+   - **`JP-R7`, and only `JP-R7`** — [Q24](open-questions.md) is **answered**
+     ([ADR 0025](decisions/0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md))
+     and `JP-R8`'s refinement is shipped, so the live trap is the other one: **decrementing
+     `arrival-count`'s `N` on `branch.exited` is refused, permanently, and it still reads like an
+     obvious repair.** It lives in `test/matrix/variants.ts` and is still run as a matrix column so
+     the refusal can be falsified. **W1 wrote one of these itself** before a conformity pass caught
+     it. The reason to distrust it is not the one the counts suggested
+     (**[Q91](open-questions.md)**): every row where it differs from `live-token` is a row where it
+     **hangs**, and on the **third** of the **three** rows it repairs it fires a join **zero branches
+     reached**.
    - **`FD-V14`** — the well-formedness rule whose *absence* keeps P1's case authorable, stated in
      the **all-paths** form because the *can-reach* form forbids nothing.
    - **`OR-R1`** — where a `{...e.detail}` spread looks like compliance and is not.
@@ -218,11 +233,22 @@ longer rests on our own reading. [S1](scheduler-upstream.md).
      and survive 278, because **neither shipped policy can reach it**. A seam with two exits and one
      reachable needs a stub, not a real run. **W15 found the third of these and it is still open**:
      the `at most once` latch on the driver's `unsatisfiable` path can be deleted and **all 361
-     assertions still pass**, because the only policy that can say `unsatisfiable` says it on the
-     last terminal event — so nothing follows to re-enter the seam ([Q95](open-questions.md)).
-   - **`../fyflow-scheduler/dist/` goes stale silently**, and Node reads it while Deno reads the
-     source. `npm run check:scheduler` is the guard; it was written because the directory *was*
-     stale, behind a manifest reading `0.3.0`.
+     assertions still pass**, because no policy here settles a join before every branch is terminal
+     — so nothing follows to re-enter the seam ([Q95](open-questions.md); **W18 closes it with a
+     stub**). **W16 found the fourth, and it is a rung further out**: rewriting
+     `spec/join-policy.md` section 3's third row to demand **two** arrivals, or deleting a whole
+     column from ADR 0025's pasted table, leaves the entire gate green. Its probes written to the
+     **rules** all went red and four of five aimed at what the item **created** survived — W15's
+     finding, reproduced in a second item.
+   - **The scheduler version is written down twice** — `package.json` pins npm's
+     `fyflow-scheduler@0.3.0`, `examples/deno-import-map.json` pins JSR's `@fyflow/scheduler@0.3.0`,
+     and ladder L6 runs in both. `npm run check:scheduler` **D3** is the guard.
+     *(Until 2026-08-31 the hazard was a gitignored `dist/` in a checkout next door going stale;
+     [ADR 0029](decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)
+     removed the link and the hazard moved rather than disappearing.)*
+   - **Never put a link into `node_modules`.** A junction placed there so `tsc` would skip the
+     sibling's source was followed by `git worktree remove --force` and **deleted most of that
+     repository**. `check-scheduler.mjs` D1 refuses one now.
 
 **The fan-out gate is cleared** (`workflow.md` section 7 rule 3) — not because Q4 is answered, but
 because P1 builds both of its candidate answers, so W2 and W3 can be written without knowing which
@@ -261,11 +287,17 @@ wins.
 
 Three repos, one stack, one maintainer. What each owns:
 
+**A sibling checkout is no longer something this repository assumes.** `fyflow-scheduler` is reached
+from npm and JSR ([ADR 0029](decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)),
+so the rows below link to repositories rather than to directories next door — a relative link into a
+checkout is a claim about one machine's layout, and on 2026-08-31 those links went dangling when the
+sibling was deleted by a recursive tool following a `node_modules` junction.
+
 | Repo | Owns | Pinned to |
 |---|---|---|
-| [`fyflow-scheduler`](../../fyflow-scheduler) | executing independent tasks: pools, resource groups, retry, spawn | — |
+| [`fyflow-scheduler`](https://github.com/fyflow/fyflow-scheduler) | executing independent tasks: pools, resource groups, retry, spawn | — |
 | **`fyflow-orchestration`** (here) | **control flow**: sequence, decision, fan-out, join | scheduler **0.3.0** |
-| [`fyflow-react-components`](../../fyflow-react-components) | visualizing a scheduler: collector, wire envelopes, React components | scheduler 0.2.1 — **needs the same bump**; 0.3.0 is what unblocks its `3a`/`3b` views |
+| `fyflow-react-components` | visualizing a scheduler: collector, wire envelopes, React components | scheduler 0.2.1 — **needs the same bump**; 0.3.0 is what unblocks its `3a`/`3b` views |
 
 Deliberate overlaps, which are coordination points rather than duplication:
 
@@ -286,8 +318,8 @@ Deliberate overlaps, which are coordination points rather than duplication:
 ## Plan history
 
 *One row per plan, oldest first. **A plan appears here when it closes**, so
-[P5](plans/p5-a-third-and-fourth-policy-or-repairs-of-the-first-two.md) (running — W15 done, W16-W17
-outstanding) and [P6](plans/p6-what-may-share-a-scheduler-with-a-driver.md) (declared, not started) are not below.*
+[P5](plans/p5-a-third-and-fourth-policy-or-repairs-of-the-first-two.md) (running — W15 and W16 done,
+W16's readers and W17 outstanding) and [P6](plans/p6-what-may-share-a-scheduler-with-a-driver.md) (declared, not started) are not below.*
 
 | P | Question it answered | Exit artifact | Date |
 |---|---|---|---|

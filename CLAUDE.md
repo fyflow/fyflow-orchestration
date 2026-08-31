@@ -15,7 +15,7 @@ the only document that does. **Every snippet in it is extracted and executed by 
 (`scripts/check-docs.mjs`), so it cannot rot the way a hand-maintained reference does. If you change
 the public surface, that check is what tells you the reference is now wrong.
 
-## Current state: **P1-P4 are complete and retro'd; [P5](doc/plans/p5-a-third-and-fourth-policy-or-repairs-of-the-first-two.md) is running on [Q24](doc/open-questions.md)**
+## Current state: **P1-P4 are complete and retro'd; [P5](doc/plans/p5-a-third-and-fourth-policy-or-repairs-of-the-first-two.md) has ANSWERED [Q24](doc/open-questions.md) and is finishing**
 
 [ADR 0001, 0002 and 0007](doc/decisions/) settle the architecture so far: **routing executes in the
 driver, outside the scheduler** — a worker computes and does not route, and `context.spawnTask()` is
@@ -23,13 +23,14 @@ not used for flow control; **a flow definition is data with predicates registere
 an unknown name fails at instantiation rather than at routing time; and **the driver normalizes
 every scheduler event into an immutable outcome record at the listener boundary**, because event
 details are live mutable objects and `task.failed` also fires for `user_action` tasks. Pinned to
-`fyflow-scheduler` **0.3.0** (landed 2026-08-30, and **on no registry** — see below).
+`fyflow-scheduler` **0.3.0**, installed **from npm**, with Deno reaching `@fyflow/scheduler@0.3.0` on **JSR** — [ADR 0029](doc/decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md).
 
 **[P1](doc/plans/p1-what-satisfies-a-join.md)'s five work items are all built.** `spec/` holds **six
-normative documents and 72 numbered rules**; `src/` holds the definition validator, the driver and
-the fold with **both** join policies; `test/matrix/` holds the join/failure matrix; `examples/` holds
-ladder **L6**. **370 assertions in five runtimes** — Node 24, Deno, chromium, firefox, webkit —
-identical in all of them, **plus 240 at L6 in Node and Deno**. **`doc/workflow.md` is v0.6**, run to
+normative documents and 73 numbered rules**; `src/` holds the definition validator, the driver and
+the fold with **three** join policies (two P1's, one ADR 0025's); `test/matrix/` holds the
+join/failure matrix; `examples/` holds ladder **L6**. **386 assertions in five runtimes** — Node 24,
+Deno, chromium, firefox, webkit — identical in all of them, **plus 240 at L6 in Node and Deno**.
+*(The runner counts `test()` cases, not `equal`/`ok` calls — [Q98](doc/open-questions.md).)* **`doc/workflow.md` is v0.6**, run to
 completion by four plans.
 
 **[P2](doc/plans/p2-the-non-success-half-on-a-real-scheduler.md) is complete and added no features.**
@@ -75,13 +76,14 @@ driver already keeps. Run-id-at-construction was spiked in the working tree: `sr
 and **all thirteen L6 rows pass**. What happens next, in order: [doc/README.md](doc/README.md).
 
 **[P5](doc/plans/p5-a-third-and-fourth-policy-or-repairs-of-the-first-two.md) is the active plan and
-it answers [Q24](doc/open-questions.md) — third and fourth policy, or repairs of the first two?**
-**[W15](doc/work-items/w15-the-fourth-column-and-the-chain-nothing-runs.md) is built, gated, and
-both its readers have run and been acted on.** The matrix renders at **four columns** and every one of its
+it has answered [Q24](doc/open-questions.md) — third and fourth policy, or repairs of the first two?**
+**[W15](doc/work-items/w15-the-fourth-column-and-the-chain-nothing-runs.md) is done and
+[W16](doc/work-items/w16-the-decision-and-what-it-ships.md) is built and gated with its two readers
+outstanding; W17 is next.** The matrix renders at **four columns** and every one of its
 nine rows runs against all four policies — 36 cells, where the refinements had previously been
 executed on four. `JP-R7`'s and `JP-R8`'s effects are asserted as **exact sorted row lists** rather
 than as counts, each three ways: the declared literal, a predicate over the row's own region-event
-stream, and what the columns did — 370 assertions, up from 326. And the **`unsatisfiable` chain runs
+stream, and what the columns did. And the **`unsatisfiable` chain runs
 end to end for the first time** — a policy's answer, through a real `Driver`, through `foldInputs()`, to
 `RunState.outcome === 'stuck'` — where each of its four links previously had its own stub and nothing
 ran them as one. W15 takes **no decision and writes no spec**, deliberately: ADR 0025 is W16's, and
@@ -92,8 +94,8 @@ reaches `need: 0` with nothing arrived — so it **fires a join zero branches re
 precisely the cost ADR 0003 records for `live-token` and precisely what `JP-R8` removes. **The two
 refinements point in opposite directions** ([Q91](doc/open-questions.md)). And its **one surviving
 provocation of twenty-two**: the `at most once` latch on the driver's `unsatisfiable` path can be
-deleted with all 361 assertions still green, because the only policy that can say `unsatisfiable`
-says it on the last terminal event ([Q95](doc/open-questions.md)).
+deleted with all 361 assertions still green, because no policy here settles a join before every
+branch is terminal ([Q95](doc/open-questions.md) — **W18 closes it with a stub**).
 
 **Its readers found what its own provocations structurally could not, and the lesson generalises.**
 Twenty-two probes, written to the rules' clauses as `doc/workflow.md` v0.6 asks, all mutated something
@@ -132,16 +134,18 @@ never dispatched. Three ADRs came out of it, and **each came from a different ki
 
 | | |
 |---|---|
-| [**0013**](doc/decisions/0013-the-scheduler-is-a-development-dependency-reached-from-the-working-tree.md) | `fyflow-scheduler` is a **development** dependency and the published library depends on it **not at all** — `SchedulerLike` is structural and a caller passes its own scheduler in. **`S7` in `scripts/check-source.mjs` refuses any published file that imports it.** Node reaches 0.3.0 through `file:../fyflow-scheduler` → `dist/`; Deno through `examples/deno-import-map.json` → the source; the browser not at all |
+| [**0013**](doc/decisions/0013-the-scheduler-is-a-development-dependency-reached-from-the-working-tree.md) | `fyflow-scheduler` is a **development** dependency and the published library depends on it **not at all** — `SchedulerLike` is structural and a caller passes its own scheduler in. **`S7` in `scripts/check-source.mjs` refuses any published file that imports it.** **Superseded in part 2026-08-31 by [ADR 0029](doc/decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)** — rule 1 stands, rules 3 and 5 do not. Node reaches 0.3.0 through **npm** → `dist/`; Deno through `examples/deno-import-map.json` → **`jsr:@fyflow/scheduler@0.3.0`** → the source; the browser not at all |
 | [**0014**](doc/decisions/0014-the-driver-produces-the-folds-ordered-input-sequence.md) | **The driver produces the fold's ordered input sequence** — `Driver.foldInputs()`, and `onFoldInput` for the push half. `snapshot()` is now *defined* as its record-kind subsequence. Before this, `FoldInput.pathEnded` had **no producer anywhere** |
 | [**0015**](doc/decisions/0015-a-run-whose-join-can-no-longer-fire-is-stuck.md) | **A run whose join can no longer fire is `stuck`** — the sixth run outcome. Run state used to call such a run `completed` |
 
 **Three things this repository believed turned out to be wrong, and each was one command away.** npm and
-JSR **both carry the scheduler**, at 0.2.1 — so it is only *0.3.0* that is unpublished, and
-`@fyflow/scheduler` on JSR was an assumption nobody had checked. `../fyflow-scheduler/dist/`
+JSR **both carry the scheduler** — at 0.2.1 when W5 measured it, and **at 0.3.0 since 2026-08-31**,
+which is what made [ADR 0029](doc/decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)
+possible; `@fyflow/scheduler` on JSR was an assumption nobody had checked. `../fyflow-scheduler/dist/`
 **existed and was stale** — a pre-0.3.0 build behind a `package.json` reading `0.3.0`, which is a
-directory layout that invites the assumption and asserts nothing (`npm run check:scheduler` now
-guards it).
+directory layout that invites the assumption and asserts nothing. **That hazard is now gone with the
+link**: a published tarball ships no source to be stale against, and `npm run check:scheduler` guards
+the replacement hazard instead — Node's npm pin and Deno's JSR pin drifting apart.
 And `AGENTS.md` §3's *"a worker must be JavaScript"* is **false at Node 24**, which is why ladder L6
 runs in Deno as well as Node ([Q33](doc/open-questions.md), `RT-R10`) — the leaning that said *Node
 only* rested on that claim. Both scheduler findings are [S9](doc/scheduler-upstream.md), **the only
@@ -182,10 +186,31 @@ matrix says it hangs on **six of nine rows**, and only one of them is that case:
 `optional` task failing is enough. Fixed-`N` is wrong whenever *"how many will arrive"* differs from
 *"how many opened"*, and **every non-success outcome makes it differ.**
 
-**What is now live is [Q24](doc/open-questions.md)** — the two one-line refinements `JP-R7` and
-`JP-R8` pin. They were traps during the spike and are the open question after it; neither belongs in
-`src/fold/policies.ts` without its own decision. ADR 0003 names the motivating case: on the
-all-branches-exited row, `live-token` fires a join **no branch reached**.
+**[Q24](doc/open-questions.md) is answered by
+[ADR 0025](doc/decisions/0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md),
+and the two rules got different answers.** `JP-R8`'s refinement is **adopted** — a third policy under
+its own id, `live-token-requiring-arrival`, which is what `JP-R8` itself prescribes — so a flow can
+now treat a join reached by nothing as a failure and the run folds to **`stuck`** rather than
+`completed`, visible in `RunState.outcome` with no callback registered. `JP-R7`'s is **refused**: over
+the nine matrix rows it is `live-token` weakened and never strengthened — every row on which they
+differ, it reports `waiting` where `live-token` is `satisfied`, so its whole contribution is a silent
+hang — and on the **third** row it repairs it fires a join **zero branches reached**
+([Q91](doc/open-questions.md)). **`live-token` and `arrival-count` are byte-identical and `liveToken`
+is still what an application passes** (ADR 0003 rule 1; whether that should change is
+[Q96](doc/open-questions.md)). The refused variant stays a matrix column, because a refusal nothing
+executes is a refusal nobody can falsify. **Not one of the 36 matrix cells changed.**
+
+**W16 also fired `doc/workflow.md` rule 7 (c) for the first time in three plans.**
+`scripts/check-policies.mjs` holds the new **`JP-R9`** — *a policy `id` exists in
+`spec/join-policy.md` section 3 or it does not exist* — with ten checked-in probes, and **three of
+them failed at birth**: two were holes in the check and one was a probe that edited a heading the
+parser does not read.
+
+**And its provocation sweep reproduced W15's finding exactly, which makes it two occurrences.** 28
+mutations: **every probe written to a rule went red, and four of the five aimed at what the item
+CREATED survived** — section 3's third-row wording can be rewritten to demand two arrivals, and a
+whole column can be deleted from ADR 0025's pasted table, with the gate green. The ADR's table was
+therefore verified against `runCell` **once, mechanically**, all 36 cells.
 
 ## The fact that reframes the whole repo
 
@@ -320,22 +345,23 @@ paths from the repo root in prose; only markdown links are relative.
 
 ## Facts about fyflow-scheduler that catch people out
 
-Grounded in its `AGENTS.md` at **0.3.0** (landed 2026-08-30. **npm `fyflow-scheduler` and JSR
-`@fyflow/scheduler` both stop at 0.2.1**, so 0.3.0 is on no registry - measured by W5, and
-there is **no changelog** - a bump means re-reading `AGENTS.md` §6, not reading a diff). Re-check
-there rather than trusting this list if it matters.
+Grounded in its `AGENTS.md` at **0.3.0**, which **ships inside the npm package**: read it at
+`node_modules/fyflow-scheduler/AGENTS.md`, not next door. There is **no changelog**, so a version
+bump means re-reading `AGENTS.md` §6 rather than reading a diff. Re-check there rather than trusting
+this list if it matters.
 
 - **No dependencies, no ordering** — see above. This is the big one.
 - **Its published TypeScript source does not load under Node**, and its `AGENTS.md` §3 is wrong in
   the other direction about workers. `core/threadWrapper.ts:5` value-imports an `interface`, which
-  Node's type stripping cannot erase — so `import('../fyflow-scheduler/index.ts')` throws under Node
-  24 and works under Deno. Meanwhile a **typed `.ts` worker runs fine** under Node 24, `inline` and
-  threaded, contrary to §3's *"the file must be JavaScript"*. Both are [S9](doc/scheduler-upstream.md),
-  and together they are why Node reads `dist/` while Deno reads the source
-  ([ADR 0013](doc/decisions/0013-the-scheduler-is-a-development-dependency-reached-from-the-working-tree.md)).
-- **`dist/` goes stale silently.** It is gitignored there and rebuilt by `npm run build`; `npm run
-  check:scheduler` is what stops L6 running 0.2.x under Node and 0.3.0 under Deno and reporting both
-  green.
+  Node's type stripping cannot erase — so importing its source throws under Node 24 and works under
+  Deno. Meanwhile a **typed `.ts` worker runs fine** under Node 24, `inline` and threaded, contrary
+  to §3's *"the file must be JavaScript"*. Both are [S9](doc/scheduler-upstream.md), and together
+  they are why **Node reads npm's `dist/` while Deno reads JSR's source**
+  ([ADR 0029](doc/decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)).
+- **The version is written down twice, and that is the live hazard.** `package.json` pins the npm
+  package and `examples/deno-import-map.json` pins the JSR one; ladder L6 runs in both. `npm run
+  check:scheduler` **D3** is what stops L6 reporting two runtimes green against two different
+  schedulers. *(It replaced a stale-`dist/` check, which a published tarball cannot fail.)*
 - **An event's `detail` is the live object, not a snapshot.** `detail` **is** the `FyflowTask` for
   `task.running`/`completed`/`failed`/`user_action` — **including the `timestamp` field**, so a
   retained detail reports the *most recent* event's time, not the one you received. **Never retain
@@ -372,8 +398,12 @@ there rather than trusting this list if it matters.
 - `addTask` returns `undefined` without `{ createPromise: true }`, and a scheduler that is never
   shut down keeps the process alive.
 
-The library is local at `../fyflow-scheduler`; `AGENTS.md` there is the single-file API reference and
-every snippet in it is executed by its test suite.
+`AGENTS.md` inside the installed package is the single-file API reference and every snippet in it is
+executed by that project's own test suite. **Nothing here reaches a checkout next door**, and
+`check-scheduler.mjs` D1-D3 refuse the three ways that could come back — a `file:` dependency, a path
+in the import map, and a symlink in `node_modules`. The last one is not hypothetical: it is how a
+`git worktree remove --force` deleted most of the sibling repository on 2026-08-31
+([ADR 0029](doc/decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)).
 
 ## Sibling repositories
 
@@ -399,10 +429,18 @@ eval "$(fnm env --shell bash)" && fnm use 24
 Node 16 is what a bare `node` resolves to here, and it fails at `??=`-era syntax long before it
 reaches a test.
 
-**`npm install` requires `../fyflow-scheduler` to be checked out beside this repository**, and it
-rebuilds that repository's gitignored `dist/`. That is the one write this repo makes outside itself
-and it is [ADR 0013](doc/decisions/0013-the-scheduler-is-a-development-dependency-reached-from-the-working-tree.md)'s
-stated cost, not an accident.
+**`npm install` is just `npm install`.** The scheduler is a pinned registry devDependency
+(`fyflow-scheduler@0.3.0` from npm; Deno reaches `jsr:@fyflow/scheduler@0.3.0`), so nothing needs to
+be checked out beside this repository and **this repo writes nothing outside itself** —
+[ADR 0029](doc/decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md),
+which supersedes ADR 0013 rules 3 and 5.
+
+**Never put a link into `node_modules`.** Not a `file:` dependency, not `npm link`, not a junction —
+`check-scheduler.mjs` D1 refuses one and this is why: on 2026-08-31 a junction placed there so `tsc`
+would ignore the sibling's source was **followed by `git worktree remove --force`**, which deleted
+through the real repository — `.git/`, `core/`, `index.ts`, `dist/` — until it hit a lock. It was
+recoverable only because 0.3.0 had been pushed publicly. Every recursive tool that touches
+`node_modules` is one link away from another repository.
 
 **Do not rewrite files with `Get-Content | Set-Content`** — PS 5.1 reads UTF-8 without a BOM as
 CP1252 and silently double-encodes every non-ASCII character. Use the Edit or Write tool.

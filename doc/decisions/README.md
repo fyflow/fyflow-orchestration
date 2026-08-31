@@ -19,9 +19,20 @@ place with the correction left visible, dated, and attributed to whatever found 
 whether a reader who acted on the old text and one who acts on the new would do something different
 *because the decision changed* — or only because one of them was working from a sentence that was
 not true. [ADR 0004](0004-a-non-success-outcome-routes-only-where-an-edge-opts-in-and-user-action-suspends.md)
-carries the only instance: a trailing clause of rule 7 contradicted rule 4 three lines above it, and
-was removed rather than superseded. **Deleting the correction notice would be the violation**, not
-the edit.
+carries one instance: a trailing clause of rule 7 contradicted rule 4 three lines above it, and was
+removed rather than superseded. **Deleting the correction notice would be the violation**, not the
+edit.
+
+**[ADR 0003](0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md) now carries two, and
+the pair is worth reading together** — they are the same sentence corrected twice, by two different
+readers, a day apart, and **the second refutation was already inside the first**. It is the clearest
+evidence this repository has that `doc/` is upstream of every check and is checked by nothing.
+
+**A rule superseded is not the ADR superseded.** ADR 0003's rule 5 is replaced by
+[ADR 0025](0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md) while
+rules 1-4 stand; the notice sits **inside the rule it replaces**, so a reader cannot act on the old
+text without seeing it. Marking the whole document superseded would have been false — the decision it
+is named for is unchanged.
 
 Use [TEMPLATE.md](TEMPLATE.md).
 
@@ -37,6 +48,23 @@ Use [TEMPLATE.md](TEMPLATE.md).
 | [0013](0013-the-scheduler-is-a-development-dependency-reached-from-the-working-tree.md) | `fyflow-scheduler` is a **development** dependency, reached from the working tree, and the published library depends on it not at all | Q51 / W5 | 2026-08-30 |
 | [0014](0014-the-driver-produces-the-folds-ordered-input-sequence.md) | The driver produces the fold's ordered input sequence, and it is the log with the routing facts interleaved | Q41 / W5 | 2026-08-30 |
 | [0015](0015-a-run-whose-join-can-no-longer-fire-is-stuck.md) | A run whose join can no longer fire is `stuck`, the fold decides it, and `regions` did not already hold the data | Q42, Q43 / W5 | 2026-08-30 |
+| [0022](0022-a-driver-takes-its-run-at-construction.md) | A `Driver` takes its run at construction, and `start()` takes only the payload | Q53 / W13 | 2026-08-31 |
+| [0023](0023-an-inbound-settlement-is-this-runs-only-if-this-driver-dispatched-it.md) | An inbound settlement is this run's only if this driver dispatched its task id | Q72 / W13 | 2026-08-31 |
+| [0025](0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md) | The zero-arrival join is reportable, under a third policy id; arrival-counting is not repaired | Q24 / W16 | 2026-08-31 |
+| [0029](0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md) | The scheduler is a registry dependency, and nothing here reaches a working tree — **supersedes 0013 rules 3 and 5** | the maintainer | 2026-08-31 |
+
+**0029 takes an id outside every reserved block, deliberately.** [P5](../plans/p5-a-third-and-fourth-policy-or-repairs-of-the-first-two.md)
+reserves 0025-0026 and [P6](../plans/p6-what-may-share-a-scheduler-with-a-driver.md) reserves
+0027-0028; this decision belongs to neither, because it was forced by an **environment change and an
+incident** rather than by a plan. Taking a reserved id would have made a plan's ledger false, and
+gaps are free while renumbering is not (`doc/workflow.md` section 3).
+
+**The 0022 and 0023 rows were missing until W16 added them** — both ADRs are dated 2026-08-31 and so
+is the backfill, so this index was wrong for a day rather than for long, and it was wrong from the
+moment each decision shipped. The file that indexes the decisions is not one of `doc/workflow.md`
+section 1 rule 5's record-step files, so nothing obliged P4 to write them and no check noticed.
+**A fourth address for the same class**, alongside a false register entry (Q43), a stale ADR table
+(Q94) and the sentence ADR 0003 has now had corrected twice.
 
 **W5's three are the first ADRs written after a work item ran real code**, and they divide cleanly:
 0013 came from measuring an environment, 0014 from a gate that could not otherwise be written

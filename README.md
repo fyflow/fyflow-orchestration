@@ -3,8 +3,8 @@
 Flow orchestration over [fyflow-scheduler](https://github.com/fyflow/fyflow-scheduler). Define a
 flow once; run thousands of workloads through it.
 
-> **Status: the layer is built and gated.** Sequence, decision routing, fan-out and join, with two
-> join policies, a definition validator, and run state as a pure fold. **One driver serves one run, fixed at construction, and two drivers may share a scheduler.** **370 assertions in five
+> **Status: the layer is built and gated.** Sequence, decision routing, fan-out and join, with
+> **three** join policies, a definition validator, and run state as a pure fold. **One driver serves one run, fixed at construction, and two drivers may share a scheduler.** **386 assertions in five
 > runtimes** — Node 24, Deno, chromium, firefox, webkit — **plus 240 against a real scheduler** in
 > Node and Deno. Not published; no version has been released.
 
@@ -60,7 +60,7 @@ into run state.
 | **Flow definition** | nodes bound to worker types, decision edges, fan-out and join — one template, many runs. **23 validation refusals** over the id range `FD-V1` … `FD-V24`, every one with a failing example — `FD-V14` is deliberately absent |
 | **Driver** | the only component that touches the scheduler: subscribes, routes, dispatches. The library imports the scheduler **nowhere** — a caller passes its own in |
 | **Run state** | a fold: where a run is, what each node returned, what a join is waiting on. **Six outcomes**, including `stuck` |
-| **Join policies** | `live-token` and `arrival-count`, behind one interface, both shipped |
+| **Join policies** | `live-token`, `arrival-count` and `live-token-requiring-arrival`, behind one interface, all three shipped. **Pass `live-token`** |
 | **Examples** | [ladder L6](examples/) — fifteen real runs on a real scheduler, in Node and Deno, including two runs sharing one |
 
 ## The hard question, and its answer
@@ -79,6 +79,18 @@ than the question — arrival-counting fails on **six of nine** matrix rows, not
 case, and **an ordinary `optional` task failing is enough**. Fixed-`N` is wrong whenever *"how many
 will arrive"* differs from *"how many opened"*, and every non-success outcome makes it differ.
 
+**The follow-up question, and its answer.** That decision recorded one cost: on a flow where *every*
+branch is routed away, `live-token` fires a join **no branch reached** and carries `null` into
+whatever comes after it. Two one-line refinements of the two policies had been written into `spec/`
+before either existed, precisely so nobody could quietly apply one and call it a repair.
+**[ADR 0025](doc/decisions/0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md)
+answers both, differently.** The refinement that declines a join with zero arrivals is **built, as a
+third policy under its own name** — `live-token-requiring-arrival`, which reports the join as
+unfireable and folds the run to `stuck` instead of `completed`. The refinement that would make
+arrival-counting survive P1's case is **refused**: measured over the whole matrix, it is `live-token`
+weakened, and every row on which they differ is a row where it waits forever.
+**`live-token` and `arrival-count` are unchanged**, so this adds a name and breaks nothing.
+
 ## Running it
 
 Node **24** (`.node-version`, selected with fnm) and a current Deno.
@@ -88,17 +100,19 @@ npm install
 npm run gate
 ```
 
-**`npm install` requires [`fyflow-scheduler`](https://github.com/fyflow/fyflow-scheduler) checked out
-beside this repository**, at `../fyflow-scheduler`. It is pinned to **0.3.0**, which is on no
-registry — npm and JSR both stop at 0.2.1 — so it is reached from the working tree next door. That is
-a development dependency only: **the published library depends on the scheduler not at all**, and a
-consumer installs whichever version it wants.
-[ADR 0013](doc/decisions/0013-the-scheduler-is-a-development-dependency-reached-from-the-working-tree.md).
+**`npm install` is all the setup there is.** [`fyflow-scheduler`](https://github.com/fyflow/fyflow-scheduler)
+is pinned to **0.3.0** and installed from **npm**; Deno reaches the same version on JSR as
+`@fyflow/scheduler`, which is why `examples/deno-import-map.json` exists. That is a development
+dependency only: **the published library depends on the scheduler not at all** — `SchedulerLike` is a
+two-method structural interface and a consumer passes its own scheduler in, at whichever version it
+wants. [ADR 0013](doc/decisions/0013-the-scheduler-is-a-development-dependency-reached-from-the-working-tree.md)
+rule 1, and [ADR 0029](doc/decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)
+for how it is reached.
 
 | | |
 |---|---|
 | `npm run gate` | everything below, in order |
-| `npm test` · `npm run test:deno` · `npm run test:browser:all` | 370 assertions, five runtimes |
+| `npm test` · `npm run test:deno` · `npm run test:browser:all` | 386 assertions, five runtimes |
 | `npm run test:l6` · `npm run test:l6:deno` | a real scheduler, fifteen runs |
 
 ## Documentation

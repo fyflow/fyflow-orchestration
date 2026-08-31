@@ -1,6 +1,6 @@
 # P5 — A third and fourth policy, or repairs of the first two?
 
-**Status:** running — **W15 done: built, gated, both readers run and acted on**; W16 and W17 declared, not started
+**Status:** running — **W15 and W16 done**; W16's two readers pending; W17 declared, not started
 **Question this plan answers:** [Q24](../open-questions.md) — *are `JP-R7` and `JP-R8` a third and
 fourth join policy, or repairs of the first two?* The sub-question that decides it, and the one the
 measurements below make visible: **should the policy this library tells you to pass be able to say
@@ -207,7 +207,49 @@ the register is Q90.
 
 *Filled in when the plan's items are merged and its retro is run.*
 
-**Progress.** [W15](../work-items/w15-the-fourth-column-and-the-chain-nothing-runs.md) is **done**:
+**Progress.** **[W16](../work-items/w16-the-decision-and-what-it-ships.md) is built and gated and
+its readers have not yet run.** [ADR 0025](../decisions/0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md)
+answers [Q24](../open-questions.md) and **the two rules got different answers**: `JP-R8`'s refinement
+is **adopted** as a third policy under its own id, `live-token-requiring-arrival`; `JP-R7`'s is
+**refused**. `live-token` and `arrival-count` are byte-identical, so ADR 0003 rules 1-4 stand, and
+**not one of the 36 matrix cells changed** — `node test/matrix/render.ts` is byte-identical across the
+decision. 386 assertions in five runtimes, up from 370; L6 green and untouched. **Five things belong
+to this plan rather than to the item:**
+
+1. **The plan's conclusion survived and its argument did not.** *"Adopting `JP-R8` and refusing
+   `JP-R7` is the outcome the measurements point at"* is what the evidence gives — **and this plan's
+   stated reason for refusing `JP-R7`, *"a three-row change to a policy that still loses on three"*,
+   is not the reason.** The reason is that its divergence from `live-token` is
+   `waiting`-against-`satisfied` on **every** row where they differ, so the whole of its contribution
+   is a silent hang, and that on the row it repairs it fires a join zero branches reached. **W16 not
+   being entitled to inherit the leaning was load-bearing**, and not in the way the sentence
+   predicted: the conclusion was safe to inherit and the argument was not.
+2. **[Rule 7 (c) fired, for the first time in three plans](../workflow.md).** `scripts/check-policies.mjs`
+   holds `JP-R9` — *a policy `id` exists in `spec/join-policy.md` section 3 or it does not exist* —
+   with ten checked-in probes, nine tripping exactly one check and the tenth declaring a structural
+   cascade. **Three of the ten failed at birth**: two were holes in the check, one was a probe that
+   edited a heading the parser does not read. **The form discriminated**, and P5's retro can report
+   it as exercised rather than carrying it a fourth time.
+3. **Rule 8's write-to-the-rule form has its second measurement and it is the same as the first.**
+   28 mutations: **every probe written to a rule went red, and four of five aimed at what the item
+   CREATED survived** — section 3's third-row wording can be rewritten to demand two arrivals, and a
+   column can be deleted from ADR 0025's pasted table, with the whole gate green. **That is W15's
+   finding reproduced in a second item with the amendment in force**, which is section 6 pass 3
+   rule 2's bar. The retro has two occurrences, not one sample.
+4. **`Reserves:` obliges writing files that no `Owns` block names, and P4's retro fixed only half of
+   it.** That retro named `doc/open-questions.md` in the record-step list because every `Reserves:`
+   line obliges a register write — **and every `Reserves:` line names ADR ids too.** `doc/decisions/`
+   is in neither the list nor any `Owns` block, so every item that ever reserved an ADR wrote an
+   undeclared file. W16 also found `doc/decisions/README.md`'s index missing **ADR 0022 and 0023**
+   entirely, and `spec/README.md` dragged in unavoidably by `check-spec`'s `C8` whenever a spec
+   version bumps. **Three files the mechanism cannot see**; the fix is the same one P4 made.
+5. **[Q94](../open-questions.md) was resolved by refusing the paste it proposed.** ADR 0003's table
+   stays at two columns and now says why — it is the evidence *that* decision was made from, and
+   rewriting it to four would make a 2026-08-30 decision appear to rest on 2026-08-31 evidence. The
+   four-column table is in ADR 0025, and **its 36 cells were verified against `runCell` once,
+   mechanically**, rather than transcribed and trusted.
+
+**[W15](../work-items/w15-the-fourth-column-and-the-chain-nothing-runs.md) is **done**:
 L0-L5 green in all five runtimes (**370** assertions, up from 326; `test/matrix/**` is 91 in four test
 files), **both readers run and every finding acted on** — 4 defects and 5 blocking mutation families,
 with **1 overlap**. It took **no decision and wrote no spec**, which was the fan-out gate. Its full
@@ -224,9 +266,11 @@ Record is in the item; **four things belong to this plan rather than to it**:
 2. **[Q94](../open-questions.md) is W16's and is one paste.** ADR 0003 carries a hand-copied
    **two**-column matrix; `test/matrix/render.ts` now emits four. The divergence arrived because the
    artifact was extended, not because anyone edited the ADR.
-3. **Rule 7 (c) is still unexercised, for the third plan running.** W15 added no check script and
-   said so in its `Out` list rather than leaving the retro to find it. **W16 or W17 must add one, or
-   this plan's retro reports it a third time.**
+3. ~~**Rule 7 (c) is still unexercised, for the third plan running.**~~ **Answered by W16**, which
+   added `scripts/check-policies.mjs` for `JP-R9` with ten checked-in probes. W15 added no check
+   script and said so in its `Out` list rather than leaving the retro to find it; W16 did not plan to
+   add one either, and the invariant ADR 0025 created is what made it obvious. **The retro reports it
+   exercised, and the sample is one.**
 4. **P4's retro prediction 1 has its first answer and it is not the predicted one.** The prediction
    was that rule 8's *write to the rule* form would produce **fewer reader survivors in the
    provocation family**. W15's author set was **not** narrow in the old direction — it was complete on
