@@ -28,7 +28,7 @@ details are live mutable objects and `task.failed` also fires for `user_action` 
 **[P1](doc/plans/p1-what-satisfies-a-join.md)'s five work items are all built.** `spec/` holds **six
 normative documents and 72 numbered rules**; `src/` holds the definition validator, the driver and
 the fold with **both** join policies; `test/matrix/` holds the join/failure matrix; `examples/` holds
-ladder **L6**. **314 assertions in five runtimes** — Node 24, Deno, chromium, firefox, webkit —
+ladder **L6**. **326 assertions in five runtimes** — Node 24, Deno, chromium, firefox, webkit —
 identical in all of them, **plus 219 at L6 in Node and Deno**. **`doc/workflow.md` is v0.5**, run to
 completion by three plans.
 

@@ -123,17 +123,112 @@ suite('ID-R4 — a settlement carrying OUR run id for a task we never dispatched
   });
 
   test('a `user_action` task fires TWO events for ONE dispatched id, and both pass', async () => {
-    // ADR 0007 rule 2. If the guard were keyed on anything but the dispatched id
-    // — a "seen" set, say — the second event of the pair would be refused as
-    // undispatched, and a suspended branch would stop its own run.
+    // ADR 0007 rule 2. **This comment used to claim the test would catch a guard
+    // keyed on a consumable "seen" set. It would not**, and W13's adequacy reader
+    // measured it: three seen-set mutants killed ZERO cases here. Since W13
+    // reordered the guard ahead of `normalizeEvent` BOTH events of the pair now
+    // reach it, where before `OR-R3` dropped the first one — so the pair is a real
+    // exercise of the guard's idempotence, which is what the second assertion
+    // below pins. The seen-set property itself is killed by `ID-R1`'s replacement
+    // in `driver.test.ts`, and that is where the credit belongs.
     const s = new Fake();
     const r = attach(s, await load('valid/fanout-join.flow.json'), 'r1');
     r.driver.start({});
     s.settle('r1:ingest:-:0', 'done', { result: {} });
+    const dispatched = s.ids().length;
     s.settle('r1:scoreA:0:0', 'user_action', { error: 'needs a human' });
     equal(r.failures, [], 'neither event of the pair is refused');
     equal(r.driver.snapshot().filter((rec) => rec.taskId === 'r1:scoreA:0:0').length, 1,
       'and OR-R3 still writes exactly one record for the pair');
+    equal(s.ids().length, dispatched, 'a suspended branch dispatches nothing — it is waiting on a person');
+  });
+});
+
+suite('ID-R4 — both tiers are decided before the terminal state is read', (test) => {
+  // **The three fixtures above all settle `done`.** W13's adequacy reader exempted
+  // one terminal state at a time from the guard and found three surviving
+  // mutations: `failed` and `user_action` had no `ID-R4` coverage on either tier,
+  // while `done` was killed by five cases. A guard the fixtures only ever exercise
+  // in one state is a guard that can be conditioned on the state.
+  //
+  // ADR 0023's own Consequences paragraph turns on `user_action` — the state with
+  // the least coverage before this suite existed.
+  for (const state of ['done', 'failed', 'user_action'] as const) {
+    test(`tier 2 refuses an undispatched task settling \`${state}\``, async () => {
+      const s = new Fake();
+      const r = attach(s, await load('valid/linear.flow.json'), 'r1');
+      r.driver.start({});
+      s.settle('r1:publish:-:0', state, { result: null, error: 'x' });
+      ok(r.failures.length > 0 && r.failures.every((k) => k === 'UndispatchedTask'),
+        `ID-R4 says "a settlement", not "a settlement that succeeded" — ${state} is a settlement`);
+      equal(r.driver.snapshot().length, 0, 'and no OUTCOME record is appended');
+      // **A `user_action` task fires TWO events for one task** (ADR 0007 rule 2),
+      // and since the guard moved ahead of `normalizeEvent` both of them reach it,
+      // so both are refused. That is two reports for one settlement — honest, and
+      // noisier than the other two states. What must NOT differ by state is the
+      // run stopping once, which is what `RN-R8` and the fold care about.
+      equal(r.driver.foldInputs().filter((i) => i.kind === 'stopped').length, 1,
+        'the run stops exactly once, however many events the pair carries');
+    });
+
+    test(`tier 1 ignores ANOTHER run's task settling \`${state}\``, async () => {
+      const s = new Fake();
+      const r = attach(s, await load('valid/linear.flow.json'), 'r1');
+      r.driver.start({});
+      s.settle('run-9:ingest:-:0', state, { result: null, error: 'x' });
+      equal(r.failures, [],
+        `ADR 0023 rule 3 is about whose run it is, not about how it ended — ${state} included`);
+      ok(!r.driver.hasFailed(), 'our run is untouched');
+    });
+  }
+
+  test('a FOREIGN settlement with an uncloneable result does not stop our run', async () => {
+    // **W13's conformity reader's blocking finding.** `normalizeEvent` throws
+    // `UncloneableResult` (`OR-R6`) while copying `result`, and W13 first shipped
+    // the guard AFTER it — so a foreign settlement stopped this run and reported a
+    // `RunFailure` carrying the OTHER run's id, falsifying all three clauses of
+    // ADR 0023 rule 3 at once. It is the `OR-R6` path L6's `uncloneable` row
+    // exercises, on the topology ADR 0023 exists to bless.
+    const s = new Fake();
+    const r = attach(s, await load('valid/linear.flow.json'), 'r1');
+    r.driver.start({});
+    s.settle('run-9:ingest:-:0', 'done', { result: () => 1 });
+    equal(r.failures, [], 'rule 3: not a failure, not counted, does not reach onRunFailure');
+    ok(!r.driver.hasFailed(), 'and our run is not stopped by another run`s worker bug');
+  });
+
+  test('OUR OWN uncloneable result still stops the run — OR-R6 is intact', async () => {
+    // The converse, and the reason the reorder is not a weakening: moving the
+    // ownership test earlier must not move `OR-R6` out of reach for a task that
+    // IS ours.
+    const s = new Fake();
+    const r = attach(s, await load('valid/linear.flow.json'), 'r1');
+    r.driver.start({});
+    s.settle('r1:ingest:-:0', 'done', { result: () => 1 });
+    equal(r.failures, ['UncloneableResult'], 'OR-R6, at the listener boundary, reported not thrown');
+    ok(r.driver.hasFailed(), 'and the run is stopped');
+  });
+});
+
+suite('OR-R10 — a stopped run dispatches nothing further on the SCHEDULER edge', (test) => {
+  test('after a refusal, a settlement for a dispatched task routes nothing', async () => {
+    // **W13's adequacy reader's blocking finding.** `OR-R10` names the test it
+    // owes: *"asserting the failure is reported AND that no further task is
+    // dispatched for that run"*. The only test that asserted "nothing after the
+    // stop" exercises `resolve()` — the INBOUND edge, added by W5 — and the
+    // `onEvent` edge `OR-R10` was written for had none. Deleting
+    // `if (this.failed) return` from `onEventOrThrow` left 314 assertions and 219
+    // L6 assertions green while a stopped run kept dispatching.
+    const s = new Fake();
+    const r = attach(s, await load('valid/linear.flow.json'), 'r1');
+    r.driver.start({});
+    s.settle('r1:nosuch:-:0', 'done', { result: null });      // ID-R4 stops the run
+    ok(r.driver.hasFailed(), 'the run is stopped');
+    const dispatched = s.ids().length;
+
+    s.settle('r1:ingest:-:0', 'done', { result: null });      // a REAL, dispatched task
+    equal(s.ids().length, dispatched,
+      'OR-R10: nothing routes for a stopped run again, on the edge the rule is about');
   });
 });
 
@@ -213,7 +308,88 @@ suite('Q72 — two Drivers on ONE scheduler, which is what MultipleRuns tells yo
   });
 });
 
+suite('Q72 — the precondition the topology has, stated rather than assumed', (test) => {
+  test('two Drivers sharing ONE run id still corrupt each other, and ID-R4 cannot see it', async () => {
+    // **Both of W13's readers measured this independently.** ADR 0022 rule 6 and
+    // ADR 0023 rule 6 say a second `Driver` on one scheduler is now safe; that is
+    // true only for DISTINCT run ids. With the same id, both drivers mint the same
+    // task ids, so `dispatched.has()` is true in both and `ID-R4` is not violated
+    // — it is a limit of the rule, not a bug in it, and no driver can detect it
+    // from inside (`SchedulerLike` has two methods and neither asks).
+    //
+    // This test pins the known limit so the claim cannot quietly widen. The
+    // precondition is stated in ADR 0023's Correction, in `spec/task-id.md`
+    // `ID-R4`, and in `AGENTS.md` section 9.
+    const s = new Fake();
+    const def = await load('valid/linear.flow.json');
+    const a = attach(s, def, 'r1');
+    const b = attach(s, def, 'r1');
+    a.driver.start({});
+    b.driver.start({});
+    equal(s.ids(), ['r1:ingest:-:0', 'r1:ingest:-:0'],
+      'the SAME task id is dispatched twice — spec/task-id.md section 2`s collision, before anything settles');
+
+    s.settle('r1:ingest:-:0', 'done', { result: null });
+    equal(a.failures, [], 'and neither driver can report it: each dispatched that id itself');
+    equal(b.failures, [], 'nor the second');
+    equal(s.ids().filter((id) => id === 'r1:publish:-:0').length, 2,
+      'so one settlement produces two dispatches of the successor. Run ids must be unique per ' +
+      'scheduler, and nothing in the library enforces that — Q87');
+  });
+});
+
 suite('ADR 0022 — the surface says what ID-R3 says', (test) => {
+  test('a RunFailure names THIS driver`s run, never the inbound id`s', async () => {
+    // W13's conformity reader: three sources for one constant value. A malformed
+    // settlement reported `'<unknown>'` for a run that has a name, and a foreign
+    // one reported ANOTHER run's id. Its adequacy counterpart found the field was
+    // asserted nowhere at all — every onRunFailure capture in the repository read
+    // `kind` and dropped `runId`.
+    const s = new Fake();
+    const seen: string[] = [];
+    const driver = new Driver(await load('valid/linear.flow.json'), {
+      runId: 'run-a',
+      scheduler: s,
+      createTask: (c) => c,
+      predicates: new Map(),
+      workerTypes: reg.workerTypes,
+      now: () => 1,
+      onRunFailure: (f) => seen.push(f.runId),
+    });
+    driver.start({});
+    s.settle('not-a-task-id', 'done', { result: null });
+    equal(seen, ['run-a'],
+      'not `<unknown>`: after ADR 0022 the driver knows its run from the constructor`s first line');
+  });
+
+  test('a throwing start() BOTH reports and rethrows, and is still a used start', async () => {
+    // `start`'s catch block carries a comment stating this contract and nothing
+    // exercised it — three surviving mutations (report-only, rethrow-only, and
+    // latching `started` only on success). The last matters most: ADR 0022 rule 4
+    // says ANY second `start` is refused, so a failed one must still count.
+    const s = new Fake();
+    const failures: string[] = [];
+    const driver = new Driver(await load('valid/linear.flow.json'), {
+      runId: 'r1',
+      scheduler: {
+        addTask() { throw new Error('scheduler is down'); },
+        addEventListener() {},
+      },
+      createTask: (c) => c,
+      predicates: new Map(),
+      workerTypes: reg.workerTypes,
+      now: () => 1,
+      onRunFailure: (f) => failures.push(f.kind),
+    });
+    throws(() => driver.start({}), 'scheduler is down',
+      'the caller is on the stack, so start() rethrows');
+    equal(failures, ['Error'], 'AND reports — the run is stopped either way');
+    ok(driver.hasFailed(), 'the run is stopped');
+    throws(() => driver.start({}), 'MultipleRuns',
+      'ID-R3: a start that threw is still a start. Retrying it would re-enter a stopped run');
+    void s;
+  });
+
   test('start() takes the payload alone, and the payload reaches the entry task', async () => {
     const s = new Fake();
     const r = attach(s, await load('valid/linear.flow.json'), 'r1');

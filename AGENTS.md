@@ -580,7 +580,7 @@ void InvalidDefinition;
 ```
 
 `InvalidDefinition` carries the violated rule ids on `.rules`, so you can act on them rather than
-parse a string. `InvalidRunId` is thrown by `start()` for a run id outside `[A-Za-z0-9_-]{1,64}`
+parse a string. `InvalidRunId` is thrown by the **constructor** for a `runId` outside `[A-Za-z0-9_-]{1,64}`
 (`ID-R2`) — `:` is excluded because it is the task-id delimiter, and excluding it is what makes the
 task-id parse total.
 
@@ -597,7 +597,10 @@ so a second run would silently merge into the first. **One driver, one run** —
 constructor option, so there is no second id to pass.
 
 **A second driver on the same scheduler is the supported answer**, which is what `MultipleRuns`'
-message tells you to build. A settlement reaches only the driver that **dispatched** that task id:
+message tells you to build — **under two conditions.** Give each driver a **different** run id: two
+sharing one id mint the same task ids, and neither can see the collision. And put only flow tasks on
+that scheduler: a task id no driver minted does not parse, and that stops **every** driver on it.
+ A settlement reaches only the driver that **dispatched** that task id:
 one for another run is ignored, and one carrying **this** driver's run id for a task it never
 dispatched stops the run with `UndispatchedTask` (`ID-R4`). The second half is a refusal rather than
 a filter for `ID-R1`'s reason — within one run the driver mints every id it dispatches, so a
@@ -625,16 +628,16 @@ paragraphs above:
 ```ts run
 import {
   DuplicateTaskId, InvalidDefinition, InvalidRunId, MissingJoinPolicy,
-  MultipleRuns, NoMatchingEdge, UncloneableResult,
+  MultipleRuns, NoMatchingEdge, UncloneableResult, UndispatchedTask,
 } from 'fyflow-orchestration';
 
 const named = [
-  DuplicateTaskId, UncloneableResult, NoMatchingEdge,     // reported inside a listener
-  MultipleRuns, InvalidRunId, InvalidDefinition, MissingJoinPolicy,   // thrown at you
+  DuplicateTaskId, UncloneableResult, NoMatchingEdge, UndispatchedTask,  // reported inside a listener
+  MultipleRuns, InvalidRunId, InvalidDefinition, MissingJoinPolicy,      // thrown at you
 ].map((c) => c.name).join(' ');
 console.log(named);
-if (named !== 'DuplicateTaskId UncloneableResult NoMatchingEdge MultipleRuns InvalidRunId ' +
-             'InvalidDefinition MissingJoinPolicy') {
+if (named !== 'DuplicateTaskId UncloneableResult NoMatchingEdge UndispatchedTask MultipleRuns ' +
+             'InvalidRunId InvalidDefinition MissingJoinPolicy') {
   throw new Error(`section 9 names classes that no longer exist under those names: ${named}`);
 }
 ```

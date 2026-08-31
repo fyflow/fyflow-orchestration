@@ -121,8 +121,9 @@ export class MissingJoinPolicy extends Error {}
 /**
  * The run has failed and the driver has stopped routing it.
  *
- * **`spec/` says three refusals "terminate the run" — `FD-R1`, `ID-R1`, `OR-R6` —
- * and a `throw` cannot do that.** Every one of them is reached from inside a
+ * **`spec/` says these refusals "terminate the run" — `FD-R1`, `ID-R1`, `OR-R6`, and since W13
+ * `ID-R4` — and a `throw` cannot do that.** (`InvalidTaskId` reaches the same path, raised by
+ * `parseTaskId` rather than named as a rule.) Every one of them is reached from inside a
  * `scheduler.addEventListener` callback, and `EventTarget.dispatchEvent`
  * **discards a listener throw**: measured on Node 24, the remaining listeners
  * still run, `dispatchEvent` returns normally, and the error resurfaces
@@ -140,8 +141,9 @@ export class MissingJoinPolicy extends Error {}
  * than a thing it throws.
  */
 export interface RunFailure {
+  /** **This driver's run** — ADR 0022 rule 1. Never parsed from the inbound task id. */
   runId: string;
-  /** `DuplicateTaskId` | `UncloneableResult` | `NoMatchingEdge` | the policy's own error name. */
+  /** `DuplicateTaskId` | `UncloneableResult` | `NoMatchingEdge` | `UndispatchedTask` | `InvalidTaskId` | the policy's own error name. */
   kind: string;
   message: string;
   cause: unknown;
@@ -354,7 +356,7 @@ export class Driver {
     } catch (e) {
       // `start` is called by the caller, not by a listener, so it BOTH reports
       // and rethrows: the caller is on the stack and can act on it.
-      this.failRun(runId, e);
+      this.failRun(e);
       throw e;
     }
   }
@@ -410,14 +412,19 @@ export class Driver {
   private onEvent(name: string, detail: TaskDetailLike): void {
     // The listener boundary is also the FAILURE boundary: a throw from here is
     // discarded by dispatchEvent, so it is caught, reported, and the run stops.
-    let runId = '<unknown>';
-    try {
-      runId = typeof detail?.id === 'string' ? parseTaskId(detail.id).runId : runId;
-    } catch { /* a malformed id is reported by the catch below */ }
+    //
+    // **The failure is reported under THIS driver's run id, always.** It used to
+    // be parsed out of the inbound task id, with `'<unknown>'` when that failed —
+    // three sources for one constant value, and after ADR 0022 the driver knows
+    // its run from the constructor's first line. W13's conformity reader measured
+    // the two ways that was wrong: a malformed settlement reported `'<unknown>'`
+    // for a run that has a name, and a foreign one reported *another run's* id
+    // out of a driver that does not serve it. A `RunFailure` names the run that
+    // failed, which is the only run this driver has.
     try {
       this.onEventOrThrow(name, detail);
     } catch (e) {
-      this.failRun(runId, e);
+      this.failRun(e);
     }
   }
 
@@ -426,7 +433,7 @@ export class Driver {
     return this.failed;
   }
 
-  private failRun(runId: string, cause: unknown): void {
+  private failRun(cause: unknown): void {
     // `RN-R8` — `stopped` outranks everything, and the fold learns it here.
     // Appended before `failed` is set so a re-entrant `onFoldInput` listener
     // sees the same order a later `foldInputs()` reader does.
@@ -437,7 +444,7 @@ export class Driver {
       this.append({ kind: 'stopped', reason: `${err.constructor?.name ?? 'Error'}: ${err.message}` });
     }
     this.opts.onRunFailure?.({
-      runId,
+      runId: this.runId,
       kind: err.constructor?.name ?? 'Error',
       message: err.message,
       cause,
@@ -445,41 +452,57 @@ export class Driver {
   }
 
   private onEventOrThrow(name: string, detail: TaskDetailLike): void {
-    const record = normalizeEvent(name, detail, this.now());
-    if (!record) return; // OR-R3/OR-R4: this event writes nothing
-
-    // **Parsed BEFORE it is appended, and the order is load-bearing.** An id this
-    // driver did not mint cannot be routed on, and `OR-R10` stops the run for it —
-    // but appending the record first leaves an element in the sequence that
-    // `fold` itself throws on, because `step` parses the same id. The run would
-    // then be `stopped` *and* unfoldable, which is a worse failure than the one
-    // being reported. Found by W5's own test, which had to fabricate the case:
-    // every id the scheduler reports is one `dispatch` minted.
-    const { runId, nodeId, branchPath } = parseTaskId(record.taskId);
-
-    // **`ID-R4` — ADR 0023, and it is two tiers because they are two different
-    // failures.** Both sit AFTER the parse, so a malformed id still stops the run
-    // (`OR-R10`, above): "does not parse" is not "not ours", it is a defect.
+    // **`ID-R4` — ADR 0023. Ownership is decided from the TASK ID ALONE, before
+    // anything else reads the detail**, and the order is the whole rule.
     //
+    // W13 shipped this after `normalizeEvent` and W13's conformity reader measured
+    // what that cost: `normalizeEvent` throws `UncloneableResult` (`OR-R6`) while
+    // copying `result`, so **another run's settlement with an uncloneable result
+    // stopped THIS run** and reported a `RunFailure` carrying *that other run's
+    // id*. ADR 0023 rule 3 says a foreign settlement *"is not a failure, is not
+    // counted, and does not reach `onRunFailure`"* — all three were false, on
+    // precisely the `OR-R6` path L6's `uncloneable` row exercises, on the very
+    // topology this ADR exists to bless. **Deciding ownership first is what makes
+    // rule 3 true**, and it is cheaper too: a driver no longer deep-clones the
+    // result of every settlement it is about to discard.
+    //
+    // `parseTaskId` still throws first, so an id that does not parse still stops
+    // the run (`OR-R10`) — "does not parse" is not "not ours", it is a defect.
+    // **That has a precondition and it is now stated rather than assumed**: a
+    // scheduler this driver subscribes to must carry only task ids some driver
+    // minted, because one that is not (a plain non-flow task) stops every driver
+    // on it. ADR 0023's Correction, and [Q86](../../doc/open-questions.md).
+    const taskId = detail?.id;
+    const { runId, nodeId, branchPath } = parseTaskId(typeof taskId === 'string' ? taskId : '');
+
     // Tier 1 — another run's settlement. Routine the moment two drivers
-    // legitimately share one scheduler, which ADR 0023 is what makes safe. This
-    // driver has no standing to judge another run, so it is ignored, silently,
-    // and nothing is appended. **The cost is stated in that ADR rather than
-    // hidden: a driver is now silent about what it drops**, so a caller that
-    // starts `run-l` meaning `run-1` sees a run that never progresses.
+    // legitimately share one scheduler. This driver has no standing to judge
+    // another run, so it is ignored, silently, and nothing is appended. **The
+    // cost is stated in that ADR rather than hidden: a driver is now silent about
+    // what it drops**, so a caller that starts `run-l` meaning `run-1` sees a run
+    // that never progresses.
     if (runId !== this.runId) return;
     // Tier 2 — OUR run id, on a task we never dispatched. Impossible if the
     // bookkeeping is right, which is exactly `ID-R1`'s character: within one run
     // this driver mints every id it dispatches. Three shapes reach here and every
     // one was silently accepted and routed before W13 — a node never dispatched,
     // a node not in the definition at all, and a branch path never opened.
-    if (!this.dispatched.has(record.taskId)) {
+    //
+    // **Both tiers are decided before the terminal state is even read**, and that
+    // is deliberate: W13's adequacy reader found three surviving mutations that
+    // exempted one state each (`done` was covered by the fixtures, `failed` and
+    // `user_action` were not). A guard that cannot see the state cannot be
+    // conditioned on it.
+    if (!this.dispatched.has(taskId as string)) {
       throw new UndispatchedTask(
-        `UndispatchedTask: "${record.taskId}" settled in run "${runId}", but this driver never ` +
+        `UndispatchedTask: "${taskId}" settled in run "${runId}", but this driver never ` +
           'dispatched it. ID-R4: within one run the driver mints every task id it dispatches, so ' +
           'either its path bookkeeping is wrong or something else is writing into this run id.',
       );
     }
+
+    const record = normalizeEvent(name, detail, this.now());
+    if (!record) return; // OR-R3/OR-R4: this event writes nothing
 
     this.append({ kind: 'outcome', record });
     if (this.failed) return;

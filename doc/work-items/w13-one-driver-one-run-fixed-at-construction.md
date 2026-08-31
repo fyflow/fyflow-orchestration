@@ -1,6 +1,6 @@
 # W13 — One driver, one run, fixed at construction — and what makes an event ours
 
-**Status:** **in review** - built, gate green, both readers owed
+**Status:** **done** - built, both readers run, every finding acted on, gate re-run
 **Plan:** [P4](../plans/p4-the-drivers-lifetime-and-the-handles-it-gives-out.md) — the item the plan
 exists for, and the only one that breaks a published surface
 
@@ -139,117 +139,137 @@ knowing it owes a replacement.
 | a nested fan-out (Q6) | forbidden by `FD-V15`; unchanged |
 ## Record
 
-**Status: built, gate green, both readers owed.**
+**Status: done** — built, both readers run, every finding acted on, gate re-run.
 
 **Gate — what ran.**
 
 | Clause | Verdict | Runtimes | Notes |
 |---|---|---|---|
-| L0 | **RAN** — pass | Node, Deno | `check-spec` (8, including **C8**, which is what caught `spec/README.md`'s version column before a human did), `check-source` (10), `check-scheduler` (5), `check-docs` (16 snippets, 12 `run`), `check-docs-selftest` (**12/12**), `deno lint`, `tsc` × 6 configs, `deno check`, `deno publish --dry-run` |
-| **X5 — the DOM lib pass** | **RAN** — reported | Node | **1 of 16**, `AGENTS.md:751`. Went to **5 of 16** mid-item while the reference was stale and back to 1; [Q71](../open-questions.md) is unchanged |
-| L1 | **RAN** — pass | **all five** | **314 assertions, was 301.** `test/driver/lifetime.test.ts` is **13 assertions in 4 suites** |
-| **L2 — the item's real gate** | **RAN** — pass | all five | two drivers on one fake scheduler, both runs `completed`, disjoint logs and disjoint dispatch sets; the six inbound ids, each asserted separately |
-| L3-L5 | **RAN** — pass | all five | determinism, definition conformance and the matrix all unchanged in content; `test/matrix/run.ts` moved two call sites |
-| **rule 8 — the provocations** | **RAN** — **7 of 7 red**, against the **full** suite | Node | table below |
-| L6 | **RAN** — pass, and it is W14's gate | Node, Deno | 219 assertions, unchanged, with a **two-line** change to `examples/run-flow.ts` — exactly what the spike predicted |
-| conformity reader | **NOT RUN** | | owed |
-| adequacy reader | **NOT RUN** | | owed |
-| re-run at `<sha>` | **NOT RUN** | | owed |
+| L0 | **RAN** — pass | Node, Deno | `check-spec` (8, including **C8**, which refused `spec/task-id.md` v0.5 against a stale `spec/README.md` before a human saw it), `check-source` (10), `check-scheduler` (5), `check-docs` (16 snippets, 12 `run`), `check-docs-selftest` (**12/12**), `deno lint`, `tsc` × 6, `deno check`, `deno publish --dry-run` |
+| **X5 — the DOM lib pass** | **RAN** — reported | Node | **1 of 16**. Went to 5 of 16 while the reference was stale and back to 1 |
+| L1 | **RAN** — pass | **all five** | **326 assertions** — 301 before this item, 314 at first commit, 326 after the readers |
+| **L2 — the item's real gate** | **RAN** — pass | all five | two drivers on one fake scheduler; the six inbound ids; **each of the two tiers in all three terminal states**; the same-`runId` limit pinned |
+| L3-L5 | **RAN** — pass | all five | unchanged in content; `test/matrix/run.ts` moved two call sites |
+| **rule 8 — the provocations** | **RAN** — **18 of 18 red**, full suite | Node | table below. **The first set of 7 was incomplete and the adequacy reader proved it with 8 survivors** |
+| L6 | **RAN** — pass, and it is W14's gate | Node, Deno | 219, unchanged, with a two-line `examples/run-flow.ts` change |
+| **conformity reader** | **RAN** — **1 blocking, 7 defect, 7 note** | n/a | derived the six-id inbound contract from `OR-R7`/ADR 0023 **before opening the code**; that derivation found the blocking one |
+| **adequacy reader** | **RAN** — **78 mutations, 8 survivors, 4 blocking** | n/a | walked the rule ids; scored against the **full** suite, as W12's Record was falsified for not doing |
+| **re-run after acting on both** | **RAN** — pass | all five, both L6 runtimes | `npm run gate` exit 0 |
 
-**Rule 8 — each fix broken, and the gate watched go red.** Run against the **whole** suite, because
-W12's Record was falsified for measuring against one file:
+**Rule 8 — 18 provocations, all red.** Seven of mine, eight of the adequacy reader's survivors, plus
+the conformity reader's blocking finding restored as its own probe:
 
 | provocation | result |
 |---|---|
-| ADR 0023 r1 — delete the inbound guard entirely | **RED**, 3 cases, including both two-driver cases |
-| ADR 0023 r4 — delete only tier 2 (our run id, undispatched) | **RED**, 5 cases |
-| **ADR 0023 — use a RUN-ID FILTER instead**, the mechanism [Q72](../open-questions.md) proposed | **RED, 5 cases — and they are exactly the three holes the measurement rejected it for**: a node never dispatched, a node not in the definition, a branch path never opened |
-| ADR 0023 r3 — make tier 1 loud instead of silent | **RED**, 3 cases |
-| ADR 0022 r3 — move `ID-R2` out of the constructor back into `start()` | **RED**, 3 cases |
-| ADR 0022 r4 — drop the second-`start` refusal | **RED**, 2 cases |
-| ADR 0022 r5 — `hasFailed()` always false | **RED**, 9 cases |
+| delete both tiers / tier 1 / tier 2 | **RED** 12 / 7 / 9 |
+| **a run-id filter instead** — the mechanism [Q72](../open-questions.md) proposed | **RED** 9 |
+| make tier 1 loud | **RED** 7 |
+| **restore the original order — `normalizeEvent` before the ownership test (B1)** | **RED** 1, and it is the case named for it |
+| **tier 2 exempt for `user_action`** / for `failed`; **tier 1 exempt for `user_action`** | **RED** 1 each — *all three survived everything before the readers* |
+| **a stopped run keeps routing on the scheduler edge** | **RED** 1 — *survived 314 assertions and 219 L6 assertions before* |
+| `RunFailure` always reports a sentinel | **RED** 1 |
+| `started` latched only on success / `start()` reports-not-rethrows / rethrows-not-reports | **RED** 3 / 1 / 1 |
+| `ID-R2` out of the constructor / drop the second-`start` refusal / `hasFailed()` always false | **RED** 3 / 3 / 12 |
 
 **Outputs — what was actually built.**
 
 | Declared output | Exists | What would fail without it |
 |---|---|---|
-| [ADR 0022](../decisions/0022-a-driver-takes-its-run-at-construction.md) | **yes** | provocations 5-7 |
-| [ADR 0023](../decisions/0023-an-inbound-settlement-is-this-runs-only-if-this-driver-dispatched-it.md) | **yes**, and it decided the thing the plan refused to pre-empt: **tier 1 is silent, tier 2 is loud** | provocations 1-4 |
-| `spec/task-id.md` v0.5 | **yes** — `ID-R2` and `ID-R3` restated, **`ID-R4`** added, 71 rules → **72** | `check-spec` C6 (every rule names a test owner) and C8 (the index matches the header) |
-| the driver | **yes** — `runId` at construction, `start(payload)`, `hasFailed()`, `failed` a boolean, the two-tier guard | all seven provocations |
-| **a replacement direct test for `ID-R1`** | **yes**, and it is the output this item was declared knowing it owed | `driver.test.ts`'s `ID-R1` suite. Deleting `ID-R1`'s refusal now fails there rather than nowhere |
-| `AGENTS.md`'s three apologies deleted | **yes** — §2's *"one driver per scheduler"*, §9's Q53/Q72 parenthetical, §10's bullet. **The reference is shorter and the gate is green** | `check:docs` X3/X4: five snippets stopped compiling when the surface changed, which is the mechanism working |
+| [ADR 0022](../decisions/0022-a-driver-takes-its-run-at-construction.md) | **yes** | the last three provocations |
+| [ADR 0023](../decisions/0023-an-inbound-settlement-is-this-runs-only-if-this-driver-dispatched-it.md) | **yes, and it now carries a *Correction*** — rule 1's ordering was wrong and two preconditions were unstated | the first six provocations |
+| `spec/task-id.md` v0.5 | **yes** — `ID-R2`/`ID-R3` restated, **`ID-R4`** added with the ordering and both preconditions, 71 rules → **72** | `check-spec` C6 and C8 |
+| the driver | **yes** | all 18 |
+| **a replacement direct test for `ID-R1`** | **yes**, and the conformity reader confirmed it independently: five weakenings of `ID-R1` each die on it, and it **could not** be deleted with the gate green | `driver.test.ts`'s `ID-R1` suite |
+| `AGENTS.md`'s apologies deleted | **yes**, and the reference came out **shorter** — but §9 now also states the two **preconditions** the Correction adds, which is the honest version of "a second driver is fine" | `check:docs` X3/X4 |
 
 ## What broke
 
-**1. Nothing behavioural, and the spike said so in advance.** L6's thirteen rows passed at every
-stage, including with the inbound guard applied **before** any surface change — which is the
-measurement that made ADR 0022 and ADR 0023 separable rather than one decision. The whole cost was
-call sites: **82 typecheck errors** across five test files and `examples/`, plus five `AGENTS.md`
-snippets.
+**1. ADR 0023 rule 3 was false as shipped, and the rule's own ordering clause was why.**
+`normalizeEvent` deep-copies `result` and raises `UncloneableResult` (`OR-R6`) — and it ran *before*
+the ownership test. So **another run's settlement with an uncloneable result stopped this run**, and
+the `RunFailure` named *that other run*. All three of rule 3's clauses — not a failure, not counted,
+does not reach `onRunFailure` — were false at once, on precisely the `OR-R6` path L6's `uncloneable`
+row exercises, on the topology the ADR exists to bless. **Ownership is now decided from the task id
+alone, before anything else reads the detail**, which is also cheaper: a driver no longer clones the
+result of every settlement it is about to discard.
 
-**2. `spec/task-id.md` predicted the one real casualty in writing, and it came due.** v0.4 kept
-`ID-R3` narrow *"because widening it would take away `ID-R1`'s only direct test — trading a tested
-rule for an untested one"*. ADR 0022 widens it. **The replacement was measured before the ADR was
-written**, and it is a better test: the same settlement delivered twice refuses the *successor's*
-redispatch, **reported** through `onRunFailure` rather than thrown — the form `OR-R10` actually
-describes, on a path a real scheduler could reach rather than one only a caller could.
-*A rule may take another rule's test away. It may not do it silently*, and section 3 of the spec now
-carries that sentence for the next occasion.
+**2. `ID-R4` was tested only against `done`, and both tiers were exemptible per state.** Three
+surviving mutations, one clause each. The guard now cannot see the terminal state at all — it runs
+before `normalizeEvent` — and the suite drives both tiers in all three states. **A guard the fixtures
+only exercise in one state is a guard that can be conditioned on the state.**
 
-**3. Two checks caught drift before a human did, and both were written for other reasons.**
-`check-spec` **C8** refused `spec/task-id.md` v0.5 against a `spec/README.md` still saying v0.4 —
-which is why `spec/README.md` is a declared exception rather than a miss. And
-`check-docs-selftest`'s probe 11 **failed with *"the mutation matched nothing"***, because it is
-pinned to the literal text `driver.start('run-1', …)` that this item deleted. **That is rule 7 (b)
-firing on a real API change** — the requirement P3's retro adopted so a rotted probe becomes a red
-gate instead of a silent pass. First occurrence in the wild.
+**3. `OR-R10`'s own owed test did not exist for the edge it was written for.** The rule says *"the
+failure is reported **and no further task is dispatched for that run**"*. The only test asserting
+"nothing after the stop" exercises `resolve()` — the *inbound* edge, added by W5. Deleting
+`if (this.failed) return` from `onEventOrThrow` left **314 assertions and 219 L6 assertions green**
+while a stopped run kept dispatching. W13 rewrote the function around that line and did not notice.
 
-**4. `AGENTS.md` came out shorter, which is the answer to a question P3's retro asked.** P3 found the
-reference had *absorbed* three `src/` defects and asked whether removing them would need different
-words or none. **None**: §2's fourth bite became three, §9's paragraph lost its parenthetical, §10's
-bullet lost half of itself, and every claim that replaced them is executed by a snippet or is a
-statement of the new rule. One of the three absorbed defects — [Q71](../open-questions.md)'s cast in
-§12 — is untouched and still there, which is the honest remainder.
+**4. A test's comment claimed something unreachable — rule 8's shape at the assertion level.** The
+`user_action` case said it would catch a guard keyed on a consumable "seen" set. Three seen-set
+mutants killed **zero** cases there: `OR-R3` dropped the first event of the pair before the guard, so
+the pair could not exercise it. Now that the guard runs earlier both events reach it, so the case is
+real — and the comment says where the credit actually belongs.
 
-**5. `index.ts` gained a name.** `UndispatchedTask`. The declaration said *"unchanged in number. If
-the collapse of `hasFailed(runId)` removes a name, that is a surface change to report"* — it removes
-none, and adds one. Reported here rather than smoothed over: the reference's §9 error-class snippet
-does **not** yet name it, which is a gap a reader may reasonably call.
+**5. Two preconditions of the blessed topology were unstated, and both readers found the sharper one
+independently.** Two `Driver`s on the **same** run id mint the same task ids, so `dispatched.has()`
+is true in both, `ID-R4` is not violated, and one settlement produces two dispatches of the successor
+with nothing reported — [Q72](../open-questions.md)'s corruption verbatim, for the one case ADR 0023
+does not close. No driver can detect it. And a plain **non-flow** task on a shared scheduler does not
+parse, so rule 2 stops every driver on it. Both are now stated in the ADR's Correction, in `ID-R4`,
+and in `AGENTS.md` §9; the second is [Q86](../open-questions.md) and the first
+[Q87](../open-questions.md).
+
+**6. Three claims in the item's own documents were false.** `AGENTS.md:583` still said
+*"`InvalidRunId` is thrown by `start()`"*, two paragraphs below the table row this item correctly
+rewrote. §9's prose named `UndispatchedTask` while its executed snippet asserted a seven-name string
+omitting it — **the reference contradicting itself inside one section**, which is worse than either
+state alone; [Q84](../open-questions.md) is closed by adding it, and Q84's *stated reason for
+deferring was itself wrong* (`AGENTS.md` is in this item's `Owns` outright). And `README.md` said
+*"eight ADRs"* where there are ten, in the same commit that corrected the two lines beside it.
+
+**7. The register's census line was wrong three times in one session, by one author, with the rule in
+front of them.** Stale, then self-contradictory, then off by one — each time by chaining a derivation
+instead of stating a predicate. It now states one: *a question is resolved when its status cell says
+so*. **This is a four-plan observation that has never been made a rule, and this is its worst
+occurrence.** For P4's retro.
 
 ## What this taught
 
-- **The spike was the item.** Everything decided here — that a run-id filter is the wrong check, that
-  the two ADRs are separable, that the cost is call sites and not behaviour, that `ID-R1` keeps a
-  test — was measured before a line of `src/` changed. **Five consecutive plans have now settled
-  their load-bearing fact before declaring**, and P2's retro said it would flip that habit into a
-  rule only if an item skipped it and paid. Still no rule, and the habit is still unbroken.
-- **A two-tier guard where a filter was proposed.** [Q72](../open-questions.md) proposed filtering by
-  run id; the register is read as authoritative and is checked by nothing, and this is the third
-  consecutive plan to find one of its rows wrong **by trying to act on it**. Here the row was not
-  false — it was *narrower than the defect*, which is a new shape of the same problem.
-- **Silence is a decision and it has a stated cost.** ADR 0023 rule 3 makes a driver silent about
-  settlements it drops, so a caller who starts `run-l` meaning `run-1` sees a run that never
-  progresses and hears nothing. That is worse than today's diagnostic, and it is accepted because the
-  alternative is noise on the topology the ADR exists to support. **It is written into the ADR's
-  Consequences rather than discovered later**, which is what "be honest about the cost" is for.
+- **The two readers found the same defect from opposite ends and neither would have found both.** The
+  conformity reader derived the six-id contract from the ADR and found rule 3 violated by an
+  ordering it had not thought to check; the adequacy reader mutated the guard state-by-state and
+  found the same region unguarded from the test side. **24 findings between them, 4 clean overlaps —
+  ~17%**, against W12's 3 in 18 (also 17%), W9's 3 in ~30, W5's 3 in ~35, W4's 1 in 13. W12's Record
+  hypothesised that the *fraction* rises as items shrink; **W13 is a large item at the same 17%, so
+  that hypothesis did not survive its first test.** What is stable is the absolute count: 1-4.
+- **A provocation set written by the author is shaped by the fix.** Mine were seven ways to *remove*
+  the guard; the reader's eight survivors were ways to *narrow* it. This is the second item in a row
+  where that was the finding, which is what `doc/workflow.md` section 6 pass 3 rule 2 asks for.
+- **`ID-R1`'s substitution held up.** The one claim this item was declared knowing it owed, and the
+  conformity reader confirmed it independently under mutation: five weakenings each die on the
+  replacement, and it could not be deleted with the gate green. **A rule may take another rule's test
+  away; it may not do it silently** — and the spec now carries that sentence.
+- **A blessed topology needs its preconditions written down at the same time.** ADR 0023 said "a
+  second driver is now safe" and meant "with a distinct run id, on a scheduler carrying only flow
+  tasks". The unqualified sentence is the same failure ADR 0022's own Context argues against: *a
+  surface that says more than the rule is read as the surface.*
 
 ## Questions raised
 
-**Q84-Q85** from this item's block. Q86-Q89 unused so far.
+**Q84-Q87** from this item's block. Q88-Q89 unused.
 
 | Q | | raised by |
 |---|---|---|
-| Q84 | **Should `AGENTS.md` §9 name `UndispatchedTask` among the refusal classes it lists?** Its `run` snippet imports the seven and asserts their names; the eighth exists and is not there. Trivial to add and it is a **surface** claim, so it is raised rather than done inside an item whose scope is the driver | W13, writing §9 |
-| Q85 | **[Q20](../open-questions.md) is now a live design question rather than a note.** Moving the run id to construction makes a `Driver` a per-run object, which is the shape durability ([Q15](../open-questions.md)) would need — and ADR 0023 rule 3 has a driver *ignoring* other runs, which is only correct if a run id means the same thing everywhere. This item formed an opinion and its declaration says it is not entitled to record one | W13 |
+| ~~Q84~~ | `AGENTS.md` §9 did not name `UndispatchedTask` — **resolved**, added after both readers found the section contradicting itself | W13, then its conformity reader |
+| Q85 | [Q20](../open-questions.md) is now a design question: a `Driver` is a per-run object and rule 3 ignores other runs, both of which assume a run id means the same thing everywhere | W13 |
+| Q86 | **Should an unparseable task id be treated as "not ours" rather than as a defect?** A driver mints only parseable ids, so an unparseable one cannot be ours — but refusing it stops every driver on a scheduler that also carries non-flow tasks | W13's conformity reader |
+| Q87 | **Nothing enforces run-id uniqueness across drivers on one scheduler**, and `ID-R4` cannot see the violation | both readers, independently |
 
 ## What is still open in this item, deliberately
 
-- **Both readers are owed.** This is the largest surface change the repository has made and it has
-  had one author.
-- **`AGENTS.md` §12's cast for [Q71](../open-questions.md) is untouched**, and is the third of the
-  three apologies P3's retro named. It is a different question with a recorded argument on both
-  sides, and it was out of scope by declaration.
-- **The L6 row is [W14](w14-two-runs-two-drivers-one-scheduler-at-l6.md)'s.** Two drivers on one
-  scheduler is proved here against a **fake**, and this repository's own record is that
-  fixtures-versus-reality is exactly where it has been wrong.
+- **`AGENTS.md` §12's cast for [Q71](../open-questions.md)** — the third of P3's three absorbed
+  defects, out of scope by declaration and argued on both sides.
+- **The L6 row is [W14](w14-two-runs-two-drivers-one-scheduler-at-l6.md)'s**, and the adequacy reader
+  measured what that means: **L6 gives `ID-R4` zero coverage today** — single driver, single run, no
+  foreign settlements. It is red for "the guard drops everything", so it is not vacuous, and green
+  for every narrower mutation. W14 carries all of it.

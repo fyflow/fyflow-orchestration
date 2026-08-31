@@ -1,7 +1,7 @@
 # ADR 0023 — An inbound settlement is this run's only if this driver dispatched its task id
 
 **Date:** 2026-08-31
-**Status:** accepted
+**Status:** accepted — **rule 1 corrected and two preconditions added in place, 2026-08-31**, see *Correction*
 **Raised by:** W13 / [P4](../plans/p4-the-drivers-lifetime-and-the-handles-it-gives-out.md) / [Q72](../open-questions.md)
 
 ## Context
@@ -45,8 +45,10 @@ the argument held"*.
 ## Decision
 
 1. **A settlement is this run's if and only if this driver dispatched its task id.** The check is
-   `dispatched.has(taskId)` — the same set `ID-R1` is asserted against — and it happens **after**
-   `parseTaskId` and **before** the record is appended.
+   `dispatched.has(taskId)` — the same set `ID-R1` is asserted against — and **ownership is decided
+   from the task id alone, before anything else reads the detail** (*Correction* 1; this clause first
+   read *"after `parseTaskId` and before the record is appended"*, which was not far enough forward
+   and made rule 3 false).
 2. **A task id that does not parse still stops the run, unchanged.** `OR-R10`. The guard sits after
    the parse precisely so that this keeps working: a malformed id is not "not ours", it is a
    scheduler or driver defect and it is attributable.
@@ -100,3 +102,61 @@ whether a driver should have an opinion about other runs. If it lands, that is w
 | **Make rule 3 loud too** — report or throw on any settlement that is not ours | With two drivers on one scheduler every foreign settlement hits it. A refusal that fires on the normal case is noise, and noise gets suppressed |
 | **Make rule 4 silent too**, so the guard is one line | It would silently drop the three cases that are genuinely defects, which is the objection [Q72](../open-questions.md) raised against filtering — *"a driver that silently ignores an unknown run id drops a real defect"*. That objection is right about half the cases, and this rule is where it lands |
 | **Check `nodeId` against the definition instead of the dispatched set** | Catches the *not in the definition* case and misses the other two. The dispatched set is stricter and already exists |
+
+---
+
+## Correction — 2026-08-31
+
+**Found by W13's spec-conformity pass and, in part, independently by its test-adequacy pass**, both
+run against the commit that first carried this ADR. **Rule 1's ordering was wrong, and two
+preconditions of the topology this ADR blesses were unstated.** Nothing in the Decision is withdrawn;
+one clause is corrected and two are added.
+
+### 1. Rule 1's *"after `parseTaskId`"* was not far enough forward, and rule 3 was false because of it
+
+Rule 1 placed the ownership test after `parseTaskId` on the assumption that nothing earlier could
+throw. **`normalizeEvent` can.** It deep-copies `result` and raises `UncloneableResult` (`OR-R6`)
+when the copy fails — and it ran *before* the ownership test. Measured:
+
+```
+a run-a driver receives { id: 'run-9:ingest:-:0', state: 'done', result: () => 1 }
+  -> onRunFailure({ kind: 'UncloneableResult', runId: 'run-9' }),  hasFailed() === true
+```
+
+Rule 3 says a foreign settlement *"is not a failure, is not counted, and does not reach
+`onRunFailure`"*. **All three were false**, on precisely the `OR-R6` path ladder L6's `uncloneable`
+row exercises, on the very topology this ADR exists to make safe. One driver's worker bug stopped
+another driver's run and named that other run in the report.
+
+**Rule 1 is corrected to:** *ownership is decided from the **task id alone**, before anything else
+reads the detail.* `parseTaskId` still runs first, so rule 2 is unchanged. This is also cheaper — a
+driver no longer deep-copies the result of every settlement it is about to discard, which at the
+1000s-10000s scale `doc/concept.md` targets is `O(drivers)` wasted clones per settlement.
+
+**A second consequence, recorded because it is a behaviour change:** a `user_action` task fires two
+events for one task (ADR 0007 rule 2), and the first of them — `task.failed` carrying
+`state: 'user_action'` — used to be dropped by `normalizeEvent` before reaching the guard. It now
+reaches it. For a **dispatched** task nothing changes. For an **undispatched** one, both events are
+refused, so `onRunFailure` fires twice for one settlement. The run still stops exactly once, which is
+what `RN-R8` and the fold turn on, and `test/driver/lifetime.test.ts` asserts that invariant rather
+than a per-state count.
+
+### 2. The blessed topology has two preconditions, and neither was stated
+
+| precondition | what happens without it |
+|---|---|
+| **Every task on a driver's scheduler carries a task id some driver minted.** | A plain non-flow task settling on a shared scheduler does not parse, so rule 2 stops **every driver on that scheduler**. Measured. Whether an unparseable id should instead be treated as *not ours* — a driver mints only parseable ids, so an unparseable one cannot be ours — is [Q86](../open-questions.md), raised rather than decided here |
+| **Run ids are unique across the drivers sharing one scheduler.** | Two drivers constructed with the **same** run id mint the same task ids, so `dispatched.has()` is true in both and `ID-R4` is not violated. Measured: one settlement produces **two** dispatches of the successor, with nothing reported — [Q72](../open-questions.md)'s corruption verbatim, for the one case this ADR does not close. No driver can detect it: `SchedulerLike` has two methods and neither asks who else is subscribed. [Q87](../open-questions.md) |
+
+**Rule 6's *"a second `Driver` on the same scheduler is now safe"* is therefore true of drivers with
+distinct run ids, on a scheduler carrying only flow tasks.** `AGENTS.md` section 9 and
+`spec/task-id.md` `ID-R4` both state the preconditions rather than leaving them to a reader.
+
+### 3. The *Consequences* claim about `context.spawnTask()` was misleading
+
+It read: *"a worker that calls `context.spawnTask()` … can no longer have its task's settlement
+mistaken for a flow step."* `spawnConfig.id` is caller-supplied
+(`../fyflow-scheduler/core/FyflowScheduler.ts:1466`), so a spawned id will not parse — and the actual
+outcome is that the settlement **stops the run** under rule 2, not that it is harmlessly ignored.
+That is unchanged behaviour with a bad outcome, listed as a benefit. It is the same fact as
+precondition 1 and it is [Q86](../open-questions.md).
