@@ -17,7 +17,7 @@
  *
  *   1. **Only an `optional` task can settle `failed`.** Both `state = 'failed'`
  *      assignments live inside `if (task.optional)`
- *      (`../fyflow-scheduler/core/FyflowScheduler.ts:894-897`); a non-optional
+ *      (`core/FyflowScheduler.ts:894-897` at 0.3.0); a non-optional
  *      task out of retries goes to `user_action` instead. A fake that emits
  *      `failed` for a non-optional node produces an event stream the real
  *      scheduler cannot, and the `lost-settled` row then proves nothing about the
@@ -27,6 +27,12 @@
  *      dispatches `task.failed` AND `task.user_action` with the same object; an
  *      `optional` one dispatches only `task.failed` (`CLAUDE.md`; ADR 0007 rule
  *      2). The driver keys on terminal state, not event name.
+ *
+ * **Line citations into the scheduler are into its REPOSITORY, not into
+ * `node_modules`.** Since [ADR 0029](../../doc/decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)
+ * the npm package ships `dist/` and `AGENTS.md` and no TypeScript source, so
+ * the file below is read at **github.com/fyflow/fyflow-scheduler** and the line
+ * numbers are the ones measured at 0.3.0.
  */
 import { Driver } from '../../src/driver/driver.ts';
 import type { RegionEvent } from '../../src/driver/events.ts';

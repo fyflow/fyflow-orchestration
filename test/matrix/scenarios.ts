@@ -7,11 +7,17 @@
  * produce the same event, because the point of the `optional-null` row is to make
  * that collapse visible rather than to assume it: an `optional` node settling and
  * a human resolving `failed` are the same two lines of the same branch upstream
- * (`../fyflow-scheduler/core/FyflowScheduler.ts:894-897`), and `resolve(null)` is
+ * (`core/FyflowScheduler.ts:894-897` at 0.3.0), and `resolve(null)` is
  * invisible to a listener.
  *
  * A row is INPUT only. What each policy does with it is the cell, and the cell's
  * expected value is written by hand in `matrix.test.ts`.
+ *
+ * **Line citations into the scheduler are into its REPOSITORY, not into
+ * `node_modules`.** Since [ADR 0029](../../doc/decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)
+ * the npm package ships `dist/` and `AGENTS.md` and no TypeScript source, so
+ * the file below is read at **github.com/fyflow/fyflow-scheduler** and the line
+ * numbers are the ones measured at 0.3.0.
  */
 import type { Scenario } from './run.ts';
 import { fanoutFailure, fanoutJoin, optionalLost, p1RoutedAway, sixEvents, twoRegions } from './flows.ts';

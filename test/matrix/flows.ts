@@ -12,7 +12,7 @@
  *      default one. This is the ONLY way `branch.lost` is reached **by settling**
  *      rather than by a human resolving a suspended node: a non-optional task out
  *      of retries becomes `user_action`, not `failed`
- *      (`../fyflow-scheduler/core/FyflowScheduler.ts:894-897`), so a `failed`
+ *      (`core/FyflowScheduler.ts:894-897` at 0.3.0), so a `failed`
  *      outcome record requires `optional: true`. `fanout-failure` has an optional
  *      node but gives it an `on: ["failed"]` edge, so that branch **exits**.
  *      Without this flow the settled-`failed` half of `JP-R4`'s `branch.lost` is
@@ -34,6 +34,12 @@
  * (`spec/README.md` rule 1). They are still validated in full: `new Driver(...)`
  * runs `validateDefinition` on them before anything is queued, so a malformed one
  * throws `InvalidDefinition` rather than producing a quiet cell.
+ *
+ * **Line citations into the scheduler are into its REPOSITORY, not into
+ * `node_modules`.** Since [ADR 0029](../../doc/decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)
+ * the npm package ships `dist/` and `AGENTS.md` and no TypeScript source, so
+ * the file below is read at **github.com/fyflow/fyflow-scheduler** and the line
+ * numbers are the ones measured at 0.3.0.
  */
 import { readText, ROOT } from '../harness.ts';
 import type { FlowDefinition } from '../../src/definition/types.ts';
