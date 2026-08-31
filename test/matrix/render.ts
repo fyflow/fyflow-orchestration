@@ -4,20 +4,16 @@
  *
  *   node test/matrix/render.ts        deno run --allow-read test/matrix/render.ts
  *
- * **This is a by-product, never a source of truth.** The values it prints are the
- * same ones `matrix.test.ts` asserts against expectations written by hand from
- * `spec/join-policy.md`. Nothing in the repository consumes this output
- * automatically: ADR 0003 carries a copy, and the copy is checked by the
- * assertions rather than by a diff against this script.
+ * **Four columns since W15**: the two policies `spec/join-policy.md` section 3
+ * names, then `JP-R7`'s and `JP-R8`'s refinements under their own ids.
+ *
+ * **This file is deliberately two lines.** Everything it used to do is in
+ * `./table.ts`, which the suite imports and asserts — because **no script in
+ * `package.json` executes this one**, so any logic left here is unchecked by
+ * construction. W15's adequacy reader found seven surviving mutations in the
+ * version that had logic, one of which printed a two-column table with the whole
+ * gate green.
  */
-import { arrivalCount, liveToken } from '../../src/fold/policies.ts';
-import type { JoinPolicy } from '../../src/driver/policy.ts';
-import { renderTable, runCell } from './run.ts';
-import { SCENARIOS } from './scenarios.ts';
+import { renderMatrix } from './table.ts';
 
-const rows = SCENARIOS.map((scenario) => ({
-  scenario,
-  cells: [runCell(scenario, arrivalCount as JoinPolicy), runCell(scenario, liveToken as JoinPolicy)],
-}));
-
-console.log(renderTable(rows, ['arrival-count', 'live-token']));
+console.log(renderMatrix());

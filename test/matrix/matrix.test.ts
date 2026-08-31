@@ -18,24 +18,55 @@
  * improvements are third policies, and `variants.test.ts` is where that claim is
  * made falsifiable. A row where a policy behaves badly is the result.
  */
-import { equal, ok, suite } from '../harness.ts';
+import { deepEqual, equal, ok, suite } from '../harness.ts';
 import { arrivalCount, liveToken, POLICIES } from '../../src/fold/policies.ts';
 import type { JoinPolicy, JsonValue } from '../../src/driver/policy.ts';
-import { type Cell, renderTable, runCell, type Verdict } from './run.ts';
+import { type Cell, runCell, type Verdict } from './run.ts';
+import { renderMatrix } from './table.ts';
 import { SCENARIOS } from './scenarios.ts';
+import {
+  MATRIX_COLUMNS,
+  MATRIX_POLICY_IDS,
+  SHIPPED_POLICY_IDS,
+  VARIANT_POLICY_IDS,
+} from './variants.ts';
+
+interface Answer {
+  status: string;
+  describe: JsonValue;
+  verdict: Verdict;
+}
 
 interface Expected {
   events: string[];
-  ac: { status: string; describe: JsonValue; verdict: Verdict };
-  lt: { status: string; describe: JsonValue; verdict: Verdict };
+  ac: Answer;
+  lt: Answer;
+  /** `JP-R7`'s variant — `arrival-count` decrementing N on `branch.exited`. */
+  acDec: Answer;
+  /** `JP-R8`'s variant — `live-token` requiring an arrival before `satisfied`. */
+  ltArr: Answer;
 }
 
 const waiting = (describe: JsonValue, verdict: Verdict) => ({ status: 'waiting', describe, verdict });
 const satisfied = (describe: JsonValue) => ({ status: 'satisfied', describe, verdict: 'joined' as const });
+/**
+ * **The third status, and only the fourth column can produce it.**
+ * `spec/join-policy.md` section 3 says neither shipped policy is ever
+ * `unsatisfiable`; section 4 says the driver then **routes nowhere**, so the
+ * verdict is `stuck` by construction rather than by coincidence.
+ */
+const unsatisfiable = (describe: JsonValue) =>
+  ({ status: 'unsatisfiable', describe, verdict: 'stuck' as const });
 
 /** `need`/`arrived` is arrival-count's `describe`; `live`/`positive` is live-token's. */
 const ac = (need: number, arrived: string[]) => ({ need, arrived });
 const lt = (live: number, positive = true) => ({ live, positive });
+/**
+ * The `JP-R8` variant's `describe`, which is `live-token`'s plus the counter its
+ * one line reads. A different shape from `lt` above **is the evidence** that the
+ * fourth column is a different policy rather than a re-run of the second.
+ */
+const ltA = (live: number, arrived: number, positive = true) => ({ live, positive, arrived });
 
 const EXPECTED: Record<string, Expected> = {
   // The control row. If the two policies disagreed here the experiment would have
@@ -44,6 +75,8 @@ const EXPECTED: Record<string, Expected> = {
     events: ['opened(split:0)', 'opened(split:1)', 'arrived(split:0)', 'arrived(split:1)'],
     ac: satisfied(ac(2, ['0', '1'])),
     lt: satisfied(lt(0)),
+    acDec: satisfied(ac(2, ['0', '1'])),
+    ltArr: satisfied(ltA(0, 2)),
   },
 
   // **P1's case.** One branch reaches an `end` instead of the join. Arrival-count
@@ -54,12 +87,16 @@ const EXPECTED: Record<string, Expected> = {
     events: ['opened(split:0)', 'opened(split:1)', 'arrived(split:0)', 'exited(split:1)'],
     ac: waiting(ac(2, ['0']), 'stuck'),
     lt: satisfied(lt(0)),
+    acDec: satisfied(ac(1, ['0'])),
+    ltArr: satisfied(ltA(0, 1)),
   },
 
   'lost-settled': {
     events: ['opened(split:0)', 'opened(split:1)', 'arrived(split:0)', 'lost(split:1)'],
     ac: waiting(ac(2, ['0']), 'stuck'),
     lt: satisfied(lt(0)),
+    acDec: waiting(ac(2, ['0']), 'stuck'),
+    ltArr: satisfied(ltA(0, 1)),
   },
 
   // The same terminal event as `lost-settled`, reached by the other road: a human
@@ -69,6 +106,8 @@ const EXPECTED: Record<string, Expected> = {
     events: ['opened(split:0)', 'opened(split:1)', 'arrived(split:0)', 'suspended(split:1)', 'resumed(split:1)', 'lost(split:1)'],
     ac: waiting(ac(2, ['0']), 'stuck'),
     lt: satisfied(lt(0)),
+    acDec: waiting(ac(2, ['0']), 'stuck'),
+    ltArr: satisfied(ltA(0, 1)),
   },
 
   // Q5's "optional branch resolving null". `state = 'failed'` and `resolve(null)`
@@ -80,6 +119,8 @@ const EXPECTED: Record<string, Expected> = {
     events: ['opened(split:0)', 'opened(split:1)', 'exited(split:0)', 'arrived(split:1)'],
     ac: waiting(ac(2, ['1']), 'stuck'),
     lt: satisfied(lt(0)),
+    acDec: satisfied(ac(1, ['1'])),
+    ltArr: satisfied(ltA(0, 1)),
   },
 
   // **The row that separates "waiting on a human" from "stuck".** Both policies
@@ -89,6 +130,8 @@ const EXPECTED: Record<string, Expected> = {
     events: ['opened(split:0)', 'opened(split:1)', 'arrived(split:0)', 'suspended(split:1)'],
     ac: waiting(ac(2, ['0']), 'waiting-on-human'),
     lt: waiting(lt(1), 'waiting-on-human'),
+    acDec: waiting(ac(2, ['0']), 'waiting-on-human'),
+    ltArr: waiting(ltA(1, 1), 'waiting-on-human'),
   },
 
   // Suspension is not terminal (ADR 0004 rule 4). Both policies agree again.
@@ -96,6 +139,8 @@ const EXPECTED: Record<string, Expected> = {
     events: ['opened(split:0)', 'opened(split:1)', 'arrived(split:0)', 'suspended(split:1)', 'resumed(split:1)', 'arrived(split:1)'],
     ac: satisfied(ac(2, ['0', '1'])),
     lt: satisfied(lt(0)),
+    acDec: satisfied(ac(2, ['0', '1'])),
+    ltArr: satisfied(ltA(0, 2)),
   },
 
   // **The row `JP-R8` exists because of.** Nothing arrives at all. Live-token
@@ -106,6 +151,8 @@ const EXPECTED: Record<string, Expected> = {
     events: ['opened(split:0)', 'opened(split:1)', 'exited(split:0)', 'suspended(split:1)', 'resumed(split:1)', 'exited(split:1)'],
     ac: waiting(ac(2, []), 'stuck'),
     lt: satisfied(lt(0)),
+    acDec: satisfied(ac(0, [])),
+    ltArr: unsatisfiable(ltA(0, 0)),
   },
 
   // `JP-R4`'s column: all six events in one stream, on three branches.
@@ -116,33 +163,61 @@ const EXPECTED: Record<string, Expected> = {
     ],
     ac: waiting(ac(3, ['2']), 'stuck'),
     lt: satisfied(lt(0)),
+    acDec: waiting(ac(2, ['2']), 'stuck'),
+    ltArr: satisfied(ltA(0, 1)),
   },
 };
 
-const POLICY_IDS = ['arrival-count', 'live-token'];
+/**
+ * **The four columns, in render order — imported, not rebuilt.**
+ *
+ * `MATRIX_POLICY_IDS` is the id list and `MATRIX_COLUMNS` is the policy list;
+ * they are asserted to agree below, because two lists that must line up and are
+ * never compared is how a column silently becomes a duplicate of its neighbour.
+ * **`test/matrix/render.ts` prints from the same import**, which is what makes
+ * that assertion cover the exit artifact and not just this file — it did not,
+ * and W15's conformity reader is what found it.
+ */
+const COLUMNS = MATRIX_COLUMNS;
+
 const cellsFor = (key: string) => {
   const scenario = SCENARIOS.find((s) => s.key === key)!;
-  return {
-    scenario,
-    cells: [runCell(scenario, arrivalCount as JoinPolicy), runCell(scenario, liveToken as JoinPolicy)],
-  };
+  return { scenario, cells: COLUMNS.map((p) => runCell(scenario, p)) };
 };
 const ALL = SCENARIOS.map((s) => cellsFor(s.key));
+
+/**
+ * **By id, never by index.** With two columns `cells[0]`/`cells[1]` was legible;
+ * with four it is a positional dependency between this file, `COLUMNS` and
+ * `variants.ts`, and reordering the list would silently swap two policies'
+ * expectations rather than failing.
+ */
+const cellOf = (row: { cells: Cell[] }, policyId: string): Cell =>
+  row.cells.find((c) => c.policyId === policyId)!;
+
+/** Every cell as `row/policy` -> cell, for the whole-matrix assertions. */
+const BY_KEY = new Map(ALL.flatMap(({ scenario, cells }) =>
+  cells.map((c) => [`${scenario.key}/${c.policyId}`, c] as const)));
 
 suite('L5 — the join/failure matrix, cell by cell', (test) => {
   for (const scenario of SCENARIOS) {
     const want = EXPECTED[scenario.key]!;
-    const { cells } = ALL.find((r) => r.scenario.key === scenario.key)!;
-    const [got, gotLt] = cells as [Cell, Cell];
+    const row = ALL.find((r) => r.scenario.key === scenario.key)!;
+    const got = cellOf(row, 'arrival-count');
+    const gotLt = cellOf(row, 'live-token');
+    const gotAcDec = cellOf(row, 'arrival-count-decrementing');
+    const gotLtArr = cellOf(row, 'live-token-requiring-arrival');
 
     test(`${scenario.key}: the region event stream is what the driver emits`, () => {
       equal(got.events, want.events,
         `${scenario.key}: the stream is the policy's whole input, so a wrong stream makes every ` +
         'other assertion in this row meaningless');
-      equal(gotLt.events, want.events,
-        'and it is IDENTICAL under the other policy. A policy cannot change what the driver ' +
-        'emits, so the two are compared on the same input — without that the matrix is not an ' +
-        'experiment, it is two runs');
+      for (const other of [gotLt, gotAcDec, gotLtArr]) {
+        equal(other.events, want.events,
+          `and it is IDENTICAL under ${other.policyId}. A policy cannot change what the driver ` +
+          'emits, so all four columns are compared on the same input — without that the matrix ' +
+          'is not an experiment, it is four runs');
+      }
     });
 
     test(`${scenario.key}: arrival-count`, () => {
@@ -162,11 +237,40 @@ suite('L5 — the join/failure matrix, cell by cell', (test) => {
       equal(gotLt.joinFired, want.lt.status === 'satisfied',
         'and what it said matches what the driver did');
     });
+
+    test(`${scenario.key}: arrival-count-decrementing (JP-R7)`, () => {
+      // Section 3 plus the one line `JP-R7` names: N starts at
+      // `region.branches.length` and **`branch.exited` decrements it**. Nothing
+      // else changes, so `branch.lost` still never moves N — which is why this
+      // column is a third policy rather than a repair.
+      equal({ status: gotAcDec.status, describe: gotAcDec.describe, verdict: gotAcDec.verdict }, want.acDec,
+        `${scenario.key} under arrival-count-decrementing — expected from spec/join-policy.md ` +
+        "section 3's arrival-count, with N decremented on branch.exited and on nothing else");
+      equal(gotAcDec.joinFired, want.acDec.status === 'satisfied',
+        'and what it said matches what the driver did');
+    });
+
+    test(`${scenario.key}: live-token-requiring-arrival (JP-R8)`, () => {
+      // Section 3's `live-token`, plus the clause v0.1 of the spec shipped:
+      // `satisfied` only if a branch actually arrived, and **`unsatisfiable`
+      // otherwise**. Section 4 then fixes what the driver does with that answer —
+      // report and route nowhere — so `joinFired` is asserted against `satisfied`
+      // and not against "not waiting".
+      equal({ status: gotLtArr.status, describe: gotLtArr.describe, verdict: gotLtArr.verdict }, want.ltArr,
+        `${scenario.key} under live-token-requiring-arrival — expected from ` +
+        "spec/join-policy.md section 3's live-token, plus JP-R8's arrival requirement");
+      equal(gotLtArr.joinFired, want.ltArr.status === 'satisfied',
+        'and what it said matches what the driver did — an `unsatisfiable` join must route ' +
+        'NOWHERE (section 4), which reading only `.status` would not catch');
+    });
   }
 });
 
 suite('L5 — what the matrix says as a whole', (test) => {
   test('JP-R3: every cell answers one of three, and no cell is blank', () => {
+    equal(BY_KEY.size, SCENARIOS.length * MATRIX_POLICY_IDS.length,
+      'nine rows times four columns. An inexact count here would let a column go missing and ' +
+      'the loop below still report every cell it was given as fine');
     for (const { scenario, cells } of ALL) {
       for (const c of cells) {
         ok(['waiting', 'satisfied', 'unsatisfiable'].includes(c.status),
@@ -188,15 +292,36 @@ suite('L5 — what the matrix says as a whole', (test) => {
       'them do — an interleaving is a different input from six separate streams');
   });
 
-  test('neither policy ever returns unsatisfiable, on any row', () => {
+  test('neither SHIPPED policy ever returns unsatisfiable, on any row', () => {
     // `spec/join-policy.md` section 4 calls this a result rather than a gap: P1
     // ships with no policy that can say "this join can never fire". Nine rows,
-    // two policies, and the value never appears — so a stuck join is detected by
-    // quiescence or not at all, which is precisely the pressure Q7 describes.
-    const seen = new Set(ALL.flatMap(({ cells }) => cells.map((c) => c.status)));
+    // two shipped policies, and the value never appears — so a stuck join is
+    // detected by quiescence or not at all, which is precisely the pressure Q7
+    // describes.
+    //
+    // **W15 narrowed this to the shipped pair and it is the one assertion the
+    // fourth column could have silently weakened.** Left reading `cells`, adding
+    // a column that CAN say `unsatisfiable` would have turned a claim about the
+    // two policies section 3 names into a false claim about four — and it would
+    // have gone red, which is how the narrowing was noticed rather than assumed.
+    const seen = new Set(ALL.flatMap(({ cells }) =>
+      cells.filter((c) => SHIPPED_POLICY_IDS.includes(c.policyId)).map((c) => c.status)));
     equal([...seen].sort(), ['satisfied', 'waiting'],
       'if `unsatisfiable` ever appeared here, one of the two policies had been quietly ' +
       'refined past its section 3 definition (JP-R7, JP-R8)');
+  });
+
+  test('and exactly one cell in the whole matrix says it', () => {
+    // The other half of the same fact, and the reason the fourth column is worth
+    // rendering: `unsatisfiable` is reachable in this repository from **one
+    // policy on one row**. Section 4 says the value stays in the interface
+    // because `JP-R3` needs `status` total for Q24's variants too; this is that
+    // sentence with an address.
+    const said = [...BY_KEY].filter(([, c]) => c.status === 'unsatisfiable').map(([k]) => k);
+    equal(said, ['all-exit/live-token-requiring-arrival'],
+      'JP-R8`s variant on the all-branches-exited row. `arrival-count-decrementing` cannot say ' +
+      'it either — JP-R7 changes when N is reached, not whether "not yet" can be told from ' +
+      '"never", which is the asymmetry ADR 0025 has to rule on');
   });
 
   test('the divergence is exactly where the spec says it is', () => {
@@ -205,13 +330,13 @@ suite('L5 — what the matrix says as a whole', (test) => {
     // finished WITHOUT arriving, because that is the only event arrival-count
     // ignores and live-token counts.
     const diverge = ALL
-      .filter(({ cells }) => cells[0]!.status !== cells[1]!.status)
+      .filter((r) => cellOf(r, 'arrival-count').status !== cellOf(r, 'live-token').status)
       .map(({ scenario }) => scenario.key);
     equal(diverge, ['routed-away', 'lost-settled', 'lost-resolved', 'optional-null', 'all-exit', 'six-events'],
       'six of nine rows. The three they agree on are the three where every branch that opened ' +
       'either arrived or is still live — and every row where a branch left the region by any ' +
       'other road, arrival-count waits forever');
-    const agree = ALL.filter(({ cells }) => cells[0]!.status === cells[1]!.status)
+    const agree = ALL.filter((r) => cellOf(r, 'arrival-count').status === cellOf(r, 'live-token').status)
       .map(({ scenario }) => scenario.key);
     equal(agree, ['all-arrive', 'suspended', 'resumed'],
       'and they agree on the human rows: a suspended branch is still live under both, so ' +
@@ -219,14 +344,20 @@ suite('L5 — what the matrix says as a whole', (test) => {
   });
 
   test('Q7: every non-joined cell is labelled, and a stuck join needs no clock', () => {
-    const verdicts = new Map(ALL.flatMap(({ scenario, cells }) =>
-      cells.map((c) => [`${scenario.key}/${c.policyId}`, c.verdict] as const)));
-    // Six stuck cells, all arrival-count, all of them a join that will never fire
-    // with nothing running and nobody to ask.
+    const verdicts = new Map([...BY_KEY].map(([k, c]) => [k, c.verdict] as const));
+    // Ten stuck cells across four columns — six under `arrival-count`, three
+    // under `JP-R7`'s variant on the rows its one line does not reach, and one
+    // under `JP-R8`'s, which is the only cell here that is stuck **having said
+    // so**. All of them a join that will never fire with nothing running and
+    // nobody to ask.
     const stuck = [...verdicts].filter(([, v]) => v === 'stuck').map(([k]) => k);
     equal(stuck, [
-      'routed-away/arrival-count', 'lost-settled/arrival-count', 'lost-resolved/arrival-count',
-      'optional-null/arrival-count', 'all-exit/arrival-count', 'six-events/arrival-count',
+      'routed-away/arrival-count',
+      'lost-settled/arrival-count', 'lost-settled/arrival-count-decrementing',
+      'lost-resolved/arrival-count', 'lost-resolved/arrival-count-decrementing',
+      'optional-null/arrival-count',
+      'all-exit/arrival-count', 'all-exit/live-token-requiring-arrival',
+      'six-events/arrival-count', 'six-events/arrival-count-decrementing',
     ], 'a stuck join is decidable from the log alone: every dispatched task has an outcome, no ' +
        'branch is parked on a person, and the join has not fired. A timeout would add a ' +
        'wall-clock guess on top of an answer that is already certain');
@@ -252,9 +383,11 @@ suite('L5 — what the matrix says as a whole', (test) => {
     const fired = ALL.flatMap(({ scenario, cells }) =>
       cells.filter((c) => c.joinFired)
         .map((c) => [`${scenario.key}/${c.policyId}`, c.payloads[scenario.downstream]] as const));
-    equal(fired.length, 10,
-      'ten of the eighteen cells fire a join: both policies on the three rows they agree about, ' +
-      'and live-token alone on the six where they diverge, less the one where nothing fires. ' +
+    equal(fired.length, 22,
+      'twenty-two of the thirty-six cells fire a join. Derived, not counted off a run: ' +
+      'arrival-count 2 (all-arrive, resumed) + live-token 8 (every row but `suspended`, where a ' +
+      'branch is still live) + arrival-count-decrementing 5 (those two, plus JP-R7`s three) + ' +
+      'live-token-requiring-arrival 7 (live-token`s eight, less all-exit, where it declines). ' +
       'An inexact bound here would let the loop below shrink without anything saying so');
     for (const [where, payload] of fired) {
       equal(payload, null,
@@ -310,7 +443,7 @@ suite('L5 — what the matrix says as a whole', (test) => {
   test('JP-R1: the whole matrix is deterministic', () => {
     // Ladder L3 on the join seam: same scenario, same policy, twice.
     for (const { scenario, cells } of ALL) {
-      const again = [runCell(scenario, arrivalCount as JoinPolicy), runCell(scenario, liveToken as JoinPolicy)];
+      const again = COLUMNS.map((policy) => runCell(scenario, policy));
       equal(again, cells, `${scenario.key}: a second identical run produced a different cell, so ` +
         'something in the seam is not a pure function of the event sequence');
     }
@@ -326,30 +459,197 @@ suite('L5 — what the matrix says as a whole', (test) => {
     }
   });
 
-  test('the matrix covers both shipped policies and nothing else', () => {
-    equal(Object.keys(POLICIES).sort(), POLICY_IDS,
-      'a comparison against some third thing is a different experiment (spec/join-policy.md ' +
-      'section 3). Q24 variants are compared in variants.test.ts, under their own ids');
+  test('the matrix runs four columns: the two shipped, and Q24`s two variants', () => {
+    equal([...MATRIX_POLICY_IDS], [...SHIPPED_POLICY_IDS, ...VARIANT_POLICY_IDS],
+      'the id list is the shipped pair followed by the refinements, so the two-column ' +
+      'comparison ADR 0003 was written from is still readable off the left of the table');
+    equal(COLUMNS.map((p) => p.id), [...MATRIX_POLICY_IDS],
+      'and the POLICY list agrees with the ID list. Two lists that must line up and are never ' +
+      'compared is how a column silently becomes a duplicate of its neighbour — which would ' +
+      'make a refinement`s column identical to the policy it refines, for the wrong reason');
+    equal(new Set(COLUMNS.map((p) => p.id)).size, MATRIX_POLICY_IDS.length,
+      'and no policy appears twice. `render.ts` prints from this same list, so this is the ' +
+      'assertion that covers the EXIT ARTIFACT — while the renderer built a list of its own, ' +
+      'duplicating a column there left the whole gate green and the printed table wrong');
+    equal(Object.keys(POLICIES).sort(), SHIPPED_POLICY_IDS,
+      'and `src/` still exports exactly the two policies section 3 names. **The variants are ' +
+      'RUN here, not SHIPPED**: JP-R7 and JP-R8 say a refinement gets its own id, and whether ' +
+      'either is adopted is Q24 — ADR 0025, which is W16`s and not this file`s');
   });
 
-  test('the rendered table carries every row\'s status, verdict and describe', () => {
-    // The first version asserted only that each row key appeared and that the
-    // line count was right — so emptying every cell body survived it. A table
-    // that is W4's declared Output (2) and is copied by hand into ADR 0003 needs
-    // its CONTENT checked, not its shape.
-    const table = renderTable(ALL, POLICY_IDS);
-    const lines = table.split('\n');
-    equal(lines.length, ALL.length + 2, 'header, rule, and one line per row');
-    for (const [i, { scenario, cells }] of ALL.entries()) {
-      const line = lines[i + 2]!;
-      ok(line.includes(`**${scenario.key}**`), `${scenario.key} is missing from the table`);
-      for (const c of cells) {
-        ok(line.includes(`\`${c.status}\``), `${scenario.key}: no "${c.status}" for ${c.policyId}`);
-        ok(line.includes(`**${c.verdict}**`), `${scenario.key}: no "${c.verdict}" for ${c.policyId}`);
-        ok(line.includes(JSON.stringify(c.describe)),
-          `${scenario.key}: ${c.policyId}'s describe is not in the table, so a reader cannot see ` +
+  test('the rendered table is the exit artifact, and its SHAPE is asserted cell by cell', () => {
+    // **Three versions of this test, and the second was still weak.** W4's
+    // asserted only that each row key appeared and the line count was right, so
+    // emptying every cell body survived it. W15's asserted cell CONTENT with
+    // `line.includes(...)` over the whole row — which is **order-blind**, so the
+    // adequacy reader reversed the column order inside `renderTable` and it
+    // passed, and separately collapsed all four cells into one, dropped the
+    // separator row, dropped the title and dropped the event stream, all green.
+    //
+    // So the line is now SPLIT and each field is asserted in its own position.
+    // `renderMatrix()` is imported from `./table.ts` — **the same function
+    // `render.ts` prints**, which is the other half of the repair: the renderer
+    // used to be a script the gate never executed, holding a column list nobody
+    // compared.
+    const lines = renderMatrix().split('\n');
+    const rows = ALL;
+    equal(lines.length, rows.length + 2, 'header, rule, and one line per row');
+    equal(lines[0], `| row | ${MATRIX_POLICY_IDS.join(' | ')} |`,
+      'FOUR columns, named and in order — W15`s first declared output');
+    equal(lines[1], `|---|${MATRIX_POLICY_IDS.map(() => '---').join('|')}|`,
+      'and a separator with one entry per column. Without this the output stops being valid ' +
+      'markdown and the artifact a person is meant to LOOK at does not render at all');
+
+    for (const [i, { scenario, cells }] of rows.entries()) {
+      // `| row | c0 | c1 | c2 | c3 |` splits to ['', row, c0, c1, c2, c3, ''].
+      const fields = lines[i + 2]!.split('|');
+      equal(fields.length, MATRIX_POLICY_IDS.length + 3,
+        `${scenario.key}: the row has ${fields.length - 3} cells, not ${MATRIX_POLICY_IDS.length}. ` +
+        'Joining the cells without a separator collapsed four columns into one and every ' +
+        '`includes` assertion still passed');
+
+      const rowCell = fields[1]!;
+      ok(rowCell.includes(`**${scenario.key}**`), `${scenario.key} is missing from the table`);
+      ok(rowCell.includes(scenario.title),
+        `${scenario.key}: the row does not carry its title, so the table names the rows and does ` +
+        'not say what they ARE');
+      ok(rowCell.includes(cells[0]!.events.join(' ')),
+        `${scenario.key}: the row does not carry its region-event stream — the policy's whole ` +
+        'input, and the only thing that lets a reader check a cell against the spec by eye');
+
+      // **By POSITION, not by presence.** The reader transposed the cells against
+      // their own asserted header and nothing noticed, because every assertion
+      // searched the whole line.
+      for (const [j, id] of MATRIX_POLICY_IDS.entries()) {
+        const cell = fields[j + 2]!;
+        const c = cells.find((x) => x.policyId === id)!;
+        ok(cell.includes(`\`${c.status}\``),
+          `${scenario.key}: column ${j} is meant to be ${id} and does not carry "${c.status}"`);
+        ok(cell.includes(`**${c.verdict}**`),
+          `${scenario.key}: column ${j} (${id}) does not carry "${c.verdict}"`);
+        ok(cell.includes(JSON.stringify(c.describe)),
+          `${scenario.key}: ${id}'s describe is not in ITS OWN column, so a reader cannot see ` +
           'what the policy thought it was waiting for — which is the only reason to print it');
       }
     }
+  });
+});
+
+
+/**
+ * **Which rows each refinement changes, as an exact sorted list.**
+ *
+ * P5 measured this as two counts — three and one. A count passes on arithmetic:
+ * a policy edit that repaired a different row and broke one of these would leave
+ * both numbers untouched. The lists below are the same measurement made
+ * falsifiable, and each is asserted **three ways** that fail independently:
+ *
+ *   1. the literal the work item declares;
+ *   2. a predicate over the row's own region-event stream, derived from
+ *      `spec/join-policy.md` section 3 with no code open;
+ *   3. what the four columns actually did.
+ *
+ * `doc/workflow.md` section 5 rule 1 asks for the derivation of a non-obvious
+ * value. (2) IS the derivation, executed — so a reader does not have to trust
+ * that (1) was derived rather than pasted.
+ */
+suite('L5 — the fourth column: what each refinement changes', (test) => {
+  /**
+   * A row's stream reduced to the five numbers section 3's definitions read.
+   * `U` is *opened but never terminal* — a branch parked on a person, which
+   * `JP-R5` says legally emits no terminal event at all.
+   */
+  const counts = (events: string[]) => {
+    const opened = new Set<string>();
+    const terminal = new Map<string, string>();
+    for (const e of events) {
+      const type = e.slice(0, e.indexOf('('));
+      const branch = e.slice(e.indexOf(':') + 1, -1);
+      if (type === 'opened') opened.add(branch);
+      if (type === 'arrived' || type === 'exited' || type === 'lost') terminal.set(branch, type);
+    }
+    const n = (k: string) => [...terminal.values()].filter((v) => v === k).length;
+    return { B: opened.size, A: n('arrived'), E: n('exited'), L: n('lost'), U: opened.size - terminal.size };
+  };
+
+  /**
+   * **The ANSWER, which is status plus what the driver did with it — not
+   * `describe`.** `arrival-count-decrementing` has a different `describe` from
+   * `arrival-count` on every row carrying an exit, `six-events` included, where
+   * N reads 2 instead of 3 and the join still never fires. `JP-R2` calls
+   * `describe` a display value and nothing routes on it, so a list built from it
+   * would report a row as "changed" that behaves identically.
+   */
+  const answer = (c: Cell) => ({ status: c.status, verdict: c.verdict, joinFired: c.joinFired });
+
+  const changedBy = (base: string, variant: string) =>
+    ALL.filter((r) => !deepEqual(answer(cellOf(r, base)), answer(cellOf(r, variant))))
+      .map(({ scenario }) => scenario.key).sort();
+
+  test('JP-R7 changes exactly three rows, and the predicate says which three', () => {
+    // Section 3: `arrival-count` is satisfied iff A >= B; the variant iff
+    // A >= B - E. Since A + E + L + U = B, the second is A >= A + L + U, i.e.
+    // L = 0 and U = 0; and they can only differ while A < B, i.e. E > 0.
+    // **So: at least one branch exited, none was lost, and none is still live.**
+    const predicted = SCENARIOS.filter((sc) => {
+      const { E, L, U } = counts(EXPECTED[sc.key]!.events);
+      return E >= 1 && L === 0 && U === 0;
+    }).map((sc) => sc.key).sort();
+
+    equal(predicted, ['all-exit', 'optional-null', 'routed-away'],
+      'the three rows whose only non-arrival terminals are `exited`. `six-events` carries an ' +
+      'exit AND a `lost`, so N is still short by one and it stays waiting — which is JP-R7`s ' +
+      'own argument that the fix is fitted to the row it was written for');
+    equal(changedBy('arrival-count', 'arrival-count-decrementing'), predicted,
+      'and that is what the column does. **This is the claim ADR 0003 and the register both ' +
+      'got wrong**: JP-R7 does NOT repair "only the row P1 named" — it repairs three, and the ' +
+      'ADR`s own 2026-08-30 Correction already says why (optional-null and all-exit are ' +
+      'branch-index permutations of routed-away). The register is corrected; the ADR is W16`s');
+  });
+
+  test('JP-R8 changes exactly one row, and the predicate says which', () => {
+    // Section 3: `live-token` is satisfied when the count reaches zero having
+    // been positive — i.e. every opened branch is terminal (U = 0, B > 0). The
+    // variant then answers `unsatisfiable` instead of `satisfied` iff A = 0.
+    const predicted = SCENARIOS.filter((sc) => {
+      const { B, A, U } = counts(EXPECTED[sc.key]!.events);
+      return B > 0 && U === 0 && A === 0;
+    }).map((sc) => sc.key).sort();
+
+    equal(predicted, ['all-exit'],
+      'one row: the only one where every branch finishes and none of them arrives. `suspended` ' +
+      'has a branch still live, so both say `waiting` and the refinement never gets to speak');
+    equal(changedBy('live-token', 'live-token-requiring-arrival'), predicted,
+      'and that is what the column does — on the exact row ADR 0003 records as live-token`s ' +
+      'cost. **The two refinements are not symmetric**: three rows against one, and this one ' +
+      'is a behaviour change to the blessed policy rather than an added capability');
+  });
+
+  test('the lists are on the ANSWER, and `describe` alone changes a fourth row', () => {
+    // Recorded rather than left for a reader to find: the two comparisons above
+    // would report four rows and two if they read `describe`. Naming the row
+    // makes the choice checkable instead of a silent convention.
+    const six = ALL.find((r) => r.scenario.key === 'six-events')!;
+    equal(cellOf(six, 'arrival-count').describe, { need: 3, arrived: ['2'] }, 'N is three');
+    equal(cellOf(six, 'arrival-count-decrementing').describe, { need: 2, arrived: ['2'] },
+      'and the variant decremented it on the exit — a different describe, the same answer, so ' +
+      'the row is NOT on JP-R7`s list. A list built from `describe` would say it was');
+    equal(answer(cellOf(six, 'arrival-count')), answer(cellOf(six, 'arrival-count-decrementing')),
+      'the answer is identical: still waiting, still stuck, the join still never fired');
+  });
+
+  test('the refinements do not converge — three columns, three different answers', () => {
+    // The whole reason ADR 0025 is a decision rather than a tidy-up. On
+    // `all-exit` the three live policies say three different things about the
+    // same event stream, and `spec/join-policy.md` section 4 gives each a
+    // different consequence.
+    const row = ALL.find((r) => r.scenario.key === 'all-exit')!;
+    equal(cellOf(row, 'arrival-count').status, 'waiting', 'waits forever, and cannot say so');
+    equal(cellOf(row, 'live-token').status, 'satisfied', 'fires a join NO branch reached');
+    equal(cellOf(row, 'arrival-count-decrementing').status, 'satisfied',
+      'JP-R7`s variant reaches live-token`s answer here by the other road — N is decremented ' +
+      'to zero — which is why "the two policies are equivalent" would have looked like a pass');
+    equal(cellOf(row, 'live-token-requiring-arrival').status, 'unsatisfiable',
+      'and only JP-R8`s variant declines and says why');
   });
 });

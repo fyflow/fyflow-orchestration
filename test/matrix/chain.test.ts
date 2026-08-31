@@ -1,0 +1,375 @@
+/**
+ * **The chain nothing runs** —
+ * [W15](../../doc/work-items/w15-the-fourth-column-and-the-chain-nothing-runs.md)'s
+ * third declared output, and ladder **L2**: a fake scheduler, no workers.
+ *
+ * A policy says `unsatisfiable`; four links later a consumer reads
+ * `RunState.outcome === 'stuck'`. **Every link already had a test and nothing ran
+ * them as one sequence:**
+ *
+ * | link | where it was already asserted |
+ * |---|---|
+ * | the driver **reports** with the policy's own `describe` | `test/driver/driver.test.ts:389`, from a stub policy |
+ * | `foldInputs()` gains `joinSettled(fired: false)` | `test/driver/fold-inputs.test.ts:176`, from a different stub |
+ * | the fold reads that as `joined: false` and `stuck` | `test/fold/stuck.test.ts:108`, from a **hand-built** input array |
+ * | and the join's successor is never dispatched | nowhere, for a real policy |
+ *
+ * **Those three tests stay.** This does not replace them; it connects them, with
+ * one run, one driver and one policy — and with a policy that is a *candidate*
+ * (`JP-R8`'s variant, which ADR 0025 may adopt) rather than a stub written to
+ * make an unreachable line reachable. `test/fold/stuck.test.ts:108` in particular
+ * folds an array assembled by hand: it proves the fold's arithmetic and says
+ * nothing about whether any driver ever produces that array.
+ *
+ * ---
+ *
+ * **Two sources of truth meet here for the first time, and they must not be
+ * conflated.** Each assertion below says which one it reads:
+ *
+ *   - **the DRIVER's public surface** — `dispatchedIds()`, `snapshot()`,
+ *     `terminalStateOf()`, `joinStatusOf()`. `Cell.verdict` is computed from
+ *     these by `verdictOf` in `run.ts`, and **the matrix has printed `stuck` in a
+ *     column for the whole of P1 with the fold never involved.**
+ *   - **the FOLD** — `fold(driver.foldInputs()).outcome`, which is
+ *     `spec/run-state.md` section 3's precedence over ADR 0014's input sequence.
+ *
+ * They are different computations over different inputs and nothing has ever
+ * compared them. That they agree on this row is an assertion here, not an
+ * assumption.
+ */
+import { equal, ok, suite } from '../harness.ts';
+import { arrivalCount, liveToken } from '../../src/fold/policies.ts';
+import type { JoinPolicy } from '../../src/driver/policy.ts';
+import { fold, isTerminal } from '../../src/fold/run-state.ts';
+import { driveScenario, runCell } from './run.ts';
+import { SCENARIOS } from './scenarios.ts';
+import { liveTokenRequiringArrival, MATRIX_COLUMNS } from './variants.ts';
+
+/**
+ * `all-exit` — every branch reaches an `end` and nothing arrives at the join.
+ * **The only row in this repository where a policy can say `unsatisfiable` at
+ * all**, and the exact row
+ * [ADR 0003](../../doc/decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md)
+ * records as `live-token`'s cost.
+ */
+const ALL_EXIT = SCENARIOS.find((s) => s.key === 'all-exit')!;
+const REGION = 'split';
+const JOIN = 'collect';
+/** The task the join routes to when it fires. Its dispatch IS "the join fired". */
+const SUCCESSOR = ALL_EXIT.downstream;
+
+const drive = (policy: JoinPolicy) => driveScenario(ALL_EXIT, policy);
+
+suite('L2 — from `unsatisfiable` to `stuck`, in one run', (test) => {
+  test('link 1 — the driver reports ONCE, carrying the policy`s own describe', () => {
+    // Reads: the callback. `spec/join-policy.md` section 4 — on `unsatisfiable`
+    // the driver **reports it with the policy's own `describe`**.
+    //
+    // The expected value is derived, not observed: at the end of this row the
+    // variant's state is `live: 0` (two opened, two exited), `positive: true`
+    // (a branch did open), `arrived: 0` (nothing reached the join) — which is
+    // precisely the state its one line reads to answer `unsatisfiable`.
+    const { unsatisfiable } = drive(liveTokenRequiringArrival as JoinPolicy);
+    equal(unsatisfiable, [{
+      fanoutId: REGION,
+      joinId: JOIN,
+      describe: { live: 0, positive: true, arrived: 0 },
+      policyId: 'live-token-requiring-arrival',
+    }], 'once, with the region, the join, the policy that said it, and WHAT it was waiting for. ' +
+        'A report that carried a driver-invented summary instead of the policy`s own describe ' +
+        'would leave a consumer unable to tell which of four columns produced it');
+  });
+
+  test('link 1a — the describe is the policy`s, and no other column produces its shape', () => {
+    // The half that makes the above a test of *whose* account it is. `live` and
+    // `arrived` are this policy's state fields; `arrival-count`'s describe is
+    // `{need, arrived}` and shipped `live-token`'s is `{live, positive}`. A
+    // driver that summarised the join itself could not produce this object.
+    const { driver, unsatisfiable } = drive(liveTokenRequiringArrival as JoinPolicy);
+    const reported = unsatisfiable[0]!.describe as Record<string, unknown>;
+    equal(Object.keys(reported).sort(), ['arrived', 'live', 'positive'],
+      'the variant`s own three fields — JP-R2: `describe` is the ONLY way a policy`s state ' +
+      'leaves it (JP-R1 makes S opaque), so this is what a UI or an operator would see');
+
+    // **Recomputed independently: the POLICY, stepped over the DRIVER'S OWN
+    // event stream.** Reading `driver.foldInputs()` rather than the harness's
+    // `events` array, and stepping the policy here rather than asking the driver
+    // what it got — so this is a different channel from link 1's callback at both
+    // ends. W15's adequacy reader is why: the previous form compared the
+    // callback's value to a hand-written literal, and a harness that fabricated
+    // that literal (T7) satisfied both this and link 1.
+    let state = liveTokenRequiringArrival.open({
+      fanoutId: REGION, joinId: JOIN, branches: ['scoreA', 'reviewB'], members: [],
+    });
+    for (const i of driver.foldInputs()) {
+      if (i.kind === 'region' && i.event.regionId === REGION) {
+        state = liveTokenRequiringArrival.step(state, i.event);
+      }
+    }
+    equal(liveTokenRequiringArrival.status(state), 'unsatisfiable',
+      'stepping the policy over the driver`s own recorded event stream reaches the same answer, ' +
+      'so the driver forwarded the region events it recorded — JP-R1 purity is what makes this a ' +
+      'valid re-derivation rather than a second guess');
+    equal(reported, liveTokenRequiringArrival.describe(state),
+      'and the reported describe is what THAT state produces. Two channels — the callback and ' +
+      '`foldInputs()` — and the policy applied by this test rather than by the driver');
+
+    // And a third, which the harness does not touch at all: the poll.
+    equal(driver.joinStatusOf(REGION),
+      { status: 'unsatisfiable', describe: liveTokenRequiringArrival.describe(state) },
+      '`joinStatusOf` reports the same status and the same describe — compared against the ' +
+      'RECOMPUTED state rather than against what the callback handed us, so the poll and the ' +
+      'callback are two independent reads. Section 4 gives the driver two outbound channels for ' +
+      'one fact and nothing had asserted they agree');
+  });
+
+  test('link 2 — foldInputs() records the join settling WITHOUT routing', () => {
+    // Reads: the driver's fold-input sequence (ADR 0014). `ADR 0015` rule 2 —
+    // the join is settled and it did NOT fire.
+    const { driver } = drive(liveTokenRequiringArrival as JoinPolicy);
+    const settled = driver.foldInputs().filter((i) => i.kind === 'joinSettled');
+    equal(settled, [{ kind: 'joinSettled', regionId: REGION, joinId: JOIN, fired: false }],
+      'exactly one, and `fired: false`. Without this input a permanently stuck run and a ' +
+      'completed one are the SAME fold — which is what ADR 0015 was written for');
+  });
+
+  test('link 2a — and it is appended after both branches finish, and nothing after it', () => {
+    // The ordering the sequence has to have for the fold to be total over any
+    // prefix (`RN-R2`) and still land on `stuck`: the join cannot settle before
+    // the last terminal region event, and nothing may be dispatched after it.
+    const { driver } = drive(liveTokenRequiringArrival as JoinPolicy);
+    const seq = driver.foldInputs();
+    const settledAt = seq.findIndex((i) => i.kind === 'joinSettled');
+    const terminals = seq
+      .map((i, n) => ({ i, n }))
+      .filter(({ i }) => i.kind === 'region' && i.event.type === 'branch.exited')
+      .map(({ n }) => n);
+    equal(terminals.length, 2, 'both branches exited — the row`s whole premise');
+    ok(settledAt > terminals[1]!,
+      'and the policy was asked AFTER the last terminal event, not before it. ' +
+      'spec/join-policy.md section 4: status is asked after every terminal event, because a ' +
+      'join can become decidable on a branch that was lost or exited rather than one that arrived');
+    ok(!seq.slice(settledAt + 1).some((i) => i.kind === 'dispatched'),
+      'and NOTHING was dispatched after it. This is the assertion that would still pass if the ' +
+      'driver routed out of the join *before* appending the record, which is why link 3 reads a ' +
+      'different source rather than trusting the order');
+  });
+
+  test('link 3 — the join`s successor is not dispatched, read three ways', () => {
+    // Reads: the DRIVER's surface, twice, and the scheduler once. Section 4 —
+    // on `unsatisfiable` the driver **routes nowhere**.
+    const { driver, scheduler } = drive(liveTokenRequiringArrival as JoinPolicy);
+    ok(!driver.dispatchedIds().includes(SUCCESSOR),
+      `the driver never dispatched ${SUCCESSOR}`);
+    ok(!scheduler.added.some((t) => t.id === SUCCESSOR),
+      'and the scheduler was never asked to add it — the driver`s own bookkeeping and what ' +
+      'actually reached the scheduler are two different claims, and a driver that recorded a ' +
+      'dispatch it never made would satisfy only the first');
+    ok(!driver.foldInputs().some((i) => i.kind === 'dispatched' && i.taskId === SUCCESSOR),
+      'and the fold`s input sequence carries no dispatch for it either, so all three agree');
+  });
+
+  test('link 4 — the fold reads that as `joined: false`, not `null`', () => {
+    // Reads: the FOLD. `RN-R11` — `false` means a policy reported the join
+    // unsatisfiable and it never will fire; `null` means neither yet. The
+    // distinction is the whole of the field's reason for existing.
+    const { driver } = drive(liveTokenRequiringArrival as JoinPolicy);
+    const state = fold(driver.foldInputs());
+    equal(Object.keys(state.regions), [REGION], 'one region was entered');
+    equal(state.regions[REGION]!.joined, false,
+      'the driver settled the join and did not route — not `null`, which would say "not yet"');
+    equal(state.regions[REGION]!.settled, { '0': 'exited', '1': 'exited' },
+      'and `RN-R6` still holds: `regions` records the EVENTS, so this is what every column ' +
+      'produces on this row. `joined` is the only field a policy`s behaviour reaches that is ' +
+      'DECIDABLE WITHOUT THE DEFINITION — the qualifier is load-bearing and ADR 0015`s Correction ' +
+      'is what added it: the four columns also differ in `nodes` (live-token dispatches `publish` ' +
+      'here and arrival-count does not) and therefore in `pathEnds`, but an absence in `nodes` is ' +
+      'legible only against a flow the fold does not have and RN-R4 says it must not acquire');
+  });
+
+  test('link 5 — and the run`s outcome is `stuck`', () => {
+    // Reads: the FOLD. `spec/run-state.md` section 3 and `RN-R10` — nothing
+    // running, nothing suspended, and an entered region's `joined` is not `true`.
+    const { driver } = drive(liveTokenRequiringArrival as JoinPolicy);
+    const state = fold(driver.foldInputs());
+    ok(Object.values(state.nodes).every((n) => n.state !== 'running'), 'nothing is live');
+    ok(Object.values(state.nodes).every((n) => n.state !== 'suspended'), 'nobody waits on a person');
+    equal(state.stoppedBy, null, 'and no refusal terminated the run — `stopped` outranks `stuck`');
+    ok(state.pathEnds.some((e) => e.reason === 'end'),
+      'a path DID end at an `end` node, so `completed` is what this would be called without ' +
+      'RN-R10 — which is exactly the false statement ADR 0015 was written to remove');
+    equal(state.outcome, 'stuck',
+      'RN-R10: `stuck` outranks `failed` and `completed`. The join can never fire, so nothing ' +
+      'downstream of it will ever be dispatched');
+    ok(isTerminal(state),
+      'RN-R12: and the run is FINISHED — a consumer folding incrementally stops here without a ' +
+      'clock, which is the whole reason `stuck` is an outcome rather than a hang');
+  });
+
+  test('the driver`s verdict and the fold`s outcome agree — two computations, one row', () => {
+    // **The conflation this file exists to refuse.** `Cell.verdict` comes from
+    // `verdictOf`, which reads `dispatchedIds`, `snapshot` and `terminalStateOf`
+    // and never calls `fold`. `RunState.outcome` comes from the fold and never
+    // sees the driver. The matrix has reported `stuck` from the first of these
+    // since P1; this is the first time anything has checked the second says so too.
+    const cell = runCell(ALL_EXIT, liveTokenRequiringArrival as JoinPolicy);
+    equal(cell.verdict, 'stuck', 'the DRIVER`s surface, via verdictOf');
+    equal(fold(drive(liveTokenRequiringArrival as JoinPolicy).driver.foldInputs()).outcome, 'stuck',
+      'and the FOLD, via spec/run-state.md section 3. Two independent computations over two ' +
+      'different inputs — if they ever disagree, one of them is lying and the matrix cannot ' +
+      'tell you which');
+  });
+});
+
+suite('L2 — `joined: false` and `joined: null` are the same outcome', (test) => {
+  test('the same row under `arrival-count` is stuck with `joined: null`', () => {
+    // Reads: the FOLD. `arrival-count` waits forever on this row — N is two and
+    // nothing arrives — so `settleJoin` is never reached and no `joinSettled`
+    // input is appended at all.
+    const { driver, unsatisfiable } = drive(arrivalCount as JoinPolicy);
+    equal(unsatisfiable, [], 'section 3: `arrival-count` is NEVER unsatisfiable, so nothing is reported');
+    equal(driver.foldInputs().filter((i) => i.kind === 'joinSettled'), [],
+      'and the join never settled either way');
+    const state = fold(driver.foldInputs());
+    equal(state.regions[REGION]!.joined, null, '`null` — neither fired nor declared unfireable');
+    equal(state.outcome, 'stuck', 'and the run is stuck all the same');
+  });
+
+  test('so the outcome vocabulary does not distinguish reported from silent', () => {
+    // **Asserted as a SHAPE and deliberately not fixed.** `withOutcome` maps
+    // `joined !== true` to `stuck`, so a run whose join was *reported*
+    // unsatisfiable and one whose join is *silently* waiting forever are the same
+    // outcome. Whether that should be two outcomes is a `spec/run-state.md`
+    // question and W15 owns neither that file nor `src/fold/**`.
+    const reported = fold(drive(liveTokenRequiringArrival as JoinPolicy).driver.foldInputs());
+    const silent = fold(drive(arrivalCount as JoinPolicy).driver.foldInputs());
+    equal(reported.outcome, silent.outcome,
+      'one row, two policies, the same `stuck` — the difference survives ONLY in ' +
+      '`regions[*].joined` and in whether `onUnsatisfiableJoin` fired');
+    ok(reported.regions[REGION]!.joined !== silent.regions[REGION]!.joined,
+      'and there it does survive: `false` against `null`. If this ever stopped being true the ' +
+      'two runs would be indistinguishable end to end, which is the state ADR 0015 removed');
+  });
+});
+
+suite('Q37 — what a consumer WITHOUT the callback can learn', (test) => {
+  test('under a shipped policy there is nothing to learn from the callback at all', () => {
+    // **Measured, recorded, and not fixed** — W15's fourth declared output, and
+    // [Q37](../../doc/open-questions.md). `onUnsatisfiableJoin` is optional
+    // (`DriverOptions`), so the whole seam is opt-in; but on this row it is worse
+    // than optional under both shipped policies, because neither ever calls it.
+    // `spec/join-policy.md` section 4 calls that a result rather than a gap.
+    for (const policy of [arrivalCount, liveToken]) {
+      const { unsatisfiable } = drive(policy as JoinPolicy);
+      equal(unsatisfiable, [],
+        `${policy.id}: never reports, on the one row where a join demonstrably can never fire`);
+    }
+  });
+
+  test('and the only other channel is a poll nobody is obliged to make', () => {
+    // `joinStatusOf(fanoutId)` is the whole of stuck-join detection today
+    // (`spec/join-policy.md` section 4). It answers when asked and announces
+    // nothing — and under `arrival-count` its answer on a permanently stuck join
+    // is `waiting`, which is indistinguishable from a run still in progress.
+    const stuck = drive(arrivalCount as JoinPolicy);
+    equal(stuck.driver.joinStatusOf(REGION), { status: 'waiting', describe: { need: 2, arrived: [] } },
+      'a poll returning `waiting` forever. Nothing in the driver`s outbound surface — no ' +
+      'callback, no event — distinguishes this from a branch that has not finished yet');
+    equal(stuck.driver.joinStatusOf('no-such-fanout'), null,
+      'and the poll needs the fanout id, so a consumer must already know which regions exist');
+    // The fold DOES know, from the same run, with no poll and no callback: this
+    // is what a consumer who folds `foldInputs()` gets for free, and it is the
+    // argument Q37 has to weigh against adding an outbound signal.
+    equal(fold(stuck.driver.foldInputs()).outcome, 'stuck',
+      'while the FOLD says `stuck` from the same run — RN-R12`s quiescence predicate, no clock ' +
+      'and no poll. Q37 is therefore about whether the DRIVER owes a signal the fold already ' +
+      'supplies, which is why W15 records it rather than fixing it: src/driver/** is not P5`s');
+  });
+});
+
+/**
+ * **The two whole-matrix cross-checks, added after W15's adequacy reader.**
+ *
+ * They live in this file rather than in `matrix.test.ts` deliberately: this is
+ * the file that goes to the **fold**, and W4 kept `Cell` on the driver's public
+ * surface on purpose so a fold defect could not make a policy cell look right.
+ * Whether a `Cell` should itself carry run state is [Q92](../../doc/open-questions.md)
+ * and stays open — these are assertions beside the matrix, not a widening of it.
+ */
+suite('L2 — the whole matrix, checked against the fold and against the scheduler', (test) => {
+  const ROWS = SCENARIOS.map((scenario) => ({
+    scenario,
+    runs: MATRIX_COLUMNS.map((policy) => ({ policy, driven: driveScenario(scenario, policy) })),
+  }));
+
+  test('RN-R6: all four columns fold to the SAME opened, settled and suspended', () => {
+    // **`RN-R6`'s first four-column test, and its first at the FOLDED level.**
+    // The rule says two policies over the same region events produce the same
+    // `opened`/`settled`/`suspended`, differing only in `joined` — and until now
+    // the matrix asserted that on the raw event STRINGS while `fold()` ran on two
+    // of thirty-six cells, both on one row.
+    //
+    // What that cost, measured: the driver could stop appending region events to
+    // `foldInputs()` **for one policy id** and all 361 assertions passed, because
+    // `Cell.events` comes from the `onRegionEvent` callback — a different channel
+    // — and nothing compared the two.
+    for (const { scenario, runs } of ROWS) {
+      const states = runs.map(({ policy, driven }) =>
+        ({ id: policy.id, state: fold(driven.driver.foldInputs()) }));
+      const [first, ...rest] = states as [{ id: string; state: ReturnType<typeof fold> }, ...typeof states];
+      for (const regionId of Object.keys(first.state.regions)) {
+        const shape = (st: ReturnType<typeof fold>) => {
+          const r = st.regions[regionId];
+          return r ? { opened: r.opened, settled: r.settled, suspended: r.suspended } : null;
+        };
+        for (const other of rest) {
+          equal(shape(other.state), shape(first.state),
+            `${scenario.key}/${regionId}: ${other.id} folded to a different region shape from ` +
+            `${first.id}. RN-R6 — \`regions\` records the EVENTS, not what a policy concluded, so ` +
+            'the only field the four columns may differ in is `joined`');
+        }
+      }
+    }
+  });
+
+  test('and they differ in `joined` exactly where the policies differ', () => {
+    // The other half of `RN-R6`, and `RN-R11`: `joined` IS reachable by a
+    // policy's behaviour. Without this the assertion above is satisfied by a
+    // fold that produced nothing at all for every column.
+    const joined = ROWS.map(({ scenario, runs }) => [scenario.key, runs.map(({ policy, driven }) =>
+      `${policy.id}=${String(fold(driven.driver.foldInputs()).regions['split']?.joined)}`)] as const);
+    const allExit = joined.find(([k]) => k === 'all-exit')![1];
+    equal(allExit, [
+      'arrival-count=null',
+      'live-token=true',
+      'arrival-count-decrementing=true',
+      'live-token-requiring-arrival=false',
+    ], 'all three values of `joined` on one row, from four policies over one event stream: ' +
+       '`null` never settled, `true` the driver routed out, `false` a policy said it never will. ' +
+       'RN-R11 is the only field that carries this and ADR 0015 is why it costs a field');
+    const allArrive = joined.find(([k]) => k === 'all-arrive')![1];
+    ok(allArrive.every((x) => x.endsWith('=true')),
+      'and on the control row every column fires, so `joined` is not simply tracking the policy id');
+  });
+
+  test('every dispatch the driver recorded actually reached the scheduler', () => {
+    // **The two-channel check `Cell` cannot make.** `Cell.joinFired` is read from
+    // the fake scheduler's `added` list, and it drives the per-row assertion on
+    // all 36 cells, `verdictOf`, the `fired.length === 22` count and the payload
+    // loop. W15's adequacy reader re-sourced it from `driver.dispatchedIds()` and
+    // **nothing failed** — so across 36 cells nothing checked that a fired join's
+    // dispatch left the driver at all.
+    for (const { scenario, runs } of ROWS) {
+      for (const { policy, driven } of runs) {
+        equal([...driven.driver.dispatchedIds()].sort(), driven.scheduler.added.map((t) => t.id).sort(),
+          `${scenario.key}/${policy.id}: the driver's own dispatch record and what reached the ` +
+          'scheduler disagree. These are two claims, not one, and a driver that recorded a ' +
+          'dispatch it never made would satisfy only the first');
+        equal(driven.driver.foldInputs().filter((i) => i.kind === 'dispatched').map((i) => i.taskId).sort(),
+          driven.scheduler.added.map((t) => t.id).sort(),
+          `${scenario.key}/${policy.id}: and the FOLD's input sequence agrees with both — which ` +
+          'is what makes `RN-R4` true (a node absent from `nodes` was never dispatched)');
+      }
+    }
+  });
+});

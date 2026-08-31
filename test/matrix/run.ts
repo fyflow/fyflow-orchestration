@@ -30,7 +30,7 @@
  */
 import { Driver } from '../../src/driver/driver.ts';
 import type { RegionEvent } from '../../src/driver/events.ts';
-import type { JoinPolicy, JsonValue } from '../../src/driver/policy.ts';
+import type { JoinPolicy, JsonValue, UnsatisfiableJoin } from '../../src/driver/policy.ts';
 import type { Predicate } from '../../src/driver/routing.ts';
 import type { FlowDefinition } from '../../src/definition/types.ts';
 import { registry } from './flows.ts';
@@ -97,7 +97,7 @@ export interface Cell {
   verdict: Verdict;
 }
 
-class Fake {
+export class Fake {
   added: { id: string; payload?: unknown; optional?: boolean }[] = [];
   private listeners = new Map<string, ((e: { detail: unknown }) => void)[]>();
 
@@ -142,10 +142,32 @@ class Fake {
 
 export const RUN = 'r1';
 
-export function runCell(scenario: Scenario, policy: JoinPolicy): Cell {
+/**
+ * One scenario driven to quiescence, **before anything is reduced to a `Cell`**.
+ *
+ * `runCell` throws all of this away except what a matrix cell needs, and W15's
+ * chain assertion needs the rest: the `Driver` itself (for `foldInputs()`, which
+ * no matrix cell reads), and the **full** `UnsatisfiableJoin` reports including
+ * `describe`, which `Cell.unsatisfiable` deliberately narrows away.
+ *
+ * **`Cell` is not widened to carry them**, and that is the point of splitting
+ * rather than extending. A `Cell` is what `verdictOf` can see — the driver's
+ * public surface — and W15's own item warns that conflating that with the fold's
+ * `RunState.outcome` is the easiest wrong move available here. Two shapes keep
+ * the two sources of truth apart by construction.
+ */
+export interface Driven {
+  driver: Driver;
+  scheduler: Fake;
+  events: RegionEvent[];
+  /** Every `onUnsatisfiableJoin` call, in order, unnarrowed. */
+  unsatisfiable: UnsatisfiableJoin[];
+}
+
+export function driveScenario(scenario: Scenario, policy: JoinPolicy): Driven {
   const scheduler = new Fake();
   const events: RegionEvent[] = [];
-  const unsatisfiable: { fanoutId: string; policyId: string }[] = [];
+  const unsatisfiable: UnsatisfiableJoin[] = [];
   const driver = new Driver(scenario.flow, {
     runId: RUN,
     scheduler,
@@ -155,7 +177,7 @@ export function runCell(scenario: Scenario, policy: JoinPolicy): Cell {
     now: () => 1,
     joinPolicy: policy,
     onRegionEvent: (e) => events.push(e),
-    onUnsatisfiableJoin: (i) => unsatisfiable.push({ fanoutId: i.fanoutId, policyId: i.policyId }),
+    onUnsatisfiableJoin: (i) => unsatisfiable.push(i),
   });
 
   driver.start({});
@@ -170,7 +192,11 @@ export function runCell(scenario: Scenario, policy: JoinPolicy): Cell {
       if (!accepted) throw new Error(`matrix fixture: resolve("${step.taskId}") was REFUSED — not suspended`);
     }
   }
+  return { driver, scheduler, events, unsatisfiable };
+}
 
+export function runCell(scenario: Scenario, policy: JoinPolicy): Cell {
+  const { driver, scheduler, events, unsatisfiable } = driveScenario(scenario, policy);
   const reported = driver.joinStatusOf(scenario.fanoutId);
   const joinFired = scheduler.added.some((t) => t.id === scenario.downstream);
 
@@ -183,7 +209,10 @@ export function runCell(scenario: Scenario, policy: JoinPolicy): Cell {
     describe: (reported?.describe ?? null) as JsonValue,
     joinFired,
     payloads: Object.fromEntries(scheduler.added.map((t) => [t.id, t.payload])),
-    unsatisfiable,
+    // Narrowed on purpose: a cell reports THAT a join was declared unsatisfiable
+    // and by whom. The `describe` the driver carried out is W15's chain
+    // assertion's business and it reads `driveScenario` for it.
+    unsatisfiable: unsatisfiable.map((i) => ({ fanoutId: i.fanoutId, policyId: i.policyId })),
     verdict: verdictOf(driver, joinFired),
   };
 }
