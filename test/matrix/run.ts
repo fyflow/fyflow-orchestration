@@ -147,6 +147,7 @@ export function runCell(scenario: Scenario, policy: JoinPolicy): Cell {
   const events: RegionEvent[] = [];
   const unsatisfiable: { fanoutId: string; policyId: string }[] = [];
   const driver = new Driver(scenario.flow, {
+    runId: RUN,
     scheduler,
     createTask: (c) => c,
     predicates: new Map(Object.entries(scenario.predicates ?? {})),
@@ -157,7 +158,7 @@ export function runCell(scenario: Scenario, policy: JoinPolicy): Cell {
     onUnsatisfiableJoin: (i) => unsatisfiable.push({ fanoutId: i.fanoutId, policyId: i.policyId }),
   });
 
-  driver.start(RUN, {});
+  driver.start({});
   for (const step of scenario.steps) {
     if (step.do === 'settle') {
       scheduler.settle(step.taskId, step.state, step.result ?? null);

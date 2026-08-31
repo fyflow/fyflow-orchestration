@@ -76,6 +76,7 @@ function harness(
   const unsatisfiable: unknown[] = [];
   let clock = 1000;
   const driver = new Driver(def, {
+    runId: 'r1',
     scheduler,
     createTask: (c) => c,
     predicates: new Map(Object.entries(predicates)),
@@ -97,7 +98,7 @@ suite('ADR 0014 — the driver produces one ordered input sequence', (test) => {
     // Before W5 this sequence contained no `pathEnded` of any kind, and
     // `spec/run-state.md` section 3's `completed` was therefore underivable for it.
     const h = harness(await load('valid/linear.flow.json'));
-    h.driver.start('r1', { seed: 1 });
+    h.driver.start({ seed: 1 });
     h.scheduler.settle('r1:ingest:-:0', 'done', { result: { a: 1 } });
     h.scheduler.settle('r1:publish:-:0', 'done', { result: null });
 
@@ -114,7 +115,7 @@ suite('ADR 0014 — the driver produces one ordered input sequence', (test) => {
     // settlement has no eligible edge and the path ends. `FD-R1` is a different
     // rule — that is *edges exist and none matched*; this is *no edge opts in*.
     const h = harness(await load('valid/linear.flow.json'));
-    h.driver.start('r1', {});
+    h.driver.start({});
     h.scheduler.settle('r1:ingest:-:0', 'failed', { error: 'nope' });
 
     equal(h.driver.foldInputs().filter((i) => i.kind === 'pathEnded'),
@@ -126,7 +127,7 @@ suite('ADR 0014 — the driver produces one ordered input sequence', (test) => {
 
   test('snapshot() is exactly the record-kind subsequence of foldInputs()', async () => {
     const h = harness(await load('valid/fanout-join.flow.json'));
-    h.driver.start('r1', {});
+    h.driver.start({});
     h.scheduler.settle('r1:ingest:-:0', 'done', { result: { a: 1 } });
     h.scheduler.settle('r1:scoreA:0:0', 'done', { result: { s: 1 } });
     h.scheduler.settle('r1:scoreB:1:0', 'done', { result: { s: 2 } });
@@ -144,7 +145,7 @@ suite('ADR 0014 — the driver produces one ordered input sequence', (test) => {
 
   test('append order: a dispatch precedes the addTask it causes', async () => {
     const h = harness(await load('valid/linear.flow.json'));
-    h.driver.start('r1', {});
+    h.driver.start({});
     // `addedAt[i]` is the sequence length when `addTask` was called. The dispatch
     // input is appended first, so the length must already include it.
     equal(h.scheduler.addedAt, [1], 'ADR 0014 rule 6: `dispatched` is appended BEFORE addTask');
@@ -157,7 +158,7 @@ suite('ADR 0014 — the driver produces one ordered input sequence', (test) => {
     // between them or a fold of a prefix reports the join's dispatch before the
     // event that authorised it.
     const h = harness(await load('valid/p1-routed-away.flow.json'), { isLowConfidence: () => true });
-    h.driver.start('r1', {});
+    h.driver.start({});
     h.scheduler.settle('r1:ingest:-:0', 'done', { result: { confidence: 0.1 } });
     h.scheduler.settle('r1:scoreA:0:0', 'done', { result: {} });
     h.scheduler.settle('r1:scoreB:1:0', 'done', { result: { confidence: 0.1 } });
@@ -191,7 +192,7 @@ suite('ADR 0014 — the driver produces one ordered input sequence', (test) => {
       describe: () => ({ why: 'a stub, so the driver`s other exit is reachable at all' }),
     };
     const h = harness(await load('valid/fanout-join.flow.json'), {}, never);
-    h.driver.start('r1', {});
+    h.driver.start({});
     h.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
     // The policy is only ASKED after a terminal region event, so one branch has
     // to arrive before the seam's other exit is reachable at all.
@@ -210,7 +211,7 @@ suite('ADR 0014 — the driver produces one ordered input sequence', (test) => {
     // simplest reachable refusal here is a malformed id delivered by the fake,
     // which `parseTaskId` refuses at the listener boundary.
     const h = harness(await load('valid/linear.flow.json'));
-    h.driver.start('r1', {});
+    h.driver.start({});
     h.scheduler.settle('not-a-task-id', 'done');
     h.scheduler.settle('also-not-one', 'done');
     const stops = h.driver.foldInputs().filter((i) => i.kind === 'stopped');
@@ -220,7 +221,7 @@ suite('ADR 0014 — the driver produces one ordered input sequence', (test) => {
 
   test('what leaves through onFoldInput is a frozen copy, not the driver`s own element', async () => {
     const h = harness(await load('valid/linear.flow.json'));
-    h.driver.start('r1', {});
+    h.driver.start({});
     h.scheduler.settle('r1:ingest:-:0', 'done', { result: { a: 1 } });
 
     const pushedRecord = h.pushed.find((i) => i.kind === 'outcome') as { record: { result: { a: number } } };
@@ -235,7 +236,7 @@ suite('ADR 0014 — the driver produces one ordered input sequence', (test) => {
 
   test('the pushed sequence and foldInputs() agree, element for element', async () => {
     const h = harness(await load('valid/fanout-join.flow.json'));
-    h.driver.start('r1', {});
+    h.driver.start({});
     h.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
     h.scheduler.settle('r1:scoreA:0:0', 'done', { result: {} });
     h.scheduler.settle('r1:scoreB:1:0', 'done', { result: {} });
@@ -253,6 +254,7 @@ suite('ADR 0014 — the ordering clauses no test reached', (test) => {
     const seen: { branchPath: string; live: number }[] = [];
     const scheduler = new FakeScheduler();
     const driver = new Driver(await load('valid/fanout-join.flow.json'), {
+      runId: 'r1',
       scheduler,
       createTask: (c) => c,
       predicates: new Map(),
@@ -264,7 +266,7 @@ suite('ADR 0014 — the ordering clauses no test reached', (test) => {
         seen.push({ branchPath: i.event.branchPath, live: status?.describe.live ?? -1 });
       },
     });
-    driver.start('r1', {});
+    driver.start({});
     scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
 
     // `live-token` increments on each `branch.opened`. If the append ran before
@@ -286,7 +288,7 @@ suite('ADR 0014 — the ordering clauses no test reached', (test) => {
     // `matrix-optional-lost`, which is the only flow in the repository that
     // reaches `branch.lost` by settling ([Q44](../../doc/open-questions.md)).
     const h = harness(optionalLost);
-    h.driver.start('r1', {});
+    h.driver.start({});
     h.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
     h.scheduler.settle('r1:scoreA:0:0', 'done', { result: {} });
     // `optional: true` on the node, so the scheduler settles it `failed` rather
@@ -309,7 +311,7 @@ suite('ADR 0014 — the ordering clauses no test reached', (test) => {
     // ADR 0014 rule 2 names by name, and returning `this.inputs` directly survived
     // both suites.
     const h = harness(await load('valid/linear.flow.json'));
-    h.driver.start('r1', {});
+    h.driver.start({});
     h.scheduler.settle('r1:ingest:-:0', 'done', { result: { a: 1 } });
 
     const seq = h.driver.foldInputs();
@@ -324,33 +326,41 @@ suite('ADR 0014 — the ordering clauses no test reached', (test) => {
   });
 });
 
-suite('ID-R3 — a driver serves exactly one run', (test) => {
-  test('a second, DIFFERENT run id is refused and the scheduler receives nothing', async () => {
+suite('ID-R3 — a driver serves exactly one run, and start() is called at most once', (test) => {
+  test('a second start is refused and the scheduler receives nothing', async () => {
     // Measured by W5's spec-conformity pass before this refusal existed: the
     // second run's join never fired (`firedJoins` already held `split`), and
     // `fold(driver.foldInputs())` returned ONE RunState carrying the first run's
     // id and reporting `completed` — for a state holding a permanently hung run.
+    //
+    // **ADR 0022 rule 4 widened the rule and this test with it.** The run id is a
+    // constructor option now, so "a second, DIFFERENT run" is not a thing a caller
+    // can express: any second `start` is refused, and there is no id to compare.
     const h = harness(await load('valid/fanout-join.flow.json'));
-    h.driver.start('ra', {});
-    h.scheduler.settle('ra:ingest:-:0', 'done', { result: {} });
+    h.driver.start({});
+    h.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
     const before = h.scheduler.added.length;
 
-    throws(() => h.driver.start('rb', {}), 'MultipleRuns',
+    throws(() => h.driver.start({}), 'MultipleRuns',
       'ID-R3: the sequence, the fired joins and the policy state carry no run id');
-    equal(h.scheduler.added.length, before, 'and nothing was dispatched for the refused run');
+    equal(h.scheduler.added.length, before, 'and nothing was dispatched for the refused start');
     equal(h.driver.foldInputs().filter((i) => i.kind === 'dispatched')
-      .every((i) => (i as { taskId: string }).taskId.startsWith('ra:')), true,
+      .every((i) => (i as { taskId: string }).taskId.startsWith('r1:')), true,
       'the sequence still describes exactly one run');
   });
 
-  test('a second start with the SAME id falls through to ID-R1, which is deliberate', async () => {
-    // Narrowness matters: widening ID-R3 to cover this would take away ID-R1's
-    // only direct test (W3 provokes a duplicate dispatch by starting the same run
-    // twice). Two runs sharing an id collide on every task id anyway.
+  test('a second start no longer falls through to ID-R1, which is what widening the rule cost', async () => {
+    // v0.4 of `spec/task-id.md` kept ID-R3 narrow so that a second `start` with
+    // the SAME id fell through to ID-R1 — W3's only direct provocation of it —
+    // and section 3 said in writing that widening the rule would trade a tested
+    // rule for an untested one. This asserts the trade actually happened, so that
+    // ID-R1's replacement cannot quietly go missing: it now lives in
+    // `test/driver/driver.test.ts`, provoked by the same settlement delivered
+    // twice, and it is the REPORTED form rather than the thrown one.
     const h = harness(await load('valid/linear.flow.json'));
-    h.driver.start('r1', {});
-    throws(() => h.driver.start('r1', {}), 'DuplicateTaskId',
-      'ID-R1 refuses the entry node`s redispatch, which is the louder answer');
+    h.driver.start({});
+    throws(() => h.driver.start({}), 'MultipleRuns',
+      'ID-R3 now answers first — the DuplicateTaskId this used to raise is unreachable from start()');
   });
 });
 
@@ -366,7 +376,7 @@ suite('OR-R10 — a stopped run stops on the INBOUND edge too', (test) => {
     // A fan-out, because the two halves must be in flight at once: one branch
     // suspends and stays resolvable, the other stops the run.
     const h = harness(await load('valid/fanout-join.flow.json'));
-    h.driver.start('r1', {});
+    h.driver.start({});
     h.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
     h.scheduler.settle('r1:scoreA:0:0', 'user_action');
     ok(h.driver.terminalStateOf('r1:scoreA:0:0') === null,
@@ -377,7 +387,7 @@ suite('OR-R10 — a stopped run stops on the INBOUND edge too', (test) => {
     // a run, so `failRun` marks the sentinel `'<unknown>'` and stops nothing.
     // That is W3's and is recorded in W5's Record rather than fixed here.
     h.scheduler.settle('r1:scoreB:1:0', 'done', { result: { fn: () => 1 } });
-    ok(h.driver.hasFailed('r1'), 'the run is stopped, and stopped under its own id');
+    ok(h.driver.hasFailed(), 'the run is stopped, and stopped under its own id');
 
     const lenBefore = h.driver.foldInputs().length;
     const dispatchedBefore = h.driver.dispatchedIds().length;

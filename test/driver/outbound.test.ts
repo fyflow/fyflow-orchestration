@@ -121,6 +121,7 @@ function rigOf(def: FlowDefinition, predicates: Record<string, () => boolean> = 
   const events: RegionEvent[] = [];
   const inputs: FoldInput[] = [];
   const driver = new Driver(def, {
+    runId: 'r1',
     scheduler,
     createTask: (c) => c,
     predicates: new Map(Object.entries(predicates)) as never,
@@ -140,7 +141,7 @@ async function rig(flow: string, predicates: Record<string, () => boolean> = {})
 /** One settled linear run: one outcome record, a nested `result`, no region events. */
 async function linearRun(): Promise<Rig> {
   const r = await rig('valid/linear.flow.json');
-  r.driver.start('r1', {});
+  r.driver.start({});
   r.scheduler.settle('r1:ingest:-:0', 'done', { result: { nested: { a: 1 } } });
   return r;
 }
@@ -148,7 +149,7 @@ async function linearRun(): Promise<Rig> {
 /** A fan-out entered: two `branch.opened`, nothing terminal yet. */
 async function fanoutRun(): Promise<Rig> {
   const r = await rig('valid/fanout-join.flow.json');
-  r.driver.start('r1', {});
+  r.driver.start({});
   r.scheduler.settle('r1:ingest:-:0', 'done', { result: null });
   return r;
 }
@@ -170,7 +171,7 @@ suite('OR-R7 — every ONE of the six region events is frozen, not just the one 
     const seen: RegionEvent[] = [];
 
     const a = rigOf(sixEvents, { isLowConfidence: () => true });
-    a.driver.start('r1', {});
+    a.driver.start({});
     a.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });           // opens all three
     a.scheduler.settle('r1:lostA:0:0', 'failed', { error: 'optional, no eligible edge' }); // lost
     a.scheduler.settle('r1:exitB:1:0', 'done', { result: { c: 0.1 } });    // routed away -> exited
@@ -181,7 +182,7 @@ suite('OR-R7 — every ONE of the six region events is frozen, not just the one 
     // Both predicates the flow names must be registered or `FD-V4` refuses the
     // definition at construction — which is ADR 0002 rule 3 working, not a hurdle.
     const b = rigOf(twoRegions, { isHighConfidence: () => false, isLowConfidence: () => false });
-    b.driver.start('r1', {});
+    b.driver.start({});
     b.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });           // opens region `split1`
     seen.push(...b.events);
 

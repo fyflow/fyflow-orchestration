@@ -51,8 +51,28 @@ export class DuplicateTaskId extends Error {}
  * Thrown rather than reported through `onRunFailure`, because `start` is called
  * by the caller with the caller on the stack, and because nothing has been
  * appended: there is no run to fail.
+ *
+ * **Widened by [ADR 0022](../../doc/decisions/0022-a-driver-takes-its-run-at-construction.md)
+ * rule 4.** The run id is a constructor option, so "a second, *different* run" is
+ * not a thing a caller can express: **any** second `start` is refused.
  */
 export class MultipleRuns extends Error {}
+
+/**
+ * A settlement carrying THIS driver's run id for a task it never dispatched —
+ * `ID-R4`, and the inbound counterpart of `ID-R1`
+ * ([ADR 0023](../../doc/decisions/0023-an-inbound-settlement-is-this-runs-only-if-this-driver-dispatched-it.md)
+ * rules 4-5).
+ *
+ * **Reported, not thrown**, because it is reached from a scheduler listener
+ * (`OR-R10`) — and nothing is appended, for the reason `ID-R1` refuses before
+ * `addTask` sees the task.
+ *
+ * A settlement for **another** run's id is not this: it is ignored silently and is
+ * not a refusal at all (rule 3). The two are different failures and only one of
+ * them is ours.
+ */
+export class UndispatchedTask extends Error {}
 
 /**
  * A record copy that does not alias `result`. Ten of the eleven outcome fields
@@ -142,6 +162,18 @@ export type TaskFactory = (config: {
 }) => unknown;
 
 export interface DriverOptions {
+  /**
+   * **The one run this driver serves** —
+   * [ADR 0022](../../doc/decisions/0022-a-driver-takes-its-run-at-construction.md)
+   * rule 1. `ID-R3` always said a driver serves exactly one run; until W13 the
+   * surface said otherwise, and the next reader believed the surface
+   * ([Q53](../../doc/open-questions.md)).
+   *
+   * `ID-R2`'s charset refusal happens here, in the constructor, before the
+   * definition is validated and before anything is queued: a run id is
+   * configuration, like `joinPolicy`, and ADR 0002 rule 3's argument applies.
+   */
+  runId: string;
   scheduler: SchedulerLike;
   createTask: TaskFactory;
   predicates: PredicateRegistry;
@@ -220,17 +252,21 @@ export class Driver {
   private readonly joinState = new Map<string, unknown>();
   /** A join fires at most once, however many terminal events follow it. */
   private readonly firedJoins = new Set<string>();
-  /** Runs the driver has stopped routing. Nothing dispatches for one again. */
-  private readonly failedRuns = new Set<string>();
   /**
-   * The one run this driver serves (`ID-R3`), or `null` before `start`.
+   * **The one run this driver serves** — ADR 0022 rule 1, fixed at construction
+   * and never `null`.
    *
-   * `failedRuns` is a **set** and `hasFailed` takes a run id, both from W3 —
-   * shapes that made sense while a driver might serve many runs and are now
-   * redundant. Left alone rather than narrowed: changing the public surface is
-   * W3's and is [Q53](../../doc/open-questions.md).
+   * Until W13 this was `startedRun: string | null`, set by the first `start`,
+   * beside a `failedRuns` **set** and a `hasFailed(runId)` taking an argument —
+   * three shapes that only made sense if a driver served many runs. They were
+   * redundant rather than wrong, and [Q53](../../doc/open-questions.md) recorded
+   * that a redundant surface is read as a permissive one.
    */
-  private startedRun: string | null = null;
+  private readonly runId: string;
+  /** `ID-R3` — `start()` at most once, whatever id the caller had in mind. */
+  private started = false;
+  /** The run has been stopped by a refusal. Nothing dispatches for it again. */
+  private failed = false;
 
   /**
    * Validates the definition IN FULL before anything is queued (ADR 0002 rule 3),
@@ -238,6 +274,12 @@ export class Driver {
    * a routing failure discovered on the one workload that takes that branch.
    */
   constructor(definition: FlowDefinition, opts: DriverOptions) {
+    // **`ID-R2`, and it runs FIRST** — ADR 0022 rule 3. Before the definition is
+    // validated, before a listener is registered, before anything is queued. A run
+    // id is configuration; refusing it late would mean a driver that had already
+    // subscribed to a scheduler for a run it cannot name.
+    assertRunId(opts.runId);
+    this.runId = opts.runId;
     const registry: Registry = {
       predicates: new Set(opts.predicates.keys()),
       workerTypes: new Set(opts.workerTypes),
@@ -273,12 +315,12 @@ export class Driver {
   }
 
   /**
-   * `ID-R2` — the half `FD-V16` cannot check. Then dispatch the entry node.
+   * Dispatch the entry node for the run this driver was constructed for.
    *
-   * **`ID-R3` — one Driver, one run.** A second `start` with a different run id
-   * is refused, and the refusal is the point: this driver's `inputs`,
-   * `firedJoins` and `joinState` are keyed per-Driver or per-`fanoutId`, with no
-   * run id anywhere. Without this, a second run's join **never fires** —
+   * **`ID-R3` — one Driver, one run, and since ADR 0022 rule 4 that means
+   * `start()` at most once.** This driver's `inputs`, `firedJoins` and
+   * `joinState` are keyed per-Driver or per-`fanoutId`, with no run id anywhere.
+   * Without the refusal a second run's join **never fires** —
    * `firedJoins.has(fanoutId)` is already true from the first — and
    * `fold(driver.foldInputs())` merges both runs into one `RunState` carrying the
    * first run's id and reporting `completed`, for a state containing a
@@ -287,26 +329,26 @@ export class Driver {
    * exists to remove, and it was reachable through this class's own declared
    * surface until W5's spec-conformity pass measured it.
    *
-   * **A second `start` with the SAME run id is NOT refused here**, and the
-   * narrowness is deliberate: it falls through to `ID-R1`, which refuses the entry
-   * node's redispatch before `addTask` sees it and stops the run loudly. Widening
-   * `ID-R3` to cover it would have taken away `ID-R1`'s only direct test — W3
-   * provokes a duplicate dispatch by starting the same run twice — which is
-   * trading a tested rule for an untested one. Two runs with one id collide on
-   * every task id anyway; only two *different* ids merge silently, and that is
-   * exactly what this refuses.
+   * **v0.4 of `spec/task-id.md` made this rule narrow — only a *different* id —
+   * and said in writing what widening it would cost: `ID-R1`'s only direct test,
+   * because W3 provoked a duplicate dispatch by starting the same run twice.**
+   * ADR 0022 widens it anyway, having measured the replacement first: the same
+   * settlement delivered twice routes twice, and `ID-R1` refuses the *successor's*
+   * redispatch — **reported** through `onRunFailure` rather than thrown, which is
+   * the form `OR-R10` actually describes. `spec/task-id.md` section 3 records the
+   * substitution rather than dropping it.
    */
-  start(runId: string, payload: unknown): void {
-    assertRunId(runId);
-    if (this.startedRun !== null && this.startedRun !== runId) {
+  start(payload: unknown): void {
+    const runId = this.runId;
+    if (this.started) {
       throw new MultipleRuns(
-        `MultipleRuns: this driver already started run "${this.startedRun}" and cannot start ` +
-          `"${runId}". ID-R3: a Driver serves exactly one run — its input sequence, its fired ` +
-          'joins and its policy state carry no run id, so a second run would silently merge ' +
-          'into the first. Construct a second Driver.',
+        `MultipleRuns: this driver already started run "${runId}" and cannot start it again. ` +
+          'ID-R3: a Driver serves exactly one run — its input sequence, its fired joins and its ' +
+          'policy state carry no run id, so a second run would silently merge into the first. ' +
+          'Construct a second Driver; ADR 0023 makes that safe on the same scheduler.',
       );
     }
-    this.startedRun ??= runId;
+    this.started = true;
     try {
       this.enter(runId, this.def.entry, payload);
     } catch (e) {
@@ -340,7 +382,7 @@ export class Driver {
     // dispatched. W5's sequence made it visible: the elements kept arriving after
     // the `stopped` element, while `withOutcome` pins the outcome to `stopped`,
     // so nothing reported the work. Refused like any other rejected command.
-    if (this.failedRuns.has(runId)) return false;
+    if (this.failed) return false;
     this.append({
       kind: 'resolution',
       record: {
@@ -380,16 +422,16 @@ export class Driver {
   }
 
   /** Whether this run has been stopped by a refusal. */
-  hasFailed(runId: string): boolean {
-    return this.failedRuns.has(runId);
+  hasFailed(): boolean {
+    return this.failed;
   }
 
   private failRun(runId: string, cause: unknown): void {
     // `RN-R8` — `stopped` outranks everything, and the fold learns it here.
-    // Appended before `failedRuns` is set so a re-entrant `onFoldInput` listener
+    // Appended before `failed` is set so a re-entrant `onFoldInput` listener
     // sees the same order a later `foldInputs()` reader does.
-    const already = this.failedRuns.has(runId);
-    this.failedRuns.add(runId);
+    const already = this.failed;
+    this.failed = true;
     const err = cause instanceof Error ? cause : new Error(String(cause));
     if (!already) {
       this.append({ kind: 'stopped', reason: `${err.constructor?.name ?? 'Error'}: ${err.message}` });
@@ -414,8 +456,33 @@ export class Driver {
     // being reported. Found by W5's own test, which had to fabricate the case:
     // every id the scheduler reports is one `dispatch` minted.
     const { runId, nodeId, branchPath } = parseTaskId(record.taskId);
+
+    // **`ID-R4` — ADR 0023, and it is two tiers because they are two different
+    // failures.** Both sit AFTER the parse, so a malformed id still stops the run
+    // (`OR-R10`, above): "does not parse" is not "not ours", it is a defect.
+    //
+    // Tier 1 — another run's settlement. Routine the moment two drivers
+    // legitimately share one scheduler, which ADR 0023 is what makes safe. This
+    // driver has no standing to judge another run, so it is ignored, silently,
+    // and nothing is appended. **The cost is stated in that ADR rather than
+    // hidden: a driver is now silent about what it drops**, so a caller that
+    // starts `run-l` meaning `run-1` sees a run that never progresses.
+    if (runId !== this.runId) return;
+    // Tier 2 — OUR run id, on a task we never dispatched. Impossible if the
+    // bookkeeping is right, which is exactly `ID-R1`'s character: within one run
+    // this driver mints every id it dispatches. Three shapes reach here and every
+    // one was silently accepted and routed before W13 — a node never dispatched,
+    // a node not in the definition at all, and a branch path never opened.
+    if (!this.dispatched.has(record.taskId)) {
+      throw new UndispatchedTask(
+        `UndispatchedTask: "${record.taskId}" settled in run "${runId}", but this driver never ` +
+          'dispatched it. ID-R4: within one run the driver mints every task id it dispatches, so ' +
+          'either its path bookkeeping is wrong or something else is writing into this run id.',
+      );
+    }
+
     this.append({ kind: 'outcome', record });
-    if (this.failedRuns.has(runId)) return;
+    if (this.failed) return;
     if (record.terminalState === 'user_action') {
       // Not a loss. The branch is still live and the join keeps waiting; a run
       // waiting on a person must not be reported as stuck (Q7).

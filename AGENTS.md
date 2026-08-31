@@ -84,6 +84,7 @@ const settle = (detail: unknown, type = 'task.completed') => {
 };
 
 const driver = new Driver(definition, {
+  runId: 'run-1',
   scheduler,
   createTask: (config) => config,          // your `new FyflowTask(config)`
   predicates: new Map<string, Predicate>(),
@@ -94,7 +95,7 @@ const driver = new Driver(definition, {
   onRunFailure: (f) => { failures.push(f.kind); },
 });
 
-driver.start('run-1', { name: 'world' });
+driver.start({ name: 'world' });
 console.log(added.map((t) => t.id));       // [ 'run-1:ingest:-:0' ]
 
 // The scheduler reports a settlement; the driver routes.
@@ -112,11 +113,11 @@ if (failures.length) throw new Error(`the run reported ${failures.join(', ')}`);
 if (state.outcome !== 'completed') throw new Error(`expected completed, got ${state.outcome}`);
 ```
 
-**Four things bite everyone.** `start()` takes the run id, and it must match
-`[A-Za-z0-9_-]{1,64}`. A definition with a fan-out and no `joinPolicy` is **refused at
-construction**. A driver serves **exactly one run**, and — the half `MultipleRuns`' own message does
-not say — **one driver per scheduler**: two drivers sharing a scheduler each receive the other's
-settlements and dispatch each other's tasks. See section 9.
+**Three things bite everyone.** The **run id is a constructor option**, not a `start()` argument,
+and it must match `[A-Za-z0-9_-]{1,64}`. A definition with a fan-out and no `joinPolicy` is
+**refused at construction**. A driver serves **exactly one run**, so `start()` is called at most
+once — **and a second driver on the same scheduler is fine**, because a settlement only reaches the
+driver that dispatched it. See section 9.
 
 ---
 
@@ -392,6 +393,7 @@ const definition: FlowDefinition = {
 
 const listeners = new Map<string, ((e: { detail: unknown }) => void)[]>();
 const driver = new Driver(definition, {
+  runId: 'run-1',
   scheduler: {
     addTask() {},
     addEventListener(type: string, fn: (e: { detail: unknown }) => void) {
@@ -403,7 +405,7 @@ const driver = new Driver(definition, {
   workerTypes: ['ScoreWorker'],
   joinPolicy: liveToken,
 });
-driver.start('run-1', {});
+driver.start({});
 
 // Out of retries: BOTH events, same object, `state: 'user_action'`.
 const detail = { id: 'run-1:score:-:0', state: 'user_action', result: null, error: 'out of retries' };
@@ -436,7 +438,7 @@ console.log(fold(driver.foldInputs()).outcome);                   // 'completed'
 you may retry. It does **one** thing: supply an outcome for a dispatch that already happened. It
 cannot re-run the node and it cannot send it somewhere else. It also returns `false` once the run has
 been **stopped** by a refusal (section 9), and there retrying can never succeed: check
-`driver.hasFailed(runId)` to tell the two `false`s apart.
+`driver.hasFailed()` to tell the two `false`s apart.
 
 A resolved node is **indistinguishable** from one that settled that way: same node state, same
 `result`, same routing.
@@ -566,7 +568,9 @@ const noPolicy = {
 
 let refused = '';
 try {
-  new Driver(noPolicy, { scheduler, createTask: (c) => c, predicates: new Map(), workerTypes: ['W'] });
+  new Driver(noPolicy, {
+    runId: 'run-1', scheduler, createTask: (c) => c, predicates: new Map(), workerTypes: ['W'],
+  });
 } catch (e) {
   refused = (e as Error).constructor.name;
 }
@@ -585,17 +589,19 @@ reported, which is why the rule is about the stack:
 
 | | |
 |---|---|
-| `driver.start()` a **second time with the same run id** | throws `DuplicateTaskId` — the entry task was already dispatched (`ID-R1`) |
+| `driver.start()` a **second time** | throws `MultipleRuns` — a driver serves one run and its id was fixed at construction (`ID-R3`) |
 | `driver.resolve()` with a `result` that is not structured-cloneable | throws the platform's own `DataCloneError`, **not** `UncloneableResult`, and the run is not stopped |
 
-`MultipleRuns` is thrown if you `start()` a **second, different** run on one driver: a driver's
-sequence and join state carry no run id, so a second run would silently merge into the first.
-**One driver, one run** — and, because the listener path admits any run id, **one driver per
-scheduler**. Two drivers sharing a scheduler each receive the other's settlements and dispatch each
-other's tasks. `MultipleRuns`' own message says *"construct a second Driver"* and does not say this;
-give the second driver its own scheduler. (`Driver` still exposes `hasFailed(runId)` and takes a run
-id per call — that inconsistency is [Q53](doc/open-questions.md), and the cross-scheduler half is
-[Q72](doc/open-questions.md).)
+`MultipleRuns` is thrown by a second `start()`: a driver's sequence and join state carry no run id,
+so a second run would silently merge into the first. **One driver, one run** — and the run id is a
+constructor option, so there is no second id to pass.
+
+**A second driver on the same scheduler is the supported answer**, which is what `MultipleRuns`'
+message tells you to build. A settlement reaches only the driver that **dispatched** that task id:
+one for another run is ignored, and one carrying **this** driver's run id for a task it never
+dispatched stops the run with `UndispatchedTask` (`ID-R4`). The second half is a refusal rather than
+a filter for `ID-R1`'s reason — within one run the driver mints every id it dispatches, so a
+settlement it did not mint means its bookkeeping is wrong.
 
 **Reported, not thrown**, when there is nobody on the stack: `DuplicateTaskId`, `UncloneableResult`
 and `NoMatchingEdge` raised *inside a scheduler event listener*. Give the driver `onRunFailure` or you
@@ -685,12 +691,13 @@ const flow = {
 
 const frozen: Record<string, boolean> = {};
 const driver = new Driver(flow, {
+  runId: 'run-1',
   scheduler, createTask: (c) => c, predicates: new Map(), workerTypes: ['W'],
   joinPolicy: { id: 'p', open: () => 0, step: (s: number) => s, status: () => 'waiting', describe: () => ({}) },
   onRegionEvent: (e) => { frozen.onRegionEvent = Object.isFrozen(e); },
   onFoldInput: (i) => { frozen.onFoldInput = Object.isFrozen(i); },
 });
-driver.start('run-1', {});
+driver.start({});
 // One settlement, delivered the way the scheduler delivers it, so the fan-out opens.
 const task = { id: 'run-1:a:-:0', state: 'done', result: null, attempts: 0,
   timestamp: 1, startTime: 1, endTime: 2, executionTime: 1 };
@@ -708,8 +715,9 @@ if (Object.keys(frozen).length !== 4) {
 ```
 - **Subscribing to the scheduler yourself and counting `task.failed`.** A `user_action` task fires
   it *and* `task.user_action`. Key on the terminal state — section 7.
-- **Sharing one `Driver` between runs, or one scheduler between `Driver`s.** Section 9. The second
-  is not refused and does not throw: the runs cross-route.
+- **Sharing one `Driver` between runs.** `start()` is called at most once and a second throws
+  `MultipleRuns` — section 9. *Sharing one **scheduler** between `Driver`s is fine*, and used to be
+  the other half of this bullet: a settlement now reaches only the driver that dispatched it.
 
 ---
 
@@ -753,6 +761,7 @@ const scheduler = new FyflowScheduler({
 });
 
 const driver = new Driver(definition, {
+  runId: 'run-1',
   scheduler,
   createTask: (config) => new FyflowTask(config),
   predicates,
@@ -761,7 +770,7 @@ const driver = new Driver(definition, {
   onRunFailure: (f) => console.error(f.kind, f.message),
 });
 
-driver.start('run-1', { some: 'payload' });
+driver.start({ some: 'payload' });
 ```
 
 `createTask` exists so this library never constructs a scheduler object, which is what keeps it free

@@ -94,8 +94,12 @@ const PROBES = [
   {
     name: 'a `run` snippet that calls process.exit() ahead of its assertions',
     check: 'X4',
-    mutate: (t) => t.replace('driver.start(\'run-1\', { name: \'world\' });',
-      'process.exit(0);\ndriver.start(\'run-1\', { name: \'world\' });'),
+    // Pinned to §2's literal text. It read `driver.start('run-1', { name: 'world' })`
+    // until W13 moved the run id to the constructor, and requirement (b) — a probe
+    // must assert it changed its input — is what turned that into a red gate
+    // instead of a probe silently passing for the wrong reason.
+    mutate: (t) => t.replace('driver.start({ name: \'world\' });',
+      'process.exit(0);\ndriver.start({ name: \'world\' });'),
   },
   {
     name: 'a failing assertion smuggled past X4 by re-tagging the block `check`',

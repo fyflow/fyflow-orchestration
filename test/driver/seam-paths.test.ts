@@ -69,6 +69,7 @@ function run(def: FlowDefinition, policy: JoinPolicy<never>, preds: Record<strin
   const scheduler = new Fake();
   const events: RegionEvent[] = [];
   const driver = new Driver(def, {
+    runId: 'r1',
     scheduler, createTask: (c) => c,
     predicates: new Map(Object.entries(preds)),
     workerTypes: reg.workerTypes, now: () => 1,
@@ -86,7 +87,7 @@ suite('the exited path — status is asked after branch.exited, not only after a
     const def = await load('valid/p1-routed-away.flow.json');
 
     const lt = run(def, liveToken as never, { isLowConfidence: () => true });
-    lt.driver.start('r1', {});
+    lt.driver.start({});
     lt.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
     lt.scheduler.settle('r1:scoreA:0:0', 'done', { result: {} });
     lt.scheduler.settle('r1:scoreB:1:0', 'done', { result: { c: 0.1 } });
@@ -95,7 +96,7 @@ suite('the exited path — status is asked after branch.exited, not only after a
       'argument for token accounting, and it only works if the driver asks after branch.exited');
 
     const ac = run(def, arrivalCount as never, { isLowConfidence: () => true });
-    ac.driver.start('r1', {});
+    ac.driver.start({});
     ac.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
     ac.scheduler.settle('r1:scoreA:0:0', 'done', { result: {} });
     ac.scheduler.settle('r1:scoreB:1:0', 'done', { result: { c: 0.1 } });
@@ -112,7 +113,7 @@ suite('the lost path — status is asked after branch.lost too', (test) => {
     const def = await load('valid/fanout-join.flow.json');
 
     const lt = run(def, liveToken as never);
-    lt.driver.start('r1', {});
+    lt.driver.start({});
     lt.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
     lt.scheduler.settle('r1:scoreA:0:0', 'done', { result: {} });
     lt.scheduler.settle('r1:scoreB:1:0', 'user_action', { error: 'needs a human' });
@@ -123,7 +124,7 @@ suite('the lost path — status is asked after branch.lost too', (test) => {
       'and the join fires: the region is empty. This is the second path nothing asserted on');
 
     const ac = run(def, arrivalCount as never);
-    ac.driver.start('r1', {});
+    ac.driver.start({});
     ac.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
     ac.scheduler.settle('r1:scoreA:0:0', 'done', { result: {} });
     ac.scheduler.settle('r1:scoreB:1:0', 'user_action', { error: 'x' });
@@ -140,7 +141,7 @@ suite('what the driver reports and what it does must agree', (test) => {
     const def = await load('valid/p1-routed-away.flow.json');
     for (const [name, policy] of [['live-token', liveToken], ['arrival-count', arrivalCount]] as const) {
       const h = run(def, policy as never, { isLowConfidence: () => true });
-      h.driver.start('r1', {});
+      h.driver.start({});
       h.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
       h.scheduler.settle('r1:scoreA:0:0', 'done', { result: {} });
       h.scheduler.settle('r1:scoreB:1:0', 'done', { result: { c: 0.1 } });
@@ -153,7 +154,7 @@ suite('what the driver reports and what it does must agree', (test) => {
 
   test('joinStatusOf reports the status, not a constant', async () => {
     const h = run(await load('valid/fanout-join.flow.json'), liveToken as never);
-    h.driver.start('r1', {});
+    h.driver.start({});
     h.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
     equal(h.driver.joinStatusOf('split'), { status: 'waiting', describe: { live: 2, positive: true } },
       'two branches live');
@@ -173,7 +174,7 @@ suite('every one of the six events reaches the policy', (test) => {
       status: () => 'waiting' as const, describe: () => null,
     };
     const h = run(await load('valid/fanout-join.flow.json'), recorder as never);
-    h.driver.start('r1', {});
+    h.driver.start({});
     h.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
     h.scheduler.settle('r1:scoreA:0:0', 'user_action', { error: 'x' });
     h.driver.resolve('r1:scoreA:0:0', 'done', { result: {}, actor: 'ops' });
@@ -195,16 +196,17 @@ suite('a policy that misbehaves does not take the run down silently', (test) => 
       status: () => 'waiting' as const, describe: () => null,
     };
     const d = new Driver(await load('valid/fanout-join.flow.json'), {
+      runId: 'r1',
       scheduler, createTask: (c) => c, predicates: new Map(),
       workerTypes: reg.workerTypes, now: () => 1,
       joinPolicy: boom as never, onRunFailure: (f) => failures.push(f),
     });
-    d.start('r1', {});
+    d.start({});
     scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
     equal(failures.length, 1, 'a throw from a listener is discarded by dispatchEvent, so it is ' +
       'caught at the boundary and reported instead');
     equal(failures[0]!.kind, 'Error', 'and carries what went wrong');
-    ok(d.hasFailed('r1'), 'the run is stopped rather than left half-routed');
+    ok(d.hasFailed(), 'the run is stopped rather than left half-routed');
   });
 
   test('a throwing describe does not latch the region, so the report is not lost forever', async () => {
@@ -216,11 +218,12 @@ suite('a policy that misbehaves does not take the run down silently', (test) => 
       describe: () => { throw new Error('describe exploded'); },
     };
     const d = new Driver(await load('valid/fanout-join.flow.json'), {
+      runId: 'r1',
       scheduler, createTask: (c) => c, predicates: new Map(),
       workerTypes: reg.workerTypes, now: () => 1,
       joinPolicy: badDescribe as never, onRunFailure: (f) => failures.push(f),
     });
-    d.start('r1', {});
+    d.start({});
     scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
     scheduler.settle('r1:scoreA:0:0', 'done', { result: {} });
 
@@ -242,7 +245,7 @@ suite('three things the driver decides that spec/ does not state', (test) => {
     // mutates what it was given mutates a record already in the log — and run
     // state stops being a fold of anything.
     const h = run(await load('valid/linear.flow.json'), liveToken as never);
-    h.driver.start('r1', {});
+    h.driver.start({});
     h.scheduler.settle('r1:ingest:-:0', 'done', { result: { deep: { n: 1 } } });
     const payload = h.scheduler.added[1]!.payload as { deep: { n: number } };
     payload.deep.n = 999;
@@ -262,7 +265,7 @@ suite('three things the driver decides that spec/ does not state', (test) => {
       status: () => 'satisfied' as const, describe: () => null,
     };
     const h = run(await load('valid/fanout-join.flow.json'), undef as never);
-    h.driver.start('r1', {});
+    h.driver.start({});
     h.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
     h.scheduler.settle('r1:scoreA:0:0', 'done', { result: {} });
     ok(steps > 0, 'events reach step even though the state is undefined');
@@ -286,15 +289,16 @@ suite('three things the driver decides that spec/ does not state', (test) => {
       describe: () => { throw new Error('describe exploded'); },
     };
     const d = new Driver(await load('valid/fanout-join.flow.json'), {
+      runId: 'r1',
       scheduler, createTask: (c) => c, predicates: new Map(),
       workerTypes: reg.workerTypes, now: () => 1,
       joinPolicy: badDescribe as never, onRunFailure: (f) => failures.push(f),
     });
-    d.start('r1', {});
+    d.start({});
     scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
     scheduler.settle('r1:scoreA:0:0', 'done', { result: {} });
     equal(failures.length, 1, 'reported rather than swallowed by dispatchEvent');
     ok(failures[0]!.message.includes('describe exploded'), 'carrying what went wrong');
-    ok(d.hasFailed('r1'), 'and the run is stopped rather than left half-routed');
+    ok(d.hasFailed(), 'and the run is stopped rather than left half-routed');
   });
 });

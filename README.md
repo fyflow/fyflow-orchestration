@@ -4,7 +4,7 @@ Flow orchestration over [fyflow-scheduler](https://github.com/fyflow/fyflow-sche
 flow once; run thousands of workloads through it.
 
 > **Status: the layer is built and gated.** Sequence, decision routing, fan-out and join, with two
-> join policies, a definition validator, and run state as a pure fold. **288 assertions in five
+> join policies, a definition validator, and run state as a pure fold. **314 assertions in five
 > runtimes** — Node 24, Deno, chromium, firefox, webkit — **plus 219 against a real scheduler** in
 > Node and Deno. Not published; no version has been released.
 
@@ -98,7 +98,7 @@ consumer installs whichever version it wants.
 | | |
 |---|---|
 | `npm run gate` | everything below, in order |
-| `npm test` · `npm run test:deno` · `npm run test:browser:all` | 288 assertions, five runtimes |
+| `npm test` · `npm run test:deno` · `npm run test:browser:all` | 314 assertions, five runtimes |
 | `npm run test:l6` · `npm run test:l6:deno` | a real scheduler, thirteen flows |
 
 ## Documentation
@@ -113,7 +113,7 @@ of the document**; what the other 84% is allowed to be, and why, is
 happens next.
 
 - [doc/concept.md](doc/concept.md) — what we are building and why
-- [spec/](spec/README.md) — **the normative layer**: six documents, 71 numbered rules, 29 hand-written examples
+- [spec/](spec/README.md) — **the normative layer**: six documents, 72 numbered rules, 29 hand-written examples
 - [doc/decisions/](doc/decisions/) — eight ADRs
 - [doc/plans/](doc/plans/) — P1, P2 and P3 complete; **P4** is the active plan
 - [doc/open-questions.md](doc/open-questions.md) — the register

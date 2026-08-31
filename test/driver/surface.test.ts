@@ -92,11 +92,12 @@ suite('the region guards — no region event escapes a non-region path', (test) 
     const events: RegionEvent[] = [];
     const scheduler = new Fake();
     const d = new Driver(await load('valid/failure-edge.flow.json'), {
+      runId: 'r1',
       scheduler, createTask: (c) => c,
       predicates: new Map([['isLowConfidence', () => false]]),
       workerTypes: reg.workerTypes, now: () => 1, onRegionEvent: (e) => events.push(e),
     });
-    d.start('r1', {});
+    d.start({});
     scheduler.settle('r1:extract:-:0', 'failed', { error: 'boom' });
     equal(events, [], 'this flow has no fan-out at all, so no region event is emitted');
   });
@@ -122,12 +123,13 @@ suite('the region guards — no region event escapes a non-region path', (test) 
       ],
     } as unknown as FlowDefinition;
     const d = new Driver(def, {
+      runId: 'r1',
       scheduler, createTask: (c) => c,
       predicates: new Map([['isLowConfidence', () => true]]),
       workerTypes: reg.workerTypes, now: () => 1,
       onRegionEvent: (e) => events.push(e), joinPolicy: waiting,
     });
-    d.start('r1', {});
+    d.start({});
     scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
     equal(events, [], 'the region was never entered, so its `end` node opens and closes nothing');
   });
@@ -137,10 +139,11 @@ suite('the log is not reachable from outside, including through result', (test) 
   test('snapshot deep-copies result, so a caller cannot edit the run', async () => {
     const scheduler = new Fake();
     const d = new Driver(await load('valid/linear.flow.json'), {
+      runId: 'r1',
       scheduler, createTask: (c) => c, predicates: new Map(),
       workerTypes: reg.workerTypes, now: () => 1,
     });
-    d.start('r1', {});
+    d.start({});
     scheduler.settle('r1:ingest:-:0', 'done', { result: { deep: { n: 1 } } });
 
     const snap = d.snapshot();
@@ -153,10 +156,11 @@ suite('the log is not reachable from outside, including through result', (test) 
   test('effectiveOutcomeOf hands out a copy too', async () => {
     const scheduler = new Fake();
     const d = new Driver(await load('valid/linear.flow.json'), {
+      runId: 'r1',
       scheduler, createTask: (c) => c, predicates: new Map(),
       workerTypes: reg.workerTypes, now: () => 1,
     });
-    d.start('r1', {});
+    d.start({});
     scheduler.settle('r1:ingest:-:0', 'done', { result: { deep: { n: 1 } } });
     const eff = d.effectiveOutcomeOf('r1:ingest:-:0') as { result: { deep: { n: number } } };
     eff.result.deep.n = 999;
@@ -167,10 +171,11 @@ suite('the log is not reachable from outside, including through result', (test) 
   test('dispatchedIds and terminalStateOf report what happened', async () => {
     const scheduler = new Fake();
     const d = new Driver(await load('valid/linear.flow.json'), {
+      runId: 'r1',
       scheduler, createTask: (c) => c, predicates: new Map(),
       workerTypes: reg.workerTypes, now: () => 1,
     });
-    d.start('r1', {});
+    d.start({});
     equal(d.dispatchedIds(), ['r1:ingest:-:0'], 'ID-R1 keeps this set; it is the refusal it asserts against');
     equal(d.terminalStateOf('r1:ingest:-:0'), null, 'nothing has settled yet');
     scheduler.settle('r1:ingest:-:0', 'done', { result: {} });

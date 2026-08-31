@@ -278,6 +278,7 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
   scheduler.addEventListener('task.failed', noteDone);
 
   const driver = new Driver(definition, {
+    runId,
     scheduler,
     createTask: (config) => new FyflowTask(config),
     predicates: opts.predicates ?? new Map<string, Predicate>(),
@@ -353,7 +354,7 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
   });
 
   const startedAt = Date.now();
-  driver.start(runId, payload);
+  driver.start(payload);
 
   let timer: ReturnType<typeof setTimeout> | undefined;
   const backstop = new Promise<void>((resolve) => {

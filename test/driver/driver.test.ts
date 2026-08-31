@@ -73,6 +73,7 @@ function harness(
   const unsatisfiable: unknown[] = [];
   let clock = 1000;
   const driver = new Driver(def, {
+    runId: 'r1',
     scheduler,
     createTask: (c) => c,
     predicates: new Map(Object.entries(predicates)),
@@ -91,7 +92,7 @@ const alwaysTrue: Predicate = () => true;
 suite('L2 — sequence routes from a fixture log, with no scheduler', (test) => {
   test('linear: each settlement dispatches the next node', async () => {
     const h = harness(await load('valid/linear.flow.json'));
-    h.driver.start('r1', { seed: 1 });
+    h.driver.start({ seed: 1 });
     equal(h.ids(), ['r1:ingest:-:0'], 'start dispatches the entry node and nothing else');
     h.scheduler.settle('r1:ingest:-:0', 'done', { result: { a: 1 } });
     equal(h.ids(), ['r1:ingest:-:0', 'r1:publish:-:0'], 'the settlement routes to the next node');
@@ -104,14 +105,14 @@ suite('L2 — sequence routes from a fixture log, with no scheduler', (test) => 
 suite('L2 — a decision picks the first eligible edge whose predicate passes', (test) => {
   test('the guarded edge is taken when its predicate is true', async () => {
     const h = harness(await load('valid/decision.flow.json'), { isLowConfidence: alwaysTrue });
-    h.driver.start('r1', {});
+    h.driver.start({});
     h.scheduler.settle('r1:score:-:0', 'done', { result: { confidence: 0.1 } });
     equal(h.ids(), ['r1:score:-:0', 'r1:review:-:0'], 'the first matching edge in declaration order wins');
   });
 
   test('the default edge is taken when no guard passes', async () => {
     const h = harness(await load('valid/decision.flow.json'), { isLowConfidence: alwaysFalse });
-    h.driver.start('r1', {});
+    h.driver.start({});
     h.scheduler.settle('r1:score:-:0', 'done', { result: { confidence: 0.9 } });
     equal(h.ids(), ['r1:score:-:0', 'r1:publish:-:0'], 'the no-`when` edge is the default and is last');
   });
@@ -121,7 +122,7 @@ suite('L2 — a decision picks the first eligible edge whose predicate passes', 
     const h = harness(await load('valid/decision.flow.json'), {
       isLowConfidence: (ctx) => { seen = ctx.outcome; return false; },
     });
-    h.driver.start('r1', {});
+    h.driver.start({});
     h.scheduler.settle('r1:score:-:0', 'done', { result: { confidence: 0.9 } });
     const o = seen as { kind: string; terminalState: string; result: unknown };
     equal(o.kind, 'outcome', 'OR-R9 — one shape, always');
@@ -180,15 +181,41 @@ suite('FD-R1 — eligible edges exist and none matches: the run fails loudly', (
 
 suite('ID-R1 — a duplicate dispatch is refused before addTask sees it', (test) => {
   test('the refusal names the id and the scheduler receives nothing', async () => {
-    const h = harness(await load('valid/linear.flow.json'));
-    h.driver.start('r1', {});
-    const before = h.scheduler.added.length;
-    throws(
-      () => h.driver.start('r1', {}),
-      'DuplicateTaskId',
-      'a second dispatch of the same (run, node, branch, attempt) must be refused',
-    );
-    equal(h.scheduler.added.length, before, 'addTask is NOT called — at 0.3.0 both tasks would run');
+    // **This provocation replaces the one W3 used, and the substitution is
+    // deliberate rather than incidental.** W3 provoked ID-R1 by calling
+    // `start('r1', …)` twice: the second `enter` redispatched the entry node and
+    // ID-R1 THREW. `spec/task-id.md` v0.4 section 3 kept ID-R3 narrow precisely to
+    // preserve that, and said in writing that widening it would trade a tested
+    // rule for an untested one. ADR 0022 widened it — a second `start` is now
+    // MultipleRuns — having measured this replacement first.
+    //
+    // The same settlement delivered twice routes twice, and ID-R1 refuses the
+    // SUCCESSOR's redispatch. It is REPORTED through onRunFailure rather than
+    // thrown, because it is reached from a scheduler listener — which is the form
+    // OR-R10 describes and the thrown one never was. It exercises the rule on a
+    // path a real scheduler could reach rather than on one only a caller could.
+    const failures: { kind: string; message: string }[] = [];
+    const scheduler = new FakeScheduler();
+    const driver = new Driver(await load('valid/linear.flow.json'), {
+      runId: 'r1',
+      scheduler,
+      createTask: (c) => c,
+      predicates: new Map(),
+      workerTypes: reg.workerTypes,
+      now: () => 1,
+      onRunFailure: (f) => failures.push({ kind: f.kind, message: f.message }),
+    });
+    driver.start({});
+    scheduler.settle('r1:ingest:-:0', 'done', { result: null });
+    const before = scheduler.added.length;
+    scheduler.settle('r1:ingest:-:0', 'done', { result: null });
+
+    equal(failures.map((f) => f.kind), ['DuplicateTaskId'],
+      'a second dispatch of the same (run, node, branch, attempt) must be refused');
+    ok(failures[0]!.message.includes('r1:publish:-:0'),
+      'and it names the id it refused — the SUCCESSOR, not the settled task');
+    equal(scheduler.added.length, before, 'addTask is NOT called — at 0.3.0 both tasks would run');
+    ok(driver.hasFailed(), 'and the run is stopped, so nothing routes for it again');
     ok(new DuplicateTaskId('x') instanceof Error, 'DuplicateTaskId is an Error');
   });
 });
@@ -205,7 +232,7 @@ suite('JP-R5 — the region event stream', (test) => {
     // This asserts the ORDER, over a run that produces both kinds of event: the
     // last `branch.opened` must precede the first event that is not one.
     const h = harness(await load('valid/fanout-join.flow.json'));
-    h.driver.start('r1', {});
+    h.driver.start({});
     h.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
     h.scheduler.settle('r1:scoreA:0:0', 'done', { result: {} });
 
@@ -247,7 +274,7 @@ suite('JP-R5 — the region event stream', (test) => {
 
   test('at most one terminal event per branch, and none for a branch still in flight', async () => {
     const h = harness(await load('valid/fanout-join.flow.json'));
-    h.driver.start('r1', {});
+    h.driver.start({});
     h.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
     h.scheduler.settle('r1:scoreA:0:0', 'done', { result: {} });
     const terminals = h.events.filter((e) => e.type !== 'branch.opened');
@@ -261,7 +288,7 @@ suite('JP-R5 — branch.lost and branch.resumed, which nothing drove before', (t
   // entirely survived the suite.
   test('a resolved-to-failed branch with no eligible edge emits the full sequence', async () => {
     const h = harness(await load('valid/fanout-join.flow.json'));
-    h.driver.start('r1', {});
+    h.driver.start({});
     h.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
     h.scheduler.settle('r1:scoreA:0:0', 'user_action', { error: 'needs a human' });
     h.driver.resolve('r1:scoreA:0:0', 'failed', { error: 'gave up', actor: 'ops:sam' });
@@ -288,7 +315,7 @@ suite('JP-R5 — branch.lost and branch.resumed, which nothing drove before', (t
     // JP-R5: at most one terminal event per branch, with nothing after it. A
     // suspend/resume pair sits before the terminal one rather than being it.
     const h = harness(await load('valid/fanout-join.flow.json'));
-    h.driver.start('r1', {});
+    h.driver.start({});
     h.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
     h.scheduler.settle('r1:scoreA:0:0', 'user_action', { error: 'x' });
     const terminalsBefore = h.events.filter((e) =>
@@ -308,7 +335,7 @@ suite('the join seam — the driver asks a policy and acts on the answer', (test
     // branch and then stopped: the join could never fire, and the run looked
     // exactly like the hang P1 exists to attribute to a policy.
     const h = harness(await load('valid/fanout-join.flow.json'));
-    h.driver.start('r1', {});
+    h.driver.start({});
     h.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
     h.scheduler.settle('r1:scoreA:0:0', 'done', { result: {} });
     equal(h.ids().includes('r1:publish:-:0'), false, 'one arrival is not two — the join waits');
@@ -322,7 +349,7 @@ suite('the join seam — the driver asks a policy and acts on the answer', (test
       status: () => 'satisfied' as const, describe: () => null,
     };
     const h = harness(await load('valid/fanout-join.flow.json'), {}, { joinPolicy: always as never });
-    h.driver.start('r1', {});
+    h.driver.start({});
     h.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
     h.scheduler.settle('r1:scoreA:0:0', 'done', { result: {} });
     h.scheduler.settle('r1:scoreB:1:0', 'done', { result: {} });
@@ -335,7 +362,7 @@ suite('the join seam — the driver asks a policy and acts on the answer', (test
     // is caught at the listener boundary and turned into a silent `failRun`. So
     // the test named for `spec/join-policy.md` section 4's *"at most once"* was
     // passing on `ID-R1`'s refusal, and the run it described was dead.
-    equal(h.driver.hasFailed('r1'), false,
+    equal(h.driver.hasFailed(), false,
       'and it fires once because the JOIN is latched, not because ID-R1 refused a second ' +
       'dispatch. A run that reached this line with hasFailed() true has already stopped routing');
   });
@@ -349,7 +376,7 @@ suite('the join seam — the driver asks a policy and acts on the answer', (test
     };
     const h = harness(await load('valid/p1-routed-away.flow.json'), { isLowConfidence: alwaysTrue },
       { joinPolicy: recorder as never });
-    h.driver.start('r1', {});
+    h.driver.start({});
     h.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
     h.scheduler.settle('r1:scoreA:0:0', 'done', { result: {} });
     h.scheduler.settle('r1:scoreB:1:0', 'done', { result: { c: 0.1 } });
@@ -365,7 +392,7 @@ suite('the join seam — the driver asks a policy and acts on the answer', (test
       status: () => 'unsatisfiable' as const, describe: () => ({ why: 'test' }),
     };
     const h = harness(await load('valid/fanout-join.flow.json'), {}, { joinPolicy: dead as never });
-    h.driver.start('r1', {});
+    h.driver.start({});
     h.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
     h.scheduler.settle('r1:scoreA:0:0', 'done', { result: {} });
     equal(h.unsatisfiable.length, 1, 'the driver reports it');
@@ -379,6 +406,7 @@ suite('the join seam — the driver asks a policy and acts on the answer', (test
     const def = await load('valid/fanout-join.flow.json');
     throws(
       () => new Driver(def, {
+        runId: 'r1',
         scheduler: new FakeScheduler(), createTask: (c) => c,
         predicates: new Map(), workerTypes: reg.workerTypes,
       }),
@@ -392,6 +420,7 @@ suite('the join seam — the driver asks a policy and acts on the answer', (test
   test('a flow with no fan-out needs no policy', async () => {
     const def = await load('valid/linear.flow.json');
     const d = new Driver(def, {
+      runId: 'r1',
       scheduler: new FakeScheduler(), createTask: (c) => c,
       predicates: new Map(), workerTypes: reg.workerTypes,
     });
@@ -415,7 +444,7 @@ suite("P1's case is now mechanically observable, which is what the plan needs", 
     // the naive arrival counter Q4 describes; the point is that the hang is a
     // REPORTABLE state rather than silence.
     const h = harness(await load('valid/p1-routed-away.flow.json'), { isLowConfidence: alwaysTrue });
-    h.driver.start('r1', {});
+    h.driver.start({});
     h.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
     h.scheduler.settle('r1:scoreA:0:0', 'done', { result: {} });
     h.scheduler.settle('r1:scoreB:1:0', 'done', { result: { c: 0.1 } });
@@ -433,7 +462,7 @@ suite("P1's case — a decision inside a branch routes away from the join", (tes
     // The flow the whole plan exists to run. The driver reports what happened;
     // whether the join is satisfied is a policy's answer (W2) and W4's question.
     const h = harness(await load('valid/p1-routed-away.flow.json'), { isLowConfidence: alwaysTrue });
-    h.driver.start('r1', {});
+    h.driver.start({});
     h.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
     h.scheduler.settle('r1:scoreA:0:0', 'done', { result: {} });
     h.scheduler.settle('r1:scoreB:1:0', 'done', { result: { confidence: 0.1 } });
@@ -456,7 +485,7 @@ suite('the dispatched task carries what the definition declared', (test) => {
   // every optional node's failure into a user_action suspend.
   test('workerType and optional are passed through from the node', async () => {
     const h = harness(await load('valid/fanout-failure.flow.json'));
-    h.driver.start('r1', {});
+    h.driver.start({});
     equal(h.scheduler.added[0]!.workerType, 'IngestWorker', 'workerType comes from the node');
     h.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
     const byId = Object.fromEntries(h.scheduler.added.map((t) => [t.id, t]));
@@ -467,7 +496,7 @@ suite('the dispatched task carries what the definition declared', (test) => {
 });
 
 suite('ID-R2 — the charset is enforced at run creation, not just in the helper', (test) => {
-  test('Driver.start refuses a malformed runId before ANY side effect', () => {
+  test('the Driver CONSTRUCTOR refuses a malformed runId before ANY side effect', () => {
     // The earlier test called assertRunId directly, which proves the regex works
     // rather than that the driver applies it. Removing the call from start() then
     // survived, because buildTaskId re-checks — so the charset is still enforced,
@@ -489,10 +518,38 @@ suite('ID-R2 — the charset is enforced at run creation, not just in the helper
       ],
     } as unknown as FlowDefinition;
 
-    const h = harness(fanoutEntry);
-    throws(() => h.driver.start('run:1', {}), 'not [A-Za-z0-9_-]', 'a colon would make the parse ambiguous');
-    equal(h.scheduler.added.length, 0, 'nothing was dispatched');
-    equal(h.events, [], 'and no region event escaped — ID-R2 fires at run creation, before enter()');
+    // **ADR 0022 rule 3 moved this refusal from `start` to the constructor**, and
+    // that makes the assertion stronger rather than merely different: the driver
+    // is never built, so it cannot have subscribed to the scheduler for a run it
+    // cannot name. `assertRunId` runs BEFORE `validateDefinition` and before
+    // `addEventListener`, and this counts both.
+    const events: RegionEvent[] = [];
+    let added = 0;
+    let subscribed = 0;
+    const counting = {
+      addTask() { added++; },
+      addEventListener() { subscribed++; },
+    };
+    throws(
+      () =>
+        new Driver(fanoutEntry, {
+          runId: 'run:1',
+          scheduler: counting,
+          createTask: (c) => c,
+          predicates: new Map(),
+          workerTypes: reg.workerTypes,
+          joinPolicy: stubPolicy as unknown as JoinPolicy,
+          onRegionEvent: (e) => events.push(e),
+        }),
+      'not [A-Za-z0-9_-]',
+      'a colon would make the parse ambiguous',
+    );
+    equal(added, 0, 'nothing was dispatched');
+    equal(subscribed, 0,
+      'and nothing was SUBSCRIBED — ID-R2 fires before the constructor registers a listener, so a ' +
+      'driver for an unnameable run never sees a scheduler event');
+    equal(events, [], 'and no region event escaped: with a FANOUT entry, `enter` emits every ' +
+      'branch.opened before dispatching, so a check deferred to buildTaskId would let them out');
   });
 });
 
@@ -501,7 +558,7 @@ suite('ADR 0004 — user_action suspends, and a resolution resumes the path', (t
 
   test('a user_action settlement suspends rather than routing', async () => {
     const h = harness(await load('valid/fanout-failure.flow.json'));
-    h.driver.start('r1', {});
+    h.driver.start({});
     h.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
     const before = h.ids().length;
     h.scheduler.settle(susp, 'user_action', { error: 'needs a human' });
@@ -517,7 +574,7 @@ suite('ADR 0004 — user_action suspends, and a resolution resumes the path', (t
 
   test('RS-R3 — resolving failed routes through the on:["failed"] edge of a NON-optional node', async () => {
     const h = harness(await load('valid/fanout-failure.flow.json'));
-    h.driver.start('r1', {});
+    h.driver.start({});
     h.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
     h.scheduler.settle(susp, 'user_action', { error: 'needs a human' });
     equal(h.driver.resolve(susp, 'failed', { error: 'gave up', actor: 'ops:sam' }), true, 'a suspended task resolves');
@@ -528,7 +585,7 @@ suite('ADR 0004 — user_action suspends, and a resolution resumes the path', (t
 
   test('RS-R1 — a second resolution is refused and appends nothing', async () => {
     const h = harness(await load('valid/fanout-failure.flow.json'));
-    h.driver.start('r1', {});
+    h.driver.start({});
     h.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
     h.scheduler.settle(susp, 'user_action', { error: 'x' });
     h.driver.resolve(susp, 'done', { result: { ok: true }, actor: 'a' });
@@ -539,7 +596,7 @@ suite('ADR 0004 — user_action suspends, and a resolution resumes the path', (t
 
   test("a resolution's result is deep-copied on the way in, like OR-R2", async () => {
     const h = harness(await load('valid/fanout-failure.flow.json'));
-    h.driver.start('r1', {});
+    h.driver.start({});
     h.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
     h.scheduler.settle(susp, 'user_action', { error: 'x' });
     const answer = { deep: { approved: true } };
@@ -553,7 +610,7 @@ suite('ADR 0004 — user_action suspends, and a resolution resumes the path', (t
 
   test('RS-R2 — a resolution supplies an outcome and never re-dispatches', async () => {
     const h = harness(await load('valid/fanout-failure.flow.json'));
-    h.driver.start('r1', {});
+    h.driver.start({});
     h.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
     h.scheduler.settle(susp, 'user_action', { error: 'x' });
     const before = h.ids().filter((id) => id === susp).length;

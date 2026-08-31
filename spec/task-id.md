@@ -1,6 +1,6 @@
 # spec/task-id — the scheduler task id scheme
 
-**Status:** v0.4 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.5 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2 acts on the W1 spec-conformity pass**:
 section 2 point 3 was **wrong about the source** and is corrected (finding D7), `branchPath` is
 pinned against convergent branches (B3), and the rules name the item owing their test (D8, N19).
@@ -9,6 +9,16 @@ pinned against convergent branches (B3), and the rules name the item owing their
 spec-conformity pass **measured** a driver serving two runs and found the second run's join never
 fires and the two runs fold into one `RunState`. It is a rule about a run id, so it lives here with
 `ID-R1` and `ID-R2` rather than with the fold.
+**v0.5 is [W13](../doc/work-items/w13-one-driver-one-run-fixed-at-construction.md) under
+[P4](../doc/plans/p4-the-drivers-lifetime-and-the-handles-it-gives-out.md), and it changes three
+rules and adds one.** [ADR 0022](../doc/decisions/0022-a-driver-takes-its-run-at-construction.md)
+moves the run id to the **constructor**, so `ID-R2` is enforced there and `ID-R3` becomes *"`start()`
+at most once"*. [ADR 0023](../doc/decisions/0023-an-inbound-settlement-is-this-runs-only-if-this-driver-dispatched-it.md)
+adds **`ID-R4`**, the inbound counterpart of `ID-R1`: a settlement carrying this driver's run id for a
+task it never dispatched stops the run, and one carrying another run's id is ignored.
+**Section 3's own prediction came true and is recorded rather than quietly dropped** — widening
+`ID-R3` took `ID-R1`'s only direct test away, and the replacement was measured before the ADR was
+written.
 **Normative.** Answers [Q13](../doc/open-questions.md).
 **This is a correctness rule, not a naming convention.** Section 2 is why.
 
@@ -124,8 +134,9 @@ the owning item's gate; **W1's L0 does not check it**
 | id | The run terminates when | Test owed by |
 |---|---|---|
 | `ID-R1` | the driver is about to dispatch a task id already in the run's dispatched-id set. `addTask` is **not** called; the run fails with `DuplicateTaskId` naming the id, **reported** rather than thrown when it is reached from a listener (`OR-R10`). Test: a driver driven to repeat an id, asserting the refusal and asserting the scheduler received nothing | W3 |
-| `ID-R2` | a `runId` does not match its charset at run creation. Node ids are covered by `FD-V16` at instantiation; this is the half the definition cannot check. Test: run creation with a `runId` containing `:`, asserting the refusal | W3 |
-| `ID-R3` | **a driver is asked to start a *second, different* run.** A driver serves exactly one run, and `start` **throws** `MultipleRuns` rather than reporting: nothing has been appended, so there is no run to fail, and the caller is on the stack. Test: `start` twice with two different run ids, asserting the refusal, that the scheduler received nothing for the second, and that the first run's state is unchanged | **W5** |
+| `ID-R2` | a `runId` does not match its charset. Node ids are covered by `FD-V16` at instantiation; this is the half the definition cannot check. **Enforced in the `Driver` CONSTRUCTOR** (ADR 0022 rule 3), throwing `InvalidRunId` before the definition is validated and before anything is queued — a run id is configuration, and ADR 0002 rule 3's *"validate in full before anything is queued"* applies one level out. Test: construction with a `runId` containing `:`, asserting the refusal and that the scheduler received nothing | W3, **restated by W13** |
+| `ID-R3` | **a driver is asked to `start()` a second time.** A driver serves exactly one run and takes its id at construction (ADR 0022 rules 1-2), so there is no second id to name: **any** second `start` is refused. `start` **throws** `MultipleRuns` rather than reporting — nothing has been appended, so there is no run to fail, and the caller is on the stack. Test: `start` twice, asserting the refusal, that the scheduler received nothing for the second, and that the run's state is unchanged | **W5**, widened by **W13** |
+| `ID-R4` | **a settlement arrives carrying this driver's run id for a task it never dispatched.** The inbound counterpart of `ID-R1`, and `dispatched` is the same set both are asserted against. The run fails with `UndispatchedTask` naming the id, **reported** rather than thrown (`OR-R10`), and **nothing is appended** — the record is refused before it enters the sequence, for the reason `ID-R1` refuses before `addTask`. A settlement for **another** run's id is **ignored silently and is not a refusal** (ADR 0023 rule 3). Test: three ids under our own run — a node never dispatched, a node not in the definition, a branch path never opened — each asserting the refusal and an empty log; plus one under another run id asserting silence | **W13** |
 
 ### `ID-R3` — why one run per driver, and what it costs
 
@@ -144,17 +155,41 @@ That last cell is character-for-character the false statement
 [ADR 0015](../doc/decisions/0015-a-run-whose-join-can-no-longer-fire-is-stuck.md) exists to remove,
 reachable through the driver's own declared surface.
 
-**The rule is deliberately narrow: only a *different* run id is refused.** A second `start` with the
-**same** id falls through to `ID-R1`, which refuses the entry node's redispatch. Widening `ID-R3` to
-cover it would take away `ID-R1`'s only direct test — W3 provokes a duplicate dispatch by starting
-the same run twice — which trades a tested rule for an untested one. Two runs sharing an id collide
-on every task id anyway; only two different ids merge silently.
+**v0.4 made this rule deliberately narrow, and v0.5 widened it. The narrowness had a stated price
+and the price came due, which is why this passage is rewritten rather than replaced.** v0.4 said:
 
-**What this rule does not fix, and it is the more interesting half.** `Driver.start` takes a run id
-per call, `failedRuns` is a **set**, and `hasFailed(runId)` is public — three shapes that only make
-sense if a driver serves many runs. They are now redundant rather than wrong. Narrowing them is a
-change to the driver's public surface, which is W3's, and it is
-[Q53](../doc/open-questions.md).
+> *"Only a **different** run id is refused. A second `start` with the **same** id falls through to
+> `ID-R1`, which refuses the entry node's redispatch. Widening `ID-R3` to cover it would take away
+> `ID-R1`'s only direct test — W3 provokes a duplicate dispatch by starting the same run twice —
+> which trades a tested rule for an untested one."*
+
+[ADR 0022](../doc/decisions/0022-a-driver-takes-its-run-at-construction.md) moves the run id to the
+constructor, so *"a second `start` with the same id"* is the only kind of second `start` there is and
+`ID-R3` must cover it. **The prediction was correct and the trade was refused rather than paid:
+`ID-R1`'s replacement provocation was measured before ADR 0022 was written.**
+
+| | |
+|---|---|
+| what W3 used | `driver.start('r1', {})` twice — the second `enter` redispatches the entry node, and `ID-R1` **throws** |
+| what replaces it | **the same settlement delivered twice.** The second delivery routes again and `ID-R1` refuses the *successor's* redispatch — **reported** through `onRunFailure`, not thrown, because it is reached from a listener (`OR-R10`) |
+| why it is not weaker | it exercises `ID-R1` on the path a real scheduler could reach, rather than on one only a caller could. The thrown form was never the one `OR-R10` describes |
+
+**A rule may take another rule's test away. It may not take it away silently**, which is what this
+table exists to prevent on the next occasion.
+
+**What `ID-R3` did not fix, and it was the more interesting half — now fixed.** `Driver.start` took a
+run id per call, `failedRuns` was a **set**, and `hasFailed(runId)` was public: three shapes that only
+made sense if a driver served many runs. That was [Q53](../doc/open-questions.md), and
+[ADR 0022](../doc/decisions/0022-a-driver-takes-its-run-at-construction.md) closes it — `runId` is a
+constructor option, `start(payload)` takes the payload alone, and `hasFailed()` takes no argument.
+
+**And the half neither rule reached at all: `ID-R3` binds a *driver*, not a *scheduler*.** Two
+drivers sharing one scheduler each received the other's settlements and dispatched the other's
+successors — the two-outcomes-under-one-key corruption section 2 describes, produced by following
+`MultipleRuns`' own advice. That was [Q72](../doc/open-questions.md), and
+[ADR 0023](../doc/decisions/0023-an-inbound-settlement-is-this-runs-only-if-this-driver-dispatched-it.md)
+closes it with `ID-R4` rather than with a rule about schedulers, which `SchedulerLike` could not
+express.
 
 **`ID-R1` is a refusal rather than a guard because the collision should be impossible.**
 `FD-V10` forbids cycles, `FD-V15` forbids nested fan-out, and **`FD-V19` forbids convergent
