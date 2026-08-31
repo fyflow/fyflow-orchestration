@@ -11,7 +11,7 @@ npm run test:l6         # Node 24
 npm run test:l6:deno    # Deno
 ```
 
-Both print the same table and run the same 219 assertions. `RT-R10`: **L6 runs in Node and
+Both print the same table and run the same 240 assertions. `RT-R10`: **L6 runs in Node and
 Deno and not in the browser** — [Q33](../doc/open-questions.md), and the browser half is
 [Q52](../doc/open-questions.md).
 

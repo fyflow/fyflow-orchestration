@@ -661,8 +661,9 @@ assertThat('cross-row', 'isLowConfidence returned FALSE at 0.9 and TRUE at 0.1 �
 // 2.** W13's adequacy reader measured that the thirteen single-driver rows give
 // the rule nothing at all: one run, no foreign settlements, nothing to drop. Here
 // every settlement of run `pa` reaches `pb`'s listener and tier 1 drops it — so
-// deleting tier 1 makes `pb` hit tier 2 instead, stop with `UndispatchedTask`,
-// and fail this row. Measured: 7 failures.
+// deleting tier 1 makes EACH driver hit tier 2 on the other`s settlements, stop
+// with `UndispatchedTask`, and fail this row. Measured: 7 failures across BOTH
+// runs — the first version of this comment said `pb` alone.
 //
 // **Tier 2 is not reachable here and this row does not cover it**, which W14's own
 // negative test measured rather than assumed: deleting tier 2 leaves this row
@@ -679,40 +680,72 @@ assertThat('cross-row', 'isLowConfidence returned FALSE at 0.9 and TRUE at 0.1 �
 // `(run, node, branch, attempt)`, so the two dispatch sets are disjoint and
 // neither has a repeat).
 const PAIR_KEY = 'two runs / two drivers / one scheduler';
-const [pa, pb] = await runPair(
+const { a: pa, b: pb, facts } = await runPair(
   { definition: FJ, policy: POLICIES['live-token'], runId: 'pa', payload: HIGH, predicates, delayMs: 5 },
   { definition: FJ, policy: POLICIES['live-token'], runId: 'pb', payload: LOW, predicates, delayMs: 5 },
 );
-for (const [who, r] of [['pa', pa], ['pb', pb]] as const) {
+// **The subjects, named once and asserted to be two DISTINCT runs.** W14's
+// adequacy reader iterated `pa` twice, leaving `pb` asserted by nothing at an
+// unchanged 233 — no counting floor can see a duplicated subject, so the floor is
+// not where that is caught. This is.
+const PAIR_RUNS = [['pa', pa], ['pb', pb]] as const;
+check(PAIR_KEY, 'the block asserts on TWO distinct runs',
+  [...new Set(PAIR_RUNS.map(([who]) => who))].sort(), ['pa', 'pb']);
+
+for (const [who, r] of PAIR_RUNS) {
   check(PAIR_KEY, `${who}: run-state outcome`, r.state.outcome, 'completed');
   check(PAIR_KEY, `${who}: finished by run state, not the backstop`, r.finishedBy, 'run-state');
   check(PAIR_KEY, `${who}: nothing was reported`, r.failureKinds, []);
   check(PAIR_KEY, `${who}: the join fired`, r.state.regions['split']?.joined, true);
-  // Every id this driver dispatched carries its OWN run id. If tier 1 were
-  // deleted, the other driver would dispatch into this run's id space.
-  assertThat(PAIR_KEY, `${who}: dispatched only its own run's tasks`,
-    r.dispatched.length > 0 && r.dispatched.every((id) => id.startsWith(`${who}:`)),
-    r.dispatched.join(' '));
-  assertThat(PAIR_KEY, `${who}: its log holds only its own run's records`,
-    r.log.length > 0 && r.log.every((rec) => rec.taskId.startsWith(`${who}:`)),
-    r.log.map((rec) => rec.taskId).join(' '));
+  // From `spec/join-policy.md` section 2-3, not from output: `live-token` opens
+  // two branches, both arrive, the count reaches zero having been positive.
+  check(PAIR_KEY, `${who}: both branches arrived`, r.state.regions['split']?.settled,
+    { 0: 'arrived', 1: 'arrived' });
+  // From `spec/task-id.md` section 1's four segments and the flow's own node ids.
+  // The full list, in dispatch order — a prefix predicate would pass for a run
+  // that dispatched one task or seven.
+  check(PAIR_KEY, `${who}: the four task ids the scheme fixes`, [...r.dispatched],
+    [`${who}:ingest:-:0`, `${who}:scoreA:0:0`, `${who}:scoreB:1:0`, `${who}:publish:-:0`]);
+  // `RN-R12`: a terminal outcome means no more input is coming. **This row is the
+  // best place in the file for it** — it is the only one where a settlement for
+  // ANOTHER run genuinely arrives after this run is declared finished, so a
+  // tier-1 regression that appended one would land here.
+  check(PAIR_KEY, `${who}: nothing arrived after the run was declared finished`, [...r.lateInputs], []);
+  check(PAIR_KEY, `${who}: its log holds only its own run's records`,
+    r.log.map((rec) => rec.taskId).filter((id) => !id.startsWith(`${who}:`)), []);
 }
-// **The corruption, stated as a thing that cannot happen.** Two outcomes under
-// one key is what `spec/task-id.md` section 2 exists to describe; before W13 one
-// settlement produced two dispatches of the successor.
-const pairIds = [...pa.dispatched, ...pb.dispatched];
-check(PAIR_KEY, 'across BOTH drivers, no task id is dispatched twice',
-  pairIds.length - new Set(pairIds).size, 0);
-// Independent of our own bookkeeping: what the SCHEDULER reported settling.
-// `settledByScheduler` is shared here, so it is the union — and it must contain
-// both runs' tasks and nothing else.
-assertThat(PAIR_KEY, "the scheduler settled both runs' tasks and only those",
-  pa.settledByScheduler.length === new Set(pa.settledByScheduler).size &&
-    pa.settledByScheduler.every((id) => id.startsWith('pa:') || id.startsWith('pb:')) &&
-    pa.settledByScheduler.some((id) => id.startsWith('pa:')) &&
-    pa.settledByScheduler.some((id) => id.startsWith('pb:')),
-  pa.settledByScheduler.join(' '));
-const PAIR_ROW = 14;
+
+// --- what the SCHEDULER saw, which is the only source here that is not the code
+// --- under test (`doc/workflow.md` section 5 rule 4)
+//
+// Every assertion above reads a `Driver`. W14's adequacy reader removed the
+// `ID-R4` guard and filtered `dispatchedIds()`/`snapshot()` by run id, and the
+// row stayed **green at 233/0** while the scheduler was handed 55 `addTask` calls
+// for 50 distinct ids. These four are read from the scheduler itself, before
+// either driver was constructed, and they are counts of structure rather than of
+// order — `doc/workflow.md` section 5 rule 5.
+check(PAIR_KEY, 'the scheduler settled eight tasks, none of them twice',
+  [...facts.settlementIds].sort(), [
+    'pa:ingest:-:0', 'pa:publish:-:0', 'pa:scoreA:0:0', 'pa:scoreB:1:0',
+    'pb:ingest:-:0', 'pb:publish:-:0', 'pb:scoreA:0:0', 'pb:scoreB:1:0',
+  ]);
+check(PAIR_KEY, 'and it was handed exactly eight tasks to run', facts.addTaskCalls, 8);
+// **One scheduler, two drivers, both attached before anything settled.** A
+// sequential pair leaves the first count short of the second; a run given its own
+// scheduler leaves `addTaskCalls` at zero on this one. Neither depends on which
+// run wins a race.
+assertThat(PAIR_KEY, 'both runs were attached to the one scheduler before the first SETTLEMENT',
+  facts.addTaskCalls > 0 && facts.listenersAtFirstSettlement === facts.listenersTotal,
+  `at the first settlement ${facts.listenersAtFirstSettlement} of ${facts.listenersTotal}`);
+// `runFlow` must not shut down a scheduler it did not build — `runPair` owns it.
+// Mutating that flag lets whichever run finishes first drain the other, which is
+// the third occurrence of `shutdown()` silently repairing this harness.
+check(PAIR_KEY, 'the shared scheduler was shut down exactly once, by its owner',
+  facts.shutdownCalls, 1);
+
+const PAIR_PER_RUN = 8;
+const PAIR_CROSS = 5;
+const PAIR_ROW = PAIR_PER_RUN * PAIR_RUNS.length + PAIR_CROSS;
 
 // --- the table a person looks at ----------------------------------------------
 
@@ -724,7 +757,7 @@ const w = (s: string, n: number) => s.padEnd(n).slice(0, n);
 // The count is derived, not typed: this line said "six" for two rows longer than
 // it was true, which is the smallest possible version of the thing this whole
 // review pass was about.
-console.log(`\n  ladder L6 — ${reports.length + 2} real runs on fyflow-scheduler 0.3.0, on ${runtime}\n`);
+console.log(`\n  ladder L6 — ${reports.length + PAIR_RUNS.length} real runs on fyflow-scheduler 0.3.0, on ${runtime}\n`);
 console.log(`  ${w('run', 40)}${w('outcome', 17)}${w('join', 7)}${w('branches', 22)}${w('tasks', 6)}${w('ms', 6)}overlap`);
 console.log(`  ${'-'.repeat(106)}`);
 for (const [i, r] of reports.entries()) {
@@ -805,7 +838,7 @@ if (passed + failures.length !== EXPECTED_TOTAL) {
 // exit 0 by W6's adequacy reader, whose finding is that the Record's claim of
 // *"checked two ways … either alone misses something"* was false, because both
 // ways shared a source. This is the second source: a number a human wrote down.
-const DECLARED_TOTAL = 233;
+const DECLARED_TOTAL = 240;
 if (passed + failures.length !== DECLARED_TOTAL) {
   failures.push(
     'gate\n      the assertion count is not the number this file declares outright\n' +

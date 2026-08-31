@@ -222,18 +222,111 @@ export interface RunOptions {
  * difference under test. Each awaits its own clock-free termination; the shared
  * scheduler is shut down once, after both.
  */
-export async function runPair(a: RunOptions, b: RunOptions): Promise<[RunReport, RunReport]> {
+export async function runPair(
+  a: RunOptions,
+  b: RunOptions,
+): Promise<{ a: RunReport; b: RunReport; facts: PairFacts }> {
+  // One scheduler means one set of pools, so the two runs cannot ask for
+  // different worker timings. Refused rather than silently taking `a`'s, which is
+  // what this did until W14's conformity reader pointed out that `b`'s were dead.
+  if ((a.delayMs ?? 5) !== (b.delayMs ?? 5) || (a.threaded === true) !== (b.threaded === true)) {
+    throw new Error('runPair: both runs share one scheduler, so delayMs and threaded must match');
+  }
   const scheduler = buildScheduler(a.delayMs ?? 5, a.threaded === true);
+
+  // **Everything below is read from the SCHEDULER, before either driver exists.**
+  // `doc/workflow.md` section 5 rule 4 — a fixture must not come from the code
+  // under test — and W14's adequacy reader found the row breaking it: every
+  // disjointness assertion read `driver.dispatchedIds()` and `driver.snapshot()`,
+  // so deleting the `ID-R4` guard *and* filtering those two accessors by run id
+  // left the row **green at 233/0** while `addTask` was called 55 times for 50
+  // distinct ids — Q72's corruption in full, on the real scheduler, reported by
+  // nothing. The harness already avoids this for `settled`, via
+  // `settledByScheduler`; it did not for disjointness.
+  const settlementIds: string[] = [];
+  const record = (e: { detail: unknown }) => {
+    // `record` is registered BEFORE either driver, so for any settlement event it
+    // runs first — which makes this the count of listeners attached at the moment
+    // the first settlement is delivered, and that is the boundary that matters:
+    // a driver attached after it would never see that settlement.
+    if (settlementIds.length === 0) listenersAtFirstSettlement = listenersTotal;
+    const id = (e.detail as { id?: string })?.id;
+    // Read synchronously from the live detail and never retained (`OR-R1`); only
+    // the id, which is a string. Pushed rather than added to a Set, **and that is
+    // the point**: a Set makes "no id settled twice" a tautology, which is what
+    // the same reader found assertion 14 asserting.
+    if (typeof id === 'string') settlementIds.push(id);
+  };
+  scheduler.addEventListener('task.completed', record);
+  scheduler.addEventListener('task.failed', record);
+
+  let listenersTotal = 2;
+  let listenersAtFirstSettlement = 0;
+  let addTaskCalls = 0;
+  let shutdownCalls = 0;
+  const realAdd = scheduler.addEventListener.bind(scheduler);
+  const realAddTask = scheduler.addTask.bind(scheduler);
+  const realShutdown = scheduler.shutdown.bind(scheduler);
+  (scheduler as unknown as { addEventListener: unknown }).addEventListener =
+    (type: string, fn: (e: { detail: unknown }) => void) => { listenersTotal++; return realAdd(type, fn); };
+  (scheduler as unknown as { addTask: unknown }).addTask = (task: unknown, o?: unknown) => {
+    addTaskCalls++;
+    return realAddTask(task as never, o as never);
+  };
+  (scheduler as unknown as { shutdown: unknown }).shutdown = () => { shutdownCalls++; return realShutdown(); };
+
   try {
-    return await Promise.all([
+    const [ra, rb] = await Promise.all([
       runFlow({ ...a, scheduler }),
       runFlow({ ...b, scheduler }),
     ]);
+    return {
+      a: ra,
+      b: rb,
+      facts: { settlementIds, listenersAtFirstSettlement, listenersTotal, addTaskCalls, shutdownCalls: shutdownCalls + 1 },
+    };
   } finally {
     // Once, after both — and in a `finally`, because a row that fails must not
-    // also leave the process alive (`AGENTS.md` §2).
+    // also leave the process alive (`AGENTS.md` §2). Counted above as `+ 1`
+    // because the report is built before this runs.
     await scheduler.shutdown();
   }
+}
+
+/**
+ * What the **scheduler** saw, independent of anything either driver recorded.
+ *
+ * Every field here exists because W14's readers found the row's own claims
+ * resting on the driver it is checking, or on an interleaving `spec/` does not
+ * fix. These are timing-free: they are counts of structure, not of order.
+ */
+export interface PairFacts {
+  /**
+   * Every settlement event id the scheduler dispatched, **in order and with
+   * duplicates kept**. `spec/task-id.md` section 2 point 3: two `task.completed`
+   * under one id is what a real 0.3.0 collision produces, and a `Set` here would
+   * discard exactly the evidence.
+   */
+  settlementIds: readonly string[];
+  /**
+   * Listeners registered when the **first settlement** was delivered, and the
+   * total.
+   *
+   * Equal iff both runs were attached before anything settled — which is what
+   * makes "two drivers on one scheduler" structural rather than a hope about
+   * timing, because a driver attached later would never see that settlement.
+   *
+   * **Not the first *dispatch*:** `runFlow` is synchronous up to its first
+   * `await`, so run `a` has already called `addTask` before run `b` is
+   * constructed. Measured — 8 of 14 — which is why this reads settlements.
+   * A sequential `runPair` leaves the first strictly less than the second; a run
+   * given its own scheduler leaves `addTaskCalls` at zero on this one.
+   */
+  listenersAtFirstSettlement: number;
+  listenersTotal: number;
+  addTaskCalls: number;
+  /** `runFlow` must not shut down a scheduler it did not build; this is one. */
+  shutdownCalls: number;
 }
 
 /**

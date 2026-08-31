@@ -5,7 +5,7 @@ flow once; run thousands of workloads through it.
 
 > **Status: the layer is built and gated.** Sequence, decision routing, fan-out and join, with two
 > join policies, a definition validator, and run state as a pure fold. **326 assertions in five
-> runtimes** — Node 24, Deno, chromium, firefox, webkit — **plus 233 against a real scheduler** in
+> runtimes** — Node 24, Deno, chromium, firefox, webkit — **plus 240 against a real scheduler** in
 > Node and Deno. Not published; no version has been released.
 
 ## The idea

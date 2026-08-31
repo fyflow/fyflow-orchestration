@@ -1,6 +1,6 @@
 # W14 — Two runs, two drivers, one scheduler — at L6
 
-**Status:** **in review** - built, gate green, both readers owed
+**Status:** **done** - built, both readers run, every finding acted on, gate re-run
 **Plan:** [P4](../plans/p4-the-drivers-lifetime-and-the-handles-it-gives-out.md) — its exit artifact
 
 ```
@@ -89,78 +89,120 @@ meet it halfway through (*"the known design problem, stated before it is hit"*).
 | no matching decision edge (Q10) | no |
 | a duplicate task id (Q13) | **yes, and it is the point** — under one scheduler, two runs' ids must not collide, and today `run-a:publish:-:0` is dispatched twice |
 | a nested fan-out (Q6) | forbidden by `FD-V15` |
-
 ## Record
 
-**Status: built, gate green, both readers owed.**
+**Status: done** — built, both readers run, every finding acted on, gate re-run.
 
 **Gate — what ran.**
 
 | Clause | Verdict | Runtimes | Notes |
 |---|---|---|---|
-| L0-L5 | **RAN** — pass | all five | **326 assertions**, unchanged by this item — it touches no `src/` file and no test under `test/` |
-| **L6** | **RAN** — pass | Node, Deno | **233 assertions, was 219** — thirteen rows plus the pair, which is **two runs and 14 assertions** |
+| L0-L5 | **RAN** — pass | all five | **326 assertions**, unchanged: this item touches no `src/` file and no test under `test/` |
+| **L6** | **RAN** — pass | Node, Deno | **240 assertions, was 219** — the pair block is **21**, was 14 before the readers |
 | **the negative test** | **RAN** — and it found something | Node | table below |
-| conformity reader | **NOT RUN** | | owed |
-| adequacy reader | **NOT RUN** | | owed |
-| re-run at `<sha>` | **NOT RUN** | | owed |
+| **conformity reader** | **RAN** — **0 blocking, 6 defect, 6 note** | n/a | derived the row's expected values from `spec/` before opening it, and its derivation was **stronger than the row** on four counts |
+| **adequacy reader** | **RAN** — **39 mutations, 17 survived every layer, 2 blocking** | n/a | 15/15 flake runs green; Deno green |
+| **re-run after acting on both** | **RAN** — pass | all five, both L6 runtimes | `npm run gate` exit 0 |
 
-**The negative test, which the declaration required and which is the item's most useful output.**
-*"Run the row against `main` before W13 lands and watch it fail — a row added after the fix that has
-never been red is a row that cannot fail."* W13 has landed, so the equivalent is to revert the
-mechanism:
+**The negative test, which the declaration required.** *"A row added after the fix that has never been
+red is a row that cannot fail."* Both readers reproduced all three results independently, from a
+pristine checkout:
 
 | provocation | result |
 |---|---|
-| **the whole `ID-R4` guard removed** — the driver as it was before W13 | **RED, 5 failures** |
-| **tier 1 only removed** — every foreign settlement then reaches tier 2 | **RED, 7 failures** |
-| **tier 2 only removed** | **GREEN — and that is the finding.** See *What broke* 2 |
+| the whole `ID-R4` guard removed — the pre-W13 driver | **RED, 5** → now **8** |
+| tier 1 only removed | **RED, 7** |
+| tier 2 only removed | **GREEN** — [Q90](../open-questions.md), and correct |
 
-**Outputs — what was actually built.**
+**And the five mutations that survived the first version, now red:**
 
-| Declared output | Exists | What would fail without it |
+| provocation | before | after |
 |---|---|---|
-| a fourteenth L6 row: two runs, two drivers, one scheduler, on real workers | **yes**, printed as two lines because it is two runs | provocations 1-2 |
-| whatever the harness needed to run two runs at once | **yes, and it is one option**: `RunOptions.scheduler`, plus `runPair`. `runFlow` will not `shutdown()` a scheduler it did not build | L6 hangs or drains the other run out from under itself |
-| the assertion that each driver's `snapshot()` holds only its own run's task ids | **yes**, and its stronger sibling: **across both drivers, no task id is dispatched twice** — `spec/task-id.md` section 2's collision, stated as a thing that cannot happen | provocation 1 |
+| **X13** — guard removed **and** `dispatchedIds()`/`snapshot()` filtered by run id | **GREEN, 233/0** while `addTask` was called **55 times for 50 distinct ids** | **RED, 5** |
+| **H1** — `ownsScheduler` always true, so the first run to finish drains the other | GREEN 5/5 | **RED, 1** |
+| **H3** — `runPair` sequential rather than concurrent | RED 1 (one assertion, timing-dependent) | **RED, 1** (structural) |
+| **H4** — run `b` given its own scheduler | RED 1 (same one) | **RED, 2** |
+| **F5** — the pair loop iterates `pa` twice, `pb` asserted by nothing | **GREEN at an unchanged 233** | **RED, 1** |
 
 ## What broke
 
-**1. Nothing, and that is the weaker result this item should have predicted.** W13 proved the
-mechanism at L2 against a fake; this row proves the fake was not lying. It passed first time. The
-only new information is in the negative test.
+**1. The row's central claim had one source of truth and it was the code under test.** Every
+disjointness assertion read `driver.dispatchedIds()` and `driver.snapshot()`. The adequacy reader
+removed the `ID-R4` guard **and** filtered those two accessors by run id: the row stayed **green at
+233/0** while the real scheduler was handed 55 `addTask` calls for 50 distinct ids — five task ids
+dispatched twice, Q72's corruption in full, reported by nothing. `doc/workflow.md` section 5 rule 4,
+at the one place this harness already knew to avoid it: it uses `settledByScheduler` for *"every
+dispatch settled"* precisely because `driver.terminalStateOf` would be circular, and then used the
+driver for disjointness anyway.
 
-**2. The pair row does not cover `ID-R4` tier 2, and the first version of this row claimed it did.**
-The comment said *"it is the only L6 coverage `ID-R4` has"*. **Deleting tier 2 leaves the row green**,
-because a foreign settlement returns at tier 1 and never reaches tier 2 — so the claim was true of
-tier 1 and false of the rule. Tier 2 needs a settlement carrying *this* run's id for a task the driver
-never dispatched, and a real scheduler produces one only if something **injects** it, which no L6 row
-does. **Found by the item's own declared negative test, before either reader ran** — which is the
-first time a provocation in this repository has caught a false claim rather than a weak assertion.
-Corrected in place, and the gap is [Q90](../open-questions.md) rather than a silent hole.
+**`runPair` now reads four facts from the scheduler itself, before either driver exists** — the
+settlement ids in order **with duplicates kept**, the `addTask` count, the listener counts, and the
+shutdown count. Every one is a count of *structure*, not of order.
 
-**3. The harness change is one option, and that was not obvious in advance.** The declaration said
-*"the shape this item needs does not exist"* and named the two-run termination as its only design
-work. It turned out `runFlow` already terminates per run, clock-free, so two of them run concurrently
-against one scheduler with no change to the mechanism at all — the only thing that had to move was
-who owns the scheduler's lifetime. **`buildScheduler` was extracted so the two entry points cannot
-drift about what a worker does**, which is the one duplication this file's own comments warn about
-twice.
+**2. The assertion meant to be the independent one contained a tautology.**
+`settledByScheduler.length === new Set(...).size` cannot fail: `settledByScheduler` **is** a `Set`,
+returned as an array. The scheduler's own contradicting evidence was discarded one line earlier —
+measured at the listener under the guard-removed mutation: **`raw=12, distinct=7`**, five ids
+settling twice, which is `spec/task-id.md` section 2 point 3 exactly. The new recorder `push`es.
+
+**3. An assertion depended on an interleaving `spec/` does not fix — rule 5, in a file that refuses
+that elsewhere.** `pa.settledByScheduler.some(id => id.startsWith('pb:'))` needed a `pb` settlement
+to land before `pa` reached its terminal outcome. It was robust in practice (the single-thread
+`IngestWorker` pool forces the order under equal delays) and **that argument was written nowhere**.
+Worse, both readers found it was the **only** assertion pinning the shared-scheduler topology at all:
+give run `b` its own scheduler and exactly one assertion failed. Replaced by two timing-free ones —
+the settlement-id set, and *both runs attached before the first settlement*.
+
+**4. That replacement was wrong on its first try, and the gate said so.** I first asserted both runs
+were attached before the first **dispatch**. They are not: `runFlow` is synchronous up to its first
+`await`, so run `a` has already called `addTask` before run `b` is constructed — measured **8 of 14**.
+The boundary that matters is the first **settlement**, because a driver attached after it would never
+see that settlement, and that is what tier 1 is about.
+
+**5. The pair block had one fewer floor than any row, and duplicating its subject defeated all of
+them.** It never enters `rowCosts`, so `PAIR_ROW` was hand-typed rather than derived. The adequacy
+reader iterated `pa` twice — **`pb` asserted by nothing, at an unchanged 233, exit 0**. No counting
+floor can see a duplicated subject, so the fix is not a floor: the block now asserts its subjects are
+**two distinct runs**, and `PAIR_ROW` is derived from the list's length.
+
+**6. The block omitted six assertions every single-driver row makes.** Both readers, independently.
+Added: the four dispatched ids **in full** (a prefix predicate passes for a run that dispatched one
+task or seven), `regions.split.settled`, and **`lateInputs === []`** — `RN-R12`, and this row is the
+best place in the file for it, because it is the only one where a settlement for another run
+genuinely arrives after this run is declared finished.
+
+**7. Three stale counts and two wrong comments**, all in files this item owns or updated:
+`examples/README.md` said 219; `CLAUDE.md` said *"thirteen rows, 219 assertions"* two lines below the
+line this item had already corrected to 233; the `settledByScheduler` comment claimed it holds both
+runs' tasks (it holds **7 of 8** — it is snapshotted when `pa` returns); the tier-1 comment said
+deleting tier 1 makes `pb` fail (it fails **both**); and `${reports.length + 2}` put a typed constant
+back into the one line whose comment reads *"the count is derived, not typed"*.
+
+**8. A process failure that is mine, not the item's.** Both readers ran concurrently against **one
+working tree**, and the adequacy reader mutates in place. The conformity reader's early measurements
+picked up the other's instrumentation — a stray debug line, and a Deno run reporting `declared: 219`
+against a file reading 233 — and it re-took every number from an isolated copy, so its report is
+sound. The reader's own cleanup then **deleted `node_modules`**, which cost an `npm install`. I have
+now run three reader pairs this way and this is the first time it was caught. **For P4's retro.**
 
 ## What this taught
 
-- **A negative test can falsify a claim, not just a weak assertion.** Rule 8 exists because three
-  items shipped a fix that could not fail; here the provocation instead showed that a *sentence* in
-  the row was wrong. That is a use the rule does not name and it cost four minutes.
-- **The exit artifact confirmed rather than discovered, and the plan predicted that.** Every finding
-  of substance in P4 came from the spikes and the readers. What L6 adds is that the L2 fake is
-  faithful on this pairing — which is worth having precisely because *"fixtures-versus-reality is
-  where this repository has been wrong"*, and this time it was not.
+- **"Independent source" is a property to check, not to declare.** This harness knew the rule — it
+  built `settledByScheduler` *because* `driver.terminalStateOf` would be circular — and then wrote the
+  row's headline assertion against the driver anyway, with the one independent source reduced to a
+  tautology beside it. **The knowledge was present and did not transfer to the new block.**
+- **A row's claim and a row's assertions are different things, and the negative test measures the
+  gap.** W14's own provocation caught one over-claim before either reader ran (tier 2); the readers
+  caught three more (the topology resting on one timing-dependent assertion, the subject duplication,
+  the driver-sourced disjointness). Every one was a *sentence* that outran its evidence.
+- **Two readers, ~26 findings, 4 clean overlaps ≈ 15%** — W12 3/18, W13 4/24, W14 4/26. The absolute
+  count is 1-4 across six items of very different sizes, which is now a firmer statement than any
+  fraction.
 
 ## Questions raised
 
-**Q90** from P4's remaining block.
+**Q90** from W14's block. Q89 and below belong to W13.
 
 | Q | | raised by |
 |---|---|---|
-| Q90 | **`ID-R4` tier 2 has no L6 coverage and the two-driver row cannot give it any** — deleting tier 2 leaves the row green. L2 covers it three shapes × three terminal states; a real scheduler reaches it only if something injects a task the driver did not mint | W14's own negative test |
+| Q90 | **`ID-R4` tier 2 has no L6 coverage and this row cannot give it any** — deleting tier 2 leaves the row green, confirmed by both readers. A real scheduler reaches tier 2 only if something injects a task the driver did not mint | W14's own negative test |

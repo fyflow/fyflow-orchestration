@@ -29,11 +29,11 @@ details are live mutable objects and `task.failed` also fires for `user_action` 
 normative documents and 72 numbered rules**; `src/` holds the definition validator, the driver and
 the fold with **both** join policies; `test/matrix/` holds the join/failure matrix; `examples/` holds
 ladder **L6**. **326 assertions in five runtimes** — Node 24, Deno, chromium, firefox, webkit —
-identical in all of them, **plus 233 at L6 in Node and Deno**. **`doc/workflow.md` is v0.5**, run to
+identical in all of them, **plus 240 at L6 in Node and Deno**. **`doc/workflow.md` is v0.5**, run to
 completion by three plans.
 
 **[P2](doc/plans/p2-the-non-success-half-on-a-real-scheduler.md) is complete and added no features.**
-Ladder L6 is **thirteen rows, 219 assertions**, in Node and Deno, and **all six run outcomes and all
+Ladder L6 is **fourteen rows, 240 assertions**, in Node and Deno, and **all six run outcomes and all
 six region events now occur there** — `awaiting_action`, `stopped`, `branch.suspended` and
 `branch.resumed` for the first time. **Nothing in `src/` broke**, which is the weaker result P2
 predicted when it measured `user_action` before the plan was written: **all nine of W6's findings
