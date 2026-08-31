@@ -15,7 +15,7 @@ the only document that does. **Every snippet in it is extracted and executed by 
 (`scripts/check-docs.mjs`), so it cannot rot the way a hand-maintained reference does. If you change
 the public surface, that check is what tells you the reference is now wrong.
 
-## Current state: **P1 and P2 are complete and retro'd; [P3](doc/plans/p3-a-consumer-reference-the-gate-keeps-true.md) is the active plan**
+## Current state: **P1, P2 and P3 are complete and retro'd; [P4](doc/plans/p4-the-drivers-lifetime-and-the-handles-it-gives-out.md) is the active plan**
 
 [ADR 0001, 0002 and 0007](doc/decisions/) settle the architecture so far: **routing executes in the
 driver, outside the scheduler** — a worker computes and does not route, and `context.spawnTask()` is
@@ -29,8 +29,8 @@ details are live mutable objects and `task.failed` also fires for `user_action` 
 normative documents and 71 numbered rules**; `src/` holds the definition validator, the driver and
 the fold with **both** join policies; `test/matrix/` holds the join/failure matrix; `examples/` holds
 ladder **L6**. **288 assertions in five runtimes** — Node 24, Deno, chromium, firefox, webkit —
-identical in all of them, **plus 219 at L6 in Node and Deno**. **`doc/workflow.md` is v0.4**, run to
-completion by two plans.
+identical in all of them, **plus 219 at L6 in Node and Deno**. **`doc/workflow.md` is v0.5**, run to
+completion by three plans.
 
 **[P2](doc/plans/p2-the-non-success-half-on-a-real-scheduler.md) is complete and added no features.**
 Ladder L6 is **thirteen rows, 219 assertions**, in Node and Deno, and **all six run outcomes and all
@@ -45,15 +45,34 @@ settled last — so `settleJoin` could be deleted from both other paths and noth
 P1's own case, and `spec/join-policy.md` section 4 exists for it. Fixed by **arranging** the causal
 order with per-role delays rather than hoping for it.
 
-**[P3](doc/plans/p3-a-consumer-reference-the-gate-keeps-true.md) is the active plan and
-[W9](doc/work-items/w9-the-consumer-reference-and-its-extractor.md) is done.**
-**[AGENTS.md](AGENTS.md) is the consumer reference** and `npm run gate` extracts, typechecks and
-executes its snippets. Its two readers measured the thing to know about it: **the gate covers about
-16% of the reference**, and the other 84% is prose that can be inverted with the gate green. The
-response was not to guard the prose but to **move the load-bearing claims into assertions** — 7 `run`
-snippets became 11, and the six-outcome precedence table, the `user_action` event pair and a double
-`resolve()` are now executed rather than asserted in a sentence. What happens next, in order:
-[doc/README.md](doc/README.md).
+**[P3](doc/plans/p3-a-consumer-reference-the-gate-keeps-true.md) is complete and retro'd, and
+`doc/workflow.md` is v0.5.** **[AGENTS.md](AGENTS.md) is the consumer reference** and `npm run gate`
+extracts, typechecks and executes its snippets. Its two readers measured the thing to know about it:
+**the gate covers about 16% of the reference**, and the other 84% is prose that can be inverted with
+the gate green. The response was not to guard the prose but to **move the load-bearing claims into
+assertions** — 7 `run` snippets became 11, and the six-outcome precedence table, the `user_action`
+event pair and a double `resolve()` are now executed rather than asserted in a sentence.
+
+**P3's retro says that is an acceptable steady state and names what is not.** The criterion, so it is
+not re-derived: *a claim a consumer writes code from belongs in an assertion; a claim they read for
+orientation does not.* What is **not** acceptable is what P3 also produced — **the prose absorbed
+three `src/` defects rather than the code being fixed** (`AGENTS.md` §12 documents a cast for Q71;
+§§2, 9 and 10 document Q72 as a hazard). **Rot is what the gate prevents; absorption is what it
+cannot see**, because an accurate description of a defect passes every check there is. Its one
+adopted change is rule 7 (c): a probe now declares the **set** of checks it must trip, because naming
+one does not discriminate — a merely malformed probe trips two at once.
+
+**[P4](doc/plans/p4-the-drivers-lifetime-and-the-handles-it-gives-out.md) is the active plan and it
+deletes two of those three apologies by fixing the code.** One subject — *what is a `Driver`'s
+lifetime, and what makes an inbound event or an outbound handle **this run's*** — and three
+reader-found defects: [Q53](doc/open-questions.md)'s many-run surface,
+[Q72](doc/open-questions.md)'s two-drivers-one-scheduler cross-routing, and
+[Q73](doc/open-questions.md)'s unfrozen region event. **W12-W14 declared**; W10 is held for
+`check-owns.mjs` and W7, W8, W11 are skipped. **Its load-bearing fact was measured first and it
+changed the design:** filtering `Driver.onEvent` by run id — the mechanism the register proposed —
+closes **one of four** inbound holes, while `dispatched.has(taskId)` closes all four with state the
+driver already keeps. Run-id-at-construction was spiked in the working tree: `src/` typechecks clean
+and **all thirteen L6 rows pass**. What happens next, in order: [doc/README.md](doc/README.md).
 
 **Fifteen reader-passes have run and not one came back empty** — W1 ×3, W3 ×3, W2 ×1, W4 ×2, W5 ×2,
 W6 ×2, W9 ×2. Most found the same shape: *the code was correct and the tests were pointed at the
@@ -98,7 +117,7 @@ and every one is acted on.** Three are worth carrying:
    sweep found a hole, and the author's fix for it still could not fail.
 2. **A `Driver` serving two runs merged them and reported `completed` for a hung run**, through its
    own declared surface. `ID-R3` refuses it; the surface still says otherwise, which is
-   [Q53](doc/open-questions.md).
+   [Q53](doc/open-questions.md) — **now owned by P4's W13.**
 3. **A mutation sweep run by its author measures what its author fears.** Mine: 19 mutations, 2
    survivors. The reader's, chosen by walking the rule ids rather than by intuition: **148 mutations
    and 38 survivors**, 10 of them blocking.
@@ -164,8 +183,13 @@ that depends on fan-out completion order.
 
 ## How work is done
 
-**[doc/workflow.md](doc/workflow.md) — read it before starting any work item. It is v0.4, run to
-completion by two plans.** **Rule 8 is the newest and has the strongest evidence of any rule in it:**
+**[doc/workflow.md](doc/workflow.md) — read it before starting any work item. It is v0.5, run to
+completion by three plans.** **v0.5 is P3's retro and it changes one requirement of one rule**: a
+negative-test probe declares the **set** of checks it must trip and the set must match exactly,
+because naming one check does not discriminate — a merely *malformed* probe trips two at once, which
+is W6's original defect surviving the requirement written for it. Measured over `check-docs`' twelve
+probes, then provoked, which is **rule 8's first outing**. **Rule 8 itself is v0.4's and has the
+strongest evidence of any rule in it:**
 *when you act on a review finding, break the fix and watch the gate go red* — because W4, W5 and W9
 each shipped a repair that could not fail, and **no rung of the ladder covers the repair.** The other
 two v0.4 changes replace mechanisms that were *followed* and failed anyway: a new check's
