@@ -276,15 +276,26 @@ if (bad.length) throw new Error(`section 5's own example is invalid: ${bad.map((
 
 ### Pass `liveToken`
 
-Two policies are exported. **Use `liveToken`.**
+Three policies are exported. **Use `liveToken`.**
 
 ```ts run
-import { POLICIES, liveToken, arrivalCount } from 'fyflow-orchestration';
+import { POLICIES, liveToken, arrivalCount, liveTokenRequiringArrival } from 'fyflow-orchestration';
 
-console.log(Object.keys(POLICIES));            // [ 'arrival-count', 'live-token' ]
-console.log(liveToken.id, arrivalCount.id);
+const ids = Object.keys(POLICIES).sort();
+console.log(ids);
+if (ids.join() !== 'arrival-count,live-token,live-token-requiring-arrival') {
+  throw new Error(`this reference lists three policies and the library exports ${ids.join(', ')}`);
+}
+console.log(liveToken.id, arrivalCount.id, liveTokenRequiringArrival.id);
 if (POLICIES['live-token'] !== liveToken) throw new Error('POLICIES must expose the same objects');
 ```
+
+**That `throw` used to be a trailing comment**, and it is the one line of this
+section a reader could rely on being current: `check-docs` executes the snippet
+and asserts nothing about a comment, so a fourth policy would have left it
+silently wrong with the whole gate green. `JP-R9` and `npm run check:policies`
+are the other half — they compare `POLICIES` against `spec/join-policy.md`
+section 3, which is where the names are actually fixed.
 
 `arrivalCount` waits for **N** branches, where N is fixed when the fan-out opens. That is wrong
 whenever *"how many will arrive"* differs from *"how many opened"* — and **every non-success outcome
@@ -299,19 +310,60 @@ notice yourself is still a hang.
 lost each decrement. The join fires when the count reaches zero **having been positive**, whichever
 road each branch took.
 
-**Two one-line refinements are deliberately unbuilt.** Neither `liveToken` nor `arrivalCount` has
-them, and neither belongs in `src/fold/policies.ts` without its own decision — they are
-[Q24](doc/open-questions.md), and they were traps during the spike that produced ADR 0003:
+`liveTokenRequiringArrival` is `liveToken` **with one clause added**: it fires only if at least one
+branch actually arrived. On a flow where every branch is routed away, `liveToken` fires a join **no
+branch reached** and carries `null` onward; this one instead reports the join as unfireable — through
+`onUnsatisfiableJoin`, with the policy's own state, and the run folds to **`stuck`** with
+`regions[…].joined === false` whether or not you registered that callback.
 
-| | |
-|---|---|
-| `JP-R7` | `arrivalCount`'s **N is fixed when the fan-out opens** and is *not* decremented when a branch is routed away |
-| `JP-R8` | `liveToken` fires at zero **having been positive** — so on a flow where every branch exits, it fires a join **no branch reached** |
+```ts run
+import {
+  liveToken, liveTokenRequiringArrival,
+  type JoinPolicy, type Region, type RegionEvent,
+} from 'fyflow-orchestration';
+
+const region: Region = { fanoutId: 'split', joinId: 'collect', branches: ['a', 'b'], members: [] };
+const everyBranchExits: RegionEvent[] = [
+  { type: 'branch.opened', regionId: 'split', branchPath: '0' },
+  { type: 'branch.opened', regionId: 'split', branchPath: '1' },
+  { type: 'branch.exited', regionId: 'split', branchPath: '0', at: 'stop' },
+  { type: 'branch.exited', regionId: 'split', branchPath: '1', at: 'stop' },
+];
+
+function verdict<S>(policy: JoinPolicy<S>, events: RegionEvent[]) {
+  let state = policy.open(region);
+  for (const event of events) state = policy.step(state, event);
+  return policy.status(state);
+}
+
+console.log(verdict(liveToken, everyBranchExits), verdict(liveTokenRequiringArrival, everyBranchExits));
+if (verdict(liveToken, everyBranchExits) !== 'satisfied') {
+  throw new Error('liveToken fires with zero arrivals');
+}
+if (verdict(liveTokenRequiringArrival, everyBranchExits) !== 'unsatisfiable') {
+  throw new Error('liveTokenRequiringArrival declines a join no branch reached');
+}
+```
+
+**Which to pass is a judgement about your flow, and neither answer is safe by default.** If every
+branch of a fan-out ending somewhere else is a legitimate way for your flow to finish, `liveToken`
+is right and the run completes. If it means the work the join was going to combine never happened,
+`liveTokenRequiringArrival` stops the run instead of running the join's successor on nothing. The
+recommendation is still `liveToken`, because a run that stops is the more expensive mistake to make
+by accident.
+
+**One refinement is deliberately still unbuilt.** `arrivalCount`'s **N is fixed when the fan-out
+opens** and is *not* decremented when a branch is routed away. Decrementing it is
+[`JP-R7`](spec/join-policy.md), and
+[ADR 0025](doc/decisions/0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md)
+refused it: measured over the join matrix, every row where it differs from `liveToken` is a row where
+it **waits forever** and `liveToken` proceeds, and it can never say why. It is `liveToken` weakened.
 
 **`arrivalCount` is still exported deliberately** — it is the falsifiable form of the simpler
 mechanism, and the comparison that chose between them is only meaningful while both can be run. It
 is not a supported choice. See
-[ADR 0003](doc/decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md).
+[ADR 0003](doc/decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md) and
+[ADR 0025](doc/decisions/0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md).
 
 ### What a join carries downstream
 

@@ -146,6 +146,14 @@ for (const b of all.filter((x) => x.tag === 'run')) {
     fail('X4', `${b.doc}:${b.line} calls process.exit(), which makes the exit code independent of ` +
       'the assertions below it');
   }
+  // **`if (false)` is `process.exit(0)` with better manners**, and it was the
+  // third road into the same vacuity. W16's adequacy reader wrapped both `throw`s
+  // of the new policy snippet in `if (false) { ... }`: the textual test above
+  // still found a `throw`, the snippet still ran, and it asserted nothing.
+  if (/if\s*\(\s*false\s*\)/.test(body)) {
+    fail('X4', `${b.doc}:${b.line} contains \`if (false)\`, which reaches nothing. A run snippet's ` +
+      'assertions have to be reachable, and this check counts `throw` textually');
+  }
 }
 
 // X4b — the converse. A `check` snippet that throws is a `run` snippet that was
@@ -242,6 +250,32 @@ if (written.length) {
   if (hit.size > 1) {
     fail('X5', `${hit.size} snippets fail under the DOM lib, and Q71 accounts for one. ` +
       `Newly failing: ${[...hit].map((l) => `AGENTS.md:${l}`).join(', ')}`);
+  }
+}
+
+// X4c — a floor on how much of the reference actually executes. W16's adequacy
+// reader **deleted an entire `run` snippet** and the gate stayed green: the count
+// is printed and nothing reads it, which is the same shape as `check-policies`'
+// own `names.length >= 2` and is here for the same reason. The floor is a
+// ratchet, not a target — raise it when the reference gains a snippet, never
+// lower it to make a deletion pass.
+const RUN_FLOOR = 13;
+{
+  // **Only when the document parsed.** A count over a reference whose fences are
+  // malformed or untagged is true of the parse and says nothing about coverage —
+  // the same reason `check-policies.mjs` does not run P1 on a half it could not
+  // read. Without this scope the floor fired alongside five existing probes and
+  // turned each of them into a declared cascade, which is rule 7 (c) reporting a
+  // check that does not discriminate rather than a probe that is wrong.
+  const parsed = !failures.some((f) => f.startsWith('X1:') || f.startsWith('X2:'));
+  const runs = all.filter((x) => x.tag === 'run').length;
+  if (!parsed) {
+    // nothing: X1/X2 already say what is wrong, and more precisely
+  } else
+  if (runs < RUN_FLOOR) {
+    fail('X4', `${runs} \`run\` snippets, and the floor is ${RUN_FLOOR}. A snippet was deleted or ` +
+      'retagged; the count is the only thing that notices, because every other check here is ' +
+      'about the snippets that ARE there');
   }
 }
 

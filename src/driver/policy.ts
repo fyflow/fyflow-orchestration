@@ -35,7 +35,7 @@ export type JoinStatus = 'waiting' | 'satisfied' | 'unsatisfiable';
  * contents leave.
  */
 export interface JoinPolicy<S = unknown> {
-  /** `'arrival-count'` | `'live-token'`, or a Q24 variant under its own id. */
+  /** A name `spec/join-policy.md` section 3 fixes (`JP-R9`). */
   readonly id: string;
   open(region: Region): S;
   step(state: S, event: RegionEvent): S;

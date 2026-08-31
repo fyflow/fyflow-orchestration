@@ -1,7 +1,10 @@
 # ADR 0003 — A join is satisfied when its region has no live branches, not when N branches have arrived
 
 **Date:** 2026-08-30
-**Status:** accepted — **one false statement corrected in place, 2026-08-30**, see *Correction*
+**Status:** accepted — **two false statements corrected in place**, 2026-08-30 and 2026-08-31; see
+*Correction* and *Correction 2*. **Rule 5 is superseded by
+[ADR 0025](0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md)**, which
+adopted one of the two refinements under its own id and refused the other. Rules 1-4 stand
 **Raised by:** [Q4](../open-questions.md), decided by [W4](../work-items/w4-the-join-failure-matrix.md)
 under [P1](../plans/p1-what-satisfies-a-join.md)
 
@@ -20,7 +23,11 @@ Both are third policies, and both are now run under their own ids in
 `test/matrix/variants.test.ts` rather than argued about.
 
 The evidence is the matrix — nine rows, two policies, every cell's expected value written by hand
-from `spec/join-policy.md` sections 2-4 before it was run, green in all five runtimes:
+from `spec/join-policy.md` sections 2-4 before it was run, green in all five runtimes. **It now runs
+at four columns** ([W15](../work-items/w15-the-fourth-column-and-the-chain-nothing-runs.md)); the two
+below are still the two this decision was made from, and the other two are in
+[ADR 0025](0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md) with the
+full table:
 
 | row | arrival-count | live-token |
 |---|---|---|
@@ -74,6 +81,13 @@ nothing queued, nothing running and nobody to ask. That is character-for-charact
    [Q24](../open-questions.md), both remain unshipped, and either is built under its own `id` if a
    flow needs it. See *Consequences*.
 
+   > **Superseded 2026-08-31 by
+   > [ADR 0025](0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md).**
+   > `JP-R8`'s refinement **is** adopted — under its own `id`, `live-token-requiring-arrival`,
+   > exactly as this rule's own last clause allows. `JP-R7`'s is **refused**, permanently and with a
+   > measured reason. **Rules 1-4 are untouched and `live-token` is byte-identical**: nothing an
+   > application already passes behaves differently.
+
 ## Consequences
 
 **What this makes easy.** A branch may do anything a flow allows — succeed, fail, be abandoned by a
@@ -94,13 +108,21 @@ should look at.** It is a smaller question than Q4 and it is no longer entangled
 three disguises: a `count` field on the join node, a *"wait for all branches"* flag that resolves to
 `branches.length`, and — the one that has already happened once — a one-line decrement of `N` on
 `branch.exited`. `test/matrix/variants.test.ts` shows what that third one actually does: it repairs
-**only** the row P1 named, leaves both `branch.lost` rows waiting forever, and reduces the two
-policies' divergence from six rows to three. It is a fix fitted to the test rather than to the
-problem.
+**three** rows and not one (*Correction 2*), leaves both `branch.lost` rows waiting forever, fires a
+join **no branch reached** on the third, and reduces the two policies' divergence from six rows to
+three. It is a fix fitted to the test rather than to the problem, and
+[ADR 0025](0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md) refused
+it on evidence.
 
 **What it does not decide.** A stuck join is still detected by **quiescence**, not by any policy:
-neither shipped policy ever returns `unsatisfiable`, which section 4 records as a result rather than
-a gap. W4 showed the detection is decidable from the log alone — every dispatched task has an
+neither of the two policies this ADR compares ever returns `unsatisfiable`, which section 4 records
+as a result rather than a gap. *(This sentence read **"neither shipped policy"** and that stopped
+being true on 2026-08-31: `live-token-requiring-arrival` is shipped and returns `unsatisfiable` on the
+all-branches-exited row — [ADR 0025](0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md).
+**The two policies this decision is about are unchanged**, so the claim is re-scoped rather than
+withdrawn, exactly as `spec/join-policy.md` section 4 re-scoped the identical sentence. Found by
+W16's conformity reader, in the same document W16 had already corrected twice and while W16 was
+correcting the spec's copy of it — see* Correction 2 *.)* W4 showed the detection is decidable from the log alone — every dispatched task has an
 outcome, no branch is parked on a person, and the join has not fired — so a **timeout is not
 required for detection**, and [Q7](../open-questions.md) narrows to whether a join should time out
 for any other reason. Where that predicate should live is [Q42](../open-questions.md).
@@ -114,8 +136,8 @@ survived all 251 assertions in five runtimes. The matrix asserts it now.
 | | why not |
 |---|---|
 | **`arrival-count`** — `N` fixed at `open` from `region.branches.length` | It hangs on six of the matrix's nine rows, and reports `waiting` while doing it. **Two of those six have nothing to do with the routed-away case Q4 was written about** — an `optional` failure with no edge opting into it, and a human declining a task — so an ordinary failure alone is enough. **It was a real candidate and it lost on evidence**, which is what P1 asked for |
-| **`arrival-count` with `N` decremented on `branch.exited`** (`JP-R7`) | A third policy, and one shaped like the single test it was written to pass. It still hangs on both `branch.lost` rows, because a lost branch is not an exited one — and `test/matrix/variants.test.ts` runs exactly that. Building it needs its own id and its own reason, which is [Q24](../open-questions.md) |
-| **`live-token` requiring one arrival before `satisfied`** (`JP-R8`) | Very possibly the right answer, and **not decidable inside this comparison**: giving one side a graceful `unsatisfiable` that the other is structurally denied is not a comparison of the two. Deferred to [Q24](../open-questions.md) with the all-exit row as its motivating case |
+| **`arrival-count` with `N` decremented on `branch.exited`** (`JP-R7`) | A third policy, and one shaped like the single test it was written to pass. It still hangs on both `branch.lost` rows, because a lost branch is not an exited one — and `test/matrix/variants.test.ts` runs exactly that. Building it needs its own id and its own reason, which is [Q24](../open-questions.md). **Refused 2026-08-31 by [ADR 0025](0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md)**, which measured a second reason this row did not have: on `all-exit` it decrements `N` to zero against an empty arrival list and **fires a join no branch reached** |
+| **`live-token` requiring one arrival before `satisfied`** (`JP-R8`) | Very possibly the right answer, and **not decidable inside this comparison**: giving one side a graceful `unsatisfiable` that the other is structurally denied is not a comparison of the two. Deferred to [Q24](../open-questions.md) with the all-exit row as its motivating case. **Adopted 2026-08-31 by [ADR 0025](0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md) — as a third policy beside `live-token`, not inside it**, which is why the asymmetry this row names does not arise |
 | **Per-join configuration — the author picks a policy** | [Q5](../open-questions.md)'s remainder, and premature: it presumes there are two answers worth offering, and the matrix says one of them hangs. Revisit if Q24 produces a second policy that does not |
 | **Deciding by argument, without the matrix** | It would have reached the same policy and missed the finding: that the failure is ordinary rather than exotic, and that `branch.exited` — the event P1 was written around — is only *half* the reason. The argument P1 refused as sufficient was, in the end, right about the winner and wrong about the size of the effect |
 
@@ -144,3 +166,38 @@ old text and one who acts on this one would do the same thing.
 
 Left visible rather than edited away, per `doc/decisions/README.md`: *"Deleting the correction
 notice would be the violation, not the edit."*
+
+
+## Correction 2 — 2026-08-31
+
+**Found by [W15](../work-items/w15-the-fourth-column-and-the-chain-nothing-runs.md) running
+`JP-R7`'s variant against all nine rows**, and acted on by
+[W16](../work-items/w16-the-decision-and-what-it-ships.md). The same false claim was in
+`doc/open-questions.md`'s Q24 row and was corrected there first.
+
+*Consequences* read: the decrementing variant *"repairs **only** the row P1 named"*. **It repairs
+three** — `routed-away`, `optional-null` and `all-exit` — which are exactly the rows whose only
+non-arrival terminals are `branch.exited`, because that is the event it decrements on. The three it
+leaves waiting forever are the three carrying a `branch.lost`.
+
+**The refutation was already inside this document.** *Correction* (above, 2026-08-30) records that
+`optional-null` and `all-exit` are branch-index permutations of `routed-away` and that both policies
+are indifferent to the permutation — which says in terms that a change affecting `routed-away`
+affects all three. The false sentence has been sitting beside its own disproof since P1, in a
+document nothing checks.
+
+**The decision is unchanged and the argument is stronger, not weaker.** *"Repairs only one row"* was
+the wrong reason to distrust the variant; the right ones are that its remaining divergence from
+`live-token` is a **silent hang on three rows** and that on the third row it repairs it **fires a
+join zero branches reached**. Both are now assertions in `test/matrix/variants.test.ts` rather than
+sentences, and both are in
+[ADR 0025](0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md).
+
+**And a second thing was stale rather than false, which is the harder class**
+([Q94](../open-questions.md)). This document carries a hand-copied **two**-column matrix and
+`test/matrix/render.ts` emits **four**. The divergence arrived because the artifact was extended, not
+because anyone edited this file — P3's retro's shape exactly. The table above is left at two columns
+**deliberately**, because it is the evidence *this* decision was made from, and it now says so; the
+four-column table is in ADR 0025, where the decision that used it lives.
+
+Left visible rather than edited away, per `doc/decisions/README.md`.

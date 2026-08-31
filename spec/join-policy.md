@@ -1,6 +1,6 @@
-# spec/join-policy — the interface both join policies sit behind
+# spec/join-policy — the interface the join policies sit behind
 
-**Status:** v0.7 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.8 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2 acts on the W1 spec-conformity pass**:
 `branch.lost` is redefined against
 [ADR 0004](../doc/decisions/0004-a-non-success-outcome-routes-only-where-an-edge-opts-in-and-user-action-suspends.md)
@@ -13,6 +13,14 @@ invariant that a legal run breaks, and the Q5 table restated a clause ADR 0004 h
 `FD-V9` and cannot be falsified. **v0.6 pins the driver side of section 4**, after W3's second pass
 found the driver had no policy seam at all and the join could never fire. **v0.7 records what a
 satisfied join carries downstream**, which nothing said and the code was deciding.
+**v0.8 is [ADR 0025](../doc/decisions/0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md)
+landing in this document** — [W16](../doc/work-items/w16-the-decision-and-what-it-ships.md) under
+[P5](../doc/plans/p5-a-third-and-fourth-policy-or-repairs-of-the-first-two.md), answering
+[Q24](../doc/open-questions.md). Section 3 gains a **third name**,
+`live-token-requiring-arrival` — `JP-R8`'s refinement built as `JP-R8` itself prescribes, under its
+own `id`, with `live-token` unchanged; `JP-R7`'s is **refused**. Section 4's *"neither pinned policy
+ever returns `unsatisfiable`"* is still true and **the consequence drawn from it is not**, so that
+paragraph is corrected rather than left standing.
 **Normative.**
 
 > **This document does not answer [Q4](../doc/open-questions.md) and must not be read as leaning.**
@@ -29,7 +37,7 @@ A join policy is a pure state machine over one fan-out region.
 
 ```
 JoinPolicy = {
-  id:       string                                  // "arrival-count" | "live-token"
+  id:       string                                  // the section 3 names, and only those
   open:     (region: Region) => S                   // region entered
   step:     (S, ev: RegionEvent) => S               // one event
   status:   (S) => 'waiting' | 'satisfied' | 'unsatisfiable'
@@ -154,19 +162,25 @@ the two and is true of the real system anyway: a fanout dispatches all its branc
 ## 3. What each policy name means
 
 **This section fixes the names, not the winner.** W4 compares the two policies P1 named; a
-comparison against some third thing is a different experiment. Both are pinned to
+comparison against some third thing is a different experiment. **The first two** are pinned to
 [Q4](../doc/open-questions.md)'s own wording, and where a pin needed a clarification to be
-well-defined at all, the *minimal* one was taken.
+well-defined at all, the *minimal* one was taken. **The third is not one of the two P1 named and must
+not be read as a column of that comparison** — it is `JP-R8`'s refinement, adopted by
+[ADR 0025](../doc/decisions/0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md)
+under its own `id` as `JP-R8` itself prescribes, and the first two rows below are **byte-identical to
+what W4 ran**.
 
 | `id` | Definition |
 |---|---|
 | `arrival-count` | `N` is fixed at `open` from `region.branches.length`. `satisfied` when `N` distinct `branch.arrived` events have been seen. **Never `unsatisfiable`.** Every other event is ignored |
 | `live-token` | `open` starts a live count at zero. `branch.opened` increments; `arrived`, `exited` and `lost` each decrement; `suspended` and `resumed` do neither. `satisfied` when the count reaches zero **having been positive**. **Never `unsatisfiable`** |
+| `live-token-requiring-arrival` | As `live-token`, and additionally counts `branch.arrived`. `satisfied` when the live count reaches zero **having been positive** *and* **at least one `branch.arrived` has been seen**; **`unsatisfiable`** when the count reaches zero having been positive with **no** arrival; `waiting` otherwise. `suspended` and `resumed` still do neither. **Neither verdict latches** — a later `branch.opened` puts it back to `waiting`, exactly as `live-token`'s `satisfied` does, because `status` is a pure function of the current state (`JP-R3`) |
 
 | id | | Test owed by |
 |---|---|---|
-| `JP-R7` | **A variant of `arrival-count` that decrements `N` on `branch.exited` is a third policy, not a repair of the first.** If it is built it is built under its own `id` ([Q24](../doc/open-questions.md)) | W4 |
-| `JP-R8` | **A variant of `live-token` that requires at least one `branch.arrived` before reporting `satisfied` is likewise a third policy** ([Q24](../doc/open-questions.md)). The `having been positive` clause is a pin, not a refinement: a bare *"count is zero"* is true before any branch opens, so without it `open` itself reports `satisfied` | W4 |
+| `JP-R7` | **A variant of `arrival-count` that decrements `N` on `branch.exited` is a third policy, not a repair of the first.** If it is built it is built under its own `id` ([Q24](../doc/open-questions.md)). **Not built — refused by [ADR 0025](../doc/decisions/0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md)**, which measured what it does over all nine matrix rows: it is `live-token` weakened, never strengthened. Every row on which it differs from `live-token` is a row where it reports `waiting` and `live-token` is `satisfied`, and it cannot report `unsatisfiable` — so the whole of its contribution is a **silent hang** where the adopted policy proceeds. The rule stands as written and now cites the decision that applied it | W4 |
+| `JP-R8` | **A variant of `live-token` that requires at least one `branch.arrived` before reporting `satisfied` is likewise a third policy** ([Q24](../doc/open-questions.md)). The `having been positive` clause is a pin, not a refinement: a bare *"count is zero"* is true before any branch opens, so without it `open` itself reports `satisfied`. **Built, and built the way this rule requires — under its own `id`, `live-token-requiring-arrival`, with `live-token` unchanged** ([ADR 0025](../doc/decisions/0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md)). This rule was **followed, not overridden**: what it forbids is the refinement written *into* `live-token`, and that is still forbidden | W4, and **W16** for the shipped policy |
+| `JP-R9` | **Every key of `POLICIES` names a row of the table above, and every row names a key.** A policy *shipped* under a name this document does not fix, or a name fixed here with nothing behind it, is a defect in whichever half is younger. **The rule is about `POLICIES`, not about every object that satisfies the interface** — a `JoinPolicy` written in the test tree and run as a matrix column is neither shipped nor named here, and [ADR 0025](../doc/decisions/0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md) rule 3 **requires** one to exist: `arrival-count-decrementing` is a refused refinement that is still executed so the refusal can be falsified — **This is what ADR 0025 makes checkable**: the set was frozen at two by four hand-written literals, and the rule that lets it grow is the rule that needs the two halves compared rather than copied. Test: `scripts/check-policies.mjs`, run by `npm run gate` | **W16** |
 
 ### JP-R7 and JP-R8 — the one-line changes that would delete P1
 
@@ -187,6 +201,22 @@ to be well-defined, and **both refinements are Q24**, to be built as named varia
 makes them interesting. Either may well be the right answer; neither is one of the two things P1 is
 measuring.
 
+**Q24 is answered and the two rules got different answers**
+([ADR 0025](../doc/decisions/0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md),
+from W15's four-column matrix rather than from the argument above). **Both guards worked**: each
+refinement was built under its own `id` and run against all nine rows before either was ruled on, and
+what that showed is that they **point in opposite directions** rather than being two sizes of the
+same move.
+
+| | what running it showed |
+|---|---|
+| `JP-R8`'s | changes **one** row, `all-exit`, and changes it from *"the join fires having been reached by nothing"* to *"the join can never fire, and here is the state that says so"*. **Adopted**, under its own `id`, with `live-token` byte-identical |
+| `JP-R7`'s | changes **three** rows — `routed-away`, `optional-null`, `all-exit` — and one of the three is `all-exit`, where it decrements `N` to **zero against an empty arrival list** and so fires a join **no branch reached**. It is a second road to the very defect `JP-R8` removes. **Refused** |
+
+**The paragraph above is left standing rather than rewritten**, because its warning is about a W2
+implementer writing either line *into* an existing policy, and that is still exactly as wrong as it
+was: what ADR 0025 adopted is a third `id`, which is what this rule asks for.
+
 ## 4. `unsatisfiable`, and what it is not
 
 `status` has three values because [Q7](../doc/open-questions.md) needs a stuck join to be
@@ -195,12 +225,27 @@ running, so no `resource.blocked` fires and `getAdmissionQueue()` is empty — 0
 make a *scheduler-level* stall legible and say nothing about this one
 (`doc/scheduler-upstream.md`). Detection is entirely ours.
 
-**Neither pinned policy ever returns `unsatisfiable`, and that is a result rather than a gap.** It
-means P1 ships with no policy that can say *"this join can never fire"*, so a stuck join in W4 is
-detected by the driver or not at all — which is precisely the pressure [Q7](../doc/open-questions.md)
-describes, now with a name and a place. The value stays in the interface because `JP-R3` requires
-`status` to be total for **every** policy, Q24's variants included, and because removing it would
-have to be added back by whichever policy wins.
+**Neither pinned policy ever returns `unsatisfiable`, and that is a result rather than a gap.** That
+sentence is about `arrival-count` and `live-token`, it was true when W4 ran and **it is still true**:
+neither was changed by
+[ADR 0025](../doc/decisions/0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md).
+The value stays in the interface because `JP-R3` requires `status` to be total for **every** policy,
+and because removing it would have to be added back by whichever policy wins. *(That last clause is
+vestigial since 2026-08-31: a policy has won, and a third one now returns the value rather than
+hypothetically needing it back.)*
+
+**The consequence v0.6 drew from it is what stopped being true, and it is corrected here rather than
+left standing** (`spec/README.md` rule 1). This document read: *"It means P1 ships with no policy that
+can say 'this join can never fire', so a stuck join in W4 is detected by the driver or not at all —
+which is precisely the pressure [Q7](../doc/open-questions.md) describes."* **P1 shipped no such
+policy; P5 does.** `live-token-requiring-arrival` returns `unsatisfiable` on the all-branches-exited
+row, and section 3's third row is what it means. So:
+
+| | |
+|---|---|
+| what is **unchanged** | quiescence is still the only *general* detection, and it is still **the fold's** — `stuck` is decided in run state from `regions[…].joined !== true` ([ADR 0015](../doc/decisions/0015-a-run-whose-join-can-no-longer-fire-is-stuck.md), `RN-R10`), not by the driver, whose `joinStatusOf` is a per-region accessor. A policy can say `unsatisfiable` only about the shapes its own state can see, and `live-token-requiring-arrival` sees exactly one: every branch terminal, none arrived |
+| what **changed** | *"detected by the driver or not at all"* was already the wrong half of a true sentence — detection is the fold's — and it is now false for that one shape in a second way, and it is the shape [ADR 0003](../doc/decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md) records as `live-token`'s cost. A run that **completes** under `live-token` is **`stuck` with `joined: false`** under this policy — reported through `onUnsatisfiableJoin` with the policy's own `describe`, and visible in `RunState.outcome` to a consumer who registers no callback at all |
+| what is **still open** | [Q7](../doc/open-questions.md), unnarrowed on its own terms. This is not a timeout and gives a join no clock; it makes **one more** class of dead join reportable without one, which is the same direction [ADR 0003](../doc/decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md) already pushed Q7 in |
 
 **`unsatisfiable` is not a timeout and does not decide Q7:**
 
@@ -242,13 +287,18 @@ the arrived branches' results, a declared reducer, or nothing — is
 [Q36](../doc/open-questions.md)**, and it interacts with [Q11](../doc/open-questions.md) (what a node
 receives) and [Q8](../doc/open-questions.md) (what a decision sees).
 
-**The driver ships no policy.** Both are W2's, `JP-R7` and `JP-R8` pin what their names mean, and
-W4 decides. A driver carrying a default would answer [Q4](../doc/open-questions.md) from inside W3.
+**The driver ships no policy.** All three are W2's, `JP-R7` and `JP-R8` pin what their names mean,
+and W4 decides between the first two. A driver carrying a default would answer
+[Q4](../doc/open-questions.md) from inside W3 — and it would now also answer, from inside W3, the
+question ADR 0025 deliberately left open: **which of the three an application should pass is still
+one global choice per run**, made by the caller, and whether it may be made per *join* is
+[Q5](../doc/open-questions.md)'s remainder, which a third policy makes sharper and does not answer.
 
 ## 5. What this document does not fix
 
 - **Whether a policy is per-join configurable** rather than global ([Q5](../doc/open-questions.md)).
-  P1 runs one policy per whole run so the matrix has two columns rather than a product.
+  P1 runs one policy per whole run so the matrix has two columns rather than a product. *(Four columns
+  since W15 — still one policy per run, and still not a product.)*
 - **Transitivity over nested fan-out** ([Q6](../doc/open-questions.md)). `FD-V15` refuses nested
   fan-out, so no `branchPath` deeper than one element occurs in P1 and the question stays clean for
   P2.

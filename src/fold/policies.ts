@@ -1,12 +1,14 @@
 /**
- * The two join policies of `spec/join-policy.md` section 3 — **and nothing else.**
+ * The join policies of `spec/join-policy.md` section 3 — **and nothing else.**
+ * `JP-R9`: every name in that table is a key here and every key is a name there,
+ * which `scripts/check-policies.mjs` compares rather than trusting.
  *
- * > **Neither of these is the answer to [Q4](../../doc/open-questions.md).** They
- * > are the two candidates the plan named; W4 runs them against each other and
- * > records the winner as ADR 0003. A work item that reports a winner has skipped
- * > the plan, and **arrival-counting winning is a real possible outcome.**
+ * > **Neither of the first two is the answer to [Q4](../../doc/open-questions.md).**
+ * > They are the two candidates the plan named; W4 ran them against each other and
+ * > recorded the winner as ADR 0003. A work item that reports a winner has skipped
+ * > the plan, and **arrival-counting winning was a real possible outcome.**
  *
- * Both are written from the document rather than from an idea of what a join
+ * All three are written from the document rather than from an idea of what a join
  * should do, because `JP-R7` and `JP-R8` pin exactly that:
  *
  *   `JP-R7`  a variant of `arrival-count` that decrements `N` on `branch.exited`
@@ -15,8 +17,18 @@
  *            reporting `satisfied` is likewise a third.
  *
  * Both refinements are one line, both make the policy "better", and **either one
- * written here returns "the two policies are equivalent" as a passing test.** They
- * are [Q24](../../doc/open-questions.md) and they are built after W4, if at all.
+ * written INTO the policy it refines returns "the two policies are equivalent" as
+ * a passing test.** That is still true and still forbidden.
+ *
+ * **[Q24](../../doc/open-questions.md) is answered by ADR 0025 and the two rules
+ * got different answers.** `JP-R8`'s refinement is built — as a THIRD policy under
+ * its own id, `live-token-requiring-arrival`, which is what `JP-R8` asks for — and
+ * `live-token` below is unchanged. `JP-R7`'s is **refused**: over all nine matrix
+ * rows it is `live-token` weakened and never strengthened, differing from it only
+ * by reporting `waiting` where `live-token` is `satisfied`, and it cannot say
+ * `unsatisfiable` — so its whole contribution is a silent hang. It stays unbuilt,
+ * and `test/matrix/variants.ts` still runs it as a matrix column so the refusal
+ * remains falsifiable.
  */
 import type { JoinPolicy, Region } from '../driver/policy.ts';
 
@@ -99,7 +111,86 @@ export const liveToken: JoinPolicy<LiveTokenState> = {
   describe: (s) => ({ live: s.live, positive: s.positive }),
 };
 
-/** The two P1 named, by the ids `JP-R7` and `JP-R8` pin. Nothing else belongs here. */
-export const POLICIES = { 'arrival-count': arrivalCount, 'live-token': liveToken } as const;
+export interface LiveTokenRequiringArrivalState {
+  /** As `live-token`. */
+  live: number;
+  /** As `live-token` — the pin `JP-R8` names, not the refinement it names. */
+  positive: boolean;
+  /** How many `branch.arrived` events have been seen. The refinement. */
+  arrived: number;
+}
+
+/**
+ * `live-token-requiring-arrival` — *"As `live-token`, and additionally counts
+ * `branch.arrived`. `satisfied` when the live count reaches zero having been
+ * positive AND at least one `branch.arrived` has been seen; `unsatisfiable` when
+ * the count reaches zero having been positive with no arrival; `waiting`
+ * otherwise."*
+ *
+ * **`JP-R8`'s refinement, built under its own id and not into `live-token`**,
+ * which is what `JP-R8` requires and what ADR 0025 decided. `liveToken` above is
+ * byte-identical to what W4 ran, so ADR 0003's comparison is still readable and
+ * still runnable — that is ADR 0003 rule 2, and shipping this beside them rather
+ * than inside one of them is the whole reason it survives.
+ *
+ * **It is the only policy here that can return `unsatisfiable`, and it says it
+ * about exactly one shape**: every branch terminal, none arrived — the
+ * all-branches-exited row, which ADR 0003 records as `live-token`'s cost. Under
+ * `live-token` that run **completes**, having routed out of a join no branch
+ * reached, carrying `null`. Under this one it is `stuck` with `joined: false`.
+ *
+ * **Neither verdict latches.** `status` is a pure function of the current state
+ * (`JP-R3`), so a later `branch.opened` puts it back to `waiting` — the same
+ * property `live-token`'s `satisfied` has, and the reason `unsatisfiable` is not
+ * recorded in the state.
+ *
+ * **This is not the library's recommendation.** ADR 0003 rule 1 is unchanged and
+ * `liveToken` is still what an application passes; this is for a flow in which a
+ * join reached by nothing should be reported rather than fired. Whether it should
+ * *become* the recommendation is [Q96](../../doc/open-questions.md), and it is not
+ * answerable from fixtures.
+ */
+export const liveTokenRequiringArrival: JoinPolicy<LiveTokenRequiringArrivalState> = {
+  id: 'live-token-requiring-arrival',
+
+  open: () => ({ live: 0, positive: false, arrived: 0 }),
+
+  step: (s, e) => {
+    if (e.type === 'branch.opened') return { ...s, live: s.live + 1, positive: true };
+    if (e.type === 'branch.arrived') return { ...s, live: s.live - 1, arrived: s.arrived + 1 };
+    if (e.type === 'branch.exited' || e.type === 'branch.lost') return { ...s, live: s.live - 1 };
+    // `branch.suspended` and `branch.resumed`: still neither, for `live-token`'s
+    // reason — a branch waiting on a person is still live, and a join waiting on
+    // one is not stuck (`spec/join-policy.md` section 4).
+    return s;
+  },
+
+  status: (s) => {
+    // `s.live !== 0`, NOT `s.live > 0`. Section 3's third row pins both verdicts
+    // to *"the count reaches zero"* and opens with *"as `live-token`"*, whose own
+    // test is `s.live === 0`. Under `> 0` a NEGATIVE count — one branch opened,
+    // two terminal events — reports `unsatisfiable` where `live-token` reports
+    // `waiting`, so a driver that double-decremented would turn a silent miscount
+    // into an actively reported dead join, and only in the one policy whose
+    // verdict stops a run. `JP-R5` makes it unreachable through a conformant
+    // driver; the definition does not depend on that and neither does this.
+    if (!s.positive || s.live !== 0) return 'waiting';
+    return s.arrived > 0 ? 'satisfied' : 'unsatisfiable';
+  },
+
+  describe: (s) => ({ live: s.live, positive: s.positive, arrived: s.arrived }),
+};
+
+/**
+ * The names `spec/join-policy.md` section 3 fixes, and nothing else. `JP-R9`: a
+ * key here with no row there, or a row there with no key here, is a defect —
+ * `scripts/check-policies.mjs` is what compares the two halves instead of a
+ * hand-written literal repeating one of them.
+ */
+export const POLICIES = {
+  'arrival-count': arrivalCount,
+  'live-token': liveToken,
+  'live-token-requiring-arrival': liveTokenRequiringArrival,
+} as const;
 
 export type PolicyId = keyof typeof POLICIES;

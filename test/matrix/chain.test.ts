@@ -43,7 +43,11 @@ import type { JoinPolicy } from '../../src/driver/policy.ts';
 import { fold, isTerminal } from '../../src/fold/run-state.ts';
 import { driveScenario, runCell } from './run.ts';
 import { SCENARIOS } from './scenarios.ts';
-import { liveTokenRequiringArrival, MATRIX_COLUMNS } from './variants.ts';
+// **`liveTokenRequiringArrival` comes from `src/` since ADR 0025**, not from
+// `./variants.ts` where W15 found it. The chain this file drives is now a SHIPPED
+// policy's chain — same object, same 36 cells, one import line.
+import { liveTokenRequiringArrival } from '../../src/fold/policies.ts';
+import { MATRIX_COLUMNS } from './variants.ts';
 
 /**
  * `all-exit` — every branch reaches an `end` and nothing arrives at the join.

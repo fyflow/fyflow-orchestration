@@ -1,24 +1,29 @@
 /**
- * **`JP-R7`'s and `JP-R8`'s variants — the two one-line changes that would delete
- * P1**, moved here **verbatim** from `variants.test.ts` by
- * [W15](../../doc/work-items/w15-the-fourth-column-and-the-chain-nothing-runs.md).
+ * **`JP-R7`'s variant — the one-line change ADR 0025 refused — and the matrix's
+ * four columns.**
  *
- * **Only their location changed.** W15 owns `test/matrix/**` and its declaration
- * says it changes *what is run against them*, not them: both policy objects below
- * are W4's byte for byte **apart from the two `export` keywords the move needs**,
- * and `variants.test.ts` still makes the same claims about them. The move exists because a policy defined in the local scope of one
- * `.test.ts` file cannot be a **column** of the matrix, and the fourth column is
- * W15's first declared output.
+ * **This file used to define two variants; it defines one.**
+ * [W15](../../doc/work-items/w15-the-fourth-column-and-the-chain-nothing-runs.md)
+ * moved both here verbatim out of `variants.test.ts` so the matrix could run them
+ * as **columns**; [W16](../../doc/work-items/w16-the-decision-and-what-it-ships.md)
+ * then answered [Q24](../../doc/open-questions.md) as
+ * [ADR 0025](../../doc/decisions/0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md)
+ * and the two rules got different answers:
  *
- * **Neither is exported from `src/`, and that is the whole point.**
- * `spec/join-policy.md` section 3: *"if it is built it is built under its own
- * id"*. Whether either is adopted is [Q24](../../doc/open-questions.md), taken as
- * ADR 0025 by W16 — and `variants.test.ts`'s *"neither has an entry in
- * `POLICIES`"* is the assertion that decision would falsify. It is **true today**
- * and W15 leaves it that way.
+ *   `JP-R8`'s  **shipped**, under its own id, and is now imported from `src/`
+ *              rather than defined here. The column is the same object a consumer
+ *              gets, which is what makes *"moving it into `src/` changes not one
+ *              of the 36 cells"* a literal claim rather than a hope.
+ *   `JP-R7`'s  **refused**, and stays here — defined in the test tree, exported
+ *              from nowhere, and still run as a column. **A refusal that stops
+ *              being executed is a refusal nobody can falsify**, and the reason
+ *              ADR 0025 gives for it is a statement about all nine rows.
+ *
+ * `arrivalCountDecrementing` below is W4's, byte for byte, apart from the `export`
+ * keyword the move needed.
  */
-import type { JoinPolicy, JoinStatus, Region } from '../../src/driver/policy.ts';
-import { arrivalCount, liveToken } from '../../src/fold/policies.ts';
+import type { JoinPolicy, Region } from '../../src/driver/policy.ts';
+import { arrivalCount, liveToken, liveTokenRequiringArrival } from '../../src/fold/policies.ts';
 
 /** `JP-R7`'s variant: `arrival-count`, plus one line that decrements N on `branch.exited`. */
 export const arrivalCountDecrementing: JoinPolicy<{ need: number; arrived: string[] }> = {
@@ -33,31 +38,24 @@ export const arrivalCountDecrementing: JoinPolicy<{ need: number; arrived: strin
   describe: (s) => ({ need: s.need, arrived: [...s.arrived] }),
 };
 
-/** `JP-R8`'s variant: `live-token`, plus the clause v0.1 of the spec actually shipped. */
-export const liveTokenRequiringArrival: JoinPolicy<{ live: number; positive: boolean; arrived: number }> = {
-  id: 'live-token-requiring-arrival',
-  open: () => ({ live: 0, positive: false, arrived: 0 }),
-  step: (s, e) => {
-    if (e.type === 'branch.opened') return { ...s, live: s.live + 1, positive: true };
-    if (e.type === 'branch.arrived') return { ...s, live: s.live - 1, arrived: s.arrived + 1 };
-    if (e.type === 'branch.exited' || e.type === 'branch.lost') return { ...s, live: s.live - 1 };
-    return s;
-  },
-  status: (s): JoinStatus => {
-    if (!s.positive || s.live > 0) return 'waiting';
-    return s.arrived > 0 ? 'satisfied' : 'unsatisfiable'; // <- the one line
-  },
-  describe: (s) => ({ live: s.live, positive: s.positive, arrived: s.arrived }),
-};
-
 /**
  * **The matrix's four columns, in the order they are rendered and asserted:** the
- * two `spec/join-policy.md` section 3 names, then the two `JP-R7`/`JP-R8` refine.
+ * two `spec/join-policy.md` section 3 named when W4 ran, then the two `JP-R7` and
+ * `JP-R8` refine, in that rule order.
  *
- * The shipped pair comes first so the two-column comparison ADR 0003 was written
- * from is still readable off the left of the table; the refinements are columns
- * three and four rather than replacements, which is `JP-R7`'s *"a third policy,
- * not a repair"* expressed as a layout.
+ * The W4 pair comes first so the two-column comparison ADR 0003 was written from
+ * is still readable off the left of the table; the refinements are columns three
+ * and four rather than replacements, which is `JP-R7`'s *"a third policy, not a
+ * repair"* expressed as a layout.
+ *
+ * **This order is DELIBERATELY unchanged by ADR 0025, and the reason is the
+ * comparison rather than inertia.** One of the two refinements is now shipped and
+ * the other is refused, so an order derived from *"shipped first, then variants"*
+ * would move `live-token-requiring-arrival` into column three and put the refused
+ * one last — reshuffling every column of the artifact P5 exists to produce, at the
+ * moment a reader most wants to hold the before and after side by side. What a
+ * column IS is asserted separately, by `SHIPPED_POLICY_IDS` below and by
+ * `matrix.test.ts` reading `POLICIES` itself; the layout is not the claim.
  */
 export const MATRIX_POLICY_IDS = [
   'arrival-count',
@@ -88,8 +86,29 @@ export const MATRIX_COLUMNS: JoinPolicy[] = [
   liveTokenRequiringArrival as JoinPolicy,
 ];
 
-/** The two ids `src/fold/policies.ts` exports. A subset of the above, deliberately. */
-export const SHIPPED_POLICY_IDS = ['arrival-count', 'live-token'];
+/**
+ * **The ids `src/fold/policies.ts` exports** — `spec/join-policy.md` section 3's
+ * table, written out by hand so `matrix.test.ts` compares it to `POLICIES` rather
+ * than deriving one from the other. **Three since ADR 0025**, sorted, because that
+ * is how `Object.keys(POLICIES).sort()` comes back.
+ */
+export const SHIPPED_POLICY_IDS = ['arrival-count', 'live-token', 'live-token-requiring-arrival'];
 
-/** The two that are NOT shipped — Q24's variants, run here and exported nowhere. */
-export const VARIANT_POLICY_IDS = ['arrival-count-decrementing', 'live-token-requiring-arrival'];
+/**
+ * **The two `spec/join-policy.md` section 3 pins to [Q4](../../doc/open-questions.md)'s
+ * own wording**, and after ADR 0025 that is no longer the same set as
+ * `SHIPPED_POLICY_IDS`. *Pinned* is a claim about a definition — neither of these
+ * two may gain a clause, which is what `JP-R7` and `JP-R8` forbid and what makes
+ * W4's comparison still runnable. *Shipped* is a claim about `POLICIES`. They
+ * coincided until a third policy existed and the assertions that read one of them
+ * had no way to say which they meant.
+ */
+export const PINNED_POLICY_IDS = ['arrival-count', 'live-token'];
+
+/**
+ * **The one that is NOT shipped** — `JP-R7`'s refinement, refused by ADR 0025 and
+ * still run as a column so the refusal can be falsified. It was two until W16;
+ * `live-token-requiring-arrival` moved into `SHIPPED_POLICY_IDS` and did not move
+ * column.
+ */
+export const VARIANT_POLICY_IDS = ['arrival-count-decrementing'];

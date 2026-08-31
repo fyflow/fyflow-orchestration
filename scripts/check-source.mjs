@@ -16,7 +16,7 @@
 //
 // Exits 0 when every check passes, 1 otherwise. It reports; it does not fix.
 
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, dirname, resolve, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -270,6 +270,44 @@ for (const p of exampleSources()) {
   }
 }
 
+// --- S11: every `check:*` script is reachable from `npm run gate` -------------
+// **A check nobody runs is a check that does not exist**, and until W16 nothing
+// said so. Its adequacy reader measured the cost on the newest one: removing
+// `check:policies` from the `gate` chain, removing `check:policies:selftest`, and
+// replacing the script body with `node --version` all left `npm run gate` green.
+// That is W15's `render.ts` finding one level up — a declared mechanism executed
+// by a script nothing asserts — and `JP-R9`'s test clause says in terms *"run by
+// `npm run gate`"*.
+//
+// **It lives here rather than in the script it was written for**, and that is the
+// whole point: a wiring check inside `check-policies.mjs` cannot fire when
+// `check-policies` is the entry that was dropped. This file is independently in
+// the chain, so removing any OTHER entry is caught by a script that still runs.
+// Removing `check:source` itself is the one case no in-repo check can see.
+{
+  const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
+  const scripts = pkg.scripts ?? {};
+  const gate = scripts.gate ?? '';
+  if (!gate) fail('S11', 'package.json has no `gate` script');
+  for (const [name, cmd] of Object.entries(scripts)) {
+    if (!name.startsWith('check:')) continue;
+    if (!new RegExp(`npm run ${name.replace(/[:]/g, '[:]')}(?![:\\w])`).test(gate)) {
+      fail('S11', `package.json declares "${name}" and \`npm run gate\` does not run it — ` +
+        'a check outside the gate is a check that does not exist');
+    }
+    // **And the entry has to run a script that exists.** Being named in the chain
+    // is not the same as doing anything: `"check:policies": "node --version"` is
+    // in the gate, exits 0, and checks nothing. Measured as a survivor of the
+    // first version of S11, which asserted only the name.
+    const m = /scripts\/([\w.-]+\.mjs)/.exec(cmd ?? '');
+    if (!m) {
+      fail('S11', `package.json's "${name}" does not run anything under scripts/ — "${cmd}"`);
+    } else if (!existsSync(join(ROOT, 'scripts', m[1]))) {
+      fail('S11', `package.json's "${name}" runs scripts/${m[1]}, which does not exist`);
+    }
+  }
+}
+
 const checks = [
   'S1 no node: import in published source',
   'S2 no Node global in published source',
@@ -281,6 +319,7 @@ const checks = [
   'S8 no manifest declares the scheduler as a runtime dependency',
   'S9 nothing in the browser bundle’s input set imports the scheduler',
   'S10 no file under examples/ writes a path into the sibling repository',
+  'S11 every check:* script is reachable from `npm run gate`',
 ];
 console.log(`source check — ${files.length} published files\n`);
 for (const c of checks) {

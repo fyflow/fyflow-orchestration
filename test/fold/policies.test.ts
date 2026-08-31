@@ -1,5 +1,6 @@
 /**
- * Both join policies — `JP-R1`, `JP-R2`, and the two pins `JP-R7`/`JP-R8`.
+ * Every shipped join policy — `JP-R1`, `JP-R2`, the two pins `JP-R7`/`JP-R8`,
+ * and since ADR 0025 the third name section 3 fixes.
  *
  * **These tests must not be shaped like an arrival counter.** W3's third
  * conformity pass found every one of its seam tests using an arrival-counting
@@ -16,7 +17,7 @@
  * result `JP-R7` and `JP-R8` exist to forbid.
  */
 import { equal, ok, suite } from '../harness.ts';
-import { arrivalCount, liveToken, POLICIES } from '../../src/fold/policies.ts';
+import { arrivalCount, liveToken, liveTokenRequiringArrival, POLICIES } from '../../src/fold/policies.ts';
 import type { RegionEvent } from '../../src/driver/events.ts';
 import type { JoinPolicy, Region } from '../../src/driver/policy.ts';
 
@@ -113,7 +114,15 @@ suite("where they DIFFER — P1's question, as an executable case", (test) => {
   });
 });
 
-suite('JP-R7 and JP-R8 — the two refinements that are deliberately absent', (test) => {
+/**
+ * **Neither pinned policy carries either refinement, and after ADR 0025 that is a
+ * stronger claim rather than a weaker one.** `JP-R8`'s refinement is now SHIPPED —
+ * under its own id, in the suite below — so *"live-token does not require an
+ * arrival"* is no longer an absence nobody could confuse with anything. It is the
+ * difference between two exported policies, and a one-line regression here would
+ * silently merge them.
+ */
+suite('the two pinned policies carry neither refinement — JP-R7 and JP-R8', (test) => {
   test('arrival-count does NOT decrement on branch.exited', () => {
     // One line would make it survive P1's case, and would return "the two
     // policies are equivalent" as a passing test.
@@ -143,20 +152,23 @@ suite('JP-R7 and JP-R8 — the two refinements that are deliberately absent', (t
 
   test('live-token does NOT require an arrival before reporting satisfied', () => {
     equal(verdict(liveToken as never, [opened('0'), exited('0')]), 'satisfied',
-      'JP-R8: requiring an arrival is the third policy, and it is the one that would hand ' +
-      'live-token a graceful answer arrival-count is structurally denied — the asymmetry the rule forbids');
+      'JP-R8: requiring an arrival is a THIRD policy and it is now shipped as one — ' +
+      '`live-token-requiring-arrival` answers `unsatisfiable` to this exact sequence. ADR 0025 ' +
+      'left `liveToken` byte-identical, so this assertion is what says the refinement did not ' +
+      'leak into the policy ADR 0003 rule 1 blesses');
   });
 
   test('live-token NEVER returns unsatisfiable either', () => {
     for (const seq of [[], [opened('0')], [opened('0'), exited('0')]]) {
       ok(verdict(liveToken as never, seq) !== 'unsatisfiable',
-        'neither pinned policy can say "this will never fire" — so a stuck join in W4 is ' +
-        "detected by the driver or not at all, which is Q7's pressure with a name");
+        'neither PINNED policy can say "this will never fire" — spec section 4, still true after ' +
+        'ADR 0025 because neither of the two was changed. What changed is the consequence: one ' +
+        'shape is now reportable by a policy rather than by the driver alone');
     }
   });
 });
 
-suite('JP-R1 — both policies are pure', (test) => {
+suite('JP-R1 — every shipped policy is pure', (test) => {
   const seq = [opened('0'), opened('1'), arrived('0'), suspended('1'), resumed('1'), exited('1')];
 
   for (const [id, p] of Object.entries(POLICIES)) {
@@ -165,11 +177,40 @@ suite('JP-R1 — both policies are pure', (test) => {
       equal(run(), run(), 'no clock, no hidden state, no mutation of the state it was given');
     });
 
-    test(`${id}: step does not mutate its input`, () => {
+    test(`${id}: step does not mutate its input, on any of the six events`, () => {
+      // **`branch.opened` only, until W16's adequacy reader.** That reader found
+      // six survivors caused by exactly this: `test/matrix/variants.test.ts`
+      // tests non-mutation over all six event types and this loop tested one, so
+      // promoting a policy INTO `POLICIES` moved it from the stronger cover to
+      // the weaker one. Three of the six survivors were the newly shipped policy
+      // mutating `S` in place on `branch.arrived` and on the terminal events, and
+      // **two were `live-token` itself** — which had never had the per-event form
+      // at all.
+      for (const e of [opened('0'), arrived('0'), exited('0'), lost('0'), suspended('0'), resumed('0')]) {
+        const s0 = (p as JoinPolicy).open(REGION);
+        const before = JSON.parse(JSON.stringify(s0));
+        (p as JoinPolicy).step(s0, e);
+        equal(s0, before,
+          `${id}: step(${e.type}) mutated the state it was handed. JP-R1 says the same S and the ` +
+          'same event sequence produce the same S, which a policy that edits S in place satisfies ' +
+          'while making every caller`s retained state wrong');
+      }
+    });
+
+    test(`${id}: describe does not hand out the state itself (JP-R1/JP-R2)`, () => {
+      // The aliasing hazard, per policy rather than per shape. The only aliasing
+      // test in the repository before W16 was written for `arrivalCount`'s
+      // `arrived` ARRAY, so it could not see a policy whose state is all
+      // primitives — and `live-token` and the shipped refinement are both of
+      // those. `JP-R1` makes `S` opaque and `JP-R2` makes `describe` the only way
+      // out; handing back `S` breaks both with one missing spread.
       const s0 = (p as JoinPolicy).open(REGION);
-      const before = JSON.parse(JSON.stringify(s0));
-      (p as JoinPolicy).step(s0, opened('0'));
-      equal(s0, before, 'this is what lets a fold replay a prefix and get the same answer');
+      const st = seq.reduce((acc, e) => (p as JoinPolicy).step(acc, e), s0);
+      for (const state of [s0, st]) {
+        ok((p as JoinPolicy).describe(state) !== state,
+          `${id}: describe returned the policy's own state object. A caller that edits what it ` +
+          'was given would be editing the policy through a display value');
+      }
     });
 
     test(`${id}: status is total — every reachable state answers one of three`, () => {
@@ -224,9 +265,146 @@ suite('JP-R1 — both policies are pure', (test) => {
       'first) — and which behaviour a join WANTS is exactly what W4 measures');
   });
 
-  test('the two are the only ones shipped', () => {
-    equal(Object.keys(POLICIES).sort(), ['arrival-count', 'live-token'],
-      "W2 ships the two P1 named and nothing else. Q24's variants are built after W4, if at all — " +
-      'and whichever wins becomes ADR 0003, which is W4 to write');
+  test('the section 3 names are the only ones shipped', () => {
+    equal(Object.keys(POLICIES).sort(),
+      ['arrival-count', 'live-token', 'live-token-requiring-arrival'],
+      'the two P1 named, and JP-R8`s refinement under its own id (ADR 0025). **JP-R7`s is NOT ' +
+      'here** — it is refused, and `test/matrix/variants.ts` still runs it as a column so the ' +
+      'refusal stays falsifiable. This literal is a second copy of `spec/join-policy.md` section ' +
+      '3`s table and `scripts/check-policies.mjs` (JP-R9) is what compares them');
+  });
+});
+
+/**
+ * **`live-token-requiring-arrival` — `JP-R8`'s refinement, shipped by ADR 0025.**
+ *
+ * Every expected value below is derived from `spec/join-policy.md` section 3's
+ * **third row**, which is the wording of the NAME, and never from running the
+ * policy. That is the trap `JP-R7` and `JP-R8` were written to catch and the one
+ * W1 fell into before its own conformity pass.
+ *
+ * The `positive`-pin test came from `test/matrix/variants.test.ts`, where W15's
+ * adequacy reader added it after finding that promoting the variant to a matrix
+ * column had brought none of this file's per-policy rules with it. That file's
+ * own comment said to move it here if ADR 0025 shipped the variant, rather than
+ * to duplicate it. It did, so it is here and it is gone from there.
+ */
+suite('live-token-requiring-arrival — JP-R8`s refinement, under its own id', (test) => {
+  /** Both `live-token`s, one sequence — the two-policy shape this file insists on. */
+  const bothTokens = (events: RegionEvent[]) => ({
+    token: verdict(liveToken as never, events),
+    requiring: verdict(liveTokenRequiringArrival as never, events),
+  });
+
+  test('it separates from live-token on exactly one thing: zero arrivals', () => {
+    // Section 3, third row: `unsatisfiable` when the count reaches zero having
+    // been positive with NO arrival. That is the all-branches-exited shape, and
+    // it is the row ADR 0003 records as `live-token`'s cost.
+    equal(bothTokens([opened('0'), opened('1'), exited('0'), exited('1')]),
+      { token: 'satisfied', requiring: 'unsatisfiable' },
+      'live-token fires a join no branch reached; this one says the join can never fire. ' +
+      '**That difference IS Q24**, and ADR 0025 is what decided it belongs under a third id ' +
+      'rather than inside live-token');
+
+    equal(bothTokens([opened('0'), opened('1'), exited('0'), lost('1')]),
+      { token: 'satisfied', requiring: 'unsatisfiable' },
+      'and it does not care WHICH non-arrival road each branch took — `exited` and `lost` both ' +
+      'decrement and neither counts as an arrival');
+  });
+
+  test('and agrees with live-token everywhere an arrival happened', () => {
+    for (const seq of [
+      [opened('0'), opened('1'), arrived('0'), arrived('1')],
+      [opened('0'), opened('1'), arrived('0'), exited('1')],
+      [opened('0'), opened('1'), arrived('0'), lost('1')],
+      [opened('0'), opened('1'), arrived('0'), suspended('1'), resumed('1'), arrived('1')],
+    ]) {
+      equal(bothTokens(seq), { token: 'satisfied', requiring: 'satisfied' },
+        `one arrival is all the clause asks for: ${JSON.stringify(seq.map((e) => e.type))}`);
+    }
+  });
+
+  test('and waits wherever live-token waits, including on a person', () => {
+    for (const seq of [
+      [] as RegionEvent[],
+      [opened('0'), opened('1')],
+      [opened('0'), opened('1'), arrived('0')],
+      [opened('0'), opened('1'), arrived('0'), suspended('1')],
+      [opened('0'), opened('1'), exited('0')],
+    ]) {
+      equal(bothTokens(seq), { token: 'waiting', requiring: 'waiting' },
+        'the refinement changes what a zero count MEANS, not when the count is zero — so ' +
+        '`suspended` and `resumed` still do neither and a join waiting on a human is not stuck. ' +
+        `sequence ${JSON.stringify(seq.map((e) => e.type))}`);
+    }
+  });
+
+  test('neither verdict latches — a late branch.opened puts both back to waiting', () => {
+    // Section 3's third row says so in terms, and `JP-R3` is why: `status` is a
+    // pure function of the CURRENT state. `unsatisfiable` is the half that had
+    // never been tested anywhere, because nothing in the repository had ever
+    // emitted an event after a join was decided (Q95).
+    const after = (seq: RegionEvent[]) =>
+      seq.reduce((s, e) => liveTokenRequiringArrival.step(s, e), liveTokenRequiringArrival.open(REGION));
+
+    const dead = after([opened('0'), opened('1'), exited('0'), exited('1')]);
+    equal(liveTokenRequiringArrival.status(dead), 'unsatisfiable', 'zero live, zero arrived');
+    equal(liveTokenRequiringArrival.status(liveTokenRequiringArrival.step(dead, opened('2'))), 'waiting',
+      'a policy that recorded `unsatisfiable` in its state would keep reporting a region dead ' +
+      'while it had a live branch in it');
+
+    const done = after([opened('0'), opened('1'), arrived('0'), arrived('1')]);
+    equal(liveTokenRequiringArrival.status(done), 'satisfied', 'zero live, two arrived');
+    equal(liveTokenRequiringArrival.status(liveTokenRequiringArrival.step(done, opened('2'))), 'waiting',
+      'and the satisfied half does not latch either, exactly as live-token`s does not');
+  });
+
+  test('JP-R8: `positive` is set only by branch.opened', () => {
+    // Moved here from `test/matrix/variants.test.ts` by W16, per that suite's own
+    // instruction. Setting `positive` unconditionally survives most suites,
+    // because `JP-R5` puts every `branch.opened` first so no conformant stream
+    // can tell the difference. A NON-conformant one can, and that is the point:
+    // the pin exists so `open` itself does not report a verdict.
+    equal(liveTokenRequiringArrival.status(liveTokenRequiringArrival.open(REGION)), 'waiting',
+      'a bare "count is zero" is true at open — without the pin this reports `unsatisfiable` ' +
+      'before a single branch has been dispatched, which is JP-R8`s own sentence');
+    for (const e of [arrived('0'), exited('0'), lost('0'), suspended('0'), resumed('0')]) {
+      const st = liveTokenRequiringArrival.step(liveTokenRequiringArrival.open(REGION), e);
+      equal(liveTokenRequiringArrival.status(st), 'waiting',
+        `${e.type} on a fresh region leaves \`positive\` false, so the verdict stays waiting`);
+      equal((liveTokenRequiringArrival.describe(st) as { positive: boolean }).positive, false,
+        `${e.type} must not set the pin — only branch.opened does`);
+    }
+  });
+
+  test('a NEGATIVE live count is `waiting`, in this policy exactly as in live-token', () => {
+    // **Found by W16's conformity reader**, and it is a divergence from section
+    // 3's own words rather than a hypothetical: the third row pins both verdicts
+    // to *"the count reaches zero"* and opens with *"as `live-token`"*. A count of
+    // -1 has not reached zero, so the definition gives `waiting` — and the policy
+    // was written with `s.live > 0`, which gave `unsatisfiable`.
+    //
+    // `JP-R5` makes the stream below unreachable through a conformant driver: one
+    // `branch.opened` cannot be followed by two terminal events. That is exactly
+    // why it needs a test rather than a matrix row, and why it matters more here
+    // than anywhere else — this is the only shipped policy whose verdict STOPS a
+    // run and reports it, so a driver that double-decremented would turn a silent
+    // miscount into a reported dead join, in the one state where `live-token`
+    // keeps waiting.
+    equal(bothTokens([opened('0'), exited('0'), exited('1')]),
+      { token: 'waiting', requiring: 'waiting' },
+      'live goes 1, 0, -1. Neither policy reports on a count it has overshot');
+    equal(bothTokens([opened('0'), arrived('0'), arrived('1')]),
+      { token: 'waiting', requiring: 'waiting' },
+      'and the same on the arrival road, where the refinement`s own counter is 2 — ' +
+      '`arrived > 0` must not be reachable while `live` is wrong');
+  });
+
+  test('JP-R2: describe reports the refinement`s own counter', () => {
+    const st = [opened('0'), opened('1'), arrived('0'), exited('1')]
+      .reduce((s, e) => liveTokenRequiringArrival.step(s, e), liveTokenRequiringArrival.open(REGION));
+    equal(liveTokenRequiringArrival.describe(st), { live: 0, positive: true, arrived: 1 },
+      '`arrived` is what separates this policy from live-token, so a `describe` that omitted it ' +
+      'would report two policies as the same state — and the matrix cell is where a human reads it');
   });
 });

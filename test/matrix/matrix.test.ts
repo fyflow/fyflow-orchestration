@@ -27,6 +27,7 @@ import { SCENARIOS } from './scenarios.ts';
 import {
   MATRIX_COLUMNS,
   MATRIX_POLICY_IDS,
+  PINNED_POLICY_IDS,
   SHIPPED_POLICY_IDS,
   VARIANT_POLICY_IDS,
 } from './variants.ts';
@@ -304,11 +305,18 @@ suite('L5 — what the matrix says as a whole', (test) => {
     // a column that CAN say `unsatisfiable` would have turned a claim about the
     // two policies section 3 names into a false claim about four — and it would
     // have gone red, which is how the narrowing was noticed rather than assumed.
+    //
+    // **W16 re-narrowed it from SHIPPED to PINNED, and it went red first.** ADR
+    // 0025 ships a third policy that says `unsatisfiable`, so *"the shipped
+    // policies never say it"* became false the moment `POLICIES` grew — while the
+    // sentence this assertion is FOR, section 3's pin on the two W4 compared, did
+    // not change at all. Two ideas had been sharing one list.
     const seen = new Set(ALL.flatMap(({ cells }) =>
-      cells.filter((c) => SHIPPED_POLICY_IDS.includes(c.policyId)).map((c) => c.status)));
+      cells.filter((c) => PINNED_POLICY_IDS.includes(c.policyId)).map((c) => c.status)));
     equal([...seen].sort(), ['satisfied', 'waiting'],
-      'if `unsatisfiable` ever appeared here, one of the two policies had been quietly ' +
-      'refined past its section 3 definition (JP-R7, JP-R8)');
+      'if `unsatisfiable` ever appeared here, one of the two PINNED policies had been quietly ' +
+      'refined past its section 3 definition (JP-R7, JP-R8) — which is exactly what ADR 0025 ' +
+      'did NOT do: it built JP-R8`s refinement beside live-token rather than inside it');
   });
 
   test('and exactly one cell in the whole matrix says it', () => {
@@ -319,9 +327,10 @@ suite('L5 — what the matrix says as a whole', (test) => {
     // sentence with an address.
     const said = [...BY_KEY].filter(([, c]) => c.status === 'unsatisfiable').map(([k]) => k);
     equal(said, ['all-exit/live-token-requiring-arrival'],
-      'JP-R8`s variant on the all-branches-exited row. `arrival-count-decrementing` cannot say ' +
-      'it either — JP-R7 changes when N is reached, not whether "not yet" can be told from ' +
-      '"never", which is the asymmetry ADR 0025 has to rule on');
+      'JP-R8`s refinement on the all-branches-exited row — and since ADR 0025 that cell is a ' +
+      'SHIPPED policy answering, not a variant. `arrival-count-decrementing` cannot say it ' +
+      'either: JP-R7 changes when N is reached, not whether "not yet" can be told from ' +
+      '"never", which is half of why ADR 0025 refused it');
   });
 
   test('the divergence is exactly where the spec says it is', () => {
@@ -460,9 +469,19 @@ suite('L5 — what the matrix says as a whole', (test) => {
   });
 
   test('the matrix runs four columns: the two shipped, and Q24`s two variants', () => {
-    equal([...MATRIX_POLICY_IDS], [...SHIPPED_POLICY_IDS, ...VARIANT_POLICY_IDS],
-      'the id list is the shipped pair followed by the refinements, so the two-column ' +
-      'comparison ADR 0003 was written from is still readable off the left of the table');
+    equal([...MATRIX_POLICY_IDS],
+      ['arrival-count', 'live-token', 'arrival-count-decrementing', 'live-token-requiring-arrival'],
+      'the PINNED pair W4 compared, then JP-R7`s refinement, then JP-R8`s — the render order, ' +
+      'written as a literal rather than derived. **It used to be `[...SHIPPED, ...VARIANT]` and ' +
+      'that broke here**: ADR 0025 ships one of the two refinements, so the derived order would ' +
+      'have silently reshuffled the columns of P5`s exit artifact as a side effect of a decision ' +
+      'about what a policy MEANS. What is shipped is asserted below, against `POLICIES` itself');
+    equal([...MATRIX_POLICY_IDS].slice(0, 2), PINNED_POLICY_IDS,
+      'and the two ADR 0003 was written from are still columns one and two, so its hand-copied ' +
+      'table is still readable off the left of this one');
+    equal([...MATRIX_POLICY_IDS].filter((id) => !SHIPPED_POLICY_IDS.includes(id)), VARIANT_POLICY_IDS,
+      'and every column that is NOT shipped is a declared variant — a column defined in the ' +
+      'test tree that nobody declared is how a fixture becomes evidence');
     equal(COLUMNS.map((p) => p.id), [...MATRIX_POLICY_IDS],
       'and the POLICY list agrees with the ID list. Two lists that must line up and are never ' +
       'compared is how a column silently becomes a duplicate of its neighbour — which would ' +
@@ -472,9 +491,19 @@ suite('L5 — what the matrix says as a whole', (test) => {
       'assertion that covers the EXIT ARTIFACT — while the renderer built a list of its own, ' +
       'duplicating a column there left the whole gate green and the printed table wrong');
     equal(Object.keys(POLICIES).sort(), SHIPPED_POLICY_IDS,
-      'and `src/` still exports exactly the two policies section 3 names. **The variants are ' +
-      'RUN here, not SHIPPED**: JP-R7 and JP-R8 say a refinement gets its own id, and whether ' +
-      'either is adopted is Q24 — ADR 0025, which is W16`s and not this file`s');
+      'and `src/` exports exactly the policies section 3 names — **three since ADR 0025**, ' +
+      'which adopted JP-R8`s refinement under its own id and refused JP-R7`s. The refused one ' +
+      'is still RUN here and shipped nowhere, which is what keeps the refusal falsifiable');
+    equal(SHIPPED_POLICY_IDS.filter((id) => !MATRIX_POLICY_IDS.includes(id as never)), [],
+      '**and every SHIPPED policy is a column of this matrix.** True since P1 and asserted by ' +
+      'nothing until W16`s adequacy reader added a fourth policy to POLICIES and to the spec and ' +
+      'watched it ship with five clause assertions, no column, no behavioural suite and no ' +
+      'unsatisfiable chain — 386 assertions, all green. JP-R9 makes the two NAME sets agree and ' +
+      'says nothing about evidence; this is the line that does');
+    equal(Object.keys(POLICIES).filter((id) => VARIANT_POLICY_IDS.includes(id)), [],
+      'and nothing this file calls a variant has an entry in POLICIES. JP-R7 and JP-R8 say a ' +
+      'refinement gets its own id; a refinement that acquired one WITHOUT an ADR is the exact ' +
+      'thing both rules were written to catch');
   });
 
   test('the rendered table is the exit artifact, and its SHAPE is asserted cell by cell', () => {

@@ -106,6 +106,25 @@ const PROBES = [
     check: 'X2',
     mutate: (t) => t.replace('```ts run', '```ts check'),
   },
+  {
+    name: 'a `run` snippet whose assertions are wrapped in `if (false)`',
+    check: 'X4',
+    // The third road into X4's vacuity, after deleted assertions and
+    // `process.exit(0)`. Found by W16's adequacy reader on the policy-set
+    // snippet, where both `throw`s survived being made unreachable.
+    mutate: (t) => t.replace(
+      "if (POLICIES['live-token'] !== liveToken) throw new Error('POLICIES must expose the same objects');",
+      "if (false) { if (POLICIES['live-token'] !== liveToken) throw new Error('unreachable'); }"),
+  },
+  {
+    name: 'a whole `run` snippet deleted, which every other check is blind to',
+    check: 'X4',
+    mutate: (t) => {
+      const i = t.indexOf('```ts run');
+      const j = t.indexOf('```', t.indexOf(String.fromCharCode(10), i));
+      return t.slice(0, i) + t.slice(j + 3);
+    },
+  },
 ];
 
 /** Every check `check-docs.mjs` reports under, in the order it reports them. */
