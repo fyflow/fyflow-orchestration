@@ -15,7 +15,7 @@ the only document that does. **Every snippet in it is extracted and executed by 
 (`scripts/check-docs.mjs`), so it cannot rot the way a hand-maintained reference does. If you change
 the public surface, that check is what tells you the reference is now wrong.
 
-## Current state: **P1, P2 and P3 are complete and retro'd; [P4](doc/plans/p4-the-drivers-lifetime-and-the-handles-it-gives-out.md) is the active plan**
+## Current state: **P1-P4 are complete and retro'd; [Q24](doc/open-questions.md) is the live question**
 
 [ADR 0001, 0002 and 0007](doc/decisions/) settle the architecture so far: **routing executes in the
 driver, outside the scheduler** — a worker computes and does not route, and `context.spawnTask()` is
@@ -74,12 +74,12 @@ closes **one of four** inbound holes, while `dispatched.has(taskId)` closes all 
 driver already keeps. Run-id-at-construction was spiked in the working tree: `src/` typechecks clean
 and **all thirteen L6 rows pass**. What happens next, in order: [doc/README.md](doc/README.md).
 
-**Fifteen reader-passes have run and not one came back empty** — W1 ×3, W3 ×3, W2 ×1, W4 ×2, W5 ×2,
-W6 ×2, W9 ×2. Most found the same shape: *the code was correct and the tests were pointed at the
+**Twenty-one reader-passes have run and not one came back empty** — W1 ×3, W3 ×3, W2 ×1, W4 ×2,
+W5 ×2, W6 ×2, W9 ×2, W12 ×2, W13 ×2, W14 ×2. Most found the same shape: *the code was correct and the tests were pointed at the
 wrong half.* **Budget for the pass; it is not a formality here, and section 6 asks for two readers.**
-**That question is now settled and should not be re-litigated:** four items, four overlap
-measurements — W4 **1 in 13**, W5 **3 in ~35**, W6 **3 in ~25**, W9 **3 in ~30** — flat at about 10%,
-and it has not risen with practice.
+**That question is now settled and should not be re-litigated:** seven measurements — 1, 3, 3, 3, 3,
+4, 4 shared findings. **The absolute count is what to carry**; the fraction has read 8% to 17% across
+items from a one-line fix to the largest surface change here, and reading it invites over-reading.
 
 **W5 ran P1's case on a real scheduler and it behaves exactly as the matrix said.** `p1-routed-away`
 completes under `live-token` and is **`stuck`** under `arrival-count`, with the join's successor

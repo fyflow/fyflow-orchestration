@@ -4,7 +4,7 @@ Flow orchestration over [fyflow-scheduler](https://github.com/fyflow/fyflow-sche
 flow once; run thousands of workloads through it.
 
 > **Status: the layer is built and gated.** Sequence, decision routing, fan-out and join, with two
-> join policies, a definition validator, and run state as a pure fold. **326 assertions in five
+> join policies, a definition validator, and run state as a pure fold. **One driver serves one run, fixed at construction, and two drivers may share a scheduler.** **326 assertions in five
 > runtimes** — Node 24, Deno, chromium, firefox, webkit — **plus 240 against a real scheduler** in
 > Node and Deno. Not published; no version has been released.
 
@@ -114,15 +114,15 @@ happens next.
 
 - [doc/concept.md](doc/concept.md) — what we are building and why
 - [spec/](spec/README.md) — **the normative layer**: six documents, 72 numbered rules, 29 hand-written examples
-- [doc/decisions/](doc/decisions/) — ten ADRs
-- [doc/plans/](doc/plans/) — P1, P2 and P3 complete; **P4** is the active plan
+- [doc/decisions/](doc/decisions/) — ten ADRs, one carrying an in-place *Correction*
+- [doc/plans/](doc/plans/) — P1-P4 complete
 - [doc/open-questions.md](doc/open-questions.md) — the register
 - [doc/workflow.md](doc/workflow.md) — how work is planned, split and verified
 - [doc/scheduler-upstream.md](doc/scheduler-upstream.md) — what we want from the scheduler
 
 **How the work is done is itself documented and is unusual**: every change is a declared work item
 with its own gate, and every one is read afterwards by two reviewers who did not write it — one
-against the spec, one by mutation. **Nineteen such passes have run and not one has come back empty.**
+against the spec, one by mutation. **Twenty-one such passes have run and not one has come back empty.**
 
 ## Licence
 

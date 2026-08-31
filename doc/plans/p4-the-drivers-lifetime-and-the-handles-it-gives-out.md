@@ -1,6 +1,6 @@
 # P4 — The driver's lifetime, and the handles it gives out
 
-**Status:** planning — W12-W14 declared
+**Status:** **complete** — W12-W14 built, six reader-passes, gate re-run, **retro done** (`doc/workflow.md` is v0.6)
 **Question this plan answers:** *What is a `Driver`'s lifetime — and what makes an inbound event, or
 an outbound handle, **this run's**?*
 **Exit artifact:** a **fourteenth ladder-L6 row**: two runs, two `Driver`s, **one** scheduler, both
@@ -150,7 +150,150 @@ hostage to the large one.
 class this repository names most often. **W10 stays held for `check-owns.mjs`; W11 is P3's unused
 reserve and is skipped, never reissued** — the same disposition P2's retro gave W7-W8.
 `ADR 0016-0021` (P2's and P3's unused blocks) are skipped likewise, so this plan starts at **0022**.
-
 ## Record
 
-*Filled in at the join, after the work items are merged.*
+**Status: complete.** Three work items, six reader-passes, retro run. **`doc/workflow.md` is v0.6.**
+
+**Exit artifact.** Ladder L6's fourteenth row: **two runs, two `Driver`s, one scheduler**, both
+completing on real workers, with the corruption stated as a thing that cannot happen. L6 is
+**240 assertions in Node and Deno**, was 219. The unit suite is **326 in five runtimes**, was 288.
+
+**What the plan answered.** *A `Driver`'s lifetime is a run's lifetime, fixed at construction; a
+settlement is this run's if and only if this driver dispatched its task id; and everything a driver
+hands out is a frozen copy.* [ADR 0022](../decisions/0022-a-driver-takes-its-run-at-construction.md),
+[ADR 0023](../decisions/0023-an-inbound-settlement-is-this-runs-only-if-this-driver-dispatched-it.md)
+— **which carries a Correction** — and W12's one-line conformity fix. [Q53](../open-questions.md),
+[Q72](../open-questions.md), [Q73](../open-questions.md) and [Q84](../open-questions.md) are closed.
+`AGENTS.md`'s three apologies are down to one: §12's cast for [Q71](../open-questions.md), which was
+out of scope by declaration.
+
+**The load-bearing fact changed the design, for the fifth consecutive plan.** [Q72](../open-questions.md)
+proposed filtering `Driver.onEvent` by run id. Six inbound task ids were measured against the shipped
+driver before a line was written: **a run-id filter closes one of four holes.** Three of the four have
+nothing to do with run ids, and `dispatched.has(taskId)` closes all four with state the driver already
+kept. The rejected design is now a red gate rather than an argument in an ADR.
+
+---
+
+## Retro
+
+*`doc/workflow.md` section 6 pass 3. P4 is the first plan to change a **published surface**, and the
+first whose readers found a shipped ADR rule to be false.* **Three changes adopted, one refusal, and
+`doc/workflow.md` is v0.6.**
+
+### 1. Rule 8's first three real outings — the rule works and the way authors instantiate it does not
+
+P3's retro left this as its second question. **Rule 8 was applied in all three items, every
+provocation it produced was real, and in all three the author's set was incomplete *in the same
+direction*.**
+
+| | the author's set | the readers' survivors | after |
+|---|---|---|---|
+| **W12** | 5 ways to **delete** the freeze | freeze only `branch.opened`; only `opened`+`arrived`; only when the `regionId` matches the fixture's | 12 probes, 11 red |
+| **W13** | 7 ways to **delete** the guard | exempt one **terminal state** at a time — three survivors on a guard the fixtures only drove in one state | 18 probes, 18 red |
+| **W14** | 3 ways to **delete** the guard | keep the guard and **substitute the source of truth** the assertions read | 8 probes, all red |
+
+**Every author probe removed the fix; every survivor narrowed it.** That is not carelessness — it is
+what writing a provocation *from the fix* produces, because the fix's own shape is what comes to mind.
+**Adopted:** rule 8 now says to enumerate the **rule's clauses** and break each — every terminal
+state, every event variant, every branch of a two-tier test — rather than the ways the fix could be
+undone.
+
+**Two things rule 8 did NOT need.** It does not need rule 7 (a)'s checked-in requirement: W13's and
+W14's readers reproduced every provocation exactly from the Record, to the failure count, because the
+Record stated each as a precise edit. That is the cheaper requirement and it is already met. And it
+gained a use nobody named — **W14's own provocation caught a false *claim***, not a weak assertion:
+the row's comment said it covered `ID-R4` when it covered tier 1 of it.
+
+### 2. `check-owns.mjs` — not built, and the retro that proposed it had the cause wrong
+
+P2's retro read three consecutive `Owns` miscounts (W5, W6, W9) as a discipline problem and proposed
+a script. **Three plans of asking later it is retired instead, because the cause was elsewhere.**
+
+Every work item carries a `Reserves:` line obliging it to write rows to `doc/open-questions.md`.
+Section 1 rule 5 listed **four** record-step files and did not name the register — so *every item back
+to W4* edited it undeclared, correctly and invisibly. W12 raised that; W13 and W14 declared it as an
+exception. **The result: W12 two exceptions, W13 five, W14 one, and all three audited correct — 19 of
+19 and 7 of 7 by their conformity readers, after three in a row that were not.**
+
+**Adopted:** the list gains `doc/open-questions.md`. **`check-owns.mjs` is retired as a proposal**, and
+the reasoning is worth keeping: *a rule that is followed and fails three times may be a wrong rule
+rather than a weak one, and the cheaper fix is to check whether it says the right thing before
+building a machine to enforce what it says.*
+
+### 3. The concurrent-reader hazard — three plans of doing it wrong, caught on the third
+
+**Adopted, from one occurrence with an argument that needs no second.** Both readers were spawned
+against **one working tree**, and the adequacy reader mutates in place. On W14 the conformity reader
+reported that its early measurements had picked up the other's instrumentation — a stray debug line,
+and a run reporting `declared: 219` against a file reading 233 — and that it had re-taken every number
+from an isolated copy. Its report was sound. The adequacy reader's cleanup then deleted
+`node_modules`.
+
+**Both readers had isolated themselves unprompted; the document had never asked.** Section 6's
+adequacy row now does. Three reader pairs ran this way before anyone noticed, which is the same shape
+as finding 2: *a mechanism that works by luck reads as a mechanism that works.*
+
+### 4. Did deleting `AGENTS.md`'s apologies work? — yes, and it cost no replacement words
+
+P3's retro asked whether removing an absorbed defect would need different words or none. **None.**
+§2's *"four things bite everyone"* became three, §9 lost its Q53/Q72 parenthetical, §10's bullet lost
+half of itself, and **the reference came out shorter with the gate green**.
+
+**But the honest version is better than "shorter".** §9 *gained* two sentences — the preconditions
+W13's readers found: run ids must be unique across the drivers on one scheduler, and that scheduler
+must carry only flow tasks. **A precondition is a property of the design; an apology is a property of
+a defect.** So absorption's price is roughly *one sentence per defect, removable when the defect is* —
+and what replaces it may be longer and is not the same kind of thing.
+
+### 5. Confirmed, no change
+
+- **The verification ladder.** L2 is again where the value was proved: W13's whole mechanism was
+  settled against a 15-line fake, and W14's L6 row then confirmed the fake was not lying. The one
+  thing L6 adds that L2 could not is that confirmation, which is exactly what section 4 claims for it.
+- **Two readers.** Seven measurements now — W4 1/13, W5 3/~35, W6 3/~25, W9 3/~30, W12 3/18, W13 4/24,
+  W14 4/~26. Section 6's wording is **corrected, not changed in substance**: the number to carry is
+  the **absolute** one — 1-4 shared findings whatever the item's size. The fraction has read 8% to
+  17% across items from a one-line fix to the largest surface change here, and W12's hypothesis that
+  it rises as items shrink died on W13.
+- **The `Outputs` table.** W13's *"a replacement direct test for `ID-R1`"* row is the clearest use yet
+  of the load-bearing column: the item was declared **knowing it owed** that output, because
+  `spec/task-id.md` had predicted the cost in writing.
+- **Rule 7 (b).** Fired in the wild for the first time, on a real API change. Not a change — evidence.
+- **Settling the load-bearing fact before declaring.** Sixth consecutive occurrence. P2's condition
+  for making it a rule — an item skips it and pays — still has not occurred. No rule.
+
+### 6. Refused, for the fourth time: `doc/` is checked by nothing
+
+**And this is its worst occurrence, by me.** P4 rewrote the register's census line four times and got
+it wrong three: stale at first, then **self-contradictory in the same sentence** (stating 55/39 while
+the arithmetic beside it proved 54/38), then off by one. Each failure came from the same move —
+*chaining a derivation* rather than *stating a predicate*. The line now states one — a question is
+resolved when its status cell says so — and is countable in one pass, which is how the fourth version
+was verified.
+
+Beyond it: `README.md` said *"eight ADRs"* where there were ten; `CLAUDE.md` said *"thirteen rows, 219
+assertions"* two lines below a line the same commit had corrected to 233; `examples/README.md` and
+`AGENTS.md:583` each carried a number or a claim the surrounding change had invalidated. **Every one
+was found by a reader, none by a check.**
+
+**Still not a rule.** P1, P2 and P3 each refused it and gave the reason: both candidate mechanisms —
+a doc-freshness linter, and a rule saying *"update the docs"* — are worse than the problem. What P4
+adds is a *technique* rather than a rule: **a count in prose should state the predicate that produces
+it**, because a predicate can be re-run and a derivation chain can only be re-read. It is applied to
+the register and to nothing else.
+
+### 7. What P4 leaves for P5's retro
+
+1. **Does rule 8's "write to the rule" form change the numbers?** The prediction is fewer reader
+   survivors in the provocation family. If a fifth item's readers still find the author's set narrow
+   in the same direction, the amendment did not work and the answer is not another sentence.
+2. **Does rule 7 (c) ever fire?** Unexercised by P4, which added no new check. Third plan of carrying
+   it if P5 adds none either.
+3. **Does the `Owns` list stay correct now the register is named?** If an item miscounts again with
+   the list right, `check-owns.mjs` comes back and finding 2 was wrong.
+4. **[Q86](../open-questions.md) and [Q87](../open-questions.md) are the two preconditions this plan
+   documented rather than enforced**, and both are real defects of the topology P4 blessed. A plan
+   that blesses a topology and ships two of its preconditions as prose is doing what P3's retro
+   criticised — **and P4 did it knowingly, on the last day of the plan.** Whether that was right is
+   P5's to judge.

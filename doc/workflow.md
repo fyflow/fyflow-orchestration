@@ -1,8 +1,9 @@
 # Workflow
 
-**Status:** v0.5 - **run to completion three times**, by [P1](plans/p1-what-satisfies-a-join.md),
-[P2](plans/p2-the-non-success-half-on-a-real-scheduler.md) and
-[P3](plans/p3-a-consumer-reference-the-gate-keeps-true.md)
+**Status:** v0.6 - **run to completion four times**, by [P1](plans/p1-what-satisfies-a-join.md),
+[P2](plans/p2-the-non-success-half-on-a-real-scheduler.md),
+[P3](plans/p3-a-consumer-reference-the-gate-keeps-true.md) and
+[P4](plans/p4-the-drivers-lifetime-and-the-handles-it-gives-out.md)
 **Read this before starting any work item.** Paths are relative to the repo root unless they are
 markdown links.
 
@@ -34,6 +35,26 @@ rule 8, which is that rule's first outing. **Everything else in this document is
 by P3**, including the ladder, which took a *document* deliverable without bending. Full reasoning
 and the rung-by-rung table in
 [P3's Record](plans/p3-a-consumer-reference-the-gate-keeps-true.md).
+
+**v0.6 is P4's retro, and its three changes all replace mechanisms that were followed and failed
+anyway** - section 6 pass 3 rule 3's sharpest shape, three times over.
+
+1. **Rule 8's provocations are written to the RULE, not to the fix.** Three items in a row produced a
+   set that was incomplete *in the same direction*: every probe removed the fix, every survivor the
+   readers found narrowed it. The rule worked; the way authors instantiate it did not.
+2. **The adequacy reader works in an isolated copy.** Three reader pairs ran concurrently against one
+   checkout before anyone noticed the obvious. It cost contaminated measurements and a deleted
+   `node_modules`; the reader had isolated itself unprompted and **the document had not asked**.
+3. **Section 1 rule 5's record-step list gains `doc/open-questions.md`, and `check-owns.mjs` is
+   retired.** P2's retro read three consecutive `Owns` miscounts as a discipline problem and proposed
+   a check. **The cause was the list being wrong** - every `Reserves:` line obliges an item to write
+   to the register, which the list did not name. Naming it produced three correct audits in a row.
+
+**And one refusal, for the fourth time: `doc/` is checked by nothing.** P4 rewrote the register's
+census line four times and got it wrong three - stale, then self-contradictory, then off by one -
+each time by chaining a derivation instead of stating a predicate. The line now states one, and is
+countable in one pass. **Still not a rule**, on P1's, P2's and P3's reasoning. Full detail in
+[P4's Record](plans/p4-the-drivers-lifetime-and-the-handles-it-gives-out.md).
 
 **P1's central measurement, still the one that should shape how a plan reads this document:**
 of the eight defect classes P1 produced, **five have no rung on the ladder at all - and every one of
@@ -82,9 +103,18 @@ Four rules that make the loop worth having:
    not the record.
 4. **Say what you skipped.** A skipped check reported as passed makes the whole ladder worthless.
 5. **The record step's files are part of finishing an item, not exceptions to its `Owns`.** Those
-   four and no others: the plan's Record, `doc/README.md`, `CLAUDE.md`, `README.md`. **Anything else
-   outside `Owns` is declared** - and after W5, W6 and W9 each miscounted, it is checked rather than
-   declared alone (section 7 rule 2).
+   **five** and no others: the plan's Record, `doc/README.md`, `CLAUDE.md`, `README.md`, and
+   **`doc/open-questions.md`**. **Anything else outside `Owns` is declared.**
+
+   **The register was added by P4's retro, and it is why the miscounting stopped.** Every work item
+   carries a `Reserves:` line obliging it to write rows to `doc/open-questions.md`, and the list here
+   named four files that did not include it - so *every* item back to W4 edited it undeclared. P2's
+   retro read three consecutive miscounts as a discipline problem and proposed a check
+   (`scripts/check-owns.mjs`, as W10). **The cause was this list being wrong**, and naming the missing
+   file fixed it without a script: W12 declared two exceptions, W13 five, W14 one, and all three
+   audited **correct** - 19 of 19 and 7 of 7 by their conformity readers, after three in a row that
+   were not. **`check-owns.mjs` is retired as a proposal**; if an item miscounts again with this list
+   correct, that is the second occurrence and it comes back.
 
 ## 2. The unit of work
 
@@ -255,6 +285,28 @@ Rules:
    of section 4 covers this**: L0-L6 all check the product, and nothing checks the repair. Record the
    provocation beside the fix, the way rule 7 asks of a check.
 
+   **Write the provocations to the RULE, not to the fix.** P4's retro is the amendment, and its
+   evidence is three items in a row: in each one the author's set was incomplete, and incomplete in
+   the *same direction* — every probe was a way to **remove** the fix, and every survivor the readers
+   found was a way to **narrow** it.
+
+   | | the author's set | what the readers added |
+   |---|---|---|
+   | W12 | five ways to delete the freeze | freeze only one event variant; freeze only when the id matches the fixture's |
+   | W13 | seven ways to delete the guard | exempt one terminal state at a time — three survivors, on a guard the fixtures only ever drove in one state |
+   | W14 | three ways to delete the guard | keep the guard and **substitute the source of truth** the assertions read |
+
+   So: enumerate the **rule's own clauses** and break each — every terminal state, every event
+   variant, every branch of a two-tier test — rather than enumerating the ways the fix could be
+   undone. A set written from the fix inherits the fix's blind spot by construction.
+
+   **The provocation is recorded as an edit precise enough to re-run**, and that is enough — it does
+   not need checking in the way rule 7 (a) requires of a check. Measured: W13's and W14's readers
+   reproduced every provocation exactly from the Record, to the failure count.
+
+   **It also catches a false CLAIM, not only a weak assertion**, which is a use worth naming: W14's
+   own provocation showed a row's comment said it covered a rule when it covered half of one.
+
 ## 6. Verify: the three passes
 
 **Pass 1 - the ladder.** Section 4. Report which levels ran and which did not, per work item.
@@ -264,16 +316,31 @@ Rules:
 | reader | reads | asks | method |
 |---|---|---|---|
 | **conformity** | the spec first, the code second | does this do what the spec says, including the refusals and the edge cases | reading, and re-deriving the item's expected values independently before looking at them |
-| **adequacy** | the spec first, the tests second | **would these tests have noticed if it did not** | mutation, chosen by walking the rule ids rather than by intuition |
+| **adequacy** | the spec first, the tests second | **would these tests have noticed if it did not** | mutation, chosen by walking the rule ids rather than by intuition, **in an isolated copy of the tree** |
 
 Both **read the spec before the artifact.** Reading the code first reconstructs the author's
 misunderstanding and confirms it. Both run with a fresh context or as a separate session, and both
 **report; they do not fix** - a reviewer that patches what it found has reviewed its own work.
 
+**The adequacy reader mutates, so it works in a COPY** - a `git worktree`, an archive, anything
+off the shared tree. P4's retro adopted this after three reader pairs had run concurrently against
+one checkout: on the third, the conformity reader's early measurements picked up the other's
+instrumentation (a stray debug line, and a run reporting `declared: 219` against a file reading 233),
+and the adequacy reader's cleanup deleted `node_modules`. It re-took every number from an isolated
+copy and its report was sound - but **it isolated itself unprompted, and the document did not ask**,
+which is the whole of the amendment. One occurrence, and it generalizes without argument: two agents
+editing one tree is not a review method.
+
 **Why two readers rather than one asking both questions**, which is what earlier versions said.
-Measured over the two items that split it: **W4 - 13 findings, 1 overlap. W5 - about 35 findings, 3
-overlaps**, and each overlap arrived from a different direction. One reader answers whichever
-question it read first.
+Measured over **seven** items now: W4 1 of 13, W5 3 of ~35, W6 3 of ~25, W9 3 of ~30, W12 3 of 18,
+W13 4 of 24, W14 4 of ~26. Each overlap arrived from a different direction; one reader answers
+whichever question it read first.
+
+**The number to carry is the ABSOLUTE one: two readers produce 1-4 shared findings, whatever the
+item's size.** The fraction is noise - it has read 8%, 17%, 10%, 12% and 15% across items ranging
+from a one-line conformity fix to the largest surface change the repository has made. W12's Record
+hypothesised that the fraction *rises* as items shrink; W13 is a much larger item at the same 17%,
+so that died on its first test. Reporting the fraction invites exactly that kind of over-reading.
 
 **The cost is roughly double, and the counter-evidence is on the record:** W1's and W3's single
 readers ran mutation sweeps too - 85, 146 and 100 mutations - and found a great deal. What the split
@@ -402,3 +469,9 @@ the gate keeps true. **The gate carries nothing to the front door**, so a mechan
 now sits beside four hand-maintained ones and they disagree with no way for a reader to tell which
 is which. **Divergence is harder to notice than error**, and it arrives *because* one document is
 checked. Still no rule, and still no mechanism worth its cost.
+
+**And what P4 did to v0.5's one**, judged by the plan that ran it:
+
+| v0.5 change | What would show it was wrong | **P4's verdict** |
+|---|---|---|
+| **Rule 7 (c): a probe declares the SET of checks it trips** | a malformed probe is still reported as caught, or the form fires on nothing | **Unexercised — P4 added no new check.** Carried to P5. What *did* fire, in the wild and for the first time, is rule 7 **(b)**: `check-docs-selftest`'s probe 11 is pinned to `driver.start('run-1', …)`, which W13 deleted, and it failed with *"the mutation matched nothing"* rather than passing for the wrong reason. **(b) is confirmed on a real API change; (c) is still a claim about a measurement** |
