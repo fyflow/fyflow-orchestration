@@ -57,7 +57,7 @@ into run state.
 
 | | |
 |---|---|
-| **Flow definition** | nodes bound to worker types, decision edges, fan-out and join — one template, many runs. **24 validation refusals**, every one with a failing example |
+| **Flow definition** | nodes bound to worker types, decision edges, fan-out and join — one template, many runs. **23 validation refusals** over the id range `FD-V1` … `FD-V24`, every one with a failing example — `FD-V14` is deliberately absent |
 | **Driver** | the only component that touches the scheduler: subscribes, routes, dispatches. The library imports the scheduler **nowhere** — a caller passes its own in |
 | **Run state** | a fold: where a run is, what each node returned, what a join is waiting on. **Six outcomes**, including `stuck` |
 | **Join policies** | `live-token` and `arrival-count`, behind one interface, both shipped |
@@ -105,7 +105,9 @@ consumer installs whichever version it wants.
 
 **Using the library: [AGENTS.md](AGENTS.md)** — the reference. Twelve sections, from a minimal
 working program to what does not exist. **Every snippet in it is extracted, typechecked and executed
-by `npm run gate`**, so a stale snippet is a failing gate rather than a lie.
+by `npm run gate`**, so a stale snippet is a failing gate rather than a lie. That covers **about 16%
+of the document**; what the other 84% is allowed to be, and why, is
+[P3's Record](doc/plans/p3-a-consumer-reference-the-gate-keeps-true.md).
 
 **Working on the library: [doc/README.md](doc/README.md)** — current state, reading order, and what
 happens next.
@@ -113,14 +115,14 @@ happens next.
 - [doc/concept.md](doc/concept.md) — what we are building and why
 - [spec/](spec/README.md) — **the normative layer**: six documents, 71 numbered rules, 29 hand-written examples
 - [doc/decisions/](doc/decisions/) — eight ADRs
-- [doc/plans/](doc/plans/) — P1 (complete) and P2 (in progress)
+- [doc/plans/](doc/plans/) — P1, P2 and P3 complete; **P4** is the active plan
 - [doc/open-questions.md](doc/open-questions.md) — the register
 - [doc/workflow.md](doc/workflow.md) — how work is planned, split and verified
 - [doc/scheduler-upstream.md](doc/scheduler-upstream.md) — what we want from the scheduler
 
 **How the work is done is itself documented and is unusual**: every change is a declared work item
 with its own gate, and every one is read afterwards by two reviewers who did not write it — one
-against the spec, one by mutation. **Thirteen such passes have run and not one has come back empty.**
+against the spec, one by mutation. **Fifteen such passes have run and not one has come back empty.**
 
 ## Licence
 

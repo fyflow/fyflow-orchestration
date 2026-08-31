@@ -1,7 +1,8 @@
 # Workflow
 
-**Status:** v0.4 - **run to completion twice**, by [P1](plans/p1-what-satisfies-a-join.md) and
-[P2](plans/p2-the-non-success-half-on-a-real-scheduler.md)
+**Status:** v0.5 - **run to completion three times**, by [P1](plans/p1-what-satisfies-a-join.md),
+[P2](plans/p2-the-non-success-half-on-a-real-scheduler.md) and
+[P3](plans/p3-a-consumer-reference-the-gate-keeps-true.md)
 **Read this before starting any work item.** Paths are relative to the repo root unless they are
 markdown links.
 
@@ -22,6 +23,17 @@ consecutive items answered *"did you edit outside your `Owns`"* with *"yes, and 
 **Rule 8 is new**, and it has the strongest evidence of any rule here: three items in a row shipped a
 fix for a review finding that could not fail. Full reasoning in
 [P2's Record](plans/p2-the-non-success-half-on-a-real-scheduler.md).
+
+**v0.5 is P3's retro and it changes one requirement of one rule** - the smallest retro edit so far,
+which rule 1 says is an expected verdict rather than a thin result. **Rule 7's third requirement is
+replaced**: naming which check refused a probe does not discriminate, because a merely *malformed*
+probe - W6's original defect, and the thing that requirement was written for - trips two checks at
+once and so satisfies a probe declared as either. A probe now declares the **set** it must trip, and
+the set must match exactly. **Measured before it was proposed and provoked after it was built**, per
+rule 8, which is that rule's first outing. **Everything else in this document is confirmed unchanged
+by P3**, including the ladder, which took a *document* deliverable without bending. Full reasoning
+and the rung-by-rung table in
+[P3's Record](plans/p3-a-consumer-reference-the-gate-keeps-true.md).
 
 **P1's central measurement, still the one that should shape how a plan reads this document:**
 of the eight defect classes P1 produced, **five have no rung on the ladder at all - and every one of
@@ -213,10 +225,16 @@ Rules:
      act of re-running them.** `scripts/check-docs-selftest.mjs` is the worked example.
    - **Each probe asserts that it changed its input.** A probe whose edit matches nothing passes for
      the wrong reason, which is the vacuity this whole rule exists to refuse.
-   - **A probe names which check refused it**, not merely that something exited non-zero. W6's
-     ten mutations included **one that was a syntax error rather than a mutation**; the harness read
-     only the exit code, so a parse failure was indistinguishable from a caught mutation, and it
-     became that Record's most confident false claim.
+   - **A probe declares the full SET of checks it must trip, and the set must match exactly** — not
+     merely that something exited non-zero, and **not merely that the named check is among those that
+     failed.** W6's ten mutations included **one that was a syntax error rather than a mutation**; the
+     harness read only the exit code, so a parse failure was indistinguishable from a caught mutation,
+     and it became that Record's most confident false claim. **Naming the check does not fix that**,
+     which P3's retro measured: garbage inserted into a `run` snippet trips `check-docs`' X3 *and* X4
+     together, so it satisfies a probe declared as either one and is reported as caught. Set equality
+     is what discriminates, and it costs almost nothing — **11 of `check-docs`' 12 probes already
+     trip exactly one check**, and the twelfth declares its one legitimate cascade
+     (`X3 -> X4, X5`: a snippet that does not compile also does not run).
 
    **P1's evidence for the rule was one-sided and remains so:** every check provoked at birth worked
    - `check-source.mjs`'s ten and `check-scheduler.mjs`'s five - and the one hand-run once and
@@ -363,8 +381,24 @@ findings it refused to turn into rules and why, is in
 | **A new check is negative-tested at birth** | a check ships that cannot fail | **Right in aim, wrong in mechanism - amended (rule 7).** Followed twice, failed twice: a malformed probe indistinguishable from a caught one, and probes that were never committed |
 | **Section 7 rule 2's exceptions table** | an item's exception list is wrong | **Wrong as written - replaced by a check.** Three consecutive items miscounted, the third with the warning already in this file |
 
+**And what P3 did to v0.4's four**, judged by the first plan whose deliverable was a **document**:
+
+| v0.4 change | What would show it was wrong | **P3's verdict** |
+|---|---|---|
+| **Rule 7's provocations are checked in** | a check ships that cannot fail, with its probes green | **Two of three requirements right; the third replaced.** *Checked in* is the strongest rule this repository has adopted - W9's five hand-run probes became twelve and **seven of the twelve holes were found by re-running them**. *Naming the check* was measured and does not discriminate: v0.5 |
+| **`Owns` is checked rather than declared** | an item's file list is wrong again | **Unanswered - `check-owns.mjs` was not built.** P3 declared one item that did not need it and the by-hand substitute reported correctly. Third plan of asking; [P4](plans/p4-the-drivers-lifetime-and-the-handles-it-gives-out.md) has the files in flight to settle it |
+| **Rule 8 - break the fix and watch the gate go red** | a fix ships that cannot fail, with the rule in force | **Not applied.** It was adopted *after* W9 shipped, so W9 is one of its three occurrences and not one of its outings. Its first use is v0.5's own change, which is one sample and the easiest possible case |
+| **Section 1 rule 5 names `CLAUDE.md` and `README.md` as record-step files** | an item still miscounts its exceptions | **Right, on its first outing.** P3's retro touched exactly those four plus one declared file, and the by-hand `git diff --name-only` matched |
+
 **The one thing four plans have observed and no rule names:** `doc/` is upstream of every check here
 and is checked by nothing - a false register entry (Q43), an index claiming reader-passes were
 outstanding when they had run, a file header saying twelve at thirteen. P1's retro named it and
 refused to make a rule; **P2's retro did the same, and said why**: both candidate mechanisms are
 worse than the problem. It stays the thing most likely to bite next.
+
+**P3 refused it a third time and found the class has changed shape.** `README.md` said *"24
+validation refusals"* - the exact claim W9's conformity reader had corrected in `AGENTS.md`, which
+the gate keeps true. **The gate carries nothing to the front door**, so a mechanically-true document
+now sits beside four hand-maintained ones and they disagree with no way for a reader to tell which
+is which. **Divergence is harder to notice than error**, and it arrives *because* one document is
+checked. Still no rule, and still no mechanism worth its cost.
