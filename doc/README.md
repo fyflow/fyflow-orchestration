@@ -187,11 +187,22 @@ longer rests on our own reading. [S1](scheduler-upstream.md).
    had. The other feature candidates stay where they were: [Q6](open-questions.md) (nested fan-out,
    nearly free under `live-token`) and [Q12](open-questions.md) (map-style fan-out, which makes the
    count dynamic).
-3. **Read `doc/workflow.md` v0.6 first**, and in particular the things three retros have refused to
+3. **[P6](plans/p6-what-may-share-a-scheduler-with-a-driver.md) is DECLARED and runs after P5** — *what may share a scheduler with a driver?*
+   It takes the three questions P5 ruled on but could not own, because **no P5 item takes
+   `src/driver/**`**: [Q86](open-questions.md) as **ADR 0027** (is an unparseable task id a defect
+   that stops the run, or a task that is not ours), [Q87](open-questions.md)'s one-line message
+   defect, and [Q95](open-questions.md)'s unexercised latch. **Its urgency is that `AGENTS.md` §9
+   already recommends the topology**: a second `Driver` on the same scheduler is the supported
+   answer, and on a scheduler carrying anything else **one settlement stops every driver on it**.
+   Its measurement narrowed the decision before it was declared — `InvalidTaskId` has **three**
+   producers and Q86 is about **one**. Exit artifact: a scheduler carrying a task this library did
+   not mint, two drivers, both runs completing. **W18 and W19 are named and not yet declared in
+   their own files**, which is P6's first act.
+4. **Read `doc/workflow.md` v0.6 first**, and in particular the things three retros have refused to
    turn into rules — those are the ones most likely to bite. **A register row you are about to act
    on is unverified until you have**, and P4 is the third plan in a row to find one wrong by trying
    to act on it.
-4. **Five traps are live for whoever comes next.**
+5. **Five traps are live for whoever comes next.**
    - **`JP-R7` and `JP-R8`** ([Q24](open-questions.md)) — the two one-line policy refinements, and
      **the live question**. They live in `test/matrix/variants.ts` and W15 runs both as **columns of
      the matrix**, under their own ids. **W1 wrote one of them itself** before a conformity pass
@@ -274,7 +285,9 @@ Deliberate overlaps, which are coordination points rather than duplication:
 
 ## Plan history
 
-*One row per plan, oldest first.*
+*One row per plan, oldest first. **A plan appears here when it closes**, so
+[P5](plans/p5-a-third-and-fourth-policy-or-repairs-of-the-first-two.md) (running — W15 done, W16-W17
+outstanding) and [P6](plans/p6-what-may-share-a-scheduler-with-a-driver.md) (declared, not started) are not below.*
 
 | P | Question it answered | Exit artifact | Date |
 |---|---|---|---|

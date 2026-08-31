@@ -106,6 +106,19 @@ the render is now a function the suite asserts field by field, and the variants 
 `JP-R2` and `JP-R3` in `test/matrix/variants.test.ts`. **For P5's retro: writing provocations to the
 rule finds holes in the CODE and is blind to the DELIVERABLE.**
 
+**[P6](doc/plans/p6-what-may-share-a-scheduler-with-a-driver.md) is declared and runs after P5** —
+*what may share a scheduler with a driver?* It takes the three things P5 ruled on and could not own,
+because **no P5 item takes `src/driver/**`**: [Q86](doc/open-questions.md) as **ADR 0027**,
+[Q87](doc/open-questions.md)'s message sentence, and [Q95](doc/open-questions.md)'s latch. **Two of
+those three register rows were wrong and were corrected by trying to act on them**, which is the
+fifth plan running to find one that way. `InvalidTaskId` has **three** producers — `buildTaskId`
+outbound, and `parseTaskId` at `resolve()` and at the listener — and **Q86 is about the listener
+alone**, which the register read as one site. And Q95 is **not dead code**: its precondition is any
+policy that settles a join *before every branch is terminal*, and with the latch deleted such a
+policy routes the join twice and the run dies on `DuplicateTaskId`. **Its urgency is that `AGENTS.md`
+§9 already recommends the shared-scheduler topology** while one foreign task on that scheduler stops
+every driver subscribed to it.
+
 **Twenty-one reader-passes have run and not one came back empty** — W1 ×3, W3 ×3, W2 ×1, W4 ×2,
 W5 ×2, W6 ×2, W9 ×2, W12 ×2, W13 ×2, W14 ×2. Most found the same shape: *the code was correct and the tests were pointed at the
 wrong half.* **Budget for the pass; it is not a formality here, and section 6 asks for two readers.**
