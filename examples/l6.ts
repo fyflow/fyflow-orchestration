@@ -1,6 +1,6 @@
 /**
- * **Ladder L6 — the gate.** Thirteen real runs on a real scheduler: P1's exit
- * artifact, and P2's.
+ * **Ladder L6 — the gate.** Fifteen real runs on a real scheduler: P1's exit
+ * artifact, P2's, and P4's.
  *
  * ```
  *   npm run test:l6         node examples/l6.ts
@@ -34,6 +34,7 @@
  * | **W6 — `suspend / resolve / resume`** | the human-in-the-loop half, and the only inbound API the library has. `user_action` → `awaiting_action` → `Driver.resolve()` → the branch arrives |
  * | **W6 — `suspend / nobody comes`** | the row that separates **waiting on a person** from **stuck**. Same flow, no human: the join has not fired and the run is `awaiting_action`, not `stuck`. It is the only row that ends with a node still `suspended`, and it is expected NOT to finish |
  * | **W6 — `uncloneable`** | a refusal that stops a run, on real workers. `OR-R6` at the listener boundary, reported rather than thrown, folding to `stopped` |
+ * | **W14 — `two runs / two drivers / one scheduler`** | **P4's exit artifact**, and the only row that runs two drivers. The pairing `MultipleRuns` tells a caller to build: before [ADR 0023](../doc/decisions/0023-an-inbound-settlement-is-this-runs-only-if-this-driver-dispatched-it.md) each driver received the other's settlements and dispatched its successors — one task id under two outcomes, with nothing reported. It is `ID-R4` tier 1's only L6 coverage; tier 2 is not reachable here ([Q90](../doc/open-questions.md)) |
  */
 import {
   POLICIES,
@@ -41,7 +42,7 @@ import {
   type Predicate,
   type RunOutcome,
 } from '../index.ts';
-import { runFlow, type RunReport } from './run-flow.ts';
+import { runFlow, runPair, type RunReport } from './run-flow.ts';
 import fanoutJoin from '../spec/examples/valid/fanout-join.flow.json' with { type: 'json' };
 import routedAway from '../spec/examples/valid/p1-routed-away.flow.json' with { type: 'json' };
 // **Local to `examples/`, and that is [Q44](../doc/open-questions.md) again.** The
@@ -646,6 +647,73 @@ assertThat('cross-row', 'isLowConfidence returned FALSE at 0.9 and TRUE at 0.1 �
   `high: ${highRouted?.state.regions['split']?.settled['1']}, ` +
   `low: ${low?.state.regions['split']?.settled['1']}`);
 
+
+// --- the pair row: two runs, two Drivers, ONE scheduler --------------------------
+//
+// **P4's exit artifact**, and the only row in this file that runs two drivers.
+// [Q72](../doc/open-questions.md): before W13 this corrupted both runs SILENTLY —
+// each driver received the other's settlements and dispatched the other's
+// successors, so `ra:publish:-:0` was dispatched twice under two outcomes
+// (`spec/task-id.md` section 2's collision) and `ID-R1` could not fire, because
+// each driver keeps its own dispatched-id set.
+//
+// **It is also the only L6 coverage `ID-R4` TIER 1 has, and it has none for tier
+// 2.** W13's adequacy reader measured that the thirteen single-driver rows give
+// the rule nothing at all: one run, no foreign settlements, nothing to drop. Here
+// every settlement of run `pa` reaches `pb`'s listener and tier 1 drops it — so
+// deleting tier 1 makes `pb` hit tier 2 instead, stop with `UndispatchedTask`,
+// and fail this row. Measured: 7 failures.
+//
+// **Tier 2 is not reachable here and this row does not cover it**, which W14's own
+// negative test measured rather than assumed: deleting tier 2 leaves this row
+// **green**, because a foreign settlement returns at tier 1 and never reaches it.
+// Tier 2 needs a settlement carrying THIS run's id for a task the driver never
+// dispatched, and nothing on a real scheduler produces one unless something
+// injects it. It has L2 coverage only — three shapes × three terminal states in
+// `test/driver/lifetime.test.ts` — and the gap is [Q90](../doc/open-questions.md)
+// rather than a silent hole.
+//
+// Expected values derived from the spec before running, as every row's are:
+// `spec/run-state.md` section 3 (both runs reach an `end`, so both are
+// `completed`) and `spec/task-id.md` section 2 (a task id identifies one
+// `(run, node, branch, attempt)`, so the two dispatch sets are disjoint and
+// neither has a repeat).
+const PAIR_KEY = 'two runs / two drivers / one scheduler';
+const [pa, pb] = await runPair(
+  { definition: FJ, policy: POLICIES['live-token'], runId: 'pa', payload: HIGH, predicates, delayMs: 5 },
+  { definition: FJ, policy: POLICIES['live-token'], runId: 'pb', payload: LOW, predicates, delayMs: 5 },
+);
+for (const [who, r] of [['pa', pa], ['pb', pb]] as const) {
+  check(PAIR_KEY, `${who}: run-state outcome`, r.state.outcome, 'completed');
+  check(PAIR_KEY, `${who}: finished by run state, not the backstop`, r.finishedBy, 'run-state');
+  check(PAIR_KEY, `${who}: nothing was reported`, r.failureKinds, []);
+  check(PAIR_KEY, `${who}: the join fired`, r.state.regions['split']?.joined, true);
+  // Every id this driver dispatched carries its OWN run id. If tier 1 were
+  // deleted, the other driver would dispatch into this run's id space.
+  assertThat(PAIR_KEY, `${who}: dispatched only its own run's tasks`,
+    r.dispatched.length > 0 && r.dispatched.every((id) => id.startsWith(`${who}:`)),
+    r.dispatched.join(' '));
+  assertThat(PAIR_KEY, `${who}: its log holds only its own run's records`,
+    r.log.length > 0 && r.log.every((rec) => rec.taskId.startsWith(`${who}:`)),
+    r.log.map((rec) => rec.taskId).join(' '));
+}
+// **The corruption, stated as a thing that cannot happen.** Two outcomes under
+// one key is what `spec/task-id.md` section 2 exists to describe; before W13 one
+// settlement produced two dispatches of the successor.
+const pairIds = [...pa.dispatched, ...pb.dispatched];
+check(PAIR_KEY, 'across BOTH drivers, no task id is dispatched twice',
+  pairIds.length - new Set(pairIds).size, 0);
+// Independent of our own bookkeeping: what the SCHEDULER reported settling.
+// `settledByScheduler` is shared here, so it is the union — and it must contain
+// both runs' tasks and nothing else.
+assertThat(PAIR_KEY, "the scheduler settled both runs' tasks and only those",
+  pa.settledByScheduler.length === new Set(pa.settledByScheduler).size &&
+    pa.settledByScheduler.every((id) => id.startsWith('pa:') || id.startsWith('pb:')) &&
+    pa.settledByScheduler.some((id) => id.startsWith('pa:')) &&
+    pa.settledByScheduler.some((id) => id.startsWith('pb:')),
+  pa.settledByScheduler.join(' '));
+const PAIR_ROW = 14;
+
 // --- the table a person looks at ----------------------------------------------
 
 const runtime = typeof (globalThis as Record<string, unknown>).Deno !== 'undefined'
@@ -656,7 +724,7 @@ const w = (s: string, n: number) => s.padEnd(n).slice(0, n);
 // The count is derived, not typed: this line said "six" for two rows longer than
 // it was true, which is the smallest possible version of the thing this whole
 // review pass was about.
-console.log(`\n  ladder L6 — ${reports.length} real runs on fyflow-scheduler 0.3.0, on ${runtime}\n`);
+console.log(`\n  ladder L6 — ${reports.length + 2} real runs on fyflow-scheduler 0.3.0, on ${runtime}\n`);
 console.log(`  ${w('run', 40)}${w('outcome', 17)}${w('join', 7)}${w('branches', 22)}${w('tasks', 6)}${w('ms', 6)}overlap`);
 console.log(`  ${'-'.repeat(106)}`);
 for (const [i, r] of reports.entries()) {
@@ -672,11 +740,27 @@ for (const [i, r] of reports.entries()) {
   );
 }
 
+for (const [who, r] of [['pa', pa], ['pb', pb]] as const) {
+  const region = r.state.regions['split'];
+  const branches = region ? Object.entries(region.settled).map(([b, st]) => `${b}:${st}`).join(' ') : '-';
+  const joined = region === undefined ? '-' : region.joined === null ? 'never' : String(region.joined);
+  console.log(
+    `  ${w(`two runs / one scheduler (${who})`, 40)}${w(r.state.outcome, 17)}${w(joined, 7)}` +
+    `${w(branches, 22)}${w(String(r.dispatched.length), 6)}${w(String(r.wallMs), 6)}` +
+    `${r.branchesOverlapped ? 'yes' : 'no'}`,
+  );
+}
+
 // Where each row's expected values came from. Printed so the human artifact
 // carries its own derivation: `doc/workflow.md` section 5 rule 1 — expected
 // values come from the spec, and a reader should not have to take that on trust.
 console.log('\n  why each row reads as it does:');
 for (const e of EXPECTED) console.log(`    ${w(e.key, 40)}${e.why}`);
+console.log(`    ${w(PAIR_KEY, 40)}` +
+  'P4 exit artifact — the pairing MultipleRuns tells you to build, on real workers. Before W13 ' +
+  'each driver received the other`s settlements and dispatched its successors: one task id under ' +
+  'two outcomes, with nothing reported. It is also ID-R4 TIER 1s only L6 coverage — every settlement of ' +
+  'one run reaches the other driver and is dropped by tier 1');
 
 // **An assertion-count floor, because a skipped assertion reports as a pass.**
 // `doc/workflow.md` section 1 rule 4 at assertion granularity: W5's test-adequacy
@@ -706,7 +790,7 @@ if (rowCosts.length !== EXPECTED.length) {
   failures.push(`gate\n      ${rowCosts.length} of ${EXPECTED.length} rows completed their assertion block`);
 }
 const EXPECTED_TOTAL =
-  rowCosts.reduce((n, [, shape, , extras]) => n + base(shape) + extras, 0) + CROSS_ROW;
+  rowCosts.reduce((n, [, shape, , extras]) => n + base(shape) + extras, 0) + CROSS_ROW + PAIR_ROW;
 if (passed + failures.length !== EXPECTED_TOTAL) {
   failures.push(
     'gate\n      the derived assertion count is not what the rows declare — a block was skipped\n' +
@@ -721,7 +805,7 @@ if (passed + failures.length !== EXPECTED_TOTAL) {
 // exit 0 by W6's adequacy reader, whose finding is that the Record's claim of
 // *"checked two ways … either alone misses something"* was false, because both
 // ways shared a source. This is the second source: a number a human wrote down.
-const DECLARED_TOTAL = 219;
+const DECLARED_TOTAL = 233;
 if (passed + failures.length !== DECLARED_TOTAL) {
   failures.push(
     'gate\n      the assertion count is not the number this file declares outright\n' +

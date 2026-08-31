@@ -5,7 +5,7 @@ flow once; run thousands of workloads through it.
 
 > **Status: the layer is built and gated.** Sequence, decision routing, fan-out and join, with two
 > join policies, a definition validator, and run state as a pure fold. **326 assertions in five
-> runtimes** — Node 24, Deno, chromium, firefox, webkit — **plus 219 against a real scheduler** in
+> runtimes** — Node 24, Deno, chromium, firefox, webkit — **plus 233 against a real scheduler** in
 > Node and Deno. Not published; no version has been released.
 
 ## The idea
@@ -61,7 +61,7 @@ into run state.
 | **Driver** | the only component that touches the scheduler: subscribes, routes, dispatches. The library imports the scheduler **nowhere** — a caller passes its own in |
 | **Run state** | a fold: where a run is, what each node returned, what a join is waiting on. **Six outcomes**, including `stuck` |
 | **Join policies** | `live-token` and `arrival-count`, behind one interface, both shipped |
-| **Examples** | [ladder L6](examples/) — thirteen real flows on a real scheduler, in Node and Deno |
+| **Examples** | [ladder L6](examples/) — fifteen real runs on a real scheduler, in Node and Deno, including two runs sharing one |
 
 ## The hard question, and its answer
 
@@ -99,7 +99,7 @@ consumer installs whichever version it wants.
 |---|---|
 | `npm run gate` | everything below, in order |
 | `npm test` · `npm run test:deno` · `npm run test:browser:all` | 326 assertions, five runtimes |
-| `npm run test:l6` · `npm run test:l6:deno` | a real scheduler, thirteen flows |
+| `npm run test:l6` · `npm run test:l6:deno` | a real scheduler, fifteen runs |
 
 ## Documentation
 

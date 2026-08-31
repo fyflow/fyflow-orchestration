@@ -185,13 +185,62 @@ export interface RunOptions {
    * the deferral.
    */
   resolveOnSuspend?: Record<string, { as: 'done' | 'failed'; result?: unknown; actor: string }>;
+  /**
+   * **A scheduler to share, rather than one of this run's own — W14.**
+   *
+   * [ADR 0023](../doc/decisions/0023-an-inbound-settlement-is-this-runs-only-if-this-driver-dispatched-it.md)
+   * makes *two drivers on one scheduler* a supported topology, and P4's exit
+   * artifact is that topology on **real workers**. Passing a scheduler in is the
+   * whole of what W14 needed from this file: two runs then differ from two
+   * sequential runs in exactly one respect, which is the respect under test.
+   *
+   * **The caller that supplies it owns its lifetime** — `runFlow` will not
+   * `shutdown()` a scheduler it did not build, because the other run is still
+   * using it. `runPair` below is that caller.
+   *
+   * What this shares, and it is worth knowing before reading a report: the
+   * `task.running`/`completed`/`failed` listeners this function registers see
+   * **both** runs, so `branchesOverlapped` and `settledByScheduler` are
+   * scheduler-wide rather than run-wide when a scheduler is shared. Everything
+   * else in a `RunReport` comes from that run's own driver.
+   */
+  scheduler?: FyflowScheduler;
 }
 
-export async function runFlow(opts: RunOptions): Promise<RunReport> {
-  const { definition, policy, runId, payload } = opts;
-  const delayMs = opts.delayMs ?? 5;
-  const backstopMs = opts.backstopMs ?? 10_000;
+/**
+ * **Two runs, two `Driver`s, ONE scheduler, on real workers — P4's exit artifact.**
+ *
+ * The pairing [Q72](../doc/open-questions.md) named and
+ * [ADR 0023](../doc/decisions/0023-an-inbound-settlement-is-this-runs-only-if-this-driver-dispatched-it.md)
+ * closed. Before W13 this corrupted both runs **silently**: each driver received
+ * the other's settlements, `run-a:publish:-:0` was dispatched twice under two
+ * outcomes — `spec/task-id.md` section 2's collision — and `ID-R1` could not fire,
+ * because each driver keeps its own dispatched-id set.
+ *
+ * The two runs are started **concurrently against one scheduler**, which is the
+ * only difference from running them one after another, and is exactly the
+ * difference under test. Each awaits its own clock-free termination; the shared
+ * scheduler is shut down once, after both.
+ */
+export async function runPair(a: RunOptions, b: RunOptions): Promise<[RunReport, RunReport]> {
+  const scheduler = buildScheduler(a.delayMs ?? 5, a.threaded === true);
+  try {
+    return await Promise.all([
+      runFlow({ ...a, scheduler }),
+      runFlow({ ...b, scheduler }),
+    ]);
+  } finally {
+    // Once, after both — and in a `finally`, because a row that fails must not
+    // also leave the process alive (`AGENTS.md` §2).
+    await scheduler.shutdown();
+  }
+}
 
+/**
+ * The pools and the scheduler, in one place so `runFlow` and `runPair` cannot
+ * drift apart about what a worker does. W14 extracted it unchanged.
+ */
+function buildScheduler(delayMs: number, threaded: boolean): FyflowScheduler {
   // **A role that must settle LAST is given a longer delay**, so the branch that
   // arrives is not the branch that finishes. Without it, `settleJoin` on the
   // `lost` and `exited` paths is unreachable at L6 — the arriving branch always
@@ -216,12 +265,12 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
       idleTimeout: 0,
     });
 
-  const scheduler = new FyflowScheduler({
+  return new FyflowScheduler({
     IngestWorker: pool('ingest', false),
     // The fan-out pool, and the only one that may run on real threads: it is the
     // one place two tasks are in flight at once, so it is where a dispatch race
     // or an id collision would show.
-    ScoreWorker: pool('score', opts.threaded === true, 2),
+    ScoreWorker: pool('score', threaded, 2),
     PublishWorker: pool('publish', false),
     // Reached only by a flow that names it. Its worker always throws — and what
     // that produces is decided by the NODE, not by the pool: `optional: true`
@@ -236,6 +285,15 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
     // `user_action` with no result ever reaching us. [Q61](../doc/open-questions.md).
     MergeWorker: pool('uncloneable', false),
   });
+}
+
+export async function runFlow(opts: RunOptions): Promise<RunReport> {
+  const { definition, policy, runId, payload } = opts;
+  const delayMs = opts.delayMs ?? 5;
+  const backstopMs = opts.backstopMs ?? 10_000;
+
+  const scheduler = opts.scheduler ?? buildScheduler(delayMs, opts.threaded === true);
+  const ownsScheduler = opts.scheduler === undefined;
 
   const inputs: FoldInput[] = [];
   const failures: string[] = [];
@@ -388,7 +446,10 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
   const log = driver.snapshot();
   const finalState = state;
 
-  await scheduler.shutdown(); // REQUIRED, or the process stays alive (`AGENTS.md` §2).
+  // REQUIRED, or the process stays alive (`AGENTS.md` §2) — but only for a
+  // scheduler this run BUILT. A shared one belongs to the caller (`runPair`),
+  // and shutting it down here would drain the other run out from under itself.
+  if (ownsScheduler) await scheduler.shutdown();
 
   return {
     runId,

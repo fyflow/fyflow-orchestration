@@ -19,7 +19,7 @@ Deno and not in the browser** — [Q33](../doc/open-questions.md), and the brows
 
 | | |
 |---|---|
-| [`l6.ts`](l6.ts) | **the gate.** Thirteen real runs — every expected value written by hand from `spec/` before anything ran |
+| [`l6.ts`](l6.ts) | **the gate.** Fifteen real runs — every expected value written by hand from `spec/` before anything ran. Fourteen and fifteen are **one row**: two runs on ONE scheduler |
 | [`run-flow.ts`](run-flow.ts) | one run: build the scheduler, drive the flow, fold the driver's input sequence, return a report |
 | [`workers/flow-worker.ts`](workers/flow-worker.ts) | **one worker file for both runtimes**, five roles selected by the pool's `config` — one always throws, one returns a value `structuredClone` refuses |
 | [`flows/`](flows/) | the four flows this gate needs that `spec/examples/` cannot express — [Q44](../doc/open-questions.md), whose own text said this would not be needed |
@@ -53,7 +53,16 @@ assertion, because `scheduler.shutdown()` drains the run before the report is re
 
 The wall-clock backstop in `run-flow.ts` is **not** how a run is detected. Reaching it is a failure.
 
-**3. Why there are thirteen runs and not one.** P1's exit artifact is *"the branch-routed-away case as an
+**`runPair` is the second entry point, and it exists for one row.**
+[ADR 0023](../doc/decisions/0023-an-inbound-settlement-is-this-runs-only-if-this-driver-dispatched-it.md)
+makes *two drivers on one scheduler* a supported topology, so P4's exit artifact is that topology on
+real workers. `runFlow` gained one option — a scheduler to share — and will not `shutdown()` one it
+did not build; everything else about a run is unchanged, so the pair differs from two sequential runs
+in exactly the respect under test. **Before W13 that pairing corrupted both runs silently**: each
+driver received the other's settlements and dispatched its successors, so one task id was dispatched
+twice under two outcomes and `ID-R1` could not fire.
+
+**3. Why there are fifteen runs and not one.** P1's exit artifact is *"the branch-routed-away case as an
 executable test, run against both policies, plus one real fan-out flow completing on a real
 scheduler"*. The control rows exist so the comparison has a baseline; the high-confidence rows exist
 so `isLowConfidence` is a predicate that can return **both** answers, rather than a constant nothing
