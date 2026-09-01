@@ -11,7 +11,7 @@ npm run test:l6         # Node 24
 npm run test:l6:deno    # Deno
 ```
 
-Both print the same table and run the same 240 assertions. `RT-R10`: **L6 runs in Node and
+Both print the same table and run the same **342 assertions over 19 real runs**. `RT-R10`: **L6 runs in Node and
 Deno and not in the browser** — [Q33](../doc/open-questions.md), and the browser half is
 [Q52](../doc/open-questions.md).
 
@@ -19,10 +19,10 @@ Deno and not in the browser** — [Q33](../doc/open-questions.md), and the brows
 
 | | |
 |---|---|
-| [`l6.ts`](l6.ts) | **the gate.** Fifteen real runs — every expected value written by hand from `spec/` before anything ran. Fourteen and fifteen are **one row**: two runs on ONE scheduler |
+| [`l6.ts`](l6.ts) | **the gate.** Nineteen real runs — every expected value written by hand from `spec/` before anything ran. Seventeen `EXPECTED[]` entries plus the two-driver pair, which is **one row**: two runs on ONE scheduler. The last four are [W17](../doc/work-items/w17-the-all-exit-row-at-l6.md)'s, and one of them is the only row here whose join is reported **dead** rather than merely never firing |
 | [`run-flow.ts`](run-flow.ts) | one run: build the scheduler, drive the flow, fold the driver's input sequence, return a report |
 | [`workers/flow-worker.ts`](workers/flow-worker.ts) | **one worker file for both runtimes**, five roles selected by the pool's `config` — one always throws, one returns a value `structuredClone` refuses |
-| [`flows/`](flows/) | the four flows this gate needs that `spec/examples/` cannot express — [Q44](../doc/open-questions.md), whose own text said this would not be needed |
+| [`flows/`](flows/) | the **five** flows this gate needs that `spec/examples/` cannot express — [Q44](../doc/open-questions.md), whose own text said this would not be needed. `all-exit` is the fifth and the reason is the same one a third time: the corpus's all-exit shape reaches its second exit through a human, which would put a resolution race in a row whose point is elsewhere |
 | [`deno-import-map.json`](deno-import-map.json) | how Deno resolves the bare `fyflow-scheduler` specifier — to `jsr:@fyflow/scheduler@0.3.0`, at the same version `package.json` pins for npm ([ADR 0029](../doc/decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md) rule 2) |
 
 ## Three things a reader should not have to rediscover

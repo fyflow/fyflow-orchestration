@@ -43,7 +43,7 @@
 import {
   Driver, buildTaskId, emptyState, isTerminal, step,
   type FlowDefinition, type FoldInput, type JoinPolicy, type LogRecord,
-  type Predicate, type RunOutcome, type RunState,
+  type Predicate, type RunOutcome, type RunState, type UnsatisfiableJoin,
 } from '../index.ts';
 import { FyflowScheduler, FyflowTask, WorkerManager } from 'fyflow-scheduler';
 
@@ -136,8 +136,33 @@ export interface RunReport {
   outcomesSeen: readonly RunOutcome[];
   /** Task ids resolved by the inbound step, in the order it resolved them. */
   resolved: readonly string[];
-  /** Anything `onRunFailure` or `onUnsatisfiableJoin` reported, as text. */
+  /**
+   * Anything **`onRunFailure`** reported, as text.
+   *
+   * **`onUnsatisfiableJoin` used to be flattened into this array too, and W17
+   * separated them.** That was harmless while no shipped policy could return
+   * `unsatisfiable` — the array was empty on every row either way — and it stopped
+   * being harmless the moment one could: `spec/join-policy.md` section 4 gives the
+   * two callbacks different jobs. A refusal **stops the run** and `RN-R8` makes it
+   * `stopped` whatever its nodes say; an unsatisfiable join stops nothing, invents
+   * no run-level outcome, and leaves the fold to reach `stuck` on its own
+   * (`RN-R10`). Reporting them through one channel of strings would have made
+   * *"nothing was reported"* unassertable on the one row where something is.
+   */
   failures: readonly string[];
+  /**
+   * **What `onUnsatisfiableJoin` reported, whole — W17.**
+   *
+   * `spec/join-policy.md` section 4: on `unsatisfiable` the driver *"reports it
+   * with the policy's own `describe`, and routes nowhere"*. The `describe` is the
+   * half that says **why** the join can never fire, and it is the half a string
+   * summary threw away — so a row could assert that something was reported and
+   * not that the policy's account of it reached the caller.
+   *
+   * Structural rather than counted: an empty array on every row but one is a
+   * stronger claim than a zero, and it is checked on **every** row.
+   */
+  unsatisfiableJoins: readonly UnsatisfiableJoin[];
   /**
    * The `kind` of each reported failure, kept separate from its message.
    *
@@ -346,6 +371,17 @@ function buildScheduler(delayMs: number, threaded: boolean): FyflowScheduler {
   // arrives, and a 4x delay difference is not a race. `doc/workflow.md` section 5
   // rule 5 forbids depending on an order the spec does not fix; it does not
   // forbid choosing inputs that make a causal path reachable.
+  //
+  // **The 4x is currently INERT, and W17's adequacy reader measured it.** Emptying
+  // this set, or reducing the multiplier to 1x, leaves all 342 assertions green —
+  // the settling order those two rows depend on is produced by **inline dispatch
+  // order**, not by the delay. Reversing the set is caught, because that reverses
+  // dispatch order's effect too. So the delay is belt-and-braces over a property
+  // the pools already have, and `Expectation.joinSettledBy` pins the **effect**
+  // rather than this mechanism — correctly, since which mechanism produces the
+  // order is not something `spec/` fixes. It is kept because the moment a pool
+  // becomes threaded or gains a second thread, dispatch order stops implying
+  // settle order and this is what remains. [Q99](../doc/open-questions.md).
   const SETTLES_LAST = new Set(['fail', 'uncloneable']);
   const pool = (role: string, threaded: boolean, maxThreads = 1) =>
     new WorkerManager(WORKER_URL, {
@@ -390,15 +426,42 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
 
   const inputs: FoldInput[] = [];
   const failures: string[] = [];
+  const unsatisfiableJoins: UnsatisfiableJoin[] = [];
   const failureKinds: string[] = [];
-  const lateInputs: string[] = [];
   const outcomesSeen: RunOutcome[] = [];
   const resolved: string[] = [];
   let state = emptyState();
+  // **The race's two arms each RESOLVE WITH THEIR OWN NAME — W17.**
+  //
+  // `finishedBy` used to be `declaredFinished ? 'run-state' : 'backstop'`, read
+  // after the race, and its comment claimed that *"reads which of the two won
+  // rather than trusting a flag the loser also sets"*. **It did not.** W17's
+  // adequacy reader replaced the whole `Promise.race` with `setTimeout(1200)` —
+  // a timer LONGER than the run rather than shorter — and all 341 assertions
+  // passed: the microtask still set `declaredFinished` while the harness slept,
+  // so every row still reported `finishedBy: 'run-state'`. That is W5's mask
+  // restored in the only form that matters, and the existing probe missed it
+  // because a 1 ms timer truncates the run and a 1200 ms one does not.
+  //
+  // Now the value IS the race's result. Delete the race and there is no value to
+  // report — `tsc` refuses it, and at runtime every row's `finishedBy` assertion
+  // fails. This is the same repair the file already made for `timedOut`, applied
+  // one level up: derive it from the winner rather than from a flag a participant
+  // sets.
   let settle: (() => void) | null = null;
-  const finished = new Promise<void>((resolve) => { settle = resolve; });
+  const finished = new Promise<'run-state'>((resolve) => { settle = () => resolve('run-state'); });
   let checkQueued = false;
-  let declaredFinished = false;
+  // **Where the sequence stood when the predicate fired**, and the single source
+  // `lateInputs` is derived from below. It used to be a parallel array pushed to
+  // from the listener, and deleting that one push made all nineteen
+  // *"nothing arrived after the run was declared finished"* assertions
+  // tautologies with the gate green — W17's adequacy reader, and the identical
+  // second-source-of-truth shape this file records as fixed for `timedOut`.
+  //
+  // `-1` means the predicate never fired, and the derivation below then reports
+  // the WHOLE sequence as late: a harness that never recorded when the run
+  // finished cannot claim nothing arrived afterwards.
+  let finishIndex = -1;
 
   // In-flight tracking, for the overlap check. `task.running` and the settlement
   // events are the scheduler's own, and this is the example rather than the
@@ -439,7 +502,6 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
     onFoldInput: (input) => {
       inputs.push(input);
       state = step(state, input);
-      if (declaredFinished) lateInputs.push(input.kind);
 
       // **The inbound step.** A branch has parked on a person; this is the person.
       // Deferred to a microtask rather than called here: `resolve()` appends and
@@ -494,28 +556,52 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
         // been in.
         if (!outcomesSeen.includes(state.outcome)) outcomesSeen.push(state.outcome);
         if (!isTerminal(state)) return;
-        declaredFinished = true;
+        // **The whole record of "the run was declared finished", and there is no
+        // longer a boolean beside it.** `declaredFinished` was deleted here: with
+        // `finishedBy` coming from the race and `lateInputs` derived from this
+        // index, nothing read it, and `deno lint` said so. Two fields removed, two
+        // second-sources-of-truth gone — which is the same repair, twice.
+        //
+        // The sequence as the fold saw it at the quiescent point that declared the
+        // run over. `RN-R12` says no more input is coming; `lateInputs` below is
+        // that claim, checked.
+        finishIndex = inputs.length;
         settle?.();
       });
     },
     // A refusal reaches the sequence as `{ kind: 'stopped' }` and the fold reports
     // `stopped`, so this exists only so a failure is legible in the report.
     onRunFailure: (f) => { failures.push(`${f.kind}: ${f.message}`); failureKinds.push(f.kind); },
-    onUnsatisfiableJoin: (j) => { failures.push(`unsatisfiable join ${j.joinId} under ${j.policyId}`); },
+    // **Kept whole, and NOT folded into `failures`.** See `RunReport.failures`:
+    // the two callbacks report different things and only one of them stops a run.
+    // Copied field by field rather than retained, for `OR-R1`'s reason applied to
+    // our own surface — the driver hands out a fresh object here, but a harness
+    // that retains what a callback gave it is the habit that produced ADR 0007.
+    onUnsatisfiableJoin: (j) => {
+      unsatisfiableJoins.push({
+        fanoutId: j.fanoutId, joinId: j.joinId, policyId: j.policyId, describe: j.describe,
+      });
+    },
   });
 
   const startedAt = Date.now();
   driver.start(payload);
 
   let timer: ReturnType<typeof setTimeout> | undefined;
-  const backstop = new Promise<void>((resolve) => {
-    timer = setTimeout(resolve, backstopMs);
+  const backstop = new Promise<'backstop'>((resolve) => {
+    timer = setTimeout(() => resolve('backstop'), backstopMs);
   });
-  // `declaredFinished` is set only on the `isTerminal` path, so this reads which
-  // of the two won rather than trusting a flag the loser also sets.
-  await Promise.race([finished, backstop]);
-  const finishedBy: 'run-state' | 'backstop' = declaredFinished ? 'run-state' : 'backstop';
+  // **The winner names itself.** See the declaration of `finished` above for why
+  // this is not `declaredFinished ? … : …` any more.
+  const finishedBy: 'run-state' | 'backstop' = await Promise.race([finished, backstop]);
   if (timer !== undefined) clearTimeout(timer);
+  // **Derived from the sequence, not tracked beside it.** On the backstop row the
+  // predicate never fired, so there is no "after" to be late relative to and the
+  // list is empty by definition; on every other row it is everything the driver
+  // appended after the run was declared over, which `RN-R12` says is nothing.
+  const lateInputs = finishedBy === 'backstop'
+    ? []
+    : inputs.slice(finishIndex < 0 ? 0 : finishIndex).map((i) => i.kind);
   const wallMs = Date.now() - startedAt;
 
   // **Read BEFORE `shutdown()`, and the order is the whole point.**
@@ -560,6 +646,7 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
     finishedBy,
     timedOut: finishedBy === 'backstop',
     failures,
+    unsatisfiableJoins,
     failureKinds,
     lateInputs,
     branchesOverlapped,

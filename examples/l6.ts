@@ -1,6 +1,6 @@
 /**
- * **Ladder L6 — the gate.** Fifteen real runs on a real scheduler: P1's exit
- * artifact, P2's, and P4's.
+ * **Ladder L6 — the gate.** Nineteen real runs on a real scheduler: P1's exit
+ * artifact, P2's, P4's and P5's.
  *
  * ```
  *   npm run test:l6         node examples/l6.ts
@@ -35,12 +35,15 @@
  * | **W6 — `suspend / nobody comes`** | the row that separates **waiting on a person** from **stuck**. Same flow, no human: the join has not fired and the run is `awaiting_action`, not `stuck`. It is the only row that ends with a node still `suspended`, and it is expected NOT to finish |
  * | **W6 — `uncloneable`** | a refusal that stops a run, on real workers. `OR-R6` at the listener boundary, reported rather than thrown, folding to `stopped` |
  * | **W14 — `two runs / two drivers / one scheduler`** | **P4's exit artifact**, and the only row that runs two drivers. The pairing `MultipleRuns` tells a caller to build: before [ADR 0023](../doc/decisions/0023-an-inbound-settlement-is-this-runs-only-if-this-driver-dispatched-it.md) each driver received the other's settlements and dispatched its successors — one task id under two outcomes, with nothing reported. It is `ID-R4` tier 1's only L6 coverage; tier 2 is not reachable here ([Q90](../doc/open-questions.md)) |
+ * | **W17 — `all-exit` × all three policies** | **P5's exit artifact, and the row L6 has never had**: every branch reaches an `end` and nothing arrives at the join. It is the shape [ADR 0003](../doc/decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md) records as `live-token`'s cost and the one [ADR 0025](../doc/decisions/0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md) turns on. One flow, one payload, three policies, three answers — `completed`, silently `stuck`, and **`stuck` with `joined: false`**, which nothing at L6 had ever reached |
  */
 import {
   POLICIES,
   type FlowDefinition,
+  type PolicyId,
   type Predicate,
   type RunOutcome,
+  type UnsatisfiableJoin,
 } from '../index.ts';
 import { runFlow, runPair, type RunReport } from './run-flow.ts';
 import fanoutJoin from '../spec/examples/valid/fanout-join.flow.json' with { type: 'json' };
@@ -57,6 +60,13 @@ import optionalLoss from './flows/optional-loss.flow.json' with { type: 'json' }
 import suspendResume from './flows/suspend-resume.flow.json' with { type: 'json' };
 import uncloneable from './flows/uncloneable.flow.json' with { type: 'json' };
 import exitLast from './flows/exit-last.flow.json' with { type: 'json' };
+// **W17's, and the same [Q44](../doc/open-questions.md) reasoning a third time.**
+// The corpus's `fanout-failure` is the all-exit SHAPE and is not usable here: it
+// reaches the second exit through a `user_action` and a human, which would add a
+// resolution race to a row whose point is elsewhere. This one takes the two roads
+// to `branch.exited` that need no person — a decision, and an `on: ["failed"]`
+// edge — and both branches share one `end`.
+import allExit from './flows/all-exit.flow.json' with { type: 'json' };
 import failureEdge from '../spec/examples/valid/failure-edge.flow.json' with { type: 'json' };
 
 /**
@@ -73,7 +83,23 @@ const predicates = new Map<string, Predicate>([['isLowConfidence', isLowConfiden
 interface Expectation {
   key: string;
   definition: FlowDefinition;
-  policyId: 'arrival-count' | 'live-token';
+  /**
+   * **`PolicyId`, not a hand-written literal union — W17.**
+   *
+   * It read `'arrival-count' | 'live-token'` until ADR 0025 shipped a third
+   * policy, and W16's declaration claimed that line *"stops compiling the moment
+   * `POLICIES` gains a member"*. **It does not, and W16 measured it**: a literal
+   * union is a SUBSET of `PolicyId`, so `POLICIES[e.policyId]` still resolves and
+   * the whole gate stays green with a policy nothing here runs. The type was inert
+   * as a forcing function and is now merely honest — `keyof typeof POLICIES`,
+   * derived from the shipped set rather than repeating half of it.
+   *
+   * **What actually forces a row per policy is an assertion**, and it is in the
+   * cross-row block below: the set of `policyId`s these rows exercise must equal
+   * `Object.keys(POLICIES)`. That is `JP-R9`'s shape one rung up — compare the two
+   * halves rather than copy one of them.
+   */
+  policyId: PolicyId;
   payload: { confidence: number };
   threaded: boolean;
   /** From `spec/run-state.md` section 3. */
@@ -158,6 +184,60 @@ interface Expectation {
    */
   nodeResults?: Record<string, unknown>;
   /**
+   * **Which region event satisfied the join — W17, and it exists because the
+   * arrangement it pins was reversible with the whole gate green.**
+   *
+   * `spec/join-policy.md` section 4 asks the policy after **every** terminal
+   * event, *"because a join can become satisfiable when the last live branch was
+   * `lost` or `exited`"*, and W6 built two rows to reach those two paths by giving
+   * the settling-last role a longer delay in `buildScheduler`. **That arrangement
+   * was held down by nothing.** Measured by this item's provocation sweep: swap
+   * which role gets the long delay and
+   *
+   *   - `settleJoin` can be deleted from the **`lost`** path with all 336
+   *     assertions passing — W6's original defect, exactly, restored;
+   *   - `exit-last` stops catching its deletion from the **`exited`** path
+   *     entirely, dropping from four failures to none.
+   *
+   * So the row that exists to reach a path stopped reaching it, silently, on a
+   * one-word edit to a different file. This field is the assertion that makes the
+   * arrangement's *effect* observable rather than hoped for — read from the
+   * sequence as the last `region` element before `joinSettled`.
+   *
+   * **Declared only where the causal order is ARRANGED, never where it is a
+   * race.** On `p1-routed-away` both branches are `ScoreWorker`s with the same
+   * delay, so which of them settles the join is genuinely non-deterministic and
+   * asserting it would be the flake `doc/workflow.md` section 5 rule 5 forbids.
+   * The presence of this field is therefore itself a claim: *this row's causal
+   * path is determinate, and here is why* — in the row's own comment.
+   */
+  joinSettledBy?: 'branch.arrived' | 'branch.exited' | 'branch.lost';
+  /**
+   * **What `onUnsatisfiableJoin` reported — W17, and the clause nothing here had.**
+   *
+   * `spec/join-policy.md` section 4: on `unsatisfiable` the driver *"reports it
+   * with the policy's own `describe`, and routes nowhere"*. Three things have to be
+   * true and only one of them was assertable before this field existed:
+   *
+   *   - the callback fired, **once** — the whole array is compared, so twice fails;
+   *   - it carried the policy's own `describe`, which is the half that says **why**
+   *     the join can never fire, and which the harness used to flatten to a string
+   *     and throw away;
+   *   - `joined: false` and the successor never dispatched, which the `joined` and
+   *     `dispatched` fields above already carry.
+   *
+   * **Checked on every row, not only where it is non-empty.** `[]` everywhere else
+   * is what makes this an assertion about the driver rather than about one row: a
+   * policy reporting a dead join on a run that finished would fail twelve rows.
+   *
+   * `describe`'s expected value comes from `spec/join-policy.md` section 3's third
+   * row read against `JP-R2` — the live count at zero, having been positive, with
+   * no arrival — and it is the same value `test/matrix/matrix.test.ts` asserts for
+   * the `all-exit/live-token-requiring-arrival` cell at L5. Two rungs, one
+   * derivation, neither read off the other.
+   */
+  unsatisfiable?: UnsatisfiableJoin[];
+  /**
    * **This row's run is expected NOT to finish**, and reaching the backstop is
    * its result rather than its failure. True only for a run parked on a person
    * that nobody resolves — `RN-R12` makes `awaiting_action` non-terminal because
@@ -174,6 +254,7 @@ const SR = suspendResume as unknown as FlowDefinition;
 const UC = uncloneable as unknown as FlowDefinition;
 const EL = exitLast as unknown as FlowDefinition;
 const FE = failureEdge as unknown as FlowDefinition;
+const AE = allExit as unknown as FlowDefinition;
 
 const HIGH = { confidence: 0.9 };
 const LOW = { confidence: 0.1 };
@@ -189,6 +270,11 @@ const EXPECTED: Expectation[] = [
     // Q36's current answer, on real workers: a satisfied join carries `null`, so
     // `publish` receives `null` and echoes it back.
     nodeResults: { 'r1:publish:-:0': { published: true, joinPayload: null } },
+    // The only road available: every branch arrives, so whichever settles last,
+    // the join is satisfied by a `branch.arrived`. It is the direction that makes
+    // this field able to fail both ways — without it every declaration below
+    // reads the same value and a constant would satisfy them all.
+    joinSettledBy: 'branch.arrived',
     why: 'both branches arrive; the live count reaches zero having been positive (JP section 3)',
   },
   {
@@ -250,6 +336,15 @@ const EXPECTED: Expectation[] = [
     // unreachable at L6 — deleting it was invisible across twelve rows.
     definition: OL, policyId: 'live-token', payload: HIGH, threaded: false,
     branchEvents: { '1': ['branch.opened', 'branch.lost'] },
+    // **The `lost` path, reached because `flaky` settles after `scoreA`.** Reverse
+    // `buildScheduler`'s `SETTLES_LAST` and the arriving branch settles last, the
+    // join is fired by the arrival, and `settleJoin` can be deleted from the lost
+    // path with the whole gate green — measured by W17. This is the assertion that
+    // says the arrangement took. **Which mechanism produces the order is a
+    // separate question and the answer is not the one that comment used to give**:
+    // emptying the set or dropping the 4x to 1x changes nothing, because the
+    // inline pools settle in dispatch order anyway ([Q99](../doc/open-questions.md)).
+    joinSettledBy: 'branch.lost',
     outcome: 'failed',
     dispatched: ['r7:ingest:-:0', 'r7:scoreA:0:0', 'r7:flaky:1:0', 'r7:publish:-:0'],
     joined: true,
@@ -351,6 +446,13 @@ const EXPECTED: Expectation[] = [
     settled: { '0': 'arrived', '1': 'exited' },
     branchEvents: { '1': ['branch.opened', 'branch.exited'] },
     pathEnds: [{ reason: 'end', at: 'abandoned' }, { reason: 'end', at: 'done' }],
+    // **The claim this row was built to make, asserted at last.** Its comment has
+    // said "the exiting branch is given a longer delay so it settles LAST" since
+    // W6; nothing held it down, and reversing `SETTLES_LAST` dropped this row from
+    // four failures to none against a deleted `settleJoin` on the exited path
+    // (W17). The *delay* is not what produces the order — dispatch order is — so
+    // this pins the effect and not the stated mechanism ([Q99](../doc/open-questions.md)).
+    joinSettledBy: 'branch.exited',
     why: 'W6 row 5, added by the adequacy reader. `spec/join-policy.md` section 4 says status is asked ' +
       'after EVERY terminal event because a join can become satisfiable when the last live branch was ' +
       'LOST or EXITED - which is P1s case - and no L6 row reached either path: the arriving branch ' +
@@ -376,6 +478,167 @@ const EXPECTED: Expectation[] = [
       'refuses it (Q61). OR-R6, caught at the listener boundary, reported through onRunFailure ' +
       'and NOT thrown — because dispatchEvent discards a listener throw — and RN-R8 makes the ' +
       'run `stopped` whatever its nodes say',
+  },
+
+  // --- W17: the row L6 has never had — EVERY branch reaches an `end` ------------
+  //
+  // Three rows, one flow, one payload, one set of workers, and **the shipped set
+  // of policies exhausted**: the cross-row block below asserts that these three
+  // `policyId`s together are `Object.keys(POLICIES)`.
+  //
+  // **The shape.** `all-exit.flow.json`'s two branches take the two roads to
+  // `branch.exited` that need no person: branch 0 settles `done` and its
+  // `when: isLowConfidence` edge sends it to `abandoned` (P1's case, and the
+  // predicate is TRUE here because the payload is LOW); branch 1 is `optional`,
+  // throws, and its `on: ["failed"]` edge sends it to the same node. Nothing
+  // arrives at `collect`. The matrix reaches this shape through a suspension and a
+  // human (`test/matrix/scenarios.ts`, `all-exit`); doing that here would add a
+  // resolution race to a row whose point is elsewhere, and L6 already has three
+  // `user_action` rows.
+  //
+  // **`abandoned` is ONE `end` node shared by both branches**, which
+  // `spec/flow-definition.md` section 2 permits — `end` nodes are exempt from
+  // `FD-V13`, `FD-V19` and `FD-V22` because nothing about them is per-path — and
+  // it is the first time L6 exercises that exemption. It is also what makes
+  // `pathEnds` assertable: two branches ending at two *different* `end` nodes
+  // would put fan-out completion order into an ordered array, which
+  // `doc/workflow.md` section 5 rule 5 forbids asserting. Ending at the same node
+  // makes the two entries identical, so the assertion is order-free rather than
+  // order-dependent-and-lucky.
+  //
+  // **The causal order is ARRANGED, and here is which branch settles last.**
+  // Branch 1's `ReviewWorker` has role `fail`, which `buildScheduler`'s
+  // `SETTLES_LAST` gives `delayMs * 4` — 20 ms against branch 0's 5 ms — so **the
+  // join is settled by branch 1's `branch.exited`, every time**. W6's hazard was
+  // the mirror image of this one: there the arriving branch always settled last,
+  // so the join was never fired from the exited path. Here there is no arriving
+  // branch at all, so the join is *necessarily* settled from the exited path — and
+  // the arrangement is still worth having, because *which* exit settles it is
+  // otherwise a race between two timers, and a fact stated in a comment should be
+  // a fact rather than a coin flip. **Nothing below depends on it**, which is the
+  // other half of section 5 rule 5: the two branches' `branchEvents` are asserted
+  // separately, `settled` is a map, and `pathEnds`' first two entries are equal.
+  {
+    key: 'all-exit / live-token',
+    definition: AE, policyId: 'live-token', payload: LOW, threaded: false,
+    outcome: 'completed',
+    dispatched: ['r14:ingest:-:0', 'r14:scoreA:0:0', 'r14:flaky:1:0', 'r14:publish:-:0'],
+    joined: true,
+    settled: { '0': 'exited', '1': 'exited' },
+    branchEvents: {
+      '0': ['branch.opened', 'branch.exited'],
+      '1': ['branch.opened', 'branch.exited'],
+    },
+    // Both branches end at `abandoned`, then the join fires and `publish` reaches
+    // `done`. The first two entries are identical, so this array does not encode
+    // which branch finished first.
+    pathEnds: [
+      { reason: 'end', at: 'abandoned' },
+      { reason: 'end', at: 'abandoned' },
+      { reason: 'end', at: 'done' },
+    ],
+    // Q36 again, and on this row it is at its most uncomfortable: the join carries
+    // `null` downstream having been reached by nothing at all.
+    nodeResults: { 'r14:publish:-:0': { published: true, joinPayload: null } },
+    // **STRUCTURAL here, not arranged, and that is the row's quiet contribution.**
+    // Every branch exits, so the join is satisfied by a `branch.exited` whichever
+    // one settles last. `exit-last` reaches the same path by a delay nothing
+    // checked; this row reaches it by the shape of the flow.
+    joinSettledBy: 'branch.exited',
+    why: 'W17 — the row ADR 0003 records as live-token`s COST, on real workers for the first time. ' +
+      'Every branch reaches an `end`, so the live count reaches zero having been positive and the ' +
+      'join FIRES having been reached by nothing: `publish` is dispatched, receives `null`, and ' +
+      'the run is `completed` because every path ended at an `end` node (spec/run-state.md ' +
+      'section 3). Nothing is reported, because `live-token` cannot say `unsatisfiable`',
+  },
+  {
+    key: 'all-exit / arrival-count',
+    definition: AE, policyId: 'arrival-count', payload: LOW, threaded: false,
+    outcome: 'stuck',
+    // Three, not four. `publish` is never dispatched.
+    dispatched: ['r15:ingest:-:0', 'r15:scoreA:0:0', 'r15:flaky:1:0'],
+    joined: null,
+    settled: { '0': 'exited', '1': 'exited' },
+    branchEvents: {
+      '0': ['branch.opened', 'branch.exited'],
+      '1': ['branch.opened', 'branch.exited'],
+    },
+    pathEnds: [{ reason: 'end', at: 'abandoned' }, { reason: 'end', at: 'abandoned' }],
+    why: 'W17 — the same run under the policy that cannot see it. N is fixed at 2 and NOTHING ' +
+      'ever arrives, so the join waits forever; nothing is running and nothing is suspended, so ' +
+      'RN-R10 says `stuck`. It is the SILENT kind: `joined` is null, no callback fires, and a ' +
+      'consumer learns only that the run stopped moving',
+  },
+  {
+    key: 'all-exit / live-token-requiring-arrival',
+    definition: AE, policyId: 'live-token-requiring-arrival', payload: LOW, threaded: false,
+    outcome: 'stuck',
+    dispatched: ['r16:ingest:-:0', 'r16:scoreA:0:0', 'r16:flaky:1:0'],
+    // **`false`, and nothing at L6 had ever reached it.** Every `stuck` row above
+    // is `null` — a join still waiting. This one is a join a policy REPORTED dead:
+    // `spec/join-policy.md` section 4, and `src/driver/driver.ts` appends
+    // `joinSettled(fired: false)` before routing nowhere (ADR 0015).
+    joined: false,
+    settled: { '0': 'exited', '1': 'exited' },
+    branchEvents: {
+      '0': ['branch.opened', 'branch.exited'],
+      '1': ['branch.opened', 'branch.exited'],
+    },
+    pathEnds: [{ reason: 'end', at: 'abandoned' }, { reason: 'end', at: 'abandoned' }],
+    // From `spec/join-policy.md` section 3's third row, read against `JP-R2`: the
+    // live count is at zero, it has been positive, and no arrival was seen. That
+    // last field is the whole reason this row is not the row above it.
+    unsatisfiable: [{
+      fanoutId: 'split',
+      joinId: 'collect',
+      policyId: 'live-token-requiring-arrival',
+      describe: { live: 0, positive: true, arrived: 0 },
+    }],
+    // Structural, as on the `live-token` row above — and here the event that
+    // "satisfies" the join is the one that reports it dead, which is the same
+    // section 4 clause reaching the other verdict.
+    joinSettledBy: 'branch.exited',
+    why: 'W17 — ADR 0025 on real workers, and the FIRST L6 row in this repository where a join is ' +
+      'reported dead rather than merely never firing. Same flow, same workers, same events as the ' +
+      'two rows above: the live count reaches zero having been positive with no arrival, so ' +
+      'section 3`s third row says `unsatisfiable`, the driver reports it with the policy`s own ' +
+      '`describe` and routes nowhere, and the fold reaches `stuck` with `joined: false`. The run ' +
+      'that COMPLETES under live-token is the run that is reported dead under this one',
+  },
+  {
+    // **Added by this item's own provocation sweep, and it is rule 8 working.**
+    // The three rows above run `live-token-requiring-arrival` on exactly one
+    // scenario, and on that scenario `arrived` is **always zero** — so *"stop
+    // counting `branch.arrived` altogether"* was a mutation the whole of L6
+    // survived. The policy's discriminating clause was exercised in one direction
+    // only: it was shown to say `unsatisfiable` when nothing arrives and never to
+    // say `satisfied` when something does. That is section 5 rule 3 at row
+    // granularity, and one more row is what closes it.
+    //
+    // **It is also ADR 0025's other half asserted rather than argued.** The
+    // decision's claim is that this policy is `live-token` plus one clause, not a
+    // different policy — so on every shape where a branch arrives it must give
+    // `live-token`'s answer. This is P1's own case: one branch arrives, one exits.
+    // The cross-row block below asserts the two runs agree.
+    key: 'p1-routed-away LOW / live-token-requiring-arrival',
+    definition: RA, policyId: 'live-token-requiring-arrival', payload: LOW, threaded: true,
+    outcome: 'completed',
+    dispatched: ['r17:ingest:-:0', 'r17:scoreA:0:0', 'r17:scoreB:1:0', 'r17:publish:-:0'],
+    joined: true,
+    settled: { '0': 'arrived', '1': 'exited' },
+    branchEvents: {
+      '0': ['branch.opened', 'branch.arrived'],
+      '1': ['branch.opened', 'branch.exited'],
+    },
+    // Branch 1's exit is the only path end before the join fires; `done` cannot
+    // precede it, because the join cannot fire until branch 1 is terminal. Branch
+    // 0 arriving is not a path end.
+    pathEnds: [{ reason: 'end', at: 'abandoned' }, { reason: 'end', at: 'done' }],
+    why: 'W17 — the row that makes the third policy`s clause able to fail in BOTH directions. ' +
+      'One branch arrives and one exits, so the live count reaches zero having been positive ' +
+      'WITH an arrival: spec/join-policy.md section 3`s third row says `satisfied`, and this run ' +
+      'is r5 under a different policy in every respect. ADR 0025`s claim that the refinement is ' +
+      '`live-token` plus one clause is what this asserts',
   },
 ];
 
@@ -555,9 +818,68 @@ for (const [i, e] of EXPECTED.entries()) {
       report.failures.length === 1 && e.dispatched.some((id) => report.failures[0]!.includes(id)),
       report.failures.join('; ') || '(none reported)');
   } else {
-    assertThat(e.key, 'no run failure and no unsatisfiable join was reported',
+    // **`onRunFailure` only, since W17.** The two callbacks used to share this
+    // array, which was harmless while no shipped policy could return
+    // `unsatisfiable` — and would have made this assertion unsatisfiable itself on
+    // the one row where one does. They report different things:
+    // `spec/join-policy.md` section 4 has the driver report an unsatisfiable join
+    // and invent no run-level outcome, where a refusal **stops** the run and
+    // `RN-R8` makes it `stopped`. The other half is the unconditional check below.
+    assertThat(e.key, 'no run failure was reported',
       report.failures.length === 0, report.failures.join('; '));
   }
+
+  // **Which event satisfied the join — W17.** `spec/join-policy.md` section 4 asks
+  // the policy after every terminal event; this reads which one it was, as the
+  // last `region` element before `joinSettled` in the sequence the driver produced
+  // (ADR 0014). Declared only where the row ARRANGES a determinate order — see
+  // `Expectation.joinSettledBy` for what happens to `exit-last` and
+  // `optional-loss` when that arrangement is reversed and nothing checks it.
+  //
+  // **The `joinSettled` anchor is insurance and cannot currently fail**, measured:
+  // reading the last region event of the whole sequence instead gives the same
+  // answer on every row, because no shipped policy can settle a join while a
+  // branch is still live — all three require the live count at zero or every
+  // branch arrived — so nothing follows `joinSettled` in a region's stream. The
+  // anchor is still the correct reading and it costs nothing; it is named here so
+  // it is not mistaken for something the gate holds down.
+  if (e.joinSettledBy) {
+    const at = report.inputs.findIndex((x) => x.kind === 'joinSettled');
+    const before = report.inputs.slice(0, at < 0 ? 0 : at)
+      .filter((x) => x.kind === 'region')
+      .map((x) => (x as { event: { type: string } }).event.type);
+    check(e.key, 'spec/join-policy.md section 4: which terminal event satisfied the join',
+      before[before.length - 1] ?? null, e.joinSettledBy);
+  }
+
+  // **What the driver reported about a dead join — W17, and it runs on EVERY row.**
+  //
+  // `spec/join-policy.md` section 4: on `unsatisfiable` the driver reports it with
+  // the policy's own `describe` and routes nowhere. Asserted as the whole list
+  // rather than as a count, so it pins three things at once — that the callback
+  // fired exactly once, that it named this region's fanout and join, and that the
+  // policy's own account of WHY reached the caller.
+  //
+  // **Run on every row, and the empty case is load-bearing TODAY — which is not
+  // what this comment said until both of W17's readers falsified it.**
+  //
+  // It read *"on the other sixteen it is insurance rather than a test … the
+  // current system cannot falsify it"*. Three measurements say otherwise:
+  //
+  //   - adding `onUnsatisfiableJoin?.({…})` to the driver's **satisfied** path as
+  //     well as its unsatisfiable one is **caught, 11 failures** — ten of them
+  //     this check firing on rows that have no cross-row assertion at all;
+  //   - on `p1-routed-away LOW / ltra` it is not the empty case and it is a test:
+  //     remove it and the item's headline mutation, deleting the `arrived`
+  //     increment, drops from six catches to five;
+  //   - making it conditional on `e.unsatisfiable` costs **16 failures** against
+  //     the per-row assertion floor, not zero.
+  //
+  // The true and narrower claim is that no shipped **policy** can make it
+  // non-empty on the other rows. A **driver** defect can, and that is the shape a
+  // per-row check exists for.
+  check(e.key, 'spec/join-policy.md section 4: what the driver reported about an unsatisfiable join',
+    report.unsatisfiableJoins, e.unsatisfiable ?? []);
 
   // **RN-R12, checked rather than assumed.** A terminal outcome means no more
   // input is coming; an input that arrives after the run was declared finished
@@ -603,6 +925,7 @@ for (const [i, e] of EXPECTED.entries()) {
     + (e.pathEnds ? 1 : 0)
     + (e.runFailure ? 1 : 0)
     + (e.regionSuspended ? 1 : 0)
+    + (e.joinSettledBy ? 1 : 0)
     + (e.stoppedBy !== undefined ? 1 : 0);
   rowCosts.push([e.key, e.regionId === null ? 'no-region' : 'region',
     passed + failures.length - before, extras]);
@@ -646,6 +969,108 @@ assertThat('cross-row', 'isLowConfidence returned FALSE at 0.9 and TRUE at 0.1 �
     low?.state.regions['split']?.settled['1'] === 'exited',
   `high: ${highRouted?.state.regions['split']?.settled['1']}, ` +
   `low: ${low?.state.regions['split']?.settled['1']}`);
+
+// --- W17's cross-row block: one run, three policies, three different answers ----
+//
+// **ADR 0025's motivating claim asserted rather than argued**, the way the r5/r6
+// block above does it for ADR 0015. The three runs are the same flow, the same
+// payload and the same workers, and they emit the same six region events; what
+// differs is only what the policy makes of them. Read one row at a time this is
+// three outcomes; read together it is the decision.
+const aeLt = byRun('r14');
+const aeAc = byRun('r15');
+const aeLtra = byRun('r16');
+if (aeLt && aeAc && aeLtra) {
+  const AE_RUNS = [aeLt, aeAc, aeLtra];
+  // `RN-R6` again, and the same point Q43's register entry got wrong: `regions`
+  // records WHAT HAPPENED, and all three policies agree about that completely.
+  check('cross-row', 'RN-R6: all three policies agree on what happened in the region',
+    AE_RUNS.map((r) => ({
+      opened: r.state.regions['split']?.opened, settled: r.state.regions['split']?.settled,
+    })),
+    AE_RUNS.map(() => ({ opened: ['0', '1'], settled: { 0: 'exited', 1: 'exited' } })));
+  // `RN-R11`, and the three values are three different things: the join fired, the
+  // join is still waiting, the join was reported dead. Only the middle one is
+  // silent.
+  check('cross-row', 'RN-R11: and disagree only on whether — and whether they can SAY — the join fired',
+    AE_RUNS.map((r) => r.state.regions['split']?.joined ?? null), [true, null, false]);
+  // **The whole of ADR 0025 in one line.** The run that completes under the
+  // blessed policy is the run that is reported dead under the third one, and the
+  // one in the middle is `stuck` with nobody told.
+  check('cross-row', 'ADR 0025: the same run completes, hangs silently, and is reported dead',
+    AE_RUNS.map((r) => r.state.outcome), ['completed', 'stuck', 'stuck']);
+  // And only one of the three said anything at all. `arrival-count` is
+  // structurally unable to (section 3), `live-token` was left byte-identical by
+  // ADR 0025, and the third is the only shipped policy that can return the value.
+  check('cross-row', 'ADR 0025: and exactly one of the three told the caller why',
+    AE_RUNS.map((r) => r.unsatisfiableJoins.length), [0, 0, 1]);
+}
+
+// **ADR 0025's other half: the refinement is `live-token` plus one clause.**
+//
+// r5 and r17 are the same flow, the same payload and the same policy *up to* that
+// clause, on the shape where a branch does arrive — so every field of the region
+// must agree, and the outcome with it. If they ever diverge here, the third policy
+// has stopped being a refinement of the second and ADR 0025's argument has gone
+// with it.
+const raLt = byRun('r5');
+const raLtra = byRun('r17');
+if (raLt && raLtra) {
+  check('cross-row', 'ADR 0025: where a branch ARRIVES, the refinement is live-token exactly',
+    { joined: raLtra.state.regions['split']?.joined, settled: raLtra.state.regions['split']?.settled,
+      outcome: raLtra.state.outcome, reported: raLtra.unsatisfiableJoins.length },
+    { joined: raLt.state.regions['split']?.joined, settled: raLt.state.regions['split']?.settled,
+      outcome: raLt.state.outcome, reported: raLt.unsatisfiableJoins.length });
+}
+
+// **Every shipped policy is exercised by at least one row — W17.**
+//
+// This is the forcing function `Expectation.policyId`'s type was believed to be
+// and is not: a literal union is a subset of `PolicyId`, so `POLICIES` gaining a
+// member left `typecheck:examples` and both L6 runtimes green with a policy no row
+// here runs. W16 measured that, and an assertion is what closes it — `JP-R9`'s
+// shape one rung up, comparing the two halves instead of copying one.
+check('cross-row', 'JP-R9 at L6: every policy in POLICIES is exercised by at least one row',
+  [...new Set(EXPECTED.map((e) => e.policyId))].sort(), Object.keys(POLICIES).sort());
+
+// **And on every join verdict it can reach — W17's adequacy reader defeated the
+// line above.**
+//
+// A set over `policyId` is satisfied by a row that RUNS a policy without
+// discriminating on it. Measured: deleting `p1-routed-away LOW / ltra` — the row
+// this item added *because* the third policy's clause was exercised in one
+// direction only — leaves the assertion above **green**, because the `all-exit`
+// row still names the policy. The forcing function was over the policy set and
+// not over the shapes each policy is told apart on.
+//
+// The expected values are `spec/join-policy.md` section 3 read as a claim about
+// **reachable verdicts**, one row of that table each, and they are three
+// different claims rather than three spellings of one:
+//
+//   arrival-count                 satisfied or waiting. **Never `unsatisfiable`**
+//   live-token                    satisfied or waiting. **Never `unsatisfiable`**
+//   live-token-requiring-arrival  all three — it is the only policy that can
+//                                 report a join dead, and a suite that never sees
+//                                 it say `satisfied` has not told it from a
+//                                 policy that always says `unsatisfiable`
+//
+// `RN-R11` maps those onto `regions[…].joined`: `true` where the driver routed
+// out, `null` where the join is still waiting, `false` where a policy reported it
+// dead. Rows with no fan-out are excluded — they have no region to carry a
+// verdict.
+const verdictsPerPolicy = Object.fromEntries(
+  Object.keys(POLICIES).map((id) => [
+    id,
+    [...new Set(EXPECTED.filter((e) => e.policyId === id && e.regionId !== null)
+      .map((e) => JSON.stringify(e.joined ?? null)))].sort(),
+  ]),
+);
+check('cross-row', 'and on every join verdict spec/join-policy.md section 3 lets it reach',
+  verdictsPerPolicy, {
+    'arrival-count': ['null', 'true'],
+    'live-token': ['null', 'true'],
+    'live-token-requiring-arrival': ['false', 'true'],
+  });
 
 
 // --- the pair row: two runs, two Drivers, ONE scheduler --------------------------
@@ -754,12 +1179,22 @@ const runtime = typeof (globalThis as Record<string, unknown>).Deno !== 'undefin
   : `node ${(globalThis as unknown as { process: { versions: { node: string } } }).process.versions.node}`;
 
 const w = (s: string, n: number) => s.padEnd(n).slice(0, n);
+// **Derived, because a hard-coded 40 silently TRUNCATED a row key.** W17's
+// `p1-routed-away LOW / live-token-requiring-arrival` printed as
+// `p1-routed-away LOW / live-token-requirin` — a human artifact quietly lying
+// about which run it was showing, which is L7's rung and the one nothing else
+// checks. The width now comes from the keys.
+const KEY_W = Math.max(
+  ...EXPECTED.map((e) => e.key.length),
+  PAIR_KEY.length,
+  ...PAIR_RUNS.map(([who]) => `two runs / one scheduler (${who})`.length),
+) + 2;
 // The count is derived, not typed: this line said "six" for two rows longer than
 // it was true, which is the smallest possible version of the thing this whole
 // review pass was about.
 console.log(`\n  ladder L6 — ${reports.length + PAIR_RUNS.length} real runs on fyflow-scheduler 0.3.0, on ${runtime}\n`);
-console.log(`  ${w('run', 40)}${w('outcome', 17)}${w('join', 7)}${w('branches', 22)}${w('tasks', 6)}${w('ms', 6)}overlap`);
-console.log(`  ${'-'.repeat(106)}`);
+console.log(`  ${w('run', KEY_W)}${w('outcome', 17)}${w('join', 7)}${w('branches', 22)}${w('tasks', 6)}${w('ms', 6)}overlap`);
+console.log(`  ${'-'.repeat(KEY_W + 65)}`);
 for (const [i, r] of reports.entries()) {
   const region = r.state.regions['split'];
   const branches = region
@@ -767,7 +1202,7 @@ for (const [i, r] of reports.entries()) {
     : '-';
   const joined = region === undefined ? '-' : region.joined === null ? 'never' : String(region.joined);
   console.log(
-    `  ${w(EXPECTED[i]!.key, 40)}${w(r.state.outcome, 17)}${w(joined, 7)}` +
+    `  ${w(EXPECTED[i]!.key, KEY_W)}${w(r.state.outcome, 17)}${w(joined, 7)}` +
     `${w(branches, 22)}${w(String(r.dispatched.length), 6)}${w(String(r.wallMs), 6)}` +
     `${r.branchesOverlapped ? 'yes' : 'no'}`,
   );
@@ -778,7 +1213,7 @@ for (const [who, r] of [['pa', pa], ['pb', pb]] as const) {
   const branches = region ? Object.entries(region.settled).map(([b, st]) => `${b}:${st}`).join(' ') : '-';
   const joined = region === undefined ? '-' : region.joined === null ? 'never' : String(region.joined);
   console.log(
-    `  ${w(`two runs / one scheduler (${who})`, 40)}${w(r.state.outcome, 17)}${w(joined, 7)}` +
+    `  ${w(`two runs / one scheduler (${who})`, KEY_W)}${w(r.state.outcome, 17)}${w(joined, 7)}` +
     `${w(branches, 22)}${w(String(r.dispatched.length), 6)}${w(String(r.wallMs), 6)}` +
     `${r.branchesOverlapped ? 'yes' : 'no'}`,
   );
@@ -788,8 +1223,8 @@ for (const [who, r] of [['pa', pa], ['pb', pb]] as const) {
 // carries its own derivation: `doc/workflow.md` section 5 rule 1 — expected
 // values come from the spec, and a reader should not have to take that on trust.
 console.log('\n  why each row reads as it does:');
-for (const e of EXPECTED) console.log(`    ${w(e.key, 40)}${e.why}`);
-console.log(`    ${w(PAIR_KEY, 40)}` +
+for (const e of EXPECTED) console.log(`    ${w(e.key, KEY_W)}${e.why}`);
+console.log(`    ${w(PAIR_KEY, KEY_W)}` +
   'P4 exit artifact — the pairing MultipleRuns tells you to build, on real workers. Before W13 ' +
   'each driver received the other`s settlements and dispatched its successors: one task id under ' +
   'two outcomes, with nothing reported. It is also ID-R4 TIER 1s only L6 coverage — every settlement of ' +
@@ -809,9 +1244,9 @@ console.log(`    ${w(PAIR_KEY, 40)}` +
 // may declare extra `outcomesSeen` assertions. So the floor is per-row and derived,
 // and it is checked TWO ways — every row ran what its shape says, and the total is
 // what this file declares. Either alone misses a uniform reduction.
-const PER_REGION_ROW = 15;
-const PER_PLAIN_ROW = 14;
-const CROSS_ROW = 6;
+const PER_REGION_ROW = 16;
+const PER_PLAIN_ROW = 15;
+const CROSS_ROW = 13;
 const base = (shape: string) => (shape === 'region' ? PER_REGION_ROW : PER_PLAIN_ROW);
 for (const [key, shape, cost, extras] of rowCosts) {
   if (cost !== base(shape) + extras) {
@@ -838,7 +1273,7 @@ if (passed + failures.length !== EXPECTED_TOTAL) {
 // exit 0 by W6's adequacy reader, whose finding is that the Record's claim of
 // *"checked two ways … either alone misses something"* was false, because both
 // ways shared a source. This is the second source: a number a human wrote down.
-const DECLARED_TOTAL = 240;
+const DECLARED_TOTAL = 342;
 if (passed + failures.length !== DECLARED_TOTAL) {
   failures.push(
     'gate\n      the assertion count is not the number this file declares outright\n' +
