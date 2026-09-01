@@ -499,5 +499,19 @@ CP1252 and silently double-encodes every non-ASCII character. Use the Edit or Wr
 
 ## Git
 
-Local identity is `tsukeero <tsukee.kage@gmail.com>`. There is no remote yet. **Commit only when
-asked.** Commit subjects are scoped: `doc:`, `spec:`, `adr:`, `feat:`, `fix:`, `chore:`.
+Local identity is `tsukeero <tsukee.kage@gmail.com>`. **Commit only when asked, and push only when
+asked separately** — the two are different questions and an approval to commit is not an approval to
+publish. Commit subjects are scoped: `doc:`, `spec:`, `adr:`, `feat:`, `fix:`, `chore:`.
+
+**There IS a remote and it is public.** `origin` is
+`https://github.com/fyflow/fyflow-orchestration.git`, `main` tracks `origin/main`, and history has
+been pushed to it since **2026-09-01**. *(This paragraph read "There is no remote yet" until that
+day, while five commits sat unpushed against a remote that had been registered for some time — a
+`doc/` claim in the front-door document, wrong in the direction that matters: an agent reading it
+believes nothing it writes can leave the machine.)*
+
+**A pushed commit is public and is not revisable in the way a local one is.** Four of the five
+commits published on 2026-09-01 predated that session, and one of them — `75b3033` — edits a
+decision's prose. **Prefer a new commit to amending or rebasing anything at or below
+`origin/main`**, which is `doc/workflow.md` section 3's *"a commit message cannot be rewritten"*
+applied one level out: ids leak into commit messages, and now those messages leak off the machine.
