@@ -220,11 +220,19 @@ longer rests on our own reading. [S1](scheduler-upstream.md).
    defect, and [Q95](open-questions.md)'s unexercised latch. **Its urgency is that `AGENTS.md` §9
    already recommends the topology**: a second `Driver` on the same scheduler is the supported
    answer, and on a scheduler carrying anything else **one settlement stops every driver on it**.
-   Its measurement narrowed the decision before it was declared — `InvalidTaskId` has **three**
-   producers and Q86 is about **one**. Exit artifact: a scheduler carrying a task this library did
-   not mint, two drivers, both runs completing. **W18 and W19 are named and not yet declared in
-   their own files**, which is P6's first act.
-4. **Read `doc/workflow.md` v0.6 first**, and in particular the things three retros have refused to
+   Its measurement narrowed the decision before it was declared — `InvalidTaskId` is raised from
+   **one** inbound site Q86 is about. *(P6's plan said **three producers**; the declaration step
+   measured it and **two of those three rows were wrong** — `Driver.resolve()`'s site is unreachable
+   and the fold has two call sites the plan never named. The plan carries a Correction and
+   **[W18](work-items/w18-the-scheduler-edge-and-what-an-id-we-did-not-mint-means.md)'s own file is
+   the version to reason from**.)* Exit artifact: a scheduler carrying a task this library did
+   not mint, two drivers, both runs completing — **confirmed on a REAL scheduler at declaration**,
+   where a foreign task settles normally and both drivers go deaf while everything around them
+   proceeds. **[W18](work-items/w18-the-scheduler-edge-and-what-an-id-we-did-not-mint-means.md) and
+   [W19](work-items/w19-a-task-we-did-not-mint-on-a-real-scheduler.md) are now declared in their own
+   files** — P6's first act, done. **Neither has started**, and their status is read from those two
+   files rather than from this line (`doc/workflow.md` section 1 rule 5).
+4. **Read `doc/workflow.md` v0.7 first**, and in particular the things five retros have refused to
    turn into rules — those are the ones most likely to bite. **A register row you are about to act
    on is unverified until you have**, and P4 is the third plan in a row to find one wrong by trying
    to act on it.

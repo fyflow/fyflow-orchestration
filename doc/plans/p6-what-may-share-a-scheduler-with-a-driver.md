@@ -1,9 +1,24 @@
 # P6 — What may share a scheduler with a driver?
 
-**Status:** declared — **the plan, its scope and its id block. W18 and W19 are named in the table
-below and are NOT yet declared in their own files**, which is the first step of this plan and is what
-`doc/workflow.md` section 1 rule 1 asks for before either starts. **Runs after
-[P5](p5-a-third-and-fourth-policy-or-repairs-of-the-first-two.md)**
+**Status:** **declared, and both work items are now declared in their own files** —
+[W18](../work-items/w18-the-scheduler-edge-and-what-an-id-we-did-not-mint-means.md) and
+[W19](../work-items/w19-a-task-we-did-not-mint-on-a-real-scheduler.md), which was this plan's first
+step and is what `doc/workflow.md` section 1 rule 1 asks for before either starts. **Neither has
+started.** **Runs after [P5](p5-a-third-and-fourth-policy-or-repairs-of-the-first-two.md)**
+
+> **Correction, at declaration — three of the measured facts below are wrong, and the declaration
+> step is what found them.** Recorded here rather than silently rewritten, because a plan that edits
+> its own evidence to match a later measurement leaves nothing for a reader to check. **The corrected
+> table is in [W18](../work-items/w18-the-scheduler-edge-and-what-an-id-we-did-not-mint-means.md),
+> *What the declaration step changed*, and that is the version an item reasons from.** In short:
+> `Driver.resolve()` is **not** a producer of `InvalidTaskId` — `isSuspended` returns `false` one
+> line above the parse, so the site is unreachable and does **not** "keep stopping the run" as the
+> table below says; `parseTaskId` has **two further call sites outside `src/driver/**`**, in
+> `src/fold/run-state.ts`, which the producer table does not name; and the refusal counts are wrong
+> (`buildTaskId` raises `InvalidTaskId` **twice**, not six times). **The first correction shrinks
+> ADR 0027's blast radius and removes the second site the against-case was assumed to be true at.**
+> This is the fifth plan running to find a row wrong by trying to act on it, and the first where the
+> wrong rows are the **plan's own prose** rather than the register's.
 **Question this plan answers:** [Q86](../open-questions.md) — *is a task id that does not **parse**
 a defect that stops the run, or a task that is not ours?* And with it the two things
 [ADR 0023](../decisions/0023-an-inbound-settlement-is-this-runs-only-if-this-driver-dispatched-it.md)
@@ -44,7 +59,7 @@ is the fifth.*
 
 | | measured |
 |---|---|
-| **`InvalidTaskId` has three producers and Q86 is about ONE of them.** This is the fact that changes the plan | `buildTaskId` raises it **outbound**, on ids we mint ourselves (`src/driver/ids.ts`, six distinct refusals) — a defect in our own id scheme, and nothing here touches it. `parseTaskId` raises it at **two** inbound sites: `Driver.resolve()` (`driver.ts:380`), where the **consumer** supplies the id, and `onEventOrThrow` (`driver.ts:476`), where the **scheduler** does. **Only the third is Q86's.** An unparseable id handed to `resolve()` is unambiguously the caller's defect — they invented it — and must keep stopping the run. **The register and P5's ruling both read as though there were one site** |
+| ~~**`InvalidTaskId` has three producers and Q86 is about ONE of them.** This is the fact that changes the plan~~ **CORRECTED at declaration — see the header. The conclusion survives; two thirds of the evidence does not** | ~~`buildTaskId` raises it **outbound**, on ids we mint ourselves (`src/driver/ids.ts`, six distinct refusals)~~ — **two refusals, not six** — a defect in our own id scheme, and nothing here touches it. `parseTaskId` raises it at ~~**two**~~ **four** call sites: `Driver.resolve()` (`driver.ts:380`), ~~where the **consumer** supplies the id~~ — **which is UNREACHABLE with an unparseable id, because `isSuspended` returns `false` on line 379** — `onEventOrThrow` (`driver.ts:476`), where the **scheduler** does, and **`src/fold/run-state.ts:154` and `:179`, which this row does not name at all**. **Only the listener is Q86's**, and that half stands. ~~An unparseable id handed to `resolve()` is unambiguously the caller's defect — they invented it — and must keep stopping the run.~~ **It does not stop the run today; it returns `false`.** **The register and P5's ruling both read as though there were one site** — and this row, written to correct them, was wrong in the other direction |
 | **three assertions pin the current behaviour, not one** | `test/driver/lifetime.test.ts:120-121` (the one P5's ruling cites), `lifetime.test.ts:360`, and `test/driver/fold-inputs.test.ts:215`. Two files, both W3's and W13's. **A passing test written on purpose is the cost of reversing this**, which is what makes Q86 a decision rather than a bug |
 | **`AGENTS.md` does not mention `InvalidTaskId` at all** | zero occurrences, while `MissingJoinPolicy`, `DuplicateTaskId` and `MultipleRuns` are each documented and executed. **The reference documents three refusal classes and not the fourth** — which is [Q84](../open-questions.md)'s shape exactly, the omission P3's conformity reader called *"a claim by omission it does not defend"*. Whichever way ADR 0027 goes, the reference gains a row |
 | **Q87's sentence recommends the violation, verbatim** | `MultipleRuns`' message is `'Construct a second Driver; ADR 0023 makes that safe on the same scheduler.'` It does **not** say *with a different run id*. A caller re-running the same workload constructs a second `Driver` and the obvious id is the one they already have |
@@ -123,8 +138,16 @@ options are on the table with their costs measured, not that one of them wins.
 
 | Id | Item | Owns | Depends on | Gate |
 |---|---|---|---|---|
-| W18 | The scheduler edge, and what an id we did not mint means (ADR 0027) | `src/driver/**` (W3), `test/driver/**` (W3/W13), `spec/outcome-record.md` (W1), `AGENTS.md` (W9) | nothing | L0-L5, ADR 0027, then two readers |
-| W19 | A task we did not mint, on a real scheduler, with two runs | `examples/**` (from W17) | W18 | L0-L6, then two readers |
+| [W18](../work-items/w18-the-scheduler-edge-and-what-an-id-we-did-not-mint-means.md) | The scheduler edge, and what an id we did not mint means (ADR 0027) | `src/driver/**` (W3), `test/driver/**` (W3/W13), `spec/outcome-record.md` (W1), **`spec/task-id.md` (W1)**, **`spec/README.md` (W1)**, `AGENTS.md` (W9) | nothing | L0-L5, ADR 0027, then two readers |
+| [W19](../work-items/w19-a-task-we-did-not-mint-on-a-real-scheduler.md) | A task we did not mint, on a real scheduler, with two runs | `examples/**` (from W17) | W18 | L0-L6, **both L6 runtimes**, then two readers |
+
+**Two files were added to W18's `Owns` by the declaration step, and the second is a rule rather than
+a judgement.** `spec/task-id.md` because **`ID-R4`'s row states Q86 as its first precondition** —
+whichever way ADR 0027 goes, that sentence changes, and it is not in `spec/outcome-record.md`; the
+index table above named only `OR-R10`'s document. And `spec/README.md` because `doc/workflow.md` v0.7
+puts it with whichever item owns the spec document that moves it (`check-spec`'s `C8` makes its
+version row a consequence of any `spec/**` bump), which is an `Owns` question rather than a
+record-step one.
 
 **Why two and not one**, which is section 7 rule 1's test — items are separated by a spec, never by
 intuition. W18 is `spec/outcome-record.md`'s `OR-R10` **amended** plus an ADR, and everything it
@@ -133,8 +156,11 @@ stub and Q87's sentence go to W18 because they are the same file and the same ed
 what the plan is about, and the Record must say so** rather than letting a defect fix launder itself
 as a decision.
 
-**Neither has its file yet, and this table is an index rather than the declaration** — writing
-`doc/work-items/w18-*.md` and `w19-*.md` is P6's first act.
+**This table is an index rather than the declaration, and the declarations now exist** —
+[`w18-the-scheduler-edge-and-what-an-id-we-did-not-mint-means.md`](../work-items/w18-the-scheduler-edge-and-what-an-id-we-did-not-mint-means.md)
+and [`w19-a-task-we-did-not-mint-on-a-real-scheduler.md`](../work-items/w19-a-task-we-did-not-mint-on-a-real-scheduler.md),
+written as P6's first act. **Read the item's own file, never this row** — `doc/workflow.md` section 1
+rule 5's provenance clause, and this table is exactly the kind of index it is about.
 
 **Both items are serial.** Every file above is owned by a **done** item and no two P6 items edit one
 file, so `doc/workflow.md` section 7 rule 2 is satisfied by the declaration rather than by ordering.
