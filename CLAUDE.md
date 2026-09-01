@@ -15,7 +15,7 @@ the only document that does. **Every snippet in it is extracted and executed by 
 (`scripts/check-docs.mjs`), so it cannot rot the way a hand-maintained reference does. If you change
 the public surface, that check is what tells you the reference is now wrong.
 
-## Current state: **P1-P4 are complete and retro'd; [P5](doc/plans/p5-a-third-and-fourth-policy-or-repairs-of-the-first-two.md) has ANSWERED [Q24](doc/open-questions.md), all three of its items are built, and only readers and the retro remain**
+## Current state: **P1-P5 are complete and retro'd; [P6](doc/plans/p6-what-may-share-a-scheduler-with-a-driver.md) is declared and runs next**
 
 [ADR 0001, 0002 and 0007](doc/decisions/) settle the architecture so far: **routing executes in the
 driver, outside the scheduler** — a worker computes and does not route, and `context.spawnTask()` is
@@ -30,8 +30,8 @@ normative documents and 73 numbered rules**; `src/` holds the definition validat
 the fold with **three** join policies (two P1's, one ADR 0025's); `test/matrix/` holds the
 join/failure matrix; `examples/` holds ladder **L6**. **386 assertions in five runtimes** — Node 24,
 Deno, chromium, firefox, webkit — identical in all of them, **plus 342 at L6 in Node and Deno**.
-*(**The two numbers count different things.** The runner counts `test()` **cases**, not `equal`/`ok` calls — [Q98](doc/open-questions.md); L6's 342 is a real count of individual assertions. Do not add them.)* **`doc/workflow.md` is v0.6**, run to
-completion by four plans.
+*(**The two numbers count different things.** The runner counts `test()` **cases**, not `equal`/`ok` calls — [Q98](doc/open-questions.md); L6's 342 is a real count of individual assertions. Do not add them.)* **`doc/workflow.md` is v0.7**, run to
+completion by five plans.
 
 **[P2](doc/plans/p2-the-non-success-half-on-a-real-scheduler.md) is complete and added no features.**
 Ladder L6 is **eighteen rows, 342 assertions, 19 real runs**, in Node and Deno, and **all six run
@@ -75,13 +75,10 @@ closes **one of four** inbound holes, while `dispatched.has(taskId)` closes all 
 driver already keeps. Run-id-at-construction was spiked in the working tree: `src/` typechecks clean
 and **all thirteen L6 rows pass**. What happens next, in order: [doc/README.md](doc/README.md).
 
-**[P5](doc/plans/p5-a-third-and-fourth-policy-or-repairs-of-the-first-two.md) is the active plan and
-it has answered [Q24](doc/open-questions.md) — third and fourth policy, or repairs of the first two?**
-**[W15](doc/work-items/w15-the-fourth-column-and-the-chain-nothing-runs.md) is done and
-[W16](doc/work-items/w16-the-decision-and-what-it-ships.md) and
-[W17](doc/work-items/w17-the-all-exit-row-at-l6.md) are built and gated; **W17's two readers have run
-and every finding is acted on**, and so have W16's — 2 blocking + 7 + 9 from its conformity reader,
-156 mutations and 3 blocking families from its adequacy reader, all closed. **Only the retro remains.** The matrix renders at **four columns** and every one of its
+**[P5](doc/plans/p5-a-third-and-fourth-policy-or-repairs-of-the-first-two.md) is COMPLETE and retro'd,
+and it answered [Q24](doc/open-questions.md) — third and fourth policy, or repairs of the first two?**
+**W15, W16 and W17 are all done**, six reader passes between them, and **`doc/workflow.md` is now
+[v0.7](doc/workflow.md)**. The matrix renders at **four columns** and every one of its
 nine rows runs against all four policies — 36 cells, where the refinements had previously been
 executed on four. `JP-R7`'s and `JP-R8`'s effects are asserted as **exact sorted row lists** rather
 than as counts, each three ways: the declared literal, a predicate over the row's own region-event
@@ -288,13 +285,33 @@ that depends on fan-out completion order.
 
 ## How work is done
 
-**[doc/workflow.md](doc/workflow.md) — read it before starting any work item. It is v0.6, run to
-completion by four plans.** **v0.6 is P4's retro and its three changes all replace mechanisms that
-were *followed* and failed anyway**: rule 8's provocations are written to the **rule** rather than to
-the fix; the **adequacy reader works in an isolated copy**, after three reader pairs ran concurrently
-against one checkout; and section 1 rule 5's record-step list gains **`doc/open-questions.md`**,
-which **retires `check-owns.mjs`** — three `Owns` miscounts were caused by the list being wrong, not
-by the discipline. **v0.5 is P3's retro and it changes one requirement of one rule**: a
+**[doc/workflow.md](doc/workflow.md) — read it before starting any work item. It is v0.7, run to
+completion by five plans.** **v0.7 is P5's retro, and it is the first whose central finding is that a
+change was RIGHT AND INCOMPLETE rather than right or wrong.** Five changes:
+
+1. **Rule 8's set has TWO obligations — the rule's clauses AND the `Outputs` table's rows.** v0.6
+   said *write to the rule*; measured over three items the readers found blocking gaps in all three,
+   and the direction flipped on the third. W15 and W16 found a rule-written set blind to what the
+   item **created**; **W17 found a deliverable-written set blind to a clause of the rule**, and only
+   the clause-by-clause walk saw it. Neither half is redundant.
+2. **Rule 8 defines *survivor*: a survivor is only a survivor once a second, independent route
+   confirms the mutated clause was reachable.** Replaces W17's own weaker proposal (that rule 8 needs
+   rule 7 (b)) — its adequacy reader's harness enforced 7 (b) and **all three of its vacuous probes
+   passed**, reading as SURVIVED with the gate green.
+3. **The record-step list gains `doc/decisions/**`** — the same one-word fix P4 made for the
+   register, un-generalised. `Reserves:` names ADR ids too. **W17 is where it blocked a fix** rather
+   than hiding an edit.
+4. **A claim about another item's status is read from that item's own file, never from an index.**
+   The one sub-case of *`doc/` is checked by nothing* that has occurred twice — and the second time
+   it **reproduced**, into a fourth document.
+5. **Section 6's isolated-copy rule says how to REMOVE the copy**: scan for links first. It was
+   followed and cost a repository.
+
+**Two things did NOT change**: `check-owns.mjs` stays retired (five items audited their `Owns` set
+correctly; W16's failure was a stale *count*), and rule 7 (c) is **exercised** by W16 and unchanged.
+**v0.6 was P4's retro and its three changes all replaced mechanisms that were *followed* and failed
+anyway**: rule 8's provocations written to the **rule**; the **adequacy reader in an isolated copy**;
+and the record-step list gaining **`doc/open-questions.md`**. **v0.5 is P3's retro and it changes one requirement of one rule**: a
 negative-test probe declares the **set** of checks it must trip and the set must match exactly,
 because naming one check does not discriminate — a merely *malformed* probe trips two at once, which
 is W6's original defect surviving the requirement written for it. Measured over `check-docs`' twelve

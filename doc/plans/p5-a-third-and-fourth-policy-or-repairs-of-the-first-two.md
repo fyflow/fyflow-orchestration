@@ -1,6 +1,6 @@
 # P5 — A third and fourth policy, or repairs of the first two?
 
-**Status:** running — **all three items are DONE**: built, gated, and both readers run and acted on for each. **The retro is what remains**
+**Status:** **COMPLETE and retro'd.** Three items, six reader passes, `doc/workflow.md` at **v0.7**
 **Question this plan answers:** [Q24](../open-questions.md) — *are `JP-R7` and `JP-R8` a third and
 fourth join policy, or repairs of the first two?* The sub-question that decides it, and the one the
 measurements below make visible: **should the policy this library tells you to pass be able to say
@@ -329,7 +329,8 @@ Record is in the item; **four things belong to this plan rather than to it**:
    name: the `Outputs` table asks a question about the *deliverable*, and the provocation set answers
    one about the *code*. One sample, and the retro should say so rather than amending again.
 
-**Four things P4 left for this plan's retro**, carried here so they are not lost:
+**Four things P4 left for this plan's retro** — all four answered in the retro at the end of this
+file. Carried here as they were written, so the answers can be read against the questions:
 
 1. **Does rule 8's "write to the rule" form change the numbers?** The prediction is fewer reader
    survivors in the provocation family. **If W15-W17's readers still find the author's set narrow in
@@ -361,3 +362,142 @@ Record is in the item; **four things belong to this plan rather than to it**:
    one stale count.
 4. **Q86 and Q87** — ruled on above, before any work item started rather than in the retro, because
    the ruling changes what P5 is allowed to scope.
+
+## The retro — pass 3
+
+*Run 2026-09-01, after W15, W16 and W17 were all merged and the gate was green at `2fb7ba8`.
+`doc/workflow.md` is **v0.7**: five changes adopted, two refusals, and two things confirmed unchanged
+that were live questions coming in.*
+
+**The plan's own question is answered and the answer held.** [Q24](../open-questions.md) →
+[ADR 0025](../decisions/0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md),
+two rules, two different answers. The exit artifact is complete: the matrix at **four columns, 36
+cells**, and ladder L6's `all-exit` row on real workers under every shipped policy — **342 assertions
+across 19 runs**, with `joined: false` reached for the first time anywhere.
+
+### The central finding: a v0.6 change that was right and INCOMPLETE
+
+Every previous retro's sharpest finding was a rule that was *followed and failed*. P5's is a rule
+that was followed, **worked**, and was not enough — and the evidence for the missing half only
+appeared because the third item deliberately did both.
+
+| | the author's provocation set was written to | what the readers found it blind to | blocking |
+|---|---|---|---|
+| **W15** | the rules, and it was complete on them | **both things the item CREATED** — a renderer the gate never executes, and two policies promoted to matrix columns with no clause-level test | 5 families |
+| **W16** | the rules, and every probe written to one went red | **four of five aimed at what the item created survived** | 3 families |
+| **W17** | **both halves**, after reading the two above | the rule-written half found what the deliverable-written half structurally could not; the deliverable-written half found three of the four real survivors | 2 |
+
+**P4's prediction is false.** It predicted *fewer reader survivors in the provocation family*; the
+readers found blocking gaps in all three items. But the two occurrences that would have condemned the
+amendment (W15, W16) are answered by the third rather than confirmed by it: **W17's rule-written
+probes found a hole no probe aimed at its new rows could have seen** — the third policy's
+discriminating clause was exercised in one direction only, so *"stop counting `branch.arrived`"* left
+all 316 assertions green. Both halves are load-bearing. **Rule 8 now asks for both**, and that is v0.7
+change 1.
+
+**Name the rung** (pass 3 rule 5): none. *"Did your probes cover what you built"* is not a command,
+which is why it lives in the `Outputs` table and now in rule 8, exactly as section 4's own note says
+of the five classes with no rung.
+
+### The finding that supersedes a proposal made in this plan
+
+W17 proposed that rule 8's set inherit rule 7 **(b)** — *a probe asserts it changed its input* —
+because two of its fourteen probes were vacuous. **Its adequacy reader's harness already enforced
+7 (b)**, refusing any probe whose target text was absent and asserting the file changed, and **all
+three of that reader's vacuous probes passed it**: a probe can change the input without changing an
+observable. The two counts and their directions are the finding:
+
+| | vacuous | of | read as | direction |
+|---|---|---|---|---|
+| W17's own sweep | 2 | 14 | one **caught** (a syntax error) | a failure reported as a success |
+| its adequacy reader | 3 | 126 | all three **SURVIVED, gate green** | a success reported as a failure |
+
+**The exit code discriminates neither**, and the second direction is worse: a vacuous probe and a real
+hole are indistinguishable in a report, and one of the reader's three landed on `RN-R10`, the rule
+W17's rows are built on. So the requirement is **reachability, not difference** — *a survivor is only
+a survivor once a second, independent route confirms the mutated clause was reachable*. v0.7 change 2,
+and it **replaces** W17's proposal rather than adding to it (pass 3 rule 4).
+
+### The record-step list was fixed by the same word twice, and P5 found the second half
+
+P4's retro added `doc/open-questions.md` because every `Reserves:` line obliges a register write.
+**Every `Reserves:` line names ADR ids too**, and `doc/decisions/` was in neither the list nor any
+`Owns` block — so every item that ever reserved an ADR wrote an undeclared file. W16 measured it
+across nine exceptions; **W17 is where it stopped being bookkeeping.** A sentence in
+[ADR 0015](../decisions/0015-a-run-whose-join-can-no-longer-fire-is-stuck.md) that W17's own
+deliverable falsified — *"`joined: false` … neither shipped policy ever does"*, and *"covered by a
+stub policy"* — stood through the whole item, because correcting a file in nobody's `Owns` needs an
+exception declared **before** the item starts and W17 could not have known.
+
+**A gap that blocks a fix is worse than one that hides an edit.** v0.7 change 3, and **its first
+exercise is this retro correcting ADR 0015 in place**, dated, under the rule it just adopted.
+
+*`spec/README.md` is a third file of this shape and was deliberately NOT added*: `check-spec`'s `C8`
+makes its version row a consequence of any `spec/**` bump, so it belongs to whichever item owns that
+spec document. That is an `Owns` question, not a record-step one — W16's finding, and the distinction
+is worth keeping sharp.
+
+### `doc/` is refused a fifth time, and one sub-case is carved out because it OCCURRED TWICE
+
+P1 named it, P2 said why the mechanisms are worse than the problem, P3 found the class had changed
+shape, P4 refused again. P5 refuses the class again on P2's unchanged reasoning — **and then noticed
+that one entry in P1's original list had happened a second time.** *"An index claiming reader-passes
+were outstanding when they had run"* recurred in **three documents at once**, about W16's readers, for
+two commits.
+
+**What makes the second occurrence rule-worthy is that it reproduced.** The agent starting W17 read
+those indexes, believed them, and wrote the claim forward into a fourth document — before opening
+`doc/work-items/w16-*.md`, which had been correct the whole time. Error became divergence became
+error, in one session. So the fix is not a check over `doc/` but a rule about **provenance**: *a claim
+about another item's status is read from that item's own file, never from an index.* v0.7 change 4.
+
+**Name the rung:** none, and that is the fourth plan to say so about `doc/`.
+
+### The isolated-copy rule was FOLLOWED and cost a repository — and the rule was silent on the part that did it
+
+Section 6 pass 3 rule 3's sharpest shape, and P5 is the plan that has the clearest instance of it.
+v0.6 said *the adequacy reader works in an isolated copy*. W16's reader did exactly that, hit the
+obstacle that follows — dependencies that do not resolve in the copy — and reached for a junction in
+`node_modules` so `tsc` would ignore a sibling checkout's source. `git worktree remove --force`
+**followed it out of the repository**.
+
+**Nothing about the isolation was wrong.** The rule stopped at *"work in a copy"* and said nothing
+about the obstacle or about the removal, which is the operation that did the damage.
+[ADR 0029](../decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)
+removed the dependency edge that made the junction look necessary — and **W17 measured that the edge
+is gone rather than assuming it**: zero symlinks and zero reparse points in `node_modules`, the npm
+package shipping `dist/` and `AGENTS.md` and no TypeScript source, `cp -r` inert, the worktree green
+and typechecking with no link at all, scanned again before `--force` removed it. v0.7 change 5 is
+three sentences: copy rather than link, verify green before the reader starts, and **scan for links
+before forcing anything**.
+
+**One occurrence with a stated generalisation** (pass 3 rule 2's second form): every recursive tool
+that touches a worktree is one link away from another tree, whatever put the link there.
+
+### What did NOT change, and both were open coming in
+
+| | verdict |
+|---|---|
+| **`check-owns.mjs`** | **Stays retired.** Five consecutive items audited their `Owns` **set** correctly — W12, W13, W14, W15, W17 — and W16's failure was a **stale count of a correct set**, not P2's undeclared edit. W16's Record deliberately refused to settle whether that was rule 5's second occurrence; the retro's answer is **no**, and the cause was change 3's gap rather than discipline. A check counting files would not have caught a count written before the last file was edited |
+| **Rule 7 (c)** | **Exercised and unchanged**, third plan of carrying it. W16 built `check-policies.mjs` for `JP-R9` with ten checked-in probes; **three of the ten failed at birth**, and the set-equality form discriminated — probe 4 tripped the *empty set*, which the weaker *"the named check is among those that failed"* also rejects but only by accident. **The sample is one.** The set has since grown to thirteen with a `MIN_PROBES` floor, after W16's adequacy reader found `caught === PROBES.length` vacuously true at zero — rule 7 (a) one level in |
+
+### Two things this plan measured that are not rules
+
+1. **The eighth overlap measurement is 3 of ~31 (W17), and no measurement has left the 1-4 band.**
+   The question is settled and the band is the thing to carry; the fraction has now read 8% to 17%
+   across items from a one-line fix to the largest surface change here.
+2. **A count in prose should state the predicate that produces it — and P5 is the plan where that
+   discipline finally paid twice in one item.** W17 hand-derived L6's assertion total to 316, 336,
+   341 and 342 before each run and matched the first print every time, which is what makes *"expected
+   values come from the spec"* checkable at the level of the suite rather than the row. The same
+   discipline caught the register's cluster table being a **subset** of the register while reading as
+   a partition of it — seven ids in no row.
+
+### And one honest failure of this plan's own reporting
+
+**W17 reported a red L0 as green for one round.** Its gate output was filtered through a `grep` whose
+patterns did not match `deno lint`'s failure line, and lint was failing — on a variable left dead by
+W17's own repair of a reader's blocking finding. Section 1 rule 4 is about checks reported as passed
+when they were skipped; **this is the same defect through a filter**, and it is why W17's Record now
+names the command that produced each figure and says the exit code was read directly. No rule
+proposed: one occurrence, and the existing rule already covers it once stated plainly.

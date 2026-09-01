@@ -107,11 +107,16 @@ the stuck run folded to `completed`, which is a worse failure than hanging.
    the thing `RN-R6` forbids. Rule 3 is the argument that it is not, and the argument is a
    distinction between *what the driver did* and *what the policy said*. That distinction is real and
    it is thin, and a future field that records a `status` or a `describe` would cross it.
-4. **The empty half.** `joined: false` is reachable only from a policy returning `unsatisfiable`, and
-   **neither shipped policy ever does** — `spec/join-policy.md` section 4 records that as a result
-   rather than a gap. So one of the three values of `joined` is an assertion about an empty set
-   today, exactly as W4's `in-flight` verdict is. Named here so a reader does not mistake it for
-   coverage.
+4. ~~**The empty half.** `joined: false` is reachable only from a policy returning `unsatisfiable`,
+   and **neither shipped policy ever does**~~ — **CORRECTED 2026-09-01, and it was true when written.**
+   `joined: false` is still reachable only from a policy returning `unsatisfiable`, and since
+   [ADR 0025](0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md) one
+   shipped policy does: `live-token-requiring-arrival` returns it on the all-branches-exited row.
+   **It is no longer an assertion about an empty set and no longer covered by a stub** — ladder L6's
+   `all-exit / live-token-requiring-arrival` row reaches it on real workers, with the policy's own
+   `describe` reported through `onUnsatisfiableJoin` and the run folding to `stuck`
+   ([W17](../work-items/w17-the-all-exit-row-at-l6.md)). The reader who should not mistake it for
+   coverage is now the reader who should not mistake it for a gap.
 
 **What a future reader is likely to try that this forbids.** Making `stuck` a *timeout*. It is the
 first thing the word suggests and it is the opposite of what this is: a clock would turn a decidable
@@ -168,8 +173,10 @@ the two-sequential-fan-outs shape of [Q45](../open-questions.md)), and a **fan-o
 nothing-dispatched clause that state is `stuck` and `isTerminal`, so a harness would declare such a
 run finished before it started. Both are tested now.
 
-**`joined: false` is still an assertion about an empty set for the shipped policies**, as
-*Consequences* 4 already said; the driver's emission of it is covered by a stub policy. W5's
+~~**`joined: false` is still an assertion about an empty set for the shipped policies**, as
+*Consequences* 4 already said; the driver's emission of it is covered by a stub policy.~~
+**CORRECTED 2026-09-01 with *Consequences* 4 above — a shipped policy returns `unsatisfiable` since
+ADR 0025 and W17 runs the whole chain on real workers.** W5's
 test-adequacy pass names three more empty-set assertions in the L6 gate — `failures`, `lateInputs`
 and the unsettled-task list — each of which can only ever be empty in a healthy run. They are
 guards rather than coverage, and `lateInputs` earns its place: it is what catches a premature

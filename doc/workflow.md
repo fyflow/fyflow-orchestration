@@ -1,9 +1,10 @@
 # Workflow
 
-**Status:** v0.6 - **run to completion four times**, by [P1](plans/p1-what-satisfies-a-join.md),
+**Status:** v0.7 - **run to completion five times**, by [P1](plans/p1-what-satisfies-a-join.md),
 [P2](plans/p2-the-non-success-half-on-a-real-scheduler.md),
-[P3](plans/p3-a-consumer-reference-the-gate-keeps-true.md) and
-[P4](plans/p4-the-drivers-lifetime-and-the-handles-it-gives-out.md)
+[P3](plans/p3-a-consumer-reference-the-gate-keeps-true.md),
+[P4](plans/p4-the-drivers-lifetime-and-the-handles-it-gives-out.md) and
+[P5](plans/p5-a-third-and-fourth-policy-or-repairs-of-the-first-two.md)
 **Read this before starting any work item.** Paths are relative to the repo root unless they are
 markdown links.
 
@@ -49,6 +50,55 @@ anyway** - section 6 pass 3 rule 3's sharpest shape, three times over.
    retired.** P2's retro read three consecutive `Owns` miscounts as a discipline problem and proposed
    a check. **The cause was the list being wrong** - every `Reserves:` line obliges an item to write
    to the register, which the list did not name. Naming it produced three correct audits in a row.
+
+**v0.7 is P5's retro, and it is the first retro whose central finding is that a v0.6 change was
+RIGHT AND INCOMPLETE rather than right or wrong.** Three items, six reader passes, and P4's one
+prediction about rule 8 is answered and is **false**.
+
+1. **Rule 8's set has TWO obligations, not one: the rule's clauses AND the `Outputs` table's rows.**
+   v0.6 said *write the provocations to the rule, not to the fix*, predicting fewer reader survivors.
+   Measured across three items, the readers found **blocking** gaps in all three — and the direction
+   flipped on the third. W15 and W16 found a rule-written set **blind to what the item created**;
+   W17 found a deliverable-written set **blind to a clause of the rule**, and only the clause-by-clause
+   walk saw it. Neither half is sufficient and neither is redundant.
+2. **Rule 8 gains a definition of *survivor*, and it replaces the proposal W17 made about itself.**
+   W17 argued its set needed rule 7 **(b)** — *a probe asserts it changed its input*. **Its adequacy
+   reader's harness already enforced 7 (b), and all three of that reader's vacuous probes passed it**,
+   because a probe can change the input without changing an observable. The requirement is
+   **reachability, not difference**.
+3. **Section 1 rule 5's record-step list gains `doc/decisions/**`** — the same one-word fix P4's retro
+   made for `doc/open-questions.md`, un-generalised. Every `Reserves:` line names ADR ids as well as Q
+   ids, and `doc/decisions/` was in neither the list nor any `Owns` block, so **every item that ever
+   reserved an ADR wrote an undeclared file**. W17 is where it stopped being bookkeeping: a
+   known-false sentence in [ADR 0015](decisions/0015-a-run-whose-join-can-no-longer-fire-is-stuck.md)
+   stood through a whole item because correcting it needed an exception declared before that item
+   started. **The gap blocked a fix rather than permitting an undeclared edit**, which is the sharper
+   occurrence.
+4. **Section 1 rule 5 gains a provenance clause: a claim about another item's status is read from
+   that item's own file, never from an index.** Twice now, in two plans, an index has said
+   *"reader-passes outstanding"* about passes that had run — P4's retro names the first, and P5 hit
+   the second in three documents at once. **The second time it reproduced itself**: the agent starting
+   W17 read the stale index, believed it, and wrote it forward into a fourth document.
+5. **Section 6's isolated-copy paragraph gains one sentence about REMOVING the copy.** v0.6's
+   isolation rule was followed and caused real damage — a junction placed in `node_modules` so a
+   worktree would typecheck, then followed out of the repository by `git worktree remove --force`
+   ([ADR 0029](decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)).
+   The dependency edge that made the junction seem necessary is gone; **the rule still said nothing
+   about the removal**, which is the part that did the damage.
+
+**And one refusal for the fifth time, now with its one checkable sub-case carved out.** `doc/` is
+upstream of every check here and is checked by nothing. P1, P2, P3 and P4 each named it and each
+refused a mechanism as worse than the problem. **P5 refuses it a fifth time and adopts change 4
+instead** — not a check over `doc/`, but a rule about where a claim is *read from*, which is the one
+sub-case that has now occurred twice and is the one that reproduces.
+
+**What did NOT change, and both were live questions coming in.** `check-owns.mjs` **stays retired**:
+five consecutive items audited their `Owns` set correctly, and W16's failure was a **stale count of a
+correct set** rather than P2's undeclared edit — a different defect, caused by change 3's gap rather
+than by discipline. And **rule 7 (c) is exercised and unchanged**: W16 built `check-policies.mjs` with
+its ten probes at birth, three of the ten failed at birth, and the set-equality form discriminated on
+its first real use. Full reasoning in
+[P5's Record](plans/p5-a-third-and-fourth-policy-or-repairs-of-the-first-two.md).
 
 **And one refusal, for the fourth time: `doc/` is checked by nothing.** P4 rewrote the register's
 census line four times and got it wrong three - stale, then self-contradictory, then off by one -
@@ -103,8 +153,17 @@ Four rules that make the loop worth having:
    not the record.
 4. **Say what you skipped.** A skipped check reported as passed makes the whole ladder worthless.
 5. **The record step's files are part of finishing an item, not exceptions to its `Owns`.** Those
-   **five** and no others: the plan's Record, `doc/README.md`, `CLAUDE.md`, `README.md`, and
-   **`doc/open-questions.md`**. **Anything else outside `Owns` is declared.**
+   **six** and no others: the plan's Record, `doc/README.md`, `CLAUDE.md`, `README.md`,
+   **`doc/open-questions.md`**, and **`doc/decisions/**`**. **Anything else outside `Owns` is
+   declared.**
+
+   **And a claim about another item's status is read from that item's own file, never from an index.**
+   `doc/README.md`, `CLAUDE.md` and a plan's Record all describe items they do not own, and all three
+   go stale the moment that item's readers report. Twice, in two plans, an index has said
+   *"reader-passes outstanding"* about passes that had run. The second time it **reproduced itself**:
+   the agent starting W17 read three stale indexes, believed them, and wrote the claim forward into a
+   fourth document before checking `doc/work-items/w16-*.md`, which had been correct the whole time.
+   The item file is the source; an index is a copy.
 
    **The register was added by P4's retro, and it is why the miscounting stopped.** Every work item
    carries a `Reserves:` line obliging it to write rows to `doc/open-questions.md`, and the list here
@@ -115,6 +174,23 @@ Four rules that make the loop worth having:
    audited **correct** - 19 of 19 and 7 of 7 by their conformity readers, after three in a row that
    were not. **`check-owns.mjs` is retired as a proposal**; if an item miscounts again with this list
    correct, that is the second occurrence and it comes back.
+
+   **`doc/decisions/**` was added by P5's retro, and it is the same fix un-generalised.** A
+   `Reserves:` line names **ADR ids as well as Q ids**, and both oblige a write; P4's retro named the
+   register and not the decisions directory, so every item that ever reserved an ADR wrote an
+   undeclared file. W16 measured it across its own nine exceptions. **W17 is where it stopped being
+   bookkeeping**: a sentence in ADR 0015 that W17's own deliverable falsified stood through the whole
+   item, because correcting a file in nobody's `Owns` needs an exception declared before the item
+   starts, and the item could not have known. **A gap that blocks a fix is worse than one that hides
+   an edit**, and that is the occurrence to remember. *(`spec/README.md` is a third file of this
+   shape and is NOT on the list, deliberately: `check-spec`'s `C8` makes its version row a
+   consequence of any `spec/**` bump, so it belongs to whichever item owns that spec document -
+   W16's finding, and it is an `Owns` question rather than a record-step one.)*
+
+   **Five consecutive items have audited their `Owns` SET correctly** - W12, W13, W14, W15, W17 - and
+   the one failure in between was a **stale count of a correct set**, which is a different defect from
+   P2's undeclared edit and was caused by the gap above rather than by discipline. `check-owns.mjs`
+   stays retired on that reading.
 
 ## 2. The unit of work
 
@@ -300,6 +376,36 @@ Rules:
    variant, every branch of a two-tier test — rather than enumerating the ways the fix could be
    undone. A set written from the fix inherits the fix's blind spot by construction.
 
+   **AND enumerate the `Outputs` table's rows and break each of those — P5's retro, and the amendment
+   above is right but not sufficient.** Its prediction was fewer reader survivors; measured over
+   three items the readers found **blocking** gaps in all three, and on the third the direction
+   flipped:
+
+   | | the author's set was written to | what the readers found it blind to |
+   |---|---|---|
+   | W15 | the rules — and it was complete on them, finding the one code-level survivor | **both things the item CREATED**: a renderer the gate never executes (7 survivors, one printing a two-column table green) and two policies promoted to columns with no clause-level test (4) |
+   | W16 | the rules — every probe written to one went red | **four of five aimed at what the item created survived**: section 3's wording rewritable to demand two arrivals, a whole column deletable from the ADR's pasted table |
+   | W17 | **both**, deliberately, after reading the two above | the rule-written half found what the deliverable hid — the third policy's discriminating clause exercised in one direction only, invisible to every probe aimed at the new rows. The deliverable-written half found three of the four real survivors |
+
+   **Neither half is sufficient and neither is redundant.** A probe written to a rule mutates
+   something the suite already reads, so it cannot see a deliverable nothing reads; a probe written to
+   a deliverable asks whether the thing exists, not whether the rule behind it can fail. The
+   `Outputs` table already asks the second question in prose — *"what would fail without it"* — and
+   this makes the answer a measurement.
+
+   **A survivor is only a survivor once a second, independent route confirms the mutated clause was
+   reachable.** This replaces the weaker requirement W17 proposed about itself — that rule 8's set
+   inherit rule 7 **(b)**, *a probe asserts it changed its input*. **7 (b) is not enough here and that
+   was measured**: W17's adequacy reader's harness enforced it, refusing any probe whose target text
+   was absent and asserting the file changed, and **all three of its vacuous probes passed**, because
+   a probe can change the input without changing an observable — dead code, a no-op condition, a
+   reordering across a line with no side effect. All three reported as **SURVIVED with the gate
+   green**, which is the dangerous direction: a vacuous probe and a real hole are then
+   indistinguishable, and one of the three landed on `RN-R10`. The two counts, from the two halves of
+   one item: **2 of 14 for the author (one a syntax error reported as *caught*) and 3 of 126 for the
+   reader (all three no-ops reported as *survived*)** — the same failure in opposite directions, and
+   **the exit code discriminates neither.**
+
    **The provocation is recorded as an edit precise enough to re-run**, and that is enough — it does
    not need checking in the way rule 7 (a) requires of a check. Measured: W13's and W14's readers
    reproduced every provocation exactly from the Record, to the failure count.
@@ -331,13 +437,34 @@ copy and its report was sound - but **it isolated itself unprompted, and the doc
 which is the whole of the amendment. One occurrence, and it generalizes without argument: two agents
 editing one tree is not a review method.
 
+**Verify the copy holds no links before removing it, and never create one to make it typecheck.**
+P5's retro, and the sentence exists because v0.6's rule was **followed** and cost a repository. W16's
+adequacy pass isolated correctly and then hit the obvious obstacle: the worktree's `node_modules` did
+not resolve, a junction was placed there so `tsc` would ignore a sibling checkout's source, and
+`git worktree remove --force` **followed it out of the repository** — `.git/`, `core/`, `index.ts`,
+`dist/`, until it hit a lock. Recoverable only because that project had been published
+([ADR 0029](decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)).
+The dependency edge that made the junction seem necessary is gone, and **the rule still said nothing
+about the removal, which is the part that did the damage** — every recursive tool that touches a
+worktree is one link away from another tree, whatever put the link there.
+
+So, in order: **copy** the dependencies rather than linking them (`cp -r node_modules` is inert when
+the tree holds no links, which is worth confirming rather than assuming — W17 measured **zero**
+symlinks and zero reparse points, and its worktree typechecked and gated with no link at all);
+**verify** green in the copy before the reader starts, so a red result is the reader's finding rather
+than the copy's; and **scan for links before `--force` anything** — `find <copy> -type l` plus, on
+Windows, `Get-ChildItem -Recurse -Force -Attributes ReparsePoint`. If either is non-empty, do not
+remove it; say so and stop.
+
 **Why two readers rather than one asking both questions**, which is what earlier versions said.
-Measured over **seven** items now: W4 1 of 13, W5 3 of ~35, W6 3 of ~25, W9 3 of ~30, W12 3 of 18,
-W13 4 of 24, W14 4 of ~26. Each overlap arrived from a different direction; one reader answers
-whichever question it read first.
+Measured over **eight** items now: W4 1 of 13, W5 3 of ~35, W6 3 of ~25, W9 3 of ~30, W12 3 of 18,
+W13 4 of 24, W14 4 of ~26, W17 3 of ~31. Each overlap arrived from a different direction; one reader
+answers whichever question it read first. **W17's three are the clearest demonstration of that
+yet** - the same three facts reached by six different routes, and in each case the two readers'
+routes had nothing in common.
 
 **The number to carry is the ABSOLUTE one: two readers produce 1-4 shared findings, whatever the
-item's size.** The fraction is noise - it has read 8%, 17%, 10%, 12% and 15% across items ranging
+item's size** - eight measurements, none outside that band. The fraction is noise - it has read 8%, 17%, 10%, 12% and 15% across items ranging
 from a one-line conformity fix to the largest surface change the repository has made. W12's Record
 hypothesised that the fraction *rises* as items shrink; W13 is a much larger item at the same 17%,
 so that died on its first test. Reporting the fraction invites exactly that kind of over-reading.
@@ -457,7 +584,8 @@ findings it refused to turn into rules and why, is in
 | **Rule 8 - break the fix and watch the gate go red** | a fix ships that cannot fail, with the rule in force | **Not applied.** It was adopted *after* W9 shipped, so W9 is one of its three occurrences and not one of its outings. Its first use is v0.5's own change, which is one sample and the easiest possible case |
 | **Section 1 rule 5 names `CLAUDE.md` and `README.md` as record-step files** | an item still miscounts its exceptions | **Right, on its first outing.** P3's retro touched exactly those four plus one declared file, and the by-hand `git diff --name-only` matched |
 
-**The one thing four plans have observed and no rule names:** `doc/` is upstream of every check here
+**The one thing five plans have observed and no rule names — and P5 finally names one SUB-case of
+it.** `doc/` is upstream of every check here
 and is checked by nothing - a false register entry (Q43), an index claiming reader-passes were
 outstanding when they had run, a file header saying twelve at thirteen. P1's retro named it and
 refused to make a rule; **P2's retro did the same, and said why**: both candidate mechanisms are
@@ -470,8 +598,37 @@ now sits beside four hand-maintained ones and they disagree with no way for a re
 is which. **Divergence is harder to notice than error**, and it arrives *because* one document is
 checked. Still no rule, and still no mechanism worth its cost.
 
+**P5 refused it a fifth time, and then noticed that one item in P1's original list had occurred
+twice.** *"An index claiming reader-passes were outstanding when they had run"* is the second entry
+in that first sentence, and it happened again — in **three** documents at once, about W16's readers,
+for two commits. **What makes the second occurrence different is that it reproduced**: the agent
+starting W17 read those indexes, believed them, and wrote the claim forward into a fourth document
+before opening `doc/work-items/w16-*.md`, which had been correct throughout. So the fix is not a
+check over `doc/` — it is a rule about **where a claim is read from**, and it is in section 1 rule 5.
+**The rest of the class is refused for the fifth time on P2's reasoning**, unchanged: both candidate
+mechanisms remain worse than the problem.
+
 **And what P4 did to v0.5's one**, judged by the plan that ran it:
 
 | v0.5 change | What would show it was wrong | **P4's verdict** |
 |---|---|---|
 | **Rule 7 (c): a probe declares the SET of checks it trips** | a malformed probe is still reported as caught, or the form fires on nothing | **Unexercised — P4 added no new check.** Carried to P5. What *did* fire, in the wild and for the first time, is rule 7 **(b)**: `check-docs-selftest`'s probe 11 is pinned to `driver.start('run-1', …)`, which W13 deleted, and it failed with *"the mutation matched nothing"* rather than passing for the wrong reason. **(b) is confirmed on a real API change; (c) is still a claim about a measurement** |
+
+
+**And what P5 did to v0.6's three**, judged by the plan that ran three items and six reader passes:
+
+| v0.6 change | What would show it was wrong | **P5's verdict** |
+|---|---|---|
+| **Rule 8's provocations are written to the RULE** | the readers still find the author's set narrow in the same direction | **Right, and NOT SUFFICIENT — amended rather than replaced, and P4's prediction is false.** The prediction was fewer reader survivors; the readers found **blocking** gaps in all three items. W15 and W16 found the rule-written set blind to what the item **created**, twice, which is section 6 pass 3 rule 2's bar on its own. **W17 is why the amendment stands anyway**: writing to both halves, its rule-written probes found the hole its deliverable-written probes structurally could not — a policy clause exercised in one direction only. **Neither half is redundant**, so rule 8 now asks for both |
+| **The adequacy reader works in an isolated copy** | two readers contaminate one tree again | **Right in aim, FOLLOWED, and it cost a repository — one sentence added about the removal.** Nothing about the isolation was wrong; the rule stopped at *"work in a copy"* and said nothing about the obstacle that follows (dependencies that do not resolve there) or the operation that did the damage (`--force` following a link out of the tree). W17 ran the same procedure with no link at all and measured why: **zero symlinks, zero reparse points**. **The rule's silence, not the rule** |
+| **Record-step list gains `doc/open-questions.md`; `check-owns.mjs` retired** | an item miscounts its `Owns` again | **Right, and INCOMPLETE by exactly the same word.** Five items have now audited their `Owns` **set** correctly. But `Reserves:` names **ADR ids too**, and `doc/decisions/` was in neither the list nor any `Owns` — so W16 took nine exceptions where the rule should have granted three, and **W17 could not correct a false sentence in ADR 0015 at all**. The list gains `doc/decisions/**`. `check-owns.mjs` **stays retired**: the one intervening failure was a stale *count* of a correct set |
+
+**And v0.5's one change, which P4 could not judge, is now exercised.** Rule 7 (c) fired for the first
+time in three plans when W16 built `scripts/check-policies.mjs` for `JP-R9`: ten checked-in probes,
+nine tripping exactly one check and the tenth declaring a structural cascade, and **three of the ten
+failed at birth** — two were holes in the check and one was a probe that edited a heading the parser
+does not read. **The form discriminated**: probe 4 tripped the *empty set*, which the weaker
+*"the named check is among those that failed"* also rejects, but only by accident. **P5 reports it
+exercised, and the sample is one.** The set has since grown to thirteen with a `MIN_PROBES` floor,
+after W16's adequacy reader found `caught === PROBES.length` vacuously true at zero — which is rule
+7 (a) and this document's *"a probe that ran once is a claim about the past"*, one level in.
