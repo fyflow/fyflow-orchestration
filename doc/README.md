@@ -7,8 +7,8 @@ its retro is run.** [Q4](open-questions.md) is answered:
 [ADR 0003](decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md), **a join is
 satisfied when its region has no live branches** — and **W5 ran it on a real scheduler**, where
 `p1-routed-away` completes under `live-token` and is **`stuck`** under `arrival-count`, with the
-join's successor never dispatched. **386 assertions in five runtimes, plus 240 at ladder L6 in two.**
-*(That number is the runner's count of `test()` cases rather than of `equal`/`ok` calls — [Q98](open-questions.md), raised by W16 while re-deriving it.)*
+join's successor never dispatched. **386 assertions in five runtimes, plus 342 at ladder L6 in two.**
+*(**The two numbers do not count the same thing and the word is the same.** `386` is `test/runner.ts`'s count of `test()` CASES, not of `equal`/`ok` calls — [Q98](open-questions.md), raised by W16 while re-deriving it. `342` is a genuine count of individual `check`/`assertThat` calls in `examples/l6.ts`. W17's conformity reader found the caveat attaching ambiguously to a sentence carrying both.)*
 
 **The retro is in [P1's Record](plans/p1-what-satisfies-a-join.md) and `doc/workflow.md` is v0.3.**
 Its central measurement, which should shape how the next plan reads that document: **of the eight
@@ -190,14 +190,28 @@ longer rests on our own reading. [S1](scheduler-upstream.md).
    **exact row lists** rather than counts, and the `unsatisfiable` chain runs end to end for the
    first time. Both its readers ran and between them found that the two things W15 *created*, the
    render and the two promoted variant policies, were the least-guarded things in the item.
-   **[W16](work-items/w16-the-decision-and-what-it-ships.md) is built and gated and its two readers
-   are outstanding**: [ADR 0025](decisions/0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md)
+   **[W16](work-items/w16-the-decision-and-what-it-ships.md) is done, both readers run and every
+   finding acted on**: [ADR 0025](decisions/0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md)
    answers Q24, adopting `JP-R8`'s refinement as a third policy and refusing `JP-R7`'s, with **not
    one of the 36 matrix cells changed** (386 assertions, up from 370). It also fired
    **`doc/workflow.md` rule 7 (c) for the first time in three plans** — `scripts/check-policies.mjs`
-   holds the new `JP-R9`, and **three of its ten checked-in probes failed at birth**. Then **W17 puts
-   the `all-exit` row on real workers**, which L6 has never had. The other feature candidates stay
-   where they were: [Q6](open-questions.md) (nested fan-out, nearly free under `live-token`) and
+   holds the new `JP-R9`, and **three of its ten probes failed at birth**; the set is **thirteen** now,
+   after its adequacy reader found the count vacuous at zero.
+   **[W17](work-items/w17-the-all-exit-row-at-l6.md) is DONE — gated in both L6 runtimes, both readers
+   run and every finding acted on — and it completes the plan's exit artifact**: L6 is **19 real runs and 342
+   assertions**, and the `all-exit` shape now runs on real workers under every shipped policy —
+   `completed` under `live-token`, silently `stuck` under `arrival-count`, and **`stuck` with
+   `joined: false`** under `live-token-requiring-arrival`, which is the first L6 row here whose join
+   is *reported* dead rather than merely never firing. **Its two findings are both about the harness
+   rather than the library**: the three declared rows could not test the policy they were built for,
+   because `arrived` is zero on the only scenario they run — found by a probe walking the rule's
+   clauses, which is P4's amendment answering in the direction W15 and W16 did not see — and **W6's
+   causal arrangement was held down by nothing**, so reversing one `Set` literal restored W6's
+   original defect with the whole gate green. **Its readers then found two BLOCKING survivors, both
+   in the harness**: the termination race could be replaced by a **1200 ms** sleep — longer than the
+   run, where W5's recorded probe is 1 ms and truncates it — with everything green, and `lateInputs`'
+   one recording could be deleted, making `RN-R12` a tautology on nineteen rows. Both fixed by
+   deriving the value from its single source, both provoked. **Overlap 3 of ~31.** The other feature candidates stay where they were: [Q6](open-questions.md) (nested fan-out, nearly free under `live-token`) and
    [Q12](open-questions.md) (map-style fan-out, which makes the count dynamic).
 3. **[P6](plans/p6-what-may-share-a-scheduler-with-a-driver.md) is DECLARED and runs after P5** — *what may share a scheduler with a driver?*
    It takes the three questions P5 ruled on but could not own, because **no P5 item takes
@@ -318,8 +332,8 @@ Deliberate overlaps, which are coordination points rather than duplication:
 ## Plan history
 
 *One row per plan, oldest first. **A plan appears here when it closes**, so
-[P5](plans/p5-a-third-and-fourth-policy-or-repairs-of-the-first-two.md) (running — W15 and W16 done,
-W16's readers and W17 outstanding) and [P6](plans/p6-what-may-share-a-scheduler-with-a-driver.md) (declared, not started) are not below.*
+[P5](plans/p5-a-third-and-fourth-policy-or-repairs-of-the-first-two.md) (running — all three items built;
+W16's and W17's readers outstanding, then the retro) and [P6](plans/p6-what-may-share-a-scheduler-with-a-driver.md) (declared, not started) are not below.*
 
 | P | Question it answered | Exit artifact | Date |
 |---|---|---|---|

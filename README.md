@@ -5,7 +5,7 @@ flow once; run thousands of workloads through it.
 
 > **Status: the layer is built and gated.** Sequence, decision routing, fan-out and join, with
 > **three** join policies, a definition validator, and run state as a pure fold. **One driver serves one run, fixed at construction, and two drivers may share a scheduler.** **386 assertions in five
-> runtimes** — Node 24, Deno, chromium, firefox, webkit — **plus 240 against a real scheduler** in
+> runtimes** — Node 24, Deno, chromium, firefox, webkit — **plus 342 against a real scheduler** in
 > Node and Deno. Not published; no version has been released.
 
 ## The idea
@@ -61,7 +61,7 @@ into run state.
 | **Driver** | the only component that touches the scheduler: subscribes, routes, dispatches. The library imports the scheduler **nowhere** — a caller passes its own in |
 | **Run state** | a fold: where a run is, what each node returned, what a join is waiting on. **Six outcomes**, including `stuck` |
 | **Join policies** | `live-token`, `arrival-count` and `live-token-requiring-arrival`, behind one interface, all three shipped. **Pass `live-token`** |
-| **Examples** | [ladder L6](examples/) — fifteen real runs on a real scheduler, in Node and Deno, including two runs sharing one |
+| **Examples** | [ladder L6](examples/) — nineteen real runs on a real scheduler, in Node and Deno: two runs sharing one scheduler, and a run in which **every branch is abandoned**, under all three policies |
 
 ## The hard question, and its answer
 

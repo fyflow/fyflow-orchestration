@@ -15,7 +15,7 @@ the only document that does. **Every snippet in it is extracted and executed by 
 (`scripts/check-docs.mjs`), so it cannot rot the way a hand-maintained reference does. If you change
 the public surface, that check is what tells you the reference is now wrong.
 
-## Current state: **P1-P4 are complete and retro'd; [P5](doc/plans/p5-a-third-and-fourth-policy-or-repairs-of-the-first-two.md) has ANSWERED [Q24](doc/open-questions.md) and is finishing**
+## Current state: **P1-P4 are complete and retro'd; [P5](doc/plans/p5-a-third-and-fourth-policy-or-repairs-of-the-first-two.md) has ANSWERED [Q24](doc/open-questions.md), all three of its items are built, and only readers and the retro remain**
 
 [ADR 0001, 0002 and 0007](doc/decisions/) settle the architecture so far: **routing executes in the
 driver, outside the scheduler** — a worker computes and does not route, and `context.spawnTask()` is
@@ -29,13 +29,13 @@ details are live mutable objects and `task.failed` also fires for `user_action` 
 normative documents and 73 numbered rules**; `src/` holds the definition validator, the driver and
 the fold with **three** join policies (two P1's, one ADR 0025's); `test/matrix/` holds the
 join/failure matrix; `examples/` holds ladder **L6**. **386 assertions in five runtimes** — Node 24,
-Deno, chromium, firefox, webkit — identical in all of them, **plus 240 at L6 in Node and Deno**.
-*(The runner counts `test()` cases, not `equal`/`ok` calls — [Q98](doc/open-questions.md).)* **`doc/workflow.md` is v0.6**, run to
+Deno, chromium, firefox, webkit — identical in all of them, **plus 342 at L6 in Node and Deno**.
+*(**The two numbers count different things.** The runner counts `test()` **cases**, not `equal`/`ok` calls — [Q98](doc/open-questions.md); L6's 342 is a real count of individual assertions. Do not add them.)* **`doc/workflow.md` is v0.6**, run to
 completion by four plans.
 
 **[P2](doc/plans/p2-the-non-success-half-on-a-real-scheduler.md) is complete and added no features.**
-Ladder L6 is **fourteen rows, 240 assertions**, in Node and Deno, and **all six run outcomes and all
-six region events now occur there** — `awaiting_action`, `stopped`, `branch.suspended` and
+Ladder L6 is **eighteen rows, 342 assertions, 19 real runs**, in Node and Deno, and **all six run
+outcomes and all six region events now occur there** — `awaiting_action`, `stopped`, `branch.suspended` and
 `branch.resumed` for the first time. **Nothing in `src/` broke**, which is the weaker result P2
 predicted when it measured `user_action` before the plan was written: **all nine of W6's findings
 were in the gate that was supposed to be checking `src/`.**
@@ -78,8 +78,10 @@ and **all thirteen L6 rows pass**. What happens next, in order: [doc/README.md](
 **[P5](doc/plans/p5-a-third-and-fourth-policy-or-repairs-of-the-first-two.md) is the active plan and
 it has answered [Q24](doc/open-questions.md) — third and fourth policy, or repairs of the first two?**
 **[W15](doc/work-items/w15-the-fourth-column-and-the-chain-nothing-runs.md) is done and
-[W16](doc/work-items/w16-the-decision-and-what-it-ships.md) is built and gated with its two readers
-outstanding; W17 is next.** The matrix renders at **four columns** and every one of its
+[W16](doc/work-items/w16-the-decision-and-what-it-ships.md) and
+[W17](doc/work-items/w17-the-all-exit-row-at-l6.md) are built and gated; **W17's two readers have run
+and every finding is acted on**, and so have W16's — 2 blocking + 7 + 9 from its conformity reader,
+156 mutations and 3 blocking families from its adequacy reader, all closed. **Only the retro remains.** The matrix renders at **four columns** and every one of its
 nine rows runs against all four policies — 36 cells, where the refinements had previously been
 executed on four. `JP-R7`'s and `JP-R8`'s effects are asserted as **exact sorted row lists** rather
 than as counts, each three ways: the declared literal, a predicate over the row's own region-event
@@ -107,6 +109,39 @@ has** (four survivors, each with a named test for `arrival-count` or `live-token
 the render is now a function the suite asserts field by field, and the variants are held to `JP-R1`,
 `JP-R2` and `JP-R3` in `test/matrix/variants.test.ts`. **For P5's retro: writing provocations to the
 rule finds holes in the CODE and is blind to the DELIVERABLE.**
+
+**[W17](doc/work-items/w17-the-all-exit-row-at-l6.md) puts the `all-exit` row on real workers and
+completes P5's exit artifact.** Ladder L6 is **19 real runs and 342 assertions**, and one run's join
+is now **reported dead** — `joined: false`, `onUnsatisfiableJoin` carrying the policy's own
+`describe`, and the fold reaching `stuck` — which nothing at L6 had ever reached. One flow, one
+payload, three policies, three answers: `completed`, silently `stuck`, and `stuck` with a reason.
+
+**Its two findings are both about the harness, and the second is the sharper one.** First, the three
+declared rows **could not test the policy they were built for** — they run
+`live-token-requiring-arrival` on one scenario where `arrived` is always zero, so deleting the
+arrival count from the policy left all **316** assertions green — the count at the moment the three rows
+were the whole of it; a fourth row on P1's own case closes it.
+Second, **W6's causal arrangement was a load-bearing test input held down by nothing**: reversing one
+`Set` literal in `examples/run-flow.ts` restores W6's original defect exactly — `settleJoin` deletable
+from the `lost` path with the gate green — and drops `exit-last` from four failures to none on the
+`exited` path. That is rule 8's own case one item before rule 8 existed. `Expectation.joinSettledBy`
+closes it; the other three harness knobs are [Q99](doc/open-questions.md).
+
+**Its two readers found two BLOCKING survivors, both in the harness and both the same shape.** The
+termination race could be replaced by a **1200 ms sleep** — longer than the run, where W5's recorded
+probe is 1 ms and truncates it — with all 341 assertions green, because `finishedBy` was read from a
+flag rather than from the race's own result; and `lateInputs`' single recording could be deleted,
+making `RN-R12`'s *"nothing arrived after"* a tautology on nineteen rows. **Both are this file's own
+`timedOut` lesson in fields that had not inherited it**, both are fixed by deriving the value from one
+source, and both fixes are provoked — the reader's exact probe now costs 22 failures and a genuinely
+late input costs 18. **Overlap between the two readers: 3 of ~31**, the eighth measurement and inside
+the band.
+
+**And W17 answers P4's retro prediction 1 in the direction the first two items did not see.** W15 and
+W16 both found rule-written provocations blind to what the item *created*; W17 found the thing it
+created blind to a **clause of the rule**, which only the clause-by-clause walk saw. Three items, both
+halves. Its other Q is [Q100](doc/open-questions.md) — **L6's rendered table is a deliverable no
+assertion reads**, which is W15's renderer finding in a second file and therefore a second occurrence.
 
 **[P6](doc/plans/p6-what-may-share-a-scheduler-with-a-driver.md) is declared and runs after P5** —
 *what may share a scheduler with a driver?* It takes the three things P5 ruled on and could not own,
@@ -202,7 +237,7 @@ executes is a refusal nobody can falsify. **Not one of the 36 matrix cells chang
 
 **W16 also fired `doc/workflow.md` rule 7 (c) for the first time in three plans.**
 `scripts/check-policies.mjs` holds the new **`JP-R9`** — *a policy `id` exists in
-`spec/join-policy.md` section 3 or it does not exist* — with ten checked-in probes, and **three of
+`spec/join-policy.md` section 3 or it does not exist* — with **thirteen** checked-in probes — ten when W16's Record was written — and **three of
 them failed at birth**: two were holes in the check and one was a probe that edited a heading the
 parser does not read.
 
@@ -286,7 +321,7 @@ concept -> plan -> work items -> verify (ladder, spec conformity, retro) -> reco
 
   ```bash
   npm run gate            # everything, both L6 runtimes included
-  npm run test:l6         # ladder L6, node 24 - fifteen real runs
+  npm run test:l6         # ladder L6, node 24 - nineteen real runs
   npm run test:l6:deno    # ladder L6, deno
   ```
 

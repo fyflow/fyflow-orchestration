@@ -1,6 +1,6 @@
 # P5 — A third and fourth policy, or repairs of the first two?
 
-**Status:** running — **W15 and W16 done**; W16's two readers pending; W17 declared, not started
+**Status:** running — **all three items are DONE**: built, gated, and both readers run and acted on for each. **The retro is what remains**
 **Question this plan answers:** [Q24](../open-questions.md) — *are `JP-R7` and `JP-R8` a third and
 fourth join policy, or repairs of the first two?* The sub-question that decides it, and the one the
 measurements below make visible: **should the policy this library tells you to pass be able to say
@@ -207,8 +207,54 @@ the register is Q90.
 
 *Filled in when the plan's items are merged and its retro is run.*
 
+**Progress.** **[W17](../work-items/w17-the-all-exit-row-at-l6.md) is done — gated in both L6
+runtimes, both readers run, every finding acted on.** The plan's **exit artifact is complete**:
+ladder L6 is **19 real runs and 342 assertions** in Node and Deno, and the `all-exit` shape runs on real workers
+under every shipped policy — `completed` under `live-token`, silently `stuck` under `arrival-count`,
+and **`stuck` with `joined: false`** under `live-token-requiring-arrival`, which is the first row at
+L6 in this repository where a join is *reported* dead rather than merely never firing. **Three things
+belong to this plan rather than to the item:**
+
+1. **The three declared rows could not test the policy they were built for, and a rule-written
+   provocation is what found it.** All three run `live-token-requiring-arrival` on one scenario, and
+   on that scenario `arrived` is always zero — so deleting the arrival count from the policy left the
+   whole of L6 green. **This is P4's retro prediction 1 answered in the direction W15 and W16 did not
+   see.** Their finding was that provocations written to the rule are blind to what the item
+   *created*; W17's is the mirror — the thing the item created was blind to a **clause of the rule**,
+   and only a probe walking `spec/join-policy.md` section 3 clause by clause could see it. **The
+   amendment is right, it is not sufficient, and the insufficiency runs both ways.** Three items, and
+   the retro now has the shape of the answer rather than two samples of one half.
+2. **A rule that was FOLLOWED and failed anyway, in the harness rather than in the document.** W6
+   arranged L6's causal order with per-role delays so `settleJoin` on the `lost` and `exited` paths
+   would be reachable, and recorded it as the fix for its adequacy reader's finding. **That
+   arrangement was held down by nothing**: reversing one `Set` literal in `examples/run-flow.ts`
+   restores W6's original defect exactly — `settleJoin` deletable from the `lost` path with all 336
+   assertions passing — and drops `exit-last` from four failures to none on the `exited` path. It is
+   `doc/workflow.md` section 5 rule 8's own case, one item late: **W6's repair could not fail, and
+   rule 8 was adopted after W6 shipped.** Closed by `Expectation.joinSettledBy`; the residue is
+   [Q99](../open-questions.md).
+3. **[Q100](../open-questions.md) is W15's renderer finding in a second file, which is section 6 pass
+   3 rule 2's bar.** W15's four-column render was a script the gate never executes and survived seven
+   mutations; L6's table **is** executed and **nothing asserts a character of it**. W17 found it the
+   way L7 is supposed to be found — by a person reading the output — and what it found was a
+   truncated key naming a run that does not exist. Two occurrences, two files, one class: *the
+   deliverable a human looks at is outside every rung that checks anything.*
+
+**And W17's readers found two BLOCKING survivors, both in the harness rather than in the library, and
+both the same shape.** The termination race could be replaced by a **1200 ms sleep** — a timer
+*longer* than the run rather than shorter — with all 341 assertions passing, because `finishedBy` was
+read from a flag the microtask set rather than from the race's own result; and `lateInputs`' single
+recording could be deleted, making `RN-R12`'s *"nothing arrived after"* a tautology on all nineteen
+rows. **Both are W5's finding and this file's own `timedOut` lesson, in fields that had not inherited
+it.** Both are fixed by deriving the value from its one source, and the fixes are provoked: the
+reader's exact probe now costs 22 failures, and a genuinely late input costs 18. **The item's own
+provocation was the weaker half of a pair and there was no way to see that from the inside** — the
+1 ms substitution is the one W5 recorded, so reproducing it read as reproducing the finding.
+
+**Overlap: 3 of ~31**, the eighth measurement and inside the band — 1, 3, 3, 3, 3, 4, 4, 3.
+
 **Progress.** **[W16](../work-items/w16-the-decision-and-what-it-ships.md) is built and gated and
-its readers have not yet run.** [ADR 0025](../decisions/0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md)
+its readers have since run and every finding is acted on.** [ADR 0025](../decisions/0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md)
 answers [Q24](../open-questions.md) and **the two rules got different answers**: `JP-R8`'s refinement
 is **adopted** as a third policy under its own id, `live-token-requiring-arrival`; `JP-R7`'s is
 **refused**. `live-token` and `arrival-count` are byte-identical, so ADR 0003 rules 1-4 stand, and
@@ -226,8 +272,9 @@ to this plan rather than to the item:**
    predicted: the conclusion was safe to inherit and the argument was not.
 2. **[Rule 7 (c) fired, for the first time in three plans](../workflow.md).** `scripts/check-policies.mjs`
    holds `JP-R9` — *a policy `id` exists in `spec/join-policy.md` section 3 or it does not exist* —
-   with ten checked-in probes, nine tripping exactly one check and the tenth declaring a structural
-   cascade. **Three of the ten failed at birth**: two were holes in the check, one was a probe that
+   with **thirteen** checked-in probes — ten at W16's Record, and its adequacy reader found `PROBES.length` vacuously
+   satisfied at zero, so there is now a `MIN_PROBES` floor — nine of the original ten tripping exactly one check and the tenth declaring a structural
+   cascade. **Three of the thirteen failed at birth**: two were holes in the check, one was a probe that
    edited a heading the parser does not read. **The form discriminated**, and P5's retro can report
    it as exercised rather than carrying it a fourth time.
 3. **Rule 8's write-to-the-rule form has its second measurement and it is the same as the first.**
@@ -267,7 +314,7 @@ Record is in the item; **four things belong to this plan rather than to it**:
    **two**-column matrix; `test/matrix/render.ts` now emits four. The divergence arrived because the
    artifact was extended, not because anyone edited the ADR.
 3. ~~**Rule 7 (c) is still unexercised, for the third plan running.**~~ **Answered by W16**, which
-   added `scripts/check-policies.mjs` for `JP-R9` with ten checked-in probes. W15 added no check
+   added `scripts/check-policies.mjs` for `JP-R9` with thirteen checked-in probes. W15 added no check
    script and said so in its `Out` list rather than leaving the retro to find it; W16 did not plan to
    add one either, and the invariant ADR 0025 created is what made it obvious. **The retro reports it
    exercised, and the sample is one.**
@@ -287,10 +334,30 @@ Record is in the item; **four things belong to this plan rather than to it**:
 1. **Does rule 8's "write to the rule" form change the numbers?** The prediction is fewer reader
    survivors in the provocation family. **If W15-W17's readers still find the author's set narrow in
    the same direction, the amendment did not work** — and P4's retro says the answer is then not
-   another sentence.
+   another sentence. **Three items have now measured it and the third points the other way**: W15 and
+   W16 found rule-written probes blind to what the item CREATED; W17 found what the item created blind
+   to a CLAUSE OF THE RULE, and only the clause-by-clause walk saw it. The retro has both halves and
+   should not amend from one.
 2. **Does rule 7 (c) ever fire?** Unexercised by P4. **W15 adds no new check either**, so this is the
-   third plan carrying it unless W16 or W17 adds one.
+   third plan carrying it unless W16 or W17 adds one. **Answered by W16** — `check-policies.mjs`,
+   thirteen checked-in probes, and the set-equality form discriminated on its first real use. **W17
+   adds no check** and says so rather than leaving the retro to find it.
+
+   **What W17 adds instead is a two-occurrence finding about rule 8's SET, and the reader's half
+   supersedes the author's.** W17's own sweep had 2 vacuous probes of 14, one of them a syntax error
+   reported as *caught*, and concluded that rule 8's set deserves rule 7 **(b)**. Its adequacy reader
+   had 3 of 126 — and **its harness already enforced 7 (b) as written**, refusing any probe whose
+   target text was absent and asserting the file changed. **All three passed that check**, because a
+   probe can change the input without changing an observable, and all three read as **SURVIVED with
+   the gate green** — the dangerous direction, since a vacuous probe and a real hole are then
+   indistinguishable, and one of the three landed on `RN-R10`. So the requirement is not 7 (b): it is
+   **a survivor is only a survivor once a second, independent route confirms the mutated clause was
+   reachable.** Two occurrences, in two items, failing in opposite directions, and the proposal
+   replaces rather than restates.
 3. **Does the `Owns` list stay correct now the register is named?** Three items audited correct after
-   three that were not. `check-owns.mjs` comes back if one miscounts.
+   three that were not. `check-owns.mjs` comes back if one miscounts. **W17's audit is correct**:
+   four files, all inside `examples/**`, zero declared exceptions used, and **all five record-step
+   files named and counted** — which is the half W16 got wrong. That is five correct audits against
+   one stale count.
 4. **Q86 and Q87** — ruled on above, before any work item started rather than in the retro, because
    the ruling changes what P5 is allowed to scope.
