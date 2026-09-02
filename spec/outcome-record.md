@@ -1,6 +1,6 @@
 # spec/outcome-record — the log the driver writes
 
-**Status:** v0.5 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.6 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2 acts on the W1 spec-conformity pass**: the
 resolution record arrives from
 [ADR 0004](../doc/decisions/0004-a-non-success-outcome-routes-only-where-an-edge-opts-in-and-user-action-suspends.md)
@@ -8,6 +8,13 @@ rule 6 (finding B1), and findings D8 and D11 are addressed in place. **v0.3 acts
 pass**: section 6 defines the **effective outcome**, without which routing after a resolution had
 three conformant readings. **v0.5 corrects how a run terminates** — the third pass measured that a
 `throw` from a scheduler listener never reaches anybody. **v0.4 acts on the third**: `observedAt` still had two.
+**v0.6 is [W18](../doc/work-items/w18-the-scheduler-edge-and-what-an-id-we-did-not-mint-means.md)
+under [P6](../doc/plans/p6-what-may-share-a-scheduler-with-a-driver.md)**, and it takes a decision
+about a class that had reached `OR-R10`'s path **without ever being named as a rule**:
+[ADR 0027](../doc/decisions/0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md)
+moves `InvalidTaskId` off the listener boundary entirely, to
+[`ID-R5`](task-id.md). `OR-R10` itself is unchanged; what changes is the list of what reaches it, and
+section 6 now states that list rather than leaving a fourth class to arrive by accident.
 **Normative.** This document is what
 [ADR 0007](../doc/decisions/0007-the-driver-normalizes-events-into-an-immutable-outcome-record.md)
 rule 1's *"declared fields"* means.
@@ -226,6 +233,27 @@ refuses on P1's own validity grounds, and the third time that signature has appe
 **A caller-initiated refusal still throws.** `Driver.start()` is called by the consumer, not by a
 listener, so it both reports and rethrows: the caller is on the stack and can act on it. The
 distinction is the stack, not the rule.
+
+**`InvalidTaskId` is not one of these and no longer reaches this path.** It was never named as a rule
+here — `parseTaskId` raised it at the listener and it arrived at `onRunFailure` alongside the three
+above, which is how it came to be treated as a fourth without a decision ever being taken.
+[ADR 0027](../doc/decisions/0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md)
+takes one: an inbound id that does not parse was minted by no driver, so it is **[`ID-R5`](task-id.md)**
+— reported on its own channel and dropped — rather than a refusal of this run's. **No raise site the LIBRARY reaches can put it in a `RunFailure` any
+more.** `InvalidTaskId` is raised at seven sites, all in `src/driver/ids.ts` — two in `buildTaskId`
+and five in `parseTaskId` — and after ADR 0027 the four **callers** that could reach the listener's
+failure path are all outside it: `buildTaskId`'s two calls in the driver, unreachable from a
+definition `FD-V16` validated *because `FD-V16`'s charset and `ID-R2`'s are the same expression*,
+and `src/fold/run-state.ts`'s two `parseTaskId` calls, unreachable while
+[ADR 0014](../doc/decisions/0014-the-driver-produces-the-folds-ordered-input-sequence.md) keeps the
+fold fed by a driver that appends only ids it minted. **This is a claim about the library's own raise
+sites and not about the field**: `RunFailure.kind` is `err.constructor.name`, so consumer code that
+throws an `InvalidTaskId` inside a predicate or a `describe` still produces one — and section 9 of
+`AGENTS.md` now recommends `parseTaskId` in a `try`/`catch` to consumers, which is where that would
+come from. **That last one is a live constraint
+rather than a note**: ADR 0027 reports through a callback and deliberately **not** through a new
+`FoldInput` kind, because an input carrying the offending string would make `fold()` — a pure
+function — throw.
 
 ## 7. The effective outcome
 

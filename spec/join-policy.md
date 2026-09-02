@@ -1,6 +1,6 @@
 # spec/join-policy — the interface the join policies sit behind
 
-**Status:** v0.8 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.9 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2 acts on the W1 spec-conformity pass**:
 `branch.lost` is redefined against
 [ADR 0004](../doc/decisions/0004-a-non-success-outcome-routes-only-where-an-edge-opts-in-and-user-action-suspends.md)
@@ -21,6 +21,12 @@ landing in this document** — [W16](../doc/work-items/w16-the-decision-and-what
 own `id`, with `live-token` unchanged; `JP-R7`'s is **refused**. Section 4's *"neither pinned policy
 ever returns `unsatisfiable`"* is still true and **the consequence drawn from it is not**, so that
 paragraph is corrected rather than left standing.
+**v0.9 is [W18](../doc/work-items/w18-the-scheduler-edge-and-what-an-id-we-did-not-mint-means.md)
+under [P6](../doc/plans/p6-what-may-share-a-scheduler-with-a-driver.md), and it writes down a rule the
+driver has always enforced and this document never stated**: section 4's `unsatisfiable` exit is
+**once per region and terminal for it**. [Q95](../doc/open-questions.md) is the measurement that the
+second half was enforced by one unexercised latch — deleting it left every assertion green — and
+section 4 says what it costs when it goes.
 **Normative.**
 
 > **This document does not answer [Q4](../doc/open-questions.md) and must not be read as leaning.**
@@ -247,6 +253,28 @@ row, and section 3's third row is what it means. So:
 | what **changed** | *"detected by the driver or not at all"* was already the wrong half of a true sentence — detection is the fold's — and it is now false for that one shape in a second way, and it is the shape [ADR 0003](../doc/decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md) records as `live-token`'s cost. A run that **completes** under `live-token` is **`stuck` with `joined: false`** under this policy — reported through `onUnsatisfiableJoin` with the policy's own `describe`, and visible in `RunState.outcome` to a consumer who registers no callback at all |
 | what is **still open** | [Q7](../doc/open-questions.md), unnarrowed on its own terms. This is not a timeout and gives a join no clock; it makes **one more** class of dead join reportable without one, which is the same direction [ADR 0003](../doc/decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md) already pushed Q7 in |
 
+**v0.7's clause for this exit was written by [W18](../doc/work-items/w18-the-scheduler-edge-and-what-an-id-we-did-not-mint-means.md)
+and it is a rule this document did not have.** The `satisfied` row has said *"at most once per region
+however many events follow"* since W3; the `unsatisfiable` row said only *"reports it … and routes
+nowhere"*, which fixes no multiplicity and says nothing about a policy that answers `unsatisfiable`
+and then `satisfied`. **One latch in the driver has always enforced both**, and
+[Q95](../doc/open-questions.md) is the measurement that it enforced the second **untested**: deleting
+it left all 386 assertions green. So the behaviour is not new and the sentence is — which is exactly
+the state `doc/workflow.md` section 1 rule 3 refuses (*a decision not in `spec/`, an ADR or a plan did
+not happen*), and W18's two Q95 cases were asserting it before this row said it.
+
+**Why *terminal*, and not merely *once*.** Reporting twice is untidy; **routing out of a join already
+declared dead is a correctness failure with a name.** Measured with a stub that answers
+`unsatisfiable` on the first arrival and `satisfied` on the second: without the latch the driver
+dispatches the join's successor, `regions[…].joined` becomes `true`, and `RunState.outcome` goes from
+`stuck` to `completed` — with `hasFailed()` false throughout. That is character-for-character the
+false statement
+[ADR 0015](../doc/decisions/0015-a-run-whose-join-can-no-longer-fire-is-stuck.md) exists to remove,
+reached through the driver's own surface. **`spec/join-policy.md` is [W1](../doc/work-items/w1-the-normative-layer.md)'s
+and was not in W18's `Owns`; the exception is declared late in that item's Exceptions table rather
+than the rule being left unwritten**, which is the trade `doc/workflow.md` v0.7 change 3 made for
+`doc/decisions/**` and has not made for `spec/**`.
+
 **`unsatisfiable` is not a timeout and does not decide Q7:**
 
 | | owner |
@@ -272,7 +300,7 @@ a policy.
 | **step** | **Every** region event is forwarded, all six. `JP-R4` sizes the vocabulary for the richer policy, so a policy ignores what it does not need; a driver that filtered would decide Q4 by omission |
 | **status** | Asked after **every terminal event**, not only on arrival — a join can become satisfiable because the last live branch was `lost` or `exited` without anything arriving, which is P1's case |
 | **satisfied** | The driver routes out of the join's single edge, **at most once** per region however many events follow. **It carries `null`** — see below |
-| **unsatisfiable** | The driver **reports** it with the policy's own `describe`, and routes nowhere. It does **not** invent a run-level outcome: that vocabulary is run state's ([Q25](../doc/open-questions.md)) |
+| **unsatisfiable** | The driver **reports** it with the policy's own `describe`, and routes nowhere. It does **not** invent a run-level outcome: that vocabulary is run state's ([Q25](../doc/open-questions.md)). **Once per region, and terminal for it: however many events follow, the join is not reported again and is not routed out of — including when the policy later answers `satisfied`** ([W18](../doc/work-items/w18-the-scheduler-edge-and-what-an-id-we-did-not-mint-means.md), [Q95](../doc/open-questions.md)) |
 | **no policy at all** | A definition containing a fan-out is **refused at instantiation**. The alternative is a run that dispatches every branch, sees every one arrive and stops silently — a second cause behind the observation P1 turns on |
 
 **A satisfied join carries `null` downstream, and that is a placeholder rather than an answer.**

@@ -1,7 +1,8 @@
 # ADR 0023 — An inbound settlement is this run's only if this driver dispatched its task id
 
 **Date:** 2026-08-31
-**Status:** accepted — **rule 1 corrected and two preconditions added in place, 2026-08-31**, see *Correction*
+**Status:** accepted — **rule 1 corrected and two preconditions added in place, 2026-08-31**, see *Correction*.
+**Rule 2 SUPERSEDED 2026-09-02 by [ADR 0027](0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md)**, which retires the first of those two preconditions with it. Rules 1 and 3-6 stand
 **Raised by:** W13 / [P4](../plans/p4-the-drivers-lifetime-and-the-handles-it-gives-out.md) / [Q72](../open-questions.md)
 
 ## Context
@@ -30,7 +31,7 @@ measurement rejected it.** Six inbound task ids were probed against the shipped 
 | **ours, a node not in the definition at all** | **appended** | **appended** | **run stopped** |
 | **ours, a branch path never opened** | **appended and routed** | **appended and routed** | **run stopped** |
 | another run entirely | routed | ignored | ignored |
-| malformed, does not parse | run stopped (`OR-R10`) | run stopped | run stopped |
+| malformed, does not parse | run stopped (`OR-R10`) | run stopped | ~~run stopped~~ — **rule 2, superseded 2026-09-02: [ADR 0027](0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md) reports it and drops it** |
 
 **A run-id filter closes one of the four holes.** The driver already keeps a `dispatched` set for
 `ID-R1`, and asking *"did I dispatch this?"* closes all four with no new state and subsumes the
@@ -49,9 +50,15 @@ the argument held"*.
    from the task id alone, before anything else reads the detail** (*Correction* 1; this clause first
    read *"after `parseTaskId` and before the record is appended"*, which was not far enough forward
    and made rule 3 false).
-2. **A task id that does not parse still stops the run, unchanged.** `OR-R10`. The guard sits after
+2. ~~**A task id that does not parse still stops the run, unchanged.** `OR-R10`. The guard sits after
    the parse precisely so that this keeps working: a malformed id is not "not ours", it is a
-   scheduler or driver defect and it is attributable.
+   scheduler or driver defect and it is attributable.~~ **SUPERSEDED 2026-09-02 by
+   [ADR 0027](0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md).** The rule was
+   right that a malformed id is attributable and wrong about who to attribute it to: `buildTaskId`
+   emits only parseable ids, so an unparseable one was minted by **no** driver and stopping *this*
+   run for it is collateral damage. It is now **`ID-R5`** — decided at tier 0, ahead of rule 1's
+   comparison, **reported** through `onUnmintedTask` and dropped. The guard's ORDER is unchanged and
+   still matters: ownership is still decided from the task id alone before anything reads the detail.
 3. **A settlement whose run id is not this driver's run is ignored, silently, and nothing is
    appended.** It is another driver's business and this driver has no standing to judge it. It is not
    a failure, it is not counted, and it does not reach `onRunFailure` — with two drivers on one
@@ -92,6 +99,14 @@ not the scheduler's. A `user_action` task fires two events for one dispatched id
 Resist it until something needs it: it is a surface addition for a diagnostic, and
 [Q20](../open-questions.md) — whether a run id is global at all — is the question that decides
 whether a driver should have an opinion about other runs. If it lands, that is where this belongs.
+
+> **This paragraph was tested on 2026-09-02 and it held.**
+> [ADR 0027](0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md) adds
+> `onUnmintedTask`, which is the same *shape* of addition — a callback for a settlement the driver
+> drops — and it deliberately does **not** cover rule 3. The distinction that let one through and
+> not the other is **who else will report the thing**: another run's settlement is reported by the
+> driver that owns that run, and an unparseable id is reported by nobody. So this paragraph stands
+> unamended, and ADR 0027 rule 4 says in its own words why it is not the exception.
 
 ## Alternatives rejected
 
@@ -145,12 +160,15 @@ than a per-state count.
 
 | precondition | what happens without it |
 |---|---|
-| **Every task on a driver's scheduler carries a task id some driver minted.** | A plain non-flow task settling on a shared scheduler does not parse, so rule 2 stops **every driver on that scheduler**. Measured. Whether an unparseable id should instead be treated as *not ours* — a driver mints only parseable ids, so an unparseable one cannot be ours — is [Q86](../open-questions.md), raised rather than decided here |
+| ~~**Every task on a driver's scheduler carries a task id some driver minted.**~~ **RETIRED 2026-09-02** | ~~A plain non-flow task settling on a shared scheduler does not parse, so rule 2 stops **every driver on that scheduler**. Measured.~~ That was the precondition and it is now **the defect [ADR 0027](0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md) removes.** Q86 is **answered**, in the direction this row raised: an unparseable id is treated as *not ours*, and reported so that the one case where it might be ours is not a silent hang. **The topology needs no such precondition any more** |
 | **Run ids are unique across the drivers sharing one scheduler.** | Two drivers constructed with the **same** run id mint the same task ids, so `dispatched.has()` is true in both and `ID-R4` is not violated. Measured: one settlement produces **two** dispatches of the successor, with nothing reported — [Q72](../open-questions.md)'s corruption verbatim, for the one case this ADR does not close. No driver can detect it: `SchedulerLike` has two methods and neither asks who else is subscribed. [Q87](../open-questions.md) |
 
 **Rule 6's *"a second `Driver` on the same scheduler is now safe"* is therefore true of drivers with
-distinct run ids, on a scheduler carrying only flow tasks.** `AGENTS.md` section 9 and
-`spec/task-id.md` `ID-R4` both state the preconditions rather than leaving them to a reader.
+distinct run ids, ~~on a scheduler carrying only flow tasks~~ — **on any scheduler, since
+[ADR 0027](0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md)**. `AGENTS.md`
+section 9 and `spec/task-id.md` `ID-R4` state the one **remaining** precondition rather than leaving
+it to a reader: run ids unique across the drivers sharing one scheduler, which no driver can detect
+([Q87](../open-questions.md)) and which `MultipleRuns`' own message now names.
 
 ### 3. The *Consequences* claim about `context.spawnTask()` was misleading
 
@@ -159,4 +177,7 @@ mistaken for a flow step."* `spawnConfig.id` is caller-supplied
 (`../fyflow-scheduler/core/FyflowScheduler.ts:1466`), so a spawned id will not parse — and the actual
 outcome is that the settlement **stops the run** under rule 2, not that it is harmlessly ignored.
 That is unchanged behaviour with a bad outcome, listed as a benefit. It is the same fact as
-precondition 1 and it is [Q86](../open-questions.md).
+precondition 1 and it is [Q86](../open-questions.md). **Since
+[ADR 0027](0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md) the *Consequences*
+claim is true as written**: a spawned task's settlement no longer stops the run, it is reported and
+dropped. The sentence was not wrong about what should happen — it was wrong about what did.

@@ -15,7 +15,7 @@
 import type { FlowDefinition, FlowNode, Registry, TerminalState } from '../definition/types.ts';
 import { allRegions, buildGraph, toRegion, type Graph, type RegionSets } from '../definition/regions.ts';
 import { validateDefinition, violatedRules } from '../definition/validate.ts';
-import { assertRunId, buildTaskId, parseTaskId } from './ids.ts';
+import { assertRunId, buildTaskId, InvalidTaskId, parseTaskId, type TaskIdParts } from './ids.ts';
 import { effectiveOutcome, isSuspended, type LogRecord, type OutcomeRecord } from './log.ts';
 import { normalizeEvent, type TaskDetailLike } from './listener.ts';
 import { selectEdge, type PredicateRegistry } from './routing.ts';
@@ -122,8 +122,10 @@ export class MissingJoinPolicy extends Error {}
  * The run has failed and the driver has stopped routing it.
  *
  * **`spec/` says these refusals "terminate the run" — `FD-R1`, `ID-R1`, `OR-R6`, and since W13
- * `ID-R4` — and a `throw` cannot do that.** (`InvalidTaskId` reaches the same path, raised by
- * `parseTaskId` rather than named as a rule.) Every one of them is reached from inside a
+ * `ID-R4` — and a `throw` cannot do that.** (`InvalidTaskId` used to reach this path too, raised by
+ * `parseTaskId` rather than named as a rule;
+ * [ADR 0027](../../doc/decisions/0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md)
+ * moved it to `onUnmintedTask` and `ID-R5`, so it no longer does.) Every one of them is reached from inside a
  * `scheduler.addEventListener` callback, and `EventTarget.dispatchEvent`
  * **discards a listener throw**: measured on Node 24, the remaining listeners
  * still run, `dispatchEvent` returns normally, and the error resurfaces
@@ -143,10 +145,63 @@ export class MissingJoinPolicy extends Error {}
 export interface RunFailure {
   /** **This driver's run** — ADR 0022 rule 1. Never parsed from the inbound task id. */
   runId: string;
-  /** `DuplicateTaskId` | `UncloneableResult` | `NoMatchingEdge` | `UndispatchedTask` | `InvalidTaskId` | the policy's own error name. */
+  /**
+   * `DuplicateTaskId` | `UncloneableResult` | `NoMatchingEdge` | `UndispatchedTask` | the policy's
+   * own error name.
+   *
+   * **`InvalidTaskId` is not in this list and no raise site the LIBRARY reaches puts it here**
+   * ([ADR 0027](../../doc/decisions/0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md)).
+   * Four callers could: `buildTaskId`'s two in `advance` and `dispatch`, unreachable from a
+   * definition `FD-V16` validated because `FD-V16`'s charset and `ID-R2`'s are **the same
+   * expression** (`ID_RE` in `src/definition/validate.ts` and `SEGMENT` in `./ids.ts` — asserted
+   * equal in `test/driver/lifetime.test.ts`, because the argument turns on it), plus a literal `0`
+   * for `attempt`; and `src/fold/run-state.ts`'s two `parseTaskId` calls, unreachable while ADR 0014
+   * keeps the fold fed by a driver that appends only ids it minted.
+   *
+   * **Not a claim about the field.** `kind` is `err.constructor.name`, so consumer code that throws
+   * an `InvalidTaskId` inside a predicate or a `describe` still lands here — and `AGENTS.md` §9 now
+   * recommends `parseTaskId` in a `try`/`catch` to consumers, which is where one would come from.
+   */
   kind: string;
   message: string;
   cause: unknown;
+}
+
+/**
+ * A settlement arrived whose task id **no driver minted**, and this is the only
+ * thing that will ever say so —
+ * [ADR 0027](../../doc/decisions/0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md),
+ * `ID-R5`.
+ *
+ * **The observation is that the id did not parse; the inference is that it is
+ * nobody's**, and the inference is what makes this a report rather than a
+ * refusal: `buildTaskId` produces only four-segment ids in the `ID-R2`/`FD-V16`
+ * charsets, so an id that fails `parseTaskId` cannot have come from any driver.
+ *
+ * **This is NOT `ID-R4` tier 1, and the asymmetry is the whole of ADR 0027.** A
+ * settlement carrying *another run's* id is dropped in silence
+ * ([ADR 0023](../../doc/decisions/0023-an-inbound-settlement-is-this-runs-only-if-this-driver-dispatched-it.md)
+ * rule 3) because the driver that owns that run will report it. An unparseable id
+ * is owned by no run, so silence means nobody reports it — which is why this one
+ * gets a channel and tier 1 still does not.
+ */
+export interface UnmintedTask {
+  /**
+   * **This driver's run** — ADR 0022 rule 1, and here it could not have been
+   * anything else: the inbound id carries no run id to parse one out of.
+   */
+  runId: string;
+  /** The scheduler event's name, so `task.user_action`'s pair is distinguishable from a settlement. */
+  event: string;
+  /**
+   * Exactly what `detail.id` held, uncoerced. **`unknown` rather than `string`**,
+   * because a `detail` with no `id` at all — a scheduler version skew, which
+   * `CLAUDE.md` records happening to `task.progress` at 0.3.0 — is one of the ways
+   * this fires, and reporting `''` for it would hide the sharpest case.
+   */
+  taskId: unknown;
+  /** `parseTaskId`'s own message, so the grammar is stated in one place. */
+  reason: string;
 }
 
 /** What the driver needs from a scheduler. Structural, so W3 is testable without one. */
@@ -199,6 +254,18 @@ export interface DriverOptions {
    * `FD-R1`, `ID-R1` and `OR-R6` describe can actually reach a caller.
    */
   onRunFailure?: (failure: RunFailure) => void;
+  /**
+   * Called when a settlement arrives whose task id no driver minted, instead of
+   * stopping the run — `ID-R5`,
+   * [ADR 0027](../../doc/decisions/0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md).
+   *
+   * **Optional, and a run that registers nothing still routes correctly**: the
+   * dropped settlement was never this run's, so nothing this driver is waiting for
+   * goes missing. What registering it buys is the one case where that reasoning
+   * could be wrong — a scheduler whose `detail.id` stopped being what we
+   * dispatched — which is otherwise a hang with nothing said.
+   */
+  onUnmintedTask?: (info: UnmintedTask) => void;
   /** Injected so the fold stays deterministic under test and `observedAt` is not a hidden global. */
   now?: () => number;
   onRegionEvent?: (e: RegionEvent) => void;
@@ -347,7 +414,17 @@ export class Driver {
         `MultipleRuns: this driver already started run "${runId}" and cannot start it again. ` +
           'ID-R3: a Driver serves exactly one run — its input sequence, its fired joins and its ' +
           'policy state carry no run id, so a second run would silently merge into the first. ' +
-          'Construct a second Driver; ADR 0023 makes that safe on the same scheduler.',
+          // **[Q87](../../doc/open-questions.md) — this sentence recommended the violation.** It
+          // ended at *"on the same scheduler"*, and the obvious second `Driver` for a caller
+          // re-running a workload is one carrying the run id they already have. Two drivers on one
+          // run id mint the SAME task ids, so `dispatched.has()` is true in both, `ID-R4` cannot
+          // see it, and one settlement dispatches the successor twice with nothing reported.
+          // **No driver can detect it** — `SchedulerLike` has two methods and neither asks who else
+          // is subscribed (ADR 0013 rule 1) — so it stays a precondition, and the least the
+          // library can do is not advise against it in its own error text.
+          'Construct a second Driver WITH A DIFFERENT RUN ID; ADR 0023 makes that safe on the ' +
+          'same scheduler. Run ids must be unique across the drivers sharing one — nothing ' +
+          'enforces that and nothing can see it violated.',
       );
     }
     this.started = true;
@@ -466,14 +543,60 @@ export class Driver {
     // rule 3 true**, and it is cheaper too: a driver no longer deep-clones the
     // result of every settlement it is about to discard.
     //
-    // `parseTaskId` still throws first, so an id that does not parse still stops
-    // the run (`OR-R10`) — "does not parse" is not "not ours", it is a defect.
-    // **That has a precondition and it is now stated rather than assumed**: a
-    // scheduler this driver subscribes to must carry only task ids some driver
-    // minted, because one that is not (a plain non-flow task) stops every driver
-    // on it. ADR 0023's Correction, and [Q86](../../doc/open-questions.md).
+    // **Tier 0 — an id no driver minted.** ADR 0023 rule 2 used to stop the run
+    // here, on the ground that *"does not parse" is not "not ours", it is a
+    // defect*, and left the topology it blessed carrying an unauditable
+    // precondition: one plain non-flow task settling stopped **every** driver on
+    // that scheduler. [ADR 0027](../../doc/decisions/0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md)
+    // supersedes it and retires the precondition — `buildTaskId` emits only
+    // four-segment ids in the `ID-R2`/`FD-V16` charsets, so an id that fails
+    // `parseTaskId` was minted by **no** driver and cannot be this run's.
+    // [Q86](../../doc/open-questions.md), `ID-R5`.
+    //
+    // **Reported rather than merely dropped, and that half is not decoration.**
+    // Tier 1 is silent because the driver that owns that run will report it; an
+    // unparseable id is owned by nobody, so silence means nobody ever does. The
+    // one way the inference above could be wrong — a scheduler whose `detail.id`
+    // stopped being what we dispatched, which is what happened to
+    // `task.progress`'s shape at 0.3.0 — is a hang with nothing said, and this
+    // callback is the whole of the difference.
+    //
+    // **`catch`, not a second parser.** A total `tryParseTaskId` would put the id
+    // grammar in two places, which `spec/task-id.md` section 2 is about, and the
+    // `catch` hands the consumer `parseTaskId`'s own message.
+    //
+    // **The `instanceof` is a FORWARD guard and it cannot fire today. Said here
+    // because W18's own provocation caught the stronger claim being false:** the
+    // `try` wraps exactly one call, and that call raises exactly one class, so
+    // widening the catch to bare `catch (e)` changes no reachable behaviour and no
+    // assertion can kill it. What it guards is the next edit — anything added
+    // inside this block (a second parse, a lookup, a normalization moved up) would
+    // otherwise be silently reported as a foreign task and the run would carry on
+    // past a real defect. `normalizeEvent`, which raises `OR-R6`, is deliberately
+    // BELOW this and outside the block for that reason.
     const taskId = detail?.id;
-    const { runId, nodeId, branchPath } = parseTaskId(typeof taskId === 'string' ? taskId : '');
+    let parts: TaskIdParts;
+    try {
+      parts = parseTaskId(typeof taskId === 'string' ? taskId : '');
+    } catch (e) {
+      if (!(e instanceof InvalidTaskId)) throw e;
+      // **The `reason` must describe what ARRIVED, not the stand-in we parsed.**
+      // A `detail` with no string `id` is handed `''`, so `parseTaskId`'s message
+      // would read *"task id \"\" has 1 segments"* — a sentence about a value the
+      // scheduler never sent, in exactly the case a consumer is debugging a
+      // version skew. `taskId` carries the truth and this now does too.
+      const reason = typeof taskId === 'string'
+        ? e.message
+        : `the event detail carried no string \`id\` (got ${typeof taskId})`;
+      // Called INSIDE `onEventOrThrow`, so a callback that throws is caught at
+      // `onEvent` and stops the run — reinstating, through the consumer's own
+      // code, the damage ADR 0027 removed. Documented rather than guarded: every
+      // other callback here is treated the same way, and swallowing a consumer's
+      // throw is its own defect. `AGENTS.md` §9 says it.
+      this.opts.onUnmintedTask?.({ runId: this.runId, event: name, taskId, reason });
+      return;
+    }
+    const { runId, nodeId, branchPath } = parts;
 
     // Tier 1 — another run's settlement. Routine the moment two drivers
     // legitimately share one scheduler. This driver has no standing to judge
@@ -747,9 +870,20 @@ export class Driver {
     if (status === 'waiting') return;
 
     if (status === 'unsatisfiable') {
-      // `describe` is computed BEFORE the region is latched. The other order means
-      // a throwing `describe` marks the join fired and loses the report
-      // permanently — even a caller that catches never learns why.
+      // `describe` is computed BEFORE the region is latched.
+      //
+      // **This comment used to claim the other order "marks the join fired and
+      // loses the report permanently — even a caller that catches never learns
+      // why". No such difference is reachable, and W18's adequacy reader measured
+      // it**: swapping the two lines leaves all 402 assertions green, because a
+      // throwing `describe` reaches `failRun`, `this.failed` is set, and every
+      // later event returns before `settleJoin` — so the second call the argument
+      // turns on cannot happen. Identical output under both orders.
+      //
+      // Kept in this order as a **forward** guard, and stated as one, which is
+      // ADR 0027's own correction of the `instanceof` in `onEventOrThrow` applied
+      // one function away: *a defensive clause that cannot fail is not a defect;
+      // describing it as though it could is*.
       const describe = policy.describe(state);
       this.firedJoins.add(region.fanoutId);
       // ADR 0015 — the join is settled and it did NOT fire. Nothing downstream of

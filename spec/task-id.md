@@ -1,6 +1,6 @@
 # spec/task-id — the scheduler task id scheme
 
-**Status:** v0.5 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.6 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2 acts on the W1 spec-conformity pass**:
 section 2 point 3 was **wrong about the source** and is corrected (finding D7), `branchPath` is
 pinned against convergent branches (B3), and the rules name the item owing their test (D8, N19).
@@ -19,6 +19,20 @@ task it never dispatched stops the run, and one carrying another run's id is ign
 **Section 3's own prediction came true and is recorded rather than quietly dropped** — widening
 `ID-R3` took `ID-R1`'s only direct test away, and the replacement was measured before the ADR was
 written.
+**v0.6 is [W18](../doc/work-items/w18-the-scheduler-edge-and-what-an-id-we-did-not-mint-means.md)
+under [P6](../doc/plans/p6-what-may-share-a-scheduler-with-a-driver.md), and it RETIRES one of
+`ID-R4`'s two preconditions rather than restating it.**
+[ADR 0027](../doc/decisions/0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md)
+answers [Q86](../doc/open-questions.md): a task id that does not parse was minted by **no** driver, so
+it is not this run's and stopping the run for it was collateral damage — one plain non-flow task
+settling stopped every driver on a shared scheduler, on the very topology ADR 0023 blessed and
+`AGENTS.md` section 9 recommends. **`ID-R5`** is the replacement and it is *reported* rather than
+merely ignored. `ID-R4` itself is unchanged, and so is ADR 0023 rule 3's silence — section 3 says why
+the two cases get different answers.
+**And v0.5's prediction repeated itself one rule out**: retiring the refusal took away the only
+inbound vehicle whose task id carries **no run id**, which is what made *"the failure names THIS
+driver's run"* falsifiable. The discrimination moved to `ID-R5`'s own test rather than being dropped,
+and `test/driver/lifetime.test.ts` records the substitution in place.
 **Normative.** Answers [Q13](../doc/open-questions.md).
 **This is a correctness rule, not a naming convention.** Section 2 is why.
 
@@ -136,7 +150,31 @@ the owning item's gate; **W1's L0 does not check it**
 | `ID-R1` | the driver is about to dispatch a task id already in the run's dispatched-id set. `addTask` is **not** called; the run fails with `DuplicateTaskId` naming the id, **reported** rather than thrown when it is reached from a listener (`OR-R10`). Test: a driver driven to repeat an id, asserting the refusal and asserting the scheduler received nothing | W3 |
 | `ID-R2` | a `runId` does not match its charset. Node ids are covered by `FD-V16` at instantiation; this is the half the definition cannot check. **Enforced in the `Driver` CONSTRUCTOR** (ADR 0022 rule 3), throwing `InvalidRunId` before the definition is validated and before anything is queued — a run id is configuration, and ADR 0002 rule 3's *"validate in full before anything is queued"* applies one level out. Test: construction with a `runId` containing `:`, asserting the refusal and that the scheduler received nothing | W3, **restated by W13** |
 | `ID-R3` | **a driver is asked to `start()` a second time.** A driver serves exactly one run and takes its id at construction (ADR 0022 rules 1-2), so there is no second id to name: **any** second `start` is refused. `start` **throws** `MultipleRuns` rather than reporting — nothing has been appended, so there is no run to fail, and the caller is on the stack. Test: `start` twice, asserting the refusal, that the scheduler received nothing for the second, and that the run's state is unchanged | **W5**, widened by **W13** |
-| `ID-R4` | **a settlement arrives carrying this driver's run id for a task it never dispatched.** **Ownership is decided from the task id ALONE, before anything else reads the event detail** - `normalizeEvent` can raise `OR-R6` while copying `result`, and a guard placed after it let ANOTHER run's uncloneable result stop this run ([ADR 0023](../doc/decisions/0023-an-inbound-settlement-is-this-runs-only-if-this-driver-dispatched-it.md) *Correction* 1). The inbound counterpart of `ID-R1`, and `dispatched` is the same set both are asserted against. The run fails with `UndispatchedTask` naming the id, **reported** rather than thrown (`OR-R10`), and **nothing is appended** — the record is refused before it enters the sequence, for the reason `ID-R1` refuses before `addTask`. A settlement for **another** run's id is **ignored silently and is not a refusal** (ADR 0023 rule 3). Test: three ids under our own run — a node never dispatched, a node not in the definition, a branch path never opened — each asserting the refusal and an empty log; plus one under another run id asserting silence, each in **all three terminal states** - a guard the fixtures only exercise in one state can be conditioned on the state. **Two preconditions, stated rather than assumed:** every task on the driver's scheduler carries an id some driver minted (one that does not stops every driver on it - [Q86](../doc/open-questions.md)), and run ids are unique across the drivers sharing it (two drivers on one run id mint the same task ids, so `dispatched.has()` is true in both and this rule cannot see the collision - [Q87](../doc/open-questions.md)) | **W13** |
+| `ID-R4` | **a settlement arrives carrying this driver's run id for a task it never dispatched.** **Ownership is decided from the task id ALONE, before anything else reads the event detail** - `normalizeEvent` can raise `OR-R6` while copying `result`, and a guard placed after it let ANOTHER run's uncloneable result stop this run ([ADR 0023](../doc/decisions/0023-an-inbound-settlement-is-this-runs-only-if-this-driver-dispatched-it.md) *Correction* 1). The inbound counterpart of `ID-R1`, and `dispatched` is the same set both are asserted against. The run fails with `UndispatchedTask` naming the id, **reported** rather than thrown (`OR-R10`), and **nothing is appended** — the record is refused before it enters the sequence, for the reason `ID-R1` refuses before `addTask`. A settlement for **another** run's id is **ignored silently and is not a refusal** (ADR 0023 rule 3). Test: three ids under our own run — a node never dispatched, a node not in the definition, a branch path never opened — each asserting the refusal and an empty log; plus one under another run id asserting silence, each in **all three terminal states** - a guard the fixtures only exercise in one state can be conditioned on the state. **One precondition, stated rather than assumed:** run ids are unique across the drivers sharing one scheduler (two drivers on one run id mint the same task ids, so `dispatched.has()` is true in both and this rule cannot see the collision - [Q87](../doc/open-questions.md)). **The other precondition is retired**: *"every task on the driver's scheduler carries an id some driver minted"* was v0.5's first, and [ADR 0027](../doc/decisions/0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md) replaces it with `ID-R5` below rather than leaving it a claim about code the flow author does not own | **W13**, precondition retired by **W18** |
+
+### `ID-R5` — an inbound id no driver minted is reported and dropped
+
+**Not in the table above, because it is the one inbound case that does *not* terminate the run.**
+[ADR 0027](../doc/decisions/0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md),
+answering [Q86](../doc/open-questions.md).
+
+| id | | Test owed by |
+|---|---|---|
+| `ID-R5` | **A settlement whose task id does not parse was minted by no driver. It is reported through `onUnmintedTask` and dropped, and it does not stop the run.** This is decided **before** `ID-R4`'s two tiers, because both compare a run id and an unparseable id has none. The report carries this driver's `runId`, the scheduler event's name, `detail.id` **uncoerced**, and a `reason` describing **what arrived** — `parseTaskId`'s own message when there was a string id, and an explicit *"carried no string `id`"* when there was not, because the parser is handed `''` in that case and its message would otherwise describe our substitution; nothing is appended, nothing is dispatched, and no `FoldInput` carries the offending string — the fold parses every id it is given (`src/fold/run-state.ts`), so a new input kind would make `fold()` throw. Test: a foreign id delivered in **all three terminal states**, asserting no `RunFailure`, an empty log, and that a legitimate settlement afterwards still routes; a `detail` with **no `id` field**, asserting the report carries `undefined` rather than `''` and a `reason` that names the absence rather than quoting the stand-in, with the converse pinned separately; two drivers on one scheduler, asserting both survive one foreign task and each reports under its own run id; and a settlement for another run's *parseable* id, asserting it reaches `onUnmintedTask` **not at all** | **W18** |
+
+**Why the report and the silence are not the same decision.** `ID-R4` tier 1 drops another run's
+settlement in silence because **the driver that owns that run will report it** — with two drivers on
+one scheduler that is the normal case, and a refusal on the normal case is noise (ADR 0023 rule 3,
+unchanged). An unparseable id is owned by **no** run, so silence there means nobody reports it ever.
+That asymmetry is the whole of ADR 0027 and it is why one case gets a channel and the other does not.
+
+**Why *reported* rather than merely *ignored*.** The inference behind this rule — `buildTaskId` emits
+only four-segment ids in the `ID-R2`/`FD-V16` charsets, so an id that fails the parse cannot be ours
+— is sound about **today's** scheduler and about nothing else. The one way it fails is a `detail`
+whose `id` stopped being what we dispatched, which is not hypothetical: `task.progress`'s detail
+changed shape at 0.3.0 and a 0.2.1 consumer reading `detail.taskId` silently got `undefined`
+(`CLAUDE.md`). Under a bare *ignore* that is a run that hangs with nothing said. The callback is the
+whole of the difference and it is why `ID-R5` is not one line.
 
 ### `ID-R3` — why one run per driver, and what it costs
 

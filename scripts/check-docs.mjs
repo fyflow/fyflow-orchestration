@@ -259,7 +259,14 @@ if (written.length) {
 // own `names.length >= 2` and is here for the same reason. The floor is a
 // ratchet, not a target — raise it when the reference gains a snippet, never
 // lower it to make a deletion pass.
-const RUN_FLOOR = 13;
+//
+// **13 -> 14 by W18**, which added section 9's `parseTaskId` snippet. Raising
+// it is not optional bookkeeping: at 13 the self-test probe *"a whole `run` snippet
+// deleted"* went GREEN, because 14 - 1 clears a floor of 13. **A ratchet left
+// un-raised stops being a ratchet on the first addition**, and the probe that
+// exists to notice a deletion is the thing that reports it — which is rule 7 (a)
+// working exactly as written, one item after the floor was built.
+const RUN_FLOOR = 14;
 {
   // **Only when the document parsed.** A count over a reference whose fences are
   // malformed or untagged is true of the parse and says nothing about coverage —

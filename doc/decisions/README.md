@@ -51,6 +51,7 @@ Use [TEMPLATE.md](TEMPLATE.md).
 | [0022](0022-a-driver-takes-its-run-at-construction.md) | A `Driver` takes its run at construction, and `start()` takes only the payload | Q53 / W13 | 2026-08-31 |
 | [0023](0023-an-inbound-settlement-is-this-runs-only-if-this-driver-dispatched-it.md) | An inbound settlement is this run's only if this driver dispatched its task id | Q72 / W13 | 2026-08-31 |
 | [0025](0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md) | The zero-arrival join is reportable, under a third policy id; arrival-counting is not repaired | Q24 / W16 | 2026-08-31 |
+| [0027](0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md) | An inbound task id that does not parse was minted by no driver: report it, do not stop the run — **supersedes 0023 rule 2** | Q86 / W18 | 2026-09-02 |
 | [0029](0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md) | The scheduler is a registry dependency, and nothing here reaches a working tree — **supersedes 0013 rules 3 and 5** | the maintainer | 2026-08-31 |
 
 **0029 takes an id outside every reserved block, deliberately.** [P5](../plans/p5-a-third-and-fourth-policy-or-repairs-of-the-first-two.md)
@@ -58,6 +59,8 @@ reserves 0025-0026 and [P6](../plans/p6-what-may-share-a-scheduler-with-a-driver
 0027-0028; this decision belongs to neither, because it was forced by an **environment change and an
 incident** rather than by a plan. Taking a reserved id would have made a plan's ledger false, and
 gaps are free while renumbering is not (`doc/workflow.md` section 3).
+
+**0027 is the first ADR whose index row was written by the item that took the decision.** `doc/workflow.md` v0.7 change 3 put `doc/decisions/**` on section 1 rule 5's record-step list, so W18 needed no declared exception to write this row — which is the fix for exactly the class the paragraph below describes, arriving one item after the paragraph.
 
 **The 0022 and 0023 rows were missing until W16 added them** — both ADRs are dated 2026-08-31 and so
 is the backfill, so this index was wrong for a day rather than for long, and it was wrong from the

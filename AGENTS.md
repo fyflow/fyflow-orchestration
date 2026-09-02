@@ -649,18 +649,71 @@ so a second run would silently merge into the first. **One driver, one run** —
 constructor option, so there is no second id to pass.
 
 **A second driver on the same scheduler is the supported answer**, which is what `MultipleRuns`'
-message tells you to build — **under two conditions.** Give each driver a **different** run id: two
-sharing one id mint the same task ids, and neither can see the collision. And put only flow tasks on
-that scheduler: a task id no driver minted does not parse, and that stops **every** driver on it.
- A settlement reaches only the driver that **dispatched** that task id:
-one for another run is ignored, and one carrying **this** driver's run id for a task it never
+message tells you to build — **under one condition.** Give each driver a **different** run id: two
+sharing one id mint the same task ids, so `dispatched.has()` is true in both, neither can see the
+collision, and one settlement dispatches the successor twice. Nothing enforces this and nothing can:
+a driver is handed two scheduler methods and neither asks who else is subscribed.
+
+**The scheduler may carry work this library did not mint** — a nightly cleanup, another library, a
+worker's own `context.spawnTask()` children. A task id that does not parse was minted by no driver,
+so it is **not** any run's: the driver reports it through `onUnmintedTask` and drops it, and no run
+stops (`ID-R5`). *This used to be the second condition, and it stopped **every** driver on the
+scheduler; ADR 0027 is where it changed.*
+
+```ts check
+import { Driver, type UnmintedTask } from 'fyflow-orchestration';
+
+declare const opts: ConstructorParameters<typeof Driver>[1];
+const watched = {
+  ...opts,
+  // Optional: without it the run still routes correctly, because a settlement that
+  // parses as nothing was never yours. Register it if you do not control everything
+  // on the scheduler — it is the only thing that would tell you the ids stopped
+  // being the ones you dispatched.
+  onUnmintedTask: (t: UnmintedTask) =>
+    console.warn(`run ${t.runId}: ${t.event} for ${String(t.taskId)} — ${t.reason}`),
+};
+void watched;
+```
+
+**Do not let this callback throw.** It runs inside the driver's scheduler listener, so a throw from it
+is caught at that boundary and **stops your run** — under your own error class, for a task that was
+never yours, which is the exact damage the rule exists to remove. Log and return.
+**A settlement reaches only the driver that dispatched that task id.** One
+for another run is ignored, and one carrying **this** driver's run id for a task it never
 dispatched stops the run with `UndispatchedTask` (`ID-R4`). The second half is a refusal rather than
 a filter for `ID-R1`'s reason — within one run the driver mints every id it dispatches, so a
 settlement it did not mint means its bookkeeping is wrong.
 
-**Reported, not thrown**, when there is nobody on the stack: `DuplicateTaskId`, `UncloneableResult`
-and `NoMatchingEdge` raised *inside a scheduler event listener*. Give the driver `onRunFailure` or you
-will not hear about them — the run stops and folds to `stopped`, silently.
+**Reported, not thrown**, when there is nobody on the stack: `DuplicateTaskId`, `UncloneableResult`,
+`NoMatchingEdge` and `UndispatchedTask` raised *inside a scheduler event listener*. Give the driver
+`onRunFailure` or you will not hear about them — the run stops and folds to `stopped`, silently.
+
+**`InvalidTaskId` is the ninth class and it is the one that does NOT stop a run.** It is thrown by
+`buildTaskId` and `parseTaskId`, both exported, and it is how you check an id yourself — *did some
+driver mint this?* is a `try`/`catch` around `parseTaskId`. Inside the driver's listener it is caught
+rather than reported: the settlement goes to `onUnmintedTask` and the run carries on (`ID-R5`), so
+**it never reaches `onRunFailure` and is never a `RunFailure.kind`.**
+
+```ts run
+import { InvalidTaskId, parseTaskId } from 'fyflow-orchestration';
+
+let mine = false;
+let foreignFailedAsInvalidTaskId = false;
+try { parseTaskId('run-1:ingest:-:0'); mine = true; } catch { /* not ours */ }
+try { parseTaskId('nightly-cleanup'); } catch (e) { foreignFailedAsInvalidTaskId = e instanceof InvalidTaskId; }
+console.log(mine, foreignFailedAsInvalidTaskId);
+if (!mine) throw new Error('a four-segment id in the charset must parse');
+if (!foreignFailedAsInvalidTaskId) throw new Error('a foreign task id must fail, and as InvalidTaskId');
+```
+
+*Written without a rethrow on purpose.* The obvious form of this — a `mintedByADriver(id)` helper
+whose `catch` rethrows anything that is not an `InvalidTaskId` — is the shape the driver itself uses,
+and **W18 shipped it and then measured that its assertions could all be deleted with the gate
+green**: `check-docs`' `X4a` asks whether a `run` snippet contains a `throw`, and the helper's own
+rethrow answered yes on the assertions' behalf. The general weakness is
+[Q104](../doc/open-questions.md); here the snippet simply does not give `X4a` a `throw` that is not
+an assertion.
 
 ```ts check
 import { Driver, type RunFailure } from 'fyflow-orchestration';
@@ -674,24 +727,40 @@ void withReporting;
 ```
 
 `f.kind` is the **class name**, so these are the strings you switch on. Imported here rather than
-quoted in prose, so renaming one in `src/` fails this gate instead of silently falsifying the two
-paragraphs above:
+quoted in prose, so renaming one in `src/` fails this gate instead of silently falsifying the
+paragraphs above.
+
+**And the list is checked against the PACKAGE, not against itself** — [Q101](../doc/open-questions.md).
+Until W18 this snippet imported eight classes, mapped them to `.name`, and compared the result to a
+literal it also contained. That is a closed list agreeing with a copy of itself: it was executed by
+`npm run gate`, it **omitted `InvalidTaskId`** — exported from the package root the whole time — and
+it passed. *Rot is what the gate prevents; a list that never looks outside itself is a third thing the
+gate cannot see.* The second half below is what makes adding a refusal class in `src/` and not
+mentioning it here a **failure** rather than an omission nobody can observe:
 
 ```ts run
+import * as lib from 'fyflow-orchestration';
 import {
-  DuplicateTaskId, InvalidDefinition, InvalidRunId, MissingJoinPolicy,
+  DuplicateTaskId, InvalidDefinition, InvalidRunId, InvalidTaskId, MissingJoinPolicy,
   MultipleRuns, NoMatchingEdge, UncloneableResult, UndispatchedTask,
 } from 'fyflow-orchestration';
 
-const named = [
+const documented = [
   DuplicateTaskId, UncloneableResult, NoMatchingEdge, UndispatchedTask,  // reported inside a listener
   MultipleRuns, InvalidRunId, InvalidDefinition, MissingJoinPolicy,      // thrown at you
-].map((c) => c.name).join(' ');
-console.log(named);
-if (named !== 'DuplicateTaskId UncloneableResult NoMatchingEdge UndispatchedTask MultipleRuns ' +
-             'InvalidRunId InvalidDefinition MissingJoinPolicy') {
-  throw new Error(`section 9 names classes that no longer exist under those names: ${named}`);
-}
+  InvalidTaskId,                                                         // neither — see above
+].map((c) => c.name);
+
+// Every Error subclass the package root exports, discovered rather than restated.
+const exported = Object.entries(lib)
+  .filter(([, v]) => typeof v === 'function' && Error.isPrototypeOf(v as object))
+  .map(([name]) => name);
+
+const missing = exported.filter((n) => !documented.includes(n));
+const stale = documented.filter((n) => !exported.includes(n));
+console.log(documented.length, exported.length);
+if (missing.length) throw new Error(`section 9 does not mention: ${missing.join(' ')}`);
+if (stale.length) throw new Error(`section 9 names classes the package no longer exports: ${stale.join(' ')}`);
 ```
 
 After a refusal the run is **stopped**: nothing routes for it again, and its state folds to

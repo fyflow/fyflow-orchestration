@@ -25,6 +25,9 @@
 import { equal, ok, suite, throws } from '../harness.ts';
 import { readText, ROOT } from '../harness.ts';
 import { Driver, UndispatchedTask } from '../../src/driver/driver.ts';
+import { buildTaskId } from '../../src/driver/ids.ts';
+import { validateDefinition } from '../../src/definition/validate.ts';
+import type { UnmintedTask } from '../../src/driver/driver.ts';
 import { fold } from '../../src/fold/run-state.ts';
 import type { FlowDefinition } from '../../src/definition/types.ts';
 import type { JoinPolicy, Region } from '../../src/driver/policy.ts';
@@ -56,13 +59,21 @@ class Fake {
     else { this.fire('task.failed', d); if (state === 'user_action') this.fire('task.user_action', d); }
   }
   ids(): string[] { return this.added.map((t) => t.id); }
+  /**
+   * An event whose `detail` is whatever the caller says, including one with no
+   * `id`. `settle` always supplies one, so it cannot reach `ID-R5`'s version-skew
+   * case — a scheduler whose detail stopped carrying the field we read.
+   */
+  raw(type: string, detail: unknown): void { this.fire(type, detail); }
   private fire(t: string, detail: unknown): void { for (const f of this.l.get(t) ?? []) f({ detail }); }
 }
 
-interface Rig { driver: Driver; failures: string[] }
+interface Rig { driver: Driver; failures: string[]; failureRunIds: string[]; unminted: UnmintedTask[] }
 
 function attach(scheduler: Fake, def: FlowDefinition, runId: string): Rig {
   const failures: string[] = [];
+  const failureRunIds: string[] = [];
+  const unminted: UnmintedTask[] = [];
   const driver = new Driver(def, {
     runId,
     scheduler,
@@ -71,9 +82,10 @@ function attach(scheduler: Fake, def: FlowDefinition, runId: string): Rig {
     workerTypes: reg.workerTypes,
     now: () => 1,
     joinPolicy: stubPolicy as unknown as JoinPolicy,
-    onRunFailure: (f) => failures.push(f.kind),
+    onRunFailure: (f) => { failures.push(f.kind); failureRunIds.push(f.runId); },
+    onUnmintedTask: (i) => unminted.push(i),
   });
-  return { driver, failures };
+  return { driver, failures, failureRunIds, unminted };
 }
 
 suite('ID-R4 — a settlement carrying OUR run id for a task we never dispatched stops the run', (test) => {
@@ -111,15 +123,20 @@ suite('ID-R4 — a settlement carrying OUR run id for a task we never dispatched
     ok(new UndispatchedTask('x') instanceof Error, 'so a caller can key on it, not on a message');
   });
 
-  test('a MALFORMED id still stops the run, and not as ID-R4', async () => {
-    // The guard sits AFTER parseTaskId, deliberately (ADR 0023 rule 2): "does not
-    // parse" is not "not ours", it is a defect and it stays attributable.
+  test('a MALFORMED id is NOT ID-R4, and since ADR 0027 is not a refusal at all', async () => {
+    // **This assertion is reversed by [ADR 0027](../../doc/decisions/0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md)
+    // and it was reversed on purpose.** It read `equal(r.failures, ['InvalidTaskId'])`
+    // under ADR 0023 rule 2 — *"does not parse" is not "not ours", it is a defect* —
+    // which made one plain non-flow task settling stop every driver on a shared
+    // scheduler. `ID-R5` is the replacement and `ID-R4` is untouched: the point
+    // this case has always made is that the two rules are different, and it still
+    // makes it. The full `ID-R5` surface is the suite below.
     const s = new Fake();
     const r = attach(s, await load('valid/linear.flow.json'), 'r1');
     r.driver.start({});
     s.settle('not-a-task-id', 'done', { result: null });
-    equal(r.failures, ['InvalidTaskId'],
-      'OR-R10, unchanged — an unparseable id is refused before the run-id comparison can be made');
+    equal(r.failures, [], 'ID-R5: reported, not refused — and never as ID-R4, which needs a run id to compare');
+    equal(r.unminted.map((u) => u.taskId), ['not-a-task-id'], 'on its own channel instead');
   });
 
   test('a `user_action` task fires TWO events for ONE dispatched id, and both pass', async () => {
@@ -250,6 +267,290 @@ suite('ID-R4 — a settlement for ANOTHER run is ignored, silently', (test) => {
       'and nothing is dispatched — before W13 this dispatched `run-9:publish:-:0` from a run-1 driver');
     ok(!r.driver.hasFailed(), 'the run is untouched');
   });
+
+  test('and it does NOT reach onUnmintedTask either — that channel is tier 0 only', async () => {
+    // `ID-R5`'s asymmetry with ADR 0023 rule 3, asserted rather than described.
+    // A parseable id belonging to another run **will** be reported, by the driver
+    // that owns that run; an unparseable one is owned by nobody. That is the whole
+    // argument for giving one a channel and not the other, so a driver that
+    // reported both would have made the argument false.
+    const s = new Fake();
+    const r = attach(s, await load('valid/linear.flow.json'), 'r1');
+    r.driver.start({});
+    s.settle('run-9:ingest:-:0', 'done', { result: null });
+    equal(r.unminted, [], 'ADR 0027 adds a tier-0 report and leaves rule 3`s silence exactly as it was');
+  });
+});
+
+/**
+ * **`ID-R5` — [ADR 0027](../../doc/decisions/0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md).**
+ *
+ * Expected values are re-derived from `spec/task-id.md` section 3's `ID-R5` row
+ * and section 1's grammar, never from what the driver emits: `buildTaskId` joins
+ * exactly four segments, so *"could a driver have minted this"* and *"does
+ * `parseTaskId` accept it"* are the same question, and the answer to the first is
+ * what decides the behaviour.
+ */
+suite('ID-R5 — an inbound id no driver minted is reported and dropped, not refused', (test) => {
+  // **All three terminal states, and that is W13's adequacy reader's finding
+  // applied one tier out** (`spec/task-id.md` `ID-R4`: *"a guard the fixtures only
+  // exercise in one state can be conditioned on the state"*). Tier 0 sits above
+  // `normalizeEvent`, so it cannot read a terminal state — and a guard that cannot
+  // read one cannot be conditioned on it. These rows are what says so.
+  for (const state of ['done', 'failed', 'user_action'] as const) {
+    test(`a foreign task settling \`${state}\` leaves the run running`, async () => {
+      const s = new Fake();
+      const r = attach(s, await load('valid/linear.flow.json'), 'r1');
+      r.driver.start({});
+      const dispatched = s.ids().length;
+
+      s.settle('nightly-cleanup', state, { result: null });
+
+      equal(r.failures, [],
+        'ADR 0027: an id no driver minted is not this run`s defect. Before it, this one line ' +
+        'stopped EVERY driver subscribed to the scheduler');
+      ok(!r.driver.hasFailed(), 'so the run is still routing');
+      equal(r.driver.snapshot().length, 0, 'nothing is appended — it is not an outcome of ours');
+      equal(s.ids().length, dispatched, 'and nothing is dispatched from it');
+      // `user_action` fires the ADR 0007 rule 2 pair, so the report count is the
+      // event count rather than one per task. Stated here because a reader will
+      // otherwise read `2` as a bug.
+      equal(r.unminted.map((u) => u.event),
+        state === 'user_action' ? ['task.failed', 'task.user_action'] : [`task.${state === 'done' ? 'completed' : 'failed'}`],
+        'reported once per EVENT: tier 0 is above normalizeEvent, so OR-R3 has not yet dropped the pair`s first');
+    });
+  }
+
+  // **`ID-R5` is one guard over SIX refusals, and W18's adequacy reader found five
+  // of them never delivered.** Every fixture above is `nightly-cleanup` or
+  // `not-a-task-id` — single-segment, colon-free — so only `parseTaskId`'s
+  // **arity** refusal ever reached the listener. With that, `if (typeof taskId ===
+  // 'string' && taskId.includes(':')) throw e;` narrows tier 0 to colon-free ids
+  // and **all 402 assertions stayed green**, restoring ADR 0023 rule 2 for five of
+  // six shapes; so does `taskId.startsWith(this.runId + ':')`, which is
+  // character-for-character ADR 0027's own last *rejected* alternative.
+  //
+  // **The rows below are the ones the decision argues about.** `r1:ingest:x:0` is
+  // *"a corrupted id for a task that IS ours"* — the against-case's whole
+  // referent, and the only shape a version skew inside our own id scheme
+  // produces. Expected value from `spec/task-id.md` section 1: four segments in
+  // the stated grammar, or it did not come from `buildTaskId`.
+  const SHAPES: [string, unknown, string][] = [
+    ['a foreign task, no delimiters at all', 'nightly-cleanup', 'arity — one segment'],
+    ['our run id with a malformed branchPath', 'r1:ingest:x:0', '`branchPath` is `-` or dotted indices'],
+    ['our run id with a malformed attempt', 'r1:ingest:-:00', '`attempt` has no leading zeros'],
+    ['our run id with a nodeId outside the charset', 'r1:ing est:-:0', 'the segment charset — a space'],
+    ['a runId segment outside the charset', 'r 1:ingest:-:0', 'the same refusal on the FIRST segment'],
+    ['three segments', 'r1:ingest:-', 'arity — too few, but WITH delimiters'],
+    ['five segments', 'r1:ingest:-:0:9', 'arity — too many'],
+  ];
+  for (const [name, id, why] of SHAPES) {
+    test(`${name} is reported and dropped (${why})`, async () => {
+      const s = new Fake();
+      const r = attach(s, await load('valid/linear.flow.json'), 'r1');
+      r.driver.start({});
+      const before = s.ids().length;
+
+      s.settle(id as string, 'done', { result: null });
+
+      equal(r.failures, [], 'ID-R5 is one guard over every shape `parseTaskId` refuses, not over one of them');
+      ok(!r.driver.hasFailed(), 'the run keeps routing');
+      equal(r.unminted.map((u) => u.taskId), [id], 'reported, with the id the scheduler actually sent');
+      equal(s.ids().length, before, 'and nothing dispatched from it');
+    });
+  }
+
+  test('the report carries this driver`s run id, and it could not have come from anywhere else', async () => {
+    const s = new Fake();
+    // **A run id no other case uses.** W18's adequacy reader: with `run-a` here,
+    // replacing `runId: this.runId` with the literal `'run-a'` passed this case —
+    // the fixture and the constant were the same string, so the case named as the
+    // moved discrimination could not, alone, make it.
+    const r = attach(s, await load('valid/linear.flow.json'), 'zz9');
+    r.driver.start({});
+    s.settle('nightly-cleanup', 'done', { result: null });
+    equal(r.unminted.map((u) => u.runId), ['zz9'],
+      'ADR 0022 rule 1. **This is the assertion that moved here from `onRunFailure`** when ADR 0027 ' +
+      'took away its vehicle: an unparseable id is the ONLY inbound id with no run id to parse one ' +
+      'out of, so it is the only case where "from the constructor" and "from the event" differ');
+  });
+
+  test('a `detail` with no `id` at all is reported UNCOERCED, which is the case worth having', async () => {
+    // The one way ADR 0027's inference could be wrong — an id that IS ours and is
+    // not recognisable — and it is not hypothetical: `task.progress`'s detail
+    // changed shape at 0.3.0 and a 0.2.1 consumer reading `detail.taskId` got
+    // `undefined` (CLAUDE.md). Reporting `''` here would hide exactly that.
+    const s = new Fake();
+    const r = attach(s, await load('valid/linear.flow.json'), 'r1');
+    r.driver.start({});
+    s.raw('task.completed', { state: 'done', attempts: 0, timestamp: 1 });
+    equal(r.unminted.length, 1, 'reported rather than dropped in silence');
+    equal(r.unminted[0]!.taskId, undefined,
+      'undefined, not the empty string the parse was handed — a consumer debugging a version skew ' +
+      'needs to see that there was no id, not that there was a bad one');
+    // **W18's conformity reader.** This read `reason.includes('1 segments')` — a
+    // pass on `parseTaskId`'s message ABOUT THE STAND-IN, which is a sentence
+    // describing `''`, a value the scheduler never sent. In the one case a
+    // consumer most needs the report, the report was about our substitution.
+    ok(r.unminted[0]!.reason.includes('no string `id`'),
+      'the reason describes what ARRIVED. `parseTaskId`s own message is used when there IS an id ' +
+      'to describe, which the case below pins');
+    ok(!r.unminted[0]!.reason.includes('""'), 'and never quotes the empty string we invented');
+  });
+
+  test('when there IS a string id, the reason is `parseTaskId`s own message', async () => {
+    // The other half of the case above: `ID-R5` says the reason is `parseTaskId`'s,
+    // so the grammar is stated in one place (`spec/task-id.md` section 2). Both
+    // halves are needed — asserting only this one lets the `''` message through,
+    // and asserting only the other lets our own text replace the grammar's.
+    const s = new Fake();
+    const r = attach(s, await load('valid/linear.flow.json'), 'r1');
+    r.driver.start({});
+    s.settle('nightly-cleanup', 'done', { result: null });
+    ok(r.unminted[0]!.reason.includes('"nightly-cleanup"') && r.unminted[0]!.reason.includes('1 segments'),
+      'the parser`s own sentence, naming the id the scheduler actually sent');
+  });
+
+  test('FD-V16 accepts exactly the node ids buildTaskId accepts, which the refusal argument rests on', () => {
+    // **W18's conformity reader, and it is the sharper half of a NOTE.** ADR 0027
+    // and `spec/outcome-record.md` section 6 both claim `InvalidTaskId` can no
+    // longer reach `onRunFailure`. `advance()` and `dispatch()` call `buildTaskId`
+    // from INSIDE the listener, where a throw becomes a `RunFailure`, and the only
+    // thing stopping it is that **a node id the definition validator accepted is a
+    // node id `buildTaskId` accepts**. Nothing asserted that.
+    //
+    // **Asserted as the PROPERTY, not as the spelling.** The first version of this
+    // case read both source files and compared the two regex literals as text: it
+    // passed in node and deno and **failed in chromium**, where nothing can read
+    // `src/` (`RT-R1` — three runtimes from one source tree). Comparing behaviour
+    // is portable *and* strictly stronger — it survives either constant being
+    // rewritten in a different but equivalent form, which a text compare would
+    // call a failure.
+    const CANDIDATES = [
+      'ok', 'ok-1', 'ok_1', 'OK', 'a'.repeat(64),          // in both, or in neither
+      'a'.repeat(65), '', 'has space', 'has:colon', 'has.dot', 'has/slash', 'é', 'a+b',
+    ];
+    const disagree: string[] = [];
+    for (const id of CANDIDATES) {
+      const def = {
+        flowId: 'f', version: 1, entry: id,
+        nodes: [{ id, kind: 'task', workerType: reg.workerTypes[0], edges: [] }],
+      } as unknown as FlowDefinition;
+      const validatorAccepts = !validateDefinition(def, { workerTypes: reg.workerTypes, predicates: [] })
+        .some((v) => v.rule === 'FD-V16');
+      let minterAccepts = true;
+      try { buildTaskId('r1', id, null); } catch { minterAccepts = false; }
+      if (validatorAccepts !== minterAccepts) disagree.push(id);
+    }
+    equal(disagree, [],
+      'FD-V16 and ID-R2 must accept the same node ids. Where they diverge, buildTaskId throws ' +
+      'InvalidTaskId from inside the listener and `spec/outcome-record.md` section 6`s "no raise ' +
+      'site the library reaches" becomes false');
+  });
+
+  test('the run keeps working: a legitimate settlement after a foreign one still routes', async () => {
+    // **The whole of ADR 0027 in one assertion.** Under ADR 0023 rule 2 this
+    // dispatched nothing, because the run had already stopped.
+    const s = new Fake();
+    const r = attach(s, await load('valid/linear.flow.json'), 'r1');
+    r.driver.start({});
+    s.settle('nightly-cleanup', 'done', { result: null });
+    s.settle('r1:ingest:-:0', 'done', { result: null });
+    ok(s.ids().includes('r1:publish:-:0'),
+      'the successor is dispatched — a foreign task on the scheduler no longer kills an unrelated run');
+  });
+
+  test('two drivers on one scheduler both survive it, which is the topology ADR 0023 blessed', async () => {
+    // `AGENTS.md` section 9 recommends this topology. Measured by W13's conformity
+    // reader under ADR 0023 rule 2: **both** drivers reported `InvalidTaskId` and
+    // **both** stopped. That is the defect ADR 0027 exists to remove, so it is
+    // asserted at the multiplicity that made it matter rather than on one driver.
+    const s = new Fake();
+    const a = attach(s, await load('valid/linear.flow.json'), 'run-a');
+    const b = attach(s, await load('valid/linear.flow.json'), 'run-b');
+    a.driver.start({});
+    b.driver.start({});
+
+    s.settle('nightly-cleanup', 'done', { result: null });
+
+    equal([...a.failures, ...b.failures], [], 'neither run is stopped by a task neither of them owns');
+    ok(!a.driver.hasFailed() && !b.driver.hasFailed(), 'both are still routing');
+    // **W18's conformity reader.** This asserted `[a.unminted.length, b.unminted.length]`
+    // and claimed *"under its own run id"* in its message — which a driver
+    // reporting the OTHER driver's run id passes. The single-driver case above
+    // pins `runId`, but not at the multiplicity where the two could be confused,
+    // and that multiplicity is the whole reason this case exists. `ID-R5`'s test
+    // list asks for the run ids, so this asserts the run ids.
+    equal([...a.unminted, ...b.unminted].map((u) => u.runId), ['run-a', 'run-b'],
+      'one report each, and each under its OWN run id — nobody else is going to tell either of them');
+
+    s.settle('run-a:ingest:-:0', 'done', { result: null });
+    s.settle('run-b:ingest:-:0', 'done', { result: null });
+    ok(s.ids().includes('run-a:publish:-:0') && s.ids().includes('run-b:publish:-:0'),
+      'and both runs complete their next step, which is P6`s question answered');
+  });
+
+  test('a driver that registers no callback still routes correctly', async () => {
+    // `onUnmintedTask` is optional and the run must not depend on it: the dropped
+    // settlement was never this run's, so nothing it waits for goes missing.
+    const s = new Fake();
+    const driver = new Driver(await load('valid/linear.flow.json'), {
+      runId: 'r1', scheduler: s, createTask: (c) => c, predicates: new Map(),
+      workerTypes: reg.workerTypes, now: () => 1,
+    });
+    driver.start({});
+    s.settle('nightly-cleanup', 'done', { result: null });
+    s.settle('r1:ingest:-:0', 'done', { result: null });
+    ok(!driver.hasFailed() && s.ids().includes('r1:publish:-:0'),
+      'no callback, no failure, and the run advances');
+  });
+
+  test('a throwing onUnmintedTask DOES stop the run, which is the documented behaviour', async () => {
+    // **ADR 0027 chose "documented rather than guarded" and nothing asserted the
+    // choice** — W18's adequacy reader wrapped the call in `try {} catch {}` and
+    // all 402 assertions stayed green, silently reversing a stated ADR position
+    // and an `AGENTS.md` §9 warning printed in bold. Three observables flip, so
+    // three are asserted. The value comes from the decision, not from the code:
+    // every callback on this surface is invoked inside the listener and a throw
+    // from any of them reaches `failRun`; swallowing a consumer's throw is its
+    // own defect.
+    const s = new Fake();
+    const failures: string[] = [];
+    const driver = new Driver(await load('valid/linear.flow.json'), {
+      runId: 'r1', scheduler: s, createTask: (c) => c, predicates: new Map(),
+      workerTypes: reg.workerTypes, now: () => 1,
+      onRunFailure: (f) => failures.push(f.kind),
+      onUnmintedTask: () => { throw new TypeError('consumer bug'); },
+    });
+    driver.start({});
+    const before = s.ids().length;
+    s.settle('nightly-cleanup', 'done', { result: null });
+
+    equal(failures, ['TypeError'], 'reported under the CONSUMER`s error class, at the listener boundary');
+    ok(driver.hasFailed(), 'and the run is stopped — a foreign task takes it down through their code');
+    s.settle('r1:ingest:-:0', 'done', { result: null });
+    equal(s.ids().length, before, 'so the legitimate settlement that follows routes nothing');
+  });
+
+  test('a refusal raised BELOW tier 0 still stops the run', async () => {
+    // **This case's first comment claimed it exercised the `instanceof` in tier 0's
+    // catch. It does not, and W18's own provocation is what said so** — widening
+    // that catch to bare `catch (e)` leaves every assertion here green, because
+    // tier 0's `try` wraps one call raising one class and nothing else can reach
+    // it. The guard is a forward guard; `src/driver/driver.ts` says that in place.
+    //
+    // What this case does cover is the ORDERING, which is a real clause of
+    // ADR 0027 and is killable: `normalizeEvent` raises `OR-R6` **below** tier 0
+    // and outside its block, so a refusal from there must still reach `failRun`
+    // rather than being reported as a foreign task. Move `normalizeEvent` inside
+    // that `try` and this goes red.
+    const s = new Fake();
+    const r = attach(s, await load('valid/linear.flow.json'), 'r1');
+    r.driver.start({});
+    s.settle('r1:ingest:-:0', 'done', { result: () => 1 });
+    equal(r.failures, ['UncloneableResult'], 'OR-R10, unchanged — tier 0 catches its own throw and no other');
+    equal(r.unminted, [], 'and it is not misreported as an unminted task');
+  });
 });
 
 suite('Q72 — two Drivers on ONE scheduler, which is what MultipleRuns tells you to build', (test) => {
@@ -345,6 +646,18 @@ suite('ADR 0022 — the surface says what ID-R3 says', (test) => {
     // one reported ANOTHER run's id. Its adequacy counterpart found the field was
     // asserted nowhere at all — every onRunFailure capture in the repository read
     // `kind` and dropped `runId`.
+    //
+    // **[ADR 0027](../../doc/decisions/0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md)
+    // took this case's discriminating vehicle away and it is recorded rather than
+    // quietly swapped.** It used to settle `'not-a-task-id'`, the only inbound id
+    // with **no run id in it** — which is what made "from the constructor" and
+    // "parsed from the event" distinguishable. Every refusal that can still reach
+    // `failRun` from the listener sits *below* `ID-R4` tier 1, so its id's run
+    // segment is now necessarily this driver's, and this case can no longer tell
+    // the two sources apart on its own. **The discrimination moved with the
+    // vehicle**, to `ID-R5`'s *"the report carries this driver's run id"* above;
+    // this row keeps the `runId`-is-asserted-at-all property that W13's adequacy
+    // reader added, and says plainly that it is now the weaker half.
     const s = new Fake();
     const seen: string[] = [];
     const driver = new Driver(await load('valid/linear.flow.json'), {
@@ -357,9 +670,9 @@ suite('ADR 0022 — the surface says what ID-R3 says', (test) => {
       onRunFailure: (f) => seen.push(f.runId),
     });
     driver.start({});
-    s.settle('not-a-task-id', 'done', { result: null });
+    s.settle('run-a:nosuch:-:0', 'done', { result: null });
     equal(seen, ['run-a'],
-      'not `<unknown>`: after ADR 0022 the driver knows its run from the constructor`s first line');
+      'ID-R4 tier 2 is the vehicle now, and a RunFailure still names the run that failed');
   });
 
   test('a throwing start() BOTH reports and rethrows, and is still a used start', async () => {

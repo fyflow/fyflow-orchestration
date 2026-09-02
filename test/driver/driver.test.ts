@@ -402,6 +402,122 @@ suite('the join seam — the driver asks a policy and acts on the answer', (test
     equal(h.ids().includes('r1:publish:-:0'), false, 'and does not route out of the join');
   });
 
+  /**
+   * **[Q95](../../doc/open-questions.md) — the `unsatisfiable` exit's `at most
+   * once` latch, made load-bearing.**
+   *
+   * `spec/join-policy.md` section 4 fixes both exits: a **satisfied** join is
+   * routed out of *"at most once per region however many events follow"*, and an
+   * **unsatisfiable** one is *"reported with the policy's own `describe`, and
+   * routes nowhere"*. Those two clauses are the expected values below. **They are
+   * not the `DuplicateTaskId` the register measured** — that is what the latch's
+   * *absence* produces, and reading it as the expectation is `doc/workflow.md`
+   * section 5 rule 1's snapshot.
+   *
+   * The seam has two exits and, of what this repository ships, **neither can
+   * reach this clause**: all four policies satisfy only when every branch is
+   * terminal, so the settling event is always the last one and nothing follows
+   * it. Measured across all forty matrix cells: zero region events after a
+   * settlement. A stub is the instrument, exactly as `driver.test.ts`'s `dead`
+   * above and `fold-inputs.test.ts`'s `never` already are.
+   *
+   * **The satisfied half is already covered** by *"a join fires at most once"*
+   * above — deleting its latch costs that case one assertion. **The
+   * unsatisfiable half was covered by nothing**: deleting *its* latch left all
+   * 386 assertions green, which is W15's provocation G1 and the whole of Q95.
+   *
+   * **Shipping an early-settling policy is a feature question and this is not
+   * one.** Whether a join may fire on anything short of every branch is
+   * [Q5](../../doc/open-questions.md)/[Q7](../../doc/open-questions.md), which
+   * [P6](../../doc/plans/p6-what-may-share-a-scheduler-with-a-driver.md) does not
+   * take. These policies are test instruments and live here rather than in
+   * `src/fold/policies.ts` for that reason.
+   */
+  const arrivals = (over: Partial<JoinPolicy<{ a: number }>>): JoinPolicy<{ a: number }> => ({
+    id: 'stub', open: () => ({ a: 0 }),
+    step: (st, e) => (e.type === 'branch.arrived' ? { a: st.a + 1 } : st),
+    status: () => 'waiting', describe: (st) => ({ ...st }), ...over,
+  });
+
+  /**
+   * Both branches settle `done`, so `branch.arrived(split:1)` FOLLOWS the join's
+   * settlement at `arrived(split:0)`.
+   *
+   * **The `ok(...)` is the fix for the only survivor W18's own provocation set
+   * found in these two cases, and it is the reader-survivor shape this repository
+   * keeps meeting: a probe changed the input without changing an observable.**
+   * Two independent mutations — weakening the stub to settle on the *second*
+   * arrival, and deleting the third settlement — made *"an event follows the
+   * settlement"* false, and **both left every assertion below green**, because the
+   * cases assert what the driver did and not that the situation they exist for
+   * occurred. Under either, `at most once` is satisfied by there being only one
+   * chance. **The precondition is now asserted here**, once, for both cases.
+   */
+  async function bothArrive(policy: JoinPolicy<{ a: number }>) {
+    const h = harness(await load('valid/fanout-join.flow.json'), {}, { joinPolicy: policy as never });
+    h.driver.start({});
+    h.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
+    h.scheduler.settle('r1:scoreA:0:0', 'done', { result: {} });
+    h.scheduler.settle('r1:scoreB:1:0', 'done', { result: {} });
+    const seq = h.driver.foldInputs();
+    const settled = seq.findIndex((i) => i.kind === 'joinSettled');
+    // **`settleJoin` is re-entered — not merely "a region event follows".**
+    // W18's adequacy reader broke the weaker form with one token: settling the
+    // second branch `user_action` emits `branch.suspended`, which satisfies *"a
+    // region event follows"* and then **`return`s before `advance()`**, so the
+    // latch is never asked. With that, deleting the `unsatisfiable` latch was
+    // green again at 402 — Q95 restored by the guard written to prevent it.
+    // `branch.opened` has the same property. Only the three TERMINAL region
+    // events reach `settleJoin` (`spec/join-policy.md` section 4: *status is
+    // asked after every terminal event*), so those are what this asserts.
+    const REENTERS = ['branch.arrived', 'branch.lost', 'branch.exited'];
+    ok(settled >= 0 && seq.slice(settled + 1)
+      .some((i) => i.kind === 'region' && REENTERS.includes((i as { event: { type: string } }).event.type)),
+      'the scenario`s own precondition: the join settles and a TERMINAL region event follows it, so ' +
+      '`settleJoin` is entered again. Across all forty matrix cells that never happens, which is why ' +
+      'Q95 needed a stub — a stub that settles last is not a stub, and so is one whose trailing ' +
+      'event returns before the join is asked');
+    return h;
+  }
+
+  test('Q95: an unsatisfiable join is settled ONCE however many events follow it', async () => {
+    // `spec/join-policy.md` section 4, `unsatisfiable`: the driver **reports** it.
+    // One region, one settlement, so one report — and `branch.arrived(1)` arrives
+    // after the join is already decided, which is the situation that clause is
+    // written about and which nothing in this repository had ever produced.
+    const h = await bothArrive(arrivals({
+      id: 'dead-on-first-arrival', status: (st) => (st.a >= 1 ? 'unsatisfiable' : 'waiting'),
+    }));
+    equal(h.unsatisfiable.length, 1,
+      'reported once per region, not once per terminal event — the second arrival re-enters ' +
+      'settleJoin and the latch is the only thing that stops it');
+    equal(h.driver.foldInputs().filter((i) => i.kind === 'joinSettled').length, 1,
+      'and the sequence records one settlement: a second `joinSettled(fired: false)` would make ' +
+      'ADR 0015`s `joined` a value the fold derives from a repeated input');
+  });
+
+  test('Q95: and it NEVER routes, even when the policy later says satisfied', async () => {
+    // The sharper half, and the one that is not merely a duplicate report.
+    // Section 4's `unsatisfiable` row says the driver *"routes nowhere"*; without
+    // the latch the later `satisfied` is acted on, `r1:publish:-:0` is dispatched
+    // out of a join the driver has already declared dead, and `RunState.outcome`
+    // reads `completed` for a run that was `stuck`. **That is character-for-character
+    // the false statement ADR 0015 exists to remove**, reached through the
+    // driver's own surface and with `hasFailed()` false the whole way.
+    const h = await bothArrive(arrivals({
+      id: 'dead-then-alive',
+      status: (st) => (st.a >= 2 ? 'satisfied' : st.a >= 1 ? 'unsatisfiable' : 'waiting'),
+    }));
+    equal(h.ids().includes('r1:publish:-:0'), false,
+      'a join declared unfireable stays unfireable, whatever the policy says next');
+    equal(h.unsatisfiable.length, 1, 'and it is still reported exactly once');
+    equal(h.driver.foldInputs().filter((i) => i.kind === 'joinSettled').map((i) => (i as { fired: boolean }).fired),
+      [false], 'one settlement, and it did not fire — never [false, true]');
+    ok(!h.driver.hasFailed(),
+      'and nothing refuses it on the way, which is why the latch is the only thing between these ' +
+      'two runs — a DuplicateTaskId here would be the ABSENCE of the guard, not the expectation');
+  });
+
   test('a fan-out definition with no policy is refused at construction', async () => {
     const def = await load('valid/fanout-join.flow.json');
     throws(

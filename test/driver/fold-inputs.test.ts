@@ -207,16 +207,35 @@ suite('ADR 0014 — the driver produces one ordered input sequence', (test) => {
   });
 
   test('a run the driver stopped appends `stopped`, once', async () => {
-    // `ID-R1` is reached by a definition that dispatches the same node twice; the
-    // simplest reachable refusal here is a malformed id delivered by the fake,
-    // which `parseTaskId` refuses at the listener boundary.
+    // **The vehicle changed and the rule did not.** This used to deliver two
+    // malformed ids, which `parseTaskId` refused at the listener boundary; since
+    // [ADR 0027](../../doc/decisions/0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md)
+    // an unparseable id is not a refusal at all, so the simplest reachable one is
+    // `ID-R4` tier 2 — our own run id for a node we never dispatched, twice.
+    // `OR-R10`'s *"once"* is what is under test either way.
     const h = harness(await load('valid/linear.flow.json'));
     h.driver.start({});
-    h.scheduler.settle('not-a-task-id', 'done');
-    h.scheduler.settle('also-not-one', 'done');
+    h.scheduler.settle('r1:nosuch:-:0', 'done');
+    h.scheduler.settle('r1:alsonosuch:-:0', 'done');
     const stops = h.driver.foldInputs().filter((i) => i.kind === 'stopped');
     equal(stops.length, 1, '`OR-R10` stops the run once; a second refusal for the same run adds nothing');
     equal(fold(h.driver.foldInputs()).outcome, 'stopped', 'RN-R8: stopped outranks everything');
+  });
+
+  test('an id NO driver minted appends nothing at all, and the sequence keeps going', async () => {
+    // `ID-R5`'s fold-side half, and it is the one ADR 0027's third option would
+    // have broken: *"ignore it, but report it"* is a **callback**, deliberately,
+    // and not a `FoldInput` kind. `src/fold/run-state.ts:154` and `:179` call
+    // `parseTaskId` on every id they are handed, so a fold input carrying the
+    // offending string would make `fold()` — a pure function — throw
+    // `InvalidTaskId`. ADR 0027 rules that out in as many words.
+    const h = harness(await load('valid/linear.flow.json'));
+    h.driver.start({});
+    h.scheduler.settle('nightly-cleanup', 'done');
+    equal(h.driver.foldInputs().map((i) => i.kind), ['dispatched'],
+      'no `stopped`, and no fifth input kind carrying an id the fold would then try to parse');
+    h.scheduler.settle('r1:ingest:-:0', 'done');
+    equal(fold(h.driver.foldInputs()).outcome, 'running', 'the run is unharmed and still going');
   });
 
   test('what leaves through onFoldInput is a frozen copy, not the driver`s own element', async () => {
@@ -361,6 +380,28 @@ suite('ID-R3 — a driver serves exactly one run, and start() is called at most 
     h.driver.start({});
     throws(() => h.driver.start({}), 'MultipleRuns',
       'ID-R3 now answers first — the DuplicateTaskId this used to raise is unreachable from start()');
+  });
+
+  test('Q87: the advice it gives says WITH A DIFFERENT RUN ID, because it used not to', async () => {
+    // **A one-sentence defect, and the text is the whole of it.** The message
+    // ended at *"Construct a second Driver; ADR 0023 makes that safe on the same
+    // scheduler"*, so the library's own error recommended the one topology
+    // ADR 0023 does **not** make safe: two drivers on ONE run id mint the same task
+    // ids, `dispatched.has()` is true in both, and `ID-R4` is structurally blind to
+    // it (`spec/task-id.md` section 3, `ID-R4`'s second precondition — measured, and
+    // asserted in `lifetime.test.ts`'s Q87 case).
+    //
+    // Asserted on the TEXT because `throws(..., 'MultipleRuns')` matches the class
+    // and would pass with the sentence still wrong. The enforcement half stays a
+    // precondition and P6 does not take it — no driver can detect the violation.
+    const h = harness(await load('valid/linear.flow.json'));
+    h.driver.start({});
+    let message = '';
+    try { h.driver.start({}); } catch (e) { message = (e as Error).message; }
+    ok(/different run id/i.test(message),
+      'the advice names the precondition it is advice about');
+    ok(message.includes('unique across the drivers sharing one'),
+      'and says the rule, not just the workaround — a caller who reads only this line has been told');
   });
 });
 
