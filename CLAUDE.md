@@ -15,7 +15,7 @@ the only document that does. **Every snippet in it is extracted and executed by 
 (`scripts/check-docs.mjs`), so it cannot rot the way a hand-maintained reference does. If you change
 the public surface, that check is what tells you the reference is now wrong.
 
-## Current state: **P1-P5 are complete and retro'd; [P6](doc/plans/p6-what-may-share-a-scheduler-with-a-driver.md) has BOTH ITEMS DONE and its exit artifact built — the retro is not run**
+## Current state: **P1-P6 are complete and retro'd; [P7](doc/plans/p7-is-a-join-transitive-over-nested-fan-out.md) is DECLARED and nothing has started**
 
 [ADR 0001, 0002 and 0007](doc/decisions/) settle the architecture so far: **routing executes in the
 driver, outside the scheduler** — a worker computes and does not route, and `context.spawnTask()` is
@@ -31,7 +31,7 @@ the fold with **three** join policies (two P1's, one ADR 0025's); `test/matrix/`
 join/failure matrix; `examples/` holds ladder **L6**. **410 assertions in five runtimes** — Node 24,
 Deno, chromium, firefox, webkit — identical in all of them, **plus 373 at L6 in Node and Deno**.
 *(**The two numbers count different things.** The runner counts `test()` **cases**, not `equal`/`ok` calls — [Q98](doc/open-questions.md); L6's 373 is a real count of individual assertions. Do not add them.)* **`npm run gate` runs `test:browser`, which is CHROMIUM ONLY** (`scripts/run-browser-tests.mjs:68`); firefox and webkit need `test:browser:all`, which W19 ran to measure the five above rather than inherit them. **`doc/workflow.md` is v0.7**, run to
-completion by five plans.
+completion by six plans.
 
 **[P2](doc/plans/p2-the-non-success-half-on-a-real-scheduler.md) is complete and added no features.**
 Ladder L6 is **nineteen row labels, 373 assertions, 21 real runs**, in Node and Deno, and **all six run
@@ -140,7 +140,7 @@ created blind to a **clause of the rule**, which only the clause-by-clause walk 
 halves. Its other Q is [Q100](doc/open-questions.md) — **L6's rendered table is a deliverable no
 assertion reads**, which is W15's renderer finding in a second file and therefore a second occurrence.
 
-**[P6](doc/plans/p6-what-may-share-a-scheduler-with-a-driver.md) has BOTH ITEMS DONE — [W18](doc/work-items/w18-the-scheduler-edge-and-what-an-id-we-did-not-mint-means.md) and [W19](doc/work-items/w19-a-task-we-did-not-mint-on-a-real-scheduler.md) — and the retro is not run** —
+**[P6](doc/plans/p6-what-may-share-a-scheduler-with-a-driver.md) is COMPLETE and retro'd — [W18](doc/work-items/w18-the-scheduler-edge-and-what-an-id-we-did-not-mint-means.md), [W19](doc/work-items/w19-a-task-we-did-not-mint-on-a-real-scheduler.md), and `doc/workflow.md` v0.8** —
 *what may share a scheduler with a driver?* It takes the three things P5 ruled on and could not own,
 because **no P5 item takes `src/driver/**`**: [Q86](doc/open-questions.md) as **ADR 0027**,
 [Q87](doc/open-questions.md)'s message sentence, and [Q95](doc/open-questions.md)'s latch. **Two of
@@ -364,8 +364,29 @@ that depends on fan-out completion order.
 
 ## How work is done
 
-**[doc/workflow.md](doc/workflow.md) — read it before starting any work item. It is v0.7, run to
-completion by five plans.** **v0.7 is P5's retro, and it is the first whose central finding is that a
+**[doc/workflow.md](doc/workflow.md) — read it before starting any work item. It is v0.8, run to
+completion by six plans.**
+
+**v0.8 is P6's retro, and its central finding is that rule 8's two obligations are both about WHAT is
+asserted and neither is about WHERE THE VALUE COMES FROM.** Two changes, both to rule 8, neither
+replacing anything:
+
+1. **Break the PROVENANCE of every value an assertion reads** — substitute a different source, delete
+   the guard that makes a recorded value the one it claims to be, let a later write overwrite it,
+   delete one of two writers. **Section 5 rule 4 made provocable**: *"fixtures must not come from the
+   code under test"* has had no procedure since v0.3, and **five instances across W14, W17 and W19
+   were all BLOCKING and all found by adequacy readers**. All five are in `examples/**`, where values
+   are reported rather than asserted, and the rule says so rather than overclaiming.
+2. **Re-run the whole set AFTER acting on the readers' findings, and check their exact edits back in
+   as probes.** An author's set is written once, before the readers report; the fixes that follow are
+   the least-tested code the item ships. W18 found it — both its blocking survivors were in guards it
+   had written earlier in the same item — and W19 ran it and it fired.
+
+**Rule 7 (c) is unexercised for the fourth plan**, twice now because no check was worth building
+rather than because none was possible. **`check-owns.mjs` stays retired** — seven consecutive correct
+audits. **The two-reader split is settled at ten overlap measurements and closed to re-litigation.**
+
+**v0.7 is P5's retro, and it is the first whose central finding is that a
 change was RIGHT AND INCOMPLETE rather than right or wrong.** Five changes:
 
 1. **Rule 8's set has TWO obligations — the rule's clauses AND the `Outputs` table's rows.** v0.6

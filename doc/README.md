@@ -213,7 +213,7 @@ longer rests on our own reading. [S1](scheduler-upstream.md).
    one recording could be deleted, making `RN-R12` a tautology on nineteen rows. Both fixed by
    deriving the value from its single source, both provoked. **Overlap 3 of ~31.** The other feature candidates stay where they were: [Q6](open-questions.md) (nested fan-out, nearly free under `live-token`) and
    [Q12](open-questions.md) (map-style fan-out, which makes the count dynamic).
-3. **[P6](plans/p6-what-may-share-a-scheduler-with-a-driver.md) is DECLARED and runs after P5** — *what may share a scheduler with a driver?*
+3. **[P6](plans/p6-what-may-share-a-scheduler-with-a-driver.md) is COMPLETE and retro'd** — *what may share a scheduler with a driver?*
    It takes the three questions P5 ruled on but could not own, because **no P5 item takes
    `src/driver/**`**: [Q86](open-questions.md) as **ADR 0027** (is an unparseable task id a defect
    that stops the run, or a task that is not ours), [Q87](open-questions.md)'s one-line message
@@ -233,7 +233,16 @@ longer rests on our own reading. [S1](scheduler-upstream.md).
    proceeds. **[W18](work-items/w18-the-scheduler-edge-and-what-an-id-we-did-not-mint-means.md) is DONE**
    and **[W19](work-items/w19-a-task-we-did-not-mint-on-a-real-scheduler.md) is DONE**;
    read each one's status from its own file rather than from this line (`doc/workflow.md` section 1
-   rule 5).
+   rule 5). **The retro IS run, and it made `doc/workflow.md` [v0.8](workflow.md)** — two changes,
+   both to rule 8: **break the PROVENANCE of every value an assertion reads** — five blocking
+   instances across W14, W17 and W19, every one found by an adequacy reader and none by an author,
+   which is section 5 rule 4 made provocable — and **re-run the set after acting on the readers'
+   findings, checking their exact edits back in as probes**, which W18 found the need for and W19
+   exercised. Rule 7 (c) unexercised for the fourth plan; `check-owns.mjs` retired for the third; the
+   two-reader split settled at **ten** overlap measurements and closed to re-litigation. **`doc/` is
+   refused a sixth time on a NEW direction**: the register's census line was *correct*, and this
+   retro's own re-derivation made it wrong with a parser that could not classify three rows and
+   returned a value instead of saying so. Corrected in place.
 
    **W18 answered Q86 with the third option and it won on evidence neither side of the register row
    had.** [ADR 0027](decisions/0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md):
@@ -276,7 +285,7 @@ longer rests on our own reading. [S1](scheduler-upstream.md).
    alarming finding**: two probes reached files it had not backed up, and one **deleted the
    `spec/join-policy.md` clause W18 took a late `Owns` exception to write**, with `check-spec` green
    over the damaged file. A mutation harness that does not restore is a mutation.
-4. **Read `doc/workflow.md` v0.7 first**, and in particular the things five retros have refused to
+4. **Read `doc/workflow.md` v0.8 first**, and in particular the things six retros have refused to
    turn into rules — those are the ones most likely to bite. **A register row you are about to act
    on is unverified until you have**, and P4 is the third plan in a row to find one wrong by trying
    to act on it.
@@ -342,6 +351,42 @@ longer rests on our own reading. [S1](scheduler-upstream.md).
    `task.completed` and nothing else, found by both readers independently — and
    [Q108](open-questions.md), the `context.spawnTask()` producer that is demonstrated nowhere at all.
 
+4. **[P7](plans/p7-is-a-join-transitive-over-nested-fan-out.md) is DECLARED and runs after P6** —
+   *[Q6](open-questions.md): if a branch itself fans out, does the outer join wait for the
+   grandchildren?* **The first plan in six whose subject is a FEATURE rather than an edge**, and it
+   takes the shape `doc/concept.md` section 2 names and the library refuses. Exit artifact: a nested
+   fan-out running end to end on a real scheduler, with the outer join firing over branches it never
+   directly opened, and the join/failure matrix at depth 2. **W20-W23 declared in the plan's index
+   table and in no item file yet; nothing has started.**
+
+   **Its measurement moved a work item's document, which is the ninth plan running to have the
+   load-bearing fact change what got written.** The region maths is **already** nesting-ready —
+   `regionSets` computes members transitively, so an outer region's set already contains the inner
+   fan-out's nodes — and the defect is the **lookup**: `Driver.regionOf` is `.find()` over regions
+   returned in **node-declaration order**, so with nesting a node is in two regions and the answer
+   depends on which `fanout` appears first in the file. **No test can see it**, because `FD-V15`
+   refuses the only input that would tell them apart. Beside it, `parseTaskId` accepts the dotted
+   `branchPath` and **`buildTaskId` cannot emit one**, so the shape `spec/task-id.md` reserved in P1
+   has never been produced by this library. And the seventh fact is the one that moved an item:
+   `validateDefinition` does not know the policy, so *"invalid under arrival-counting"* cannot be an
+   `FD-V*` rule — but `driver.ts:370` already throws `MissingJoinPolicy` at construction on exactly
+   that shape, so the refusal is a `JP-R*` rule and a construction refusal, in **W22's** document
+   rather than W20's.
+
+   **One thing is settled before fan-out and it sizes W22**: nested fan-out is supported under
+   `live-token` and its refinement, and **`arrival-count` REFUSES it** — at construction, not by
+   hanging. Repairing fixed-`N` is the repair
+   [ADR 0025](decisions/0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md)
+   already refused, and reopening it would relitigate two decisions to serve a policy ADR 0003 says
+   nobody should pass. **The cost is named rather than discovered**: the matrix gains its first
+   declared-empty cells, and how a refusal renders in a table nobody asserts on is
+   [Q100](open-questions.md)'s problem arriving in `test/matrix/**`.
+
+   Two `spec/` documents said this was *"scheduled for P2"* — `spec/flow-definition.md` and
+   `spec/join-policy.md` section 5 — and it was not taken there. **Stale by four plans, in `spec/`
+   rather than in `doc/`**, which is the class six retros have refused to mechanise, one directory
+   over.
+
 **The fan-out gate is cleared** (`workflow.md` section 7 rule 3) — not because Q4 is answered, but
 because P1 builds both of its candidate answers, so W2 and W3 can be written without knowing which
 wins.
@@ -351,7 +396,7 @@ wins.
 | | |
 |---|---|
 | [concept.md](concept.md) | **Read first.** What we are building, the substrate fact that shapes everything, and the one structural idea - run state is a pure fold of an event log |
-| [workflow.md](workflow.md) | **Read before any work item.** The loop, the verification ladder, the test rules, how work is split. **v0.7, run to completion by five plans** - the adaptation tables at the end carry a verdict per row from P1 through P5, and stay for the next plan to re-judge |
+| [workflow.md](workflow.md) | **Read before any work item.** The loop, the verification ladder, the test rules, how work is split. **v0.8, run to completion by six plans** - the adaptation tables at the end carry a verdict per row from P1 through P5, and stay for the next plan to re-judge |
 | [decisions/](decisions/) | ADR 0001, 0002, 0007. They bind `spec/` rather than being superseded by it - 0007 in particular is what [outcome-record.md](../spec/outcome-record.md) makes checkable |
 | [plans/p1-...](plans/p1-what-satisfies-a-join.md) | **Complete.** Five work items, and its Record carries the exit artifact and five proposals for the retro |
 | [plans/p2-...](plans/p2-the-non-success-half-on-a-real-scheduler.md) | **Complete, and its Record carries the retro that made this document v0.4.** One question, one work item, no new features. Two facts measured before it was written, both of which changed it |
@@ -369,7 +414,7 @@ wins.
 |---|---|---|
 | `concept.md` | **v0.3** | Section 7's *"controlling a run from a UI"* non-goal carries one narrow, cited exception (ADR 0004). Section 2 is the load-bearing part and is verified against the library rather than assumed - **re-checked unchanged at 0.3.0**. **v0.3 updates section 6 only: all four leanings have landed and the table said two were still open.** Everything else has held up unchanged, which is the more interesting half - it was written before a line of code existed |
 | `open-questions.md` | live | **38 open, 16 resolved** — *counted by P4, and the register's own census line said "47 questions, 34 open, 13 resolved" until then.* **Q33, Q41, Q42, Q43 and Q51 closed with W5**; Q4 and Q17 with W4, Q14 and Q25 with W2. **Q24 is the live one.** Q44 and Q45 are narrowed rather than answered. **W5 found a register entry that was false** (Q43) — this file is read before every work item and checked by nothing, which is the retro’s |
-| `workflow.md` | **v0.7 — run to completion five times** | **P5's retro is v0.7, and it is the first whose central finding is that a change was RIGHT AND INCOMPLETE**: rule 8's set now has two obligations, the rule's clauses **and** the `Outputs` table's rows, because three items measured each half blind to what the other sees. It also defines *survivor* (a second, independent route must confirm the mutated clause was reachable), adds `doc/decisions/**` to the record-step list after that gap **blocked a fix**, adds a provenance clause (an item's status is read from its own file, never from an index) and says how to REMOVE an isolated copy. `check-owns.mjs` stays retired and rule 7 (c) is exercised. **Previously:** **P4's retro is v0.6, and its three changes all replace mechanisms that were followed and failed anyway**: rule 8's provocations are written to the **rule** rather than to the fix (three items, three author sets incomplete in the same direction); the **adequacy reader works in an isolated copy** (three reader pairs had run against one tree); and section 1 rule 5's record-step list gains `doc/open-questions.md`, which **retires `check-owns.mjs`** — the cause of three `Owns` miscounts was the list being wrong, not the discipline. **P3's retro is v0.5 and it changes one requirement of one rule**: rule 7 (c) — *name which check refused the probe* — does not discriminate, because a merely malformed probe trips two checks at once and so satisfies a probe declared as either. A probe now declares the **set** it must trip. Measured over `check-docs`' twelve probes (11 already trip exactly one) and provoked after building, which is **rule 8's first outing**. Everything else P3 confirmed unchanged, including the ladder, which took a *document* deliverable without bending. **P2's retro is v0.4, and it is a smaller edit than P1's because two of v0.3's four changes needed nothing.** Settled: the **two-reader** split (four measurements, flat at ~10% overlap) and the **Outputs** table (whose load-bearing column turned out to be *what would fail without it*). Amended: **rule 7's provocations are checked in** rather than run once, and **section 7 rule 2's exceptions table is replaced by a check** — both had been *followed* and failed anyway. **New rule 8**: break the fix for a review finding and watch the gate go red, after W4, W5 and W9 each shipped one that could not fail. **v0.3 was P1's retro**, and adopted: the TEMPLATE gains an **Outputs** table (six occurrences, four items, of a declared output nobody built); pass 2 is **two readers** (1 overlap in 13, then 3 in ~35); a new check is **negative-tested at birth** (section 5 rule 7); and section 7 rule 2 is about **concurrent** items, with a serial one declaring its exceptions. Several findings were deliberately **not** turned into rules. The adaptation table at the end now carries a verdict per row |
+| `workflow.md` | **v0.8 — run to completion six times** | **P6's retro is v0.8: rule 8's two obligations are both about WHAT is asserted and neither is about WHERE THE VALUE COMES FROM**, so it gains a third — break the PROVENANCE of every value an assertion reads — plus re-running the set after acting on the readers' findings. **P5's retro is v0.7, and it is the first whose central finding is that a change was RIGHT AND INCOMPLETE**: rule 8's set now has two obligations, the rule's clauses **and** the `Outputs` table's rows, because three items measured each half blind to what the other sees. It also defines *survivor* (a second, independent route must confirm the mutated clause was reachable), adds `doc/decisions/**` to the record-step list after that gap **blocked a fix**, adds a provenance clause (an item's status is read from its own file, never from an index) and says how to REMOVE an isolated copy. `check-owns.mjs` stays retired and rule 7 (c) is exercised. **Previously:** **P4's retro is v0.6, and its three changes all replace mechanisms that were followed and failed anyway**: rule 8's provocations are written to the **rule** rather than to the fix (three items, three author sets incomplete in the same direction); the **adequacy reader works in an isolated copy** (three reader pairs had run against one tree); and section 1 rule 5's record-step list gains `doc/open-questions.md`, which **retires `check-owns.mjs`** — the cause of three `Owns` miscounts was the list being wrong, not the discipline. **P3's retro is v0.5 and it changes one requirement of one rule**: rule 7 (c) — *name which check refused the probe* — does not discriminate, because a merely malformed probe trips two checks at once and so satisfies a probe declared as either. A probe now declares the **set** it must trip. Measured over `check-docs`' twelve probes (11 already trip exactly one) and provoked after building, which is **rule 8's first outing**. Everything else P3 confirmed unchanged, including the ladder, which took a *document* deliverable without bending. **P2's retro is v0.4, and it is a smaller edit than P1's because two of v0.3's four changes needed nothing.** Settled: the **two-reader** split (four measurements, flat at ~10% overlap) and the **Outputs** table (whose load-bearing column turned out to be *what would fail without it*). Amended: **rule 7's provocations are checked in** rather than run once, and **section 7 rule 2's exceptions table is replaced by a check** — both had been *followed* and failed anyway. **New rule 8**: break the fix for a review finding and watch the gate go red, after W4, W5 and W9 each shipped one that could not fail. **v0.3 was P1's retro**, and adopted: the TEMPLATE gains an **Outputs** table (six occurrences, four items, of a declared output nobody built); pass 2 is **two readers** (1 overlap in 13, then 3 in ~35); a new check is **negative-tested at birth** (section 5 rule 7); and section 7 rule 2 is about **concurrent** items, with a serial one declaring its exceptions. Several findings were deliberately **not** turned into rules. The adaptation table at the end now carries a verdict per row |
 | `decisions/` | **10 ADRs**, all accepted | **0023 carries the second in-place *Correction* in this repository** — its rule 1 placed the ownership test after `normalizeEvent`, which made its own rule 3 false. None superseded. **0003 answers Q4** and carries this repository’s first in-place *Correction*. **W5 wrote 0013-0015 and is the first item to spend its whole ADR block** — one from measuring an environment, one from a gate that could not otherwise be written honestly, one from a register entry being wrong |
 | `plans/p1` | **complete — question answered and exit artifact produced** | All five work items built. [ADR 0003](decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md) is the answer; `examples/l6.ts` is the artifact. **279 assertions in five runtimes plus 72 at L6 in two.** W4 used Q42-Q50 and ADR 0003; **W5 used Q51-Q52 and ADR 0013-0015** |
 | `scheduler-upstream.md` | live | **9 items, 5 closed** (S1 answered, S3 declined by us, S4 done, S7 fixed, S8 declined by upstream), S5 deferred, S2/S6 waiting on a real need, and **[S9](scheduler-upstream.md) live and ready to raise** — found by W5, the first item to load the library rather than a structural stand-in for it |
