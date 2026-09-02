@@ -1,12 +1,17 @@
 /**
- * **Ladder L6 — the gate.** Twenty-one real runs on a real scheduler: P1's exit
- * artifact, P2's, P4's, P5's and P6's.
+ * **Ladder L6 — the gate.** Twenty-five real runs on a real scheduler: P1's exit
+ * artifact, P2's, P4's, P5's, P6's and **P7's**.
  *
- * **Twenty-one runs and nineteen row labels, and the two counts have different
- * predicates.** A row label is an entry in `EXPECTED[]` or a `PairRow`; a run is
- * one `Driver` on one flow, and a `PairRow` is one label producing **two**. Both
- * numbers in the printed header are derived from the arrays rather than typed,
- * because this line read *six* for two rows longer than it was true.
+ * **Twenty-five runs and twenty-three row labels, and the two counts have
+ * different predicates.** A row label is an entry in `EXPECTED[]` or a `PairRow`;
+ * a run is one `Driver` on one flow, and a `PairRow` is one label producing
+ * **two**. Both numbers in the printed header are derived from the arrays rather
+ * than typed, because this line read *six* for two rows longer than it was true —
+ * **and it then read *twenty-one* and *nineteen* for the whole of W23**, which is
+ * the same failure in the same comment, found by that item's conformity reader.
+ * The printed counts were right throughout; only these were not. **Derive them:**
+ * `EXPECTED.length + PAIR_ROWS.length` labels, `EXPECTED.length + 2 * PAIR_ROWS.length`
+ * runs.
  *
  * ```
  *   npm run test:l6         node examples/l6.ts
@@ -47,6 +52,8 @@
 import {
   InvalidTaskId,
   POLICIES,
+  branchIndices,
+  buildTaskId,
   parseTaskId,
   type FlowDefinition,
   type PolicyId,
@@ -79,6 +86,8 @@ import exitLast from './flows/exit-last.flow.json' with { type: 'json' };
 // to `branch.exited` that need no person — a decision, and an `on: ["failed"]`
 // edge — and both branches share one `end`.
 import allExit from './flows/all-exit.flow.json' with { type: 'json' };
+import nested from './flows/nested.flow.json' with { type: 'json' };
+import nestedSuspend from './flows/nested-suspend.flow.json' with { type: 'json' };
 import failureEdge from '../spec/examples/valid/failure-edge.flow.json' with { type: 'json' };
 
 /**
@@ -129,8 +138,33 @@ interface Expectation {
   why: string;
 
   // --- W6's rows need three things W5's did not ---
-  /** `null` when the flow has no fan-out, and then `regions` must be empty. */
+  /**
+   * **The region this row is about** — `null` when the flow has no fan-out, and
+   * then `regions` must be empty.
+   *
+   * **It used to be read as the literal `'split'` in eighteen places** and this
+   * field was only ever compared to `null`. Every L6 flow named its fanout
+   * `split`, so nothing had ever distinguished *the* region from *the region
+   * called `split`* — which is W22's `Cell` finding one rung up, and which a
+   * nested flow makes false immediately.
+   */
   regionId?: string | null;
+  /**
+   * **Every OTHER region of the run, with its own expected answer** — W23.
+   *
+   * A nested flow has two, and `joined`/`settled`/`branchEvents` above are all
+   * singular. This carries the rest, keyed by `fanoutId`; the row's own
+   * `regionId` is not repeated here, so the two cannot disagree about it.
+   *
+   * **Declared per region rather than as a second pair of fields**, for the same
+   * reason `Cell.regions` is a `Record`: a depth-3 row has three, and a row that
+   * had to name which of its joins it was *really* about would be making the
+   * choice this field exists to remove.
+   */
+  otherRegions?: Record<string, {
+    joined: boolean | null;
+    settled: Record<string, 'arrived' | 'exited' | 'lost'>;
+  }>;
   /**
    * Dispatched ids this row expects to have **no** effective outcome. **Two rows
    * declare it, for two different rules**, and the first version of this comment
@@ -149,8 +183,25 @@ interface Expectation {
    * paired with an assertion that the message names the task id (`OR-R6`).
    */
   runFailure?: string;
-  /** Branch paths this row's "human" resolves when they suspend. */
-  resolveOnSuspend?: Record<string, { as: 'done' | 'failed'; result?: unknown; actor: string }>;
+  /**
+   * Branch paths this row's "human" resolves when they suspend, and **the node
+   * each one parks at**.
+   *
+   * **`at` is declared rather than derived — W23, and the derivation was wrong in
+   * two ways at once.** The expected id used to be built as
+   * `nodes.find((n) => n.kind === 'fanout').branches[Number(b)]`: the **first**
+   * fanout, indexed by `Number(branchPath)`. At depth 1 both are right by
+   * coincidence — there is one fanout and `Number('1')` is 1. On a nested flow the
+   * first fanout is the OUTER one and `Number('1.0')` is **1**, so the expected id
+   * named `scoreB` — the outer branch entry — for a branch that parked at
+   * `reviewC` two levels in. It is [Q117](../doc/open-questions.md)'s defect a
+   * second time, on the **expected** side of the assertion that was supposed to
+   * catch it.
+   *
+   * The id is still derived from `spec/task-id.md` — `buildTaskId` over
+   * `branchIndices(path)` — but the NODE is the row's own claim.
+   */
+  resolveOnSuspend?: Record<string, { at: string; as: 'done' | 'failed'; result?: unknown; actor: string }>;
   /** Overrides the harness default. Set only where the backstop is the expected result. */
   backstopMs?: number;
   /** Outcomes the run must have passed through, even if it did not end in them. */
@@ -267,6 +318,8 @@ const UC = uncloneable as unknown as FlowDefinition;
 const EL = exitLast as unknown as FlowDefinition;
 const FE = failureEdge as unknown as FlowDefinition;
 const AE = allExit as unknown as FlowDefinition;
+const NE = nested as unknown as FlowDefinition;
+const NS = nestedSuspend as unknown as FlowDefinition;
 
 const HIGH = { confidence: 0.9 };
 const LOW = { confidence: 0.1 };
@@ -402,7 +455,7 @@ const EXPECTED: Expectation[] = [
     // The same throwing worker as `optional-loss`, on a node that is NOT
     // `optional` — so the scheduler ends it `user_action` rather than `failed`.
     // One worker, two outcomes, chosen by the definition.
-    resolveOnSuspend: { '1': { as: 'done', result: { confidence: 0.9 }, actor: 'a-person' } },
+    resolveOnSuspend: { '1': { at: 'needsAPerson', as: 'done', result: { confidence: 0.9 }, actor: 'a-person' } },
     outcomesSeen: ['awaiting_action'],
     // Never quiescently either: `stuck` would mean the join can no longer fire,
     // and `failed` would mean a path ended with no eligible edge. Both appear if
@@ -652,12 +705,217 @@ const EXPECTED: Expectation[] = [
       'is r5 under a different policy in every respect. ADR 0025`s claim that the refinement is ' +
       '`live-token` plus one clause is what this asserts',
   },
+  // =========================================================================
+  // **P7's exit artifact — a nested fan-out on real workers.** W23, and the three
+  // rows below are one flow, one worker set and three answers.
+  //
+  // `nested.flow.json` is the corpus shape one level down: `outer` fans out to
+  // `scoreA` and `scoreB`; `scoreB` enters `inner`; both inner branches carry a
+  // decision edge to an `end` **inside** `region(inner)`, so the payload alone
+  // decides whether the inner join is reached. `FD-V19` and `FD-V22` are what make
+  // `region(inner)` wholly inside `region(outer)`'s branch 1, which is what makes
+  // `branchPath` a property of the node (`spec/task-id.md` section 1).
+  //
+  // **These are the first dotted task ids any rung above L2 has asserted.**
+  // `scoreC` and `scoreD` are dispatched at `1.0` and `1.1` — the shape the grammar
+  // reserved in P1, that W21 taught the driver to mint, and that nothing on a real
+  // scheduler had ever produced.
+  {
+    key: 'nested HIGH / live-token',
+    definition: NE, policyId: 'live-token', payload: HIGH, threaded: false,
+    // Every branch at both depths reaches its join, so both fire and the run
+    // reaches its `end` — `spec/run-state.md` section 3.
+    outcome: 'completed',
+    dispatched: ['r18:ingest:-:0', 'r18:scoreA:0:0', 'r18:scoreB:1:0',
+      'r18:scoreC:1.0:0', 'r18:scoreD:1.1:0', 'r18:publish:-:0'],
+    regionId: 'outer',
+    joined: true,
+    // **The outer join fires over a branch it never opened**, which is P7's exit
+    // artifact in one field: branch `1` arrives because the INNER join routed to
+    // `outerJoin` carrying `pathOf('inner')`, and `outer` opened `scoreB` — not
+    // `scoreC` or `scoreD`.
+    settled: { '0': 'arrived', '1': 'arrived' },
+    otherRegions: {
+      inner: { joined: true, settled: { '1.0': 'arrived', '1.1': 'arrived' } },
+    },
+    branchEvents: {
+      '1.0': ['branch.opened', 'branch.arrived'],
+      '1.1': ['branch.opened', 'branch.arrived'],
+    },
+    pathEnds: [{ reason: 'end', at: 'done' }],
+    why: 'W23 — P7`s EXIT ARTIFACT. A nested fan-out on real workers, and the outer join fires ' +
+      'over branches it never opened: `inner` is entered from `outer`s branch 1, its two ' +
+      'grandchildren are dispatched at the dotted paths `1.0` and `1.1` — the first such ids any ' +
+      'rung above L2 has seen — and when `innerJoin` fires it enters `outerJoin` at the path its ' +
+      'own REGION sits at, which IS branch 1 arriving. ADR 0030 rules 1-3, on real workers',
+  },
+  {
+    key: 'nested LOW / live-token',
+    definition: NE, policyId: 'live-token', payload: LOW, threaded: false,
+    // `isLowConfidence` is true, so BOTH inner branches take their first edge to
+    // `abandoned`. `live-token`: the inner count reaches zero having been
+    // positive, so the join fires **having been reached by nothing** — ADR 0003's
+    // recorded cost, one level down — and the run completes.
+    outcome: 'completed',
+    dispatched: ['r19:ingest:-:0', 'r19:scoreA:0:0', 'r19:scoreB:1:0',
+      'r19:scoreC:1.0:0', 'r19:scoreD:1.1:0', 'r19:publish:-:0'],
+    regionId: 'outer',
+    joined: true,
+    settled: { '0': 'arrived', '1': 'arrived' },
+    otherRegions: {
+      inner: { joined: true, settled: { '1.0': 'exited', '1.1': 'exited' } },
+    },
+    branchEvents: {
+      '1.0': ['branch.opened', 'branch.exited'],
+      '1.1': ['branch.opened', 'branch.exited'],
+    },
+    pathEnds: [{ reason: 'end', at: 'abandoned' }, { reason: 'end', at: 'abandoned' },
+      { reason: 'end', at: 'done' }],
+    why: 'W23 — ADR 0003`s cost at depth 2, and the run the row below reports dead. Both inner ' +
+      'branches reach an `end`, so `inner`s live count reaches zero having been positive and the ' +
+      'join fires having been reached by NOTHING — then that firing arrives at `outer` and the ' +
+      'whole run completes. Same flow, same payload and same workers as the next row; only the ' +
+      'policy differs',
+  },
+  {
+    key: 'nested LOW / live-token-requiring-arrival',
+    definition: NE, policyId: 'live-token-requiring-arrival', payload: LOW, threaded: false,
+    // **ADR 0030 rules 4 and 5 on real workers.** `inner` reaches zero having been
+    // positive with **no** arrival, so section 3's third row says `unsatisfiable`;
+    // `JP-R10` then ends `outer`s branch 1, and `outer` — which DID see `scoreA`
+    // arrive — fires anyway. `RN-R10` reads every region, so `inner.joined ===
+    // false` carries the run to `stuck` regardless.
+    outcome: 'stuck',
+    // **`publish` IS dispatched**, which is rule 5's stated cost: real downstream
+    // work runs in a run that can only end `stuck`.
+    dispatched: ['r20:ingest:-:0', 'r20:scoreA:0:0', 'r20:scoreB:1:0',
+      'r20:scoreC:1.0:0', 'r20:scoreD:1.1:0', 'r20:publish:-:0'],
+    regionId: 'outer',
+    joined: true,
+    // Branch 1 is **`lost`**, not `arrived` — the event `JP-R10` emits, and the one
+    // thing that separates this row from the one above it.
+    settled: { '0': 'arrived', '1': 'lost' },
+    otherRegions: {
+      inner: { joined: false, settled: { '1.0': 'exited', '1.1': 'exited' } },
+    },
+    branchEvents: {
+      '0': ['branch.opened', 'branch.arrived'],
+      '1': ['branch.opened', 'branch.lost'],
+    },
+    pathEnds: [{ reason: 'end', at: 'abandoned' }, { reason: 'end', at: 'abandoned' },
+      { reason: 'end', at: 'done' }],
+    // **`branch.exited`, and the value is a finding about the FIELD.** W23's
+    // conformity reader asked this row to pin the most novel causal fact in
+    // ADR 0030 rule 4 — that the OUTER join is satisfied by a `JP-R10`-emitted
+    // `branch.lost`. **It cannot**: `joinSettledBy` is read as the last region
+    // event before the FIRST `joinSettled` in the sequence, and on this row that
+    // is the INNER join being declared dead, whose last event is `scoreD`
+    // exiting.
+    //
+    // **The field was named when a run had one join.** Declared as what it
+    // measures rather than as what the row wanted it to say; a per-region version
+    // is a widening this item did not declare. The outer join's satisfaction by
+    // `branch.lost` IS still pinned — by `settled['1'] === 'lost'` and by
+    // `branchEvents['1']` above, both of which fail if `JP-R10` stops firing.
+    joinSettledBy: 'branch.exited',
+    // From `spec/join-policy.md` section 3's third row against `JP-R2`, and it
+    // names the INNER region — the outer join is not reported, because a policy
+    // said nothing about it. ADR 0030 rule 4's *"not the driver deciding"*.
+    unsatisfiable: [{
+      fanoutId: 'inner',
+      joinId: 'innerJoin',
+      policyId: 'live-token-requiring-arrival',
+      describe: { live: 0, positive: true, arrived: 0 },
+    }],
+    why: 'W23 — ADR 0030 rules 4 and 5 on real workers, and the row P7 exists for. `inner` is ' +
+      'reached by nothing and is REPORTED dead; `JP-R10` then ends the outer branch it sat in, ' +
+      'and `outer` fires anyway because `scoreA` arrived — so `publish` runs real work in a run ' +
+      'that folds to `stuck`, which is rule 5`s stated cost rather than a surprise. At depth 1 an ' +
+      'unsatisfiable join dispatches nothing at all',
+  },
+  {
+    // **The row that makes [Q117](../doc/open-questions.md)'s fix able to fail**,
+    // and it exists because reverting that fix cost **0 assertions** across the
+    // three rows above — `doc/workflow.md` rule 8's founding case, in this item's
+    // own declared output.
+    //
+    // The inbound `resolve()` step mints an id from the suspended branch's
+    // `branchPath`, and no nested row had ever suspended. `reviewC` is **not
+    // optional** and its pool runs the throwing role, so it ends `user_action`
+    // (ADR 0007 rule 2) and the branch parks at the **dotted** path `1.0`. With
+    // `Number('1.0')` the harness mints `r21:reviewC:1:0` — a well-formed id for a
+    // different task — and `resolve()` refuses it as not-suspended; with
+    // `branchIndices` it mints `r21:reviewC:1.0:0`, which is what the driver
+    // dispatched.
+    key: 'nested / a person resolves a branch at a dotted path',
+    definition: NS, policyId: 'live-token', payload: HIGH, threaded: false,
+    outcome: 'completed',
+    dispatched: ['r21:ingest:-:0', 'r21:scoreA:0:0', 'r21:scoreB:1:0',
+      'r21:reviewC:1.0:0', 'r21:scoreD:1.1:0', 'r21:publish:-:0'],
+    regionId: 'outer',
+    joined: true,
+    settled: { '0': 'arrived', '1': 'arrived' },
+    otherRegions: {
+      // **Order-insensitive since W23's conformity reader, and the comment this
+      // replaces was FALSE.** It claimed `scoreD` always arrives first because
+      // `reviewC` cannot arrive until a person resolves it — a premise that is
+      // true and a conclusion that does not follow, since the causal chain
+      // constrains `reviewC`'s timeline and says nothing about `scoreD`'s. What
+      // actually ordered them was `buildScheduler`'s `SETTLES_LAST`: `ReviewWorker`
+      // runs the `fail` role at `delayMs * 4`. Remove the 4x and the order
+      // reverses, because `reviewC` is dispatched first and the whole
+      // suspend/resolve/resume chain completes between two timer callbacks.
+      //
+      // **That 4x was measured INERT by W17's adequacy reader** ([Q99](../doc/open-questions.md)):
+      // reducing it to 1x left all 342 assertions green. This row would have made
+      // it load-bearing for the first time — silently, and with the effect
+      // attributed to something else. `sortedSettled` removes the dependency
+      // rather than pinning it.
+      inner: { joined: true, settled: { '1.0': 'arrived', '1.1': 'arrived' } },
+    },
+    // `RN-R9`: a resumed branch is indistinguishable from one that settled that
+    // way, so `1.0` ARRIVES — at a dotted path, which is the whole point.
+    branchEvents: {
+      '1.0': ['branch.opened', 'branch.suspended', 'branch.resumed', 'branch.arrived'],
+      '1.1': ['branch.opened', 'branch.arrived'],
+    },
+    resolveOnSuspend: { '1.0': { at: 'reviewC', as: 'done', result: { confidence: 0.9 }, actor: 'ops' } },
+    pathEnds: [{ reason: 'end', at: 'done' }],
+    outcomesSeen: ['awaiting_action'],
+    why: 'W23 — the row that makes Q117`s fix falsifiable, and the only nested row where a person ' +
+      'is in the loop. `reviewC` is non-optional and throws, so it ends `user_action` and parks ' +
+      'the branch at the DOTTED path `1.0`; the harness`s inbound step then has to mint the id ' +
+      'the driver dispatched, which is exactly what `Number(branchPath)` could not do. Reverting ' +
+      'the fix cost 0 assertions before this row existed',
+  },
 ];
 
 // --- assertions ---------------------------------------------------------------
 
 const failures: string[] = [];
 let passed = 0;
+
+/**
+ * **A `settled` map compared by CONTENT, not by key order — W23's conformity
+ * reader, BLOCKING.**
+ *
+ * `check` compares `JSON.stringify`, and the fold writes `settled[branchPath]` in
+ * **terminal-event order**. For a depth-1 row the keys are `'0'`/`'1'` — canonical
+ * array indices, which V8 emits in ascending numeric order however they were
+ * inserted — so no depth-1 row has ever depended on branch completion order, by
+ * accident rather than by design. **`'1.0'`/`'1.1'` are not array indices**, so
+ * they stringify in insertion order, and every one of W23's nested rows was
+ * therefore asserting a fan-out completion order that `spec/` does not fix and
+ * `doc/workflow.md` section 5 rule 5 forbids depending on. Three of the four run
+ * `scoreC` and `scoreD` as the SAME role at the SAME delay in the SAME pool —
+ * the configuration `Expectation.joinSettledBy`'s own comment calls "genuinely
+ * non-deterministic".
+ *
+ * Sorting both sides is the fix; picking a different declared order would only
+ * move the race.
+ */
+const sortedSettled = (m: Record<string, string> | undefined) =>
+  m === undefined ? undefined : Object.fromEntries(Object.entries(m).sort(([x], [y]) => x.localeCompare(y)));
 
 const check = (row: string, what: string, actual: unknown, expected: unknown): void => {
   const a = JSON.stringify(actual);
@@ -729,7 +987,7 @@ for (const [i, e] of EXPECTED.entries()) {
   }
   if (e.regionSuspended) {
     check(e.key, 'regions[*].suspended — who is parked on a person right now',
-      report.state.regions['split']?.suspended, e.regionSuspended);
+      report.state.regions[e.regionId ?? 'split']?.suspended, e.regionSuspended);
   }
   if (e.stoppedBy !== undefined) {
     assertThat(e.key, 'OR-R10: stoppedBy names the refusal that terminated the run',
@@ -750,9 +1008,28 @@ for (const [i, e] of EXPECTED.entries()) {
     // exists to hold down.
     check(e.key, 'a flow with no fan-out enters no region', Object.keys(report.state.regions), []);
   } else {
-    check(e.key, 'the join fired — RN-R11', report.state.regions['split']?.joined ?? null, e.joined);
+    // **`e.regionId`, not the literal `'split'`** — W23. The row declares which
+    // region it is about and this reads it, so a flow whose fanout has another
+    // name is expressible at all.
+    const rid = e.regionId ?? 'split';
+    check(e.key, 'the join fired — RN-R11', report.state.regions[rid]?.joined ?? null, e.joined);
     check(e.key, 'how each branch left its region — spec/join-policy.md section 2',
-      report.state.regions['split']?.settled, e.settled);
+      sortedSettled(report.state.regions[rid]?.settled), sortedSettled(e.settled));
+
+    // **Every OTHER region of the run — W23**, and the two halves are checked
+    // separately: each declared region must answer as declared, AND the set of
+    // regions the RUN entered must be exactly the set the row declares. Without
+    // the second half a row could declare one of its two and read as complete,
+    // which is W22's adequacy reader's loop-bound finding one rung up.
+    for (const [id, want] of Object.entries(e.otherRegions ?? {})) {
+      check(e.key, `${id}: the join fired — RN-R11`, report.state.regions[id]?.joined ?? null, want.joined);
+      check(e.key, `${id}: how each branch left its region`,
+        sortedSettled(report.state.regions[id]?.settled), sortedSettled(want.settled));
+    }
+    check(e.key, 'the run entered exactly the regions this row declares',
+      Object.keys(report.state.regions).sort(),
+      [rid, ...Object.keys(e.otherRegions ?? {})].sort());
+
   }
 
   // **Q32 — every dispatched node produces an outcome record.** Cheap insurance
@@ -917,8 +1194,33 @@ for (const [i, e] of EXPECTED.entries()) {
   // the backstop, but `finishedBy` is the only thing that would say so.
   check(e.key, 'the inbound step resolved exactly the branches the row declares',
     [...report.resolved].sort(),
-    Object.entries(e.resolveOnSuspend ?? {}).map(([b]) =>
-      `r${i + 1}:${(e.definition.nodes.find((n) => n.kind === 'fanout')?.branches ?? [])[Number(b)]}:${b}:0`).sort());
+    Object.entries(e.resolveOnSuspend ?? {}).map(([b, how]) =>
+      buildTaskId(`r${i + 1}`, how.at, branchIndices(b), 0)).sort());
+
+  // **And every resolved id is one this row DISPATCHED, from the hand-written
+  // list** — W23's conformity reader, `doc/workflow.md` section 5 rule 4.
+  //
+  // The assertion above derives its expected id with `buildTaskId` over
+  // `branchIndices`, and `run-flow.ts` mints the actual id with the **same two
+  // functions** — so a common-mode defect in either satisfies it. `e.dispatched`
+  // is the row's own literal, written by hand from `spec/task-id.md` before
+  // anything ran, and it is the only genuinely independent derivation of these
+  // ids anywhere in this file. Comparing against it costs one line and removes
+  // the common mode.
+  // **What the DRIVER said, against what the ROW declared** — two sources for the
+  // node a branch parks at, and W23's adequacy reader found there was one.
+  // Substituting the row's own value for the event's in `run-flow.ts` cost 0
+  // failures until this existed; a driver emitting the wrong `at` went from 5
+  // failures to 0 with that swap in place.
+  for (const [path, how] of Object.entries(e.resolveOnSuspend ?? {})) {
+    check(e.key, `branch.suspended for ${path} named the node the row declares`,
+      report.suspendedAt[path], how.at);
+  }
+  for (const id of report.resolved) {
+    assertThat(e.key, `the resolved id ${id} is one this row dispatched`,
+      e.dispatched.includes(id),
+      `resolved ${id}; dispatched ${e.dispatched.join(' ')}`);
+  }
 
   // **`branchesOverlapped` is REPORTED and not asserted, deliberately.** Whether
   // two branches are in flight at the same instant is a timing property the spec
@@ -937,6 +1239,8 @@ for (const [i, e] of EXPECTED.entries()) {
     + (e.pathEnds ? 1 : 0)
     + (e.runFailure ? 1 : 0)
     + (e.regionSuspended ? 1 : 0)
+    + Object.keys(e.otherRegions ?? {}).length * 2
+    + Object.keys(e.resolveOnSuspend ?? {}).length * 2
     + (e.joinSettledBy ? 1 : 0)
     + (e.stoppedBy !== undefined ? 1 : 0);
   rowCosts.push([e.key, e.regionId === null ? 'no-region' : 'region',
@@ -1162,7 +1466,9 @@ check('cross-row', 'and on every join verdict spec/join-policy.md section 3 lets
 // neither has a repeat); and ADR 0027 rule 3 for what `onUnmintedTask` carries.
 
 /**
- * **One foreign id per refusal `parseTaskId` makes, and that is the point of the
+ * **Six ids over the five refusals `parseTaskId` makes** — one each, plus
+ * [Q107](../doc/open-questions.md)'s `weekly-report`, which repeats the arity
+ * refusal down a different scheduler event. **That is the point of the
  * table rather than of any one row.**
  *
  * `ID-R5` is **one guard over the five refusals** `parseTaskId` makes
@@ -1197,7 +1503,17 @@ check('cross-row', 'and on every join verdict spec/join-policy.md section 3 lets
  * still right, since ADR 0027 rule 3 makes `parseTaskId`'s own message the
  * contract and therefore public surface. W19's conformity reader.
  */
-const UNMINTED: { id: string; site: string; reason: string }[] = [
+const UNMINTED: {
+  id: string;
+  site: string;
+  reason: string;
+  /** Defaults to `IngestWorker`, whose worker returns. */
+  worker?: string;
+  /** Only an `optional` task can settle `failed` — Q107's whole mechanism. */
+  optional?: boolean;
+  /** The scheduler event tier 0 reports this one under. */
+  event?: string;
+}[] = [
   {
     // ADR 0027's **first** producer row, spelled the way that table spells it — *a
     // plain non-flow task on a shared scheduler*, and one of the two the decision
@@ -1205,6 +1521,22 @@ const UNMINTED: { id: string; site: string; reason: string }[] = [
     // **1** segment where section 1 fixes **4**.
     id: 'nightly-cleanup', site: 'arity',
     reason: 'task id "nightly-cleanup" has 1 segments, expected exactly 4',
+  },
+  {
+    // **[Q107](../doc/open-questions.md), closed by W23.** The five entries around
+    // this one all run `IngestWorker`, whose worker RETURNS — so `ID-R5` at L6 had
+    // only ever been reached from `task.completed`, which both of W19's readers
+    // found independently and neither could fix without this field.
+    //
+    // `ReviewWorker`'s pool runs the `fail` role, which throws; `optional: true`
+    // is what makes the scheduler settle it `failed` rather than end it
+    // `user_action` (`core/FyflowScheduler.ts:894-897`). So this is the SAME
+    // refusal as the row above — one segment where four are required — reaching
+    // tier 0 down a different event, which is what makes the `event` field able to
+    // fail rather than a constant with five copies.
+    id: 'weekly-report', site: 'arity, via task.failed',
+    reason: 'task id "weekly-report" has 1 segments, expected exactly 4',
+    worker: 'ReviewWorker', optional: true, event: 'task.failed',
   },
   {
     // **The one producer ADR 0027 says could be OURS, and the row that decision's
@@ -1288,26 +1620,51 @@ const PAIR_ROWS: PairRow[] = [
   {
     key: 'two runs / one scheduler / tasks we did not mint',
     runIds: ['pc', 'pd'], payloads: [HIGH, LOW],
-    // **All on `IngestWorker`**, which is where the ordering comes from: one slot,
-    // inline, so they are dispatched in this order and every one of them settles
-    // ahead of either run's own first settlement. `runPair` does the arranging;
-    // the assertion below checks the effect, and checks it as the SHAPE of the
-    // whole sequence so that nothing here depends on the order the five arrive in
-    // relative to each other.
-    foreign: UNMINTED.map((u) => ({ id: u.id, workerType: 'IngestWorker' })),
+    // **FIVE on `IngestWorker` and one on `ReviewWorker`, and the margin is now a
+    // cross-pool comparison rather than queue discipline** — W23's conformity
+    // reader. This read *"All on `IngestWorker`, which is where the ordering comes
+    // from: one slot, inline, so they are dispatched in this order"*, and
+    // [Q107](../doc/open-questions.md)'s sixth task falsified it in this item.
+    //
+    // What still holds: every foreign settlement lands ahead of either run's own
+    // first one. **How it holds has changed.** The five `IngestWorker` ids
+    // serialize on one inline slot to ~25 ms; `weekly-report` settles on its own
+    // pool at `delayMs * 4` = ~20 ms; each run's `ingest` lands at ~30 ms. So the
+    // margin is ~5-10 ms produced by comparing two pools, **and it would tie if an
+    // `IngestWorker` foreign id were removed** — a coupling the previous comment's
+    // "queue discipline" reading would have hidden. Stated rather than tightened,
+    // because the assertion below checks the SHAPE of the whole sequence and does
+    // not depend on the order the six arrive in relative to each other.
+    foreign: UNMINTED.map((u) => ({
+      id: u.id, workerType: u.worker ?? 'IngestWorker', optional: u.optional,
+    })),
     // From ADR 0027 rule 3, field by field, one entry per foreign task. **Compared
     // sorted by `taskId`** — the order the driver reports them in is the scheduler's
     // settlement order, which `spec/` does not fix and `doc/workflow.md` section 5
     // rule 5 forbids asserting; every field is still pinned.
     //
-    // `event` is `task.completed` for all five because all five SUCCEED. **The
-    // `event` field therefore takes one value at L6**, which both of W19's readers
-    // found independently: the `task.failed`+`task.user_action` pair (ADR 0007 rule
-    // 2, which tier 0 reports twice because it sits above `normalizeEvent`) has
-    // L1-L5 coverage in `test/driver/lifetime.test.ts` and none here. Measured on a
-    // real scheduler and reported rather than built — [Q107](../doc/open-questions.md),
-    // and W19's Record says why.
-    unminted: UNMINTED.map((u) => ({ event: 'task.completed', taskId: u.id, reason: u.reason })),
+    // **`event` takes TWO values here since [Q107](../doc/open-questions.md), and
+    // that is what W19's two readers independently asked for.** It used to read
+    // *"`task.completed` for all five because all five SUCCEED — the `event` field
+    // therefore takes one value at L6"*, which was true and which W23's own change
+    // falsified in the same file. `weekly-report` runs `ReviewWorker`, whose pool
+    // serves the throwing role, and `optional: true` makes the scheduler settle it
+    // `failed` rather than end it `user_action` — so tier 0 reports it under
+    // `task.failed`. **A field with one value cannot fail**; this one now can.
+    //
+    // The `task.user_action` half of ADR 0007 rule 2's pair is still L1-L5's
+    // (`test/driver/lifetime.test.ts`) and not reached here, which needs a
+    // NON-optional foreign task and is a third event again.
+    // **Sorted here, not left to declaration order — W23.** The assertion compares
+    // by `taskId`, and this list happened to be in sorted order until Q107 added a
+    // sixth entry whose place in the ARRANGEMENT (`foreign:` above, where order is
+    // the hostile-ordering claim) is not its place in the comparison. Two orders,
+    // one list; the dependency was accidental and is now stated.
+    // and with the SAME comparator the actual side uses — `localeCompare`, which
+    // orders `p c:…` and `pc:…` differently from `<`. Two comparators over one
+    // list is the same hazard as two orders over one list, one layer down.
+    unminted: [...UNMINTED].sort((x, y) => x.id.localeCompare(y.id))
+      .map((u) => ({ event: u.event ?? 'task.completed', taskId: u.id, reason: u.reason })),
     why: 'W19 — P6 exit artifact. A scheduler carrying tasks this library did not mint, two ' +
       'drivers running flows on it, and BOTH RUNS COMPLETING. Both foreign settlements land first, ' +
       'before either run has settled anything and with both drivers already attached; ID-R5 ' +
@@ -1457,8 +1814,18 @@ for (const row of PAIR_ROWS) {
   // wrong, and W19's conformity reader read the values rather than the sentence.)*
   //
   // Independent of the driver, not of the grammar — see `mintedByADriver`.
+  //
+  // **Both sides SORTED — W23, and the dependency was accidental.** This compared
+  // `settlementIds` (settlement order) against `row.foreign` (declaration order)
+  // and passed because every foreign task ran the SAME pool with the same delay,
+  // so the two orders coincided. [Q107](../doc/open-questions.md)'s sixth task
+  // runs `ReviewWorker` instead — a different pool, a different settling time —
+  // and the assertion failed on an order `spec/` does not fix, which is exactly
+  // what `doc/workflow.md` section 5 rule 5 forbids depending on. **The claim was
+  // always about the SET**; it is now written as one.
   check(row.key, 'ADR 0027: a consumer can tell a minted id from an unminted one, from the package root',
-    facts.settlementIds.filter((id) => !mintedByADriver(id)), row.foreign.map((f) => f.id));
+    facts.settlementIds.filter((id) => !mintedByADriver(id)).sort((x, y) => x.localeCompare(y)),
+    row.foreign.map((f) => f.id).sort((x, y) => x.localeCompare(y)));
 
   // **The hostile ordering, arranged and then checked — over the WHOLE settlement
   // sequence.** `doc/workflow.md` section 5 rule 5 forbids depending on an order
@@ -1544,29 +1911,70 @@ const KEY_W = Math.max(
 // one label producing two runs, so the two numbers differ and always have.
 const pairRunCount = pairResults.reduce((n, { runs }) => n + runs.length, 0);
 console.log(`\n  ladder L6 — ${reports.length + pairRunCount} real runs on fyflow-scheduler 0.3.0, on ${runtime}\n`);
-console.log(`  ${w('run', KEY_W)}${w('outcome', 17)}${w('join', 7)}${w('branches', 22)}${w('tasks', 6)}${w('ms', 6)}overlap`);
-console.log(`  ${'-'.repeat(KEY_W + 65)}`);
+/**
+ * **Every region of the run, in the row's declared order** — W23's conformity
+ * reader, BLOCKING.
+ *
+ * The per-row ASSERTIONS were converted off the hard-coded `'split'`; this, the
+ * table **a person reads**, was not. All four nested rows printed `-` for join
+ * and branches, which is this renderer's spelling for *"the run entered no
+ * region"* — so P7's exit artifact rendered as a region-free run in the one
+ * artifact L7 exists for. That is [Q100](../doc/open-questions.md)'s open
+ * question — *whether a formatting bug can make the table say something FALSE
+ * rather than merely ugly* — answered **yes**, by the item that introduced it.
+ *
+ * A multi-region run prints each region's own answer, prefixed, because a
+ * `0:arrived 1:lost` with no region name cannot be told from an inner one.
+ */
+const regionsOf = (r: RunReport, e: { regionId?: string | null; otherRegions?: Record<string, unknown> }) =>
+  (e.regionId === null ? [] : [e.regionId ?? 'split', ...Object.keys(e.otherRegions ?? {})])
+    .map((id) => [id, r.state.regions[id]] as const)
+    .filter(([, reg]) => reg !== undefined);
+
+const renderRegions = (pairs: ReturnType<typeof regionsOf>) => {
+  if (pairs.length === 0) return { branches: '-', joined: '-' };
+  const one = pairs.length === 1;
+  return {
+    branches: pairs.map(([id, reg]) =>
+      (one ? '' : `${id} `) + Object.entries(reg!.settled).map(([b, st]) => `${b}:${st}`).join(' ')).join('  '),
+    joined: pairs.map(([, reg]) => (reg!.joined === null ? 'never' : String(reg!.joined))).join('/'),
+  };
+};
+
+/**
+ * **Both variable columns are DERIVED — W23**, for the reason `KEY_W`'s own
+ * comment already gives: *"a hard-coded 40 silently TRUNCATED a row key … a human
+ * artifact quietly lying about which run it was showing"*. A nested row prints two
+ * regions, so `branches` roughly doubled and `join` became `true/false`; the first
+ * version of this fix hard-coded 46 and truncated `inner 1.0:exited 1.1:e` — the
+ * same defect, in the same file, on the same day.
+ */
+const allCells = [
+  ...reports.map((r, i) => renderRegions(regionsOf(r, EXPECTED[i]!))),
+  ...pairResults.flatMap(({ runs }) => runs.map(([, r]) => renderRegions(regionsOf(r, { regionId: 'split' })))),
+];
+const BR_W = Math.max('branches'.length, ...allCells.map((c) => c.branches.length)) + 2;
+const J_W = Math.max('join'.length, ...allCells.map((c) => c.joined.length)) + 2;
+
+console.log(`  ${w('run', KEY_W)}${w('outcome', 17)}${w('join', J_W)}${w('branches', BR_W)}${w('tasks', 6)}${w('ms', 6)}overlap`);
+console.log(`  ${'-'.repeat(KEY_W + 35 + J_W + BR_W)}`);
 for (const [i, r] of reports.entries()) {
-  const region = r.state.regions['split'];
-  const branches = region
-    ? Object.entries(region.settled).map(([b, s]) => `${b}:${s}`).join(' ')
-    : '-';
-  const joined = region === undefined ? '-' : region.joined === null ? 'never' : String(region.joined);
+  const { branches, joined } = renderRegions(regionsOf(r, EXPECTED[i]!));
   console.log(
-    `  ${w(EXPECTED[i]!.key, KEY_W)}${w(r.state.outcome, 17)}${w(joined, 7)}` +
-    `${w(branches, 22)}${w(String(r.dispatched.length), 6)}${w(String(r.wallMs), 6)}` +
+    `  ${w(EXPECTED[i]!.key, KEY_W)}${w(r.state.outcome, 17)}${w(joined, J_W)}` +
+    `${w(branches, BR_W)}${w(String(r.dispatched.length), 6)}${w(String(r.wallMs), 6)}` +
     `${r.branchesOverlapped ? 'yes' : 'no'}`,
   );
 }
 
 for (const { row, runs } of pairResults) {
   for (const [who, r] of runs) {
-    const region = r.state.regions['split'];
-    const branches = region ? Object.entries(region.settled).map(([b, st]) => `${b}:${st}`).join(' ') : '-';
-    const joined = region === undefined ? '-' : region.joined === null ? 'never' : String(region.joined);
+    // Both pair flows are depth-1 and their fanout is `split`; stated rather
+    // than hard-coded through the same helper the rows above use.
+    const { branches, joined } = renderRegions(regionsOf(r, { regionId: 'split' }));
     console.log(
-      `  ${w(pairLabel(row, who), KEY_W)}${w(r.state.outcome, 17)}${w(joined, 7)}` +
-      `${w(branches, 22)}${w(String(r.dispatched.length), 6)}${w(String(r.wallMs), 6)}` +
+      `  ${w(pairLabel(row, who), KEY_W)}${w(r.state.outcome, 17)}${w(joined, J_W)}` +
+      `${w(branches, BR_W)}${w(String(r.dispatched.length), 6)}${w(String(r.wallMs), 6)}` +
       `${r.branchesOverlapped ? 'yes' : 'no'}`,
     );
   }
@@ -1597,7 +2005,13 @@ for (const row of PAIR_ROWS) console.log(`    ${w(row.key, KEY_W)}${row.why}`);
 // may declare extra `outcomesSeen` assertions. So the floor is per-row and derived,
 // and it is checked TWO ways — every row ran what its shape says, and the total is
 // what this file declares. Either alone misses a uniform reduction.
-const PER_REGION_ROW = 16;
+/**
+ * **17 since W23**, from 16: a row that enters a region now also asserts that the
+ * run entered **exactly** the regions it declares. That check is in the base
+ * rather than in `extras` because every region row pays it, and a row's
+ * `otherRegions` cost is two per region and is in `extras` because it is not.
+ */
+const PER_REGION_ROW = 17;
 const PER_PLAIN_ROW = 15;
 const CROSS_ROW = 13;
 const base = (shape: string) => (shape === 'region' ? PER_REGION_ROW : PER_PLAIN_ROW);
@@ -1626,7 +2040,68 @@ if (passed + failures.length !== EXPECTED_TOTAL) {
 // exit 0 by W6's adequacy reader, whose finding is that the Record's claim of
 // *"checked two ways … either alone misses something"* was false, because both
 // ways shared a source. This is the second source: a number a human wrote down.
-const DECLARED_TOTAL = 373;
+/**
+ * **L6 runs a NESTED shape, and this is what says so** — W23's adequacy reader,
+ * BLOCKING.
+ *
+ * Measured: the four nested rows could be deleted, `DECLARED_TOTAL` edited to
+ * match, and the two now-unused flow imports dropped — and L6 was **green at 388**
+ * with `lint`, `typecheck` and all five `check:*` passing. After that no run here
+ * had two regions, `Expectation.otherRegions` was dead code, the *"entered exactly
+ * the regions"* check was vacuous on every remaining row, and **no dotted task id
+ * was dispatched anywhere above L2** — this item's own Output (4). The cross-row
+ * block above forces a row per POLICY and a row per reachable join VERDICT; there
+ * was no analogue forcing a row per SHAPE, so P7's exit artifact was held down by
+ * a number a human writes.
+ *
+ * Both halves, because either alone is satisfiable by the other's absence.
+ */
+check('cross-row', 'L6 dispatches at least one DOTTED branch path — the shape P1 reserved and W21 mints',
+  reports.some((r) => r.dispatched.some((id) => parseTaskId(id).branchPath.includes('.'))), true);
+check('cross-row', 'and at least one row declares a SECOND region, so a nested join is asserted at all',
+  EXPECTED.some((e) => Object.keys(e.otherRegions ?? {}).length > 0), true);
+
+/**
+ * **The foreign-task list has a declared size** — W23's adequacy reader, BLOCKING.
+ *
+ * `UNMINTED` feeds both the arrangement (`foreign:`) and the expectation
+ * (`unminted:`) through `.map`, and every pair-row assertion is a fixed count
+ * independent of its length — so entries could be deleted, **up to and including
+ * all six**, for 0 failures and an unmoved total. That deletes P6's exit artifact
+ * and W23's own Q107 closure with the gate green. The entries are individually
+ * load-bearing when present (changing one `event` costs 2); nothing bounded the
+ * list itself.
+ *
+ * Five refusal sites, plus Q107's second event road.
+ */
+/**
+ * **The rendered table names every region of a nested run** — W23's adequacy
+ * reader, and [Q100](../doc/open-questions.md) in a fifth file.
+ *
+ * The conformity reader found this table printing `-` for all four nested rows —
+ * its spelling for *"entered no region"* — so P7's exit artifact rendered as a
+ * region-free run. Fixing the renderer left it **asserted by nothing**: pointing
+ * it back at the hard-coded `'split'` still costs 0 at L6, because a print is not
+ * a check. This reads the same helper the table is built from.
+ */
+{
+  const nestedRow = EXPECTED.findIndex((e) => Object.keys(e.otherRegions ?? {}).length > 0);
+  const cells = renderRegions(regionsOf(reports[nestedRow]!, EXPECTED[nestedRow]!));
+  for (const id of ['outer', 'inner']) {
+    assertThat('cross-row', `the printed table names region "${id}" on a nested row`,
+      cells.branches.includes(`${id} `), `printed: ${cells.branches}`);
+  }
+  assertThat('cross-row', 'and prints a verdict per region rather than one for the run',
+    cells.joined.includes('/'), `printed: ${cells.joined}`);
+}
+
+check('cross-row', 'the foreign-task list is six: one per parseTaskId refusal, plus Q107 second event road',
+  UNMINTED.length, 6);
+check('cross-row', 'and they reach ID-R5 under TWO scheduler events, not one',
+  [...new Set(UNMINTED.map((u) => u.event ?? 'task.completed'))].sort(),
+  ['task.completed', 'task.failed']);
+
+const DECLARED_TOTAL = 489;
 if (passed + failures.length !== DECLARED_TOTAL) {
   failures.push(
     'gate\n      the assertion count is not the number this file declares outright\n' +

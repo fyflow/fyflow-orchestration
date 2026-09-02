@@ -1,0 +1,18 @@
+{
+  "flowId": "nested-suspend",
+  "version": 1,
+  "entry": "ingest",
+  "nodes": [
+    { "id": "ingest",  "kind": "task",   "workerType": "IngestWorker", "edges": [ { "to": "outer" } ] },
+    { "id": "outer",   "kind": "fanout", "branches": [ "scoreA", "scoreB" ] },
+    { "id": "scoreA",  "kind": "task",   "workerType": "ScoreWorker",  "edges": [ { "to": "outerJoin" } ] },
+    { "id": "scoreB",  "kind": "task",   "workerType": "ScoreWorker",  "edges": [ { "to": "inner" } ] },
+    { "id": "inner",   "kind": "fanout", "branches": [ "reviewC", "scoreD" ] },
+    { "id": "reviewC", "kind": "task",   "workerType": "ReviewWorker", "edges": [ { "to": "innerJoin" } ] },
+    { "id": "scoreD",  "kind": "task",   "workerType": "ScoreWorker",  "edges": [ { "to": "innerJoin" } ] },
+    { "id": "innerJoin", "kind": "join", "of": "inner",                "edges": [ { "to": "outerJoin" } ] },
+    { "id": "outerJoin", "kind": "join", "of": "outer",                "edges": [ { "to": "publish" } ] },
+    { "id": "publish", "kind": "task",   "workerType": "PublishWorker", "edges": [ { "to": "done" } ] },
+    { "id": "done",    "kind": "end",    "outcome": "completed" }
+  ]
+}

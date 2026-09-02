@@ -41,7 +41,7 @@
 // Everything from the package entry, never from `src/` — an example that reached
 // past `index.ts` would be exercising a surface no consumer has.
 import {
-  Driver, buildTaskId, emptyState, isTerminal, step,
+  Driver, branchIndices, buildTaskId, emptyState, isTerminal, step,
   type FlowDefinition, type FoldInput, type JoinPolicy, type LogRecord,
   type Predicate, type RunOutcome, type RunState, type UnmintedTask,
   type UnsatisfiableJoin,
@@ -137,6 +137,22 @@ export interface RunReport {
   outcomesSeen: readonly RunOutcome[];
   /** Task ids resolved by the inbound step, in the order it resolved them. */
   resolved: readonly string[];
+  /**
+   * **Where the DRIVER said each branch parked**, keyed by branch path — W23's
+   * adequacy reader, BLOCKING.
+   *
+   * The inbound step below reads `input.event.at` to know which node to resolve.
+   * Substituting the ROW's own declared node for it — `how.at ?? input.event.at`,
+   * a source swap and nothing else — cost **0 failures**, and with it in place
+   * `branch.suspended`'s `at` was asserted by nothing at L6: a driver emitting
+   * `at: 'WRONG'` went from **5** failures to **0**. That is W19's blocking
+   * finding — *an assertion whose SOURCE could be swapped, forbidden in prose and
+   * enforced by nothing* — in a field W23 itself created.
+   *
+   * Recorded so a row can compare what the DRIVER said against what the ROW
+   * declared. Two sources, not one.
+   */
+  suspendedAt: Readonly<Record<string, string>>;
   /**
    * Anything **`onRunFailure`** reported, as text.
    *
@@ -278,6 +294,18 @@ export interface ForeignTask {
   /** A key in `buildScheduler`'s pools. */
   workerType: string;
   payload?: unknown;
+  /**
+   * **Passed through to the scheduler, and it is what `task.failed` needs** —
+   * [Q107](../doc/open-questions.md), taken by
+   * [W23](../doc/work-items/w23-a-nested-flow-on-real-workers.md).
+   *
+   * `ID-R5` at L6 had only ever been reached from `task.completed`, because every
+   * foreign task W19 injected ran a worker that returns. Only an **optional** task
+   * can settle `failed` (`core/FyflowScheduler.ts:894-897`), so a foreign task
+   * that throws needs this flag or it ends `user_action` instead — which is a
+   * third event name and a different question again.
+   */
+  optional?: boolean;
 }
 
 /**
@@ -376,9 +404,19 @@ export async function runPair(
   // that structural rather than hoped for.** `runFlow` is synchronous up to its
   // first `await`, so both drivers attach their listeners before any timer fires,
   // and the worker's own `delayMs` means nothing can settle inside this turn.
-  // The pool these go to is `IngestWorker` — `maxThreads: 1`, `inline` — so a task
-  // queued first is dispatched first and settles first, and the ordering is
-  // produced by queue discipline rather than by a delay comparison.
+  // **NOT all on one pool since [Q107](../doc/open-questions.md)**, and the
+  // sentence this replaces was true of five of the six. It read: *"The pool these
+  // go to is `IngestWorker` — `maxThreads: 1`, `inline` — so a task queued first
+  // is dispatched first and settles first, and the ordering is produced by queue
+  // discipline rather than by a delay comparison."*
+  //
+  // The five that run `IngestWorker` still serialize on one inline slot, and that
+  // part is queue discipline. `weekly-report` runs `ReviewWorker` so that a
+  // foreign settlement reaches `ID-R5` under `task.failed` rather than
+  // `task.completed`, and **its ordering against the runs is a delay comparison
+  // across two pools** — ~20 ms against each run's `ingest` at ~30 ms. The claim
+  // the assertions make is unchanged; the mechanism behind one of the six is not,
+  // and W23's conformity reader found this sentence still describing the old one.
   //
   // **Both halves are asserted rather than trusted**, which is W17's lesson about
   // `SETTLES_LAST`: `PairFacts.settlementIds[0]` says the foreign settlement came
@@ -387,7 +425,16 @@ export async function runPair(
   // this ARRANGES an order and then checks the effect; nothing depends on an
   // order the spec does not fix.
   for (const f of foreign) {
-    scheduler.addTask(new FyflowTask({ id: f.id, workerType: f.workerType, payload: f.payload ?? null }));
+    scheduler.addTask(new FyflowTask({
+      id: f.id,
+      workerType: f.workerType,
+      payload: f.payload ?? null,
+      // Q107: `optional` is what decides whether a throwing worker settles
+      // `failed` or ends `user_action`, and the driver keys on terminal state
+      // rather than on event name (ADR 0007 rule 2) — so this is how a foreign
+      // settlement reaches `ID-R5` down a road that is not `task.completed`.
+      optional: f.optional ?? false,
+    }));
   }
 
   try {
@@ -532,6 +579,7 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
   const failureKinds: string[] = [];
   const outcomesSeen: RunOutcome[] = [];
   const resolved: string[] = [];
+  const suspendedAt: Record<string, string> = {};
   let state = emptyState();
   // **The race's two arms each RESOLVE WITH THEIR OWN NAME — W17.**
   //
@@ -614,14 +662,38 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
         const how = opts.resolveOnSuspend?.[input.event.branchPath];
         const at = input.event.at;
         const branchPath = input.event.branchPath;
+        // **Recorded from `input.event` DIRECTLY, not from the `at` local above.**
+        // The first version of this line read `suspendedAt[branchPath] = at`, which
+        // is the same variable the resolve step uses — so substituting the row's
+        // own node for the event's swapped BOTH sides at once and the assertion
+        // compared a declaration with itself. W23's adequacy reader's probe still
+        // cost 0 after the "fix". Reading the event here is what makes this a
+        // second source.
+        suspendedAt[branchPath] = input.event.at;
         if (how) {
           queueMicrotask(() => {
-            const taskId = buildTaskId(runId, at, Number(branchPath), 0);
             // `resolve()` is called with no caller on the stack, so a refusal
             // during the routing it triggers would surface as an uncaught
             // rejection rather than as a result. The harness's whole design is
             // that a failure is *reported*; this is that, applied to itself.
+            //
+            // **`branchIndices`, not `Number` — [Q117](../doc/open-questions.md),
+            // fixed by [W23](../doc/work-items/w23-a-nested-flow-on-real-workers.md).**
+            // This read `Number(branchPath)`, which is right at depth 1 and wrong
+            // in two different ways below it. At depth 2 `Number('1.0')` is **1**,
+            // not `NaN`: the harness minted `r*:node:1:0` — a **well-formed id for
+            // a different task** — and `resolve()` refused it as not-suspended,
+            // reporting a real failure under a false cause. At depth 3
+            // `Number('1.1.0')` **is** `NaN` and `buildTaskId` throws since W21's
+            // `INDEX` test, which is why the call is now **inside** the `try`:
+            // it used to sit outside it, in a `queueMicrotask`, so the throw
+            // surfaced as an unhandled rejection rather than as a harness failure.
+            //
+            // `branchIndices` is `buildTaskId`'s exact inverse and needs no new
+            // export — `index.ts` re-exports `src/driver/ids.ts` whole.
+            let taskId = `<unminted ${at}:${branchPath}>`;
             try {
+              taskId = buildTaskId(runId, at, branchIndices(branchPath), 0);
               if (driver.resolve(taskId, how.as, { result: how.result, actor: how.actor })) {
                 resolved.push(taskId);
               } else {
@@ -759,6 +831,7 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
     wallMs,
     outcomesSeen,
     resolved,
+    suspendedAt,
     finishedBy,
     timedOut: finishedBy === 'backstop',
     failures,
