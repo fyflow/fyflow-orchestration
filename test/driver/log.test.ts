@@ -9,7 +9,9 @@
 import { equal, ok, suite, throws } from '../harness.ts';
 import { normalizeEvent, UncloneableResult, type TaskDetailLike } from '../../src/driver/listener.ts';
 import { effectiveOutcome, isSuspended, type LogRecord } from '../../src/driver/log.ts';
-import { buildTaskId, InvalidRunId, parseTaskId, assertRunId } from '../../src/driver/ids.ts';
+import {
+  branchIndices, buildTaskId, InvalidRunId, parseTaskId, assertRunId,
+} from '../../src/driver/ids.ts';
 
 const NOW = 1_756_512_000_000;
 
@@ -238,6 +240,69 @@ suite('spec/task-id.md — the scheme, the parse, and ID-R2', (test) => {
   test('four segments, always four', () => {
     equal(buildTaskId('r7c1f', 'score', null), 'r7c1f:score:-:0', 'a node in no region uses "-"');
     equal(buildTaskId('r7c1f', 'scoreB', 1), 'r7c1f:scoreB:1:0', 'a branch index is the third segment');
+    // **The array form, W21** — `spec/task-id.md` section 1's dotted path, which
+    // the grammar reserved in P1 and which no caller could produce until now.
+    // Widened rather than replaced, so the two lines above still mean what they
+    // meant.
+    equal(buildTaskId('r7c1f', 'scoreC', [1, 0]), 'r7c1f:scoreC:1.0:0', 'a PATH is the third segment');
+    equal(buildTaskId('r7c1f', 'scoreC', [1]), 'r7c1f:scoreC:1:0', 'a one-element path is a bare index');
+    // **`branchIndices` is the inverse, and it had no partner until W21.** Asserted
+    // as a round trip rather than as two independent claims: the pair is what
+    // `spec/task-id.md` section 1 fixes, and either half alone can drift.
+    for (const path of ['-', '0', '1', '1.0', '2.10.3']) {
+      equal(parseTaskId(buildTaskId('r1', 'n', branchIndices(path))).branchPath, path,
+        `buildTaskId and parseTaskId round-trip the path ${path}`);
+    }
+    // **Both refusals this item added, negative-tested at birth** — `doc/workflow.md`
+    // section 5 rule 7. Neither is reachable from `branchPathOf`, which produces
+    // only non-negative indices and never an empty path; both are reachable from a
+    // CALLER, and `buildTaskId` is exported from the package root.
+    throws(() => buildTaskId('r1', 'n', [0, -1]), 'not a non-negative integer',
+      'a negative segment is refused — `spec/task-id.md` section 1 fixes non-negative integers');
+    throws(() => buildTaskId('r1', 'n', [1.5]), 'not a non-negative integer', 'and a non-integer segment');
+    // **`1e21` — the gap W21's conformity reader found, and the case its adequacy
+    // reader found missing.** `Number.isInteger(1e21)` is `true` and it is
+    // positive, so the first version of this refusal admitted it; `String(1e21)`
+    // is `"1e+21"`, which `spec/task-id.md` section 1's `0 | [1-9][0-9]*` refuses.
+    // **`buildTaskId` could mint an id `parseTaskId` rejects**, which is the one
+    // thing the pair must never do. The refusal now tests the STRING it will emit
+    // rather than the number it was handed, which is why `Number.isInteger` and
+    // `n < 0` could both be deleted as dead.
+    throws(() => buildTaskId('r1', 'n', [1e21]), 'not a non-negative integer',
+      'an integer whose String() is exponential is refused — the minter must not outrun the parser');
+    // The property, rather than the one example: whatever `buildTaskId` accepts,
+    // `parseTaskId` must accept back.
+    for (const n of [0, 1, 9, 10, 1e20]) {
+      let minted: string | null = null;
+      try { minted = buildTaskId('r1', 'n', [n]); } catch { minted = null; }
+      if (minted !== null) {
+        equal(parseTaskId(minted).branchPath, String(n), `${n} round-trips, so the minter did not outrun the parser`);
+      }
+    }
+    // **The grammar's NUMERIC shape, refused — W21's adequacy reader, BLOCKING.**
+    // `spec/task-id.md` section 1 fixes a segment as `0 | [1-9][0-9]*`, and the
+    // only malformation any suite exercised was `x` — a NON-DIGIT. Every
+    // digit-shaped one was unasserted, so `BRANCH_PATH` could be widened to
+    // `[0-9]+(\.[0-9]+)*` with the whole suite green.
+    //
+    // **The consequence is ADR 0027's catastrophe restored**, which is why this is
+    // not cosmetic: a widened grammar makes `parseTaskId` ACCEPT these, so tier 0
+    // never fires, they fall through to `ID-R4`, and an id no driver minted
+    // **stops the run** instead of being reported through `onUnmintedTask`.
+    // `1..0` is a malformation that could not exist before W21 made the dotted
+    // half of the grammar live.
+    for (const bad of ['01', '1..0', '.0', '0.', '1.', '00', '1.01']) {
+      throws(() => parseTaskId(`r1:n:${bad}:0`), 'branchPath',
+        `parseTaskId refuses the branchPath ${JSON.stringify(bad)} — section 1's segment is 0 | [1-9][0-9]*`);
+    }
+    // And the shapes it must ACCEPT, so the refusals above cannot be satisfied by
+    // a grammar that refuses everything.
+    for (const good of ['-', '0', '1', '10', '1.0', '2.10.3']) {
+      equal(parseTaskId(`r1:n:${good}:0`).branchPath, good, `and accepts ${good}`);
+    }
+    throws(() => buildTaskId('r1', 'n', []), 'never an empty path',
+      'an EMPTY path is refused rather than silently becoming `-`: a node in no region is `null`, ' +
+      'and conflating the two would let a caller mint `-` for a node that is in one');
   });
 
   test('the parse is total for anything this module built', () => {

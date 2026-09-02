@@ -854,7 +854,7 @@ if (Object.keys(frozen).length !== 4) {
 | flow-level **retry** | the scheduler's `retryPolicy`, per task |
 | **cancellation** | nothing. The scheduler cannot cancel a queued task either |
 | **durability** — resuming a run after a restart | nothing. The fold is designed to make it additive; it is not built |
-| **nested fan-out** — a branch that fans out again | **the definition layer accepts it**, since `FD-V15` was retired. It is **not usable end to end yet**: a task inside a nested region is dispatched with a single-index `branchPath` where `spec/task-id.md` reserves a dotted one, and no join policy has been ruled transitive over it. Do not build on it until this row says otherwise |
+| **nested fan-out** — a branch that fans out again | **the definition accepts it and the ids are right**: `FD-V15` is retired, and a task inside a nested region is dispatched at its whole dotted `branchPath` (`r1:scoreC:1.0:0`). **What is not settled is the JOIN** — no policy has been ruled transitive over nesting, so whether an outer join waits for grandchildren is undecided ([Q6](../doc/open-questions.md)). Build on the shape if you want; do not rely on an outer join's behaviour until this row says otherwise |
 | **map-style fan-out** — one branch per item in a result | not built; branches are static |
 | a **join timeout** | nothing. A stuck join is detected by the `stuck` outcome, with no clock |
 | **per-join policy choice** | one policy per driver |

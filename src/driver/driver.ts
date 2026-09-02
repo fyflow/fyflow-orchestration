@@ -14,10 +14,13 @@
  */
 import type { FlowDefinition, FlowNode, Registry, TerminalState } from '../definition/types.ts';
 import {
-  allRegions, buildGraph, innermostRegionOf, toRegion, type Graph, type RegionSets,
+  allRegions, branchPathOf, buildGraph, innermostRegionOf, toRegion,
+  type Graph, type RegionSets,
 } from '../definition/regions.ts';
 import { validateDefinition, violatedRules } from '../definition/validate.ts';
-import { assertRunId, buildTaskId, InvalidTaskId, parseTaskId, type TaskIdParts } from './ids.ts';
+import {
+  assertRunId, branchIndices, buildTaskId, InvalidTaskId, parseTaskId, type TaskIdParts,
+} from './ids.ts';
 import { effectiveOutcome, isSuspended, type LogRecord, type OutcomeRecord } from './log.ts';
 import { normalizeEvent, type TaskDetailLike } from './listener.ts';
 import { selectEdge, type PredicateRegistry } from './routing.ts';
@@ -645,7 +648,12 @@ export class Driver {
   private advance(runId: string, nodeId: string, branchPath: string): void {
     const node = this.graph.byId.get(nodeId);
     if (!node) return;
-    const taskId = buildTaskId(runId, nodeId, branchPath === '-' ? null : Number(branchPath.split('.')[0]));
+    // **Derived from the graph, not truncated from the inbound path** — W21.
+    // This read `Number(branchPath.split('.')[0])`, the OUTERMOST index only,
+    // which is correct at depth 1 and silently wrong at depth 2: `scoreC` in a
+    // nested region minted `r1:scoreC:0:0` where `spec/task-id.md` section 1
+    // reserves `r1:scoreC:1.0:0`.
+    const taskId = buildTaskId(runId, nodeId, branchIndices(this.pathOf(nodeId)));
     const outcome = effectiveOutcome(this.log, taskId);
     if (!outcome) return; // suspended, or not settled
 
@@ -702,7 +710,7 @@ export class Driver {
 
     switch (node.kind) {
       case 'task':
-        return this.dispatch(runId, node, payload, this.branchPathFor(nodeId, fromBranch));
+        return this.dispatch(runId, node, payload);
 
       case 'fanout': {
         const region = this.regions.find((r) => r.fanoutId === nodeId);
@@ -718,10 +726,26 @@ export class Driver {
         if (this.opts.joinPolicy) {
           this.joinState.set(region.fanoutId, this.opts.joinPolicy.open(toRegion(region) as Region));
         }
+        // **Each branch entry's OWN path, not its bare index** — W21. This
+        // emitted `String(i)` and threaded it, so a nested fanout opened its
+        // branches at `0`/`1` with the outer prefix discarded: `fromBranch` was in
+        // scope at both lines and thrown away. Derived, an inner branch opens at
+        // `1.0` and the outer prefix cannot be lost, because it was never carried.
+        // Computed once per branch rather than twice — W21's conformity reader
+        // priced the derivation and found it dearer than the fork table said.
+        const paths = region.branches.map((b) => this.pathOf(b));
         region.branches.forEach((_b, i) => {
-          this.emit({ type: 'branch.opened', regionId: region.fanoutId, branchPath: String(i) });
+          this.emit({ type: 'branch.opened', regionId: region.fanoutId, branchPath: paths[i]! });
         });
-        region.branches.forEach((b, i) => this.enter(runId, b, payload, String(i), region.fanoutId));
+        // **The last two arguments here are unobservable and are kept deliberately**
+        // — W21's adequacy reader. `FD-V9` makes every branch entry a `task`, and
+        // `enter`'s `task` arm discards `fromBranch` and `fromRegion`, so nothing
+        // downstream reads them. They are passed because the branch entry is the
+        // one node whose region and path are known here without a lookup, and the
+        // moment `FD-V9` is lifted (or a branch entry may be a `join`) the arm
+        // stops discarding them. **Said in place rather than left for the next
+        // reader to rediscover as dead code.**
+        region.branches.forEach((b, i) => this.enter(runId, b, payload, paths[i]!, region.fanoutId));
         return;
       }
 
@@ -763,9 +787,16 @@ export class Driver {
     }
   }
 
-  private dispatch(runId: string, node: FlowNode & { kind: 'task' }, payload: unknown, branchPath: string): void {
-    const branchIndex = branchPath === '-' ? null : Number(branchPath.split('.')[0]);
-    const taskId = buildTaskId(runId, node.id, branchIndex, 0);
+  /**
+   * **No `branchPath` parameter since W21, and its absence is the point.** It took
+   * one and immediately reduced it to `Number(branchPath.split('.')[0])` — the
+   * outermost index — so the caller threaded a path and the callee threw all but
+   * its first segment away. Both halves are gone: the id's third segment is
+   * `spec/task-id.md` section 1's *"property of the node"*, derived here from the
+   * graph, and there is no longer a carried value that could disagree with it.
+   */
+  private dispatch(runId: string, node: FlowNode & { kind: 'task' }, payload: unknown): void {
+    const taskId = buildTaskId(runId, node.id, branchIndices(this.pathOf(node.id)), 0);
 
     // ID-R1 — the refusal, BEFORE addTask sees it. A duplicate means the validator
     // or this driver's path bookkeeping is wrong; continuing runs both tasks and
@@ -789,10 +820,23 @@ export class Driver {
     );
   }
 
-  private branchPathFor(nodeId: string, inherited: string): string {
-    const region = this.regionOf(nodeId);
-    if (!region) return '-';
-    return inherited;
+  /**
+   * **A node's `branchPath`, derived from the graph** — `spec/task-id.md` section
+   * 1's *"a property of the node"*, and W21 is where the driver stopped carrying
+   * it instead.
+   *
+   * This was `branchPathFor(nodeId, inherited)`: it asked whether the node was in
+   * a region and, if so, returned **whatever path the caller had been carrying**.
+   * That is right whenever the carried value happens to be the node's own path
+   * and unfalsifiable when it is not — and at depth 2 it was not, because the
+   * `fanout` arm discarded the outer prefix before threading it.
+   *
+   * **Measured before the change**: `branchPathOf` is total over the whole valid
+   * corpus and agrees with the threaded value on every depth-1 flow, so this
+   * replaced a carried value with a derived one and changed no existing id.
+   */
+  private pathOf(nodeId: string): string {
+    return branchPathOf(this.regions, nodeId);
   }
 
   /**
@@ -948,7 +992,35 @@ export class Driver {
     // `spec/` says nothing about what a join carries downstream
     // ([Q36](../../doc/open-questions.md)), so this refuses to invent it rather
     // than picking a branch arbitrarily.
-    if (edge) this.enter(runId, edge.to, null);
+    // **The join's exit carries the path its REGION sits at — [Q114](../../doc/open-questions.md),
+    // closed by W21.** This was `this.enter(runId, edge.to, null)`, with no
+    // `fromBranch` at all. That is right at depth 1, where a join's successor is
+    // outside every region and `'-'` is the answer; **inside a nested region it is
+    // wrong**, and the outer region recorded the arrival of branch 1 as `'-'`.
+    // Measured on `valid/nested-fanout.flow.json` before the fix: the run's last
+    // event was `branch.arrived region=outer path=-`.
+    //
+    // **Derived, not threaded, so it needed no new state.** The region's own
+    // `fanout` is a node, and a node has a path — which is the whole argument for
+    // the arm of W21's fork this item took. `pathOf('inner')` is `'1'`; at depth 1
+    // `pathOf` of a top-level fanout is `'-'`, so every existing run is unchanged.
+    // The `null` PAYLOAD is untouched and is a different question ([Q36](../../doc/open-questions.md));
+    // this changes only which branch the arrival is attributed to.
+    // **Both halves, and the first version shipped only one.** The path says
+    // WHICH branch; `fromRegion` says which region that branch belongs to, and the
+    // `end` arm attributes a `branch.exited` by `fromRegion` alone. With it
+    // `undefined`, an inner join routing to an `end` inside the enclosing region
+    // emitted **no terminal event for the outer branch at all** — `JP-R5` says a
+    // branch that is neither suspended nor in flight has exactly one — and the
+    // outer join sat at `live: 1` forever. **A valid definition that hangs**,
+    // found by W21's conformity reader; it was invisible before this item only
+    // because the path was `'-'` and the arm was dead twice over.
+    //
+    // Derived exactly as the path is: the region's own `fanout` is a node, so the
+    // region CONTAINING it is that node's region.
+    if (edge) {
+      this.enter(runId, edge.to, null, this.pathOf(region.fanoutId), this.regionOf(region.fanoutId)?.fanoutId);
+    }
   }
 
   /**

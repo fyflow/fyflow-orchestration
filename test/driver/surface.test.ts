@@ -11,6 +11,8 @@ import { equal, ok, suite } from '../harness.ts';
 import { readText, ROOT } from '../harness.ts';
 import { Driver } from '../../src/driver/driver.ts';
 import { innermostRegionOf } from '../../src/definition/regions.ts';
+import { POLICIES } from '../../src/fold/policies.ts';
+import { validateDefinition } from '../../src/definition/validate.ts';
 import { isTerminalEvent, TERMINAL_EVENTS } from '../../src/driver/events.ts';
 import { branchIndices } from '../../src/driver/ids.ts';
 import { allRegions, branchIndexOf, buildGraph, toRegion } from '../../src/definition/regions.ts';
@@ -219,6 +221,11 @@ suite('regionOf on a nested flow — the driver reads the INNERMOST region', (te
     d.start({});
     scheduler.settle('r1:scoreA:0:0', 'done', { result: null });
     scheduler.settle('r1:scoreB:1:0', 'done', { result: null });
+    // **`r1:scoreC:1.0:0`, not `r1:scoreC:0:0` — W21.** Until the driver derived a
+    // node's `branchPath` from the graph it threaded one, and the `fanout` arm
+    // discarded the outer prefix, so a node two deep minted the id of a node one
+    // deep. These four cases were written against the wrong ids and moved with the
+    // fix, which is the clearest statement of what W21 changed.
     // **`scoreC` SUSPENDS rather than completing, and that is the whole design of
     // this case.** Measured while writing it: settling `scoreC` `done` reaches
     // `regionOf` NOWHERE — `branch.arrived` is emitted on entering the join and
@@ -229,7 +236,7 @@ suite('regionOf on a nested flow — the driver reads the INNERMOST region', (te
     // delegation held down by nothing, which is what this item's sweep found.
     // `user_action` is the cheapest of the three: it needs no fixture the corpus
     // does not already have (ADR 0007 rule 2's event pair, from the same worker).
-    scheduler.settle('r1:scoreC:0:0', 'user_action', { result: null });
+    scheduler.settle('r1:scoreC:1.0:0', 'user_action', { result: null });
 
     // Read from the spec, not from the run: `scoreA` is in `region(outer)` only,
     // so its arrival is outer's; `scoreB` routes INTO the nested region rather
@@ -262,10 +269,10 @@ suite('regionOf on a nested flow — the driver reads the INNERMOST region', (te
    * order-insensitive by construction.)*
    */
   for (const [path, drive] of [
-    ['branch.lost', (s: Fake) => s.settle('r1:scoreC:0:0', 'failed', { error: 'x' })],
+    ['branch.lost', (s: Fake) => s.settle('r1:scoreC:1.0:0', 'failed', { error: 'x' })],
     ['branch.resumed', (s: Fake, d: Driver) => {
-      s.settle('r1:scoreC:0:0', 'user_action', { result: null });
-      d.resolve('r1:scoreC:0:0', 'done', { actor: 'a-person' });
+      s.settle('r1:scoreC:1.0:0', 'user_action', { result: null });
+      d.resolve('r1:scoreC:1.0:0', 'done', { actor: 'a-person' });
     }],
   ] as const) {
     test(`${path} inside a nested region names the INNER region too`, async () => {
@@ -287,6 +294,190 @@ suite('regionOf on a nested flow — the driver reads the INNERMOST region', (te
         `${path} is attributed to the innermost region containing the node`);
     });
   }
+
+  test('a nested run mints the ids the grammar reserved — W21, and it is L2', async () => {
+    // **The whole of what W21 delivers, and `spec/task-id.md` section 1 is where
+    // every value comes from**: four segments, and the third is a dotted path for
+    // a node inside a nested region. Before W21 the driver threaded a path and the
+    // `fanout` arm discarded the outer prefix, so `scoreC` minted `r1:scoreC:0:0`
+    // — the id of a node one level up, differing from `scoreA`'s only by node id.
+    //
+    // **`ID-R1` is what would have caught the collision if the node ids had
+    // matched**, which is why this is the row that matters rather than a
+    // cosmetic one: a discarded prefix is how two branches mint one id.
+    const def = await load('valid/nested-fanout.flow.json');
+    const scheduler = new Fake();
+    const events: RegionEvent[] = [];
+    const d = new Driver(def, {
+      runId: 'r1', scheduler, createTask: (c) => c, predicates: new Map(),
+      workerTypes: reg.workerTypes, now: () => 1, joinPolicy: waiting,
+      onRegionEvent: (e) => events.push(e),
+    });
+    d.start({});
+    scheduler.settle('r1:scoreA:0:0', 'done', { result: null });
+    scheduler.settle('r1:scoreB:1:0', 'done', { result: null });
+    // **Read from the SCHEDULER, and with a field only the scheduler has.**
+    // `d.dispatchedIds()` is the driver's own bookkeeping and would satisfy an
+    // id-only assertion identically — measured: with the driver recording a
+    // dispatch it never hands to `addTask`, the scheduler-sourced form fails and
+    // the driver-sourced form passes. Pairing `workerType` with the id makes the
+    // wrong source unable to satisfy this at all, rather than merely unwise.
+    // `doc/workflow.md` section 5 rule 4, and v0.8's provenance obligation.
+    equal(scheduler.added.map((t) => `${t.id}@${(t as { workerType?: string }).workerType}`), [
+      'r1:scoreA:0:0@ScoreWorker', 'r1:scoreB:1:0@ScoreWorker',
+      'r1:scoreC:1.0:0@ScoreWorker', 'r1:scoreD:1.1:0@ScoreWorker',
+    ], 'the inner branches are at 1.0 and 1.1 — outer branch 1, inner branches 0 and 1');
+    // And the region events carry the same paths, because both are derived from
+    // the graph rather than one being read off the other.
+    equal(events.filter((e) => e.regionId === 'inner').map((e) => e.branchPath), ['1.0', '1.1'],
+      'a nested fanout opens its branches at their own paths, not at their bare indices');
+    equal(events.filter((e) => e.regionId === 'outer').map((e) => e.branchPath), ['0', '1', '0'],
+      'and the outer region is unchanged — opened 0, opened 1, arrived 0');
+    // `ID-R1`: every dispatched id distinct. It is what a discarded prefix breaks.
+    equal(new Set(scheduler.added.map((t) => t.id)).size, scheduler.added.map((t) => t.id).length, 'ID-R1: every dispatched id is distinct');
+  });
+
+  test('a join routes out of itself at the path its REGION sits at — Q114, closed by W21', async () => {
+    // **[Q114](../../doc/open-questions.md).** `settleJoin` entered a join's
+    // successor with no `fromBranch` at all, which is right at depth 1 — a join's
+    // successor is outside every region — and wrong inside a nested one. Measured
+    // before the fix, this run's last event was `branch.arrived@outer` with path
+    // `'-'`: the outer region recorded branch **1**'s arrival as *no branch*.
+    //
+    // Read from `spec/flow-definition.md` section 4: the inner region is entered
+    // from `scoreB`, which is outer branch 1, so the whole inner region — and
+    // therefore its join's exit — sits at outer path `1`.
+    const def = await load('valid/nested-fanout.flow.json');
+    const scheduler = new Fake();
+    const events: RegionEvent[] = [];
+    const d = new Driver(def, {
+      runId: 'r1', scheduler, createTask: (c) => c, predicates: new Map(),
+      workerTypes: reg.workerTypes, now: () => 1, joinPolicy: POLICIES['live-token'],
+      onRegionEvent: (e) => events.push(e),
+    });
+    d.start({});
+    for (const id of ['r1:scoreA:0:0', 'r1:scoreB:1:0', 'r1:scoreC:1.0:0', 'r1:scoreD:1.1:0']) {
+      scheduler.settle(id, 'done', { result: null });
+    }
+    equal(events.map((e) => `${e.type}@${e.regionId}:${e.branchPath}`), [
+      'branch.opened@outer:0', 'branch.opened@outer:1',
+      'branch.arrived@outer:0',
+      'branch.opened@inner:1.0', 'branch.opened@inner:1.1',
+      'branch.arrived@inner:1.0', 'branch.arrived@inner:1.1',
+      'branch.arrived@outer:1',
+    ], 'the inner join`s exit arrives at OUTER BRANCH 1, not at `-`');
+  });
+
+  test('a join`s exit path is the WHOLE path, and truncating it hangs a run — W21`s adequacy reader', () => {
+    // **The Q114 case above cannot see this**, and that is the finding: at depth 2
+    // `pathOf('inner')` is `'1'`, so `.split('.')[0]` is the identity there. The
+    // fix was asserted only where its own distinction collapses.
+    //
+    // Two SIBLING nested regions inside one outer branch. `src/fold/policies.ts`
+    // keys distinct arrivals on `branchPath`, so two exits truncated to the same
+    // outer segment collapse into one arrival and the enclosing join never fires.
+    // Values from `spec/flow-definition.md` section 4 and `spec/task-id.md`
+    // section 1: `g1` and `g2` are branches 0 and 1 of `mid`, which is branch 1 of
+    // `outer`, so their joins exit at `1.0` and `1.1`.
+    const t = (id: string, to: string) => ({ id, kind: 'task', workerType: reg.workerTypes[0], edges: [{ to }] });
+    // `FD-V9` requires a branch entry to be a TASK, so each of `mid`'s branches
+    // is a task that then fans out — which is also the only shape a nested
+    // fan-out can take at all, and is worth knowing.
+    const nodes = [
+      { id: 'outer', kind: 'fanout', branches: ['scoreA', 'scoreB'] },
+      t('scoreA', 'outerJoin'), t('scoreB', 'mid'),
+      { id: 'mid', kind: 'fanout', branches: ['m1', 'm2'] },
+      t('m1', 'g1'), t('m2', 'g2'),
+      { id: 'g1', kind: 'fanout', branches: ['h1', 'h2'] },
+      t('h1', 'j1'), t('h2', 'j1'),
+      { id: 'j1', kind: 'join', of: 'g1', edges: [{ to: 'midJoin' }] },
+      { id: 'g2', kind: 'fanout', branches: ['h3', 'h4'] },
+      t('h3', 'j2'), t('h4', 'j2'),
+      { id: 'j2', kind: 'join', of: 'g2', edges: [{ to: 'midJoin' }] },
+      { id: 'midJoin', kind: 'join', of: 'mid', edges: [{ to: 'outerJoin' }] },
+      { id: 'outerJoin', kind: 'join', of: 'outer', edges: [{ to: 'done' }] },
+      { id: 'done', kind: 'end', outcome: 'completed' },
+    ];
+    const def = { flowId: 'siblings-depth3', version: 1, entry: 'outer', nodes } as unknown as FlowDefinition;
+    equal(validateDefinition(def, { workerTypes: reg.workerTypes, predicates: [] }), [],
+      'a legal definition — which is what makes a hang here a defect');
+    const scheduler = new Fake();
+    const events: RegionEvent[] = [];
+    const d = new Driver(def, {
+      runId: 'r1', scheduler, createTask: (c) => c, predicates: new Map(),
+      workerTypes: reg.workerTypes, now: () => 1, joinPolicy: POLICIES['arrival-count'],
+      onRegionEvent: (e) => events.push(e),
+    });
+    d.start({});
+    for (const id of [
+      'r1:scoreA:0:0', 'r1:scoreB:1:0', 'r1:m1:1.0:0', 'r1:m2:1.1:0',
+      'r1:h1:1.0.0:0', 'r1:h2:1.0.1:0', 'r1:h3:1.1.0:0', 'r1:h4:1.1.1:0',
+    ]) {
+      scheduler.settle(id, 'done', { result: null });
+    }
+    // **The two sibling joins arrive at mid as DISTINCT branches.** Truncated to
+    // `'1'` they are one arrival, `arrival-count` never reaches 2, and the run
+    // hangs — 0 failures without this line.
+    equal(events.filter((e) => e.regionId === 'mid' && e.type === 'branch.arrived').map((e) => e.branchPath),
+      ['1.0', '1.1'], 'each sibling join exits at its OWN path, not at their shared outer segment');
+    equal(d.joinStatusOf('mid')?.status, 'satisfied', 'so the enclosing join fires');
+    equal(d.joinStatusOf('outer')?.status, 'satisfied', 'and so does the one above it');
+  });
+
+  test('an inner join routing to an `end` TERMINATES the outer branch — W21`s conformity reader', () => {
+    // **A valid definition that hung**, and the half of [Q114](../../doc/open-questions.md)
+    // the first fix missed. `settleJoin` carried the path but passed `undefined`
+    // for `fromRegion`, and the `end` arm attributes a `branch.exited` by
+    // `fromRegion` alone — so an inner join routing to an `end` inside the
+    // enclosing region emitted NO terminal event for the outer branch, and the
+    // outer join sat at `live: 1` forever.
+    //
+    // `spec/join-policy.md` section 2 and `JP-R5`: a branch reaches the join,
+    // reaches an `end`, or runs out of eligible edges — a branch that is neither
+    // suspended nor in flight has **exactly one** terminal event. That is the rule
+    // this asserts, and the values come from it rather than from the run.
+    //
+    // Inline for [Q44](../../doc/open-questions.md)'s reason: the corpus's nested
+    // flow routes its inner join to the OUTER JOIN, which is the shape that
+    // already worked.
+    const nodes = [
+      { id: 'outer', kind: 'fanout', branches: ['scoreA', 'scoreB'] },
+      { id: 'scoreA', kind: 'task', workerType: reg.workerTypes[0], edges: [{ to: 'outerJoin' }] },
+      { id: 'scoreB', kind: 'task', workerType: reg.workerTypes[0], edges: [{ to: 'inner' }] },
+      { id: 'inner', kind: 'fanout', branches: ['scoreC', 'scoreD'] },
+      { id: 'scoreC', kind: 'task', workerType: reg.workerTypes[0], edges: [{ to: 'innerJoin' }] },
+      { id: 'scoreD', kind: 'task', workerType: reg.workerTypes[0], edges: [{ to: 'innerJoin' }] },
+      { id: 'innerJoin', kind: 'join', of: 'inner', edges: [{ to: 'stopHere' }] },
+      { id: 'stopHere', kind: 'end', outcome: 'completed' },
+      { id: 'outerJoin', kind: 'join', of: 'outer', edges: [{ to: 'done' }] },
+      { id: 'done', kind: 'end', outcome: 'completed' },
+    ];
+    const def = { flowId: 'inner-join-exits', version: 1, entry: 'outer', nodes } as unknown as FlowDefinition;
+    equal(validateDefinition(def, { workerTypes: reg.workerTypes, predicates: [] }), [],
+      'the shape is VALID — which is what makes the hang a defect rather than a refusal');
+    const scheduler = new Fake();
+    const events: RegionEvent[] = [];
+    const d = new Driver(def, {
+      runId: 'r1', scheduler, createTask: (c) => c, predicates: new Map(),
+      workerTypes: reg.workerTypes, now: () => 1, joinPolicy: POLICIES['live-token'],
+      onRegionEvent: (e) => events.push(e),
+    });
+    d.start({});
+    for (const id of ['r1:scoreA:0:0', 'r1:scoreB:1:0', 'r1:scoreC:1.0:0', 'r1:scoreD:1.1:0']) {
+      scheduler.settle(id, 'done', { result: null });
+    }
+    // Outer branch 1 EXITS — it reached an `end` rather than the outer join.
+    equal(events.map((e) => `${e.type}@${e.regionId}:${e.branchPath}`), [
+      'branch.opened@outer:0', 'branch.opened@outer:1',
+      'branch.arrived@outer:0',
+      'branch.opened@inner:1.0', 'branch.opened@inner:1.1',
+      'branch.arrived@inner:1.0', 'branch.arrived@inner:1.1',
+      'branch.exited@outer:1',
+    ], 'JP-R5: outer branch 1 has exactly one terminal event, and it is an exit');
+    // And the outer join therefore settles rather than waiting forever.
+    equal(d.joinStatusOf('outer')?.status, 'satisfied',
+      'live-token: the outer count reaches zero having been positive, so the join fires');
+  });
 
   test('branch.exited inside a nested region names the INNER region too — the fourth site', () => {
     // **The `fromRegion` hop**, `driver.ts:691`, and the third of the three sites
@@ -321,7 +512,7 @@ suite('regionOf on a nested flow — the driver reads the INNERMOST region', (te
     d.start({});
     scheduler.settle('r1:scoreA:0:0', 'done', { result: null });
     scheduler.settle('r1:scoreB:1:0', 'done', { result: null });
-    scheduler.settle('r1:scoreC:0:0', 'done', { result: null });
+    scheduler.settle('r1:scoreC:1.0:0', 'done', { result: null });
     equal(events.filter((e) => e.type === 'branch.exited').map((e) => e.regionId), ['inner'],
       'the hop out of a settled node carries the INNERMOST region it was in');
   });

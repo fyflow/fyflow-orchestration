@@ -19,7 +19,10 @@
  */
 import { equal, ok, suite } from '../harness.ts';
 import { readText, ROOT } from '../harness.ts';
-import { allRegions, branchIndexOf, buildGraph, innermostRegionOf } from '../../src/definition/regions.ts';
+import {
+  allRegions, branchIndexOf, branchPathOf, buildGraph, innermostRegionOf,
+} from '../../src/definition/regions.ts';
+import { branchIndices, buildTaskId } from '../../src/driver/ids.ts';
 import { validateDefinition } from '../../src/definition/validate.ts';
 import type { FlowDefinition } from '../../src/definition/types.ts';
 
@@ -29,6 +32,7 @@ const reg = JSON.parse(await readText(`${EX}/registry.json`)) as { workerTypes: 
 
 /** `outer` fans to `scoreA` and `scoreB`; `scoreB` reaches `inner`, which fans to `scoreC`/`scoreD`. */
 const NESTED = 'valid/nested-fanout.flow.json';
+const NESTED_DEF = await load(NESTED);
 
 /**
  * **The whole answer, written from the spec before anything ran** — one row per
@@ -182,6 +186,14 @@ suite('nested fan-out — which region a node is in when it is in two (FD-V15 re
         `${label}: no candidate is inside the other, so there is no innermost region`);
       equal(branchIndexOf(rs, 'shared'), null,
         `${label}: and no branchPath is derivable — spec/task-id.md section 1`);
+      // **The function W21 added, on the one shape both specs single out** —
+      // W21's adequacy reader, BLOCKING. This inline flow already pinned
+      // `innermostRegionOf` and `branchIndexOf`; the new derivation was not given
+      // the same case, so it could return `'0'` here with the suite green.
+      // `spec/task-id.md` section 1: `-` is a node with no unique enclosing
+      // region, which is a node in none **and** this one.
+      equal(branchPathOf(rs, 'shared'), '-',
+        `${label}: no unique region means no path — the dash, not a branch index`);
     }
   });
 
@@ -229,6 +241,39 @@ suite('nested fan-out — which region a node is in when it is in two (FD-V15 re
       const rs = allRegions(buildGraph(d as FlowDefinition), d as FlowDefinition);
       equal(shapeOf(rs, idsOf(def)), WANT, `${label}: depth 3 resolves by containment, not by order`);
     }
+  });
+
+  test('branchPathOf derives the whole path, and buildTaskId can express it — W21', () => {
+    // **`spec/task-id.md` section 1 calls `branchPath` "a property of the node",
+    // and W21 is where that stopped being a description of how the driver threads
+    // a value.** Read from that section and section 4's region definition: a
+    // node's path is its innermost region's branch index, prefixed by the path of
+    // that region's own fanout, terminating at a node in no region.
+    //
+    // Both halves are asserted, because `branchIndices` has been the inverse of a
+    // function that did not exist since P1 — the dotted shape was reserved and
+    // unreachable from the minter.
+    const WANT: Record<string, string> = {
+      outer: '-', scoreA: '0', scoreB: '1', inner: '1',
+      scoreC: '1.0', scoreD: '1.1', innerJoin: '1', outerJoin: '-', done: '-',
+    };
+    const rs = allRegions(buildGraph(NESTED_DEF), NESTED_DEF);
+    // **The domain is pinned, not inherited** — W21's adequacy reader, BLOCKING,
+    // and it is W20's own provenance finding reproduced 130 lines below the
+    // comment that records it. The map below reads its node list from the
+    // DEFINITION, which is right; nothing said so, and the two key sets happened
+    // to be equal, so swapping the source to `Object.keys(WANT)` was invisible.
+    // This is the assertion that makes the equality a fact rather than a
+    // coincidence: drop a node from `WANT` and it fails here first.
+    equal(Object.keys(WANT).sort(), (NESTED_DEF.nodes ?? []).map((n) => n.id).sort(),
+      'WANT covers every node in the flow, so it cannot silently shrink the comparison');
+    equal(Object.fromEntries((NESTED_DEF.nodes ?? []).map((n) => [n.id, branchPathOf(rs, n.id)])), WANT,
+      'the path is derived from the graph, innermost-outward');
+    // The minter can now say it, and `branchIndices` reads it back.
+    equal(buildTaskId('r1', 'scoreC', branchIndices('1.0')), 'r1:scoreC:1.0:0',
+      'buildTaskId accepts a PATH — the half of the conversion that did not exist');
+    equal(buildTaskId('r1', 'scoreA', branchIndices('0')), 'r1:scoreA:0:0', 'and the depth-1 form is unchanged');
+    equal(buildTaskId('r1', 'ingest', branchIndices('-')), 'r1:ingest:-:0', 'as is a node in no region');
   });
 
   test('the nested flow VALIDATES — FD-V15 is retired and no other region rule objects', async () => {

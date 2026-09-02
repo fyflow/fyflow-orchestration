@@ -1,6 +1,6 @@
 # spec/task-id — the scheduler task id scheme
 
-**Status:** v0.6 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.7 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2 acts on the W1 spec-conformity pass**:
 section 2 point 3 was **wrong about the source** and is corrected (finding D7), `branchPath` is
 pinned against convergent branches (B3), and the rules name the item owing their test (D8, N19).
@@ -9,6 +9,11 @@ pinned against convergent branches (B3), and the rules name the item owing their
 spec-conformity pass **measured** a driver serving two runs and found the second run's join never
 fires and the two runs fold into one `RunState`. It is a rule about a run id, so it lives here with
 `ID-R1` and `ID-R2` rather than with the fold.
+**v0.7** is [W21](../doc/work-items/w21-the-branch-path-is-a-path.md) under
+[P7](../doc/plans/p7-is-a-join-transitive-over-nested-fan-out.md): the dotted `branchPath` this
+document reserved in P1 is **produced** for the first time, and section 1's *"a property of the
+node"* becomes a statement about the code rather than about the result. The grammar is unchanged and
+`parseTaskId` is unchanged; `buildTaskId` **widened** to accept a path.
 **v0.5 is [W13](../doc/work-items/w13-one-driver-one-run-fixed-at-construction.md) under
 [P4](../doc/plans/p4-the-drivers-lifetime-and-the-handles-it-gives-out.md), and it changes three
 rules and adds one.** [ADR 0022](../doc/decisions/0022-a-driver-takes-its-run-at-construction.md)
@@ -50,7 +55,7 @@ Four segments, **always four**, joined by `:`.
 |---|---|---|
 | `runId` | `^[A-Za-z0-9_-]{1,64}$` | one workload's journey. Allocated by the driver at run creation |
 | `nodeId` | `^[A-Za-z0-9_-]{1,64}$` | the definition's node id, enforced by `FD-V16` |
-| `branchPath` | `-`, or `^(0\|[1-9][0-9]*)(\.(0\|[1-9][0-9]*))*$` | `-` when the node is in no fan-out region. Otherwise the branch indices of the enclosing regions, outermost first |
+| `branchPath` | `-`, or `^(0\|[1-9][0-9]*)(\.(0\|[1-9][0-9]*))*$` | `-` when the node has **no unique enclosing region** — which is a node in none, and, since v0.7, an `end` node shared by two SIBLING regions (`spec/flow-definition.md` section 4). Otherwise the branch indices of the enclosing regions, outermost first |
 | `attempt` | `^(0\|[1-9][0-9]*)$` | the **flow-level** attempt. `0` on first dispatch |
 
 ```
@@ -70,6 +75,19 @@ again, which is what lets an outcome record carry the id alone
 
 ### `branchPath` is a property of the node, and `FD-V19` is what makes that true
 
+**Since v0.7 the library computes it that way.** Until
+[W21](../doc/work-items/w21-the-branch-path-is-a-path.md) the driver **threaded** a path through
+its traversal and this section described the result rather than the mechanism — which was
+indistinguishable while the two agreed and stopped being so the moment nested fan-out became
+expressible, because the threading discarded the outer prefix. **A node's path is now derived from
+the graph**: its innermost region's branch index, prefixed by the path of that region's own
+`fanout`, terminating at a node in no region. There is no carried value that can disagree with it.
+
+*(`spec/flow-definition.md` section 4 is where "innermost" is defined, and it is also where the one
+node kind with **no** derivable path lives: an `end` node shared by two sibling regions is in
+neither exclusively, and `-` is what it gets — the same answer as a node in no region, for the same
+reason.)*
+
 A node's branch index is written as though it were a static property, and it only is because
 `FD-V19` refuses convergent branches: no two branch entries of one fanout may have overlapping
 reach, and no branch entry may be reachable from another.
@@ -83,18 +101,37 @@ answering it means deciding whether a shared node runs once or once per branch, 
 enough to map-style fan-out ([Q12](../doc/open-questions.md)) that P1 refuses it rather than
 guessing.
 
-### Why the two forward-looking segments exist now
+### Why the two forward-looking segments existed, and what happened to them
 
-Both are out of P1's scope and both are in the format anyway, because an id format change is a
+Both were out of P1's scope and both were in the format anyway, because an id format change is a
 change to every fixture, every log line and every test name written before it.
+
+**That argument was tested by the thing it was written for, and it held for the format and not for
+everything.** `FD-V15` was retired in `spec/flow-definition.md` v0.7 and `branchPath`'s dotted half
+became reachable in the same plan. **The grammar did not change and `parseTaskId` did not change**,
+which is the half the P1 argument was about — an id *format* change would have touched every fixture,
+log line and test name, and none of that happened. `buildTaskId` **widened** to express what
+`parseTaskId` could always accept: `number | null` became
+`number | readonly number[] | null`, so every caller written against the old shape still compiles.
+`branchIndices` was its inverse from the beginning and had no partner until W21.
+
+**Two things did move, and the first draft of this paragraph said nothing did.** *(W21's conformity
+reader.)* **Four assertions** changed, in `test/driver/surface.test.ts`, because they settled
+`r1:scoreC:0:0` and a node two deep now mints `r1:scoreC:1.0:0` — they were written against an id
+this item corrected, which is the clearest statement of what it changed rather than a cost. And the
+**scalar form's runtime behaviour is not identical**: `buildTaskId('r','n',-1)` returned
+`r:n:-1:0` and now refuses, as does a non-integer. **Widening the TYPE is not leaving the BEHAVIOUR
+alone**, and the two new refusals are an improvement rather than a regression — but a document that
+claimed both were unchanged was wrong about the second.
 
 - **`branchPath` is a path, not an index.** P1 only emits `-` or a single index — nested fan-out is
   refused by `FD-V15` ([Q6](../doc/open-questions.md)) and map-style fan-out is out of scope
-  ([Q12](../doc/open-questions.md)). **`FD-V15` is retired since
-  [W20](../doc/work-items/w20-what-a-nested-region-is.md), so the first half of that sentence is
-  history: a nested fan-out is a valid definition and the dotted path is what it needs.
-  `buildTaskId` still cannot emit one** — W21's, under
-  [P7](../doc/plans/p7-is-a-join-transitive-over-nested-fan-out.md). A dotted path admits both without touching the grammar.
+  ([Q12](../doc/open-questions.md)). **Both halves of that sentence are now history.** `FD-V15` was
+  retired by [W20](../doc/work-items/w20-what-a-nested-region-is.md), so a nested fan-out is a valid
+  definition; and [W21](../doc/work-items/w21-the-branch-path-is-a-path.md) made `buildTaskId` able
+  to emit the path, so P1's *"only `-` or a single index"* is a statement about P1 rather than about
+  the library. **Map-style fan-out is still out of scope** ([Q12](../doc/open-questions.md)) and the
+  dotted path admits it without touching the grammar, which is what this bullet was for. A dotted path admits both without touching the grammar.
 - **`attempt` counts flow-level retries only** ([Q16](../doc/open-questions.md)), and P1 always
   emits `0`. It is **not** the scheduler's retry count: `retryPolicy` retries happen *inside* one
   scheduler task and are reported on that task's `attempts` field

@@ -194,6 +194,48 @@ export function innermostRegionOf(
 }
 
 /**
+ * **The whole `branchPath` of a node, derived from the graph** —
+ * `spec/task-id.md` section 1, which calls it *"a property of the node"*. Since
+ * [W21](../../doc/work-items/w21-the-branch-path-is-a-path.md) that sentence is
+ * literally true rather than a description of how the driver happens to thread a
+ * value.
+ *
+ * Walks innermost-outward: a node's innermost region gives one segment, and that
+ * region's own **fanout** is a node whose path is derived the same way, so the
+ * walk terminates at a node in no region. `'-'` for such a node, `'1'` at depth
+ * one, `'1.0'` at depth two.
+ *
+ * **`FD-V19` and `FD-V22` are what make it a function rather than a relation** —
+ * they keep a node out of two branches of one region and out of any region it was
+ * not opened into. Where `innermostRegionOf` has no answer, neither does this, and
+ * `'-'` is returned for the same reason it is returned for a node in no region:
+ * `spec/flow-definition.md` section 4's `end`-node case, where there is no unique
+ * region and therefore no derivable path.
+ *
+ * **Measured total over the whole valid corpus before it was written**, and it
+ * agrees with the value the driver threaded at depth 1 on every flow — which is
+ * what makes replacing the threading a refactor rather than a behaviour change.
+ */
+export function branchPathOf(regions: RegionSets[], nodeId: string): string {
+  const segs: number[] = [];
+  // A guard, not a possibility: `FD-V10` forbids cycles and a region cannot
+  // contain its own fanout, so the walk strictly ascends. It is here because an
+  // unbounded loop over caller-supplied data is one edit away from being one.
+  const seen = new Set<string>();
+  let at = nodeId;
+  for (;;) {
+    const r = innermostRegionOf(regions, at);
+    if (!r || seen.has(r.fanoutId)) break;
+    seen.add(r.fanoutId);
+    const i = branchIndexOf(regions, at);
+    if (i === null) break;
+    segs.unshift(i);
+    at = r.fanoutId;
+  }
+  return segs.length ? segs.join('.') : '-';
+}
+
+/**
  * Which region a node belongs to, and via which branch — the value the task id's
  * `branchPath` segment is derived from (`spec/task-id.md` section 1).
  *
