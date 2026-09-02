@@ -61,7 +61,7 @@ into run state.
 
 | | |
 |---|---|
-| **Flow definition** | nodes bound to worker types, decision edges, fan-out and join — one template, many runs. **23 validation refusals** over the id range `FD-V1` … `FD-V24`, every one with a failing example — `FD-V14` is deliberately absent |
+| **Flow definition** | nodes bound to worker types, decision edges, fan-out and join — one template, many runs. **22 validation refusals** — **nested fan-out is expressible since `FD-V15` was retired** over the id range `FD-V1` … `FD-V24`, every one with a failing example — `FD-V14` is deliberately absent |
 | **Driver** | the only component that touches the scheduler: subscribes, routes, dispatches. The library imports the scheduler **nowhere** — a caller passes its own in |
 | **Run state** | a fold: where a run is, what each node returned, what a join is waiting on. **Six outcomes**, including `stuck` |
 | **Join policies** | `live-token`, `arrival-count` and `live-token-requiring-arrival`, behind one interface, all three shipped. **Pass `live-token`** |

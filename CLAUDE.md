@@ -15,7 +15,7 @@ the only document that does. **Every snippet in it is extracted and executed by 
 (`scripts/check-docs.mjs`), so it cannot rot the way a hand-maintained reference does. If you change
 the public surface, that check is what tells you the reference is now wrong.
 
-## Current state: **P1-P6 are complete and retro'd; [P7](doc/plans/p7-is-a-join-transitive-over-nested-fan-out.md) is DECLARED and nothing has started**
+## Current state: **P1-P6 are complete and retro'd; [P7](doc/plans/p7-is-a-join-transitive-over-nested-fan-out.md) is RUNNING — [W20](doc/work-items/w20-what-a-nested-region-is.md) is built and gated, its readers have not run**
 
 [ADR 0001, 0002 and 0007](doc/decisions/) settle the architecture so far: **routing executes in the
 driver, outside the scheduler** — a worker computes and does not route, and `context.spawnTask()` is
@@ -29,7 +29,7 @@ details are live mutable objects and `task.failed` also fires for `user_action` 
 normative documents and 73 numbered rules**; `src/` holds the definition validator, the driver and
 the fold with **three** join policies (two P1's, one ADR 0025's); `test/matrix/` holds the
 join/failure matrix; `examples/` holds ladder **L6**. **410 assertions in five runtimes** — Node 24,
-Deno, chromium, firefox, webkit — identical in all of them, **plus 373 at L6 in Node and Deno**.
+Deno, chromium, firefox, webkit — identical in all of them, **plus 373 at L6 in Node and Deno**. *(**421 since W20 retired `FD-V15`, and measured in all five** — `npm run gate` runs three, so `npm run test:browser:all` was run for firefox and webkit rather than the word *five* being inherited. W20's conformity reader caught the first draft of this parenthetical doing exactly that. **Nested fan-out is now a valid definition** and `spec/flow-definition.md` is v0.7.)*
 *(**The two numbers count different things.** The runner counts `test()` **cases**, not `equal`/`ok` calls — [Q98](doc/open-questions.md); L6's 373 is a real count of individual assertions. Do not add them.)* **`npm run gate` runs `test:browser`, which is CHROMIUM ONLY** (`scripts/run-browser-tests.mjs:68`); firefox and webkit need `test:browser:all`, which W19 ran to measure the five above rather than inherit them. **`doc/workflow.md` is v0.7**, run to
 completion by six plans.
 

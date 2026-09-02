@@ -1,8 +1,21 @@
 # P7 — Is a join transitive over nested fan-out?
 
-**Status:** **DECLARED. No work item has started and none is declared in its own file yet.** Read
-each item's status from its own file, never from this line (`doc/workflow.md` section 1 rule 5).
+**Status:** **RUNNING.** [W20](../work-items/w20-what-a-nested-region-is.md) is **declared in its own
+file**; W21-W23 exist in the index table below and in no file yet. Read each item's status from its
+own file, never from this line (`doc/workflow.md` section 1 rule 5).
 **Runs after [P6](p6-what-may-share-a-scheduler-with-a-driver.md)**
+
+> **Correction, at W20's declaration — this plan's work-item table was wrong twice, and the
+> declaration step is what found it.** Recorded here rather than silently rewritten, because a plan
+> that edits its own evidence to match a later measurement leaves nothing for a reader to check.
+> **The corrected version is in [W20's own file](../work-items/w20-what-a-nested-region-is.md), and
+> that is what an item reasons from.** In short: *"`regionOf` resolves innermost"* is a
+> **`src/driver/**`** change and the row gave W20 `src/definition/**`, so W20 puts the resolver in
+> `src/definition/regions.ts` beside `branchIndexOf` — which has the **identical** defect and is
+> already in its `Owns` — and takes **one** declared exception into `driver.ts` for a delegation and
+> a comment. And **`spec/examples/**` was in nobody's `Owns`**, while lifting a refusal moves that
+> refusal's example and `check-spec`'s C3, C4 and C7 all read it. **This is the tenth plan running to
+> have a load-bearing fact change what got written, and the first time it was the plan's own table.**
 
 **Question this plan answers:** [Q6](../open-questions.md) — *if a branch itself fans out, does the
 outer join wait for the grandchildren?*
@@ -110,7 +123,7 @@ not intuition. No two edit the same file.
 
 | Id | Item | Owns | Depends on | Gate |
 |---|---|---|---|---|
-| **W20** | What a nested region **is**: `FD-V15` lifted, `regionOf` resolves **innermost** | `src/definition/**` (W1/W2), `spec/flow-definition.md` (W1), `spec/README.md` | nothing | L0-L4, then two readers |
+| **W20** — *declared* | What a nested region **is**: `FD-V15` lifted, innermost resolution as **region maths** | `src/definition/**` (W1/W2), `spec/flow-definition.md` (W1), **`spec/examples/**` (W1)**, `spec/README.md` | nothing | L0-L5 climbed, own coverage at **L0/L1/L4**, then two readers |
 | **W21** | The **path**: `buildTaskId` emits a dotted `branchPath`, the driver pushes a segment | `src/driver/ids.ts` and the two `split('.')` sites in `src/driver/driver.ts` (W3), `spec/task-id.md` (W1) | W20 | L0-L3, then two readers |
 | **W22** | **The decision.** ADR 0030; the matrix at depth 2; `arrival-count`'s refusal | `spec/join-policy.md` (W1), `test/matrix/**` (W4), and the construction refusal in `src/driver/driver.ts` | W21 | **L0-L5**, ADR 0030, then two readers |
 | **W23** | A nested flow on **real workers** | `examples/**` (from W19) | W22 | **L0-L6, both L6 runtimes**, then two readers |
@@ -152,4 +165,40 @@ did not take it, and this plan does not take it either.
 
 ## Record
 
-*Filled in when the plan's items are merged and its retro is run.* **Nothing has started.**
+*Filled in when the plan's items are merged and its retro is run.*
+**[W20](../work-items/w20-what-a-nested-region-is.md) is built, provoked and gated; its two readers
+have not run. W21-W23 have not started.**
+
+### W20 — what it settled, and the two things for the retro
+
+**`FD-V15` is retired** and `spec/flow-definition.md` is **v0.7**, with a new section 4 subsection
+saying which region a node is in when it is in two. **The measurement that mattered was taken before
+any of it**: with `FD-V15` set aside, the nested example produced **no other finding** — `FD-V13`,
+`FD-V19` and `FD-V22` all accept it — so this was a lift rather than a redesign, and the plan's
+central claim held.
+
+**The order-dependence was total rather than subtle.** Same graph, only the node order changed:
+`regionOf(scoreC)` gave `outer`/branch **1** with the outer fanout declared first and `inner`/branch
+**0** with the inner one first. Both `regionOf` and `branchIndexOf` flipped.
+
+**Two findings the retro should have:**
+
+1. **A `Tests:` line that names assertions and not paths is a declaration that cannot be audited.**
+   W20's `Owns` was `src/definition/**` plus three `spec/` paths and its `Tests:` line said *"L1 over
+   `src/definition/**`"* without saying **where** — so the item had **no file it was allowed to test
+   in**, and both test files are late exceptions. It noticed by running the audit before the Record
+   rather than after, which is the only reason it is a finding and not a miscount.
+2. **v0.8's provenance obligation was refined by its own first outing** — [Q112](../open-questions.md).
+   It does not distinguish breaking the **actual** side of an assertion from the **expected** side,
+   and the second always survives. Three of six provenance probes survived and **none was a hole**;
+   the three that caught all broke the input or the declared value. **First rule in that document to
+   be corrected by its first use.**
+
+**And rule 8's own founding case occurred inside rule 8's procedure again** — W18's shape, one plan
+on. Reverting `Driver.regionOf` to `.find` cost **nothing**: every probe against the region maths was
+caught by its own tests, and the driver's one-line delegation — what P7 called *the plan's central
+defect* — was held down by no assertion, because nothing drove a `Driver` through a nested flow.
+Closing it produced [Q113](../open-questions.md): `regionOf` is read on **three** paths only, and
+`branch.arrived`/`branch.opened` use keyed lookups — so innermost resolution is load-bearing on the
+**non-success paths only**, which is why the defect survived four plans, and which **W22 needs before
+its declaration rather than inside it**.

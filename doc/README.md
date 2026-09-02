@@ -387,6 +387,25 @@ longer rests on our own reading. [S1](scheduler-upstream.md).
    rather than in `doc/`**, which is the class six retros have refused to mechanise, one directory
    over.
 
+   **[W20](work-items/w20-what-a-nested-region-is.md) is built, provoked and gated; its readers have
+   not run.** `FD-V15` is **retired**, `spec/flow-definition.md` is **v0.7**, the corpus's nested flow
+   moved from `invalid/` to `valid/`, and L1 is **416 assertions over 19 files**. **The measurement
+   came first and the plan's central claim held**: with `FD-V15` set aside the nested example produced
+   **no other finding**, so this was a lift rather than a redesign. The order-dependence was total
+   rather than subtle — the same graph gave `outer`/branch **1** or `inner`/branch **0** for `scoreC`
+   depending only on which `fanout` was declared first.
+
+   **Two findings for the retro.** A **`Tests:` line that names assertions and not paths is a
+   declaration that cannot be audited** — W20's `Owns` gave it no file it was allowed to test in, and
+   both test files are late exceptions. And **`doc/workflow.md` v0.8's provenance obligation was
+   refined by its own first outing** ([Q112](open-questions.md)): it does not distinguish breaking the
+   **actual** side of an assertion from the **expected** side, and the second always survives — three
+   of six such probes survived and none was a hole. **Rule 8's founding case also recurred inside rule
+   8's own procedure**: reverting `Driver.regionOf` to `.find` cost **nothing**, because nothing drove
+   a `Driver` through a nested flow. Closing it produced [Q113](open-questions.md) — `regionOf` is read
+   on **three** paths only, and arrivals and openings use keyed lookups, so innermost resolution is
+   load-bearing on the **non-success paths only**.
+
 **The fan-out gate is cleared** (`workflow.md` section 7 rule 3) — not because Q4 is answered, but
 because P1 builds both of its candidate answers, so W2 and W3 can be written without knowing which
 wins.
