@@ -15,7 +15,7 @@ the only document that does. **Every snippet in it is extracted and executed by 
 (`scripts/check-docs.mjs`), so it cannot rot the way a hand-maintained reference does. If you change
 the public surface, that check is what tells you the reference is now wrong.
 
-## Current state: **P1-P6 are complete and retro'd; [P7](doc/plans/p7-is-a-join-transitive-over-nested-fan-out.md) is RUNNING — [W20](doc/work-items/w20-what-a-nested-region-is.md) is built and gated, its readers have not run**
+## Current state: **P1-P6 are complete and retro'd; [P7](doc/plans/p7-is-a-join-transitive-over-nested-fan-out.md) is RUNNING — [W20](doc/work-items/w20-what-a-nested-region-is.md) DONE, [W21](doc/work-items/w21-the-branch-path-is-a-path.md) declared and not started**
 
 [ADR 0001, 0002 and 0007](doc/decisions/) settle the architecture so far: **routing executes in the
 driver, outside the scheduler** — a worker computes and does not route, and `context.spawnTask()` is

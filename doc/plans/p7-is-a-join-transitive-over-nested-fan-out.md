@@ -1,7 +1,8 @@
 # P7 — Is a join transitive over nested fan-out?
 
-**Status:** **RUNNING.** [W20](../work-items/w20-what-a-nested-region-is.md) is **declared in its own
-file**; W21-W23 exist in the index table below and in no file yet. Read each item's status from its
+**Status:** **RUNNING.** [W20](../work-items/w20-what-a-nested-region-is.md) is **DONE**;
+[W21](../work-items/w21-the-branch-path-is-a-path.md) is **declared and not started**; W22 and W23
+exist in the index table below and in no file yet. Read each item's status from its
 own file, never from this line (`doc/workflow.md` section 1 rule 5).
 **Runs after [P6](p6-what-may-share-a-scheduler-with-a-driver.md)**
 
@@ -124,7 +125,7 @@ not intuition. No two edit the same file.
 | Id | Item | Owns | Depends on | Gate |
 |---|---|---|---|---|
 | **W20** — *declared* | What a nested region **is**: `FD-V15` lifted, innermost resolution as **region maths** | `src/definition/**` (W1/W2), `spec/flow-definition.md` (W1), **`spec/examples/**` (W1)**, `spec/README.md` | nothing | L0-L5 climbed, own coverage at **L0/L1/L4**, then two readers |
-| **W21** | The **path**: `buildTaskId` emits a dotted `branchPath`, the driver pushes a segment | `src/driver/ids.ts` and the two `split('.')` sites in `src/driver/driver.ts` (W3), `spec/task-id.md` (W1) | W20 | L0-L3, then two readers |
+| **W21** — *declared* | The **path**: a nested run mints the ids the grammar reserved | `src/driver/ids.ts` (W3), `spec/task-id.md` (W1), **`spec/README.md`**, **`test/driver/log.test.ts` (W3)** | W20 | **L0-L5**, own coverage at **L1/L2**, then two readers |
 | **W22** | **The decision.** ADR 0030; the matrix at depth 2; `arrival-count`'s refusal | `spec/join-policy.md` (W1), `test/matrix/**` (W4), and the construction refusal in `src/driver/driver.ts` | W21 | **L0-L5**, ADR 0030, then two readers |
 | **W23** | A nested flow on **real workers** | `examples/**` (from W19) | W22 | **L0-L6, both L6 runtimes**, then two readers |
 
@@ -134,6 +135,15 @@ called*, which is `spec/task-id.md`'s and touches the published id grammar. **Th
 spec, which is the rule.** W22 and W23 are P6's split re-used — decide over fixtures, then demonstrate
 on real workers — and P6's retro records that splitting on exactly that line is what let W18 decide
 and W19 demonstrate.
+
+**W21's declaration names a FORK it does not close, and that is deliberate.** Both arms mint the same
+ids; they differ in whether a node's `branchPath` is **threaded** through `enter()` or **derived**
+from the graph. Threading is local and leaves [Q114](../open-questions.md) needing the first mutable
+per-run map added to the driver since W3; deriving makes `spec/task-id.md` section 1's *"a property
+of the node"* literally true, dissolves Q114, and wants a function in **W20's** file. The item
+measures both before choosing. **P7's ADR block holds nothing for it** — 0030 is W22's and 0031 was
+W20's, now skipped — so if the choice needs a decision it takes the next free id on ADR 0029's
+precedent.
 
 **W22 is the one to watch for size.** It carries an ADR, a spec rule, a driver refusal and a matrix
 dimension. If its declaration cannot state a gate, section 1 rule 1 says the decomposition is wrong;
