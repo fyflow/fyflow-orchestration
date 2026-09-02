@@ -43,7 +43,8 @@
 import {
   Driver, buildTaskId, emptyState, isTerminal, step,
   type FlowDefinition, type FoldInput, type JoinPolicy, type LogRecord,
-  type Predicate, type RunOutcome, type RunState, type UnsatisfiableJoin,
+  type Predicate, type RunOutcome, type RunState, type UnmintedTask,
+  type UnsatisfiableJoin,
 } from '../index.ts';
 import { FyflowScheduler, FyflowTask, WorkerManager } from 'fyflow-scheduler';
 
@@ -172,6 +173,28 @@ export interface RunReport {
    * L6 **and** at L1-L5. Found by W6's adequacy reader.
    */
   failureKinds: readonly string[];
+  /**
+   * **What `onUnmintedTask` reported, whole — W19, and it is `ID-R5`'s only
+   * outbound evidence.**
+   *
+   * [ADR 0027](../doc/decisions/0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md)
+   * rule 3: a settlement whose task id no driver minted is dropped and **reported
+   * on its own channel**, carrying this driver's `runId`, the scheduler event's
+   * name, `detail.id` uncoerced, and `parseTaskId`'s own message. Rule 4 makes the
+   * empty case load-bearing rather than decorative: a settlement carrying
+   * *another run's* parseable id must NOT arrive here, so `[]` on the pair row
+   * that injects nothing is an assertion about `ID-R4` tier 1 as much as about
+   * this channel.
+   *
+   * Kept whole and separate from `failures` for the reason `unsatisfiableJoins`
+   * is: the run has **not** failed, so folding it into a channel whose contract is
+   * *"the driver has stopped routing"* would make *"nothing was reported"*
+   * unassertable on the one row where something is.
+   *
+   * Copied field by field rather than retained — `OR-R1`'s habit applied to our
+   * own surface.
+   */
+  unmintedTasks: readonly UnmintedTask[];
 }
 
 export interface RunOptions {
@@ -233,6 +256,31 @@ export interface RunOptions {
 }
 
 /**
+ * **A task this library did not mint, put onto the shared scheduler — W19.**
+ *
+ * The whole of what [ADR 0027](../doc/decisions/0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md)
+ * is about, and the thing no fixture can establish: the `id` is passed to the
+ * scheduler **verbatim**, so it is whatever the caller says rather than anything
+ * `spec/task-id.md` section 1's grammar would produce. A real
+ * `FyflowScheduler` queues it, dispatches it to a real worker and settles it, and
+ * its settlement reaches every `Driver` subscribed to that scheduler.
+ *
+ * **`workerType` must be a pool `buildScheduler` registers**, because `addTask`
+ * throws on an unknown one — which is itself the first thing a fake cannot tell
+ * you, and is why W19's declaration measured it before the row was written.
+ */
+export interface ForeignTask {
+  /**
+   * Verbatim, and deliberately not built by `buildTaskId`. An id that parsed
+   * would be `ID-R4`'s question, not `ID-R5`'s.
+   */
+  id: string;
+  /** A key in `buildScheduler`'s pools. */
+  workerType: string;
+  payload?: unknown;
+}
+
+/**
  * **Two runs, two `Driver`s, ONE scheduler, on real workers — P4's exit artifact.**
  *
  * The pairing [Q72](../doc/open-questions.md) named and
@@ -250,6 +298,7 @@ export interface RunOptions {
 export async function runPair(
   a: RunOptions,
   b: RunOptions,
+  foreign: readonly ForeignTask[] = [],
 ): Promise<{ a: RunReport; b: RunReport; facts: PairFacts }> {
   // One scheduler means one set of pools, so the two runs cannot ask for
   // different worker timings. Refused rather than silently taking `a`'s, which is
@@ -269,24 +318,40 @@ export async function runPair(
   // nothing. The harness already avoids this for `settled`, via
   // `settledByScheduler`; it did not for disjointness.
   const settlementIds: string[] = [];
+  const listenersAtSettlement: number[] = [];
   const record = (e: { detail: unknown }) => {
-    // `record` is registered BEFORE either driver, so for any settlement event it
-    // runs first — which makes this the count of listeners attached at the moment
-    // the first settlement is delivered, and that is the boundary that matters:
-    // a driver attached after it would never see that settlement.
-    if (settlementIds.length === 0) listenersAtFirstSettlement = listenersTotal;
     const id = (e.detail as { id?: string })?.id;
     // Read synchronously from the live detail and never retained (`OR-R1`); only
     // the id, which is a string. Pushed rather than added to a Set, **and that is
     // the point**: a Set makes "no id settled twice" a tautology, which is what
     // the same reader found assertion 14 asserting.
-    if (typeof id === 'string') settlementIds.push(id);
+    //
+    // **`record` is registered BEFORE either driver**, so for any settlement event
+    // it runs first — which makes the number pushed beside each id the count of
+    // listeners attached when that settlement was delivered. That is the boundary
+    // that matters: a driver attached later would never have seen it.
+    //
+    // **One push per settlement, and the first-settlement count is READ OFF the
+    // array rather than latched into a field — W19's adequacy reader.** It was
+    // `if (settlementIds.length === 0) listenersAtFirstSettlement = listenersTotal;`,
+    // and deleting that guard so the field is overwritten by every settlement left
+    // all 370 assertions green: `listenersAtFirstSettlement === listenersTotal`
+    // became a tautology, and with it the whole *"both drivers were attached when
+    // the foreign settlement arrived"* half of the hostile-ordering claim, which
+    // this harness leans on in as many words. **Third occurrence of one shape**:
+    // `timedOut` and `lateInputs` were both a second source of truth beside the
+    // thing that produced them, and both were fixed by deriving rather than
+    // tracking. This is that fix a third time, and the two arrays being the same
+    // length is what makes "record only the last one" fail as well.
+    if (typeof id === 'string') {
+      settlementIds.push(id);
+      listenersAtSettlement.push(listenersTotal);
+    }
   };
   scheduler.addEventListener('task.completed', record);
   scheduler.addEventListener('task.failed', record);
 
   let listenersTotal = 2;
-  let listenersAtFirstSettlement = 0;
   let addTaskCalls = 0;
   let shutdownCalls = 0;
   const realAdd = scheduler.addEventListener.bind(scheduler);
@@ -300,6 +365,31 @@ export async function runPair(
   };
   (scheduler as unknown as { shutdown: unknown }).shutdown = () => { shutdownCalls++; return realShutdown(); };
 
+  // **The foreign tasks — W19, and where they go in this function is the whole
+  // arrangement.**
+  //
+  // *After* the instrumentation, so `addTaskCalls` counts them and stays a fact
+  // about the scheduler rather than about the harness; *before* `Promise.all`, so
+  // they are queued ahead of everything either run dispatches.
+  //
+  // **The settlement must land while both runs are LIVE, and this is what makes
+  // that structural rather than hoped for.** `runFlow` is synchronous up to its
+  // first `await`, so both drivers attach their listeners before any timer fires,
+  // and the worker's own `delayMs` means nothing can settle inside this turn.
+  // The pool these go to is `IngestWorker` — `maxThreads: 1`, `inline` — so a task
+  // queued first is dispatched first and settles first, and the ordering is
+  // produced by queue discipline rather than by a delay comparison.
+  //
+  // **Both halves are asserted rather than trusted**, which is W17's lesson about
+  // `SETTLES_LAST`: `PairFacts.settlementIds[0]` says the foreign settlement came
+  // first, and `listenersAtFirstSettlement === listenersTotal` says both drivers
+  // were attached when it was delivered. `doc/workflow.md` section 5 rule 5 —
+  // this ARRANGES an order and then checks the effect; nothing depends on an
+  // order the spec does not fix.
+  for (const f of foreign) {
+    scheduler.addTask(new FyflowTask({ id: f.id, workerType: f.workerType, payload: f.payload ?? null }));
+  }
+
   try {
     const [ra, rb] = await Promise.all([
       runFlow({ ...a, scheduler }),
@@ -308,7 +398,7 @@ export async function runPair(
     return {
       a: ra,
       b: rb,
-      facts: { settlementIds, listenersAtFirstSettlement, listenersTotal, addTaskCalls, shutdownCalls: shutdownCalls + 1 },
+      facts: { settlementIds, listenersAtSettlement, listenersTotal, addTaskCalls, shutdownCalls: shutdownCalls + 1 },
     };
   } finally {
     // Once, after both — and in a `finally`, because a row that fails must not
@@ -334,20 +424,31 @@ export interface PairFacts {
    */
   settlementIds: readonly string[];
   /**
-   * Listeners registered when the **first settlement** was delivered, and the
-   * total.
+   * How many listeners were registered when **each** settlement was delivered, in
+   * the same order and at the same length as `settlementIds`, and the total.
    *
-   * Equal iff both runs were attached before anything settled — which is what
-   * makes "two drivers on one scheduler" structural rather than a hope about
-   * timing, because a driver attached later would never see that settlement.
+   * `[0] === listenersTotal` iff both runs were attached before **anything**
+   * settled — which is what makes "two drivers on one scheduler" structural rather
+   * than a hope about timing, because a driver attached later would never see that
+   * settlement.
+   *
+   * **An array rather than a latched first-settlement field, since W19.** The
+   * field's `if (settlementIds.length === 0)` guard was deletable with all 370
+   * assertions green, which turned the claim into a tautology. Read off `[0]`
+   * instead, with the two arrays' equal length asserted, and there is nothing to
+   * latch and nothing a later settlement can overwrite.
    *
    * **Not the first *dispatch*:** `runFlow` is synchronous up to its first
    * `await`, so run `a` has already called `addTask` before run `b` is
    * constructed. Measured — 8 of 14 — which is why this reads settlements.
-   * A sequential `runPair` leaves the first strictly less than the second; a run
-   * given its own scheduler leaves `addTaskCalls` at zero on this one.
+   * A sequential `runPair` leaves `[0]` strictly less than the total; a run given
+   * its own scheduler leaves `addTaskCalls` at zero on this one.
+   *
+   * **And it proves ATTACHMENT, not that either run had `start()`ed** — a `Driver`
+   * registers its listeners in its constructor (ADR 0022). That is the property
+   * `ID-R5` needs and it is what the row's prose now says. W19's conformity reader.
    */
-  listenersAtFirstSettlement: number;
+  listenersAtSettlement: readonly number[];
   listenersTotal: number;
   addTaskCalls: number;
   /** `runFlow` must not shut down a scheduler it did not build; this is one. */
@@ -427,6 +528,7 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
   const inputs: FoldInput[] = [];
   const failures: string[] = [];
   const unsatisfiableJoins: UnsatisfiableJoin[] = [];
+  const unmintedTasks: UnmintedTask[] = [];
   const failureKinds: string[] = [];
   const outcomesSeen: RunOutcome[] = [];
   const resolved: string[] = [];
@@ -582,6 +684,20 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
         fanoutId: j.fanoutId, joinId: j.joinId, policyId: j.policyId, describe: j.describe,
       });
     },
+    // **`ID-R5` — and this callback MUST NOT THROW.**
+    // [ADR 0027](../doc/decisions/0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md)
+    // invokes it inside `onEventOrThrow`, so a throw here is caught at the
+    // listener boundary and stops the run under the consumer's own error class —
+    // reinstating, through this harness, exactly the damage the decision removed.
+    // Documented rather than guarded upstream, so the obligation is ours: four
+    // field reads and a push, and nothing that can raise.
+    //
+    // Copied field by field for `OR-R1`'s reason applied to our own surface. The
+    // driver hands out a fresh object; a harness that retains what a callback gave
+    // it is the habit that produced ADR 0007.
+    onUnmintedTask: (u) => {
+      unmintedTasks.push({ runId: u.runId, event: u.event, taskId: u.taskId, reason: u.reason });
+    },
   });
 
   const startedAt = Date.now();
@@ -648,6 +764,7 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
     failures,
     unsatisfiableJoins,
     failureKinds,
+    unmintedTasks,
     lateInputs,
     branchesOverlapped,
   };

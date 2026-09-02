@@ -11,7 +11,13 @@ npm run test:l6         # Node 24
 npm run test:l6:deno    # Deno
 ```
 
-Both print the same table and run the same **342 assertions over 19 real runs**. `RT-R10`: **L6 runs in Node and
+Both print the same table and run the same **373 assertions over 21 real runs**. *(Two counts, two
+predicates: a **run** is one `Driver` on one flow; a **row label** is an `EXPECTED[]` entry or a
+`PairRow`, and there are **19** of those, because each pair row is one label producing two runs.
+`l6.ts` prints the run count and derives it from the arrays; the row-label count and the assertion
+count appear only here, and **nothing checks the three numbers on this page** — a markdown file
+cannot derive one. That is [Q100](../doc/open-questions.md)'s class in a second file, and it is why
+the parenthetical below exists.)* `RT-R10`: **L6 runs in Node and
 Deno and not in the browser** — [Q33](../doc/open-questions.md), and the browser half is
 [Q52](../doc/open-questions.md).
 
@@ -19,13 +25,17 @@ Deno and not in the browser** — [Q33](../doc/open-questions.md), and the brows
 
 | | |
 |---|---|
-| [`l6.ts`](l6.ts) | **the gate.** Nineteen real runs — every expected value written by hand from `spec/` before anything ran. Seventeen `EXPECTED[]` entries plus the two-driver pair, which is **one row**: two runs on ONE scheduler. The last four are [W17](../doc/work-items/w17-the-all-exit-row-at-l6.md)'s, and one of them is the only row here whose join is reported **dead** rather than merely never firing |
+| [`l6.ts`](l6.ts) | **the gate.** Twenty-one real runs, 373 assertions — every expected value written by hand from `spec/` before anything ran. Seventeen `EXPECTED[]` entries plus **two** two-driver pair rows, each **one row** producing two runs on ONE scheduler. Four of the seventeen are [W17](../doc/work-items/w17-the-all-exit-row-at-l6.md)'s, and one of those is the only row here whose join is reported **dead** rather than merely never firing; the second pair row is [W19](../doc/work-items/w19-a-task-we-did-not-mint-on-a-real-scheduler.md)'s and is **P6's exit artifact** |
 | [`run-flow.ts`](run-flow.ts) | one run: build the scheduler, drive the flow, fold the driver's input sequence, return a report |
 | [`workers/flow-worker.ts`](workers/flow-worker.ts) | **one worker file for both runtimes**, five roles selected by the pool's `config` — one always throws, one returns a value `structuredClone` refuses |
 | [`flows/`](flows/) | the **five** flows this gate needs that `spec/examples/` cannot express — [Q44](../doc/open-questions.md), whose own text said this would not be needed. `all-exit` is the fifth and the reason is the same one a third time: the corpus's all-exit shape reaches its second exit through a human, which would put a resolution race in a row whose point is elsewhere |
 | [`deno-import-map.json`](deno-import-map.json) | how Deno resolves the bare `fyflow-scheduler` specifier — to `jsr:@fyflow/scheduler@0.3.0`, at the same version `package.json` pins for npm ([ADR 0029](../doc/decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md) rule 2) |
 
-## Three things a reader should not have to rediscover
+## Five things a reader should not have to rediscover
+
+*(The heading read **three** over four numbered items for two work items, and the section below it
+read **fifteen runs** at nineteen. Both are the count-in-prose failure this repository keeps
+producing, in the document whose job is to state the counts; each now says what it counts.)*
 
 **1. The two runtimes reach the scheduler through two registries, and the version is written down
 twice.** Node installs `fyflow-scheduler@0.3.0` from **npm** and reads its `dist/` build; Deno
@@ -56,7 +66,7 @@ assertion, because `scheduler.shutdown()` drains the run before the report is re
 
 The wall-clock backstop in `run-flow.ts` is **not** how a run is detected. Reaching it is a failure.
 
-**`runPair` is the second entry point, and it exists for one row.**
+**`runPair` is the second entry point, and it now serves two rows.**
 [ADR 0023](../doc/decisions/0023-an-inbound-settlement-is-this-runs-only-if-this-driver-dispatched-it.md)
 makes *two drivers on one scheduler* a supported topology, so P4's exit artifact is that topology on
 real workers. `runFlow` gained one option — a scheduler to share — and will not `shutdown()` one it
@@ -65,9 +75,18 @@ in exactly the respect under test. **Before W13 that pairing corrupted both runs
 driver received the other's settlements and dispatched its successors, so one task id was dispatched
 twice under two outcomes and `ID-R1` could not fire.
 
-**3. Why there are fifteen runs and not one.** P1's exit artifact is *"the branch-routed-away case as an
-executable test, run against both policies, plus one real fan-out flow completing on a real
-scheduler"*. The control rows exist so the comparison has a baseline; the high-confidence rows exist
+**W19 gave it a third argument: `ForeignTask[]`** — tasks put on the shared scheduler with their ids
+passed through **verbatim**, so they are whatever the caller says rather than anything
+`spec/task-id.md` would produce. They go in through the **instrumented** `addTask`, so
+`PairFacts.addTaskCalls` counts them and the count stays a fact about the scheduler; and they are
+queued **before either driver starts**, on a single-slot inline pool, so the foreign settlement is
+the first one the scheduler dispatches. Both halves are asserted rather than trusted —
+`settlementIds[0]` for the order, `listenersAtFirstSettlement === listenersTotal` for the claim that
+both drivers were there to receive it.
+
+**3. Why there is more than one run, and what the first eight are for.** P1's exit artifact is *"the
+branch-routed-away case as an executable test, run against both policies, plus one real fan-out flow
+completing on a real scheduler"*. The control rows exist so the comparison has a baseline; the high-confidence rows exist
 so `isLowConfidence` is a predicate that can return **both** answers, rather than a constant nothing
 would notice was stuck at `true`.
 
@@ -108,10 +127,43 @@ That is ADR 0003's matrix executed rather than simulated — and until
 [ADR 0015](../doc/decisions/0015-a-run-whose-join-can-no-longer-fire-is-stuck.md) run state called
 both of those runs **`completed`**.
 
+**5. The two pair rows, and the one variable between them.** Both run the same flow with the same
+payloads under `live-token`, two `Driver`s on **one** `FyflowScheduler`. They differ in whether that
+scheduler also carries **tasks this library did not mint**:
+
+| | foreign tasks | each driver's `onUnmintedTask` | both runs |
+|---|---|---|---|
+| `two runs / two drivers / one scheduler` — **P4's** | **none** | **`[]`** — a *parseable* foreign settlement is dropped in silence, which is `ID-R4` tier 1 and [ADR 0027](../doc/decisions/0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md) rule 4's asymmetry | `completed` |
+| `two runs / one scheduler / tasks we did not mint` — **P6's, [W19](../doc/work-items/w19-a-task-we-did-not-mint-on-a-real-scheduler.md)** | **two**: `nightly-cleanup` and `pc:ingest:x:0`, both settling **before either run settles anything**, with both drivers already attached | **two reports each**, one per foreign task, each under **its own** `runId` and carrying the event name, the id uncoerced and `parseTaskId`'s own message — ADR 0027 rule 3 | `completed` |
+
+**Two foreign ids, not one, and the second was added by the item's own provocation sweep.**
+`nightly-cleanup` is colon-free, so it reaches only `parseTaskId`'s **arity** refusal — one of the
+five it makes. With it alone, narrowing tier 0 to `if (taskId.includes(':')) throw e` left all 370
+assertions green - 370 being the count at that moment, before the second id was added. `pc:ingest:x:0` is four segments in our own shape with a **branchPath** outside the
+grammar: the one producer ADR 0027 says could be **ours**, and the referent of that decision's whole
+against-case.
+
+**Neither row is assertable without the other.** An empty `onUnmintedTask` array proves nothing on a
+scheduler where nothing unminted ever settles, and a non-empty one proves nothing about the channel's
+*boundary* — that another run's settlement, which is parseable, must not arrive on it. `ID-R5` is
+decided at **tier 0**, ahead of `ID-R4`'s two tiers, because both of those compare a run id and an
+unparseable id has none. `pc:ingest:x:0` is what makes that ordering load-bearing rather than
+stated: its first segment is run `pc`'s, so under any tier order that compared a run id first,
+driver `pd` would drop it in silence.
+
+**What the second row costs, under the rule it replaced.** Measured by restoring ADR 0023 rule 2 and
+running this row, on this flow: both runs `stopped`, each reported `InvalidTaskId` **twice**, and
+each dispatched **1 of its 4** tasks — so the scheduler was handed 4 of the 10 tasks it would
+otherwise have run, and settled every one of them. The failure was never that the scheduler breaks;
+it is that **the drivers go deaf while everything around them proceeds**, which is the shape that
+does not get noticed in production.
+
 ## What these are not
 
 They are a **gate**, not a copy-paste starting point. A consumer writes
-`import { FyflowScheduler } from 'fyflow-scheduler'` exactly as `l6.ts` does — but installs it from
-npm or JSR, at a version that exists there, rather than from a `file:` link to a sibling checkout.
-When 0.3.0 reaches a registry, ADR 0013 rule 3 becomes a version range and nothing else in these
-files changes.
+`import { FyflowScheduler } from 'fyflow-scheduler'` exactly as `l6.ts` does — and installs it from
+npm or JSR exactly as this repository now does
+([ADR 0029](../doc/decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md),
+which supersedes ADR 0013 rules 3 and 5). *(This paragraph read "when 0.3.0 reaches a registry" and
+"rather than from a `file:` link to a sibling checkout" after both had stopped being true — the
+`doc/`-is-checked-by-nothing class, in the front matter of the directory it describes.)*

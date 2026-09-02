@@ -1,6 +1,12 @@
 /**
- * **Ladder L6 — the gate.** Nineteen real runs on a real scheduler: P1's exit
- * artifact, P2's, P4's and P5's.
+ * **Ladder L6 — the gate.** Twenty-one real runs on a real scheduler: P1's exit
+ * artifact, P2's, P4's, P5's and P6's.
+ *
+ * **Twenty-one runs and nineteen row labels, and the two counts have different
+ * predicates.** A row label is an entry in `EXPECTED[]` or a `PairRow`; a run is
+ * one `Driver` on one flow, and a `PairRow` is one label producing **two**. Both
+ * numbers in the printed header are derived from the arrays rather than typed,
+ * because this line read *six* for two rows longer than it was true.
  *
  * ```
  *   npm run test:l6         node examples/l6.ts
@@ -36,16 +42,22 @@
  * | **W6 — `uncloneable`** | a refusal that stops a run, on real workers. `OR-R6` at the listener boundary, reported rather than thrown, folding to `stopped` |
  * | **W14 — `two runs / two drivers / one scheduler`** | **P4's exit artifact**, and the only row that runs two drivers. The pairing `MultipleRuns` tells a caller to build: before [ADR 0023](../doc/decisions/0023-an-inbound-settlement-is-this-runs-only-if-this-driver-dispatched-it.md) each driver received the other's settlements and dispatched its successors — one task id under two outcomes, with nothing reported. It is `ID-R4` tier 1's only L6 coverage; tier 2 is not reachable here ([Q90](../doc/open-questions.md)) |
  * | **W17 — `all-exit` × all three policies** | **P5's exit artifact, and the row L6 has never had**: every branch reaches an `end` and nothing arrives at the join. It is the shape [ADR 0003](../doc/decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md) records as `live-token`'s cost and the one [ADR 0025](../doc/decisions/0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md) turns on. One flow, one payload, three policies, three answers — `completed`, silently `stuck`, and **`stuck` with `joined: false`**, which nothing at L6 had ever reached |
+ * | **W19 - the second pair row** | **P6's exit artifact**: the same topology as the row above with **one variable changed** - the scheduler also carries a task this library did not mint. Its settlement lands FIRST, while both runs are live, and both runs still complete. [ADR 0027](../doc/decisions/0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md) and `ID-R5`, on real workers; under the ADR 0023 rule 2 it supersedes, one such settlement stopped **every** driver on the scheduler. The control row beside it is what makes `onUnmintedTask`'s empty array an assertion rather than a decoration |
  */
 import {
+  InvalidTaskId,
   POLICIES,
+  parseTaskId,
   type FlowDefinition,
   type PolicyId,
   type Predicate,
   type RunOutcome,
+  type UnmintedTask,
   type UnsatisfiableJoin,
 } from '../index.ts';
-import { runFlow, runPair, type RunReport } from './run-flow.ts';
+import {
+  runFlow, runPair, type ForeignTask, type PairFacts, type RunReport,
+} from './run-flow.ts';
 import fanoutJoin from '../spec/examples/valid/fanout-join.flow.json' with { type: 'json' };
 import routedAway from '../spec/examples/valid/p1-routed-away.flow.json' with { type: 'json' };
 // **Local to `examples/`, and that is [Q44](../doc/open-questions.md) again.** The
@@ -1073,104 +1085,434 @@ check('cross-row', 'and on every join verdict spec/join-policy.md section 3 lets
   });
 
 
-// --- the pair row: two runs, two Drivers, ONE scheduler --------------------------
+// --- the pair rows: two runs, two Drivers, ONE scheduler -------------------------
 //
-// **P4's exit artifact**, and the only row in this file that runs two drivers.
-// [Q72](../doc/open-questions.md): before W13 this corrupted both runs SILENTLY —
-// each driver received the other's settlements and dispatched the other's
-// successors, so `ra:publish:-:0` was dispatched twice under two outcomes
-// (`spec/task-id.md` section 2's collision) and `ID-R1` could not fire, because
-// each driver keeps its own dispatched-id set.
+// **Two rows, and the second is P6's exit artifact.** They are the same topology,
+// the same flow, the same payloads and the same policy; they differ in **one
+// variable** — whether the scheduler also carries a task this library did not
+// mint. That is the r5/r6 and r14/r15/r16 shape this file uses for its sharpest
+// claims, applied to a scheduler rather than to a policy, and it is what gives
+// `onUnmintedTask` a negative control: row 1 must report **nothing**, row 2 must
+// report the foreign settlement, and neither is assertable without the other.
+//
+// **Row 1 — P4's exit artifact**, unchanged. [Q72](../doc/open-questions.md):
+// before W13 this corrupted both runs SILENTLY — each driver received the other's
+// settlements and dispatched the other's successors, so `pa:publish:-:0` was
+// dispatched twice under two outcomes (`spec/task-id.md` section 2's collision)
+// and `ID-R1` could not fire, because each driver keeps its own dispatched-id set.
 //
 // **It is also the only L6 coverage `ID-R4` TIER 1 has, and it has none for tier
-// 2.** W13's adequacy reader measured that the thirteen single-driver rows give
-// the rule nothing at all: one run, no foreign settlements, nothing to drop. Here
-// every settlement of run `pa` reaches `pb`'s listener and tier 1 drops it — so
-// deleting tier 1 makes EACH driver hit tier 2 on the other`s settlements, stop
-// with `UndispatchedTask`, and fail this row. Measured: 7 failures across BOTH
-// runs — the first version of this comment said `pb` alone.
+// 2.** W13's adequacy reader measured that the single-driver rows give the rule
+// nothing at all: one run, no foreign settlements, nothing to drop. Here every
+// settlement of run `pa` reaches `pb`'s listener and tier 1 drops it — so deleting
+// tier 1 makes EACH driver hit tier 2 on the other`s settlements, stop with
+// `UndispatchedTask`, and fail this row. Measured: 7 failures across BOTH runs —
+// the first version of this comment said `pb` alone.
 //
-// **Tier 2 is not reachable here and this row does not cover it**, which W14's own
-// negative test measured rather than assumed: deleting tier 2 leaves this row
-// **green**, because a foreign settlement returns at tier 1 and never reaches it.
-// Tier 2 needs a settlement carrying THIS run's id for a task the driver never
-// dispatched, and nothing on a real scheduler produces one unless something
-// injects it. It has L2 coverage only — three shapes × three terminal states in
-// `test/driver/lifetime.test.ts` — and the gap is [Q90](../doc/open-questions.md)
-// rather than a silent hole.
+// **Tier 2 is still not reachable here**, which W14's own negative test measured
+// rather than assumed: deleting tier 2 leaves row 1 **green**, because a foreign
+// settlement returns at tier 1 and never reaches it. Tier 2 needs a settlement
+// carrying THIS run's id for a task the driver never dispatched, and nothing on a
+// real scheduler produces one unless something injects it. **W19 builds the
+// injector and still does not cover it** — `ForeignTask.id` is passed to the
+// scheduler verbatim, so `pc:notanode:-:0` would reach tier 2 and the marginal
+// cost is the string. It stays out because widening a scope the plan settled is
+// not this item's call (`doc/workflow.md` section 1 rule 3);
+// [Q90](../doc/open-questions.md) is the row, and W19's Record recommends it be
+// updated to say the instrument now exists.
+//
+// **Row 2 — a task this library did not mint, on a real scheduler.**
+// [ADR 0027](../doc/decisions/0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md)
+// and `ID-R5`, on real workers. Under ADR 0023 rule 2 — the rule ADR 0027
+// supersedes — this row was **not reachable at all**. Measured by restoring that
+// rule (tier 0 rethrows) and running THIS row, on THIS flow: both runs `stopped`,
+// each reported `InvalidTaskId` **twice** — once per foreign task — and each
+// dispatched **1 of its 4** tasks, so the scheduler settled 4 of the 10 it would
+// otherwise have been handed. As an L6 result that is **12 failures**.
+//
+// *(W19's declaration holds an earlier version of this measurement and it does not
+// say the same thing: it ran `valid/linear.flow.json`, which has two task nodes,
+// not `fanout-join`'s four. The number above is re-measured on the flow this row
+// runs. `doc/workflow.md` section 1 rule 5's provenance clause — a claim is read
+// from its source, and a number is read from the thing it is a number about.
+// Found by W19's conformity reader, who noticed the four could not have come from
+// a three-node flow.)*
+//
+// **The hostile ordering is arranged, and the arrangement is asserted.** A foreign
+// task settling *after* both runs have finished is the benign case and would pass
+// a row written carelessly. `runPair` queues these before either driver is
+// constructed, on a single-slot inline pool, so they are the **first** settlements
+// the scheduler dispatches.
+//
+// **What that pins, stated as what the assertions actually establish rather than
+// as a slogan.** Two things: `settlementIds[0..n]` are the foreign ids, so no run
+// had settled anything when they arrived; and
+// `listenersAtFirstSettlement === listenersTotal`, so both drivers were **attached**
+// when they were delivered. Each run then dispatching all four of its own ids is
+// the third. *(This paragraph read "while both runs are live". A `Driver` attaches
+// its listeners in its CONSTRUCTOR — ADR 0022, `src/driver/driver.ts:382` — so the
+// listener count proves construction, not that either run had `start()`ed. The
+// three facts above are what `ID-R5` needs and they are what is asserted; "live"
+// was a stronger word than any of them. W19's conformity reader.)*
 //
 // Expected values derived from the spec before running, as every row's are:
 // `spec/run-state.md` section 3 (both runs reach an `end`, so both are
-// `completed`) and `spec/task-id.md` section 2 (a task id identifies one
+// `completed`); `spec/task-id.md` section 2 (a task id identifies one
 // `(run, node, branch, attempt)`, so the two dispatch sets are disjoint and
-// neither has a repeat).
-const PAIR_KEY = 'two runs / two drivers / one scheduler';
-const { a: pa, b: pb, facts } = await runPair(
-  { definition: FJ, policy: POLICIES['live-token'], runId: 'pa', payload: HIGH, predicates, delayMs: 5 },
-  { definition: FJ, policy: POLICIES['live-token'], runId: 'pb', payload: LOW, predicates, delayMs: 5 },
-);
-// **The subjects, named once and asserted to be two DISTINCT runs.** W14's
-// adequacy reader iterated `pa` twice, leaving `pb` asserted by nothing at an
-// unchanged 233 — no counting floor can see a duplicated subject, so the floor is
-// not where that is caught. This is.
-const PAIR_RUNS = [['pa', pa], ['pb', pb]] as const;
-check(PAIR_KEY, 'the block asserts on TWO distinct runs',
-  [...new Set(PAIR_RUNS.map(([who]) => who))].sort(), ['pa', 'pb']);
+// neither has a repeat); and ADR 0027 rule 3 for what `onUnmintedTask` carries.
 
-for (const [who, r] of PAIR_RUNS) {
-  check(PAIR_KEY, `${who}: run-state outcome`, r.state.outcome, 'completed');
-  check(PAIR_KEY, `${who}: finished by run state, not the backstop`, r.finishedBy, 'run-state');
-  check(PAIR_KEY, `${who}: nothing was reported`, r.failureKinds, []);
-  check(PAIR_KEY, `${who}: the join fired`, r.state.regions['split']?.joined, true);
-  // From `spec/join-policy.md` section 2-3, not from output: `live-token` opens
-  // two branches, both arrive, the count reaches zero having been positive.
-  check(PAIR_KEY, `${who}: both branches arrived`, r.state.regions['split']?.settled,
-    { 0: 'arrived', 1: 'arrived' });
-  // From `spec/task-id.md` section 1's four segments and the flow's own node ids.
-  // The full list, in dispatch order — a prefix predicate would pass for a run
-  // that dispatched one task or seven.
-  check(PAIR_KEY, `${who}: the four task ids the scheme fixes`, [...r.dispatched],
-    [`${who}:ingest:-:0`, `${who}:scoreA:0:0`, `${who}:scoreB:1:0`, `${who}:publish:-:0`]);
-  // `RN-R12`: a terminal outcome means no more input is coming. **This row is the
-  // best place in the file for it** — it is the only one where a settlement for
-  // ANOTHER run genuinely arrives after this run is declared finished, so a
-  // tier-1 regression that appended one would land here.
-  check(PAIR_KEY, `${who}: nothing arrived after the run was declared finished`, [...r.lateInputs], []);
-  check(PAIR_KEY, `${who}: its log holds only its own run's records`,
-    r.log.map((rec) => rec.taskId).filter((id) => !id.startsWith(`${who}:`)), []);
+/**
+ * **One foreign id per refusal `parseTaskId` makes, and that is the point of the
+ * table rather than of any one row.**
+ *
+ * `ID-R5` is **one guard over the five refusals** `parseTaskId` makes
+ * (`src/driver/ids.ts:62,65,66,67,68` — arity, runId, nodeId, branchPath,
+ * attempt; ADR 0027's producer table and `spec/outcome-record.md` section 6 both
+ * say five). L6 reached **one** of them and then **two**, and each time the same
+ * probe found the hole: narrowing tier 0 by the shape of the id — `if
+ * (taskId.includes(':')) throw e`, then a message-prefix test — restored ADR 0023
+ * rule 2 for every shape L6 did not inject, with all assertions green.
+ *
+ *   - the first version was found by this item's **own** rule-8 sweep and closed
+ *     with `pc:ingest:x:0`;
+ *   - **the residue was found by its adequacy reader**, who measured that closing
+ *     it had taken L6 from one shape to two and named the three still invisible.
+ *     Half-closing a survivor is worse than not closing it, so the table is now
+ *     the whole grammar.
+ *
+ * *(The **sixth** way tier 0 fires — a `detail` carrying no string `id` at all,
+ * which is the version-skew case `UnmintedTask.taskId` is typed `unknown` for —
+ * cannot be reached by injecting a task, because a real `FyflowScheduler` always
+ * sets `id`. It has L1-L5 coverage in `test/driver/lifetime.test.ts` and no L6
+ * coverage, and that is a property of the scheduler rather than a gap here.)*
+ *
+ * **Every `id` is malformed in exactly ONE segment**, and `parseTaskId` tests them
+ * in order — arity, runId, nodeId, branchPath, attempt — so each row reaches the
+ * site it names and no earlier one.
+ *
+ * **`reason` has two halves and only one comes from the grammar** — said plainly,
+ * because the first version of this claimed both did. *Which* clause refuses is
+ * derived from `spec/task-id.md` section 1. The *wording* is read from
+ * `parseTaskId` itself, because nothing in `spec/` fixes it — and pinning it is
+ * still right, since ADR 0027 rule 3 makes `parseTaskId`'s own message the
+ * contract and therefore public surface. W19's conformity reader.
+ */
+const UNMINTED: { id: string; site: string; reason: string }[] = [
+  {
+    // ADR 0027's **first** producer row, spelled the way that table spells it — *a
+    // plain non-flow task on a shared scheduler*, and one of the two the decision
+    // calls the common case and wrong to stop on. No `:` at all, so it splits into
+    // **1** segment where section 1 fixes **4**.
+    id: 'nightly-cleanup', site: 'arity',
+    reason: 'task id "nightly-cleanup" has 1 segments, expected exactly 4',
+  },
+  {
+    // **The one producer ADR 0027 says could be OURS, and the row that decision's
+    // table did not have until W19 built the shape.** Its third row reads *"a
+    // `detail` with no `id`, or an `id` that is not a string"*; this is a
+    // four-segment string and was none of its three producers, while being squarely
+    // the class the argument turns on — *"a library that assumes `detail.id` is
+    // forever what it dispatched"*, which
+    // `test/driver/lifetime.test.ts`'s `SHAPES` suite calls *"a corrupted id for a
+    // task that IS ours"*. The correction is
+    // [ADR 0027's producer row 4](../doc/decisions/0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md),
+    // added by this item under `doc/workflow.md` v0.7 change 3; it changes no rule.
+    // Found by W19's conformity reader.
+    //
+    // `pc` is a real run id on this scheduler and `ingest` a real node id, which is
+    // what makes tier 0's position load-bearing at L6 rather than merely stated:
+    // under any order that compared a run id before parsing, driver `pd` would drop
+    // this in silence and its report array would be short.
+    //
+    // **It is one character from [Q90](../doc/open-questions.md) and deliberately
+    // not it.** `pc:notanode:-:0` would PARSE, reach `ID-R4` tier 2, and be
+    // `UndispatchedTask` — a different rule and a different outcome. Q90 stays out
+    // (P6's Scope/Out, `doc/workflow.md` section 1 rule 3); that the instrument now
+    // exists is W19's recommendation to the register.
+    id: 'pc:ingest:x:0', site: 'branchPath',
+    reason: 'branchPath segment "x" is malformed',
+  },
+  // The remaining three refusal sites. A space is outside `ID-R2`'s
+  // `[A-Za-z0-9_-]` charset, and `00` has a leading zero where section 1 fixes
+  // `0 | [1-9][0-9]*`.
+  {
+    id: 'p c:ingest:-:0', site: 'runId charset',
+    reason: 'runId segment is not [A-Za-z0-9_-]{1,64}',
+  },
+  {
+    id: 'pc:ing est:-:0', site: 'nodeId charset',
+    reason: 'nodeId segment is not [A-Za-z0-9_-]{1,64}',
+  },
+  {
+    id: 'pc:ingest:-:00', site: 'attempt',
+    reason: 'attempt segment "00" is malformed',
+  },
+];
+
+interface PairRow {
+  key: string;
+  /** Two, and distinct — `ID-R3` and `spec/task-id.md` section 2. */
+  runIds: [string, string];
+  payloads: [{ confidence: number }, { confidence: number }];
+  /** Injected before either driver starts. Empty on the control row. */
+  foreign: ForeignTask[];
+  /**
+   * What **each** driver must report through `onUnmintedTask`, minus the `runId`
+   * — which is added per run below, because ADR 0027 rule 3 says the report
+   * carries *this driver's* run and an unparseable id has none to parse one out
+   * of. Building it that way makes the run-id clause an assertion rather than a
+   * copy: a driver reporting the other's id fails one of the two runs.
+   */
+  unminted: Omit<UnmintedTask, 'runId'>[];
+  why: string;
 }
 
-// --- what the SCHEDULER saw, which is the only source here that is not the code
-// --- under test (`doc/workflow.md` section 5 rule 4)
-//
-// Every assertion above reads a `Driver`. W14's adequacy reader removed the
-// `ID-R4` guard and filtered `dispatchedIds()`/`snapshot()` by run id, and the
-// row stayed **green at 233/0** while the scheduler was handed 55 `addTask` calls
-// for 50 distinct ids. These four are read from the scheduler itself, before
-// either driver was constructed, and they are counts of structure rather than of
-// order — `doc/workflow.md` section 5 rule 5.
-check(PAIR_KEY, 'the scheduler settled eight tasks, none of them twice',
-  [...facts.settlementIds].sort(), [
-    'pa:ingest:-:0', 'pa:publish:-:0', 'pa:scoreA:0:0', 'pa:scoreB:1:0',
-    'pb:ingest:-:0', 'pb:publish:-:0', 'pb:scoreA:0:0', 'pb:scoreB:1:0',
-  ]);
-check(PAIR_KEY, 'and it was handed exactly eight tasks to run', facts.addTaskCalls, 8);
-// **One scheduler, two drivers, both attached before anything settled.** A
-// sequential pair leaves the first count short of the second; a run given its own
-// scheduler leaves `addTaskCalls` at zero on this one. Neither depends on which
-// run wins a race.
-assertThat(PAIR_KEY, 'both runs were attached to the one scheduler before the first SETTLEMENT',
-  facts.addTaskCalls > 0 && facts.listenersAtFirstSettlement === facts.listenersTotal,
-  `at the first settlement ${facts.listenersAtFirstSettlement} of ${facts.listenersTotal}`);
-// `runFlow` must not shut down a scheduler it did not build — `runPair` owns it.
-// Mutating that flag lets whichever run finishes first drain the other, which is
-// the third occurrence of `shutdown()` silently repairing this harness.
-check(PAIR_KEY, 'the shared scheduler was shut down exactly once, by its owner',
-  facts.shutdownCalls, 1);
+const PAIR_ROWS: PairRow[] = [
+  {
+    key: 'two runs / two drivers / one scheduler',
+    runIds: ['pa', 'pb'], payloads: [HIGH, LOW],
+    foreign: [],
+    // **The negative control, and it is `ID-R4` tier 1 asserted from the other
+    // side.** Every settlement of `pa` reaches `pb`'s listener and is dropped in
+    // silence (ADR 0023 rule 3) — a *parseable* foreign id must not reach
+    // `onUnmintedTask`, which is ADR 0027 rule 4's asymmetry. Merging the two
+    // channels would make this array non-empty on a row where the decision says
+    // it must not be.
+    unminted: [],
+    why: 'P4 exit artifact — the pairing MultipleRuns tells you to build, on real workers. Before ' +
+      'W13 each driver received the other`s settlements and dispatched its successors: one task id ' +
+      'under two outcomes, with nothing reported. It is also ID-R4 TIER 1`s only L6 coverage — ' +
+      'every settlement of one run reaches the other driver and is dropped by tier 1, in silence, ' +
+      'which is what the empty onUnmintedTask array here asserts',
+  },
+  {
+    key: 'two runs / one scheduler / tasks we did not mint',
+    runIds: ['pc', 'pd'], payloads: [HIGH, LOW],
+    // **All on `IngestWorker`**, which is where the ordering comes from: one slot,
+    // inline, so they are dispatched in this order and every one of them settles
+    // ahead of either run's own first settlement. `runPair` does the arranging;
+    // the assertion below checks the effect, and checks it as the SHAPE of the
+    // whole sequence so that nothing here depends on the order the five arrive in
+    // relative to each other.
+    foreign: UNMINTED.map((u) => ({ id: u.id, workerType: 'IngestWorker' })),
+    // From ADR 0027 rule 3, field by field, one entry per foreign task. **Compared
+    // sorted by `taskId`** — the order the driver reports them in is the scheduler's
+    // settlement order, which `spec/` does not fix and `doc/workflow.md` section 5
+    // rule 5 forbids asserting; every field is still pinned.
+    //
+    // `event` is `task.completed` for all five because all five SUCCEED. **The
+    // `event` field therefore takes one value at L6**, which both of W19's readers
+    // found independently: the `task.failed`+`task.user_action` pair (ADR 0007 rule
+    // 2, which tier 0 reports twice because it sits above `normalizeEvent`) has
+    // L1-L5 coverage in `test/driver/lifetime.test.ts` and none here. Measured on a
+    // real scheduler and reported rather than built — [Q107](../doc/open-questions.md),
+    // and W19's Record says why.
+    unminted: UNMINTED.map((u) => ({ event: 'task.completed', taskId: u.id, reason: u.reason })),
+    why: 'W19 — P6 exit artifact. A scheduler carrying tasks this library did not mint, two ' +
+      'drivers running flows on it, and BOTH RUNS COMPLETING. Both foreign settlements land first, ' +
+      'before either run has settled anything and with both drivers already attached; ID-R5 ' +
+      'decides them at tier 0, ahead of ID-R4`s two tiers because ' +
+      'both of those compare a run id and an unparseable id has none; each driver reports both ' +
+      'under its OWN run id and keeps routing. Two shapes, not one: a plain non-flow task, and an ' +
+      'id that could have been ours with its branchPath corrupted — the second is the case the ' +
+      'against-side of ADR 0027 was entirely about. Under ADR 0023 rule 2 both runs stopped here',
+  },
+];
 
-const PAIR_PER_RUN = 8;
-const PAIR_CROSS = 5;
-const PAIR_ROW = PAIR_PER_RUN * PAIR_RUNS.length + PAIR_CROSS;
+/**
+ * From `spec/task-id.md` section 1's four segments and `fanout-join`'s own node
+ * ids — **written once and used for two INDEPENDENT sources**: what the driver
+ * says it dispatched, and what the scheduler says it settled. One derivation,
+ * two readers, neither read off the other.
+ */
+const pairTaskIds = (who: string): string[] =>
+  [`${who}:ingest:-:0`, `${who}:scoreA:0:0`, `${who}:scoreB:1:0`, `${who}:publish:-:0`];
+
+/**
+ * **The audit ADR 0027's *Consequences* says a consumer can now write**, written.
+ *
+ * `parseTaskId` and `InvalidTaskId` are both exported from the package root, so
+ * *"was this task minted by a driver"* is a `try`/`catch` a caller has — which is
+ * what makes the report actionable rather than merely informative.
+ *
+ * **It is independent of the DRIVER, not of the GRAMMAR, and the difference is
+ * worth stating** (W19's conformity reader). Its data source is genuinely
+ * independent — the scheduler's own `settlementIds`, recorded by a listener
+ * registered before either driver existed — but its predicate is the same
+ * `parseTaskId` tier 0 calls, so a common-mode change to the grammar moves both
+ * sides. What it therefore catches is **a driver that reported the wrong set**,
+ * which is the half that matters here; it is not a second opinion about what the
+ * grammar accepts.
+ *
+ * *(The name is `AGENTS.md` section 9's, deliberately. That snippet is written
+ * WITHOUT the rethrow — [Q104](../doc/open-questions.md): `check-docs`' `X4a` is
+ * satisfied by any `throw` in a `run` snippet, so a helper's own rethrow answered
+ * for the assertions. This file is not a doc snippet and the rethrow is right
+ * here, which is why the two spellings differ.)*
+ */
+const mintedByADriver = (id: string): boolean => {
+  try {
+    parseTaskId(id);
+    return true;
+  } catch (e) {
+    if (e instanceof InvalidTaskId) return false;
+    throw e;
+  }
+};
+
+const pairResults: { row: PairRow; runs: [string, RunReport][]; facts: PairFacts }[] = [];
+
+for (const row of PAIR_ROWS) {
+  const [idA, idB] = row.runIds;
+  const { a: ra, b: rb, facts } = await runPair(
+    { definition: FJ, policy: POLICIES['live-token'], runId: idA, payload: row.payloads[0], predicates, delayMs: 5 },
+    { definition: FJ, policy: POLICIES['live-token'], runId: idB, payload: row.payloads[1], predicates, delayMs: 5 },
+    row.foreign,
+  );
+  const runs: [string, RunReport][] = [[idA, ra], [idB, rb]];
+  pairResults.push({ row, runs, facts });
+
+  // **The subjects, named once and asserted to be two DISTINCT runs.** W14's
+  // adequacy reader iterated `pa` twice, leaving `pb` asserted by nothing at an
+  // unchanged 233 — no counting floor can see a duplicated subject, so the floor
+  // is not where that is caught. This is.
+  check(row.key, 'the block asserts on TWO distinct runs',
+    [...new Set(runs.map(([who]) => who))].sort(), [...row.runIds].sort());
+
+  for (const [who, r] of runs) {
+    check(row.key, `${who}: run-state outcome`, r.state.outcome, 'completed');
+    check(row.key, `${who}: finished by run state, not the backstop`, r.finishedBy, 'run-state');
+    check(row.key, `${who}: nothing was reported`, r.failureKinds, []);
+    check(row.key, `${who}: the join fired`, r.state.regions['split']?.joined, true);
+    // From `spec/join-policy.md` section 2-3, not from output: `live-token` opens
+    // two branches, both arrive, the count reaches zero having been positive.
+    check(row.key, `${who}: both branches arrived`, r.state.regions['split']?.settled,
+      { 0: 'arrived', 1: 'arrived' });
+    // The full list, in dispatch order — a prefix predicate would pass for a run
+    // that dispatched one task or seven. **On the foreign row this is the exit
+    // artifact**: all four are dispatched, and the first of them settles *after*
+    // the foreign settlement the ordering assertion below pins. Under ADR 0023
+    // rule 2 this list was one id long.
+    check(row.key, `${who}: the four task ids the scheme fixes`, [...r.dispatched], pairTaskIds(who));
+    // `RN-R12`: a terminal outcome means no more input is coming. **These rows are
+    // the best place in the file for it** — they are the only ones where a
+    // settlement for another run, or for no run at all, genuinely arrives while
+    // this run is live, so a tier-0 or tier-1 regression that appended one lands
+    // here.
+    check(row.key, `${who}: nothing arrived after the run was declared finished`, [...r.lateInputs], []);
+    check(row.key, `${who}: its log holds only its own run's records`,
+      r.log.map((rec) => rec.taskId).filter((id) => !id.startsWith(`${who}:`)), []);
+    // **ADR 0027 rule 3, whole — and rule 4's asymmetry with it.** The `runId` is
+    // spliced in per run rather than declared, so a driver reporting the other's
+    // id fails; the empty case on row 1 is the assertion that a *parseable*
+    // foreign settlement stays silent.
+    check(row.key, `${who}: what onUnmintedTask reported — ADR 0027 rules 3 and 4`,
+      [...r.unmintedTasks].sort((x, y) => String(x.taskId).localeCompare(String(y.taskId))),
+      row.unminted.map((u) => ({ runId: who, ...u }))
+        .sort((x, y) => String(x.taskId).localeCompare(String(y.taskId))));
+  }
+
+  // --- what the SCHEDULER saw, which is the only source here that is not the code
+  // --- under test (`doc/workflow.md` section 5 rule 4)
+  //
+  // Every assertion above reads a `Driver`. W14's adequacy reader removed the
+  // `ID-R4` guard and filtered `dispatchedIds()`/`snapshot()` by run id, and the
+  // row stayed **green at 233/0** while the scheduler was handed 55 `addTask`
+  // calls for 50 distinct ids. These are read from the scheduler itself, before
+  // either driver was constructed, and they are counts of structure rather than
+  // of order — `doc/workflow.md` section 5 rule 5.
+  const wantSettlements = [...row.runIds.flatMap(pairTaskIds), ...row.foreign.map((f) => f.id)].sort();
+  check(row.key, `the scheduler settled ${wantSettlements.length} tasks, none of them twice`,
+    [...facts.settlementIds].sort(), wantSettlements);
+  check(row.key, 'and it was handed exactly that many tasks to run',
+    facts.addTaskCalls, wantSettlements.length);
+  // **One scheduler, two drivers, both attached before anything settled.** A
+  // sequential pair leaves the first count short of the second; a run given its
+  // own scheduler leaves `addTaskCalls` at zero on this one. Neither depends on
+  // which run wins a race. **On the foreign row it carries a second job**: the
+  // first settlement IS the foreign one, so this is what says the drivers were
+  // there to receive it.
+  // **One recording per settlement**, which is what stops the line below being a
+  // tautology: with a single latched field, deleting its "only on the first" guard
+  // let every later settlement overwrite it and the claim became unfalsifiable
+  // with all 370 assertions green - the count at the moment it was measured. W19's
+  // adequacy reader.
+  check(row.key, 'the scheduler-side record holds one listener count per settlement',
+    facts.listenersAtSettlement.length, facts.settlementIds.length);
+  assertThat(row.key, 'both drivers were ATTACHED to the one scheduler before the first SETTLEMENT',
+    facts.addTaskCalls > 0 && facts.listenersAtSettlement[0] === facts.listenersTotal,
+    `at the first settlement ${facts.listenersAtSettlement[0]} of ${facts.listenersTotal}`);
+  // `runFlow` must not shut down a scheduler it did not build — `runPair` owns it.
+  // Mutating that flag lets whichever run finishes first drain the other, which is
+  // the third occurrence of `shutdown()` silently repairing this harness.
+  check(row.key, 'the shared scheduler was shut down exactly once, by its owner',
+    facts.shutdownCalls, 1);
+  // **What the scheduler's own record says the partition is.** Row 1 asserts that
+  // **every** settlement it dispatched was minted by a driver — an empty list on
+  // both sides, and reachable rather than vacuous only because `buildTaskId` could
+  // in principle emit an id `parseTaskId` refuses, which is what
+  // `test/driver/lifetime.test.ts`'s `FD-V16`/`ID-R2` agreement case exists to
+  // stop. Row 2 asserts that exactly the **two** injected ids were not, and names
+  // them. *(This comment said "non-empty on both rows" and "exactly one"; both were
+  // wrong, and W19's conformity reader read the values rather than the sentence.)*
+  //
+  // Independent of the driver, not of the grammar — see `mintedByADriver`.
+  check(row.key, 'ADR 0027: a consumer can tell a minted id from an unminted one, from the package root',
+    facts.settlementIds.filter((id) => !mintedByADriver(id)), row.foreign.map((f) => f.id));
+
+  // **The hostile ordering, arranged and then checked — over the WHOLE settlement
+  // sequence.** `doc/workflow.md` section 5 rule 5 forbids depending on an order
+  // the spec does not fix; it does not forbid choosing inputs that make a causal
+  // path reachable, which is the same move `buildScheduler`'s `SETTLES_LAST`
+  // makes. The arrangement is in `runPair` — queued before either driver is
+  // constructed, on a single-slot inline pool — and this is its effect, which is
+  // the half W17 found held down by nothing.
+  //
+  // Without it the row is satisfied by foreign tasks settling after both runs have
+  // finished, which is the benign case and proves nothing about a live run.
+  //
+  // **The SHAPE of the sequence, not the ids, and that is three repairs in one**
+  // (W19's two readers, from two directions):
+  //
+  //   - it says nothing about the order the foreign settlements arrive in relative
+  //     to EACH OTHER, so it no longer pins single-slot FIFO dispatch — an order
+  //     `spec/` does not fix;
+  //   - it covers **every** settlement rather than a prefix, so the benign ordering
+  //     fails on the whole sequence rather than on one slice of it;
+  //   - and it **cannot be sourced from a driver**. The previous form compared a
+  //     `slice` against the declared ids, and substituting
+  //     `runs[0][1].unmintedTasks.map((u) => u.taskId)` for `facts.settlementIds`
+  //     left it green. The item's Output (3) says this claim must come from the
+  //     scheduler *because* reading it from a driver asserts the absence of a thing
+  //     from the thing accused of dropping it — and nothing said so. A driver knows
+  //     only what it was told about; this expects the full sequence, so no
+  //     driver-sourced list can satisfy it.
+  //
+  // **Run on both rows.** The control row's version reads *"all eight settlements
+  // the scheduler dispatched were ours"*, which is a claim rather than a vacuous
+  // `[]` against `[]`.
+  const foreignIds = row.foreign.map((f) => f.id);
+  check(row.key, 'every foreign settlement landed BEFORE either run`s own first — the hostile order',
+    facts.settlementIds.map((id) => (foreignIds.includes(id) ? 'foreign' : 'ours')),
+    [...foreignIds.map(() => 'foreign'), ...row.runIds.flatMap(pairTaskIds).map(() => 'ours')]);
+}
+
+/** Per pair row: one distinctness check, nine per run, seven scheduler-side. */
+const PAIR_PER_RUN = 9;
+const PAIR_CROSS = 8;
+/**
+ * Derived from the rows rather than typed. **Nothing currently depends on the
+ * derivation, and W19's own sweep is what says so**: replacing this with the
+ * literal it evaluates to changes no observable, because `EXPECTED_TOTAL` follows
+ * the rows on both sides and only `DECLARED_TOTAL` — a number a human wrote down —
+ * notices a row disappearing. Kept because it is right, and recorded as
+ * **maintenance rather than an assertion** so that a reader does not count it as
+ * one. It is W6's shared-source finding, still live.
+ */
+const PAIR_ROW = pairResults.reduce(
+  (n, { runs }) => n + PAIR_PER_RUN * runs.length + PAIR_CROSS,
+  0,
+);
 
 // --- the table a person looks at ----------------------------------------------
 
@@ -1184,15 +1526,24 @@ const w = (s: string, n: number) => s.padEnd(n).slice(0, n);
 // `p1-routed-away LOW / live-token-requirin` — a human artifact quietly lying
 // about which run it was showing, which is L7's rung and the one nothing else
 // checks. The width now comes from the keys.
+// **Every printed label is in this list, and it names its ROW.** It used to be a
+// template written out twice - once for the width and once in the loop below -
+// reading `two runs / one scheduler (pa)` for the only pair there was. With two
+// pair rows that spelling cannot say which run belongs to which, so the label is
+// built from the row's own key: a reader of the table can tell the control pair
+// from the one carrying a foreign task, which is the whole point of printing it.
+const pairLabel = (row: PairRow, who: string) => `${row.key} (${who})`;
 const KEY_W = Math.max(
   ...EXPECTED.map((e) => e.key.length),
-  PAIR_KEY.length,
-  ...PAIR_RUNS.map(([who]) => `two runs / one scheduler (${who})`.length),
+  ...PAIR_ROWS.map((r) => r.key.length),
+  ...PAIR_ROWS.flatMap((r) => r.runIds.map((who) => pairLabel(r, who).length)),
 ) + 2;
 // The count is derived, not typed: this line said "six" for two rows longer than
 // it was true, which is the smallest possible version of the thing this whole
-// review pass was about.
-console.log(`\n  ladder L6 — ${reports.length + PAIR_RUNS.length} real runs on fyflow-scheduler 0.3.0, on ${runtime}\n`);
+// review pass was about. **It counts RUNS, not row labels** - a pair row is
+// one label producing two runs, so the two numbers differ and always have.
+const pairRunCount = pairResults.reduce((n, { runs }) => n + runs.length, 0);
+console.log(`\n  ladder L6 — ${reports.length + pairRunCount} real runs on fyflow-scheduler 0.3.0, on ${runtime}\n`);
 console.log(`  ${w('run', KEY_W)}${w('outcome', 17)}${w('join', 7)}${w('branches', 22)}${w('tasks', 6)}${w('ms', 6)}overlap`);
 console.log(`  ${'-'.repeat(KEY_W + 65)}`);
 for (const [i, r] of reports.entries()) {
@@ -1208,15 +1559,17 @@ for (const [i, r] of reports.entries()) {
   );
 }
 
-for (const [who, r] of [['pa', pa], ['pb', pb]] as const) {
-  const region = r.state.regions['split'];
-  const branches = region ? Object.entries(region.settled).map(([b, st]) => `${b}:${st}`).join(' ') : '-';
-  const joined = region === undefined ? '-' : region.joined === null ? 'never' : String(region.joined);
-  console.log(
-    `  ${w(`two runs / one scheduler (${who})`, KEY_W)}${w(r.state.outcome, 17)}${w(joined, 7)}` +
-    `${w(branches, 22)}${w(String(r.dispatched.length), 6)}${w(String(r.wallMs), 6)}` +
-    `${r.branchesOverlapped ? 'yes' : 'no'}`,
-  );
+for (const { row, runs } of pairResults) {
+  for (const [who, r] of runs) {
+    const region = r.state.regions['split'];
+    const branches = region ? Object.entries(region.settled).map(([b, st]) => `${b}:${st}`).join(' ') : '-';
+    const joined = region === undefined ? '-' : region.joined === null ? 'never' : String(region.joined);
+    console.log(
+      `  ${w(pairLabel(row, who), KEY_W)}${w(r.state.outcome, 17)}${w(joined, 7)}` +
+      `${w(branches, 22)}${w(String(r.dispatched.length), 6)}${w(String(r.wallMs), 6)}` +
+      `${r.branchesOverlapped ? 'yes' : 'no'}`,
+    );
+  }
 }
 
 // Where each row's expected values came from. Printed so the human artifact
@@ -1224,11 +1577,11 @@ for (const [who, r] of [['pa', pa], ['pb', pb]] as const) {
 // values come from the spec, and a reader should not have to take that on trust.
 console.log('\n  why each row reads as it does:');
 for (const e of EXPECTED) console.log(`    ${w(e.key, KEY_W)}${e.why}`);
-console.log(`    ${w(PAIR_KEY, KEY_W)}` +
-  'P4 exit artifact — the pairing MultipleRuns tells you to build, on real workers. Before W13 ' +
-  'each driver received the other`s settlements and dispatched its successors: one task id under ' +
-  'two outcomes, with nothing reported. It is also ID-R4 TIER 1s only L6 coverage — every settlement of ' +
-  'one run reaches the other driver and is dropped by tier 1');
+// **Read from `PAIR_ROWS[*].why`, not written out a second time here.** It used
+// to be a string literal in this call, so the pair row's stated reason and the
+// row itself could drift with nothing to say so - which is the same defect one
+// rung down from the counts this file already derives.
+for (const row of PAIR_ROWS) console.log(`    ${w(row.key, KEY_W)}${row.why}`);
 
 // **An assertion-count floor, because a skipped assertion reports as a pass.**
 // `doc/workflow.md` section 1 rule 4 at assertion granularity: W5's test-adequacy
@@ -1273,7 +1626,7 @@ if (passed + failures.length !== EXPECTED_TOTAL) {
 // exit 0 by W6's adequacy reader, whose finding is that the Record's claim of
 // *"checked two ways … either alone misses something"* was false, because both
 // ways shared a source. This is the second source: a number a human wrote down.
-const DECLARED_TOTAL = 342;
+const DECLARED_TOTAL = 373;
 if (passed + failures.length !== DECLARED_TOTAL) {
   failures.push(
     'gate\n      the assertion count is not the number this file declares outright\n' +
