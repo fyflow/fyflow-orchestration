@@ -4,9 +4,13 @@ Flow orchestration over [fyflow-scheduler](https://github.com/fyflow/fyflow-sche
 flow once; run thousands of workloads through it.
 
 > **Status: the layer is built and gated.** Sequence, decision routing, fan-out and join, with
-> **three** join policies, a definition validator, and run state as a pure fold. **One driver serves one run, fixed at construction, and two drivers may share a scheduler.** **386 assertions in five
-> runtimes** — Node 24, Deno, chromium, firefox, webkit — **plus 342 against a real scheduler** in
-> Node and Deno. Not published; no version has been released.
+> **three** join policies, a definition validator, and run state as a pure fold. **One driver serves one run, fixed at construction, and two drivers may share a scheduler — with anything else on it.** **410 assertions in five
+> runtimes** — Node 24, Deno, chromium, firefox, webkit — **plus 373 against a real scheduler** in
+> Node and Deno — where the scheduler also carries five tasks this library did not mint, and both
+> runs still complete. Not published; no version has been released.
+>
+> *(`npm run gate` runs the browser rung in **chromium only**; firefox and webkit are
+> `npm run test:browser:all`.)*
 
 ## The idea
 
@@ -61,7 +65,7 @@ into run state.
 | **Driver** | the only component that touches the scheduler: subscribes, routes, dispatches. The library imports the scheduler **nowhere** — a caller passes its own in |
 | **Run state** | a fold: where a run is, what each node returned, what a join is waiting on. **Six outcomes**, including `stuck` |
 | **Join policies** | `live-token`, `arrival-count` and `live-token-requiring-arrival`, behind one interface, all three shipped. **Pass `live-token`** |
-| **Examples** | [ladder L6](examples/) — nineteen real runs on a real scheduler, in Node and Deno: two runs sharing one scheduler, and a run in which **every branch is abandoned**, under all three policies |
+| **Examples** | [ladder L6](examples/) — **twenty-one** real runs on a real scheduler, in Node and Deno: a run in which **every branch is abandoned** under all three policies; two runs sharing one scheduler; and the same pair on a scheduler that also carries **tasks this library did not mint**, which used to stop every driver subscribed to it |
 
 ## The hard question, and its answer
 
@@ -91,6 +95,15 @@ arrival-counting survive P1's case is **refused**: measured over the whole matri
 weakened, and every row on which they differ is a row where it waits forever.
 **`live-token` and `arrival-count` are unchanged**, so this adds a name and breaks nothing.
 
+**A driver's scheduler may carry work this library did not mint.**
+[ADR 0027](doc/decisions/0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md): a
+settlement whose task id does not parse was minted by **no** driver, so it is reported through
+`onUnmintedTask` and dropped rather than stopping the run. Until it, one plain non-flow task settling
+— a nightly cleanup, another library's work, a worker's own `spawnTask` child — stopped **every**
+driver subscribed to that scheduler, on the very topology the line above recommends. The one
+remaining condition is that drivers sharing a scheduler have **different run ids**, which nothing can
+enforce and which the library's own error message now says.
+
 ## Running it
 
 Node **24** (`.node-version`, selected with fnm) and a current Deno.
@@ -112,8 +125,8 @@ for how it is reached.
 | | |
 |---|---|
 | `npm run gate` | everything below, in order |
-| `npm test` · `npm run test:deno` · `npm run test:browser:all` | 386 assertions, five runtimes |
-| `npm run test:l6` · `npm run test:l6:deno` | a real scheduler, fifteen runs |
+| `npm test` · `npm run test:deno` · `npm run test:browser:all` | 410 assertions, five runtimes |
+| `npm run test:l6` · `npm run test:l6:deno` | a real scheduler, 19 runs |
 
 ## Documentation
 

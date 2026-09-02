@@ -7,7 +7,7 @@ its retro is run.** [Q4](open-questions.md) is answered:
 [ADR 0003](decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md), **a join is
 satisfied when its region has no live branches** — and **W5 ran it on a real scheduler**, where
 `p1-routed-away` completes under `live-token` and is **`stuck`** under `arrival-count`, with the
-join's successor never dispatched. **386 assertions in five runtimes, plus 342 at ladder L6 in two.**
+join's successor never dispatched. **410 assertions in five runtimes, plus 373 at ladder L6 in two.** *(This line read **386** and **342** after the counts had moved; both are re-measured here rather than carried forward. The five runtimes are measured too - `npm run gate` runs `test:browser`, which is **chromium only**, so W19 ran `npm run test:browser:all` for firefox and webkit.)*
 *(**The two numbers do not count the same thing and the word is the same.** `386` is `test/runner.ts`'s count of `test()` CASES, not of `equal`/`ok` calls — [Q98](open-questions.md), raised by W16 while re-deriving it. `342` is a genuine count of individual `check`/`assertThat` calls in `examples/l6.ts`. W17's conformity reader found the caveat attaching ambiguously to a sentence carrying both.)*
 
 **The retro is in [P1's Record](plans/p1-what-satisfies-a-join.md) and `doc/workflow.md` is v0.3.**
@@ -219,7 +219,9 @@ longer rests on our own reading. [S1](scheduler-upstream.md).
    that stops the run, or a task that is not ours), [Q87](open-questions.md)'s one-line message
    defect, and [Q95](open-questions.md)'s unexercised latch. **Its urgency is that `AGENTS.md` §9
    already recommends the topology**: a second `Driver` on the same scheduler is the supported
-   answer, and on a scheduler carrying anything else **one settlement stops every driver on it**.
+   answer, and on a scheduler carrying anything else **one settlement stopped every driver on it** —
+   which is what [ADR 0027](decisions/0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md)
+   removed, so §9 now states one condition rather than two.
    Its measurement narrowed the decision before it was declared — `InvalidTaskId` is raised from
    **one** inbound site Q86 is about. *(P6's plan said **three producers**; the declaration step
    measured it and **two of those three rows were wrong** — `Driver.resolve()`'s site is unreachable
@@ -228,10 +230,52 @@ longer rests on our own reading. [S1](scheduler-upstream.md).
    the version to reason from**.)* Exit artifact: a scheduler carrying a task this library did
    not mint, two drivers, both runs completing — **confirmed on a REAL scheduler at declaration**,
    where a foreign task settles normally and both drivers go deaf while everything around them
-   proceeds. **[W18](work-items/w18-the-scheduler-edge-and-what-an-id-we-did-not-mint-means.md) and
-   [W19](work-items/w19-a-task-we-did-not-mint-on-a-real-scheduler.md) are now declared in their own
-   files** — P6's first act, done. **Neither has started**, and their status is read from those two
-   files rather than from this line (`doc/workflow.md` section 1 rule 5).
+   proceeds. **[W18](work-items/w18-the-scheduler-edge-and-what-an-id-we-did-not-mint-means.md) is DONE**
+   and **[W19](work-items/w19-a-task-we-did-not-mint-on-a-real-scheduler.md) is DONE**;
+   read each one's status from its own file rather than from this line (`doc/workflow.md` section 1
+   rule 5).
+
+   **W18 answered Q86 with the third option and it won on evidence neither side of the register row
+   had.** [ADR 0027](decisions/0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md):
+   an inbound task id that does not parse was minted by **no** driver, so it is **`ID-R5`** — reported
+   through `onUnmintedTask` and dropped — rather than a refusal that stops the run. **What decided it
+   was asking who PRODUCES one.** A foreign task and a worker's own `context.spawnTask()` child can
+   never be ours and are the common case on the blessed topology; a `detail.id` that stopped being
+   what we dispatched **could** be ours and is rare — and `task.progress`'s detail changed shape at
+   0.3.0 with no changelog, so that is measured history rather than a hypothetical. Stopping is right
+   for the rare case and catastrophic for the common one, the string cannot tell them apart, and
+   **only *report* is wrong in neither direction.** ADR 0023 rule 2 is superseded, one of `ID-R4`'s
+   two preconditions is retired, and **tier 1's silence is untouched** — another run's settlement is
+   reported by the driver that owns it, an unparseable one by nobody, which is the whole asymmetry.
+
+   **Q95 is closed with a stub and the re-measurement corrected the register a third time.** There
+   are **two** latches, not one: deleting the *satisfied* one costs an assertion and produces the
+   `DuplicateTaskId` the register recorded; deleting the *unsatisfiable* one — W15's actual survivor
+   — cost **0 of 386** and produces no refusal at all. What it produces is a second
+   `joinSettled(fired: false)`, or, with a policy that says `unsatisfiable` and later `satisfied`,
+   **a join routed out of after being declared dead**, taking `RunState.outcome` from `stuck` to
+   `completed` silently. Expected values from `spec/join-policy.md` section 4, not from the refusal.
+   **Q87's message sentence is fixed and asserted on its TEXT**; its enforcement half stays a
+   precondition with no owner. **Q101 is fixed at the instance and open as a class**: `AGENTS.md`'s
+   executed error-class snippet was a closed list compared against a copy of itself, and it now
+   enumerates the package's own `Error` subclasses instead — **and the adequacy reader then found the
+   same shape inside that fix**, since *documented* means *"in this array"* and section 9's prose can
+   still be deleted with the gate green.
+
+   **Both of W18's readers found things, and the two BLOCKING findings of each were about what the
+   item had just written.** The conformity reader: five indexes said DONE over an item file reading
+   `todo`, and two documents claimed an exception was declared that was not. The adequacy reader,
+   35 mutations and 10 survivors: **`ID-R5` was one guard over six refusals with five never
+   delivered** — every fixture was colon-free, so `if (taskId.includes(':')) throw e;` narrowed it
+   back to ADR 0023 rule 2 with everything green — and **the precondition guarding Q95's stub admitted
+   a trailing event that never re-enters `settleJoin`**, so one token restored Q95 exactly as W15
+   measured it. Both are fixed and both fixes are provoked (6, 5 and 2 failures). **Overlap 2 of ~26**,
+   the ninth measurement and inside the band. **35 rule-8 probes, all 35 tripping exactly their
+   declared set** — two of them declaring the EMPTY set on purpose, because the reference's prose and
+   `spec/**`'s prose have no route to red. **The harness itself then produced the item's most
+   alarming finding**: two probes reached files it had not backed up, and one **deleted the
+   `spec/join-policy.md` clause W18 took a late `Owns` exception to write**, with `check-spec` green
+   over the damaged file. A mutation harness that does not restore is a mutation.
 4. **Read `doc/workflow.md` v0.7 first**, and in particular the things five retros have refused to
    turn into rules — those are the ones most likely to bite. **A register row you are about to act
    on is unverified until you have**, and P4 is the third plan in a row to find one wrong by trying
@@ -271,6 +315,32 @@ longer rests on our own reading. [S1](scheduler-upstream.md).
    - **Never put a link into `node_modules`.** A junction placed there so `tsc` would skip the
      sibling's source was followed by `git worktree remove --force` and **deleted most of that
      repository**. `check-scheduler.mjs` D1 refuses one now.
+
+   **[W19](work-items/w19-a-task-we-did-not-mint-on-a-real-scheduler.md) is DONE and the exit
+   artifact exists on real workers.** L6 is **19 row labels, 21 real runs, 373 assertions** in node
+   and deno, from 18 / 19 / 342. Row 19 is one `FyflowScheduler` carrying **five** ids this library
+   did not mint — one per refusal `parseTaskId` makes — all settling before either run settles
+   anything, two `Driver`s, and **both runs `completed`**, each reporting all five through
+   `onUnmintedTask` under its own run id. Restoring ADR 0023 rule 2 costs **13** L6 failures and
+   leaves each run having dispatched **1 of its 4** tasks.
+
+   **Its three method findings, and the third is the one for the retro.** First,
+   **`doc/workflow.md` v0.7 change 3 fired on the first item that could hit it**: ADR 0027's producer
+   table named three producers of an unparseable id and could not name the one W19 built, so
+   **producer row 4 was added with no rule changed and no exception needed** — the gap that blocked
+   W17 from correcting ADR 0015, closed and then used. Second, **rule 8's two halves both worked and
+   both missed the blocking survivors**: the rule-written half found that L6 injected a colon-free id
+   only, so tier 0 could be narrowed by the shape of the id with the gate green; the
+   `Outputs`-written half found that *"counts derived rather than typed"* is unachievable in a
+   markdown file. **Both of the adequacy reader's BLOCKING findings were about the provenance of a
+   harness value** — a latched flag standing in for *"both drivers were attached"*, and an assertion
+   whose source could be swapped from the scheduler to a driver — which is neither a clause of the
+   rule nor a row of the table, and is the same shape as W17's `finishedBy` and `lateInputs`. Third,
+   **W18's carried-forward proposal held**: the whole set was re-run after acting, twice, and the
+   readers' exact edits are checked back in as probes. **Overlap 4 of 18**, the ninth measurement and
+   inside the band. Its two questions are [Q107](open-questions.md) — `ID-R5` at L6 sees
+   `task.completed` and nothing else, found by both readers independently — and
+   [Q108](open-questions.md), the `context.spawnTask()` producer that is demonstrated nowhere at all.
 
 **The fan-out gate is cleared** (`workflow.md` section 7 rule 3) — not because Q4 is answered, but
 because P1 builds both of its candidate answers, so W2 and W3 can be written without knowing which

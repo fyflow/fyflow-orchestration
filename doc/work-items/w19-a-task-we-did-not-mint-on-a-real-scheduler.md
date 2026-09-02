@@ -1,6 +1,6 @@
 # W19 — A task we did not mint, on a real scheduler, with two runs
 
-**Status:** todo
+**Status:** DONE - 2026-09-02
 **Plan:** [P6](../plans/p6-what-may-share-a-scheduler-with-a-driver.md) — **this item is the plan's
 exit artifact**: a scheduler carrying a task this library did not mint, two drivers running flows on
 it, and both runs completing. It takes no decision; [W18](w18-the-scheduler-edge-and-what-an-id-we-did-not-mint-means.md)
@@ -218,40 +218,299 @@ section 2 is about, and they stay; a nested fan-out (Q6) — **not applicable**,
 
 ## Record
 
-*Filled in when the item is done. Delete the italic lines.*
-
 **Gate — what ran.** One row per clause of the `Gate:` line above. Each verdict starts with `RAN` or
-`NOT RUN`; a clause with no row reads as *did not run*. The last row is the gate re-run at the commit
-that acts on the review findings, and it names that commit.
+`NOT RUN`; a clause with no row reads as *did not run*.
 
 | Clause | Verdict | Notes |
 |---|---|---|
-| L0 | | |
-| L1-L5 | | |
-| L6, node 24 | | rows, real runs, assertions |
-| L6, deno | | |
-| conformity reader | | what it found |
-| adequacy reader | | mutations run, survivors |
-| re-run at `<sha>` | | |
+| L0 | **RAN, green** | `check-spec` 8 checks (C4 covered 23 definition refusals); `check-source` **11 checks over 13 published files**; `check-scheduler` 5 checks + **12/12** self-test probes; `check-policies` 3 checks + **13/13**; `check-docs` 5 checks over **19 snippets — 14 `run`, 5 `check`** + **14/14**; `deno lint` **42 files**; `typecheck` **5 projects**, `typecheck:examples` included — the project this item's files live in. *(One number per script, each read off its own line. `42` is `deno lint`'s and belongs to nothing else — W18's Record put it on `check-source`'s row.)* |
+| L1-L5 | **RAN, green, unchanged by this item** | **410 `test()` cases over 18 files** in node 24.20.0, deno 2.9.6 and chromium, with the runner's own parity line. **`npm run gate` runs `test:browser`, which is chromium only** (`scripts/run-browser-tests.mjs:68`) — so this item **additionally ran `npm run test:browser:all`**, giving **410 in firefox and 410 in webkit** as well. All five runtimes are measured on this tree rather than inherited. `examples/**` is outside the browser bundle's input set (`RT-R10`), so this item could not have moved them. |
+| **L6, node 24** | **RAN, green** | **19 row labels, 21 real runs, 373 assertions.** Was 18 / 19 / 342. Both printed numbers are derived from the arrays; neither is typed. |
+| **L6, deno** | **RAN, green** | deno 2.9.6 — the same 21 runs and the same 373 assertions. |
+| conformity reader | **RAN** | **11 findings, 5 blocking.** Every one acted on. The sharpest: `examples/README.md`'s new section described a row that did not exist — singular *"a task"*, *"one report each"* — in the file whose job is to state the counts, directly under a new parenthetical about counts going stale; a measurement was **read forward** from the declaration, where it had been taken on `linear.flow.json` (two task nodes) and was quoted as *"one of its four"*; and *"five of `parseTaskId`'s **six** refusal shapes"* contradicted both ADR 0027 and `spec/outcome-record.md`, which say **five**. It also found the one sentence this item's demonstration **falsifies in a decision** — see *Questions raised* and ADR 0027's producer row 4. |
+| adequacy reader | **RAN** | **26 mutations, 7 nominal survivors: 2 BLOCKING, 4 non-blocking, 1 correctly self-classified as vacuous.** Both blocking ones are fixed and both fixes are provoked. |
+| re-run after acting | **RAN, green** | `npm run gate` **exit 0**, read from the exit code and not through a grep (W17's finding, one item on). Uncommitted; there is no sha to name, and this row will read `<sha>` only if the item is committed. |
 
-**Outputs — what was actually built.** One row per item on the `Outputs:` line, and for each, the
-assertion or command that **would fail if it did not exist**. A blank cell is the finding.
+**Read the gate's result from its exit code.** W17 read it through a grep, its patterns missed
+`deno lint`'s failure line, and it reported a red L0 as green for a round.
+
+**Outputs — what was actually built.**
 
 | Declared output | Exists | What would fail without it |
 |---|---|---|
-| (1) the injection point in `run-flow.ts` | | |
-| (2) the exit-artifact row | | |
-| (3) the foreign settlement asserted from `PairFacts` | | |
-| (4) `examples/README.md` and the rendered table's counts | | |
+| **(1)** the injection point in `run-flow.ts` | yes — `runPair`'s third argument, `foreign: readonly ForeignTask[]`, injected **after** the instrumentation and **before** `Promise.all` | Deleting the loop and ignoring `foreign`: **6** L6 failures. Injecting through the *uninstrumented* `addTask`, so `PairFacts` stops counting it: **1**. |
+| **(2)** the exit-artifact row | yes — `PAIR_ROWS[1]`, `two runs / one scheduler / tasks we did not mint`, runs `pc` and `pd` | Deleting the row: **1**. Keeping the row and emptying its `foreign`: **2**. Restoring ADR 0023 rule 2 so the row is not reachable at all: **13**. |
+| **(3)** the foreign settlement asserted from `PairFacts` | yes — `settlementIds` (order and duplicates kept), `listenersAtSettlement`, `addTaskCalls`, all from listeners registered before either driver exists | Reading the settlement set from the two drivers alone: **1**. Sourcing the **ordering** from a driver: **2** — and that one was worth **0** until the adequacy reader found it, see *What broke*. Making the consumer-side `parseTaskId` audit vacuous: **1**. Recording the listener count once rather than per settlement: **2**. |
+| **(4)** `examples/README.md` and the rendered table's counts | **partly, and the gap is [Q100](../open-questions.md)** — `l6.ts`'s counts are derived (`pairRunCount`, `pairLabel`, `wantSettlements`); `examples/README.md`'s are typed | **Nothing, in both halves.** Un-deriving `l6.ts`'s printed run count back to a literal **survives**; so does replacing `examples/README.md`'s *"373 assertions over 21 real runs"* with *"999 assertions over 4 real runs"*. A markdown file cannot derive a count. Two more occurrences of Q100, and the row says so rather than reading *yes*. |
 
-**`Owns` audit.** `git diff --name-only` and `git ls-files --others --exclude-standard` against
-`examples/**` plus the record step's six files, by hand, **after** the record step.
+**`Owns` audit.** `git diff --name-only` and `git ls-files --others --exclude-standard`, by hand,
+after the record step.
 
-**The exit artifact.** *The plan's, not just the item's — state it as a person could check it.*
+**`Owns: examples/**` — three files, and all three are inside it**: `examples/l6.ts`,
+`examples/run-flow.ts`, `examples/README.md`.
+
+**Record step — six files, all of them on `doc/workflow.md` section 1 rule 5's list**: this file, the
+plan's Record in `doc/plans/p6-*.md`, `doc/README.md`, `CLAUDE.md`, `README.md`,
+`doc/open-questions.md`, and **`doc/decisions/0027-*.md`**.
+
+**Exceptions: none.** The declaration predicted none and none was needed. **`doc/decisions/**` is the
+row to read**: this item corrected a decision's Context table, and under `doc/workflow.md` v0.7
+change 3 that is a record-step file rather than an exception — see *What this taught*.
+
+*(Everything else in `git status` at the time of writing is [W18](w18-the-scheduler-edge-and-what-an-id-we-did-not-mint-means.md)'s
+uncommitted work — `src/driver/**`, `test/driver/**`, four `spec/` documents, `AGENTS.md`,
+`scripts/check-docs.mjs` and five docs. W19 wrote to none of them. `src/driver/driver.ts` was
+mutated by the provocation sweep and restored; the restore is verified by diff, not assumed.)*
+
+**The exit artifact — P6's, stated so a person can check it.**
+
+```bash
+npm run test:l6        # node 24
+npm run test:l6:deno   # deno
+```
+
+Row 19 of the printed table, `two runs / one scheduler / tasks we did not mint`. **One real
+`FyflowScheduler`** carrying **five tasks this library did not mint** — `nightly-cleanup`,
+`pc:ingest:x:0`, `p c:ingest:-:0`, `pc:ing est:-:0`, `pc:ingest:-:00`, one per refusal `parseTaskId`
+makes. All five are queued before either `Driver` is constructed, on a single-slot inline pool, so
+**all five settle before either run settles anything**, with both drivers already attached. **Two
+`Driver`s, and both runs read `completed`**, each having dispatched all four of its own task ids.
+Each driver reported all five settlements through `onUnmintedTask`, **under its own `runId`**, and
+routed past every one of them.
+
+**Under the rule ADR 0027 supersedes, that row is not reachable**, and the number is measured on
+**this** row rather than inherited. Restoring ADR 0023 rule 2 (tier 0 rethrows) and running row 19:
+
+| | ADR 0027 | ADR 0023 rule 2 |
+|---|---|---|
+| `pc` / `pd` outcome | `completed` / `completed` | **`stopped` / `stopped`** |
+| task ids each run dispatched | 4 of 4 | **1 of 4** |
+| `InvalidTaskId` reported per run | **0** | **5** — one per foreign task |
+| tasks the scheduler was handed | 13 | **7**, and it settled every one |
+| L6 | green | **13 failures** |
+
+The failure was never that the scheduler breaks — it settled everything it was given, in both
+columns. It is that **the drivers go deaf while everything around them proceeds**, which is the shape
+that does not get noticed in production.
+
+**Rule 8 — the provocation set, both obligations** (`doc/workflow.md` v0.7 change 1).
+
+**25 probes on the final tree, 22 caught, 3 survivors — all three classified.** The set was run
+three times: once as written, once after closing its own survivor, and once after acting on the
+readers, with **the readers' exact edits checked back in as probes** (the `R` rows). Every failure
+count is L6 in node; `L1-L5` names the second, independent route. The harness names its own rule,
+asserts every mutation matched its anchor (rule 7 (b)), restores **every file any probe touches**,
+and **diffs the tree against the backup when the run ends** — W18's finding, acted on. Restore
+verified clean over four files on every run.
+
+**(a) written to the RULE's clauses** — `ID-R5` and ADR 0027 as they land at L6, and `ID-R4` tier 1's
+asymmetry with them:
+
+| | the edit | L6 | L1-L5 |
+|---|---|---|---|
+| A1 | tier 0's `return` becomes `throw e` — **ADR 0023 rule 2 restored** | **13** | red |
+| A2 | the `onUnmintedTask?.(…)` call deleted, `return` kept | **2** | red |
+| A3 | `runId: this.runId` → `runId: 'pc'` | **1** | red |
+| A4 | `taskId` → `taskId: ''` | **2** | red |
+| A5 | `reason` → `reason: 'unparseable task id'` | **2** | red |
+| A6 | `event: name` → `event: 'task.settled'` | **2** | red |
+| A7 | `ID-R4` tier 1 also calls `onUnmintedTask` — **the widening ADR 0027 names and refuses** | **4** | red |
+| A8 | `if (typeof taskId === 'string' && taskId.includes(':')) throw e` after the `instanceof` | **15** | red |
+| A9 | the injection loop wrapped in `setTimeout(…, 30)` — the order reversed | **1** | — |
+| A10 | `await new Promise(r => setTimeout(r, 120))` before `Promise.all` — the foreign tasks settle into an empty room | **3** | — |
+| A11 | the row's `workerType` → `'ReviewWorker'`, so the foreign tasks end `user_action` | **3** | — |
+
+**(b) written to the `Outputs` table's ROWS** — one probe per row, asking what would fail if that
+output did not exist:
+
+| | the edit | L6 |
+|---|---|---|
+| B1 | the injection loop → `void foreign;` | **6** |
+| B1b | injected through `realAddTask` rather than the instrumented `addTask` | **1** |
+| B2 | `PAIR_ROWS[1]` deleted entirely | **1** |
+| B2b | the row kept, `foreign: []` | **2** |
+| B3 | `wantSettlements` compared against `runs.flatMap(r.dispatched)` | **1** |
+| B3b | `mintedByADriver`'s body → `void id; return true;` | **1** |
+| B4 | `pairRunCount` → the literal `2` | **SURVIVED** |
+
+**(c) the READERS' exact edits, checked back in.** W18's carried-forward finding is that *rule 8 says
+break the fix; it does not say break the fix you wrote for the last provocation*, and these are the
+least-tested lines in the item:
+
+| | the edit | L6 |
+|---|---|---|
+| R1 | `listenersAtSettlement.push(…)` guarded by `if (…length === 0)` | **2** |
+| R1b | the array cleared before each push, so only the last is kept — the reader's original shape | **2** |
+| R2 | the ordering assertion's source → `runs[0][1].unmintedTasks.map(u => u.taskId)` | **2** |
+| R2b | the injection loop wrapped in `setTimeout(…, 200)` — the **benign** ordering, the reader's second route | **6** |
+| R3 | tier 0 narrowed by MESSAGE SHAPE to the two refusals L6 used to reach | **15** | 
+| R4 | run `b` wrapped so its driver attaches 60 ms late — the reader's second route for R1 | **3** |
+| R5 | `examples/README.md`'s *"373 assertions over 21 real runs"* → *"999 … over 4"* | **SURVIVED** |
+
+**The three survivors, each against v0.7 change 2's bar** — *a survivor is only a survivor once a
+second, independent route confirms the mutated clause was reachable*:
+
+1. **B4 and R5 are real and both are [Q100](../open-questions.md)**, in two files. `l6.ts`'s printed
+   header can read *19 real runs* for a run of 21, and `examples/README.md`'s three counts can be
+   falsified outright, both with the whole gate green. *Second route:* run either and the wrong
+   number is printed, so the clause is plainly reachable. **Not closed** — closing them is Q100,
+   which P6 scoped out and W17 left honest, and **a markdown file cannot derive a count at all**, so
+   for the README half *"derived rather than typed"* is unachievable rather than unachieved. That is
+   why the `Outputs` row reads *partly* rather than *yes*.
+2. **B3 as written is a vacuous probe of the author's own making, and the honest form is caught.**
+   Its first version — the settlement set read from the drivers **alone** — costs **1**. Rewriting it
+   as *the drivers' ids plus the row's own declared foreign ids* hands the mutation the answer, so it
+   changes no observable and has no second route. Recorded because the distinction is the whole of
+   v0.7 change 2: **the assertion that a driver cannot satisfy is the ORDERING one** (R2, 2
+   failures), not this one.
+3. **`PAIR_ROW`'s derivation buys nothing, and this was measured rather than assumed.** Replacing it
+   with the literal it evaluates to changes no observable: `EXPECTED_TOTAL` follows the rows on both
+   sides, and only `DECLARED_TOTAL` — a number a human wrote down — notices a row disappearing. It is
+   **maintenance, not an assertion**, and `l6.ts` now says so in place rather than letting a reader
+   count it. W6's shared-source finding, still live.
 
 **What broke.**
 
+**1. Nothing in `src/` — which is the result the item was declared to produce.** `Owns` is
+`examples/**` and the item reached into no other directory. The one behaviour it exists to
+demonstrate worked first time on real workers, and **every hand-derived expected value matched on its
+first run** — both runs' outcomes, all eight task ids, all five `UnmintedTask` records field by
+field, and all five `reason` strings written from `spec/task-id.md` section 1's grammar before
+anything ran.
+
+**2. Two things the author built and could not falsify, both found by the adequacy reader, both the
+same shape this file has now recorded three times.**
+
+- **The *"both drivers were attached"* half of the hostile-ordering claim was a latched flag.**
+  `listenersAtFirstSettlement` was set under `if (settlementIds.length === 0)`; deleting that guard
+  so every later settlement overwrote it left **all 370 assertions green** and made
+  `listenersAtFirstSettlement === listenersTotal` a tautology — taking with it the whole second half
+  of a claim the harness leans on in as many words. **This is `timedOut` and `lateInputs` a third
+  time**: a value tracked beside the thing that produces it rather than derived from it. Fixed the
+  same way, by recording the count *per settlement* in an array beside `settlementIds` and reading
+  `[0]`, with the two lengths asserted equal. Both shapes of the probe now cost **2** each.
+- **The ordering assertion — the item's declared load-bearing arrangement — could be sourced from a
+  driver.** Substituting `runs[0][1].unmintedTasks.map(u => u.taskId)` for `facts.settlementIds` left
+  it green, and with the *benign* ordering applied as well the row went to **0 failures, exit 0**.
+  That is precisely what Output (3) forbids — *reading it from a driver asserts the absence of a
+  thing from the thing accused of dropping it* — with nothing saying so. Fixed by asserting the
+  **shape of the whole settlement sequence** (`['foreign' × 5, 'ours' × 8]`) rather than a prefix of
+  ids: a driver knows only what it was told about, so no driver-sourced list can satisfy it. The
+  substitution now costs **2** and the benign ordering **6**. It also runs on the **control** row,
+  where it reads *"all eight settlements the scheduler dispatched were ours"*.
+
+**3. Five things stated in prose that were not true, all found by the conformity reader**, and the
+list is worth reading as a set because four of the five are counts. `examples/README.md` described a
+one-task row that had two; a measurement was quoted as *"one of its four tasks"* from a declaration
+that had measured a **two**-task flow; `parseTaskId`'s refusals were called **six** where `src/`,
+ADR 0027 and `spec/outcome-record.md` all say five; the `mintedByADriver` comment said *"non-empty on
+both rows"* and *"exactly one"* about a value that was empty on one row and two on the other; and
+*"written from the grammar, not pasted from a run"* was half true, because the message **wording** is
+read from `parseTaskId`, not from `spec/`.
+
 **What this taught.**
 
-**Questions raised.** *Q ids from Q107-Q110, one line each. They also go in
-`doc/open-questions.md`.*
+**1. `doc/workflow.md` v0.7 change 3 fired, in the direction its own retro predicted, on the first
+item that could hit it.** W17 could not correct a false sentence in ADR 0015 because
+`doc/decisions/**` was in nobody's `Owns` and in no record-step list. P5's retro added it *"so a
+demonstration could correct the decision it demonstrates"*, and W19's declaration says in as many
+words that it is *"the first item likely to hit it again"*. It did. **ADR 0027's producer table
+listed three producers of an unparseable id and could not name the one this item built** — its third
+row is *"a `detail` with **no** `id`, or an `id` that is not a string"*, while `pc:ingest:x:0` is a
+four-segment string in our own shape. That is the class the decision's whole argument turns on — *"a
+library that assumes `detail.id` is forever what it dispatched"*, which `test/driver/lifetime.test.ts`
+calls *"a corrupted id for a task that IS ours"*. **Producer row 4 is added, no rule changes, and no
+exception was declared or needed.** The rule cost one paragraph and bought a decision whose
+enumeration now matches its argument.
+
+**2. A survivor closed by the author is where the reader looks next, and half-closing one is worse
+than not closing it.** The item's own sweep found that L6 injected a **colon-free** id only, so
+narrowing tier 0 to `if (taskId.includes(':')) throw e` — restoring ADR 0023 rule 2 for six of the
+seven shapes `SHAPES` enumerates — left all 370 assertions green. It closed that with a second id and
+re-ran the set. **The adequacy reader then measured that the close had taken L6 from one refusal to
+two of five**, and narrowed tier 0 by *message shape* instead, with the same result. `ID-R5` is one
+guard over five refusals and a row that reaches two of them is a row that can be narrowed to two.
+Closed properly: `UNMINTED` is now one id per refusal site, and both narrowings cost **15**.
+*(The sixth way tier 0 fires — a `detail` with no string `id` — cannot be reached by injecting a
+task, because a real `FyflowScheduler` always sets `id`. That is a property of the scheduler, not a
+gap, and it is said in place.)*
+
+**3. W18's finding held, and it held for the readers' fixes rather than for the author's.** *Rule 8
+says break the fix; it does not say break the fix you wrote for the last provocation.* The whole set
+was re-run after acting, twice — once after the author's own close, and once after the readers' — and
+**the readers' exact edits are checked back in as probes** (`R1`, `R1b`, `R2`, `R2b`, `R3`, `R4`, and
+`R5` as a declared survivor). That is what turns *"we fixed it"* into a number.
+
+**4. Rule 8's two halves, fifth sample, and the split fell differently again.** The **rule**-written
+half found the one code-level survivor (colon-free ids). The **`Outputs`**-written half found what
+the deliverable did not do — that output (4) is unachievable in a markdown file and only partly
+achieved in `l6.ts`. **Neither half found either of the two blocking survivors**: both were about a
+*harness field's provenance* — a latched flag, and an assertion's source — which is neither a clause
+of the rule nor a row of the `Outputs` table. That is a third category, and P6's retro should judge
+whether it generalises: **the author's set is written to what the item CLAIMS, and a reader's is
+written to where the claim's VALUE comes from.**
+
+**5. The harness's own rule-7 (b) guard fired for real.** After the first close moved a probe's
+anchor, the sweep aborted with *"the mutation matched NOTHING"* rather than reporting a pass. That is
+`check-docs-selftest`'s probe 11 in a scratch harness, and it is the reason the requirement exists.
+The harness also restores **every file any probe touches** and **diffs the tree against the backup
+when the run ends** — W18's finding, acted on; the restore verified clean over four files on every
+run.
+
+**6. Two readers, 18 findings, 4 shared.** Ninth overlap measurement and inside the band
+(`doc/workflow.md` section 6 says 1-4, whatever the item's size). Each arrived from a different
+direction: `examples/README.md` (the conformity reader read the row and found the content wrong; the
+adequacy reader falsified the counts and found nothing catches them); `parseTaskId`'s **five**
+refusals (a wrong number in prose, and a coverage measurement of 2 of 5); the ordering assertion (one
+found it pinned an order `spec/` does not fix, the other that its source was swappable); and **tier
+0's `event` field taking one value at L6** — which both found independently and neither could have
+got from the other. **The absolute count is what to carry.**
+
+**Questions raised.** Q ids from Q107-Q110. They also go in `doc/open-questions.md`.
+
+- **[Q107](../open-questions.md)** — **`ID-R5` at L6 sees `task.completed` and nothing else, and both
+  readers found it independently.** All five foreign tasks succeed, so the `event` field is pinned to
+  one value: replacing `event: name` with the constant `'task.completed'` survives at L6, and so does
+  guarding the report with `if (name === 'task.completed')`. Both are caught at L1-L5. **The
+  L6-shaped half is real and is measured**: on a real scheduler a foreign non-optional task that
+  throws fires `task.failed` **and** `task.user_action` (ADR 0007 rule 2), tier 0 reports **twice**
+  because it sits above `normalizeEvent`, and both runs still complete — ADR 0027's *"a cost that is
+  not a cost"*, on real workers rather than on a fake, for the first time. **Not built as a row**, and
+  the reason is stated rather than shrugged: every throwing pool in `buildScheduler` is in
+  `SETTLES_LAST` and settles at `delayMs * 4`, so such a task cannot join this row's determinate
+  ordering — it would have to come from a new worker role, or the arrangement would have to be traded
+  for a timing margin, which is the exact thing W17's finding was about. The neighbouring clause is
+  the same shape: inserting `void normalizeEvent(...)` above tier 0 survives at L6 and costs one
+  L1-L5 failure, so **tier 0's position above `normalizeEvent` has no L6 coverage either.**
+- **[Q108](../open-questions.md)** — **ADR 0027 names three producers that can never be ours and W19
+  demonstrates one of them; the second is demonstrated nowhere at all.** A worker calling
+  `context.spawnTask()` mints a child id the caller invents — the scheduler's own reference spells it
+  `` `${payload.id}-child` `` — and ADR 0023's *Correction* 3 found that case listed among that ADR's
+  own *benefits*. It has no test over a fake and no row at L6, and it is one of the two the decision
+  calls **the common case on the blessed topology**. `ForeignTask` is not the instrument for it: the
+  point is that the child comes from a **worker**, not from the harness. It interacts with
+  [ADR 0001](../decisions/0001-routing-executes-in-the-driver-outside-the-scheduler.md) rule 2 — *a
+  worker computes and does not route* — which is why it is a question rather than a row.
+
+*(Q109 and Q110 are unused and are **skipped, never reissued** — `doc/workflow.md` section 3.)*
+
+**Recommendations to the register, made rather than acted on** (`doc/workflow.md` section 1 rule 3 —
+widening a scope the plan settled is not this item's call):
+
+- **[Q90](../open-questions.md)** asks to be re-read when W19 is declared in detail, and its stated
+  ground for having no home was that tier 2 *"needs a settlement carrying **this** run's id for a
+  task the driver never dispatched, and a real scheduler produces one only if something **injects**
+  it — which no L6 row does."* **One now does.** `ForeignTask.id` reaches the scheduler verbatim, and
+  `pc:ingest:x:0` is already this run's id with a corrupted segment; `pc:notanode:-:0` **parses**,
+  reaches tier 2, and is `UndispatchedTask`. The marginal cost is the string. The row is updated to
+  say the instrument exists and to name the harness; **taking it is P6's retro's call.**
+- **[Q100](../open-questions.md)** gains two measured occurrences from this item: `l6.ts`'s printed
+  run count can be un-derived to a literal, and `examples/README.md`'s three counts can be falsified
+  outright, both with the whole gate green. The second is the sharper one — a markdown file cannot
+  derive a count, so *"derived rather than typed"* is not achievable there at all.
+- **[Q99](../open-questions.md)**'s three remaining harness knobs are untouched, as declared.
+- **Not a Q, and not this item's file to fix:** `test/driver/lifetime.test.ts:324` says *"`ID-R5` is
+  one guard over **SIX** refusals"*. `parseTaskId` has **five** (`src/driver/ids.ts:62,65,66,67,68`),
+  which is what ADR 0027's producer table and `spec/outcome-record.md` section 6 both say, and what
+  its own `SHAPES` table reaches through seven ids. W19 inherited the six into its own prose and its
+  conformity reader caught it there. `test/driver/**` is W18's; reported for P6's retro.

@@ -15,7 +15,7 @@ the only document that does. **Every snippet in it is extracted and executed by 
 (`scripts/check-docs.mjs`), so it cannot rot the way a hand-maintained reference does. If you change
 the public surface, that check is what tells you the reference is now wrong.
 
-## Current state: **P1-P5 are complete and retro'd; [P6](doc/plans/p6-what-may-share-a-scheduler-with-a-driver.md) is declared and runs next**
+## Current state: **P1-P5 are complete and retro'd; [P6](doc/plans/p6-what-may-share-a-scheduler-with-a-driver.md) has BOTH ITEMS DONE and its exit artifact built — the retro is not run**
 
 [ADR 0001, 0002 and 0007](doc/decisions/) settle the architecture so far: **routing executes in the
 driver, outside the scheduler** — a worker computes and does not route, and `context.spawnTask()` is
@@ -28,13 +28,13 @@ details are live mutable objects and `task.failed` also fires for `user_action` 
 **[P1](doc/plans/p1-what-satisfies-a-join.md)'s five work items are all built.** `spec/` holds **six
 normative documents and 73 numbered rules**; `src/` holds the definition validator, the driver and
 the fold with **three** join policies (two P1's, one ADR 0025's); `test/matrix/` holds the
-join/failure matrix; `examples/` holds ladder **L6**. **386 assertions in five runtimes** — Node 24,
-Deno, chromium, firefox, webkit — identical in all of them, **plus 342 at L6 in Node and Deno**.
-*(**The two numbers count different things.** The runner counts `test()` **cases**, not `equal`/`ok` calls — [Q98](doc/open-questions.md); L6's 342 is a real count of individual assertions. Do not add them.)* **`doc/workflow.md` is v0.7**, run to
+join/failure matrix; `examples/` holds ladder **L6**. **410 assertions in five runtimes** — Node 24,
+Deno, chromium, firefox, webkit — identical in all of them, **plus 373 at L6 in Node and Deno**.
+*(**The two numbers count different things.** The runner counts `test()` **cases**, not `equal`/`ok` calls — [Q98](doc/open-questions.md); L6's 373 is a real count of individual assertions. Do not add them.)* **`npm run gate` runs `test:browser`, which is CHROMIUM ONLY** (`scripts/run-browser-tests.mjs:68`); firefox and webkit need `test:browser:all`, which W19 ran to measure the five above rather than inherit them. **`doc/workflow.md` is v0.7**, run to
 completion by five plans.
 
 **[P2](doc/plans/p2-the-non-success-half-on-a-real-scheduler.md) is complete and added no features.**
-Ladder L6 is **eighteen rows, 342 assertions, 19 real runs**, in Node and Deno, and **all six run
+Ladder L6 is **nineteen row labels, 373 assertions, 21 real runs**, in Node and Deno, and **all six run
 outcomes and all six region events now occur there** — `awaiting_action`, `stopped`, `branch.suspended` and
 `branch.resumed` for the first time. **Nothing in `src/` broke**, which is the weaker result P2
 predicted when it measured `user_action` before the plan was written: **all nine of W6's findings
@@ -108,7 +108,7 @@ the render is now a function the suite asserts field by field, and the variants 
 rule finds holes in the CODE and is blind to the DELIVERABLE.**
 
 **[W17](doc/work-items/w17-the-all-exit-row-at-l6.md) puts the `all-exit` row on real workers and
-completes P5's exit artifact.** Ladder L6 is **19 real runs and 342 assertions**, and one run's join
+completes P5's exit artifact.** At the time it landed, ladder L6 was **19 real runs and 342 assertions**, and one run's join
 is now **reported dead** — `joined: false`, `onUnsatisfiableJoin` carrying the policy's own
 `describe`, and the fold reaching `stuck` — which nothing at L6 had ever reached. One flow, one
 payload, three policies, three answers: `completed`, silently `stuck`, and `stuck` with a reason.
@@ -140,7 +140,7 @@ created blind to a **clause of the rule**, which only the clause-by-clause walk 
 halves. Its other Q is [Q100](doc/open-questions.md) — **L6's rendered table is a deliverable no
 assertion reads**, which is W15's renderer finding in a second file and therefore a second occurrence.
 
-**[P6](doc/plans/p6-what-may-share-a-scheduler-with-a-driver.md) is declared and runs after P5** —
+**[P6](doc/plans/p6-what-may-share-a-scheduler-with-a-driver.md) has BOTH ITEMS DONE — [W18](doc/work-items/w18-the-scheduler-edge-and-what-an-id-we-did-not-mint-means.md) and [W19](doc/work-items/w19-a-task-we-did-not-mint-on-a-real-scheduler.md) — and the retro is not run** —
 *what may share a scheduler with a driver?* It takes the three things P5 ruled on and could not own,
 because **no P5 item takes `src/driver/**`**: [Q86](doc/open-questions.md) as **ADR 0027**,
 [Q87](doc/open-questions.md)'s message sentence, and [Q95](doc/open-questions.md)'s latch. **Two of
@@ -150,15 +150,94 @@ outbound, and `parseTaskId` at `resolve()` and at the listener — and **Q86 is 
 alone**, which the register read as one site. And Q95 is **not dead code**: its precondition is any
 policy that settles a join *before every branch is terminal*, and with the latch deleted such a
 policy routes the join twice and the run dies on `DuplicateTaskId`. **Its urgency is that `AGENTS.md`
-§9 already recommends the shared-scheduler topology** while one foreign task on that scheduler stops
+§9 already recommends the shared-scheduler topology** while one foreign task on that scheduler stopped
 every driver subscribed to it.
 
-**Twenty-one reader-passes have run and not one came back empty** — W1 ×3, W3 ×3, W2 ×1, W4 ×2,
-W5 ×2, W6 ×2, W9 ×2, W12 ×2, W13 ×2, W14 ×2. Most found the same shape: *the code was correct and the tests were pointed at the
-wrong half.* **Budget for the pass; it is not a formality here, and section 6 asks for two readers.**
-**That question is now settled and should not be re-litigated:** seven measurements — 1, 3, 3, 3, 3,
-4, 4 shared findings. **The absolute count is what to carry**; the fraction has read 8% to 17% across
-items from a one-line fix to the largest surface change here, and reading it invites over-reading.
+**W18 answered Q86 with [ADR 0027](doc/decisions/0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md),
+and it took the third option — *ignore it, but report it*.** A settlement whose task id does not parse
+was minted by **no** driver (`buildTaskId` emits only four-segment ids in the `ID-R2`/`FD-V16`
+charsets), so it is **`ID-R5`**: decided at **tier 0**, ahead of `ID-R4`'s two tiers because both
+compare a run id and an unparseable id has none; reported through the new **`onUnmintedTask`**; and
+dropped, with the run still routing. **ADR 0023 rule 2 is superseded and the first of `ID-R4`'s two
+preconditions is retired.**
+
+**What decided it is not the argument the plan and the register made, and that is the part to carry.**
+Both argued about the *shape* of the objection — *every clause of the against-case is about silence
+rather than about stopping*. What carried it was asking **who produces an unparseable id**: a foreign
+task and a worker's own `context.spawnTask()` child can **never** be ours and are the common case on
+the blessed topology; a `detail.id` that stopped being what we dispatched **could** be ours and is
+rare — and that is measured history, since `task.progress`'s detail changed shape at 0.3.0 with no
+changelog. Stopping is right for the rare case and catastrophic for the common one, and the string
+cannot discriminate — so *stop* is wrong in one direction, *ignore* in the other, and **only *report*
+is wrong in neither.** **Tier 1's silence is untouched**: another run's settlement is reported by the
+driver that owns it, an unparseable one by nobody, and that asymmetry is ADR 0027 rule 4.
+
+**[W19](doc/work-items/w19-a-task-we-did-not-mint-on-a-real-scheduler.md) is DONE and P6's exit
+artifact exists on real workers.** Ladder L6 is **19 row labels, 21 real runs, 373 assertions** in
+Node and Deno, from 18 / 19 / 342. Row 19 is one `FyflowScheduler` carrying **five ids this library
+did not mint** — one per refusal `parseTaskId` makes, from `nightly-cleanup` to `pc:ingest:x:0` —
+all settling **before either run settles anything**, with two `Driver`s subscribed and **both runs
+`completed`**, each having dispatched all four of its own task ids and reported all five settlements
+through `onUnmintedTask` under **its own** run id. It owns `examples/**` and reached into no other
+directory. **Restoring ADR 0023 rule 2 costs 13 L6 failures** and leaves each run having dispatched
+1 of its 4 tasks, which is the number to quote: the scheduler never breaks; the drivers go deaf while
+everything around them proceeds.
+
+**W19 is where `doc/workflow.md` v0.7 change 3 finally fired, on the first item that could hit it.**
+P5's retro added `doc/decisions/**` to the record step *"so a demonstration could correct the decision
+it demonstrates"*, after that gap blocked W17 from correcting ADR 0015; W19's own declaration named
+itself the likely next occurrence. **ADR 0027's producer table listed three producers of an
+unparseable id and could not name the one W19 built** — its third row is *"a `detail` with **no**
+`id`, or an `id` that is not a string"*, while `pc:ingest:x:0` is a four-segment string in our own
+shape, which is the class the decision's argument actually turns on. **Producer row 4 added, no rule
+changed, no exception declared or needed.**
+
+**And its sharpest method finding is a category rule 8 does not have.** Its rule-written probes found
+the one code-level survivor (L6 injected a **colon-free** id only, so tier 0 could be narrowed by the
+shape of the id with all 370 green — W17's `all-exit` finding in a second file); its
+`Outputs`-written probes found that *"counts derived rather than typed"* is **unachievable** in a
+markdown file ([Q100](doc/open-questions.md), two more occurrences). **Neither half found either of
+the adequacy reader's two BLOCKING survivors, and both of those were the same thing — the PROVENANCE
+of a harness value**: a latched flag standing in for *"both drivers were attached"*, whose guard was
+deletable with everything green, and an assertion whose **source** could be swapped from the
+scheduler to a driver, which the item's own `Outputs` row forbids in prose and nothing enforced. That
+is neither a clause of the rule nor a row of the table, and it is the third time in `examples/**`
+after `finishedBy` and `lateInputs`. **For P6's retro.** Overlap **4 of 18**, the ninth measurement
+and inside the band. Its questions: [Q107](doc/open-questions.md) — `ID-R5` at L6 sees
+`task.completed` and nothing else, found by both readers independently — and
+[Q108](doc/open-questions.md), ADR 0027's `context.spawnTask()` producer, demonstrated nowhere at all.
+
+**Its three side-findings are each a document that was wrong and a check that could not see it.**
+**[Q95](doc/open-questions.md) is closed with a stub, and the register was corrected a third time**:
+`settleJoin` has **two** latches, the register's `DuplicateTaskId` belongs to the *satisfied* one
+(already covered, deleting it costs an assertion), and W15's actual survivor is the *unsatisfiable*
+one — deleting it costs **0 of 386** and produces either a doubled report or, worse, **a join routed
+out of after being declared dead**, taking `RunState.outcome` from `stuck` to `completed` in silence.
+**[Q101](doc/open-questions.md)**: `AGENTS.md`'s executed error-class snippet was a **closed list
+compared against a copy of itself** — eight classes mapped to `.name` and matched against a literal in
+the same snippet — so it omitted `InvalidTaskId`, exported from the package root the whole time, with
+the gate green. It now enumerates the package's own `Error` subclasses. *A list the gate executes is
+not a list the gate checks*, which is the third form of **rot is what the gate prevents, absorption is
+what it cannot see**. And **[Q102](doc/open-questions.md)**: `check-docs.mjs`'s `RUN_FLOOR` ratchet
+obliges the item that adds a snippet to raise it, sits in **nobody's `Owns`**, and went stale
+silently — the probe written to catch a deleted snippet passed at 14 - 1 = 13. **W18 took two late
+exceptions, not one**: that file, and `spec/join-policy.md`, whose section 4 stated **neither** of the
+two things Q95's stub asserts about the `unsatisfiable` exit. The second is `doc/workflow.md` v0.7
+change 3's own argument in a directory it does not cover, and its reason generalises: **which spec
+clause a stub makes load-bearing is not knowable until the stub exists.**
+
+**Thirty-one reader-passes have run and not one came back empty.** *(The predicate: one per reader
+per work item, counted from each item's own Record — `doc/workflow.md` section 1 rule 5, never from
+this line.)* W1 ×3, W3 ×3, W2 ×1, W4 ×2, W5 ×2, W6 ×2, W9 ×2, W12 ×2, W13 ×2, W14 ×2, **W15 ×2,
+W16 ×2, W17 ×2, W18 ×2, W19 ×2**. *(Sum the list; it is 31, and the list is the predicate.)* *(This line read **twenty-one** and listed only the first ten items until
+W18 re-derived it: it went stale the day P5 finished and stayed wrong for three items — the same
+count-in-prose failure `doc/` keeps producing, in the paragraph that tells you to budget for the
+pass.)* Most found the same shape: *the code was correct and the tests were pointed at the wrong
+half.* **Budget for the pass; it is not a formality here, and section 6 asks for two readers.**
+**That question is now settled and should not be re-litigated:** **ten** overlap measurements — 1, 2,
+3, 3, 3, 3, 3, 4, 4, 4 shared findings. **The absolute count is what to carry**; the fraction has read 8%
+to 17% across items from a one-line fix to the largest surface change here, and reading it invites
+over-reading.
 
 **W5 ran P1's case on a real scheduler and it behaves exactly as the matrix said.** `p1-routed-away`
 completes under `live-token` and is **`stuck`** under `arrival-count`, with the join's successor
@@ -338,7 +417,7 @@ concept -> plan -> work items -> verify (ladder, spec conformity, retro) -> reco
 
   ```bash
   npm run gate            # everything, both L6 runtimes included
-  npm run test:l6         # ladder L6, node 24 - nineteen real runs
+  npm run test:l6         # ladder L6, node 24 - twenty-one real runs
   npm run test:l6:deno    # ladder L6, deno
   ```
 
