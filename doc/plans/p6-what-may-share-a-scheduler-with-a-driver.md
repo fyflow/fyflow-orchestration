@@ -1,9 +1,11 @@
 # P6 — What may share a scheduler with a driver?
 
-**Status:** **[W18](../work-items/w18-the-scheduler-edge-and-what-an-id-we-did-not-mint-means.md)
-and [W19](../work-items/w19-a-task-we-did-not-mint-on-a-real-scheduler.md) are both DONE,
+**Status:** **COMPLETE and retro'd.**
+[W18](../work-items/w18-the-scheduler-edge-and-what-an-id-we-did-not-mint-means.md) and
+[W19](../work-items/w19-a-task-we-did-not-mint-on-a-real-scheduler.md) are both DONE,
 [ADR 0027](../decisions/0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md) is
-accepted, **the exit artifact exists on real workers**, and the retro is NOT RUN.** Read each item's status from its own file, never from this line
+accepted, **the exit artifact exists on real workers**, and the retro made
+[`doc/workflow.md` v0.8](../workflow.md). Read each item's status from its own file, never from this line
 (`doc/workflow.md` section 1 rule 5). **Runs after [P5](p5-a-third-and-fourth-policy-or-repairs-of-the-first-two.md)**
 
 > **Correction, at declaration — three of the measured facts below are wrong, and the declaration
@@ -191,8 +193,8 @@ W16 and W17 are outstanding, so this plan does not take them.
 
 ## Record
 
-*Filled in when the plan's items are merged and its retro is run.* **Both items are done; the retro
-is not run.**
+**Both items are done and the retro is run.** It is the section at the end of this Record, and it
+made `doc/workflow.md` **v0.8** — two changes, both to rule 8, and one refusal.
 
 ### The exit artifact exists
 
@@ -331,9 +333,13 @@ that becomes a requirement is P6's retro to judge, on W19's evidence as well.
 
 ### Carried forward for the retro — the two questions this plan came in with
 
+**Both are answered below, in the Retro.** They are left here in the form they were asked so the
+answers can be read against them.
+
 1. **Does rule 8's "write to the rule" form change the numbers?** Note 4 — fourth sample, both halves
-   confirmed non-redundant, and one shape none of the first three had. Judge it with W19's.
-2. **Does rule 7 (c) ever fire?** Note 2 — no, fourth time.
+   confirmed non-redundant, and one shape none of the first three had. Judged with W19's: **no, and
+   the amendments that followed are why.**
+2. **Does rule 7 (c) ever fire?** Note 2 — no, fourth time. **Reported, not retired.**
 
 ---
 
@@ -350,3 +356,137 @@ that becomes a requirement is P6's retro to judge, on W19's evidence as well.
    plans with a plausible reason to add a check script** — if ADR 0027 creates a refusal the driver
    must not make, that is a `check-source.mjs` clause. If it does not, this plan reports it a fourth
    time.
+
+---
+
+## Retro — pass 3, and `doc/workflow.md` is now [v0.8](../workflow.md)
+
+**Two items, four reader passes, two changes, one refusal.** Both changes are to rule 8 and neither
+replaces anything, which `doc/workflow.md` section 6 pass 3 rule 4 asks to be said explicitly:
+v0.7's two amendments to that rule both earned their keep on this plan's evidence, so it grows.
+
+### The central finding: rule 8's two obligations are both about WHAT is asserted
+
+Neither asks **where the value came from**. That is where every blocking survivor of three
+consecutive `examples/**` items lived, and not one was found by an author:
+
+| | the value | how it broke, with the gate green |
+|---|---|---|
+| W14 | the pair row's disjointness | read off `driver.dispatchedIds()` — **the code under test**. 233/0 while the scheduler was handed 55 `addTask` calls for 50 distinct ids |
+| W17 | `finishedBy` | read from a **flag the loser also set**, so it proved the predicate fired and never that it ended the wait |
+| W17 | `lateInputs` | a **single recording** whose one `push` could be deleted, making *"nothing arrived after"* a tautology on nineteen rows |
+| W19 | *"both drivers were attached"* | a **latched field** whose first-settlement guard could be deleted, so every later settlement overwrote it |
+| W19 | the foreign settlement's **ordering** | its **source** could be swapped from the scheduler to a driver, and with the benign ordering applied too the row read **0 failures, exit 0** |
+
+**Five instances, three items, all BLOCKING, all found by adequacy readers.** So rule 8 gains a third
+obligation: **break the provenance** — substitute a different source, delete the guard that makes a
+recorded value the one it claims to be, let a later write overwrite it, delete one of two writers.
+
+**Why it generalises, stated rather than assumed** (section 6 pass 3 rule 2): this is **section 5
+rule 4 made provocable**. *"Fixtures must not come from the code under test"* has been in the
+document since v0.3 with **no procedure attached** — a thing an author declares and a reader checks —
+and the five rows above are what that has cost. **The qualification is stated rather than hidden:
+all five are in `examples/**`**, where values are *reported* rather than asserted, so a harness is
+where this should be expected to live first. Whether it reaches `src/` or `test/` is P7's to measure.
+
+### The second change: an author's set is written once, and the fixes that follow are not in it
+
+**W18 found it and asked this retro to judge it on W19's evidence.** Both of W18's blocking survivors
+were in guards it had written *earlier in the same item* to close the readers' first findings — which
+is rule 8's own founding observation (*three consecutive items shipped a repair that could not fail*)
+occurring **inside rule 8's own procedure**. **W19 ran the amendment and it fired**: after its first
+close moved two probe anchors, its harness's rule 7 (b) guard aborted with *"the mutation matched
+NOTHING"* rather than passing for the wrong reason, and the readers' four edits are now checked-in
+probes costing 2, 2, 2 and 6 failures. Adopted. It is rule 7 (a)'s *"a probe that ran once is a claim
+about the past"*, applied to a fix rather than to a check.
+
+### The two questions this plan came in with, answered
+
+**1. Does rule 8's "write to the rule" form change the numbers?** Carried from P5, and the answer
+across five samples is **no, and the amendments that followed are why**. Both halves did work no
+other half did — W19's rule-written probes found that L6 injected one **colon-free** foreign id, so
+tier 0 could be narrowed by the shape of the id with all 370 assertions green; its `Outputs`-written
+probes found an output that is **unachievable** rather than unbuilt. **And neither found the two that
+mattered.** P5's retro asked *"if W18's and W19's readers find the same shape a third time, the
+amendment needs replacing rather than extending"* — they did **not** find the same shape; they found
+a new one, which is why rule 8 is extended and not replaced.
+
+**2. Does rule 7 (c) ever fire?** **No, for the fourth plan** — and for the **second consecutive**
+plan the reason is that no check was worth building rather than that none was possible. W18 declared
+a conditional `scripts/check-source.mjs` exception in case ADR 0027 created a refusal `src/` must not
+make. It did not: every constraint that decision imposes is a thing the driver must **do**, each
+asserted directly by a test that fails when it is broken, and a `check-source` clause restating them
+in text would be weaker than what exists. **Reported, not retired** — the requirement discriminated
+on its one real use (W16), and a requirement on new checks cannot fire in a plan that adds none.
+
+### What did NOT change, and all three were live
+
+- **`check-owns.mjs` stays retired, for the third plan.** W18 and W19 both audited their `Owns`
+  correctly; W19 declared an **empty** exceptions table and it was empty. **Seven consecutive items.**
+- **The two-reader split is settled and closed to re-litigation.** Ten overlap measurements — 1, 2, 3,
+  3, 3, 3, 3, 4, 4, 4 — none outside the band, across items from a one-line fix to the largest surface
+  change here. W19's four arrived from four different directions, and one of them (`ID-R5` at L6
+  seeing `task.completed` and nothing else, [Q107](../open-questions.md)) was reached by both readers
+  from routes with nothing in common.
+- **The ladder is unchanged, and section 4's warning about L6 earned itself twice in one plan.** The
+  two items sit on opposite sides of it by declaration: **W18's gate EXCLUDES L6** — its whole surface
+  is fixtures over a fake — and **W19's turns on it**, its own file saying that a green L0-L5 proves
+  nothing about a foreign task on a real scheduler. Both were right, and splitting the plan on exactly
+  that line is what let W18 decide and W19 demonstrate. *"Do not skip L6 because 0-5 are green"* is
+  the sentence, and W19's five foreign ids are what it bought: three of the five reach refusals no
+  fixture had delivered to a listener.
+
+### The refusal, sixth time, and this one the retro produced itself
+
+**`doc/` is checked by nothing, and P6's occurrence runs in a new direction.** Every previous one was
+**stale** — a claim that had been right and stopped being right. This one is the opposite: the
+register's census line was **correct**, and the agent re-deriving it during the record step used a
+parser that broke on the three longest rows, was told by its own script that those rows had *no
+status cell*, believed it, and wrote that explanation into the register, into `doc/workflow.md` and
+into a commit message. **All three rows have status cells.** Corrected in place, with the wrong
+version quoted rather than deleted.
+
+**The narrow lesson, which is the transferable one.** `CLAUDE.md` records P4 getting this same line
+wrong three times *"by chaining a derivation instead of stating a predicate"*, and P5's answer was to
+make it state one. **That was right and it is not sufficient**: here the predicate was correct and
+the **evaluation** of it was not. A derivation that runs is not a derivation that is checked, and the
+guard this one lacked is cheap — **a parser that cannot classify a row must say so loudly rather than
+return a value.** No check over `doc/` would have caught it either: the output was prose, and the
+script that produced it was written and thrown away in the same step. **Refused again on P2's
+unchanged reasoning.**
+
+### Named rungs, per section 6 pass 3 rule 5
+
+| defect this plan produced | which rung should have caught it |
+|---|---|
+| tier 0 narrowable by the shape of an id, all 370 green | **L6** — and it did, once the row injected an id per refusal. The first version reached one of five |
+| `ID-R5` at L6 exercised on one event name | **L6**, and it still does not — [Q107](../open-questions.md), reported with the reason it was not built |
+| the latched `listenersAtFirstSettlement`, and the swappable ordering source | **none.** Both are provenance, both were found by a reader, and that is the whole of change 1 |
+| ADR 0027's producer table missing a producer | **none, and correctly** — L0-L6 are commands, and *"does this table enumerate what your code demonstrates"* is not one. Section 4's own list already names *a false claim in `doc/`* as a conformity-pass defect class |
+| the census line's broken derivation | **none, and refused for the sixth time** |
+
+### What P6 leaves for P7
+
+Three things, each with its cost now measured rather than estimated:
+
+1. **[Q90](../open-questions.md) — `ID-R4` tier 2 has no L6 coverage, and the instrument now exists.**
+   Its stated ground for having no home was that *"a real scheduler produces one only if something
+   **injects** it — which no L6 row does"*. One now does: `ForeignTask.id` reaches the scheduler
+   verbatim, and `pc:notanode:-:0` parses, reaches tier 2 and is `UndispatchedTask`. **The marginal
+   cost is the string.** W19 re-read the row as the row asked, recorded the re-read and did not take
+   it. **The retro's ruling: it is a work item, not a plan**, and the *against* case is untouched and
+   is now the whole of the argument — injecting a task the driver did not mint is a scenario no
+   consumer produces on purpose, so the row would test the refusal rather than the system. **P7
+   decides on that argument, not on the cost.**
+2. **[Q107](../open-questions.md) and [Q108](../open-questions.md)** — the two halves of ADR 0027 that
+   nothing executes. Q107 needs a worker role that fails fast enough to keep W19's ordering
+   determinate; Q108 needs a worker that calls `context.spawnTask()`, which runs into ADR 0001 rule 2
+   and therefore needs its framing decided before it is written.
+3. **[Q100](../open-questions.md) gained a sub-case that is not fixable where it sits.** *"Counts
+   derived rather than typed"* is **unachievable** in a markdown file, so `examples/README.md`'s three
+   numbers cannot be made self-checking without a check that reads them. That is the first time this
+   register row has had a concrete mechanism attached to it.
+
+**Not carried, and said so:** `test/driver/lifetime.test.ts:324` says `ID-R5` is *"one guard over SIX
+refusals"* where `parseTaskId` makes **five**. W19 inherited the six into its own prose before its
+conformity reader caught it there. It is W18's file and needs an owner rather than a drive-by fix.

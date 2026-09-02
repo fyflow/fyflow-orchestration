@@ -1,10 +1,11 @@
 # Workflow
 
-**Status:** v0.7 - **run to completion five times**, by [P1](plans/p1-what-satisfies-a-join.md),
+**Status:** v0.8 - **run to completion six times**, by [P1](plans/p1-what-satisfies-a-join.md),
 [P2](plans/p2-the-non-success-half-on-a-real-scheduler.md),
 [P3](plans/p3-a-consumer-reference-the-gate-keeps-true.md),
-[P4](plans/p4-the-drivers-lifetime-and-the-handles-it-gives-out.md) and
-[P5](plans/p5-a-third-and-fourth-policy-or-repairs-of-the-first-two.md)
+[P4](plans/p4-the-drivers-lifetime-and-the-handles-it-gives-out.md),
+[P5](plans/p5-a-third-and-fourth-policy-or-repairs-of-the-first-two.md) and
+[P6](plans/p6-what-may-share-a-scheduler-with-a-driver.md)
 **Read this before starting any work item.** Paths are relative to the repo root unless they are
 markdown links.
 
@@ -85,6 +86,70 @@ prediction about rule 8 is answered and is **false**.
    ([ADR 0029](decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)).
    The dependency edge that made the junction seem necessary is gone; **the rule still said nothing
    about the removal**, which is the part that did the damage.
+
+**v0.8 is P6's retro, and its central finding is that rule 8's two obligations are both about WHAT
+is asserted and neither is about WHERE THE VALUE COMES FROM.** Two items, four reader passes, and
+both of the plan's carried-in questions answered. Two changes, both to rule 8, and **one refusal for
+the sixth time**.
+
+1. **Rule 8 gains a THIRD obligation: for every value an assertion reads, break its PROVENANCE.**
+   Not what is claimed - where the number came from. Substitute a different source; delete the guard
+   that makes a recorded value the one it claims to be; let a later write overwrite it; delete one of
+   two writers. **This is section 5 rule 4 made provocable.** That rule has said *"fixtures must not
+   come from the code under test"* since v0.3 and has never had a procedure, and every instance of it
+   has been found by a reader: **five, across three items, all of them BLOCKING, none found by an
+   author.** W14's pair row read its disjointness off `driver.dispatchedIds()` - the code under test -
+   and stayed green at 233/0 while the scheduler was handed 55 `addTask` calls for 50 distinct ids.
+   W17's `finishedBy` was read from a flag the loser also set, and its `lateInputs` from a single
+   deletable recording. W19's *"both drivers were attached"* was a latched field a later settlement
+   could overwrite, and its ordering assertion's **source** could be swapped from the scheduler to a
+   driver with the row still green. **The qualification is stated rather than hidden: all five are in
+   `examples/**`**, which is where values are *reported* rather than asserted, so a harness is where
+   this should be expected to live first.
+2. **Rule 8's set is re-run AFTER acting on the readers' findings, and the readers' own edits are
+   checked back in as probes.** W18 found the need and asked P6's retro to judge it on W19's
+   evidence: **both** of W18's blocking survivors were in guards it had written earlier in the same
+   item to close the readers' first findings. An author's set is written once, before the readers
+   report, and the fixes that follow are the least-tested code the item ships - which is rule 8's own
+   founding observation applied inside rule 8's own procedure. **W19 ran it and it fired**: after its
+   first close moved two anchors, the harness's rule 7 (b) guard aborted with *"the mutation matched
+   NOTHING"* rather than reporting a pass, and the readers' four edits are now probes costing 2, 2, 2
+   and 6 failures. This is rule 7 (a)'s *"a probe that ran once is a claim about the past"*, applied
+   to a fix rather than to a check.
+
+**Neither change replaces anything and that is worth saying**, because rule 4 said *deletions are as
+legitimate an output as additions*: v0.7's two amendments to rule 8 both earned their keep on this
+plan's evidence, so rule 8 grows rather than being rewritten. **It is now the longest rule in this
+document, and if a seventh plan finds a fourth obligation the right response is to ask whether rule 8
+should be a section rather than a rule.**
+
+**What did NOT change, and all three were live.** **Rule 7 (c) is reported unexercised for the fourth
+plan** - and for the second consecutive plan the reason is that **no check was worth building** rather
+than that none was possible: W18 declared a conditional `check-source.mjs` exception in case ADR 0027
+created a refusal `src/` must not make, and it did not, because every constraint the decision imposes
+is asserted directly by a test that fails when it is broken. **Section 6's two-reader split is
+settled at ten measurements** and should not be re-litigated. And **`check-owns.mjs` stays retired**
+for the third plan: W18 and W19 both audited their `Owns` correctly, W19 with an empty exceptions
+table exactly as declared, which is seven consecutive items.
+
+**And `doc/` is refused for the SIXTH time, on a NEW direction of the same class - one this retro
+produced itself and had to correct in place.** Every previous occurrence was a **stale** claim: a
+number that had been right and had stopped being right. P6's is the opposite. The register's census
+line was **correct**; an agent re-deriving it during the record step used a parser that broke on the
+three longest rows, was told by its own script that those rows had **no status cell**, believed it,
+and wrote that explanation into the register, into this document and into a commit message. All three
+rows have status cells. The line is now right again, and the correction is recorded in place rather
+than the wrong version being deleted.
+
+**The lesson is narrower than the class and it generalises.** `CLAUDE.md` records P4 getting this
+same line wrong three times *"by chaining a derivation instead of stating a predicate"*, and P5's
+answer was to make it state one. That was right and it is **not sufficient**: the predicate was
+correct and the **evaluation** of it was not. A derivation that runs is not a derivation that is
+checked, and the cheap guard is the one this one lacked - **a parser that cannot classify a row must
+say so loudly rather than return a value.** *(No check over `doc/` would have caught this either,
+which is why the class is refused again rather than mechanised: the output was prose, and the script
+that produced it was written and thrown away in the same step.)* **The rest of the class is refused
+on P2's unchanged reasoning.**
 
 **And one refusal for the fifth time, now with its one checkable sub-case carved out.** `doc/` is
 upstream of every check here and is checked by nothing. P1, P2, P3 and P4 each named it and each
@@ -406,6 +471,41 @@ Rules:
    reader (all three no-ops reported as *survived*)** — the same failure in opposite directions, and
    **the exit code discriminates neither.**
 
+   **AND break the PROVENANCE of every value an assertion reads — P6's retro, and it is a third axis
+   rather than a third list.** The two obligations above both ask *what is claimed*: the rule's
+   clauses, and the outputs' rows. Neither asks **where the number came from**, and that is where
+   every blocking survivor of three consecutive `examples/**` items lived:
+
+   | | the value | how it broke, with the gate green |
+   |---|---|---|
+   | W14 | the pair row's disjointness | read off `driver.dispatchedIds()` — **the code under test**. 233/0 while the scheduler was handed 55 `addTask` calls for 50 distinct ids |
+   | W17 | `finishedBy` | read from a **flag the loser also set**, so it proved the predicate fired and never that it ended the wait |
+   | W17 | `lateInputs` | a **single recording** whose one `push` could be deleted, making *"nothing arrived after"* a tautology on nineteen rows |
+   | W19 | *"both drivers were attached"* | a **latched field** whose first-settlement guard could be deleted, so every later settlement overwrote it |
+   | W19 | the foreign settlement's ordering | its **source** could be swapped from the scheduler to a driver, and with the benign ordering too the row read 0 failures |
+
+   **Five instances, three items, every one BLOCKING and every one found by an adequacy reader.** So:
+   substitute a different source; delete the guard that makes a recorded value the one it claims to
+   be; let a later write overwrite it; delete one of two writers.
+
+   **This is section 5 rule 4 made provocable**, which is the argument for why it generalises. That
+   rule has said *"fixtures must not come from the code under test"* since v0.3 and has never had a
+   procedure — it is a thing an author declares and a reader checks, and the five rows above are what
+   that costs. **The qualification is stated rather than hidden: all five are in `examples/**`**, where
+   values are *reported* rather than asserted, so a harness is where this should be expected to live
+   first. Whether it generalises past one is the seventh plan's to measure.
+
+   **And re-run the whole set AFTER acting on the readers' findings, checking their exact edits back
+   in as probes.** An author's set is written **once**, before the readers report, and the fixes that
+   follow are the least-tested code the item ships — which is this rule's own founding observation
+   (*three consecutive items shipped a repair that could not fail*) applied **inside this rule's own
+   procedure**. W18 found it the hard way: **both** of its blocking survivors were in guards it had
+   written earlier in the same item to close the readers' first findings. W19 ran the amendment and it
+   fired — after its first close moved two anchors, its harness's rule 7 (b) guard aborted with *"the
+   mutation matched NOTHING"* rather than reporting a pass, and the readers' four edits became probes
+   costing 2, 2, 2 and 6 failures. **Rule 7 (a)'s *"a probe that ran once is a claim about the past"*,
+   applied to a fix rather than to a check.**
+
    **The provocation is recorded as an edit precise enough to re-run**, and that is enough — it does
    not need checking in the way rule 7 (a) requires of a check. Measured: W13's and W14's readers
    reproduced every provocation exactly from the Record, to the failure count.
@@ -457,14 +557,15 @@ Windows, `Get-ChildItem -Recurse -Force -Attributes ReparsePoint`. If either is 
 remove it; say so and stop.
 
 **Why two readers rather than one asking both questions**, which is what earlier versions said.
-Measured over **eight** items now: W4 1 of 13, W5 3 of ~35, W6 3 of ~25, W9 3 of ~30, W12 3 of 18,
-W13 4 of 24, W14 4 of ~26, W17 3 of ~31. Each overlap arrived from a different direction; one reader
+Measured over **ten** items now: W4 1 of 13, W5 3 of ~35, W6 3 of ~25, W9 3 of ~30, W12 3 of 18,
+W13 4 of 24, W14 4 of ~26, W17 3 of ~31, W18 2, W19 4 of 18. Each overlap arrived from a different direction; one reader
 answers whichever question it read first. **W17's three are the clearest demonstration of that
 yet** - the same three facts reached by six different routes, and in each case the two readers'
 routes had nothing in common.
 
 **The number to carry is the ABSOLUTE one: two readers produce 1-4 shared findings, whatever the
-item's size** - eight measurements, none outside that band. The fraction is noise - it has read 8%, 17%, 10%, 12% and 15% across items ranging
+item's size** - **ten** measurements, none outside that band, and P6's retro declares the question
+**settled and closed to re-litigation**. The fraction is noise - it has read 8%, 17%, 10%, 12% and 15% across items ranging
 from a one-line conformity fix to the largest surface change the repository has made. W12's Record
 hypothesised that the fraction *rises* as items shrink; W13 is a much larger item at the same 17%,
 so that died on its first test. Reporting the fraction invites exactly that kind of over-reading.
@@ -622,6 +723,16 @@ mechanisms remain worse than the problem.
 | **Rule 8's provocations are written to the RULE** | the readers still find the author's set narrow in the same direction | **Right, and NOT SUFFICIENT — amended rather than replaced, and P4's prediction is false.** The prediction was fewer reader survivors; the readers found **blocking** gaps in all three items. W15 and W16 found the rule-written set blind to what the item **created**, twice, which is section 6 pass 3 rule 2's bar on its own. **W17 is why the amendment stands anyway**: writing to both halves, its rule-written probes found the hole its deliverable-written probes structurally could not — a policy clause exercised in one direction only. **Neither half is redundant**, so rule 8 now asks for both |
 | **The adequacy reader works in an isolated copy** | two readers contaminate one tree again | **Right in aim, FOLLOWED, and it cost a repository — one sentence added about the removal.** Nothing about the isolation was wrong; the rule stopped at *"work in a copy"* and said nothing about the obstacle that follows (dependencies that do not resolve there) or the operation that did the damage (`--force` following a link out of the tree). W17 ran the same procedure with no link at all and measured why: **zero symlinks, zero reparse points**. **The rule's silence, not the rule** |
 | **Record-step list gains `doc/open-questions.md`; `check-owns.mjs` retired** | an item miscounts its `Owns` again | **Right, and INCOMPLETE by exactly the same word.** Five items have now audited their `Owns` **set** correctly. But `Reserves:` names **ADR ids too**, and `doc/decisions/` was in neither the list nor any `Owns` — so W16 took nine exceptions where the rule should have granted three, and **W17 could not correct a false sentence in ADR 0015 at all**. The list gains `doc/decisions/**`. `check-owns.mjs` **stays retired**: the one intervening failure was a stale *count* of a correct set |
+
+**And what P6 did to v0.7's five**, judged by the plan that ran two items and four reader passes:
+
+| v0.7 change | What would show it was wrong | **P6's verdict** |
+|---|---|---|
+| **Rule 8's set has TWO obligations** | the readers still find blocking gaps the two halves should have covered | **Right, EARNED, and still not sufficient - extended rather than replaced.** Fifth sample. Both halves did work no other half did: the rule-written probes found that L6 injected one **colon-free** id, so tier 0 could be narrowed by the shape of the id with all 370 assertions green; the `Outputs`-written probes found an output that is **unachievable** rather than unbuilt. **But neither found either of W19's two BLOCKING survivors**, and both of those were on a third axis - the **provenance** of a value. Rule 8 gains a third obligation |
+| **Rule 8 defines *survivor* (reachability, second route)** | a vacuous probe is reported as a survivor again, or the definition fires on nothing | **Right, and its first real outing did exactly what it was written for.** W19 had **three** nominal survivors and the definition classified all three: one real (second route - the same edit turns `test/driver/lifetime.test.ts` red), one **vacuous** (`PAIR_ROW`'s derivation, which changes no observable because `DECLARED_TOTAL` already catches everything it would), and one a probe about an **assertion's strength** whose second route had to be measured (with it applied, a constant `runId` in `src/` survives). Without it that Record would have read *three survivors* where there was **one** |
+| **Record-step list gains `doc/decisions/**`** | an item still cannot correct a decision its own work falsifies | **Right, and EXERCISED in the predicted direction on the first item that could hit it.** W19's demonstration falsified ADR 0027's producer table - it named three producers and could not name the shape W19 built on real workers - and **producer row 4 was added with no rule changed and no exception declared**. P5's retro adopted this *"so a demonstration could correct the decision it demonstrates"*; W19's own declaration named itself the likely next occurrence, and it was. **Second occurrence** |
+| **A claim about another item's status is read from that item's own file** | an index is believed again and the claim reproduces | **Right, and it is now the standard a reader judges by** - which is a different kind of confirmation from a fresh occurrence. W18's conformity reader found **five indexes reading DONE over an item file reading `todo`** and reported it *as a breach of this clause*; before v0.7 there was nothing to cite. W19 read every status from item files and its readers found no instance. **Confirmed, one enforcement, no new occurrence** |
+| **Section 6 says how to REMOVE an isolated copy** | a copy is removed with a link in it, or the rule blocks a pass it should not | **Unexercised in the dangerous direction, and followed twice.** W18 and W19 both measured **zero symlinks and zero reparse points** before making the copy, `cp -r node_modules` was inert both times, and both copies were scanned again and left in place rather than forced. Nothing had to be refused, which is the outcome the sentence exists to make possible rather than evidence about the sentence |
 
 **And v0.5's one change, which P4 could not judge, is now exercised.** Rule 7 (c) fired for the first
 time in three plans when W16 built `scripts/check-policies.mjs` for `JP-R9`: ten checked-in probes,
