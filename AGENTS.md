@@ -350,9 +350,16 @@ if (verdict(liveTokenRequiringArrival, everyBranchExits) !== 'unsatisfiable') {
 **Which to pass is a judgement about your flow, and neither answer is safe by default.** If every
 branch of a fan-out ending somewhere else is a legitimate way for your flow to finish, `liveToken`
 is right and the run completes. If it means the work the join was going to combine never happened,
-`liveTokenRequiringArrival` stops the run instead of running the join's successor on nothing. The
+`liveTokenRequiringArrival` reports that join dead and does not run its successor on nothing. The
 recommendation is still `liveToken`, because a run that stops is the more expensive mistake to make
 by accident.
+
+**"Stops the run" is exact at depth 1 and not at depth 2**, which is worth knowing before you nest a
+fan-out. A dead join stops **its own** region; if that region sits inside a branch of another one,
+the branch **ends** and the outer join gets to decide for itself — so the outer join may fire and its
+successor may run, doing real work in a run that will still fold to `stuck` (`joined: false` on the
+dead region is what `stuck` reads, and it reads every region). Section 11's nested-fan-out row, and
+[ADR 0030](doc/decisions/0030-a-join-is-transitive-and-a-dead-join-ends-the-branch-it-sits-in.md).
 
 **One refinement is deliberately still unbuilt.** `arrivalCount`'s **N is fixed when the fan-out
 opens** and is *not* decremented when a branch is routed away. Decrementing it is
@@ -714,7 +721,7 @@ whose `catch` rethrows anything that is not an `InvalidTaskId` — is the shape 
 and **W18 shipped it and then measured that its assertions could all be deleted with the gate
 green**: `check-docs`' `X4a` asks whether a `run` snippet contains a `throw`, and the helper's own
 rethrow answered yes on the assertions' behalf. The general weakness is
-[Q104](../doc/open-questions.md); here the snippet simply does not give `X4a` a `throw` that is not
+[Q104](doc/open-questions.md); here the snippet simply does not give `X4a` a `throw` that is not
 an assertion.
 
 ```ts check
@@ -732,7 +739,7 @@ void withReporting;
 quoted in prose, so renaming one in `src/` fails this gate instead of silently falsifying the
 paragraphs above.
 
-**And the list is checked against the PACKAGE, not against itself** — [Q101](../doc/open-questions.md).
+**And the list is checked against the PACKAGE, not against itself** — [Q101](doc/open-questions.md).
 Until W18 this snippet imported eight classes, mapped them to `.name`, and compared the result to a
 literal it also contained. That is a closed list agreeing with a copy of itself: it was executed by
 `npm run gate`, it **omitted `InvalidTaskId`** — exported from the package root the whole time — and
@@ -854,7 +861,7 @@ if (Object.keys(frozen).length !== 4) {
 | flow-level **retry** | the scheduler's `retryPolicy`, per task |
 | **cancellation** | nothing. The scheduler cannot cancel a queued task either |
 | **durability** — resuming a run after a restart | nothing. The fold is designed to make it additive; it is not built |
-| **nested fan-out** — a branch that fans out again | **the definition accepts it and the ids are right**: `FD-V15` is retired, and a task inside a nested region is dispatched at its whole dotted `branchPath` (`r1:scoreC:1.0:0`). **What is not settled is the JOIN** — no policy has been ruled transitive over nesting, so whether an outer join waits for grandchildren is undecided ([Q6](../doc/open-questions.md)). Build on the shape if you want; do not rely on an outer join's behaviour until this row says otherwise |
+| **nested fan-out** — a branch that fans out again | **built, and the join over it is settled.** `FD-V15` is retired; a task inside a nested region is dispatched at its whole dotted `branchPath` (`r1:scoreC:1.0:0`); and every policy in section 5 is **transitive** — each region answers exactly as it would if it were not nested ([ADR 0030](doc/decisions/0030-a-join-is-transitive-and-a-dead-join-ends-the-branch-it-sits-in.md)). One thing to know: if an inner join is reported through `onUnsatisfiableJoin`, the outer branch containing it **ends** rather than waiting, so the outer join may still fire and its successor may run — and once that work settles the run folds to `stuck`, because a region that never fired is what `stuck` reads. **Fold too early and you will see `running`.** The four matrix rows and the join seam are tested at **depth 2**; the dead-join cascade is asserted at depth 3, and nothing else about depth 3 is a tested claim |
 | **map-style fan-out** — one branch per item in a result | not built; branches are static |
 | a **join timeout** | nothing. A stuck join is detected by the `stuck` outcome, with no clock |
 | **per-join policy choice** | one policy per driver |

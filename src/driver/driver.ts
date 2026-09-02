@@ -961,6 +961,53 @@ export class Driver {
         describe,
         policyId: policy.id,
       });
+      // **A dead join ends the branch it sits in — [ADR 0030](../../doc/decisions/0030-a-join-is-transitive-and-a-dead-join-ends-the-branch-it-sits-in.md)
+      // rule 4, and this arm emitted nothing at all before W22.**
+      //
+      // At depth 1 there was nothing to emit: the region's `fanout` is in no
+      // region, `regionOf` returns `undefined`, and this block does not run. So
+      // the gap was **unobservable rather than absent** — the same shape as
+      // [Q114](../../doc/open-questions.md) one item earlier, where the join's
+      // successor carried no path and depth 1 could not tell.
+      //
+      // **What it cost, measured on a nested flow before the fix:** the outer
+      // branch emitted `branch.opened` and **no terminal event**, in a run that
+      // was neither suspended nor in flight — `verdict: 'stuck'`, every task
+      // settled. `JP-R5` enumerates the two states in which a branch may have no
+      // terminal event, and this is neither, so the old behaviour broke a rule
+      // this document has had since W1. `RunState.regions.outer.settled` was
+      // `{"0":"arrived"}` with branch 1 simply missing.
+      //
+      // **`branch.lost` rather than a new event**, because
+      // `spec/join-policy.md` section 2 already defines it as *"the path ended
+      // inside the region without reaching an `end` node"*, which is what a join
+      // that can never fire is. `JP-R6` says adding an event is a spec change
+      // with its own rationale; not adding one needed this sentence instead.
+      //
+      // **The driver reports the fact and the POLICY decides what it means** —
+      // section 4's owner table, and it is why this is not a walk outward marking
+      // enclosing joins dead. The cascade is emergent: measured at depth 3, one
+      // emission takes `inner` → `lost(mid)` → `mid` also `unsatisfiable` →
+      // `lost(outer)` → `outer` **satisfied**, because `a` arrived there and
+      // nothing arrived at `mid`. Three different verdicts from one line, none of
+      // them the driver's.
+      //
+      // **No `pathEnded` is appended, deliberately.** Both of its reasons are
+      // false here: `'end'` plainly, and `'no-eligible-edge'` because the join
+      // *has* an eligible edge and simply never fires. A third reason is a
+      // `spec/run-state.md` change W22 does not own, and the `joinSettled`
+      // record above already says the path stopped here — `RN-R10` derives
+      // `stuck` from it whatever this branch does.
+      const enclosing = this.regionOf(region.fanoutId);
+      if (enclosing) {
+        this.emit({
+          type: 'branch.lost',
+          regionId: enclosing.fanoutId,
+          branchPath: this.pathOf(region.fanoutId),
+          reason: 'failed',
+        });
+        this.settleJoin(runId, enclosing);
+      }
       return;
     }
 

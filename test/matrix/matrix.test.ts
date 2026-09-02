@@ -22,8 +22,9 @@ import { deepEqual, equal, ok, suite } from '../harness.ts';
 import { arrivalCount, liveToken, POLICIES } from '../../src/fold/policies.ts';
 import type { JoinPolicy, JsonValue } from '../../src/driver/policy.ts';
 import { type Cell, runCell, type Verdict } from './run.ts';
-import { renderMatrix } from './table.ts';
-import { SCENARIOS } from './scenarios.ts';
+import { matrixRows, nestedRows, renderMatrix, renderNested } from './table.ts';
+import { NESTED_SCENARIOS, SCENARIOS } from './scenarios.ts';
+import { allRegions, branchPathOf, buildGraph } from '../../src/definition/regions.ts';
 import {
   MATRIX_COLUMNS,
   MATRIX_POLICY_IDS,
@@ -680,5 +681,514 @@ suite('L5 — the fourth column: what each refinement changes', (test) => {
       'to zero — which is why "the two policies are equivalent" would have looked like a pass');
     equal(cellOf(row, 'live-token-requiring-arrival').status, 'unsatisfiable',
       'and only JP-R8`s variant declines and says why');
+  });
+});
+
+// =============================================================================
+// L5 at DEPTH 2 — W22, and the evidence for
+// [ADR 0030](../../doc/decisions/0030-a-join-is-transitive-and-a-dead-join-ends-the-branch-it-sits-in.md)
+// =============================================================================
+
+/**
+ * **A depth-2 row needs a per-column event stream, and a depth-1 row does not.**
+ *
+ * The nine rows above assert one `events` list and then assert it is IDENTICAL
+ * under all four columns, on the stated ground that *"a policy cannot change what
+ * the driver emits"*. **At depth 2 that ground is false**, and it is one of this
+ * item's findings: an inner join's FIRING enters the outer join, which emits
+ * `arrived(outer:1)` — so whether the outer region sees an event at all depends
+ * on what the inner region's policy concluded. A join is an event source for the
+ * region enclosing it.
+ *
+ * The comparison survives, and the shape of the fix says why: **the four columns
+ * still see identical input up to the inner join's verdict**, which is the prefix
+ * below. What differs after it is a *result*, not an input.
+ */
+interface NestedExpected {
+  /** Identical under all four columns: everything up to the inner join's verdict. */
+  prefix: string[];
+  /** What each column appends after it — the inner join's verdict, made visible. */
+  tail: { ac: string[]; lt: string[]; acDec: string[]; ltArr: string[] };
+  /** The OUTER join's answer — what `Cell.status`/`describe` report. */
+  outer: { ac: Answer; lt: Answer; acDec: Answer; ltArr: Answer };
+  /** The INNER join's answer, from `Cell.regions`. No verdict: see `st`. */
+  inner: Record<'ac' | 'lt' | 'acDec' | 'ltArr', Pick<Answer, 'status' | 'describe'>>;
+  /** The depth-1 row this row's INNER region is claimed to reproduce. */
+  correspondsTo: string;
+}
+
+/**
+ * An answer with **no verdict at all**: a region that is not the row's `fanoutId`
+ * has none.
+ *
+ * It used to stamp `verdict: 'joined'` on every one of these — documented as
+ * never read, and never read. **W22's conformity reader**: a wrong literal in an
+ * expectation table is one refactor away from being read, and three of these
+ * rows have a depth-1 counterpart whose verdict is `stuck`. The type is narrowed
+ * so the value cannot be written rather than the comment being trusted.
+ */
+const st = (status: string, describe: JsonValue): Pick<Answer, 'status' | 'describe'> =>
+  ({ status, describe });
+
+/**
+ * Derived by hand from `spec/join-policy.md` sections 2 and 3 and the three
+ * flows, **before any of it was run** (`doc/workflow.md` section 5 rule 1).
+ *
+ * The shared opening, for every row: `outer` is the entry, so `start` opens both
+ * outer branches at their own paths; `scoreA` settles and arrives; `scoreB`
+ * settles and enters `inner`, which opens its two branches at `1.0` and `1.1`.
+ * `pathOf` is `spec/task-id.md` section 1's *"a property of the node"*, and
+ * [W21](../../doc/work-items/w21-the-branch-path-is-a-path.md) is what made that
+ * literally true.
+ */
+const OPENING = [
+  'opened(outer:0)', 'opened(outer:1)', 'arrived(outer:0)',
+  'opened(inner:1.0)', 'opened(inner:1.1)',
+];
+
+/** The inner join fired, so it entered `outerJoin` at the path its REGION sits at. */
+const OUTER_ARRIVED = ['arrived(outer:1)'];
+/** The inner join was declared dead, so W22's emission ends the outer branch. */
+const OUTER_LOST = ['lost(outer:1)'];
+
+const NESTED_EXPECTED: Record<string, NestedExpected> = {
+  // The depth-2 control row. If the columns disagreed here, nesting would be
+  // changing something before any branch had done anything interesting.
+  'nested-all-arrive': {
+    prefix: [...OPENING, 'arrived(inner:1.0)', 'arrived(inner:1.1)'],
+    tail: { ac: OUTER_ARRIVED, lt: OUTER_ARRIVED, acDec: OUTER_ARRIVED, ltArr: OUTER_ARRIVED },
+    inner: {
+      ac: st('satisfied', ac(2, ['1.0', '1.1'])), lt: st('satisfied', lt(0)),
+      acDec: st('satisfied', ac(2, ['1.0', '1.1'])), ltArr: st('satisfied', ltA(0, 2)),
+    },
+    outer: {
+      ac: satisfied(ac(2, ['0', '1'])), lt: satisfied(lt(0)),
+      acDec: satisfied(ac(2, ['0', '1'])), ltArr: satisfied(ltA(0, 2)),
+    },
+    correspondsTo: 'all-arrive',
+  },
+
+  // `lost-settled` one level down. The two arrival-counting columns never reach
+  // 2 and the inner join hangs; both live-token columns see the count reach zero
+  // and fire, so the outer branch arrives.
+  'nested-inner-lost': {
+    prefix: [...OPENING, 'arrived(inner:1.0)', 'lost(inner:1.1)'],
+    tail: { ac: [], lt: OUTER_ARRIVED, acDec: [], ltArr: OUTER_ARRIVED },
+    inner: {
+      ac: st('waiting', ac(2, ['1.0'])), lt: st('satisfied', lt(0)),
+      acDec: st('waiting', ac(2, ['1.0'])), ltArr: st('satisfied', ltA(0, 1)),
+    },
+    outer: {
+      ac: waiting(ac(2, ['0']), 'stuck'), lt: satisfied(lt(0)),
+      acDec: waiting(ac(2, ['0']), 'stuck'), ltArr: satisfied(ltA(0, 2)),
+    },
+    correspondsTo: 'lost-settled',
+  },
+
+  // `routed-away` one level down — P1's own case inside a nested region. The
+  // variant column decrements `N` on the exit and so reaches 1, which is the one
+  // thing that separates it from plain arrival-counting.
+  'nested-inner-exit': {
+    prefix: [...OPENING, 'arrived(inner:1.0)', 'exited(inner:1.1)'],
+    tail: { ac: [], lt: OUTER_ARRIVED, acDec: OUTER_ARRIVED, ltArr: OUTER_ARRIVED },
+    inner: {
+      ac: st('waiting', ac(2, ['1.0'])), lt: st('satisfied', lt(0)),
+      acDec: st('satisfied', ac(1, ['1.0'])), ltArr: st('satisfied', ltA(0, 1)),
+    },
+    outer: {
+      ac: waiting(ac(2, ['0']), 'stuck'), lt: satisfied(lt(0)),
+      acDec: satisfied(ac(2, ['0', '1'])), ltArr: satisfied(ltA(0, 2)),
+    },
+    correspondsTo: 'routed-away',
+  },
+
+  // **The row this item exists for.** `all-exit` one level down: the inner join
+  // is reached by nothing. Four columns, FOUR different tails, and the fourth's
+  // is the event W22 added — the inner join is declared dead and the outer branch
+  // it sits in ends.
+  'nested-inner-all-exit': {
+    prefix: [...OPENING, 'exited(inner:1.0)', 'exited(inner:1.1)'],
+    tail: { ac: [], lt: OUTER_ARRIVED, acDec: OUTER_ARRIVED, ltArr: OUTER_LOST },
+    inner: {
+      ac: st('waiting', ac(2, [])), lt: st('satisfied', lt(0)),
+      // `need` decremented to zero against an empty arrival list — ADR 0025's
+      // refused cost, and at depth 2 it produces a REAL arrival for the outer join.
+      acDec: st('satisfied', ac(0, [])), ltArr: st('unsatisfiable', ltA(0, 0)),
+    },
+    outer: {
+      ac: waiting(ac(2, ['0']), 'stuck'), lt: satisfied(lt(0)),
+      acDec: satisfied(ac(2, ['0', '1'])),
+      // The outer join FIRES: its live count reached zero having been positive,
+      // and `scoreA` arrived. The dead region is `inner`, and `RunState.outcome`
+      // is `stuck` because `regions.inner.joined === false` — asserted in
+      // `chain.test.ts`, not here, because a `Cell` cannot see the fold.
+      ltArr: satisfied(ltA(0, 1)),
+    },
+    correspondsTo: 'all-exit',
+  },
+};
+
+const NESTED = NESTED_SCENARIOS.map((scenario) => ({
+  scenario,
+  cells: MATRIX_COLUMNS.map((p) => runCell(scenario, p)),
+}));
+
+/**
+ * **The four columns, keyed to `NestedExpected`'s four fields.**
+ *
+ * **Pinned to `MATRIX_POLICY_IDS` below, because it was a private literal and
+ * dropping a pair from it cost NOTHING** — W22's adequacy reader, BLOCKING. The
+ * columns are looped *inside* test cases, so removing one changed neither the
+ * failure count nor the assertion count, while the render kept printing four from
+ * `MATRIX_POLICY_IDS` — the artifact advertising coverage the assertions no
+ * longer had. Confirmed by a second route twice: corrupting
+ * `nested-inner-exit.inner.acDec` costs 1 normally and **0** with the acDec pair
+ * dropped, and the same for two `ltArr` values. This is W15's *"a whole column
+ * deleted from ADR 0025's pasted table"* reproduced in the depth-2 half.
+ *
+ * The depth-1 suite pins its four three separate ways; this had none.
+ */
+const COLS = [
+  ['ac', 'arrival-count'], ['lt', 'live-token'],
+  ['acDec', 'arrival-count-decrementing'], ['ltArr', 'live-token-requiring-arrival'],
+] as const;
+
+suite('L5 at depth 2 — the join over a nested fan-out', (test) => {
+  for (const { scenario, cells } of NESTED) {
+    const want = NESTED_EXPECTED[scenario.key]!;
+    const cell = (id: string) => cells.find((c) => c.policyId === id)!;
+
+    test(`${scenario.key}: every column sees the same input up to the inner join verdict`, () => {
+      for (const [, id] of COLS) {
+        equal(cell(id).events.slice(0, want.prefix.length), want.prefix,
+          `${scenario.key}/${id}: the four columns must be compared on one input, and everything ` +
+          'before the inner join concluded IS one input. A difference here would be the driver ' +
+          'emitting differently per policy, which nothing may do');
+      }
+    });
+
+    test(`${scenario.key}: and then each column's own tail`, () => {
+      for (const [key, id] of COLS) {
+        equal(cell(id).events.slice(want.prefix.length), [...want.tail[key]],
+          `${scenario.key}/${id}: what the outer region sees AFTER the inner join concluded is a ` +
+          'result rather than an input — a join is an event source for the region enclosing it, ' +
+          'which is the property depth 1 cannot have');
+      }
+    });
+
+    test(`${scenario.key}: the OUTER join, which is what a Cell reports`, () => {
+      for (const [key, id] of COLS) {
+        const c = cell(id);
+        equal({ status: c.status, describe: c.describe, verdict: c.verdict }, want.outer[key],
+          `${scenario.key}/${id}: the outer join`);
+      }
+    });
+
+    test(`${scenario.key}: the INNER join, which is what the row is about`, () => {
+      for (const [key, id] of COLS) {
+        const got = cell(id).regions['inner']!;
+        equal({ status: got.status, describe: got.describe },
+          { status: want.inner[key].status, describe: want.inner[key].describe },
+          `${scenario.key}/${id}: the inner join. Without \`Cell.regions\` this is invisible, and ` +
+          'the row then asserts the outer join while claiming to be about the inner one');
+      }
+    });
+
+    test(`${scenario.key}: the row's declared fanout is one region, not two`, () => {
+      // `regions[fanoutId]` and `status` read the same accessor for the same
+      // region, so they cannot disagree — and if they ever do, one of the two has
+      // been re-sourced from somewhere else.
+      for (const [, id] of COLS) {
+        const c = cell(id);
+        equal({ status: c.regions['outer']!.status, describe: c.regions['outer']!.describe },
+          { status: c.status, describe: c.describe },
+          `${scenario.key}/${id}: Cell.regions[fanoutId] and Cell.status are the same region`);
+      }
+    });
+  }
+});
+
+/**
+ * **ADR 0030's central claim, as an assertion rather than as a paragraph.**
+ *
+ * Every nested row's INNER region behaves exactly as the depth-1 row of the same
+ * shape — same status, same `describe`, under all four columns — with only the
+ * branch paths renamed. That is what *transitive* means here: nesting adds no
+ * mechanism, and a region does not behave differently for being inside another.
+ */
+suite('ADR 0030 — a region behaves the same whether or not it is nested', (test) => {
+  /**
+   * `region(inner)`'s branches are outer branch 1's children, so its paths are
+   * `1.0` and `1.1` where the depth-1 row's are `0` and `1`. **Written as an
+   * explicit map rather than by stripping a prefix**, because a strip would also
+   * quietly "correspond" a path that was wrong in some other way.
+   */
+  const OUTER_PATHS: Record<string, string> = { '1.0': '0', '1.1': '1' };
+  const rename = (d: JsonValue): JsonValue => {
+    if (d === null || typeof d !== 'object' || Array.isArray(d)) return d;
+    const o = d as { arrived?: unknown };
+    if (!Array.isArray(o.arrived)) return d;
+    return { ...d, arrived: o.arrived.map((p) => OUTER_PATHS[p as string] ?? p) } as JsonValue;
+  };
+
+  for (const { scenario, cells } of NESTED) {
+    const want = NESTED_EXPECTED[scenario.key]!;
+    test(`${scenario.key} reproduces ${want.correspondsTo} in its inner region`, () => {
+      // **The depth-1 side is read from `EXPECTED`** — the hand-written table the
+      // nine rows are asserted against — and NOT re-derived from a run. Sourcing
+      // both sides from one run would make this assertion true by construction,
+      // which is `doc/workflow.md` rule 8's third obligation in the one place
+      // this file could fail it.
+      //
+      // **Measured, because the guard looks redundant and is not quite.** With
+      // the source swapped to a run, breaking `live-token-requiring-arrival`'s
+      // `unsatisfiable` clause costs **35** failures instead of **36**: the nine
+      // rows catch the policy either way, and the one assertion that goes is this
+      // pairing — the only place the depth-1 answer and the depth-2 answer are
+      // compared to each other rather than each to the spec.
+      const depth1 = EXPECTED[want.correspondsTo]!;
+      for (const [key, id] of COLS) {
+        const got = cells.find((c) => c.policyId === id)!.regions['inner']!;
+        equal({ status: got.status, describe: rename(got.describe) },
+          { status: depth1[key].status, describe: depth1[key].describe },
+          `${scenario.key}/${id}: the inner region must answer exactly as ${want.correspondsTo} ` +
+          'does at depth 1. A difference is a nesting-specific behaviour, which is precisely ' +
+          'what ADR 0030 claims does not exist');
+      }
+    });
+  }
+
+  test('the depth-2 corpus is the SCENARIO list, and every row of it has an expectation', () => {
+    // **BLOCKING, W22's adequacy reader**: deleting a whole row from
+    // `NESTED_SCENARIOS` cost **0 failures** and six silent test cases. The only
+    // guard read `NESTED_EXPECTED` — the expectation table — so a row that
+    // vanished from the corpus took its own assertions with it and left the
+    // count of expectations intact. The depth-1 suite has the mirror-image guard
+    // (`BY_KEY.size === SCENARIOS.length * MATRIX_POLICY_IDS.length`); this had
+    // none, and ADR 0030's evidence is "sixteen cells" with nothing counting to
+    // sixteen.
+    equal(NESTED_SCENARIOS.map((s) => s.key).sort(),
+      Object.keys(NESTED_EXPECTED).sort(),
+      'every declared depth-2 row has an expectation and every expectation has a row');
+    equal(NESTED.length * COLS.length, 16,
+      'sixteen cells, which is the number ADR 0030 states as its evidence. A row or a column ' +
+      'that quietly left would take four of them and no failure with it');
+  });
+
+  test('and the four columns are the matrix four, not a private list', () => {
+    // The other half of the same BLOCKING finding: `COLS` is what every depth-2
+    // assertion loops over, and nothing compared it to the column list the render
+    // and the depth-1 suite use.
+    equal(COLS.map(([, id]) => id), [...MATRIX_POLICY_IDS],
+      'the depth-2 suites must run every column the table advertises, in the same order');
+    equal(COLS.map(([, id]) => id), MATRIX_COLUMNS.map((p) => p.id),
+      'and the ids must be the policies actually run, so the two cannot drift either');
+  });
+
+  test('and the four rows cover four DISTINCT depth-1 rows', () => {
+    const covered = Object.values(NESTED_EXPECTED).map((e) => e.correspondsTo).sort();
+    equal(covered, ['all-arrive', 'all-exit', 'lost-settled', 'routed-away'],
+      'one control plus the three terminal events. A row list that repeated a shape would ' +
+      'report four rows of coverage and carry fewer');
+    for (const key of covered) {
+      ok(EXPECTED[key] !== undefined, `${key} must be one of the nine depth-1 rows`);
+    }
+  });
+
+  test('the outer region is NOT claimed to correspond, and that is the finding', () => {
+    // On three of four rows the outer join answers as a depth-1 join would. On
+    // `nested-inner-all-exit` under the fourth column it does not: the inner join
+    // is `unsatisfiable` and the outer one is `satisfied`, because W22's emission
+    // ends the outer branch and `scoreA` had already arrived. **Transitivity is a
+    // claim about a REGION, not about a row**, and this is the row that shows the
+    // difference matters.
+    const row = NESTED.find((r) => r.scenario.key === 'nested-inner-all-exit')!;
+    const c = row.cells.find((x) => x.policyId === 'live-token-requiring-arrival')!;
+    equal(c.regions['inner']!.status, 'unsatisfiable', 'the inner join can never fire');
+    equal(c.regions['outer']!.status, 'satisfied', 'and the outer one fires anyway');
+    equal(c.unsatisfiable.map((u) => u.fanoutId), ['inner'],
+      'exactly one region is reported dead, and it is the inner one. Reporting the outer join ' +
+      'too would be the driver deciding satisfaction, which section 4 gives to a policy');
+  });
+});
+
+/**
+ * **The depth-2 table is a deliverable, so it is asserted field by field too.**
+ * `render.ts` prints it and no `package.json` script executes `render.ts`, which
+ * is exactly the hole W15's adequacy reader found seven surviving mutations in.
+ * Four rows shown to nobody would be that defect with the halves swapped
+ * ([Q100](../../doc/open-questions.md)).
+ */
+suite('the depth-2 table renders, and the multi-region arm is executed', (test) => {
+  const rows = nestedRows();
+  const lines = renderNested().split('\n');
+
+  test('same header and separator as the nine-row table — one renderer, one layout', () => {
+    // **Two sources, and it took a reader to notice there was one.** `rows` and
+    // `renderNested()` both call `nestedRows()`, so `lines.length === rows.length + 2`
+    // is a tautology: truncating `nestedRows()` from the second row on cost **0**
+    // failures, where the same edit to `matrixRows()` costs 1 because the depth-1
+    // suite counts against `SCENARIOS`. The scenario list is the independent
+    // source, so the count is taken from it.
+    equal(lines.length, NESTED_SCENARIOS.length + 2,
+      'header, rule, and one line per DECLARED row — counted from the scenario list, not from ' +
+      'the same call that produced the render');
+    equal(rows.length, NESTED_SCENARIOS.length,
+      'and nestedRows() renders every declared row rather than a slice of them');
+    equal(lines[0], `| row | ${MATRIX_POLICY_IDS.join(' | ')} |`, 'FOUR columns, named and in order');
+    equal(lines[1], `|---|${MATRIX_POLICY_IDS.map(() => '---').join('|')}|`, 'and a separator per column');
+  });
+
+  test('the row carries the SHARED prefix, not column zero`s stream', () => {
+    // The depth-1 renderer printed `cells[0].events` for the row. At depth 2 that
+    // is `arrival-count`'s — the one column whose inner join never fires — so the
+    // row would advertise the shortest stream of the four as though it were the
+    // input. The prefix is computed from all four instead.
+    for (const [i, { scenario, cells }] of rows.entries()) {
+      const rowCell = lines[i + 2]!.split('|')[1]!;
+      const streams = MATRIX_POLICY_IDS.map((id) => cells.find((c) => c.policyId === id)!.events);
+      let n = 0;
+      while (streams.every((s) => s.length > n && s[n] === streams[0]![n])) n++;
+      ok(rowCell.includes(streams[0]!.slice(0, n).join(' ')),
+        `${scenario.key}: the row does not carry the stream all four columns saw`);
+      ok(rowCell.includes(`**${scenario.key}**`) && rowCell.includes(scenario.title),
+        `${scenario.key}: the row must name itself and say what it is`);
+      // **And no column's own tail leaks into the row label.** The assertion
+      // above cannot catch that on its own: `arrival-count` is the strictest
+      // policy, so any join it satisfies every other column satisfies too — which
+      // makes its stream EXACTLY the common prefix on all four rows, and
+      // `cells[0].events` therefore indistinguishable from the computed prefix
+      // here. What is distinguishable is a column that fires where another does
+      // not, so this names those events directly.
+      for (const ev of ['arrived(outer:1)', 'lost(outer:1)']) {
+        const shared = MATRIX_POLICY_IDS.every((id) =>
+          cells.find((c) => c.policyId === id)!.events.includes(ev));
+        if (!shared) {
+          ok(!rowCell.includes(ev),
+            `${scenario.key}: the row label carries "${ev}", which only SOME columns emit. The ` +
+            'row is the input all four saw; a tail belongs in its own cell');
+        }
+      }
+    }
+  });
+
+  test('every cell carries BOTH regions, in its own column, by position', () => {
+    for (const [i, { scenario, cells }] of rows.entries()) {
+      const fields = lines[i + 2]!.split('|');
+      equal(fields.length, MATRIX_POLICY_IDS.length + 3,
+        `${scenario.key}: ${fields.length - 3} cells, not ${MATRIX_POLICY_IDS.length}`);
+      for (const [j, id] of MATRIX_POLICY_IDS.entries()) {
+        const cell = fields[j + 2]!;
+        const c = cells.find((x) => x.policyId === id)!;
+        ok(cell.includes(`**${c.verdict}**`), `${scenario.key}: column ${j} (${id}) lacks its verdict`);
+        for (const f of scenario.regions!) {
+          ok(cell.includes(`${f} \`${c.regions[f]!.status}\` ${JSON.stringify(c.regions[f]!.describe)}`),
+            `${scenario.key}: column ${j} (${id}) does not carry region "${f}". A depth-2 table ` +
+            'showing one join is the defect `Cell.regions` was added to remove, printed');
+        }
+      }
+    }
+  });
+
+  test('and each cell carries ITS OWN tail, which is how the four columns differ', () => {
+    const row = rows.find((r) => r.scenario.key === 'nested-inner-all-exit')!;
+    const fields = lines[rows.indexOf(row) + 2]!.split('|');
+    const at = (id: string) => fields[MATRIX_POLICY_IDS.indexOf(id as never) + 2]!;
+    ok(at('arrival-count').includes('then: `(nothing)`'),
+      'arrival-count`s inner join never concludes, so the outer region sees nothing further');
+    ok(at('live-token').includes('then: `arrived(outer:1)`'),
+      'live-token fires the inner join, and that IS the outer branch arriving');
+    ok(at('live-token-requiring-arrival').includes('then: `lost(outer:1)`'),
+      'and the fourth column declares the inner join dead, which ends the outer branch — ' +
+      'ADR 0030 rule 4, and the one event this item added');
+  });
+
+  test('the nine-row table is unchanged by all of this', () => {
+    // The single-region arm must still print byte-for-byte what W15 built, or
+    // ADR 0025's pasted table silently stops matching the renderer.
+    const depth1 = renderMatrix().split('\n');
+    const first = matrixRows()[0]!;
+    const c = first.cells[0]!;
+    ok(depth1[2]!.includes(`\`${c.status}\` / **${c.verdict}** <br> ${JSON.stringify(c.describe)}`),
+      'a depth-1 cell still reads "`status` / **verdict** <br> describe", with no region prefix');
+  });
+});
+
+/**
+ * **What the two readers found the depth-2 suites were not saying** — W22, and
+ * every one of these is an edit that cost 0 failures before it existed.
+ */
+suite('the depth-2 rows say what they declare — the readers` gaps', (test) => {
+  test('every row`s `regions` is exactly its flow`s fanouts, outermost first', () => {
+    // **W22's conformity reader (9) and adequacy reader (4, 6, 7).** `Scenario.regions`
+    // is documented as *"every fanout in the flow, outermost first"* and nothing
+    // compared it to the flow. Dropping `'inner'` from a row silently removed every
+    // inner-region assertion for it; reversing the pair cost nothing either.
+    for (const s of NESTED_SCENARIOS) {
+      const fanouts = s.flow.nodes.filter((n) => n.kind === 'fanout').map((n) => n.id);
+      equal([...(s.regions ?? [])].sort(), [...fanouts].sort(),
+        `${s.key}: declares regions the flow does not have, or omits one it does`);
+      // "Outermost first" is a claim about nesting, not about declaration order,
+      // so it is derived from the graph: an outer fanout's own path is shorter
+      // than an inner one's (`spec/task-id.md` section 1).
+      const regions = allRegions(buildGraph(s.flow), s.flow);
+      const depth = (id: string) => branchPathOf(regions, id).split('.').length - (branchPathOf(regions, id) === '-' ? 1 : 0);
+      const depths = (s.regions ?? []).map(depth);
+      equal(depths, [...depths].sort((a, b) => a - b),
+        `${s.key}: regions are not outermost-first, which is the order the rendered cell prints`);
+    }
+  });
+
+  test('a DEPTH-1 row`s Cell.regions is exactly its own fanout, and that default is asserted', () => {
+    // **Adequacy reader (6).** `scenario.regions ?? [scenario.fanoutId]` runs on
+    // every one of the nine depth-1 rows and nothing read it: changing the default
+    // to `[]` cost 0. The field's declared contract is that depth 1 is unchanged
+    // and this is additive, so depth 1 is where that is checked.
+    for (const { scenario, cells } of ALL) {
+      for (const c of cells) {
+        equal(Object.keys(c.regions), [scenario.fanoutId],
+          `${scenario.key}/${c.policyId}: a row that declares no regions reports exactly its own`);
+        equal({ status: c.regions[scenario.fanoutId]!.status, describe: c.regions[scenario.fanoutId]!.describe },
+          { status: c.status, describe: c.describe },
+          `${scenario.key}/${c.policyId}: and it is the same answer Cell.status carries`);
+      }
+    }
+  });
+
+  test('the rendered cell prints the regions in the declared order', () => {
+    // **Adequacy reader (4).** The cell assertions use `includes` per region, which
+    // is order-blind — the same defect this file's own comment records for columns
+    // (*"the reader transposed the cells against their own asserted header and
+    // nothing noticed"*), one level in. Reversing the region list in the renderer
+    // cost 0.
+    const lines = renderNested().split('\n');
+    for (const [i, { scenario, cells }] of nestedRows().entries()) {
+      const fields = lines[i + 2]!.split('|');
+      for (const [j, id] of MATRIX_POLICY_IDS.entries()) {
+        const cell = fields[j + 2]!;
+        const c = cells.find((x) => x.policyId === id)!;
+        const at = scenario.regions!.map((f) =>
+          cell.indexOf(`${f} \`${c.regions[f]!.status}\``));
+        equal(at, [...at].sort((a, b) => a - b),
+          `${scenario.key}/${id}: the cell prints its regions out of declared order, so a reader ` +
+          'cannot tell the outer answer from the inner one by position');
+      }
+    }
+  });
+
+  test('JP-R2 and JP-R3 hold for the depth-2 cells too, not only the nine', () => {
+    // **Adequacy reader (8).** Every *whole matrix* claim in this file iterates
+    // `ALL`, which is `SCENARIOS`; the four depth-2 rows and their new
+    // `Cell.regions[].describe` values were outside all of them.
+    for (const { scenario, cells } of NESTED) {
+      for (const c of cells) {
+        for (const [f, r] of Object.entries(c.regions)) {
+          ok(['waiting', 'satisfied', 'unsatisfiable'].includes(r.status),
+            `${scenario.key}/${c.policyId}/${f}: JP-R3 — status is total, and "${r.status}" is not one of the three`);
+          equal(JSON.parse(JSON.stringify(r.describe)), r.describe,
+            `${scenario.key}/${c.policyId}/${f}: JP-R2 — describe must round-trip as JSON`);
+        }
+      }
+    }
   });
 });

@@ -18,12 +18,29 @@
  * to mutate.
  */
 import { renderTable, runCell } from './run.ts';
-import { SCENARIOS } from './scenarios.ts';
+import { NESTED_SCENARIOS, SCENARIOS } from './scenarios.ts';
 import { MATRIX_COLUMNS, MATRIX_POLICY_IDS } from './variants.ts';
 
 /** Every row against every column — the same values `matrix.test.ts` asserts. */
 export function matrixRows() {
   return SCENARIOS.map((scenario) => ({
+    scenario,
+    cells: MATRIX_COLUMNS.map((policy) => runCell(scenario, policy)),
+  }));
+}
+
+/**
+ * **The depth-2 rows — W22.** A separate function rather than four more entries
+ * in `matrixRows()`, for the reason `scenarios.ts` gives for keeping them out of
+ * `SCENARIOS`: the nine are Q5's cases and ADR 0003 counts them.
+ *
+ * **They are rendered**, and that is the point of the function existing at all.
+ * A deliverable no script prints is the defect `render.ts` was reduced to two
+ * lines over ([Q100](../../doc/open-questions.md)), and four rows asserted but
+ * never shown would be the same thing with the halves swapped.
+ */
+export function nestedRows() {
+  return NESTED_SCENARIOS.map((scenario) => ({
     scenario,
     cells: MATRIX_COLUMNS.map((policy) => runCell(scenario, policy)),
   }));
@@ -40,6 +57,14 @@ export function matrixRows() {
  */
 export function renderMatrix(): string {
   return renderTable(matrixRows(), MATRIX_COLUMNS.map((p) => p.id));
+}
+
+/**
+ * The depth-2 table, rendered by the same function from the same column list, so
+ * the two cannot be laid out differently or fall out of step.
+ */
+export function renderNested(): string {
+  return renderTable(nestedRows(), MATRIX_COLUMNS.map((p) => p.id));
 }
 
 /** Re-exported so a caller that wants the header order does not rebuild it. */

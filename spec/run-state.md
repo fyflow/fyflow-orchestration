@@ -124,7 +124,7 @@ is the one v0.2 got wrong, and it got it wrong about the exact run
 | **`awaiting_action`** | **a node suspended and nothing has resolved it** | any node is `suspended` (ADR 0004 rule 3) |
 | `running` | live work exists | any dispatched node is `running` — that is, dispatched and not yet settled |
 | **`stuck`** | **nothing is live and nothing ever will be** | nothing running, nothing suspended, and an entered region's `joined` is not `true` — so nothing downstream of that join will ever be dispatched |
-| `failed` | a path ended with no eligible edge, and none is still live | a path ended with **no eligible edge** — `branch.lost`'s condition, outside or inside a region |
+| `failed` | a path ended with no eligible edge, and none is still live | a path ended with **no eligible edge**, outside or inside a region. *(This read *"`branch.lost`'s condition"*, and the two stopped being coextensive at [W22](../doc/work-items/w22-what-an-inner-join-does-to-the-outer-one.md): `JP-R10` emits `branch.lost` for a branch whose nested region was declared `unsatisfiable`, and [ADR 0030](../doc/decisions/0030-a-join-is-transitive-and-a-dead-join-ends-the-branch-it-sits-in.md) rule 7 deliberately appends **no** `pathEnded` for it, because neither reason is true of a join that has an eligible edge and never fires. **The run-level answer is unchanged** — `stuck` outranks `failed` and the dead region's `joined: false` reaches it first — so this is a false sentence rather than a false outcome, corrected in place.)* |
 | `completed` | every live path reached an `end` node | nothing live, nothing suspended, and at least one path ended **at an `end` node** |
 
 | id | | Test owed by |

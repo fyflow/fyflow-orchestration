@@ -1,6 +1,6 @@
 # spec/join-policy — the interface the join policies sit behind
 
-**Status:** v0.9 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.10 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2 acts on the W1 spec-conformity pass**:
 `branch.lost` is redefined against
 [ADR 0004](../doc/decisions/0004-a-non-success-outcome-routes-only-where-an-edge-opts-in-and-user-action-suspends.md)
@@ -27,6 +27,16 @@ driver has always enforced and this document never stated**: section 4's `unsati
 **once per region and terminal for it**. [Q95](../doc/open-questions.md) is the measurement that the
 second half was enforced by one unexercised latch — deleting it left every assertion green — and
 section 4 says what it costs when it goes.
+**v0.10 is [ADR 0030](../doc/decisions/0030-a-join-is-transitive-and-a-dead-join-ends-the-branch-it-sits-in.md)
+landing in this document** — [W22](../doc/work-items/w22-what-an-inner-join-does-to-the-outer-one.md)
+under [P7](../doc/plans/p7-is-a-join-transitive-over-nested-fan-out.md), answering
+[Q6](../doc/open-questions.md). Two changes and **section 3 is byte-unchanged**, which is the result
+rather than a restraint: **every policy named there is transitive over nested fan-out and none of
+them needed a clause for it.** Section 4's `unsatisfiable` exit now **ends the branch it sits in** —
+the one behavioural change, and the gap it closes was a `JP-R5` violation that depth 1 could not
+express. Section 5's transitivity bullet is replaced by the ruling it was waiting for, and **`JP-R10`
+is new**.
+
 **Normative.**
 
 > **This document does not answer [Q4](../doc/open-questions.md) and must not be read as leaning.**
@@ -79,15 +89,23 @@ They are **flow-level facts**, not scheduler outcomes: the driver derives them w
 policy never sees an outcome record or a scheduler task.
 
 **Terminal** — exactly one per branch, and the branch is finished with the region. The three are
-mutually exclusive and exhaustive: a branch either reaches the join, reaches an `end`, or runs out
-of eligible edges. `FD-V7`, `FD-V8` and `FD-V10` are what make that exhaustive
+mutually exclusive and exhaustive: a branch either reaches the join, reaches an `end`, or **stops
+without reaching either**. `FD-V7`, `FD-V8` and `FD-V10` are what make that exhaustive
 (`spec/flow-definition.md` section 4, under `FD-V14`).
+
+**The third case has TWO roads and v0.9 named one**, which is
+[W22](../doc/work-items/w22-what-an-inner-join-does-to-the-outer-one.md)'s correction rather than an
+addition: this paragraph read *"runs out of eligible edges"*, and `FD-V7`, `FD-V8` and `FD-V10` are
+about **nodes**, so they make the *node* road exhaustive and say nothing about a region nested inside
+a branch. Since `JP-R10` a branch also stops when **its own inner join can never fire** — nothing in
+it settled, nothing was resolved, and the inner join's edge was eligible the whole time. The event is
+still `branch.lost`; what widened is the condition below.
 
 | event | fields | emitted when |
 |---|---|---|
 | `branch.arrived` | `branchPath` | that branch reached the region's join |
 | `branch.exited` | `branchPath`, `at` (the `end` node's id) | that branch reached an **`end` node** instead of the join |
-| `branch.lost` | `branchPath`, `reason` | a node in that branch reached a terminal state — by settling, **or by being resolved** — and **no edge was eligible** for it (`spec/flow-definition.md` section 3), so the path ended inside the region without reaching an `end` node |
+| `branch.lost` | `branchPath`, `reason` | **either** (a) a node in that branch reached a terminal state — by settling, **or by being resolved** — and **no edge was eligible** for it (`spec/flow-definition.md` section 3); **or** (b) a fan-out region **nested inside that branch** was declared `unsatisfiable` (`JP-R10`). Both mean the path ended inside the region without reaching an `end` node, which is what the event says; they differ in what stopped it. **(b) is [W22](../doc/work-items/w22-what-an-inner-join-does-to-the-outer-one.md)'s and it is a widening, stated as one** — under (a) alone this event is emitted for a dead join **never**, because a `join` node neither settles nor is resolved and its edge stays eligible while the join simply does not fire |
 
 **Non-terminal** — the branch is still live and the join is still waiting:
 
@@ -121,11 +139,22 @@ are not four:
 | a branch ending in **`user_action`** | `branch.suspended` — **not** a loss. The branch is still live and the join keeps waiting | |
 | a branch **routed away** | `branch.exited` | it reached an `end` node — P1's case |
 
-`reason` therefore has exactly one permitted value today, `'failed'` — reached either by an
-`optional` node settling, or by a human resolving a suspended node with `resolvedAs: "failed"`
-(`RS-R3`), in both cases with no eligible edge to take. **The field is kept anyway**, because the
-alternative is adding it back later and rewriting every fixture; and its single value is the finding
-rather than an oversight.
+`reason` therefore has exactly one permitted value today, `'failed'` — reached by **three** roads
+since `JP-R10`: an `optional` node settling; a human resolving a suspended node with
+`resolvedAs: "failed"` (`RS-R3`), in both cases with no eligible edge to take; and **a nested region
+declared `unsatisfiable`**. **The field is kept anyway**, because the alternative is adding it back
+later and rewriting every fixture; and its single value is the finding rather than an oversight.
+
+**The third road does not widen the vocabulary, and that is a decision rather than an omission** —
+W22's conformity reader, and `doc/workflow.md` section 1 rule 3. A dead join is not a *failure*: no
+node failed, and `'failed'` here means *"the path stopped and nothing opted into what stopped it"*,
+which is exactly what happened. A second value — `'join-unsatisfiable'`, say — would be readable by a
+policy, and **no policy may branch on it**: `JP-R4` sizes the vocabulary for the richer policy, and a
+policy that treated one road differently from another would be deciding satisfaction from *why* a
+branch ended rather than from *that* it ended, which is the move
+[ADR 0003](../doc/decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md) settled
+against. **Which region died is already reported**, through `onUnsatisfiableJoin`, on a channel no
+policy sees.
 
 | id | | Test owed by |
 |---|---|---|
@@ -187,6 +216,7 @@ what W4 ran**.
 | `JP-R7` | **A variant of `arrival-count` that decrements `N` on `branch.exited` is a third policy, not a repair of the first.** If it is built it is built under its own `id` ([Q24](../doc/open-questions.md)). **Not built — refused by [ADR 0025](../doc/decisions/0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md)**, which measured what it does over all nine matrix rows: it is `live-token` weakened, never strengthened. Every row on which it differs from `live-token` is a row where it reports `waiting` and `live-token` is `satisfied`, and it cannot report `unsatisfiable` — so the whole of its contribution is a **silent hang** where the adopted policy proceeds. The rule stands as written and now cites the decision that applied it | W4 |
 | `JP-R8` | **A variant of `live-token` that requires at least one `branch.arrived` before reporting `satisfied` is likewise a third policy** ([Q24](../doc/open-questions.md)). The `having been positive` clause is a pin, not a refinement: a bare *"count is zero"* is true before any branch opens, so without it `open` itself reports `satisfied`. **Built, and built the way this rule requires — under its own `id`, `live-token-requiring-arrival`, with `live-token` unchanged** ([ADR 0025](../doc/decisions/0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md)). This rule was **followed, not overridden**: what it forbids is the refinement written *into* `live-token`, and that is still forbidden | W4, and **W16** for the shipped policy |
 | `JP-R9` | **Every key of `POLICIES` names a row of the table above, and every row names a key.** A policy *shipped* under a name this document does not fix, or a name fixed here with nothing behind it, is a defect in whichever half is younger. **The rule is about `POLICIES`, not about every object that satisfies the interface** — a `JoinPolicy` written in the test tree and run as a matrix column is neither shipped nor named here, and [ADR 0025](../doc/decisions/0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md) rule 3 **requires** one to exist: `arrival-count-decrementing` is a refused refinement that is still executed so the refusal can be falsified — **This is what ADR 0025 makes checkable**: the set was frozen at two by four hand-written literals, and the rule that lets it grow is the rule that needs the two halves compared rather than copied. Test: `scripts/check-policies.mjs`, run by `npm run gate` | **W16** |
+| `JP-R10` | **A join that can never fire ends the branch it sits in.** When `status` is `unsatisfiable` for `region(F)` and `F` is itself inside a region, the driver emits `branch.lost` for **`innermost(F)`** — `spec/flow-definition.md` section 4's term, the region `F`'s own `fanout` node is most tightly in — at `F`'s own `branchPath` (`spec/task-id.md` section 1). **`innermost` and not *some* enclosing region**: at depth 3 there are two, and naming the inner one is what makes the cascade below reach the rest in order. Three things this is **not**: it is not a new **event**, though it IS a widening of section 2's emission condition and that section says so rather than this rule implying otherwise — `JP-R6` asks for a rationale, not for a new name, and the rationale is that a dead join ends a path exactly as an ineligible edge does; it is not the driver deciding the enclosing region's verdict, which stays section 4's owner table and [ADR 0001](../doc/decisions/0001-routing-executes-in-the-driver-outside-the-scheduler.md) rule 1's — that region's policy is stepped with the fact and answers for itself; and it is not a walk outward, because the enclosing region may in turn be `unsatisfiable` and the same clause applies to it, so the cascade is one rule applied repeatedly rather than a traversal. **Why it is a rule and not a note**: without it that branch has **no terminal event at all** in a run that is neither suspended nor in flight, which `JP-R5`'s own enumeration does not admit, and `RunState.regions[G].settled` simply omits it. **Unobservable at depth 1**, where `F` is in no region — which is why this document could stand at v0.9 without it. Test: `test/driver/surface.test.ts`, in both fanout declaration orders and at depth 3; and `test/matrix/matrix.test.ts`' `nested-inner-all-exit` row | **W22** |
 
 ### JP-R7 and JP-R8 — the one-line changes that would delete P1
 
@@ -300,7 +330,7 @@ a policy.
 | **step** | **Every** region event is forwarded, all six. `JP-R4` sizes the vocabulary for the richer policy, so a policy ignores what it does not need; a driver that filtered would decide Q4 by omission |
 | **status** | Asked after **every terminal event**, not only on arrival — a join can become satisfiable because the last live branch was `lost` or `exited` without anything arriving, which is P1's case |
 | **satisfied** | The driver routes out of the join's single edge, **at most once** per region however many events follow. **It carries `null`** — see below |
-| **unsatisfiable** | The driver **reports** it with the policy's own `describe`, and routes nowhere. It does **not** invent a run-level outcome: that vocabulary is run state's ([Q25](../doc/open-questions.md)). **Once per region, and terminal for it: however many events follow, the join is not reported again and is not routed out of — including when the policy later answers `satisfied`** ([W18](../doc/work-items/w18-the-scheduler-edge-and-what-an-id-we-did-not-mint-means.md), [Q95](../doc/open-questions.md)) |
+| **unsatisfiable** | The driver **reports** it with the policy's own `describe`, and routes nowhere. It does **not** invent a run-level outcome: that vocabulary is run state's ([Q25](../doc/open-questions.md)). **Once per region, and terminal for it: however many events follow, the join is not reported again and is not routed out of — including when the policy later answers `satisfied`** ([W18](../doc/work-items/w18-the-scheduler-edge-and-what-an-id-we-did-not-mint-means.md), [Q95](../doc/open-questions.md)). **And it emits `branch.lost` for the branch of the ENCLOSING region that the dead region sits in, at that fanout's own `branchPath`** — `JP-R10`, [ADR 0030](../doc/decisions/0030-a-join-is-transitive-and-a-dead-join-ends-the-branch-it-sits-in.md) rule 4. For a region in no region there is nothing to emit and nothing is emitted, which is why this said nothing until nesting existed |
 | **no policy at all** | A definition containing a fan-out is **refused at instantiation**. The alternative is a run that dispatches every branch, sees every one arrive and stops silently — a second cause behind the observation P1 turns on |
 
 **A satisfied join carries `null` downstream, and that is a placeholder rather than an answer.**
@@ -327,13 +357,25 @@ one global choice per run**, made by the caller, and whether it may be made per 
 - **Whether a policy is per-join configurable** rather than global ([Q5](../doc/open-questions.md)).
   P1 runs one policy per whole run so the matrix has two columns rather than a product. *(Four columns
   since W15 — still one policy per run, and still not a product.)*
-- **Transitivity over nested fan-out** ([Q6](../doc/open-questions.md)), **and it is now reachable
-  rather than refused.** This read *"`FD-V15` refuses nested fan-out, so no `branchPath` deeper than
-  one element occurs in P1 and the question stays clean for P2"* — the rule was **retired** by
-  [W20](../doc/work-items/w20-what-a-nested-region-is.md) and the question was not taken in P2.
-  A nested fan-out is a valid definition today; **no policy in section 3 has been ruled transitive
-  over one**, and that is [P7](../doc/plans/p7-is-a-join-transitive-over-nested-fan-out.md)'s
-  question, owned by W22. *(Corrected here by W20 rather than left standing: the sentence became
-  false the moment the rule was retired, and `spec/flow-definition.md`'s new `FD-V15` row points a
-  reader at this document for exactly this half of the question.)*
+- **Transitivity over nested fan-out** ([Q6](../doc/open-questions.md)) — **answered, by
+  [ADR 0030](../doc/decisions/0030-a-join-is-transitive-and-a-dead-join-ends-the-branch-it-sits-in.md)
+  ([W22](../doc/work-items/w22-what-an-inner-join-does-to-the-outer-one.md)), and the answer needed
+  no clause in section 3.** Every policy named there is transitive, measured over four depth-2 rows
+  against all four matrix columns: **each region behaves exactly as the depth-1 row of the same shape
+  does**, statuses and `describe`s alike, with only the branch paths renamed. Nesting adds no
+  mechanism — an outer region's `branches` is unchanged by what nests inside it, and an inner join
+  firing enters the outer join at the path its own `fanout` sits at, which **is** the outer branch's
+  arrival. *(This bullet twice recorded the question as open on grounds that had stopped being true.
+  It read "`FD-V15` refuses nested fan-out, so … the question stays clean for P2" until
+  [W20](../doc/work-items/w20-what-a-nested-region-is.md) retired the rule, and then "no policy has
+  been ruled transitive over one" until this. Both corrections were made in place — `spec/README.md`
+  rule 1 — rather than the wrong version being deleted.)*
+- **What a policy-dependent refusal of nesting would have been.** [P7](../doc/plans/p7-is-a-join-transitive-over-nested-fan-out.md)
+  proposed refusing a nested definition under `arrival-count` at `Driver` construction, on the ground
+  that *"`N` is fixed at the outer branch list and an inner branch has no way to be counted"*.
+  **Measured false and not built**: `N` is per-region, and `arrival-count` reports `satisfied` at both
+  depths on an all-arriving nested flow. Its depth-2 hangs are its depth-1 hangs at a second region,
+  and [ADR 0003](../doc/decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md)
+  already decided that trade. Recorded here because a refusal that was considered and rejected is
+  cheaper to read than one rediscovered.
 - **The run-level outcome** of a join that never fires. See section 4.

@@ -517,3 +517,201 @@ suite('regionOf on a nested flow — the driver reads the INNERMOST region', (te
       'the hop out of a settled node carries the INNERMOST region it was in');
   });
 });
+
+/**
+ * **A dead inner join ends the outer branch it sits in** —
+ * [ADR 0030](../../doc/decisions/0030-a-join-is-transitive-and-a-dead-join-ends-the-branch-it-sits-in.md)
+ * rule 4, and W22.
+ *
+ * `settleJoin`'s `unsatisfiable` arm reported the join and returned, emitting
+ * nothing. At depth 1 there is nothing to emit — a top-level fanout is in no
+ * region — so the gap was **unobservable rather than absent**, which is
+ * [Q114](../../doc/open-questions.md)'s shape one item earlier.
+ *
+ * Every expected value below comes from `spec/join-policy.md` sections 2, 3 and 4
+ * and was derived before the run: `live-token-requiring-arrival` is *"satisfied
+ * when the live count reaches zero having been positive AND at least one
+ * `branch.arrived` has been seen; **`unsatisfiable`** when the count reaches zero
+ * having been positive with no arrival"*, and `branch.lost` is *"the path ended
+ * inside the region without reaching an `end` node"*.
+ */
+suite('a dead inner join, and what it does to the branch it sits in', (test) => {
+  /**
+   * `outer` fans out to `scoreA` and `scoreB`; `scoreB` enters `inner`; both
+   * inner branches route away to an `end` inside `region(inner)`, so the inner
+   * join is reached by nothing.
+   *
+   * **Built as a function of the node ORDER**, because W20's finding was that
+   * `regionOf` answered *"which region"* with *"the order the author declared the
+   * fanouts in"*, and every nested assertion here is run in both orders.
+   */
+  const deadInner = (innerFirst: boolean) => {
+    const outerNodes = [
+      { id: 'outer', kind: 'fanout', branches: ['scoreA', 'scoreB'] },
+      { id: 'scoreA', kind: 'task', workerType: reg.workerTypes[0], edges: [{ to: 'outerJoin' }] },
+      { id: 'scoreB', kind: 'task', workerType: reg.workerTypes[0], edges: [{ to: 'inner' }] },
+    ];
+    const innerNodes = [
+      { id: 'inner', kind: 'fanout', branches: ['scoreC', 'scoreD'] },
+      { id: 'scoreC', kind: 'task', workerType: reg.workerTypes[0],
+        edges: [{ when: 'always', to: 'bail' }, { to: 'innerJoin' }] },
+      { id: 'scoreD', kind: 'task', workerType: reg.workerTypes[0],
+        edges: [{ when: 'always', to: 'bail' }, { to: 'innerJoin' }] },
+    ];
+    const nodes = [
+      ...(innerFirst ? innerNodes : outerNodes),
+      ...(innerFirst ? outerNodes : innerNodes),
+      { id: 'bail', kind: 'end', outcome: 'branch-abandoned' },
+      { id: 'innerJoin', kind: 'join', of: 'inner', edges: [{ to: 'outerJoin' }] },
+      { id: 'outerJoin', kind: 'join', of: 'outer', edges: [{ to: 'done' }] },
+      { id: 'done', kind: 'end', outcome: 'completed' },
+    ];
+    return { flowId: 'dead-inner-join', version: 1, entry: 'outer', nodes } as unknown as FlowDefinition;
+  };
+
+  const drive = (def: FlowDefinition) => {
+    const scheduler = new Fake();
+    const events: RegionEvent[] = [];
+    const dead: string[] = [];
+    const d = new Driver(def, {
+      runId: 'r1', scheduler, createTask: (c) => c, predicates: new Map([['always', () => true]]),
+      workerTypes: reg.workerTypes, now: () => 1,
+      joinPolicy: POLICIES['live-token-requiring-arrival'],
+      onRegionEvent: (e) => events.push(e),
+      onUnsatisfiableJoin: (u) => dead.push(u.fanoutId),
+    });
+    d.start({});
+    for (const id of ['r1:scoreA:0:0', 'r1:scoreB:1:0', 'r1:scoreC:1.0:0', 'r1:scoreD:1.1:0']) {
+      scheduler.settle(id, 'done', { result: null });
+    }
+    return { d, events, dead, scheduler };
+  };
+
+  for (const innerFirst of [false, true]) {
+    const order = innerFirst ? 'inner declared FIRST' : 'outer declared first';
+
+    test(`${order}: the dead inner join ends the outer branch, and JP-R5 holds`, () => {
+      const def = deadInner(innerFirst);
+      equal(validateDefinition(def, { workerTypes: reg.workerTypes, predicates: ['always'] }), [],
+        'the shape is VALID — which is what makes a branch with no terminal event a defect');
+      const { d, events, dead } = drive(def);
+
+      equal(events.map((e) => `${e.type}@${e.regionId}:${e.branchPath}`), [
+        'branch.opened@outer:0', 'branch.opened@outer:1',
+        'branch.arrived@outer:0',
+        'branch.opened@inner:1.0', 'branch.opened@inner:1.1',
+        'branch.exited@inner:1.0', 'branch.exited@inner:1.1',
+        'branch.lost@outer:1',
+      ], 'the last event is the one W22 added. Without it outer branch 1 has NO terminal event, ' +
+         'in a run that is neither suspended nor in flight — a state JP-R5 does not admit');
+
+      equal(dead, ['inner'],
+        'exactly one region is reported dead, and it is the inner one. Reporting the outer join ' +
+        'too would be the driver deciding satisfaction, which section 4 gives to a policy');
+      equal(d.joinStatusOf('inner')?.status, 'unsatisfiable',
+        'the inner count reached zero having been positive with no arrival');
+      equal(d.joinStatusOf('outer')?.status, 'satisfied',
+        'and the OUTER join fires: its count reached zero too, and `scoreA` arrived. That is the ' +
+        'policy answering the fact the driver reported, not the driver walking outward');
+    });
+
+    test(`${order}: the ended branch is stamped with the ENCLOSING region, at the fanout's own path`, () => {
+      // Both halves of the emission, separately: a `branch.lost` carrying the
+      // inner region's id would decrement the join that just died, and one
+      // carrying `'-'` or `'1.0'` would end a branch that is not the one that
+      // stopped. `regionOf` and `pathOf` are the two sources and this is the only
+      // assertion that reads them apart.
+      const { events } = drive(deadInner(innerFirst));
+      const lost = events.filter((e) => e.type === 'branch.lost');
+      equal(lost.map((e) => [e.regionId, e.branchPath]), [['outer', '1']],
+        'one `branch.lost`, in `region(outer)`, at the path `inner`’s own fanout sits at');
+    });
+  }
+
+  test('at depth 3 the cascade is emergent — one emission, three different verdicts', () => {
+    // **No walk outward.** `settleJoin` calls itself for the enclosing region, so
+    // a dead join ends its branch, and whether THAT kills the next join up is the
+    // next policy's answer. Measured here: `inner` dies with nothing arrived;
+    // `mid` therefore also has nothing arrived and dies too; `outer` had `a`
+    // arrive, so it fires. Three verdicts, one line of driver code, none of them
+    // the driver's.
+    const nodes = [
+      { id: 'outer', kind: 'fanout', branches: ['a', 'b'] },
+      { id: 'a', kind: 'task', workerType: reg.workerTypes[0], edges: [{ to: 'outerJoin' }] },
+      { id: 'b', kind: 'task', workerType: reg.workerTypes[0], edges: [{ to: 'mid' }] },
+      { id: 'mid', kind: 'fanout', branches: ['c', 'd'] },
+      { id: 'c', kind: 'task', workerType: reg.workerTypes[0],
+        edges: [{ when: 'always', to: 'gone' }, { to: 'midJoin' }] },
+      { id: 'd', kind: 'task', workerType: reg.workerTypes[0], edges: [{ to: 'inner' }] },
+      { id: 'inner', kind: 'fanout', branches: ['e', 'f'] },
+      { id: 'e', kind: 'task', workerType: reg.workerTypes[0],
+        edges: [{ when: 'always', to: 'gone' }, { to: 'innerJoin' }] },
+      { id: 'f', kind: 'task', workerType: reg.workerTypes[0],
+        edges: [{ when: 'always', to: 'gone' }, { to: 'innerJoin' }] },
+      { id: 'gone', kind: 'end', outcome: 'branch-abandoned' },
+      { id: 'innerJoin', kind: 'join', of: 'inner', edges: [{ to: 'midJoin' }] },
+      { id: 'midJoin', kind: 'join', of: 'mid', edges: [{ to: 'outerJoin' }] },
+      { id: 'outerJoin', kind: 'join', of: 'outer', edges: [{ to: 'done' }] },
+      { id: 'done', kind: 'end', outcome: 'completed' },
+    ];
+    const def = { flowId: 'dead-inner-depth3', version: 1, entry: 'outer', nodes } as unknown as FlowDefinition;
+    equal(validateDefinition(def, { workerTypes: reg.workerTypes, predicates: ['always'] }), [], 'valid');
+    const scheduler = new Fake();
+    const events: RegionEvent[] = [];
+    const dead: string[] = [];
+    const d = new Driver(def, {
+      runId: 'r1', scheduler, createTask: (c) => c, predicates: new Map([['always', () => true]]),
+      workerTypes: reg.workerTypes, now: () => 1,
+      joinPolicy: POLICIES['live-token-requiring-arrival'],
+      onRegionEvent: (e) => events.push(e),
+      onUnsatisfiableJoin: (u) => dead.push(u.fanoutId),
+    });
+    d.start({});
+    for (const id of ['r1:a:0:0', 'r1:b:1:0', 'r1:c:1.0:0', 'r1:d:1.1:0', 'r1:e:1.1.0:0', 'r1:f:1.1.1:0']) {
+      scheduler.settle(id, 'done', { result: null });
+    }
+    equal(events.filter((e) => e.type === 'branch.lost').map((e) => `${e.regionId}:${e.branchPath}`),
+      ['mid:1.1', 'outer:1'],
+      'the inner join`s death ends `mid`s branch 1.1, and `mid`s death ends `outer`s branch 1. ' +
+      'Two emissions from one line, at the paths the two fanouts sit at');
+    equal(dead, ['inner', 'mid'],
+      'both dead regions are reported, in the order they died — and `outer` is not among them');
+    equal([d.joinStatusOf('inner')?.status, d.joinStatusOf('mid')?.status, d.joinStatusOf('outer')?.status],
+      ['unsatisfiable', 'unsatisfiable', 'satisfied'],
+      'nothing arrived at `inner` or at `mid`; `a` arrived at `outer`. The policy decides each one');
+  });
+
+  test('and a dead join at depth 1 still emits nothing, which is why this was invisible', () => {
+    // The discriminator for the whole suite. If the new emission fired for a
+    // top-level region too, every depth-1 row in the matrix would have changed —
+    // and the reason it did not is that `regionOf(fanoutId)` is `undefined` there.
+    const nodes = [
+      { id: 'split', kind: 'fanout', branches: ['x', 'y'] },
+      { id: 'x', kind: 'task', workerType: reg.workerTypes[0],
+        edges: [{ when: 'always', to: 'bail' }, { to: 'collect' }] },
+      { id: 'y', kind: 'task', workerType: reg.workerTypes[0],
+        edges: [{ when: 'always', to: 'bail' }, { to: 'collect' }] },
+      { id: 'bail', kind: 'end', outcome: 'branch-abandoned' },
+      { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'done' }] },
+      { id: 'done', kind: 'end', outcome: 'completed' },
+    ];
+    const def = { flowId: 'dead-join-depth1', version: 1, entry: 'split', nodes } as unknown as FlowDefinition;
+    const scheduler = new Fake();
+    const events: RegionEvent[] = [];
+    const dead: string[] = [];
+    const d = new Driver(def, {
+      runId: 'r1', scheduler, createTask: (c) => c, predicates: new Map([['always', () => true]]),
+      workerTypes: reg.workerTypes, now: () => 1,
+      joinPolicy: POLICIES['live-token-requiring-arrival'],
+      onRegionEvent: (e) => events.push(e),
+      onUnsatisfiableJoin: (u) => dead.push(u.fanoutId),
+    });
+    d.start({});
+    for (const id of ['r1:x:0:0', 'r1:y:1:0']) scheduler.settle(id, 'done', { result: null });
+    equal(dead, ['split'], 'the join is dead and reported');
+    equal(events.filter((e) => e.type === 'branch.lost'), [],
+      'and NOTHING is ended by it: `split` is in no region, so there is no branch to end. ' +
+      'This is why the gap survived every plan before nesting existed');
+    equal(d.joinStatusOf('split')?.status, 'unsatisfiable', 'the depth-1 answer is unchanged');
+  });
+});

@@ -53,6 +53,19 @@ export interface Scenario {
   flow: FlowDefinition;
   /** The fanout whose join this row is about. */
   fanoutId: string;
+  /**
+   * **Every fanout in the flow, outermost first — W22.** Defaults to
+   * `[fanoutId]`, which is what all nine depth-1 rows are.
+   *
+   * A **nested** row has two joins and `Cell.status`/`describe` report only
+   * `fanoutId`'s. Measured before this field existed: `runCell` runs a depth-2
+   * scenario unchanged and produces a perfectly good cell **about the outer join
+   * only**, while the thing the row exists to show — what the inner join did, and
+   * what its verdict did to the outer branch — is reachable only by calling
+   * `driveScenario` and `joinStatusOf` by hand. **A depth-2 row asserted through a
+   * `Cell` alone asserts the outer join and calls it the row.**
+   */
+  regions?: string[];
   /** The task id the join routes to when it fires. Dispatch of this IS "the join fired". */
   downstream: string;
   predicates?: Record<string, Predicate>;
@@ -101,6 +114,16 @@ export interface Cell {
   /** Reported by the driver when a policy says a join can never fire. */
   unsatisfiable: { fanoutId: string; policyId: string }[];
   verdict: Verdict;
+  /**
+   * **Every region's own answer, keyed by `fanoutId` — W22.** `status` and
+   * `describe` above stay the row's declared `fanoutId`'s, so all nine depth-1
+   * rows and every assertion over them are unchanged; this is additive.
+   *
+   * It is a `Record` rather than a second pair of fields because a depth-3 row
+   * has three, and a row that had to name which of its joins it was "really"
+   * about would be making the choice this field exists to remove.
+   */
+  regions: Record<string, { status: string; describe: JsonValue }>;
 }
 
 export class Fake {
@@ -220,6 +243,16 @@ export function runCell(scenario: Scenario, policy: JoinPolicy): Cell {
     // assertion's business and it reads `driveScenario` for it.
     unsatisfiable: unsatisfiable.map((i) => ({ fanoutId: i.fanoutId, policyId: i.policyId })),
     verdict: verdictOf(driver, joinFired),
+    // **Read from the same accessor `status` above is read from**, one call per
+    // declared region. A second source here — the event stream, say — would let
+    // this field and `status` disagree about the row's own fanout, which is the
+    // provenance hazard `doc/workflow.md` rule 8's third obligation names.
+    regions: Object.fromEntries((scenario.regions ?? [scenario.fanoutId]).map((f) => {
+      const r = driver.joinStatusOf(f);
+      // `JP-R3` — status is total, so a missing report is a finding rather than
+      // something to paper over. Same treatment as `status` above.
+      return [f, { status: r?.status ?? '<no report>', describe: (r?.describe ?? null) as JsonValue }];
+    })),
   };
 }
 
@@ -243,11 +276,31 @@ export function renderTable(rows: { scenario: Scenario; cells: Cell[] }[], polic
   const head = `| row | ${policyIds.join(' | ')} |`;
   const rule = `|---|${policyIds.map(() => '---').join('|')}|`;
   const body = rows.map(({ scenario, cells }) => {
+    const cellOf = (id: string) => cells.find((x) => x.policyId === id)!;
+    const regionIds = scenario.regions ?? [scenario.fanoutId];
+
+    // **The shared prefix, computed rather than assumed — W22.** At depth 1 every
+    // column sees the same stream and this is the whole of it, so the row below is
+    // byte-identical to what it printed before. At depth 2 it is not: an inner
+    // join's FIRING enters the outer join, so the tail depends on what the inner
+    // region's policy concluded, and printing column 0's stream for the row would
+    // show `arrival-count`'s — the one column whose inner join never fires.
+    const streams = policyIds.map((id) => cellOf(id).events);
+    let n = 0;
+    while (streams.every((s) => s.length > n && s[n] === streams[0]![n])) n++;
+
     const cs = policyIds.map((id) => {
-      const c = cells.find((x) => x.policyId === id)!;
-      return `\`${c.status}\` / **${c.verdict}** <br> ${JSON.stringify(c.describe)}`;
+      const c = cellOf(id);
+      // One region: unchanged since W15. Several: the verdict, then every region's
+      // own answer, then what this column alone appended. **Both arms are printed
+      // by `render.ts` and asserted by `matrix.test.ts`** — an arm the suite does
+      // not execute is the defect this function was moved out of `render.ts` over.
+      if (regionIds.length === 1) return `\`${c.status}\` / **${c.verdict}** <br> ${JSON.stringify(c.describe)}`;
+      const per = regionIds.map((f) => `${f} \`${c.regions[f]!.status}\` ${JSON.stringify(c.regions[f]!.describe)}`);
+      const tail = c.events.slice(n);
+      return `**${c.verdict}** <br> ${per.join(' <br> ')} <br> then: \`${tail.join(' ') || '(nothing)'}\``;
     });
-    return `| **${scenario.key}** <br> ${scenario.title} <br> \`${cells[0]!.events.join(' ')}\` | ${cs.join(' | ')} |`;
+    return `| **${scenario.key}** <br> ${scenario.title} <br> \`${streams[0]!.slice(0, n).join(' ')}\` | ${cs.join(' | ')} |`;
   });
   return [head, rule, ...body].join('\n');
 }

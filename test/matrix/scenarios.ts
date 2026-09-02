@@ -20,7 +20,10 @@
  * numbers are the ones measured at 0.3.0.
  */
 import type { Scenario } from './run.ts';
-import { fanoutFailure, fanoutJoin, optionalLost, p1RoutedAway, sixEvents, twoRegions } from './flows.ts';
+import {
+  fanoutFailure, fanoutJoin, nested, nestedExit, nestedLost, optionalLost, p1RoutedAway,
+  sixEvents, twoRegions,
+} from './flows.ts';
 
 const bail = { isLowConfidence: () => true };
 
@@ -178,3 +181,101 @@ export const TWO_REGIONS: Scenario = {
     { do: 'settle', taskId: 'r1:b2:1:0', state: 'done' },
   ],
 };
+
+/**
+ * **The depth-2 rows — W22, and they are NOT in `SCENARIOS`.** Same reasoning as
+ * `TWO_REGIONS` above: the nine are Q5's cases and
+ * [ADR 0003](../../doc/decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md)
+ * counts them, so appending here would silently restate that ADR's arithmetic.
+ * Depth is a different axis, and
+ * [ADR 0030](../../doc/decisions/0030-a-join-is-transitive-and-a-dead-join-ends-the-branch-it-sits-in.md)
+ * counts these four.
+ *
+ * **Each row is a depth-1 row one level down**, and the pairing is the claim:
+ *
+ * | | its inner region is | ≡ |
+ * |---|---|---|
+ * | `nested-all-arrive` | both inner branches arrive | `all-arrive` |
+ * | `nested-inner-lost` | an `optional` inner branch settles `failed` | `lost-settled` |
+ * | `nested-inner-exit` | one inner branch routes to an `end` | `routed-away` |
+ * | `nested-inner-all-exit` | BOTH inner branches route away | `all-exit` |
+ *
+ * **`regions` names both joins**, because `Cell.status` is the row's declared
+ * `fanoutId`'s and every one of these rows is about what the INNER join did and
+ * what that did to the outer branch.
+ *
+ * **The last two share one flow and differ only in which settlements carry
+ * `{ bail: true }`**, so the all-exit row cannot be blamed on a differently
+ * shaped graph.
+ */
+const NESTED_A = 'r1:scoreA:0:0';
+const NESTED_B = 'r1:scoreB:1:0';
+const NESTED_C = 'r1:scoreC:1.0:0';
+const NESTED_D = 'r1:scoreD:1.1:0';
+
+/** Reads the settlement's own `result`, so one flow serves both exit rows. */
+const bailOnResult = {
+  isLowConfidence: (ctx: { outcome: { result: unknown } }) =>
+    (ctx.outcome.result as { bail?: boolean } | null)?.bail === true,
+};
+
+export const NESTED_SCENARIOS: Scenario[] = [
+  {
+    key: 'nested-all-arrive',
+    title: 'every branch at both depths reaches its join',
+    flow: nested,
+    fanoutId: 'outer',
+    regions: ['outer', 'inner'],
+    downstream: PUBLISH,
+    steps: [
+      { do: 'settle', taskId: NESTED_A, state: 'done' },
+      { do: 'settle', taskId: NESTED_B, state: 'done' },
+      { do: 'settle', taskId: NESTED_C, state: 'done' },
+      { do: 'settle', taskId: NESTED_D, state: 'done' },
+    ],
+  },
+  {
+    key: 'nested-inner-lost',
+    title: 'an `optional` INNER branch settles `failed` and no edge opts in',
+    flow: nestedLost,
+    fanoutId: 'outer',
+    regions: ['outer', 'inner'],
+    downstream: PUBLISH,
+    steps: [
+      { do: 'settle', taskId: NESTED_A, state: 'done' },
+      { do: 'settle', taskId: NESTED_B, state: 'done' },
+      { do: 'settle', taskId: NESTED_C, state: 'done' },
+      { do: 'settle', taskId: NESTED_D, state: 'failed' },
+    ],
+  },
+  {
+    key: 'nested-inner-exit',
+    title: "P1's case one level down — an INNER branch reaches an `end`",
+    flow: nestedExit,
+    fanoutId: 'outer',
+    regions: ['outer', 'inner'],
+    downstream: PUBLISH,
+    predicates: bailOnResult,
+    steps: [
+      { do: 'settle', taskId: NESTED_A, state: 'done' },
+      { do: 'settle', taskId: NESTED_B, state: 'done' },
+      { do: 'settle', taskId: NESTED_C, state: 'done' },
+      { do: 'settle', taskId: NESTED_D, state: 'done', result: { bail: true } },
+    ],
+  },
+  {
+    key: 'nested-inner-all-exit',
+    title: 'EVERY inner branch reaches an `end`, so the inner join is reached by nothing',
+    flow: nestedExit,
+    fanoutId: 'outer',
+    regions: ['outer', 'inner'],
+    downstream: PUBLISH,
+    predicates: bailOnResult,
+    steps: [
+      { do: 'settle', taskId: NESTED_A, state: 'done' },
+      { do: 'settle', taskId: NESTED_B, state: 'done' },
+      { do: 'settle', taskId: NESTED_C, state: 'done', result: { bail: true } },
+      { do: 'settle', taskId: NESTED_D, state: 'done', result: { bail: true } },
+    ],
+  },
+];

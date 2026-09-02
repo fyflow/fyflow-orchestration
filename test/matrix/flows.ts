@@ -163,3 +163,92 @@ export const twoRegions: FlowDefinition = {
     { id: 'done', kind: 'end', outcome: 'completed' },
   ],
 };
+
+/**
+ * **The nested shapes — W22, and there are three flows behind four rows.**
+ *
+ * `spec/examples/valid/nested-fanout.flow.json` exists and is NOT used, which is
+ * a measured reason rather than a preference: its `outerJoin` routes to an `end`,
+ * so **nothing is dispatched when the outer join fires** and a `Scenario` has no
+ * `downstream` task id to read. A matrix row's whole definition of *the join
+ * fired* is *this id reached `addTask`*.
+ *
+ * They are matrix-local for the same reason `matrix-optional-lost` is: the corpus
+ * is W1's and a spec change is its own change with its own rationale
+ * (`spec/README.md` rule 1). They are still validated in full — `new Driver(...)`
+ * runs `validateDefinition` before anything is queued.
+ *
+ * **The shape is one shape.** `outer` fans out to `scoreA` and `scoreB`; `scoreB`
+ * enters `inner`; `innerJoin` routes to `outerJoin`; `outerJoin` routes to
+ * `publish`. So `region(inner)` is wholly inside `region(outer)`'s branch 1,
+ * which is what `FD-V19` and `FD-V22` require and what makes `branchPath` a
+ * property of the node (`spec/task-id.md` section 1). The three differ only in
+ * how the INNER branches finish, because that is the only place a depth-2 row can
+ * say anything a depth-1 row does not.
+ */
+const nestedNodes = (
+  scoreC: FlowDefinition['nodes'][number],
+  scoreD: FlowDefinition['nodes'][number],
+  extra: FlowDefinition['nodes'] = [],
+): FlowDefinition['nodes'] => [
+  { id: 'outer', kind: 'fanout', branches: ['scoreA', 'scoreB'] },
+  { id: 'scoreA', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'outerJoin' }] },
+  { id: 'scoreB', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'inner' }] },
+  { id: 'inner', kind: 'fanout', branches: ['scoreC', 'scoreD'] },
+  scoreC,
+  scoreD,
+  ...extra,
+  { id: 'innerJoin', kind: 'join', of: 'inner', edges: [{ to: 'outerJoin' }] },
+  { id: 'outerJoin', kind: 'join', of: 'outer', edges: [{ to: 'publish' }] },
+  { id: 'publish', kind: 'task', workerType: 'PublishWorker', edges: [{ to: 'done' }] },
+  { id: 'done', kind: 'end', outcome: 'completed' },
+];
+
+/** Every branch at both depths reaches its join — the depth-2 control row. */
+export const nested: FlowDefinition = {
+  flowId: 'matrix-nested',
+  version: 1,
+  entry: 'outer',
+  nodes: nestedNodes(
+    { id: 'scoreC', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'innerJoin' }] },
+    { id: 'scoreD', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'innerJoin' }] },
+  ),
+};
+
+/**
+ * `matrix-optional-lost` one level down: `scoreD` is `optional` and its only edge
+ * is the default one, so settling `failed` ends the path **inside** `region(inner)`
+ * with no edge eligible. The same reasoning as that flow's — this is the only road
+ * to a settled `branch.lost`.
+ */
+export const nestedLost: FlowDefinition = {
+  flowId: 'matrix-nested-lost',
+  version: 1,
+  entry: 'outer',
+  nodes: nestedNodes(
+    { id: 'scoreC', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'innerJoin' }] },
+    { id: 'scoreD', kind: 'task', workerType: 'ScoreWorker', optional: true, edges: [{ to: 'innerJoin' }] },
+  ),
+};
+
+/**
+ * **Two rows share this one**, and the predicate is what separates them: BOTH
+ * inner branches carry a decision edge to an `end` inside `region(inner)`, and
+ * `isLowConfidence` reads the settlement's own `result`. So `nested-inner-exit`
+ * bails one branch and `nested-inner-all-exit` bails both, **on the same
+ * definition** — which is how a real flow reaches both, and which stops the
+ * all-exit row being a differently-shaped graph whose result could be blamed on
+ * the shape.
+ */
+export const nestedExit: FlowDefinition = {
+  flowId: 'matrix-nested-exit',
+  version: 1,
+  entry: 'outer',
+  nodes: nestedNodes(
+    { id: 'scoreC', kind: 'task', workerType: 'ScoreWorker',
+      edges: [{ when: 'isLowConfidence', to: 'abandoned' }, { to: 'innerJoin' }] },
+    { id: 'scoreD', kind: 'task', workerType: 'ScoreWorker',
+      edges: [{ when: 'isLowConfidence', to: 'abandoned' }, { to: 'innerJoin' }] },
+    [{ id: 'abandoned', kind: 'end', outcome: 'branch-abandoned' }],
+  ),
+};

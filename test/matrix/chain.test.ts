@@ -42,7 +42,7 @@ import { arrivalCount, liveToken } from '../../src/fold/policies.ts';
 import type { JoinPolicy } from '../../src/driver/policy.ts';
 import { fold, isTerminal } from '../../src/fold/run-state.ts';
 import { driveScenario, runCell } from './run.ts';
-import { SCENARIOS } from './scenarios.ts';
+import { NESTED_SCENARIOS, SCENARIOS } from './scenarios.ts';
 // **`liveTokenRequiringArrival` comes from `src/` since ADR 0025**, not from
 // `./variants.ts` where W15 found it. The chain this file drives is now a SHIPPED
 // policy's chain — same object, same 36 cells, one import line.
@@ -374,6 +374,102 @@ suite('L2 — the whole matrix, checked against the fold and against the schedul
           `${scenario.key}/${policy.id}: and the FOLD's input sequence agrees with both — which ` +
           'is what makes `RN-R4` true (a node absent from `nodes` was never dispatched)');
       }
+    }
+  });
+});
+
+/**
+ * **The nested chain — W22.** `matrix.test.ts` asserts what each POLICY said; a
+ * `Cell` cannot see the fold, so what a dead inner region does to
+ * `RunState.outcome` is asserted here, where the depth-1 chain already is.
+ *
+ * The claim [ADR 0030](../../doc/decisions/0030-a-join-is-transitive-and-a-dead-join-ends-the-branch-it-sits-in.md)
+ * rule 5 makes: **the outer join firing does not hide the dead inner region.**
+ * `RN-R10` reads *every* region, so `regions.inner.joined === false` is what
+ * carries the run to `stuck` — and the outer join fires anyway, which is the
+ * policy's answer rather than the driver's.
+ */
+const NESTED_ALL_EXIT = NESTED_SCENARIOS.find((s) => s.key === 'nested-inner-all-exit')!;
+
+suite('L2 — a dead INNER join, through the fold', (test) => {
+  test('the outer join fires and the run is still `stuck`', () => {
+    const { driver, scheduler, unsatisfiable } = driveScenario(NESTED_ALL_EXIT, liveTokenRequiringArrival as JoinPolicy);
+    // **`publish` is settled HERE and by no other row, and that is a consequence
+    // of ADR 0030 rule 4 rather than harness bookkeeping.** The outer join fires
+    // over a region containing a dead one, so real downstream work is dispatched
+    // in a run that can only end `stuck` — and until that work settles the run is
+    // `running`, not `stuck`. The first version of this test asserted `stuck`
+    // without settling it and read `running`, which is the fact rather than a
+    // slip: at depth 1 an `unsatisfiable` join dispatches nothing at all.
+    scheduler.settle('r1:publish:-:0', 'done', null);
+    const state = fold(driver.foldInputs());
+
+    equal(unsatisfiable.map((u) => u.fanoutId), ['inner'],
+      'exactly one region is reported dead, and it is the inner one');
+    equal(state.regions['inner']?.joined, false,
+      '`joinSettled fired:false` for the inner region — ADR 0015');
+    equal(state.regions['outer']?.joined, true,
+      'and the outer join DID fire: its live count reached zero having been positive, and ' +
+      '`scoreA` arrived. That is the policy answering, not the driver deciding');
+    equal(state.outcome, 'stuck',
+      '`RN-R10` reads every region, so one `joined !== true` is enough. Without that the run ' +
+      'would report `completed` over a region that can never fire, which is the false statement ' +
+      'ADR 0015 exists to remove — reached at depth 2 by a road depth 1 has not got');
+  });
+
+  test('and the outer branch has exactly one terminal event, which is what JP-R5 requires', () => {
+    const { driver, events } = driveScenario(NESTED_ALL_EXIT, liveTokenRequiringArrival as JoinPolicy);
+    const outer1 = events.filter((e) => e.regionId === 'outer' && e.branchPath === '1');
+    equal(outer1.map((e) => e.type), ['branch.opened', 'branch.lost'],
+      '`JP-R5` names the two states in which a branch may have NO terminal event — suspended ' +
+      'and unresolved, or still in flight. Before W22 this branch had none while being neither, ' +
+      'and `RunState.regions.outer.settled` simply omitted it');
+    equal(fold(driver.foldInputs()).regions['outer']?.settled, { '0': 'arrived', '1': 'lost' },
+      'both outer branches are accounted for. The `1` entry is the one that did not exist');
+  });
+
+  test('ADR 0030 rule 7: the ended branch appends NO pathEnded, and neither reason is true', () => {
+    // **W22's conformity reader**: rule 7 was asserted by nothing. Adding
+    // `append({ kind: 'pathEnded', reason: 'no-eligible-edge', at: region.joinId })`
+    // to the `unsatisfiable` arm left every assertion green, because nothing read
+    // `pathEnds` on any nested row and `stuck` outranks `failed` either way.
+    //
+    // **Both of `pathEnded`'s reasons are FALSE for this path**: it did not end at
+    // an `end` node, and it did not run out of eligible edges — `innerJoin` has an
+    // eligible edge to `outerJoin` and simply never fires. A third reason would be
+    // a `spec/run-state.md` change W22 does not own, and the `joinSettled` record
+    // with `fired: false` already carries the fact.
+    const { driver, scheduler } = driveScenario(NESTED_ALL_EXIT, liveTokenRequiringArrival as JoinPolicy);
+    scheduler.settle('r1:publish:-:0', 'done', null);
+    const ends = fold(driver.foldInputs()).pathEnds;
+    equal(ends.filter((e) => e.at === 'innerJoin'), [],
+      'no path end is recorded AT the dead join');
+    equal(ends.map((e) => `${e.reason}@${e.at}`), ['end@abandoned', 'end@abandoned', 'end@done'],
+      'the only path ends are the two inner branches reaching their `end` node and the run ' +
+      'reaching its own — the dead join contributes none');
+  });
+
+  test('the report names the inner region under the OUTER run, with the policy own describe', () => {
+    const { unsatisfiable } = driveScenario(NESTED_ALL_EXIT, liveTokenRequiringArrival as JoinPolicy);
+    equal(unsatisfiable.length, 1, 'one report');
+    equal({ fanoutId: unsatisfiable[0]!.fanoutId, joinId: unsatisfiable[0]!.joinId,
+            describe: unsatisfiable[0]!.describe, policyId: unsatisfiable[0]!.policyId },
+      { fanoutId: 'inner', joinId: 'innerJoin',
+        describe: { live: 0, positive: true, arrived: 0 },
+        policyId: 'live-token-requiring-arrival' },
+      'section 4: the driver reports the POLICY`s own describe and invents no run-level outcome');
+  });
+
+  test('under the other three columns nothing is reported dead and the run is not `stuck` for that reason', () => {
+    // The discriminator. If this passed under every column, the row above would
+    // be asserting something true of the harness rather than of the policy.
+    for (const policy of MATRIX_COLUMNS) {
+      if (policy.id === 'live-token-requiring-arrival') continue;
+      const { driver, unsatisfiable } = driveScenario(NESTED_ALL_EXIT, policy);
+      equal(unsatisfiable.length, 0, `${policy.id}: reports no dead join`);
+      const state = fold(driver.foldInputs());
+      equal(state.regions['inner']?.joined !== false, true,
+        `${policy.id}: the inner region is not marked dead`);
     }
   });
 });

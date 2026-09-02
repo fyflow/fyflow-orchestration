@@ -125,7 +125,7 @@ for how it is reached.
 | | |
 |---|---|
 | `npm run gate` | everything below, in order |
-| `npm test` · `npm run test:deno` · `npm run test:browser:all` | 410 assertions, five runtimes |
+| `npm test` · `npm run test:deno` · `npm run test:browser:all` | 474 assertions, five runtimes — `npm run gate` runs three of them, and `test:browser:all` is what adds firefox and webkit |
 | `npm run test:l6` · `npm run test:l6:deno` | a real scheduler, 19 runs |
 
 ## Documentation
