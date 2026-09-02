@@ -13,7 +13,9 @@
  * spec rather than a thing to build.
  */
 import type { FlowDefinition, FlowNode, Registry, TerminalState } from '../definition/types.ts';
-import { allRegions, buildGraph, toRegion, type Graph, type RegionSets } from '../definition/regions.ts';
+import {
+  allRegions, buildGraph, innermostRegionOf, toRegion, type Graph, type RegionSets,
+} from '../definition/regions.ts';
 import { validateDefinition, violatedRules } from '../definition/validate.ts';
 import { assertRunId, buildTaskId, InvalidTaskId, parseTaskId, type TaskIdParts } from './ids.ts';
 import { effectiveOutcome, isSuspended, type LogRecord, type OutcomeRecord } from './log.ts';
@@ -673,9 +675,17 @@ export class Driver {
     // given mutates a record already in the log. `spec/outcome-record.md` section
     // 4 — *"copying the field copies the reference"* — applied to the one exit
     // that actually reaches a worker.
-    // The source node's region travels with the hop. A non-`end` node is in at
-    // most one region (FD-V19, FD-V22), so `regionOf` is unambiguous HERE — it is
-    // only `end` nodes, which are exempt from those rules, that can be in two.
+    // The source node's region travels with the hop, and it is the **innermost**
+    // one.
+    //
+    // **This comment said *"a non-`end` node is in at most one region (FD-V19,
+    // FD-V22), so `regionOf` is unambiguous HERE"*, and `spec/flow-definition.md`
+    // v0.7 made it false.** It was true because `FD-V15` refused a fanout inside
+    // another fanout's region; retiring that rule puts every node of a nested
+    // region in two, and the two rules the sentence cited are not the one that
+    // was carrying it. `regionOf` is unambiguous now because it resolves
+    // **innermost** rather than first-declared — `FD-V19` and `FD-V22` are what
+    // make *innermost* unique, which is the true half of the old sentence.
     this.enter(
       runId, result.taken.to, cloneValue(outcome.result), branchPath,
       this.regionOf(nodeId)?.fanoutId,
@@ -785,8 +795,19 @@ export class Driver {
     return inherited;
   }
 
+  /**
+   * **Delegated to the region maths, and it is not a `.find()` any more** —
+   * `spec/flow-definition.md` section 4, *"Which region a node is in, when it is
+   * in two"*, added at v0.7 when `FD-V15` was retired
+   * ([W20](../../doc/work-items/w20-what-a-nested-region-is.md)).
+   *
+   * This read `this.regions.find((r) => r.members.has(nodeId))`, which answered
+   * *"which region"* with **the order the author declared the fanouts in**.
+   * Nothing could see it while nested fan-out was refused; the moment it was not,
+   * the same graph gave two different answers depending on node order.
+   */
   private regionOf(nodeId: string): RegionSets | undefined {
-    return this.regions.find((r) => r.members.has(nodeId));
+    return innermostRegionOf(this.regions, nodeId);
   }
 
   /**

@@ -285,7 +285,18 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
     }
   }
 
-  // ---- the region family: FD-V12, FD-V13, FD-V15, FD-V19, FD-V20, FD-V22 ----
+  // ---- the region family: FD-V12, FD-V13, FD-V19, FD-V20, FD-V22 ----
+  //
+  // **`FD-V15` was here and is retired** — `spec/flow-definition.md` v0.7. It
+  // refused any `fanout` inside another fanout's region, and it was the only
+  // finding the nested example produced: with it set aside, `FD-V13`, `FD-V19`
+  // and `FD-V22` all accept
+  // `spec/examples/valid/nested-fanout.flow.json`, measured before the rule was
+  // retired. **The id is retired rather than reused**, as `FD-V14` is absent.
+  //
+  // `FD-V19` and `FD-V22` are what nesting now RESTS on rather than what it had
+  // to get past: they keep an inner region wholly inside one outer branch, which
+  // is what makes `innermostRegionOf` unique and `branchPath` derivable.
   // Guarded on acyclicity deliberately, unlike FD-V11 above: `region(F)` is not
   // meaningful on a cyclic graph, so these would be noise rather than findings.
   if (!cyclic) {
@@ -296,9 +307,6 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
       for (const id of r.members) {
         if (kindOf(id) !== 'end' && r.after.has(id)) {
           add('FD-V13', id, `node is in both region(${r.fanoutId}) and after(${r.fanoutId})`);
-        }
-        if (kindOf(id) === 'fanout') {
-          add('FD-V15', id, `nested fanout inside region(${r.fanoutId})`);
         }
       }
       for (let i = 0; i < r.branches.length; i++) {

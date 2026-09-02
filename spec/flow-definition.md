@@ -1,6 +1,6 @@
 # spec/flow-definition — the flow definition format
 
-**Status:** v0.6 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.7 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2** acted on the first spec-conformity pass
 (ADR 0004, and `region(F)` made computable). **v0.3** acted on the second, which found that `FD-V19`
 had reintroduced the v0.1 defect class under a new id — a refusal rule rejecting the valid corpus.
@@ -8,6 +8,12 @@ had reintroduced the v0.1 defect class under a new id — a refusal rule rejecti
 refuse at all. **v0.5** acted on W3's pass, which found `FD-R1` prescribing a test that cannot be constructed.
 **v0.6** points `FD-R1` at `OR-R10`: *"terminates the run"* is a thing the driver does, not a throw
 from a listener, which is discarded.
+**v0.7 retires `FD-V15` and defines which region a node is in when it is in two**
+([W20](../doc/work-items/w20-what-a-nested-region-is.md) under
+[P7](../doc/plans/p7-is-a-join-transitive-over-nested-fan-out.md)): nested fan-out is expressible,
+and *"a non-`end` node is in at most one region"* stops being true. **Measured before the rule was
+written**: with `FD-V15` set aside, the nested example produced **no other finding** — `FD-V13`,
+`FD-V19` and `FD-V22` all accept it, so this is a lift rather than a redesign.
 **Binds:** [ADR 0002](../doc/decisions/0002-a-flow-definition-is-data-and-a-predicate-is-registered-by-name.md)
 (the graph is data; a predicate is a name; an unknown name fails at instantiation) and
 [ADR 0004](../doc/decisions/0004-a-non-success-outcome-routes-only-where-an-edge-opts-in-and-user-action-suspends.md)
@@ -195,6 +201,65 @@ For a fanout `F` with join `J` and branch entries `b₁ … bₙ`:
 > version apart. If a fourth region rule is ever added, check it against
 > `spec/examples/valid/` before writing it down.
 
+### Which region a node is in, when it is in two — v0.7
+
+**Before nesting, this question had a trivial answer and a comment in `src/driver/driver.ts` said
+so**: a non-`end` node was in at most one region, because `FD-V19` and `FD-V22` keep a node out of
+two branches of the same region and `FD-V15` kept regions from containing one another. **Retiring
+`FD-V15` makes that false for non-`end` nodes**, and a lookup that answered it by taking the first
+match was answering it by **node-declaration order**.
+
+For a node `n`, let `containing(n) = { F : n ∈ region(F) }`.
+
+| | |
+|---|---|
+| **`F` is inside `G`** | `F ≠ G` and `F ∈ region(G)`. The fanout node itself is the witness, and `region` is already transitive, so no new data is needed to compute it |
+| **`innermost(n)`** | the `F ∈ containing(n)` that is inside every other member of `containing(n)`. **Undefined when there is no such `F`** — which is `containing(n)` being empty, and one case more |
+
+**`FD-V22` is what makes `innermost(n)` unique, and it does so only for a NON-`end` node.** Any path
+entering `region(G)` must enter through `G` itself, so a node in two regions has one of their
+fanouts inside the other, and the two candidates are nested rather than merely overlapping.
+
+**`end` nodes are exempt from `FD-V22`** (section 2), and the exemption is load-bearing here rather
+than incidental: **one `end` node may be shared by two SIBLING regions**, nested in neither. Two
+sequential fan-outs sharing one `end` is such a flow, it is [Q45](../doc/open-questions.md)'s shape,
+and this document accepts it. **`innermost(n)` is undefined for that node, and `branchIndexOf`
+returns `null`.**
+
+> **This paragraph said `FD-V19` and `FD-V22` made it unique, full stop, and that was false.** W20's
+> conformity reader measured what the first draft cost: a resolver that fell through to the first
+> candidate answered `f1` or `f2` for the same graph depending on which `fanout` was declared first —
+> **the exact defect this subsection was written to remove, surviving in the one case the rule
+> claimed was unreachable.** `FD-V19` is what makes a node's *branch index* unique within a region,
+> not its region; `FD-V22` is what makes the region unique, and only where it applies.
+>
+> **Saying *undefined* is the only order-independent answer.** Section 1 of
+> [spec/task-id.md](task-id.md) makes `branchPath` *a property of the node*; a node in two unrelated
+> regions has no such property, and picking one of them invents it. **No driver asks**: the `end`
+> arm attributes a branch by the region it was OPENED in rather than by membership, which is why
+> nothing observable depends on this today.
+
+**Three properties, stated because a resolver that gets any of them wrong passes the depth-1 corpus
+unchanged.**
+
+1. **It does not depend on the order nodes are declared in — for every node, including the ones
+   with no answer.** This is the whole point of the rule, and *"there isn't one"* is an answer that
+   satisfies it where *"the first one"* does not.
+   The same graph written with the inner `fanout` first must give the same answer — measured before
+   the rule was written, the old lookup gave `outer`/branch 1 in one order and `inner`/branch 0 in
+   the other, **for the same flow**.
+2. **`innermost(n)` for a node in exactly one region is that region.** The depth-1 corpus must be
+   unchanged, and this is the clause that says so.
+3. **A join node is in no region of its own fanout** (`J ∉ region(F)`, above), so an inner join is in
+   the *outer* region and nothing else — which is what makes an inner join's own `branchPath` an
+   outer one.
+
+**`branchIndexOf` answers the same question one level down** — *which branch of which region* — and
+carries the same obligation. At depth 2 the honest answer to *"which branch is this node in"* is a
+**path** rather than an index, and that is [spec/task-id.md](task-id.md)'s vocabulary rather than
+this document's; the rule here is only that the index it returns is the **innermost** region's and
+not whichever region was declared first.
+
 `region(F)` is computed at instantiation and is what a join policy is given
 ([spec/join-policy.md](join-policy.md) section 1). Region membership must be *computable*, which is
 why the pairing is declared rather than inferred: without it there is no statement of what a branch
@@ -279,7 +344,7 @@ C4 fails if one is missing.
 | `FD-V12` | a `fanout`'s branch entry is its own `join` |
 | `FD-V13` | a node whose kind is not `end` is in **both** `region(F)` and `after(F)` — a branch re-entering the path the join feeds |
 | `FD-V14` | **deliberately absent.** The id is held so the gap is not read as a lost rule — see section 4 |
-| `FD-V15` | a `fanout` lies inside another fanout's region — nested fan-out is out of P1's scope ([Q6](../doc/open-questions.md)) |
+| `FD-V15` | **Nothing. Retired at v0.7, and the id is now deliberately absent** — a held id with no rule behind it, so a gap in the sequence is not read as a rule someone lost. It refused a `fanout` inside another fanout's region; nested fan-out is expressible since [W20](../doc/work-items/w20-what-a-nested-region-is.md), and the id is **retired rather than reused**. Whether a *policy* can serve a nested region is a different question with a different home — `spec/join-policy.md`, because `validateDefinition` is not given the policy |
 | `FD-V16` | `flowId` or any node `id` does not match `^[A-Za-z0-9_-]{1,64}$` — the charset is [spec/task-id.md](task-id.md)'s, and this is where it is enforced |
 | `FD-V17` | a node object, **an edge object**, or the document carries a key its kind does not declare |
 | `FD-V18` | an edge's `on` is present and is not a non-empty array of distinct values drawn from `"done"` and `"failed"`. **`"user_action"` is refused** — it suspends rather than routes (ADR 0004 rule 3, [Q30](../doc/open-questions.md)) |
@@ -321,12 +386,20 @@ several of these rules are entangled by construction, and contorting a case to v
 would make it stop resembling a mistake an author would actually make. A validator MUST reject the
 file and MUST report the named rule among its findings.
 
-**`FD-V13`, `FD-V15`, `FD-V19` and `FD-V22` are restrictions this repo may lift.** `FD-V13` bounds
-P1's join/failure matrix by keeping a routed-away branch from continuing to live outside the region
-([Q23](../doc/open-questions.md)); `FD-V15` is [Q6](../doc/open-questions.md), scheduled for P2;
-`FD-V19` and `FD-V22` are [Q27](../doc/open-questions.md). All four are stated as refusals rather
-than left undefined so that lifting one is a spec change with a rationale (`spec/README.md` rule 1)
-rather than a discovery.
+**`FD-V13`, `FD-V19` and `FD-V22` are restrictions this repo may lift, and `FD-V15` is the one it
+has.** `FD-V13` bounds P1's join/failure matrix by keeping a routed-away branch from continuing to
+live outside the region ([Q23](../doc/open-questions.md)); `FD-V19` and `FD-V22` are
+[Q27](../doc/open-questions.md). All were stated as refusals rather than left undefined so that
+lifting one is a spec change with a rationale (`spec/README.md` rule 1) rather than a discovery —
+**and `FD-V15`'s lift is what that sentence was written for**, four versions before it happened.
+
+**`FD-V19` and `FD-V22` are load-bearing FOR nesting rather than obstacles to it**, which is worth
+saying because they sit in the same family and a reader lifting one will reach for the others. They
+are what keep an inner region wholly inside **one** outer branch: without `FD-V19` an inner fan-out
+could straddle two outer branches and its nodes would have no derivable `branchPath`, and without
+`FD-V22` a node inside a nested region could be entered from outside it with no enclosing branch
+index at all. **Retiring `FD-V15` narrows the set of liftable rules from four to three and makes the
+remaining two harder to lift, not easier.**
 
 ## 6. Runtime refusals
 

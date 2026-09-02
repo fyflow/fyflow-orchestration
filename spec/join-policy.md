@@ -327,7 +327,13 @@ one global choice per run**, made by the caller, and whether it may be made per 
 - **Whether a policy is per-join configurable** rather than global ([Q5](../doc/open-questions.md)).
   P1 runs one policy per whole run so the matrix has two columns rather than a product. *(Four columns
   since W15 — still one policy per run, and still not a product.)*
-- **Transitivity over nested fan-out** ([Q6](../doc/open-questions.md)). `FD-V15` refuses nested
-  fan-out, so no `branchPath` deeper than one element occurs in P1 and the question stays clean for
-  P2.
+- **Transitivity over nested fan-out** ([Q6](../doc/open-questions.md)), **and it is now reachable
+  rather than refused.** This read *"`FD-V15` refuses nested fan-out, so no `branchPath` deeper than
+  one element occurs in P1 and the question stays clean for P2"* — the rule was **retired** by
+  [W20](../doc/work-items/w20-what-a-nested-region-is.md) and the question was not taken in P2.
+  A nested fan-out is a valid definition today; **no policy in section 3 has been ruled transitive
+  over one**, and that is [P7](../doc/plans/p7-is-a-join-transitive-over-nested-fan-out.md)'s
+  question, owned by W22. *(Corrected here by W20 rather than left standing: the sentence became
+  false the moment the rule was retired, and `spec/flow-definition.md`'s new `FD-V15` row points a
+  reader at this document for exactly this half of the question.)*
 - **The run-level outcome** of a join that never fires. See section 4.

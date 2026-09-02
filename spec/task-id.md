@@ -90,7 +90,11 @@ change to every fixture, every log line and every test name written before it.
 
 - **`branchPath` is a path, not an index.** P1 only emits `-` or a single index — nested fan-out is
   refused by `FD-V15` ([Q6](../doc/open-questions.md)) and map-style fan-out is out of scope
-  ([Q12](../doc/open-questions.md)). A dotted path admits both without touching the grammar.
+  ([Q12](../doc/open-questions.md)). **`FD-V15` is retired since
+  [W20](../doc/work-items/w20-what-a-nested-region-is.md), so the first half of that sentence is
+  history: a nested fan-out is a valid definition and the dotted path is what it needs.
+  `buildTaskId` still cannot emit one** — W21's, under
+  [P7](../doc/plans/p7-is-a-join-transitive-over-nested-fan-out.md). A dotted path admits both without touching the grammar.
 - **`attempt` counts flow-level retries only** ([Q16](../doc/open-questions.md)), and P1 always
   emits `0`. It is **not** the scheduler's retry count: `retryPolicy` retries happen *inside* one
   scheduler task and are reported on that task's `attempts` field
@@ -230,7 +234,9 @@ closes it with `ID-R4` rather than with a rule about schedulers, which `Schedule
 express.
 
 **`ID-R1` is a refusal rather than a guard because the collision should be impossible.**
-`FD-V10` forbids cycles, `FD-V15` forbids nested fan-out, and **`FD-V19` forbids convergent
+`FD-V10` forbids cycles, ~~`FD-V15` forbids nested fan-out~~ — **retired by
+[W20](../doc/work-items/w20-what-a-nested-region-is.md), and the argument is restated below rather
+than left resting on it** — and **`FD-V19` forbids convergent
 branches** — so within one run a `(nodeId, branchPath, attempt)` triple can be produced at most
 once. `FD-V13` is what keeps a node from being reachable from two different regions. `ID-R1` is the
 assertion that the argument held: a duplicate means the definition validator or the driver's path

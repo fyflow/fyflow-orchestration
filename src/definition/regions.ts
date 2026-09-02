@@ -136,18 +136,88 @@ export function toRegion(sets: RegionSets): {
 }
 
 /**
+ * **Which region a node is in when it is in two** — `spec/flow-definition.md`
+ * section 4, *"Which region a node is in, when it is in two"*, added at v0.7 when
+ * `FD-V15` was retired.
+ *
+ * `F` is **inside** `G` when `F !== G` and `F`'s fanout node is a member of
+ * `region(G)`. `region` is already transitive — `regionSets` computes `members`
+ * through `reaches(b, joinId)` — so containment needs no new data and this
+ * function adds none.
+ *
+ * **Returns the region that is inside every other candidate**; `undefined` both
+ * for a node in no region and for one whose candidates are **not nested** — see
+ * below, because the second case is real and the first version of this comment
+ * denied it.
+ *
+ * **`FD-V22` is what makes it unique for a NON-`end` node**, and only for one. Any
+ * path entering `region(G)` must enter through `G` itself, so a node in two
+ * regions has one of their fanouts inside the other. **`end` nodes are exempt from
+ * `FD-V22`** (`spec/flow-definition.md` section 2), so one `end` node may be shared
+ * by two **sibling** regions that contain neither each other nor it exclusively —
+ * [Q45](../../doc/open-questions.md)'s shape, two sequential fan-outs sharing one
+ * `end`, which `validateDefinition` accepts today.
+ *
+ * **For that node there is no innermost region and this returns `undefined`
+ * rather than picking one.** W20's conformity reader measured the alternative:
+ * with a running `best` that fell through to the first candidate, the same graph
+ * answered `f1` or `f2` depending on which `fanout` was declared first — the exact
+ * defect this function exists to remove, surviving in the one case the rule's
+ * first draft claimed was unreachable. `spec/task-id.md` section 1 makes
+ * `branchPath` *a property of the node*; a node with no unique region has no such
+ * property, and saying so is the only order-independent answer.
+ *
+ * **This replaces a `.find()`, and the difference is not stylistic.** Until v0.7
+ * the answer was *the first region in `allRegions` order*, and `allRegions`
+ * iterates `doc.nodes` — so the answer was the order the author declared the
+ * fanouts in. Measured on `spec/examples/valid/nested-fanout.flow.json` before
+ * this was written: with `outer` declared first `scoreC` resolved to `outer`, and
+ * with `inner` first it resolved to `inner`. **Same graph, same edges, different
+ * answer.** Nothing could see it while `FD-V15` refused the only input that
+ * distinguishes the two.
+ */
+export function innermostRegionOf(
+  regions: RegionSets[],
+  nodeId: string,
+): RegionSets | undefined {
+  const candidates = regions.filter((r) => r.members.has(nodeId));
+  // **The definition, verbatim** — the candidate that is inside every other one.
+  // Written this way rather than as a running `best` because the fold has a
+  // fall-through and this does not: where no candidate qualifies, `find` returns
+  // `undefined`, which is the answer. At most one can qualify, since two regions
+  // each inside the other would need a cycle and `FD-V10` forbids those.
+  //
+  // A member COUNT would agree on every shape here and is still the wrong
+  // predicate: it orders regions that do not contain one another, and those are
+  // exactly the ones with no answer.
+  return candidates.find((r) => candidates.every((o) => o === r || o.members.has(r.fanoutId)));
+}
+
+/**
  * Which region a node belongs to, and via which branch — the value the task id's
  * `branchPath` segment is derived from (`spec/task-id.md` section 1).
  *
- * Returns `null` for a node in no region. Returns the FIRST match; `FD-V19` and
- * `FD-V22` are what make "first" and "only" the same thing, and `ID-R1` is the
- * assertion that they held.
+ * Returns `null` for a node in no region, and the branch index **of the innermost
+ * region containing it** — `spec/flow-definition.md` section 4. It read the FIRST
+ * match until v0.7, on the ground that `FD-V19` and `FD-V22` make *"first"* and
+ * *"only"* the same thing; **retiring `FD-V15` made that false**, because a node
+ * inside a nested region is in an outer branch and an inner one at the same time,
+ * and *"first"* then meant *"whichever fanout the author declared earlier"*.
+ *
+ * **At depth 2 the honest answer to *"which branch is this node in"* is a PATH**
+ * — `'1.0'` rather than `0` — and that is `spec/task-id.md`'s vocabulary rather
+ * than this file's. This function returns the innermost index; whether it becomes
+ * a path is **W21**'s question, named in W20's Scope/Out so that neither item is
+ * read as having overreached.
  */
 export function branchIndexOf(regions: RegionSets[], nodeId: string): number | null {
-  for (const r of regions) {
-    for (let i = 0; i < r.branches.length; i++) {
-      if (r.branchOf.get(r.branches[i]!)?.has(nodeId)) return i;
-    }
+  const r = innermostRegionOf(regions, nodeId);
+  if (!r) return null;
+  for (let i = 0; i < r.branches.length; i++) {
+    if (r.branchOf.get(r.branches[i]!)?.has(nodeId)) return i;
   }
+  // In a region's `members` but in none of its `branchOf` sets is unreachable:
+  // `members` is the union of those sets. Returning `null` rather than throwing
+  // keeps the signature total, which is what `ID-R1`'s soundness argument reads.
   return null;
 }

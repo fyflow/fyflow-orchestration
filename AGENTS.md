@@ -193,8 +193,10 @@ if (!rules.includes('FD-V2') || !rules.includes('FD-V5')) {
 }
 ```
 
-There are **23 refusals** over the id range `FD-V1` … `FD-V24`, each with a failing example in
-`spec/examples/invalid/`. The ids are never renumbered, so it is safe to assert on them. The full
+There are **22 refusals** over the id range `FD-V1` … `FD-V24`, each with a failing example in
+`spec/examples/invalid/`. Two ids in that range are **deliberately absent** and have no rule behind
+them: `FD-V14`, which never existed, and **`FD-V15`, retired when nested fan-out became
+expressible**. The ids are never renumbered, so it is safe to assert on them. The full
 list is `spec/flow-definition.md`.
 
 **`FD-V14` is deliberately absent, and its id is held open so the gap is not read as a lost rule.**
@@ -852,7 +854,7 @@ if (Object.keys(frozen).length !== 4) {
 | flow-level **retry** | the scheduler's `retryPolicy`, per task |
 | **cancellation** | nothing. The scheduler cannot cancel a queued task either |
 | **durability** — resuming a run after a restart | nothing. The fold is designed to make it additive; it is not built |
-| **nested fan-out** — a branch that fans out again | refused at construction (`FD-V15`) |
+| **nested fan-out** — a branch that fans out again | **the definition layer accepts it**, since `FD-V15` was retired. It is **not usable end to end yet**: a task inside a nested region is dispatched with a single-index `branchPath` where `spec/task-id.md` reserves a dotted one, and no join policy has been ruled transitive over it. Do not build on it until this row says otherwise |
 | **map-style fan-out** — one branch per item in a result | not built; branches are static |
 | a **join timeout** | nothing. A stuck join is detected by the `stuck` outcome, with no clock |
 | **per-join policy choice** | one policy per driver |
