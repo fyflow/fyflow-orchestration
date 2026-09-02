@@ -7,7 +7,7 @@ its retro is run.** [Q4](open-questions.md) is answered:
 [ADR 0003](decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md), **a join is
 satisfied when its region has no live branches** — and **W5 ran it on a real scheduler**, where
 `p1-routed-away` completes under `live-token` and is **`stuck`** under `arrival-count`, with the
-join's successor never dispatched. **410 assertions in five runtimes, plus 373 at ladder L6 in two.** *(This line read **386** and **342** after the counts had moved; both are re-measured here rather than carried forward. The five runtimes are measured too - `npm run gate` runs `test:browser`, which is **chromium only**, so W19 ran `npm run test:browser:all` for firefox and webkit.)*
+join's successor never dispatched. **426 assertions in five runtimes, plus 373 at ladder L6 in two.** *(This line read **386** and **342** after the counts had moved; both are re-measured here rather than carried forward. The five runtimes are measured too - `npm run gate` runs `test:browser`, which is **chromium only**, so W19 ran `npm run test:browser:all` for firefox and webkit.)*
 *(**The two numbers do not count the same thing and the word is the same.** `386` is `test/runner.ts`'s count of `test()` CASES, not of `equal`/`ok` calls — [Q98](open-questions.md), raised by W16 while re-deriving it. `342` is a genuine count of individual `check`/`assertThat` calls in `examples/l6.ts`. W17's conformity reader found the caveat attaching ambiguously to a sentence carrying both.)*
 
 **The retro is in [P1's Record](plans/p1-what-satisfies-a-join.md) and `doc/workflow.md` is v0.3.**
@@ -405,6 +405,32 @@ longer rests on our own reading. [S1](scheduler-upstream.md).
    a `Driver` through a nested flow. Closing it produced [Q113](open-questions.md) — `regionOf` is read
    on **three** paths only, and arrivals and openings use keyed lookups, so innermost resolution is
    load-bearing on the **non-success paths only**.
+
+   **[W21](work-items/w21-the-branch-path-is-a-path.md) is DONE and a nested run now mints the ids
+   the grammar reserved in P1.** `spec/task-id.md` is **v0.7** and its *"`branchPath` is a property
+   of the node"* is a statement about the code rather than about the result: the driver stopped
+   **threading** a path and now **derives** one, both `split('.')[0]` sites are gone, and `dispatch`
+   lost its `branchPath` parameter entirely — it took a path and reduced it to the outermost index,
+   so the caller threaded a value the callee discarded. **The fork P7 named was closed on
+   measurement**: deriving is total over the corpus, agrees with the threaded value at depth 1, and
+   closed [Q114](open-questions.md) with **no new state**.
+
+   **It also shipped a valid definition that hangs**, found by its conformity reader: Q114's first
+   fix carried the path and dropped the region, so an inner join routing to an `end` inside the
+   enclosing region emitted **no terminal event for the outer branch** and the outer join sat at
+   `live: 1` forever. **The fix for that was then found blind at depth 2**, where the truncation its
+   adequacy reader probed is the identity — a depth-3 sibling shape hangs a run under
+   `arrival-count`. Three more real holes, all in what the item created: the `branchPath` grammar's
+   **numeric** shape was untested, so widening it restores ADR 0027's catastrophe; `branchPathOf` was
+   unasserted on the one shape both specs say has no path; and `1e21` minted an id `parseTaskId`
+   rejects.
+
+   **Two findings for the retro.** The **`Owns` gap recurred and P7's own table had the answer** —
+   W21's declaration named paths, as W20's finding asked, and still narrowed `src/driver/driver.ts`
+   out of a block the plan's index table had put it in. And **[Q112](open-questions.md) was corrected
+   for the second item running, both times by the adequacy reader**: W20 refuted *"expected-side
+   probes prove nothing"*, W21 refuted *"a source choice cannot be proved by a single-file probe"*
+   with a counterexample at 1 failure. Both are about how the obligation is **instantiated**.
 
 **The fan-out gate is cleared** (`workflow.md` section 7 rule 3) — not because Q4 is answered, but
 because P1 builds both of its candidate answers, so W2 and W3 can be written without knowing which

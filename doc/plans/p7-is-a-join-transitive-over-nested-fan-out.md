@@ -1,8 +1,8 @@
 # P7 — Is a join transitive over nested fan-out?
 
-**Status:** **RUNNING.** [W20](../work-items/w20-what-a-nested-region-is.md) is **DONE**;
-[W21](../work-items/w21-the-branch-path-is-a-path.md) is **declared and not started**; W22 and W23
-exist in the index table below and in no file yet. Read each item's status from its
+**Status:** **RUNNING.** [W20](../work-items/w20-what-a-nested-region-is.md) and
+[W21](../work-items/w21-the-branch-path-is-a-path.md) are **DONE**; W22 and W23 exist in the index
+table below and in no file yet. Read each item's status from its
 own file, never from this line (`doc/workflow.md` section 1 rule 5).
 **Runs after [P6](p6-what-may-share-a-scheduler-with-a-driver.md)**
 
@@ -125,7 +125,7 @@ not intuition. No two edit the same file.
 | Id | Item | Owns | Depends on | Gate |
 |---|---|---|---|---|
 | **W20** — *declared* | What a nested region **is**: `FD-V15` lifted, innermost resolution as **region maths** | `src/definition/**` (W1/W2), `spec/flow-definition.md` (W1), **`spec/examples/**` (W1)**, `spec/README.md` | nothing | L0-L5 climbed, own coverage at **L0/L1/L4**, then two readers |
-| **W21** — *declared* | The **path**: a nested run mints the ids the grammar reserved | `src/driver/ids.ts` (W3), `spec/task-id.md` (W1), **`spec/README.md`**, **`test/driver/log.test.ts` (W3)** | W20 | **L0-L5**, own coverage at **L1/L2**, then two readers |
+| **W21** — *done* | The **path**: a nested run mints the ids the grammar reserved | `src/driver/ids.ts` (W3), `spec/task-id.md` (W1), **`spec/README.md`**, **`test/driver/log.test.ts` (W3)** | W20 | **L0-L5**, own coverage at **L1/L2**, then two readers |
 | **W22** | **The decision.** ADR 0030; the matrix at depth 2; `arrival-count`'s refusal | `spec/join-policy.md` (W1), `test/matrix/**` (W4), and the construction refusal in `src/driver/driver.ts` | W21 | **L0-L5**, ADR 0030, then two readers |
 | **W23** | A nested flow on **real workers** | `examples/**` (from W19) | W22 | **L0-L6, both L6 runtimes**, then two readers |
 
@@ -176,6 +176,45 @@ did not take it, and this plan does not take it either.
 ## Record
 
 *Filled in when the plan's items are merged and its retro is run.*
+
+### W21 — a nested run mints the ids the grammar reserved, and the fork was closed on evidence
+
+**Deriving beat threading.** `branchPathOf` is total over the valid corpus and agrees with the
+threaded value on every depth-1 flow, so replacing the threading changed **no existing id**. It
+closed [Q114](../open-questions.md) with **no new state** — a join's successor's path is the path its
+region sits at, and a region's fanout is a node. Both `split('.')[0]` sites are **gone** rather than
+fixed, and `dispatch` lost its `branchPath` parameter entirely: it took a path and immediately
+reduced it to the outermost index, so the caller threaded a value the callee threw away.
+
+**One of the fork's stated costs was wrong** and the decision stands anyway —
+[Q119](../open-questions.md): the walk is O(depth × |regions|²) with a doubled inner call, not the
+O(depth) this plan priced. None of the reasons it was chosen depended on the cost.
+
+**Three findings for the retro.**
+
+1. **The `Owns` gap recurred, and this plan's own table had the answer.** W20's finding was that a
+   `Tests:` line naming assertions and not paths cannot be audited. W21's declaration named paths —
+   and still narrowed **`src/driver/driver.ts` out of a block this plan's index table had put it
+   in**. Five late exceptions. **The failure is not the `Tests:` line; it is that an item's `Owns`
+   was written from its title rather than from its plan row.** Two occurrences, two items, different
+   causes, one symptom.
+2. **[Q112](../open-questions.md) needed correcting for the second item running, both times by the
+   adequacy reader, and both times about how the obligation is INSTANTIATED.** W20 corrected
+   *"expected-side probes prove nothing"*; W21 corrected *"a source choice cannot be proved by a
+   single-file probe"* with a counterexample at 1 failure — substituting **only the source
+   expression** is caught, and the author's probe survived because it made a second edit. **A
+   provenance probe changes the source expression and nothing else.**
+3. **A fix made earlier guards dead, and only the re-run saw it.** Adding an `INDEX` test to
+   `buildTaskId` for `1e21` made `Number.isInteger(n)` and `n < 0` unreachable — both caught before,
+   one survived after. Three clauses collapsed to one. **Rule 8's re-run requirement, adopted by P6's
+   retro, earning itself on something other than a reader's fix.**
+
+**And the item shipped a valid definition that hangs**, found by the conformity reader: Q114's first
+fix carried the path and dropped the region, so an inner join routing to an `end` inside the
+enclosing region emitted no terminal event for the outer branch and the outer join sat at `live: 1`
+forever. **The fix for that was then found blind at depth 2**, where the truncation the adequacy
+reader probed is the identity. Both are asserted now, the second on a depth-3 sibling shape where
+truncation collapses two arrivals and hangs a run.
 **[W20](../work-items/w20-what-a-nested-region-is.md) is built, provoked and gated; its two readers
 have not run. W21-W23 have not started.**
 
