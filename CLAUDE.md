@@ -15,7 +15,67 @@ the only document that does. **Every snippet in it is extracted and executed by 
 (`scripts/check-docs.mjs`), so it cannot rot the way a hand-maintained reference does. If you change
 the public surface, that check is what tells you the reference is now wrong.
 
-## Current state: **P1-P6 are complete and retro'd; [P7](doc/plans/p7-is-a-join-transitive-over-nested-fan-out.md) is RUNNING — [W20](doc/work-items/w20-what-a-nested-region-is.md) and [W21](doc/work-items/w21-the-branch-path-is-a-path.md) DONE; W22 and W23 not started**
+## Current state: **P1-P7 are ALL complete and retro'd, and `doc/workflow.md` is [v0.9](doc/workflow.md)** — [P7](doc/plans/p7-is-a-join-transitive-over-nested-fan-out.md)'s four items are [W20](doc/work-items/w20-what-a-nested-region-is.md), [W21](doc/work-items/w21-the-branch-path-is-a-path.md), [W22](doc/work-items/w22-what-an-inner-join-does-to-the-outer-one.md) and [W23](doc/work-items/w23-a-nested-flow-on-real-workers.md)
+
+**P7's exit artifact exists.** A nested fan-out runs end to end on a real scheduler, in **both L6
+runtimes**, with the outer join firing over branches it never opened. Ladder L6 is **489 assertions,
+23 row labels, 25 real runs** (from 373 / 19 / 21), and it dispatches the **first dotted task ids any
+rung above L2 has asserted** — `r18:scoreC:1.0:0` and its siblings, the shape `spec/task-id.md`
+reserved in P1. L0-L5 are **474 in five runtimes**, unmoved by W23, which is the declared result.
+
+**[W23](doc/work-items/w23-a-nested-flow-on-real-workers.md)'s harness had the same defect the driver
+had.** `examples/l6.ts` hard-coded the literal `'split'` as *the* region in **18 places** — W22's
+`Cell` finding one rung up — and its inbound `resolve()` step minted ids with `Number(branchPath)`,
+which is **1** for `'1.0'`, not `NaN`: a well-formed id for a **different task**, reported as a
+refusal naming the wrong cause ([Q117](doc/open-questions.md), whose own row described the failure
+incorrectly twice). Both fixed. **[Q107](doc/open-questions.md) is closed for one boolean** —
+`ForeignTask.optional` — and **[Q90](doc/open-questions.md) is declined with a measurement that
+corrects P7's stated cost**: `ID-R4` tier 2 does not drop silently, so a foreign task carrying a
+run's own id **stops that run** and cannot join a row whose claim is both runs completing.
+
+**LOOP BOUNDS is a fourth obligation for rule 8, and it now has two occurrences in two items.** An
+author's probes break VALUES — what a thing is; a reader's break BOUNDS — how many things are
+iterated. W22's reader found a matrix row and a whole column deletable **for 0 failures**; W23's found
+**four L6 rows and the entire foreign-task list** deletable for 0, the second taking **P6's** exit
+artifact with it. **W23 ran five bounds probes deliberately and all five were caught, and its reader
+still found two more** — the author bounded the lists a *row* iterates, not the lists the *file*
+iterates. Both occurrences are BLOCKING and no value probe reaches either. **For P7's retro.**
+
+**[Q6](doc/open-questions.md) — P7's own question, open since P1 — is ANSWERED by
+[ADR 0030](doc/decisions/0030-a-join-is-transitive-and-a-dead-join-ends-the-branch-it-sits-in.md):
+a join IS transitive over nested fan-out, for every policy, and it needed no mechanism.** Measured
+over four depth-2 rows × the four matrix columns — **each region answers exactly as the depth-1 row
+of the same shape does**, sixteen cells. `N` is per-region, so an inner branch never needed counting
+by the outer join. **`spec/join-policy.md` is v0.10 and 474 assertions run in five runtimes.**
+
+**P7's own decision was falsified by W22's declaration step, and that is a first.** The plan settled
+that `arrival-count` would **REFUSE** nesting at construction, on the ground that *"`N` is fixed at
+the outer branch list and an inner branch has no way to be counted"*. That is **not a mechanism** —
+`arrival-count` reports `satisfied` at both depths on an all-arriving nested flow — so the refusal,
+the driver construction check, the new error class and the matrix's first declared-empty cells were
+**all struck**, and the plan's stated size problem dissolved with them. Nine plans have measured a
+load-bearing fact before declaring; this is the first time it took out a **decision** rather than a
+table. *(The plan carries the correction in place; W22's own file is what an item reasons from.)*
+
+**What ADR 0030 actually decides is the one thing that is NOT a depth-1 behaviour one level down.**
+An `unsatisfiable` join's exit emitted **nothing at all** — unobservable at depth 1, because a
+top-level fanout is in no region, and at depth 2 it left an outer branch with **no terminal event**
+in a run that was neither suspended nor in flight, which `JP-R5`'s own enumeration does not admit.
+**`JP-R10` ends that branch and the enclosing policy decides for itself**; at depth 3 the cascade is
+**emergent from one emission** — `inner` dead → `mid` dead → `outer` **satisfied**, three verdicts,
+none of them the driver's. A walk outward would have put satisfaction in the driver, which ADR 0001
+rule 1 forbids.
+
+**W22's two blocking findings point in different directions and the second is the method one.** Its
+conformity reader found **`spec/join-policy.md` section 2 contradicting the rule the item had just
+added**: `branch.lost`'s stated condition is *"a node … reached a terminal state — by settling, or by
+being resolved — and no edge was eligible"*, and a dead join satisfies **neither** — the ADR had
+quoted only the trailing consequence clause and read it as a definition. Section 2 now has an (a) and
+a (b). Its adequacy reader found **two LOOP BOUNDS**: a whole depth-2 row deletable for **0
+failures**, and a whole column droppable from the depth-2 loop for **0 failures with the assertion
+count unmoved**, while the render kept advertising four columns. **An author's probes break VALUES; a
+reader's broke BOUNDS**, and 28 of the author's could reach neither — that is neither v0.7's two
+obligations nor v0.8's third, and **for P7's retro**.
 
 [ADR 0001, 0002 and 0007](doc/decisions/) settle the architecture so far: **routing executes in the
 driver, outside the scheduler** — a worker computes and does not route, and `context.spawnTask()` is
@@ -364,8 +424,34 @@ that depends on fan-out completion order.
 
 ## How work is done
 
-**[doc/workflow.md](doc/workflow.md) — read it before starting any work item. It is v0.8, run to
-completion by six plans.**
+**[doc/workflow.md](doc/workflow.md) — read it before starting any work item. It is v0.9, run to
+completion by seven plans.**
+
+**v0.9 is P7's retro, and its central finding is that rule 8's obligations are about WHAT is
+asserted, WHERE THE VALUE CAME FROM, and — new — HOW MANY THINGS ARE ITERATED.** Four changes:
+
+1. **Rule 8 gains a FOURTH obligation: break the LOOP BOUNDS.** Two occurrences, two items, four
+   instances, **every one BLOCKING and every one found by an adequacy reader** — and none reachable
+   by a probe of the first three kinds. A matrix row deletable for **0**; a whole column droppable
+   **with the assertion count unmoved**; four L6 rows deletable for one edited number, green at 388
+   with everything passing; a whole foreign-task list emptiable, taking P6's exit artifact with it.
+   **W23 ran five bounds probes deliberately and all five were caught, and its reader found two
+   more** — the author bounded the lists a **row** iterates, not the lists the **file** iterates.
+2. **Rule 8 states the PROCEDURE for a provenance probe**: *it changes the source expression and
+   nothing else.* [Q112](doc/open-questions.md) corrected v0.8's third obligation **four times across
+   three items**, three of them an author repeating a correction a reader had made to them one item
+   earlier. The axis was right and could not be instantiated from what it said.
+3. **Section 1 rule 5's provenance clause extends from *an index* to ANY copy, including your own.**
+   W23 reported a wrong count read from a file **that item had written**, for an earlier version of
+   its own work.
+4. **Section 7 rule 2: an item's `Owns` is written from its PLAN's index row, never from its title.**
+   Late exceptions across P7: **five, four, two, zero**, with the cause stated in between.
+   **`check-owns.mjs` stays retired** — a sentence did what a script was proposed for.
+
+**Rule 7 (c) is unexercised for the fifth plan, and P7 declined TWO checks for the same reason:
+`scripts/**` and `package.json` are in nobody's `Owns`** ([Q121](doc/open-questions.md),
+[Q126](doc/open-questions.md)). That is v0.7 change 3's shape — a gap that blocks a fix — twice in one
+plan, and it is **the next plan's scope rather than a workflow rule**.
 
 **v0.8 is P6's retro, and its central finding is that rule 8's two obligations are both about WHAT is
 asserted and neither is about WHERE THE VALUE COMES FROM.** Two changes, both to rule 8, neither

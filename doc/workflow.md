@@ -1,11 +1,12 @@
 # Workflow
 
-**Status:** v0.8 - **run to completion six times**, by [P1](plans/p1-what-satisfies-a-join.md),
+**Status:** v0.9 - **run to completion seven times**, by [P1](plans/p1-what-satisfies-a-join.md),
 [P2](plans/p2-the-non-success-half-on-a-real-scheduler.md),
 [P3](plans/p3-a-consumer-reference-the-gate-keeps-true.md),
 [P4](plans/p4-the-drivers-lifetime-and-the-handles-it-gives-out.md),
-[P5](plans/p5-a-third-and-fourth-policy-or-repairs-of-the-first-two.md) and
-[P6](plans/p6-what-may-share-a-scheduler-with-a-driver.md)
+[P5](plans/p5-a-third-and-fourth-policy-or-repairs-of-the-first-two.md),
+[P6](plans/p6-what-may-share-a-scheduler-with-a-driver.md) and
+[P7](plans/p7-is-a-join-transitive-over-nested-fan-out.md)
 **Read this before starting any work item.** Paths are relative to the repo root unless they are
 markdown links.
 
@@ -86,6 +87,76 @@ prediction about rule 8 is answered and is **false**.
    ([ADR 0029](decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)).
    The dependency edge that made the junction seem necessary is gone; **the rule still said nothing
    about the removal**, which is the part that did the damage.
+
+**v0.9 is P7's retro, and its central finding is that rule 8's obligations are about WHAT is
+asserted, WHERE THE VALUE COMES FROM, and — new — HOW MANY THINGS ARE ITERATED.** Four items, eight
+reader passes, sixty-nine findings, sixteen of them blocking. **Four changes, two of them to rule 8,
+and one refusal for the seventh time.**
+
+1. **Rule 8 gains a FOURTH obligation: break the LOOP BOUNDS.** Not what a value *is*, and not where
+   it *came from* — **how many things the assertion runs over**. Two occurrences, two items, both
+   BLOCKING, both found by an adequacy reader, and **neither reachable by any probe of the first two
+   kinds**. W22: a matrix row could be deleted for **0 failures**, and a whole column dropped from the
+   depth-2 loop **with the assertion count unmoved**, while the render kept printing four. W23: the
+   four nested L6 rows could be deleted for one edited number — **green at 388 with `lint`,
+   `typecheck` and all five `check:*` passing**, and no dotted task id dispatched anywhere above L2 —
+   and the foreign-task list could be emptied entirely for 0, deleting **P6's** exit artifact along
+   with W23's own. **The sharpest half is that W23 knew about the axis**: it ran five bounds probes
+   deliberately — a row, a region, a foreign task, a branch, the cost model — **and all five were
+   caught, and its reader still found two more.** The author bounded the lists a **row** iterates; the
+   reader bounded the lists the **file** iterates. Ask of every list: can an entry leave, can the
+   whole list leave, and does anything COUNT it from a source other than itself.
+
+2. **Rule 8 states the PROCEDURE for a provenance probe, not only the axis.** v0.8 named the axis and
+   left the instantiation to the author, and it has been corrected **four times across three items**
+   — [Q112](open-questions.md) — three of them by an author repeating a correction a reader had made
+   to them one item earlier. The procedure is one sentence and it now lives in the rule rather than in
+   a register row: **a provenance probe changes the SOURCE EXPRESSION and nothing else.** The moment
+   it also edits the projection, the expected literal, or a second line, it is a rewrite and its
+   survival says nothing. **This replaces nothing**; v0.8's third obligation was right and could not
+   be instantiated from what it said.
+
+3. **Section 1 rule 5's provenance clause extends from *an index* to ANY COPY, including your own.**
+   The rule reads *"a claim about another item's status is read from that item's own file, never from
+   an index"*. W23 reported a count to a human that was wrong because it read it from
+   `examples/README.md` — **a file that item had written itself**, for an earlier version of its own
+   work. One occurrence, and rule 2 admits one with a stated argument: **the rule names indexes
+   because indexes are where the failure had been seen, but the mechanism is reading a derived claim
+   instead of deriving it**, and an author's own summary is the copy most likely to be trusted. The
+   register is the second instance in P7 alone — it described [Q117](open-questions.md)'s failure
+   incorrectly in two successive items, in the file read before every one of them.
+
+4. **Section 7 rule 2 gains a sentence: an item's `Owns` is written from its PLAN's index row, never
+   from its title.** Two occurrences and two confirmations, and the numbers are the argument. W20's
+   `Owns` gave it no file it was allowed to *test* in and took **five** late exceptions; W21's named
+   paths and still narrowed `src/driver/driver.ts` out of a block P7's own table had put it in —
+   **four** late. W22 wrote its block from the plan row, kept `driver.ts` for a different reason than
+   the plan gave, and took **two**. W23 took the whole `examples/**` block the row gives it and took
+   **none — the first item of P7 to take zero.** Five, four, two, zero, with the cause stated in
+   between.
+
+**What did NOT change, and all four were live.** **Rule 7 (c) is unexercised for the FIFTH plan**,
+and for the third consecutive plan because **no check was worth building** — but P7 declined **two**,
+[Q121](open-questions.md) (dead links in `doc/**` and `AGENTS.md`, which `check-spec`'s C5 already
+does for `spec/**`) and [Q126](open-questions.md) (a runtime can be dropped from the gate chain for 0
+failures), **and both were declined for the same reason: `scripts/**` and `package.json` are in
+nobody's `Owns`.** That is v0.7 change 3's shape — a gap that blocks a fix rather than hiding an edit
+— twice in one plan, and it is **a plan's problem rather than this document's**: the next plan that
+wants either check must own those paths. Named here so it is not rediscovered a third time.
+**`check-owns.mjs` stays retired** for the fourth plan, now with the strongest evidence it has had:
+change 4 above took late exceptions to **zero** without a script. **The two-reader split is settled at
+twelve measurements** and closed to re-litigation. And **`doc/` is refused for the SEVENTH time**,
+with its one checkable sub-case identified for the second time and given an owner-shaped answer rather
+than a rule.
+
+**And one thing happened that no previous plan's declaration step had done.** Nine plans have measured
+a load-bearing fact before declaring and in all nine it changed what got written; W20 corrected P7's
+work-item **table**. **W22 falsified P7's own DECISION** — *"`arrival-count` REFUSES nested fan-out"*,
+built on a mechanism (*"`N` is fixed at the outer branch list"*) that measurement showed does not
+exist. The refusal, a driver construction check, a new error class and the matrix's first
+declared-empty cells all went with it, and **the plan's stated size problem dissolved into a smaller
+item**. Eleven plans; the practice needs no rule and this is the strongest single result it has
+produced.
 
 **v0.8 is P6's retro, and its central finding is that rule 8's two obligations are both about WHAT
 is asserted and neither is about WHERE THE VALUE COMES FROM.** Two items, four reader passes, and
@@ -229,6 +300,15 @@ Four rules that make the loop worth having:
    the agent starting W17 read three stale indexes, believed them, and wrote the claim forward into a
    fourth document before checking `doc/work-items/w16-*.md`, which had been correct the whole time.
    The item file is the source; an index is a copy.
+
+   **And it is ANY copy, including one you wrote yourself** — P7's retro. W23 reported a count to a
+   human that was wrong because it read it from `examples/README.md`, **a file that item had written**,
+   for an earlier version of its own work. The rule names indexes because indexes are where the
+   failure had been seen; **the mechanism is reading a derived claim instead of deriving it**, and an
+   author's own summary is the copy most likely to be trusted. Where a number is derivable in one
+   expression, derive it there. P7's second instance is the register, which described
+   [Q117](open-questions.md)'s failure incorrectly in two successive items — in the file read before
+   every one of them.
 
    **The register was added by P4's retro, and it is why the miscounting stopped.** Every work item
    carries a `Reserves:` line obliging it to write rows to `doc/open-questions.md`, and the list here
@@ -510,6 +590,40 @@ Rules:
    not need checking in the way rule 7 (a) requires of a check. Measured: W13's and W14's readers
    reproduced every provocation exactly from the Record, to the failure count.
 
+
+   **AND BREAK THE LOOP BOUNDS — P7's retro, and it is a fourth axis rather than a fourth list.**
+   The three obligations above ask *what is claimed*, *which outputs exist* and *where the number came
+   from*. **None of them asks how many things the assertion runs over**, and that is where both of
+   P7's reader-found blocking survivors lived:
+
+   | | the bound | how it broke, with the gate green |
+   |---|---|---|
+   | W22 | a **matrix row** | deleted from `NESTED_SCENARIOS` for **0 failures** — the only guard read the *expectation* table, so a row that left took its own assertions with it |
+   | W22 | a **column** | dropped from the depth-2 loop for **0 failures with the assertion count unmoved**, because the columns are looped *inside* test cases — while the render kept printing four |
+   | W23 | **four L6 rows** | deleted for one edited number: green at **388** with `lint`, `typecheck` and all five `check:*` passing, and **no dotted task id dispatched anywhere above L2** |
+   | W23 | a whole **list** | `UNMINTED` emptied for **0 failures** and an unmoved total, deleting **P6's** exit artifact as well as W23's own |
+
+   **Two items, four instances, every one BLOCKING and every one found by an adequacy reader.** So:
+   ask of every list an assertion runs over — can one entry leave? can the whole list leave? and does
+   anything **count** it from a source other than itself?
+
+   **The sharpest half is that W23 already knew.** It ran five bounds probes deliberately — a row, a
+   region, a foreign task, a branch, the cost model — **and all five were caught**, and its reader
+   still found two more. **The author bounded the lists a ROW iterates; the reader bounded the lists
+   the FILE iterates.** Knowing the axis is not the same as instantiating it, which is this rule's
+   own recurring lesson: see the sentence immediately below.
+
+   **A provenance probe changes the SOURCE EXPRESSION and nothing else** — P7's retro, and it is a
+   procedure rather than a new obligation. v0.8 named the provenance axis and left the instantiation
+   to the author; it has since been corrected **four times across three items**
+   ([Q112](open-questions.md)), and three of those were an author repeating a correction a reader had
+   made to them one item earlier. **The moment the probe also edits the projection, the expected
+   literal, or a second line, it is a rewrite and its survival says nothing.** Two worked examples of
+   the failure, both from W23's author: `x && y`, which evaluates a source and discards it and so
+   changes nothing at all; and a *fix* for a reader's provenance finding that recorded the value from
+   **the same local the reader's probe swaps**, leaving the probe at 0 after the fix. **Only the
+   re-run below found the second.**
+
    **It also catches a false CLAIM, not only a weak assertion**, which is a use worth naming: W14's
    own provocation showed a row's comment said it covered a rule when it covered half of one.
 
@@ -611,6 +725,14 @@ ran 148 and found 38.
    with *"yes, and I did not notice."* A rule read in full before every item, followed and failing
    three times, is a mechanism problem: `git diff --name-only` against the `Owns` block is what
    settles it, and until that check exists **run it by hand before filling in the Record.**
+
+   **An item's `Owns` is written from its PLAN's index row, never from its title** — P7's retro, and
+   the numbers are the argument. W20's block gave it no file it was allowed to *test* in and it took
+   **five** late exceptions; W21's named paths and still narrowed `src/driver/driver.ts` out of a
+   block P7's own table had put it in — **four** late. W22 wrote its block from the plan row, kept
+   that file for a different reason than the plan gave, and took **two**; W23 took the whole
+   `examples/**` block the row gives it and took **none**, the first item of P7 to take zero.
+   **Five, four, two, zero** — and `check-owns.mjs` stayed retired throughout.
 3. **Fan out on execution, not on design.** Parallel agents given an under-specified goal produce
    designs that do not compose. Decide, then fan out. **Q1, Q2 and Q4 are the decisions this rule
    is about here** - fanning out before they land produces a driver, a definition format and a join
@@ -733,6 +855,13 @@ mechanisms remain worse than the problem.
 | **Record-step list gains `doc/decisions/**`** | an item still cannot correct a decision its own work falsifies | **Right, and EXERCISED in the predicted direction on the first item that could hit it.** W19's demonstration falsified ADR 0027's producer table - it named three producers and could not name the shape W19 built on real workers - and **producer row 4 was added with no rule changed and no exception declared**. P5's retro adopted this *"so a demonstration could correct the decision it demonstrates"*; W19's own declaration named itself the likely next occurrence, and it was. **Second occurrence** |
 | **A claim about another item's status is read from that item's own file** | an index is believed again and the claim reproduces | **Right, and it is now the standard a reader judges by** - which is a different kind of confirmation from a fresh occurrence. W18's conformity reader found **five indexes reading DONE over an item file reading `todo`** and reported it *as a breach of this clause*; before v0.7 there was nothing to cite. W19 read every status from item files and its readers found no instance. **Confirmed, one enforcement, no new occurrence** |
 | **Section 6 says how to REMOVE an isolated copy** | a copy is removed with a link in it, or the rule blocks a pass it should not | **Unexercised in the dangerous direction, and followed twice.** W18 and W19 both measured **zero symlinks and zero reparse points** before making the copy, `cp -r node_modules` was inert both times, and both copies were scanned again and left in place rather than forced. Nothing had to be refused, which is the outcome the sentence exists to make possible rather than evidence about the sentence |
+
+**And what P7 did to v0.8's two**, judged by the plan that ran four items and eight reader passes:
+
+| v0.8 change | What would show it was wrong | **P7's verdict** |
+|---|---|---|
+| **Rule 8 gains a THIRD obligation: break the PROVENANCE** | the readers still find blocking gaps on a fourth axis, or the obligation fires on nothing | **Right, EARNED, and STILL NOT SUFFICIENT — extended twice.** Sixth sample. It fired in all four items and produced three more `examples/**` instances, bringing that directory to **eight**. **But it could not be instantiated from what it said**: [Q112](open-questions.md) corrected it **four times across three items**, three of those an author repeating a correction a reader had made to them one item earlier — including `x && y`, which changes no source at all, and a *fix* that recorded a value from the same local the reader's probe swaps. The axis was right; the procedure was missing, and is now in the rule. **And neither this obligation nor the two before it reaches a LOOP BOUND**, which is where both of P7's reader-found blocking survivors lived |
+| **Rule 8's set is re-run AFTER acting, with the readers' edits checked in as probes** | an item acts on a review and ships a repair that could not fail, with the rule in force | **Right, and it fired in every one of the four.** W21: adding an `INDEX` test made `Number.isInteger` and `n < 0` unreachable — both caught before, one survived after. W22: a probe's anchor moved under the fixes and the rule 7 (b) guard aborted with *"MATCHED 0 TIMES"* rather than reporting a pass. W23: **the author's own fix for a blocking provenance finding did not work** — it recorded the value from the same local the probe swaps, so the reader's probe still cost 0 — **and only the re-run saw it**. Third and fourth occurrences of this rule's founding case landing inside this rule's own procedure. The readers' edits, checked in: **9 of 10 in W22 and 6 of 7 in W23 went from 0 failures to non-zero** |
 
 **And v0.5's one change, which P4 could not judge, is now exercised.** Rule 7 (c) fired for the first
 time in three plans when W16 built `scripts/check-policies.mjs` for `JP-R9`: ten checked-in probes,

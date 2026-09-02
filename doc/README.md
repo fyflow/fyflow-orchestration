@@ -7,7 +7,7 @@ its retro is run.** [Q4](open-questions.md) is answered:
 [ADR 0003](decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md), **a join is
 satisfied when its region has no live branches** — and **W5 ran it on a real scheduler**, where
 `p1-routed-away` completes under `live-token` and is **`stuck`** under `arrival-count`, with the
-join's successor never dispatched. **426 assertions in five runtimes, plus 373 at ladder L6 in two.** *(This line read **386** and **342** after the counts had moved; both are re-measured here rather than carried forward. The five runtimes are measured too - `npm run gate` runs `test:browser`, which is **chromium only**, so W19 ran `npm run test:browser:all` for firefox and webkit.)*
+join's successor never dispatched. **474 assertions in five runtimes, plus 489 at ladder L6 in two — 23 row labels, 25 real runs.** *(This line read **386** and **342** after the counts had moved; both are re-measured here rather than carried forward. The five runtimes are measured too - `npm run gate` runs `test:browser`, which is **chromium only**, so W19 ran `npm run test:browser:all` for firefox and webkit.)*
 *(**The two numbers do not count the same thing and the word is the same.** `386` is `test/runner.ts`'s count of `test()` CASES, not of `equal`/`ok` calls — [Q98](open-questions.md), raised by W16 while re-deriving it. `342` is a genuine count of individual `check`/`assertThat` calls in `examples/l6.ts`. W17's conformity reader found the caveat attaching ambiguously to a sentence carrying both.)*
 
 **The retro is in [P1's Record](plans/p1-what-satisfies-a-join.md) and `doc/workflow.md` is v0.3.**
@@ -370,10 +370,13 @@ longer rests on our own reading. [S1](scheduler-upstream.md).
    has never been produced by this library. And the seventh fact is the one that moved an item:
    `validateDefinition` does not know the policy, so *"invalid under arrival-counting"* cannot be an
    `FD-V*` rule — but `driver.ts:370` already throws `MissingJoinPolicy` at construction on exactly
-   that shape, so the refusal is a `JP-R*` rule and a construction refusal, in **W22's** document
+   that shape. *(**That refusal was struck at W22's declaration**, on a measurement: `N` is
+   per-region and `arrival-count` joins on an all-arriving nested flow. See W22's own file, which is
+   what an item reasons from — `doc/workflow.md` section 1 rule 5.)* The construction refusal that
+   sentence describes was never built
    rather than W20's.
 
-   **One thing is settled before fan-out and it sizes W22**: nested fan-out is supported under
+   *(**Corrected by W22 and left standing as evidence.**)* One thing was settled before fan-out and it sized W22: nested fan-out is supported under
    `live-token` and its refinement, and **`arrival-count` REFUSES it** — at construction, not by
    hanging. Repairing fixed-`N` is the repair
    [ADR 0025](decisions/0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md)
@@ -405,6 +408,62 @@ longer rests on our own reading. [S1](scheduler-upstream.md).
    a `Driver` through a nested flow. Closing it produced [Q113](open-questions.md) — `regionOf` is read
    on **three** paths only, and arrivals and openings use keyed lookups, so innermost resolution is
    load-bearing on the **non-success paths only**.
+
+   **[P7](plans/p7-is-a-join-transitive-over-nested-fan-out.md) is COMPLETE and retro'd, and
+   `doc/workflow.md` is [v0.9](workflow.md).** Its retro adopted four changes; the central one is that
+   **rule 8 gains a fourth obligation — break the LOOP BOUNDS** — on two occurrences in two items,
+   four instances, every one BLOCKING and every one found by an adequacy reader. Late `Owns`
+   exceptions across its four items ran **five, four, two, zero**, and `check-owns.mjs` stayed
+   retired.
+
+   **[W23](work-items/w23-a-nested-flow-on-real-workers.md) is DONE and P7's EXIT ARTIFACT EXISTS.**
+   A nested fan-out runs end to end on a real scheduler, in **both L6 runtimes**, with the outer join
+   firing over branches it never opened. Ladder L6 is **489 assertions, 23 row labels, 25 real runs**,
+   from 373 / 19 / 21 — and it dispatches the **first dotted task ids any rung above L2 has
+   asserted**. Three rows on one flow give ADR 0030's three answers; a fourth exists because
+   reverting [Q117](open-questions.md)'s fix cost **0 assertions** without it, which is rule 8's
+   founding case in the item's own output.
+
+   **Its harness had the same defect the driver had.** `examples/l6.ts` hard-coded `'split'` as *the*
+   region in **18 places** — W22's `Cell` finding one rung up — and the inbound `resolve()` step minted
+   with `Number(branchPath)`, which is **1** for `'1.0'`, not `NaN`: a well-formed id for a different
+   task. **[Q107](open-questions.md) closed for one boolean**; **[Q90](open-questions.md) declined**
+   with a measurement correcting P7's stated cost.
+
+   **Its readers found five and three BLOCKING respectively, and the sharpest are two LOOP BOUNDS:**
+   the four nested rows could be deleted for one edited number — **green at 388 with lint, typecheck
+   and all five `check:*` passing**, and no dotted id dispatched anywhere above L2 — and `UNMINTED`
+   had no bound at all, so all six foreign tasks could go, taking **P6's** exit artifact with them.
+   **The author ran five bounds probes and all five were caught; the reader found two more**, because
+   the author bounded the lists a *row* iterates and not the lists the *file* iterates.
+
+   **[W22](work-items/w22-what-an-inner-join-does-to-the-outer-one.md) is DONE, and it answers the
+   plan's question**: [Q6](open-questions.md) is closed by
+   [ADR 0030](decisions/0030-a-join-is-transitive-and-a-dead-join-ends-the-branch-it-sits-in.md) —
+   **a join IS transitive over nested fan-out, for every policy, and it needed no mechanism.**
+   Measured over four depth-2 rows × the four matrix columns: **each region answers exactly as the
+   depth-1 row of the same shape does**, sixteen cells, statuses and `describe`s alike. `N` is
+   per-region, so an inner branch never needed counting by the outer join — which is why the plan's
+   `arrival-count` refusal is **struck**, and with it the driver refusal, the new error class and the
+   matrix's declared-empty cells.
+
+   **What ADR 0030 actually decides is the thing that is NOT a depth-1 behaviour one level down.** An
+   `unsatisfiable` join emitted nothing at all, which was unobservable at depth 1 because a top-level
+   fanout is in no region — and at depth 2 it left an outer branch with **no terminal event** in a
+   quiescent run, a state `JP-R5`'s own enumeration does not admit. `JP-R10` ends that branch, the
+   enclosing policy decides for itself, and the cascade at depth 3 is **emergent from one emission**:
+   `inner` dead → `mid` dead → `outer` **satisfied**, three verdicts and none of them the driver's.
+   `spec/join-policy.md` is **v0.10**, 474 assertions in five runtimes.
+
+   **Its two blocking findings are one each, and they point in different directions.** The conformity
+   reader found `spec/join-policy.md` **section 2** contradicting the rule the item had just added —
+   `branch.lost`'s stated condition is *"a node … reached a terminal state — by settling, or by being
+   resolved — and no edge was eligible"*, and a dead join satisfies **neither** clause; the ADR had
+   quoted only the trailing consequence and read it as a definition. The adequacy reader found **two
+   loop bounds**: a whole depth-2 row could be deleted for 0 failures, and a whole column dropped from
+   the depth-2 loop for 0 failures **with the assertion count unmoved**, while the render kept
+   advertising four. **An author's probes break VALUES; a reader's broke BOUNDS**, and 28 of the
+   author's could not reach either.
 
    **[W21](work-items/w21-the-branch-path-is-a-path.md) is DONE and a nested run now mints the ids
    the grammar reserved in P1.** `spec/task-id.md` is **v0.7** and its *"`branchPath` is a property
