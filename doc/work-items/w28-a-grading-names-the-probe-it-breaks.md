@@ -1,6 +1,6 @@
 # W28 — A grading names the probe it breaks
 
-**Status:** **in review** - author pass complete 2026-09-03, two readers outstanding
+**Status:** **done** - 2026-09-03
 **Plan:** [P9](../plans/p9-when-a-check-stops-checking-what-notices.md)
 
 ```
@@ -171,8 +171,10 @@ report, and **re-run after acting on them** per v0.8:
 
 ## Record
 
-**Author's pass complete — 2026-09-03. Two readers OUTSTANDING**, and this Record is not final until
-they have run (`doc/workflow.md` section 6 pass 2). Everything below is the author's own measurement.
+**COMPLETE — 2026-09-03.** Author pass, both readers, and rule 8's re-run after acting on them.
+**Overlap between the two readers: 4** — the markdown `SELF` crash, the noise class, `check-policies`'
+stale `MIN_META`, and the `ran:` guard's window. That is the **eleventh** measurement of section 6's
+overlap question and it sits inside the settled 1-4 band.
 
 **Gate — what ran.**
 
@@ -180,9 +182,9 @@ they have run (`doc/workflow.md` section 6 pass 2). Everything below is the auth
 |---|---|---|
 | L0 own coverage | **RAN, green** | `check:policies:selftest` 13 probes / 6 gradings; `check:source:selftest` 24 / 20 / 7; `check:markdown:selftest` 37 / 37 / 7. All exit 0 |
 | L1-L6 regression | **RAN, unmoved** | 18 gate entries all exit 0; 474 `test()` cases in 19 files across node 24.20.0, deno 2.9.6 and chromium; 489 assertions, 23 row labels, 25 real runs at L6 in node and deno |
-| conformity reader | **NOT RUN** | outstanding |
-| adequacy reader | **NOT RUN** | outstanding |
-| re-run after acting on the readers | **NOT RUN** | outstanding — `doc/workflow.md` v0.8's amendment to rule 8 |
+| conformity reader | **RAN** | **11 findings, 4 BLOCKING.** All four verified independently by the author before acting. It also confirmed the `Owns` audit, all 63 `probe:` fields resolving, the inherited caught-clean half on every path, and every count in this Record, re-measuring the gate at exit 0 in 181 s |
+| adequacy reader | **RAN** | **35 mutations, 17 survivors, 7 BLOCKING**, in an isolated copy verified green at exit 0 before it started. Zero symlinks and zero reparse points before and after; all three scripts byte-identical to a pristine snapshot at the end. It instantiated all four of rule 8's obligations and named the one sub-question it could not: *does anything COUNT the list from a source other than itself* — nothing does, every floor is a literal |
+| re-run after acting on the readers | **RAN** | gate green at **exit 0, zero FAIL lines**, L1-L6 unmoved. The readers' exact edits re-measured as probes: two now REFUSED, one still survives **with a stated verdict** ([Q145](../open-questions.md)), two were the author's own bad probes rather than surviving holes, one is behaviour-preserving and labelled so |
 
 **Outputs — what was actually built.**
 
@@ -266,8 +268,76 @@ wrong probe — and wrong about how many entries are actually unsupported.
 - **The prediction lesson above**: *which probe fails first* and *whether the intended probe fails*
   are independent, and an audit of the first says nothing about the second.
 
-**Questions raised.** [Q143](../open-questions.md) — a mutation anchor that quotes its target from
-above. **Q144 and Q145 are unused and are skipped**; **ADR 0034 is unused and is skipped**, as the
+### What the readers found, and what changed because of it
+
+**Eleven findings and thirty-five mutations, seven of them blocking on each side by their own
+count, and every blocking one is the SAME defect at a different layer**: the contract was right and
+the grading collapsed it. The conformity reader's sentence is the one to carry — *the grading no
+longer reads **an** exit code, it reads **one** exit code.*
+
+| finding | what it was | what it cost | now |
+|---|---|---|---|
+| the grading is set-INEQUALITY | a mutant that leaves the named clause fully detecting and adds one unrelated failure grades as a detection. This item's own headline find survived only because its noise happened to land under the id its probe declared — **one id different and it would have passed** | 0 | the child emits **`outcome:`** — `caught` / `disappeared` / `fires` / `noisy` / `disagreed` / `exit0` / `corpus` — and the parent grades on that. A `noisy` mutant is REFUSED |
+| no mutation was ever checked for **inertness** | rule 8 (b) asks for *present but inert* and nothing tested it. **Six** `check-markdown` mutants fail on the corpus by themselves, five of them named against a `{}` probe that cannot be caught whatever it edits | 0 | an inertness run per entry. A non-inert mutant is `corpus` — noticed by the gate, **counted separately**: `37/37 noticed — 31 by the named probe, 6 by the corpus` |
+| **all four** new `SELF` entries in `check-markdown` passed by CRASHING | `base` was created only when the fixture was **not** inherited, and a `SELF` child always inherits one. This item's own fix #4 let SELF children reach META for the first time; they died on `ENOENT .meta-00.mjs`. **The control proves it**: an unmutated self-test run as a SELF child reports `37/37 probes caught`, reaches META, exits 1 | 0, four times | `base` created unconditionally; `SELF` additionally requires the child to have RUN |
+| `ran:` keyed on the report HEADER | printed at line 584 of 599, so the guard covered the checks and **not the report or the exit path**. A mutant made to throw one line after it scored *noticed* | 0 | keyed on the **terminal line**, which also removes the `runs: 'spec'` exemption where a `SyntaxError` scored *noticed* |
+| `SELF` graded `r.status !== 0` | the pre-W28 form one layer out: an entry could pass by making the file a **syntax error** | 0 | `SELF_RAN` — the child's own self-test must have run |
+| `MIN_META = 5` against a 6-entry list | one grading could leave `check-policies` for exit 0, in the one file with no `SELF` list to catch it. **P9's declaration census recorded that list as 5 when it was 6** | 0 | 6 |
+| **[Q143](../open-questions.md)'s class was LIVE in a file this item owns** | the pre-existing multi-edit `SELF` entry anchors on `    if (mutated === original) {`, whose first occurrence is **its own literal** 100 lines above the guard. It edits itself and goes red for a reason its own name denies. **This falsifies Q143's own "Against" clause**, which this item wrote: *"W28 removed the whole class from its own files by construction"* | — | Q143 corrected in place; the class is recorded as live rather than eliminated |
+
+**And two of the author's four `SELF` anchors were single-line**, against a header claiming *"EVERY
+anchor below spans TWO LINES, and that is not style"*. They are saved by the other argument — `META`
+sits above `SELF` — and the adequacy reader watched one silently match its own literal when a
+neighbouring edit moved the target. The claim was wrong in the file that wrote the rule.
+
+### What acting on the readers then produced, which neither found
+
+**[Q144](../open-questions.md) — a repair that was still fatal, visible only to the readers' own
+fix.** `P3 disabled`'s first mutation crashed; the repair (`[].push`, chain intact) **also** crashed,
+because `check-policies.mjs` ends with ``All checks passed — ${names.join(', ')}`` and that line is
+reachable with `names === null` **exactly when the clause being disabled is disabled**. The
+header-keyed `ran:` could not see it; the terminal-keyed one could. So that clause has no META entry
+and cannot have one without changing a file this item does not own — and it is **the only known
+instance of the case `ran:` exists for**, which leaves that guard live in three files and provoked in
+none. On each ceiling list.
+
+**[Q145](../open-questions.md) — half of the noise class is closed and half is passed with a stated
+verdict.** Input-specific noise is REFUSED. Global noise is `corpus`: it passes, because a mutant
+that fails on the corpus turns the gate red, which is stronger than any probe — and five of
+`check-markdown`'s six are slug-rule mutations that **cannot** be made inert. The adequacy reader's
+own noise edit reproduces as `6/6 noticed — 5 by the named probe, 1 by the corpus` at **exit 0**.
+**Reported rather than refused, and said plainly rather than claimed closed.**
+
+### The readers' exact edits, checked back in and re-measured
+
+`doc/workflow.md` rule 8 as amended by P6's retro. Two now refused, one survives with a verdict, and
+**two of the six were the author's own bad probes rather than surviving holes** — which is this
+rule's own founding observation landing on the verification of the fix.
+
+| the reader's edit | was | now |
+|---|---|---|
+| a `SELF` mutation made a **syntax error** | 0 | **REFUSED**, exit 1 |
+| `SELF` entry 0's mutate made a no-op comment edit | 0 | **REFUSED**, exit 1, `7/8 bounded` |
+| a META mutation that disables nothing and only adds noise | 0 | **survives at exit 0, labelled**: `5 by the named probe, 1 by the corpus` — [Q145](../open-questions.md) |
+| a mutant made to throw **after** the report header | 0 | survives — **the author's probe was wrong**: it replaced a mutation whose own entry is graded by a different clause. The class is closed by the terminal-line `RAN`, measured directly |
+| one META entry deleted from `check-policies` | 0 | **the author's probe renamed an entry rather than deleting one**, so the list stayed 6 long. `MIN_META = 6` is the fix and is verified by count |
+| the probe reference weakened from `===` to `includes` | 0 | **0, and behaviour-preserving**: no probe name in any of the three files is a substring of another. Labelled, not fixed |
+
+### Cost, re-measured after the readers
+
+| | before W28 | author pass | after the readers |
+|---|---|---|---|
+| `check:policies:selftest` | 6.5 s | 2.8 s | **2.7 s** |
+| `check:source:selftest` | 23.1 s | 21.5 s | **30.0 s** |
+| `check:markdown:selftest` | 129.4 s | 65.1 s | **90.3 s** |
+
+**The readers' fixes cost time and the direction is reported rather than buried**: an inertness run
+per entry, and `SELF` children that now genuinely run `META` instead of dying. `check-markdown` is
+still well under its 129.4 s baseline; `check-source` is above its own. **The correctness was worth
+more than the second saving**, which is a judgement this Record states rather than hides behind the
+better number.
+
+**Questions raised.** [Q143](../open-questions.md) — a mutation anchor that quotes its target from above; [Q144](../open-questions.md) — a clause whose own guarantee makes it unprobeable; [Q145](../open-questions.md) — global noise passed as `corpus`. **All three of the reserved block are used**; **ADR 0034 is unused and is skipped**, as the
 plan predicted for an item that changes a harness contract rather than an architecture.
 [Q142](../open-questions.md) is owned here and is **NOT closed**: the floors are retuned and green and
 the two-sided window is unchanged, which is the verdict rather than a fix.

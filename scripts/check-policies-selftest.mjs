@@ -190,8 +190,19 @@ const ALL_CHECKS = ['P1', 'P2', 'P3'];
  */
 const MIN_PROBES = 13;
 
-/** The same floor for the META list below, and for the same reason. */
-const MIN_META = 5;
+/**
+ * The same floor for the META list below, and for the same reason.
+ *
+ * **It read 5 against a list of 6 and one grading could leave for exit 0** — found
+ * by both of W28's readers independently, and by P9's declaration census, which
+ * recorded this list as 5 when it was 6. The floor went stale when the list grew,
+ * which is the ordinary way a hand-written literal goes stale, and **there is no
+ * `SELF` list in this file to catch it** — the one sub-question of rule 8's fourth
+ * obligation neither reader could instantiate anywhere is *does anything COUNT the
+ * list from a source other than itself*, and the answer in all three self-tests is
+ * no: every floor is a literal.
+ */
+const MIN_META = 6;
 
 /**
  * **The mutations this self-test is run against ITSELF, and they are what make it
@@ -253,18 +264,31 @@ const META = [
   // The clause this mutates is `names === null` specifically, and this is the one
   // probe that drives it — every other P3 probe reaches a different clause.
   //
-  // **This entry was FATAL rather than inert until W28, and it is the SECOND
-  // occurrence of that shape in this repository.** It read
-  // `if (names === null) fail('P3'` -> `if (false) fail('P3'`, which takes the
-  // branch away from an `if`/`else if` chain whose next arm evaluates
+  // **This entry has been wrong twice, and the second time is the more interesting.**
+  //
+  // It first read `if (names === null) fail('P3'` -> `if (false) fail('P3'`, which
+  // takes the branch away from an `if`/`else if` chain whose next arm evaluates
   // `names.length` — so the mutant **threw**, exited non-zero, and was scored
-  // *noticed* for a reason that has nothing to do with the probes. W24's conformity
-  // reader found the same thing in `check-source-selftest.mjs`; **this one was found
-  // by the `ran:` guard W28 adds, on its first run, in a file nobody had suspected.**
-  // Sending the report into a discarded array leaves the chain intact and the clause
-  // present but inert, which is what the obligation actually asks for.
-  ['P3 disabled', (t) => t.replace("if (names === null) fail('P3'", "if (names === null) [].push('P3'"),
-    'section 3`s number removed, so no names are read at all'],
+  // *noticed* for a reason with nothing to do with the probes. W24's conformity
+  // reader found that shape in `check-source-selftest.mjs`; the `ran:` guard W28
+  // added found this one on its first run.
+  //
+  // **The repair was `[].push('P3', …)` — inert, chain intact — and it STILL
+  // crashed**, which only the readers' second correction could see. `check-policies.mjs`
+  // ends with ``All checks passed — ${names.join(', ')}``, and that line is reachable
+  // with `names === null` **only when P3's first clause is disabled**: the clause is
+  // what guarantees the success path never runs on a null. So the mutant is inert on
+  // the clean tree and throws under its own probe — precisely the case the `ran:`
+  // guard is defence in depth for, and the case the file said did not exist. The
+  // first `ran:` guard could not see it either, because it keyed on the report
+  // HEADER and the throw happens after it.
+  //
+  // **So the `names === null` clause has no META entry and cannot have one**, short
+  // of a change to `check-policies.mjs` that this item does not own:
+  // [Q144](../doc/open-questions.md). This entry now takes P3's FLOOR clause, which
+  // is inert, does not crash, and has a probe of its own.
+  ['P3`s floor clause disabled', (t) => t.replace('else if (names.length < 2) {', 'else if (false) {'),
+    'section 3 left with a single row, which is under P3`s floor'],
   ['every failure swallowed', (t) => t.replace('const fail = (check, msg) => failures.push(`${check}: ${msg}`);', 'const fail = () => {};'),
     'a policy deleted from POLICIES'],
   ['the non-zero exit removed', (t) => t.replace('  process.exit(1);', '  process.exitCode = 0;'),
@@ -272,14 +296,18 @@ const META = [
 ];
 
 /**
- * **The report header `check-policies.mjs` prints before any verdict.** The grading
- * requires the mutated check to have PRINTED it, which is how a mutant that
- * **crashed** is told apart from one that ran and stopped detecting. W24's
- * conformity reader found a META entry scored *noticed* because its mutant threw —
- * W6's syntax-error-read-as-a-caught-mutation, two layers up — and an exit code
- * cannot see the difference where this can.
+ * **Did the check under test RUN TO COMPLETION?** The grading requires this, which
+ * is how a mutant that **crashed** is told apart from one that ran and stopped
+ * detecting. W24's conformity reader found a META entry scored *noticed* because
+ * its mutant threw — W6's syntax-error-read-as-a-caught-mutation, two layers up —
+ * and an exit code cannot see the difference where this can. **`P3 disabled` was a
+ * second instance and this guard found it on its first run.**
+ *
+ * **It keys on the TERMINAL line rather than the report header**, after W28's
+ * readers measured that the header is printed *before* the report and the exit
+ * path: a mutant made to throw after it was scored *noticed* for **0**.
  */
-const RAN_MARKER = 'policy check — ';
+const RAN = (out) => /^(All checks passed|\d+ failure\(s\)\.)/m.test(out);
 
 export async function selfTest(root) {
   const dir = join(root, 'dev-dist', 'policies-selftest');
@@ -313,12 +341,36 @@ export async function selfTest(root) {
     writeFileSync(join(root, rel), mutated);
     const env = { ...process.env };
     env[probe.half === 'spec' ? 'CHECK_POLICIES_SPEC' : 'CHECK_POLICIES_SRC'] = rel;
+    // **Is the mutated check INERT on the untouched tree?** Rule 8 (b) asks for a
+    // mutation that is *present but inert*, and until W28's readers nothing tested
+    // it. A mutant that fails on the repository's own tree is still NOTICED — by the
+    // corpus, more strongly than by any probe — but its probe verdict is meaningless,
+    // because every id it reports may be noise rather than detection. A non-inert
+    // mutant short-circuits: running the probe would produce a number to ignore.
+    const clean = spawnSync(process.execPath, [script], { cwd: root, encoding: 'utf8', timeout: 300_000 });
+    console.log(`  inert: ${clean.status === 0 ? 'yes' : 'no'}`);
+    if (clean.status !== 0) {
+      console.log('  outcome: corpus');
+      rmSync(dir, { recursive: true, force: true });
+      return 1;
+    }
     const r = spawnSync(process.execPath, [script], { cwd: root, encoding: 'utf8', env, timeout: 300_000 });
     const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
     const declared = [probe.check, ...(probe.also ?? [])].sort();
     const tripped = ALL_CHECKS.filter((x) => out.includes(`${x}: `));
     const refused = r.status !== 0 && tripped.join(',') === declared.join(',');
-    console.log(`  ran: ${out.includes(RAN_MARKER) ? 'yes' : 'no'}`);
+    // **`outcome:` is the fact the parent grades on**, and it exists because reading
+    // the EXIT CODE cannot distinguish a detection from NOISE: a mutant that leaves
+    // the named clause fully detecting and adds one unrelated failure makes
+    // `refused` false, which an exit code reports as *uncaught*. Both of W28's
+    // readers found it, from opposite directions.
+    const missing = declared.filter((id) => !tripped.includes(id));
+    const outcome = refused ? 'caught'
+      : r.status === 0 ? 'exit0'
+        : missing.length ? 'disappeared'
+          : tripped.length > declared.length ? 'noisy' : 'other';
+    console.log(`  ran: ${RAN(out) ? 'yes' : 'no'}`);
+    console.log(`  outcome: ${outcome}`);
     console.log(`  ${refused ? 'ok  ' : 'FAIL'}  ${probe.check}  ${probe.name}` +
       (refused ? '' : `  — exited ${r.status}, wanted [${declared.join(',')}], got [${tripped.join(',')}]`));
     rmSync(dir, { recursive: true, force: true });
@@ -359,7 +411,7 @@ export async function selfTest(root) {
   // --- the META pass: does this suite NOTICE a broken check? -------------------
   if (!meta) { rmSync(dir, { recursive: true, force: true }); return 0; }
   const checkSource = readFileSync(join(root, 'scripts', 'check-policies.mjs'), 'utf8');
-  let noticed = 0;
+  let noticed = 0, byCorpus = 0;
   console.log(`\nand against a broken check — ${META.length} mutations of check-policies.mjs itself\n`);
   for (const [i, [name, mutate, probeName]] of META.entries()) {
     const broken = mutate(checkSource);
@@ -387,16 +439,30 @@ export async function selfTest(root) {
       //     and neither may be closed by renaming the probe to whatever fails.
       // And `ran: no` means the mutant CRASHED rather than stopped checking, which
       // an exit code alone reads as a catch.
+      // **Graded on the child's `outcome:`, not on its exit code** — both of W28's
+      // readers found that the exit code cannot tell a detection from NOISE.
       const ran = /^ {2}ran: yes$/m.test(out);
+      const outcome = (out.match(/^ {2}outcome: (\w+)$/m) ?? [, ''])[1];
       if (r.status === 3) why = ` — ${out.trim().split('\n').pop()}`;
-      else if (r.status === 0) why = ` — "${probeName}" is STILL CAUGHT against a check that does not check`;
-      else if (!ran) why = ` — the mutant did not run: this is a crash, not a detection`;
-      else ok = true;
+      // Noticed by the corpus rather than by the named probe: true, stronger than a
+      // probe, and not what the entry claims — so it is counted separately below.
+      else if (outcome === 'corpus') { ok = true; byCorpus++; why = ' (by the corpus: the mutant is not inert)'; }
+      else if (!ran) why = ' — the mutant did not run: this is a crash, not a detection';
+      else if (outcome === 'caught') why = ` — "${probeName}" is STILL CAUGHT against a check that does not check`;
+      else if (outcome === 'noisy') why = ` — "${probeName}" still reports every id it declared; the mutant only got NOISIER, which is not a detection`;
+      else if (['disappeared', 'exit0'].includes(outcome)) ok = true;
+      else why = ` — the child reported outcome "${outcome || '(none)'}", which grades nothing`;
     } finally { rmSync(rel, { force: true }); }
     if (ok) noticed++;
     console.log(`  ${ok ? 'ok  ' : 'FAIL'}  ${name}${ok ? '' : why}`);
   }
   rmSync(dir, { recursive: true, force: true });
-  console.log(`\n${noticed}/${META.length} noticed.`);
+  // **Corpus-backed gradings are counted SEPARATELY**, because a bare "noticed"
+  // hides how many entries no probe actually backs. This line was left un-split when
+  // the other two files gained it, and the omission cost a wrong diagnosis: the
+  // adequacy reader's noise mutation was correctly classified `corpus` here and
+  // reported as an unqualified `6/6 noticed`, which read as *the fix did nothing*.
+  console.log(`\n${noticed}/${META.length} noticed` +
+    (byCorpus ? ` — ${noticed - byCorpus} by the named probe, ${byCorpus} by the corpus.` : '.'));
   return noticed === META.length ? 0 : 1;
 }
