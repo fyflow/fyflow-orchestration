@@ -14,6 +14,9 @@ import { readdirSync, readFileSync, statSync, existsSync } from 'node:fs';
 import { join, dirname, resolve, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+// W25: C5's implementation lives here now. See the C5 block below.
+import { resolveLinks } from './check-markdown.mjs';
+
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SPEC = join(ROOT, 'spec');
 
@@ -180,15 +183,20 @@ if (existsSync(README)) {
 }
 
 // --- C5: every relative link inside spec/ resolves ----------------------------
-for (const p of mdFiles) {
-  const text = readFileSync(p, 'utf8');
-  for (const m of text.matchAll(/\]\(([^)#\s]+)(?:#[^)\s]*)?\)/g)) {
-    const target = m[1];
-    if (/^[a-z]+:/i.test(target)) continue; // external
-    const abs = resolve(dirname(p), target);
-    if (!existsSync(abs)) fail('C5', `${rel(p)} links to ${target}, which does not exist`);
-  }
-}
+// **LIFTED to `scripts/check-markdown.mjs` by W25, and the id stays.** `C5` has done
+// this for `spec/` since W1 and `doc/` had nothing; the two are one comparison, so
+// the implementation moved and this is now the caller. `C5` is cited in nine
+// documents and `doc/workflow.md` section 3 forbids renumbering, so the report row
+// below is unchanged and the failures are still labelled `C5`.
+//
+// **The lift also gains `spec/` two things it never had** — code spans blanked
+// before parsing, and anchors resolved — and both are measured **inert here**:
+// `spec/` reported 0 dead links before and after, and carries **zero** links with an
+// anchor at all. It is `doc/` that illustrates link syntax in prose and `doc/` that
+// had fourteen dead anchors.
+const linkResult = resolveLinks(mdFiles, ROOT);
+for (const d of linkResult.dead) fail('C5', d);
+for (const d of linkResult.deadAnchors) fail('C5', d);
 
 // --- report -------------------------------------------------------------------
 const checks = ['C1 examples parse', 'C2 rule ids unique', 'C3 invalid examples name a rule',

@@ -127,6 +127,7 @@ for how it is reached.
 | `npm run gate` | everything below, in order |
 | `npm test` · `npm run test:deno` · `npm run test:browser:all` | 474 assertions, five runtimes — `npm run gate` runs three of them, and `test:browser:all` is what adds firefox and webkit |
 | `npm run test:l6` · `npm run test:l6:deno` | a real scheduler, 25 runs |
+| `npm run check:markdown` | **every relative link and every anchor** across 62 documents, 1602 links, 80 anchored — `check-spec`s `C5` lifted here and still reported as `C5` |
 | `npm run check:source:selftest` | **the gate's own wiring, negative-tested** — 24 probes, 20 gradings of those probes, 3 of the probe list itself. `S12` compares `gate`'s 16 entries to a declared list both ways and in order; `S13` takes the three chains it composes |
 
 ## Documentation

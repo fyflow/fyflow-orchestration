@@ -395,6 +395,8 @@ const GATE_CHAIN = [
   'check:spec',
   'check:source',
   'check:source:selftest',
+  'check:markdown',
+  'check:markdown:selftest',
   'check:scheduler',
   'check:scheduler:selftest',
   'check:policies',

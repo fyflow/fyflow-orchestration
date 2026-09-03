@@ -16,7 +16,7 @@ So `@fyflow/scheduler` **is** on JSR, which `spec/runtime-targets.md` section 1 
 had checked; it is only **0.3.0** that is unpublished, on either. That is what forces
 [ADR 0013](decisions/0013-the-scheduler-is-a-development-dependency-reached-from-the-working-tree.md).
 
-**Eight of nine items are closed, deferred, or declined; [S9](#s9--the-published-typescript-source-does-not-load-under-node-and-agentsmd-3-says-a-ts-worker-cannot-either)
+**Eight of nine items are closed, deferred, or declined; [S9](#s9---the-published-typescript-source-does-not-load-under-node-and-agentsmd-3-says-a-ts-worker-cannot-either)
 is live and is the first thing here worth raising.** 0.3.0 settled four without us asking - S4
 implemented, S7 fixed, S8 declined and documented - and S1 was answered directly by the maintainer on
 2026-08-30. S5 stays deferred with a costless workaround; S2 and S6 wait for a real need. **S9 was
@@ -33,15 +33,15 @@ the last section.
 
 | S | Want | Blocks us? | Status |
 |---|---|---|---|
-| [S1](#s1--spawntaskconfigparents-is-declared-and-never-read) | Remove or implement `SpawnTaskConfig.parents` | no | ✅ **answered - dead, will be removed** |
-| [S2](#s2--cancel-a-queued-task) | Cancel a queued task | no - it caps what "cancel" can mean | not raised |
-| [S3](#s3--a-join-or-barrier-primitive) | A join/barrier primitive | **declined by us** | will not raise |
-| [S4](#s4--scheduler-side-timestamps-on-every-event) | Timestamps on every event | no | ✅ **done in 0.3.0** |
-| [S5](#s5--an-event-when-maxcompletedtasks-evicts-a-task) | An event when eviction happens | no | **still deferred at 0.3.0** |
-| [S6](#s6--pause-and-resume) | Pause and resume | no - not in the first set | not raised |
-| [S7](#s7--exit-c-drops-a-blocked-task-silently) | Fix the blocked-queue task drop | no longer - **the confounder is gone** | ✅ **fixed in 0.3.0** |
-| [S8](#s8--freeze-or-copy-event-details) | Freeze or copy event details | no | **declined, and now documented** |
-| [S9](#s9--the-published-typescript-source-does-not-load-under-node-and-agentsmd-3-says-a-ts-worker-cannot-either) | `import type` in `core/threadWrapper.ts`, and correct `AGENTS.md` §3 on `.ts` workers | no - Node reads npm's `dist/` and Deno reads JSR's source | **not raised - the only live item.** Its *publication* half is closed: 0.3.0 is on npm and JSR since 2026-08-31 ([ADR 0029](decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)), so the cost is no longer a build step in a sibling checkout - it is that **neither one-line fix can be tried locally without unpinning**, which is that ADR's stated cost |
+| [S1](#s1---spawntaskconfigparents-is-declared-and-never-read) | Remove or implement `SpawnTaskConfig.parents` | no | ✅ **answered - dead, will be removed** |
+| [S2](#s2---cancel-a-queued-task) | Cancel a queued task | no - it caps what "cancel" can mean | not raised |
+| [S3](#s3---a-join-or-barrier-primitive) | A join/barrier primitive | **declined by us** | will not raise |
+| [S4](#s4---scheduler-side-timestamps-on-every-event) | Timestamps on every event | no | ✅ **done in 0.3.0** |
+| [S5](#s5---an-event-when-maxcompletedtasks-evicts-a-task) | An event when eviction happens | no | **still deferred at 0.3.0** |
+| [S6](#s6---pause-and-resume) | Pause and resume | no - not in the first set | not raised |
+| [S7](#s7---exit-c-drops-a-blocked-task-silently) | Fix the blocked-queue task drop | no longer - **the confounder is gone** | ✅ **fixed in 0.3.0** |
+| [S8](#s8---freeze-or-copy-event-details) | Freeze or copy event details | no | **declined, and now documented** |
+| [S9](#s9---the-published-typescript-source-does-not-load-under-node-and-agentsmd-3-says-a-ts-worker-cannot-either) | `import type` in `core/threadWrapper.ts`, and correct `AGENTS.md` §3 on `.ts` workers | no - Node reads npm's `dist/` and Deno reads JSR's source | **not raised - the only live item.** Its *publication* half is closed: 0.3.0 is on npm and JSR since 2026-08-31 ([ADR 0029](decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)), so the cost is no longer a build step in a sibling checkout - it is that **neither one-line fix can be tried locally without unpinning**, which is that ADR's stated cost |
 
 ---
 
@@ -94,7 +94,7 @@ the other is an easy and expensive mistake, so:
 - **`released.reason: 'settled'` is per *attempt*, not per task.** A retried or requeued task emits
   one pair per attempt. Relevant to [Q16](open-questions.md), where flow-level and task-level retry
   counts compose into a product nobody intended.
-- **[S1](#s1--spawntaskconfigparents-is-declared-and-never-read) is still there in the code**, and
+- **[S1](#s1---spawntaskconfigparents-is-declared-and-never-read) is still there in the code**, and
   has since been **answered directly**: it stays dead and will eventually be removed.
 
 ---
@@ -177,7 +177,7 @@ transitive over lineage, but a failing descendant does not reject, so it cannot 
 policy we would want.
 
 **The right split:** the scheduler runs independent tasks; we own ordering. That is exactly what
-[S2](#s2--cancel-a-queued-task) supports - a small, general primitive rather than a large,
+[S2](#s2---cancel-a-queued-task) supports - a small, general primitive rather than a large,
 opinionated one.
 
 ## S4 - Scheduler-side timestamps on every event
@@ -237,7 +237,7 @@ design.
 
 **What we do without it.** Pause at our layer: stop dispatching new nodes and hold routing
 decisions. In-flight tasks and anything already queued still run, which is the same partial honesty
-as [S2](#s2--cancel-a-queued-task) and has the same fix.
+as [S2](#s2---cancel-a-queued-task) and has the same fix.
 
 ## S7 - exit (c) drops a blocked task silently
 
@@ -361,7 +361,7 @@ Revised **2026-08-30 against the landed 0.3.0 code**. **Four of the eight are se
 none of them** — S4 implemented, S7 fixed better than asked, S8 declined-and-documented, S5
 deferred with our workaround intact. What is left:
 
-**[S9](#s9--the-published-typescript-source-does-not-load-under-node-and-agentsmd-3-says-a-ts-worker-cannot-either)
+**[S9](#s9---the-published-typescript-source-does-not-load-under-node-and-agentsmd-3-says-a-ts-worker-cannot-either)
 is the one to raise, and it is ready.** Both halves are one-line changes with a measurement behind
 them, and half (b) makes the reference *less* restrictive rather than more. Raise (a) and (b)
 together: they are the same fact about Node's type stripping seen from two sides.

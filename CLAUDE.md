@@ -15,7 +15,7 @@ the only document that does. **Every snippet in it is extracted and executed by 
 (`scripts/check-docs.mjs`), so it cannot rot the way a hand-maintained reference does. If you change
 the public surface, that check is what tells you the reference is now wrong.
 
-## Current state: **P1-P7 are ALL complete and retro'd, `doc/workflow.md` is [v0.9](doc/workflow.md), and [P8](doc/plans/p8-what-can-be-deleted-with-the-gate-green.md) is DECLARED** — [P7](doc/plans/p7-is-a-join-transitive-over-nested-fan-out.md)'s four items are [W20](doc/work-items/w20-what-a-nested-region-is.md), [W21](doc/work-items/w21-the-branch-path-is-a-path.md), [W22](doc/work-items/w22-what-an-inner-join-does-to-the-outer-one.md) and [W23](doc/work-items/w23-a-nested-flow-on-real-workers.md); **P8's [W24](doc/work-items/w24-the-gates-own-wiring.md) is DONE; W25 is in the plan's index table and in no item file yet**
+## Current state: **P1-P8 are ALL complete and retro'd, `doc/workflow.md` is [v0.9](doc/workflow.md), and [P8](doc/plans/p8-what-can-be-deleted-with-the-gate-green.md) is CLOSED** — [P7](doc/plans/p7-is-a-join-transitive-over-nested-fan-out.md)'s four items are [W20](doc/work-items/w20-what-a-nested-region-is.md), [W21](doc/work-items/w21-the-branch-path-is-a-path.md), [W22](doc/work-items/w22-what-an-inner-join-does-to-the-outer-one.md) and [W23](doc/work-items/w23-a-nested-flow-on-real-workers.md); **P8's [W24](doc/work-items/w24-the-gates-own-wiring.md) and [W25](doc/work-items/w25-a-link-is-a-link-and-an-anchor-is-an-anchor.md) are both DONE and P8 is retro'd — the next plan is P9 and starts at W28**
 
 **[P8](doc/plans/p8-what-can-be-deleted-with-the-gate-green.md) asks *what can be deleted from this
 repository with `npm run gate` still green?*, and it is the plan that owns `scripts/**` and
@@ -99,6 +99,49 @@ a different mechanism than Q131's two). **[Q102](doc/open-questions.md) is ANSWE
 owner MOVES it, NARROWS it and MULTIPLIES it** — `Owns` is per-item rather than standing, `S12` is
 equality rather than a floor, and W24 ships three more floors of Q102's own shape, two of them made to
 fire by a list one level out. **No ADR: 0032 and 0033 are both skipped.**
+
+**[W25](doc/work-items/w25-a-link-is-a-link-and-an-anchor-is-an-anchor.md) is DONE and P8 is CLOSED.**
+`scripts/check-markdown.mjs` resolves every relative link and **every anchor** across
+**62 documents / 1602 relative links / 80 anchored** — `M1`, `M2`, and `M3`/`M4`/`M5` for the walk's
+own bounds. **`C5` is LIFTED rather than copied and keeps its id**, cited in nine documents;
+`check-spec.mjs` is now a caller. **The fourteen dead anchors are fixed** — nine S-ids in
+`doc/scheduler-upstream.md`'s own index, **born dead in the founding commit** and never once working,
+in the file this document points at for upstream wants. [Q121](doc/open-questions.md) is RESOLVED.
+
+**W25's declaration falsified the ARGUMENT behind one of P8's decisions**, which is W22's shape one
+plan on. Decision 3 said runs are not collapsed *"which is the whole difference between the two-hyphen
+and three-hyphen forms"*; four different slug rules each report **the same 14 dead of 76**. The
+conclusion survives — the declared rule is what GitHub does — and its stated reason did not.
+
+**And what replaced that reason is the item's central finding: a check can ship against a corpus that
+cannot falsify its central rule.** Three clauses, one item. The four slug rules disagree about
+**134, 140 and 294 of 584 headings** and **no link points at any heading they disagree about**. All
+**76** anchor links are **same-file** — zero cross-file — so a provenance mutation on the anchor source
+swaps one expression for an identical one, found by a META entry coming back *not noticed*. And the
+file half **ships green** at 0 dead links, so `M1` would pass on an empty implementation. **Then the
+item's own fix made two thirds of the first one false** — the fourteen repaired anchors ARE the
+discriminating cases — and only a reader noticed. *Fixing the defect built the fixture that proves the
+rule.*
+
+**Its readers found 13 + 23 things, 2 + 7 blocking, and two were structural.** All three `M3` clauses
+reported under **one id**, so set equality could not tell them apart and two of the three floors were
+replaceable by `if (false)` for 0; and the probe harness could only edit **one document's text**, so
+the file and link counts were unreachable from any probe. Split into `M3`/`M4`/`M5`, and the harness
+gained a `removes` capability. **Four probes were wrong at birth, two more could not discriminate, and
+two META entries matched a COMMENT instead of the code** — the paragraph above the floors quotes them
+verbatim, so `String.replace` edited the prose and the check ran unchanged. **A comment that quotes
+the code it explains makes that code unmutatable by a literal-anchored probe.**
+
+**[Q102](doc/open-questions.md) reproduced one item later, not one plan later.** W24 predicted the
+ownership half would be settled by the next plan to edit the gate chain; it took the next **item**, and
+W25 declared it as a late exception. `RUN_FLOOR` went stale **silently, toward weakness**; `S12` failed
+**loudly, toward safety**, naming both the entry and the file to edit.
+
+**The cost is a decision somebody owes.** `check:markdown:selftest` is **2m31 to 3m14** of a **4m46 to 6m00** gate — two runs of the same tree each, so the absolutes vary by a quarter and the **ratio does not: roughly half the gate, either way** — **more than half the gate is now the gate proving its own checks can fail**. [Q133](doc/open-questions.md) and [Q138](doc/open-questions.md); changing what the gate
+RUNS was out of P8's scope. **P8's retro proposes two `doc/workflow.md` changes and adopts neither**,
+on one occurrence each with a stated argument: a **fifth** rule 8 obligation — *break the WIRING: what
+happens when the check is NOT RUN* — and *a check written for a defect you just fixed has no live case,
+so its probes are the whole of its evidence.* **No ADR: 0032 and 0033 both skipped.**
 
 **P7's exit artifact exists.** A nested fan-out runs end to end on a real scheduler, in **both L6
 runtimes**, with the outer join firing over branches it never opened. Ladder L6 is **489 assertions,
