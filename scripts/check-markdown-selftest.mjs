@@ -345,7 +345,13 @@ const PROBES = [
   {
     name: 'doc/decisions removed from the tree — the FILE floor, alone',
     file: README, check: 'M1', also: ['M3'], removes: ['doc/decisions'],
-    // 62 -> 46 files, 1577 -> 1379 links, 78 anchored: measured, the only cut in this
+    // 66 -> 50 files, 1746 -> 1548 links, 86 anchored: RE-MEASURED at P9's declaration,
+    // which is where the previous figures (62 -> 46 / 1577 -> 1379 / 78) stopped being
+    // true and took this probe with them. Four new documents took the cut from 46 to
+    // **50** against a floor of `< 50`, so M3 fell silent and the gate exited 1 with
+    // `wanted [M1,M3], got [M1]`. The floor is 56 now and check-markdown.mjs carries
+    // why: a floor is one-sided for the CHECK and two-sided for the PROBE.
+    // [Q142](../doc/open-questions.md). Still the only cut in this
     // corpus that trips the FILE floor and neither of the other two. The README edit
     // is there so the rule 7 (b) guard has a change to see.
     //
@@ -360,7 +366,10 @@ const PROBES = [
     name: 'doc/decisions AND doc/plans removed — the LINK floor, with the anchors left alone',
     file: README, check: 'M1', also: ['M3', 'M4'],
     removes: ['doc/decisions', 'doc/plans'],
-    // 37 files / 1116 links / **78 anchored**: the anchors are untouched, because
+    // 40 files / 1217 links / **86 anchored** (re-measured at P9's declaration; it read
+    // 37 / 1116 / 78, and the LINK floor of 1200 had been passed from below by the same
+    // four documents, so this probe reported `wanted [M1,M3,M4], got [M1,M3]`. The floor
+    // is 1350 now): the anchors are untouched, because
     // all 78 live in `doc/`'s top level. So this probe fires `M4` and the one above
     // does not, and that difference is what makes the link floor independently
     // observable — the first version removed `doc/`'s top level instead, which took
@@ -460,9 +469,9 @@ const META = [
   // direction: there a literal stopped matching, here it matched the wrong thing.
   // Anchored on the `fail(` that only the real clause carries.
   ['M3`s file floor disabled',
-    (t) => t.replace("if (r.files < 50) fail('M3'", "if (false) fail('M3'")],
+    (t) => t.replace("if (r.files < 56) fail('M3'", "if (false) fail('M3'")],
   ['M4`s link floor disabled',
-    (t) => t.replace("if (r.links < 1200) fail('M4'", "if (false) fail('M4'")],
+    (t) => t.replace("if (r.links < 1350) fail('M4'", "if (false) fail('M4'")],
   ['AGENTS.md dropped from the root file list',
     (t) => t.replace("  ...['README.md', 'AGENTS.md', 'CLAUDE.md']", "  ...['README.md', 'CLAUDE.md']")],
   ['spec/ dropped from this script`s own file set',

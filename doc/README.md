@@ -373,7 +373,12 @@ longer rests on our own reading. [S1](scheduler-upstream.md).
    **fourteen dead anchors fixed**, [Q121](open-questions.md) resolved. Its central finding:
    **a check can ship against a corpus that cannot falsify its central rule**, three clauses in one
    item — and the item's own fix then made two thirds of that false, which only a reader saw.
-   **Roughly half the gate is now one self-test** — 2m31-3m14 of 4m46-6m00, two runs each ([Q133](open-questions.md),
+   **Roughly half the gate is now one self-test** — 2m31-3m14 of 4m46-6m00, two runs each *(**and the
+   comparison is the wrong one: corrected at [P9](plans/p9-when-a-check-stops-checking-what-notices.md)'s
+   declaration to 88%, because there are FIVE self-tests and this counts one.** One timed pass over
+   the gate's own eighteen entries: **206.3 s of 234.6 s**, with the whole product-facing gate — every
+   check, L0-L5 in three runtimes, both L6 runtimes — at **28 s**. The ratio moved because what was
+   being compared moved, not because the machine did.)* ([Q133](open-questions.md),
    [Q138](open-questions.md)). **The next plan is P9 and starts at W28.** A third item —
    **W26, a tracked text file's bytes** — was declared in that table and **dropped before it started**,
    on a scope call rather than a measurement; **W26 and W27 are skipped and never reissued**, and the
@@ -522,6 +527,58 @@ longer rests on our own reading. [S1](scheduler-upstream.md).
    for the second item running, both times by the adequacy reader**: W20 refuted *"expected-side
    probes prove nothing"*, W21 refuted *"a source choice cannot be proved by a single-file probe"*
    with a counterexample at 1 failure. Both are about how the obligation is **instantiated**.
+
+6. **[P9](plans/p9-when-a-check-stops-checking-what-notices.md) is DECLARED and runs after P8** —
+   *when a check clause stops checking, what notices, and does it notice for the right reason?* It
+   takes the two things P8 measured and declined — [Q138](open-questions.md)'s grading gap and
+   [Q132](open-questions.md)'s coverage hole — **as one subject**, because they are the same defect
+   from two sides: a META pass grades a broken check by its **exit code**, so it cannot tell *the
+   clause I broke was caught* from *something else went wrong*, and because the verdict is an exit
+   code the only way to reach it is to re-run the whole probe suite. **Three items, serial**:
+   [W28](work-items/w28-a-grading-names-the-probe-it-breaks.md) makes a grading name the probe it
+   breaks; [W29](work-items/w29-the-two-self-tests-that-grade-nothing.md) gives a META pass to the
+   two self-tests that have none; [W30](work-items/w30-the-clauses-nothing-probes.md) gives probes to
+   nine of the sixteen clauses that have none, including
+   **`check-spec`'s first self-test in this repository's history**. Exit artifact: **one row per
+   check clause — 39 of them — saying what notices when that clause is made present but inert.**
+
+   **Its declaration measured six load-bearing facts and four of them changed what got written**, which
+   is the fourteenth plan running to have that happen. **The 39 clauses split three ways, not two** —
+   13 have a probe and a grading, **10 have a probe that nothing grades** (`D1`-`D5` and `X1`-`X5`;
+   `check-docs` and `check-scheduler` have **no META pass at all**), and 16 have no probe. That third
+   count is the plan's item decomposition. **[Q132](open-questions.md) is wrong about `check-spec`**:
+   seven clauses have no probe, not eight, because
+   [W25](work-items/w25-a-link-is-a-link-and-an-anchor-is-an-anchor.md) gave `C5` two probes one item
+   after Q132 was written. **One live defect was found and is [Q141](open-questions.md)** —
+   `check-scheduler`'s `D5` empty-parse clause can be made inert with all twelve probes green, because
+   no probe supplies a `.d.ts` the parse cannot read; four other clause-level mutations of the same two
+   checks were **caught**, so the yield is **1 in 5** and is reported as measured rather than assumed.
+   **And a hypothesis the plan intended to build on was killed before it reached the page**: the
+   `ALL_CHECKS` allowlist W24 removed is still in three self-tests and is **inert in all three**,
+   measured — [Q43](open-questions.md)'s class, refused at the declaration step.
+
+   **And the declaration's own four documents turned the gate RED, which is the seventh fact and the one nobody could have predicted.** `scripts/check-markdown.mjs`'s header argues its `M3`/`M4`/`M5` floors are *"a MINIMUM nobody is obliged to raise, which is what keeps them out of [Q102](open-questions.md)'s shape"*. **Right about the CHECK, false about the PROBES** — `M3` and `M4` are fired only by two `removes` probes that cut directories out of a copy of the tree, so each floor must sit **above the probe's fixture and below the whole tree**. One plan and three work items took *doc/decisions removed* from 46 files to **50** against a floor of `< 50`, and `npm run gate` exited **1**. **So it IS Q102's shape and worse** — two-sided rather than one-sided — and the mitigation is the direction: `RUN_FLOOR` went stale *silently, toward weakness*; this failed *loudly, in the gate*. Retuned to **56 / 1350 / 60** from a measurement, which restores green and **does not remove the ratchet**. [Q142](open-questions.md), owned by W28. *(Retuning it then broke the two META entries pinned to the old literals — rule 7 (b) firing correctly rather than passing: **a mutation pinned to a magic number is unmutatable the moment the number is right to change.**)*
+
+
+   **The gate's own cost is corrected, and the correction is a factor of nearly two.**
+   [P8's Record](plans/p8-what-can-be-deleted-with-the-gate-green.md) reads *"roughly half the gate,
+   either way"*; one timed pass over the gate's own eighteen entries says the five self-tests are
+   **206.3 s of 234.6 s — 88%**, because P8 compared **one** self-test against the total and there are
+   five. **The whole product-facing gate — every check, L0-L5 in three runtimes, and both L6
+   runtimes — is 28 s.** *(The absolutes are not constants: this run's `check:markdown:selftest` came
+   in at 2m09, below the 2m31-3m14 band P8 recorded, with the total correspondingly below its
+   4m46-6m00 band. **The ratio is what to carry**, and what moved is what was being compared.)*
+   **Changing what the gate RUNS stays out of scope**, as it was for P8; the plan makes the cost go
+   away rather than deciding the policy, and [Q133](open-questions.md) stays open with a better number
+   if the saving is not enough.
+
+   **And P9 owes `doc/workflow.md` two verdicts P8's retro proposed and deliberately did not adopt** —
+   a **fifth obligation for rule 8, break the WIRING**, and *a check written for a defect you have just
+   fixed has no live case*. **The plan is shaped so it generates evidence for both rather than
+   restating them**: W30 adds `check:spec:selftest` — the wiring shape, with the prediction written
+   down before it runs that `S11` catches it and the obligation is therefore **not** earned — and
+   W30's nine constructed cases sit against W29's `D5`, which is a check written for a defect that
+   **is** live. **Both halves, which P8's single item could not supply.**
 
 **The fan-out gate is cleared** (`workflow.md` section 7 rule 3) — not because Q4 is answered, but
 because P1 builds both of its candidate answers, so W2 and W3 can be written without knowing which

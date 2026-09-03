@@ -311,12 +311,41 @@ for (const d of r.deadAnchors) fail('M2', d);
 // `doc/workflow.md` rule 8's fourth obligation on this file's own primary loop, and
 // the floors were set to the degenerate extreme rather than to the tree.
 //
-// **They are a MINIMUM nobody is obliged to raise, which is what keeps them out of
+// ~~**They are a MINIMUM nobody is obliged to raise, which is what keeps them out of
 // [Q102](../doc/open-questions.md)'s shape.** `RUN_FLOOR`'s defect was that adding a
 // snippet obliged an item to raise it, so it went stale in the direction of
 // weakness; adding a document here can only move these numbers up and away. Only a
 // corpus that SHRINKS by a third trips them, and a corpus shrinking by a third is
-// the event they exist for.
+// the event they exist for.~~
+//
+// **THAT PARAGRAPH IS FALSE AND [P9](../doc/plans/p9-when-a-check-stops-checking-what-notices.md)'s
+// DECLARATION STEP FALSIFIED IT — four documents later, one plan later.** It is right
+// about the CHECK and wrong about the PROBES, and the probes are what make the check
+// falsifiable. A floor is one-sided for `check-markdown.mjs` and **two-sided for
+// `check-markdown-selftest.mjs`**: the `removes` probes fire `M3`/`M4` by cutting the
+// corpus down past the floor, so the floor must sit **above the probe's fixture and
+// below the whole tree**, and adding documents outside the removed directories raises
+// the fixture into the floor. Measured: P9's declaration added one plan and three work
+// items, `doc/decisions removed` went from 46 files to **50** against a floor of `< 50`,
+// and **`npm run gate` exited 1** with two probes reporting `wanted [M1,M3], got [M1]`
+// and `wanted [M1,M3,M4], got [M1,M3]`. **So it IS [Q102](../doc/open-questions.md)'s
+// shape** — an item that adds documents is obliged to retune a constant in a file it
+// does not own — and it is **worse** than `RUN_FLOOR`'s, because the window is bounded
+// on both sides and the failure lands on the probes rather than on the check. The
+// difference that matters is the direction: `RUN_FLOOR` went stale **silently, toward
+// weakness**; this failed **loudly, in the gate**, naming both probes. [Q142](../doc/open-questions.md).
+//
+// **Retuned from a measurement rather than from arithmetic on a comment**, with the
+// whole-tree and both fixture counts taken in one pass:
+//
+//   whole tree                          66 files / 1746 links / 86 anchored  -> silent
+//   doc/decisions removed               50 files / 1548 links / 86 anchored  -> M3 only
+//   doc/decisions + doc/plans removed   40 files / 1217 links / 86 anchored  -> M3 and M4
+//
+// The file floor must be **> 50 and <= 66**; the link floor **> 1217 and <= 1548**.
+// 56 and 1350 sit near the middle of each window. The anchored floor is untouched at
+// 60 against 86, because no `removes` probe moves it — all 86 anchored links are in
+// `doc/`'s top level — and `M5`'s own probe takes it to zero.
 // **Three ids, not three clauses under one id.** They were all `M3` and W25's
 // adequacy reader measured what that cost: `if (r.files < 50)` and
 // `if (r.links < 1200)` could each be replaced by `if (false)` for **0 failures**,
@@ -325,9 +354,9 @@ for (const d of r.deadAnchors) fail('M2', d);
 // `{M3}` no matter which clause had fired. Set equality cannot discriminate inside a
 // single id. New ids are free (`doc/workflow.md` section 3 forbids reuse and
 // renumbering, not allocation), so each bound gets one and each is probed on its own.
-if (r.files < 50) fail('M3', `only ${r.files} markdown file(s) were scanned, so M1 and M2 are ` +
+if (r.files < 56) fail('M3', `only ${r.files} markdown file(s) were scanned, so M1 and M2 are ` +
   'true of the walk rather than of the tree');
-if (r.links < 1200) fail('M4', `only ${r.links} relative link(s) were found; M1 is vacuous below that`);
+if (r.links < 1350) fail('M4', `only ${r.links} relative link(s) were found; M1 is vacuous below that`);
 if (r.anchored < 60) fail('M5', `only ${r.anchored} link(s) carry an anchor; M2 is vacuous below that`);
 
 const checks = [

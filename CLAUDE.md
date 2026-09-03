@@ -15,7 +15,7 @@ the only document that does. **Every snippet in it is extracted and executed by 
 (`scripts/check-docs.mjs`), so it cannot rot the way a hand-maintained reference does. If you change
 the public surface, that check is what tells you the reference is now wrong.
 
-## Current state: **P1-P8 are ALL complete and retro'd, `doc/workflow.md` is [v0.9](doc/workflow.md), and [P8](doc/plans/p8-what-can-be-deleted-with-the-gate-green.md) is CLOSED** — [P7](doc/plans/p7-is-a-join-transitive-over-nested-fan-out.md)'s four items are [W20](doc/work-items/w20-what-a-nested-region-is.md), [W21](doc/work-items/w21-the-branch-path-is-a-path.md), [W22](doc/work-items/w22-what-an-inner-join-does-to-the-outer-one.md) and [W23](doc/work-items/w23-a-nested-flow-on-real-workers.md); **P8's [W24](doc/work-items/w24-the-gates-own-wiring.md) and [W25](doc/work-items/w25-a-link-is-a-link-and-an-anchor-is-an-anchor.md) are both DONE and P8 is retro'd — the next plan is P9 and starts at W28**
+## Current state: **P1-P8 are ALL complete and retro'd, `doc/workflow.md` is [v0.9](doc/workflow.md), and [P8](doc/plans/p8-what-can-be-deleted-with-the-gate-green.md) is CLOSED** — [P7](doc/plans/p7-is-a-join-transitive-over-nested-fan-out.md)'s four items are [W20](doc/work-items/w20-what-a-nested-region-is.md), [W21](doc/work-items/w21-the-branch-path-is-a-path.md), [W22](doc/work-items/w22-what-an-inner-join-does-to-the-outer-one.md) and [W23](doc/work-items/w23-a-nested-flow-on-real-workers.md); **P8's [W24](doc/work-items/w24-the-gates-own-wiring.md) and [W25](doc/work-items/w25-a-link-is-a-link-and-an-anchor-is-an-anchor.md) are both DONE and P8 is retro'd — [P9](doc/plans/p9-when-a-check-stops-checking-what-notices.md) is DECLARED and runs next, starting at W28**
 
 **[P8](doc/plans/p8-what-can-be-deleted-with-the-gate-green.md) asks *what can be deleted from this
 repository with `npm run gate` still green?*, and it is the plan that owns `scripts/**` and
@@ -137,11 +137,71 @@ ownership half would be settled by the next plan to edit the gate chain; it took
 W25 declared it as a late exception. `RUN_FLOOR` went stale **silently, toward weakness**; `S12` failed
 **loudly, toward safety**, naming both the entry and the file to edit.
 
-**The cost is a decision somebody owes.** `check:markdown:selftest` is **2m31 to 3m14** of a **4m46 to 6m00** gate — two runs of the same tree each, so the absolutes vary by a quarter and the **ratio does not: roughly half the gate, either way** — **more than half the gate is now the gate proving its own checks can fail**. [Q133](doc/open-questions.md) and [Q138](doc/open-questions.md); changing what the gate
+**The cost is a decision somebody owes, and the number is 88% rather than half.** *(P8's retro wrote
+*"`check:markdown:selftest` is **2m31 to 3m14** of a **4m46 to 6m00** gate … roughly half the gate,
+either way"*. **The absolutes were right and the comparison was not** — it counts **one** self-test
+and there are **five**. Corrected at P9's declaration by one timed pass over the gate's own eighteen
+entries: `check:source:selftest` 23.1 s, `check:markdown:selftest` 129.4 s, `check:scheduler:selftest`
+2.0 s, `check:policies:selftest` 6.5 s, `check:docs:selftest` 45.3 s = **206.3 s of 234.6 s**. **The
+whole product-facing gate — every check, L0-L5 in three runtimes, and both L6 runtimes — is 28 s.**
+That run's `check:markdown:selftest` was **2m09**, below the recorded band, which reinforces rather
+than undermines the *"absolutes are not constants"* half. **A third shape for this repository's count
+problem: not stale and not mis-derived, but a correct number answering a narrower question than the
+sentence around it claimed.)* [Q133](doc/open-questions.md) and [Q138](doc/open-questions.md); changing what the gate
 RUNS was out of P8's scope. **P8's retro proposes two `doc/workflow.md` changes and adopts neither**,
 on one occurrence each with a stated argument: a **fifth** rule 8 obligation — *break the WIRING: what
 happens when the check is NOT RUN* — and *a check written for a defect you just fixed has no live case,
 so its probes are the whole of its evidence.* **No ADR: 0032 and 0033 both skipped.**
+
+
+**[P9](doc/plans/p9-when-a-check-stops-checking-what-notices.md) is DECLARED and runs next — *when a
+check clause stops checking, what notices, and does it notice for the right reason?*** It takes
+[Q138](doc/open-questions.md) and [Q132](doc/open-questions.md) as **one subject**, because they are
+the same defect from two sides: a self-test's META pass grades a broken check by its **exit code**, so
+it cannot tell *the clause I broke was caught* from *something else went wrong* — and because the
+verdict is an exit code, reaching it means re-running the whole probe suite. **Three items, serial**:
+[W28](doc/work-items/w28-a-grading-names-the-probe-it-breaks.md) makes a grading name the probe it
+breaks; [W29](doc/work-items/w29-the-two-self-tests-that-grade-nothing.md) gives a META pass to the
+two that have none; [W30](doc/work-items/w30-the-clauses-nothing-probes.md) gives probes to nine of
+the sixteen clauses that have none, including **`check-spec`'s first self-test ever**. **Q ids resume
+at Q142; ADR 0034-0035 reserved and expected skipped; W31 reserved and expected unused.**
+
+**The 39 check clauses split THREE ways and nobody had written the middle one down.** 13 have a probe
+**and** a grading; **10 have a probe that nothing grades** — `D1`-`D5` and `X1`-`X5`, because
+`check-docs` (14 probes) and `check-scheduler` (12) have **no META pass at all**, and `check-policies`
+has META and no `SELF`; and 16 have **no probe**. That split is the item decomposition, and it is why
+P9 is three items rather than two.
+
+**Its declaration measured six load-bearing facts, four changed what got written, and one of the four
+was a hypothesis it killed before writing it down.** [Q132](doc/open-questions.md) says `check-spec`
+has *"8 more clauses, 0 probes"* — it is **7**, because
+[W25](doc/work-items/w25-a-link-is-a-link-and-an-anchor-is-an-anchor.md) gave `C5` two probes one item
+after Q132 was written at W24. **[Q141](doc/open-questions.md) is new and is the one live defect**:
+`check-scheduler`'s `D5` empty-parse clause can be made inert with **all twelve probes green**,
+because no probe supplies a `.d.ts` the parse cannot read — while four other clause-level mutations of
+the same two checks were **caught**, so the yield of *no META pass* is **1 in 5** and is reported as
+measured rather than assumed. **And the killed hypothesis is the `ALL_CHECKS` allowlist** W24 removed
+from `check-source-selftest.mjs`: it is still in three self-tests and **renaming a reported id outside
+each list was caught in all three**, because every id those checks report is declared by some probe.
+[Q43](doc/open-questions.md)'s class, refused at the declaration step rather than written into the
+register as a hole.
+
+**Q138 is confirmed and sharper than its own row.** Across all 56 code-targeted META entries in
+`check-source` and `check-markdown`, every grading is `r.status !== 0`; **which probe gets the credit
+is an artefact of `PROBES`' ORDER** — five of `check-markdown`'s six slug-rule mutations are credited
+to *a link to a file that does not exist*, while the two probes written for the slug rule sit lower and
+never run; and in **7 of 56** the crediting probe declared a non-empty set and reported a **strictly
+larger** one, meaning the mutant became **noisy** rather than being detected. Only **14 of 24** and
+**31 of 37** probes are ever the one that notices.
+
+**And the declaration's own four documents turned the gate RED, which is the seventh fact and the one nobody could have predicted.** `scripts/check-markdown.mjs`'s header argues its `M3`/`M4`/`M5` floors are *"a MINIMUM nobody is obliged to raise, which is what keeps them out of [Q102](doc/open-questions.md)'s shape"*. **Right about the CHECK, false about the PROBES** — `M3` and `M4` are fired only by two `removes` probes that cut directories out of a copy of the tree, so each floor must sit **above the probe's fixture and below the whole tree**. One plan and three work items took *doc/decisions removed* from 46 files to **50** against a floor of `< 50`, and `npm run gate` exited **1**. **So it IS Q102's shape and worse** — two-sided rather than one-sided — and the mitigation is the direction: `RUN_FLOOR` went stale *silently, toward weakness*; this failed *loudly, in the gate*. Retuned to **56 / 1350 / 60** from a measurement, which restores green and **does not remove the ratchet**. [Q142](doc/open-questions.md), owned by W28. *(Retuning it then broke the two META entries pinned to the old literals — rule 7 (b) firing correctly rather than passing: **a mutation pinned to a magic number is unmutatable the moment the number is right to change.**)*
+
+**The census was CONFIRMED rather than corrected, for the first time in four plans** — 99 → 100 with
+Q141, **65 open, 2 deferred, 33 resolved** — and the parser aborted three times on real hazards first.
+**The third abort is the one to carry**: honouring only the strict `| a | b |` row shape **silently
+merged Q87 into Q86 and lost a whole question**, and the parser did **not** abort, because a merged
+row is still classifiable. *A parser that aborts on what it cannot classify does not abort on what it
+misreads as something else.*
 
 **P7's exit artifact exists.** A nested fan-out runs end to end on a real scheduler, in **both L6
 runtimes**, with the outer join firing over branches it never opened. Ladder L6 is **489 assertions,

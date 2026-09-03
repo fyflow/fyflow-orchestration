@@ -324,7 +324,17 @@ file's bytes* is about bytes. **The declaration step is where that should be cau
 live defect — joined now by a **third**, [Q135](../open-questions.md), which fails by a different
 mechanism.
 
-**What this plan cost, and it is a decision somebody owes.** `check:markdown:selftest` is **2m31 to 3m14** of a **4m46 to 6m00** gate — two runs of the same tree each, so the absolutes vary by a quarter and the **ratio does not: roughly half the gate, either way**, with `check:source:selftest` at 23s. **More than half the gate is now the gate proving its own checks can fail**, and the ratio is the durable number — the first version of this paragraph quoted one gate run as though a duration were a constant.
+**What this plan cost, and it is a decision somebody owes.** *(**The ratio below is corrected in place
+at [P9](p9-when-a-check-stops-checking-what-notices.md)'s declaration and the correction is a factor
+of nearly two: it is 88%, not half.** This paragraph compares **one** self-test against the total and
+there are **five**. One timed pass over the gate's own eighteen entries — `check:source:selftest`
+23.1 s, `check:markdown:selftest` 129.4 s, `check:scheduler:selftest` 2.0 s,
+`check:policies:selftest` 6.5 s, `check:docs:selftest` 45.3 s — is **206.3 s of 234.6 s**, and the
+whole product-facing gate is **28 s**. The sentence about the absolutes varying was right and is
+reinforced: that run's `check:markdown:selftest` came in at **2m09**, below the band recorded here.
+**What was wrong was not the measurement but the comparison**, which is a third shape for this
+repository's standing count problem — not stale, not mis-derived, but a correct number answering a
+narrower question than the sentence around it claims.)* `check:markdown:selftest` is **2m31 to 3m14** of a **4m46 to 6m00** gate — two runs of the same tree each, so the absolutes vary by a quarter and the **ratio does not: roughly half the gate, either way**, with `check:source:selftest` at 23s. **More than half the gate is now the gate proving its own checks can fail**, and the ratio is the durable number — the first version of this paragraph quoted one gate run as though a duration were a constant.
 [Q133](../open-questions.md) raised it and [Q138](../open-questions.md) has the mechanism — a META
 entry asserts that *some* probe notices and never *which*, so each one re-runs the whole suite — and
 a fix that would cut it by roughly twenty. **Changing what the gate RUNS was declared out of this
