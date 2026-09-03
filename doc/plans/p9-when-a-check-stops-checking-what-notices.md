@@ -7,7 +7,7 @@ notice for the right reason?*
 is made **present but inert**: a **named** probe, an unrelated probe reacting to noise, or
 **nothing**. Measured at `76bf5e6` and again after this plan, with the **`check-scheduler` D5 clause
 that survives today** fixed, and the gate's own timing on both sides.*
-**Reserves:** W28-W31, Q141-Q150 (**Q141 and Q142 taken by this declaration**), ADR 0034-0035 (**expected to go unused**)
+**Reserves:** W28-W31 (**all four used**), Q141-Q150 (**Q141 and Q142 taken by this declaration**), ADR 0034-0035 (**expected to go unused**)
 
 ---
 
@@ -276,8 +276,9 @@ edits as a deliverable.
 | [**W28**](../work-items/w28-a-grading-names-the-probe-it-breaks.md) | **A grading names the probe it breaks** — the META contract in the three self-tests that have one | `scripts/check-source-selftest.mjs` (W24), `scripts/check-markdown-selftest.mjs` (W25), `scripts/check-policies-selftest.mjs` (W16) | nothing | **L0**, own coverage at L0; **L1-L6 as regression and must not move**; then two readers |
 | [**W29**](../work-items/w29-the-two-self-tests-that-grade-nothing.md) | **The two self-tests that grade nothing** — a META pass for `check-docs` and `check-scheduler`, and [Q141](../open-questions.md) closed | `scripts/check-docs-selftest.mjs` (W9), `scripts/check-scheduler-selftest.mjs` (W5), `scripts/check-scheduler.mjs` (W5), `scripts/check-docs.mjs` (W9) | W28 | **L0**, own coverage at L0; L1-L6 as regression; then two readers |
 | [**W30**](../work-items/w30-the-clauses-nothing-probes.md) | **The clauses nothing probes** — `check-spec`'s first self-test, and `S4` and `S7` | `scripts/check-spec.mjs` (W1), **`scripts/check-spec-selftest.mjs`** (new), `scripts/check-source.mjs` (W24), `scripts/check-source-selftest.mjs` (W28), **`package.json`** (P8) | W28 | **L0**, own coverage at L0; L1-L6 as regression; then two readers |
+| [**W31**](../work-items/w31-the-self-list-check-policies-never-had.md) — **declared late, on a measurement** | **The `SELF` list `check-policies` never had** | `scripts/check-policies-selftest.mjs` (W16, then W28) | W28 | **L0**, own coverage at L0; L1-L6 as regression; then two readers |
 
-**Why three rather than two.** P8's *"two items is the floor, not a shortcut"* was about not dropping
+**Why three rather than two, and then four.** P8's *"two items is the floor, not a shortcut"* was about not dropping
 below its own justification. Here the count comes from the census: **16 / 10 / 13** are three
 different defects with three different fixes, and merging W29 into W28 would put a contract change
 and five new gradings in one item whose gate cannot separate them. **W30 is not the droppable one** —
@@ -298,14 +299,36 @@ written from this table's row, never from its title.** The numbers behind that s
 four, two, zero. Each row above names the record-step files only where section 1 rule 5 does not
 already grant them, and `package.json` explicitly where an item needs it.
 
-**A fourth item is NOT declared, and the reason is recorded rather than left implicit.** The obvious
+~~**A fourth item is NOT declared, and the reason is recorded rather than left implicit.** The obvious
 candidate is a `SELF` pass for `check-docs`, `check-scheduler` and `check-policies`, which have none
 — the list-bound guard rule 8's fourth obligation asks for. **It is out because W28's contract change
 makes the whole question cheaper to answer later**, and because `check-source-selftest.mjs`'s own
 header records the ceiling it runs into: *nothing inside a self-grading file can assert that the file
 grades*, and each new outer list moves the hole rather than closing it. **W31 is reserved and
 expected to go unused**; if W28 finds the `SELF` gap is what blocks its own grading, that is the
-signal to take it.
+signal to take it.~~
+
+**W31 IS DECLARED, on a measurement, and the trigger above is what fired.**
+[W28](../work-items/w28-a-grading-names-the-probe-it-breaks.md)'s adequacy reader put each of the
+three verdicts W28 ships into `check-policies-selftest.mjs` under an `if (false)` and ran the file:
+**all three cost 0**, because that file has no `SELF` list and nothing bounds it from outside. The
+other two self-tests each gained four entries that make those verdicts fire; **the third copy of the
+contract is inert.** [**W31**](../work-items/w31-the-self-list-check-policies-never-had.md) takes it,
+narrowed to that one file — `check-docs` and `check-scheduler` are still out, because
+[W29](../work-items/w29-the-two-self-tests-that-grade-nothing.md) is what gives them a `META` pass and
+a `SELF` list over a pass that does not exist yet would bound nothing.
+
+**The mechanism is what should be judged here, not the count.** The trigger was written into W28's
+`Out` list **before W28 started**, in the words the finding then matched, so growing the plan was a
+decision against a stated criterion rather than against a feeling. **P8's retro asked the opposite
+question of W26** — an item declared and then dropped — and named the declaration step as where that
+call belongs. This is the same step in the other direction, and the two together are what that step is
+for.
+
+**And the ceiling argument above survives unchanged**: `check-policies-selftest.mjs`'s own header
+records that nothing inside a self-grading file can assert that the file grades, and W24 re-measured
+it. A `SELF` list does not close that; it moves the hole one list further out, which is worth doing
+because the three guards W28 shipped are currently inside the reach it moves.
 
 ## Open questions this plan carries
 
@@ -325,7 +348,7 @@ signal to take it.
 
 ## A note on ids
 
-**P9 starts at W28 and reserves W28-W31.** **W26 and W27 are skipped and never reissued** — P8
+**P9 starts at W28 and uses all four of W28-W31.** W31 was reserved as unlikely and is declared late, on W28's adequacy reader's measurement — see the work-items section. **W26 and W27 are skipped and never reissued** — P8
 declared W26 in its table and dropped it before it started, and W27 went unused. **W31 is reserved and
 expected to go unused**; see the work-items section.
 
