@@ -15,7 +15,90 @@ the only document that does. **Every snippet in it is extracted and executed by 
 (`scripts/check-docs.mjs`), so it cannot rot the way a hand-maintained reference does. If you change
 the public surface, that check is what tells you the reference is now wrong.
 
-## Current state: **P1-P7 are ALL complete and retro'd, and `doc/workflow.md` is [v0.9](doc/workflow.md)** — [P7](doc/plans/p7-is-a-join-transitive-over-nested-fan-out.md)'s four items are [W20](doc/work-items/w20-what-a-nested-region-is.md), [W21](doc/work-items/w21-the-branch-path-is-a-path.md), [W22](doc/work-items/w22-what-an-inner-join-does-to-the-outer-one.md) and [W23](doc/work-items/w23-a-nested-flow-on-real-workers.md)
+## Current state: **P1-P7 are ALL complete and retro'd, `doc/workflow.md` is [v0.9](doc/workflow.md), and [P8](doc/plans/p8-what-can-be-deleted-with-the-gate-green.md) is DECLARED** — [P7](doc/plans/p7-is-a-join-transitive-over-nested-fan-out.md)'s four items are [W20](doc/work-items/w20-what-a-nested-region-is.md), [W21](doc/work-items/w21-the-branch-path-is-a-path.md), [W22](doc/work-items/w22-what-an-inner-join-does-to-the-outer-one.md) and [W23](doc/work-items/w23-a-nested-flow-on-real-workers.md); **P8's [W24](doc/work-items/w24-the-gates-own-wiring.md) is DONE; W25 is in the plan's index table and in no item file yet**
+
+**[P8](doc/plans/p8-what-can-be-deleted-with-the-gate-green.md) asks *what can be deleted from this
+repository with `npm run gate` still green?*, and it is the plan that owns `scripts/**` and
+`package.json`** — the paths in nobody's `Owns` that blocked **two** checks in P7 alone, which P7's
+retro named and deliberately refused to make a workflow rule. It also **exercises rule 7 (c)**, unused
+for five plans. **Its declaration measured four load-bearing facts and three of the register rows were
+wrong** — the twelfth plan running to have that happen, and the eighth to find a register row wrong by
+trying to act on it:
+
+- **[Q123](doc/open-questions.md)'s premise is FALSE.** *"`HEAD` is LF throughout"* — `git ls-files
+  --eol` says **161 LF and one CRLF**, and the CRLF file is **`doc/concept.md`**, CRLF in all six
+  commits that ever touched it, back to the founding commit. So a check refusing CRLF **fails on day
+  one** on the document this file says to read rather than re-derive, and W26 owns a choice it would
+  not otherwise have had.
+- **[Q121](doc/open-questions.md) is wrong twice and incomplete once, and the third is what matters.**
+  Dead file links today: **0**. Code-span false positives: **4 in three files**, not two, one of them a
+  placeholder rather than a link-syntax illustration. **And it never mentions anchors** — `C5` strips
+  `#…` and compares the path alone, so it is blind to **14 dead anchors over 9 targets, being all nine
+  S-ids in `doc/scheduler-upstream.md`'s own index**, which `git log -S` shows were **born dead in the
+  founding commit** and have never once worked. `C5` **can be lifted rather than copied** (measured:
+  span-blanking leaves `spec/` at 0 → 0) but **its id must survive**, being cited in seven documents.
+- **[Q126](doc/open-questions.md) was confirmed, the hole was seven times wider, and [W24](doc/work-items/w24-the-gates-own-wiring.md)
+  CLOSED it.** `check-source.mjs:290` was the only thing that read `scripts.gate` and `S11` guarded
+  **8 of 15** entries; one level down nothing guarded `typecheck`'s five sub-typechecks,
+  `test:browser`'s `build:browser-tests`, or **`lint`'s directory list** — dropping `examples/`
+  un-lints all of L6, which is rule 8's fourth obligation applied to `package.json`. **The chain is
+  now 16 of 16 guarded** by `S12` — a declared list compared to `scripts.gate` **both ways and in
+  order**, equality rather than a floor, so a **swapped** entry fails where a floor passes — and the
+  three composed lists by `S13`, **two of whose clauses derive their bound from `package.json` and
+  from disk rather than from the declaration**, so emptying the list fails rather than passes.
+- **A third item was declared and DROPPED before it started, and both halves are recorded.** W26 —
+  *a tracked text file's bytes* — is out on a **scope call, not a measurement**, leaving P8 at exactly
+  the two checks P7 declined. **`doc/concept.md` is normalised to LF in P8's declaration commit**
+  (221 CRLF pairs removed at the byte level, byte-identical to the previous `HEAD` with the CRs
+  stripped, so none of the `Get-Content | Set-Content` re-encode hazard), because the file was wrong
+  today and the check that would catch it is not being built. **No `.gitattributes`** — it hides the
+  problem where a check would show it. **W26 and W27 are skipped and never reissued; the next plan
+  starts at W28**, and [Q123](doc/open-questions.md) and [Q131](doc/open-questions.md) return to the
+  register with no owner. **Q131 is deliberately NOT fixed**, so whoever builds that check has a live
+  defect to fire on.
+- **[Q131](doc/open-questions.md) is new and nobody had raised it.** The census parser — the
+  **aborting** kind P6's retro asked for — split rows on unescaped pipes and found that **`Q119` and
+  `Q71` render their Status and Owner columns wrong**: Q119's Status shows `regions` and its Owner
+  shows `^2) with the inner call doubled…`, with the real `open` / `no owner` dropped off the row. In
+  the file read before every work item. **The register is now 92 questions — 58 open, 2 deferred, 32
+  resolved**, and the standing *"59 open"* was the right total under the wrong noun.
+
+**[W24](doc/work-items/w24-the-gates-own-wiring.md) is DONE, [Q126](doc/open-questions.md) is
+RESOLVED, and `check-source` has the first self-test it has ever had.** The gate chain is **16 of 16
+entries guarded** where it was 8 of 15, plus the three lists one level down. **`S12` is set equality
+AND order** — the order clause exists because a reader pointed out that `&&` in sequence is the only
+implementation `doc/workflow.md` section 4's ladder has. **`S13` carries two clauses whose bound
+comes from somewhere other than the declaration** — `package.json` itself for which entries compose
+other scripts, and the disk for which trees must be linted — so emptying its list fails rather than
+passes. `scripts/check-source-selftest.mjs` is **24 probes, 20 gradings of those probes, 3 of the
+probe list itself**, ~34 s, each probe declaring the exact **set** of checks it must trip. **Rule 7
+(c) fired on its first outing here**: the item's own declared table gave probe 7 as `{S11}` and the
+true set is `{S11, S12}`, reported as 16/17 rather than passing.
+
+**Four things W24 WROTE DOWN were false and measurement is what caught each.** Two of the four
+self-grading ceiling holes copied from `check-policies-selftest.mjs` are **caught** here rather than
+live; *"S11 guards eight of the gate's sixteen entries"* mixed the before and after counts; *"three
+lists live here"* was four; and *"order is deliberately NOT asserted"* rested on a reason that was
+wrong. **The item's own claimed survivor was the worst of them** — *"deleting the `lint` row from
+`COMPOSED` costs 0 failures"*, measured by running `check:source` and never the self-test, which it
+turns red. It was one command from being written into the register as a fact. **[Q43](doc/open-questions.md)'s
+class, inside the file built to refuse it.**
+
+**And its method finding is an axis rule 8 does not have.** Both readers independently found the same
+hole in **the entry W24 adds**: `"check:source:selftest": "node scripts/check-source.mjs"` — drop
+` --self-test` and the whole self-test never runs, with `npm run gate` at **exit 0**. All four
+`:selftest` entries had it. Neither the author's twenty-four probes nor the item's declared thirteen
+could reach it, because every one asks *what happens when the INPUT is broken* and this asks **what
+happens when the CHECK IS NOT RUN**. That is not a clause, not an output row, not a provenance and not
+a bound. **For P8's retro.** Its questions: [Q132](doc/open-questions.md) (the probes cover **4 of
+`check-source`'s 13** checks; the other nine are pattern lists each emptiable for 0, and `check-spec`
+still has none), [Q133](doc/open-questions.md) (the gate now spends about a minute proving its own
+checks can fail and nothing decided that it should), [Q134](doc/open-questions.md) (`S12` subsumes
+`S11`'s membership half) and [Q135](doc/open-questions.md) (a **third** register row renders wrong, by
+a different mechanism than Q131's two). **[Q102](doc/open-questions.md) is ANSWERED and not closed: an
+owner MOVES it, NARROWS it and MULTIPLIES it** — `Owns` is per-item rather than standing, `S12` is
+equality rather than a floor, and W24 ships three more floors of Q102's own shape, two of them made to
+fire by a list one level out. **No ADR: 0032 and 0033 are both skipped.**
 
 **P7's exit artifact exists.** A nested fan-out runs end to end on a real scheduler, in **both L6
 runtimes**, with the outer join firing over branches it never opened. Ladder L6 is **489 assertions,

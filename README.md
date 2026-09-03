@@ -4,9 +4,9 @@ Flow orchestration over [fyflow-scheduler](https://github.com/fyflow/fyflow-sche
 flow once; run thousands of workloads through it.
 
 > **Status: the layer is built and gated.** Sequence, decision routing, fan-out and join, with
-> **three** join policies, a definition validator, and run state as a pure fold. **One driver serves one run, fixed at construction, and two drivers may share a scheduler — with anything else on it.** **410 assertions in five
-> runtimes** — Node 24, Deno, chromium, firefox, webkit — **plus 373 against a real scheduler** in
-> Node and Deno — where the scheduler also carries five tasks this library did not mint, and both
+> **three** join policies, a definition validator, and run state as a pure fold. **One driver serves one run, fixed at construction, and two drivers may share a scheduler — with anything else on it.** **474 assertions in five
+> runtimes** — Node 24, Deno, chromium, firefox, webkit — **plus 489 across 25 runs against a real
+> scheduler** in Node and Deno — where the scheduler also carries five tasks this library did not mint, and both
 > runs still complete. Not published; no version has been released.
 >
 > *(`npm run gate` runs the browser rung in **chromium only**; firefox and webkit are
@@ -126,7 +126,8 @@ for how it is reached.
 |---|---|
 | `npm run gate` | everything below, in order |
 | `npm test` · `npm run test:deno` · `npm run test:browser:all` | 474 assertions, five runtimes — `npm run gate` runs three of them, and `test:browser:all` is what adds firefox and webkit |
-| `npm run test:l6` · `npm run test:l6:deno` | a real scheduler, 19 runs |
+| `npm run test:l6` · `npm run test:l6:deno` | a real scheduler, 25 runs |
+| `npm run check:source:selftest` | **the gate's own wiring, negative-tested** — 24 probes, 20 gradings of those probes, 3 of the probe list itself. `S12` compares `gate`'s 16 entries to a declared list both ways and in order; `S13` takes the three chains it composes |
 
 ## Documentation
 

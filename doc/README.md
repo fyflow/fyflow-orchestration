@@ -351,13 +351,39 @@ longer rests on our own reading. [S1](scheduler-upstream.md).
    `task.completed` and nothing else, found by both readers independently — and
    [Q108](open-questions.md), the `context.spawnTask()` producer that is demonstrated nowhere at all.
 
-4. **[P7](plans/p7-is-a-join-transitive-over-nested-fan-out.md) is DECLARED and runs after P6** —
+4. **[P7](plans/p7-is-a-join-transitive-over-nested-fan-out.md) is COMPLETE and retro'd** —
    *[Q6](open-questions.md): if a branch itself fans out, does the outer join wait for the
    grandchildren?* **The first plan in six whose subject is a FEATURE rather than an edge**, and it
    takes the shape `doc/concept.md` section 2 names and the library refuses. Exit artifact: a nested
    fan-out running end to end on a real scheduler, with the outer join firing over branches it never
-   directly opened, and the join/failure matrix at depth 2. **W20-W23 declared in the plan's index
-   table and in no item file yet; nothing has started.**
+   directly opened, and the join/failure matrix at depth 2. **All four items are done; the detail is
+   further down this page and the status is read from the plan's own file.** *(This paragraph read
+   *"DECLARED and runs after P6 … nothing has started"* through the whole of P7, while the block below
+   read COMPLETE — one index contradicting itself, which is `doc/workflow.md` section 1 rule 5's own
+   class. Corrected at P8's declaration.)*
+
+5. **[P8](plans/p8-what-can-be-deleted-with-the-gate-green.md) is DECLARED and runs after P7** —
+   *what can be deleted from this repository with `npm run gate` still green?* **It owns `scripts/**`
+   and `package.json`**, which are in nobody's `Owns` and which blocked two checks in P7 alone —
+   [Q126](open-questions.md) and [Q121](open-questions.md) — and it is the plan that finally
+   **exercises `doc/workflow.md` rule 7 (c)**, unused for five plans. Exit artifact: a table of
+   deletions the gate accepted at `d8a9ea3` and refuses afterwards, each a checked-in probe with a
+   failure count, plus **fourteen dead anchors fixed** in `doc/scheduler-upstream.md`. **[W24](work-items/w24-the-gates-own-wiring.md) is DONE — read its own file for its status, not this line.** The gate chain is **16 of 16 entries guarded** where it was 8 of 15, plus the three composed lists one level down — `typecheck`'s five sub-typechecks, `test:browser`'s `build:browser-tests`, and `lint`'s **argument list**. **[Q126](open-questions.md) is resolved.** `S12` is set equality **and order**, not a floor; `S13` carries **two clauses derived from sources that are not the declaration**, so emptying its list fails rather than passes. `scripts/check-source-selftest.mjs` is **the first self-test `check-source` has ever had** — **24 probes, 20 META gradings, 3 SELF gradings**, ~34 s, each probe declaring the exact set it must trip. **W25 is in the plan's index table and in no item file yet.** A third item —
+   **W26, a tracked text file's bytes** — was declared in that table and **dropped before it started**,
+   on a scope call rather than a measurement; **W26 and W27 are skipped and never reissued**, and the
+   next plan starts at W28. Its one irreversible half was taken outside it: **`doc/concept.md` is
+   normalised to LF in P8's declaration commit**, byte-identical to the previous `HEAD` with the CRs
+   stripped. [Q123](open-questions.md) and [Q131](open-questions.md) return to the register with **no
+   owner** — Q123's instance fixed and its mechanism unguarded, Q131 **not fixed at all**, so the two
+   register rows still render their Status and Owner columns wrong.
+
+   **Its declaration measured all four of its load-bearing facts and three were wrong** — the twelfth
+   plan running to have that happen. `HEAD` is **not** LF throughout (`doc/concept.md` has been CRLF
+   since the founding commit); the dead-link count is **0** and the false-positive count **4** rather
+   than two; `S11` leaves **seven of the gate's fifteen entries** unguarded rather than one. And the
+   census parser it wrote — the aborting kind P6's retro asked for — found a defect nobody had raised:
+   **two register rows carry unescaped pipes and render their Status and Owner columns wrong**
+   ([Q131](open-questions.md)).
 
    **Its measurement moved a work item's document, which is the ninth plan running to have the
    load-bearing fact change what got written.** The region maths is **already** nesting-ready —
@@ -500,7 +526,7 @@ wins.
 | | |
 |---|---|
 | [concept.md](concept.md) | **Read first.** What we are building, the substrate fact that shapes everything, and the one structural idea - run state is a pure fold of an event log |
-| [workflow.md](workflow.md) | **Read before any work item.** The loop, the verification ladder, the test rules, how work is split. **v0.8, run to completion by six plans** - the adaptation tables at the end carry a verdict per row from P1 through P5, and stay for the next plan to re-judge |
+| [workflow.md](workflow.md) | **Read before any work item.** The loop, the verification ladder, the test rules, how work is split. **v0.9, run to completion by seven plans** - the adaptation tables at the end carry a verdict per row from P1 through P7, and stay for the next plan to re-judge. *(This cell read v0.8 / six plans / P1-P5 through the whole of P7 — read from `doc/workflow.md`'s own header at P8's declaration.)* |
 | [decisions/](decisions/) | ADR 0001, 0002, 0007. They bind `spec/` rather than being superseded by it - 0007 in particular is what [outcome-record.md](../spec/outcome-record.md) makes checkable |
 | [plans/p1-...](plans/p1-what-satisfies-a-join.md) | **Complete.** Five work items, and its Record carries the exit artifact and five proposals for the retro |
 | [plans/p2-...](plans/p2-the-non-success-half-on-a-real-scheduler.md) | **Complete, and its Record carries the retro that made this document v0.4.** One question, one work item, no new features. Two facts measured before it was written, both of which changed it |
