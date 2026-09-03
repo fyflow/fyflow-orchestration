@@ -45,6 +45,40 @@
 // records and W24 re-measured: nothing inside a self-grading file can assert that
 // the file grades. The Record names which guards are outside reach, measured against
 // this file as shipped rather than copied from a sibling.
+//
+// ---------------------------------------------------------------------------
+// **W28: A META ENTRY NAMES THE PROBE IT MUST BREAK.** [Q138](../doc/open-questions.md).
+//
+// A grading was `r.status !== 0` — re-run all 37 probes against the broken check and
+// require a non-zero exit — which cannot tell *the clause I broke was caught* from
+// *something else went wrong*. Measured over these 36 code-targeted entries: the
+// probe credited with the catch is **whichever comes FIRST in list order and
+// reacts**, so five of the six slug-rule entries were credited to *a link to a file
+// that does not exist* while the two probes written for the slug rule sat lower and
+// never ran at all. Each entry now names its probe as its second element, the child
+// runs **that probe and no other**, and the grading has three verdicts — ABORT (exit
+// 3, the name matches nothing), uncaught (1), STILL CAUGHT (0) — plus `ran:`, which
+// requires the mutant to have printed its header so a **crash** is not read as a
+// catch.
+//
+// **Measured: 129.4 s -> 25.3 s for the grading**, and the four new `SELF` entries
+// put ~38 s of that back, which is a trade this file makes on purpose.
+//
+// **And the SELF pass could not see any of it until W28.** The return after the
+// probe pass read `if (nested)` — both nesting kinds — so **every `SELF` child
+// returned before META and no mutation of a grading was observable from here at
+// all.** All four new entries survived on exactly that.
+// `check-source-selftest.mjs` had already learned it and says so in place; the
+// sibling did not inherit it, which is [Q137](../doc/open-questions.md)'s shape a
+// third time — a fix moves and its reason does not.
+//
+// **The four new entries edit the `META` LIST and leave the guards alone.** The
+// two-edit form — *remove the guard AND supply the case it catches* — asks the
+// question backwards, because with the guard gone and the defect present the run
+// goes GREEN and `SELF`'s *"must exit non-zero"* then reads as *the floor did not
+// fire* either way. And an anchor that quotes a guard matches the entry's own
+// literal first: [Q143](../doc/open-questions.md).
+// ---------------------------------------------------------------------------
 
 import { readFileSync, writeFileSync, mkdirSync, rmSync, cpSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -411,11 +445,21 @@ const PROBES = [
 ];
 
 /** A floor on the probe list. `caught === PROBES.length` is vacuous at zero. */
+/**
+ * **The report header `check-markdown.mjs` prints before any verdict.** A grading
+ * requires the mutated check to have PRINTED it, which is how a mutant that
+ * **crashed** is told apart from one that ran and stopped detecting — an exit code
+ * reads both as a catch. W24's conformity reader found one such entry in
+ * `check-source-selftest.mjs`; W28's guard found a second in
+ * `check-policies-selftest.mjs` on its first run.
+ */
+const RAN_MARKER = 'markdown check — ';
+
 const MIN_PROBES = 37;
 /** The same floor for `META`. */
 const MIN_META = 37;
 /** And for `SELF`. */
-const MIN_SELF = 3;
+const MIN_SELF = 7;
 
 /** The ids a run reported under, read out of the run's own output — no allowlist. */
 const trippedIn = (out) => [...new Set([...out.matchAll(/^ {2}([A-Z]\d+): /gm)].map((m) => m[1]))].sort();
@@ -431,10 +475,14 @@ const trippedIn = (out) => [...new Set([...out.matchAll(/^ {2}([A-Z]\d+): /gm)].
  */
 const META = [
   // (b) the Outputs table's rows, broken so they are PRESENT BUT INERT.
-  ['M1 disabled', (t) => t.replace("for (const d of r.dead) fail('M1', d);", "for (const d of []) fail('M1', d);")],
-  ['M2 disabled', (t) => t.replace("for (const d of r.deadAnchors) fail('M2', d);", "for (const d of []) fail('M2', d);")],
-  ['M3`s anchored floor disabled', (t) => t.replace('if (r.anchored < 60)', 'if (false)')],
+  ['M1 disabled',
+    'a link to a file that does not exist', (t) => t.replace("for (const d of r.dead) fail('M1', d);", "for (const d of []) fail('M1', d);")],
+  ['M2 disabled',
+    'a cross-file anchor that resolves to no heading', (t) => t.replace("for (const d of r.deadAnchors) fail('M2', d);", "for (const d of []) fail('M2', d);")],
+  ['M5`s anchored floor disabled — the entry name said M3 until W28, and it edits r.anchored',
+    'the anchor-carrying links all removed, so M2 would pass on nothing', (t) => t.replace('if (r.anchored < 60)', 'if (false)')],
   ['M1 and M2 swapped, so every count still matches and no set does',
+    'a link to a file that does not exist',
     (t) => t.replaceAll("fail('M1'", "fail('MX'").replaceAll("fail('M2'", "fail('M1'").replaceAll("fail('MX'", "fail('M2'")],
   // **The primary loop's BOUND, and it was unguarded.** W25's conformity reader
   // added these two directories to the skip list and **31 of 62 documents — every
@@ -442,19 +490,24 @@ const META = [
   // gate at exit 0**. The floors were 20 / 100 / 20, which is the degenerate extreme
   // rather than the tree; they are 50 / 1200 / 60 now and this is what holds them.
   ['the walk skips doc/work-items and doc/plans — half the corpus leaves',
+    'an EXTERNAL link that does not resolve locally — must trip nothing',
     (t) => t.replace("      if (name === 'node_modules' || name === '.git' || name === 'dev-dist' || name === 'dist') continue;",
       "      if (name === 'node_modules' || name === '.git' || name === 'dev-dist' || name === 'dist') continue;\n      if (name === 'work-items' || name === 'plans') continue;")],
   ['the three ROOT documents dropped from the scan',
+    'a dead link in the ROOT README.md — the only probe that covers a root document',
     (t) => t.replace("  ...['README.md', 'AGENTS.md', 'CLAUDE.md'].map((f) => join(SCAN_ROOT, f)).filter(existsSync),", '')],
   // **W25's adequacy sweep's three surviving mutations, checked back in.** All three
   // are inside `slug()` / `anchorsOf()` — the clause this item declared its corpus
   // cannot falsify — and all three cost 0 until the probes above existed.
   ['heading levels narrowed to h1-h3',
+    'a correct link into an H4 heading — the heading-LEVEL bound',
     (t) => t.replaceAll('/^#{1,6}[ \\t]+(.+?)[ \\t]*$/', '/^#{1,3}[ \\t]+(.+?)[ \\t]*$/')],
   ['the duplicate-heading suffix loop capped at two',
+    'a correct link into the THIRD identical heading — the -2 suffix',
     (t) => t.replace('for (let i = 1; i < n; i++) out.add(`${s}-${i}`);',
       'for (let i = 1; i < Math.min(n, 2); i++) out.add(`${s}-${i}`);')],
   ['the slug character class made ASCII-only',
+    'a correct link into a heading with a NON-ASCII letter',
     (t) => t.replace(".replace(/[^\\p{L}\\p{N}\\s_-]/gu, '')", ".replace(/[^a-z0-9\\s_-]/g, '')")],
   // **W25's adequacy reader's mutations, checked back in.** Every one of these cost
   // **0 failures** before the probes above existed — 75 mutations, 23 survivors, 7 of
@@ -469,60 +522,88 @@ const META = [
   // direction: there a literal stopped matching, here it matched the wrong thing.
   // Anchored on the `fail(` that only the real clause carries.
   ['M3`s file floor disabled',
+    'doc/decisions removed from the tree — the FILE floor, alone',
     (t) => t.replace("if (r.files < 56) fail('M3'", "if (false) fail('M3'")],
   ['M4`s link floor disabled',
+    'doc/decisions AND doc/plans removed — the LINK floor, with the anchors left alone',
     (t) => t.replace("if (r.links < 1350) fail('M4'", "if (false) fail('M4'")],
   ['AGENTS.md dropped from the root file list',
+    'a dead link in AGENTS.md — the file Q121 named, and it could leave the walk',
     (t) => t.replace("  ...['README.md', 'AGENTS.md', 'CLAUDE.md']", "  ...['README.md', 'CLAUDE.md']")],
   ['spec/ dropped from this script`s own file set',
+    'a dead link in spec/, seen by CHECK-MARKDOWN rather than by check-spec',
     (t) => t.replace("  ...markdownIn(join(SCAN_ROOT, 'spec')),\n", '')],
   ['the percent-decode guard removed, so an encoded anchor is compared raw',
+    'a PERCENT-ENCODED anchor that resolves — must trip nothing',
     (t) => t.replace('        try { anchor = decodeURIComponent(raw); } catch { anchor = raw; }', '        anchor = raw;')],
   ['the empty-anchor skip narrowed to null',
+    'an EMPTY anchor ](#) — must trip nothing',
     (t) => t.replace('      if (!anchor) continue;', '      if (anchor === null) continue;')],
   ['isMarkdownFile`s .md test removed',
+    'an anchored link to a NON-MARKDOWN file — must trip nothing',
     (t) => t.replace("  if (!abs.endsWith('.md')) return false;\n", '')],
   ['the external-scheme test narrowed to http(s)',
+    'a MAILTO link — must trip nothing, and the scheme test is wider than https',
     (t) => t.replace('if (/^[a-z][a-z0-9+.-]*:/i.test(target)) continue;', 'if (/^https?:/i.test(target)) continue;')],
   ['slug()`s link-rendering clause removed',
+    'a correct link into a heading containing a LINK — must trip nothing',
     (t) => t.replace("    .replace(/!?\\[([^\\]]*)\\]\\([^)]*\\)/g, '$1')   // [text](url) renders as text\n", '')],
   ['blankCode stops recognising ~~~ fences',
+    'a dead link inside a ~~~ FENCE — must trip nothing',
     (t) => t.replace('(```+|~~~+)', '(```+)')],
   ['blankCode stops allowing an INDENTED closing fence',
+    'a dead link inside a fence INDENTED in a list item — must trip nothing',
     (t) => t.replace('^[ \\t]*\\2[^\\n]*$/gm', '^\\2[^\\n]*$/gm')],
   ['blankCode stops preserving newlines',
+    'a CODE-SPAN heading after a fenced block — the newline half of length preservation',
     (t) => t.replace("const blank = (m) => m.replace(/[^\\n]/g, ' ');", "const blank = (m) => m.replace(/[\\s\\S]/g, ' ');")],
   ['the heading regex stops requiring a space after the hashes',
+    'a link to #notaheading — dead, and alive if the space after the hashes stops being required',
     (t) => t.replaceAll('/^#{1,6}[ \\t]+(.+?)[ \\t]*$/', '/^#{1,6}[ \\t]*(.+?)[ \\t]*$/')],
   ['the heading regex stops being anchored to the line start',
+    'a link to a MID-LINE ## — dead, and alive if the heading regex loses its anchor',
     (t) => t.replaceAll('/^#{1,6}[ \\t]+(.+?)[ \\t]*$/', '/#{1,6}[ \\t]+(.+?)[ \\t]*$/')],
   ['a row deleted from the report`s checks array',
+    'a link to a file that does not exist',
     (t) => t.replace("  'M1 every relative link resolves to a file that exists',\n", '')],
   ['the anchor comparison made one-way — a missing anchor is never reported',
+    'a cross-file anchor that resolves to no heading',
     (t) => t.replace('if (have && !have.has(anchor)) {', 'if (false) {')],
   ['same-file anchors skipped, which is exactly what C5 did',
+    'a SAME-FILE anchor that resolves to no heading — the form C5`s pattern could not match',
     (t) => t.replace("const abs = path === '' ? p : resolve(dirname(p), path);",
       "if (path === '') continue;\n      const abs = resolve(dirname(p), path);")],
   ['code spans NOT blanked, so an illustration of link syntax is a failure',
+    'a dead link inside an INLINE CODE SPAN — must trip nothing',
     (t) => t.replace('  return fenced.replace(/(`+)(?!`)([^\\n]*?)\\1(?!`)/g, blank);', '  return fenced;')],
-  ['fenced blocks NOT blanked', (t) => t.replace(
+  ['fenced blocks NOT blanked',
+    'a dead link inside a FENCED BLOCK — must trip nothing', (t) => t.replace(
     '  const fenced = text.replace(/^([ \\t]*)(```+|~~~+)[^\\n]*\\n[\\s\\S]*?^[ \\t]*\\2[^\\n]*$/gm, blank);',
     '  const fenced = text;')],
   // (a)+(the slug rule) — the clauses the corpus cannot discriminate.
-  ['the slug rule collapses whitespace runs', (t) => t.replace(".replace(/\\s/g, '-');", ".replace(/\\s+/g, '-');")],
-  ['the slug rule collapses hyphen runs', (t) => t.replace(".replace(/\\s/g, '-');", ".replace(/\\s/g, '-').replace(/-+/g, '-');")],
+  ['the slug rule collapses whitespace runs',
+    'a correct link into an EM-DASH heading — must trip nothing, and does not under a collapsing rule', (t) => t.replace(".replace(/\\s/g, '-');", ".replace(/\\s+/g, '-');")],
+  ['the slug rule collapses hyphen runs',
+    'a correct link into a ` - ` heading — three hyphens, not one', (t) => t.replace(".replace(/\\s/g, '-');", ".replace(/\\s/g, '-').replace(/-+/g, '-');")],
   ['the slug rule replaces punctuation with a hyphen rather than dropping it',
+    'a correct link into an EM-DASH heading — must trip nothing, and does not under a collapsing rule',
     (t) => t.replace(".replace(/[^\\p{L}\\p{N}\\s_-]/gu, '')", ".replace(/[^\\p{L}\\p{N}\\s_-]/gu, '-')")],
   ['the slug rule blanks a heading`s code spans, so `AGENTS.md` slugs to nothing',
+    'a link into a heading whose text is entirely inside a code span',
     (t) => t.replace('    const raw = /^#{1,6}[ \\t]+(.+?)[ \\t]*$/.exec(lines[i]);', '    const raw = null;')],
   ['GitHub`s -1 suffix for a repeated heading dropped',
+    'a correct link into the SECOND of two identical headings — GitHub`s -1 suffix',
     (t) => t.replace('    for (let i = 1; i < n; i++) out.add(`${s}-${i}`);', '')],
   // (c) PROVENANCE — the source expression and nothing else.
   ['the target`s anchors read from the LINKING file rather than the target',
+    'a CORRECT cross-file anchor — must trip nothing, and this repository has none',
     (t) => t.replace('      const have = anchorsFor(abs);', '      const have = anchorsFor(p);')],
-  ['every failure swallowed', (t) => t.replace('const fail = (check, msg) => failures.push(`${check}: ${msg}`);', 'const fail = () => {};')],
-  ['the non-zero exit removed', (t) => t.replace('  process.exit(1);', '  process.exitCode = 0;')],
+  ['every failure swallowed',
+    'an S-id anchor in doc/scheduler-upstream.md broken again', (t) => t.replace('const fail = (check, msg) => failures.push(`${check}: ${msg}`);', 'const fail = () => {};')],
+  ['the non-zero exit removed',
+    'a link to a RENAMED work item — the defect Q121 says this repository produces', (t) => t.replace('  process.exit(1);', '  process.exitCode = 0;')],
   ['C5`s lift removed from check-spec — the import kept and the call dropped',
+    'a dead link inside spec/, which check-spec must still refuse as C5',
     (t) => t, 'spec'],
 ];
 
@@ -541,6 +622,34 @@ const SELF = [
   // with the whole run green without it. **This is not the acknowledged fixed
   // point** — the failure is observable from one level out, which is exactly what a
   // `SELF` entry is, so it is closed rather than recorded.
+  // --- W28: the named-probe contract, one edit each ---------------------------
+  //
+  // **Each of these edits the META LIST and leaves the guard alone**, which is a
+  // correction of how they were first written in `check-source-selftest.mjs`. The
+  // two-edit form — *remove the guard AND supply the case it catches* — asks the
+  // question backwards: with the guard gone and the defect present the run goes
+  // GREEN, so `SELF`'s *"must exit non-zero"* reads as **the floor did not fire**
+  // whether the guard was load-bearing or not, and two of the four passed VACUOUSLY.
+  // Editing only the defect asks it the right way round: with the guard in place,
+  // does the run go red? Nothing self-matches, because `META` sits above `SELF`.
+  // [Q143](../doc/open-questions.md).
+  ['the probe name dropped from the child`s env, so the grading reads the whole suite again',
+    (t) => t.replace('CHECK_MARKDOWN_SCRIPT: path, CHECK_MARKDOWN_FIXTURE: tree,\n            CHECK_MARKDOWN_PROBE: probeName }',
+      'CHECK_MARKDOWN_SCRIPT: path, CHECK_MARKDOWN_FIXTURE: tree }')],
+  ['one META entry pointed at a probe that does not exist — the ABORT`s own case',
+    (t) => t.replace("  ['every failure swallowed',\n    'an S-id anchor in doc/scheduler-upstream.md broken again',",
+      "  ['every failure swallowed',\n    'a probe this file does not have',")],
+  ['one META entry pointed at a probe its mutation does not break — the STILL-CAUGHT case',
+    // Disabling `M1` cannot make a `{}` probe stop being caught: it reports nothing
+    // either way. So the entry is mislabelled and the verdict has to say so.
+    (t) => t.replace("  ['M1 disabled',\n    'a link to a file that does not exist',",
+      "  ['M1 disabled',\n    'a MAILTO link — must trip nothing, and the scheme test is wider than https',")],
+  ['one META mutation made FATAL rather than inert — the crash guard`s own case',
+    // The mutant throws at `r.dead`, exits non-zero and prints no report. An exit
+    // code reads that as a catch; `ran:` does not.
+    (t) => t.replace("  ['M2 disabled',\n    'a cross-file anchor that resolves to no heading', (t) => t.replace(\"for (const d of r.deadAnchors) fail('M2', d);\", \"for (const d of []) fail('M2', d);\")],",
+      "  ['M2 disabled',\n    'a cross-file anchor that resolves to no heading', (t) => t.replace('const r = resolveLinks(files, SCAN_ROOT);', 'const r = null;')],")],
+
   ['the rule 7 (b) guard disabled, and one probe made a no-op',
     (t) => t.replace('    if (mutated === original) {', '    if (false) {')
       .replace("      '# Documentation index\\n\\nSee [nowhere](#).\\n'),", "      '# Documentation index'),")],
@@ -632,15 +741,20 @@ export async function selfTest(root) {
   writeFileSync(join(tree, 'scripts', 'check-spec.mjs'),
     readFileSync(specScript ?? join(root, 'scripts', 'check-spec.mjs'), 'utf8'));
 
-  console.log(`check-markdown self-test — ${PROBES.length} probes\n`);
-  let caught = 0;
-  for (const probe of PROBES) {
+  /**
+   * **One probe, run once**, shared by the main pass and by single-probe mode so the
+   * two cannot drift. Returns the verdict rather than printing it.
+   *
+   * `ran` says whether the check under test PRINTED ITS HEADER. A mutant that throws
+   * exits non-zero and reports nothing, which every grading here used to read as a
+   * catch. `runs: 'spec'` is exempt, because the header it prints is `check-spec`'s.
+   */
+  const runOne = (probe) => {
     const target = join(tree, probe.file);
     const original = readFileSync(target, 'utf8');
     const mutated = probe.mutate(original);
     if (mutated === original) {
-      console.log(`  FAIL  ${probe.check ?? '{}'}  ${probe.name} — the mutation matched nothing`);
-      continue;
+      return { refused: false, ran: false, msg: 'the mutation matched nothing' };
     }
     // **`removes` takes DIRECTORIES OUT OF THE FIXTURE**, which is the only way to
     // move the counts `M3` and `M4` bound. Every other probe edits one document's
@@ -681,22 +795,82 @@ export async function selfTest(root) {
     const refused = agree && (declared.length === 0
       ? (r.status === 0 && tripped.length === 0)
       : (r.status !== 0 && tripped.join(',') === declared.join(',')));
-    if (refused) caught++;
-    console.log(`  ${refused ? 'ok  ' : 'FAIL'}  ${(probe.check ?? '{}').padEnd(2)}  ${probe.name}` +
-      (refused ? '' : `  — exited ${r.status}, wanted [${declared.join(',')}], got [${tripped.join(',')}]` +
-        `${agree ? '' : `, report rows said [${rows.join(',')}]`}`));
-    if (nested && !refused) break;
+    return {
+      refused, ran: probe.runs === 'spec' ? true : out.includes(RAN_MARKER),
+      msg: `exited ${r.status}, wanted [${declared.join(',')}], got [${tripped.join(',')}]` +
+        `${agree ? '' : `, report rows said [${rows.join(',')}]`}`,
+    };
+  };
+
+  // **Single-probe mode.** The META pass names ONE probe and this runs that one, in
+  // place of re-running all 37 against every broken check — which is where both
+  // halves of [Q138](../doc/open-questions.md) lived: the credit went to whichever
+  // probe reacted first, and the pass cost a `PROBES.length` multiplier.
+  const only = process.env.CHECK_MARKDOWN_PROBE;
+  if (only !== undefined) {
+    const probe = PROBES.find((p) => p.name === only);
+    // **Aborts rather than passing or skipping.** A renamed probe leaves its META
+    // entry pointing at nothing, and reading that as "no probe failed, so the check
+    // must still be checking" is exactly backwards.
+    if (!probe) {
+      console.log(`  ABORT  no probe is named "${only}"`);
+      if (!shared) rmSync(base, { recursive: true, force: true });
+      return 3;
+    }
+    const v = runOne(probe);
+    console.log(`  ran: ${v.ran ? 'yes' : 'no'}`);
+    console.log(`  ${v.refused ? 'ok  ' : 'FAIL'}  ${(probe.check ?? '{}').padEnd(2)}  ${probe.name}` +
+      (v.refused ? '' : `  — ${v.msg}`));
+    if (!shared) rmSync(base, { recursive: true, force: true });
+    return v.refused ? 0 : 1;
+  }
+
+  console.log(`check-markdown self-test — ${PROBES.length} probes\n`);
+  let caught = 0;
+  for (const probe of PROBES) {
+    const v = runOne(probe);
+    if (v.refused) caught++;
+    console.log(`  ${v.refused ? 'ok  ' : 'FAIL'}  ${(probe.check ?? '{}').padEnd(2)}  ${probe.name}` +
+      (v.refused ? '' : `  — ${v.msg}`));
+    if (nested && !v.refused) break;
   }
   console.log(`\n${caught}/${PROBES.length} probes caught.`);
   if (caught !== PROBES.length) { if (!shared) rmSync(base, { recursive: true, force: true }); return 1; }
-  if (nested) { if (!shared) rmSync(base, { recursive: true, force: true }); return 0; }
+  // **A META child must grade nothing; a SELF child must go on to run META.** This
+  // read `if (nested)` — both kinds — until W28, so **every `SELF` entry here
+  // returned before the META pass and no mutation of `META` or of a grading could
+  // ever be seen.** Four new SELF entries survived on exactly that, and all four
+  // were about the grading. `check-source-selftest.mjs` had already learned this and
+  // says so in place — *"a guard whose only effect is inside META is invisible to a
+  // child that skips it"* — and the sibling did not inherit it, which is
+  // [Q137](../doc/open-questions.md)'s shape a third time: a fix moves, its reason
+  // does not.
+  if (nestedScript) { if (!shared) rmSync(base, { recursive: true, force: true }); return 0; }
 
   // --- META: does this suite NOTICE a broken check? ---------------------------
   const checkSource = readFileSync(join(root, 'scripts', 'check-markdown.mjs'), 'utf8');
   const specSource = readFileSync(join(root, 'scripts', 'check-spec.mjs'), 'utf8');
   let noticed = 0;
   console.log(`\nand against a broken check — ${META.length} mutations of the check itself\n`);
-  for (const [i, [name, mutate, which]] of META.entries()) {
+  /**
+   * **Three verdicts where there was one**, and each says something different.
+   *   3 — the named probe does not exist. A dangling reference, and NOT evidence
+   *       about the check either way.
+   *   1 — the named probe went uncaught: the entry did what it claims.
+   *   0 — the named probe is STILL CAUGHT. Either the probes have a hole this entry
+   *       cannot see, or the entry names the wrong probe. Both are findings, and
+   *       neither may be closed by renaming the probe to whatever happens to fail.
+   * `ran: no` means the mutant CRASHED rather than stopped checking.
+   */
+  const grade = (probeName, r) => {
+    const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
+    if (r.status === 3) return { ok: false, why: ` — ${out.trim().split('\n').pop()}` };
+    if (r.status === 0) return { ok: false, why: ` — "${probeName}" is STILL CAUGHT against a check that does not check` };
+    if (!/^ {2}ran: yes$/m.test(out)) return { ok: false, why: ' — the mutant did not run: this is a crash, not a detection' };
+    return { ok: true, why: '' };
+  };
+
+  for (const [i, [name, probeName, mutate, which]] of META.entries()) {
     let broken, path;
     if (which === 'spec') {
       // The lift's wiring: the import stays and the call goes, which is the shape
@@ -709,33 +883,43 @@ export async function selfTest(root) {
       // check-spec derives ROOT from its own location, so the copy must sit one
       // directory below the repository root. dev-dist is gitignored; scripts/ is not.
       writeFileSync(path, broken);
-      let ok = false;
+      let v = { ok: false, why: '' };
       try {
         const r = spawnSync(process.execPath, [join(root, 'scripts', 'check-markdown.mjs'), '--self-test'],
           { cwd: root, encoding: 'utf8', timeout: 900_000,
-            env: { ...process.env, CHECK_MARKDOWN_SPEC_SCRIPT: path, CHECK_MARKDOWN_FIXTURE: tree } });
-        ok = r.status !== 0;
+            env: { ...process.env, CHECK_MARKDOWN_SPEC_SCRIPT: path, CHECK_MARKDOWN_FIXTURE: tree,
+              CHECK_MARKDOWN_PROBE: probeName } });
+        v = grade(probeName, r);
       } finally { rmSync(path, { force: true }); }
-      if (ok) noticed++;
-      console.log(`  ${ok ? 'ok  ' : 'FAIL'}  ${name}${ok ? '' : ' — the probes passed against a check that does not check'}`);
+      if (v.ok) noticed++;
+      console.log(`  ${v.ok ? 'ok  ' : 'FAIL'}  ${name}${v.why}`);
       continue;
     }
     broken = mutate(checkSource);
     if (broken === checkSource) { console.log(`  FAIL  ${name} — the mutation matched nothing`); continue; }
     path = join(base, `.meta-${String(i).padStart(2, '0')}.mjs`);
     writeFileSync(path, broken);
-    let ok = false;
+    let v = { ok: false, why: '' };
     try {
       const r = spawnSync(process.execPath, [join(root, 'scripts', 'check-markdown.mjs'), '--self-test'],
         { cwd: root, encoding: 'utf8', timeout: 900_000,
-          env: { ...process.env, CHECK_MARKDOWN_SCRIPT: path, CHECK_MARKDOWN_FIXTURE: tree } });
-      ok = r.status !== 0;
+          env: { ...process.env, CHECK_MARKDOWN_SCRIPT: path, CHECK_MARKDOWN_FIXTURE: tree,
+            CHECK_MARKDOWN_PROBE: probeName } });
+      v = grade(probeName, r);
     } finally { rmSync(path, { force: true }); }
-    if (ok) noticed++;
-    console.log(`  ${ok ? 'ok  ' : 'FAIL'}  ${name}${ok ? '' : ' — the probes passed against a check that does not check'}`);
+    if (v.ok) noticed++;
+    console.log(`  ${v.ok ? 'ok  ' : 'FAIL'}  ${name}${v.why}`);
+    // Same reason as the probe loop's break: a SELF child is read for its exit code
+    // alone, so once a grading has failed the remaining spawns are waste. check-source
+    // has had this since W24; this file did not, and its four new SELF children each
+    // ran all 37 gradings to learn what the first one already said.
+    if (nestedSelf && !v.ok) break;
   }
   console.log(`\n${noticed}/${META.length} noticed.`);
   if (noticed !== META.length) { if (!shared) rmSync(base, { recursive: true, force: true }); return 1; }
+  // A SELF child has now run META, which is what it is for; it must not go on to
+  // run SELF as well, or the recursion has no bottom.
+  if (nestedSelf) { if (!shared) rmSync(base, { recursive: true, force: true }); return 0; }
 
   // --- SELF: does the probe LIST have a bound? --------------------------------
   const selfSource = readFileSync(join(root, 'scripts', 'check-markdown-selftest.mjs'), 'utf8');

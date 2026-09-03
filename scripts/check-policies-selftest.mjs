@@ -172,6 +172,22 @@ const ALL_CHECKS = ['P1', 'P2', 'P3'];
  * probe whose edit matches nothing passes for the wrong reason"* applies just as
  * well to a probe list that is not there at all.
  */
+/**
+ * **W28: a META entry names the probe it must break** — [Q138](../doc/open-questions.md),
+ * and this file is where the guard that came with it fired first.
+ *
+ * A grading was `r.status !== 0`. That cannot tell *the clause I broke was caught*
+ * from *something else went wrong*, and **`P3 disabled` had been scored *noticed*
+ * since W16 because its mutant CRASHED** — it took a branch away from an
+ * `if`/`else if` chain whose next arm evaluates `names.length`. W24's conformity
+ * reader found that shape in `check-source-selftest.mjs` and rewrote the one entry
+ * it knew about; the `ran:` guard W28 adds found this one on its first run, in a
+ * file nobody had suspected. Measured: **6.5 s -> 2.8 s**.
+ *
+ * **What this file still lacks is a `SELF` list**, so nothing bounds `PROBES` and
+ * nothing here provokes the new grading — the entries that do that live in the two
+ * files that have one. P9 reserves **W31** for it and expects it unused.
+ */
 const MIN_PROBES = 13;
 
 /** The same floor for the META list below, and for the same reason. */
@@ -194,8 +210,24 @@ const MIN_META = 5;
  * non-zero. A self-test that stays green against a check that checks nothing is
  * the one failure this file could not otherwise see.
  */
+/**
+ * **Every entry names the PROBE it must break, and the grading runs that probe and
+ * no other** — W28, [Q138](../doc/open-questions.md). Before this, an entry was
+ * graded by re-running the whole suite and requiring a non-zero exit, which cannot
+ * tell *the clause I broke was caught* from *something else went wrong*: measured
+ * across `check-source`'s 20 and `check-markdown`'s 36 entries, the probe credited
+ * with the catch is **the first one in list order that the mutant disturbs**, and in
+ * 7 of the 56 it declared a non-empty set and reported a strictly larger one — the
+ * mutant had become **noisy** rather than been detected.
+ *
+ * `probe` is the probe's `name`, verbatim. **A name that matches nothing ABORTS**
+ * rather than passing or being skipped — rule 7 (b) one layer out, and the same
+ * trade `check-docs-selftest`'s probe 11 made when W13 deleted the API it was
+ * pinned to.
+ */
 const META = [
-  ['P1 disabled', (t) => t.replace('if (halvesRead && names && policies) {', 'if (false) {')],
+  ['P1 disabled', (t) => t.replace('if (halvesRead && names && policies) {', 'if (false) {'),
+    'a policy name deleted from spec section 3'],
   // **This one is why the comparison below is set equality rather than a count.**
   // A check that reports a real failure under the WRONG label trips the same
   // NUMBER of checks, so `tripped.length === declared.length` passes it and only
@@ -212,12 +244,42 @@ const META = [
   // every single-check probe reports the other one. Both wrong versions were
   // measured passing before this one.
   ['P1 and P2 swapped, so every count still matches and no set does',
-    (t) => t.replaceAll("fail('P1',", "fail('PX',").replaceAll("fail('P2',", "fail('P1',").replaceAll("fail('PX',", "fail('P2',")],
-  ['P2 disabled', (t) => t.replace('for (const { key, binding } of halvesRead ? (policies ?? []) : []) {', 'for (const { key, binding } of []) {')],
-  ['P3 disabled', (t) => t.replace("if (names === null) fail('P3'", "if (false) fail('P3'")],
-  ['every failure swallowed', (t) => t.replace('const fail = (check, msg) => failures.push(`${check}: ${msg}`);', 'const fail = () => {};')],
-  ['the non-zero exit removed', (t) => t.replace('  process.exit(1);', '  process.exitCode = 0;')],
+    (t) => t.replaceAll("fail('P1',", "fail('PX',").replaceAll("fail('P2',", "fail('P1',").replaceAll("fail('PX',", "fail('P2',"),
+    // A P2 probe, so this entry and the one above do not lean on the same probe.
+    // Under the swap it reports [P1] against a declared [P2] and goes uncaught.
+    'a POLICIES key that is not its policy`s own id'],
+  ['P2 disabled', (t) => t.replace('for (const { key, binding } of halvesRead ? (policies ?? []) : []) {', 'for (const { key, binding } of []) {'),
+    'a policy object`s own id changed, leaving the key alone'],
+  // The clause this mutates is `names === null` specifically, and this is the one
+  // probe that drives it — every other P3 probe reaches a different clause.
+  //
+  // **This entry was FATAL rather than inert until W28, and it is the SECOND
+  // occurrence of that shape in this repository.** It read
+  // `if (names === null) fail('P3'` -> `if (false) fail('P3'`, which takes the
+  // branch away from an `if`/`else if` chain whose next arm evaluates
+  // `names.length` — so the mutant **threw**, exited non-zero, and was scored
+  // *noticed* for a reason that has nothing to do with the probes. W24's conformity
+  // reader found the same thing in `check-source-selftest.mjs`; **this one was found
+  // by the `ran:` guard W28 adds, on its first run, in a file nobody had suspected.**
+  // Sending the report into a discarded array leaves the chain intact and the clause
+  // present but inert, which is what the obligation actually asks for.
+  ['P3 disabled', (t) => t.replace("if (names === null) fail('P3'", "if (names === null) [].push('P3'"),
+    'section 3`s number removed, so no names are read at all'],
+  ['every failure swallowed', (t) => t.replace('const fail = (check, msg) => failures.push(`${check}: ${msg}`);', 'const fail = () => {};'),
+    'a policy deleted from POLICIES'],
+  ['the non-zero exit removed', (t) => t.replace('  process.exit(1);', '  process.exitCode = 0;'),
+    'a spec row renamed, so both directions of P1 fire at once'],
 ];
+
+/**
+ * **The report header `check-policies.mjs` prints before any verdict.** The grading
+ * requires the mutated check to have PRINTED it, which is how a mutant that
+ * **crashed** is told apart from one that ran and stopped detecting. W24's
+ * conformity reader found a META entry scored *noticed* because its mutant threw —
+ * W6's syntax-error-read-as-a-caught-mutation, two layers up — and an exit code
+ * cannot see the difference where this can.
+ */
+const RAN_MARKER = 'policy check — ';
 
 export async function selfTest(root) {
   const dir = join(root, 'dev-dist', 'policies-selftest');
@@ -230,6 +292,38 @@ export async function selfTest(root) {
   // this same suite at a deliberately broken copy of it.
   const script = process.env.CHECK_POLICIES_SCRIPT ?? join(root, 'scripts', 'check-policies.mjs');
   const meta = !process.env.CHECK_POLICIES_SCRIPT;
+
+  // **Single-probe mode: the META pass names ONE probe and this runs that one.**
+  // The whole-suite re-run it replaces is where both of Q138's halves lived — the
+  // credit going to whichever probe happened to react first, and roughly a
+  // PROBES.length multiplier on the pass's cost.
+  const only = process.env.CHECK_POLICIES_PROBE;
+  if (only !== undefined) {
+    const probe = PROBES.find((p) => p.name === only);
+    if (!probe) {
+      // **Aborts rather than passing or skipping.** A renamed probe leaves its META
+      // entry pointing at nothing, and the dangerous reading of that is "no probe
+      // failed, so the check must still be checking" — which is exactly backwards.
+      console.log(`  ABORT  no probe is named "${only}"`);
+      return 3;
+    }
+    const rel = `dev-dist/policies-selftest/only.${ext[probe.half]}`;
+    const mutated = probe.mutate(source[probe.half]);
+    if (mutated === source[probe.half]) { console.log('  ABORT  the mutation matched nothing'); return 3; }
+    writeFileSync(join(root, rel), mutated);
+    const env = { ...process.env };
+    env[probe.half === 'spec' ? 'CHECK_POLICIES_SPEC' : 'CHECK_POLICIES_SRC'] = rel;
+    const r = spawnSync(process.execPath, [script], { cwd: root, encoding: 'utf8', env, timeout: 300_000 });
+    const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
+    const declared = [probe.check, ...(probe.also ?? [])].sort();
+    const tripped = ALL_CHECKS.filter((x) => out.includes(`${x}: `));
+    const refused = r.status !== 0 && tripped.join(',') === declared.join(',');
+    console.log(`  ran: ${out.includes(RAN_MARKER) ? 'yes' : 'no'}`);
+    console.log(`  ${refused ? 'ok  ' : 'FAIL'}  ${probe.check}  ${probe.name}` +
+      (refused ? '' : `  — exited ${r.status}, wanted [${declared.join(',')}], got [${tripped.join(',')}]`));
+    rmSync(dir, { recursive: true, force: true });
+    return refused ? 0 : 1;
+  }
 
   if (PROBES.length < MIN_PROBES || META.length < MIN_META) {
     console.log(`check-policies self-test — ${PROBES.length} probes (floor ${MIN_PROBES}), ` +
@@ -267,7 +361,7 @@ export async function selfTest(root) {
   const checkSource = readFileSync(join(root, 'scripts', 'check-policies.mjs'), 'utf8');
   let noticed = 0;
   console.log(`\nand against a broken check — ${META.length} mutations of check-policies.mjs itself\n`);
-  for (const [i, [name, mutate]] of META.entries()) {
+  for (const [i, [name, mutate, probeName]] of META.entries()) {
     const broken = mutate(checkSource);
     if (broken === checkSource) {
       console.log(`  FAIL  ${name} — the mutation matched nothing`);
@@ -278,15 +372,29 @@ export async function selfTest(root) {
     // different repository.
     const rel = join(root, 'scripts', `.meta-${String(i).padStart(2, '0')}.mjs`);
     writeFileSync(rel, broken);
-    let ok = false;
+    let ok = false, why = '';
     try {
       const r = spawnSync(process.execPath, [join(root, 'scripts', 'check-policies.mjs'), '--self-test'],
         { cwd: root, encoding: 'utf8', timeout: 600_000,
-          env: { ...process.env, CHECK_POLICIES_SCRIPT: rel } });
-      ok = r.status !== 0;
+          env: { ...process.env, CHECK_POLICIES_SCRIPT: rel, CHECK_POLICIES_PROBE: probeName } });
+      const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
+      // **Three verdicts where there was one, and each says something different.**
+      // 3 — the named probe does not exist, so this entry is a dangling reference
+      //     and NOT evidence about the check.
+      // 1 — the named probe went uncaught: the entry did what it claims.
+      // 0 — the named probe was still caught: either the probes have a hole this
+      //     entry cannot see, or the entry names the wrong probe. Both are findings
+      //     and neither may be closed by renaming the probe to whatever fails.
+      // And `ran: no` means the mutant CRASHED rather than stopped checking, which
+      // an exit code alone reads as a catch.
+      const ran = /^ {2}ran: yes$/m.test(out);
+      if (r.status === 3) why = ` — ${out.trim().split('\n').pop()}`;
+      else if (r.status === 0) why = ` — "${probeName}" is STILL CAUGHT against a check that does not check`;
+      else if (!ran) why = ` — the mutant did not run: this is a crash, not a detection`;
+      else ok = true;
     } finally { rmSync(rel, { force: true }); }
     if (ok) noticed++;
-    console.log(`  ${ok ? 'ok  ' : 'FAIL'}  ${name}${ok ? '' : ' — the probes passed against a check that does not check'}`);
+    console.log(`  ${ok ? 'ok  ' : 'FAIL'}  ${name}${ok ? '' : why}`);
   }
   rmSync(dir, { recursive: true, force: true });
   console.log(`\n${noticed}/${META.length} noticed.`);

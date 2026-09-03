@@ -1,6 +1,6 @@
 # W28 — A grading names the probe it breaks
 
-**Status:** **todo**
+**Status:** **in review** - author pass complete 2026-09-03, two readers outstanding
 **Plan:** [P9](../plans/p9-when-a-check-stops-checking-what-notices.md)
 
 ```
@@ -171,37 +171,103 @@ report, and **re-run after acting on them** per v0.8:
 
 ## Record
 
-*Filled in when the item is done. Delete the italic lines.*
+**Author's pass complete — 2026-09-03. Two readers OUTSTANDING**, and this Record is not final until
+they have run (`doc/workflow.md` section 6 pass 2). Everything below is the author's own measurement.
 
 **Gate — what ran.**
 
 | Clause | Verdict | Notes |
 |---|---|---|
-| L0 own coverage | | |
-| L1-L6 regression | | must not move |
-| conformity reader | | what it found |
-| adequacy reader | | mutations run, survivors |
-| re-run at `<sha>` | | |
+| L0 own coverage | **RAN, green** | `check:policies:selftest` 13 probes / 6 gradings; `check:source:selftest` 24 / 20 / 7; `check:markdown:selftest` 37 / 37 / 7. All exit 0 |
+| L1-L6 regression | **RAN, unmoved** | 18 gate entries all exit 0; 474 `test()` cases in 19 files across node 24.20.0, deno 2.9.6 and chromium; 489 assertions, 23 row labels, 25 real runs at L6 in node and deno |
+| conformity reader | **NOT RUN** | outstanding |
+| adequacy reader | **NOT RUN** | outstanding |
+| re-run after acting on the readers | **NOT RUN** | outstanding — `doc/workflow.md` v0.8's amendment to rule 8 |
 
 **Outputs — what was actually built.**
 
 | Declared output | Exists | What would fail without it |
 |---|---|---|
-| `probe:` on every META entry | | |
-| the child runs only the named probe | | |
-| the two-half grading (caught clean, uncaught mutated) | | |
-| the abort on a named probe that does not exist | | |
-| a `SELF` entry proving the naming is load-bearing | | |
-| the cost, measured on both sides | | |
+| `probe:` on every META entry | yes — 6 + 20 + 37 | the whole grading; without a name there is nothing to run |
+| the child runs only the named probe | yes — `CHECK_{POLICIES,SOURCE,MARKDOWN}_PROBE` | `SELF` *"the probe name dropped from the child`s env"*, in both files that have a `SELF` list |
+| the two-half grading | yes | the *caught-clean* half is the main probe pass, which already refuses to reach META unless every probe is caught, and is **not re-run per entry**. Stated rather than implied: it is inherited, not asserted twice |
+| the ABORT on a named probe that does not exist | yes — exit 3 | `SELF` *"one META entry pointed at a probe that does not exist"* |
+| the STILL-CAUGHT verdict | yes — exit 0 | `SELF` *"one META entry pointed at a probe its mutation does not break"* |
+| the `ran:` crash guard | yes | `SELF` *"one META mutation made FATAL rather than inert"* |
+| a `SELF` entry proving the naming is load-bearing | yes — **four** per file, in the two files that have a `SELF` list | `check-policies` has no `SELF` list, so its copy of the contract is unprovoked **in that file**. Named, not hidden: W31 |
+| the cost, measured on both sides | yes | below |
 
-**The gradings that went red, and what each one was.** *One row per entry whose named probe did not
-fail — hole in the probes, or mislabelled entry. At least seven are predicted.*
+**Cost, and the comparison is stated carefully because the absolutes drift.** Two whole-gate passes,
+before and after, plus back-to-back isolated runs of the three changed self-tests.
+
+| | before | after, isolated | after, in the gate pass |
+|---|---|---|---|
+| `check:policies:selftest` | 6.5 s | **2.8 s** | 2.5 s |
+| `check:source:selftest` | 23.1 s | **21.5 s** | 25.8 s |
+| `check:markdown:selftest` | 129.4 s | **65.1 s** | 78.3 s |
+| `check:docs:selftest` — **unchanged, the control** | 45.3 s | — | 54.7 s |
+| whole gate, 18 entries, all exit 0 | 234.6 s | — | 199.9 s |
+
+**The after-pass ran 1.2-1.6x slower on work this item did not touch**, so the raw 234.6 -> 199.9 is
+not the change. Normalised by the control's 1.21, the after-gate is ~165 s. **The number to carry is
+the isolated pair**, and the honest summary is: **the grading change alone took `check-source` to
+9.1 s and `check-markdown` to 25.3 s, and the eight new `SELF` entries put ~12 s and ~38 s back.**
+That trade is deliberate — a contract with no negative test is rule 7 (a)'s own case — and it is
+reported rather than replaced by the better number. Self-tests are now **82%** of the gate where they
+were 88%.
+
+**The gradings that went red, and what each one was.** The item predicted *"at least seven"* from
+P9's declaration audit. **The true count is two, and the prediction was wrong in an instructive
+direction.**
 
 | entry | named probe | verdict |
 |---|---|---|
+| `check-source` — *the linted trees read from a literal instead of from the walks this script does* | *lint`s coverage left to the DERIVED clause alone* | **STILL CAUGHT. A hole in the ENTRY, not in the probes.** Its literal `['src/', 'test/', 'index.ts']` is not the same shape as the expression it replaces — `rel('src/')` resolves against the root and returns `src` with no trailing slash — so the mutant reported *"lint does not lint src"* and *"does not lint test"* on **every** run with `package.json` untouched. It was **noisy**, not inert; every probe went red against it; an exit code cannot tell that from a detection. Rewritten as the source swap it meant — one term dropped from the spread — measured at probe-alone 1 failure, probe-under-mutation **0**, mutation-alone-on-a-clean-tree **0** |
+| `check-policies` — *P3 disabled* | *section 3`s number removed, so no names are read at all* | **CRASH, caught by `ran:`.** `if (names === null) fail('P3'` -> `if (false)` takes the branch away from an `if`/`else if` chain whose next arm evaluates `names.length`, so the mutant **threw**. Scored *noticed* since W16 for a reason with nothing to do with the probes. Now sends the report into a discarded array, which leaves the chain intact and the clause present but inert |
 
-**What broke.**
+**Why the prediction was wrong, and it is worth more than the prediction.** P9's declaration measured
+*which probe fails FIRST* under each mutant and flagged seven where that probe reported a strictly
+larger set than it declared. Six of the seven were in `check-markdown`, and **all six named probes go
+uncaught correctly** — the mutants really are detected, by the probe written for the clause. What the
+audit measured was **list order**, not detection: the first-reacting probe is not the intended one,
+and the two are independent. So the audit was right about the defect it names — the credit goes to the
+wrong probe — and wrong about how many entries are actually unsupported.
 
-**What this taught.**
+**What broke, and all four were found by machinery this item added.**
 
-**Questions raised.** *From Q142-Q145; unused ids are skipped and never reissued.*
+1. **`check-policies`' `P3 disabled` crashed** — above. The `ran:` guard's first run, in a file
+   nobody had suspected. **Second occurrence of a shape W24's conformity reader found once.**
+2. **`check-source`'s provenance entry was a rewrite** — above. [Q112](../open-questions.md)'s fifth
+   correction across four items, and **the first caught by a machine rather than by a reader**.
+3. **[Q143](../open-questions.md) — four `SELF` entries edited themselves.** Each quoted the guard it
+   removes as its `String.replace` anchor, and that quote sits in this file **inside the `SELF` entry,
+   hundreds of lines above the guard**. Two reported SURVIVED, which is visible; **two reported
+   BOUNDED for a reason that never happened**, which is not. W25's *a comment that quotes the code it
+   explains makes that code unmutatable*, with the comment replaced by the mutation's own argument —
+   and worse, because a comment yields a no-op rule 7 (b) reports and this yields an edit that lands
+   somewhere real.
+4. **`check-markdown`'s `SELF` children never ran `META`.** The return after the probe pass read
+   `if (nested)` rather than `if (nestedScript)`, so **no `SELF` entry in that file could observe a
+   grading at all** — all four new ones survived on it. `check-source-selftest.mjs` had learned this
+   and says so in place; the sibling did not inherit it. **[Q137](../open-questions.md)'s shape a
+   third time: a fix moves and its reason does not.**
+
+**What this taught, and the first of these is the item's method finding.**
+
+- **A two-edit `SELF` entry asks its question backwards.** *Remove the guard AND supply the case it
+  catches* makes the run go **green**, so `SELF`'s *"must exit non-zero"* reads as *the floor did not
+  fire* whether the guard was load-bearing or not. **Edit only the defect and leave the guard in**:
+  with the guard present, does the run go red? One edit each, rule 7 (b) covers it per entry, and
+  nothing self-matches because `META` sits above `SELF`. All eight new entries are in that form.
+- **Rule 7 (b) is per ENTRY, not per EDIT.** A two-edit entry whose first edit matches passes the
+  guard while its second silently does nothing — measured on the entry that removed the abort and
+  never created the dangling reference. The three-file redesign removes the class rather than
+  guarding it, which is why it is a lesson here and not a check.
+- **The prediction lesson above**: *which probe fails first* and *whether the intended probe fails*
+  are independent, and an audit of the first says nothing about the second.
+
+**Questions raised.** [Q143](../open-questions.md) — a mutation anchor that quotes its target from
+above. **Q144 and Q145 are unused and are skipped**; **ADR 0034 is unused and is skipped**, as the
+plan predicted for an item that changes a harness contract rather than an architecture.
+[Q142](../open-questions.md) is owned here and is **NOT closed**: the floors are retuned and green and
+the two-sided window is unchanged, which is the verdict rather than a fix.

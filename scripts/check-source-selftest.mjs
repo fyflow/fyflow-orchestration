@@ -20,6 +20,55 @@
 // zero**. That is W16's adequacy reader's finding on `check-policies`, inherited
 // rather than rediscovered.
 //
+// ---------------------------------------------------------------------------
+// **W28: A META ENTRY NAMES THE PROBE IT MUST BREAK.** [Q138](../doc/open-questions.md).
+//
+// Until W28 a grading was `r.status !== 0` — re-run the whole probe suite against
+// the broken check and require a non-zero exit. That cannot tell *the clause I
+// broke was caught* from *something else went wrong*, and measured across this
+// file's 20 entries and `check-markdown`'s 36, **the probe credited with the catch
+// is whichever one comes FIRST in list order and reacts** — an artefact of
+// `PROBES`' ordering, not of the clause. Only 14 of these 24 probes were ever the
+// one that noticed.
+//
+// Now each entry carries the probe's `name` as its second element, the child runs
+// **that probe and no other**, and the grading has three verdicts instead of one:
+//
+//   exit 3  the named probe does not exist        -> a dangling reference, ABORT
+//   exit 1  the named probe went uncaught         -> the entry did what it claims
+//   exit 0  the named probe is STILL CAUGHT       -> a hole, or a mislabelled entry
+//
+// plus `ran:`, which requires the mutated check to have PRINTED ITS HEADER. A
+// mutant that **throws** exits non-zero and reports nothing, and an exit code reads
+// that as a catch — W24's conformity reader found one such entry here and rewrote
+// it, and **W28's guard found a second in `check-policies-selftest.mjs` on its
+// first run**, in a file nobody had suspected.
+//
+// **It found one here too, and that is the entry to look at.** *"the linted trees
+// read from a literal"* had been scored *noticed* since W24 and was noticed by
+// nothing: its literal was not the same SHAPE as the expression it replaced, so the
+// mutant reported two spurious failures on **every** run and every probe went red
+// against it. `doc/workflow.md` v0.9 names this exactly — *a provenance probe
+// changes the SOURCE EXPRESSION and nothing else* — and it is [Q112](../doc/open-questions.md)'s
+// fifth correction, the first caught by a machine rather than by a reader.
+//
+// **And the cost is the same defect from the other side.** A bare `check-source`
+// run is ~140 ms; the old grading re-ran up to 24 of them per entry, 20 times.
+// Measured: the grading alone went **23.1 s -> 9.1 s**, and the four new `SELF`
+// entries below put ~12 s of that back, which is a trade this file makes on
+// purpose and reports rather than hides.
+//
+// **The four new `SELF` entries edit the `META` LIST and leave the guards alone**,
+// and that is a correction of how they were first written. The two-edit form —
+// *remove the guard AND supply the case it catches* — asks the question backwards:
+// with the guard gone and the defect present the run goes GREEN, so `SELF`'s *"must
+// exit non-zero"* reads as *the floor did not fire* whether the guard was
+// load-bearing or not. **Two of the four then passed VACUOUSLY** for a third
+// reason — their anchors quoted the guard's own source line, which appears in this
+// file **inside the `SELF` entry itself, hundreds of lines above the guard**, so
+// `String.replace` edited the entry rather than the guard. [Q143](../doc/open-questions.md).
+// ---------------------------------------------------------------------------
+//
 // **There was a FOURTH and it is gone rather than bounded**, which is the more
 // useful outcome and took both of W24's readers to reach. The conformity reader
 // found this paragraph claiming *three* when `ALL_CHECKS` made it four — a census
@@ -352,13 +401,23 @@ const trippedIn = (out) => [...new Set([...out.matchAll(/^ {2}(S\d+): /gm)].map(
  * emptying this array — or deleting one probe from it — would report `0/0 probes
  * caught` and exit 0. `SELF` below provokes exactly that.
  */
+/**
+ * **The report header `check-source.mjs` prints before any verdict.** A grading
+ * requires the mutated check to have PRINTED it, which is how a mutant that
+ * **crashed** is told apart from one that ran and stopped detecting. W24's
+ * conformity reader found an entry here scored *noticed* because its mutant threw
+ * and rewrote it; **nothing enforced that, and W28's guard found a second instance
+ * in `check-policies-selftest.mjs` on its first run.**
+ */
+const RAN_MARKER = 'source check — ';
+
 const MIN_PROBES = 24;
 
 /** The same floor for `META`, and for the same reason. */
 const MIN_META = 20;
 
 /** And for `SELF`. */
-const MIN_SELF = 3;
+const MIN_SELF = 7;
 
 /**
  * **The mutations `check-source.mjs` itself is run against, with the WHOLE probe
@@ -374,10 +433,13 @@ const MIN_SELF = 3;
 const META = [
   // (b) the `Outputs` table's rows, broken so they are PRESENT BUT INERT — which
   // is what W15's and W16's readers found rule-written probes blind to.
-  ['S12 disabled', (t) => t.replace('    if (unreadable.length === 0) {', '    if (false) {')],
+  ['S12 disabled',
+    'a runtime dropped from the gate chain — Q126, reproduced', (t) => t.replace('    if (unreadable.length === 0) {', '    if (false) {')],
   ['S12 made one-way — a declared entry missing from the chain is ignored',
+    'lint dropped from the gate chain',
     (t) => t.replace('for (const n of missingFrom(GATE_CHAIN, ran)) {', 'for (const n of []) {')],
   ['S12 made one-way the other way — an undeclared entry in the chain is ignored',
+    'an entry ADDED to the chain and not declared — the direction inclusion cannot see',
     (t) => t.replace('for (const n of missingFrom(ran, GATE_CHAIN)) {', 'for (const n of []) {')],
   // **This entry was FATAL rather than inert and was rewritten.** It first set
   // `const unreadable = []`, which leaves `parsed` holding a `null` and makes the
@@ -389,20 +451,26 @@ const META = [
   // REPORTING loop instead leaves the script running and silent, which is what
   // "present but inert" means.
   ['S12`s unclassifiable segment reported by nobody',
+    'a chain segment this check cannot classify',
     (t) => t.replace('    for (const s of unreadable) {', '    for (const s of []) {')],
   ['S12`s ORDER comparison disabled',
+    'the chain REORDERED, so every entry is present and the sequence is not',
     (t) => t.replace("          ran.join(' ') !== GATE_CHAIN.join(' ')) {", '          false) {')],
   ['S11`s :selftest clause disabled',
+    'a :selftest entry gutted of --self-test, so it runs the plain check twice',
     (t) => t.replace("    if (name.endsWith(':selftest')) {", '    if (false) {')],
   // **The three edits W24's conformity reader made, checked back in** — rule 8's
   // *re-run after acting, with the readers' own edits as probes*. Each is a
   // deletion that leaves `check-source` at exit 0 and is caught only because a
   // probe reaches it.
   ['the lint row deleted from COMPOSED — the reader`s edit, and the survivor W24 wrongly claimed',
+    'a directory ADDED to lint`s argument list and not declared',
     (t) => t.replace(/\n  \{\n    name: 'lint',\n    split: 'ws',\n    parts: \[[^\]]*\],\n  \},/, '')],
   ['the report`s check id read as two characters again — S10-S13 all reported as S1',
+    'typecheck:deno dropped from the typecheck chain — the only Deno typecheck',
     (t) => t.replace("c.slice(0, c.indexOf(' '))", 'c.slice(0, 2)')],
   ['the S12 row deleted from the report`s checks array',
+    'an entry SWAPPED for another, so the count is unchanged and the set is not',
     (t) => t.replace("  'S12 `npm run gate` runs exactly the entries GATE_CHAIN declares',\n", '')],
   // **This one is why the comparison in the probe loop is set equality rather than
   // a count.** A check that reports a real failure under the WRONG label trips the
@@ -410,9 +478,12 @@ const META = [
   // only `tripped.join() === declared.join()` does not. Without it, rule 7 (c) can
   // be downgraded to cardinality with this whole file green.
   ['S12 and S13 swapped, so every count still matches and no set does',
+    'a runtime dropped from the gate chain — Q126, reproduced',
     (t) => t.replaceAll("fail('S12'", "fail('SX'").replaceAll("fail('S13'", "fail('S12'").replaceAll("fail('SX'", "fail('S13'")],
-  ['S13`s declared-parts comparison disabled', (t) => t.replace('for (const c of COMPOSED) {', 'for (const c of []) {')],
+  ['S13`s declared-parts comparison disabled',
+    'typecheck:deno dropped from the typecheck chain — the only Deno typecheck', (t) => t.replace('for (const c of COMPOSED) {', 'for (const c of []) {')],
   ['S13`s derived clause disabled — the one that counts COMPOSED from package.json',
+    'a whole row deleted from COMPOSED',
     (t) => t.replace('  for (const name of GATE_CHAIN) {\n    const cmd = scripts[name]', '  for (const name of []) {\n    const cmd = scripts[name]')],
   // (c) PROVENANCE — the SOURCE EXPRESSION and nothing else (v0.9's procedure,
   // after Q112 corrected this four times across three items). The value under
@@ -432,25 +503,54 @@ const META = [
   // `check-source.mjs` beside the line and in the header's ceiling list rather than
   // dressed up as a grading that fires.
   ['the derived clause`s loop narrowed to skip typecheck',
+    'the typecheck row deleted from COMPOSED',
     (t) => t.replace("    const cmd = scripts[name] ?? '';\n    if (!/\\bnpm run /.test(cmd)) continue;",
       "    const cmd = scripts[name] ?? '';\n    if (name === 'typecheck') continue;\n    if (!/\\bnpm run /.test(cmd)) continue;")],
   ['the whole checks array emptied, so the report says nothing at all',
+    'build:browser-tests dropped from test:browser — a stale bundle reporting green',
     (t) => t.replace(/const checks = \[[\s\S]*?\n\];/, 'const checks = [];')],
   // (c) PROVENANCE, two more — both reached only by the both-halves probe above.
   ['lint`s command read from COMPOSED instead of from package.json',
+    'lint`s coverage left to the DERIVED clause alone — the lint row gone AND examples/ dropped',
     (t) => t.replace("  const lintCmd = scripts.lint ?? '';",
       "  const lintCmd = COMPOSED.find((c) => c.name === 'lint')?.parts.join(' ') ?? '';")],
-  ['the linted trees read from a literal instead of from the walks this script does',
+  // **This entry was a REWRITE dressed as a provenance probe, and W28's grading is
+  // what exposed it — it had been scored *noticed* since W24 and was noticed by
+  // nothing.** It read the walked trees from the literal
+  // `['src/', 'test/', 'index.ts']`, which is not the same SHAPE as the expression
+  // it replaces: the real one yields absolute paths that `rel()` reduces to
+  // `src/`, `test/`, `examples/`, while `rel('src/')` resolves against the root and
+  // comes back `src` with no trailing slash. So the mutant reported **`"lint" does
+  // not lint src` and `does not lint test` on every run, package.json untouched** —
+  // it was NOISY rather than inert, every probe went red against it, and an exit
+  // code cannot tell that from a detection. Its own named probe was **still caught**.
+  //
+  // **`doc/workflow.md` v0.9's procedure names this exactly**: *a provenance probe
+  // changes the SOURCE EXPRESSION and nothing else*, and the moment it also changes
+  // the projection it is a rewrite whose survival says nothing. [Q112](../doc/open-questions.md)
+  // corrected that four times across three items; this is the fifth, and the first
+  // caught by a machine rather than by a reader.
+  //
+  // Dropping one term from the spread is the source swap the entry meant: same
+  // shape, one origin fewer, and the disk walk stops being what tells the check
+  // `examples/` must be linted. Measured — probe alone 1 failure, probe under this
+  // mutation **0**, and this mutation alone on a clean tree **0**.
+  ['the linted trees no longer read the examples walk — the disk half of the derived clause`s source',
+    'lint`s coverage left to the DERIVED clause alone — the lint row gone AND examples/ dropped',
     (t) => t.replace('const walked = new Set([...files, ...browserBundleInputs(), ...exampleSources()].map((p) => {',
-      "const walked = new Set(['src/', 'test/', 'index.ts'].map((p) => {")],
+      'const walked = new Set([...files, ...browserBundleInputs()].map((p) => {')],
   ['the chain read from GATE_CHAIN instead of from package.json',
+    'a runtime dropped from the gate chain — Q126, reproduced',
     (t) => t.replace("const gate = typeof scripts.gate === 'string' ? scripts.gate.trim() : '';",
       "const gate = GATE_CHAIN.map((n) => 'npm run ' + n).join(' && ');")],
   ['each sub-chain read from its own declaration instead of from package.json',
+    'typecheck:deno dropped from the typecheck chain — the only Deno typecheck',
     (t) => t.replace("    const cmd = typeof scripts[c.name] === 'string' ? scripts[c.name].trim() : '';",
       "    const cmd = c.parts.join(c.split === '&&' ? ' && ' : ' ');")],
-  ['every failure swallowed', (t) => t.replace('const fail = (check, msg) => failures.push(`${check}: ${msg}`);', 'const fail = () => {};')],
-  ['the non-zero exit removed', (t) => t.replace('  process.exit(1);', '  process.exitCode = 0;')],
+  ['every failure swallowed',
+    'the scheduler declared as a runtime dependency', (t) => t.replace('const fail = (check, msg) => failures.push(`${check}: ${msg}`);', 'const fail = () => {};')],
+  ['the non-zero exit removed',
+    'GATE_CHAIN emptied entirely — the whole list leaving', (t) => t.replace('  process.exit(1);', '  process.exitCode = 0;')],
 ];
 
 /**
@@ -475,6 +575,61 @@ const SELF = [
   // mutation the probes cannot see and the gradings can.
   ['the report-row agreement disabled, which no probe can see',
     (t) => t.replace(/const agree = rows\.join\('.'\) === tripped\.join\('.'\);/, 'const agree = true;')],
+
+  // --- W28: the named-probe contract, and each of these needs TWO edits ---------
+  //
+  // **A SELF entry is allowed two edits and a provocation is not**, which is worth
+  // stating because rule 8's provenance procedure says the opposite one layer down.
+  // A provenance probe must change the source expression and nothing else, or its
+  // survival says nothing. A `SELF` entry asks *does this harness notice*, and three
+  // of the four guards below are unobservable on a tree where nothing is wrong — so
+  // the entry has to break the guard AND supply the case the guard exists for.
+  // Otherwise it measures nothing and reports SURVIVED, which is `doc/workflow.md`
+  // rule 8's own definition of a vacuous probe.
+  // **EVERY anchor below spans TWO LINES, and that is not style.** Each of these
+  // entries mutates a guard by quoting it, and the quote sits EARLIER in this file
+  // than the guard does — so a single-line anchor matches the entry's own literal
+  // and the entry edits ITSELF. All four were written that way, all four ran, and
+  // **two reported SURVIVED while two reported BOUNDED VACUOUSLY**: the guard they
+  // claim to remove was never removed, and the run went red for a different reason.
+  // Only the first two were visible; entries 3 and 4 passed and said nothing.
+  //
+  // A two-line anchor cannot self-match, because the `\n` in a source literal is two
+  // characters and the newline it targets is one. **This is W25's *a comment that
+  // quotes the code it explains makes that code unmutatable* — with the comment
+  // replaced by the mutation's own argument**, which is worse: a comment produces a
+  // no-op the rule 7 (b) guard catches, and this produces an edit that lands
+  // somewhere real. [Q143](../doc/open-questions.md).
+  ['the probe name dropped from the child`s env, so the grading reads the whole suite again',
+    // The cheapest demonstration that single-probe mode is load-bearing: without
+    // `CHECK_SOURCE_PROBE` the child runs all 24 probes and never prints `ran:`, so
+    // the crash guard refuses it. **That the OLD contract now fails this file is the
+    // point.**
+    (t) => t.replace('timeout: 900_000,\n          env: { ...process.env, CHECK_SOURCE_SCRIPT: path, CHECK_SOURCE_PROBE: probeName } });',
+      'timeout: 900_000,\n          env: { ...process.env, CHECK_SOURCE_SCRIPT: path } });')],
+  // **The three below edit the META LIST and leave the guards alone, and that is a
+  // correction of how they were first written.** Each began as *remove the guard AND
+  // supply the case it catches* — two edits — and each then reported the wrong thing:
+  // with the guard gone and the defect present the run goes GREEN, so `SELF`'s
+  // *"must exit non-zero"* reads as **the floor did not fire** whether the guard was
+  // load-bearing or not. Editing only the defect asks the question the right way
+  // round: **with the guard in place, does the run go red?** One edit each, rule 7
+  // (b) covers it, and nothing self-matches because `META` sits above `SELF`.
+  ['one META entry pointed at a probe that does not exist — the ABORT`s own case',
+    (t) => t.replace("    'the scheduler declared as a runtime dependency', (t) => t.replace('const fail",
+      "    'a probe this file does not have', (t) => t.replace('const fail")],
+  ['one META entry pointed at a probe its mutation does not break — the STILL-CAUGHT case',
+    // Emptying `COMPOSED`'s comparison cannot make the `S8` probe stop being caught,
+    // so the entry is mislabelled and the verdict has to say so.
+    (t) => t.replace("['S13`s declared-parts comparison disabled',\n    'typecheck:deno dropped from the typecheck chain — the only Deno typecheck',",
+      "['S13`s declared-parts comparison disabled',\n    'the scheduler declared as a runtime dependency',")],
+  ['one META mutation made FATAL rather than inert — the crash guard`s own case',
+    // Exactly the shape W24's conformity reader found here and W28's guard found
+    // again in `check-policies-selftest.mjs`: a value the next arm dereferences is
+    // taken away, so the mutant throws, exits non-zero and prints no report. An exit
+    // code reads that as a catch; `ran:` does not.
+    (t) => t.replace("    'a runtime dropped from the gate chain — Q126, reproduced', (t) => t.replace('    if (unreadable.length === 0) {', '    if (false) {')",
+      "    'a runtime dropped from the gate chain — Q126, reproduced', (t) => t.replace('    const unreadable = segs.filter((_, i) => !parsed[i]);', '    const unreadable = null;')")],
 ];
 
 export async function selfTest(root) {
@@ -510,16 +665,23 @@ export async function selfTest(root) {
     return 1;
   }
 
-  console.log(`check-source self-test — ${PROBES.length} probes\n`);
-  let caught = 0;
-  for (const [i, probe] of PROBES.entries()) {
+  /**
+   * **One probe, run once**, shared by the main pass and by single-probe mode so
+   * the two cannot drift. Returns the verdict rather than printing it, because the
+   * two callers want different things around the same line.
+   *
+   * `ran` says whether the mutated check PRINTED ITS HEADER. A mutant that throws
+   * exits non-zero and reports nothing, which every grading here used to read as a
+   * catch — W24's conformity reader found one such entry and **W28's `ran:` guard
+   * found a second in `check-policies-selftest.mjs` on its first run.**
+   */
+  const runOne = (i, probe) => {
     const stem = `dev-dist/source-selftest/${String(i).padStart(2, '0')}`;
     const mutated = probe.mutate(source[probe.half]);
     if (mutated === source[probe.half]) {
       // A probe that changes nothing passes for the wrong reason — the exact
       // vacuity rule 7 (b) refuses.
-      console.log(`  FAIL  ${probe.check}  ${probe.name} — the mutation matched nothing`);
-      continue;
+      return { vacuous: true, refused: false, ran: false, msg: 'the mutation matched nothing' };
     }
     const env = { ...process.env };
     let run = script;
@@ -532,8 +694,7 @@ export async function selfTest(root) {
     if (probe.alsoPkg) {
       const p = probe.alsoPkg(source.pkg);
       if (p === source.pkg) {
-        console.log(`  FAIL  ${probe.check}  ${probe.name} — the alsoPkg mutation matched nothing`);
-        continue;
+        return { vacuous: true, refused: false, ran: false, msg: 'the alsoPkg mutation matched nothing' };
       }
       writeFileSync(join(root, `${stem}.json`), p);
       env.CHECK_SOURCE_PKG = `${stem}.json`;
@@ -580,13 +741,42 @@ export async function selfTest(root) {
       .filter((m) => m[1] === 'FAIL').map((m) => m[2]).sort();
     const agree = rows.join(',') === tripped.join(',');
     const refused = r.status !== 0 && tripped.join(',') === declared.join(',') && agree;
-    if (refused) caught++;
-    console.log(`  ${refused ? 'ok  ' : 'FAIL'}  ${probe.check}  ${probe.name}` +
-      (refused ? '' : `  — exited ${r.status}, wanted [${declared.join(',')}], ` +
-        `got [${tripped.join(',')}]${agree ? '' : `, report rows said [${rows.join(',')}]`}`));
-    // The META pass only reads this run's exit code, so once a probe has gone
-    // uncaught the answer is settled and the remaining spawns are waste.
-    if (nested && !refused) break;
+    return {
+      vacuous: false, refused, ran: out.includes(RAN_MARKER),
+      msg: `exited ${r.status}, wanted [${declared.join(',')}], ` +
+        `got [${tripped.join(',')}]${agree ? '' : `, report rows said [${rows.join(',')}]`}`,
+    };
+  };
+
+  // **Single-probe mode.** The META pass names ONE probe and this runs that one, in
+  // place of re-running all 24 against every broken check. Both halves of
+  // [Q138](../doc/open-questions.md) live in that re-run: the credit went to
+  // whichever probe reacted first, and the pass cost a `PROBES.length` multiplier.
+  const only = process.env.CHECK_SOURCE_PROBE;
+  if (only !== undefined) {
+    const i = PROBES.findIndex((p) => p.name === only);
+    // **Aborts rather than passing or skipping.** A renamed probe leaves its META
+    // entry pointing at nothing, and reading that as "no probe failed, so the check
+    // must still be checking" is exactly backwards.
+    if (i < 0) { console.log(`  ABORT  no probe is named "${only}"`); rmSync(dir, { recursive: true, force: true }); return 3; }
+    const v = runOne(i, PROBES[i]);
+    console.log(`  ran: ${v.ran ? 'yes' : 'no'}`);
+    console.log(`  ${v.refused ? 'ok  ' : 'FAIL'}  ${PROBES[i].check}  ${PROBES[i].name}` +
+      (v.refused ? '' : `  — ${v.msg}`));
+    rmSync(dir, { recursive: true, force: true });
+    return v.refused ? 0 : 1;
+  }
+
+  console.log(`check-source self-test — ${PROBES.length} probes\n`);
+  let caught = 0;
+  for (const [i, probe] of PROBES.entries()) {
+    const v = runOne(i, probe);
+    if (v.refused) caught++;
+    console.log(`  ${v.refused ? 'ok  ' : 'FAIL'}  ${probe.check}  ${probe.name}` +
+      (v.refused ? '' : `  — ${v.msg}`));
+    // Once a probe has gone uncaught in a nested child the answer is settled and
+    // the remaining spawns are waste.
+    if (nested && !v.refused) break;
   }
   console.log(`\n${caught}/${PROBES.length} probes caught.`);
   if (caught !== PROBES.length) { rmSync(dir, { recursive: true, force: true }); return 1; }
@@ -596,7 +786,7 @@ export async function selfTest(root) {
   const checkSource = readFileSync(join(root, 'scripts', 'check-source.mjs'), 'utf8');
   let noticed = 0;
   console.log(`\nand against a broken check — ${META.length} mutations of check-source.mjs itself\n`);
-  for (const [i, [name, mutate]] of META.entries()) {
+  for (const [i, [name, probeName, mutate]] of META.entries()) {
     const broken = mutate(checkSource);
     if (broken === checkSource) {
       console.log(`  FAIL  ${name} — the mutation matched nothing`);
@@ -604,15 +794,30 @@ export async function selfTest(root) {
     }
     const path = join(root, 'dev-dist', `.meta-${String(i).padStart(2, '0')}.mjs`);
     writeFileSync(path, broken);
-    let ok = false;
+    let ok = false, why = '';
     try {
       const r = spawnSync(process.execPath, [join(root, 'scripts', 'check-source.mjs'), '--self-test'],
         { cwd: root, encoding: 'utf8', timeout: 900_000,
-          env: { ...process.env, CHECK_SOURCE_SCRIPT: path } });
-      ok = r.status !== 0;
+          env: { ...process.env, CHECK_SOURCE_SCRIPT: path, CHECK_SOURCE_PROBE: probeName } });
+      const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
+      // **Three verdicts where there was one**, and each says something different.
+      //   3 — the named probe does not exist. A dangling reference, and NOT
+      //       evidence about the check either way.
+      //   1 — the named probe went uncaught: this entry did what it claims.
+      //   0 — the named probe is STILL CAUGHT. Either the probes have a hole this
+      //       entry cannot see, or the entry names the wrong probe. Both are
+      //       findings, and neither may be closed by renaming the probe to whatever
+      //       happens to fail — that is the one way to finish this wrongly.
+      // `ran: no` means the mutant CRASHED rather than stopped checking, which an
+      // exit code alone reads as a catch.
+      const ran = /^ {2}ran: yes$/m.test(out);
+      if (r.status === 3) why = ` — ${out.trim().split('\n').pop()}`;
+      else if (r.status === 0) why = ` — "${probeName}" is STILL CAUGHT against a check that does not check`;
+      else if (!ran) why = ' — the mutant did not run: this is a crash, not a detection';
+      else ok = true;
     } finally { rmSync(path, { force: true }); }
     if (ok) noticed++;
-    console.log(`  ${ok ? 'ok  ' : 'FAIL'}  ${name}${ok ? '' : ' — the probes passed against a check that does not check'}`);
+    console.log(`  ${ok ? 'ok  ' : 'FAIL'}  ${name}${ok ? '' : why}`);
     // Same reason as the probe loop's break: a SELF child is read for its exit
     // code alone, so once a grading has failed the remaining spawns are waste.
     if (nestedSelf && !ok) break;
