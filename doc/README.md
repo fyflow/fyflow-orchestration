@@ -542,6 +542,50 @@ longer rests on our own reading. [S1](scheduler-upstream.md).
    **`check-spec`'s first self-test in this repository's history**. Exit artifact: **one row per
    check clause — 39 of them — saying what notices when that clause is made present but inert.**
 
+   **[W29](work-items/w29-the-two-self-tests-that-grade-nothing.md)'s AUTHOR PASS is complete and its
+   two readers have NOT run**, so the item is **not done** — read its status from its own file, never
+   from this line ([`doc/workflow.md`](workflow.md) section 1 rule 5). What it has built:
+   `check-scheduler-selftest.mjs` goes from **12 probes and no grading to 20 probes and 22 gradings —
+   one per `fail()` site, one per way the report can lie, one for the exit path** — and
+   `check-docs-selftest.mjs` from **14 probes and no grading to 14 and 8**, capped, **with the nine
+   clauses it leaves out named in the file's own header** (that list read *six* until W29's conformity
+   reader found it undercounting by two, in five documents at once). **Both readers ran: 7 and 19
+   findings, six blocking, overlap 1** — the twelfth measurement of section 6's overlap question. [Q141](open-questions.md) is **RESOLVED**: `D5`'s empty-parse
+   clause was reproduced inert at **12/12 probes green, exit 0**, and the `CHECK_SCHEDULER_DTS`
+   override plus a **hand-written** fixture closed it — **and two more `D5` clauses that were
+   unreachable for the same reason**.
+
+   **Its declaration step changed the item's SIZE rather than its table, which is a first.** A META
+   entry is **two** check runs — the inertness run W28's readers added — so P9's *"~46 s for ten
+   entries"* is optimistic by **2.3x**: measured, `check-docs` is **7.1 s** an entry and
+   `check-scheduler` **~0.5 s**, two orders of magnitude apart, and the coverage is bought
+   accordingly. [Q148](open-questions.md).
+
+   **Two things it measured are worth carrying, and the first was CORRECTED by its own conformity
+   reader.** **A set-equality grading on ids cannot see a clause whose SIBLING reports the same id** —
+   `D2`'s and `D5`'s unreadable-input clauses both came back STILL CAUGHT, and the author declared
+   both *masked*. **The falsifiability sentence that justified keeping them was false**: deleting
+   `D5`'s fallthrough guard left the file at 18/18, 21/21, **exit 0**. The fix is the discriminator
+   [Q146](open-questions.md) itself proposes and the author had declined — a `caught` verdict is
+   re-run against the unmutated check and the failure **COUNT** compared — and **it split the two
+   cases apart**. `D2` is **co-firing**: both clauses report, the count moves 2 → 1, and the clause is
+   detected after all. Only `D5` is real masking: same id *and* same count, because its guard exists
+   so the two never both report. **Co-firing is detectable by a projection nobody was reading; masking
+   is not**, and that distinction is worth more than the count of occurrences. Rule 7 (c)'s form
+   meeting its limit one layer out.
+   Second, **four `check-docs` clauses made inert are noticed under a DIFFERENT id** — `RUN_FLOOR`
+   fires because each mutation deletes a snippet from the extract — so the run fails for the wrong
+   reason, which is P9's own question answered four times inside one file.
+
+   **Rule 8: 29 provocations, 14 refused, 15 survivors, and eleven of the fifteen are the ceiling** —
+   wider here than in `check-source` because **neither file has a `SELF` list** and
+   [W31](work-items/w31-the-self-list-check-policies-never-had.md) is narrowed to `check-policies`, so
+   nothing picks these two up. Two positive tests the set could not reach both fired:
+   **[Q144](open-questions.md)'s missing case is CONSTRUCTED** — inert on the clean tree, fatal under
+   the probe, `ran: no` with the guard live and the identical crash graded `disappeared` with it
+   disabled, which is the first demonstration that `ran:` fires anywhere — and the new
+   ambiguous-anchor guard refuses a three-way match by name.
+
    **Its declaration measured six load-bearing facts and four of them changed what got written**, which
    is the fourteenth plan running to have that happen. **The 39 clauses split three ways, not two** —
    13 have a probe and a grading, **10 have a probe that nothing grades** (`D1`-`D5` and `X1`-`X5`;

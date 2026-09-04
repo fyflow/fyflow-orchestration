@@ -128,7 +128,9 @@ for how it is reached.
 | `npm test` · `npm run test:deno` · `npm run test:browser:all` | 474 assertions, five runtimes — `npm run gate` runs three of them, and `test:browser:all` is what adds firefox and webkit |
 | `npm run test:l6` · `npm run test:l6:deno` | a real scheduler, 25 runs |
 | `npm run check:markdown` | **every relative link and every anchor** across 62 documents, 1602 links, 80 anchored — `check-spec`s `C5` lifted here and still reported as `C5` |
-| `npm run check:source:selftest` | **the gate's own wiring, negative-tested** — 24 probes, 20 gradings of those probes, 3 of the probe list itself. `S12` compares `gate`'s 16 entries to a declared list both ways and in order; `S13` takes the three chains it composes |
+| `npm run check:source:selftest` | **the gate's own wiring, negative-tested** — 24 probes, 20 gradings of those probes, **7** of the probe list itself. `S12` compares `gate`'s 16 entries to a declared list both ways and in order; `S13` takes the three chains it composes. *(This row read **3** until W29 corrected it: W28 added four `SELF` entries and did not raise it. `doc/` is checked by nothing, and this is that class in the front-door document.)* |
+| `npm run check:scheduler:selftest` | **20 probes and 22 gradings — one per `fail()` site (18), one per way the report can lie (3), and one for the exit path**. Of the 22: **20** are noticed by the probe the entry names, **1** only by the failure COUNT, which the id set cannot see, and **1** is a declared **masking** — a sibling clause reporting the same id *in its place*, so that one clause is deletable for 0 and the entry says so ([Q146](doc/open-questions.md)) |
+| `npm run check:docs:selftest` | **14 probes, 8 gradings** — one per check id, two for the report block, one for the exit path. **Capped deliberately and the cap is stated**: `check-docs.mjs` has **17** clauses, an entry here is two `check-docs` runs at ~7.1 s against `check-scheduler`'s ~0.5 s, and the **nine** left ungraded are named in that file's own header — one of them reachable by no probe at all ([Q148](doc/open-questions.md)) |
 
 ## Documentation
 

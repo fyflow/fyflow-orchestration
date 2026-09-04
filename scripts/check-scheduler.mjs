@@ -29,6 +29,14 @@
 //   node scripts/check-scheduler.mjs
 //
 // Exits 0 when every check passes, 1 otherwise. It reports; it does not fix.
+//
+// `CHECK_SCHEDULER_DTS` points `D5`'s declaration parse at a copy, which is how
+// `--self-test` reaches that clause without touching the installed package. It
+// exists for the self-test and for nothing else, on the pattern of
+// `CHECK_SOURCE_PKG`. **Three of `D5`'s four clauses were unreachable without it**
+// — unreadable, empty-parse and missing-exports — and the middle one is
+// [Q141](../doc/open-questions.md), which survived twelve green probes because no
+// probe could supply a `.d.ts` the parse cannot read.
 
 import { existsSync, lstatSync, readFileSync } from 'node:fs';
 import { join, dirname, resolve, relative } from 'node:path';
@@ -171,7 +179,9 @@ if (manifest) {
 // than deleted.
 if (manifest) {
   ran.D5 = true;
-  const dts = join(pkgDir, 'dist', 'types', 'index.d.ts');
+  const dts = process.env.CHECK_SCHEDULER_DTS
+    ? join(ROOT, process.env.CHECK_SCHEDULER_DTS)
+    : join(pkgDir, 'dist', 'types', 'index.d.ts');
   const expected = [];
   try {
     const src = readFileSync(dts, 'utf8');
@@ -190,7 +200,10 @@ if (manifest) {
 
   // An empty list would make this check pass unconditionally, which is the
   // assertion-that-cannot-fail `doc/workflow.md` section 5 rule 3 forbids. The
-  // package exports nine values; zero means the parse broke, not that it stopped.
+  // package exports **ten** values; zero means the parse broke, not that it stopped.
+  // *(This comment read "nine" from W5 until W29's adequacy reader counted them —
+  // in the clause W29 built three probes for, which is the item that should have
+  // caught it. `doc/` is not the only place a number goes stale unread.)*
   if (expected.length === 0 && !failures.some((f) => f.startsWith('D5'))) {
     fail('D5', `no value exports were parsed out of ${rel(dts)}. Either its declaration style ` +
       'changed or this check is silently vacuous — the second is worse');

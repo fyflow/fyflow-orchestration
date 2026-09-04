@@ -15,7 +15,7 @@ the only document that does. **Every snippet in it is extracted and executed by 
 (`scripts/check-docs.mjs`), so it cannot rot the way a hand-maintained reference does. If you change
 the public surface, that check is what tells you the reference is now wrong.
 
-## Current state: **P1-P8 are ALL complete and retro'd, `doc/workflow.md` is [v0.9](doc/workflow.md), and [P8](doc/plans/p8-what-can-be-deleted-with-the-gate-green.md) is CLOSED** — [P7](doc/plans/p7-is-a-join-transitive-over-nested-fan-out.md)'s four items are [W20](doc/work-items/w20-what-a-nested-region-is.md), [W21](doc/work-items/w21-the-branch-path-is-a-path.md), [W22](doc/work-items/w22-what-an-inner-join-does-to-the-outer-one.md) and [W23](doc/work-items/w23-a-nested-flow-on-real-workers.md); **P8's [W24](doc/work-items/w24-the-gates-own-wiring.md) and [W25](doc/work-items/w25-a-link-is-a-link-and-an-anchor-is-an-anchor.md) are both DONE and P8 is retro'd — [P9](doc/plans/p9-when-a-check-stops-checking-what-notices.md) is DECLARED and runs next, starting at W28**
+## Current state: **P1-P8 are ALL complete and retro'd, `doc/workflow.md` is [v0.9](doc/workflow.md), and [P8](doc/plans/p8-what-can-be-deleted-with-the-gate-green.md) is CLOSED** — [P7](doc/plans/p7-is-a-join-transitive-over-nested-fan-out.md)'s four items are [W20](doc/work-items/w20-what-a-nested-region-is.md), [W21](doc/work-items/w21-the-branch-path-is-a-path.md), [W22](doc/work-items/w22-what-an-inner-join-does-to-the-outer-one.md) and [W23](doc/work-items/w23-a-nested-flow-on-real-workers.md); **P8's [W24](doc/work-items/w24-the-gates-own-wiring.md) and [W25](doc/work-items/w25-a-link-is-a-link-and-an-anchor-is-an-anchor.md) are both DONE and P8 is retro'd — [P9](doc/plans/p9-when-a-check-stops-checking-what-notices.md) is RUNNING — [W28](doc/work-items/w28-a-grading-names-the-probe-it-breaks.md) is DONE, [W29](doc/work-items/w29-the-two-self-tests-that-grade-nothing.md)'s author pass is done with BOTH READERS OUTSTANDING, and W30 and W31 are todo**
 
 **[P8](doc/plans/p8-what-can-be-deleted-with-the-gate-green.md) asks *what can be deleted from this
 repository with `npm run gate` still green?*, and it is the plan that owns `scripts/**` and
@@ -165,6 +165,65 @@ breaks; [W29](doc/work-items/w29-the-two-self-tests-that-grade-nothing.md) gives
 two that have none; [W30](doc/work-items/w30-the-clauses-nothing-probes.md) gives probes to nine of
 the sixteen clauses that have none, including **`check-spec`'s first self-test ever**. **Q ids resume
 at Q142; ADR 0034-0035 reserved and expected skipped; W31 reserved and expected unused.**
+
+**[W29](doc/work-items/w29-the-two-self-tests-that-grade-nothing.md)'s AUTHOR PASS is done and its two
+readers have NOT run** — the item is **not done**, and its status is read from its own file rather
+than from here. `check-scheduler-selftest.mjs` is **18 probes / 21 gradings — one per `fail()` site plus one per way
+the report can lie** — from 12 and none; `check-docs-selftest.mjs` is **14 / 7**, capped at one entry
+per check id plus two for the report, **with the ten it leaves out named in the file's own header**
+rather than omitted. *(That list read **six** until W29's conformity reader found it undercounting by
+two — in five documents at once, in the item written to refuse exactly that. One of the ten,
+`check-docs`' missing-document refusal, is reachable by **no probe at all**: every probe writes its
+mutated reference to disk, so none can present a document that is not there.)*
+**[Q141](doc/open-questions.md) is RESOLVED** — `D5`'s empty-parse clause reproduced inert at **12/12
+green, exit 0**, closed by a `CHECK_SCHEDULER_DTS` override and a **hand-written** fixture, **which
+closed two more `D5` clauses that were unreachable for the same reason**. Both files also gained the
+report-row **`agree`** projection, after a measurement that deleting a row from the `checks` array —
+or forcing every verdict to `ok`, which erases `check-scheduler`'s **`NOT RUN`** — was invisible to
+every probe in both ([Q100](doc/open-questions.md)).
+
+**Its declaration step changed the item's SIZE rather than its table, and that is a first in fifteen.**
+A META entry is **two** check runs, because W28's readers added the inertness run — so P9's *"~46 s for
+ten entries"* is optimistic by **2.3x**. Measured: **7.1 s** an entry in `check-docs` against **~0.5 s**
+in `check-scheduler`, two orders of magnitude, and the coverage was bought accordingly rather than
+evenly. **The obvious mitigation is unsafe today**: `check:scheduler:selftest` moves
+`node_modules/fyflow-scheduler` aside and an `AGENTS.md` snippet imports it, so those two self-tests
+**cannot run concurrently** — invisible while the gate's chain is `&&`, and a flaky snippet failure the
+moment anyone parallelises it. [Q148](doc/open-questions.md), for whoever answers
+[Q133](doc/open-questions.md).
+
+**And the finding to carry is a limit of rule 7 (c)'s own form, one layer out — corrected once under
+measurement, which is the half worth reading.** `D2`'s and `D5`'s unreadable-input clauses both came
+back **STILL CAUGHT**, and the author read the same mechanism into each: **a sibling clause reporting
+the SAME id firing in the disabled clause's place**, invisible to set equality. Both entries were made
+to **declare** the masking, on the argument that the declaration goes red if the masking ever changes.
+**That argument was FALSE and W29's conformity reader measured it**: deleting `D5`'s
+`!failures.some(…'D5')` fallthrough guard left the file at **18/18, 21/21, exit 0** — the guard was
+deletable for 0, a *third* instance of the class inside the mechanism written to describe it.
+
+**The fix is the discriminator [Q146](doc/open-questions.md) itself proposed and the author had
+declined: the failure COUNT.** A `caught` verdict is no longer terminal — the entry is re-run against
+the unmutated check and the counts compared, one extra child for the entries that reach it (today,
+one). **And it split the two cases apart the moment it ran.** `D2` is **CO-FIRING, not masking**: both
+clauses report under `D2`, so disabling one moves the count **2 → 1** and the clause **is** detected —
+it is graded normally now and its declaration was removed. `D5` is the real thing: same id **and**
+same count, because its guard exists so the two never both report. **Co-firing is detectable by a
+projection nobody was reading; masking is not.** Rule 7 (c) settled that naming *one* check does not
+discriminate because a malformed probe trips two; this is the mirror image — **two clauses that both
+trip the right one are indistinguishable** — and the signal that discriminates half of them was
+printed in the report all along, as `(2)` versus `(1)`.
+
+**Rule 8: 29 provocations, 14 refused, 15 survivors, eleven of them the ceiling** — wider in these two
+files than in `check-source` because **neither has a `SELF` list**, and W31 is narrowed to
+`check-policies`, so nothing picks them up. **Two positive tests the set structurally could not reach
+both fired**, and the first closes a named gap: **[Q144](doc/open-questions.md)'s missing case is
+CONSTRUCTED** — a mutant inert on the clean tree and **fatal under the probe**, reporting `ran: no`
+with the guard live and the identical crash graded **`disappeared`** with it disabled. That is the
+first demonstration anywhere that `ran:` fires, in a guard live in five files and provoked in none.
+The second is W29's own new **ambiguous-anchor** guard, which refuses a three-way match by name.
+**[Q147](doc/open-questions.md)** is the survivor worth naming: re-sourcing `tripped` to the report
+rows costs **0**, because the report entries then pass as `disappeared` instead of `disagreed` — **the
+right verdict by the wrong route**, which is Q138's shape one layer further in.
 
 **The 39 check clauses split THREE ways and nobody had written the middle one down.** 13 have a probe
 **and** a grading; **10 have a probe that nothing grades** — `D1`-`D5` and `X1`-`X5`, because

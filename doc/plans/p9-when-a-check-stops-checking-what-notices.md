@@ -391,6 +391,54 @@ wrong.
 
 *Filled in when the plan's items are merged and its retro is run.*
 
+**Progress, so the next agent reads status from the item files rather than from here.**
+[W28](../work-items/w28-a-grading-names-the-probe-it-breaks.md) **done**;
+[W29](../work-items/w29-the-two-self-tests-that-grade-nothing.md) **author pass done, both readers
+outstanding**; [W30](../work-items/w30-the-clauses-nothing-probes.md) and
+[W31](../work-items/w31-the-self-list-check-policies-never-had.md) **todo**.
+
+**Two of this plan's own numbers are corrected by W29, both from the declaration step's measurement
+rather than from its close** — the practice this plan's own table says has changed what got written
+fourteen times:
+
+1. **The arithmetic behind decision 2 and the census is optimistic by 2.3x.** *"Ten META entries cost
+   ~450 s under today's contract and ~46 s under this one"* prices an entry at **one** check run. An
+   entry is **two** — the inertness run [W28](../work-items/w28-a-grading-names-the-probe-it-breaks.md)'s
+   readers added, which is not optional because a `disappeared` verdict cannot be told from a mutant
+   that was already failing. Measured: **7.1 s** an entry in `check-docs`, **~0.5 s** in
+   `check-scheduler`. The ordering argument for W28-before-W29 is **unaffected and strengthened** —
+   the saving is larger, not smaller — but the plan's estimate of what W29 would add to the gate was
+   the wrong number, and W29's coverage is cost-proportionate because of it.
+   [Q148](../open-questions.md).
+2. **The `corpus` split this plan predicted for `check-docs` did not happen.**
+   [Q145](../open-questions.md) warned that non-inert mutations would need reporting rather than
+   engineering away; all **13** candidate `check-docs` clause mutations and every `check-scheduler`
+   one measured **inert**, so both new summary lines read `N/N` with no corpus term. Predicted from
+   the shape of the clauses, measured to the contrary, and reported because the prediction was
+   written down.
+
+**And the exit artifact gains two row shapes nobody anticipated, plus a units problem.** The plan's
+artifact is *one row per check clause saying what notices*, with three answers — a named probe, an
+unrelated probe reacting to noise, or nothing.
+
+1. **A sibling clause reporting the same id**, which is neither a detection nor a miss.
+   [Q146](../open-questions.md). W29 first measured two of these and the count discriminator then
+   showed **one is co-firing (detectable, by the failure count) and one is true masking**. So the
+   artifact needs **two** more columns rather than one, and the distinction is the finding.
+2. **A clause that is unreachable by construction.** `scripts/check-scheduler.mjs:191` reads
+   `if (!m || /^\s*export\s+type/.test(line)) continue;` and the second disjunct **can never be
+   true** — a line beginning `export type` cannot match the `export\s*\{` regex that produced `m`, so
+   `!m` short-circuits first. Found by W29's conformity reader, verified over five declaration
+   shapes. It is *already* present-but-inert, so *what notices when it goes inert* has the answer
+   **nothing, and nothing ever could**. **Not fixed** — decision 4 puts a check's behaviour out of
+   scope — and it is a row rather than a defect.
+
+**And the units.** This plan's census counts `D1`-`D5` and `X1`-`X5` as **ten** clauses and totals
+**39**. W29 measured the same two checks at **18 + 3 = 21** and **14 + 3 = 17** — one per `fail()`
+site plus one per way the report can lie — so the artifact's "39 rows" and the item's coverage claims
+are at **different granularities**. Neither is wrong; the artifact must say which it is counting, or
+it will report ten clauses covered where W29 covered 28 of 38 in those two files alone.
+
 **What this plan owes `doc/workflow.md`.** Two verdicts, both from P8's retro, both to be reached on
 this plan's own evidence rather than restated:
 
