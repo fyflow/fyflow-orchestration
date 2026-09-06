@@ -1,6 +1,6 @@
 # spec/join-policy — the interface the join policies sit behind
 
-**Status:** v0.10 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.11 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2 acts on the W1 spec-conformity pass**:
 `branch.lost` is redefined against
 [ADR 0004](../doc/decisions/0004-a-non-success-outcome-routes-only-where-an-edge-opts-in-and-user-action-suspends.md)
@@ -74,7 +74,28 @@ only way its contents leave.
 |---|---|---|
 | `fanoutId` | string | |
 | `joinId` | string | |
-| `branches` | string[] | the fanout's branch entries, **in declaration order**. A branch's index in this array is its `branchPath` segment ([spec/task-id.md](task-id.md)) |
+| `branches` | string[] | the branch entries of the node that OPENED the region, **in declaration order**. For a `fanout` a branch's index in this array **is** its `branchPath` segment ([spec/task-id.md](task-id.md)); **for a `map` it is not** — see the note below |
+
+> **v0.11 — a `map` region's `branches` is not indexed by `branchPath`, and this row said it was.**
+> [ADR 0036](../doc/decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md)
+> makes a `map` a second kind of region opener: it declares **one** branch and the run opens N
+> instances of it. `toRegion` is unchanged, so a policy is handed `branches: ['score']` for a map
+> region — and index 0 of that array is **not** the `branchPath` segment. The segment is the run-time
+> **item index**; `branchIndexOf` refuses rather than answering `0`, and `ID-R6` is why.
+>
+> **What a policy can and cannot tell today.** It cannot tell the two kinds apart at all —
+> `opensWith` is on the internal `RegionSets` and deliberately not on this shape, because this
+> document is [W33](../doc/work-items/w33-a-map-at-run-time-arity.md)'s.
+> **[Q159](../doc/open-questions.md)** is the open question of whether it should, and this note is
+> deliberately not that decision. It exists because **a deferred field is a scope call and a false
+> normative sentence is not** — found by [W32](../doc/work-items/w32-what-a-map-fanout-is.md)'s
+> conformity reader, and corrected under a declared late exception rather than left for the item that
+> owns the file. It is `doc/workflow.md` v0.7 change 3's own case: *a gap that blocks a fix is worse
+> than one that hides an edit.*
+>
+> **The live consequence, so W33 has it written down**: `arrival-count` reads
+> `region.branches.length` for its `need`, which is **1** for any map region whatever the run opens —
+> which is P10's fact 4, the join firing on the first arrival with branches still live.
 | `members` | string[] | `region(F)`, sorted by node id so the value is stable across folds |
 
 | id | | Test owed by |

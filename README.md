@@ -4,7 +4,7 @@ Flow orchestration over [fyflow-scheduler](https://github.com/fyflow/fyflow-sche
 flow once; run thousands of workloads through it.
 
 > **Status: the layer is built and gated.** Sequence, decision routing, fan-out and join, with
-> **three** join policies, a definition validator, and run state as a pure fold. **One driver serves one run, fixed at construction, and two drivers may share a scheduler — with anything else on it.** **474 assertions in five
+> **three** join policies, a definition validator, and run state as a pure fold. **One driver serves one run, fixed at construction, and two drivers may share a scheduler — with anything else on it.** **517 assertions in five
 > runtimes** — Node 24, Deno, chromium, firefox, webkit — **plus 489 across 25 runs against a real
 > scheduler** in Node and Deno — where the scheduler also carries five tasks this library did not mint, and both
 > runs still complete. Not published; no version has been released.
@@ -125,7 +125,7 @@ for how it is reached.
 | | |
 |---|---|
 | `npm run gate` | everything below, in order |
-| `npm test` · `npm run test:deno` · `npm run test:browser:all` | 474 assertions, five runtimes — `npm run gate` runs three of them, and `test:browser:all` is what adds firefox and webkit |
+| `npm test` · `npm run test:deno` · `npm run test:browser:all` | 517 assertions, five runtimes — `npm run gate` runs three of them, and `test:browser:all` is what adds firefox and webkit |
 | `npm run test:l6` · `npm run test:l6:deno` | a real scheduler, 25 runs |
 | `npm run check:markdown` | **every relative link and every anchor** across 67 documents, 2025 links, 99 anchored — `check-spec`s `C5` lifted here and still reported as `C5` |
 | `npm run check:spec:selftest` | **the first negative test `check-spec` has ever had** — `check-spec.mjs` shipped with W1 and its probes were run by hand once. **18 probes and 21 gradings**: one probe and one grading per `fail()` site for `C1`-`C4`, `C6`-`C8` (17 of them), two for the report block, two for the exit path, plus one probe that trips **two `C7` clauses at once** so the failure-COUNT discriminator is reachable at all. `C5` is not here — W25 lifted it to `check-markdown` and it is probed and graded from there |
@@ -146,8 +146,8 @@ of the document**; what the other 84% is allowed to be, and why, is
 happens next.
 
 - [doc/concept.md](doc/concept.md) — what we are building and why
-- [spec/](spec/README.md) — **the normative layer**: **six normative documents, 75 numbered rules, 30 hand-written examples**. *(`npm run check:spec` reports **7 documents** because it counts `spec/README.md` itself; the six are the normative ones. Re-derived from the check's own output at P10's declaration, where this line read 72 and 29.)*
-- [doc/decisions/](doc/decisions/) — **fourteen ADRs**, one carrying an in-place *Correction*. *(Counted from the directory at P10's declaration, where this line read ten.)*
+- [spec/](spec/README.md) — **the normative layer**: **six normative documents, 77 numbered rules, 33 hand-written examples**. Since **v0.8** the definition has a **fifth node kind, `map`** — [ADR 0036](doc/decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md) answering [Q12](doc/open-questions.md): fan-out is **two features over one region**, and **nothing dispatches one yet**. *(`npm run check:spec` reports **7 documents** because it counts `spec/README.md` itself; the six are the normative ones. Re-derived from the check's own output at P10's declaration, where this line read 72 and 29.)*
+- [doc/decisions/](doc/decisions/) — **fifteen ADRs**, one carrying an in-place *Correction*. *(Counted from the directory at P10's declaration, where this line read ten.)*
 - [doc/plans/](doc/plans/) — **P1-P9 complete and retro'd; [P10](doc/plans/p10-is-fan-out-one-feature-or-two.md) declared and running**. *(This line read P1-P4 while five more plans closed behind it — `doc/` is checked by nothing, and this is the front-door document.)*
 - [doc/open-questions.md](doc/open-questions.md) — the register
 - [doc/workflow.md](doc/workflow.md) — how work is planned, split and verified

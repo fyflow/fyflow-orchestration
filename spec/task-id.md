@@ -1,6 +1,6 @@
 # spec/task-id — the scheduler task id scheme
 
-**Status:** v0.7 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.8 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2 acts on the W1 spec-conformity pass**:
 section 2 point 3 was **wrong about the source** and is corrected (finding D7), `branchPath` is
 pinned against convergent branches (B3), and the rules name the item owing their test (D8, N19).
@@ -38,6 +38,17 @@ the two cases get different answers.
 inbound vehicle whose task id carries **no run id**, which is what made *"the failure names THIS
 driver's run"* falsifiable. The discrimination moved to `ID-R5`'s own test rather than being dropped,
 and `test/driver/lifetime.test.ts` records the substitution in place.
+**v0.8** is [W32](../doc/work-items/w32-what-a-map-fanout-is.md) under
+[P10](../doc/plans/p10-is-fan-out-one-feature-or-two.md), and it is **the version this document's
+own argument was written for.** [ADR 0036](../doc/decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md)
+answers [Q12](../doc/open-questions.md): fan-out is two features over one region, and a `map` opens a
+region whose arity is known only at run time. **The GRAMMAR is unchanged, `parseTaskId` is unchanged
+and `buildTaskId`'s signature is unchanged** — measured before anything was written: indices
+`0 … 1_000_000` round-trip with **0** failures, the nested forms round-trip, and **500 indices for
+one node mint 500 distinct strings**. So none of the *"every fixture, every log line and every test
+name"* cost this section spends its argument on is paid. **What v0.8 changes is section 1's own
+heading**: inside a `map` region a branch index is a property of the **dispatch**, and `ID-R6` is the
+refusal that keeps a derivation from guessing one.
 **Normative.** Answers [Q13](../doc/open-questions.md).
 **This is a correctness rule, not a naming convention.** Section 2 is why.
 
@@ -73,7 +84,21 @@ contain a delimiter and no id is ambiguous. A driver that built an id can always
 again, which is what lets an outcome record carry the id alone
 ([spec/outcome-record.md](outcome-record.md)) and derive everything else.
 
-### `branchPath` is a property of the node, and `FD-V19` is what makes that true
+### `branchPath` is a property of the node inside a `fanout` region, and of the DISPATCH inside a `map` one
+
+> **This heading read *"`branchPath` is a property of the node"*, full stop, from P1 until v0.8, and
+> [W21](../doc/work-items/w21-the-branch-path-is-a-path.md) made it true of the code one plan before
+> it stopped being true of the library.** It is **corrected rather than deleted**: it remains exactly
+> right about the static feature, which is the only feature that existed when it was written, and
+> `FD-V19` remains exactly the rule that makes it so. What v0.8 adds is a second feature the sentence
+> was never about —
+> [ADR 0036](../doc/decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md),
+> answering [Q12](../doc/open-questions.md). **`FD-V19` is not weakened by any of it**, and neither is
+> [Q27](../doc/open-questions.md): a `map` declares one branch, so *"two distinct branch entries"* has
+> no instance inside one — measured as `0` pairs iterated.
+
+**Everything in the rest of this subsection is about a `fanout` region.** The map half is one
+paragraph and it is at the end.
 
 **Since v0.7 the library computes it that way.** Until
 [W21](../doc/work-items/w21-the-branch-path-is-a-path.md) the driver **threaded** a path through
@@ -100,6 +125,16 @@ sees two. **Whether convergence should be allowed at all is [Q27](../doc/open-qu
 answering it means deciding whether a shared node runs once or once per branch, which is close
 enough to map-style fan-out ([Q12](../doc/open-questions.md)) that P1 refuses it rather than
 guessing.
+
+**The map half — v0.8, and it is one paragraph because the grammar carries it.** A `map` region has
+**one** branch and a run opens N instances of it, so a mapped node's segment is the **item index**
+and there is nothing in the graph to derive it from. `branchPathOf` takes the region sets and a node
+id and no run-time input; **measured before this was written, it answers `"0"` for the mapped entry
+and `"0"` for every node behind it in the same branch subgraph**, so N dispatches would mint one
+distinct id and the second would hit `ID-R1`. The segment's **grammar is unchanged** — an item index
+is an index — so `r7c1f:score:137:0` and the nested `r7c1f:score:1.137:0` are the shapes P1 reserved
+at an arity P1 did not have. What changes is who supplies the number: **the run, not the graph**, and
+`ID-R6` below is the refusal that stops a derivation inventing one.
 
 ### Why the two forward-looking segments existed, and what happened to them
 
@@ -130,8 +165,14 @@ claimed both were unchanged was wrong about the second.
   retired by [W20](../doc/work-items/w20-what-a-nested-region-is.md), so a nested fan-out is a valid
   definition; and [W21](../doc/work-items/w21-the-branch-path-is-a-path.md) made `buildTaskId` able
   to emit the path, so P1's *"only `-` or a single index"* is a statement about P1 rather than about
-  the library. **Map-style fan-out is still out of scope** ([Q12](../doc/open-questions.md)) and the
-  dotted path admits it without touching the grammar, which is what this bullet was for. A dotted path admits both without touching the grammar.
+  the library. ~~**Map-style fan-out is still out of scope**~~ — **that half is now history too, at v0.8.**
+  [ADR 0036](../doc/decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md)
+  answers [Q12](../doc/open-questions.md) and a `map` is a node kind. **The prediction this bullet
+  made was correct and is recorded rather than quietly dropped**: *"the dotted path admits it without
+  touching the grammar, which is what this bullet was for"* — and it does. Measured at
+  [W32](../doc/work-items/w32-what-a-map-fanout-is.md): **no format change, no `parseTaskId` change
+  and no `buildTaskId` signature change.** Both of the two things P1 held this segment open for have
+  now arrived, and neither cost the format anything.
 - **`attempt` counts flow-level retries only** ([Q16](../doc/open-questions.md)), and P1 always
   emits `0`. It is **not** the scheduler's retry count: `retryPolicy` retries happen *inside* one
   scheduler task and are reported on that task's `attempts` field
@@ -192,6 +233,7 @@ the owning item's gate; **W1's L0 does not check it**
 | `ID-R2` | a `runId` does not match its charset. Node ids are covered by `FD-V16` at instantiation; this is the half the definition cannot check. **Enforced in the `Driver` CONSTRUCTOR** (ADR 0022 rule 3), throwing `InvalidRunId` before the definition is validated and before anything is queued — a run id is configuration, and ADR 0002 rule 3's *"validate in full before anything is queued"* applies one level out. Test: construction with a `runId` containing `:`, asserting the refusal and that the scheduler received nothing | W3, **restated by W13** |
 | `ID-R3` | **a driver is asked to `start()` a second time.** A driver serves exactly one run and takes its id at construction (ADR 0022 rules 1-2), so there is no second id to name: **any** second `start` is refused. `start` **throws** `MultipleRuns` rather than reporting — nothing has been appended, so there is no run to fail, and the caller is on the stack. Test: `start` twice, asserting the refusal, that the scheduler received nothing for the second, and that the run's state is unchanged | **W5**, widened by **W13** |
 | `ID-R4` | **a settlement arrives carrying this driver's run id for a task it never dispatched.** **Ownership is decided from the task id ALONE, before anything else reads the event detail** - `normalizeEvent` can raise `OR-R6` while copying `result`, and a guard placed after it let ANOTHER run's uncloneable result stop this run ([ADR 0023](../doc/decisions/0023-an-inbound-settlement-is-this-runs-only-if-this-driver-dispatched-it.md) *Correction* 1). The inbound counterpart of `ID-R1`, and `dispatched` is the same set both are asserted against. The run fails with `UndispatchedTask` naming the id, **reported** rather than thrown (`OR-R10`), and **nothing is appended** — the record is refused before it enters the sequence, for the reason `ID-R1` refuses before `addTask`. A settlement for **another** run's id is **ignored silently and is not a refusal** (ADR 0023 rule 3). Test: three ids under our own run — a node never dispatched, a node not in the definition, a branch path never opened — each asserting the refusal and an empty log; plus one under another run id asserting silence, each in **all three terminal states** - a guard the fixtures only exercise in one state can be conditioned on the state. **One precondition, stated rather than assumed:** run ids are unique across the drivers sharing one scheduler (two drivers on one run id mint the same task ids, so `dispatched.has()` is true in both and this rule cannot see the collision - [Q87](../doc/open-questions.md)). **The other precondition is retired**: *"every task on the driver's scheduler carries an id some driver minted"* was v0.5's first, and [ADR 0027](../doc/decisions/0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md) replaces it with `ID-R5` below rather than leaving it a claim about code the flow author does not own | **W13**, precondition retired by **W18** |
+| `ID-R6` | **the driver is about to mint a task id for a node inside a `map` region and has no item index for that region.** A map's branch index is a property of the **dispatch**, not of the node (section 1), so `branchPathOf` takes an optional item index **per region** and **refuses rather than returning the region's declared index**. It throws `UnresolvedBranchPath` naming the node and the map. **The alternative is measured rather than argued**: returning the derived value mints `r1:x:0:0` for every dispatch, and the run then dies at `ID-R1` naming a **duplicate** — the symptom, in a run whose real defect is a missing index. This is the map's counterpart of `ID-R1`'s own reasoning: *a duplicate means the definition validator or the driver's path bookkeeping is wrong*, and here the bookkeeping is nameable before the collision. **It THROWS**, and the reason is that it is a CALLER error rather than a run event: `branchPathOf` is a pure derivation over the region sets, nothing has been appended when it fires, and there is no run to fail. **A driver reaching it from a listener must convert it**, exactly as it converts every other refusal that would otherwise cross the `OR-R10` boundary — `src/driver/driver.ts`'s `pathOf` is called from `dispatch`, reached from `enter`, reached from the listener, so it is squarely on that path and W33 owns the conversion. *(An earlier wording gave the reason as *"it is reached while building an id and **not from a listener**"*, which is false about the only `src/` caller. It was unreachable at W32 only because the driver had no `map` arm at all — correct-and-unreached for the wrong reason. W32's conformity reader.)* **Two conditions, not one.** The second is that an index **is** supplied and is not a `branchPath` segment — `-1`, `1.5`, `NaN`, `1e21` — which is refused where the number ENTERS rather than four frames later inside `buildTaskId`, so the message names the map rather than the id. `1e21` is the case W21's conformity reader found in `buildTaskId`: `Number.isInteger(1e21)` is true and `String(1e21)` is `"1e+21"`, which section 1's grammar refuses, so a type test is not the predicate. Test: a map region's node asked for a path with no index, asserting the refusal and that it names both the node and the map; the same node **with** an index, asserting the path; **each of the four malformed indices, asserting the second condition**; a node in a `fanout` region asked with no index, asserting it is unaffected; and a map nested inside a `fanout`, asserting the outer prefix is still derived and only the inner segment needs supplying | **W32** at the derivation layer, **[W33](../doc/work-items/w33-a-map-at-run-time-arity.md)** at the dispatch layer |
 
 ### `ID-R5` — an inbound id no driver minted is reported and dropped
 
@@ -269,6 +311,21 @@ successors — the two-outcomes-under-one-key corruption section 2 describes, pr
 [ADR 0023](../doc/decisions/0023-an-inbound-settlement-is-this-runs-only-if-this-driver-dispatched-it.md)
 closes it with `ID-R4` rather than with a rule about schedulers, which `SchedulerLike` could not
 express.
+
+> **v0.8 — this argument no longer covers every node, and the gap is a `map` region.** Everything
+> below is a closed argument from three VALIDATOR rules, and for a mapped node uniqueness does not
+> follow from the validator at all: `FD-V19` has **no instance** inside a map region (one branch, so
+> *"two distinct branch entries"* has none — measured as 0 pairs), and a map is precisely the case
+> where one node yields N triples in one run. **What makes them distinct is the RUN supplying
+> distinct item indices**, which is section 1's *"who supplies the number: the run, not the graph"*
+> and which `ID-R6` refuses to guess. So for a node in a `fanout` region the triple is unique
+> **by construction** and `ID-R1` asserts that the argument held; for a node in a `map` region the
+> triple is unique **by the driver's bookkeeping** and `ID-R1` is the only thing that checks it.
+> `ID-R1` therefore does more work at v0.8 than it did at v0.7, and it is unchanged because it
+> already did the right thing. *(W32's conformity reader: the paragraph below was left standing when
+> section 1's heading was corrected, one section further up.
+> `spec/flow-definition.md`'s *"`FD-V22` is what makes `ID-R1`'s soundness argument true"* rider
+> inherits the same premise and carries the same note.)*
 
 **`ID-R1` is a refusal rather than a guard because the collision should be impossible.**
 `FD-V10` forbids cycles, ~~`FD-V15` forbids nested fan-out~~ — **retired by

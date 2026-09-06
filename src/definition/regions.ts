@@ -12,12 +12,34 @@
  *                   J is not a member.
  *   region(F)       the union of branchOf over F's branch entries. J is not a member.
  *   after(F)        reaches(J). J is not a member of that either.
+ *
+ * **Since v0.8 a region is opened by a `fanout` or a `map`** and none of the four
+ * sets changed a line for it, because none of them mentions a branch COUNT. What a
+ * map changes is one thing and it is `branchPathOf`'s: a map region's branch index
+ * is a property of the DISPATCH, so the derivation refuses rather than guessing
+ * (`ID-R6`, and `UnresolvedBranchPath` below).
  */
 import type { FlowDefinition, FlowNode } from './types.ts';
 
+/**
+ * **`ID-R6`** — `spec/task-id.md` section 3. A `branchPath` was asked for across a
+ * `map` region with no item index supplied for it.
+ *
+ * The first `Error` subclass in the definition layer, and it is here rather than in
+ * `src/driver/ids.ts` because the refusal happens where the derivation does and
+ * because `src/definition/**` must not depend on `src/driver/**`.
+ *
+ * **Why a refusal and not a value.** `branchPathOf` derives from the graph and a map
+ * region's segment is not in the graph. Returning the derived value was measured:
+ * three dispatches of one mapped node mint `r1:x:0:0` three times — **one distinct id
+ * of three** — and the run dies at `ID-R1` naming a *duplicate*, which is the symptom
+ * of a missing index rather than the cause. This names the cause.
+ */
+export class UnresolvedBranchPath extends Error {}
+
 export interface Graph {
   byId: Map<string, FlowNode>;
-  /** Arcs out of a node: `edges[].to`, or `branches[]` for a fanout. */
+  /** Arcs out of a node: `edges[].to`, `branches[]` for a fanout, or `branch` for a map. */
   succ: (id: string) => string[];
 }
 
@@ -32,6 +54,14 @@ export function buildGraph(doc: FlowDefinition): Graph {
     const n = byId.get(id);
     if (!n) return [];
     if (n.kind === 'fanout') return Array.isArray(n.branches) ? n.branches.filter(isId) : [];
+    // A `map`'s one arc is `branch`, exactly as a `fanout`'s are `branches` —
+    // `spec/flow-definition.md` section 4's *"Edge means two things"* note, now
+    // with a third arc shape. Keeping it here rather than in a caller is what
+    // makes `FD-V2`, `FD-V10` and `FD-V11` pick a map up with no change: they all
+    // walk `succ`. **Measured: a map's branch, join and end are reachable from
+    // entry whatever the run-time arity turns out to be**, which is why a map can
+    // never reach `FD-V11` for an arity reason.
+    if (n.kind === 'map') return isId(n.branch) ? [n.branch] : [];
     const edges = (n as { edges?: unknown }).edges;
     return Array.isArray(edges) ? edges.map((e) => (e as { to?: unknown })?.to).filter(isId) : [];
   };
@@ -64,7 +94,24 @@ export function reaches(g: Graph, start: string, stopAt?: string): Set<string> {
 export interface RegionSets {
   fanoutId: string;
   joinId: string;
-  /** Branch entries in declaration order. The index is the `branchPath` segment. */
+  /**
+   * **Which node kind opened this region** — `spec/flow-definition.md` section 4,
+   * v0.8. A `fanout` declares its branches; a `map` declares one branch and the RUN
+   * decides how many instances of it there are.
+   *
+   * This lives on `RegionSets` and **deliberately not on what `toRegion` hands a
+   * policy**: `spec/join-policy.md` section 1 fixes that shape and it is
+   * [W33](../../doc/work-items/w33-a-map-at-run-time-arity.md)'s document, not this
+   * item's. W32's job is to make the distinction derivable; deciding what a policy
+   * sees is W33's.
+   */
+  opensWith: 'fanout' | 'map';
+  /**
+   * Branch entries in declaration order. The index is the `branchPath` segment
+   * **for a `fanout` region only** — for a `map` this is the one declared branch
+   * and the segment is the run-time item index, which is not derivable from here
+   * (`ID-R6`).
+   */
   branches: string[];
   /** Per branch entry, `{b} ∪ reaches(b) cut at J`. */
   branchOf: Map<string, Set<string>>;
@@ -74,13 +121,24 @@ export interface RegionSets {
   after: Set<string>;
 }
 
-/** The sets for one fanout/join pair. Callers pair them via `join.of` (FD-V6). */
+/**
+ * The sets for one region-opener/join pair. Callers pair them via `join.of`
+ * (`FD-V6`). The opener is a `fanout` or, since v0.8, a `map`.
+ *
+ * **A map contributes exactly one branch entry and everything below is unchanged.**
+ * That is the measurement `spec/flow-definition.md` v0.8 was written from: with
+ * `FD-V9`'s floor set aside, a one-subgraph region produces no finding from
+ * `FD-V12`, `FD-V13`, `FD-V20` or `FD-V22`, because none of them mentions a count.
+ */
 export function regionSets(g: Graph, fanoutId: string, joinId: string): RegionSets {
   const fan = g.byId.get(fanoutId);
+  const opensWith: 'fanout' | 'map' = fan?.kind === 'map' ? 'map' : 'fanout';
   const branches =
     fan && fan.kind === 'fanout' && Array.isArray(fan.branches)
       ? fan.branches.filter((b) => g.byId.has(b))
-      : [];
+      : fan && fan.kind === 'map' && isId(fan.branch) && g.byId.has(fan.branch)
+        ? [fan.branch]
+        : [];
 
   const branchOf = new Map<string, Set<string>>();
   for (const b of branches) {
@@ -97,14 +155,21 @@ export function regionSets(g: Graph, fanoutId: string, joinId: string): RegionSe
   const after = reaches(g, joinId);
   after.delete(joinId);
 
-  return { fanoutId, joinId, branches, branchOf, members, after };
+  return { fanoutId, joinId, opensWith, branches, branchOf, members, after };
 }
 
-/** Every fanout paired with the join naming it. Unpaired fanouts are `FD-V6`'s. */
+/**
+ * Every region opener paired with the join naming it. Unpaired ones are `FD-V6`'s.
+ *
+ * **Since v0.8 an opener is a `fanout` OR a `map`** — `spec/flow-definition.md`
+ * section 4. Both are picked up here rather than in two passes, because everything
+ * downstream (`innermostRegionOf`, `FD-V13`, `FD-V20`, `FD-V22`) is about a region
+ * and does not care which kind opened it.
+ */
 export function allRegions(g: Graph, doc: FlowDefinition): RegionSets[] {
   const out: RegionSets[] = [];
   for (const n of doc.nodes ?? []) {
-    if (n?.kind !== 'fanout') continue;
+    if (n?.kind !== 'fanout' && n?.kind !== 'map') continue;
     const joins = (doc.nodes ?? []).filter((j) => j?.kind === 'join' && j.of === n.id);
     if (joins.length !== 1) continue; // FD-V6 reports it; the maths stays out of it
     out.push(regionSets(g, n.id, joins[0]!.id));
@@ -215,8 +280,34 @@ export function innermostRegionOf(
  * **Measured total over the whole valid corpus before it was written**, and it
  * agrees with the value the driver threaded at depth 1 on every flow — which is
  * what makes replacing the threading a refactor rather than a behaviour change.
+ *
+ * ---
+ *
+ * **v0.8: it is no longer total, and the partiality is a `map` region.**
+ * [ADR 0036](../../doc/decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md)
+ * rule 5. Inside a `map` region the segment is the run-time **item index**, so:
+ *
+ * @param itemIndices the item index for each `map` region the walk crosses, keyed
+ *   by the map node's id. A `fanout`-only walk ignores it entirely and behaves
+ *   exactly as it did at v0.7 — **which is what the corpus asserts.**
+ * @throws {UnresolvedBranchPath} `ID-R6` — the walk crossed a map region with no
+ *   index supplied for it, or with one that is not a `branchPath` segment.
+ *
+ * **Optional rather than required, and the reason is an `Owns` boundary rather than
+ * a taste.** `src/driver/driver.ts:839` calls this with two arguments and W32 does
+ * not own that file, so a required parameter would put a compile error in code W33
+ * has not written yet. The cost is stated in ADR 0036's *Consequences*: a caller
+ * that forgets gets a throw rather than a compile error.
+ *
+ * **Keyed per region rather than taking one index**, so that whether a map may
+ * contain a map — P10's *"not taken"*, [Q156](../../doc/open-questions.md) — needs no
+ * signature change whichever way it lands.
  */
-export function branchPathOf(regions: RegionSets[], nodeId: string): string {
+export function branchPathOf(
+  regions: RegionSets[],
+  nodeId: string,
+  itemIndices?: ReadonlyMap<string, number>,
+): string {
   const segs: number[] = [];
   // A guard, not a possibility: `FD-V10` forbids cycles and a region cannot
   // contain its own fanout, so the walk strictly ascends. It is here because an
@@ -227,13 +318,52 @@ export function branchPathOf(regions: RegionSets[], nodeId: string): string {
     const r = innermostRegionOf(regions, at);
     if (!r || seen.has(r.fanoutId)) break;
     seen.add(r.fanoutId);
-    const i = branchIndexOf(regions, at);
+    let i: number | null;
+    if (r.opensWith === 'map') {
+      // **`ID-R6`.** The graph cannot answer this and neither can the caller's
+      // silence. Refusing here rather than falling through to `break` is the
+      // point: a `break` would return the OUTER prefix as though it were the
+      // whole path — `'-'` for a top-level map — which is a well-formed id for a
+      // different dispatch, and that is `spec/task-id.md` section 2's corruption
+      // reached by a route the validator cannot see.
+      const supplied = itemIndices?.get(r.fanoutId);
+      if (supplied === undefined) {
+        throw new UnresolvedBranchPath(
+          `branchPath of "${nodeId}" crosses map region "${r.fanoutId}", whose branch index is a ` +
+            `property of the dispatch rather than of the node (ID-R6): supply its item index`,
+        );
+      }
+      // The same predicate `buildTaskId` applies to a segment, applied where the
+      // number enters rather than four frames later, so the refusal names the map
+      // rather than the id. `spec/task-id.md` section 1's own grammar.
+      if (!INDEX.test(String(supplied))) {
+        throw new UnresolvedBranchPath(
+          `item index ${JSON.stringify(supplied)} for map region "${r.fanoutId}" is not a ` +
+            `non-negative integer, so it is not a branchPath segment (ID-R6)`,
+        );
+      }
+      i = supplied;
+    } else {
+      i = branchIndexOf(regions, at);
+    }
     if (i === null) break;
     segs.unshift(i);
     at = r.fanoutId;
   }
   return segs.length ? segs.join('.') : '-';
 }
+
+/**
+ * One `branchPath` segment, as `spec/task-id.md` section 1 spells it.
+ *
+ * **Duplicated from `src/driver/ids.ts` deliberately rather than imported.**
+ * `src/definition/**` does not depend on `src/driver/**`, and inverting that for one
+ * regular expression would be a worse trade than restating six characters. The two
+ * are held together by `test/definition/map.test.ts`, which asserts that every path
+ * this mints is one `parseTaskId` accepts — a round trip rather than a shared
+ * constant, which is the check that would survive the two drifting apart.
+ */
+const INDEX = /^(?:0|[1-9][0-9]*)$/;
 
 /**
  * Which region a node belongs to, and via which branch — the value the task id's
@@ -255,11 +385,41 @@ export function branchPathOf(regions: RegionSets[], nodeId: string): string {
 export function branchIndexOf(regions: RegionSets[], nodeId: string): number | null {
   const r = innermostRegionOf(regions, nodeId);
   if (!r) return null;
+  // **A map region's index is not a property of the node** —
+  // `spec/flow-definition.md` section 4's *"What a map changes"*, and
+  // [ADR 0036](../../doc/decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md)
+  // rules 4 and 5. There is exactly one declared branch, so the loop below would
+  // answer `0` for **every** node of the subgraph and for every dispatch of it.
+  //
+  // **It REFUSES rather than returning `null`, and the first version returned
+  // `null`.** W32's conformity reader measured what that cost: `null` already
+  // means *"no unique enclosing region"* and maps to the `-` segment
+  // (`spec/task-id.md` section 1, `spec/flow-definition.md` section 4's shared-`end`
+  // case). A map region **is** a unique enclosing region — it simply has no static
+  // index — so returning `null` gave one value two meanings, and the obvious
+  // composition a caller writes,
+  // `buildTaskId(run, node, branchIndexOf(regions, node))`, minted
+  // `r1:score:-:0` for **every** dispatch. That is `spec/task-id.md` section 2's
+  // two-records-under-one-key corruption, produced by the sibling of the function
+  // written to refuse it, with no diagnostic. This function is exported from the
+  // package root, so the composition is a caller's to write.
+  //
+  // ADR 0036 rule 5 is the rule and it is not qualified by which derivation:
+  // *a derivation that cannot answer REFUSES rather than guessing.*
+  if (r.opensWith === 'map') {
+    throw new UnresolvedBranchPath(
+      `branch index of "${nodeId}" is a property of the dispatch rather than of the node: it is ` +
+        `inside map region "${r.fanoutId}" (ID-R6). Use branchPathOf with an item index; \`null\` ` +
+        'here would mean "no enclosing region", which is a different thing and a different id',
+    );
+  }
   for (let i = 0; i < r.branches.length; i++) {
     if (r.branchOf.get(r.branches[i]!)?.has(nodeId)) return i;
   }
   // In a region's `members` but in none of its `branchOf` sets is unreachable:
-  // `members` is the union of those sets. Returning `null` rather than throwing
-  // keeps the signature total, which is what `ID-R1`'s soundness argument reads.
+  // `members` is the union of those sets. Returning `null` here rather than
+  // throwing is deliberate and is NOT the map case above: this is the
+  // *"no answer"* branch, which `null` has always meant, reached on an input the
+  // set maths says cannot occur.
   return null;
 }

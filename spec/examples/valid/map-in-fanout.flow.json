@@ -1,0 +1,17 @@
+{
+  "flowId": "map-in-fanout",
+  "version": 1,
+  "entry": "ingest",
+  "nodes": [
+    { "id": "ingest",   "kind": "task",   "workerType": "IngestWorker", "edges": [ { "to": "outer" } ] },
+    { "id": "outer",    "kind": "fanout", "branches": [ "scoreA", "extract" ] },
+    { "id": "scoreA",   "kind": "task",   "workerType": "ScoreWorker",  "edges": [ { "to": "collect" } ] },
+    { "id": "extract",  "kind": "task",   "workerType": "ExtractWorker","edges": [ { "to": "perItem" } ] },
+    { "id": "perItem",  "kind": "map",    "over": "rows",               "branch": "merge" },
+    { "id": "merge",    "kind": "task",   "workerType": "MergeWorker",  "edges": [ { "to": "gather" } ] },
+    { "id": "gather",   "kind": "join",   "of": "perItem",              "edges": [ { "to": "collect" } ] },
+    { "id": "collect",  "kind": "join",   "of": "outer",                "edges": [ { "to": "publish" } ] },
+    { "id": "publish",  "kind": "task",   "workerType": "PublishWorker","edges": [ { "to": "done" } ] },
+    { "id": "done",     "kind": "end",    "outcome": "completed" }
+  ]
+}

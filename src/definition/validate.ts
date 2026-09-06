@@ -1,7 +1,7 @@
 /**
  * The definition validator — `spec/flow-definition.md` section 5.
  *
- * Twenty-three refusals, `FD-V14` deliberately absent. Reports EVERY violation
+ * Twenty-three refusals, `FD-V14` and `FD-V15` deliberately absent. Reports EVERY violation
  * rather than the first, because section 5 requires an invalid definition to be
  * rejected *and* the named rule to appear among the findings, and several cases
  * legitimately violate more than one rule.
@@ -12,13 +12,17 @@ import type { Edge, Finding, FlowDefinition, FlowNode, Registry } from './types.
 import { allRegions, buildGraph } from './regions.ts';
 
 const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
-const KINDS = ['task', 'fanout', 'join', 'end'] as const;
+const KINDS = ['task', 'fanout', 'map', 'join', 'end'] as const;
 const ROUTABLE = ['done', 'failed'] as const;
 
 const DOC_KEYS = ['flowId', 'version', 'entry', 'nodes'];
 const NODE_KEYS: Record<string, { req: string[]; opt: string[] }> = {
   task: { req: ['id', 'kind', 'workerType', 'edges'], opt: ['optional'] },
   fanout: { req: ['id', 'kind', 'branches'], opt: [] },
+  // `spec/flow-definition.md` section 2, v0.8. `over` and `branch` are both
+  // required: a map that does not say where its arity comes from is one that
+  // silently means nothing, which is `FD-V23`'s own argument for `version`.
+  map: { req: ['id', 'kind', 'over', 'branch'], opt: [] },
   join: { req: ['id', 'kind', 'of', 'edges'], opt: [] },
   end: { req: ['id', 'kind', 'outcome'], opt: [] },
 };
@@ -80,7 +84,7 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
       // FD-V24. The rule the other three could not reach: `kind` is present so
       // FD-V23 is silent, it is a string so FD-V21 is silent, and FD-V17 has no
       // declared key set to compare against for an unknown kind.
-      add('FD-V24', where, `node kind ${JSON.stringify(nd.kind)} is not task|fanout|join|end`);
+      add('FD-V24', where, `node kind ${JSON.stringify(nd.kind)} is not task|fanout|map|join|end`);
       continue;
     }
 
@@ -121,6 +125,38 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
       if (nd.edges !== undefined) add('FD-V9', where, 'fanout has edges');
       if (nd.branches !== undefined && !Array.isArray(nd.branches)) {
         add('FD-V21', where, 'fanout branches must be an array');
+      }
+    }
+    // ---- FD-V25: the map's own rule, and FD-V9 is untouched ----
+    // `spec/flow-definition.md` v0.8 and ADR 0036. Two separate ids rather than one
+    // rule with clauses that apply to one kind each: `FD-V9`'s arity floor and its
+    // repeated-entry clause are statements about a DOCUMENT that declares its
+    // branches, and a map's arity is not in the document at all.
+    if (nd.kind === 'map') {
+      if (nd.edges !== undefined) add('FD-V25', where, 'map has edges');
+      if (nd.branch !== undefined && typeof nd.branch !== 'string') {
+        // FD-V21 owns "wrong type"; the graph builder filters a non-string `branch`
+        // out before FD-V2 could see it, exactly as it does for a non-string
+        // `edge.to`, so without this a map with `branch: 5` reaches the driver with
+        // no arc and **no finding that names the cause**.
+        //
+        // **The comment here used to say "no diagnostic", and that overclaimed** —
+        // W32's adequacy reader measured it: `FD-V11` and `FD-V20` still fire on
+        // such a document, so what this guard adds is the DIAGNOSIS, not every
+        // diagnostic. `test/definition/map.test.ts` asserts the finding and that
+        // `succ` contributes no arc.
+        //
+        // **The two type checks in this block are attributed to different rules and
+        // that is deliberate** — W32's conformity reader asked. `over: 42` reports
+        // `FD-V25` alone, because `FD-V25`'s text is *"its `over` is not **a
+        // string** matching …"* and so owns the type half; `branch: 5` reports
+        // `FD-V21` alone, because `FD-V25`'s branch clause is about a **kind** and
+        // a non-string names no node to have one. Both readings have precedent
+        // here: `workerType` reports `FD-V21`, `flowId` reports only `FD-V16`.
+        add('FD-V21', where, `map branch must be a string, got ${JSON.stringify(nd.branch)}`);
+      }
+      if (nd.over !== undefined && (typeof nd.over !== 'string' || !ID_RE.test(nd.over))) {
+        add('FD-V25', where, `map over ${JSON.stringify(nd.over)} is not [A-Za-z0-9_-]{1,64}`);
       }
     }
     if (nd.edges !== undefined && !Array.isArray(nd.edges)) {
@@ -198,15 +234,22 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
 
   // ---- FD-V6: pairing ----
   const fanouts = nodes.filter((n) => n?.kind === 'fanout');
+  const maps = nodes.filter((n) => n?.kind === 'map');
+  // **A region opener is a `fanout` or a `map`** — spec section 4, v0.8. Everything
+  // downstream is about a region and does not care which opened it, so this is the
+  // one place the two are unioned.
+  const openers = [...fanouts, ...maps];
   const joins = nodes.filter((n) => n?.kind === 'join');
   for (const j of joins) {
-    if (typeof j.of === 'string' && g.byId.has(j.of) && kindOf(j.of) !== 'fanout') {
-      add('FD-V6', j.id, `join.of names a ${kindOf(j.of)}, not a fanout`);
+    if (typeof j.of === 'string' && g.byId.has(j.of) && kindOf(j.of) !== 'fanout' && kindOf(j.of) !== 'map') {
+      add('FD-V6', j.id, `join.of names a ${kindOf(j.of)}, not a fanout or map`);
     }
   }
-  for (const fan of fanouts) {
-    const mine = joins.filter((j) => j.of === fan.id);
-    if (mine.length !== 1) add('FD-V6', fan.id, `${mine.length} joins name this fanout, expected exactly 1`);
+  for (const opener of openers) {
+    const mine = joins.filter((j) => j.of === opener.id);
+    if (mine.length !== 1) {
+      add('FD-V6', opener.id, `${mine.length} joins name this ${opener.kind}, expected exactly 1`);
+    }
   }
 
   // ---- FD-V7: edges ----
@@ -243,6 +286,18 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
       else if (edges[0]!.when !== undefined || edges[0]!.on !== undefined) {
         add('FD-V7', n.id, 'a join node edge may carry neither `when` nor `on`');
       }
+    }
+  }
+
+  // ---- FD-V25: a map's branch entry is a task ----
+  // Beside FD-V9's identical clause rather than with the other FD-V25 clauses,
+  // because both need `kindOf` and therefore the graph. Requiring a `task` here is
+  // what keeps map-inside-map expressible only through that task's edges — the same
+  // road nesting a fanout already takes — so P10's "not taken" stays not taken
+  // rather than being decided in either direction (Q156).
+  for (const m of maps) {
+    if (typeof m.branch === 'string' && g.byId.has(m.branch) && kindOf(m.branch) !== 'task') {
+      add('FD-V25', m.id, `branch "${m.branch}" is a ${kindOf(m.branch)}, not a task`);
     }
   }
 
@@ -302,7 +357,11 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
   if (!cyclic) {
     for (const r of allRegions(g, doc)) {
       for (const b of r.branches) {
-        if (b === r.joinId) add('FD-V12', r.fanoutId, `branch entry "${b}" is this fanout's own join`);
+        // `r.branches` holds a map's single `branch` too (`regionSets`), so this
+        // covers both openers with no second loop — `FD-V12` widened at v0.8.
+        if (b === r.joinId) {
+          add('FD-V12', r.fanoutId, `branch entry "${b}" is this ${r.opensWith}'s own join`);
+        }
       }
       for (const id of r.members) {
         if (kindOf(id) !== 'end' && r.after.has(id)) {

@@ -44,7 +44,24 @@ function walk(dir, keep) {
 const suites = walk(join(ROOT, 'test'), (n) => n.endsWith('.test.ts')).sort();
 // Every fixture L4 reads. Inlined rather than fetched: an `about:blank` page has
 // no origin to fetch from.
-const fixtures = walk(join(ROOT, 'spec', 'examples'), (n) => n.endsWith('.json')).sort();
+//
+// **`spec/flow-definition.md` is here because L4 reads it** — `test/definition/l4-corpus.test.ts`
+// compares `spec/examples/valid/` against section 7's own table both ways
+// ([W32](../doc/work-items/w32-what-a-map-fanout-is.md)). It is the first non-JSON
+// entry and the first outside `spec/examples/`, so the walk is no longer the whole
+// story and the list says so.
+//
+// **The failure this fixes is worth stating, because it is silent in the wrong
+// way.** `readText` throws for a path the corpus does not carry; the suites read
+// their fixtures at MODULE SCOPE, so the throw happens while the bundle is
+// LOADING and takes **every** suite with it. The runner then reports *"the suite
+// never reported"* at **0 file(s), 1 assertion** — measured in all three browsers.
+// A missing fixture does not fail one test; it fails the run in a way that names
+// no file.
+const fixtures = [
+  ...walk(join(ROOT, 'spec', 'examples'), (n) => n.endsWith('.json')),
+  join(ROOT, 'spec', 'flow-definition.md'),
+].sort();
 const corpus = Object.fromEntries(fixtures.map((p) => [relPosix(p), readFileSync(p, 'utf8')]));
 
 // Absolute specifiers: the generated entry lives in dev-dist/, so a path relative

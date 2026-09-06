@@ -18,6 +18,7 @@ import type { JoinPolicy, Region } from '../../src/driver/policy.ts';
 import type { RegionEvent } from '../../src/driver/events.ts';
 import type { FlowDefinition } from '../../src/definition/types.ts';
 import { selectEdge, type Predicate } from '../../src/driver/routing.ts';
+import { fold } from '../../src/fold/run-state.ts';
 
 const EX = `${ROOT}spec/examples`;
 const load = async (rel: string) => JSON.parse(await readText(`${EX}/${rel}`)) as FlowDefinition;
@@ -753,6 +754,104 @@ suite('ADR 0002 rule 3 — the definition is validated in full at instantiation'
     } catch (e) {
       ok(e instanceof InvalidDefinition, 'InvalidDefinition is thrown');
       ok((e as InvalidDefinition).rules.includes('FD-V24'), 'the rule id is on the error, not just in the text');
+    }
+  });
+});
+
+/**
+ * **A node kind the driver cannot execute REFUSES rather than returning** — added
+ * by [W32](../../doc/work-items/w32-what-a-map-fanout-is.md) as a declared late
+ * exception, and this suite is the fifth one because a fix needs a test
+ * (`doc/workflow.md` section 1 rule 2 and section 5 rule 8).
+ *
+ * **The hole, measured before the arm was written.** `spec/flow-definition.md`
+ * v0.8 adds a fifth node kind, `map`, and W32 made such a definition VALID while
+ * the driver that executes it is [W33](../../doc/work-items/w33-a-map-at-run-time-arity.md)'s.
+ * `enter`'s switch had four arms, no `map` arm and **no `default`** — and
+ * `node.kind` is a union TypeScript does not require a switch to exhaust, so
+ * `npm run typecheck` was green. A run routed into a map node did **nothing**: no
+ * dispatch, no `branch.opened`, no `pathEnded`, no `RunFailure`, and the fold
+ * reported **`completed`** — character for character the false statement
+ * [ADR 0015](../../doc/decisions/0015-a-run-whose-join-can-no-longer-fire-is-stuck.md)
+ * exists to remove, and the silent stop `spec/flow-definition.md` section 3
+ * refuses BY NAME on P1's own validity grounds.
+ *
+ * **These are W33's cases only until W33 exists.** When the real `map` arm lands,
+ * the first two below become assertions about a kind the driver *can* execute and
+ * should be replaced; the third is about the `default` itself and outlives them.
+ */
+suite('a node kind this driver cannot execute is REFUSED, not silently skipped', (test) => {
+  /** Local, because the shared `harness` registers no `onRunFailure`. */
+  const withFailures = (def: FlowDefinition) => {
+    const scheduler = new FakeScheduler();
+    const failures: { kind: string; message: string }[] = [];
+    const driver = new Driver(def, {
+      runId: 'r1',
+      scheduler,
+      createTask: (c) => c,
+      predicates: new Map(),
+      workerTypes: reg.workerTypes,
+      joinPolicy: stubPolicy as unknown as JoinPolicy,
+      onRunFailure: (f) => failures.push({ kind: f.kind, message: f.message }),
+    });
+    return { scheduler, driver, failures, ids: () => scheduler.added.map((t) => t.id) };
+  };
+
+  /** Settle everything dispatched, so the run actually reaches the map node. */
+  const drain = (h: ReturnType<typeof withFailures>) => {
+    const done = new Set<string>();
+    for (let guard = 0; guard < 20; guard++) {
+      const next = h.ids().find((id) => !done.has(id));
+      if (next === undefined) return;
+      done.add(next);
+      h.scheduler.settle(next, 'done', { result: {} });
+    }
+    ok(false, 'the drain loop did not terminate — the fixture changed shape');
+  };
+
+  test('a map node stops the run and NAMES it, rather than returning silently', async () => {
+    const h = withFailures(await load('valid/map-fanout.flow.json'));
+    h.driver.start({});
+    drain(h);
+    // The whole point: this used to be zero failures and an outcome of `completed`.
+    equal(h.failures.length, 1, 'exactly one refusal — a second entry would be a re-report');
+    equal(h.failures[0]!.kind, 'InvalidDefinition', 'RunFailure.kind is the class name (AGENTS.md section 9)');
+    ok(h.failures[0]!.message.includes('split'), 'it names the NODE, so a reader knows where');
+    ok(h.failures[0]!.message.includes('"map"'), 'and the KIND, so a reader knows why');
+    equal(fold(h.driver.foldInputs()).outcome, 'stopped',
+      'RN-R8 — `stopped` outranks everything, and it is what `completed` was hiding');
+  });
+
+  test('the refusal fires from INSIDE a region too, and the region is left mid-flight', async () => {
+    // `map-in-fanout` reaches the map through a static branch, so this is the
+    // nested case: the outer region is open with one branch arrived when the
+    // inner map stops the run. It discriminates the arm from a guard that only
+    // fires at the top level.
+    const h = withFailures(await load('valid/map-in-fanout.flow.json'));
+    h.driver.start({});
+    drain(h);
+    equal(h.failures.length, 1, 'one refusal, from inside region(outer)');
+    ok(h.failures[0]!.message.includes('perItem'), 'it names the INNER map, not the outer fanout');
+    equal(fold(h.driver.foldInputs()).outcome, 'stopped', '');
+    // and the two static branches really did dispatch first, so the arm is
+    // reached mid-run rather than instead of the run
+    equal(h.ids(), ['r1:ingest:-:0', 'r1:scoreA:0:0', 'r1:extract:1:0'],
+      'the static half ran; it is the map node that stops it');
+  });
+
+  test('the four executable kinds are untouched — the arm is a default, not a narrowing', async () => {
+    // The regression this arm could have caused: a `default` placed wrong catches
+    // a kind that has an arm. One flow per executable kind, asserted to reach a
+    // terminal state with NO refusal.
+    for (const [file, expected] of [
+      ['valid/linear.flow.json', 'completed'],
+      ['valid/fanout-join.flow.json', 'completed'],
+    ] as [string, string][]) {
+      const h = withFailures(await load(file));
+      h.driver.start({});
+      drain(h);
+      equal(h.failures, [], `${file} must reach no refusal — task, fanout, join and end all have arms`);
+      equal(fold(h.driver.foldInputs()).outcome, expected, `${file} still folds to ${expected}`);
     }
   });
 });

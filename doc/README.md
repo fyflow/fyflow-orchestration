@@ -805,6 +805,173 @@ wins.
    three-count pass, `M5` untouched at 60 for the third plan running, and the two `META` entries
    pinned to the old literals repointed — **rule 7 (b) firing correctly rather than passing.**
 
+   **[W32](work-items/w32-what-a-map-fanout-is.md) — P10's FIRST item, and the first PRODUCT item
+   since [W23](work-items/w23-a-nested-flow-on-real-workers.md) — has its author pass, BOTH READERS
+   rule 8's re-run and the gate re-run after acting on them all DONE — the item is COMPLETE.** `npm run gate` is **`GATE EXIT=0`, zero FAIL lines, 19 entries, 7m18**, L1 **20 / 517** and L6 unmoved at **489 / 25**. *(Read its status from its own file, never from this
+   line — `doc/workflow.md` section 1 rule 5.)*
+   **[Q12](open-questions.md) is ANSWERED and it has been open since P1:
+   [ADR 0036](decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md)
+   — fan-out is TWO FEATURES over ONE REGION.** `map` is a fifth node kind:
+   `{ "kind": "map", "over": "items", "branch": "score" }`, **one** branch declared and N instances
+   opened by the run, where a `fanout` declares N branches known at authoring time.
+   `spec/flow-definition.md` and `spec/task-id.md` are both **v0.8**, `spec/README.md`'s rows moved
+   with them, and L1 is **20 files / 517 cases in five runtimes** (from 19 / 474), with the
+   definition suite at **5 / 118** from 4 / 82 and the driver suite at **7 / 166**. `check:spec` is **7 documents, 33 examples, 77 rules**.
+
+   **The finding that decided the ADR had not been measured before, and it is a fact about a data
+   structure rather than about a feature.** `branchOf` is a `Map<string, Set<string>>` **keyed by
+   branch NODE ID**, so `branches: ["x","x","x"]` collapses to **one** entry and `region(F)` is
+   `{x}` — **the repeated-entry encoding of a map does not express N branches even to the layer that
+   would have to honour it.** Meanwhile `FD-V19` fires **`n(n-1)/2`** times on that encoding
+   (measured 1, 3, 6, 10, 15, 45 at N = 2, 3, 4, 5, 6, 10; 124 750 at N = 500) and iterates **0**
+   pairs over a one-branch region. **The same rule, quadratic on one encoding and vacuous on the
+   other.** What the two features share is the **region**; what differs is the whole of the
+   **fan-out** — every piece that carries over (`reaches`, `branchOf`, `region(F)`, `after(F)`,
+   `FD-V12`, `FD-V13`, `FD-V20`, `FD-V22`, the join, the id grammar) is region machinery.
+
+   **So `FD-V9` is UNCHANGED, `FD-V19` is UNCHANGED, and [Q27](open-questions.md) is UNTOUCHED —
+   which corrects the framing P10 handed the item.** P10's declaration and Q27's own row both said
+   *"a map is `FD-V19`'s condition on purpose"*. **That is true of the ENCODING and false of a `map`
+   node**: one branch means *"two distinct branch entries"* has no instance, so a map does not lift,
+   weaken or reach the refusal. Both rows are corrected in place. `FD-V25` is the map's own rule —
+   a separate id rather than clauses bolted onto `FD-V9`, because a rule about two kinds is the
+   confusion the ADR exists to remove — and four rules had their text widened to name the new kind
+   (`FD-V2`, `FD-V6`, `FD-V12`, `FD-V24`).
+
+   **P10 prediction 1 is CONFIRMED on both halves, and `src/driver/ids.ts` was not edited at all.**
+   The grammar, `parseTaskId` and **`buildTaskId`'s signature** are all unchanged — that file is in
+   W32's `Owns` precisely because P10 raised the possibility, and the evidence is that it is
+   untouched. What changes is `spec/task-id.md` section 1's **heading**, corrected rather than
+   deleted: a branch index is a property of the **NODE** inside a `fanout` region and of the
+   **DISPATCH** inside a `map` one. **`ID-R6`** is the refusal that keeps the derivation from
+   guessing — `branchPathOf` takes an optional item index **per region** and throws
+   `UnresolvedBranchPath` naming the node and the map, because the measured alternative is minting
+   `r1:x:0:0` for every dispatch and dying at `ID-R1` naming a *duplicate*, which is the symptom
+   rather than the cause. The prose half is falsified one level further than P10 stated:
+   `branchPathOf` answers `"0"` for **every node of the branch subgraph**, not only its entry.
+
+   **P10 prediction 3 FIRES — rule 8's fifth obligation generalises past a harness, and P10's retro
+   owes that verdict either way.** Three instances in W32's own paths, all named in the item file
+   **before** the set was written. A **corpus flow renamed out of the `.flow.json` glob** was
+   noticed by **nothing** — the only bound was *"the corpus is not empty"* and `check-spec`'s `C4`
+   never opens a file — and is now closed by a **set equality both ways** against
+   `spec/flow-definition.md` section 7's own table. **That equality had a live case the day it was
+   written**: `nested-fanout.flow.json` was added by
+   [W20](work-items/w20-what-a-nested-region-is.md) and never documented, so the spec's own example
+   index was stale by one **for a whole plan** with every check green. A **rule present, correct and
+   unreachable** was caught twice. And **a whole `*.test.ts` file renamed out of the runner's glob —
+   26 cases — is noticed by NOTHING**, at exit 0 with no line printed:
+   [Q158](open-questions.md), in `test/runner.ts` and `scripts/**`, which are in nobody's `Owns`.
+
+   **Rule 8: 31 provocations, 28 caught, 0 survived, 0 aborted, 3 read by hand**, graded on the
+   **failure lines** rather than the exit code. **One real survivor was found and closed**:
+   `opensWith` read from `branches.length === 1` instead of from the opener's kind survives the
+   whole suite, because `FD-V9`'s floor means the two sources agree on every VALID document — closed
+   by constructing the discriminating input, an **invalid** one-branch `fanout`, which `regionSets`
+   is handed anyway. **Three things W32 wrote down were wrong and its own set caught each**: two L1
+   fixtures made a CYCLE, so `FD-V10` fired and the whole region family was skipped (both now assert
+   `!FD-V10` explicitly); the expected set named **`C4`**, which *"never opens the file"* by
+   `spec/README.md`'s own bold sentence; and the census caught [Q156](open-questions.md)'s status
+   cell reading `open - deferred by W32`, which a classifier reads as **deferred** — one row across
+   two columns whose totals still summed, with **no abort**.
+
+   **[Q142](open-questions.md) was predicted NOT to fire and did not**, with the three counts taken
+   **before** any file was added — whole tree 72 / 2212 / 108, `doc/decisions` removed **56**, both
+   removed **45 / 1565** against floors of 64 / 1720 / 60. W32's only new markdown document is the
+   ADR, which lives in the directory both `removes` probes cut. **No exception on
+   `scripts/check-markdown.mjs` was needed**; the tree is now **73 / 2289 / 115**.
+
+   **`Owns` audit: 20 paths, ZERO undeclared, TWO late exceptions**, both predicted or measured
+   before they fired rather than discovered at the join. `index.ts` re-exports `src/definition/regions.ts` with `export *`, so
+   `UnresolvedBranchPath` reached the package root without W32 touching `index.ts`, and section 9's
+   executed snippet went red at `X4` ([Q101](open-questions.md)) — the check working exactly as its
+   own paragraph says it should. The edit is the minimum that is not a lie, because **no `Driver`
+   dispatches a map yet**. **[Q157](open-questions.md)** is the gap behind it: **no P10 item owns
+   `AGENTS.md`**, so the plan as declared ships a node kind the consumer reference never describes.
+
+   **And the item's own Record contained a number measured BEFORE the change it described, which is
+   how the sharpest defect was found.** The L1 row read *"506 on chromium"* from a run made before
+   the corpus equality existed. `npm run test:browser:all` then reported **0 file(s), 1 assertion**
+   and `PARITY FAIL` in **all three** browsers: the bundle inlines only `spec/examples/` JSON, suites
+   read their fixtures at **module scope**, and a `readText` throw while the bundle is LOADING takes
+   **all twenty suites** with it — reported as *"the suite never reported"*, naming no file.
+   **L1 was green in node and deno and broken in all three browsers**, which is section 4's *"a rung
+   reported green without saying which runtimes it ran in is a rung that ran in one"* catching it.
+   Fixed by inlining the one document (the second late exception), and provoked: the probe restores
+   `0 / 1` and prints `PAGE ERROR … fixture not inlined in the browser bundle`. **This is section 1
+   rule 5's provenance clause — *any copy, including your own* — inside a Record written to describe
+   an item's own gate**, which is [W23](work-items/w23-a-nested-flow-on-real-workers.md)'s exact
+   failure one plan later. **`npm run gate` is `GATE EXIT=0`, zero FAIL lines, 19 chain entries,
+   6m21**, with L6 unmoved at **489 assertions / 25 real runs** in node and deno.
+
+   **BOTH READERS HAVE RUN: conformity 12 findings / 6 blocking, adequacy 11 survivors of 29
+   mutations / 5 blocking, OVERLAP 2** — the fifteenth measurement and inside the settled 0-4 band.
+   **Neither was primed**, unlike W31's pair, so it is comparable with the thirteen before it. Their
+   two shared subjects were reached from opposite ends: the `branch: 5` guard (attribution vs
+   coverage) and **a `map` as the `entry` node** (re-deriving the spec sentence vs mutating `FD-V3`
+   and finding nothing failed).
+
+   **The sharpest finding is aimed at the thing W32 was proudest of.** The check built to close the
+   corpus wiring hole **could be made vacuous by one source-expression swap**: re-source
+   `documentedValid` from the spec parse to the disk listing and both set differences are empty by
+   construction, with the author's own `e2` probe passing again underneath it. **The comment above
+   the guard named that exact failure and then guarded it with a bound the disk listing satisfies** —
+   the author reasoned from the mechanism to a conclusion about what could not be bound, and all four
+   of W32's provenance probes were in `regions.ts` rather than in the check it had just written.
+   Closed with a discriminator the directory cannot produce: section 7's rows carry a second cell
+   saying what each flow *shows*.
+
+   **And the conformity reader found a defect W32 had CREATED in the driver.** `enter()`'s switch had
+   four arms, no `map` arm and **no `default`** — and `node.kind` is a union TypeScript does not
+   require a switch to exhaust, so `npm run typecheck` was green. **W32 is what made a `map`
+   definition valid**, so a valid document routed into a map node and the driver did nothing: the run
+   dispatched one task of six and folded to **`completed`**, which is character for character the
+   false statement [ADR 0015](decisions/0015-a-run-whose-join-can-no-longer-fire-is-stuck.md) exists
+   to remove, and the silent stop `spec/flow-definition.md` section 3 refuses **by name**.
+   Reproduced independently before acting on it, and closed by a **`default`** arm — the hole is the
+   missing exhaustiveness, not the missing kind — reporting through `OR-R10` with an **existing**
+   error class, so [P10](plans/p10-is-fan-out-one-feature-or-two.md) decision 4's *"no new error
+   class"* holds. W33 replaces it.
+
+   **Five other things W32 had written were false and the conformity reader named each**: section 4's
+   `reaches(X)` row omits a map's arc **and enumerates arc shapes exhaustively**, so a validator
+   written from it reports three `FD-V11` findings against a valid example; `FD-V23` refuses a map
+   missing `over` and no rule text licensed it, making *"four rules widened"* **five**;
+   `spec/task-id.md` section 3's `ID-R1` soundness argument is a closed argument from three
+   **validator** rules and a map region has no `FD-V19` instance, so uniqueness now rests on the RUN;
+   `spec/join-policy.md` section 1 says a branch's index in `branches` **is** its `branchPath`
+   segment, which `toRegion` makes false for a map region today; and `AGENTS.md` §3 said *"Four node
+   kinds"*, had no `map` row, and said *"22 refusals"* while `spec/README.md` said 23 **in the same
+   change**. All corrected in place, two of them under late exceptions.
+
+   **`Owns` audit: 23 paths, ZERO undeclared, FIVE late exceptions** — `AGENTS.md`,
+   `scripts/build-browser-tests.mjs`, `src/driver/driver.ts`, `spec/join-policy.md` and
+   `test/driver/driver.test.ts`. **Not one was found by reading**; two by running a check and three by
+   the conformity reader. Five is P7's W20 number from the opposite cause — W20's came from a block
+   that gave it nowhere to work — and **it is an argument that W32's `Owns` was drawn one layer too
+   narrow for what a new node kind reaches**, which is P10's retro's to judge.
+
+   **Rule 8 ran TWICE: 32/29 before the readers, 42 provocations / 39 caught / 0 survived / 0 aborted
+   after**, with **eleven of the readers' own edits checked back in** and all eleven firing. **The
+   re-run earned its place**: the fix for one reader's finding **masked another guard**. With
+   `branchPathOf`'s `ID-R6` arm made unreachable, `branchIndexOf` — which that fix had just taught to
+   refuse — fires in its place with the same class, the same `ID-R6` citation and the same map name,
+   so three assertions passed **by the wrong route**. That is
+   [W29](work-items/w29-the-two-self-tests-that-grade-nothing.md)'s `D5` masking shape produced inside
+   this item by acting on a review, and **finding a phrase that actually discriminates took three
+   attempts** — `ID-R6`, `split` and even `item index` all appear in both messages, because the new
+   refusal helpfully says *"use `branchPathOf` with an item index"*. **A helpful error message is a
+   worse discriminator than a terse one.**
+
+   **The census is CONFIRMED for the FIFTH plan running — 118 questions, 81 open, 2 deferred, 35
+   resolved**, both halves at 118 of 118 in exactly one cluster cell. Q156-Q159 are all used;
+   **Q12 moves to resolved**. The parser handled `Q87` a **third** way: W31 hit that row from both
+   sides and settled *the width check belongs only on a row that both opens AND closes*; this parser
+   applies that and then **joins forward**, reconstructing the logical row from four source lines.
+   **A row that has not closed yet is not a malformed row, and aborting on it is the same
+   misclassification in the opposite direction.**
+
+
 ## Reading order
 
 | | |

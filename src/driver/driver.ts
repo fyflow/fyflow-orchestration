@@ -784,6 +784,56 @@ export class Driver {
         if (region && fromBranch !== '-') this.settleJoin(runId, region);
         return;
       }
+
+      // **A node kind this driver cannot execute REFUSES rather than returning.**
+      // Added by [W32](../../doc/work-items/w32-what-a-map-fanout-is.md) as a
+      // declared late exception, after its conformity reader measured what the
+      // absence cost.
+      //
+      // Until v0.8 there were four kinds and four arms, so falling off the end was
+      // unreachable and nothing said so. `spec/flow-definition.md` v0.8 adds a
+      // fifth — `map` — and W32 made such a definition VALID while the driver that
+      // executes it is [W33](../../doc/work-items/w33-a-map-at-run-time-arity.md)'s.
+      // With no arm and no `default`, `enter` returned having done nothing: no
+      // dispatch, no `branch.opened`, no `pathEnded`, no `RunFailure`. **Measured**:
+      // `spec/examples/valid/map-fanout.flow.json` dispatched its entry task and
+      // stopped, and the run folded to **`completed`** — which is character for
+      // character the false statement
+      // [ADR 0015](../../doc/decisions/0015-a-run-whose-join-can-no-longer-fire-is-stuck.md)
+      // exists to remove, and the silent stop `spec/flow-definition.md` section 3
+      // refuses BY NAME on P1's own validity grounds.
+      //
+      // **A `default` rather than a `map` arm, deliberately.** The defect is the
+      // missing exhaustiveness, not the missing kind: `node.kind` is a union and
+      // TypeScript does not require the switch to be total, so a sixth kind would
+      // land here the same way. `never` is what makes that a COMPILE error for any
+      // kind the union knows about, so this arm is only reachable for a kind the
+      // types do not cover — which is exactly `map` today, and nothing tomorrow.
+      //
+      // **Reported, not thrown, and with an EXISTING class.** `enter` is reached
+      // from the scheduler listener, so `OR-R10` says report; and
+      // [P10](../../doc/plans/p10-is-fan-out-one-feature-or-two.md)'s *"decisions
+      // taken before fan-out"* rule 4 says this plan declares **no new error
+      // class**, because every candidate for one is a measurement W33 has not taken
+      // yet. `InvalidDefinition` is the honest existing one: the document names a
+      // node this driver cannot execute.
+      //
+      // **W33 replaces this with the real arm.** When it does, this becomes
+      // unreachable again — and `never` will say so at compile time rather than in
+      // silence, which is the difference this arm is for.
+      default: {
+        const kind = (node as { kind?: unknown }).kind;
+        this.failRun(
+          new InvalidDefinition(
+            [],
+            `definition "${this.def.flowId}" routes into node "${nodeId}", whose kind ` +
+              `${JSON.stringify(kind)} this driver cannot execute. A definition the validator ` +
+              'accepts and the driver cannot run is a silent stop, which ' +
+              'spec/flow-definition.md section 3 refuses by name.',
+          ),
+        );
+        return;
+      }
     }
   }
 

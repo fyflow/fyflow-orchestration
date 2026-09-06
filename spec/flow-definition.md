@@ -1,6 +1,6 @@
 # spec/flow-definition — the flow definition format
 
-**Status:** v0.7 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.8 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2** acted on the first spec-conformity pass
 (ADR 0004, and `region(F)` made computable). **v0.3** acted on the second, which found that `FD-V19`
 had reintroduced the v0.1 defect class under a new id — a refusal rule rejecting the valid corpus.
@@ -14,6 +14,22 @@ from a listener, which is discarded.
 and *"a non-`end` node is in at most one region"* stops being true. **Measured before the rule was
 written**: with `FD-V15` set aside, the nested example produced **no other finding** — `FD-V13`,
 `FD-V19` and `FD-V22` all accept it, so this is a lift rather than a redesign.
+**v0.8 adds a FIFTH node kind, `map`** ([W32](../doc/work-items/w32-what-a-map-fanout-is.md) under
+[P10](../doc/plans/p10-is-fan-out-one-feature-or-two.md)), answering
+[Q12](../doc/open-questions.md) by
+[ADR 0036](../doc/decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md):
+**fan-out is two features over one region.** A `fanout` declares N branches known at authoring time;
+a `map` declares **one** branch and a run opens N instances of it, N being known only at run time.
+**Measured before the rule was written**, as v0.7 was: with `FD-V9`'s floor set aside a
+**one-subgraph region** produces **no other finding** — `FD-V12`, `FD-V13`, `FD-V20` and `FD-V22`
+all accept it — so the region maths is a lift rather than a redesign, and what changes is the
+fan-out. **`FD-V9` is unchanged and `FD-V19` is unchanged**; `FD-V25` is the map's own rule, and
+**five** rules had their text widened to name the new kind — `FD-V2`, `FD-V6`, `FD-V12`, `FD-V24`
+and **`FD-V23`**. *(This read **four** and omitted `FD-V23`, whose enumeration names every kind and
+so is the one rule of its family that cannot be widened by implication. The validator refused a `map`
+missing `over` and a test pinned the refusal, with no rule text licensing either — `spec/README.md`
+rule 4's inverse. W32's conformity reader. `FD-V17` and `FD-V21` also gained map behaviour and
+genuinely needed no change, because both are stated generically.)*
 **Binds:** [ADR 0002](../doc/decisions/0002-a-flow-definition-is-data-and-a-predicate-is-registered-by-name.md)
 (the graph is data; a predicate is a name; an unknown name fails at instantiation) and
 [ADR 0004](../doc/decisions/0004-a-non-success-outcome-routes-only-where-an-edge-opts-in-and-user-action-suspends.md)
@@ -45,19 +61,20 @@ instances — anything that does not survive `JSON.parse(JSON.stringify(x))` is 
 
 ## 2. Node kinds
 
-Four. There is **no `decision` node kind** — a decision is a property of an edge, which is
+Five. There is **no `decision` node kind** — a decision is a property of an edge, which is
 ADR 0002 rule 2 taken literally (`when: "isLowConfidence"`).
 
 | kind | keys | |
 |---|---|---|
 | `task` | `id`, `kind`, `workerType`, `edges`, **`optional?`** | binds to a scheduler worker pool. Dispatched as one scheduler task |
-| `fanout` | `id`, `kind`, `branches` | opens a region. Dispatches nothing itself |
-| `join` | `id`, `kind`, `of`, `edges` | closes the region opened by the `fanout` named in `of`. Dispatches nothing itself |
+| `fanout` | `id`, `kind`, `branches` | opens a region with **N branches declared here**. Dispatches nothing itself |
+| `map` | `id`, `kind`, `over`, `branch` | opens a region with **one branch, opened N times at run time**. Dispatches nothing itself. v0.8 |
+| `join` | `id`, `kind`, `of`, `edges` | closes the region opened by the `fanout` **or `map`** named in `of`. Dispatches nothing itself |
 | `end` | `id`, `kind`, `outcome` | terminates one path. No edges |
 
 **Only a `task` node is ever dispatched**, and therefore only a `task` node has a task id
-([spec/task-id.md](task-id.md)), produces an outcome record, or can suspend. `fanout`, `join` and
-`end` are structural: a run passes through them within a single driver turn. **This is why `end`
+([spec/task-id.md](task-id.md)), produces an outcome record, or can suspend. `fanout`, `map`, `join`
+and `end` are structural: a run passes through them within a single driver turn. **This is why `end`
 nodes are exempt from `FD-V13`, `FD-V19` and `FD-V22`** — sharing one between two paths creates no
 ambiguity about anything, because nothing about it is per-path.
 
@@ -90,6 +107,40 @@ the correction the second conformity pass forced:
 So `optional` decides *who* decides, not *whether an `on: ["failed"]` edge is reachable*. An earlier
 version of this document said `optional: true` was the only way such an edge could fire; that was
 exactly inverted for the resolution road, which only non-optional nodes can take.
+
+### `map` — a region whose arity is not in the document — v0.8
+
+```json
+{ "id": "split", "kind": "map", "over": "items", "branch": "score" }
+```
+
+| key | | |
+|---|---|---|
+| `over` | required | a **key** on the value this node receives, matching `^[A-Za-z0-9_-]{1,64}$` — `FD-V16`'s charset (`FD-V25`) |
+| `branch` | required | **one** node id, whose kind is a `task` (`FD-V25`). Not a list |
+
+**`over` is a declared reference, never a callback.**
+[ADR 0002](../doc/decisions/0002-a-flow-definition-is-data-and-a-predicate-is-registered-by-name.md)
+rule 1 binds the whole document: anything that does not survive `JSON.parse(JSON.stringify(x))` is
+not a definition, so *"how many items"* is a name the driver resolves and never a function the
+author supplies.
+
+**What `over` is a key ON is deliberately not settled here.** It is the value the driver hands the
+map node — today the previous node's output unchanged, which is measured rather than specified;
+**what a node receives is [Q11](../doc/open-questions.md) and belongs to
+[W34](../doc/work-items/w34-what-a-branch-receives-and-what-a-join-carries.md)**. This rule is
+stated against whatever that resolves to, and nothing here depends on which of Q11's three
+candidates wins. A `map` may be the `entry` node, and then the value is the run's start payload;
+that needs no rule, because `FD-V3` refuses only a `join` or an `end`.
+
+**What happens when `over` names a key that is absent, or holds something that is not an array, is
+a RUN-TIME question and no rule id is reserved for it here.** It is
+[W33](../doc/work-items/w33-a-map-at-run-time-arity.md)'s, and P10's *"decisions taken before
+fan-out"* rule 4 is why: *"this plan declares no policy refusal, no construction check and no new
+error class, because every candidate for one is a measurement W33 has not taken yet."*
+
+**A `map` node has no `edges`** (`FD-V25`), exactly as a `fanout` has none (`FD-V9`): its one arc is
+`branch`, and the region's exit is the join.
 
 ## 3. Edges, decisions, and which outcomes route
 
@@ -173,18 +224,35 @@ on the plan's own validity grounds rather than on taste.
 **The pairing is declared once, on the join.** A `fanout` does not name its join; the join names its
 fanout. One direction cannot disagree with itself.
 
+**Since v0.8 a region is opened by a `fanout` OR a `map`, and everything in this section is written
+about both.** Where a rule below says *"a fanout `F`"* it means whichever kind opened the region;
+the four sets, `innermost(n)`, `FD-V13`, `FD-V20` and `FD-V22` never mention branch **count** and so
+needed no change. **The two places that do mention it are `FD-V9`, which stays a rule about `fanout`
+alone, and `FD-V19`, which has no instance inside a map region** — see *"What a map changes, and
+what it does not"* below.
+
 > **"Edge" means two things in this document and the difference matters in section 5.** An *edge* is
-> an entry in a node's `edges` array. A `fanout` has no `edges` (`FD-V9`); its arcs to its branch
-> entries are `branches[]`. Where a rule says *"has an edge to X"* it means either — any arc in the
-> graph, as `reaches` follows them — and where it says *"an edge object"* it means only the first.
+> an entry in a node's `edges` array. A `fanout` has no `edges` (`FD-V9`) and its arcs to its branch
+> entries are `branches[]`; **a `map` has none either (`FD-V25`) and its one arc is `branch`** — so
+> there are **three** arc shapes and only one of them is an edge object. Where a rule says *"has an
+> edge to X"* it means any of the three — any arc in the graph, as `reaches` follows them — and where
+> it says *"an edge object"* it means only the first.
+>
+> **v0.8 added the third and this note is where it is stated.** The `reaches(X)` row below enumerates
+> arc shapes exhaustively, so a validator written from it before this correction reported three
+> `FD-V11` findings against `map-fanout.flow.json` — a **valid** example. That is section 4's own
+> twice-earned warning reached from the other direction: not a refusal written against the wrong set,
+> but the set itself no longer computing. `src/definition/regions.ts`'s `succ` had the third arc from
+> the day the kind shipped; this table did not.
 
 ### The four sets, stated so a validator can compute them
 
-For a fanout `F` with join `J` and branch entries `b₁ … bₙ`:
+For a region opener `F` — a `fanout` or a `map` — with join `J` and branch entries `b₁ … bₙ`
+(**a `map` has exactly one, its `branch`**):
 
 | | |
 |---|---|
-| **`reaches(X)`** | nodes reachable from `X` by following `edges[].to` and, for a `fanout`, `branches[]`. **Irreflexive** — `X ∈ reaches(X)` only if a path returns to `X`, and `FD-V10` forbids cycles, so it never does |
+| **`reaches(X)`** | nodes reachable from `X` by following `edges[].to`, for a `fanout` its `branches[]`, and **for a `map` its `branch`** — three arc shapes, and the list is exhaustive. **Irreflexive** — `X ∈ reaches(X)` only if a path returns to `X`, and `FD-V10` forbids cycles, so it never does |
 | **`branchOf(F, bᵢ)`** | `{bᵢ}` together with everything reachable from `bᵢ` with **every path cut at `J`** — traversal stops on arrival at `J`, and `J` is not a member |
 | **`region(F)`** | the union of `branchOf(F, bᵢ)` over every branch entry. **`J` is not a member** |
 | **`after(F)`** | `reaches(J)`. `J` is not a member of that either |
@@ -260,6 +328,60 @@ carries the same obligation. At depth 2 the honest answer to *"which branch is t
 this document's; the rule here is only that the index it returns is the **innermost** region's and
 not whichever region was declared first.
 
+### What a map changes, and what it does not — v0.8
+
+[ADR 0036](../doc/decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md).
+**Everything above is about a region. A map is a different fan-out over the same region**, so this
+subsection is short by construction, and every claim in it was measured before it was written.
+
+**What does not change.**
+
+1. **The four sets.** `reaches`, `branchOf`, `region(F)` and `after(F)` are computed for a map's one
+   branch exactly as for a fanout's N. `region(M)` is `branchOf(M, branch)`; `J` is a member of
+   neither it nor `after(M)`.
+2. **`FD-V12`, `FD-V13`, `FD-V20` and `FD-V22`.** None mentions a branch count. With `FD-V9`'s floor
+   set aside, a one-subgraph region produces **no finding from any of them** — measured, and it is
+   the same measurement v0.7 took before retiring `FD-V15`.
+3. **`innermost(n)`, and its three stated properties.** A map region is a region; a node inside a
+   map nested in a `fanout` resolves to the map, and the walk outward is unchanged. Measured on
+   `map-in-fanout.flow.json`: `perItem` → `"1"`, and `merge` → `"1.0"` **when an item index of 0 is
+   supplied for `perItem`**. *(This cell read *"`inner` → `1`, the mapped node → `1.0`"* — wrong
+   twice. There is no node called `inner` in that fixture, which is `nested-fanout.flow.json`'s
+   inner **fanout**; and `branchPathOf(regions, 'merge')` **throws** with no index, so the value
+   quoted was the behaviour before `ID-R6` existed, presented in the present tense under a heading
+   reading *"What does not change"*. W32's conformity reader.)*
+4. **`FD-V9`.** It is a rule about `fanout` and it keeps every clause and its present scope. Its
+   arity floor is a statement about the **document**, and a map's arity is not in the document, so
+   there is nothing for the floor to bind. **A map of one item and a map of zero items are ordinary
+   runs of a valid definition**, not defects a validator could have seen.
+5. **`FD-V19`, and therefore [Q27](../doc/open-questions.md).** Its condition is *a non-`end` node in
+   the `branchOf` sets of **two distinct** branch entries of the same fanout*. A map declares one
+   branch, so the condition has **no instance** — measured as `0` pairs iterated, against
+   `n(n-1)/2` for a fanout of `n`. **A map does not lift the refusal, weaken it, or reach it.**
+
+**What changes, and it is one sentence.**
+
+> **Inside a `fanout` region a branch index is a property of the NODE. Inside a `map` region it is a
+> property of the DISPATCH.**
+
+`branchIndexOf` and `branchPathOf` derive from the graph and take no run-time input, so for a node
+inside a map region they have no answer — and the answer they would otherwise give is the same one
+for every dispatch. **Measured before the rule was written**: for a map region over `x → y`,
+`branchPathOf` returns `"0"` for `x` **and** `"0"` for `y`, so three dispatches mint one distinct id
+of three and the second is a `DuplicateTaskId` at `ID-R1`.
+
+**So the derivation refuses rather than guessing**, which is `ID-R6` in
+[spec/task-id.md](task-id.md) section 3. `branchPathOf` takes an optional item index **per region**;
+asked for a path that crosses a map region with none supplied for it, it refuses and names the node
+and the map. A refusal that names the missing index is the same failure as `ID-R1`'s duplicate with
+the right diagnosis instead of the symptom.
+
+**How many dispatches a map opens, in what order, and what each receives are NOT this document's**
+— they are [W33](../doc/work-items/w33-a-map-at-run-time-arity.md)'s and
+[W34](../doc/work-items/w34-what-a-branch-receives-and-what-a-join-carries.md)'s. This section fixes
+only that the index exists, that it is not derivable from the graph, and that asking for it without
+supplying it is refused.
+
 `region(F)` is computed at instantiation and is what a join policy is given
 ([spec/join-policy.md](join-policy.md) section 1). Region membership must be *computable*, which is
 why the pairing is declared rather than inferred: without it there is no statement of what a branch
@@ -269,6 +391,13 @@ was supposed to arrive at, and **"routed away from the join" is not even well de
 document. A count is derivable from `branches.length`, and one policy derives it — but writing it
 into the format would make arrival-counting the format's answer to
 [Q4](../doc/open-questions.md) before W4 has run.
+
+**A `map`'s `over` is not a count and does not weaken that** — v0.8. It is a **key name**, so what
+the document declares is *where the arity will be found*, not what it is; nothing in the definition
+says how many items there are, and nothing can, which is the whole of why a map's arity is a
+run-time fact. A policy that wanted `N` for a map region would have to be told by the run rather
+than read it here, and whether any policy should be is
+[W33](../doc/work-items/w33-a-map-at-run-time-arity.md)'s.
 
 ### What the region rules are each protecting
 
@@ -318,9 +447,12 @@ is the **all-paths** form, not the *can-reach* form:
 
 The weaker property that *is* true — every path from a branch entry terminates at an `end`, whether
 or not it passes through the join — is **derived, not asserted**: `FD-V10` forbids cycles, `FD-V7`
-and `FD-V8` mean `end` is the only kind of node without an outgoing edge, and `FD-V9` guarantees a
-`fanout` has successors. Nothing else is possible, so there is no rule to state and no example that
-could violate one.
+and `FD-V8` mean `end` is the only kind of node without an outgoing edge, `FD-V9` guarantees a
+`fanout` has successors, and — **v0.8** — `FD-V23`, `FD-V2` and `FD-V25` together guarantee a `map`
+has exactly one, since `branch` is required, must name a node that exists, and must name a `task`.
+Nothing else is possible, so there is no rule to state and no example that could violate one.
+*(The derivation named four rules and covered four kinds until v0.8 added a fifth. The conclusion was
+never wrong; the argument had stopped covering the document.)*
 
 ## 5. Validation refusals
 
@@ -331,17 +463,17 @@ C4 fails if one is missing.
 | id | The definition is rejected when |
 |---|---|
 | `FD-V1` | two nodes share an `id` |
-| `FD-V2` | an edge's `to`, a `join`'s `of`, or a `fanout`'s `branches` entry names a node that does not exist |
+| `FD-V2` | an edge's `to`, a `join`'s `of`, a `fanout`'s `branches` entry, or a `map`'s `branch` names a node that does not exist |
 | `FD-V3` | `entry` names a node that does not exist, or names a `join` or an `end` |
 | `FD-V4` | an edge's `when` names a predicate absent from the registry |
 | `FD-V5` | a `task`'s `workerType` is not a key in the scheduler's `workerPools` |
-| `FD-V6` | a `join`'s `of` does not name a `fanout`, or a `fanout` has zero or more than one `join` naming it |
+| `FD-V6` | a `join`'s `of` does not name a `fanout` **or a `map`**, or a `fanout` **or a `map`** has zero or more than one `join` naming it |
 | `FD-V7` | a `task` node has no `edges`; or no edge of a `task` node is eligible for `done`; or, for some terminal state any of its edges opts into, the eligible edges for that state contain no edge lacking `when`, contain more than one, or the one lacking `when` is not last among them. **A `join` node** is rejected unless it has exactly one edge, carrying neither `when` nor `on` |
 | `FD-V8` | an `end` node has `edges`, or its `outcome` is absent or empty |
 | `FD-V9` | a `fanout` has fewer than two `branches`, has a repeated branch entry, has `edges`, or names a branch entry whose kind is not `task` |
 | `FD-V10` | the graph contains a cycle |
 | `FD-V11` | a node is not reachable from `entry` |
-| `FD-V12` | a `fanout`'s branch entry is its own `join` |
+| `FD-V12` | a `fanout`'s branch entry, **or a `map`'s `branch`**, is its own `join` |
 | `FD-V13` | a node whose kind is not `end` is in **both** `region(F)` and `after(F)` — a branch re-entering the path the join feeds |
 | `FD-V14` | **deliberately absent.** The id is held so the gap is not read as a lost rule — see section 4 |
 | `FD-V15` | **Nothing. Retired at v0.7, and the id is now deliberately absent** — a held id with no rule behind it, so a gap in the sequence is not read as a rule someone lost. It refused a `fanout` inside another fanout's region; nested fan-out is expressible since [W20](../doc/work-items/w20-what-a-nested-region-is.md), and the id is **retired rather than reused**. Whether a *policy* can serve a nested region is a different question with a different home — `spec/join-policy.md`, because `validateDefinition` is not given the policy |
@@ -351,9 +483,10 @@ C4 fails if one is missing.
 | `FD-V19` | a node whose kind is not `end` belongs to `branchOf(F, bᵢ)` for **two distinct** branch entries of the same `fanout`. Convergent branches make `branchPath` a property of the traversal rather than of the node, and P1 refuses them ([Q27](../doc/open-questions.md)) |
 | `FD-V20` | a node outside `region(F)` has an edge to `F`'s join |
 | `FD-V21` | a declared key holds a value of the wrong type **or outside its declared range** — `optional` not a boolean, `edges` not an array, `outcome` not a string, `version` not an integer or below 1, and so on |
-| `FD-V22` | a node in `region(F)` whose kind is not `end` has an incoming edge from a node that is neither in `region(F)` nor `F` itself. **The only way into a region is through its fanout** |
-| `FD-V23` | a **required key is absent** — a node without `id` or `kind`; a `task` without `workerType` or `edges`; a `fanout` without `branches`; a `join` without `of` or `edges`; an `end` without `outcome`; an edge without `to`; or the document without `flowId`, `version`, `entry` or `nodes`. **`version` is required**, matching section 1 — an omitted version is one that silently means nothing |
-| `FD-V24` | a node's `kind` is not one of `task`, `fanout`, `join`, `end`. **`kind: "decision"` is the case this exists for** — section 2 warns the author away from that word, and until v0.4 nothing rejected it |
+| `FD-V22` | a node in `region(F)` whose kind is not `end` has an incoming edge from a node that is neither in `region(F)` nor `F` itself. **The only way into a region is through the node that OPENED it** — its `fanout` or, since v0.8, its `map`. Section 4's *"where a rule says a fanout `F` it means whichever kind opened the region"* is scoped to that section, so this rider says it in the section where the rule lives |
+| `FD-V23` | a **required key is absent** — a node without `id` or `kind`; a `task` without `workerType` or `edges`; a `fanout` without `branches`; **a `map` without `over` or `branch`**; a `join` without `of` or `edges`; an `end` without `outcome`; an edge without `to`; or the document without `flowId`, `version`, `entry` or `nodes`. **`version` is required**, matching section 1 — an omitted version is one that silently means nothing |
+| `FD-V24` | a node's `kind` is not one of `task`, `fanout`, **`map`**, `join`, `end`. **`kind: "decision"` is the case this exists for** — section 2 warns the author away from that word, and until v0.4 nothing rejected it |
+| `FD-V25` | a `map` has `edges`; its `branch` names a node whose kind is not `task`; or its `over` is not a string matching `^[A-Za-z0-9_-]{1,64}$`. **The map's own rule, and `FD-V9` is unchanged** — each is about one node kind, because a rule about two kinds is the confusion [ADR 0036](../doc/decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md) exists to remove. A map declares ONE branch, so `FD-V9`'s arity floor and repeated-entry clause have nothing to say about it and are not restated here |
 
 **`FD-V19`'s second clause is derived rather than stated.** *"One branch entry is reachable from
 another"* needs no rule of its own: `FD-V9` requires every branch entry to be a `task`, and a branch
@@ -442,6 +575,21 @@ instantiation, and instantiation is a driver action. Hand-written, never generat
 | `p1-routed-away.flow.json` | **P1's case** — a decision inside a branch that leaves for an `end` |
 | `failure-edge.flow.json` | `optional: true` with an `on: ["failed"]` edge, outside any region |
 | `fanout-failure.flow.json` | **ADR 0004 inside a region** — one optional branch with a failure edge, one non-optional branch that can suspend. The shapes `branch.lost` and `branch.suspended` are defined against |
+| `nested-fanout.flow.json` | **[ADR 0030](../doc/decisions/0030-a-join-is-transitive-and-a-dead-join-ends-the-branch-it-sits-in.md)'s shape** — a fan-out inside a fan-out's branch, expressible since `FD-V15` was retired at v0.7. **This row was MISSING from v0.7 until v0.8 added it**: [W20](../doc/work-items/w20-what-a-nested-region-is.md) added the file and nothing obliged it to document it, so this table was stale by one for a whole plan. `test/definition/l4-corpus.test.ts` now compares the directory and this table **both ways**, which is what found it |
+| `map-fanout.flow.json` | **a `map`** — v0.8, one branch entry and an arity that is not in the document |
+| `map-in-fanout.flow.json` | **a map region nested inside a static one** — the shape that shows the outer `branchPath` prefix is still derived while only the map's own segment is supplied at run time |
+
+**This table and the directory are compared BOTH WAYS, and that is v0.8's addition rather than a
+restatement.** `test/definition/l4-corpus.test.ts` asserts the set of `.flow.json` files in
+`spec/examples/valid/` equals the set of filenames in this table — **equality, not a floor**, for
+`S12`'s reason in `scripts/check-source.mjs`: a floor answers *are there at least N* and goes stale
+in the direction of weakness ([Q102](../doc/open-questions.md)), while an equality fails both when a
+file is added without a row and when a row names a file that is gone. **It had a live case the day it
+was written**: `nested-fanout.flow.json` had been in the directory and out of this table since
+[W20](../doc/work-items/w20-what-a-nested-region-is.md), one plan earlier. It also closes a
+**wiring** hole — a corpus flow renamed out of the `.flow.json` glob was previously noticed by
+nothing at all, because the only bound was *"the corpus is not empty"*
+(`doc/workflow.md` section 5 rule 8 obligation (e)).
 
 **`spec/examples/registry.json` is the registry L4 validates against**, and it is part of the
 corpus rather than a fixture W3 invents: `FD-V4` and `FD-V5` are refusals *about a registry*, so

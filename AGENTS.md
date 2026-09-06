@@ -123,8 +123,20 @@ driver that dispatched it. See section 9.
 
 ## 3. The flow definition
 
-Four node kinds. A definition is JSON: no functions, so it can be stored, versioned and sent over a
-wire.
+**Five** node kinds. A definition is JSON: no functions, so it can be stored, versioned and sent over
+a wire.
+
+> **`map` is the fifth and NOTHING DISPATCHES ONE YET.** It is a valid definition since
+> `spec/flow-definition.md` v0.8 —
+> [ADR 0036](doc/decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md),
+> answering [Q12](doc/open-questions.md): a `fanout` declares N branches known at authoring time, a
+> `map` declares **one** and a run opens N instances of it. The `Driver` that executes one is
+> [W33](doc/work-items/w33-a-map-at-run-time-arity.md); until it lands, routing into a `map` node
+> **stops the run** with an `InvalidDefinition` naming the node, rather than doing nothing. **This
+> section describes the feature when there is a feature to describe** — the row below and the count
+> are here so the reference is not false in the meantime, which is
+> [Q157](doc/open-questions.md)'s subject: no [P10](doc/plans/p10-is-fan-out-one-feature-or-two.md)
+> item owns this file.
 
 ```ts run
 import { validateDefinition, type FlowDefinition } from 'fyflow-orchestration';
@@ -161,6 +173,7 @@ if (bad.length) throw new Error(`section 3's own example is invalid: ${bad.map((
 |---|---|---|
 | `task` | runs a worker of `workerType`. Has `edges` | it has no `edges`, or **no edge of it is eligible for `done`** (`FD-V7`) |
 | `fanout` | `branches: string[]` — the node each branch starts at. Dispatches nothing itself | fewer than two branches, a repeated entry, any `edges` at all, or a branch entry that is not a `task` (`FD-V9`) |
+| `map` | `over: '<key>'` and `branch: '<node id>'` — **one** branch, opened once per item at run time. Dispatches nothing itself. **No driver opens one yet** | any `edges` at all, a `branch` that is not a `task`, or an `over` outside `^[A-Za-z0-9_-]{1,64}$` (`FD-V25`); a missing `over` or `branch` (`FD-V23`) |
 | `join` | `of: '<fanout id>'`. Fires when its policy says so | it does not have **exactly one** edge, or that edge carries `when` or `on` (`FD-V7`) |
 | `end` | terminal. `outcome` is **your label**, never interpreted | — |
 
@@ -193,7 +206,7 @@ if (!rules.includes('FD-V2') || !rules.includes('FD-V5')) {
 }
 ```
 
-There are **22 refusals** over the id range `FD-V1` … `FD-V24`, each with a failing example in
+There are **23 refusals** over the id range `FD-V1` … `FD-V25`, each with a failing example in
 `spec/examples/invalid/`. Two ids in that range are **deliberately absent** and have no rule behind
 them: `FD-V14`, which never existed, and **`FD-V15`, retired when nested fan-out became
 expressible**. The ids are never renumbered, so it is safe to assert on them. The full
@@ -739,6 +752,18 @@ void withReporting;
 quoted in prose, so renaming one in `src/` fails this gate instead of silently falsifying the
 paragraphs above.
 
+**`UnresolvedBranchPath` is the tenth class, and it belongs to a feature nothing dispatches yet.**
+It is `ID-R6` — `branchPathOf` was asked for the path of a node inside a **`map`** region without the
+item index that region's branch is indexed by, and refused rather than guessing, because guessing
+mints one task id for every dispatch and the run then dies at `ID-R1` naming a duplicate. **A `map`
+is a valid definition today and no `Driver` opens one**: `spec/flow-definition.md` v0.8 and
+[ADR 0036](doc/decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md)
+define the node kind, and [W33](doc/work-items/w33-a-map-at-run-time-arity.md) is the item that makes
+it run. **This section will describe the feature when there is a feature to describe**; naming the
+class now is what keeps the list below true rather than a promise —
+[Q157](doc/open-questions.md) is the gap that no [P10](doc/plans/p10-is-fan-out-one-feature-or-two.md)
+item owns this file.
+
 **And the list is checked against the PACKAGE, not against itself** — [Q101](doc/open-questions.md).
 Until W18 this snippet imported eight classes, mapped them to `.name`, and compared the result to a
 literal it also contained. That is a closed list agreeing with a copy of itself: it was executed by
@@ -751,13 +776,13 @@ mentioning it here a **failure** rather than an omission nobody can observe:
 import * as lib from 'fyflow-orchestration';
 import {
   DuplicateTaskId, InvalidDefinition, InvalidRunId, InvalidTaskId, MissingJoinPolicy,
-  MultipleRuns, NoMatchingEdge, UncloneableResult, UndispatchedTask,
+  MultipleRuns, NoMatchingEdge, UncloneableResult, UndispatchedTask, UnresolvedBranchPath,
 } from 'fyflow-orchestration';
 
 const documented = [
   DuplicateTaskId, UncloneableResult, NoMatchingEdge, UndispatchedTask,  // reported inside a listener
   MultipleRuns, InvalidRunId, InvalidDefinition, MissingJoinPolicy,      // thrown at you
-  InvalidTaskId,                                                         // neither — see above
+  InvalidTaskId, UnresolvedBranchPath,                                   // neither — see above
 ].map((c) => c.name);
 
 // Every Error subclass the package root exports, discovered rather than restated.

@@ -1,8 +1,10 @@
 # P10 — Is fan-out one feature or two?
 
-**Status:** planning — declared 2026-09-06. No item has started. **Read every item's status from its
-own file, never from this line** (`doc/workflow.md` section 1 rule 5, including its *any copy,
-including your own* clause).
+**Status:** RUNNING — declared 2026-09-06. **[W32](../work-items/w32-what-a-map-fanout-is.md) has its
+author pass, both readers and rule 8's re-run done**, with only the gate re-run at the acting commit
+outstanding; W33, W34 and W35 have not started. **Read every item's status from its own file, never from this line** (`doc/workflow.md`
+section 1 rule 5, including its *any copy, including your own* clause — which W32's own Record
+violated and corrected, by writing down a browser count measured before the change it described).
 **Runs after [P9](p9-when-a-check-stops-checking-what-notices.md), which is complete and retro'd.**
 
 **Question this plan answers:** [Q12](../open-questions.md) — *is fan-out one feature or two?*
