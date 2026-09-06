@@ -1,13 +1,17 @@
 # Workflow
 
-**Status:** v0.9 - **run to completion seven times**, by [P1](plans/p1-what-satisfies-a-join.md),
+**Status:** v0.10 - **run to completion nine times**, by [P1](plans/p1-what-satisfies-a-join.md),
 [P2](plans/p2-the-non-success-half-on-a-real-scheduler.md),
 [P3](plans/p3-a-consumer-reference-the-gate-keeps-true.md),
 [P4](plans/p4-the-drivers-lifetime-and-the-handles-it-gives-out.md),
 [P5](plans/p5-a-third-and-fourth-policy-or-repairs-of-the-first-two.md),
-[P6](plans/p6-what-may-share-a-scheduler-with-a-driver.md) and
-[P7](plans/p7-is-a-join-transitive-over-nested-fan-out.md)
-**Read this before starting any work item.** Paths are relative to the repo root unless they are
+[P6](plans/p6-what-may-share-a-scheduler-with-a-driver.md),
+[P7](plans/p7-is-a-join-transitive-over-nested-fan-out.md),
+[P8](plans/p8-what-can-be-deleted-with-the-gate-green.md) and
+[P9](plans/p9-when-a-check-stops-checking-what-notices.md)
+**Read this before starting any work item.** *(The status line read "seven times" and listed P1-P7
+until P9's retro: **P8 ran this document to completion and adopted none of its proposals**, which is
+section 6 pass 3 rule 1's expected verdict and is not the same as not having run it.)* Paths are relative to the repo root unless they are
 markdown links.
 
 **v0.3 is P1's retro acting on itself.** This document was inherited from
@@ -87,6 +91,59 @@ prediction about rule 8 is answered and is **false**.
    ([ADR 0029](decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)).
    The dependency edge that made the junction seem necessary is gone; **the rule still said nothing
    about the removal**, which is the part that did the damage.
+
+**v0.10 is P9's retro, and its central finding is that the defect P9 set out to remove was living
+inside rule 8's own procedure.** P9 asked *when a check clause stops checking, what notices — and does
+it notice for the right reason?* The answer for the checks is now 118 gradings that name the probe
+that must break. **The answer for rule 8's own provocations was: an exit code**, six times across
+three items. Four items, eight reader passes, and **three changes**.
+
+1. **Rule 8 gains a FIFTH obligation: break the WIRING — what happens when the check is NOT RUN.**
+   Three instances, three items: the **manifest** (W24 — ` --self-test` dropped from a `package.json`
+   entry, now refused by `S11` four ways), the **script** (W30 — the four-line dispatch deleted from the
+   check, exit **0** with the self-test unrun, measured **six for six**, and `S11` reads the manifest so
+   it cannot see it), and the **harness** (W31 — a mutation harness writing mutants into a directory the
+   child deletes, reporting **`12/12 bounded` at exit 0** while every grading read *"the mutant did not
+   run"*). **Earned against a prediction P9 wrote down before the item that tested it**, which said
+   `S11` would catch it and the obligation would therefore not be earned. **It replaces nothing**: the
+   four existing obligations ask what is claimed, which outputs exist, where the number came from and
+   how many things are iterated, and none asks whether the thing runs at all.
+
+2. **Rule 8 gains a requirement on the SET: a provocation is evidence only when it FIRES, and only
+   when it fires FOR THE REASON IT NAMES.** Two halves of one question. *Does the guard ever fire* is
+   P8's proposal — **adopted**, on W30's seventeen instances at once, W31's three constructed cases and
+   W29's live counter-case — with the procedure attached: construct the case, and where the corpus
+   cannot express one, **record that rather than arguing it**. *Does it fire for this reason* is the
+   half nobody had named, and it is [Q138](open-questions.md) inside rule 8: **six occurrences in three
+   items**, including three `SELF` entries that bounded an ABORT while naming a floor, a probe refused
+   by the copy of an expression that was already covered, and a probe that reported *refused* by
+   crashing. **Read the failure lines, not the exit code.**
+
+3. **Section 1 rule 5 gains a clause about WRITING: a claim states the scope it was MEASURED at.**
+   The existing clause is about **reading** a derived claim; this is the other direction. Two
+   occurrences, two items, both found by a conformity reader: W30 measured five checks by hand and
+   wrote *"all five"* into six documents when there are six; W31 measured one file and wrote *"in any
+   of the three"* with an owner cell naming six, false in two of them. **Neither author read anything
+   wrong; both generalised without saying so.**
+
+**And one question P6's retro left open two plans ago is answered: NO.** That retro wrote that if a
+seventh plan found a fourth obligation for rule 8, *"the right response is to ask whether rule 8
+should be a section rather than a rule."* P7 found the fourth and P9 the fifth. **It stays a rule, and
+the argument is its ADDRESS** — *"section 5 rule 8"* is cited in this document, in four plans, in
+eleven work items and in the register, and section 3's *"ids are never reused and never renumbered"*
+is the same argument one level out. Moving it would cost more than its length does.
+
+**What did NOT change, and all four were live.** `check-owns.mjs` **stays retired for the fifth
+plan** — eleven consecutive items have audited their `Owns` correctly, P9's four at zero, zero, two
+and zero late exceptions, and W30's two were the same pair P9's own declaration had to take, on the
+same two files, for the same reason. **Rule 7 (c) is EXERCISED, heavily** — all **136** probes in six
+self-tests declare their set — and W29 found its **mirror-image limit**: naming one check does not
+discriminate because a malformed probe trips two, and **two clauses that both trip the right one are
+indistinguishable**; the discriminating signal (the failure COUNT) is a `scripts/**` mechanism and is
+not lifted here. **Section 6's two-reader split is settled** and its band is corrected from 1-4 to
+**0-4 over fourteen measurements** — the number changed, not the conclusion. And **`doc/` is refused
+for the eighth time**, having produced more instances in P9 than in any plan before it, with change 3
+adopted instead as the one sub-case that has now occurred twice.
 
 **v0.9 is P7's retro, and its central finding is that rule 8's obligations are about WHAT is
 asserted, WHERE THE VALUE COMES FROM, and — new — HOW MANY THINGS ARE ITERATED.** Four items, eight
@@ -301,6 +358,18 @@ Four rules that make the loop worth having:
    fourth document before checking `doc/work-items/w16-*.md`, which had been correct the whole time.
    The item file is the source; an index is a copy.
 
+   **And a claim states the scope it was MEASURED at, never the scope you believe — P9's retro, and
+   it is the other direction of the same rule.** The clause above is about **reading** a derived
+   claim; this is about **writing** one. Two occurrences, two items, both found by a conformity reader
+   and both landing in documents read before every work item: **W30** measured the `--self-test`
+   dispatch in **five** checks enumerated by hand in its own probe script and wrote *"measured in all
+   five checks"* into **six documents** — there are six, and the census omitted the second most
+   expensive one; **W31** measured two message-only verdicts in **one** file and wrote *"in any of the
+   three files that carry them"* with an owner cell naming **six**, which is wrong internally and false
+   in two of them. **Neither author read anything wrong. Both generalised without saying so**, and the
+   register is where it lands because the register is where findings are lifted to. Write the number of
+   files you ran it in.
+
    **And it is ANY copy, including one you wrote yourself** — P7's retro. W23 reported a count to a
    human that was wrong because it read it from `examples/README.md`, **a file that item had written**,
    for an earlier version of its own work. The rule names indexes because indexes are where the
@@ -495,7 +564,27 @@ Rules:
 
 8. **When you act on a review finding, break the fix and watch the gate go red.** Rule 7 for fixes
    rather than for checks, and it exists because **three consecutive items shipped a repair that
-   could not fail**:
+   could not fail**.
+
+   **This rule has grown to five obligations and two requirements on the set, so it carries its own
+   index.** P6's retro asked whether a fourth obligation should make it a section; P9's retro answered
+   **no**, because *"section 5 rule 8"* is cited in this document, four plans, eleven work items and
+   the register, and section 3's *ids are never renumbered* is the same argument one level out. It is
+   indexed instead:
+
+   | | obligation | added by |
+   |---|---|---|
+   | **(a)** | break the rule's own CLAUSES | v0.6, P4's retro |
+   | **(b)** | break every row of the `Outputs` table | v0.7, P5's retro |
+   | **(c)** | break the PROVENANCE of every value an assertion reads — change the source expression and nothing else | v0.8, P6's retro; procedure added v0.9 |
+   | **(d)** | break the LOOP BOUNDS — one entry out, the whole list out, and does anything COUNT it from elsewhere | v0.9, P7's retro |
+   | **(e)** | break the WIRING — what happens when the check is NOT RUN | **v0.10, P9's retro** |
+   | | **and on the set as a whole:** | |
+   | | a survivor is one only once a **second independent route** confirms the clause was reachable | v0.7, P5's retro |
+   | | re-run the whole set **after** acting on the readers, with their exact edits checked back in | v0.8, P6's retro |
+   | | a provocation is evidence only when it **fires**, and only when it fires **for the reason it names** | **v0.10, P9's retro** |
+
+   The three founding cases:
    - W4 - the join's `null` payload could become `{}` and survive 251 assertions.
    - W5 - the L6 gate's termination predicate replaced by `setTimeout(1)`, every assertion still
      passing, because `scheduler.shutdown()` drained the run while the fold kept advancing.
@@ -627,6 +716,61 @@ Rules:
    **It also catches a false CLAIM, not only a weak assertion**, which is a use worth naming: W14's
    own provocation showed a row's comment said it covered a rule when it covered half of one.
 
+   **AND BREAK THE WIRING — P9's retro, and it is a FIFTH axis rather than a fifth list.** The four
+   obligations above ask *what is claimed*, *which outputs exist*, *where the number came from* and
+   *how many things are iterated*. **None of them asks whether the thing RUNS AT ALL**, and a check, a
+   grading or a guard can be present, correct and never reached while everything is green:
+
+   | | the wiring | how it broke, with the gate green |
+   |---|---|---|
+   | W24 | the **MANIFEST** | ` --self-test` dropped from a `package.json` entry — the name stays in the chain and the plain check runs **twice**. Found by both of W24's readers; `S11` now refuses it four ways |
+   | W30 | the **SCRIPT** | the four-line `--self-test` dispatch deleted from the check itself: `npm run check:X:selftest` runs the plain check, exits **0**, and `check:source` exits 0 beside it. **Measured six for six** — in `check-docs`' case, 128 s of gradings silently not running. `S11` reads the manifest and cannot see it ([Q149](open-questions.md)) |
+   | W31 | the **HARNESS** | a mutation harness writing its mutants into a directory the child deletes on its own first line: **`12/12 bounded` at exit 0**, every grading in every child reading *"the mutant did not run"*. The pass ran and measured the deletion ([Q151](open-questions.md)) |
+
+   **Three instances, three items, and it is earned against a prediction written down before the item
+   that tested it.** P9's work-items section said of W30: *"the prediction is that `S11` catches it and
+   the obligation is therefore about a hole that already has a check … if instead W30 ships a wiring
+   hole `S11` does not see, that is the second occurrence and the obligation is earned."* Both halves
+   happened, and they are different halves of the wiring. So: ask of every check, grading and guard —
+   **can it be skipped, unreferenced, or reached with nothing to do, and would anything say so?**
+
+   **AND A PROVOCATION IS EVIDENCE ONLY WHEN IT FIRES, AND ONLY WHEN IT FIRES FOR THE REASON IT
+   NAMES — P9's retro, and it is a requirement on the SET rather than a sixth axis.** Two halves, and
+   they are the same question in two directions.
+
+   **Does the guard ever fire?** This is P8's proposed *"a check written for a defect you have just
+   fixed has no live case, so its probes are the whole of its evidence"*, and it is right: W30 is
+   **seventeen** instances at once — `spec/` has passed `C1`-`C8` since W1, so every probe there builds
+   an invalid `spec/` that has never existed — plus one with **no case its corpus can express at all**.
+   W31 has three guards whose case had to be **constructed**, one of them for a defect that was never
+   in the tree. W29's `D5` is the counter-case, a check written for a defect that was live. **So:
+   construct the case that makes each guard fire, and where the corpus cannot express one, RECORD that
+   rather than arguing it.** *(And the corpus catches up: `M1` shipped green with no live case and
+   caught a real dead link **one plan later**, in the declaration of the plan that recorded the gap.)*
+
+   **When it fires, is it for THIS reason?** Rule 8 grades a provocation by *did the gate go red*.
+   **That is [Q138](open-questions.md) — an exit code cannot tell a detection from noise, a crash, or a
+   sibling covering for the clause — living inside this rule's own procedure**, and P9 found it six
+   times in three items:
+
+   | | the provocation went red | for |
+   |---|---|---|
+   | W29 | `D2`'s and `D5`'s unreadable-input clauses, both STILL CAUGHT | a **sibling reporting the same id**. The failure COUNT then split them: `D2` is co-firing and **detected**; only `D5` is masking. *Co-firing is detectable by a projection nobody was reading; masking is not* |
+   | W30 | 17 of 21 gradings reported `exit0` | *there was nothing left to report*, where `exit0` in the sibling files means *the right ids were found and the exit path lied*. **No grading changed and only the reported reason did** |
+   | W31 | three `SELF` entries written to bound a floor | **the ABORT**, because each named a probe some grading also named. The floor's disjunct was deletable for **0** with all three "passing" |
+   | W31 | the `SELF` entry written to bound `MAX_CORPUS` | the named probe coming back **STILL CAUGHT** — so `corpus`'s only producer was deletable for 0 |
+   | W31 | the author's probe for rule 7 (c)'s set equality | it used `replaceAll`, hit **both** copies of a duplicated expression, and was refused by the copy that was already covered. The uncovered one cost 0 |
+   | W31 | the author's probe reproducing its own shipped defect | a **crash**, not the control run it was written to exercise |
+
+   **So: read the failure LINES, not the exit code.** A provocation whose declared target is a
+   particular clause must be shown to have broken that clause — which is rule 7 (c)'s argument, one
+   layer out from the probes and applied to the author's own set.
+
+   **Neither half replaces anything.** This rule already defines a *survivor* as one only once a second
+   independent route confirms the mutated clause was **reachable** — reachability in the negative
+   direction, *did the mutation change an observable*. These are the positive direction, *does the
+   guard produce its own failure, and is that failure the one being counted*.
+
 ## 6. Verify: the three passes
 
 **Pass 1 - the ladder.** Section 4. Report which levels ran and which did not, per work item.
@@ -671,15 +815,22 @@ Windows, `Get-ChildItem -Recurse -Force -Attributes ReparsePoint`. If either is 
 remove it; say so and stop.
 
 **Why two readers rather than one asking both questions**, which is what earlier versions said.
-Measured over **ten** items now: W4 1 of 13, W5 3 of ~35, W6 3 of ~25, W9 3 of ~30, W12 3 of 18,
-W13 4 of 24, W14 4 of ~26, W17 3 of ~31, W18 2, W19 4 of 18. Each overlap arrived from a different direction; one reader
+Measured over **fourteen** items now: W4 1 of 13, W5 3 of ~35, W6 3 of ~25, W9 3 of ~30, W12 3 of 18,
+W13 4 of 24, W14 4 of ~26, W17 3 of ~31, W18 2, W19 4 of 18, **W28 4, W29 1, W30 2, W31 0**. Each overlap arrived from a different direction; one reader
 answers whichever question it read first. **W17's three are the clearest demonstration of that
 yet** - the same three facts reached by six different routes, and in each case the two readers'
 routes had nothing in common.
 
-**The number to carry is the ABSOLUTE one: two readers produce 1-4 shared findings, whatever the
-item's size** - **ten** measurements, none outside that band, and P6's retro declares the question
-**settled and closed to re-litigation**. The fraction is noise - it has read 8%, 17%, 10%, 12% and 15% across items ranging
+**The number to carry is the ABSOLUTE one: two readers produce 0-4 shared findings, whatever the
+item's size** - **fourteen** measurements, and P6's retro declares the question **settled and closed
+to re-litigation**. **The band read 1-4 over ten measurements until W31 came in at ZERO**, and P9's
+retro corrected the number rather than the conclusion: a zero is what *"the second reader finds what
+the first was not looking for"* predicts at its limit, and W31's pair produced **5 and 10 findings
+with eight blocking between them**, the largest yield of P9's four items. **The caveat is recorded
+with the number**: W31 gave both readers the same list of *claims the author was least sure of*, a
+priming none of the thirteen earlier measurements had, and it is at least as likely to have driven
+them apart as together. Their only shared SUBJECT was one register row, approached from opposite ends
+and yielding two different corrections. The fraction is noise - it has read 8%, 17%, 10%, 12% and 15% across items ranging
 from a one-line conformity fix to the largest surface change the repository has made. W12's Record
 hypothesised that the fraction *rises* as items shrink; W13 is a much larger item at the same 17%,
 so that died on its first test. Reporting the fraction invites exactly that kind of over-reading.
@@ -862,6 +1013,15 @@ mechanisms remain worse than the problem.
 |---|---|---|
 | **Rule 8 gains a THIRD obligation: break the PROVENANCE** | the readers still find blocking gaps on a fourth axis, or the obligation fires on nothing | **Right, EARNED, and STILL NOT SUFFICIENT — extended twice.** Sixth sample. It fired in all four items and produced three more `examples/**` instances, bringing that directory to **eight**. **But it could not be instantiated from what it said**: [Q112](open-questions.md) corrected it **four times across three items**, three of those an author repeating a correction a reader had made to them one item earlier — including `x && y`, which changes no source at all, and a *fix* that recorded a value from the same local the reader's probe swaps. The axis was right; the procedure was missing, and is now in the rule. **And neither this obligation nor the two before it reaches a LOOP BOUND**, which is where both of P7's reader-found blocking survivors lived |
 | **Rule 8's set is re-run AFTER acting, with the readers' edits checked in as probes** | an item acts on a review and ships a repair that could not fail, with the rule in force | **Right, and it fired in every one of the four.** W21: adding an `INDEX` test made `Number.isInteger` and `n < 0` unreachable — both caught before, one survived after. W22: a probe's anchor moved under the fixes and the rule 7 (b) guard aborted with *"MATCHED 0 TIMES"* rather than reporting a pass. W23: **the author's own fix for a blocking provenance finding did not work** — it recorded the value from the same local the probe swaps, so the reader's probe still cost 0 — **and only the re-run saw it**. Third and fourth occurrences of this rule's founding case landing inside this rule's own procedure. The readers' edits, checked in: **9 of 10 in W22 and 6 of 7 in W23 went from 0 failures to non-zero** |
+
+**And what P9 did to v0.9's four**, judged by the plan that ran four items and eight reader passes:
+
+| v0.9 change | What would show it was wrong | **P9's verdict** |
+|---|---|---|
+| **Rule 8's FOURTH obligation: break the LOOP BOUNDS** | the readers still find blocking gaps on a fifth axis, or the obligation fires on nothing | **Right — the highest-yield obligation in this document — and STILL NOT SUFFICIENT.** W30's adequacy reader: **twelve of seventeen** survivors were obligations (a) and (d), and **not one was reachable by a probe that breaks a VALUE**. W31's: three of five blocking findings are bounds. **The gap it leaves is the new requirement on the set**: W31's three `SELF` entries instantiate this obligation perfectly — one entry out, the whole list out — and **all three bounded an ABORT while naming a floor**, so the floor's own disjunct was deletable for 0 with all three passing. **Knowing which list to break is not knowing you broke it for that list's reason** |
+| **Rule 8 states the PROCEDURE for a provenance probe** | an author instantiates it wrong again, or a reader corrects it a fifth time | **Right, and NOT corrected once in four items — the first rule-8 amendment since v0.7 to go a whole plan clean.** [Q112](open-questions.md) had corrected the axis **four times across three items** before the procedure was written into the rule. P9 ran provenance probes in all four items and every one changed a source expression and nothing else; the survivors survived as **findings** rather than as rewrites. **One sentence ended a class that four items could not** |
+| **Section 1 rule 5's provenance clause extends to ANY copy** | an author believes a derived claim again, including their own | **Right, EXERCISED, and it is now the standard readers judge by — and it has a blind side, which is v0.10's change 3.** W30's conformity reader cited it against a stale cluster table; W31's against `CLAUDE.md` carrying an item's author-pass counts, and against two documents contradicting themselves inside one paragraph. **Every one of those is a READ.** The two it could not reach are the two where the author measured correctly and **wrote a scope they had not measured** |
+| **Section 7 rule 2: `Owns` from the PLAN's index row** | an item's block is wrong again, or late exceptions rise | **Right, and the numbers hold at the floor.** P9's four items took **zero, zero, two, zero** late exceptions, and W30's two are the same pair P9's own declaration had to take — same two files, same reason: [Q142](open-questions.md)'s two-sided window obliges an item that **adds documents** to edit a file it does not own. **That is a plan's problem rather than a discipline one**, and it is the second plan running to hit it |
 
 **And v0.5's one change, which P4 could not judge, is now exercised.** Rule 7 (c) fired for the first
 time in three plans when W16 built `scripts/check-policies.mjs` for `JP-R9`: ten checked-in probes,

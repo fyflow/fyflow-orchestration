@@ -447,7 +447,7 @@ longer rests on our own reading. [S1](scheduler-upstream.md).
    load-bearing on the **non-success paths only**.
 
    **[P7](plans/p7-is-a-join-transitive-over-nested-fan-out.md) is COMPLETE and retro'd, and
-   `doc/workflow.md` is [v0.9](workflow.md).** Its retro adopted four changes; the central one is that
+   `doc/workflow.md` was [v0.9](workflow.md) at that point — it is v0.10 since P9's retro.** Its retro adopted four changes; the central one is that
    **rule 8 gains a fourth obligation — break the LOOP BOUNDS** — on two occurrences in two items,
    four instances, every one BLOCKING and every one found by an adequacy reader. Late `Owns`
    exceptions across its four items ran **five, four, two, zero**, and `check-owns.mjs` stayed
@@ -542,9 +542,12 @@ longer rests on our own reading. [S1](scheduler-upstream.md).
    **`check-spec`'s first self-test in this repository's history**. Exit artifact: **one row per
    check clause — 39 of them — saying what notices when that clause is made present but inert.**
 
-   **[W29](work-items/w29-the-two-self-tests-that-grade-nothing.md)'s AUTHOR PASS is complete and its
-   two readers have NOT run**, so the item is **not done** — read its status from its own file, never
-   from this line ([`doc/workflow.md`](workflow.md) section 1 rule 5). What it has built:
+   **[W29](work-items/w29-the-two-self-tests-that-grade-nothing.md) is DONE** — author pass, both
+   readers, and rule 8's re-run. *(This paragraph read "its two readers have NOT run, so the item is
+   not done" while its own next sentence read "Both readers ran", and `CLAUDE.md` carried the stale
+   half too. W29's own file has said `done` since 2026-09-04; W30 read it there, which is
+   [`doc/workflow.md`](workflow.md) section 1 rule 5 working as written — **and an index
+   contradicting itself inside one paragraph is a new shape for that class**.)* What it built:
    `check-scheduler-selftest.mjs` goes from **12 probes and no grading to 20 probes and 22 gradings —
    one per `fail()` site, one per way the report can lie, one for the exit path** — and
    `check-docs-selftest.mjs` from **14 probes and no grading to 14 and 8**, capped, **with the nine
@@ -628,12 +631,133 @@ longer rests on our own reading. [S1](scheduler-upstream.md).
 because P1 builds both of its candidate answers, so W2 and W3 can be written without knowing which
 wins.
 
+
+   **[W30](work-items/w30-the-clauses-nothing-probes.md) is DONE** — author pass, both readers, and
+   rule 8's re-run, which caught three defects in the fixes themselves. **Its readers found 10 and 17,
+   seven blocking, overlap 2** — the thirteenth measurement of section 6's overlap question. `check-spec.mjs` has a `--self-test` for the first time since W1 and
+   `scripts/check-spec-selftest.mjs` is **18 probes and 21 gradings**: one probe and one grading per
+   `fail()` site for `C1`-`C4`, `C6`-`C8` — **seventeen of them, no cap** — plus two for the report
+   block and two for the exit path. `check-source-selftest.mjs` goes from 24/20/7 to **34/24/10**,
+   closing `S4` and `S7`, the two clauses [Q132](open-questions.md) names as having **no second
+   route anywhere** — measured unprobed four ways first, all four inert and all four at 24/24.
+   The gate chain is **19 entries** and the gate runs **322 / 326 s**, exit 0, zero FAIL lines.
+
+   **Its central finding reverses this plan's own written-down prediction, which is why the
+   prediction was written down.** P9 predicted `S11` would catch W30's new wiring and that P8's
+   proposed **fifth obligation for rule 8 — break the WIRING** — was therefore not earned. `S11`
+   catches the **manifest** four ways, all measured. **It does not catch the SCRIPT**: delete the
+   four-line `--self-test` dispatch from `check-spec.mjs` and `npm run check:spec:selftest` runs the
+   plain check, exits **0**, and `check:source` exits 0 beside it — **in all five checks**, which
+   for `check-docs` is 128 s of gradings silently not running. [Q149](open-questions.md), and **the
+   obligation is earned on the item that predicted it would not be.**
+
+   **Two more things it measured rather than inherited.** Both of W29's structural holes are LIVE
+   in `check-source-selftest.mjs` — an entry replaced by a **duplicate** of another, and an entry's
+   anchor made **global** so one entry disabled all five `S12` sites — each reported `20/20 noticed`
+   at exit 0. Both closed and both now bounded by a `SELF` entry. And **[Q150](open-questions.md)**:
+   a `corpus` grading is a **pass**, so dropping W30's own import relocation made all 21 mutants
+   non-inert and the file exited 0 saying *"0 noticed by the named probe, 21 by the corpus"*. Closed
+   there by a declared `MAX_CORPUS = 0`; live in the other four.
+
+   **And the census parser was wrong in a direction no previous one has been.** W30's first one was
+   **code-span aware** and aborted on **three rows that render perfectly** — Q101, Q102 and Q117 all
+   carry an odd number of backticks. GFM cuts a table row on `|` FIRST and parses inline code
+   afterwards, which is also exactly why [Q131](open-questions.md)'s two rows really do render wrong.
+   **A parser more careful than the renderer reads a different document.** Corrected, after which the
+   census is **CONFIRMED for the second plan running — 109 questions, 73 open, 2 deferred, 34
+   resolved**. **The cluster table was stale by three**: Q146, Q147 and Q148 were in no cluster cell
+   at all. Corrected in place.
+4. **[W31](work-items/w31-the-self-list-check-policies-never-had.md) — the `SELF` list
+   `check-policies` never had. DONE** — author pass, both readers and rule 8's re-run; read its status
+   from its own file, not from this line. `check-policies-selftest.mjs` is **13 probes / 6 gradings /
+   14 SELF**, from 13 / 6 / none, and `check:policies:selftest` is **2.2 s to 14.7 s** — the cheapest
+   self-test in the gate becoming a mid-priced one, which is [Q133](open-questions.md) moving the
+   wrong way for the right reason and is recorded as a number rather than a ratio.
+
+   **Its declaration was wrong in FOUR places before anything was built**, three inherited from W28's
+   state and one falsified by the first measurement: `Reserves: Q146-Q148` **collided with W29**,
+   which used all three (corrected to **Q151-Q153**, nothing renumbered); the gate is **19** entries,
+   not 18; the baseline sha was W28's; and the Record's prefilled *"one `META` entry deleted — cost
+   0"* is **1** — `MIN_META` fires, and the hole is the floor being **lowered**, which the sentence
+   did not name. Eleventh time a row has been found wrong by trying to act on it.
+
+   **Its headline is the plan's own question one layer further out, and its own green run could not
+   see it.** [Q151](open-questions.md): the `SELF` mutants were written into the scratch directory a
+   child deletes on its first line, so no `META` grandchild could re-import them — **all twelve
+   entries passed, `12/12 bounded` at exit 0**, while every grading inside every child read *"the
+   mutant did not run: this is a crash, not a detection"*. **The whole pass was measuring the
+   deletion.** Found by rule 8's set, not by the file. Closed by a **control run** — an unmutated copy,
+   run as a `SELF` child, must RUN and must NOT be graded — and reintroducing the defect is refused by
+   name. **Live in `check-source-selftest.mjs` and `check-markdown-selftest.mjs`.** *(It also
+   falsified the item's own cost figure: the first "after" reading was **8.5 s** against the broken
+   harness. A performance number taken from a crashed child is a claim about the crash.)*
+
+   **What a `SELF` list buys, measured as a pair in one file — which is what P9's retro asked this
+   item for.** **Thirteen** mutations cost **0 before and non-zero after**: `MIN_META` and `MIN_PROBES`
+   lowered, alone and compounded, and the `MIN_PROBES` disjunct; a duplicate `META` entry; an ambiguous
+   anchor and a global one; a second `wide` exemption; a grading passing as `corpus` and the inertness
+   run that produces it; the `ran:` guard both halves; the PROBE-PASS verdict; set equality downgraded
+   to cardinality; `ALL_CHECKS` widened; and **`MAX_WIDE -> 99`, which W30 recorded as SURVIVING in
+   `check-source`**. *(This read **nine** and enumerated **eight** — W31's conformity reader.)* **And what it buys nothing against is anything that returns before
+   it** — `if (!meta) -> if (true)`, `if (nestedSelf) -> if (true)` and the outermost verdict all
+   survive, because the mutation reaches the parent as well as the child. *The regress does not move
+   one list further out; it stops at the first thing that can return early.* **The item's own header
+   argued the opposite before it measured, and corrected it in place.**
+
+   **Two of W28's three verdicts CANNOT be made load-bearing and the item was declared to make all
+   three so** — [Q152](open-questions.md). The ABORT and STILL-CAUGHT arms assign a message and never
+   touch `ok`, so each costs 0 with the list in place exactly as without one. Only the `ran:` guard
+   changes a verdict — and **this file is the only place its case exists**: W28 had to DELETE that
+   mutation as a `META` entry because it crashes under its own probe ([Q144](open-questions.md)), and
+   as a `SELF` entry it is exactly right. **The second demonstration anywhere that `ran:` fires.**
+   *The mutation that could not be a `META` entry is the one that makes a `SELF` entry for the crash
+   guard possible.*
+
+   **Rule 8: 40 provocations, 20 refused, 20 survive, run five times** — an author pass and four
+   re-runs, each after acting on the previous one's findings. Three ride-alongs taken with a live case
+   measured first (`MAX_CORPUS = 0`, the `META` distinctness bound, the GLOBAL-anchor guard with one
+   declared `wide` exemption); the ambiguous-anchor guard taken **with no live case, stated**, its
+   entry constructed from the one anchor in the check that occurs twice. **Two DECLINED on
+   measurements**: a per-id coverage bound fires on nothing here (all three ids are graded) and a
+   per-site one would need five new `META` entries, one of them impossible inside this item's `Owns`;
+   and the failure-COUNT discriminator would ship as decoration, because **no entry here grades
+   `caught`**. [Q153](open-questions.md) is the third: a `SELF` list is bounded by count and not by
+   content, measured live at `13/13` exit 0, closed here and live in the two other files that have one.
+   **[Q149](open-questions.md) is confirmed for the sixth check**, and `S11`/`S12` do not fire for this
+   item, which adds no `package.json` entry — exactly as W30 predicted.
+
+   **The census is CONFIRMED for the third plan running — 112 questions, 76 open, 2 deferred, 34
+   resolved**, both halves at 112 of 112 in exactly one cluster cell. *(Re-derived again after the readers,
+   unchanged.)*
+
+   **Its two readers found 5 and 10, eight blocking, and the OVERLAP IS 0** — the fourteenth
+   measurement of section 6's question and the first outside the settled 1-4 band, with the caveat
+   that both were primed with the same list of the author's uncertain claims. **The adequacy reader
+   found guards that were not there**; four of its five blocking findings were unreachable by the
+   author's own set and **three of the four are one shape — an entry written to a LIST when the thing
+   it had to bound was a GUARD**. The sharpest is **the PROBE-PASS verdict**, `caught !== PROBES.length`,
+   which cost **0** and which the ceiling list had never carried: it is what makes rule 7 (b)
+   load-bearing, because a probe whose mutation matches nothing prints its FAIL, prints
+   `12/13 probes caught`, and without it **exits 0**. **The conformity reader found claims that were
+   false** — [Q152](open-questions.md) generalising a one-file measurement to six (`check-spec` and
+   `check-scheduler` do not carry the message-only form, and disabling it there costs 1 and 2); a
+   ceiling row quoting a literal the file no longer contains, where the live form costs **4**; and a
+   cost decomposition that put the whole run inside one of its phases. **All eight closed**, and the
+   re-run then found a ninth the readers had not — retargeting one entry closed `MIN_PROBES -> 0`
+   alone as well as its disjunct — and took `ALL_CHECKS` from a hand-copy to a **derivation**, which
+   is the one cross-count this file has and the answer to the sub-question W28's reader named and
+   could not instantiate anywhere. The parser aborted on Q119 and
+   Q71 (declared exemptions) and **twice on [Q87](open-questions.md) in two opposite directions** —
+   2 cells reading its first line, 3 reading its last, for a row that renders as 4 — before the width
+   check was put where this file's own stated predicate says it belongs. **A parser can be wrong about
+   a row in two opposite directions on the way to being right about it.**
+
 ## Reading order
 
 | | |
 |---|---|
 | [concept.md](concept.md) | **Read first.** What we are building, the substrate fact that shapes everything, and the one structural idea - run state is a pure fold of an event log |
-| [workflow.md](workflow.md) | **Read before any work item.** The loop, the verification ladder, the test rules, how work is split. **v0.9, run to completion by seven plans** - the adaptation tables at the end carry a verdict per row from P1 through P7, and stay for the next plan to re-judge. *(This cell read v0.8 / six plans / P1-P5 through the whole of P7 — read from `doc/workflow.md`'s own header at P8's declaration.)* |
+| [workflow.md](workflow.md) | **Read before any work item.** The loop, the verification ladder, the test rules, how work is split. **v0.10, run to completion by NINE plans** - the adaptation tables at the end carry a verdict per row from P1 through P9, and stay for the next plan to re-judge. *(This cell read v0.9 / seven plans / P1-P7 until P9's retro: **P8 ran the document to completion and adopted none of its proposals**, which is section 6 pass 3 rule 1's expected verdict and is not the same as not having run it.)* *(This cell read v0.8 / six plans / P1-P5 through the whole of P7 — read from `doc/workflow.md`'s own header at P8's declaration.)* |
 | [decisions/](decisions/) | ADR 0001, 0002, 0007. They bind `spec/` rather than being superseded by it - 0007 in particular is what [outcome-record.md](../spec/outcome-record.md) makes checkable |
 | [plans/p1-...](plans/p1-what-satisfies-a-join.md) | **Complete.** Five work items, and its Record carries the exit artifact and five proposals for the retro |
 | [plans/p2-...](plans/p2-the-non-success-half-on-a-real-scheduler.md) | **Complete, and its Record carries the retro that made this document v0.4.** One question, one work item, no new features. Two facts measured before it was written, both of which changed it |
@@ -691,8 +815,11 @@ Deliberate overlaps, which are coordination points rather than duplication:
 
 ## Plan history
 
-*One row per plan, oldest first. **A plan appears here when it closes**, so
-[P6](plans/p6-what-may-share-a-scheduler-with-a-driver.md) (declared, not started) is not below.*
+*One row per plan, oldest first. **A plan appears here when it closes.*** *(This table stopped at P5
+through the whole of P6, P7 and P8, and its own note still described P6 as "declared, not started"
+after P6 closed and two more plans ran to completion behind it. **Found by P9's retro trying to append
+to it** — `doc/` is checked by nothing, in the index that records which plans are finished. P6-P9
+added below.)*
 
 | P | Question it answered | Exit artifact | Date |
 |---|---|---|---|
@@ -701,3 +828,7 @@ Deliberate overlaps, which are coordination points rather than duplication:
 | [P3](plans/p3-a-consumer-reference-the-gate-keeps-true.md) | **Yes — and the second half of the question was worth more than the first.** A reference *can* be kept true by the gate, and what it keeps true is **~16% of the document**. Writing the surface down from outside produced three `src/` defects inside the item's own life. The cost the plan did not predict: **the prose absorbed three of them rather than the code being fixed** | [AGENTS.md](../AGENTS.md) — 15 snippets extracted, typechecked and, for the 11 tagged `run`, executed by `npm run gate`; `check-docs` is five checks and its self-test is 12 checked-in probes | 2026-08-31 |
 | [P4](plans/p4-the-drivers-lifetime-and-the-handles-it-gives-out.md) | **A `Driver`'s lifetime is a run's, fixed at construction; a settlement is this run's iff this driver dispatched its task id; everything it hands out is a frozen copy.** [ADR 0022](decisions/0022-a-driver-takes-its-run-at-construction.md), [ADR 0023](decisions/0023-an-inbound-settlement-is-this-runs-only-if-this-driver-dispatched-it.md) and W12's conformity fix. **The spike changed the design**: the run-id filter the register proposed closes one of four inbound holes | ladder L6's **fourteenth row** — two runs, two drivers, **one** scheduler, both completing on real workers, with the collision stated as a thing that cannot happen | 2026-08-31 |
 | [P5](plans/p5-a-third-and-fourth-policy-or-repairs-of-the-first-two.md) | **Two rules, two different answers — and the plan's conclusion survived while its argument did not.** [ADR 0025](decisions/0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md): `JP-R8`'s refinement is **adopted** under its own id, `live-token-requiring-arrival`, with `live-token` byte-identical; `JP-R7`'s is **refused**, on a reason the counts could not show — it is `live-token` weakened and never strengthened, and on the row it repairs it fires a join zero branches reached. **Not one of the 36 matrix cells changed** | the matrix at **four columns, 36 cells**, and ladder L6's **`all-exit` row on real workers under every shipped policy** — one flow, one payload, three answers: `completed`, silently `stuck`, and **`stuck` with `joined: false`**, which nothing at L6 had ever reached | 2026-09-01 |
+| [P6](plans/p6-what-may-share-a-scheduler-with-a-driver.md) | **An inbound task id that does not parse was minted by NO driver, so ignore it — but REPORT it.** [ADR 0027](decisions/0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md), and what decided it was not the argument the plan made: asking **who produces** an unparseable id. A foreign task can never be ours and is the common case; a `detail.id` that stopped being what we dispatched could be, and is rare. *Stop* is wrong in one direction, *ignore* in the other, and **only *report* is wrong in neither** | L6 row 19: one `FyflowScheduler` carrying **five ids this library did not mint**, two `Driver`s subscribed, **both runs completed**, all five reported through `onUnmintedTask` under their own run id | 2026-08-31 |
+| [P7](plans/p7-is-a-join-transitive-over-nested-fan-out.md) | **YES, for every policy, and it needed no mechanism.** [ADR 0030](decisions/0030-a-join-is-transitive-and-a-dead-join-ends-the-branch-it-sits-in.md), measured over four depth-2 rows x four matrix columns: **each region answers exactly as the depth-1 row of the same shape does**. `N` is per-region, so an inner branch never needed counting by the outer join. **The plan's own DECISION was falsified by W22's declaration step** — `arrival-count` does not refuse nesting, because the mechanism the refusal rested on does not exist | a nested fan-out end to end on a real scheduler in **both** L6 runtimes, with the outer join firing over branches it never opened, and the **first dotted task ids any rung above L2 has asserted** | 2026-09-01 |
+| [P8](plans/p8-what-can-be-deleted-with-the-gate-green.md) | **The gate's own wiring could be, and so could every anchor in a document's index.** `scripts.gate` went from **8 of 15** entries guarded to **16 of 16**, by set equality **and order** rather than a floor; `check-markdown` resolves every relative link **and every anchor** across the tree. **Three of its four measured register rows were wrong**, and the fourteen dead anchors it fixed were **born dead in the founding commit** and had never once worked | `check-source-selftest.mjs`, the first negative test `check-source` ever had; `C5` **lifted** rather than copied, keeping its id; 62 documents / 1602 links / 80 anchored resolving | 2026-09-02 |
+| [P9](plans/p9-when-a-check-stops-checking-what-notices.md) | **An exit code, which cannot tell a detection from noise, a crash, a sibling covering for the clause, or a harness that never ran — and the same defect was living inside rule 8's own procedure.** 118 gradings now name the probe that must break, from 63. **Its central finding is the second half of its own question**: rule 8 grades a provocation by *did the gate go red*, and that was wrong **six times in three items** | the census 100/63/6 -> **136 probes / 118 gradings / 31 `SELF`**; the exit artifact's three row shapes grown to **nine**; and the cost measured in one pass — the six checks are **4.3 s**, proving they can fail is **347.0 s** | 2026-09-06 |
