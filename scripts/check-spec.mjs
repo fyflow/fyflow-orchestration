@@ -6,9 +6,23 @@
 // Zero dependencies and no package.json on purpose: W1 must not choose W2's
 // toolchain (doc/work-items/w1-the-normative-layer.md, Scope/Out).
 //
-//   node scripts/check-spec.mjs
+//   node scripts/check-spec.mjs              node scripts/check-spec.mjs --self-test
 //
 // Exits 0 when every check passes, 1 otherwise. It reports; it does not fix.
+//
+// **`CHECK_SPEC_DIR` points every check at a copy of `spec/`**, which is how
+// `--self-test` builds the invalid `spec/` this repository does not contain without
+// writing a byte into the real one. Every path below derives from `SPEC`, so one
+// override reaches `C1`-`C8`; `rel()` still resolves against `ROOT`, because it only
+// ever labels a message. It exists for the self-test and for nothing else, on the
+// pattern of `CHECK_SOURCE_PKG` and `CHECK_SCHEDULER_DTS`.
+//
+// **The fixture must carry `doc/` beside its `spec/`, and that is measured rather
+// than assumed.** Every relative link in `spec/**` points into `../doc/**` — 88 of
+// them at `doc/open-questions.md` alone — so a copy with no sibling `doc/` reports
+// **195** dead links under `C5` and drowns every other probe in noise. W30 measured
+// both directions: 195 without it, 0 with it, and 23 with it present and one link
+// deliberately broken.
 
 import { readdirSync, readFileSync, statSync, existsSync } from 'node:fs';
 import { join, dirname, resolve, relative } from 'node:path';
@@ -18,7 +32,15 @@ import { fileURLToPath } from 'node:url';
 import { resolveLinks } from './check-markdown.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const SPEC = join(ROOT, 'spec');
+const SPEC = process.env.CHECK_SPEC_DIR ? resolve(ROOT, process.env.CHECK_SPEC_DIR) : join(ROOT, 'spec');
+
+// **Dispatched BEFORE the checks run**, which is `check-docs.mjs`'s form rather than
+// `check-scheduler.mjs`'s. A META child spawns this script once per entry and the
+// checks it would run first are pure waste; the flag is the whole of the argument.
+if (process.argv.includes('--self-test')) {
+  const { selfTest } = await import('./check-spec-selftest.mjs');
+  process.exit(await selfTest(ROOT));
+}
 
 const RULE_ID = /\b(FD-V\d+|FD-R\d+|ID-R\d+|OR-R\d+|RS-R\d+|RN-R\d+|RT-R\d+|JP-R\d+)\b/g;
 const failures = [];
@@ -206,7 +228,20 @@ const checks = ['C1 examples parse', 'C2 rule ids unique', 'C3 invalid examples 
                 'C8 README version column matches each document'];
 console.log(`spec check — ${mdFiles.length} documents, ${jsonFiles.length} examples, ${declared.size} rules\n`);
 for (const c of checks) {
-  const id = c.slice(0, 2);
+  // **The id is the first word, not the first two characters** — the exact
+  // expression W24 repaired in `check-source.mjs`, where `c.slice(0, 2)` read
+  // `S10`-`S13` all as `S1`, so four rows printed one check's failure count and
+  // their own never appeared. **W24 fixed its own copy and this sibling kept the
+  // defect**, which is [Q137](../doc/open-questions.md)'s shape — a lift moves an
+  // implementation and does not move the guards the two sides needed differently —
+  // one file across.
+  //
+  // **It is inert today and W30 says so rather than implying a live fix**: every id
+  // this script reports is two characters, so both expressions agree on all eight
+  // rows and no probe here can discriminate them. It goes live at `C10`. The
+  // discriminating case was CONSTRUCTED and measured rather than left as an
+  // argument — see `scripts/check-spec-selftest.mjs`'s header.
+  const id = c.slice(0, c.indexOf(' '));
   const bad = failures.filter(f => f.startsWith(id + ':'));
   console.log(`  ${bad.length ? 'FAIL' : 'ok  '}  ${c}${bad.length ? ` (${bad.length})` : ''}`);
 }

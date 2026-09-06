@@ -29,7 +29,10 @@
 // file's 20 entries and `check-markdown`'s 36, **the probe credited with the catch
 // is whichever one comes FIRST in list order and reacts** — an artefact of
 // `PROBES`' ordering, not of the clause. Only 14 of these 24 probes were ever the
-// one that noticed.
+// one that noticed. *(Every figure in this block — 20 entries, 24 probes, 14 of 24 —
+// is W28's, of W28's list, and is left in past tense rather than restated: the list
+// is **28 probes and 24 entries** since W30 added `S4` and `S7`. A count in a comment
+// is what this repository gets wrong most often, and the fix is to date it.)*
 //
 // Now each entry carries the probe's `name` as its second element, the child runs
 // **that probe and no other**, and the grading has three verdicts instead of one:
@@ -106,6 +109,21 @@
 //     `MIN_SELF` -> `0` TOGETHER WITH emptying `SELF`              survives
 //     `MIN_META` -> `0` alone                                      survives
 //     the "mutation matched nothing" guard -> `if (false)`         survives
+//     `SELF_RAN` -> `true`                                         survives
+//     `MAX_WIDE` -> `99`                                           survives
+//
+// **`MAX_WIDE -> 99` is W30's own, found by rule 8's re-run of the fix it had just
+// made**: the bound that stops a second `wide` exemption is itself a bare literal on
+// the outermost list, exactly as `MIN_SELF` and `MIN_PROBES` are. The `SELF` entry
+// beside it catches a second entry TAKING the exemption; nothing catches the number
+// being raised. **That is this rule's founding observation landing inside this rule's
+// own procedure for the sixth time across six items.**
+//
+// **`SELF_RAN -> true` was added by W30's adequacy reader and is the sixth**: the
+// guard W28's own reader built — a `SELF` entry passing by making this file a syntax
+// error — can be disabled for **0**, at 34/34, 24/24, 10/10. It is on the outermost
+// list and there is nothing beyond it, which is the same fixed point as the five
+// above rather than a new kind of hole.
 //
 // Emptying `META` or `SELF` with its floor left alone is caught; it is the floor
 // **and** the list together that survives, and only on the outermost list — which
@@ -123,12 +141,22 @@
 // smaller instance of the same thing. Named because a ceiling list that omits its
 // largest hole is worse than no list.
 //
-// **And the probes cover 4 of `check-source`'s 13 checks** — `S8`, `S11`, `S12`,
-// `S13`, the four a manifest can reach. `S1`-`S7`, `S9` and `S10` are pattern lists
-// that can each be **emptied entirely for 0 failures** with this file green
-// (measured by the adequacy reader), and probing them means mutating `src/`,
-// `test/` and `examples/`, which W24's `Owns` excludes and which needs three more
-// input overrides. [Q132](../doc/open-questions.md).
+// **And the probes cover 6 of `check-source`'s 13 checks** — `S8`, `S11`, `S12` and
+// `S13`, the four a manifest can reach, plus **`S4` and `S7`, added by W30** through a
+// copy of the published tree (`CHECK_SOURCE_SRC`). *(This paragraph read **4 of 13**
+// and named `S1`-`S7`, `S9`, `S10` as the pattern lists nothing probes; two of those
+// nine are now probed and the sentence is corrected rather than left to rot.)*
+//
+// **`S1`, `S2`, `S3`, `S5`, `S6`, `S9` and `S10` remain unprobed and the cap is
+// STATED, on [P9](../doc/plans/p9-when-a-check-stops-checking-what-notices.md)
+// decision 3's argument**: `S1`-`S3` are guarded a second way by `typecheck:deno` and
+// `typecheck:browser`, and `S5`, `S6`, `S9`, `S10` are publish-set bookkeeping with a
+// second route. **`S4` and `S7` were the two with none** — `S4` is `RT-R9`, which all
+// four typecheckers accept and Node refuses to load, and `S7` is ADR 0013 rule 1's only
+// enforcement. **Measured before they were probed**: emptying `UNSTRIPPABLE`, making
+// `S4`'s clause inert, emptying the published half of `SCHEDULER_REACH` and making
+// `S7`'s clause inert were **all four inert on the clean tree and all four at 24/24
+// probes caught**. [Q132](../doc/open-questions.md).
 //
 // **What is NOT on that list, and the correction is the point.** This header
 // claimed a fifth survivor of W24's own — *"deleting the `lint` row from `COMPOSED`
@@ -146,8 +174,8 @@
 // hole was a measurement that stopped one command early** — the [Q43](../doc/open-questions.md)
 // class, in the file that exists to refuse exactly that.
 
-import { readFileSync, writeFileSync, mkdirSync, rmSync } from 'node:fs';
-import { join } from 'node:path';
+import { readFileSync, writeFileSync, mkdirSync, rmSync, cpSync } from 'node:fs';
+import { join, relative } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
 /**
@@ -197,8 +225,15 @@ const PROBES = [
     // ran this and `check-source` exited 0; `&&` in sequence is the only
     // implementation `doc/workflow.md` section 4's ladder has, so L6 could be moved
     // ahead of L0 with the gate green.
-    mutate: (t) => t.replace('npm run check:spec && npm run check:source && ',
-      'npm run check:source && npm run check:spec && '),
+    // **Re-anchored by W30, and the reason is rule 7 (b) firing on this file.**
+    // The anchor was `npm run check:spec && npm run check:source && `; W30 inserted
+    // `check:spec:selftest` between them and this probe came back *"the mutation
+    // matched nothing"* on its first run. **A probe pinned to a chain literal goes
+    // vacuous the moment the chain legitimately changes** — W25's *a comment that
+    // quotes the code it explains* and P9's *a mutation pinned to a magic number*,
+    // in a third dress. Caught by the guard rather than by a reader.
+    mutate: (t) => t.replace('npm run check:spec && npm run check:spec:selftest && ',
+      'npm run check:spec:selftest && npm run check:spec && '),
   },
   {
     name: 'a chain segment with a trailing && , which parses to an EMPTY segment',
@@ -368,6 +403,110 @@ const PROBES = [
     mutate: (t) => t.replace('"check:source:selftest": "node scripts/check-source.mjs --self-test"',
       '"check:source:selftest": "node scripts/check-source.mjs"'),
   },
+  // --- S4 and S7: the two clauses the ladder has no rung for ------------------
+  // **[Q132](../doc/open-questions.md)'s two, and W30 measured the hole before
+  // writing a line of this.** Both loop over `published()`, so until
+  // `CHECK_SOURCE_SRC` existed there was no way to hand this script a broken
+  // published tree — and four clause-level mutations were **all inert on the clean
+  // tree and all four at 24/24 probes caught**: `UNSTRIPPABLE` emptied, `S4`'s
+  // clause made inert, the published loop's `SCHEDULER_REACH` emptied, `S7`'s
+  // clause made inert.
+  //
+  // **`S1`, `S2`, `S3` are left out on P9 decision 3's argument** — `typecheck:deno`
+  // and `typecheck:browser` guard them a second way — and `S5`, `S6`, `S9`, `S10`
+  // are publish-set bookkeeping with a second route. `S4` and `S7` have none: `S4`
+  // is `RT-R9`, which **all four typecheckers accept and Node refuses to load**, and
+  // `S7` is [ADR 0013](../doc/decisions/0013-the-scheduler-is-a-development-dependency-reached-from-the-working-tree.md)
+  // rule 1's ONLY enforcement, which `CLAUDE.md` calls *"one autocomplete away from
+  // being broken"*.
+  {
+    name: 'an enum in published source — RT-R9, which every typechecker accepts',
+    half: 'src', file: 'index.ts', check: 'S4',
+    mutate: (t) => `${t}\nexport enum ProbeKind { A, B }\n`,
+  },
+  {
+    name: 'a constructor PARAMETER PROPERTY in published source — RT-R9`s own example',
+    half: 'src', file: 'src/driver/driver.ts', check: 'S4',
+    // A different entry of `UNSTRIPPABLE` from the one above, deliberately: the list
+    // is a loop bound and one entry covering it says nothing about the other four.
+    // This is the construct `spec/runtime-targets.md` names in terms — `deno check`,
+    // `tsc -p tsconfig.node.json` and `tsc -p tsconfig.browser.json` all accept it
+    // and Node throws `ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX` at import time.
+    mutate: (t) => `${t}\nclass Probe {\n  constructor(private readonly n: number) {}\n}\n`,
+  },
+  {
+    name: 'a published file importing the scheduler by its NPM name',
+    half: 'src', file: 'src/fold/policies.ts', check: 'S7',
+    mutate: (t) => `${t}\nimport { FyflowScheduler } from 'fyflow-scheduler';\n`,
+  },
+  {
+    name: 'a published file importing the scheduler by its JSR name, bare',
+    half: 'src', file: 'src/definition/types.ts', check: 'S7',
+    // **The form W5's adequacy pass found unmatched.** The package answers to two
+    // names; a Deno consumer runs `deno add jsr:@fyflow/scheduler` and then writes
+    // the BARE `@fyflow/scheduler` with no `jsr:` prefix anywhere near the import.
+    // A side-effect import rather than a `from`, so it reaches a different entry of
+    // `SCHEDULER_REACH` than the probe above.
+    mutate: (t) => `${t}\nimport '@fyflow/scheduler';\n`,
+  },
+
+  // **Six more, added after W30`s adequacy reader measured that ONE ENTRY COULD LEAVE.**
+  // The two probes above cover `an enum` and `a constructor parameter property`; the
+  // reader deleted `a namespace`, `a decorator`, `import = require()` from
+  // `UNSTRIPPABLE` and `a dynamic import`, `a require()` and `a relative reach into
+  // ../fyflow-scheduler` from `SCHEDULER_REACH` — **all six for 0 failures, 28/28,
+  // 24/24, 9/9, exit 0**. The author had bounded THE WHOLE LIST LEAVING (both META
+  // entries do that) and not ONE ENTRY LEAVING, which is exactly the split
+  // `doc/workflow.md` rule 8`s fourth obligation names and exactly the shape P7`s
+  // readers found twice. Every entry of both lists now has a probe.
+  {
+    name: 'a namespace in published source — RT-R9',
+    half: 'src', file: 'src/definition/regions.ts', check: 'S4',
+    mutate: (t) => `${t}\nexport namespace Probe { export const n = 1; }\n`,
+  },
+  {
+    name: 'a decorator in published source — RT-R9',
+    half: 'src', file: 'src/driver/routing.ts', check: 'S4',
+    mutate: (t) => `${t}\n@Injectable\nclass Probe {}\n`,
+  },
+  {
+    name: 'an import = require() in published source — RT-R9, and it trips S1 as well',
+    half: 'src', file: 'src/driver/log.ts', check: 'S1', also: ['S4'],
+    // **A declared cascade, not a malformed probe.** `S1``s `RT-R4` list matches any
+    // `require(` at all, and `S4``s list matches `import x = require(`, so the one
+    // construct is two violations of two different rules. Rule 7 (c) is what makes
+    // that a declaration rather than a surprise.
+    mutate: (t) => `${t}\nimport probe = require("node:path");\n`,
+  },
+  {
+    name: 'a DYNAMIC import of the scheduler in published source',
+    half: 'src', file: 'src/driver/events.ts', check: 'S7',
+    mutate: (t) => `${t}\nconst probe = () => import('fyflow-scheduler');\n`,
+  },
+  {
+    name: 'a require() of the scheduler in published source — S1 as well, by the same list',
+    half: 'src', file: 'src/driver/ids.ts', check: 'S1', also: ['S7'],
+    mutate: (t) => `${t}\nconst probe = require("fyflow-scheduler");\n`,
+  },
+  {
+    name: 'a RELATIVE reach into ../fyflow-scheduler — the 2026-08-31 shape',
+    half: 'src', file: 'src/driver/policy.ts', check: 'S7',
+    // ADR 0029: a path into a sibling checkout is the form a junction in
+    // `node_modules` made look ordinary, and it is the one this list exists for.
+    //
+    // **This probe trips `S7` TWICE and no probe can ever make it trip once**, which
+    // is a fact about the CHECK rather than about the probes. `SCHEDULER_REACH[4]` —
+    // *a relative reach into ../fyflow-scheduler* — and `SCHEDULER_REACH[0]` — *an
+    // import of the scheduler* — share the prefix ``\bfrom\s+['\"][^'\"]*``, and any
+    // string containing `../fyflow-scheduler` contains `fyflow-scheduler`. **So [4]
+    // is SUBSUMED BY [0] for every possible input**: deleting it changes no verdict,
+    // and W30 measured that (28/28 with it gone) before concluding it. It is already
+    // present-but-inert, so *what notices when it goes inert* has the answer
+    // **nothing, and nothing could** — W29's `check-scheduler.mjs:191` shape, second
+    // occurrence, in a different check. **Not fixed**: removing a clause is a change
+    // to what `S7` checks, which P9 declares out of scope.
+    mutate: (t) => `${t}\nimport { x } from '../../fyflow-scheduler/dist/index.js';\n`,
+  },
   {
     name: 'the scheduler declared as a runtime dependency',
     half: 'pkg', check: 'S8',
@@ -428,13 +567,28 @@ const RAN = (out) => /^(All checks passed|\d+ failure\(s\)\.)/m.test(out);
  */
 const SELF_RAN = (out) => /self-test — /.test(out);
 
-const MIN_PROBES = 24;
+const MIN_PROBES = 34;
 
 /** The same floor for `META`, and for the same reason. */
-const MIN_META = 20;
+const MIN_META = 24;
 
 /** And for `SELF`. */
-const MIN_SELF = 7;
+const MIN_SELF = 10;
+
+/**
+ * **How many META entries may take the `wide` exemption from the two anchor guards.**
+ * One, and W30`s adequacy reader is why it is bounded at all: it wrote a NEW entry
+ * that disables `S4` and `S7` together while naming only `S7`, handed it a `wide`
+ * reason, and the file reported **28/28, 24/24, 9/9, exit 0**. The identical entry
+ * WITHOUT the fourth element is refused by name — *"the mutation is GLOBAL"* — so the
+ * guard works and the escape from it did not have to be earned.
+ *
+ * The header argued *"an exemption that has to be written down beside the entry is a
+ * different thing from a guard that is not there"*. True of the one entry that has
+ * one, and it said nothing about HOW MANY may write one down. `MAX_CORPUS` already
+ * had the shape this needed.
+ */
+const MAX_WIDE = 1;
 
 /**
  * **The mutations `check-source.mjs` itself is run against, with the WHOLE probe
@@ -496,7 +650,12 @@ const META = [
   // be downgraded to cardinality with this whole file green.
   ['S12 and S13 swapped, so every count still matches and no set does',
     'a runtime dropped from the gate chain — Q126, reproduced',
-    (t) => t.replaceAll("fail('S12'", "fail('SX'").replaceAll("fail('S13'", "fail('S12'").replaceAll("fail('SX'", "fail('S13'")],
+    (t) => t.replaceAll("fail('S12'", "fail('SX'").replaceAll("fail('S13'", "fail('S12'").replaceAll("fail('SX'", "fail('S13'"),
+    // **The one declared `wide` exemption in this file.** This entry is a rename of
+    // EVERY `S12` and `S13` site by construction — that is what makes the counts
+    // match and the sets not — so both anchor guards would refuse it for doing
+    // exactly what it says. Declared here rather than by turning the guards off.
+    'a global rename is the whole mechanism: the ids are swapped at every site'],
   ['S13`s declared-parts comparison disabled',
     'typecheck:deno dropped from the typecheck chain — the only Deno typecheck', (t) => t.replace('for (const c of COMPOSED) {', 'for (const c of []) {')],
   ['S13`s derived clause disabled — the one that counts COMPOSED from package.json',
@@ -564,6 +723,25 @@ const META = [
     'typecheck:deno dropped from the typecheck chain — the only Deno typecheck',
     (t) => t.replace("    const cmd = typeof scripts[c.name] === 'string' ? scripts[c.name].trim() : '';",
       "    const cmd = c.parts.join(c.split === '&&' ? ' && ' : ' ');")],
+  // (a) S4 and S7, whose clauses had no grading because they had no probe. Each
+  // pair breaks the CLAUSE and then the LOOP BOUND behind it — rule 8's first and
+  // fourth obligations on the same two checks, which is what says the pattern lists
+  // are lists rather than decoration.
+  ['S4`s clause disabled', 'an enum in published source — RT-R9, which every typechecker accepts',
+    (t) => t.replace("      fail('S4',", "      [].push('S4',")],
+  ['UNSTRIPPABLE emptied — the whole pattern list leaving',
+    'a constructor PARAMETER PROPERTY in published source — RT-R9`s own example',
+    (t) => t.replace(/const UNSTRIPPABLE = \[\n[\s\S]*?\n\];/, 'const UNSTRIPPABLE = [];')],  // `[\n` so the result cannot re-match
+  ['S7`s clause disabled', 'a published file importing the scheduler by its NPM name',
+    (t) => t.replace("      fail('S7',", "      [].push('S7',")],
+  ['the PUBLISHED half of SCHEDULER_REACH emptied, leaving S9`s half alone',
+    'a published file importing the scheduler by its JSR name, bare',
+    // Narrowed to `S7`'s own loop head rather than to the shared array: `S9` reads
+    // the same list through `for (const [re] of SCHEDULER_REACH)`, and emptying the
+    // array would disable two checks while naming one. That is precisely what the
+    // GLOBAL guard below refuses, asked of an entry rather than of an anchor.
+    (t) => t.replace('  for (const [re, what] of SCHEDULER_REACH) {', '  for (const [re, what] of []) {')],
+
   ['every failure swallowed',
     'the scheduler declared as a runtime dependency', (t) => t.replace('const fail = (check, msg) => failures.push(`${check}: ${msg}`);', 'const fail = () => {};')],
   ['the non-zero exit removed',
@@ -653,6 +831,36 @@ const SELF = [
   //
   // What this entry provokes instead is rule 7 (b) at the META layer: a mutation
   // that matches nothing must say so rather than grading anything.
+  // --- W30: the two bounds this item added, made load-bearing rather than present.
+  //
+  // **Both survived W30`s own rule 8 set at cost 0 before these entries existed**,
+  // which is the ceiling `check-spec-selftest.mjs` has to live with and this file
+  // does not: it HAS a list one level out, so the hole need not move — it closes.
+  // Each edits the `META` LIST and leaves the guard alone, which is W28`s
+  // correction: with the guard gone and the defect present the run goes GREEN, so
+  // *"must exit non-zero"* would read as *the floor did not fire* either way.
+  ['one META entry replaced by a DUPLICATE of another — what a COUNT cannot see',
+    // Measured by W30 before the bound existed: `20/20 noticed`, exit 0, floor
+    // satisfied, total unmoved, and `check-source`'s exit-path clause silently
+    // ungraded. W29 found this in `check-scheduler` and named this file as
+    // structurally exposed; it was exposed.
+    (t) => t.replace(
+      "  ['the non-zero exit removed',\n    'GATE_CHAIN emptied entirely — the whole list leaving', (t) => t.replace('  process.exit(1);', '  process.exitCode = 0;')],",
+      "  ['the non-zero exit removed',\n    'the scheduler declared as a runtime dependency', (t) => t.replace('const fail = (check, msg) => failures.push(`${check}: ${msg}`);', 'const fail = () => {};')],")],
+  ['one META entry`s anchor made GLOBAL — one entry, five S12 sites, one name',
+    // W29's adequacy reader's finding, measured live here by W30: swapping `S12
+    // disabled`'s anchor for `/fail\\('S12',/g` disabled ALL FIVE `S12` clauses
+    // while naming one, and this file still reported `20/20 noticed` at exit 0.
+    (t) => t.replace(
+      "    'a runtime dropped from the gate chain — Q126, reproduced', (t) => t.replace('    if (unreadable.length === 0) {', '    if (false) {')],",
+      "    'a runtime dropped from the gate chain — Q126, reproduced', (t) => t.replace(/fail\\('S12',/g, \"[].push('S12',\")],")],
+  ['a SECOND META entry taking the `wide` exemption — what MAX_WIDE bounds',
+    // The reader`s own edit, checked in: give an entry that names one clause a fourth
+    // element, and both anchor guards stop applying to it. One edit, and `META` sits
+    // above `SELF` so nothing self-matches.
+    (t) => t.replace(
+      "  ['S7`s clause disabled', 'a published file importing the scheduler by its NPM name',",
+      "  ['S7`s clause disabled', 'a published file importing the scheduler by its NPM name', undefined, 'a second exemption nobody bounded',")],
   ['one META mutation made VACUOUS — rule 7 (b) at the grading layer',
     (t) => t.replace("(t) => t.replace('    if (unreadable.length === 0) {', '    if (false) {')",
       "(t) => t.replace('a string this file does not contain', 'nor this one')")],
@@ -691,6 +899,85 @@ export async function selfTest(root) {
     return 1;
   }
 
+  // **`META` is bounded by CONTENT as well as by count, and W30 MEASURED the hole
+  // here rather than inheriting it.** W29 found this in `check-scheduler` and named
+  // `check-source`, `check-markdown` and `check-policies` as structurally exposed
+  // and unmeasured. Measured: replacing this file's *"the non-zero exit removed"*
+  // entry with a **duplicate** of *"every failure swallowed"* reported
+  // **`20/20 noticed` at exit 0** — floor satisfied, total unmoved, and
+  // `check-source`'s exit-path clause silently ungraded.
+  //
+  // **Only the distinctness half is available here, and that is stated rather than
+  // quietly dropped.** `check-scheduler-selftest.mjs` carries a second bound — every
+  // id loses a `fail()` SITE to some entry — which works there because every entry
+  // rewrites a `fail('Dx', ` prefix. Most entries here disable a clause with
+  // `if (false)` or `for (… of [])` and leave every `fail()` call textually in
+  // place, so a site count cannot see them. `check-spec-selftest.mjs` ships both.
+  {
+    // **Against the REAL check, never `source.check`.** `source.check` is
+    // `readFileSync(script)`, and in a META child `script` IS the mutant — so two
+    // entries that both become no-ops on an already-broken check collapse to the
+    // same string and this bound refuses a correct list. Measured: with
+    // `checks = []` already applied, *"the whole checks array emptied"* and *"the
+    // S12 row deleted"* both matched nothing, the child aborted at `23 distinct
+    // mutations`, and the parent reported it as a CRASH. **A bound derived from
+    // "the script under test" is a different bound inside a child whose script
+    // under test is broken.**
+    const real = readFileSync(join(root, 'scripts', 'check-source.mjs'), 'utf8');
+    const mutants = META.map(([, , m]) => { try { return m(real); } catch { return null; } });
+    const wideEntries = META.filter(([, , , w]) => w).map(([n]) => n);
+    if (wideEntries.length > MAX_WIDE) {
+      console.log(`check-source self-test — ${wideEntries.length} META entries take the ` +
+        `\`wide\` exemption and this file declares ${MAX_WIDE}: ${wideEntries.join('; ')}.`);
+      console.log('  FAIL  every one of them is exempt from BOTH anchor guards, so an entry can ' +
+        'disable a set of clauses while naming one and say nothing about it.');
+      rmSync(dir, { recursive: true, force: true });
+      return 1;
+    }
+    if (new Set(mutants).size !== META.length) {
+      console.log(`check-source self-test — ${META.length} meta entries, ` +
+        `${new Set(mutants).size} distinct mutations.`);
+      console.log('  FAIL  two META entries produce the SAME mutation, so one clause is graded ' +
+        'twice and another not at all — a floor counts entries and cannot see this.');
+      rmSync(dir, { recursive: true, force: true });
+      return 1;
+    }
+  }
+
+  /**
+   * **The verdict, computed in ONE place**, because W30 added a third probe half
+   * and two callers computing the same fact is how they drift — this file's own
+   * stated reason for sharing `runOne` between the main pass and single-probe mode.
+   */
+  const verdict = (probe, r) => {
+    const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
+    // The set of checks that actually reported a failure, compared against the set
+    // this probe declared. **Equality, not membership**: a probe that trips a check
+    // it did not name is malformed, and a malformed probe reported as caught is the
+    // whole reason this file exists.
+    //
+    // Read from the FAILURE LINES, which say which check owns each failure.
+    const declared = [probe.check, ...(probe.also ?? [])].sort();
+    const tripped = trippedIn(out);
+    // **AND from the per-check REPORT ROWS, which are a second, independent
+    // projection of the same fact.** W24's conformity reader found that the report
+    // was a list nothing counted: reverting the check-id repair (`c.slice(0, 2)`,
+    // which read `S10`-`S13` all as `S1`) printed **thirteen `ok` rows above eleven
+    // listed failures** and cost 0 probes, and deleting a row from the `checks`
+    // array cost 0 as well. Requiring the two projections to agree is what makes a
+    // repair to the report breakable — `doc/workflow.md` rule 8's *break the fix
+    // and watch the gate go red*, which that repair could not otherwise satisfy.
+    const rows = [...out.matchAll(/^ {2}(ok {2}|FAIL) {2}(S\d+) /gm)]
+      .filter((m) => m[1] === 'FAIL').map((m) => m[2]).sort();
+    const agree = rows.join(',') === tripped.join(',');
+    const refused = r.status !== 0 && tripped.join(',') === declared.join(',') && agree;
+    return {
+      vacuous: false, refused, ran: RAN(out), declared, tripped, agree, status: r.status,
+      msg: `exited ${r.status}, wanted [${declared.join(',')}], ` +
+        `got [${tripped.join(',')}]${agree ? '' : `, report rows said [${rows.join(',')}]`}`,
+    };
+  };
+
   /**
    * **One probe, run once**, shared by the main pass and by single-probe mode so
    * the two cannot drift. Returns the verdict rather than printing it, because the
@@ -703,6 +990,29 @@ export async function selfTest(root) {
    */
   const runOne = (i, probe) => {
     const stem = `dev-dist/source-selftest/${String(i).padStart(2, '0')}`;
+    // **The third half, added by W30: a copy of the PUBLISHED TREE.** `S4` and `S7`
+    // loop over `published()`, so neither the manifest half nor the check half can
+    // reach them — the probe has to hand this script a different `src/` and
+    // `index.ts`. `CHECK_SOURCE_SRC` is that handle and it is inert when unset.
+    if (probe.half === 'src') {
+      const tree = join(root, 'dev-dist', 'source-selftest', `tree-${String(i).padStart(2, '0')}`);
+      rmSync(tree, { recursive: true, force: true });
+      mkdirSync(tree, { recursive: true });
+      cpSync(join(root, 'src'), join(tree, 'src'), { recursive: true });
+      cpSync(join(root, 'index.ts'), join(tree, 'index.ts'));
+      const target = join(tree, probe.file);
+      const before = readFileSync(target, 'utf8');
+      const after = probe.mutate(before);
+      if (after === before) {
+        return { vacuous: true, refused: false, ran: false, declared: [], tripped: [], agree: true,
+          msg: 'the mutation matched nothing' };
+      }
+      writeFileSync(target, after);
+      const env = { ...process.env, CHECK_SOURCE_SRC: relative(root, tree).replace(/\\/g, '/') };
+      const r = spawnSync(process.execPath, [script], { cwd: root, encoding: 'utf8', env, timeout: 300_000 });
+      rmSync(tree, { recursive: true, force: true });
+      return verdict(probe, r);
+    }
     const mutated = probe.mutate(source[probe.half]);
     if (mutated === source[probe.half]) {
       // A probe that changes nothing passes for the wrong reason — the exact
@@ -746,32 +1056,7 @@ export async function selfTest(root) {
     } finally {
       if (probe.half === 'check') rmSync(run, { force: true });
     }
-    const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
-    // The set of checks that actually reported a failure, compared against the set
-    // this probe declared. **Equality, not membership**: a probe that trips a check
-    // it did not name is malformed, and a malformed probe reported as caught is the
-    // whole reason this file exists.
-    //
-    // Read from the FAILURE LINES, which say which check owns each failure.
-    const declared = [probe.check, ...(probe.also ?? [])].sort();
-    const tripped = trippedIn(out);
-    // **AND from the per-check REPORT ROWS, which are a second, independent
-    // projection of the same fact.** W24's conformity reader found that the report
-    // was a list nothing counted: reverting the check-id repair (`c.slice(0, 2)`,
-    // which read `S10`-`S13` all as `S1`) printed **thirteen `ok` rows above eleven
-    // listed failures** and cost 0 probes, and deleting a row from the `checks`
-    // array cost 0 as well. Requiring the two projections to agree is what makes a
-    // repair to the report breakable — `doc/workflow.md` rule 8's *break the fix
-    // and watch the gate go red*, which that repair could not otherwise satisfy.
-    const rows = [...out.matchAll(/^ {2}(ok {2}|FAIL) {2}(S\d+) /gm)]
-      .filter((m) => m[1] === 'FAIL').map((m) => m[2]).sort();
-    const agree = rows.join(',') === tripped.join(',');
-    const refused = r.status !== 0 && tripped.join(',') === declared.join(',') && agree;
-    return {
-      vacuous: false, refused, ran: RAN(out), declared, tripped, agree, status: r.status,
-      msg: `exited ${r.status}, wanted [${declared.join(',')}], ` +
-        `got [${tripped.join(',')}]${agree ? '' : `, report rows said [${rows.join(',')}]`}`,
-    };
+    return verdict(probe, r);
   };
 
   /**
@@ -857,11 +1142,40 @@ export async function selfTest(root) {
   const checkSource = readFileSync(join(root, 'scripts', 'check-source.mjs'), 'utf8');
   let noticed = 0, byCorpus = 0;
   console.log(`\nand against a broken check — ${META.length} mutations of check-source.mjs itself\n`);
-  for (const [i, [name, probeName, mutate]] of META.entries()) {
+  for (const [i, [name, probeName, mutate, wide]] of META.entries()) {
     const broken = mutate(checkSource);
     if (broken === checkSource) {
       console.log(`  FAIL  ${name} — the mutation matched nothing`);
       continue;
+    }
+    // **And it must have matched exactly ONCE, and must not be GLOBAL** — W29's two
+    // guards, carried here because **W30 measured both holes live in this file**.
+    // Swapping one entry's anchor for `/fail\('S12',/g` disabled **all five** `S12`
+    // sites while naming one, and this file still reported `20/20 noticed`. Rule 7
+    // (b) asks that a mutation match something; these ask that it match **what it
+    // says**.
+    //
+    // Applying the mutation to its own output catches a second occurrence; applying
+    // it to the source concatenated with itself catches a `/g` anchor, which the
+    // first cannot see because a global pass edits everything and then changes
+    // nothing on the second run.
+    //
+    // **`wide` is a DECLARED exemption with its reason, and exactly one entry takes
+    // it.** The `S12`/`S13` swap is a rename of every site by construction — that is
+    // what makes the counts match and the sets not — so both guards would refuse a
+    // correct entry. An exemption that has to be written down beside the entry is a
+    // different thing from a guard that is not there.
+    if (!wide) {
+      if (mutate(broken) !== broken) {
+        console.log(`  FAIL  ${name} — the mutation matched MORE THAN ONCE, so it landed ` +
+          'on the first of several and the entry does not say which');
+        continue;
+      }
+      if (!mutate(checkSource + checkSource).endsWith(checkSource)) {
+        console.log(`  FAIL  ${name} — the mutation is GLOBAL: it edits every match rather ` +
+          'than the one this entry names, so its verdict is about a set of clauses and not a clause');
+        continue;
+      }
     }
     const path = join(root, 'dev-dist', `.meta-${String(i).padStart(2, '0')}.mjs`);
     writeFileSync(path, broken);

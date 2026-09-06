@@ -356,7 +356,15 @@ for (const d of r.deadAnchors) fail('M2', d);
 // renumbering, not allocation), so each bound gets one and each is probed on its own.
 if (r.files < 56) fail('M3', `only ${r.files} markdown file(s) were scanned, so M1 and M2 are ` +
   'true of the walk rather than of the tree');
-if (r.links < 1350) fail('M4', `only ${r.links} relative link(s) were found; M1 is vacuous below that`);
+// **1200 -> 1350 at P9's declaration, 1350 -> 1530 by W30, and both times because
+// ordinary work closed the window from below.** [Q142](../doc/open-questions.md).
+// Measured at W30's close: whole tree 67/1907/94, `doc/decisions` removed
+// 51/1709/94, `doc/decisions` and `doc/plans` removed **41/1357/94**. The floor has
+// to sit ABOVE the two-directory fixture and BELOW the one-directory fixture — the
+// interval (1357, 1709] — or one probe stops firing `M4` and the other starts. This
+// is a two-sided window rather than a ratchet, and adding documents moves the lower
+// bound UP, which is the opposite of what this file's header argued.
+if (r.links < 1530) fail('M4', `only ${r.links} relative link(s) were found; M1 is vacuous below that`);
 if (r.anchored < 60) fail('M5', `only ${r.anchored} link(s) carry an anchor; M2 is vacuous below that`);
 
 const checks = [

@@ -19,7 +19,22 @@
 // `CHECK_SOURCE_PKG` points the manifest checks (`S8`, `S11`, `S12`, `S13`) at a
 // copy, which is how `--self-test` breaks the manifest without touching the tree.
 // `CHECK_SOURCE_SELFTEST` points `--self-test` at a copy of the probe file, which
-// is how the probe list's own floor is provoked. Neither exists for anything else.
+// is how the probe list's own floor is provoked.
+//
+// **`CHECK_SOURCE_SRC` points the PUBLISHED SET at a copy of `src/` and `index.ts`,
+// and W30 added it for `S4` and `S7` — the two clauses no second mechanism guards.**
+// Both loop over `published()`, so until there was a way to hand this script a
+// different published tree, every one of `S1`-`S4`, `S7` could be **emptied entirely
+// for 0 failures with all 24 probes green**. Measured at W30's declaration, four
+// ways: `UNSTRIPPABLE` emptied, `S4`'s clause made inert, the published loop's
+// `SCHEDULER_REACH` emptied, `S7`'s clause made inert — **all four inert on the
+// clean tree and all four at 24/24**.
+//
+// **`rel()` resolves against whichever root a path is under**, which is what keeps
+// the override from being noise: `S6` compares `rel(p)` to `deno.json`'s allowlist,
+// so a copy under `dev-dist/` reported relative to `ROOT` would fail `S6` on every
+// file it holds. Unset, `SRC_ROOT === ROOT` and the expression is the one that was
+// here before. Neither variable exists for anything but the self-test.
 
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, dirname, resolve, relative } from 'node:path';
@@ -36,6 +51,7 @@ if (process.argv.includes('--self-test')) {
 }
 
 const PKG_PATH = process.env.CHECK_SOURCE_PKG ?? 'package.json';
+const SRC_ROOT = process.env.CHECK_SOURCE_SRC ? resolve(ROOT, process.env.CHECK_SOURCE_SRC) : ROOT;
 const failures = [];
 const fail = (check, msg) => failures.push(`${check}: ${msg}`);
 
@@ -49,12 +65,17 @@ function published() {
       else if (name.endsWith('.ts')) out.push(p);
     }
   };
-  walk(join(ROOT, 'src'));
-  out.push(join(ROOT, 'index.ts'));
+  walk(join(SRC_ROOT, 'src'));
+  out.push(join(SRC_ROOT, 'index.ts'));
   return out;
 }
 
-const rel = (p) => relative(ROOT, p).replace(/\\/g, '/');
+// See `CHECK_SOURCE_SRC` in the header: a path under the overridden published tree
+// is labelled relative to THAT tree, so `S6`'s comparison against `deno.json`'s
+// allowlist still reads `src/driver/driver.ts` rather than a `dev-dist/` prefix.
+// With the variable unset this is `relative(ROOT, p)` and nothing else.
+const rel = (p) =>
+  relative(SRC_ROOT !== ROOT && p.startsWith(SRC_ROOT) ? SRC_ROOT : ROOT, p).replace(/\\/g, '/');
 
 // RT-R4 — every import form, not just `from "node:…"`.
 const NODE_IMPORT = [
@@ -393,6 +414,7 @@ for (const p of exampleSources()) {
 // for one was being written for the other.
 const GATE_CHAIN = [
   'check:spec',
+  'check:spec:selftest',
   'check:source',
   'check:source:selftest',
   'check:markdown',

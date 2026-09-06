@@ -400,10 +400,14 @@ const PROBES = [
     name: 'doc/decisions AND doc/plans removed — the LINK floor, with the anchors left alone',
     file: README, check: 'M1', also: ['M3', 'M4'],
     removes: ['doc/decisions', 'doc/plans'],
-    // 40 files / 1217 links / **86 anchored** (re-measured at P9's declaration; it read
-    // 37 / 1116 / 78, and the LINK floor of 1200 had been passed from below by the same
-    // four documents, so this probe reported `wanted [M1,M3,M4], got [M1,M3]`. The floor
-    // is 1350 now): the anchors are untouched, because
+    // **41 files / 1357 links / 94 anchored, re-measured at W30's close** — and this
+    // probe reported `wanted [M1,M3,M4], got [M1,M3]` again, for the second plan
+    // running, because W30's own Record and index paragraphs pushed the fixture's link
+    // count from 1217 past the 1350 floor. It read 37/1116/78 at W25, 40/1217/86 at
+    // P9's declaration and 41/1357/94 now; the floor is **1530**.
+    // [Q142](../doc/open-questions.md) is not fixed by retuning it — the window is
+    // two-sided by construction — and the mitigation is the direction: it fails
+    // LOUDLY, in the gate, naming the probe and the expected set: the anchors are untouched, because
     // all 78 live in `doc/`'s top level. So this probe fires `M4` and the one above
     // does not, and that difference is what makes the link floor independently
     // observable — the first version removed `doc/`'s top level instead, which took
@@ -542,7 +546,7 @@ const META = [
     (t) => t.replace("if (r.files < 56) fail('M3'", "if (false) fail('M3'")],
   ['M4`s link floor disabled',
     'doc/decisions AND doc/plans removed — the LINK floor, with the anchors left alone',
-    (t) => t.replace("if (r.links < 1350) fail('M4'", "if (false) fail('M4'")],
+    (t) => t.replace("if (r.links < 1530) fail('M4'", "if (false) fail('M4'")],
   ['AGENTS.md dropped from the root file list',
     'a dead link in AGENTS.md — the file Q121 named, and it could leave the walk',
     (t) => t.replace("  ...['README.md', 'AGENTS.md', 'CLAUDE.md']", "  ...['README.md', 'CLAUDE.md']")],
