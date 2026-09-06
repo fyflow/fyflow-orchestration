@@ -15,7 +15,7 @@ the only document that does. **Every snippet in it is extracted and executed by 
 (`scripts/check-docs.mjs`), so it cannot rot the way a hand-maintained reference does. If you change
 the public surface, that check is what tells you the reference is now wrong.
 
-## Current state: **P1-P9 are ALL complete and retro'd, `doc/workflow.md` is [v0.10](doc/workflow.md), and [P8](doc/plans/p8-what-can-be-deleted-with-the-gate-green.md) is CLOSED** — [P7](doc/plans/p7-is-a-join-transitive-over-nested-fan-out.md)'s four items are [W20](doc/work-items/w20-what-a-nested-region-is.md), [W21](doc/work-items/w21-the-branch-path-is-a-path.md), [W22](doc/work-items/w22-what-an-inner-join-does-to-the-outer-one.md) and [W23](doc/work-items/w23-a-nested-flow-on-real-workers.md); **P8's [W24](doc/work-items/w24-the-gates-own-wiring.md) and [W25](doc/work-items/w25-a-link-is-a-link-and-an-anchor-is-an-anchor.md) are both DONE and P8 is retro'd — [P9](doc/plans/p9-when-a-check-stops-checking-what-notices.md) is RUNNING — [W28](doc/work-items/w28-a-grading-names-the-probe-it-breaks.md), [W29](doc/work-items/w29-the-two-self-tests-that-grade-nothing.md) and [W30](doc/work-items/w30-the-clauses-nothing-probes.md) are all DONE, and [W31](doc/work-items/w31-the-self-list-check-policies-never-had.md) — P9's LAST item — has its author pass done with BOTH READERS OUTSTANDING. Read every status from the item's own file, never from this line: it said *"W30's author pass is done with BOTH READERS OUTSTANDING"* while W30's own file said `done` and the paragraph at the foot of this document said `done` too — the same shape W29 recorded of `doc/README.md`, in the front-door document rather than in an index**
+## Current state: **P1-P9 are ALL complete and retro'd, `doc/workflow.md` is [v0.10](doc/workflow.md), and [P10](doc/plans/p10-is-fan-out-one-feature-or-two.md) is DECLARED and RUNNING — the first PRODUCT plan since P7** — *is fan-out one feature or two?* ([Q12](doc/open-questions.md), open since P1). Its four items are [W32](doc/work-items/w32-what-a-map-fanout-is.md), [W33](doc/work-items/w33-a-map-at-run-time-arity.md), [W34](doc/work-items/w34-what-a-branch-receives-and-what-a-join-carries.md) and [W35](doc/work-items/w35-a-map-on-real-workers.md), all **todo** — nothing has started. [P9](doc/plans/p9-when-a-check-stops-checking-what-notices.md)'s four items ([W28](doc/work-items/w28-a-grading-names-the-probe-it-breaks.md), [W29](doc/work-items/w29-the-two-self-tests-that-grade-nothing.md), [W30](doc/work-items/w30-the-clauses-nothing-probes.md), [W31](doc/work-items/w31-the-self-list-check-policies-never-had.md)) are all DONE and its retro is run. **Read every status from the item's own file, never from this line.** *(This line said **"P9 is RUNNING"** and **"W31 has its author pass done with BOTH READERS OUTSTANDING"** at P10's declaration, while W31's own file read `done`, P9's plan file carried a full retro, and `doc/workflow.md`'s header already read v0.10 — which that retro produced. It is the SAME sentence this line was already carrying a correction about, one item later: it had said exactly this of W30, and the correction was written in place and then went stale again for W31. **A warning about a stale status, sitting in the stale status it warns about.**)*
 
 **[P8](doc/plans/p8-what-can-be-deleted-with-the-gate-green.md) asks *what can be deleted from this
 repository with `npm run gate` still green?*, and it is the plan that owns `scripts/**` and
@@ -498,6 +498,98 @@ width check belongs only on a first line that both opens and closes with a pipe,
 file's own stated predicate has said all along. **A parser can be wrong about a row in two opposite
 directions on the way to being right about it**, and neither wrong reading is visible in the rendered
 table.
+
+**[P10](doc/plans/p10-is-fan-out-one-feature-or-two.md) is DECLARED — *is fan-out one feature or
+two?* — and it is the first PRODUCT plan since P7.** [Q12](doc/open-questions.md) has been open since
+P1 and is **the only open question that might mean the library is missing a FEATURE rather than a
+guarantee**. Four items, serial: [W32](doc/work-items/w32-what-a-map-fanout-is.md) (what a map-fanout
+is, and what its `branchPath` is — **ADR 0036**),
+[W33](doc/work-items/w33-a-map-at-run-time-arity.md) (the driver and the three policies at run-time
+arity, and N=0), [W34](doc/work-items/w34-what-a-branch-receives-and-what-a-join-carries.md) (what a
+branch receives and what a join carries — **ADR 0037**) and
+[W35](doc/work-items/w35-a-map-on-real-workers.md) (a map on real workers). **Reserves W32-W35,
+Q154-Q163, ADR 0036-0037**, and unlike P9 it expects to take **both** ADRs.
+
+**Its declaration measured seven facts and four changed what got written. Two made it much smaller
+than [Q12](doc/open-questions.md)'s row reads, and the split is between a GRAMMAR and a DERIVATION.**
+The id **grammar** already admits run-time arity — 500 ids for one node at 500 indices are 500
+distinct strings, and `3.11`, `137.0` and `0.9999` all round-trip — so **`spec/task-id.md` needs no
+format change**, and none of the *"every fixture, every log line and every test name"* cost P1 spent
+an argument reserving against. And **two of the three shipped policies never read `region.branches`**
+— measured with a `Proxy` rather than read — and answer identically at N=3, N=7 and N=1, which is
+[ADR 0030](doc/decisions/0030-a-join-is-transitive-and-a-dead-join-ends-the-branch-it-sits-in.md)'s
+*"it needed no mechanism"* a second time. **So P10 is a definition-and-driver plan, not a join plan.**
+
+**What it must decide is what the DERIVATION pins.** `branchPathOf(regions, nodeId)` takes the region
+sets and a node id and **no run-time input at all**, so three dispatches of one node mint **one id of
+three** and the second is a `DuplicateTaskId`. That is `FD-V19`'s own stated reason for existing, and
+it falsifies `spec/task-id.md` section 1's *"`branchPath` is a property of the node"* — the sentence
+[W21](doc/work-items/w21-the-branch-path-is-a-path.md) made true about the code one plan ago.
+**A map-fanout is refused today three different ways depending on arity**: `FD-V9`'s repeated-entry
+clause at N≥2, `FD-V9`'s arity floor at N=1, and `FD-V11`'s reachability at N=0, where the join and
+the `end` become unreachable from entry.
+
+**Three of its findings are live today rather than hypothetical, and the first is the sharpest.**
+`arrival-count` at a run-time arity does **not** hang: with `need` fixed from a branch list the run
+does not use, it reports `satisfied` on the **first** arrival **with two branches still live** — a
+join fired over a region that has not finished, which is a failure direction W4's matrix never saw,
+because every failure it recorded was `need` being too **large**. **N=0 is `waiting` in all three
+policies** — `live-token` hangs on ADR 0003's own *"having been positive"* clause — and `FD-V9`'s
+arity floor means the static feature can **never** reach it. And **a fan-out hands ONE payload object
+to every branch**: `a.payload === b.payload` is **`true`**, so a branch mutating what it was given
+mutates its siblings' input. The payload **is** cloned once at the edge hop, so the log is protected
+and the siblings are not, and `spec/` states no contract on it: **measured across all seven documents
+there**, `payload` occurs **six times on five lines in three of them** — the outcome record's own
+field, `settleJoin` taking no payload parameter, and `start(payload)`'s signature — and **not one says
+what a node receives or whether two branches may share it**. [Q154](doc/open-questions.md), **measured
+at ladder L2 in ONE flow with `createTask: (c) => c`; the thread-pool half is NOT measured**, which
+is the scope stated rather than generalised (`doc/workflow.md` section 1 rule 5's writing clause).
+
+**And the join's successor receives `null`, which is why [Q11](doc/open-questions.md) and
+[Q12](doc/open-questions.md) are one plan.** Not because both touch a payload — **because a map that
+runs N tasks and hands its successor `null` has computed N results and thrown all of them away.**
+[Q36](doc/open-questions.md)'s owner cell read `W2`, an item from P1 done since. **P10 decides it
+AFTER the map runs**, deliberately: a join-payload rule written before a map exists has one case and
+would be generalised to the case that matters, which is P9's *"a claim written from a mechanism
+instead of from the cases"*.
+
+**[Q9](doc/open-questions.md) is declared OUT with a measurement rather than on scope, and stays
+open.** Freezing the argument is already effectively done — the driver hands the predicate a clone —
+and catches mutation and nothing else; **evaluating twice caught 1 of 4** impurity shapes and is
+*flaky* on `Math.random()`, which is the one property `doc/concept.md` section 5 refuses; and **ladder
+L3, the rung the register cites for it, structurally cannot reach a predicate** — a `FoldInput`
+carries an outcome record and a region event, so routing is already decided and `selectEdge` is never
+called from the fold. That last is a finding about the **ladder**, not about Q9:
+[Q155](doc/open-questions.md).
+
+**[Q142](doc/open-questions.md) was measured BEFORE the documents landed, and that is a first.** Its
+two-sided window caught P9's declaration and W30; P10's declaration adds **five documents that survive
+both `removes` cuts** — four work items plus the plan file — so the one-directory fixture was
+predicted to go **51 → 56** against `M3`'s floor of `< 56`, stopping probe 1 firing. **It did,
+exactly.** Retuned from a three-count pass to **64** and **1720** (`M5` untouched at 60 for the third
+plan running), and the two `META` entries pinned to the old literals were repointed — **rule 7 (b)
+firing correctly rather than passing**, which is *"a mutation pinned to a magic number is unmutatable
+the moment the number is right to change."*
+
+**Two claims P10 was handed were FALSE and checking them is what found it.** *"The Verification and
+fixtures cluster has never resolved one"* is wrong by the register's own predicate — it has resolved
+**two**, [Q126](doc/open-questions.md) by W24 and [Q141](doc/open-questions.md) by W29 — and two of
+thirty-eight is still the worst ratio of any cluster, so the point survived and the number did not.
+And a running count of *"plans that measured a load-bearing fact before declaring"* was quoted as
+**sixteen** where `doc/workflow.md` section 4 says **nine** and P9's own declaration says
+**thirteen**, on a wider predicate. **P10 adds no number to that**, because the predicate is stated
+nowhere in one expression. *(Found in passing and deliberately NOT fixed, because it is not P10's:
+this document says **"Q121 is RESOLVED"** in its W25 paragraph while that row's own status cell reads
+`open`.)*
+
+**The census is CONFIRMED for the FOURTH plan running — 114 questions, 78 open, 2 deferred, 34
+resolved**, both halves at 114 of 114 in exactly one cluster cell. **The parser aborted twice on its
+own conventions and was then WRONG ONCE WITHOUT ABORTING, which is the one to carry.** Counting the
+empty leading and trailing cell puts *"the second-to-last cell"* on the **Owner** column — it returned
+`W4` as Q4's status and said so — and the **Resolved table is THREE columns with no status cell**.
+Then the cluster half: the cells write `Q8-Q12` and `Q36-Q39`, so a bare `/Q\d+/` reads the endpoints
+and **silently loses everything between them**, reporting **ten** ids in no cluster cell where the
+true answer was **two**. **A missing id is still a classifiable answer, so nothing fired.**
 
 **P7's exit artifact exists.** A nested fan-out runs end to end on a real scheduler, in **both L6
 runtimes**, with the outer join firing over branches it never opened. Ladder L6 is **489 assertions,

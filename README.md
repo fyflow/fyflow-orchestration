@@ -146,16 +146,23 @@ of the document**; what the other 84% is allowed to be, and why, is
 happens next.
 
 - [doc/concept.md](doc/concept.md) — what we are building and why
-- [spec/](spec/README.md) — **the normative layer**: six documents, 72 numbered rules, 29 hand-written examples
-- [doc/decisions/](doc/decisions/) — ten ADRs, one carrying an in-place *Correction*
-- [doc/plans/](doc/plans/) — P1-P4 complete
+- [spec/](spec/README.md) — **the normative layer**: **six normative documents, 75 numbered rules, 30 hand-written examples**. *(`npm run check:spec` reports **7 documents** because it counts `spec/README.md` itself; the six are the normative ones. Re-derived from the check's own output at P10's declaration, where this line read 72 and 29.)*
+- [doc/decisions/](doc/decisions/) — **fourteen ADRs**, one carrying an in-place *Correction*. *(Counted from the directory at P10's declaration, where this line read ten.)*
+- [doc/plans/](doc/plans/) — **P1-P9 complete and retro'd; [P10](doc/plans/p10-is-fan-out-one-feature-or-two.md) declared and running**. *(This line read P1-P4 while five more plans closed behind it — `doc/` is checked by nothing, and this is the front-door document.)*
 - [doc/open-questions.md](doc/open-questions.md) — the register
 - [doc/workflow.md](doc/workflow.md) — how work is planned, split and verified
 - [doc/scheduler-upstream.md](doc/scheduler-upstream.md) — what we want from the scheduler
 
 **How the work is done is itself documented and is unusual**: every change is a declared work item
 with its own gate, and every one is read afterwards by two reviewers who did not write it — one
-against the spec, one by mutation. **Twenty-one such passes have run and not one has come back empty.**
+against the spec, one by mutation. **Fifty-one such passes have run and not one has come back empty.** *(This line read **twenty-one**
+while thirty more ran. The predicate is one pass per reader per work item, counted from each item's
+own Record — `doc/workflow.md` section 1 rule 5 — and the figure here is **summed from the per-plan
+totals**: 31 through W19 as `CLAUDE.md` enumerates them, plus eight in P7, four in P8 and eight in P9,
+each read from that plan's own retro. **Stated that way rather than as a fresh count of the item
+files**, because a `grep` over their Record tables does not agree with itself across the two Record
+formats those files use, and a number that cannot be derived in one expression should say where it
+came from.)*
 
 ## Licence
 

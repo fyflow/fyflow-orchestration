@@ -752,6 +752,59 @@ wins.
    check was put where this file's own stated predicate says it belongs. **A parser can be wrong about
    a row in two opposite directions on the way to being right about it.**
 
+7. **[P10](plans/p10-is-fan-out-one-feature-or-two.md) is DECLARED and runs after P9. It is a
+   PRODUCT plan, and it is the first since P7** — *is fan-out one feature or two?*
+   [Q12](open-questions.md), open since P1, and **the only open question that might mean the library
+   is missing a FEATURE rather than a guarantee.** It takes [Q36](open-questions.md) and the fan-out
+   half of [Q11](open-questions.md) inside it, **not because both touch a payload but because a
+   map's whole deliverable IS the join's payload**. **Four items, serial**:
+   [W32](work-items/w32-what-a-map-fanout-is.md) — what a map-fanout is, and what its `branchPath`
+   is (ADR 0036); [W33](work-items/w33-a-map-at-run-time-arity.md) — the driver and the three
+   policies at run-time arity, and N=0;
+   [W34](work-items/w34-what-a-branch-receives-and-what-a-join-carries.md) — what a branch receives
+   and what a join carries (ADR 0037); [W35](work-items/w35-a-map-on-real-workers.md) — a map on
+   real workers. Exit artifact: **a map-fanout running end to end on a real scheduler, its arity
+   taken from the previous node's output, its join firing over branches nobody declared.**
+
+   **Its declaration measured seven facts and four changed what got written — two of them made the
+   plan substantially smaller than [Q12](open-questions.md)'s row reads.** The **id GRAMMAR already
+   admits run-time arity**: 500 ids for one node at 500 indices are 500 distinct strings and the
+   nested forms round-trip, so `spec/task-id.md` needs no format change. And **two of the three
+   shipped policies never read `region.branches`** — measured with a `Proxy`, not read — and answer
+   identically at N=3, N=7 and N=1, which is
+   [ADR 0030](decisions/0030-a-join-is-transitive-and-a-dead-join-ends-the-branch-it-sits-in.md)'s
+   *"it needed no mechanism"* a second time. **So P10 is a definition-and-driver plan, not a join
+   plan.**
+
+   **What it must decide is what the DERIVATION pins.** `branchPathOf(regions, nodeId)` takes no
+   run-time input, so three dispatches of one node mint **one id of three** and the second is a
+   `DuplicateTaskId` — which is `FD-V19`'s own stated reason for existing and falsifies
+   `spec/task-id.md` section 1's *"`branchPath` is a property of the node"*, the sentence
+   [W21](work-items/w21-the-branch-path-is-a-path.md) made true one plan ago.
+
+   **And three findings are live today rather than hypothetical.** `arrival-count` at a run-time
+   arity does **not** hang — it fires the join **on the first arrival with two branches still
+   live**, a failure direction W4's matrix never saw. **N=0 is `waiting` in all three policies**,
+   and `FD-V9`'s arity floor means the static feature can never reach it. And **a fan-out hands ONE
+   payload object to every branch** — `a.payload === b.payload` is `true`, so a branch mutating what
+   it was given mutates its siblings' input, with the stored record protected and `spec/` silent:
+   [Q154](open-questions.md), measured at L2 in **one flow** with `createTask: (c) => c`, and the
+   thread-pool half **not** measured.
+
+   **[Q9](open-questions.md) is declared OUT with a measurement rather than on scope, and left
+   open.** Freezing the argument is already effectively done and catches mutation only;
+   double-evaluation caught **1 of 4** impurity shapes and is *flaky* on `Math.random()`; and
+   **ladder L3, the rung the register cites for it, structurally cannot reach a predicate** —
+   routing is already decided by the time the fold sees anything. That last is a finding about the
+   **ladder** and is [Q155](open-questions.md).
+
+   **[Q142](open-questions.md) was measured BEFORE the documents landed, which is a first.** Its
+   window is two-sided, it caught the last two plans, and P10's declaration adds five documents that
+   survive both `removes` cuts — so the one-directory fixture was predicted to go **51 → 56** against
+   `M3`'s floor of `< 56`, and it did, exactly. Floors retuned to **64** and **1720** from a
+   three-count pass, `M5` untouched at 60 for the third plan running, and the two `META` entries
+   pinned to the old literals repointed — **rule 7 (b) firing correctly rather than passing.**
+
 ## Reading order
 
 | | |

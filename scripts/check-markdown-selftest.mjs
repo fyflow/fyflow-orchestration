@@ -383,8 +383,12 @@ const PROBES = [
     // which is where the previous figures (62 -> 46 / 1577 -> 1379 / 78) stopped being
     // true and took this probe with them. Four new documents took the cut from 46 to
     // **50** against a floor of `< 50`, so M3 fell silent and the gate exited 1 with
-    // `wanted [M1,M3], got [M1]`. The floor is 56 now and check-markdown.mjs carries
-    // why: a floor is one-sided for the CHECK and two-sided for the PROBE.
+    // `wanted [M1,M3], got [M1]`. **It happened again at P10's declaration, 51 -> 56
+    // against a floor of `< 56`, and this is the first time it was PREDICTED from the
+    // pre-edit counts rather than discovered by the gate going red.** The cut now reads
+    // **56 files / 1947 links / 99 anchored** and the floor is **64**;
+    // check-markdown.mjs carries why: a floor is one-sided for the CHECK and two-sided
+    // for the PROBE.
     // [Q142](../doc/open-questions.md). Still the only cut in this
     // corpus that trips the FILE floor and neither of the other two. The README edit
     // is there so the rule 7 (b) guard has a change to see.
@@ -404,7 +408,8 @@ const PROBES = [
     // probe reported `wanted [M1,M3,M4], got [M1,M3]` again, for the second plan
     // running, because W30's own Record and index paragraphs pushed the fixture's link
     // count from 1217 past the 1350 floor. It read 37/1116/78 at W25, 40/1217/86 at
-    // P9's declaration and 41/1357/94 now; the floor is **1530**.
+    // P9's declaration, 41/1357/94 at W30's close and **45/1507/99 at P10's
+    // declaration**; the floor is **1720**.
     // [Q142](../doc/open-questions.md) is not fixed by retuning it — the window is
     // two-sided by construction — and the mitigation is the direction: it fails
     // LOUDLY, in the gate, naming the probe and the expected set: the anchors are untouched, because
@@ -543,10 +548,10 @@ const META = [
   // Anchored on the `fail(` that only the real clause carries.
   ['M3`s file floor disabled',
     'doc/decisions removed from the tree — the FILE floor, alone',
-    (t) => t.replace("if (r.files < 56) fail('M3'", "if (false) fail('M3'")],
+    (t) => t.replace("if (r.files < 64) fail('M3'", "if (false) fail('M3'")],
   ['M4`s link floor disabled',
     'doc/decisions AND doc/plans removed — the LINK floor, with the anchors left alone',
-    (t) => t.replace("if (r.links < 1530) fail('M4'", "if (false) fail('M4'")],
+    (t) => t.replace("if (r.links < 1720) fail('M4'", "if (false) fail('M4'")],
   ['AGENTS.md dropped from the root file list',
     'a dead link in AGENTS.md — the file Q121 named, and it could leave the walk',
     (t) => t.replace("  ...['README.md', 'AGENTS.md', 'CLAUDE.md']", "  ...['README.md', 'CLAUDE.md']")],

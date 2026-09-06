@@ -354,7 +354,22 @@ for (const d of r.deadAnchors) fail('M2', d);
 // `{M3}` no matter which clause had fired. Set equality cannot discriminate inside a
 // single id. New ids are free (`doc/workflow.md` section 3 forbids reuse and
 // renumbering, not allocation), so each bound gets one and each is probed on its own.
-if (r.files < 56) fail('M3', `only ${r.files} markdown file(s) were scanned, so M1 and M2 are ` +
+// **50 -> 56 at P9's declaration, 56 -> 64 at P10's, and P10's is the first time
+// this window was measured BEFORE the documents landed rather than after the gate
+// went red.** [Q142](../doc/open-questions.md). P10's declaration adds five
+// documents that survive BOTH removals — four work items, plus the plan file, which
+// only the `doc/plans` removal takes out — so the one-directory fixture went
+// **51 -> 56** against a floor of `< 56`, and probe 1 would have stopped firing
+// `M3`. Predicted from the pre-edit counts, then confirmed against the post-edit
+// tree rather than asserted from the prediction.
+// Measured at P10's declaration, all three counts in one pass over a copy:
+//
+//   whole tree                          72 files / 2145 links / 99 anchored  -> silent
+//   doc/decisions removed               56 files / 1947 links / 99 anchored  -> M3 only
+//   doc/decisions + doc/plans removed   45 files / 1507 links / 99 anchored  -> M3 and M4
+//
+// The file floor must be **> 56 and <= 72**; 64 sits near the middle of that window.
+if (r.files < 64) fail('M3', `only ${r.files} markdown file(s) were scanned, so M1 and M2 are ` +
   'true of the walk rather than of the tree');
 // **1200 -> 1350 at P9's declaration, 1350 -> 1530 by W30, and both times because
 // ordinary work closed the window from below.** [Q142](../doc/open-questions.md).
@@ -364,7 +379,13 @@ if (r.files < 56) fail('M3', `only ${r.files} markdown file(s) were scanned, so 
 // interval (1357, 1709] — or one probe stops firing `M4` and the other starts. This
 // is a two-sided window rather than a ratchet, and adding documents moves the lower
 // bound UP, which is the opposite of what this file's header argued.
-if (r.links < 1530) fail('M4', `only ${r.links} relative link(s) were found; M1 is vacuous below that`);
+// **1530 -> 1720 at P10's declaration**, from the counts in the M3 block above: the
+// floor must sit ABOVE the two-directory fixture (1507) and BELOW the one-directory
+// one (1947), and 1720 is near the middle of (1507, 1947]. **The anchored floor is
+// untouched at 60 against 99** — no `removes` probe moves it, for the third plan
+// running, because every anchored link is in `doc/`'s top level and `M5`'s own probe
+// takes it to zero.
+if (r.links < 1720) fail('M4', `only ${r.links} relative link(s) were found; M1 is vacuous below that`);
 if (r.anchored < 60) fail('M5', `only ${r.anchored} link(s) carry an anchor; M2 is vacuous below that`);
 
 const checks = [
