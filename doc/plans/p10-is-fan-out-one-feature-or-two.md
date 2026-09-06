@@ -12,7 +12,7 @@ the previous node's output rather than from the definition, its join firing over
 declared, and the join's successor carrying the collected results — with the join/failure matrix run
 at run-time arity beside it.
 
-**Reserves:** W32-W35, Q154-Q163, ADR 0036-0037
+**Reserves:** W32-W35, **Q154-Q168**, ADR 0036-0037
 
 ---
 
@@ -446,7 +446,25 @@ Verified against the working tree rather than inherited from an index:
   **W26 and W27 stay skipped and are never reissued** (P8 declared W26 and dropped it before it
   started). **W10 stays HELD** — `check-owns.mjs`, retired as a proposal for the fifth plan running
   — and **W11 stays SKIPPED**.
-- **Q ids.** The highest used is **Q153** (W31's). **Q154-Q163 reserved**; two are used by this
+> **Correction, at W32's hand-off — the reserved Q blocks in this plan's four work-item files
+> COLLIDED with the two ids this declaration had already spent, and it was found by trying to act on
+> them.** Recorded here rather than silently rewritten. W32's file read `Reserves: Q154-Q157`, and
+> **Q154 was already raised by this declaration and assigned to W34** while **Q155 was already raised
+> with no owner** — so W32 would have allocated from a block whose first two ids were spent, and W33's
+> and W34's blocks were shifted by the same error behind it. **Corrected to W32 `Q156-Q159`, W33
+> `Q160-Q163`, W34 `Q164-Q166` (it already owns Q154), W35 `Q167-Q168`, and this plan's block widened
+> to Q154-Q168. Nothing is renumbered** — Q154 and Q155 keep the meanings they were given here.
+>
+> **This is [W31](../work-items/w31-the-self-list-check-policies-never-had.md)'s exact failure one
+> plan later**: its `Reserves: Q146-Q148` collided with W29, which had reserved the same block and
+> used all three. **W31's was the first time a row was found wrong by trying to act on it before the
+> item had run anything; this is the second, and it is worse in one way** — W31 collided with a
+> *different item's* block, and this collided with **ids the same declaration had raised four sections
+> further up its own file.** The mechanism is the same both times: the `Reserves:` line is written
+> when the item file is drafted, and the ids the declaration itself spends are allocated afterwards.
+
+- **Q ids.** The highest used is **Q153** (W31's). **Q154-Q168 reserved** (widened from Q154-Q163 by
+  the correction above); two are used by this
   declaration and the rest are expected to be spent by the items, with unused ones skipped. P9 was
   the first plan to spend its whole block, on four items.
 - **ADRs.** `doc/decisions/` holds 0001-0004, 0007, 0013-0015, 0022, 0023, 0025, 0027, 0029 and 0030.

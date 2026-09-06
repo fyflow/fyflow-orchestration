@@ -20,7 +20,7 @@ Blocks:     nothing
 Tests:      examples/l6.ts, run in Node 24 and Deno. Expected values from spec/ and
             from the three items' declared outputs, NOT from what the run printed.
 Gate:       L6 in both runtimes, then the spec-conformity pass (two readers)
-Reserves:   (none — this item allocates from P10's block only if it raises one)
+Reserves:   Q167-Q168
 ```
 
 ## Scope

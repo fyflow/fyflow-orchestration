@@ -24,7 +24,7 @@ Tests:      test/definition/** — the validator's new refusals and its new acce
             expected values derived from the spec text BEFORE the code is written.
             spec/examples/** through ladder L4's corpus walk.
 Gate:       L0, L1, L4, then the spec-conformity pass (two readers)
-Reserves:   Q154-Q157, ADR 0036
+Reserves:   Q156-Q159, ADR 0036
 ```
 
 ## Scope

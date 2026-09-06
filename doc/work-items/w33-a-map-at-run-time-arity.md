@@ -27,7 +27,7 @@ Tests:      test/driver/** at ladder L2 — a fixture log of outcomes in, an ass
             test/fold/** for the fold and for L3.
             The L5 matrix is W34's; this item asserts the policies directly.
 Gate:       L0-L3, L5, then the spec-conformity pass (two readers)
-Reserves:   Q158-Q160
+Reserves:   Q160-Q163
 ```
 
 ## Scope

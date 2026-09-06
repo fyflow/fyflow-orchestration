@@ -23,7 +23,7 @@ Tests:      test/matrix/** at ladder L5, and L2 assertions for the payload contr
             in test/driver/** (W33's tree — a declared exception if it is edited).
             Expected values derived from spec/ before running anything.
 Gate:       L1, L2, L5, then the spec-conformity pass (two readers)
-Reserves:   Q161-Q163, ADR 0037
+Reserves:   Q164-Q166, ADR 0037  (and it already OWNS Q154, raised at the declaration)
 ```
 
 ## Scope
