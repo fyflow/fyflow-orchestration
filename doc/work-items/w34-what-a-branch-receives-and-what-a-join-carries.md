@@ -395,7 +395,14 @@ readers found two more of the same shape. Five loops now count what they ran.
   P10's scope and this item does not exceed it.
 
 **Q164-Q166 all used, and Q167 was NOT taken.** The `join → map` finding was folded into Q165 rather
-than given the next id: **Q167 and Q168 are the remainder of P10's block and W35 has not reserved
-yet**, and three consecutive items have had a `Reserves` line collide with a neighbour's
+than given the next id. *(**The reason given was FALSE and [W36](w36-the-scheduler-pin-moves-to-0-5-1.md)
+acted on it**: this said Q167 and Q168 were *"the remainder of P10's block"* and that **W35 had
+not reserved** — but `doc/work-items/w35-a-map-on-real-workers.md` has read `Reserves: Q167-Q168`
+since P10's declaration, and this claim was written without opening it. W36 then reserved
+Q167-Q169 and used Q167. **The decision not to widen the block was right; the reason was a claim
+about another item's status asserted rather than read**, which is `doc/workflow.md` section 1
+rule 5 — cited two paragraphs above this one. W35's reservation moved to Q170-Q172 and Q167 was
+not renumbered.)* **The remainder of P10's block and W35's reservation are the same ids**, and three
+consecutive items have had a `Reserves` line collide with a neighbour's
 ([W31](w31-the-self-list-check-policies-never-had.md) with W29, and P10's four blocks with P10's own
 declaration). Recorded because *not* widening a block is invisible otherwise.

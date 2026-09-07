@@ -88,6 +88,37 @@ import exitLast from './flows/exit-last.flow.json' with { type: 'json' };
 import allExit from './flows/all-exit.flow.json' with { type: 'json' };
 import nested from './flows/nested.flow.json' with { type: 'json' };
 import nestedSuspend from './flows/nested-suspend.flow.json' with { type: 'json' };
+// **W35's three, and [Q44](../doc/open-questions.md) a FOURTH time — but the reason
+// is narrower than the three above and worth stating exactly.**
+//
+// `spec/examples/valid/map-fanout.flow.json` is usable here in every respect but
+// one: its entry node is an `IngestWorker`, and that pool's role returns
+// `{ confidence }`. A map's `over` needs an ARRAY on the value the map node
+// receives, so running the corpus flow unchanged would mean making `IngestWorker`
+// return items for **twenty other rows** that do not want them — a pool meaning two
+// things so that one row need not declare a flow. `map.flow.json` is therefore the
+// corpus flow with **two fields changed** — `ingest`'s `workerType`, and `flowId`,
+// which every flow here must own. Diff them; the invitation is only worth making if
+// it survives. *(This said "one field changed" and the diff shows two. W35's
+// conformity reader, on a sentence that tells the reader to run the diff.)*
+//
+// `nested-map.flow.json` is the corpus's `map-in-fanout` **shape** and not a
+// substitution on its text: nine node lines differ, because every pool it names runs
+// a role that would break the row — `ExtractWorker` throws and `MergeWorker` returns
+// a value `structuredClone` refuses. What is kept is the STRUCTURE: a map inside one
+// branch of a fan-out, its own join, and the outer join over both. **Its entry is the
+// `fanout` itself** (`FD-V3` refuses only a `join` or an `end` there), because
+// `FD-V9` makes a fanout's branch entries tasks — so a map cannot BE a branch, and
+// the task that feeds it must receive the run's own payload to have anything to
+// split. *(This claimed "the same substitution", which the diff refutes. W35's
+// conformity reader.)*
+//
+// `map-no-array.flow.json` is `map.flow.json` with `over` reading `"rows"`, which
+// no worker here produces: `FD-R2`, the one map refusal no validator can make.
+import map from './flows/map.flow.json' with { type: 'json' };
+import nestedMap from './flows/nested-map.flow.json' with { type: 'json' };
+import mapNoArray from './flows/map-no-array.flow.json' with { type: 'json' };
+import mapAlias from './flows/map-alias.flow.json' with { type: 'json' };
 import failureEdge from '../spec/examples/valid/failure-edge.flow.json' with { type: 'json' };
 
 /**
@@ -177,7 +208,14 @@ interface Expectation {
    * halves rather than copy one of them.
    */
   policyId: PolicyId;
-  payload: { confidence: number };
+  /**
+   * **`text` is W35's, and it is where a map's ARITY comes from.** The `split`
+   * role returns one item per word, so the number of tasks a map row dispatches is
+   * `text.split(' ').length` — a property of a value a worker returned, which is
+   * the one thing `FD-V9` makes impossible for a `fanout`. An empty string is a
+   * lawful map of zero items (`FD-R2`).
+   */
+  payload: { confidence: number; text?: string };
   threaded: boolean;
   /** From `spec/run-state.md` section 3. */
   outcome: RunOutcome;
@@ -297,6 +335,13 @@ interface Expectation {
   /** `stoppedBy` — set only when a refusal terminated the run (`OR-R10`, `RN-R8`). */
   stoppedBy?: string;
   /**
+   * **What the reported failure's message must name — W35.** Every string here
+   * must occur in it. Omitted, the row asserts its own `dispatched` ids, which is
+   * `OR-R6`'s wording and was the only case until `FD-R2` — a refusal that fires
+   * before any task of the node it names has been dispatched.
+   */
+  failureNames?: string[];
+  /**
    * A dispatched node's folded `result`. Used to pin **`JP-R12`** — a satisfied
    * join carries the arrived branches' results keyed by `branchPath`
    * ([ADR 0037](../doc/decisions/0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md),
@@ -382,9 +427,35 @@ const FE = failureEdge as unknown as FlowDefinition;
 const AE = allExit as unknown as FlowDefinition;
 const NE = nested as unknown as FlowDefinition;
 const NS = nestedSuspend as unknown as FlowDefinition;
+const MP = map as unknown as FlowDefinition;
+const NM = nestedMap as unknown as FlowDefinition;
+const MNA = mapNoArray as unknown as FlowDefinition;
+const MAL = mapAlias as unknown as FlowDefinition;
 
 const HIGH = { confidence: 0.9 };
 const LOW = { confidence: 0.1 };
+/**
+ * **The three map payloads — W35.** `text` is what the `split` role counts, so
+ * these three literals are the only place a map row's ARITY is decided, and none
+ * of them says a number: three words, two words, and none.
+ *
+ * The words have **different lengths on purpose**. The role derives each item's
+ * confidence from its own word's length, so the three instances of one node
+ * compute three different scores — and a driver that handed every instance the
+ * whole value instead of its own item would produce three identical ones, which is
+ * the negation of [ADR 0037](../doc/decisions/0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md)
+ * rule 3 and is what `nodeResults` below is pointed at.
+ */
+const THREE_WORDS = { confidence: 0.9, text: 'a bb ccc' };
+const TWO_WORDS = { confidence: 0.9, text: 'a bb' };
+const NO_WORDS = { confidence: 0.9, text: '' };
+/**
+ * **One word, twice — W35's adequacy reader.** The `split` role memoises per word,
+ * so this payload produces an `items` array holding **one object at both indices**,
+ * which is the only shape that can tell ADR 0037 rule 1 — *no two nodes ever receive
+ * the same object* — from its negation.
+ */
+const SAME_WORD_TWICE = { confidence: 0.9, text: 'a a' };
 
 const EXPECTED: Expectation[] = [
   {
@@ -972,6 +1043,314 @@ const EXPECTED: Expectation[] = [
       'the driver dispatched, which is exactly what `Number(branchPath)` could not do. Reverting ' +
       'the fix cost 0 assertions before this row existed',
   },
+
+  // --- W35: a map on real workers, and P10's exit artifact --------------------
+  //
+  // **What these five rows add that nothing below L6 can say.** `test/matrix/` runs
+  // a map from a fixture outcome log, so the arity is a literal in a fixture and
+  // the ids are strings compared to strings. Here the arity is the **length of an
+  // array a worker returned**, the ids are minted into a real `FyflowScheduler`'s
+  // task map — which `spec/task-id.md` section 2 says **overwrites silently** on a
+  // collision, the whole reason the id scheme is a correctness rule
+  // ([Q13](../doc/open-questions.md)) — and the three instances of one node run
+  // concurrently in one pool.
+  //
+  // **Read `dispatched` first on every one of them.** Not one of those ids is
+  // written in a flow definition: `map.flow.json` says `over: "items"` and says
+  // nothing about how many, and no constant in this file says three either. The
+  // literal below is the EXPECTATION, derived from `spec/task-id.md` before the row
+  // ran, which is what makes a miscount a failure rather than a silent re-plan.
+  {
+    key: 'map / live-token',
+    definition: MP, policyId: 'live-token', payload: THREE_WORDS, threaded: false,
+    outcome: 'completed',
+    // `spec/task-id.md` section 1: `runId:nodeId:branchPath:attempt`, and a map
+    // instance's `branchPath` is the **dispatch's** item index (`ID-R6`, ADR 0036).
+    // `ingest` and `publish` are outside the region and take `-`.
+    dispatched: ['r22:ingest:-:0', 'r22:score:0:0', 'r22:score:1:0', 'r22:score:2:0',
+      'r22:publish:-:0'],
+    regionId: 'split',
+    joined: true,
+    settled: { '0': 'arrived', '1': 'arrived', '2': 'arrived' },
+    branchEvents: {
+      '0': ['branch.opened', 'branch.arrived'],
+      '1': ['branch.opened', 'branch.arrived'],
+      '2': ['branch.opened', 'branch.arrived'],
+    },
+    // Order-independent: every branch arrives, so whichever settles last, the event
+    // before `joinSettled` is an arrival. `spec/join-policy.md` section 4.
+    joinSettledBy: 'branch.arrived',
+    pathEnds: [{ reason: 'end', at: 'done' }],
+    // **Five results, and each pins a different rule.**
+    //
+    //   - `ingest` is where the arity came from — `items.length` is 3 and nothing
+    //     else in this run says 3;
+    //   - the three `score` instances got **different** items, which is ADR 0037
+    //     rule 3 (`JP-R11`). Handed the whole value they would read `confidence:
+    //     0.9` and return three identical `{0.9, 90}`;
+    //   - `publish` got the join's collection — `JP-R12`, keyed by `branchPath`,
+    //     ascending, one entry per branch that arrived.
+    nodeResults: {
+      'r22:ingest:-:0': {
+        confidence: 0.9,
+        items: [
+          { word: 'a', confidence: 0.1 },
+          { word: 'bb', confidence: 0.2 },
+          { word: 'ccc', confidence: 0.3 },
+        ],
+      },
+      'r22:score:0:0': { confidence: 0.1, score: 10 },
+      'r22:score:1:0': { confidence: 0.2, score: 20 },
+      'r22:score:2:0': { confidence: 0.3, score: 30 },
+      'r22:publish:-:0': {
+        published: true,
+        joinPayload: {
+          '0': { confidence: 0.1, score: 10 },
+          '1': { confidence: 0.2, score: 20 },
+          '2': { confidence: 0.3, score: 30 },
+        },
+      },
+    },
+    why: 'W35 — P10`s EXIT ARTIFACT. A map on real workers: the run dispatches three tasks ' +
+      'because a worker returned an array of three, and that number is in no flow definition and ' +
+      'no constant here. Each instance receives its OWN item (ADR 0037 rule 3) and computes a ' +
+      'different score; the join carries all three back keyed by branch path (JP-R12). A `fanout` ' +
+      'cannot reach this shape at all — FD-V9 makes its branches things somebody wrote down',
+  },
+  {
+    // **The row W33's re-sourcing exists for, and the assertion that catches its
+    // absence is `nodeResults`.**
+    //
+    // `arrival-count` needs `N`. A map region's `branches` is the ONE declared
+    // entry whatever the run opens (`spec/join-policy.md` section 1), so reading
+    // `N` from it gives **1 at every arity** — and the join then fires on the FIRST
+    // arrival with two branches still in flight. The run still reports `completed`
+    // and every branch still arrives, so `outcome`, `settled` and `branchEvents`
+    // are all unmoved: what changes is that `publish` receives a collection with
+    // **one** key instead of three, because the join fired before the other two
+    // existed. W4's matrix recorded only `N` too LARGE, which hangs; this is `N`
+    // too small, which completes the run wrong.
+    key: 'map / arrival-count',
+    definition: MP, policyId: 'arrival-count', payload: THREE_WORDS, threaded: false,
+    outcome: 'completed',
+    dispatched: ['r23:ingest:-:0', 'r23:score:0:0', 'r23:score:1:0', 'r23:score:2:0',
+      'r23:publish:-:0'],
+    regionId: 'split',
+    joined: true,
+    settled: { '0': 'arrived', '1': 'arrived', '2': 'arrived' },
+    branchEvents: {
+      '0': ['branch.opened', 'branch.arrived'],
+      '1': ['branch.opened', 'branch.arrived'],
+      '2': ['branch.opened', 'branch.arrived'],
+    },
+    joinSettledBy: 'branch.arrived',
+    pathEnds: [{ reason: 'end', at: 'done' }],
+    nodeResults: {
+      'r23:publish:-:0': {
+        published: true,
+        joinPayload: {
+          '0': { confidence: 0.1, score: 10 },
+          '1': { confidence: 0.2, score: 20 },
+          '2': { confidence: 0.3, score: 30 },
+        },
+      },
+    },
+    why: 'W35 — arrival-counting at an arity nobody declared. `N` comes from the `branch.opened` ' +
+      'events this run emitted, not from the region`s one declared branch entry, and the three-key ' +
+      'joinPayload above is what says so: sourced from `branches.length` the count is 1 at every ' +
+      'arity, the join fires on the first arrival with two branches live, and this row completes ' +
+      'with one key. Same flow, same payload, same workers as the row above; only the policy differs',
+  },
+  {
+    // **N = 0 on real workers — the arity `FD-V9`'s floor makes the static feature
+    // unable to reach.** No text, so no items, so the map opens nothing at all.
+    //
+    // `ingest` is the only task the run dispatches, and `publish` is never reached:
+    // the region was ENTERED and its join can never fire, so `RN-R10` folds the run
+    // to `stuck`. `joined` is **`null`** rather than `false` — `RN-R11` gives
+    // `false` the meaning *"a policy reported it unsatisfiable"* and none did.
+    //
+    // **The reason is scoped, and the scope is not decoration.** `spec/join-policy.md`
+    // section 5 rules that **the three policies section 3 names** answer `waiting`
+    // for a region whose state is byte-identical to its state before any branch
+    // opened — and v0.13 corrected that ruling in place precisely because it is
+    // **false of a policy in general**: `arrival-count-decrementing`, the variant
+    // `JP-R7` proposed and ADR 0025 refused, has no `need > 0` pin and reports
+    // **`satisfied`** at `0 >= 0`. What holds this row up is therefore its policy
+    // and not a universal: under `live-token` no verdict is available, so `joined`
+    // is `null` and the run is stuck **with the reason not reported**, which is
+    // [Q97](../doc/open-questions.md) exactly where section 5 leaves it. *(The first
+    // version of this comment and of the `why` below said "no policy can" and "section
+    // 5 says none can" — the unscoped form, in a row whose declared Input is W34, the
+    // item that scoped it. W35's conformity reader.)*
+    key: 'map / N = 0',
+    definition: MP, policyId: 'live-token', payload: NO_WORDS, threaded: false,
+    outcome: 'stuck',
+    dispatched: ['r24:ingest:-:0'],
+    regionId: 'split',
+    joined: null,
+    settled: {},
+    // No branch was opened, so there is no `branchEvents` entry to declare: the
+    // emptiness is pinned by `settled` and by `dispatched` above, both of which
+    // fail loudly if a phantom branch is opened.
+    pathEnds: [],
+    why: 'W35 — a map of ZERO items on real workers. A worker returned an empty array, so the ' +
+      'region opened no branches, dispatched no tasks and can never be joined: the run folds to ' +
+      '`stuck` by RN-R10 and `publish` never runs. `joined` is null, not false — this row`s policy said ' +
+      'nothing, and section 5 says the three shipped policies cannot; its refused fourth variant ' +
+      'reports `satisfied` at 0 >= 0, which is why the scope is stated. FD-V9`s arity floor means a ' +
+      '`fanout` can never be here',
+  },
+  {
+    // **A map INSIDE a fan-out branch — dotted branch paths minted by a run-time
+    // arity, and the artifact that puts W23's and W33's results in one run.**
+    //
+    // `outer` is the ENTRY node, so both its branches receive a copy of the run's
+    // own payload; `prep` sits at branch `1` and its map opens two instances at
+    // `1.0` and `1.1`. Those are the first dotted ids anywhere that were **not**
+    // written down in a definition — W23's `1.0`/`1.1` came from a `fanout` whose
+    // two branch entries are named in `nested.flow.json`.
+    //
+    // **And the outer join carries the inner join's collection.** `gather` fires
+    // and routes to `collect` at the path its own REGION sits at, which is branch
+    // `1` arriving — carrying `JP-R12`'s object for `perItem`. So `publish` receives
+    // a collection whose `'1'` is itself a collection, which is `JP-R12` closed
+    // under nesting and is asserted in one literal below.
+    key: 'nested-map / live-token',
+    definition: NM, policyId: 'live-token', payload: TWO_WORDS, threaded: false,
+    outcome: 'completed',
+    dispatched: ['r25:scoreA:0:0', 'r25:prep:1:0', 'r25:item:1.0:0', 'r25:item:1.1:0',
+      'r25:publish:-:0'],
+    regionId: 'outer',
+    joined: true,
+    settled: { '0': 'arrived', '1': 'arrived' },
+    otherRegions: {
+      perItem: { joined: true, settled: { '1.0': 'arrived', '1.1': 'arrived' } },
+    },
+    branchEvents: {
+      '0': ['branch.opened', 'branch.arrived'],
+      '1': ['branch.opened', 'branch.arrived'],
+      '1.0': ['branch.opened', 'branch.arrived'],
+      '1.1': ['branch.opened', 'branch.arrived'],
+    },
+    pathEnds: [{ reason: 'end', at: 'done' }],
+    nodeResults: {
+      // Branch 0 got a copy of the run's payload and scored it whole; branch 1's
+      // map split it into two and scored each item on its own.
+      'r25:publish:-:0': {
+        published: true,
+        joinPayload: {
+          '0': { confidence: 0.9, score: 90 },
+          '1': {
+            '1.0': { confidence: 0.1, score: 10 },
+            '1.1': { confidence: 0.2, score: 20 },
+          },
+        },
+      },
+    },
+    why: 'W35 — a map inside a fan-out branch, on real workers. The dotted ids `1.0` and `1.1` are ' +
+      'minted at an arity a worker chose, where W23`s dotted ids came from branch entries somebody ' +
+      'wrote down; the inner join fires and enters the outer one AS branch 1 arriving, carrying its ' +
+      'own JP-R12 collection — so the outer collection`s `1` is a collection. ADR 0030 rules 1-3 ' +
+      'and ADR 0037 rule 4, in one run',
+  },
+  {
+    // **`FD-R2` on real workers — the map's ONE run-time refusal, and the only
+    // rule in `spec/` about what a RUN does that is not an `FD-V`.**
+    //
+    // `map-no-array.flow.json` is `map.flow.json` with **one field changed**:
+    // `over` reads `"rows"`, and the `split` role returns `items`. No validator
+    // could have seen it — `FD-V25` checks that `over` is a key NAME — so the run
+    // starts, dispatches `ingest`, and stops when the map cannot find an array.
+    //
+    // **This is where `UnresolvedMapArity` earns its own class rather than being
+    // an `InvalidDefinition`.** The definition is valid and the DATA is wrong,
+    // which is a different person's bug: a flow author handed `InvalidDefinition`
+    // would go and read their flow, where there is nothing to find.
+    //
+    // **`regionId: null` although this flow HAS a region**, and that is the row's
+    // second fact: `mapItems` throws before the `regionEntered` append, so the
+    // region is in the definition and not in the run. `RN-R8` then makes the run
+    // `stopped` whatever its nodes say — it never reaches `RN-R10`, so this run is
+    // `stopped` where the N = 0 row is `stuck`. **Two map runs that dispatch one
+    // task each and end differently**, which is the whole difference between *the
+    // flow asked for zero items* and *the flow asked for something that is not
+    // there*.
+    key: 'map / FD-R2 — over names no array',
+    definition: MNA, policyId: 'live-token', payload: THREE_WORDS, threaded: false,
+    outcome: 'stopped',
+    dispatched: ['r26:ingest:-:0'],
+    regionId: null,
+    joined: null,
+    runFailure: 'UnresolvedMapArity',
+    // `FD-R2`: *"naming the node and the key"*. Neither is a task id, and no task
+    // of `split` exists to be named — which is why the assertion reads what the
+    // row declares rather than the row's dispatched ids.
+    failureNames: ['"split"', '"rows"'],
+    stoppedBy: 'UnresolvedMapArity',
+    // The path did not end at an `end` node and did not end at all: the driver
+    // stopped routing. `RN-R8` outranks section 3's discriminants.
+    pathEnds: [],
+    why: 'W35 — FD-R2 on real workers, and the one map refusal a validator cannot make. The flow ' +
+      'is valid, `over` names `rows`, and the worker returns `items`: the run dispatches `ingest`, ' +
+      'the map cannot resolve an arity and the driver stops routing with UnresolvedMapArity naming ' +
+      'the node and the key. The region is in the definition and never in the run, because the ' +
+      'throw precedes the regionEntered append — so this run is `stopped` where a map of zero ' +
+      'items is `stuck`',
+  },
+  {
+    // **ADR 0037 rule 1 — the INVARIANT — made falsifiable at L6, and it was not.**
+    //
+    // The driver hands each map instance `cloneValue(items[i])` and its own comment
+    // says why: *"`structuredClone` preserves aliasing WITHIN one clone, so
+    // `{items: [x, x]}` survives the edge hop as an array holding one object twice
+    // — measured — and instances 0 and 1 would share it."* **Dropping that clone
+    // cost 0 failures**, because every other payload here produces distinct items
+    // and no row could express the case the comment names. W35's adequacy reader.
+    //
+    // `'a a'` is two references to one object, and `TallyWorker` MUTATES what it is
+    // handed. So: **with the clone, both instances read `seen: 1`; without it, the
+    // second instance reads the first's write and returns `seen: 2`.** An identity
+    // fact turned into a value two assertions can compare.
+    //
+    // **The `word` field is carried through** so the row also shows the two
+    // instances got the same ITEM — which is the half `map / live-token` cannot
+    // show, since its three items differ.
+    key: 'map / one item, two instances — ADR 0037 rule 1',
+    definition: MAL, policyId: 'live-token', payload: SAME_WORD_TWICE, threaded: false,
+    outcome: 'completed',
+    dispatched: ['r27:ingest:-:0', 'r27:tally:0:0', 'r27:tally:1:0', 'r27:publish:-:0'],
+    regionId: 'split',
+    joined: true,
+    settled: { '0': 'arrived', '1': 'arrived' },
+    branchEvents: {
+      '0': ['branch.opened', 'branch.arrived'],
+      '1': ['branch.opened', 'branch.arrived'],
+    },
+    joinSettledBy: 'branch.arrived',
+    pathEnds: [{ reason: 'end', at: 'done' }],
+    nodeResults: {
+      // The arity is two because the worker returned two references; `items.length`
+      // is 2 and the distinct-word count is 1.
+      'r27:ingest:-:0': {
+        confidence: 0.9,
+        items: [{ word: 'a', confidence: 0.1 }, { word: 'a', confidence: 0.1 }],
+      },
+      // **Both read 1.** This is the assertion the invariant rests on.
+      'r27:tally:0:0': { seen: 1, word: 'a' },
+      'r27:tally:1:0': { seen: 1, word: 'a' },
+      'r27:publish:-:0': {
+        published: true,
+        joinPayload: { '0': { seen: 1, word: 'a' }, '1': { seen: 1, word: 'a' } },
+      },
+    },
+    why: 'W35 — ADR 0037 rule 1, the invariant, on the one shape that can falsify it. The split ' +
+      'worker memoises per word, so `a a` returns an items array holding ONE object twice; ' +
+      'structuredClone preserves that aliasing across the edge hop, and only the driver`s ' +
+      'per-instance clone separates them. TallyWorker mutates what it is handed, so sharing would ' +
+      'make the second instance read the first`s write: both read `seen: 1` here and the second ' +
+      'reads 2 without the clone. Dropping that clone cost 0 failures before this row existed',
+  },
 ];
 
 // --- assertions ---------------------------------------------------------------
@@ -1090,7 +1469,15 @@ for (const [i, e] of EXPECTED.entries()) {
     // A flow with no fan-out enters no region, and `RN-R10` must therefore not
     // be able to call it `stuck` — which is the clause a fan-out-free flow
     // exists to hold down.
-    check(e.key, 'a flow with no fan-out enters no region', Object.keys(report.state.regions), []);
+    //
+    // **W35 widened the WORDING and not the assertion**, because a region can also
+    // go unentered in a flow that HAS one: `FD-R2` throws while resolving a map's
+    // arity, which happens before the `regionEntered` append, so `map-no-array`
+    // has a region in its definition and none in its run. The old spelling — *a
+    // flow with no fan-out* — would have been a false sentence attached to a true
+    // check, which is `doc/workflow.md` section 1 rule 5's writing clause applied
+    // to an assertion label.
+    check(e.key, 'the run entered no region', Object.keys(report.state.regions), []);
   } else {
     // **`e.regionId`, not the literal `'split'`** — W23. The row declares which
     // region it is about and this reads it, so a flow whose fanout has another
@@ -1187,9 +1574,60 @@ for (const [i, e] of EXPECTED.entries()) {
     assertThat(e.key, `OR-R10: exactly one run failure, of kind ${e.runFailure}`,
       report.failures.length === 1 && report.failureKinds[0] === e.runFailure,
       `kinds: ${report.failureKinds.join(', ') || '(none)'}`);
-    assertThat(e.key, 'OR-R6: and its message names the task id',
-      report.failures.length === 1 && e.dispatched.some((id) => report.failures[0]!.includes(id)),
-      report.failures.join('; ') || '(none reported)');
+    // **What the message must NAME, declared by the row — W35, and it is a
+    // widening that leaves every existing row byte-identical.**
+    //
+    // `OR-R6`'s wording is *"fails with `UncloneableResult` **naming the task
+    // id**"*, and while that was the only refusal L6 reached, the row's own
+    // `dispatched` list was the right source. **`FD-R2` names a NODE and a KEY
+    // instead** — *"reported as an `UnresolvedMapArity` naming the node and the
+    // key"* — because a map's arity is refused before any task of that map exists
+    // to be named. A row that declares nothing still asserts its ids; the
+    // `uncloneable` row dispatches exactly one, so `some` and `every` are the same
+    // assertion there and it did not get weaker.
+    // **`?.length ?` and not `??`, and rule 8 is what found it.** With `??` a
+    // declared `failureNames: []` made `every` vacuously true, so the row that
+    // declares what its message must name could disable the assertion by declaring
+    // NOTHING — green, with the check present and asserting no content. Falling
+    // back to the ids means an empty declaration asserts the default instead, which
+    // the `FD-R2` row fails. *(Probe b3, which was written as a control and was a
+    // survivor: `doc/workflow.md` rule 8's requirement that a provocation is
+    // evidence only when it fires for the reason it names, read the other way
+    // round — a probe declared as costing 0 has to be checked for whether it
+    // SHOULD.)*
+    // **What a row may DECLARE is derived from its own DEFINITION — W35's adequacy
+    // reader, BLOCKING, and it found three spellings of one escape hatch.**
+    //
+    // `failureNames` was a free list, so the row could weaken the assertion it
+    // declares: `['']` passes because every string contains the empty one; dropping
+    // `'"rows"'` passes because the remaining name is still there; and `every` ->
+    // `some` passes because a correct list agrees with both. All three cost **0**.
+    // The `?.length ?` fix that probe `b3` bought closed one spelling of three.
+    //
+    // Two things close the rest. **The declaration is checked against the
+    // definition** — `FD-R2` says the message names *"the node and the key"*, and
+    // both are in `e.definition`, so a row cannot declare fewer, blanker or other.
+    // And the message assertion is **one per name** rather than one `every` over the
+    // list: the quantifier a mutation could weaken no longer exists, and a failure
+    // says which name is missing.
+    const named = e.failureNames?.length ? e.failureNames : e.dispatched;
+    if (e.failureNames) {
+      const mapNode = e.definition.nodes.find((n) => n.kind === 'map');
+      check(e.key, 'FD-R2: the declared names ARE the node and the key, read from this row`s definition',
+        [...e.failureNames].sort(),
+        (mapNode ? [JSON.stringify(mapNode.id), JSON.stringify(mapNode.over)] : []).sort());
+    }
+    // **The rule id stays in the label.** `OR-R6` is the rule for a row that names
+    // its own task id and `FD-R2` for one that declares what its message must name;
+    // one version of this label dropped both and printed the ERROR CLASS, so the
+    // `uncloneable` row read *"UncloneableResult: and its message names the task
+    // id"* and cited no rule at all. W35's conformity reader.
+    for (const s of named) {
+      assertThat(e.key,
+        e.failureNames ? `FD-R2: and its message names ${s}` : `OR-R6: and its message names ${s}`,
+        report.failures.length === 1 && report.failures[0]!.includes(s),
+        report.failures.join('; ') || '(none reported)');
+    }
   } else {
     // **`onRunFailure` only, since W17.** The two callbacks used to share this
     // array, which was harmless while no shipped policy could return
@@ -1321,7 +1759,13 @@ for (const [i, e] of EXPECTED.entries()) {
     + Object.keys(e.branchEvents ?? {}).length
     + Object.keys(e.nodeResults ?? {}).length
     + (e.pathEnds ? 1 : 0)
-    + (e.runFailure ? 1 : 0)
+    // **The run-failure block is no longer a fixed two.** It is the kind assertion,
+    // one per name the message must carry — the row's own `failureNames` if it
+    // declares them, its `dispatched` ids if it does not — plus one for the check
+    // that the declaration is what `FD-R2` owes. W35's adequacy reader.
+    // (The KIND assertion is in the per-row base, which is why this counts only
+    // the message assertions and the declaration check.)
+    + (e.runFailure ? (e.failureNames?.length ? e.failureNames.length + 1 : e.dispatched.length) : 0)
     + (e.regionSuspended ? 1 : 0)
     + Object.keys(e.otherRegions ?? {}).length * 2
     + Object.keys(e.resolveOnSuspend ?? {}).length * 2
@@ -1471,6 +1915,195 @@ check('cross-row', 'and on every join verdict spec/join-policy.md section 3 lets
     'live-token': ['null', 'true'],
     'live-token-requiring-arrival': ['false', 'true'],
   });
+
+/**
+ * **L6 runs a MAP shape, and these five are what say so — W35**, written from
+ * [W23](../doc/work-items/w23-a-nested-flow-on-real-workers.md)'s finding rather
+ * than after repeating it.
+ *
+ * That item's adequacy reader measured that its four nested rows could be deleted,
+ * `DECLARED_TOTAL` edited to match, and L6 was **green at 388** with every check
+ * passing — P7's exit artifact held down by a number a human writes. **P10's exit
+ * artifact is in exactly that position**, and the rows above are worth more to
+ * delete: they are the only place in the repository where the number of tasks a run
+ * dispatches is not written down anywhere in the run's inputs.
+ *
+ * **Each clause names a different thing that would be gone**, and none is
+ * satisfiable by another's presence:
+ *
+ *   1. a `map` node runs here **at all** — the declaration side;
+ *   2. a map region opened **more than one** branch, which is the whole feature: at
+ *      N = 1 a map is a sequence with extra vocabulary;
+ *   3. one opened **none**, which `FD-V9`'s arity floor makes unreachable for a
+ *      `fanout` and is therefore the one arity only this feature has;
+ *   4. one was dispatched at a **dotted** path — a run-time arity inside a region,
+ *      which W23's own dotted-path clause cannot tell from a `fanout`'s, since it
+ *      asks only whether some id has a dot;
+ *   5. a join carried **three or more** branches back downstream. No `fanout` in
+ *      this file declares three branches, so a three-key collection cannot be
+ *      produced by the static feature at all — which is what makes the number a
+ *      bound rather than a magic constant.
+ *
+ * **Read from `reports` rather than from `EXPECTED` wherever the claim is about the
+ * RUN.** Clause 1 is about what this file declares and reads the definitions;
+ * 2-5 are about what a real scheduler did and read the folded state, so a row that
+ * declared a map and was never dispatched satisfies one of the five and fails four.
+ *
+ * **They sit HERE, above the derived-total check, and that was a measurement.**
+ * Written below it they were green in the same place — and `CROSS_ROW` counts only
+ * the cross-row assertions that run **before** that check, so everything after it
+ * is held down by `DECLARED_TOTAL` alone: one floor rather than two, and the one
+ * that a person edits when a count moves. **Seven** assertions are in that position
+ * today — W23's two dotted-path clauses, its three printed-table clauses (one of
+ * which is a two-iteration loop) and W19's two foreign-list clauses — and these five
+ * were nearly the eighth through the twelfth. *(This read "twelve", counting these
+ * five as if they had stayed below the check, in the paragraph explaining that they
+ * were moved above it. W35's conformity reader.)*
+ * [Q170](../doc/open-questions.md).
+ */
+{
+  const mapRegionsOf = (d: FlowDefinition) => d.nodes.filter((n) => n.kind === 'map').map((n) => n.id);
+  const mapRegions = EXPECTED.flatMap((e, i) =>
+    mapRegionsOf(e.definition).map((id) => [reports[i]!, id] as const));
+  const settledOf = (r: RunReport, id: string) => Object.keys(r.state.regions[id]?.settled ?? {});
+  check('cross-row', 'L6 runs a `map` — the node kind P10 added, and the second one there is',
+    EXPECTED.some((e) => mapRegionsOf(e.definition).length > 0), true);
+  // **The negative control, and without it four of the five clauses are about
+  // REGIONS rather than about maps — W35's adequacy reader, BLOCKING.** Swapping
+  // this filter to `'fanout'` cost **1** and widening it to both kinds cost **0**:
+  // the pre-W35 fanout corpus satisfies *runs at all*, *opened more than one*, *a
+  // dotted path* and *a three-key collection* by itself. The filter is the only
+  // thing making the block about a map, and nothing was pointed at it — which is
+  // this item's own lesson from W34 restated: a negative control must sit on the
+  // expression the mutation changes.
+  check('cross-row', 'and `mapRegionsOf` is about `map` and not about regions — its negative control',
+    mapRegionsOf(FJ), []);
+  assertThat('cross-row', 'and one map region opened MORE than one branch — an arity in no definition',
+    mapRegions.some(([r, id]) => settledOf(r, id).length > 1));
+  assertThat('cross-row', 'and one opened NONE — the arity FD-V9`s floor makes a fanout unable to reach',
+    mapRegions.some(([r, id]) =>
+      r.state.regions[id] !== undefined && settledOf(r, id).length === 0 && r.state.outcome === 'stuck'));
+  assertThat('cross-row', 'and one map instance ran at a DOTTED path — a run-time arity inside a region',
+    mapRegions.some(([r, id]) => settledOf(r, id).some((p) => p.includes('.'))));
+  assertThat('cross-row', 'and a join carried THREE branches back downstream — JP-R12 above any declared arity',
+    reports.some((r) => Object.values(r.state.nodes).some((n) => {
+      const jp = (n.result as { joinPayload?: unknown } | null | undefined)?.joinPayload;
+      return typeof jp === 'object' && jp !== null && Object.keys(jp).length > 2;
+    })));
+}
+
+/**
+ * **The rows this file runs, DECLARED — W35's adequacy reader, BLOCKING, and it is
+ * [W23](../doc/work-items/w23-a-nested-flow-on-real-workers.md)'s finding
+ * reproduced on the item written to prevent it.**
+ *
+ * That reader deleted W23's four nested rows, edited `DECLARED_TOTAL` to match, and
+ * L6 was green at 388 with P7's exit artifact gone. W35 answered with five cross-row
+ * clauses — and this reader then deleted **W35's own five rows**, the cross-row block
+ * with them, and edited **two** numbers: `DECLARED_TOTAL` 605 to 489 and `CROSS_ROW`
+ * 18 to 13. **Cost: 0.** *A layer whose floor is a second number a human writes is
+ * not a second floor.* Each of the five rows is separately deletable the same way,
+ * and two of those deletions make a `src/` revert this item measured at **5** and
+ * **1** failures cost **0** again.
+ *
+ * So the rows are named. `S12`'s shape one rung down: **set equality AND order**, not
+ * a count — a swapped row fails where a floor passes, and a deleted row fails
+ * **naming itself** rather than moving a total. Deleting a row is still possible and
+ * is now an edit that says in the diff which artifact left.
+ *
+ * **It is deliberately not derived from `EXPECTED`.** A list derived from the thing
+ * it bounds is [Q102](../doc/open-questions.md)'s shape and W30's `GRADED_IDS`
+ * finding: *the authority was the artefact and the scope was a literal with nothing
+ * beyond it.* This IS the literal, and the clause below it is what stands outside.
+ */
+const ROW_KEYS: readonly string[] = [
+  'fanout-join / live-token',
+  'fanout-join / arrival-count',
+  'p1-routed-away high / live-token',
+  'p1-routed-away high / arrival-count',
+  'p1-routed-away LOW / live-token',
+  'p1-routed-away LOW / arrival-count',
+  'optional-loss / live-token',
+  'optional-loss / arrival-count',
+  'failure-edge / routes on',
+  'suspend / resolve / resume',
+  'suspend / nobody comes',
+  'exit-last / join fires on exit',
+  'uncloneable / OR-R6',
+  'all-exit / live-token',
+  'all-exit / arrival-count',
+  'all-exit / live-token-requiring-arrival',
+  'p1-routed-away LOW / live-token-requiring-arrival',
+  'nested HIGH / live-token',
+  'nested LOW / live-token',
+  'nested LOW / live-token-requiring-arrival',
+  'nested / a person resolves a branch at a dotted path',
+  'map / live-token',
+  'map / arrival-count',
+  'map / N = 0',
+  'nested-map / live-token',
+  'map / FD-R2 — over names no array',
+  'map / one item, two instances — ADR 0037 rule 1',
+];
+
+check('cross-row', 'EXPECTED runs exactly the rows this file declares, in order',
+  EXPECTED.map((e) => e.key), ROW_KEYS);
+
+/**
+ * **And a bound whose authority is OUTSIDE this file: L6 runs every node kind the
+ * spec corpus expresses.**
+ *
+ * `ROW_KEYS` above is a literal, so deleting a row and its name is two edits in one
+ * diff rather than an impossibility. This is the half that cannot be edited from
+ * here at all: `spec/examples/valid/**` is the normative corpus,
+ * `spec/flow-definition.md` section 7's table is compared to it **both ways** by
+ * `check-spec`'s `C8`, and W32 closed the hole where a corpus flow could be renamed
+ * out of the glob unnoticed. So the set of node kinds in that directory is a fact
+ * about `spec/`, and this asserts that ladder L6 runs a flow containing each of
+ * them.
+ *
+ * **`EXPECTED` only, and the two pair rows are not read.** They run `fanout-join`,
+ * whose kinds every other row already covers, and `PairRow` carries no `definition`
+ * field — so reading them would be a widening with no case behind it.
+ *
+ * **What it costs to delete P10's exit artifact is now a `spec/` edit.** Removing
+ * the map rows leaves `map` in the corpus and in no L6 row, and this fails naming
+ * the kind. It would have caught nothing about W23's nested rows — nesting is not a
+ * node kind — which is why it stands **beside** `ROW_KEYS` rather than instead of it.
+ */
+{
+  const readText = async (u: URL): Promise<string> => {
+    const deno = (globalThis as Record<string, unknown>).Deno as
+      { readTextFile?: (x: URL) => Promise<string> } | undefined;
+    return deno?.readTextFile
+      ? await deno.readTextFile(u)
+      : await (await import('node:fs/promises')).readFile(u, 'utf8');
+  };
+  const listDir = async (u: URL): Promise<string[]> => {
+    const deno = (globalThis as Record<string, unknown>).Deno as
+      { readDir?: (x: URL) => AsyncIterable<{ name: string }> } | undefined;
+    if (deno?.readDir) {
+      const out: string[] = [];
+      for await (const e of deno.readDir(u)) out.push(e.name);
+      return out;
+    }
+    return await (await import('node:fs/promises')).readdir(u);
+  };
+  const corpus = new URL('../spec/examples/valid/', import.meta.url);
+  const kindsInCorpus = new Set<string>();
+  for (const name of (await listDir(corpus)).filter((n) => n.endsWith('.flow.json'))) {
+    const doc = JSON.parse(await readText(new URL(name, corpus))) as { nodes?: { kind?: string }[] };
+    for (const n of doc.nodes ?? []) if (typeof n.kind === 'string') kindsInCorpus.add(n.kind);
+  }
+  const kindsAtL6 = new Set<string>();
+  for (const e of EXPECTED) for (const n of e.definition.nodes) kindsAtL6.add(n.kind);
+  check('cross-row', 'L6 runs a flow containing every node kind the spec corpus expresses',
+    [...kindsInCorpus].sort().filter((k) => !kindsAtL6.has(k)), []);
+  // The negative control: the set is non-empty, so the clause above is not vacuous
+  // on an empty corpus read. Without it a `listDir` that returns nothing passes.
+  assertThat('cross-row', 'and the corpus read found node kinds at all — the clause`s own negative control',
+    kindsInCorpus.size >= 5, `kinds in the corpus: ${[...kindsInCorpus].sort().join(', ')}`);
+}
 
 
 // --- the pair rows: two runs, two Drivers, ONE scheduler -------------------------
@@ -1948,6 +2581,41 @@ for (const row of PAIR_ROWS) {
     [...foreignIds.map(() => 'foreign'), ...row.runIds.flatMap(pairTaskIds).map(() => 'ours')]);
 }
 
+/**
+ * **`settledByScheduler` carries ids NO driver dispatched — W35's adequacy reader,
+ * BLOCKING, and it is the provenance axis this directory exists for.**
+ *
+ * `RunReport.settledByScheduler` is documented as *"counted at the listener boundary
+ * and independent of anything the driver recorded"*, and two `Q32` assertions rest
+ * on that: *the SCHEDULER reported a settlement for every dispatched id*, and *the
+ * two sources agree*. Measured: re-sourcing it as `settledByScheduler: [...dispatched]`
+ * in `run-flow.ts` — **one expression, nothing else** — costs **0 failures**, and
+ * both assertions become `dispatched` compared with `dispatched`. The negative
+ * control is on the same expression: deleting the `task.failed` listener that feeds
+ * the real one costs **20** with it and **0** with the swap.
+ *
+ * The pair row that injects foreign tasks is where the two sources can be told
+ * apart, because the scheduler settles ids **this library did not mint** and no
+ * driver dispatched any of them. A list read from a driver cannot contain them.
+ * *(Pre-existing rather than W35's, and closed here because `examples/**` is this
+ * item's `Owns` and provenance is the axis its Verification section names.)*
+ */
+{
+  const withForeign = pairResults.find(({ row }) => row.foreign.length > 0);
+  const ids = withForeign?.row.foreign.map((f) => f.id) ?? [];
+  for (const [who, rep] of withForeign?.runs ?? []) {
+    check(`two runs / one scheduler / tasks we did not mint (${who})`,
+      'settledByScheduler carries every foreign id and dispatched none of them — so it is NOT the driver`s list',
+      {
+        seenByScheduler: ids.filter((id) => rep.settledByScheduler.includes(id)),
+        dispatchedByThisDriver: ids.filter((id) => rep.dispatched.includes(id)),
+      },
+      { seenByScheduler: ids, dispatchedByThisDriver: [] });
+  }
+}
+/** One per run of the pair row that carries foreign tasks. */
+const PAIR_EXTRA = 2;
+
 /** Per pair row: one distinctness check, nine per run, seven scheduler-side. */
 const PAIR_PER_RUN = 9;
 const PAIR_CROSS = 8;
@@ -1963,7 +2631,7 @@ const PAIR_CROSS = 8;
 const PAIR_ROW = pairResults.reduce(
   (n, { runs }) => n + PAIR_PER_RUN * runs.length + PAIR_CROSS,
   0,
-);
+) + PAIR_EXTRA;
 
 // --- the table a person looks at ----------------------------------------------
 
@@ -2097,7 +2765,13 @@ for (const row of PAIR_ROWS) console.log(`    ${w(row.key, KEY_W)}${row.why}`);
  */
 const PER_REGION_ROW = 17;
 const PER_PLAIN_ROW = 15;
-const CROSS_ROW = 13;
+/**
+ * **18 since W35**, from 13: the five clauses that hold the map shape down. They
+ * are cross-row rather than per-row for the reason W23's dotted-path clause is —
+ * a per-row assertion dies with the row it is in, and what W23's adequacy reader
+ * deleted was the rows.
+ */
+const CROSS_ROW = 22;
 const base = (shape: string) => (shape === 'region' ? PER_REGION_ROW : PER_PLAIN_ROW);
 for (const [key, shape, cost, extras] of rowCosts) {
   if (cost !== base(shape) + extras) {
@@ -2185,7 +2859,7 @@ check('cross-row', 'and they reach ID-R5 under TWO scheduler events, not one',
   [...new Set(UNMINTED.map((u) => u.event ?? 'task.completed'))].sort(),
   ['task.completed', 'task.failed']);
 
-const DECLARED_TOTAL = 489;
+const DECLARED_TOTAL = 638;
 if (passed + failures.length !== DECLARED_TOTAL) {
   failures.push(
     'gate\n      the assertion count is not the number this file declares outright\n' +

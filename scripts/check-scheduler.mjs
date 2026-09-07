@@ -237,7 +237,7 @@ if (process.argv.includes('--self-test')) {
 // `if (pkgDir)`, so with the link missing this printed four `ok` lines for four
 // checks that never executed — found by W5's test-adequacy pass. `ran` is set
 // inside each block that actually runs.
-// --- D6: the Deno rung actually READS the Deno pin ----------------------------
+// --- D6: both L6 rungs RUN ladder L6, and the Deno one reads the Deno pin -----
 //
 // **`D3` compares two pins and nothing compared the commands that CONSUME them** —
 // W36's adequacy reader, and obligation (e) in the exact form this item's own
@@ -291,6 +291,70 @@ if (process.argv.includes('--self-test')) {
           'the npm build, with every other clause green');
       }
     }
+    // **And BOTH rungs must run the FILE — W35, and it is W36's own finding one
+    // layer further in.**
+    //
+    // The two clauses above bind the Deno rung's *runtime* and its *resolution*
+    // and say nothing about what it opens; nothing anywhere bound the Node rung's
+    // command at all. Measured, each for **zero** failures across `check:source`,
+    // `check:scheduler`, `check:spec` and `check:markdown`:
+    //
+    //   1. `"test:l6": "node examples/run-flow.ts"` — that module exports functions
+    //      and runs nothing, so the Node rung **exits 0 having asserted nothing**;
+    //   2. the same substitution in `test:l6:deno`, keeping `deno run` and the
+    //      import map, so both clauses above still pass.
+    //
+    // **What that deletes is every exit artifact this repository has.** L6 is the
+    // only rung that touches a real scheduler: P4's two-driver pairing, P6's
+    // foreign tasks, P7's nested fan-out and P10's map all live in
+    // `examples/l6.ts` and nowhere else. `S12` binds the chain's entry NAMES, so
+    // the entries stay; they simply stop running the assertions.
+    //
+    // **Why `l6.ts` by name rather than "some file under examples/"**: the weaker
+    // form is satisfied by `run-flow.ts`, which is precisely the measured case.
+    const rungs = [['test:l6', /(^|\s)node(\s|$)/, 'node'], ['test:l6:deno', /(^|\s)deno\s+run(\s|$)/, 'deno run']];
+    for (const [name, starts, label] of rungs) {
+      const cmd = ourPkg.scripts?.[name];
+      if (typeof cmd !== 'string') {
+        if (name !== 'test:l6:deno') {
+          fail('D6', `package.json has no \`${name}\` script, so ladder L6 has no ${label} rung`);
+        }
+        continue;
+      }
+      // **Skipped for `test:l6:deno`, which the clause above already owns.** Without
+      // this guard the loop reports a SECOND `D6` failure with a near-identical
+      // message for one defect — the sibling-under-one-id shape W29 asked to be told
+      // apart from masking, produced here by a widening rather than found. W35's
+      // conformity reader; the missing-rung clause below already had its guard.
+      if (name !== 'test:l6:deno' && !starts.test(cmd)) {
+        fail('D6', `\`${name}\` does not invoke \`${label}\`: it is ${JSON.stringify(cmd)}`);
+      }
+      // **The ENTRY POINT, not a substring — W35's adequacy reader, BLOCKING, and
+      // it defeated this clause with four characters.**
+      //
+      // This read `cmd.includes('examples/l6.ts')`. Measured:
+      // `deno run --import-map=… --allow-env examples/run-flow.ts --note=examples/l6.ts`
+      // passes **every** `D6` clause, prints `ok`, leaves `check:source` and both
+      // self-tests at exit 0 — and `npm run test:l6:deno` then exits 0 with no
+      // output at all. The clause this item declared an exception to build, closing
+      // *"a command that starts the right runtime and opens the wrong file"*, was
+      // satisfied by the wrong file being named in an **argument**.
+      //
+      // A runtime runs the first non-flag token after its own flags, so that is what
+      // is compared. `deno run`'s subcommand word is dropped first; everything
+      // beginning `-` is a flag, and Deno's flags here all carry their value with
+      // `=`, so no flag consumes the token after it.
+      const argv = cmd.split(/\s+/).filter(Boolean);
+      const afterRuntime = argv.slice(argv.indexOf(label.split(' ')[0]) + (label.includes(' ') ? 2 : 1));
+      const entry = afterRuntime.find((t) => !t.startsWith('-'));
+      if (entry !== 'examples/l6.ts') {
+        fail('D6', `\`${name}\` does not RUN \`examples/l6.ts\` — the first non-flag argument is ` +
+          `${JSON.stringify(entry ?? null)} and the command is ${JSON.stringify(cmd)}. ` +
+          'Ladder L6 IS that file — every exit artifact from P4 onward is in it and nowhere else — ' +
+          'and a rung pointed elsewhere exits 0 having asserted nothing, with every check green. ' +
+          'Naming it in a later argument is not running it');
+      }
+    }
   }
 }
 
@@ -300,7 +364,7 @@ const checks = [
   ['D3', ran.D3, `D3 Deno's JSR pin is the same version as Node's npm pin`],
   ['D4', ran.D4, `D4 every artifact \`exports\` selects is present`],
   ['D5', ran.D5, `D5 it loads and exports what its own declarations name`],
-  ['D6', ran.D6, `D6 the Deno rung reads the Deno pin`],
+  ['D6', ran.D6, `D6 both L6 rungs run examples/l6.ts, and the Deno one reads the Deno pin`],
 ];
 // **Both halves carry a VERSION.** This printed the JSR package NAME with no version
 // at all — the one line where a human sees the two pins side by side, omitting the

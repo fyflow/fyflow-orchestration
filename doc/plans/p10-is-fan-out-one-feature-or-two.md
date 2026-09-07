@@ -2,9 +2,10 @@
 
 **Status:** RUNNING — declared 2026-09-06. **[W32](../work-items/w32-what-a-map-fanout-is.md),
 [W33](../work-items/w33-a-map-at-run-time-arity.md) and
-[W34](../work-items/w34-what-a-branch-receives-and-what-a-join-carries.md) are DONE** — each with its author pass, both
+[W34](../work-items/w34-what-a-branch-receives-and-what-a-join-carries.md) and
+[W35](../work-items/w35-a-map-on-real-workers.md) are DONE** — each with its author pass, both
 readers, rule 8's re-run with the readers' own edits checked in, and a green gate after acting on
-them. **W35 has not started.** **Both reserved ADRs are TAKEN** — 0036 by W32 and **0037 by W34** — which is prediction 4 confirmed. **Read every item's status from its own file, never from this line** (`doc/workflow.md`
+them. **All four items are done and only this retro remains**; the exit artifact exists. **Both reserved ADRs are TAKEN** — 0036 by W32 and **0037 by W34** — which is prediction 4 confirmed. **Read every item's status from its own file, never from this line** (`doc/workflow.md`
 section 1 rule 5, including its *any copy, including your own* clause — which W32's own Record
 violated and corrected, by writing down a browser count measured before the change it described).
 **Runs after [P9](p9-when-a-check-stops-checking-what-notices.md), which is complete and retro'd.**
@@ -457,7 +458,12 @@ Verified against the working tree rather than inherited from an index:
 > with no owner** — so W32 would have allocated from a block whose first two ids were spent, and W33's
 > and W34's blocks were shifted by the same error behind it. **Corrected to W32 `Q156-Q159`, W33
 > `Q160-Q163`, W34 `Q164-Q166` (it already owns Q154), W35 `Q167-Q168`, and this plan's block widened
-> to Q154-Q168. Nothing is renumbered** — Q154 and Q155 keep the meanings they were given here.
+> to Q154-Q168. Nothing is renumbered**
+> *(**W35's block was later moved to Q170-Q172 and this line is left as written.** W34's Record
+> asserted that W35 had not reserved — false, and nobody opened W35's file to check — and
+> [W36](../work-items/w36-the-scheduler-pin-moves-to-0-5-1.md), which belongs to no plan, then
+> reserved Q167-Q169 and USED Q167. Section 3 forbids renumbering a used id, so the item moved
+> rather than the id. Q168 and Q169 are a gap W36 reserved and did not spend.)* — Q154 and Q155 keep the meanings they were given here.
 >
 > **This is [W31](../work-items/w31-the-self-list-check-policies-never-had.md)'s exact failure one
 > plan later**: its `Reserves: Q146-Q148` collided with W29, which had reserved the same block and
@@ -502,8 +508,8 @@ it.
 
 ## Record
 
-*Filled in at the join, after the work items are merged. **W32, W33 and W34 are done; W35 is not**,
-so this is a progress note rather than the retro.*
+*Filled in at the join, after the work items are merged. **All four items are done**, so what follows
+is a progress note that the retro has still to replace.*
 
 **Both reserved ADRs are TAKEN, which is prediction 4 confirmed.**
 [ADR 0036](../decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md)
@@ -535,8 +541,17 @@ explicit Q36 marker. **The pattern is not that the blocks were drawn too narrow;
 obligations are created by what a change SAYS rather than by what it touches**, and that is the
 retro's to judge against P7's five-four-two-zero.
 
-**Exit artifact.** *Not yet — it is W35's: a map on real workers, in both L6 runtimes. L6 is unmoved
-at 489 assertions / 25 real runs and must stay so until that item moves it.*
+**Exit artifact — IT EXISTS.** A map runs end to end on a real `FyflowScheduler` in **both** L6
+runtimes: `r22:score:0:0`, `:1:0` and `:2:0` are dispatched because a worker returned three items,
+and that number is in no definition field and in no constant in the harness. Each instance receives
+its own item and computes a different score; the join carries all three back keyed by branch path;
+`nested-map` runs a map inside a fan-out branch at the dotted paths `1.0` and `1.1` and hands the
+outer join a collection at key `1`; `map / N = 0` is `stuck`; and `map / FD-R2` is the one map
+refusal no validator can make. **L6 is 638 assertions / 29 row labels / 31 real runs**, from
+489 / 23 / 25. **And what reverting costs is measured**: W32 kills the run at construction with
+`FD-V11`, W33's arity costs 35, W34's collection 6, and **W33's `arrival-count` re-sourcing costs
+exactly ONE** — on the map row alone, with the run still reporting `completed` and the only
+observable being one key where three were declared. Before W35 that revert cost 0.
 
 **What the plan answered.** *Q12 and Q36 are both resolved; the retro owes the write-up.*
 

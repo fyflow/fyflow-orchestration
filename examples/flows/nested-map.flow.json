@@ -1,0 +1,16 @@
+{
+  "flowId": "nested-map",
+  "version": 1,
+  "entry": "outer",
+  "nodes": [
+    { "id": "outer",   "kind": "fanout", "branches": [ "scoreA", "prep" ] },
+    { "id": "scoreA",  "kind": "task",   "workerType": "ScoreWorker",  "edges": [ { "to": "collect" } ] },
+    { "id": "prep",    "kind": "task",   "workerType": "SplitWorker",  "edges": [ { "to": "perItem" } ] },
+    { "id": "perItem", "kind": "map",    "over": "items",              "branch": "item" },
+    { "id": "item",    "kind": "task",   "workerType": "ScoreWorker",  "edges": [ { "to": "gather" } ] },
+    { "id": "gather",  "kind": "join",   "of": "perItem",              "edges": [ { "to": "collect" } ] },
+    { "id": "collect", "kind": "join",   "of": "outer",                "edges": [ { "to": "publish" } ] },
+    { "id": "publish", "kind": "task",   "workerType": "PublishWorker","edges": [ { "to": "done" } ] },
+    { "id": "done",    "kind": "end",    "outcome": "completed" }
+  ]
+}

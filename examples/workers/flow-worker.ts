@@ -27,7 +27,7 @@ export interface Confidence {
   confidence: number;
 }
 
-type Role = 'ingest' | 'score' | 'publish' | 'fail' | 'uncloneable';
+type Role = 'ingest' | 'score' | 'publish' | 'fail' | 'uncloneable' | 'split' | 'tally';
 
 export default class FlowWorker extends BaseWorker {
   private readonly role: Role;
@@ -55,6 +55,59 @@ export default class FlowWorker extends BaseWorker {
     switch (this.role) {
       case 'ingest':
         return { confidence: confidenceOf(payload) };
+      case 'split':
+        // **A map's ARITY, and it is a fact about this return value** — W35, and
+        // the whole of what ladder L6 adds to
+        // [W33](../../doc/work-items/w33-a-map-at-run-time-arity.md)'s fixtures.
+        //
+        // The number of tasks the run dispatches is `items.length`, and that number
+        // appears in **no** field of the flow definition and in **no** constant in
+        // the harness: the definition says `over: "items"` and nothing about how
+        // many, and `examples/l6.ts` declares the ids it EXPECTS, which is what
+        // makes a miscount a failure rather than a silent re-plan. A `fanout`
+        // cannot reach this shape — `FD-V9` requires its branch entries to be
+        // written down.
+        //
+        // **One item per word, and each carries a DIFFERENT confidence**, derived
+        // from its own word's length. That is not decoration: handed the whole
+        // value rather than its own item, every instance would compute the same
+        // score and the row could not tell
+        // [ADR 0037](../../doc/decisions/0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md)
+        // rule 3 from its negation. `'a bb ccc'` gives 0.1, 0.2, 0.3.
+        //
+        // **Total, like `confidenceOf`**: no text is zero items, which is a lawful
+        // map (`FD-R2` says an empty array is not the refusal) and the arity
+        // `FD-V9`'s floor means the static feature can never produce.
+        //
+        // **The items are MEMOISED per word, and that is what makes ADR 0037's own
+        // INVARIANT falsifiable at L6 — W35's adequacy reader.** Rule 1 is *no two
+        // nodes ever receive the same object*, and the driver's per-instance
+        // `cloneValue` is what holds it: `structuredClone` preserves aliasing WITHIN
+        // one clone, so an `items` array holding one object twice survives the edge
+        // hop still holding it twice. **Dropping that clone cost 0 failures**, because
+        // every payload here produced distinct items and L6 could not express the
+        // case the driver's own comment names. One word cached per word is the
+        // natural way to produce it: `'a bb ccc'` is unchanged, and `'a a'` is two
+        // references to one object.
+        return {
+          confidence: confidenceOf(payload),
+          items: memoisedItems(wordsOf(payload)),
+        };
+      case 'tally':
+        // **A worker that MUTATES what it was handed**, and the only one here that
+        // does. It is what turns *two instances share an object* from an identity
+        // fact into an observable one: sharing makes the second instance read the
+        // first's write, so the two results differ. With the clone in place both
+        // read `seen: 1`.
+        //
+        // **Deliberately not defensive.** A worker that copies its input first would
+        // be correct practice and would measure nothing; ADR 0037 rule 1 exists so
+        // that a worker need not.
+        {
+          const p = (payload ?? {}) as { seen?: number; word?: string };
+          p.seen = (p.seen ?? 0) + 1;
+          return { seen: p.seen, word: typeof p.word === 'string' ? p.word : null };
+        }
       case 'score':
         // `score` is derived from the payload alone, so the result is a function
         // of the input and the run is reproducible.
@@ -104,4 +157,27 @@ export default class FlowWorker extends BaseWorker {
 function confidenceOf(payload: unknown): number {
   const c = (payload as Partial<Confidence> | null | undefined)?.confidence;
   return typeof c === 'number' ? c : 0;
+}
+
+/**
+ * The words of `text`, and **total for the same reason `confidenceOf` is**.
+ *
+ * `''.split(' ')` is `['']` rather than `[]`, so the filter is what makes *no
+ * text* mean *no items* — and that is the row `FD-V9`'s arity floor makes
+ * unreachable for a `fanout`, so it is worth one line rather than a `?? []`.
+ */
+function memoisedItems(words: readonly string[]): { word: string; confidence: number }[] {
+  const seen = new Map<string, { word: string; confidence: number }>();
+  return words.map((word) => {
+    const hit = seen.get(word);
+    if (hit) return hit;
+    const made = { word, confidence: word.length / 10 };
+    seen.set(word, made);
+    return made;
+  });
+}
+
+function wordsOf(payload: unknown): string[] {
+  const t = (payload as { text?: unknown } | null | undefined)?.text;
+  return (typeof t === 'string' ? t : '').split(' ').filter((w) => w.length > 0);
 }

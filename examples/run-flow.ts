@@ -549,6 +549,20 @@ function buildScheduler(delayMs: number, threaded: boolean): FyflowScheduler {
     // or an id collision would show.
     ScoreWorker: pool('score', threaded, 2),
     PublishWorker: pool('publish', false),
+    // **Where a map's arity comes from — W35.** Its worker returns an array and
+    // the run dispatches one task per element, so this pool is the only reason
+    // `examples/flows/map.flow.json` dispatches a number of tasks that is written
+    // down nowhere in the definition.
+    //
+    // **Inline, and unlike `MergeWorker` that is a convenience rather than a
+    // constraint**: nothing it returns resists `structuredClone`. It is inline
+    // because it runs once per run and a thread would only add a hop.
+    SplitWorker: pool('split', false),
+    // **The one worker here that MUTATES its payload — W35's adequacy reader.**
+    // Inline, and it must be: the whole point is that two map instances handed one
+    // object would see each other's write, and a thread boundary would clone it
+    // away and hide exactly the case the row exists for.
+    TallyWorker: pool('tally', false),
     // Reached only by a flow that names it. Its worker always throws — and what
     // that produces is decided by the NODE, not by the pool: `optional: true`
     // settles `failed` (a branch LOST), `optional: false` ends in `user_action`
@@ -646,8 +660,28 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
     scheduler,
     createTask: (config) => new FyflowTask(config),
     predicates: opts.predicates ?? new Map<string, Predicate>(),
-    workerTypes: ['IngestWorker', 'ScoreWorker', 'PublishWorker', 'ReviewWorker',
-      'ExtractWorker', 'MergeWorker'],
+    // **Read from the SCHEDULER, not written out again — W35, and it is
+    // `doc/workflow.md` rule 8's obligation (c) caught by walking into it.**
+    //
+    // This was a hand-written array of six pool names, a second copy of
+    // `buildScheduler`'s keys with nothing comparing them. `FD-V5` is *"a task's
+    // `workerType` is not a key in the scheduler's `workerPools`"* — the
+    // scheduler's map is the authority the rule names, and the copy could only
+    // ever agree with it by hand.
+    //
+    // **It drifted on the first pool anyone added.** W35 added `SplitWorker` to
+    // `buildScheduler` and the copy still said six, so every map row died at
+    // construction with `FD-V5 at ingest` — a valid flow refused by a validator
+    // reading a stale list. The other direction is the one that matters and is
+    // silent: delete a pool from `buildScheduler` and the copy still names it, so
+    // `FD-V5` passes and the run dies later inside `addTask`, which throws on an
+    // unknown pool. **The rule would have been checking a list rather than the
+    // scheduler**, which is the whole of what obligation (c) is about.
+    //
+    // `FD-V5`'s negative case does not live here in either form — no L6 flow can
+    // name a pool this scheduler lacks, by construction — it lives in
+    // `spec/examples/invalid/` at L1. What lives here is the derivation.
+    workerTypes: Object.keys(scheduler.workerPools as Record<string, unknown>),
     joinPolicy: policy,
     onFoldInput: (input) => {
       inputs.push(input);

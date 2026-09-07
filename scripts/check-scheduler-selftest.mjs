@@ -192,6 +192,45 @@ const PROBES = [
     mutate: (t) => t.replace(/"test:l6:deno": "deno run[^"]*"/, '"test:l6:deno": "node examples/l6.ts"'),
   },
   {
+    name: 'the Node rung pointed at a module that runs nothing',
+    half: PKG, check: 'D6',
+    // **W35, and it is the finding above one layer further in.** The two clauses
+    // before this bind the Deno rung's runtime and its resolution and say nothing
+    // about the FILE, and nothing anywhere bound the Node rung's command at all.
+    // Measured for zero failures across four checks: `examples/run-flow.ts` exports
+    // functions and runs nothing, so the rung exits 0 having asserted nothing —
+    // which deletes P4's, P6's, P7's and P10's exit artifacts in one edit, since
+    // ladder L6 is one file.
+    mutate: (t) => t.replace('"test:l6": "node examples/l6.ts"', '"test:l6": "node examples/run-flow.ts"'),
+  },
+  {
+    name: 'the Deno rung pointed at a module that runs nothing',
+    half: PKG, check: 'D6',
+    // The same substitution on the other rung, **keeping `deno run` and the import
+    // map**, so both W36 clauses still pass and only the file has moved.
+    mutate: (t) => t.replace(/("test:l6:deno": "deno run[^"]*)examples\/l6\.ts"/, '$1examples/run-flow.ts"'),
+  },
+  {
+    name: 'the Node rung started with the WRONG runtime',
+    half: PKG, check: 'D6',
+    // **Its own file is right and its runtime is wrong**, which is what separates
+    // this clause from the one below it. Written first as *`node examples/run-flow.ts`*
+    // and re-pointed: that trips the FILE clause and leaves this one masked behind
+    // a sibling reporting the same id, at an unmoved failure count. The self-test's
+    // own STILL-CAUGHT arm is what said so, which is `doc/workflow.md` rule 8's
+    // *fires for the reason it names* enforced by a file rather than by a reader.
+    mutate: (t) => t.replace('"test:l6": "node examples/l6.ts"', '"test:l6": "deno run examples/l6.ts"'),
+  },
+  {
+    name: 'the Node rung deleted from package.json entirely',
+    half: PKG, check: 'D6',
+    // `S12` would notice this in `check-source` — the gate chain still names an
+    // entry that no longer exists — but `check-scheduler` is where `D3`'s premise
+    // lives, and a premise checked in another file is a premise this check cannot
+    // rely on.
+    mutate: (t) => t.replace('    "test:l6": "node examples/l6.ts",\n', ''),
+  },
+  {
     name: 'package.json is not readable JSON at all',
     // **`D6` does not RUN here, declared rather than discovered** — W36. That clause
     // reads this repository's own `package.json` too, and when it is unparseable it
@@ -416,10 +455,10 @@ const ALL_CHECKS = ['D1', 'D2', 'D3', 'D4', 'D5', 'D6'];
 const RAN = (out) => /^(All checks passed|\d+ failure\(s\)\.)/m.test(out);
 
 /** The floor `check-policies-selftest.mjs` learned to carry: vacuous at zero. */
-const MIN_PROBES = 22;
+const MIN_PROBES = 26;
 
 /** The same floor for `META`, and for the same reason. */
-const MIN_META = 24;
+const MIN_META = 27;
 
 /**
  * **The mutations `check-scheduler.mjs` itself is run against.** Every probe above
@@ -561,6 +600,21 @@ const META = [
   ['D6`s import-map clause disabled — the one the reader found missing',
     'the Deno rung stops passing the import map',
     (t) => t.replace("fail('D6', `\\`test:l6:deno\\` does not pass", "[].push(`\\`test:l6:deno\\` does not pass")],
+  ['D6`s missing-rung clause disabled — W35',
+    'the Node rung deleted from package.json entirely',
+    (t) => t.replace("fail('D6', `package.json has no \\`${name}\\`", "[].push(`package.json has no \\`${name}\\`")],
+  ['D6`s wrong-runtime clause disabled — W35, the Node half',
+    'the Node rung started with the WRONG runtime',
+    (t) => t.replace("fail('D6', `\\`${name}\\` does not invoke", "[].push(`\\`${name}\\` does not invoke")],
+  ['D6`s wrong-FILE clause disabled — W35, and it is what a rung is FOR',
+    'the Deno rung pointed at a module that runs nothing',
+    // **Re-anchored after the entry-point rewrite** — W35's adequacy reader made
+    // this clause compare the first non-flag token instead of testing a substring,
+    // and the message went from *"does not run"* to *"does not RUN"*. The old anchor
+    // then matched nothing and this file **said so** rather than passing: rule 7 (b),
+    // and `doc/workflow.md` rule 8's *a provocation is evidence only when it fires*
+    // enforced by a check rather than by a reader.
+    (t) => t.replace("fail('D6', `\\`${name}\\` does not RUN", "[].push(`\\`${name}\\` does not RUN")],
   // --- the report block, which no set comparison can see ----------------------
   // **These three are why the `agree` projection exists.** Measured before it was
   // written: with the report broken, every probe still reported `wanted [D3] got
@@ -660,6 +714,13 @@ export async function selfTest(root) {
     // artifact each one names.
     ['a partial publish — the BROWSER artifact is missing', null],
     ['a partial publish — the TYPES artifact is missing', null],
+    // **W35, and the same reason as `D4`'s two above.** `D6`'s wrong-FILE clause is
+    // one `fail()` site inside a loop over both rungs, so it takes one `META`
+    // entry; the Deno half cites it and this is the Node half. It is the case that
+    // was actually MEASURED surviving — `"test:l6": "node examples/run-flow.ts"`,
+    // zero failures across four checks — so it is kept as a probe rather than
+    // dropped for being the second of a pair, and the string bounds it.
+    ['the Node rung pointed at a module that runs nothing', 'examples/run-flow.ts'],
   ].map(([name, mustProduce]) => ({ name, mustProduce }));
   {
     const cited = new Set(META.map(([, probeName]) => probeName));

@@ -4,8 +4,8 @@ Flow orchestration over [fyflow-scheduler](https://github.com/fyflow/fyflow-sche
 flow once; run thousands of workloads through it.
 
 > **Status: the layer is built and gated.** Sequence, decision routing, fan-out and join, with
-> **three** join policies, a definition validator, and run state as a pure fold. **One driver serves one run, fixed at construction, and two drivers may share a scheduler — with anything else on it.** **517 assertions in five
-> runtimes** — Node 24, Deno, chromium, firefox, webkit — **plus 489 across 25 runs against a real
+> **three** join policies, a definition validator, and run state as a pure fold. **A `map` is a fifth node kind: one branch declared, N instances opened by the run at an arity no definition states.** **One driver serves one run, fixed at construction, and two drivers may share a scheduler — with anything else on it.** **574 assertions in five
+> runtimes** — Node 24, Deno, chromium, firefox, webkit — **plus 638 across 31 runs against a real
 > scheduler** in Node and Deno — where the scheduler also carries five tasks this library did not mint, and both
 > runs still complete. Not published; no version has been released.
 >

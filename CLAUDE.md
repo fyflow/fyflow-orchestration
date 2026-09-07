@@ -15,7 +15,7 @@ the only document that does. **Every snippet in it is extracted and executed by 
 (`scripts/check-docs.mjs`), so it cannot rot the way a hand-maintained reference does. If you change
 the public surface, that check is what tells you the reference is now wrong.
 
-## Current state: **P1-P9 are ALL complete and retro'd, `doc/workflow.md` is [v0.10](doc/workflow.md), and [P10](doc/plans/p10-is-fan-out-one-feature-or-two.md) is RUNNING — the first PRODUCT plan since P7.** Its question — *is fan-out one feature or two?* ([Q12](doc/open-questions.md), open since P1) — is **ANSWERED by [ADR 0036](doc/decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md): TWO FEATURES OVER ONE REGION.** [W32](doc/work-items/w32-what-a-map-fanout-is.md), [W33](doc/work-items/w33-a-map-at-run-time-arity.md) and [W34](doc/work-items/w34-what-a-branch-receives-and-what-a-join-carries.md) are **all DONE** — each with its author pass, both readers, rule 8's re-run with the readers' own edits checked in, and a green gate after acting on them. **A `map` now DISPATCHES and a satisfied JOIN CARRIES ITS ARRIVALS**: [ADR 0037](doc/decisions/0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md) answers [Q36](doc/open-questions.md), [Q11](doc/open-questions.md) at the fan-out edge and [Q154](doc/open-questions.md), so **BOTH reserved ADRs are taken**. W34's gate is `GATE EXIT=0`, zero FAIL lines, 19 entries, 417 s, with L1 at **21 / 574** in all five runtimes and L6 unmoved at **489 / 25**. [W35](doc/work-items/w35-a-map-on-real-workers.md) — the plan's exit artifact — has **not started**. **Read every status from the item's own file, never from this line.** *(This sentence has now been found stale at two consecutive hand-offs — **and then went stale a third time INSIDE W32**, when a script correcting it aborted on a later substitution and wrote nothing, leaving *"BOTH READERS OUTSTANDING"* standing while their reports were being acted on three paragraphs below. **A batched edit that fails halfway leaves the index describing a state that has not existed for hours**, and nothing checks this line. Treat it as a pointer, not as a fact.)*
+## Current state: **P1-P9 are ALL complete and retro'd, `doc/workflow.md` is [v0.10](doc/workflow.md), and [P10](doc/plans/p10-is-fan-out-one-feature-or-two.md) is RUNNING — the first PRODUCT plan since P7.** Its question — *is fan-out one feature or two?* ([Q12](doc/open-questions.md), open since P1) — is **ANSWERED by [ADR 0036](doc/decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md): TWO FEATURES OVER ONE REGION.** [W32](doc/work-items/w32-what-a-map-fanout-is.md), [W33](doc/work-items/w33-a-map-at-run-time-arity.md) and [W34](doc/work-items/w34-what-a-branch-receives-and-what-a-join-carries.md) are **all DONE** — each with its author pass, both readers, rule 8's re-run with the readers' own edits checked in, and a green gate after acting on them. **A `map` now DISPATCHES and a satisfied JOIN CARRIES ITS ARRIVALS**: [ADR 0037](doc/decisions/0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md) answers [Q36](doc/open-questions.md), [Q11](doc/open-questions.md) at the fan-out edge and [Q154](doc/open-questions.md), so **BOTH reserved ADRs are taken**. W34's gate is `GATE EXIT=0`, zero FAIL lines, 19 entries, 417 s, with L1 at **21 / 574** in all five runtimes and L6 unmoved at **489 / 25**. **[W35](doc/work-items/w35-a-map-on-real-workers.md) is DONE and P10 HAS ITS EXIT ARTIFACT** — a map runs end to end on a real `FyflowScheduler` in **both** L6 runtimes, at an arity that appears in no definition field and in no harness constant, because a worker returned an array of three. **L6 is 638 assertions / 29 row labels / 31 real runs**, from 489 / 23 / 25; L0-L5 are unmoved, and W35 writes no `spec/` and takes no ADR. **All four P10 items are DONE and only the retro remains.** **Read every status from the item's own file, never from this line.** *(This sentence has now been found stale at two consecutive hand-offs — **and then went stale a third time INSIDE W32**, when a script correcting it aborted on a later substitution and wrote nothing, leaving *"BOTH READERS OUTSTANDING"* standing while their reports were being acted on three paragraphs below. **A batched edit that fails halfway leaves the index describing a state that has not existed for hours**, and nothing checks this line. Treat it as a pointer, not as a fact.)*
 
 **`map` is a fifth node kind and the library can express something it could not before — the first plan in ten to change that.** `{ "kind": "map", "over": "items", "branch": "score" }`: **one** branch declared, N instances opened by the run, where a `fanout` declares N branches known at authoring time. `spec/flow-definition.md` and `spec/task-id.md` are both **v0.8** with `spec/README.md`'s rows moved by `C8`; `spec/` is **7 documents, 33 examples, 77 rules**; L1 is **20 files / 517 cases in five runtimes**, from 19 / 474. **Nothing dispatches a map yet** — the driver is W33's, and `AGENTS.md` deliberately describes the refusal class and not the feature.
 
@@ -221,7 +221,44 @@ including `examples/**`, which is **W35's**, because L6 pinned `joinPayload: nul
 **A `deno lint` failure also produced `GATE EXIT=1` with ZERO `FAIL` lines**, which is why the exit
 code is the predicate and the FAIL count a secondary signal. **Census CONFIRMED for the SIXTH plan
 running — 125 questions, 85 open, 2 deferred, 38 resolved**, all 120 live ids in exactly one cluster
-cell; **Q164-Q166 used, Q167 deliberately NOT taken** because W35 has not reserved.
+cell; **Q164-Q166 used, Q167 deliberately NOT taken** — on the ground that W35 had not reserved,
+**which was false**: W35's own file had reserved Q167-Q168 since P10's declaration and nobody
+opened it. W36 then took and used Q167. Corrected at W35's declaration step; that item moved to
+Q170-Q172 and Q167 stands.
+
+
+**[W35](doc/work-items/w35-a-map-on-real-workers.md) is DONE and it is P10's EXIT ARTIFACT.** A map
+runs end to end on a real `FyflowScheduler` in both L6 runtimes: `r22:score:0:0`, `:1:0` and `:2:0`
+are dispatched because a worker returned three items, and **that number is in no definition field and
+in no constant in the harness**. Each instance receives **its own item** and computes a **different**
+score, which is what makes ADR 0037 rule 3 distinguishable from its negation; the join carries all
+three back keyed by branch path; `nested-map` runs a map inside a fan-out branch at the dotted paths
+`1.0` and `1.1` and hands the outer join **a collection at key `1`**; `map / N = 0` is `stuck` with
+one task dispatched; and `map / FD-R2` is the one map refusal no validator can make. **L6 is 638
+assertions over 31 real runs**, from 489 / 25. **Every expected value was written from `spec/` before
+the first run and all five rows passed first time.**
+
+**What reverting costs is the item's other declared output, and one number is the whole of W33's
+case.** W32 — a map opens no region — **kills the run at construction** with `FD-V11: node is not
+reachable from entry`, which is P10's declaration measured from the other side; W33's arity costs
+**35**; W34's collection **6**. **And W33's `arrival-count` re-sourcing costs exactly ONE**, on the
+map row alone, every static row unmoved: the run still says `completed`, every branch still arrives,
+and the only observable is `publish` receiving **one key where three were declared**. *`N` too large
+hangs and is loud; `N` too small completes and is silent.* **Before this item that revert cost 0.**
+
+**Its headline is W36's finding one layer in: a check can bind a command's RUNTIME and its
+RESOLUTION and still not require it to open the FILE.** `S12` binds the gate chain's entry names and
+`D6` bound `deno run` and `--import-map`; **nothing bound either rung's ARGUMENT**, and `test:l6`
+had nothing but its name bound. Pointing either rung at `examples/run-flow.ts` — which exports functions and runs
+nothing — costs **zero** failures across four checks, so **every exit artifact this repository has is
+in one file and could be silently unrun for one edited word**. Closed by three more `D6` clauses as a
+declared exception, with four probes and three `META` entries; that self-test is **26 / 27** from
+22 / 24. **And the item's own rule 8 harness deleted its work** — `git checkout -- examples/` on a
+dirty tree — which is [Q151](doc/open-questions.md) one layer out and is
+**[Q172](doc/open-questions.md)**. **Rule 8: 25 provocations, 23 caught, 2 declared ceilings, 0
+survivors standing**, with two of the catches bought by the `D6` fix. **Census CONFIRMED — 129
+questions, 89 open, 2 deferred, 38 resolved**, both halves at 129 of 129; **Q170-Q172 all used, no
+ADR, no `spec/` change.**
 
 
 **[W36](doc/work-items/w36-the-scheduler-pin-moves-to-0-5-1.md) is DONE and the scheduler pin is

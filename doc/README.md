@@ -7,7 +7,7 @@ its retro is run.** [Q4](open-questions.md) is answered:
 [ADR 0003](decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md), **a join is
 satisfied when its region has no live branches** — and **W5 ran it on a real scheduler**, where
 `p1-routed-away` completes under `live-token` and is **`stuck`** under `arrival-count`, with the
-join's successor never dispatched. **474 assertions in five runtimes, plus 489 at ladder L6 in two — 23 row labels, 25 real runs.** *(This line read **386** and **342** after the counts had moved; both are re-measured here rather than carried forward. The five runtimes are measured too - `npm run gate` runs `test:browser`, which is **chromium only**, so W19 ran `npm run test:browser:all` for firefox and webkit.)*
+join's successor never dispatched. **574 assertions in five runtimes, plus 638 at ladder L6 in two — 29 row labels, 31 real runs.** *(This line read **386** and **342**, then **474** and **489**, after the counts had moved; all are re-measured here rather than carried forward. **The 474/489 pair was stale for four items** — W32, W33 and W34 each moved L1 or L6 and left this line, and W35 added a paragraph nine hundred lines below it and did the same until its conformity reader read the line itself. That is [Q171](open-questions.md)'s class in the document that raised it. The five runtimes are measured too - `npm run gate` runs `test:browser`, which is **chromium only**, so W19 ran `npm run test:browser:all` for firefox and webkit.)*
 *(**The two numbers do not count the same thing and the word is the same.** `386` is `test/runner.ts`'s count of `test()` CASES, not of `equal`/`ok` calls — [Q98](open-questions.md), raised by W16 while re-deriving it. `342` is a genuine count of individual `check`/`assertThat` calls in `examples/l6.ts`. W17's conformity reader found the caveat attaching ambiguously to a sentence carrying both.)*
 
 **The retro is in [P1's Record](plans/p1-what-satisfies-a-join.md) and `doc/workflow.md` is v0.3.**
@@ -910,8 +910,64 @@ wins.
    column**, while **not one of the five that remained was predictable from a file SET**: each was
    created by the CONTENT of the change. **Census CONFIRMED for the SIXTH plan running — 125
    questions, 85 open, 2 deferred, 38 resolved**, all 120 live ids in exactly one cluster cell;
-   **Q164-Q166 used and Q167 deliberately NOT taken**, since W35 has not reserved and three
+   **Q164-Q166 used and Q167 deliberately NOT taken**, on the ground that W35 had not reserved — **false, and W36 acted on it**: W35's own file had reserved Q167-Q168 since P10's declaration. Corrected at W35's declaration; that item moved to Q170-Q172. And three
    consecutive items have had a `Reserves` line collide.
+
+   **[W35](work-items/w35-a-map-on-real-workers.md) is DONE and P10 HAS ITS EXIT ARTIFACT: a map runs
+   end to end on a real `FyflowScheduler`, in both L6 runtimes, at an arity written down nowhere.**
+   Ladder L6 is **638 assertions, 29 row labels, 31 real runs** from 489 / 23 / 25, and its six new
+   rows are `map / live-token`, `map / arrival-count`, `map / N = 0`, `nested-map / live-token` and
+   `map / FD-R2 - over names no array` and `map / one item, two instances`. `npm run gate` is **`GATE EXIT=0`, zero FAIL lines, 19
+   entries**; L0-L5 are unmoved, which is the declared result. **No spec change and no ADR** — this
+   item reads `spec/` and writes none of it, which its declaration says and which held.
+
+   **The arity comes from a worker's return value, and that is the sentence to check the rows
+   against.** The `split` role returns one item per word of a string, so `map.flow.json` dispatches
+   `r22:score:0:0`, `:1:0` and `:2:0` because a worker returned three things — a number in no
+   definition field and in no harness constant. Each instance gets **its own item** and computes a
+   **different** score, which is what makes ADR 0037 rule 3 distinguishable from its negation; the
+   join carries all three back keyed by branch path; and `nested-map` puts a map inside a fan-out
+   branch, so its instances run at **`1.0` and `1.1` at an arity nobody declared** and the outer
+   join's collection has **a collection at key `1`**. **Every expected value was written from `spec/`
+   before the first run and every one of the five rows passed first time**, including the nested
+   collection and the hand-computed assertion total.
+
+   **What reverting costs, in L6 failures, is the item's other declared output.** W32 — a map opens
+   no region — **kills the run at construction** with `FD-V11: node is not reachable from entry`,
+   which is P10's declaration measured from the other side. W33's arity — 35. W34's collection — 6.
+   **And W33's `arrival-count` re-sourcing costs exactly ONE**, on the map row alone, with every
+   static row unmoved: the run still reports `completed`, every branch still arrives, and the only
+   observable is that `publish` receives **one key where three were declared**. *`N` too large hangs
+   and is loud; `N` too small completes and is silent.* **Before this item that revert cost 0 at L6.**
+
+   **Its headline is [W36](work-items/w36-the-scheduler-pin-moves-to-0-5-1.md)'s finding one layer
+   further in, and it is rule 8's obligation (e) in a fifth shape.** `S12` binds the gate chain's
+   entry NAMES and W36's `D6` binds the Deno rung's runtime and its resolution — and **nothing bound
+   either rung's FILE**, nor anything of `test:l6`'s command beyond its name. Measured: pointing either rung at
+   `examples/run-flow.ts`, which exports functions and runs nothing, costs **zero** failures across
+   four checks, so **every exit artifact this repository has — P4's, P6's, P7's and P10's, all in one
+   file — is silently unrun for one edited word.** Closed by three more `D6` clauses, as a declared
+   exception with the reason, plus four probes and three `META` entries; `check-scheduler`'s self-test
+   is **26 probes / 27 gradings** from 22 / 24.
+
+   **And the harness deleted the item's own work.** Its first version restored with
+   `git checkout -- src/ examples/` — correct on a clean tree, catastrophic on a dirty one — and took
+   five rows, three flows, a worker role, a pool and a provenance fix with it, reported as a run of
+   anchors gone stale. **[Q151](open-questions.md) one layer out**: P9 found a harness grading a
+   deletion it caused; this is a harness whose *restore* is the deletion. Recovered and re-verified;
+   **[Q172](open-questions.md)** asks whether rule 8 should say anything about the harness at all.
+   **Rule 8: 25 provocations, 23 caught, 2 declared ceilings, 0 survivors standing** — with **two of
+   the catches bought**, being the two the `D6` fix answers. Three more things the item wrote down
+   were false and its own set caught each: a probe that was **vacuous** because a duplicate object key
+   is won by the last one; a *control* declared to cost 0 that was a **real hole**, `failureNames: []`
+   disabling the assertion it declares; and a `META` entry paired with a probe that trips a
+   **sibling** clause under the same id at an unmoved failure count, which is W29's masking shape
+   caught by W29's own discriminator. **[Q171](open-questions.md)**: `examples/README.md` said
+   **478 assertions** where `l6.ts` declared **489**, and `git show` dates it to the W23 commit that
+   wrote it — three items and two plans, in the paragraph whose own parenthetical says nothing checks
+   these numbers, written by the item correcting the previous instance of the same error two clauses
+   later. **Census CONFIRMED, still the sixth plan running and the fourth confirmation inside P10 — 129
+   questions, 89 open, 2 deferred, 38 resolved**, both halves at 129 of 129 in exactly one cluster cell; **Q170-Q172 all used**.
 
 
    **[W36](work-items/w36-the-scheduler-pin-moves-to-0-5-1.md) is DONE and the scheduler pin is
