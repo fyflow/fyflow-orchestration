@@ -30,31 +30,96 @@
  * and `test/matrix/variants.ts` still runs it as a matrix column so the refusal
  * remains falsifiable.
  */
-import type { JoinPolicy, Region } from '../driver/policy.ts';
+// **`Region` is no longer imported, and that is a RESULT rather than tidying.**
+// After the v0.12 re-sourcing below, NOT ONE shipped policy reads the region it is
+// opened with - `arrival-count` was the last, and P10 fact 3 measured it as the
+// only one. The seam still passes it (`spec/join-policy.md` section 1 fixes the
+// shape and `JoinPolicy.open` still takes it), and every policy here now answers
+// from the EVENT STREAM alone. That is the sharpest form of Q159's answer: the
+// interface does not need to say which node kind opened a region, because nothing
+// reads the region.
+import type { JoinPolicy } from '../driver/policy.ts';
 
 export interface ArrivalCountState {
-  /** Fixed at `open` from `region.branches.length`. Never adjusted. */
+  /**
+   * How many branches the region **opened** — one per `branch.opened`.
+   *
+   * **Read `region.branches.length` at `open` until v0.12**, which is the same
+   * number for every `fanout` region and is **1 for every `map` region whatever the
+   * run opens**. See `arrivalCount` below.
+   */
   need: number;
   /** Distinct branch paths that have arrived. */
   arrived: string[];
 }
 
 /**
- * `arrival-count` — *"N is fixed at `open` from `region.branches.length`.
- * `satisfied` when N distinct `branch.arrived` events have been seen. **Never
- * `unsatisfiable`.** Every other event is ignored."*
+ * `arrival-count` — *"N is **counted from `branch.opened`** — one per branch the
+ * region opened. `satisfied` when N distinct `branch.arrived` events have been seen
+ * **and N is at least one**. **Never `unsatisfiable`.** Every other event is
+ * ignored."*
+ *
+ * *(That quotation is `spec/join-policy.md` section 3's row at v0.12. It read the
+ * v0.7 row — *"N is fixed at `open` from `region.branches.length`"* — until this
+ * change, and a doc comment quoting a spec row it no longer implements is the
+ * `spec/README.md` rule 4 shape one layer down.)*
  *
  * **The "every other event is ignored" clause is load-bearing and deliberate.**
  * This policy cannot survive P1's case — a branch routed away never arrives, the
  * counter never reaches N, and the run waits with no error. That is not a bug to
  * fix here; it is the property W4 is measuring.
+ *
+ * ---
+ *
+ * **v0.12 — `N` is COUNTED from `branch.opened` rather than read from
+ * `region.branches.length`, and it is a re-sourcing rather than `JP-R7`'s
+ * refinement.** [W33](../../doc/work-items/w33-a-map-at-run-time-arity.md),
+ * `spec/join-policy.md` section 3.
+ *
+ * **What forced it, measured end to end through a real `Driver` at ladder L2.** A
+ * `map` region's `region.branches` is the ONE declared branch entry whatever the
+ * run opens ([ADR 0036](../../doc/decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md)),
+ * so the old source gave `need: 1` at every arity — and on a three-item map this
+ * policy **routed the join out after 4 of 6 region events with TWO branches still
+ * live**. Every failure W4 recorded was `need` being too LARGE, which hangs; this
+ * is `need` too SMALL, which **completes the run wrong**. A hang is a run that does
+ * not finish and `ADR 0015` gives it a name; there is no vocabulary for a run that
+ * finished having published work that had not happened, and there should not have
+ * to be.
+ *
+ * **Why this is not `JP-R7`'s forbidden line.** `JP-R7` forbids *decrementing `N`
+ * on `branch.exited`*, which changes three of the nine matrix rows and makes this
+ * policy survive P1's case. Counting `branch.opened` changes **no** verdict: a
+ * `fanout` emits exactly one `branch.opened` per declared entry, so the two sources
+ * are the same number on every static region — **measured, 6 of 6 regions over the
+ * valid corpus and all 36 matrix cells unmoved**. P1's routed-away case still
+ * hangs (`need` 2, one arrival, forever), which is this policy's defining property
+ * and the whole of what `ADR 0003` measured. It answers the same about every input
+ * W4 ran and something new about an input W4 could not construct.
+ *
+ * **`JP-R5` is what makes it sound, and this is the first thing to depend on it.**
+ * That rule's own section says *"`arrival-count` is immune, because its `N` comes
+ * from `region.branches.length` at `open`"* — true until this change and false
+ * after it. Every `branch.opened` for a region precedes any other event for it, so
+ * `need` is final before any arrival can be counted against it. The clause remains
+ * unfalsifiable through a conformant driver — `FD-V25` makes a map's branch a
+ * `task` and entering a task dispatches without emitting, which is `FD-V9`'s role
+ * for a fanout played by a second rule — but what RESTS on it is now both counting
+ * policies rather than one.
  */
 export const arrivalCount: JoinPolicy<ArrivalCountState> = {
   id: 'arrival-count',
 
-  open: (region: Region) => ({ need: region.branches.length, arrived: [] }),
+  // **`region` is deliberately unread.** It was the source of `need` and is now
+  // the source of nothing: `branches` cannot answer *how many branches did this
+  // region open* for a map, and a policy that read it for a fanout and counted for
+  // a map would be branching on the node kind — which it cannot see
+  // ([Q159](../../doc/open-questions.md)) and, per that row, should not.
+  open: () => ({ need: 0, arrived: [] }),
 
   step: (s, e) => {
+    // The re-sourcing. One per branch the region actually opened.
+    if (e.type === 'branch.opened') return { ...s, need: s.need + 1 };
     // Distinct arrivals: `JP-R5` gives at most one terminal event per branch, so
     // this is belt-and-braces rather than load-bearing — but a policy that
     // double-counted would look satisfied early and be blamed on the driver.
@@ -63,9 +128,20 @@ export const arrivalCount: JoinPolicy<ArrivalCountState> = {
     // NOT decrementing `need` on `branch.exited`. That is JP-R7's third policy.
   },
 
-  status: (s) => (s.arrived.length >= s.need ? 'satisfied' : 'waiting'),
+  // **`s.need > 0` is a PIN, not a refinement**, and it is exactly `JP-R8`'s own
+  // *"having been positive"* argument in the policy that argument was denied to.
+  // A bare `arrived.length >= need` is true at `0 >= 0`, so without it `open`
+  // itself reports `satisfied` — and at a map of zero items this policy would fire
+  // a join **no branch ever reached**, which is character for character what
+  // [ADR 0025](../../doc/decisions/0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md)
+  // REFUSED `JP-R7`'s variant for. It is vacuous on every `fanout` region, because
+  // `FD-V9`'s floor puts `need` at 2 or more.
+  status: (s) => (s.need > 0 && s.arrived.length >= s.need ? 'satisfied' : 'waiting'),
   // Never `unsatisfiable`: this policy has no way to know a join can never fire,
-  // which is precisely the argument Q4 states as a testable claim.
+  // which is precisely the argument Q4 states as a testable claim. **At a map of
+  // zero items it says `waiting`, exactly as the other two do** — the region is
+  // reported dead by the FOLD (`RN-R10`, via the `regionEntered` input) rather
+  // than by any policy, which is `spec/join-policy.md` section 5's own case.
 
   describe: (s) => ({ need: s.need, arrived: [...s.arrived] }),
 };

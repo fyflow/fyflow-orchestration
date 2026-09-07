@@ -127,6 +127,35 @@ export interface RunState {
 export type FoldInput =
   | { kind: 'outcome' | 'resolution'; record: LogRecord }
   | { kind: 'region'; event: RegionEvent }
+  /**
+   * **A region was ENTERED** - the driver called `open` on the join policy for it.
+   * [W33](../../doc/work-items/w33-a-map-at-run-time-arity.md).
+   *
+   * **This closes a gap `spec/run-state.md` already declared and nothing
+   * implemented.** That document's shape says `regions` holds *"one entry per
+   * fan-out region ENTERED"*, and until v0.8 the only producer of an entry was a
+   * region EVENT - so *entered* and *opened at least one branch* were the same
+   * thing, because `FD-V9`'s arity floor makes a `fanout` open at least two.
+   *
+   * **A `map` separates them**, and the separation is not cosmetic. Measured: a map
+   * over an empty list opens no branch, emits no region event, appends nothing -
+   * `regions` is `{}`, `RN-R10` iterates nothing, and the run reports
+   * **`completed`** having reached no `end` node, through `withOutcome`'s final
+   * fall-back rather than by any positive determination. That is character for
+   * character the false statement
+   * [ADR 0015](../../doc/decisions/0015-a-run-whose-join-can-no-longer-fire-is-stuck.md)
+   * exists to remove.
+   *
+   * **Emitted for EVERY region, not only for a map**, so the invariant has one
+   * mechanism rather than two that could drift. Measured: it changes no field of
+   * `RunState` on any corpus flow, because every region that exists today emits at
+   * least one `branch.opened` and so already had its entry - the sequence gains an
+   * input and the state gains nothing.
+   *
+   * It carries no verdict. `joined` stays `null` until a `joinSettled` says
+   * otherwise, which is `RN-R11` untouched.
+   */
+  | { kind: 'regionEntered'; regionId: string }
   | { kind: 'dispatched'; taskId: string }
   | { kind: 'pathEnded'; reason: 'end' | 'no-eligible-edge'; at: string }
   | { kind: 'joinSettled'; regionId: string; joinId: string; fired: boolean }
@@ -165,6 +194,22 @@ export function step(prev: RunState, input: FoldInput): RunState {
 
   if (input.kind === 'pathEnded') {
     return withOutcome({ ...prev, pathEnds: [...prev.pathEnds, { reason: input.reason, at: input.at }] });
+  }
+
+  if (input.kind === 'regionEntered') {
+    // Idempotent, and the early return above is what makes it so: a region already
+    // carrying events keeps them. Nothing here can move `joined`, `opened`,
+    // `settled` or `suspended` - it only makes the region PRESENT, which is the
+    // whole of what "entered" adds.
+    //
+    // *(This read "`??` is what makes it so" and there is no `??` in the arm - the
+    // behaviour is right and the explanation pointed at a line that does not exist.
+    // W33's conformity reader.)*
+    if (prev.regions[input.regionId]) return prev;
+    return withOutcome({
+      ...prev,
+      regions: { ...prev.regions, [input.regionId]: emptyRegion() },
+    });
   }
 
   if (input.kind === 'joinSettled') {
@@ -255,7 +300,39 @@ function withOutcome(s: RunState): RunState {
   // is that a human is needed, not that other work continues.
   if (nodes.some((n) => n.state === 'suspended')) return { ...s, outcome: 'awaiting_action' };
   if (nodes.some((n) => n.state === 'running')) return { ...s, outcome: 'running' };
-  if (nodes.length === 0 && s.pathEnds.length === 0) return { ...s, outcome: 'running' };
+  // **"Nothing has happened yet", and an ENTERED REGION is something happening** —
+  // W33's adequacy reader. This read `nodes.length === 0 && pathEnds.length === 0`,
+  // and a `map` at the **entry** node over an empty list satisfies both: no task is
+  // ever dispatched and no path ends, so it returned `running` **before** `RN-R10`
+  // could see a region that was entered and can never join.
+  //
+  // **Measured**: `entry: split`, `over: 'items'`, started with `{items: []}` —
+  // `ids=[]`, `regions={split:{opened:[],joined:null}}`, `outcome=running`. Nothing
+  // will ever arrive, and `RN-R12` says a run is finished exactly when its outcome
+  // is neither `running` nor `awaiting_action` — so a clock-free L6 harness waits on
+  // that run **forever** and a consumer polling `RunState.outcome` is told work is in
+  // flight. That is `ADR 0015`'s own false statement wearing the other outcome.
+  //
+  // `map-fanout`'s N=0 case passed only because its `ingest` task put one node in
+  // `nodes` first, which is why every N=0 assertion in the repository missed it.
+  // **The discriminator is whether a region OPENED anything, not whether one is
+  // present**, and the first version of this fix got that wrong. `Object.keys(
+  // s.regions).length === 0` turned the neighbouring guarantee red: a `fanout` at
+  // the entry node emits every `branch.opened` **before** dispatching any (`JP-R5`),
+  // so a prefix taken mid-burst legitimately holds a region with `joined: null` and
+  // no nodes — and `test/fold/stuck.test.ts` pins that as `running` precisely
+  // because an L6 harness would otherwise declare the run finished before it
+  // started. That region has **opened** branches; a map of zero items has not.
+  //
+  // **The stated limit**: a prefix cut in the one-input window between
+  // `regionEntered` and the first `branch.opened` reads as terminal here. `RN-R12`
+  // claims its predicate at a **quiescent point** and not at every prefix — the
+  // qualification the test beside that one calls load-bearing — so this is inside
+  // what that rule already says, and it is recorded rather than left to be found.
+  const openedNothing = Object.values(s.regions).some((r) => r.opened.length === 0 && r.joined !== true);
+  if (nodes.length === 0 && s.pathEnds.length === 0 && !openedNothing) {
+    return { ...s, outcome: 'running' };
+  }
 
   // `RN-R10` — **`stuck` outranks `failed` and `completed`, and only those two.**
   //

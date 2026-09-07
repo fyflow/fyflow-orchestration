@@ -1,6 +1,6 @@
 # spec/run-state — what a run holds, and what it is derived from
 
-**Status:** v0.3 — written by [W2](../doc/work-items/w2-the-fold-and-both-join-policies.md) under
+**Status:** v0.4 — written by [W2](../doc/work-items/w2-the-fold-and-both-join-policies.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md).
 **v0.3 is [W5](../doc/work-items/w5-one-real-fan-out-flow-on-a-real-scheduler.md)'s**, and it changes
 two things this document said were open: **section 6's last bullet is done** — the input sequence
@@ -84,7 +84,7 @@ log twice and deep-comparing. A fold that read `scheduler.tasks`, memoised acros
 | `RN-R4` | **A run holds only what its input sequence says.** Every field above is derived; none is supplied from outside. A node absent from `nodes` **was never dispatched** — which is only true because `dispatched` is an input (section 6); without it, absence would also mean "in flight", and the rule would be false | W2 |
 | `RN-R5` | **`nodes` is keyed by task id, not by node id.** A node inside a fan-out has one entry per branch, and [spec/task-id.md](task-id.md)'s total parse is what recovers `(nodeId, branchPath, attempt)` from the key. Keying by node id would silently merge two branches of one fan-out | W2 |
 | `RN-R6` | **`regions` records what happened, not what a policy concluded.** A policy's own state is opaque (`JP-R1`) and reachable only through `describe`; run state carries the **events**, so two policies folded over the same *region events* produce the same `opened`, `settled` and `suspended` | W2 |
-| `RN-R11` | **`joined` is a routing fact, and it is the only field a policy's behaviour reaches that is *decidable without the definition*.** `true` the driver routed out of the join, `false` a policy reported it unsatisfiable and it never will, `null` neither yet. It records what the **driver did**, not what the policy said — which is the distinction `RN-R6` rests on, and it is a thin one: a field carrying a policy's `status` or `describe` would cross it. Test: drive the same flow twice, once under each policy, and assert `opened`, `settled` and `suspended` are identical while `joined` differs. **Note the test is two drivers, not one stream** — `joined` comes from a `joinSettled` input, which is not a region event, so a literally identical stream cannot differ | **W5** |
+| `RN-R11` | **`joined` is a routing fact, and it is the only field a policy's behaviour reaches that is *decidable without the definition*.** `true` the driver routed out of the join, `false` a policy reported it unsatisfiable and it never will, `null` neither. **v0.4: `null` is not always *"yet"*** — a `map` over an empty list is permanently `stuck` with `joined: null`, because no policy can report a region that opened nothing (`spec/join-policy.md` section 5) and so nothing ever moves this field. `null` means *the driver neither routed out nor was told it never will*, which is a state a run can END in. It records what the **driver did**, not what the policy said — which is the distinction `RN-R6` rests on, and it is a thin one: a field carrying a policy's `status` or `describe` would cross it. Test: drive the same flow twice, once under each policy, and assert `opened`, `settled` and `suspended` are identical while `joined` differs. **Note the test is two drivers, not one stream** — `joined` comes from a `joinSettled` input, which is not a region event, so a literally identical stream cannot differ | **W5** |
 
 **`RN-R6` is what keeps [Q4](../doc/open-questions.md) answerable.** If run state carried a
 policy's conclusion, W4's matrix would be comparing two run states rather than two policies, and
@@ -192,7 +192,7 @@ could reason about.
 |---|---|---|
 | `RN-R9` | **A resolved node takes the state its resolution gave it**, `done` or `failed`, and its `result`/`error` come from the **effective outcome** ([spec/outcome-record.md](outcome-record.md) section 7) rather than from either record alone. A node that suspended and was resolved is not distinguishable, in run state, from one that settled that way — which is `RS-R3`'s promise kept one layer up | W2 |
 
-## 5. Three things v0.1 claimed that its own inputs could not supply
+## 5. Three things v0.1 claimed that its own inputs could not supply, and two found since
 
 Recorded rather than edited away, because the failure was not the claims — it was that the **code
 resolved each one silently**, in a document the same item wrote, which is precisely what
@@ -204,6 +204,7 @@ resolved each one silently**, in a document the same item wrote, which is precis
 | `completed` means *"at least one `end` was reached"*; `failed` means *"a path ended with no eligible edge"* | neither was derivable — nothing reported a path reaching an `end` outside a region. The code substituted *"some node settled failed"*, which **mislabels `failure-edge.flow.json`** | **adds `pathEnded` as an input**, so section 3's own words are what the fold computes |
 | the shape carries `flowId` and `regions[*].joinId` | neither is derivable: no record carries a flow id, and `RegionEvent` carries only `regionId`. The code shipped `joinId: ''` forever and dropped `flowId` | **removes both from the shape.** A caller that wants either reads the definition, which is where they live |
 | **v0.3's fourth row, and it is not v0.1's** — [Q43](../doc/open-questions.md) said *"`regions` already records `{0: arrived, 1: exited}`, so the information is present"* | **it is not.** Both policies settle every branch on `p1-routed-away`, so `regions` is byte-identical under each; `RN-R6` guarantees precisely that. The other candidate — infer it from `publish` being absent from `nodes` — needs the definition, which `RN-R4` forbids | **adds `joined` and the `joinSettled` input** ([ADR 0015](../doc/decisions/0015-a-run-whose-join-can-no-longer-fire-is-stuck.md)). The claim becomes true rather than the outcome staying wrong |
+| **v0.4's fifth row, and it is a v0.1 claim that stayed true by ACCIDENT for nine plans** - section 2's shape says `regions` holds *"one entry per fan-out region ENTERED"* | **an entered region that opens NO branch has no entry.** Every producer of an entry was a region EVENT, so *entered* and *opened at least one branch* were the same thing - and they were the same thing because `FD-V9`'s arity floor makes a `fanout` open at least two. **A `map` separates them** ([ADR 0036](../doc/decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md)): a map over an empty list appends nothing at all, `RN-R10` iterates nothing, and the run reports **`completed`** having reached no `end` node - through section 3's final fall-back rather than by any positive determination. Measured by [W33](../doc/work-items/w33-a-map-at-run-time-arity.md) before the fix | **adds `regionEntered` as an input**, appended when the driver opens a region's policy. The claim becomes true rather than the shape being weakened to match the code |
 
 **The pattern is worth naming.** Each of the first three was a spec written by the item that
 implements it, asserting something reasonable, and each was resolved by narrowing the code until the
@@ -238,6 +239,12 @@ currently unfalsifiable, and why. This document did not, and that is the finding
   > one ordered value, and **nothing produces that value yet** […] The ordered sequence `RN-R3` and
   > `OR-R5` are *about* does not exist as a thing you can hold.
 
+- **Whether `stuck` says WHY.** A map of zero items is `stuck` and **no policy reports it
+  `unsatisfiable`**, because a policy's state after a region opens nothing is byte-identical to its
+  state before any branch opens - so `onUnsatisfiableJoin` does not fire and `joined` is `null`
+  rather than `false`. That is [Q97](../doc/open-questions.md) exactly, open since P5 with **ADR 0026
+  held for it**, now with a second case. `spec/join-policy.md` section 5 carries the ruling and the
+  three alternatives it rejected.
 - **What a consumer should do about a `stuck` run.** [Q38](../doc/open-questions.md) asks whether a
   `stopped` run is resumable and neither is answered here; there is no cancel
   ([Q18](../doc/open-questions.md)), so today the honest answer is *report it and abandon it*.

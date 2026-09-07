@@ -409,7 +409,8 @@ const PROBES = [
     // running, because W30's own Record and index paragraphs pushed the fixture's link
     // count from 1217 past the 1350 floor. It read 37/1116/78 at W25, 40/1217/86 at
     // P9's declaration, 41/1357/94 at W30's close and **45/1507/99 at P10's
-    // declaration**; the floor is **1720**.
+    // declaration**, and **2050** since W33; the entry is anchor-agnostic so it does
+    // not go inert the next time that is right to change.
     // [Q142](../doc/open-questions.md) is not fixed by retuning it — the window is
     // two-sided by construction — and the mitigation is the direction: it fails
     // LOUDLY, in the gate, naming the probe and the expected set: the anchors are untouched, because
@@ -551,7 +552,12 @@ const META = [
     (t) => t.replace("if (r.files < 64) fail('M3'", "if (false) fail('M3'")],
   ['M4`s link floor disabled',
     'doc/decisions AND doc/plans removed — the LINK floor, with the anchors left alone',
-    (t) => t.replace("if (r.links < 1720) fail('M4'", "if (false) fail('M4'")],
+    // **Anchor-agnostic since W33.** Pinned to the literal this reported *"the
+    // mutation matched nothing"* every time the floor was right to change — twice
+    // now, at P10's declaration and again here. Rule 7 (b) firing correctly, and
+    // [Q142](../doc/open-questions.md)'s own sentence: *a mutation pinned to a magic
+    // number is unmutatable the moment the number is right to change.*
+    (t) => t.replace(/if \(r\.links < \d+\) fail\('M4'/, "if (false) fail('M4'")],
   ['AGENTS.md dropped from the root file list',
     'a dead link in AGENTS.md — the file Q121 named, and it could leave the walk',
     (t) => t.replace("  ...['README.md', 'AGENTS.md', 'CLAUDE.md']", "  ...['README.md', 'CLAUDE.md']")],

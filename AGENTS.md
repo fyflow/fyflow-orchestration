@@ -126,17 +126,26 @@ driver that dispatched it. See section 9.
 **Five** node kinds. A definition is JSON: no functions, so it can be stored, versioned and sent over
 a wire.
 
-> **`map` is the fifth and NOTHING DISPATCHES ONE YET.** It is a valid definition since
-> `spec/flow-definition.md` v0.8 —
+> **`map` is the fifth, and since [W33](doc/work-items/w33-a-map-at-run-time-arity.md) a `Driver`
+> RUNS one.** It is a valid definition since `spec/flow-definition.md` v0.8 —
 > [ADR 0036](doc/decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md),
 > answering [Q12](doc/open-questions.md): a `fanout` declares N branches known at authoring time, a
-> `map` declares **one** and a run opens N instances of it. The `Driver` that executes one is
-> [W33](doc/work-items/w33-a-map-at-run-time-arity.md); until it lands, routing into a `map` node
-> **stops the run** with an `InvalidDefinition` naming the node, rather than doing nothing. **This
-> section describes the feature when there is a feature to describe** — the row below and the count
-> are here so the reference is not false in the meantime, which is
-> [Q157](doc/open-questions.md)'s subject: no [P10](doc/plans/p10-is-fan-out-one-feature-or-two.md)
-> item owns this file.
+> `map` declares **one** and a run opens N instances of it, N coming from the value the map node
+> receives. `over` is a **key name** on that value and must resolve to an array, or the run stops
+> with an `UnresolvedMapArity` naming the node and the key; an empty array is a lawful map of zero
+> items and makes the run `stuck`, because the join can never fire.
+>
+> **Two things a consumer should NOT read into this yet.** Every instance receives the whole value
+> the map node received rather than its own item, and a satisfied join still carries `null` — what a
+> branch receives and what a join carries are
+> [Q11](doc/open-questions.md)/[Q36](doc/open-questions.md), and they are
+> [W34](doc/work-items/w34-what-a-branch-receives-and-what-a-join-carries.md)'s, deliberately after
+> this item so the rule is written from cases rather than from a mechanism.
+>
+> **This paragraph is the minimum that is not false and is not the feature write-up.** It read
+> *"NOTHING DISPATCHES ONE YET"* until W33, which is [Q157](doc/open-questions.md)'s second
+> occurrence: no [P10](doc/plans/p10-is-fan-out-one-feature-or-two.md) item owns this file, W35 is
+> the natural owner, and W33 took it as a declared late exception to keep the reference true.
 
 ```ts run
 import { validateDefinition, type FlowDefinition } from 'fyflow-orchestration';
@@ -173,7 +182,7 @@ if (bad.length) throw new Error(`section 3's own example is invalid: ${bad.map((
 |---|---|---|
 | `task` | runs a worker of `workerType`. Has `edges` | it has no `edges`, or **no edge of it is eligible for `done`** (`FD-V7`) |
 | `fanout` | `branches: string[]` — the node each branch starts at. Dispatches nothing itself | fewer than two branches, a repeated entry, any `edges` at all, or a branch entry that is not a `task` (`FD-V9`) |
-| `map` | `over: '<key>'` and `branch: '<node id>'` — **one** branch, opened once per item at run time. Dispatches nothing itself. **No driver opens one yet** | any `edges` at all, a `branch` that is not a `task`, or an `over` outside `^[A-Za-z0-9_-]{1,64}$` (`FD-V25`); a missing `over` or `branch` (`FD-V23`) |
+| `map` | `over: '<key>'` and `branch: '<node id>'` — **one** branch, opened once per item at run time. Dispatches nothing itself; the RUN opens N instances of its one branch | any `edges` at all, a `branch` that is not a `task`, or an `over` outside `^[A-Za-z0-9_-]{1,64}$` (`FD-V25`); a missing `over` or `branch` (`FD-V23`) |
 | `join` | `of: '<fanout id>'`. Fires when its policy says so | it does not have **exactly one** edge, or that edge carries `when` or `on` (`FD-V7`) |
 | `end` | terminal. `outcome` is **your label**, never interpreted | — |
 
@@ -752,17 +761,28 @@ void withReporting;
 quoted in prose, so renaming one in `src/` fails this gate instead of silently falsifying the
 paragraphs above.
 
-**`UnresolvedBranchPath` is the tenth class, and it belongs to a feature nothing dispatches yet.**
-It is `ID-R6` — `branchPathOf` was asked for the path of a node inside a **`map`** region without the
-item index that region's branch is indexed by, and refused rather than guessing, because guessing
-mints one task id for every dispatch and the run then dies at `ID-R1` naming a duplicate. **A `map`
-is a valid definition today and no `Driver` opens one**: `spec/flow-definition.md` v0.8 and
-[ADR 0036](doc/decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md)
-define the node kind, and [W33](doc/work-items/w33-a-map-at-run-time-arity.md) is the item that makes
-it run. **This section will describe the feature when there is a feature to describe**; naming the
-class now is what keeps the list below true rather than a promise —
-[Q157](doc/open-questions.md) is the gap that no [P10](doc/plans/p10-is-fan-out-one-feature-or-two.md)
-item owns this file.
+**Two of the eleven belong to `map`, and they fail for different people.**
+
+`UnresolvedBranchPath` is `ID-R6` — `branchPathOf` was asked for the path of a node inside a **`map`**
+region without the item index that region's branch is indexed by, and refused rather than guessing,
+because guessing mints one task id for every dispatch and the run then dies at `ID-R1` naming a
+duplicate. **A `Driver` supplies that index and never sees this**; it is what a caller composing
+`branchPathOf` or `branchIndexOf` themselves gets, and it names the map rather than the symptom.
+
+`UnresolvedMapArity` is **W33's, and it is a data error rather than a definition error** — which is
+why it is not an `InvalidDefinition`. A `map` node's `over` is a key NAME (`FD-V25` checks the
+charset and can check nothing else, because no validator can see a value that does not exist yet),
+and at run time the value it names must be an **array**. An absent key, an object, a number, a `null`
+payload or a string payload each stop the run with this class naming the node and the key. **The
+definition is valid and the previous node did not produce what the flow says it does**, which is a
+different person's bug — a flow author reading `InvalidDefinition` would go and read their flow,
+where there is nothing to find. **An empty array is not this**: zero items is a lawful arity.
+
+*(This paragraph read *"`UnresolvedBranchPath` is the tenth class, and it belongs to a feature nothing
+dispatches yet … no `Driver` opens one"* until W33, which is the item that made it run.
+[Q157](doc/open-questions.md) is the gap behind both edits: no
+[P10](doc/plans/p10-is-fan-out-one-feature-or-two.md) item owns this file, and W35 is the natural
+owner of describing the feature rather than merely not lying about it.)*
 
 **And the list is checked against the PACKAGE, not against itself** — [Q101](doc/open-questions.md).
 Until W18 this snippet imported eight classes, mapped them to `.name`, and compared the result to a
@@ -777,11 +797,13 @@ import * as lib from 'fyflow-orchestration';
 import {
   DuplicateTaskId, InvalidDefinition, InvalidRunId, InvalidTaskId, MissingJoinPolicy,
   MultipleRuns, NoMatchingEdge, UncloneableResult, UndispatchedTask, UnresolvedBranchPath,
+  UnresolvedMapArity,
 } from 'fyflow-orchestration';
 
 const documented = [
   DuplicateTaskId, UncloneableResult, NoMatchingEdge, UndispatchedTask,  // reported inside a listener
   MultipleRuns, InvalidRunId, InvalidDefinition, MissingJoinPolicy,      // thrown at you
+  UnresolvedMapArity,                        // reported in a listener; reported AND thrown from start()/resolve()
   InvalidTaskId, UnresolvedBranchPath,                                   // neither — see above
 ].map((c) => c.name);
 
@@ -887,7 +909,7 @@ if (Object.keys(frozen).length !== 4) {
 | **cancellation** | nothing. The scheduler cannot cancel a queued task either |
 | **durability** — resuming a run after a restart | nothing. The fold is designed to make it additive; it is not built |
 | **nested fan-out** — a branch that fans out again | **built, and the join over it is settled.** `FD-V15` is retired; a task inside a nested region is dispatched at its whole dotted `branchPath` (`r1:scoreC:1.0:0`); and every policy in section 5 is **transitive** — each region answers exactly as it would if it were not nested ([ADR 0030](doc/decisions/0030-a-join-is-transitive-and-a-dead-join-ends-the-branch-it-sits-in.md)). One thing to know: if an inner join is reported through `onUnsatisfiableJoin`, the outer branch containing it **ends** rather than waiting, so the outer join may still fire and its successor may run — and once that work settles the run folds to `stuck`, because a region that never fired is what `stuck` reads. **Fold too early and you will see `running`.** The four matrix rows and the join seam are tested at **depth 2**; the dead-join cascade is asserted at depth 3, and nothing else about depth 3 is a tested claim |
-| **map-style fan-out** — one branch per item in a result | not built; branches are static |
+| ~~**map-style fan-out**~~ — **BUILT** since [W33](doc/work-items/w33-a-map-at-run-time-arity.md); see section 3 |
 | a **join timeout** | nothing. A stuck join is detected by the `stuck` outcome, with no clock |
 | **per-join policy choice** | one policy per driver |
 | a **declared event family** for `fyflow-react-components` | `onRegionEvent`, `onFoldInput` and `joinStatusOf()` — see below |

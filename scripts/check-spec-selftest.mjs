@@ -362,8 +362,12 @@ const PROBES = [
   {
     name: 'a spec document with no "**Status:** vN.N" header',
     check: 'C8',
+    // **Anchored on the SHAPE, not on the version.** This read
+    // `t.replace('**Status:** v0.3', ...)` and went inert the moment W33 bumped
+    // `run-state.md` to v0.4 -- reported by the rule 7 (b) guard as *"the mutation
+    // matched nothing"* rather than passing, which is the guard working.
     apply: (spec) => edit(join(spec, 'run-state.md'),
-      (t) => t.replace('**Status:** v0.3', '**Version:** v0.3')),
+      (t) => t.replace(/\*\*Status:\*\* v/, '**Version:** v')),
   },
   {
     name: 'a document spec/README.md has no index row for',
@@ -377,8 +381,13 @@ const PROBES = [
     // The clause W1's third conformity pass was written for: README stale against
     // three of the five documents it indexes, and README is the first thing anyone
     // reads to know which version of the layer they are building against.
+    // Version-agnostic for the same reason as the probe above, and here the old
+    // literal was worse than inert: `v0.3 -> v0.4` on a document that now READS
+    // v0.4 is a no-op, so the probe would have reported a disagreement it had not
+    // created. Bumping the minor version by one is what the clause is about,
+    // whatever the current number is.
     apply: (spec) => edit(join(spec, 'run-state.md'),
-      (t) => t.replace('**Status:** v0.3', '**Status:** v0.4')),
+      (t) => t.replace(/(\*\*Status:\*\* v\d+\.)(\d+)/, (_m, a, b) => `${a}${Number(b) + 1}`)),
   },
 ];
 

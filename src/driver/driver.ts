@@ -51,6 +51,44 @@ export class InvalidDefinition extends Error {
 export class DuplicateTaskId extends Error {}
 
 /**
+ * **A `map` node's `over` did not name an array on the value it received** —
+ * `spec/flow-definition.md` section 2, and
+ * [W33](../../doc/work-items/w33-a-map-at-run-time-arity.md).
+ *
+ * A map's arity is a **run-time** fact: `over` is a key name, so what the document
+ * declares is *where the arity will be found* and never what it is
+ * ([ADR 0036](../../doc/decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md)).
+ * `FD-V25` checks that `over` is a string in `FD-V16`'s charset and can check
+ * nothing else, because no validator can see a value that does not exist yet — the
+ * spec says so in place and reserves no rule id for this.
+ *
+ * **Why a refusal rather than treating it as zero items.** Measured: a map that
+ * opens nothing appends nothing, so the fold's `regions` has no entry, `RN-R10`
+ * iterates nothing and the run reports **`completed`**. A mistyped `over`, or a
+ * worker that returned `{}` where the flow expected `{items: [...]}`, would then be
+ * a run that finished successfully having done none of its work — the silent stop
+ * `spec/flow-definition.md` section 3 refuses **by name**, and the same shape W32's
+ * conformity reader found behind the missing `default` arm.
+ *
+ * **Why a NEW class, and it is the one this plan reserved the right to refuse.**
+ * [P10](../../doc/plans/p10-is-fan-out-one-feature-or-two.md)'s *"decisions taken
+ * before fan-out"* rule 4 declares **no new error class** *"because every candidate
+ * for one is a measurement W33 has not taken yet"* — and this is that measurement.
+ * The alternative was `InvalidDefinition`, and it would be a lie in the direction
+ * that matters: **the definition is valid and the DATA is wrong**, which is a
+ * different person's bug. A flow author reading `InvalidDefinition` would go and
+ * read their flow, where there is nothing to find.
+ *
+ * **Reported through `onRunFailure`, not thrown** (`OR-R10`), because `enter` is
+ * reached from the scheduler listener — except from `start()`, which both reports
+ * and rethrows because the caller is on the stack.
+ *
+ * An **empty array is not this**: `{items: []}` is a lawful map of zero items and
+ * is `spec/join-policy.md` section 5's own case.
+ */
+export class UnresolvedMapArity extends Error {}
+
+/**
  * A second `start()` on a driver that already ran one — `ID-R3`.
  *
  * Thrown rather than reported through `onRunFailure`, because `start` is called
@@ -90,6 +128,48 @@ function cloneValue(v: unknown): unknown {
   return v === null || v === undefined ? v : structuredClone(v);
 }
 
+/**
+ * **The item index of every `map` region on the path to a dispatch, keyed by map
+ * node id** — `branchPathOf`'s third argument
+ * ([ADR 0036](../../doc/decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md)
+ * rule 5). Empty for every flow with no map in it, which is why a `fanout`-only
+ * run takes exactly the road it took at v0.7.
+ *
+ * **One frozen shared instance rather than a fresh `new Map()` per call.** A map
+ * region's fan-out is the one place in this driver that runs a loop whose bound is
+ * a run-time N, so the default argument on `enter`, `dispatch`, `pathOf` and
+ * `settleJoin` is evaluated once per dispatch at 1000s-10000s scale
+ * (`doc/concept.md` section 1).
+ */
+const EMPTY_INDICES: ReadonlyMap<string, number> = new Map<string, number>();
+
+/**
+ * `itemIndices` with one more region's index bound — a COPY, never a mutation.
+ *
+ * Copying rather than threading one mutable map is what makes an inner map's
+ * indices invisible to its siblings: at N=3 the three instances are opened in one
+ * loop, and a shared map would leave all three carrying whichever index was
+ * written last. That is a per-dispatch value, so it is built per dispatch.
+ */
+function withIndex(
+  base: ReadonlyMap<string, number>,
+  mapId: string,
+  index: number,
+): ReadonlyMap<string, number> {
+  const next = new Map(base);
+  next.set(mapId, index);
+  return next;
+}
+
+/** For `UnresolvedMapArity`'s message: what a value IS, in one word a reader can act on. */
+function describeShape(v: unknown): string {
+  if (v === null) return 'null';
+  if (v === undefined) return 'absent';
+  if (Array.isArray(v)) return 'an array';
+  const t = typeof v;
+  return `${'aeiou'.includes(t[0]!) ? 'an' : 'a'} ${t}`;
+}
+
 function cloneRecord<T extends { result?: unknown }>(r: T): T {
   return r.result === null || r.result === undefined
     ? { ...r }
@@ -98,8 +178,12 @@ function cloneRecord<T extends { result?: unknown }>(r: T): T {
 
 /**
  * One element of the fold's input sequence, copied and frozen on the way out
- * (ADR 0014). Only the two record kinds carry a `result`; the other four are flat
- * and primitive, so a shallow freeze of a fresh object is the whole copy.
+ * (ADR 0014). Only the two record kinds carry a `result`; the other **five** are
+ * flat and primitive, so a shallow freeze of a fresh object is the whole copy.
+ *
+ * *(Read "four" until W33 added `regionEntered`. The count is in the sentence that
+ * justifies the `{ ...i }` fall-through, so it is load-bearing prose rather than
+ * decoration: the fall-through is only sound while every remaining kind is flat.)*
  */
 function freezeInput(i: FoldInput): FoldInput {
   return Object.freeze(
@@ -381,6 +465,63 @@ export class Driver {
       );
     }
 
+    // **A region opener INSIDE a `map` region is refused, and the refusal is taken
+    // from a measurement** — W33's conformity reader,
+    // [Q160](../../doc/open-questions.md).
+    //
+    // **Why it exists.** A `map` is the first construct in this library that enters
+    // one opener node **more than once in a run**, and every piece of per-region
+    // run-time state here is keyed by that node's **id**: `joinState`,
+    // `firedJoins`, `RegionEvent.regionId`, and the fold's `regions`. So the second
+    // instance's `open()` **discards** the first's state, `firedJoins` makes the
+    // second join unreachable, and the fold merges two distinct regions into one
+    // entry. **That is [ADR 0036](../../doc/decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md)'s
+    // own central finding one layer down**: the ADR decided *two features* because
+    // `branchOf` is keyed by branch node id and collapses repeated entries, and the
+    // driver's run-time structures are keyed the same way.
+    //
+    // **Measured on a definition `validateDefinition` accepts with ZERO findings** —
+    // `map(split) → lead → fanout(f2) → {p,q} → join(j2) → join(collect)`, with all
+    // seven tasks settling `done`: the run reported **`stuck`**, `split` branch `1`
+    // received no terminal event, and `f2` held all four branch paths of two
+    // separate regions under one `joined: true`.
+    //
+    // **Why a refusal and not a fix.** Making this work means region IDENTITY
+    // becomes (opener node, enclosing path) rather than a node id — which changes
+    // what `RegionEvent.regionId` means, what the fold's `regions` is keyed by, and
+    // what `joinStatusOf` and `onUnsatisfiableJoin` name. That is a decision with
+    // its own evidence and its own item, and
+    // [Q156](../../doc/open-questions.md) is where P10 left *"may a map's branch
+    // itself open a region"* — **expressible and undecided**. W33 makes it
+    // expressible-and-REFUSED instead of expressible-and-silently-wrong, which is
+    // `doc/workflow.md` section 1 rule 4 applied to a capability rather than to a
+    // check. **No corpus flow is refused**: `map-in-fanout` nests a map inside a
+    // FANOUT branch, which is the other direction and is fine, because a fanout's
+    // opener is entered once.
+    //
+    // `InvalidDefinition` rather than a new class: the document names a structure
+    // this driver cannot execute, which is what that class already means, and
+    // [P10](../../doc/plans/p10-is-fan-out-one-feature-or-two.md) decision 4 spends
+    // its one new class on `UnresolvedMapArity`.
+    for (const r of this.regions) {
+      if (r.opensWith !== 'map') continue;
+      const openers = [...r.members].filter((id) => {
+        const k = this.graph.byId.get(id)?.kind;
+        return k === 'fanout' || k === 'map';
+      }).sort();
+      if (openers.length > 0) {
+        throw new InvalidDefinition(
+          [],
+          `definition "${definition.flowId}" opens a region inside map region "${r.fanoutId}" ` +
+            `(${openers.map((o) => JSON.stringify(o)).join(', ')}). A map enters its branch once ` +
+            'per item, so an opener inside it is entered N times — and this driver keys a ' +
+            "region's policy state, its fired-join latch and the fold's `regions` by the opener's " +
+            'NODE ID, so instance 2 would discard instance 1 and one join would answer for both. ' +
+            'Refused rather than run wrong; whether a map may contain a region is Q156.',
+        );
+      }
+    }
+
     for (const name of SETTLEMENT_EVENTS) {
       // ADR 0007 rule 1: the normalization happens HERE, synchronously, while the
       // listener runs. Nothing downstream ever sees `e.detail`.
@@ -485,7 +626,34 @@ export class Driver {
     }
     // RS-R2: a resolution supplies an outcome for the dispatch that already
     // happened. It never re-dispatches — that is flow-level retry, Q16/Q28.
-    this.advance(runId, nodeId, branchPath);
+    //
+    // **`enter` is reached from THREE entry points, not two, and this one reported
+    // nothing** — W33's conformity reader. `onEvent` catches and reports (`OR-R10`);
+    // `start` catches, reports and rethrows because the caller is on the stack. This
+    // call sat outside any guard, so a refusal raised while routing a RESOLUTION was
+    // thrown at the caller and **nothing else happened**: no `stopped` input,
+    // `hasFailed()` still false so later settlements kept routing, and
+    // `fold(foldInputs())` reporting **`completed`** for a run that did none of its
+    // work.
+    //
+    // **Measured, against the listener as a control** — the same map whose `over`
+    // does not name an array, reached two ways:
+    //
+    //     through the listener:  reported [UnresolvedMapArity]  hasFailed true   stopped
+    //     through resolve():     threw, reported []             hasFailed false  COMPLETED
+    //
+    // The unguarded call predates this item — a throwing user predicate could always
+    // reach it — but W33 put a LIBRARY-raised refusal on the road, and ADR 0004's
+    // resolution road is exactly how a `user_action` node advances into a map.
+    //
+    // **It reports AND rethrows, like `start`**, because `resolve` is caller-initiated
+    // and the caller is on the stack — `spec/outcome-record.md` section 6's own form.
+    try {
+      this.advance(runId, nodeId, branchPath);
+    } catch (e) {
+      this.failRun(e);
+      throw e;
+    }
     return true;
   }
 
@@ -653,7 +821,12 @@ export class Driver {
     // which is correct at depth 1 and silently wrong at depth 2: `scoreC` in a
     // nested region minted `r1:scoreC:0:0` where `spec/task-id.md` section 1
     // reserves `r1:scoreC:1.0:0`.
-    const taskId = buildTaskId(runId, nodeId, branchIndices(this.pathOf(nodeId)));
+    // The item index of every map region this node's path crosses, read back out
+    // of the path the scheduler echoed and `ID-R4` already vouched for. `-` and
+    // any fanout-only path give an empty map, so every pre-v0.8 flow takes the
+    // same road it took before — which is what the corpus asserts.
+    const itemIndices = this.indicesFrom(nodeId, branchPath);
+    const taskId = buildTaskId(runId, nodeId, branchIndices(this.pathOf(nodeId, itemIndices)));
     const outcome = effectiveOutcome(this.log, taskId);
     if (!outcome) return; // suspended, or not settled
 
@@ -674,7 +847,7 @@ export class Driver {
       // dispatch happens inside that call and must not precede the path end that
       // led to it.
       this.append({ kind: 'pathEnded', reason: 'no-eligible-edge', at: nodeId });
-      if (region) this.settleJoin(runId, region);
+      if (region) this.settleJoin(runId, region, itemIndices);
       return;
     }
     // **Deep-copied on the way to the next task.** `outcome.result` is the stored
@@ -697,6 +870,12 @@ export class Driver {
     this.enter(
       runId, result.taken.to, cloneValue(outcome.result), branchPath,
       this.regionOf(nodeId)?.fanoutId,
+      // The successor is in this node's region, in one enclosing it, or in a
+      // region it opens itself — never in a *different* map region at the same
+      // depth, because entering one goes through that map node, which mints its
+      // own indices. So the accumulated map is what the successor needs, and it is
+      // keyed per region so an inner map adding to it cannot disturb an outer one.
+      itemIndices,
     );
   }
 
@@ -704,13 +883,20 @@ export class Driver {
    * Walk into a node. `fanout`, `join` and `end` dispatch nothing and are passed
    * through within this turn; only a `task` becomes a scheduler task.
    */
-  private enter(runId: string, nodeId: string, payload: unknown, fromBranch = '-', fromRegion?: string): void {
+  private enter(
+    runId: string,
+    nodeId: string,
+    payload: unknown,
+    fromBranch = '-',
+    fromRegion?: string,
+    itemIndices: ReadonlyMap<string, number> = EMPTY_INDICES,
+  ): void {
     const node = this.graph.byId.get(nodeId);
     if (!node) return;
 
     switch (node.kind) {
       case 'task':
-        return this.dispatch(runId, node, payload);
+        return this.dispatch(runId, node, payload, itemIndices);
 
       case 'fanout': {
         const region = this.regions.find((r) => r.fanoutId === nodeId);
@@ -726,6 +912,13 @@ export class Driver {
         if (this.opts.joinPolicy) {
           this.joinState.set(region.fanoutId, this.opts.joinPolicy.open(toRegion(region) as Region));
         }
+        // **The region is ENTERED, and the fold is told so** — W33. Appended beside
+        // `open` in both region-opening arms, because that is the moment
+        // `spec/run-state.md`'s *"one entry per fan-out region ENTERED"* becomes
+        // true. Here it is redundant with the `branch.opened`s below — `FD-V9`
+        // guarantees at least two — and it is emitted anyway so the invariant has
+        // ONE mechanism rather than one for a fanout and another for a map.
+        this.append({ kind: 'regionEntered', regionId: region.fanoutId });
         // **Each branch entry's OWN path, not its bare index** — W21. This
         // emitted `String(i)` and threaded it, so a nested fanout opened its
         // branches at `0`/`1` with the outer prefix discarded: `fromBranch` was in
@@ -733,7 +926,7 @@ export class Driver {
         // `1.0` and the outer prefix cannot be lost, because it was never carried.
         // Computed once per branch rather than twice — W21's conformity reader
         // priced the derivation and found it dearer than the fork table said.
-        const paths = region.branches.map((b) => this.pathOf(b));
+        const paths = region.branches.map((b) => this.pathOf(b, itemIndices));
         region.branches.forEach((_b, i) => {
           this.emit({ type: 'branch.opened', regionId: region.fanoutId, branchPath: paths[i]! });
         });
@@ -745,7 +938,145 @@ export class Driver {
         // moment `FD-V9` is lifted (or a branch entry may be a `join`) the arm
         // stops discarding them. **Said in place rather than left for the next
         // reader to rediscover as dead code.**
-        region.branches.forEach((b, i) => this.enter(runId, b, payload, paths[i]!, region.fanoutId));
+        region.branches.forEach((b, i) =>
+          this.enter(runId, b, payload, paths[i]!, region.fanoutId, itemIndices));
+        return;
+      }
+
+      // **A map opens N instances of ONE branch, N coming from the value this node
+      // received** — `spec/flow-definition.md` section 2's `map`, and
+      // [ADR 0036](../../doc/decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md).
+      // [W33](../../doc/work-items/w33-a-map-at-run-time-arity.md).
+      //
+      // **Clause for clause this is the `fanout` arm above with ONE difference**,
+      // and that is the whole of ADR 0036's *"what the two share is the region;
+      // what differs is the fan-out"* reaching the driver. Each clause of that arm
+      // was enumerated before this one was written, because each is a thing a map
+      // could silently drop:
+      //
+      //   1. the region lookup, and the silent return when there is none;
+      //   2. `open` the policy BEFORE the first `branch.opened`, so `emit` has
+      //      state to step (section 4's owner table);
+      //   3. every branch's OWN path, derived rather than its bare index (W21);
+      //   4. EVERY `branch.opened` emitted before ANY dispatch (`JP-R5`);
+      //   5. entering each branch with the region and path known here.
+      //
+      // The difference is clause 3's source. A `fanout` derives each index from the
+      // graph; a map's index is **a property of the dispatch** and the graph cannot
+      // answer, so it is supplied here — the one place in the whole driver that
+      // knows which instance this is — and threaded down as `itemIndices`.
+      case 'map': {
+        const region = this.regions.find((r) => r.fanoutId === nodeId);
+        if (!region) return;
+        // The arity, and the ONE run-time refusal this item takes. See `mapItems`.
+        //
+        // **It THROWS and is not caught here, which is what makes it behave like
+        // every other refusal in this file.** The first version caught it and called
+        // `failRun` directly; that reported correctly from the listener and made
+        // `start()` **stop rethrowing**, because `start`'s own catch never saw it.
+        // A map may be the `entry` node (`FD-V3` refuses only a `join` or an `end`),
+        // so that path is reachable — and `start` is documented to BOTH report and
+        // rethrow, since the caller is on the stack. Caught by the test written for
+        // that case rather than by reading. The two boundaries above already do the
+        // right thing with a throw: `onEvent` catches and reports (`OR-R10`), and
+        // `start` catches, reports and rethrows.
+        const items = this.mapItems(node, payload);
+        if (this.opts.joinPolicy) {
+          this.joinState.set(region.fanoutId, this.opts.joinPolicy.open(toRegion(region) as Region));
+        }
+        // The region is ENTERED — see the `fanout` arm. **Here it is the only thing
+        // that says so when N is 0**, and without it that run folds to `completed`.
+        this.append({ kind: 'regionEntered', regionId: region.fanoutId });
+        // **`region.branches` is `[branch]` whatever N is** — that is the shape
+        // `spec/join-policy.md` section 1 fixes and `toRegion` hands a policy, and
+        // it is deliberately NOT widened to N copies. See that document's section 3
+        // for why: N copies would give `arrival-count` `need: 0` at N=0 and fire a
+        // join no branch reached, which is character for character the defect
+        // [ADR 0025](../../doc/decisions/0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md)
+        // refused `JP-R7`'s variant for.
+        const branch = region.branches[0];
+        if (branch === undefined) return; // FD-V25 makes this unreachable; FD-V21 is why
+        const idx = items.map((_v, i) => withIndex(itemIndices, nodeId, i));
+        const paths = idx.map((m) => this.pathOf(branch, m));
+        // `JP-R5`, and it is the clause a map is most likely to lose: the arity is
+        // known only once the previous node settles, but it is known ALL AT ONCE at
+        // this line, so the two-pass emission is available here exactly as it is for
+        // a fanout. Measured: `FD-V25` makes a map's branch a `task`, and entering a
+        // task dispatches without emitting — so no event can appear between two
+        // `branch.opened`s, which is `FD-V9`'s role for a fanout played by `FD-V25`
+        // for a map. The clause stays unfalsifiable and its two guarantors are now
+        // two rules rather than one.
+        for (const p of paths) {
+          this.emit({ type: 'branch.opened', regionId: region.fanoutId, branchPath: p });
+        }
+        // **Every instance receives the SAME payload the map itself received**,
+        // which is the `fanout` arm's behaviour unchanged and is deliberately not a
+        // decision this item takes. **What a branch RECEIVES is
+        // [Q11](../../doc/open-questions.md), narrowed to the fan-out edge, and it is
+        // [W34](../../doc/work-items/w34-what-a-branch-receives-and-what-a-join-carries.md)'s**
+        // — P10's decision 2, which orders the two so the rule is written from
+        // cases rather than from a mechanism. **So a map here dispatches N tasks and
+        // hands each one the whole value rather than its own item**: arity-correct
+        // and payload-unchanged, stated loudly because handing instance `i` item `i`
+        // is the obvious edit and it would answer Q11 from inside W33 where nobody
+        // is looking for it — which is the move `JP-R7`'s own paragraph warns about
+        // one layer down. The join still carries `null` for the same reason.
+        idx.forEach((m, i) => this.enter(runId, branch, payload, paths[i]!, region.fanoutId, m));
+        // **N = 0 opens nothing, and the region is REPORTABLE through the
+        // `regionEntered` append above and nothing else.** With that append gone
+        // the fold's `regions` has no entry at all, `RN-R10` iterates nothing and
+        // the run folds to **`completed`** — measured, and it is character for
+        // character the false statement
+        // [ADR 0015](../../doc/decisions/0015-a-run-whose-join-can-no-longer-fire-is-stuck.md)
+        // exists to remove.
+        //
+        // **There is deliberately no `settleJoin` call here, and the first version
+        // had one.** *"Ask the policy at N = 0, exactly as after any terminal
+        // event"* reads right and is dead: `spec/join-policy.md` section 5's ruling
+        // is that **no policy can answer anything but `waiting`** for a region that
+        // opened nothing, because its state is byte-identical to its state before
+        // any branch opens. Rule 8 measured it — deleting the call cost **0
+        // failures** — so it was a line that claimed to do something and could not.
+        // A guard with no reachable effect is not defence in depth; it is a reader
+        // being told the driver consults a policy here when the answer is fixed.
+        // If [Q97](../../doc/open-questions.md) is ever answered with a signal that
+        // lets a policy tell the two apart, this is where the call goes back.
+        //
+        // **But a region that opened NOTHING still ends the branch it sits in** —
+        // `JP-R10`, reached without a policy verdict. W33's adequacy reader measured
+        // the gap on `map-in-fanout` with the inner map over an empty list: branch
+        // `1` of `outer` was **opened with no terminal event at all**, in a run
+        // neither suspended nor in flight, which is a state `JP-R5`'s own enumeration
+        // does not admit. `JP-R10` exists for exactly this shape and **could not
+        // fire**, because it is triggered by a policy answering `unsatisfiable` and
+        // section 5's ruling is that no policy can say that at N = 0. The mechanism
+        // W22 built for the gap was unreachable here by construction.
+        //
+        // **Why the driver may decide this and may NOT decide satisfaction.** That a
+        // region which opened zero branches can never be satisfied is arithmetic over
+        // section 2's vocabulary, not a policy's judgement: `branch.arrived` is
+        // emitted only for a branch that was opened, so with none opened no arrival
+        // can ever occur, and every policy section 3 fixes needs one. The driver is
+        // reporting a **routing fact it alone knows** — the region is closed and
+        // empty — and the enclosing region's policy then decides for itself what that
+        // means, which is section 4's owner table intact.
+        //
+        // **What is NOT done here, and the omission is the decision.** No
+        // `joinSettled` is appended and `onUnsatisfiableJoin` does not fire: `RN-R11`
+        // gives `joined: false` the meaning *"a policy reported it unsatisfiable"*,
+        // and none did. So this region stays `joined: null` and the run is `stuck`
+        // by `RN-R10` — reported, without its REASON, which is
+        // [Q97](../../doc/open-questions.md) exactly where section 5 leaves it.
+        const enclosing = this.regionOf(region.fanoutId);
+        if (items.length === 0 && enclosing) {
+          this.emit({
+            type: 'branch.lost',
+            regionId: enclosing.fanoutId,
+            branchPath: this.pathOf(region.fanoutId, itemIndices),
+            reason: 'failed',
+          });
+          this.settleJoin(runId, enclosing, itemIndices);
+        }
         return;
       }
 
@@ -757,7 +1088,7 @@ export class Driver {
         const region = this.regions.find((r) => r.joinId === nodeId);
         if (!region) return;
         this.emit({ type: 'branch.arrived', regionId: region.fanoutId, branchPath: fromBranch });
-        this.settleJoin(runId, region);
+        this.settleJoin(runId, region, itemIndices);
         return;
       }
 
@@ -781,7 +1112,7 @@ export class Driver {
         // which is the half nothing reported before: outside one there was no
         // region event either, so `pathEnded` had no producer anywhere (Q41).
         this.append({ kind: 'pathEnded', reason: 'end', at: nodeId });
-        if (region && fromBranch !== '-') this.settleJoin(runId, region);
+        if (region && fromBranch !== '-') this.settleJoin(runId, region, itemIndices);
         return;
       }
 
@@ -822,6 +1153,15 @@ export class Driver {
       // unreachable again — and `never` will say so at compile time rather than in
       // silence, which is the difference this arm is for.
       default: {
+        // **The exhaustiveness assertion W32's comment described and could not
+        // write** — W33. While `map` had no arm, `node` narrowed to `MapNode` here
+        // and this line would not compile; W32 cast instead and said in prose what
+        // it wanted. With every kind of the union handled, `node` narrows to `never`
+        // and the assignment is legal, so **a sixth kind added to `FlowNode` without
+        // an arm is now a COMPILE error in five typecheck projects** rather than a
+        // silent stop found by a reader. That is the guarantee this arm was for.
+        const exhaustive: never = node;
+        void exhaustive;
         const kind = (node as { kind?: unknown }).kind;
         this.failRun(
           new InvalidDefinition(
@@ -845,8 +1185,13 @@ export class Driver {
    * `spec/task-id.md` section 1's *"property of the node"*, derived here from the
    * graph, and there is no longer a carried value that could disagree with it.
    */
-  private dispatch(runId: string, node: FlowNode & { kind: 'task' }, payload: unknown): void {
-    const taskId = buildTaskId(runId, node.id, branchIndices(this.pathOf(node.id)), 0);
+  private dispatch(
+    runId: string,
+    node: FlowNode & { kind: 'task' },
+    payload: unknown,
+    itemIndices: ReadonlyMap<string, number> = EMPTY_INDICES,
+  ): void {
+    const taskId = buildTaskId(runId, node.id, branchIndices(this.pathOf(node.id, itemIndices)), 0);
 
     // ID-R1 — the refusal, BEFORE addTask sees it. A duplicate means the validator
     // or this driver's path bookkeeping is wrong; continuing runs both tasks and
@@ -885,8 +1230,82 @@ export class Driver {
    * corpus and agrees with the threaded value on every depth-1 flow, so this
    * replaced a carried value with a derived one and changed no existing id.
    */
-  private pathOf(nodeId: string): string {
-    return branchPathOf(this.regions, nodeId);
+  /**
+   * **A map's arity, and the one run-time refusal this item takes.** See
+   * `UnresolvedMapArity` for why it refuses rather than reading a missing key as
+   * zero items.
+   *
+   * `?.` rather than a typeof test: a `payload` of `null`, `undefined`, a number
+   * or a string all reach `undefined` here rather than throwing, so one predicate
+   * — *is it an array* — covers every shape a worker can return.
+   */
+  private mapItems(node: FlowNode & { kind: 'map' }, payload: unknown): readonly unknown[] {
+    const v = (payload as Record<string, unknown> | null | undefined)?.[node.over];
+    if (Array.isArray(v)) return v;
+    throw new UnresolvedMapArity(
+      `UnresolvedMapArity: map node "${node.id}" is declared \`over: ${JSON.stringify(node.over)}\`, ` +
+        `and the value it received carries no array there — it is ${describeShape(v)}, on a payload ` +
+        `that is ${describeShape(payload)}. A map's arity is a run-time fact, so no validator rule ` +
+        'could have seen this: `FD-V25` checks that `over` is a key NAME. Return an array (an empty ' +
+        'one is a lawful map of zero items), or the previous node did not produce what this flow says it does.',
+    );
+  }
+
+  private pathOf(nodeId: string, itemIndices: ReadonlyMap<string, number> = EMPTY_INDICES): string {
+    return branchPathOf(this.regions, nodeId, itemIndices);
+  }
+
+  /**
+   * **The item index of every `map` region a settled node's path crosses, read
+   * back out of the path itself** — [W33](../../doc/work-items/w33-a-map-at-run-time-arity.md).
+   *
+   * `advance` is reached from the listener and from `resolve()` with the settling
+   * node's `branchPath`, and it must rebuild that node's task id to find its
+   * outcome. Since [W21](../../doc/work-items/w21-the-branch-path-is-a-path.md) it
+   * rebuilds by DERIVING the path from the graph — and inside a map region the
+   * graph has no answer (`ID-R6`), so the derivation needs the run-time indices
+   * back.
+   *
+   * **The source is the inbound path, and that is sound for one stated reason**:
+   * `ID-R4` tier 2 has already refused any id this driver did not dispatch, so by
+   * the time this runs the path is one **this driver minted**. It is not the
+   * scheduler's word for it and not the caller's.
+   *
+   * **What it costs, stated rather than hidden.** For a map region the rebuilt id
+   * now agrees with the inbound one *by construction*, so `ID-R1`'s
+   * derive-and-compare is not checking the map segments — it checks the node id,
+   * the run id and every `fanout` segment, and for the map segments it is a
+   * round-trip. The check that a map's segments are right is `ID-R1` at DISPATCH,
+   * where they are minted from `items.map((_, i) => i)` and a duplicate is refused
+   * before `addTask` sees it.
+   *
+   * Segments are outermost-first (`spec/task-id.md` section 1) and the region walk
+   * is innermost-outward, so they are consumed from the END.
+   */
+  private indicesFrom(nodeId: string, branchPath: string): ReadonlyMap<string, number> {
+    if (branchPath === '-') return EMPTY_INDICES;
+    const segs = branchPath.split('.');
+    const out = new Map<string, number>();
+    // The same guard `branchPathOf` carries and for the same reason: `FD-V10`
+    // forbids cycles so the walk strictly ascends, and an unbounded loop over a
+    // caller-supplied path is one edit away from being one.
+    const seen = new Set<string>();
+    let at = nodeId;
+    for (let k = segs.length - 1; k >= 0; k--) {
+      const r = innermostRegionOf(this.regions, at);
+      if (!r || seen.has(r.fanoutId)) break;
+      seen.add(r.fanoutId);
+      if (r.opensWith === 'map') {
+        const n = Number(segs[k]);
+        // A non-segment cannot reach here through `parseTaskId`, which applies
+        // `spec/task-id.md` section 1's grammar. Skipping rather than throwing
+        // keeps this a reader of a value already validated: `branchPathOf` is what
+        // refuses, and it will, naming the map.
+        if (Number.isInteger(n) && n >= 0) out.set(r.fanoutId, n);
+      }
+      at = r.fanoutId;
+    }
+    return out;
   }
 
   /**
@@ -975,7 +1394,11 @@ export class Driver {
    * construction. Removing the parameter is what makes Q36 a question rather
    * than a convention someone can quietly break.
    */
-  private settleJoin(runId: string, region: RegionSets): void {
+  private settleJoin(
+    runId: string,
+    region: RegionSets,
+    itemIndices: ReadonlyMap<string, number> = EMPTY_INDICES,
+  ): void {
     const policy = this.opts.joinPolicy;
     if (!policy || this.firedJoins.has(region.fanoutId)) return;
     if (!this.joinState.has(region.fanoutId)) return;
@@ -1053,10 +1476,10 @@ export class Driver {
         this.emit({
           type: 'branch.lost',
           regionId: enclosing.fanoutId,
-          branchPath: this.pathOf(region.fanoutId),
+          branchPath: this.pathOf(region.fanoutId, itemIndices),
           reason: 'failed',
         });
-        this.settleJoin(runId, enclosing);
+        this.settleJoin(runId, enclosing, itemIndices);
       }
       return;
     }
@@ -1116,7 +1539,10 @@ export class Driver {
     // Derived exactly as the path is: the region's own `fanout` is a node, so the
     // region CONTAINING it is that node's region.
     if (edge) {
-      this.enter(runId, edge.to, null, this.pathOf(region.fanoutId), this.regionOf(region.fanoutId)?.fanoutId);
+      this.enter(
+        runId, edge.to, null, this.pathOf(region.fanoutId, itemIndices),
+        this.regionOf(region.fanoutId)?.fanoutId, itemIndices,
+      );
     }
   }
 

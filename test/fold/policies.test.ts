@@ -16,7 +16,7 @@
  * `live-token` that had quietly become `arrival-count`, which is the exact false
  * result `JP-R7` and `JP-R8` exist to forbid.
  */
-import { equal, ok, suite } from '../harness.ts';
+import { equal, ok, readText, ROOT, suite } from '../harness.ts';
 import { arrivalCount, liveToken, liveTokenRequiringArrival, POLICIES } from '../../src/fold/policies.ts';
 import type { RegionEvent } from '../../src/driver/events.ts';
 import type { JoinPolicy, Region } from '../../src/driver/policy.ts';
@@ -253,16 +253,62 @@ suite('JP-R1 — every shipped policy is pure', (test) => {
       '`positive` stays latched — that is the pin JP-R8 names — while `live` is what moves');
 
     // And the same stream on `arrival-count`, because a test that ran one policy
-    // could not tell these two apart. Its counter has no notion of a branch
+    // could not tell these two apart.
+    //
+    // **v0.12 — the two now AGREE here, and this is the ONE asserted behaviour the
+    // re-sourcing moved.** This test read *"its counter has no notion of a branch
     // opening at all, so it stays satisfied — the two DIVERGE here, and that
-    // divergence is the point.
+    // divergence is the point"*, and its own message then said *"neither answer is
+    // wrong here — the stream is not conformant (JP-R5 puts opens first)"*. Both
+    // halves were true. Counting `branch.opened` gives `arrival-count` exactly the
+    // notion it lacked, so a late open raises `need` and the verdict follows it,
+    // which is `live-token`'s behaviour arrived at from the other side.
+    //
+    // **The scope of the change, stated rather than generalised**
+    // (`doc/workflow.md` section 1 rule 5's writing clause): this is a
+    // NON-CONFORMANT stream — `JP-R5` puts every `branch.opened` for a region before
+    // any other event for it, so a driver cannot produce the fifth event here. On
+    // every conformant stream the two sources are the same number, measured as 6 of
+    // 6 regions over the valid corpus and **all 36 matrix cells unmoved**. This is
+    // the only assertion in the repository that had to change.
     let a = arrivalCount.open(REGION);
     for (const e of [opened('0'), opened('1'), arrived('0'), arrived('1')]) a = arrivalCount.step(a, e);
     equal(arrivalCount.status(a), 'satisfied', 'two distinct arrivals against a need of two');
-    equal(arrivalCount.status(arrivalCount.step(a, opened('2'))), 'satisfied',
-      'arrival-count ignores every event but an arrival, so a third branch opening is invisible ' +
-      'to it. Neither answer is wrong here — the stream is not conformant (JP-R5 puts opens ' +
-      'first) — and which behaviour a join WANTS is exactly what W4 measures');
+    equal(arrivalCount.describe(a), { need: 2, arrived: ['0', '1'] },
+      '`need` was COUNTED from the two opens, not read off the Region');
+    const lateA = arrivalCount.step(a, opened('2'));
+    equal(arrivalCount.status(lateA), 'waiting',
+      'a third branch opening raises `need` to three against two arrivals, so the verdict goes ' +
+      'back to waiting — the same answer `live-token` gives above, and for the same reason: ' +
+      'a region with work still in it has not been joined');
+    equal(arrivalCount.describe(lateA), { need: 3, arrived: ['0', '1'] },
+      'and `need` is what moved, which is what discriminates this from a cached verdict');
+  });
+
+  test('section 3`s arrival-count ROW says what this policy does — the text, not the id', async () => {
+    // **W33's adequacy reader, and it is the sharpest methodological finding here.**
+    // The item's own gate line justified running `check:policies` on the ground that
+    // it *"goes red if POLICIES and spec/join-policy.md section 3 disagree either
+    // way, which is the exact hazard of an item that edits both."* Measured: `P1`
+    // and `P2` compare the **id set** only. Reverting the row to its pre-W33
+    // wording — the sentence that IS this item's `Outputs` row 2 — left
+    // `check-policies`, `check-spec` and all 543 cases GREEN.
+    //
+    // **What this bind does and does not buy**, stated rather than overclaimed: it
+    // pins the two clauses that changed and refuses the retired one. It cannot tell
+    // that the prose *describes* the code — nothing can, short of executing English
+    // — so it is a tripwire on the sentence, not a proof about it. That is the same
+    // trade `check-spec`'s C4 makes, and W32's corpus equality before it.
+    const row = (await readText(`${ROOT}spec/join-policy.md`))
+      .split('\n').find((l) => l.startsWith('| `arrival-count` |'));
+    ok(row !== undefined, 'section 3 still declares the row at all');
+    ok(row!.includes('counted from `branch.opened`'),
+      'the row states where N comes from, and it is the event stream');
+    ok(row!.includes('at least one'),
+      'and the pin, which is what stops a map of zero items firing a join no branch reached');
+    ok(!row!.includes('region.branches.length'),
+      'and NOT the retired source: `region.branches.length` is 1 for any map region whatever ' +
+      'the run opens, which is the defect this item exists to remove');
   });
 
   test('the section 3 names are the only ones shipped', () => {

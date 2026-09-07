@@ -58,9 +58,24 @@ const suites = walk(join(ROOT, 'test'), (n) => n.endsWith('.test.ts')).sort();
 // never reported"* at **0 file(s), 1 assertion** — measured in all three browsers.
 // A missing fixture does not fail one test; it fails the run in a way that names
 // no file.
+//
+// **`spec/join-policy.md` is here because [W33](../doc/work-items/w33-a-map-at-run-time-arity.md)
+// binds section 3's `arrival-count` ROW** — `test/fold/policies.test.ts` refuses the
+// retired `region.branches.length` wording, after its adequacy reader measured that
+// reverting that row left `check-policies`, `check-spec` and all 543 cases green.
+//
+// **And its failure mode was BETTER than the one above, which is the half worth
+// recording.** That read is inside a `test()` rather than at module scope, so the
+// missing fixture failed **one** test naming its own path —
+// `fixture not inlined in the browser bundle: spec/join-policy.md`, 21 files / 553
+// assertions, 1 failure — instead of taking all twenty-one suites down at
+// `0 file(s), 1 assertion`. Same defect, same check, and the difference is entirely
+// WHERE the read happens. A fixture read at module scope is a bundle-wide hazard;
+// the same read inside a test is an ordinary failing test.
 const fixtures = [
   ...walk(join(ROOT, 'spec', 'examples'), (n) => n.endsWith('.json')),
   join(ROOT, 'spec', 'flow-definition.md'),
+  join(ROOT, 'spec', 'join-policy.md'),
 ].sort();
 const corpus = Object.fromEntries(fixtures.map((p) => [relPosix(p), readFileSync(p, 'utf8')]));
 

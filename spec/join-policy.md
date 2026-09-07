@@ -1,6 +1,6 @@
 # spec/join-policy — the interface the join policies sit behind
 
-**Status:** v0.11 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.12 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2 acts on the W1 spec-conformity pass**:
 `branch.lost` is redefined against
 [ADR 0004](../doc/decisions/0004-a-non-success-outcome-routes-only-where-an-edge-opts-in-and-user-action-suspends.md)
@@ -36,6 +36,30 @@ them needed a clause for it.** Section 4's `unsatisfiable` exit now **ends the b
 the one behavioural change, and the gap it closes was a `JP-R5` violation that depth 1 could not
 express. Section 5's transitivity bullet is replaced by the ruling it was waiting for, and **`JP-R10`
 is new**.
+
+**v0.11 is [W32](../doc/work-items/w32-what-a-map-fanout-is.md) under
+[P10](../doc/plans/p10-is-fan-out-one-feature-or-two.md), taken as a declared LATE exception**, and
+it corrects one false sentence: section 1's `branches` row claimed *"a branch's index in this array
+is its `branchPath` segment"*, which is true of a `fanout` and false of a `map`. Nothing else
+changed. *(This paragraph is W33's: v0.11 bumped the header and recorded itself only in the section 1
+note, so the status block jumped v0.10 to v0.12 with no entry for it. Added here rather than left,
+because this block is the document's own version history and a missing entry reads as a missing
+change.)*
+
+**v0.12 is [W33](../doc/work-items/w33-a-map-at-run-time-arity.md) under
+[P10](../doc/plans/p10-is-fan-out-one-feature-or-two.md), and it is the first change to section 3
+since [ADR 0025](../doc/decisions/0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md).**
+A `map` region opens N branches at run time and its `branches` array names **one**, so
+`arrival-count`'s `N` was 1 at every arity — and on a three-item map it **routed the join out after
+four of six region events with two branches still live**, measured end to end at ladder L2. Section
+3's first row now **counts** `branch.opened` instead, which answers the same about every input W4 ran
+and something new about an input W4 could not construct. **[Q159](../doc/open-questions.md) is
+answered NO and section 1 says so**: a policy is not told which node kind opened its region, because
+the one policy that appeared to need that needed the **arity**, and the event stream already carries
+it. **Section 5 gains the N = 0 ruling**, and it adds **no POLICY mechanism** — no fourth region
+event, no fourth verdict, no definition-level refusal. It does add a `regionEntered` input to
+`spec/run-state.md`, which that document's own section 5 records; *"adds no mechanism"* would
+generalise past what was measured (`doc/workflow.md` section 1 rule 5's writing clause).
 
 **Normative.**
 
@@ -83,19 +107,35 @@ only way its contents leave.
 > region — and index 0 of that array is **not** the `branchPath` segment. The segment is the run-time
 > **item index**; `branchIndexOf` refuses rather than answering `0`, and `ID-R6` is why.
 >
-> **What a policy can and cannot tell today.** It cannot tell the two kinds apart at all —
-> `opensWith` is on the internal `RegionSets` and deliberately not on this shape, because this
-> document is [W33](../doc/work-items/w33-a-map-at-run-time-arity.md)'s.
-> **[Q159](../doc/open-questions.md)** is the open question of whether it should, and this note is
-> deliberately not that decision. It exists because **a deferred field is a scope call and a false
-> normative sentence is not** — found by [W32](../doc/work-items/w32-what-a-map-fanout-is.md)'s
-> conformity reader, and corrected under a declared late exception rather than left for the item that
-> owns the file. It is `doc/workflow.md` v0.7 change 3's own case: *a gap that blocks a fix is worse
-> than one that hides an edit.*
+> **What a policy can and cannot tell, and v0.12 decides that it stays this way.** A policy is handed
+> these four fields and no more: it cannot tell a `map` region from a `fanout` region, and
+> `opensWith` stays on the internal `RegionSets`. **[Q159](../doc/open-questions.md) is answered NO**
+> by [W33](../doc/work-items/w33-a-map-at-run-time-arity.md), and the argument is a measurement
+> rather than a taste.
 >
-> **The live consequence, so W33 has it written down**: `arrival-count` reads
-> `region.branches.length` for its `need`, which is **1** for any map region whatever the run opens —
-> which is P10's fact 4, the join firing on the first arrival with branches still live.
+> **The question turned out not to be about the KIND.** Exactly one shipped policy read this array —
+> `arrival-count`, for its `need` — and what it wanted was never *which kind opened this region* but
+> **how many branches this region opened**. A policy able to tell the kinds apart would answer that
+> by branching on the kind, which is deciding satisfaction from *why* a region is shaped as it is
+> rather than from *what happened in it* — the move
+> [ADR 0003](../doc/decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md)
+> settled against. **The arity is already in the event stream**: one `branch.opened` per branch
+> opened, before any other event for the region (`JP-R5`). So section 3's first row counts them, and
+> this shape needs nothing.
+>
+> **The two rejected alternatives, both measured, because a refusal that was considered is cheaper to
+> read than one rediscovered:**
+>
+> | | why not |
+> |---|---|
+> | add a fifth field carrying the arity | it would be a **second source** for a number the event stream already carries, and nothing could see the two disagree — the provenance hazard `doc/workflow.md` section 5 rule 8 (c) is about. `branch.opened` is the one the driver must emit correctly anyway |
+> | hand a map region `branches` of length N — the declared entry repeated | `arrival-count` would then need no change at all, and **at N = 0 it would report `satisfied` at `open` and fire a join no branch ever reached** — character for character the defect [ADR 0025](../doc/decisions/0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md) REFUSED `JP-R7`'s variant for. Measured, not argued |
+>
+> **`branches` therefore keeps its meaning: the branch entries the DOCUMENT declares.** For a
+> `fanout` that is also how many the run opens; for a `map` it is not, and no policy should read it
+> as if it were. *(The row above is [W32](../doc/work-items/w32-what-a-map-fanout-is.md)'s conformity
+> reader's correction, taken under a declared late exception because **a deferred field is a scope
+> call and a false normative sentence is not** — `doc/workflow.md` v0.7 change 3's own case.)*
 | `members` | string[] | `region(F)`, sorted by node id so the value is stable across folds |
 
 | id | | Test owed by |
@@ -132,7 +172,7 @@ still `branch.lost`; what widened is the condition below.
 
 | event | fields | emitted when |
 |---|---|---|
-| `branch.opened` | `branchPath` | the fanout dispatches that branch |
+| `branch.opened` | `branchPath` | the region's **opener** — a `fanout` or, since v0.8, a `map` — opens that branch. *(Read *"the fanout dispatches that branch"* until v0.12, which is wrong twice: a `map` is not a `fanout`, and the driver emits every `branch.opened` **before** dispatching anything, which is `JP-R5`'s own requirement. Section 4's `open` row was corrected from *"the fanout"* to *"the opener"* in this same version; this row is the same fix one section up, found by W33's conformity reader.)* |
 | `branch.suspended` | `branchPath`, `at` (node id) | a node in that branch settled `user_action` and parked (ADR 0004 rule 3) |
 | `branch.resumed` | `branchPath`, `at`, `resolvedAs` | a resolution record for that node was appended (ADR 0004 rule 4) |
 
@@ -207,8 +247,22 @@ Three consequences, and the third is the one that matters:
 ### Why JP-R5 fixes the opening order, and why that is not a thumb on the scale
 
 Without it, `opened(0) → arrived(0) → opened(1)` is a legal stream: a policy counting live branches
-sees the count reach zero while branch 1 is still running, and the join fires early. `arrival-count`
-is immune, because its `N` comes from `region.branches.length` at `open`.
+sees the count reach zero while branch 1 is still running, and the join fires early.
+
+> **v0.12 — `arrival-count` is NO LONGER immune, and this paragraph said it was.** It read
+> *"`arrival-count` is immune, because its `N` comes from `region.branches.length` at `open`"*, which
+> was true for as long as that was the source. Since section 3's re-sourcing, `N` is counted from
+> `branch.opened` — so **both counting policies now depend on this rule**, and on the stream above
+> `arrival-count` would see `N = 1` when branch 0 arrives and fire with branch 1 about to open.
+>
+> **The clause is still unfalsifiable through a conformant driver, and its guarantor is now two rules
+> rather than one.** `FD-V9` makes every `fanout` branch entry a `task` and `FD-V25` makes a `map`'s
+> branch a `task`; entering a task **dispatches without emitting**, so no event can appear between
+> two `branch.opened`s whichever kind opened the region. Consequence 3 below is therefore unchanged
+> and consequence 1's *"it becomes load-bearing the moment `FD-V9` or `FD-V19` is relaxed"* gains
+> `FD-V25` to its list. **What changed is not whether the rule can be broken but how much rests on
+> it**, and that is worth saying in the document rather than leaving a reader to infer it from a
+> policy.
 
 **The fix belongs in the driver rather than in either policy.** A rule saying *"seed the count from
 `branches.length`"* would repair `live-token` by making it more like `arrival-count`, which is a
@@ -223,14 +277,39 @@ comparison against some third thing is a different experiment. **The first two**
 well-defined at all, the *minimal* one was taken. **The third is not one of the two P1 named and must
 not be read as a column of that comparison** — it is `JP-R8`'s refinement, adopted by
 [ADR 0025](../doc/decisions/0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md)
-under its own `id` as `JP-R8` itself prescribes, and the first two rows below are **byte-identical to
-what W4 ran**.
+under its own `id` as `JP-R8` itself prescribes.
+
 
 | `id` | Definition |
 |---|---|
-| `arrival-count` | `N` is fixed at `open` from `region.branches.length`. `satisfied` when `N` distinct `branch.arrived` events have been seen. **Never `unsatisfiable`.** Every other event is ignored |
+| `arrival-count` | `N` is **counted from `branch.opened`** — one per branch the region opened. `satisfied` when `N` distinct `branch.arrived` events have been seen **and `N` is at least one**. **Never `unsatisfiable`.** Every other event is ignored |
 | `live-token` | `open` starts a live count at zero. `branch.opened` increments; `arrived`, `exited` and `lost` each decrement; `suspended` and `resumed` do neither. `satisfied` when the count reaches zero **having been positive**. **Never `unsatisfiable`** |
 | `live-token-requiring-arrival` | As `live-token`, and additionally counts `branch.arrived`. `satisfied` when the live count reaches zero **having been positive** *and* **at least one `branch.arrived` has been seen**; **`unsatisfiable`** when the count reaches zero having been positive with **no** arrival; `waiting` otherwise. `suspended` and `resumed` still do neither. **Neither verdict latches** — a later `branch.opened` puts it back to `waiting`, exactly as `live-token`'s `satisfied` does, because `status` is a pure function of the current state (`JP-R3`) |
+
+**v0.12 changes `arrival-count`'s row, and `live-token`'s is still byte-identical to what W4 ran.**
+That sentence used to cover both of the first two and now covers one, which is stated rather than
+quietly narrowed. What changed is where `N` comes from; **what it answers did not**, and the
+distinction is the whole argument:
+
+| | |
+|---|---|
+| **what forced it** | a `map` region's `branches` names the **one** entry the document declares whatever the run opens ([ADR 0036](../doc/decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md)), so `N` was **1** at every arity. Measured end to end at ladder L2 on a three-item map: this policy **routed the join out after four of six region events, with two branches still live**. Every failure W4 recorded was `N` too **large**, which hangs and which `ADR 0015` names; this was `N` too **small**, which **completes the run wrong** — a successor dispatched over work that had not happened, for which there is no vocabulary and should not have to be |
+| **why it is not `JP-R7`'s line** | `JP-R7` forbids **decrementing `N` on `branch.exited`**, which changes three of the nine matrix rows and makes this policy survive P1's case. Counting `branch.opened` changes **no** verdict: a `fanout` emits exactly one `branch.opened` per declared entry, so on every static region the two sources are the same number — **measured, 6 of the corpus's 6 STATIC regions** (it holds eight; the other two are `map`), **with all 36 matrix cells unmoved**. P1's routed-away case still hangs. It answers the same about every input W4 ran and something new about an input W4 could not construct |
+| **the asymmetry inside `step`** | arrivals are de-duplicated by `branchPath` and opens are **counted as events**, on the half v0.12 just made load-bearing. The direction of harm is why: a duplicated open over-counts `N` and **hangs**, which is the failure direction `ADR 0003` already records for this policy, while a duplicated arrival would fire it **early**. `JP-R5` makes neither reachable through a conformant driver |
+| **the one behaviour that moved** | on a **non-conformant** stream — a `branch.opened` arriving *after* a terminal event, which `JP-R5` forbids and a driver cannot produce — this policy used to stay `satisfied` and now returns to `waiting`, which is what `live-token` already did. **One VERDICT** in the repository asserted the old answer, and its own message read *"neither answer is wrong here — the stream is not conformant"*. **Three expected values moved in total** — that verdict, plus two `describe`s whose fixtures stepped `branch.arrived` having never stepped `branch.opened`, which is a branch arriving at a join it never entered. Those two are fixtures corrected toward conformity rather than behaviour that changed |
+| **why `at least one`** | a bare *"N distinct arrivals"* is true at `0 >= 0`, so without the pin `open` itself reports **`satisfied`** for a region that opened nothing. That is exactly `JP-R8`'s *"having been positive"* argument, in the policy that argument was denied to, and it is **vacuous on every `fanout`** because `FD-V9`'s floor puts `N` at two or more. *(**This row said the join would FIRE, and that is false against the driver this version ships** — W33's conformity reader. Measured with the pin deleted and everything else as shipped: `ids=[]`, `outcome=stuck`. The only call site that could have fired it at N = 0 was removed by this same item, on the ground that the answer there is fixed at `waiting` — **which is true because of the pin**. The two changes were circularly load-bearing and neither alone moves anything. What the pin reachably buys is that `joinStatusOf` does not report `satisfied` to a consumer about a region no branch entered, which is `JP-R2`'s channel and worth having. Corrected in place under this document's own standard, quoted in `settleJoin`: *a defensive clause that cannot fail is not a defect; describing it as though it could is*.)* |
+
+**And it makes `JP-R5`'s ordering clause load-bearing for a second policy** — see that rule's own
+subsection, whose *"`arrival-count` is immune"* sentence v0.12 corrects.
+
+**One observable DID move on a static region, and it is `describe` rather than a verdict.** Asked
+**inside** the opening burst — `joinStatusOf` called from an `onRegionEvent` listener, which is a
+pairing `AGENTS.md` advertises — this policy now reports `need: 1` on a two-branch fanout's first
+`branch.opened` where it used to report `need: 2`, reaching `need: 2` on the second. **No verdict can
+differ**, because a `satisfied` answer needs an arrival and `JP-R5` puts every open before one; but
+`describe` is `JP-R2`'s channel — *"how a UI would ever show a join"* — and the driver steps the
+policy **before** notifying the observer precisely so that this observation point exists. Measured by
+W33's conformity reader, and stated here rather than left for a consumer to notice.
 
 | id | | Test owed by |
 |---|---|---|
@@ -347,7 +426,8 @@ a policy.
 
 | | |
 |---|---|
-| **open** | The driver calls `open(region)` when the fanout is entered, **before the first `branch.opened`** — the same constraint `JP-R5` states from the other side |
+| **open** | The driver calls `open(region)` when the region's opener is entered, **before the first `branch.opened`** — the same constraint `JP-R5` states from the other side. **v0.12: "the opener", not "the fanout"** — a `map` opens a region too, and it does so at the same point in the traversal. A map's arity is known only once the previous node settles, and the map node is entered *because* it settled, so N is known **at this call** exactly as a fanout's is: the two-pass emission below is available to both |
+| **entered** | The driver records that the region was **entered**, whether or not it opens a branch. `spec/run-state.md`'s `regions` is *"one entry per fan-out region ENTERED"* and until v0.8 nothing could supply that for a region opening nothing, because `FD-V9`'s floor makes a `fanout` open at least two. **A map of zero items separates *entered* from *opened at least one branch***, and without this the fold reports such a run **`completed`** — see section 5 |
 | **step** | **Every** region event is forwarded, all six. `JP-R4` sizes the vocabulary for the richer policy, so a policy ignores what it does not need; a driver that filtered would decide Q4 by omission |
 | **status** | Asked after **every terminal event**, not only on arrival — a join can become satisfiable because the last live branch was `lost` or `exited` without anything arriving, which is P1's case |
 | **satisfied** | The driver routes out of the join's single edge, **at most once** per region however many events follow. **It carries `null`** — see below |
@@ -400,3 +480,62 @@ one global choice per run**, made by the caller, and whether it may be made per 
   already decided that trade. Recorded here because a refusal that was considered and rejected is
   cheaper to read than one rediscovered.
 - **The run-level outcome** of a join that never fires. See section 4.
+- **Whether a map of ZERO items should be a policy's CHOICE.** Ruled on below rather than left
+  implicit; what is *not* fixed is the question one layer out.
+
+### N = 0 — a map over an empty list, and why it adds no POLICY mechanism — v0.12
+
+**`FD-V9`'s arity floor means the static feature can never reach this**; a `map` produces it the
+first time a filter returns nothing, and it is the one place a map is not the static feature at a
+different arity ([P10](../doc/plans/p10-is-fan-out-one-feature-or-two.md) fact 5). The ruling, by
+[W33](../doc/work-items/w33-a-map-at-run-time-arity.md):
+
+> **All three policies answer `waiting`, the region is recorded as ENTERED, and the FOLD reports the
+> run `stuck` — at every depth and including a `map` at the `entry` node. A map region nested in a
+> branch additionally ends that branch, by `JP-R10`'s rule and without a policy verdict. No fourth
+> region event, no fourth verdict, and no definition-level refusal.**
+
+| | |
+|---|---|
+| **why not a definition-level refusal** | there is nothing to refuse. A map's arity is **not in the document at all** ([ADR 0036](../doc/decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md), and `spec/flow-definition.md` section 4's *"What a map changes"*), so a map of zero items is an ordinary run of a definition that validates. `FD-V9`'s floor and `FD-V11`'s reachability cannot fire for an arity reason |
+| **why no policy says `unsatisfiable`** | **none can tell.** A policy's state after a region opens nothing is byte-identical to its state before any branch opens — `live-token` reads `{live: 0, positive: false}` in both — so the distinction does not exist inside the interface. That is not an oversight in the policies; it is what `open` plus six branch events can express |
+| **why not a fourth event to let them tell** | `JP-R6` asks for a rationale, and the only available one is *"so a policy can choose"*. The two readings — the region finished, and the region failed — reach the same **run-level** answer, `stuck`; what differs is the **reason**, which is exactly [Q97](../doc/open-questions.md), open since P5 with **ADR 0026 held for it**. Building the event here would answer Q97 from **one case**, which is the failure `doc/workflow.md` names as *a claim written from a mechanism instead of from the cases*. Left for whoever answers Q97, **with the narrowing below in hand** |
+| **why not let the driver fire the join** | it would be the driver deciding satisfaction, which [ADR 0001](../doc/decisions/0001-routing-executes-in-the-driver-outside-the-scheduler.md) rule 1 and section 4's owner table both forbid |
+
+> **The scope this ruling was MEASURED at, and the two places it was wrong** —
+> `doc/workflow.md` section 1 rule 5's writing clause, and W33's adequacy reader. The four rows above
+> were written from **one** shape: a `map` at depth 1, reached through a task that had already
+> dispatched. Both other shapes a map can be in were wrong, and neither is exotic:
+>
+> | | what was measured |
+> |---|---|
+> | a `map` as the **`entry`** node | the run reported **`running`**, not `stuck`. `FD-V3` refuses only a `join` or an `end` as `entry`, so this is legal — and nothing had been dispatched, so `RunState.nodes` was empty and the fold's *nothing-has-happened-yet* clause returned before `RN-R10`. `RN-R12` then calls the run unfinished, so a clock-free harness waits on it **forever**. The depth-1 case passed only because its `ingest` task put a node in `nodes` first |
+> | a `map` **nested** in a branch | the enclosing branch was **opened with no terminal event at all**, which `JP-R5`'s own enumeration does not admit. `JP-R10` exists for exactly this shape and **could not fire**, because it triggers on a policy answering `unsatisfiable` and this ruling is that no policy can |
+>
+> **The second narrows the fourth-event rejection above rather than merely being a bug.** That row
+> says both readings *"reach the same run-level answer"*; at depth 2 they do not — one of them
+> produces a stream that breaks `JP-R5`. The rejection stands, because the fix does not need a policy
+> to choose: **that a region which opened zero branches can never be satisfied is arithmetic over
+> section 2's vocabulary**, not a judgement. `branch.arrived` is emitted only for a branch that was
+> opened, so with none opened no arrival can occur, and every policy section 3 fixes needs one. So the
+> driver emits `JP-R10`'s consequence — `branch.lost` for the enclosing branch — and does **not**
+> report a join verdict: no `joinSettled`, no `onUnsatisfiableJoin`, and `joined` stays `null`,
+> because `RN-R11` gives `false` the meaning *"a policy reported it unsatisfiable"* and none did.
+> **The driver reports a routing fact it alone knows; the enclosing region's policy decides what it
+> means.** Section 4's owner table is intact.
+>
+> **What this leaves for whoever answers [Q97](../doc/open-questions.md)** is a sharper question than
+> the row above states: the case for a fourth event is no longer *"so a policy can choose between two
+> readings that agree"* — it is that a policy cannot see a fact the driver has to act on alone.
+
+**What makes the ruling safe rather than merely quiet is the *entered* row in section 4, and it was
+measured before it was written.** Without it a map of zero items appends **nothing at all**: the
+fold's `regions` is `{}`, `RN-R10` iterates nothing, and the run reports **`completed`** having
+reached no `end` node — through the fold's final fall-back rather than by any positive
+determination. That is character for character the false statement
+[ADR 0015](../doc/decisions/0015-a-run-whose-join-can-no-longer-fire-is-stuck.md) exists to remove,
+and it is the same shape [W32](../doc/work-items/w32-what-a-map-fanout-is.md)'s conformity reader
+found behind a missing `default` arm one item earlier. **With it, the run is `stuck` and visible in
+`RunState.outcome` with no callback registered, no poll and no clock**, which is where
+[ADR 0003](../doc/decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md) already
+put detection.

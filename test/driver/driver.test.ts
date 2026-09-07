@@ -776,11 +776,25 @@ suite('ADR 0002 rule 3 — the definition is validated in full at instantiation'
  * exists to remove, and the silent stop `spec/flow-definition.md` section 3
  * refuses BY NAME on P1's own validity grounds.
  *
- * **These are W33's cases only until W33 exists.** When the real `map` arm lands,
- * the first two below become assertions about a kind the driver *can* execute and
- * should be replaced; the third is about the `default` itself and outlives them.
+ * **W33 has landed and these are its cases now**, exactly as the sentence this
+ * replaces asked. The first two below asserted that a `map` STOPS the run; a map
+ * now runs, so they are gone and `test/driver/map.test.ts` carries what replaces
+ * them. What survives here is the third, widened from four kinds to five.
+ *
+ * **The `default` arm is now UNREACHABLE through the driver's declared surface,
+ * and that is recorded rather than asserted** (`doc/workflow.md` section 5 rule 8:
+ * *where the corpus cannot express a case, record that rather than arguing it*).
+ * Measured: a node carrying a kind outside the union is refused by **`FD-V24` at
+ * construction** — `InvalidDefinition: FD-V24 at b: node kind "teleport" is not
+ * task|fanout|map|join|end` — so no definition a `Driver` will accept can reach the
+ * arm. It is kept as defence in depth, and **W33 gave it the exhaustiveness check
+ * W32's comment described and could not write**: with every kind handled, `node`
+ * narrows to `never` in that arm, so a sixth kind added to `FlowNode` without an
+ * arm is a COMPILE error in five typecheck projects. That is a stronger guarantee
+ * than the run-time test that used to stand here, and it is the reason the run-time
+ * one is not replaced by a contrivance.
  */
-suite('a node kind this driver cannot execute is REFUSED, not silently skipped', (test) => {
+suite('every executable node kind has an arm — the default is not a narrowing', (test) => {
   /** Local, because the shared `harness` registers no `onRunFailure`. */
   const withFailures = (def: FlowDefinition) => {
     const scheduler = new FakeScheduler();
@@ -800,58 +814,51 @@ suite('a node kind this driver cannot execute is REFUSED, not silently skipped',
   /** Settle everything dispatched, so the run actually reaches the map node. */
   const drain = (h: ReturnType<typeof withFailures>) => {
     const done = new Set<string>();
-    for (let guard = 0; guard < 20; guard++) {
+    for (let guard = 0; guard < 30; guard++) {
       const next = h.ids().find((id) => !done.has(id));
       if (next === undefined) return;
       done.add(next);
-      h.scheduler.settle(next, 'done', { result: {} });
+      // **Every settlement carries the arrays the map corpus flows map OVER.**
+      // It was `{ result: {} }`, and once `map` became executable that made
+      // `map-fanout` refuse with `UnresolvedMapArity` — the check working, on a
+      // fixture that had never had to supply an arity. The keys are the two the
+      // corpus declares (`over: "items"` and `over: "rows"`).
+      h.scheduler.settle(next, 'done', { result: { items: ['a', 'b', 'c'], rows: ['x', 'y'] } });
     }
     ok(false, 'the drain loop did not terminate — the fixture changed shape');
   };
 
-  test('a map node stops the run and NAMES it, rather than returning silently', async () => {
-    const h = withFailures(await load('valid/map-fanout.flow.json'));
-    h.driver.start({});
-    drain(h);
-    // The whole point: this used to be zero failures and an outcome of `completed`.
-    equal(h.failures.length, 1, 'exactly one refusal — a second entry would be a re-report');
-    equal(h.failures[0]!.kind, 'InvalidDefinition', 'RunFailure.kind is the class name (AGENTS.md section 9)');
-    ok(h.failures[0]!.message.includes('split'), 'it names the NODE, so a reader knows where');
-    ok(h.failures[0]!.message.includes('"map"'), 'and the KIND, so a reader knows why');
-    equal(fold(h.driver.foldInputs()).outcome, 'stopped',
-      'RN-R8 — `stopped` outranks everything, and it is what `completed` was hiding');
-  });
-
-  test('the refusal fires from INSIDE a region too, and the region is left mid-flight', async () => {
-    // `map-in-fanout` reaches the map through a static branch, so this is the
-    // nested case: the outer region is open with one branch arrived when the
-    // inner map stops the run. It discriminates the arm from a guard that only
-    // fires at the top level.
-    const h = withFailures(await load('valid/map-in-fanout.flow.json'));
-    h.driver.start({});
-    drain(h);
-    equal(h.failures.length, 1, 'one refusal, from inside region(outer)');
-    ok(h.failures[0]!.message.includes('perItem'), 'it names the INNER map, not the outer fanout');
-    equal(fold(h.driver.foldInputs()).outcome, 'stopped', '');
-    // and the two static branches really did dispatch first, so the arm is
-    // reached mid-run rather than instead of the run
-    equal(h.ids(), ['r1:ingest:-:0', 'r1:scoreA:0:0', 'r1:extract:1:0'],
-      'the static half ran; it is the map node that stops it');
-  });
-
-  test('the four executable kinds are untouched — the arm is a default, not a narrowing', async () => {
+  test('all FIVE executable kinds are untouched — the arm is a default, not a narrowing', async () => {
     // The regression this arm could have caused: a `default` placed wrong catches
-    // a kind that has an arm. One flow per executable kind, asserted to reach a
+    // a kind that HAS an arm. One flow per executable kind, asserted to reach a
     // terminal state with NO refusal.
-    for (const [file, expected] of [
+    //
+    // **`map-fanout` is the row W33 adds**, and it is the one that discriminates:
+    // while the `default` arm was the only thing handling a map, this row reported
+    // `stopped` with one refusal. It is also what would catch a `default` placed
+    // ABOVE the `map` arm, which is the mistake this test exists for.
+    // **Bounded by what the loop DID** -- W33's adequacy reader measured
+    // `].slice(0, 1) as [string, string][]` at **0 failures**, which leaves
+    // `linear.flow.json` alone with the title still advertising five: both map rows
+    // gone, and `nested-fanout` (P7's coverage) with them. W23's `UNMINTED` finding
+    // in a second file.
+    const flows = [
       ['valid/linear.flow.json', 'completed'],
       ['valid/fanout-join.flow.json', 'completed'],
-    ] as [string, string][]) {
+      ['valid/map-fanout.flow.json', 'completed'],
+      ['valid/map-in-fanout.flow.json', 'completed'],
+      ['valid/nested-fanout.flow.json', 'completed'],
+    ] as [string, string][];
+    const ran: string[] = [];
+    for (const [file, expected] of flows) {
+      ran.push(file);
       const h = withFailures(await load(file));
       h.driver.start({});
       drain(h);
       equal(h.failures, [], `${file} must reach no refusal — task, fanout, join and end all have arms`);
       equal(fold(h.driver.foldInputs()).outcome, expected, `${file} still folds to ${expected}`);
     }
+    equal(ran, flows.map(([f]) => f), 'every flow ran — counted from what the loop did');
+    equal(ran.length, 5, 'FIVE, which is the number in this test`s own title');
   });
 });

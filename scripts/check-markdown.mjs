@@ -379,13 +379,26 @@ if (r.files < 64) fail('M3', `only ${r.files} markdown file(s) were scanned, so 
 // interval (1357, 1709] — or one probe stops firing `M4` and the other starts. This
 // is a two-sided window rather than a ratchet, and adding documents moves the lower
 // bound UP, which is the opposite of what this file's header argued.
+// **1720 -> 2050 at [W33](../doc/work-items/w33-a-map-at-run-time-arity.md), and that
+// item added NO DOCUMENT** — which is an instance [Q142](../doc/open-questions.md)'s
+// row does not describe. Every earlier one was *an item that adds documents must
+// retune a constant in a file it does not own*; W33 added links to documents that
+// already existed (a spec rule, register rows, index paragraphs) and the
+// two-directory fixture rose **1507 -> 1754**, past a floor of 1720. The probe went
+// silent and the gate said `wanted [M1,M3,M4], got [M1,M3]`. **The obligation is on
+// writing PROSE, not on adding FILES**, and it lands on `M4` alone. Measured on a
+// scratch copy outside the repository: whole tree **73 / 2419 / 119**, `doc/decisions`
+// removed **56 / 2205 / 119**, both removed **45 / 1754 / 119** — so `M4`'s window is
+// `(1754, 2419]` and 2050 is near its middle. `M3` at 64 is still inside `(56, 73]`
+// and is untouched.
+//
 // **1530 -> 1720 at P10's declaration**, from the counts in the M3 block above: the
 // floor must sit ABOVE the two-directory fixture (1507) and BELOW the one-directory
 // one (1947), and 1720 is near the middle of (1507, 1947]. **The anchored floor is
 // untouched at 60 against 99** — no `removes` probe moves it, for the third plan
 // running, because every anchored link is in `doc/`'s top level and `M5`'s own probe
 // takes it to zero.
-if (r.links < 1720) fail('M4', `only ${r.links} relative link(s) were found; M1 is vacuous below that`);
+if (r.links < 2050) fail('M4', `only ${r.links} relative link(s) were found; M1 is vacuous below that`);
 if (r.anchored < 60) fail('M5', `only ${r.anchored} link(s) carry an anchor; M2 is vacuous below that`);
 
 const checks = [

@@ -16,7 +16,7 @@
  */
 import { equal, ok, suite } from '../harness.ts';
 import { fold, foldLog, step, type FoldInput, type RunState } from '../../src/fold/run-state.ts';
-import { arrivalCount, liveToken } from '../../src/fold/policies.ts';
+import { arrivalCount, liveToken, liveTokenRequiringArrival } from '../../src/fold/policies.ts';
 import type { LogRecord } from '../../src/driver/log.ts';
 import type { RegionEvent } from '../../src/driver/events.ts';
 import type { Region } from '../../src/driver/policy.ts';
@@ -213,6 +213,74 @@ suite('regions record what happened — including the distinctions W4 needs', (t
   });
 });
 
+suite("RN-R10 and `regionEntered` \u2014 an entered region that opened NOTHING", (test) => {
+  // **The gap this input closes, and it is a claim `spec/run-state.md` section 2 has
+  // made since v0.1.** That shape says `regions` holds *"one entry per fan-out region
+  // ENTERED"*, and every producer of an entry was a region EVENT -- so *entered* and
+  // *opened at least one branch* were the same thing. They were the same thing
+  // because `FD-V9`'s arity floor makes a `fanout` open at least two; a `map` of zero
+  // items separates them, and it is the only thing that can.
+  const entered = (regionId: string): FoldInput => ({ kind: 'regionEntered', regionId });
+
+  test('a region entered with no branch opened is PRESENT, and the run is stuck', () => {
+    const s = fold([
+      dispatched('r1:ingest:-:0'), rec(settled('r1:ingest:-:0', 'done')),
+      entered('split'),
+    ]);
+    ok(s.regions['split'] !== undefined, 'section 2: one entry per region ENTERED');
+    equal(s.regions['split'], { opened: [], settled: {}, suspended: [], joined: null },
+      'entered, nothing opened, and the join neither fired nor was declared dead');
+    equal(s.outcome, 'stuck',
+      'RN-R10 -- nothing is live, nothing waits on a person, and an entered region has not ' +
+      'joined. WITHOUT this input `regions` is {} and the fall-through reports `completed` ' +
+      'for a run that reached no `end` node');
+  });
+
+  test('and without it the SAME log reports completed -- the discriminating pair', () => {
+    // The provenance of the verdict, asserted as a pair rather than as one value:
+    // the only difference between these two folds is the input, so a reader can see
+    // what it buys. Deleting the driver's append reproduces the second exactly.
+    const withoutIt = fold([dispatched('r1:ingest:-:0'), rec(settled('r1:ingest:-:0', 'done'))]);
+    equal(withoutIt.outcome, 'completed',
+      'no region, no pathEnded, every node settled -- section 3s final fall-back, and it is ' +
+      'character for character the false statement ADR 0015 exists to remove');
+    equal(withoutIt.regions, {}, 'and nothing in the state says a region was ever entered');
+  });
+
+  test('it is IDEMPOTENT and never overwrites what a region already carries', () => {
+    // A second `regionEntered` must not wipe `opened`/`settled`/`joined`. The driver
+    // appends one per entry and a region is entered once, but `RN-R2` makes the fold
+    // total over any prefix and a malformed sequence must not corrupt state.
+    const base: FoldInput[] = [
+      entered('f'),
+      region({ type: 'branch.opened', regionId: 'f', branchPath: '0' }),
+      region({ type: 'branch.arrived', regionId: 'f', branchPath: '0' }),
+      { kind: 'joinSettled', regionId: 'f', joinId: 'j', fired: true },
+    ];
+    const once = fold(base);
+    const twice = fold([...base, entered('f')]);
+    equal(twice.regions, once.regions, 'a repeat is a no-op, not a reset');
+    equal(once.regions['f']!.joined, true, 'and the region really did carry something to lose');
+  });
+
+  test('it does not invent a region the run never reached', () => {
+    // What keeps *entered* a fact about the RUN rather than about the definition: a
+    // region nothing entered has no entry, so `stuck` cannot fire for a fan-out the
+    // run never got to.
+    const s = fold([dispatched('r1:a:-:0'), rec(settled('r1:a:-:0', 'done')),
+      { kind: 'pathEnded', reason: 'end', at: 'done' }]);
+    equal(s.regions, {}, 'no regionEntered, no region');
+    equal(s.outcome, 'completed', 'and a linear run is unaffected by the input existing');
+  });
+
+  test('RN-R1 -- it does not mutate the state it was given', () => {
+    const before = fold([entered('f')]);
+    const snapshot = structuredClone(before);
+    step(before, entered('g'));
+    equal(before, snapshot, 'the seventh input kind obeys the same rule as the other six');
+  });
+});
+
 suite('the policies against a Region that is not two branches', (test) => {
   // Every policy test used one fixed two-branch region, so an arrival-count that
   // ignored its Region entirely and hardcoded `need: 2` survived. P1's own plan
@@ -224,13 +292,71 @@ suite('the policies against a Region that is not two branches', (test) => {
   const arrived = (b: string): RegionEvent => ({ type: 'branch.arrived', regionId: 'f', branchPath: b });
   const opened = (b: string): RegionEvent => ({ type: 'branch.opened', regionId: 'f', branchPath: b });
 
-  test('arrival-count reads N from region.branches.length', () => {
+  test('arrival-count COUNTS N from branch.opened, at any width', () => {
+    // **v0.12 - this test called `arrivalCount.open(wide)` and asserted `need: 4`
+    // immediately, having stepped no `branch.opened` at all.** That is a stream in
+    // which four branches arrive at a join none of them ever entered, and the old
+    // source could not tell, because `need` came from the Region. The re-sourcing
+    // makes the opening phase load-bearing, so the fixture is now a CONFORMANT
+    // stream - which is `JP-R5` being exercised here rather than assumed.
     let s = arrivalCount.open(wide);
-    equal(arrivalCount.describe(s), { need: 4, arrived: [] }, 'four branches, not a hardcoded two');
+    equal(arrivalCount.describe(s), { need: 0, arrived: [] },
+      'nothing has opened yet, so there is nothing to need - and `need > 0` is what stops ' +
+      'that reading as satisfied');
+    for (const b of ['0', '1', '2', '3']) s = arrivalCount.step(s, opened(b));
+    equal(arrivalCount.describe(s), { need: 4, arrived: [] },
+      'four branches OPENED, not a hardcoded two and not a count read off the Region');
     for (const b of ['0', '1', '2']) s = arrivalCount.step(s, arrived(b));
     equal(arrivalCount.status(s), 'waiting', 'three of four');
     s = arrivalCount.step(s, arrived('3'));
     equal(arrivalCount.status(s), 'satisfied', 'and four of four');
+  });
+
+  test('a map region: `branches` is ONE and the policy needs N', () => {
+    // The whole reason for the re-sourcing, at the policy layer. `toRegion` hands a
+    // map region its ONE declared branch entry whatever the run opens (ADR 0036),
+    // so a `need` read from this Region is 1 at every arity - and the join then
+    // fires on the FIRST arrival with the rest still live.
+    const mapRegion: Region =
+      { fanoutId: 'split', joinId: 'collect', branches: ['score'], members: ['score'] };
+    equal(mapRegion.branches.length, 1, 'the shape spec/join-policy.md section 1 fixes, unchanged');
+    let s = arrivalCount.open(mapRegion);
+    for (const b of ['0', '1', '2']) s = arrivalCount.step(s, opened(b));
+    equal(arrivalCount.describe(s), { need: 3, arrived: [] }, 'three opened, so three needed');
+    s = arrivalCount.step(s, arrived('0'));
+    equal(arrivalCount.status(s), 'waiting',
+      'the first arrival does NOT satisfy it: two branches are still live. Read from ' +
+      'branches.length this reported satisfied here');
+    s = arrivalCount.step(s, arrived('1'));
+    equal(arrivalCount.status(s), 'waiting', 'nor the second');
+    s = arrivalCount.step(s, arrived('2'));
+    equal(arrivalCount.status(s), 'satisfied', 'and the third does');
+  });
+
+  test('a map of ZERO items is `waiting` in all three - the `need > 0` pin', () => {
+    // Without the pin, `arrived.length >= need` is `0 >= 0` and this policy fires a
+    // join no branch ever reached - which is what ADR 0025 REFUSED JP-R7's variant
+    // for. All three answer `waiting`; the FOLD is what reports the run stuck.
+    const mapRegion: Region =
+      { fanoutId: 'split', joinId: 'collect', branches: ['score'], members: ['score'] };
+    equal(arrivalCount.status(arrivalCount.open(mapRegion)), 'waiting',
+      'a region that opened nothing has not been satisfied by nothing');
+    equal(liveToken.status(liveToken.open(mapRegion)), 'waiting', 'live-token agrees, via `positive`');
+    equal(liveTokenRequiringArrival.status(liveTokenRequiringArrival.open(mapRegion)), 'waiting',
+      'and so does the third - it needs `positive` too, so it cannot say unsatisfiable either');
+  });
+
+  test('P1 routed-away still HANGS - the re-sourcing is not JP-R7 line', () => {
+    // The defining property of arrival-counting, and the whole of what ADR 0003
+    // measured. `JP-R7` forbids decrementing N on `branch.exited`; counting
+    // `branch.opened` does not, so a branch routed away still leaves it waiting.
+    let s = arrivalCount.open(wide);
+    for (const b of ['0', '1']) s = arrivalCount.step(s, opened(b));
+    s = arrivalCount.step(s, arrived('0'));
+    s = arrivalCount.step(s, { type: 'branch.exited', regionId: 'f', branchPath: '1', at: 'done' });
+    equal(arrivalCount.status(s), 'waiting',
+      'two opened, one arrived, one routed away: it waits forever, which is the cost ADR 0003 records');
+    equal(arrivalCount.describe(s), { need: 2, arrived: ['0'] }, 'and `need` was NOT decremented');
   });
 
   test('live-token counts whatever opened, at any width', () => {
@@ -243,7 +369,7 @@ suite('the policies against a Region that is not two branches', (test) => {
 
   test('a one-branch region: both agree, and neither divides by anything', () => {
     const one: Region = { fanoutId: 'f', joinId: 'j', branches: ['a'], members: ['a'] };
-    const ac = arrivalCount.step(arrivalCount.open(one), arrived('0'));
+    const ac = arrivalCount.step(arrivalCount.step(arrivalCount.open(one), opened('0')), arrived('0'));
     const lt = liveToken.step(liveToken.step(liveToken.open(one), opened('0')), arrived('0'));
     equal([arrivalCount.status(ac), liveToken.status(lt)], ['satisfied', 'satisfied'],
       'FD-V9 forbids it in a definition, but a policy that broke here would break at width 1 in W4');
@@ -266,12 +392,16 @@ suite('JP-R2 — describe reports CONTENT, not just valid JSON', (test) => {
   });
 
   test('arrival-count describes both need AND which branches arrived', () => {
-    const s = arrivalCount.step(arrivalCount.open(r), arrived('1'));
+    let st = arrivalCount.open(r);
+    for (const b of ['0', '1']) st = arrivalCount.step(st, opened(b));
+    const s = arrivalCount.step(st, arrived('1'));
     equal(arrivalCount.describe(s), { need: 2, arrived: ['1'] }, 'which branch, not just how many');
   });
 
   test("describe does not hand out the policy's own array", () => {
-    const s = arrivalCount.step(arrivalCount.open(r), arrived('0'));
+    let st = arrivalCount.open(r);
+    for (const b of ['0', '1']) st = arrivalCount.step(st, opened(b));
+    const s = arrivalCount.step(st, arrived('0'));
     (arrivalCount.describe(s) as { arrived: string[] }).arrived.push('9');
     equal(arrivalCount.describe(s), { need: 2, arrived: ['0'] },
       'JP-R1 purity reaches the way OUT as well: a caller must not be able to edit policy state');
@@ -285,6 +415,7 @@ suite('the policies on non-conformant streams — asymmetries W4 could misread',
 
   test('arrival-count counts DISTINCT arrivals, so a duplicate does not satisfy it', () => {
     let s = arrivalCount.open(r);
+    for (const b of ['0', '1']) s = arrivalCount.step(s, opened(b));
     s = arrivalCount.step(s, arrived('0'));
     s = arrivalCount.step(s, arrived('0'));
     equal(arrivalCount.status(s), 'waiting', '"distinct" is section 3’s word');

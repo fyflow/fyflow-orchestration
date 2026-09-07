@@ -255,7 +255,7 @@ suite('OR-R7 / ADR 0014 rule 2 — foldInputs() cannot be written through', (tes
       'that can append to it can invent an outcome');
   });
 
-  test('every element is a fresh COPY per call, for all six kinds and not only the two that carry a record', async () => {
+  test('every element is a fresh COPY per call, for all EIGHT kinds and not only the two that carry a record', async () => {
     // "A frozen copy" — a frozen ALIAS of the stored element passes `isFrozen`,
     // permanently freezes the driver's own array elements as a side effect, and
     // hands two callers the same object. W12's adequacy reader found the four

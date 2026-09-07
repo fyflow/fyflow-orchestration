@@ -1,6 +1,6 @@
 # spec/flow-definition — the flow definition format
 
-**Status:** v0.8 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.9 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2** acted on the first spec-conformity pass
 (ADR 0004, and `region(F)` made computable). **v0.3** acted on the second, which found that `FD-V19`
 had reintroduced the v0.1 defect class under a new id — a refusal rule rejecting the valid corpus.
@@ -30,6 +30,13 @@ so is the one rule of its family that cannot be widened by implication. The vali
 missing `over` and a test pinned the refusal, with no rule text licensing either — `spec/README.md`
 rule 4's inverse. W32's conformity reader. `FD-V17` and `FD-V21` also gained map behaviour and
 genuinely needed no change, because both are stated generically.)*
+**v0.9 adds `FD-R2`** ([W33](../doc/work-items/w33-a-map-at-run-time-arity.md), a declared late
+exception on this document): section 2 left *"what happens when `over` names a key that is absent, or
+holds something that is not an array"* to W33 by name and reserved no rule id for it. W33 built the
+refusal and shipped it with no rule anywhere in `spec/`; the id is taken now, beside `FD-R1`, which is
+this document's precedent for a rule about what a RUN does. **No `FD-V` changed and no node kind
+changed.**
+
 **Binds:** [ADR 0002](../doc/decisions/0002-a-flow-definition-is-data-and-a-predicate-is-registered-by-name.md)
 (the graph is data; a predicate is a name; an unknown name fails at instantiation) and
 [ADR 0004](../doc/decisions/0004-a-non-success-outcome-routes-only-where-an-edge-opts-in-and-user-action-suspends.md)
@@ -134,10 +141,23 @@ candidates wins. A `map` may be the `entry` node, and then the value is the run'
 that needs no rule, because `FD-V3` refuses only a `join` or an `end`.
 
 **What happens when `over` names a key that is absent, or holds something that is not an array, is
-a RUN-TIME question and no rule id is reserved for it here.** It is
-[W33](../doc/work-items/w33-a-map-at-run-time-arity.md)'s, and P10's *"decisions taken before
-fan-out"* rule 4 is why: *"this plan declares no policy refusal, no construction check and no new
-error class, because every candidate for one is a measurement W33 has not taken yet."*
+a RUN-TIME question, and v0.9 answers it as `FD-R2`.** It was left open here for
+[W33](../doc/work-items/w33-a-map-at-run-time-arity.md), because P10's *"decisions taken before
+fan-out"* rule 4 said *"this plan declares no policy refusal, no construction check and no new
+error class, because every candidate for one is a measurement W33 has not taken yet."* **W33 took
+the measurement**, and the rule is below with `FD-R1` — the other rule in this document about what a
+RUN does rather than about what a document may say.
+
+| id | | Test owed by |
+|---|---|---|
+| `FD-R2` | **A `map` whose `over` does not name an ARRAY on the value it receives stops the run**, reported as an `UnresolvedMapArity` naming the node and the key. `FD-V25` checks that `over` is a key NAME in `FD-V16`'s charset and **can check nothing else**, because no validator can see a value that does not exist yet — so this is the one `map` refusal that cannot be a `FD-V`. **An empty array is NOT this**: zero items is a lawful arity and its run is `stuck` (`spec/join-policy.md` section 5). **Why its own class and not `InvalidDefinition`**: the definition is valid and the previous node did not produce what the flow says it does, which is a different person's bug — a flow author reading `InvalidDefinition` would go and read their flow, where there is nothing to find. Reported through `OR-R10` from a listener, and reported **and rethrown** from `start()` and `resolve()`, which are caller-initiated. Test: `test/driver/map.test.ts` | **W33** |
+
+*(Recorded here rather than in `spec/join-policy.md` because it is about a `map` NODE's `over` and
+not about a join — and `FD-R1` establishes that a rule about what a run does may live in this
+document. W33's conformity reader found the refusal shipped with **no rule id anywhere in `spec/`**,
+which `doc/workflow.md` section 1 rule 3 refuses: *a decision not in `spec/`, an ADR, or a plan did
+not happen*. `spec/flow-definition.md` is [W32](../doc/work-items/w32-what-a-map-fanout-is.md)'s and
+W33 took it as a declared late exception.)*
 
 **A `map` node has no `edges`** (`FD-V25`), exactly as a `fanout` has none (`FD-V9`): its one arc is
 `branch`, and the region's exit is the join.

@@ -15,7 +15,7 @@ the only document that does. **Every snippet in it is extracted and executed by 
 (`scripts/check-docs.mjs`), so it cannot rot the way a hand-maintained reference does. If you change
 the public surface, that check is what tells you the reference is now wrong.
 
-## Current state: **P1-P9 are ALL complete and retro'd, `doc/workflow.md` is [v0.10](doc/workflow.md), and [P10](doc/plans/p10-is-fan-out-one-feature-or-two.md) is RUNNING — the first PRODUCT plan since P7.** Its question — *is fan-out one feature or two?* ([Q12](doc/open-questions.md), open since P1) — is **ANSWERED by [ADR 0036](doc/decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md): TWO FEATURES OVER ONE REGION.** [W32](doc/work-items/w32-what-a-map-fanout-is.md) is **DONE** - author pass, both readers, rule 8's re-run and the gate re-run after acting on them (`GATE EXIT=0`, zero FAIL lines, 19 entries, 7m18; L1 **20 / 517**, L6 unmoved at **489 / 25**); [W33](doc/work-items/w33-a-map-at-run-time-arity.md), [W34](doc/work-items/w34-what-a-branch-receives-and-what-a-join-carries.md) and [W35](doc/work-items/w35-a-map-on-real-workers.md) have **not started**. **Read every status from the item's own file, never from this line.** *(This sentence has now been found stale at two consecutive hand-offs — **and then went stale a third time INSIDE W32**, when a script correcting it aborted on a later substitution and wrote nothing, leaving *"BOTH READERS OUTSTANDING"* standing while their reports were being acted on three paragraphs below. **A batched edit that fails halfway leaves the index describing a state that has not existed for hours**, and nothing checks this line. Treat it as a pointer, not as a fact.)*
+## Current state: **P1-P9 are ALL complete and retro'd, `doc/workflow.md` is [v0.10](doc/workflow.md), and [P10](doc/plans/p10-is-fan-out-one-feature-or-two.md) is RUNNING — the first PRODUCT plan since P7.** Its question — *is fan-out one feature or two?* ([Q12](doc/open-questions.md), open since P1) — is **ANSWERED by [ADR 0036](doc/decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md): TWO FEATURES OVER ONE REGION.** [W32](doc/work-items/w32-what-a-map-fanout-is.md) and [W33](doc/work-items/w33-a-map-at-run-time-arity.md) are **both DONE** — each with its author pass, both readers, rule 8's re-run with the readers' own edits checked in, and a green gate after acting on them. **A `map` now DISPATCHES**: W33's gate is `GATE EXIT=0`, zero FAIL lines, 19 entries, 361 s, with L1 at **21 / 553** in all five runtimes and L6 unmoved at **489 / 25**. [W34](doc/work-items/w34-what-a-branch-receives-and-what-a-join-carries.md) and [W35](doc/work-items/w35-a-map-on-real-workers.md) have **not started**. **Read every status from the item's own file, never from this line.** *(This sentence has now been found stale at two consecutive hand-offs — **and then went stale a third time INSIDE W32**, when a script correcting it aborted on a later substitution and wrote nothing, leaving *"BOTH READERS OUTSTANDING"* standing while their reports were being acted on three paragraphs below. **A batched edit that fails halfway leaves the index describing a state that has not existed for hours**, and nothing checks this line. Treat it as a pointer, not as a fact.)*
 
 **`map` is a fifth node kind and the library can express something it could not before — the first plan in ten to change that.** `{ "kind": "map", "over": "items", "branch": "score" }`: **one** branch declared, N instances opened by the run, where a `fanout` declares N branches known at authoring time. `spec/flow-definition.md` and `spec/task-id.md` are both **v0.8** with `spec/README.md`'s rows moved by `C8`; `spec/` is **7 documents, 33 examples, 77 rules**; L1 is **20 files / 517 cases in five runtimes**, from 19 / 474. **Nothing dispatches a map yet** — the driver is W33's, and `AGENTS.md` deliberately describes the refusal class and not the feature.
 
@@ -40,6 +40,113 @@ the public surface, that check is what tells you the reference is now wrong.
 **Rule 8 ran TWICE — 32/29 before the readers, 42 provocations / 39 caught / 0 survived / 0 aborted after, with ELEVEN of the readers' own edits checked back in.** **The re-run earned its place**: the fix for one reader's finding **masked another guard** — with `branchPathOf`'s `ID-R6` arm unreachable, the newly-refusing `branchIndexOf` fires in its place with the same class, citation and map name, so three assertions passed **by the wrong route**. W29's `D5` masking shape, produced by acting on a review. **Finding a discriminating phrase took three attempts**, because `ID-R6`, `split` and even `item index` appear in both messages — the new refusal helpfully says *"use `branchPathOf` with an item index"*. **A helpful error message is a worse discriminator than a terse one.**
 
 **`Owns` audit: 23 paths, ZERO undeclared, FIVE late exceptions** — `AGENTS.md`, `scripts/build-browser-tests.mjs`, `src/driver/driver.ts`, `spec/join-policy.md` and `test/driver/driver.test.ts`. **Not one was found by reading**: two by running a check, three by the conformity reader. Five is P7's W20 number from the **opposite** cause — W20's came from a block that gave it nowhere to work — and it is an argument that **W32's `Owns` was drawn one layer too narrow for what a new node kind reaches**, which is P10's retro's to judge. `index.ts` re-exports `src/definition/regions.ts` with `export *`, so `UnresolvedBranchPath` reached the package root without W32 touching `index.ts` and section 9's executed snippet went red at `X4` ([Q101](doc/open-questions.md)). **[Q157](doc/open-questions.md)**: **no P10 item owns `AGENTS.md`**. **[Q142](doc/open-questions.md) was predicted NOT to fire and did not** — the three counts were taken before any file was added and the ADR lives in the directory both `removes` probes cut. **Census CONFIRMED for the FIFTH plan running — 118 questions, 81 open, 2 deferred, 35 resolved**, both halves at 118 of 118 in exactly one cluster cell; Q156-Q159 all used, **Q12 resolved**.
+
+
+**[W33](doc/work-items/w33-a-map-at-run-time-arity.md) is DONE and a `map` DISPATCHES.** The driver
+opens N branches from the previous node's output at N distinct task ids (`r1:score:0:0`, `:1:0`,
+`:2:0`; `r1:merge:1.0:0` nested), emits every `branch.opened` before dispatching any (`JP-R5`), and
+threads a per-region **item index** down `enter`/`dispatch`/`pathOf`/`settleJoin`, recovering it in
+`advance` **from the inbound task id's own path** — sound because `ID-R4` tier 2 has already refused
+any id this driver did not mint. `spec/join-policy.md` is **v0.12**, `spec/run-state.md` **v0.4**,
+`spec/flow-definition.md` **v0.9**; `spec/` is **7 documents, 33 examples, 78 rules**; L1 is
+**21 files / 553 cases in five runtimes**, and **L6 is unmoved at 489 / 25**, which is the declared
+result. `npm run gate` is **`GATE EXIT=0`, zero FAIL lines, 19 entries, 361 s**.
+
+**`arrival-count`'s `N` is RE-SOURCED from `branch.opened`, and what forced it is a failure direction
+W4's matrix never recorded.** A map region's `branches` names the ONE declared entry whatever the run
+opens, so `N` was **1 at every arity** — and on a three-item map the policy **routed the join out
+after four of six region events with two branches still live**. Every failure W4 recorded was `N` too
+**large**, which hangs and which ADR 0015 names; this is `N` too **small**, which **completes the run
+wrong**, and there is no vocabulary for that. **It is a re-sourcing and not `JP-R7`'s refinement**,
+measured rather than argued: a `fanout` emits exactly one `branch.opened` per declared entry, so the
+two sources agree on **6 of the corpus's 6 static regions** and **all 36 matrix cells are unmoved**.
+P1's routed-away case still hangs. **The one behaviour that moved is on a NON-CONFORMANT stream** —
+a `branch.opened` after a terminal event, which `JP-R5` forbids — where the two counting policies now
+agree instead of differing.
+
+**[Q159](doc/open-questions.md) is ANSWERED NO, and the question turned out not to be about the
+KIND.** The one policy that read `Region.branches` wanted *how many branches this region opened*, not
+*which kind opened it* — and the event stream already carries that. Two alternatives were measured
+and rejected: a fifth field would be a **second source** nothing could see disagree, and handing a map
+region `branches` of length N would give `need: 0` at N=0 and **fire a join no branch reached**, which
+is what ADR 0025 refused `JP-R7`'s variant for. **The sharpest form of the answer is that after the
+change NOT ONE shipped policy reads its `Region` at all** — `deno lint` reported the import unused.
+**P10 prediction 2 is CONFIRMED**: `live-token` and `live-token-requiring-arrival` are byte-unchanged.
+
+**N = 0 is `stuck`, and the measurement that decided it is that the naive arm folds an empty map to
+`completed`.** A map that opens nothing appended nothing, so the fold's `regions` was `{}`, `RN-R10`
+iterated nothing, and a run that reached no `end` node reported success — ADR 0015's own false
+statement. The answer is a new **`regionEntered`** fold input, which closes a claim
+`spec/run-state.md` section 2 has made **since v0.1** — *"one entry per fan-out region ENTERED"* —
+and that no input could supply while `FD-V9`'s floor made every opener open at least two. It lands as
+that document's **fifth row of section 5**, whose whole subject is *what this document claimed that
+its own inputs could not supply*. **It is inert on the entire corpus** (24 inputs, 0 state
+differences); its only live case is one the corpus cannot express.
+
+**Its two readers found 15 and 10, TEN blocking between them, and the two sharpest were CODE DEFECTS
+the author's 31 provocations never reached.** A `map` at the **`entry`** node over an empty list
+reported **`running`**, not `stuck` — nothing was dispatched, so `nodes` was empty and the fold's
+nothing-yet clause returned before `RN-R10`; `RN-R12` then calls an unfinishable run unfinished and a
+clock-free harness waits forever. And a map at N=0 **nested** in a branch left that branch opened with
+**no terminal event at all** — a `JP-R5` violation `JP-R10` could not reach, because it triggers on a
+policy answering `unsatisfiable` and the ruling is that none can. **Both are shapes section 5's ruling
+was never measured at**; it was written entirely from a map at depth 1, stated no scope, and is now
+corrected with the scope in the document. Fixed by having the DRIVER emit `JP-R10`'s consequence
+directly, on the argument that *a region which opened zero branches can never be satisfied* is
+**arithmetic over the event vocabulary** rather than a policy's judgement — and **without** reporting a
+join verdict, because `RN-R11` gives `joined: false` the meaning *"a policy said unsatisfiable"* and
+none did.
+
+**And the conformity reader found [ADR 0036](doc/decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md)'s
+own central finding ONE LAYER DOWN.** The ADR decided *two features* because `branchOf` is keyed by
+branch **node id** and collapses repeated entries. **Every per-region RUN-TIME structure in the driver
+is keyed the same way** — `joinState`, `firedJoins`, `RegionEvent.regionId`, the fold's `regions` —
+and a `map` is the first construct that enters one opener node **more than once in a run**. On a
+definition `validateDefinition` accepts with **zero findings**, seven tasks all settling `done`
+produced a **`stuck`** run: the second `open()` discarded the first, `firedJoins` made the second join
+unreachable, one branch got no terminal event, and two regions merged into one fold entry.
+**[Q160](doc/open-questions.md)** — **refused at `Driver` construction** rather than run wrong, which
+also makes [Q156](doc/open-questions.md) *refused today* rather than expressible-and-undecided.
+*The same fact, found twice, one layer apart, by two different readers.*
+
+**Two more refusals, both taken from a measurement, and P10 decision 4 held.** That decision declared
+*"no policy refusal, no construction check and no new error class, because every candidate for one is
+a measurement W33 has not taken yet"*. W33 took the measurements and then took **two of the three**:
+the construction check above, and **`UnresolvedMapArity`** — a `map` whose `over` does not name an
+array at run time stops the run. `InvalidDefinition` would be a lie in the direction that matters:
+**the definition is valid and the DATA is wrong**, which is a different person's bug. **No policy
+refusal was needed.** It shipped with **no rule id anywhere in `spec/`** until the conformity reader
+found it — `spec/flow-definition.md` section 2 had addressed that question to W33 **by name** — and it
+is now **`FD-R2`**, beside `FD-R1`, that document's own precedent for a rule about what a RUN does.
+
+**The methodological finding is that this item's gate line over-claimed what a check binds.** It
+justified running `check:policies` as *"it goes red if `POLICIES` and section 3 disagree either way"*.
+It compares the **id set**: reverting section 3's `arrival-count` row to its pre-W33 wording — the
+sentence that IS the item's second `Outputs` row — left three checks and 543 cases **green**.
+**A check that compares two halves does not necessarily compare the half you changed**, and the
+justification was written from the check's PURPOSE rather than from its clauses, which one `grep` of
+its `fail()` sites would have shown ([Q162](doc/open-questions.md)). **The same line was also wrong
+about L5** and was settled in writing before anything was built: `check:policies` reports under
+**three** clause ids, is static, and is **not a ladder rung**; L5 is the matrix, is **W34's**, and W33
+runs it as a regression it must not break. Twelfth time a declaration row has been found wrong by
+trying to act on it.
+
+**Rule 8: 43 provocations, 39 caught, 4 survivors, 0 aborted**, run FOUR times — three in the author
+pass and once more with **twelve of the readers' own edits checked back in**, all of which fire. The
+survivors are classified rather than counted: [Q158](doc/open-questions.md) (open, not W33's), the
+manifest probe (**caught by `S11`, invisible to a harness that invokes scripts directly**), one
+**vacuous** by rule 8's own definition, and a spec-heading ceiling. **Three probes went inert on this
+item's own edits and one on a reader's fix — all four rule 7 (b) firing correctly**, and all four were
+re-anchored **agnostically** rather than re-pinned, so the next bump does not reproduce it.
+**Overlap 2**, the sixteenth measurement, inside the 0-4 band, **both readers unprimed**.
+**NINE late exceptions, zero undeclared** — W32 took five and argued that was evidence about the
+`Owns` block rather than about the author; **this is the second data point and it is nearly double**,
+and **seven of the nine are `scripts/**` or a `spec/**` document this item does not own**, which is
+P8's *"paths in nobody's `Owns`"* on a product plan. P10's retro's to judge. **The browser bundle went red exactly as W32's did** — a suite reading a
+`spec/**` document the bundle does not inline — **with a better failure mode**: this read is inside a
+`test()` rather than at module scope, so it failed **one** test naming its own path instead of taking
+all twenty-one suites down. **Census CONFIRMED: 122 questions, 84 open, 2 deferred, 36 resolved**,
+all 122 in exactly one cluster cell; **Q160-Q163 all used, Q159 resolved. No ADR** — 0037 is W34's.
 
 
 **[P8](doc/plans/p8-what-can-be-deleted-with-the-gate-green.md) asks *what can be deleted from this

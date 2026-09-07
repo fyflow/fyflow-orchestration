@@ -760,11 +760,68 @@ wins.
    map's whole deliverable IS the join's payload**. **Four items, serial**:
    [W32](work-items/w32-what-a-map-fanout-is.md) — what a map-fanout is, and what its `branchPath`
    is (ADR 0036); [W33](work-items/w33-a-map-at-run-time-arity.md) — the driver and the three
-   policies at run-time arity, and N=0;
+   policies at run-time arity, and N=0 (**DONE** — read its status from its own file);
    [W34](work-items/w34-what-a-branch-receives-and-what-a-join-carries.md) — what a branch receives
    and what a join carries (ADR 0037); [W35](work-items/w35-a-map-on-real-workers.md) — a map on
    real workers. Exit artifact: **a map-fanout running end to end on a real scheduler, its arity
    taken from the previous node's output, its join firing over branches nobody declared.**
+
+   **[W33](work-items/w33-a-map-at-run-time-arity.md) is DONE — a map DISPATCHES, and the two
+   decisions it took were both forced by a measurement.** `npm run gate` is **`GATE EXIT=0`, zero
+   FAIL lines, 19 chain entries, 361 s**; L1 is **21 files / 553 cases** in all five runtimes with
+   parity; **L6 is unmoved at 489 assertions / 25 real runs**, which is the declared result. `spec/`
+   is **7 documents, 33 examples, 78 rules**.
+
+   **`arrival-count`'s `N` is RE-SOURCED from `branch.opened`.** A map region's `branches` names the
+   ONE declared entry whatever the run opens, so `N` was **1 at every arity** — and on a three-item
+   map the policy **routed the join out after four of six region events with two branches still
+   live**, measured end to end at ladder L2. Every failure W4 recorded was `N` too LARGE, which
+   hangs; this was `N` too SMALL, which **completes the run wrong**. It is a re-sourcing and not
+   `JP-R7`'s refinement, and that is measured rather than argued: **6 of the corpus's 6 static
+   regions agree on the two sources, and all 36 matrix cells are unmoved.** **[Q159](open-questions.md)
+   is ANSWERED NO** — the one policy that appeared to need the node KIND needed the **arity**, and
+   after the change **not one shipped policy reads its `Region` at all**, which `deno lint` reported
+   as an unused import.
+
+   **N = 0 is `stuck`, and what forced it is that the naive arm folds an empty map to `completed`.**
+   A map that opens nothing appended nothing, so `RN-R10` iterated nothing and a run that reached no
+   `end` node reported success — `ADR 0015`'s own false statement. The answer is a new
+   **`regionEntered`** input, which closes a claim `spec/run-state.md` section 2 has made **since
+   v0.1** (*"one entry per fan-out region ENTERED"*) and could not supply while `FD-V9`'s floor made
+   every opener open at least two. `spec/join-policy.md` is **v0.12**, `spec/run-state.md` **v0.4**,
+   `spec/flow-definition.md` **v0.9** (`FD-R2`).
+
+   **Its two readers found 15 and 10, TEN blocking between them, and the two sharpest were code
+   defects the author's 31 provocations never reached.** A `map` at the **entry** node over an empty
+   list reported **`running`**, so `RN-R12` called an unfinishable run unfinished; and a map at N = 0
+   **nested** in a branch left that branch opened with **no terminal event at all**, a `JP-R5`
+   violation `JP-R10` could not reach because it triggers on a policy verdict no policy can give.
+   **Both are shapes the N = 0 ruling was not measured at** — it was written entirely from a map at
+   depth 1 — which is `doc/workflow.md` section 1 rule 5's writing clause on a spec ruling rather
+   than on a count.
+
+   **And the conformity reader found [ADR 0036](decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md)'s
+   own central finding ONE LAYER DOWN.** The ADR decided *two features* because `branchOf` is keyed
+   by branch NODE ID and collapses repeated entries; **every per-region RUN-TIME structure in the
+   driver is keyed the same way**, and a map is the first construct that enters one opener node more
+   than once in a run. On a definition the validator accepts with **zero findings**, seven tasks all
+   settling `done` produced a **`stuck`** run with two regions merged into one entry.
+   **[Q160](open-questions.md)**, refused at construction rather than run wrong. *The same fact,
+   found twice, one layer apart, by two different readers.*
+
+   **Rule 8: 43 provocations, 39 caught, 4 survivors, 0 aborted**, run four times — three in the
+   author pass and once more with **twelve of the readers' own edits checked back in**, all of which
+   fire. **Overlap 2**, the sixteenth measurement, inside the 0-4 band, **both readers unprimed**.
+   **NINE late exceptions, zero undeclared** — W32 took five; **this is the second data point and it
+   is nearly double**, and seven of the nine are `scripts/**` or a `spec/**` document W33 does not own.
+   **Q160-Q163 all used, Q159 resolved. No ADR** — 0037 is W34's.
+
+   **Its declaration was WRONG about its own gate and it was settled in writing before anything was
+   built.** The `Gate:` line said `L0-L3, L5` and mapped L5 onto `npm run check:policies`, calling it
+   *"`JP-R9`'s two halves"*. That check reports under **three** clause ids, is a **static** spec↔code
+   set comparison, and is **not a ladder rung at all**; L5 is the join/failure matrix and lives in
+   `test/matrix/**`, which is **W34's**. The item runs L5 as a **regression it must not break** and
+   does not climb it. **Twelfth time a declaration row has been found wrong by trying to act on it.**
 
    **Its declaration measured seven facts and four changed what got written — two of them made the
    plan substantially smaller than [Q12](open-questions.md)'s row reads.** The **id GRAMMAR already

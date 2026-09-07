@@ -240,7 +240,13 @@ const PROBES = [
   {
     name: 'a spec row renamed, so both directions of P1 fire at once',
     half: 'spec', check: 'P1',
-    mutate: (t) => t.replace('| `arrival-count` | `N` is fixed', '| `arrival-counting` | `N` is fixed'),
+    // **Anchored on the ID CELL alone, not on the row text.** This read
+    // '| `arrival-count` | `N` is fixed', and W33 re-sourced that row -- so the
+    // mutation matched nothing and the rule 7 (b) guard said so rather than the
+    // probe passing. What this probe is ABOUT is renaming the row's id; the
+    // definition beside it is not part of the case. Measured: the anchor occurs
+    // exactly once in spec/join-policy.md.
+    mutate: (t) => t.replace('| `arrival-count` |', '| `arrival-counting` |'),
   },
   {
     name: 'section 3`s number removed, so no names are read at all',
