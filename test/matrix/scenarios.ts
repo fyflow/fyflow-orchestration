@@ -21,8 +21,8 @@
  */
 import type { Scenario } from './run.ts';
 import {
-  fanoutFailure, fanoutJoin, nested, nestedExit, nestedLost, optionalLost, p1RoutedAway,
-  sixEvents, twoRegions,
+  fanoutFailure, fanoutJoin, mapLost, mapRegion, mapRoutedAway, nested, nestedExit, nestedLost,
+  optionalLost, p1RoutedAway, sixEvents, twoRegions,
 } from './flows.ts';
 
 const bail = { isLowConfidence: () => true };
@@ -43,8 +43,8 @@ export const SCENARIOS: Scenario[] = [
     // from a harness that reports `null` unconditionally.
     steps: [
       { do: 'settle', taskId: INGEST, state: 'done', result: { from: 'ingest' } },
-      { do: 'settle', taskId: 'r1:scoreA:0:0', state: 'done' },
-      { do: 'settle', taskId: 'r1:scoreB:1:0', state: 'done' },
+      { do: 'settle', taskId: 'r1:scoreA:0:0', state: 'done', result: { from: 'scoreA' } },
+      { do: 'settle', taskId: 'r1:scoreB:1:0', state: 'done', result: { from: 'scoreB' } },
     ],
   },
   {
@@ -56,7 +56,7 @@ export const SCENARIOS: Scenario[] = [
     predicates: bail,
     steps: [
       { do: 'settle', taskId: INGEST, state: 'done' },
-      { do: 'settle', taskId: 'r1:scoreA:0:0', state: 'done' },
+      { do: 'settle', taskId: 'r1:scoreA:0:0', state: 'done', result: { from: 'scoreA' } },
       { do: 'settle', taskId: 'r1:scoreB:1:0', state: 'done', result: { confidence: 0.1 } },
     ],
   },
@@ -68,7 +68,7 @@ export const SCENARIOS: Scenario[] = [
     downstream: PUBLISH,
     steps: [
       { do: 'settle', taskId: INGEST, state: 'done' },
-      { do: 'settle', taskId: 'r1:scoreA:0:0', state: 'done' },
+      { do: 'settle', taskId: 'r1:scoreA:0:0', state: 'done', result: { from: 'scoreA' } },
       { do: 'settle', taskId: 'r1:scoreB:1:0', state: 'failed' },
     ],
   },
@@ -80,7 +80,7 @@ export const SCENARIOS: Scenario[] = [
     downstream: PUBLISH,
     steps: [
       { do: 'settle', taskId: INGEST, state: 'done' },
-      { do: 'settle', taskId: 'r1:scoreA:0:0', state: 'done' },
+      { do: 'settle', taskId: 'r1:scoreA:0:0', state: 'done', result: { from: 'scoreA' } },
       { do: 'settle', taskId: 'r1:scoreB:1:0', state: 'user_action' },
       { do: 'resolve', taskId: 'r1:scoreB:1:0', resolvedAs: 'failed' },
     ],
@@ -94,7 +94,7 @@ export const SCENARIOS: Scenario[] = [
     steps: [
       { do: 'settle', taskId: INGEST, state: 'done' },
       { do: 'settle', taskId: 'r1:scoreA:0:0', state: 'failed' },
-      { do: 'settle', taskId: 'r1:reviewB:1:0', state: 'done' },
+      { do: 'settle', taskId: 'r1:reviewB:1:0', state: 'done', result: { from: 'reviewB' } },
     ],
   },
   {
@@ -117,9 +117,12 @@ export const SCENARIOS: Scenario[] = [
     downstream: PUBLISH,
     steps: [
       { do: 'settle', taskId: INGEST, state: 'done' },
-      { do: 'settle', taskId: 'r1:scoreA:0:0', state: 'done' },
+      { do: 'settle', taskId: 'r1:scoreA:0:0', state: 'done', result: { from: 'scoreA' } },
       { do: 'settle', taskId: 'r1:scoreB:1:0', state: 'user_action' },
-      { do: 'resolve', taskId: 'r1:scoreB:1:0', resolvedAs: 'done' },
+      // The RESOLUTION's result, not the settlement's — `spec/outcome-record.md`
+      // section 7. The `user_action` settlement carries `result: null` and cannot
+      // see the human's answer; this is what `JP-R12` puts under key `1`.
+      { do: 'resolve', taskId: 'r1:scoreB:1:0', resolvedAs: 'done', result: { from: 'scoreB-resolved' } },
     ],
   },
   {
@@ -147,7 +150,7 @@ export const SCENARIOS: Scenario[] = [
       { do: 'settle', taskId: 'r1:lostA:0:0', state: 'failed' },
       { do: 'settle', taskId: 'r1:exitB:1:0', state: 'done' },
       { do: 'settle', taskId: 'r1:arriveC:2:0', state: 'user_action' },
-      { do: 'resolve', taskId: 'r1:arriveC:2:0', resolvedAs: 'done' },
+      { do: 'resolve', taskId: 'r1:arriveC:2:0', resolvedAs: 'done', result: { from: 'arriveC-resolved' } },
     ],
   },
 ];
@@ -228,10 +231,10 @@ export const NESTED_SCENARIOS: Scenario[] = [
     regions: ['outer', 'inner'],
     downstream: PUBLISH,
     steps: [
-      { do: 'settle', taskId: NESTED_A, state: 'done' },
+      { do: 'settle', taskId: NESTED_A, state: 'done', result: { from: 'scoreA' } },
       { do: 'settle', taskId: NESTED_B, state: 'done' },
-      { do: 'settle', taskId: NESTED_C, state: 'done' },
-      { do: 'settle', taskId: NESTED_D, state: 'done' },
+      { do: 'settle', taskId: NESTED_C, state: 'done', result: { from: 'scoreC' } },
+      { do: 'settle', taskId: NESTED_D, state: 'done', result: { from: 'scoreD' } },
     ],
   },
   {
@@ -242,9 +245,9 @@ export const NESTED_SCENARIOS: Scenario[] = [
     regions: ['outer', 'inner'],
     downstream: PUBLISH,
     steps: [
-      { do: 'settle', taskId: NESTED_A, state: 'done' },
+      { do: 'settle', taskId: NESTED_A, state: 'done', result: { from: 'scoreA' } },
       { do: 'settle', taskId: NESTED_B, state: 'done' },
-      { do: 'settle', taskId: NESTED_C, state: 'done' },
+      { do: 'settle', taskId: NESTED_C, state: 'done', result: { from: 'scoreC' } },
       { do: 'settle', taskId: NESTED_D, state: 'failed' },
     ],
   },
@@ -257,9 +260,9 @@ export const NESTED_SCENARIOS: Scenario[] = [
     downstream: PUBLISH,
     predicates: bailOnResult,
     steps: [
-      { do: 'settle', taskId: NESTED_A, state: 'done' },
+      { do: 'settle', taskId: NESTED_A, state: 'done', result: { from: 'scoreA' } },
       { do: 'settle', taskId: NESTED_B, state: 'done' },
-      { do: 'settle', taskId: NESTED_C, state: 'done' },
+      { do: 'settle', taskId: NESTED_C, state: 'done', result: { from: 'scoreC' } },
       { do: 'settle', taskId: NESTED_D, state: 'done', result: { bail: true } },
     ],
   },
@@ -272,10 +275,105 @@ export const NESTED_SCENARIOS: Scenario[] = [
     downstream: PUBLISH,
     predicates: bailOnResult,
     steps: [
-      { do: 'settle', taskId: NESTED_A, state: 'done' },
+      { do: 'settle', taskId: NESTED_A, state: 'done', result: { from: 'scoreA' } },
       { do: 'settle', taskId: NESTED_B, state: 'done' },
       { do: 'settle', taskId: NESTED_C, state: 'done', result: { bail: true } },
       { do: 'settle', taskId: NESTED_D, state: 'done', result: { bail: true } },
+    ],
+  },
+];
+
+/**
+ * **The MAP rows — ladder L5 at a run-time arity.**
+ * [W34](../../doc/work-items/w34-what-a-branch-receives-and-what-a-join-carries.md),
+ * [P10](../../doc/plans/p10-is-fan-out-one-feature-or-two.md)'s Scope item 4.
+ *
+ * **A third list rather than entries in `SCENARIOS`**, for the reason
+ * `NESTED_SCENARIOS` gives: the nine are Q5's cases and
+ * [ADR 0003](../../doc/decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md)
+ * counts them, so adding to that list would silently restate the ADR's arithmetic.
+ * A run-time arity is a different axis again — the region's WIDTH rather than a
+ * branch's fate — and it gets its own list for the same reason nesting did.
+ *
+ * **What these rows can say that no static row can.** `arrival-count`'s `N` is
+ * counted from `branch.opened` (`spec/join-policy.md` v0.12), and on every static
+ * region the counted N equals `region.branches.length` — which is precisely why
+ * W33's re-sourcing left all 52 cells unmoved. **A map region is the only input on
+ * which the two can differ**, so until these rows existed the L5 rung ran the
+ * re-sourced policy only on inputs that could not tell it from the old one.
+ * `map-all-arrive` at N = 3 is that discrimination: the declared list is `['score']`,
+ * length **1**, and the correct `need` is **3**.
+ *
+ * `N = 0` is the other thing no static row reaches at all: `FD-V9`'s arity floor
+ * makes a `fanout` open at least two, and a map produces zero the first time a
+ * filter returns nothing.
+ */
+export const MAP_SCENARIOS: Scenario[] = [
+  {
+    key: 'map-all-arrive',
+    title: 'THREE items from one definition, and every instance reaches the join',
+    flow: mapRegion,
+    fanoutId: 'per',
+    downstream: PUBLISH,
+    steps: [
+      // The arity is in the DATA, not the document. `region.branches` is `['score']`
+      // whatever this array holds, so `arrival-count` counting `branch.opened`
+      // reaches 3 and reading the declared list would reach 1.
+      { do: 'settle', taskId: INGEST, state: 'done', result: { items: ['a', 'b', 'c'] } },
+      { do: 'settle', taskId: 'r1:score:0:0', state: 'done', result: { from: 'item-0' } },
+      { do: 'settle', taskId: 'r1:score:1:0', state: 'done', result: { from: 'item-1' } },
+      { do: 'settle', taskId: 'r1:score:2:0', state: 'done', result: { from: 'item-2' } },
+    ],
+  },
+  {
+    key: 'map-one-routed-away',
+    title: "P1's case at a run-time arity — one instance of three routes to an `end`",
+    flow: mapRoutedAway,
+    fanoutId: 'per',
+    downstream: PUBLISH,
+    predicates: bailOnResult,
+    steps: [
+      { do: 'settle', taskId: INGEST, state: 'done', result: { items: ['a', 'b', 'c'] } },
+      { do: 'settle', taskId: 'r1:score:0:0', state: 'done', result: { from: 'item-0' } },
+      { do: 'settle', taskId: 'r1:score:1:0', state: 'done', result: { bail: true } },
+      { do: 'settle', taskId: 'r1:score:2:0', state: 'done', result: { from: 'item-2' } },
+    ],
+  },
+  {
+    key: 'map-all-routed-away',
+    title: 'EVERY instance routes away, so the join is reached by nothing',
+    flow: mapRoutedAway,
+    fanoutId: 'per',
+    downstream: PUBLISH,
+    predicates: bailOnResult,
+    steps: [
+      { do: 'settle', taskId: INGEST, state: 'done', result: { items: ['a', 'b'] } },
+      { do: 'settle', taskId: 'r1:score:0:0', state: 'done', result: { bail: true } },
+      { do: 'settle', taskId: 'r1:score:1:0', state: 'done', result: { bail: true } },
+    ],
+  },
+  {
+    key: 'map-one-lost',
+    title: 'an `optional` instance settles `failed` with no edge opting in',
+    flow: mapLost,
+    fanoutId: 'per',
+    downstream: PUBLISH,
+    steps: [
+      { do: 'settle', taskId: INGEST, state: 'done', result: { items: ['a', 'b'] } },
+      { do: 'settle', taskId: 'r1:score:0:0', state: 'done', result: { from: 'item-0' } },
+      { do: 'settle', taskId: 'r1:score:1:0', state: 'failed' },
+    ],
+  },
+  {
+    key: 'map-zero-items',
+    title: 'N = 0 — a map over an empty list, which `FD-V9`s floor makes unreachable for a `fanout`',
+    flow: mapRegion,
+    fanoutId: 'per',
+    downstream: PUBLISH,
+    steps: [
+      // Nothing else settles, because nothing else is dispatched. The region is
+      // ENTERED and opens no branch — `spec/join-policy.md` section 5's ruling.
+      { do: 'settle', taskId: INGEST, state: 'done', result: { items: [] } },
     ],
   },
 ];

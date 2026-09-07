@@ -84,8 +84,11 @@ case, and **an ordinary `optional` task failing is enough**. Fixed-`N` is wrong 
 will arrive"* differs from *"how many opened"*, and every non-success outcome makes it differ.
 
 **The follow-up question, and its answer.** That decision recorded one cost: on a flow where *every*
-branch is routed away, `live-token` fires a join **no branch reached** and carries `null` into
-whatever comes after it. Two one-line refinements of the two policies had been written into `spec/`
+branch is routed away, `live-token` fires a join **no branch reached** and carries an **empty
+collection** into whatever comes after it — `{}` since
+[ADR 0037](doc/decisions/0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md);
+it carried `null` when ADR 0025 was written, and the cost that sentence records is unchanged either
+way. Two one-line refinements of the two policies had been written into `spec/`
 before either existed, precisely so nobody could quietly apply one and call it a repair.
 **[ADR 0025](doc/decisions/0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md)
 answers both, differently.** The refinement that declines a join with zero arrivals is **built, as a

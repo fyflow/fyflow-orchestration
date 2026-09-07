@@ -1,6 +1,6 @@
 # spec/run-state — what a run holds, and what it is derived from
 
-**Status:** v0.4 — written by [W2](../doc/work-items/w2-the-fold-and-both-join-policies.md) under
+**Status:** v0.5 — written by [W2](../doc/work-items/w2-the-fold-and-both-join-policies.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md).
 **v0.3 is [W5](../doc/work-items/w5-one-real-fan-out-flow-on-a-real-scheduler.md)'s**, and it changes
 two things this document said were open: **section 6's last bullet is done** — the input sequence
@@ -10,6 +10,16 @@ exists and the driver produces it
 ([ADR 0015](../doc/decisions/0015-a-run-whose-join-can-no-longer-fire-is-stuck.md)), because v0.2
 called a permanently stuck run `completed`. Section 5 gains a **fourth row**: the claim that
 `regions` already held the data to know better was itself a claim its own inputs could not supply.
+**v0.5 is [W34](../doc/work-items/w34-what-a-branch-receives-and-what-a-join-carries.md) under
+[P10](../doc/plans/p10-is-fan-out-one-feature-or-two.md), and it corrects ONE FALSE SENTENCE.**
+Section 6's *"what this document does not fix"* said a satisfied join *"carries `null`"* and cited
+[Q36](../doc/open-questions.md) as open; [ADR 0037](../doc/decisions/0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md)
+answers it. **Nothing else changed, and that is the result rather than a restraint**: `JP-R12` moves
+no `FoldInput`, no `RN-R*` rule and no cell of run state, because a payload is invisible to the fold —
+which is that item's own written prediction, confirmed. Taken as a **late** declared exception: the
+item declared `spec/join-policy.md`, `spec/flow-definition.md`, `spec/README.md` and
+`spec/outcome-record.md` in advance and not this one.
+
 **Normative.**
 **The document `spec/README.md` has marked *"not written — W2"* since W1**, and the reason it waited
 is the whole of section 1: whether run state is a fold at all is
@@ -217,8 +227,19 @@ currently unfalsifiable, and why. This document did not, and that is the finding
 
 ## 6. What this document does not fix
 
-- **What a satisfied join carries downstream** — [Q36](../doc/open-questions.md). It carries `null`,
-  and the fold records that faithfully rather than inventing a value.
+- **What a satisfied join carries downstream** — **[Q36](../doc/open-questions.md) is ANSWERED and
+  this bullet said otherwise.** It read *"It carries `null`, and the fold records that faithfully
+  rather than inventing a value."* Since
+  [ADR 0037](../doc/decisions/0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md)
+  a satisfied join carries **an object keyed by `branchPath`**, one entry per branch that emitted
+  `branch.arrived` — `JP-R11` and `JP-R12` in [join-policy.md](join-policy.md) section 4.
+  **What this document does not fix is unchanged**: the fold still records what the driver dispatched
+  and invents nothing, and **no `FoldInput` moved** — `dispatched` carries a `taskId` and nothing
+  else, so a join that carries a value is invisible here. *(Corrected in place rather than deleted —
+  `spec/README.md` rule 1. [W34](../doc/work-items/w34-what-a-branch-receives-and-what-a-join-carries.md)
+  took `join-policy.md` as a declared exception for exactly this sentence and **missed this copy of
+  it**; its conformity reader found it. `doc/workflow.md` section 1 rule 5's *any copy, including
+  your own*, one document across.)*
 - **Bounded retention** — [Q19](../doc/open-questions.md). A run's footprint is proportional to its
   dispatched-node count and the total is that times the run count, which is the measurement P1 was
   always going to need and does not have.

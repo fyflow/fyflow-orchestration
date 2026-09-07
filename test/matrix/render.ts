@@ -17,9 +17,11 @@
  * version that had logic, one of which printed a two-column table with the whole
  * gate green. The two headings below are the only strings it owns.
  */
-import { renderMatrix, renderNested } from './table.ts';
+import { renderMap, renderMatrix, renderNested } from './table.ts';
 
 console.log('## Depth 1 — Q5’s nine cases\n');
 console.log(renderMatrix());
 console.log('\n## Depth 2 — a nested fan-out (W22, ADR 0030)\n');
 console.log(renderNested());
+console.log('\n## A run-time arity — a `map` region (W34, ADR 0037)\n');
+console.log(renderMap());

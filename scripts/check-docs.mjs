@@ -266,7 +266,17 @@ if (written.length) {
 // un-raised stops being a ratchet on the first addition**, and the probe that
 // exists to notice a deletion is the thing that reports it — which is rule 7 (a)
 // working exactly as written, one item after the floor was built.
-const RUN_FLOOR = 14;
+//
+// **14 -> 15 by [W34](../doc/work-items/w34-what-a-branch-receives-and-what-a-join-carries.md)**,
+// which added section 5's *what a join carries downstream* snippet — a `run` rather
+// than a `check`, because *"a claim a consumer writes code from belongs in an
+// assertion"* (P3's retro) and *what the join hands your next node* is that kind of
+// claim. **This is [Q102](../doc/open-questions.md)'s obligation firing for the
+// third recorded time**, and the item that tripped it declared four `scripts/**`
+// files in advance and not this one: the obligation is created by the CONTENT of
+// the change — adding a runnable snippet — rather than by the file set, which is
+// the half of Q102's row that an `Owns` block cannot anticipate.
+const RUN_FLOOR = 15;
 {
   // **Only when the document parsed.** A count over a reference whose fences are
   // malformed or untagged is true of the parse and says nothing about coverage —

@@ -15,7 +15,7 @@ the only document that does. **Every snippet in it is extracted and executed by 
 (`scripts/check-docs.mjs`), so it cannot rot the way a hand-maintained reference does. If you change
 the public surface, that check is what tells you the reference is now wrong.
 
-## Current state: **P1-P9 are ALL complete and retro'd, `doc/workflow.md` is [v0.10](doc/workflow.md), and [P10](doc/plans/p10-is-fan-out-one-feature-or-two.md) is RUNNING — the first PRODUCT plan since P7.** Its question — *is fan-out one feature or two?* ([Q12](doc/open-questions.md), open since P1) — is **ANSWERED by [ADR 0036](doc/decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md): TWO FEATURES OVER ONE REGION.** [W32](doc/work-items/w32-what-a-map-fanout-is.md) and [W33](doc/work-items/w33-a-map-at-run-time-arity.md) are **both DONE** — each with its author pass, both readers, rule 8's re-run with the readers' own edits checked in, and a green gate after acting on them. **A `map` now DISPATCHES**: W33's gate is `GATE EXIT=0`, zero FAIL lines, 19 entries, 361 s, with L1 at **21 / 553** in all five runtimes and L6 unmoved at **489 / 25**. [W34](doc/work-items/w34-what-a-branch-receives-and-what-a-join-carries.md) and [W35](doc/work-items/w35-a-map-on-real-workers.md) have **not started**. **Read every status from the item's own file, never from this line.** *(This sentence has now been found stale at two consecutive hand-offs — **and then went stale a third time INSIDE W32**, when a script correcting it aborted on a later substitution and wrote nothing, leaving *"BOTH READERS OUTSTANDING"* standing while their reports were being acted on three paragraphs below. **A batched edit that fails halfway leaves the index describing a state that has not existed for hours**, and nothing checks this line. Treat it as a pointer, not as a fact.)*
+## Current state: **P1-P9 are ALL complete and retro'd, `doc/workflow.md` is [v0.10](doc/workflow.md), and [P10](doc/plans/p10-is-fan-out-one-feature-or-two.md) is RUNNING — the first PRODUCT plan since P7.** Its question — *is fan-out one feature or two?* ([Q12](doc/open-questions.md), open since P1) — is **ANSWERED by [ADR 0036](doc/decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md): TWO FEATURES OVER ONE REGION.** [W32](doc/work-items/w32-what-a-map-fanout-is.md), [W33](doc/work-items/w33-a-map-at-run-time-arity.md) and [W34](doc/work-items/w34-what-a-branch-receives-and-what-a-join-carries.md) are **all DONE** — each with its author pass, both readers, rule 8's re-run with the readers' own edits checked in, and a green gate after acting on them. **A `map` now DISPATCHES and a satisfied JOIN CARRIES ITS ARRIVALS**: [ADR 0037](doc/decisions/0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md) answers [Q36](doc/open-questions.md), [Q11](doc/open-questions.md) at the fan-out edge and [Q154](doc/open-questions.md), so **BOTH reserved ADRs are taken**. W34's gate is `GATE EXIT=0`, zero FAIL lines, 19 entries, 417 s, with L1 at **21 / 574** in all five runtimes and L6 unmoved at **489 / 25**. [W35](doc/work-items/w35-a-map-on-real-workers.md) — the plan's exit artifact — has **not started**. **Read every status from the item's own file, never from this line.** *(This sentence has now been found stale at two consecutive hand-offs — **and then went stale a third time INSIDE W32**, when a script correcting it aborted on a later substitution and wrote nothing, leaving *"BOTH READERS OUTSTANDING"* standing while their reports were being acted on three paragraphs below. **A batched edit that fails halfway leaves the index describing a state that has not existed for hours**, and nothing checks this line. Treat it as a pointer, not as a fact.)*
 
 **`map` is a fifth node kind and the library can express something it could not before — the first plan in ten to change that.** `{ "kind": "map", "over": "items", "branch": "score" }`: **one** branch declared, N instances opened by the run, where a `fanout` declares N branches known at authoring time. `spec/flow-definition.md` and `spec/task-id.md` are both **v0.8** with `spec/README.md`'s rows moved by `C8`; `spec/` is **7 documents, 33 examples, 77 rules**; L1 is **20 files / 517 cases in five runtimes**, from 19 / 474. **Nothing dispatches a map yet** — the driver is W33's, and `AGENTS.md` deliberately describes the refusal class and not the feature.
 
@@ -147,6 +147,81 @@ P8's *"paths in nobody's `Owns`"* on a product plan. P10's retro's to judge. **T
 `test()` rather than at module scope, so it failed **one** test naming its own path instead of taking
 all twenty-one suites down. **Census CONFIRMED: 122 questions, 84 open, 2 deferred, 36 resolved**,
 all 122 in exactly one cluster cell; **Q160-Q163 all used, Q159 resolved. No ADR** — 0037 is W34's.
+
+
+**[W34](doc/work-items/w34-what-a-branch-receives-and-what-a-join-carries.md) is DONE, and
+[ADR 0037](doc/decisions/0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md)
+answers [Q36](doc/open-questions.md), [Q11](doc/open-questions.md) at the fan-out edge and
+[Q154](doc/open-questions.md).** **A satisfied join carries the arrived branches' results keyed by
+`branchPath`** — `JP-R12` — one entry per branch that emitted `branch.arrived`, keys in ascending
+segment-wise-numeric order, a branch that exited or was lost having **no key**, `{}` for a join nothing
+arrived at. **`settleJoin` still takes no payload parameter**: the order-dependence the `null` refused
+is in *which one*, and carrying **all** of them keyed by branch is not picking one, so the guard that
+kept Q36 a question is exactly where W3 put it. **`JP-R11`** fixes the other end — a `fanout` branch
+receives its **own copy**, a `map` instance receives **its own item** as its own copy, and the
+invariant is *no two nodes ever receive the same object*. `spec/join-policy.md` is **v0.13**,
+`spec/flow-definition.md` **v0.10**, `spec/run-state.md` **v0.5**; `spec/` is **7 documents, 33
+examples, 80 rules**; L1 is **21 / 574 in five runtimes** and **L6 is unmoved at 489 / 25**. `npm run
+gate` is **`GATE EXIT=0`, zero FAIL lines, 19 entries, 417 s**.
+
+**What decided it is a cost measurement rather than an argument, and the asymmetry is the finding.**
+A clone per branch is **2207.94 ms against 1.50 ms at N = 1000** over a 117 KiB payload — ~1470x, and
+**quadratic**, because a map's arity and its payload grow together; for a `fanout` the same fix is
+**linear in a number the DOCUMENT declares** (9.3 / 14.2 / 23.0 / 44.3 ms at arity 2 / 3 / 5 / 10).
+**The fix that is catastrophic for the feature that needed it is unnecessary for it and affordable for
+the other.** [Q22](doc/open-questions.md) gains the measured run it has asked for since P1. And
+[Q154](doc/open-questions.md)'s unmeasured half is measured: **inline**, a sibling saw the other's
+write *before it ran*; **threaded**, neither did — but **`a.payload === b.payload` is `true` in
+BOTH**, so the sharing is a driver-level fact and only its observability is a pool option the author
+does not control. [Q61](doc/open-questions.md)'s asymmetry in the opposite direction.
+
+**The order-dependence did not vanish when the payload was keyed — it MOVED, and it is invisible at
+depth 1.** Integer-like object keys are re-ordered ascending **by the language**; **dotted keys keep
+insertion order, which for a join is settlement order**. W21's and W22's shape a third time in this
+tree, and the only discriminating fixture is a map at **N = 12 nested in a fan-out branch, settled
+descending**.
+
+**Its two readers found 16 and 19, ELEVEN blocking, overlap 2** — the seventeenth measurement, inside
+the 0-4 band, both unprimed. **The conformity reader found a declared OUTPUT that did not exist**:
+*the matrix at run-time arity*, promised by `Outputs`, Scope and a prediction, with its absence
+recorded in `matrix.test.ts` in a sentence with no owner. It is now **five map rows x four columns**,
+rendered as a third table — **and building it immediately found a defect nothing else could.**
+`arrival-count-decrementing`, `JP-R7`'s refused variant, still read `region.branches.length` — the
+**pre-W33** source, **1 at every arity** on a map region — so it fired a three-item join after **one**
+arrival. **W33 re-sourced the policy and its declared variant did not follow**, and the reason it
+stood is the reason W33's change looked free: on every `fanout` region the two sources agree, so all
+52 cells were unmoved then and all 52 are unmoved now. *A re-sourcing that moves nothing is a
+re-sourcing nothing can check, until an input exists on which the two sources differ.*
+
+**And the sharpest cell makes a decision W33 measured at zero into a load-bearing one.** At N = 0 that
+variant answers **`satisfied`** — `0 >= 0`, no `need > 0` pin — **and the join does not fire, because
+the driver never asks.** W33 deleted that `settleJoin` call on the ground that *"no policy can answer
+anything but `waiting`"*: true of the three **shipped** policies, false of the fourth column, and with
+the call restored it would route a join's successor over a region **no branch ever reached**. The
+ruling stands; its stated reason is now scoped in `spec/join-policy.md` section 5 — the **second**
+correction that section has taken under the writing clause.
+
+**The methodological finding is that a PROVENANCE probe cannot be graded against a correct
+implementation.** All five of the author's obligation-(c) probes survived the first pass, because a
+source swap on a working driver leaves both sources agreeing. **What discriminates is a COMPOUND
+probe** — swap the source **and** break the driver, then ask whether the pair is still red — under
+which four of five came back bound and one did not. Its mirror: **a negative control must sit on the
+expression the probe changes**; the author's first one read a different variable and the compound
+stayed green.
+
+**Rule 8: 43 provocations, 39 caught, 4 survivors, 0 aborted**, run four times with **twelve of the
+readers' own edits checked back in — all twelve fire**, one at **41 failures**. **P10 prediction 3 is
+CONFIRMED for the third time in a third shape** — obligation (e) here produced **a value COMPUTED and
+never READ**, distinct from W32's check-not-run and W33's guard-that-cannot-reach-its-subject — so it
+generalises past a harness, and **prediction 4 is confirmed: both ADRs taken.** **FIVE late
+exceptions, zero undeclared**, against W32's five and W33's nine: **declaring `spec/**`, `AGENTS.md`
+and `test/driver/**` in advance moved six files out of the late column**, and **not one of the five
+that remained was predictable from a file SET** — each was created by the CONTENT of the change,
+including `examples/**`, which is **W35's**, because L6 pinned `joinPayload: null` as a Q36 marker.
+**A `deno lint` failure also produced `GATE EXIT=1` with ZERO `FAIL` lines**, which is why the exit
+code is the predicate and the FAIL count a secondary signal. **Census CONFIRMED for the SIXTH plan
+running — 125 questions, 85 open, 2 deferred, 38 resolved**, all 120 live ids in exactly one cluster
+cell; **Q164-Q166 used, Q167 deliberately NOT taken** because W35 has not reserved.
 
 
 **[P8](doc/plans/p8-what-can-be-deleted-with-the-gate-green.md) asks *what can be deleted from this

@@ -22,14 +22,51 @@
  * `arrivalCountDecrementing` below is W4's, byte for byte, apart from the `export`
  * keyword the move needed.
  */
-import type { JoinPolicy, Region } from '../../src/driver/policy.ts';
+// **`Region` is no longer imported, and that is a RESULT rather than tidying.**
+// W33 re-sourced `arrival-count`'s `N` from `branch.opened` and recorded the
+// sharpest form of [Q159](../../doc/open-questions.md)'s answer as `deno lint`
+// reporting the `Region` import unused in `src/fold/policies.ts` — *not one
+// shipped policy reads its region*. This file was the last object satisfying
+// `JoinPolicy` that still did, and re-sourcing `JP-R7`'s variant to match the
+// policy it is a variant OF produced the same signal here
+// ([W34](../../doc/work-items/w34-what-a-branch-receives-and-what-a-join-carries.md)).
+// **So now NOTHING that implements the interface reads the `Region` it is opened
+// with**, shipped or not — which is why `spec/join-policy.md` section 1 can say a
+// policy is not told which node kind opened its region.
+import type { JoinPolicy } from '../../src/driver/policy.ts';
 import { arrivalCount, liveToken, liveTokenRequiringArrival } from '../../src/fold/policies.ts';
 
-/** `JP-R7`'s variant: `arrival-count`, plus one line that decrements N on `branch.exited`. */
+/**
+ * `JP-R7`'s variant: `arrival-count`, plus one line that decrements N on
+ * `branch.exited`.
+ *
+ * **`need` is COUNTED from `branch.opened`, because `arrival-count`'s is** —
+ * [W34](../../doc/work-items/w34-what-a-branch-receives-and-what-a-join-carries.md).
+ * `JP-R7` defines this as *"a variant of `arrival-count`"*, so it inherits that
+ * policy's source; `spec/join-policy.md` v0.12 re-sourced it and **this file was
+ * not followed through**, leaving a declared variant that is a variant of a policy
+ * that no longer exists.
+ *
+ * **No static row could tell, which is why it stood.** On every `fanout` region the
+ * counted N equals `region.branches.length`, so the two sources agree on all 36
+ * depth-1 and all 16 depth-2 cells — the same identity that made W33's re-sourcing
+ * move none of them. **The first input that can tell is a `map` row**, and the
+ * moment `MAP_SCENARIOS` existed this column fired `map-all-arrive`'s join after
+ * **one of three** arrivals with `need: 1`, carrying one key of three downstream:
+ * P10 fact 4's early fire, alive in the column nobody had re-sourced.
+ *
+ * **This is still `JP-R7`'s REFUSED variant and this is not a repair of it.**
+ * [ADR 0025](../../doc/decisions/0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md)
+ * refused it for firing a join zero branches reached, and it still does — see
+ * `map-all-routed-away`, where `need` goes 2 → 1 → 0 with nothing arrived. Fixing
+ * the SOURCE of N does not fix the DECREMENT, and the column exists so that
+ * refusal stays falsifiable.
+ */
 export const arrivalCountDecrementing: JoinPolicy<{ need: number; arrived: string[] }> = {
   id: 'arrival-count-decrementing',
-  open: (r: Region) => ({ need: r.branches.length, arrived: [] }),
+  open: () => ({ need: 0, arrived: [] }),
   step: (s, e) => {
+    if (e.type === 'branch.opened') return { ...s, need: s.need + 1 };
     if (e.type === 'branch.exited') return { ...s, need: s.need - 1 }; // <- the one line
     if (e.type !== 'branch.arrived' || s.arrived.includes(e.branchPath)) return s;
     return { ...s, arrived: [...s.arrived, e.branchPath] };

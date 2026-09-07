@@ -816,6 +816,103 @@ wins.
    is nearly double**, and seven of the nine are `scripts/**` or a `spec/**` document W33 does not own.
    **Q160-Q163 all used, Q159 resolved. No ADR** — 0037 is W34's.
 
+   **[W34](work-items/w34-what-a-branch-receives-and-what-a-join-carries.md) is DONE, and
+   [ADR 0037](decisions/0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md)
+   answers [Q36](open-questions.md), [Q11](open-questions.md) at the fan-out edge and
+   [Q154](open-questions.md).** **A satisfied join carries the arrived branches' results keyed by
+   `branchPath`** — `JP-R12` — one entry per branch that emitted `branch.arrived`, keys in ascending
+   segment-wise-numeric order, a branch that exited or was lost having **no key**, and `{}` for a join
+   nothing arrived at. **`settleJoin` still takes no payload parameter**: the order-dependence the
+   `null` refused is in *which one*, and carrying **all** of them keyed by branch is not picking one,
+   so the guard that kept Q36 a question is exactly where W3 put it. And **`JP-R11`** fixes the other
+   end — a `fanout` branch receives its **own copy** of the value the fanout node received, a `map`
+   instance receives **its own item** as its own copy, and the invariant is *no two nodes ever receive
+   the same object*. `spec/join-policy.md` is **v0.13**, `spec/flow-definition.md` **v0.10**,
+   `spec/run-state.md` **v0.5**; `spec/` is **7 documents, 33 examples, 80 rules**; L1 is **21 files /
+   574 cases in five runtimes** and **L6 is unmoved at 489 / 25**. `npm run gate` is **`GATE EXIT=0`,
+   zero FAIL lines, 19 entries, 417 s**.
+
+   **The split is [ADR 0036](decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md)'s
+   own split one layer on, and it is not free.** What a branch receives differs by **opener** — a
+   fanout has nothing to give a branch but the value it received; a map has `over`'s array and an
+   index — so the fan-out half needed **two** rules. What a satisfied join carries is **one mechanism
+   for both**, because `branchPath` is already defined for both kinds. **The payload layer confirms
+   ADR 0036 from a direction that ADR did not look in.**
+
+   **What decided it is a cost measurement, not an argument.** A clone per branch is **2207.94 ms
+   against 1.50 ms at N = 1000** over a 117 KiB payload — a factor of ~1470, and **quadratic**,
+   because a map's arity and its payload grow together. For a `fanout` the same fix is **linear in a
+   number the DOCUMENT declares**: 9.3 / 14.2 / 23.0 / 44.3 ms at arity 2 / 3 / 5 / 10. **The fix that
+   is catastrophic for the feature that needed it is unnecessary for that feature and affordable for
+   the other** — a map's instances no longer receive one value at all, at **2.29 ms**. And
+   [Q22](open-questions.md) gains the measured run it has asked for since P1.
+
+   **[Q154](open-questions.md)'s unmeasured half is measured, and it is [Q61](open-questions.md)'s
+   asymmetry in the opposite direction.** On a real scheduler: **inline**, branch B's worker saw A's
+   write in its own input *before it ran*; **threaded**, neither saw the other. **`a.payload ===
+   b.payload` is `true` in BOTH** — the sharing is a driver-level fact and only its OBSERVABILITY is a
+   pool option the flow author does not control and the driver cannot see, which is `OR-R2`'s own
+   reason for cloning *including where it is redundant*.
+
+   **The order-dependence did not vanish when the payload was keyed — it MOVED, and it is invisible at
+   depth 1.** Integer-like object keys are re-ordered ascending **by the language**, so a depth-1 join
+   is deterministic for free; **dotted keys keep insertion order, which for a join is settlement
+   order**. W21's and W22's shape a third time in this tree. The only fixture that can discriminate is
+   a map at **N = 12 nested in a fan-out branch, settled descending**, where unsorted, lexicographic
+   and segment-wise-numeric give three different answers.
+
+   **Its two readers found 16 and 19, ELEVEN blocking between them, overlap 2** — the seventeenth
+   measurement, inside the 0-4 band, **both unprimed**. **The conformity reader found a declared
+   OUTPUT that did not exist**: *the matrix at run-time arity* was promised by `Outputs`, Scope and a
+   prediction, and `matrix.test.ts` recorded its absence in a sentence with no owner. It is now **five
+   map rows × four columns**, rendered as a third table and asserted cell by cell — **and building it
+   immediately found a defect nothing else could.** `arrival-count-decrementing`, `JP-R7`'s refused
+   variant, still read `region.branches.length` — the **pre-W33** source, which is **1 at every arity**
+   on a map region — so it fired a three-item join after **one** arrival. **W33 re-sourced the policy
+   and its declared variant did not follow, and the reason it stood is the reason W33's change looked
+   free**: on every `fanout` region the two sources agree, so all 52 cells were unmoved then and all 52
+   are unmoved now. *A re-sourcing that moves nothing is a re-sourcing nothing can check, until an
+   input exists on which the two sources differ.*
+
+   **And the sharpest cell makes a decision W33 measured at zero into a load-bearing one.**
+   `map-zero-items` under that variant answers **`satisfied`** — `0 >= 0`, no `need > 0` pin — **and
+   the join does not fire, because the driver never asks at N = 0.** W33 deleted that `settleJoin`
+   call on the ground that *"no policy can answer anything but `waiting`"*: true of the three
+   **shipped** policies, false of the fourth column, and with the call restored it would route a join's
+   successor over a region **no branch ever reached**. The ruling stands; the reason given for one row
+   of it is now scoped in `spec/join-policy.md` section 5, the **second** correction that section has
+   taken under the writing clause.
+
+   **The adequacy reader's three blocking survivors were all real and all cost 0**: `collectArrivals`
+   could drop every `null`-valued arrival — the *present-with-`null`* versus *absent* distinction the
+   item argues hardest for had **zero live cases**; a `map` at **N = 1** could be handed the whole
+   payload, which is the arity a `fanout` can never reach and the one where the pairwise check iterates
+   **zero** pairs; and a `fanout` could copy for branch 0 only, because the fanout half was checked on
+   a **two-branch** fixture while the map half got an `n(n-1)/2` loop from the start.
+
+   **The methodological finding is that a PROVENANCE probe cannot be graded against a correct
+   implementation.** All five of the author's obligation-(c) probes survived the first pass, because a
+   source swap on a working driver leaves both sources agreeing. **What discriminates is a COMPOUND
+   probe** — swap the source **and** break the driver, then ask whether the pair is still red — and
+   under that grading four of five came back bound and one did not. **Rule 8's own *a survivor is one
+   only once a second independent route confirms the clause was reachable*, instantiated for (c)
+   rather than asserted about it.** Its mirror on the defending side: **a negative control must sit on
+   the expression the probe changes**; the author's first one read a different variable and the
+   compound stayed green.
+
+   **Rule 8: 43 provocations, 39 caught, 4 survivors, 0 aborted**, run four times, with **twelve of
+   the readers' own edits checked back in — all twelve fire**, one of them at **41 failures**.
+   **P10 prediction 3 CONFIRMED for the third time in a third shape**: obligation (e) here produced **a
+   value that is COMPUTED and never READ**, distinct from W32's check-not-run and W33's guard-that-
+   cannot-reach-its-subject, so it generalises past a harness. **Prediction 4 CONFIRMED** — 0037 is
+   taken. **FIVE late exceptions, zero undeclared**, against W32's five and W33's nine — and
+   **declaring `spec/**`, `AGENTS.md` and `test/driver/**` in advance moved six files out of the late
+   column**, while **not one of the five that remained was predictable from a file SET**: each was
+   created by the CONTENT of the change. **Census CONFIRMED for the SIXTH plan running — 125
+   questions, 85 open, 2 deferred, 38 resolved**, all 120 live ids in exactly one cluster cell;
+   **Q164-Q166 used and Q167 deliberately NOT taken**, since W35 has not reserved and three
+   consecutive items have had a `Reserves` line collide.
+
    **Its declaration was WRONG about its own gate and it was settled in writing before anything was
    built.** The `Gate:` line said `L0-L3, L5` and mapped L5 onto `npm run check:policies`, calling it
    *"`JP-R9`'s two halves"*. That check reports under **three** clause ids, is a **static** spec↔code

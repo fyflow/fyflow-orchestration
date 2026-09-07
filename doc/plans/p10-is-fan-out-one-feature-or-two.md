@@ -1,9 +1,10 @@
 # P10 — Is fan-out one feature or two?
 
-**Status:** RUNNING — declared 2026-09-06. **[W32](../work-items/w32-what-a-map-fanout-is.md) and
-[W33](../work-items/w33-a-map-at-run-time-arity.md) are both DONE** — each with its author pass, both
+**Status:** RUNNING — declared 2026-09-06. **[W32](../work-items/w32-what-a-map-fanout-is.md),
+[W33](../work-items/w33-a-map-at-run-time-arity.md) and
+[W34](../work-items/w34-what-a-branch-receives-and-what-a-join-carries.md) are DONE** — each with its author pass, both
 readers, rule 8's re-run with the readers' own edits checked in, and a green gate after acting on
-them. **W34 and W35 have not started.** **Read every item's status from its own file, never from this line** (`doc/workflow.md`
+them. **W35 has not started.** **Both reserved ADRs are TAKEN** — 0036 by W32 and **0037 by W34** — which is prediction 4 confirmed. **Read every item's status from its own file, never from this line** (`doc/workflow.md`
 section 1 rule 5, including its *any copy, including your own* clause — which W32's own Record
 violated and corrected, by writing down a browser count measured before the change it described).
 **Runs after [P9](p9-when-a-check-stops-checking-what-notices.md), which is complete and retro'd.**
@@ -340,7 +341,7 @@ row**, never from its title — the sentence that took P7's late exceptions from
 |---|---|---|---|---|
 | [W32](../work-items/w32-what-a-map-fanout-is.md) | **What a map-fanout is, and what its `branchPath` is.** The definition shape, the validator, and the derivation fact 2 pins. **ADR 0036** | `src/definition/**`, `src/driver/ids.ts`, `spec/flow-definition.md`, `spec/task-id.md`, `spec/README.md`, `spec/examples/**`, `test/definition/**` | nothing | L0, L1, L4 |
 | [W33](../work-items/w33-a-map-at-run-time-arity.md) | **A map at run-time arity**: the driver dispatching N, the region event stream, the three policies, `arrival-count`'s early fire and **N=0**. The join still carries `null` | `src/driver/driver.ts`, `src/driver/events.ts`, `src/driver/policy.ts`, `src/fold/**`, `spec/join-policy.md`, `test/driver/**`, `test/fold/**` | W32 | L0-L3, L5 |
-| [W34](../work-items/w34-what-a-branch-receives-and-what-a-join-carries.md) | **What a branch receives and what a join carries.** [Q11](../open-questions.md) narrowed to the fan-out edge, [Q154](../open-questions.md)'s aliasing, and [Q36](../open-questions.md). **ADR 0037**. The matrix at run-time arity | `test/matrix/**`, `src/driver/routing.ts`, and `src/driver/driver.ts` **handed over serially from W33** | W33 | L1, L2, L5 |
+| [W34](../work-items/w34-what-a-branch-receives-and-what-a-join-carries.md) | **What a branch receives and what a join carries.** [Q11](../open-questions.md) narrowed to the fan-out edge, [Q154](../open-questions.md)'s aliasing, and [Q36](../open-questions.md). **ADR 0037**. The matrix at run-time arity | `test/matrix/**`, `src/driver/routing.ts`, and `src/driver/driver.ts` **handed over serially from W33** | W33 | L0-L2, L5 |
 | [W35](../work-items/w35-a-map-on-real-workers.md) | **A map on real workers** — the plan's exit artifact, in both L6 runtimes | `examples/**` | W34 | L6 |
 
 **`src/driver/driver.ts` is in two rows and that is deliberate.** It is named in both because the
@@ -501,7 +502,49 @@ it.
 
 ## Record
 
-*Filled in at the join, after the work items are merged.*
+*Filled in at the join, after the work items are merged. **W32, W33 and W34 are done; W35 is not**,
+so this is a progress note rather than the retro.*
+
+**Both reserved ADRs are TAKEN, which is prediction 4 confirmed.**
+[ADR 0036](../decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md)
+answers [Q12](../open-questions.md) — *two features over one region* — and
+[ADR 0037](../decisions/0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md)
+answers [Q36](../open-questions.md), [Q11](../open-questions.md) at the fan-out edge and
+[Q154](../open-questions.md). **The second is the first ADR in this repository to confirm an earlier
+one from a direction that one did not look in**: what a branch receives differs by opener and needed
+two rules; what a join carries is one mechanism for both, because it is keyed by `branchPath` and
+that is already defined for both kinds.
+
+**Prediction 3 is CONFIRMED and P10's retro has its third data point.** Rule 8's fifth obligation
+fires on a `src/` item in **three different shapes**: W32's was a check that is not RUN (a corpus flow
+renamed out of a glob), W33's a guard that RUNS and cannot reach its subject, W34's **a value that is
+COMPUTED and never READ**. Three items, three shapes, so it generalises past a harness.
+
+**Predictions 1 and 2 are also confirmed** — see the work items' own Records — and **P10's decision 2
+paid for itself**. Ordering Q36 *after* the map ran is what put the N = 0 case, the routed-away case
+and a run-time arity in front of the decision; a join-payload rule written at W32 would have had the
+static split and nothing else.
+
+**The `Owns` question this plan owes its retro: five, nine, five.** W32 took 5 late exceptions, W33
+took 9, W34 took 5. **Declaring `spec/**`, `AGENTS.md` and `test/driver/**` in advance moved six files
+out of W34's late column** — every one of which the earlier two took late — and **not one of the five
+that remained was predictable from a file SET**: a false sentence in the one `spec/` document a
+payload contract does not write to, two `scripts/**` checks whose obligations are created by the
+content of an edit, and `examples/**`, which is **W35's**, because L6 pinned `joinPayload: null` as an
+explicit Q36 marker. **The pattern is not that the blocks were drawn too narrow; it is that some
+obligations are created by what a change SAYS rather than by what it touches**, and that is the
+retro's to judge against P7's five-four-two-zero.
+
+**Exit artifact.** *Not yet — it is W35's: a map on real workers, in both L6 runtimes. L6 is unmoved
+at 489 assertions / 25 real runs and must stay so until that item moves it.*
+
+**What the plan answered.** *Q12 and Q36 are both resolved; the retro owes the write-up.*
+
+**Retro.** *`doc/workflow.md` section 6 pass 3, after W35. It owes a verdict on each of v0.10's three
+changes — prediction 3 is answered above, and W34 supplies an instance of *"fires for the reason it
+names"* on a product item's set: a probe that emptied a scenario list produced a **syntax error**,
+which the harness graded WRONG-REASON rather than CAUGHT because it read the failure LINES and found
+none. **W6's original defect, refused by the grading rather than by the exit code.**
 
 **Exit artifact.** *Where it is, and how to re-produce it.*
 

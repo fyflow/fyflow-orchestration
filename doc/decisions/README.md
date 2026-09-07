@@ -53,6 +53,21 @@ Use [TEMPLATE.md](TEMPLATE.md).
 | [0025](0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md) | The zero-arrival join is reportable, under a third policy id; arrival-counting is not repaired | Q24 / W16 | 2026-08-31 |
 | [0027](0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md) | An inbound task id that does not parse was minted by no driver: report it, do not stop the run — **supersedes 0023 rule 2** | Q86 / W18 | 2026-09-02 |
 | [0029](0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md) | The scheduler is a registry dependency, and nothing here reaches a working tree — **supersedes 0013 rules 3 and 5** | the maintainer | 2026-08-31 |
+| [0030](0030-a-join-is-transitive-and-a-dead-join-ends-the-branch-it-sits-in.md) | A join is transitive over nested fan-out, and a join that can never fire ends the branch it sits in | Q6 / W22 | 2026-09-02 |
+| [0036](0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md) | Fan-out is **two features over one region**: a `map` is a second node kind, and a `branchPath` inside one is a property of the dispatch | Q12 / W32 | 2026-09-06 |
+| [0037](0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md) | What a branch receives is a property of the **fan-out**; what a satisfied join carries is a property of the **region** | Q36, Q11, Q154 / W34 | 2026-09-07 |
+
+
+**Three rows were missing when W34 added its own, and all three are added together.** The table
+stopped at **0029** while `doc/decisions/` held 0030, 0036 and 0037 — so the index omitted the two
+most recent decisions in the repository, including the one answering
+[Q12](../open-questions.md), open since P1. Found by
+[W34](../work-items/w34-what-a-branch-receives-and-what-a-join-carries.md)'s conformity reader as a
+**third occurrence of a pre-existing omission** rather than as that item's defect. **Each row was
+derived from its own ADR's header** — title, `Raised by`, `Date` — and not from any other index
+(`doc/workflow.md` section 1 rule 5, including its *any copy, including your own* clause). Adding only
+the new row would have left the table wrong by two and made W34 the third item to walk past it, which
+is `doc/` being checked by nothing in the one directory whose whole job is to be the record.
 
 **0029 takes an id outside every reserved block, deliberately.** [P5](../plans/p5-a-third-and-fourth-policy-or-repairs-of-the-first-two.md)
 reserves 0025-0026 and [P6](../plans/p6-what-may-share-a-scheduler-with-a-driver.md) reserves

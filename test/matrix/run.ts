@@ -43,7 +43,15 @@ import { registry } from './flows.ts';
 
 export type Step =
   | { do: 'settle'; taskId: string; state: 'done' | 'failed' | 'user_action'; result?: unknown }
-  | { do: 'resolve'; taskId: string; resolvedAs: 'done' | 'failed' };
+  /**
+   * `result` is the RESOLUTION's, and it is what a resumed branch carries into a
+   * join — `spec/outcome-record.md` section 7: an effective outcome's `result`
+   * comes from the resolution when there is one. It defaults to `null`, which is
+   * what every row used before `JP-R12` gave a resumed branch's value somewhere to
+   * be seen, and two rows keep the default so *present with `null`* stays
+   * distinguishable from *absent*.
+   */
+  | { do: 'resolve'; taskId: string; resolvedAs: 'done' | 'failed'; result?: unknown };
 
 export interface Scenario {
   /** Stable key, used as the matrix row id and in every assertion message. */
@@ -103,12 +111,19 @@ export interface Cell {
    * What every dispatched task was dispatched WITH, keyed by task id.
    *
    * Two claims read this one map, and that is deliberate. `spec/join-policy.md`
-   * section 4: **a satisfied join carries `null`**, because which terminal event
-   * satisfied it is decided by fan-out completion order — so a join forwarding
-   * "whichever branch finished last" would make a run's DATA order-dependent.
-   * And `spec/outcome-record.md` section 4: an ordinary edge **does** carry the
-   * previous node's result forward. Asserting only the first let a harness that
-   * hard-coded `null` pass; asserting both from the same map does not.
+   * section 4's **`JP-R12`**: a satisfied join carries **the arrived branches'
+   * results keyed by `branchPath`** — all of them, which is how it satisfies the
+   * constraint that made the old answer `null`, since *which* terminal event
+   * satisfied the join is decided by fan-out completion order and a collection
+   * keyed by branch does not depend on it. And `spec/flow-definition.md` section 3:
+   * an ordinary edge **does** carry the previous node's result forward, unchanged.
+   * Asserting only the first let a harness that hard-coded `null` pass; asserting
+   * both from the same map does not.
+   *
+   * *(This said **"a satisfied join carries `null`"**, quoting the sentence
+   * [ADR 0037](../../doc/decisions/0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md)
+   * replaced. W34's conformity reader — one of seven copies of that claim the item
+   * left standing in files it had edited.)*
    */
   payloads: Record<string, unknown>;
   /** Reported by the driver when a policy says a join can never fire. */
@@ -217,7 +232,7 @@ export function driveScenario(scenario: Scenario, policy: JoinPolicy): Driven {
       // `RS-R1` refuses a resolution whose task is not suspended, and returns
       // `false` rather than throwing. Discarding it made a mis-scripted step a
       // silent no-op, which is a fixture that quietly stops testing.
-      const accepted = driver.resolve(step.taskId, step.resolvedAs, { result: null, error: 'matrix', actor: 'ops' });
+      const accepted = driver.resolve(step.taskId, step.resolvedAs, { result: step.result ?? null, error: 'matrix', actor: 'ops' });
       if (!accepted) throw new Error(`matrix fixture: resolve("${step.taskId}") was REFUSED — not suspended`);
     }
   }

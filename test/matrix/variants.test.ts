@@ -135,7 +135,7 @@ suite('JP-R8 — requiring an arrival before satisfied is a third policy, and it
     // of a two-sided comparison is the asymmetry JP-R8 exists to forbid.
     equal(status('all-exit', liveToken as JoinPolicy), 'satisfied',
       'the named policy: the count reached zero having been positive, so the join fires with ' +
-      'zero arrivals and carries `null` downstream');
+      'zero arrivals and carries an EMPTY collection downstream — `JP-R12`, and `{}` rather than `null` since ADR 0037');
     const variant = runCell(SCENARIOS.find((s) => s.key === 'all-exit')!, liveTokenRequiringArrival as JoinPolicy);
     equal(variant.status, 'unsatisfiable',
       'the variant: a graceful, reportable answer — and arrival-count has no way to produce ' +

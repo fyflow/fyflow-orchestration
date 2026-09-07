@@ -199,8 +199,32 @@ if (existsSync(README)) {
     if (!own) { fail('C8', `spec/${base} has no "**Status:** vN.N" header`); continue; }
     const row = idx.split(/\r?\n/).find(l => l.startsWith('|') && l.includes(`(${base})`));
     if (!row) { fail('C8', `spec/README.md has no index row for ${base}`); continue; }
-    if (!row.includes(`**${own[1]}**`))
-      fail('C8', `spec/README.md lists ${base} as something other than ${own[1]}, which is its own header`);
+    // **The VERSION COLUMN, not the whole row** — [W34](../doc/work-items/w34-what-a-branch-receives-and-what-a-join-carries.md).
+    // This read `row.includes(...)`, and every row of that table narrates its own
+    // version history in its prose cell, so a row announcing **v0.13** in prose
+    // passed with a version column reading anything at all. **Measured: 2 of the 6
+    // rows were unbound, and they were exactly the two documents the item that
+    // found this had just bumped** — the clause binds least on the rows most likely
+    // to be edited, which is the opposite of what a staleness check is for.
+    // [Q162](../doc/open-questions.md)'s class in a second check.
+    //
+    // **Inert on the corpus**: all six columns were already correct, so this ships
+    // with no live case and its evidence is its probe (`doc/workflow.md` section 5
+    // rule 8's *does the guard ever fire* — construct the case, and where the corpus
+    // cannot express one, record that).
+    // **Positional, and the empties are NOT filtered.** The first repair filtered
+    // them, and W34's conformity reader measured what that cost: a row whose version
+    // cell is EMPTY collapses to its prose cell, and every row of this table narrates
+    // its own version history in prose — so `| … |  |` passed. That is the same
+    // mechanism the repair was written for, surviving in the one direction the
+    // repair's own probe could not see, because that probe mutates the VALUE.
+    // A well-formed row is `| a | b | c |`, so `split('|')` gives an empty first and
+    // last element and the version column is the second from the end.
+    const cells = row.split('|');
+    const column = (cells[cells.length - 2] ?? '').trim();
+    if (!column.includes(`**${own[1]}**`))
+      fail('C8', `spec/README.md's version COLUMN for ${base} reads ${JSON.stringify(column)}, ` +
+        `not ${own[1]}, which is that document's own header`);
   }
 }
 

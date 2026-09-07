@@ -82,10 +82,19 @@ export default class FlowWorker extends BaseWorker {
         // A function is the smallest such value.
         return { fn: () => 1 };
       case 'publish':
-        // **The payload here is `null`.** A satisfied join carries nothing
-        // downstream ([Q36](../../doc/open-questions.md)), which is a placeholder
-        // rather than an answer — and a worker that assumed otherwise would be
-        // the first thing to break when Q36 lands.
+        // **The payload here is the JOIN's collection** — an object keyed by the
+        // `branchPath` of every branch that arrived, valued by what that branch
+        // carried in ([ADR 0037](../../doc/decisions/0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md),
+        // `JP-R12`). **It is `{}` when nothing arrived**, which `live-token` makes
+        // reachable, so `?? null` is a guard for a node reached outside a region
+        // rather than the join case.
+        //
+        // *(This read **"The payload here is `null`. A satisfied join carries
+        // nothing downstream, which is a placeholder rather than an answer — and a
+        // worker that assumed otherwise would be the first thing to break when Q36
+        // lands."** It landed, and the thing that broke was the EXPECTATION rather
+        // than this worker, because the echo was written to pass the value through
+        // rather than to interpret it.)*
         return { published: true, joinPayload: payload ?? null };
     }
   }

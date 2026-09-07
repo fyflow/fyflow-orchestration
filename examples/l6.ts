@@ -241,9 +241,15 @@ interface Expectation {
   /** `stoppedBy` — set only when a refusal terminated the run (`OR-R10`, `RN-R8`). */
   stoppedBy?: string;
   /**
-   * A dispatched node's folded `result`. Used to pin **[Q36](../doc/open-questions.md)**:
-   * a satisfied join carries `null` downstream, which `spec/` does not fix and the
-   * driver chose. W4 asserts it at L5; this is the same claim on real workers.
+   * A dispatched node's folded `result`. Used to pin **`JP-R12`** — a satisfied
+   * join carries the arrived branches' results keyed by `branchPath`
+   * ([ADR 0037](../doc/decisions/0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md),
+   * answering [Q36](../doc/open-questions.md)). The matrix asserts it at L5; these
+   * two rows are the same claim **on real workers**, which is the only place the
+   * value has crossed a worker boundary. *(This read *"a satisfied join carries
+   * `null` downstream, which `spec/` does not fix"* — both halves false since v0.13,
+   * and left in the present tense above the corrected expectations. W34's
+   * conformity reader.)*
    */
   nodeResults?: Record<string, unknown>;
   /**
@@ -332,9 +338,26 @@ const EXPECTED: Expectation[] = [
     dispatched: ['r1:ingest:-:0', 'r1:scoreA:0:0', 'r1:scoreB:1:0', 'r1:publish:-:0'],
     joined: true,
     settled: { '0': 'arrived', '1': 'arrived' },
-    // Q36's current answer, on real workers: a satisfied join carries `null`, so
-    // `publish` receives `null` and echoes it back.
-    nodeResults: { 'r1:publish:-:0': { published: true, joinPayload: null } },
+    // **Q36's ANSWER, on real workers** — `JP-R12`, and this row is where it is
+    // seen crossing a real scheduler rather than a fixture. **Derived, not copied
+    // from the run**: the entry payload is `HIGH`, so `ingest` returns
+    // `{confidence: 0.9}`; each branch receives its own copy of that (`JP-R11`)
+    // and the `score` role returns `{confidence, score: Math.round(0.9 * 100)}` =
+    // `{confidence: 0.9, score: 90}`; both branches arrive, so `JP-R12` collects
+    // them under their branch paths `0` and `1`, and `publish` echoes what it was
+    // handed. **This read `joinPayload: null` until
+    // [ADR 0037](../doc/decisions/0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md)**,
+    // with the comment calling it *"Q36's current answer"* — which is exactly why
+    // the row went red rather than quietly agreeing.
+    nodeResults: {
+      'r1:publish:-:0': {
+        published: true,
+        joinPayload: {
+          '0': { confidence: 0.9, score: 90 },
+          '1': { confidence: 0.9, score: 90 },
+        },
+      },
+    },
     // The only road available: every branch arrives, so whichever settles last,
     // the join is satisfied by a `branch.arrived`. It is the direction that makes
     // this field able to fail both ways — without it every declaration below
@@ -602,9 +625,14 @@ const EXPECTED: Expectation[] = [
       { reason: 'end', at: 'abandoned' },
       { reason: 'end', at: 'done' },
     ],
-    // Q36 again, and on this row it is at its most uncomfortable: the join carries
-    // `null` downstream having been reached by nothing at all.
-    nodeResults: { 'r14:publish:-:0': { published: true, joinPayload: null } },
+    // **`JP-R12`'s `{}`, and it is a LIVE case rather than a defensive one.** Every
+    // branch reaches an `end`, so `live-token` fires a join that NOTHING arrived
+    // at — [ADR 0003](../doc/decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md)'s
+    // recorded cost for that policy — and an empty collection is what a join with
+    // no arrivals carries. `publish` echoes it, and `{} ?? null` is `{}`, so this
+    // is the payload rather than the worker's fallback. **It read `null` until
+    // ADR 0037**, where `null` was the same value for two different reasons.
+    nodeResults: { 'r14:publish:-:0': { published: true, joinPayload: {} } },
     // **STRUCTURAL here, not arranged, and that is the row's quiet contribution.**
     // Every branch exits, so the join is satisfied by a `branch.exited` whichever
     // one settles last. `exit-last` reaches the same path by a delay nothing

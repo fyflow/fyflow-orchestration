@@ -389,6 +389,48 @@ const PROBES = [
     apply: (spec) => edit(join(spec, 'run-state.md'),
       (t) => t.replace(/(\*\*Status:\*\* v\d+\.)(\d+)/, (_m, a, b) => `${a}${Number(b) + 1}`)),
   },
+  {
+    name: 'README`s version COLUMN wrong while the row`s PROSE still names the version',
+    check: 'C8',
+    // **The same clause from the OTHER side, and it is the side that was unbound**
+    // — W34. The probe above bumps the DOCUMENT's Status, which makes it disagree
+    // with every occurrence in the row and so is caught by a check that searches the
+    // whole row. This one leaves the document alone and breaks the version COLUMN,
+    // which is what a stale README actually looks like.
+    //
+    // **Measured before the fix: it cost 0.** `C8` read `row.includes('**vN.N**')`
+    // and every row of that table narrates its own version history in its prose
+    // cell, so 2 of the 6 rows — the two whose documents had just been bumped —
+    // had their version column bound by nothing. The clause bound least on the
+    // rows most likely to be edited.
+    //
+    // **This is the constructed case for a fix that is inert on the corpus**: all
+    // six columns were correct, so the repaired clause ships with no live case and
+    // this probe is the whole of its evidence (`doc/workflow.md` section 5 rule 8).
+    // It targets `join-policy.md` rather than `run-state.md` **because it must be a
+    // row whose prose carries the version** — on a row where it does not, the old
+    // check would have caught this too and the probe would prove nothing.
+    apply: (spec) => edit(join(spec, 'README.md'),
+      (t) => t.replace(
+        /(\| \[join-policy\.md\]\(join-policy\.md\)[\s\S]*?)\*\*(v\d+\.\d+)\*\* \|/,
+        (_m, head) => `${head}**v0.1** |`)),
+  },
+  {
+    name: 'README`s version column is EMPTY, and the row`s prose still names the version',
+    check: 'C8',
+    // **The same clause in the direction the probe above cannot see.** That one
+    // mutates the version's VALUE; this one removes it. W34's first repair scoped
+    // `C8` to *the last non-empty cell*, which for an empty version cell is the
+    // PROSE cell — and every row of that table narrates its own version history, so
+    // `| … |  |` passed. Found by that item's conformity reader, one probe after the
+    // repair. **A fix and its probe written together share the fix's blind spot**,
+    // which is `doc/workflow.md` section 5 rule 8's founding observation applied to
+    // a check rather than to a repair.
+    apply: (spec) => edit(join(spec, 'README.md'),
+      (t) => t.replace(
+        /(\| \[join-policy\.md\]\(join-policy\.md\)[\s\S]*?)\*\*v\d+\.\d+\*\* \|/,
+        (_m, head) => `${head} |`)),
+  },
 ];
 
 /**
@@ -525,9 +567,16 @@ const META = [
     (t) => t.replace("    if (!own) { fail('C8',", "    if (!own) { [].push('C8',")],
   ['C8`s missing-index-row clause disabled', 'a document spec/README.md has no index row for',
     (t) => t.replace("    if (!row) { fail('C8',", "    if (!row) { [].push('C8',")],
+  // **Anchored on the GUARD, not on the message** — W34. This was pinned to the
+  // message text `` fail('C8', `spec/README.md lists ${base} as something other than ``
+  // and went inert the moment that message was reworded, aborting with *"the
+  // mutation matched nothing"*: rule 7 (b) firing correctly rather than passing,
+  // and the third time in three items that a `scripts/**` probe pinned to a
+  // literal has been broken by the item that changed the literal. The guard's
+  // CONDITION is what the clause is, and it survives any rewording of what it says.
   ['C8`s version-disagreement clause disabled', 'a document whose own Status disagrees with the version README lists',
-    (t) => t.replace("      fail('C8', `spec/README.md lists ${base} as something other than",
-      "      [].push('C8', `spec/README.md lists ${base} as something other than")],
+    (t) => t.replace("    if (!column.includes(`**${own[1]}**`))",
+      "    if (false && !column.includes(`**${own[1]}**`))")],
 
   // --- the REPORT, which no set of check ids can see ----------------------------
   // A mutation to the report changes no failure id, so `tripped` is unmoved and only

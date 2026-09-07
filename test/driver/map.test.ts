@@ -21,7 +21,7 @@
  * | `stuck` at N = 0 | `spec/run-state.md`'s `RN-R10` over a region entered with no branch opened |
  * | the three policies' verdicts | `spec/join-policy.md` section 3's three rows |
  */
-import { equal, ok, suite } from '../harness.ts';
+import { deepEqual, equal, ok, suite } from '../harness.ts';
 import { readText, ROOT } from '../harness.ts';
 import { Driver, InvalidDefinition, UnresolvedMapArity } from '../../src/driver/driver.ts';
 import { validateDefinition } from '../../src/definition/validate.ts';
@@ -227,20 +227,465 @@ suite('L2 — a map dispatches one task per item, at an arity no document carrie
     ], 'and the outer regions are unchanged by a map nesting inside one of its branches');
   });
 
-  test('each instance receives the map`s OWN payload — Q11/W34, not decided here', async () => {
-    // **Deliberately unchanged from what a `fanout` does**, and asserted so that
-    // W34 changing it is a visible edit rather than a silent one. P10s decision 2
-    // puts *what a branch receives* in W34, AFTER this item runs, so the rule is
-    // written from cases rather than from a mechanism. Handing instance `i` item
-    // `i` is the obvious edit and it would answer Q11 from inside W33.
+  test('JP-R11 — each instance receives its OWN ITEM, not the value the map node received', async () => {
+    // **This test read *"each instance receives the map`s OWN payload — Q11/W34,
+    // not decided here"* and asserted the opposite of what it now asserts.**
+    // [W33](../../doc/work-items/w33-a-map-at-run-time-arity.md) wrote it that way
+    // deliberately, so that deciding [Q11](../../doc/open-questions.md) at the
+    // fan-out edge would be a **visible edit rather than a silent one**. It is, and
+    // this is it: [ADR 0037](../../doc/decisions/0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md)
+    // rule 3, `JP-R11`.
+    //
+    // **Derived from `spec/join-policy.md` section 4's `JP-R11`, not from a run**:
+    // *a `map` instance receives its own item — `over`'s array at that instance's
+    // index — as its own copy.* The fixture's `over` is `items` and `THREE` is
+    // three items, so instance `i` receives `THREE.items[i]` and nothing else.
     const h = harness(await load('valid/map-fanout.flow.json'));
     h.driver.start({});
     h.scheduler.settle('r1:ingest:-:0', 'done', { result: THREE });
     const scored = h.scheduler.added.filter((t) => t.id.startsWith('r1:score:'));
-    for (const t of scored) {
-      equal(t.payload, THREE,
-        'the whole value the map received, not the item this instance is FOR. Q11 is W34s');
+    equal(scored.length, 3, 'three instances, one per item — the arity is unchanged by JP-R11');
+    for (const [i, t] of scored.entries()) {
+      equal(t.payload, (THREE as { items: unknown[] }).items[i],
+        `instance ${i} receives over[${i}] — its OWN item. What makes \`over\` mean something: ` +
+        'handed the whole value, an instance can only find its item by an index nothing gives it');
+      ok(!deepEqual(t.payload, THREE),
+        `instance ${i} does NOT receive the value the map node received. Asserting only the ` +
+        'first half would pass a driver handing every instance the whole value if that value ' +
+        'happened to equal its first item');
     }
+  });
+
+  test('JP-R11 — no two instances share an object, at every arity INCLUDING a repeated item', async () => {
+    // **The invariant, and the constructed case that makes *its own copy* rather
+    // than *its own item* load-bearing.** Measured before the rule was written:
+    // `structuredClone` preserves aliasing WITHIN one clone, so `{items: [x, x]}`
+    // survives the edge hop as an array holding **one object twice**. Indexing
+    // alone would therefore hand instances 0 and 1 the same object, and this
+    // fixture is the only thing in the repository that can tell.
+    // Counted from what the loop DID — rule 8 (d). Slicing this list to its first
+    // entry cost **0**, because a three-item array of distinct objects has pairs to
+    // compare and the title carried the claim that the other two shapes ran.
+    const ranShapes: string[] = [];
+    for (const [label, items] of [
+      ['three distinct items', [{ n: 0 }, { n: 1 }, { n: 2 }]],
+      ['the SAME object twice', (() => { const x = { shared: true }; return [x, x]; })()],
+      ['a repeat among distinct items', (() => { const x = { s: 1 }; return [x, { o: 2 }, x]; })()],
+    ] as const) {
+      ranShapes.push(label);
+      const h = harness(await load('valid/map-fanout.flow.json'));
+      h.driver.start({});
+      h.scheduler.settle('r1:ingest:-:0', 'done', { result: { items } });
+      const scored = h.scheduler.added.filter((t) => t.id.startsWith('r1:score:'));
+      equal(scored.length, items.length, `${label}: one instance per item`);
+      let pairs = 0;
+      for (let i = 0; i < scored.length; i++) {
+        for (let j = i + 1; j < scored.length; j++) {
+          pairs++;
+          ok(scored[i]!.payload !== scored[j]!.payload,
+            `${label}: instances ${i} and ${j} hold the SAME object. JP-R11's invariant is that ` +
+            'no two nodes ever receive the same object, and a shared one means either mutates ' +
+            "the other's input");
+        }
+      }
+      // The bound, so a fixture that stopped dispatching could not pass by
+      // iterating nothing — `doc/workflow.md` section 5 rule 8 (d).
+      equal(pairs, (items.length * (items.length - 1)) / 2,
+        `${label}: every PAIR is compared — n(n-1)/2 of them, which is the number of aliased ` +
+        'pairs this arrangement had before JP-R11');
+    }
+    equal(ranShapes, ['three distinct items', 'the SAME object twice', 'a repeat among distinct items'],
+      'all THREE shapes ran, and the second is the one that matters: an array holding one object ' +
+      'twice is what `structuredClone` preserves across the edge hop, so it is the case that makes ' +
+      '`its own COPY` load-bearing rather than `its own item`');
+  });
+
+  test('JP-R11 — a `fanout` branch gets its own copy of the same value', async () => {
+    // The other half of `JP-R11`, and the half that is NOT a map: a `fanout` has
+    // nothing to give a branch but the value it received, so what changes is only
+    // that each gets its own. **Measured before the rule: `a.payload === b.payload`
+    // was `true`**, and the payload IS cloned once at the edge hop — so the log was
+    // protected and the siblings were not.
+    const h = harness(await load('valid/fanout-join.flow.json'));
+    const RESULT = { items: ['p', 'q'], note: 'the previous node output' };
+    h.driver.start({ start: true });
+    h.scheduler.settle('r1:ingest:-:0', 'done', { result: RESULT });
+    const a = h.scheduler.added.find((t) => t.id === 'r1:scoreA:0:0')!;
+    const b = h.scheduler.added.find((t) => t.id === 'r1:scoreB:1:0')!;
+    ok(a !== undefined && b !== undefined, 'both branches dispatched');
+    equal(a.payload, RESULT, 'a fanout branch receives the value the fanout node received — ' +
+      'UNCHANGED, which is the half JP-R11 does not move');
+    equal(b.payload, RESULT, 'and so does the other one');
+    ok(a.payload !== b.payload,
+      'and they are NOT the same object. Before JP-R11 this was `true` and a branch mutating ' +
+      'what it was given mutated its sibling`s input (Q154)');
+
+    // **The consequence asserted directly, because identity alone is a proxy for
+    // it.** A reader can talk themselves into `===` being fine; a sibling seeing
+    // the other's write is what Q154's row is actually about.
+    (a.payload as { items: string[] }).items.push('MUTATED-BY-A');
+    equal((b.payload as { items: string[] }).items, ['p', 'q'],
+      'branch B`s input is untouched by branch A mutating its own');
+    equal(RESULT.items, ['p', 'q'],
+      'and so is the settled result object, which the edge-hop clone already protected — so ' +
+      'this test tells the two clones apart rather than re-checking the one that existed');
+  });
+
+  test('JP-R11 — a fanout of arity THREE: every pair, not just the one a two-branch flow has', async () => {
+    // **The adequacy reader's finding 3, and the fix is the shape the map half
+    // already had.** The `fanout` half was asserted on `fanout-join.flow.json`,
+    // which declares TWO branches — **one pair** — and compared `a` and `b` by
+    // hand. Measured: `i === 0 ? cloneValue(payload) : payload` in the fanout arm
+    // gives branch 0 its own copy and lets every other branch share one, and the
+    // whole suite stayed **green at 564**. `six-events` declares three branches
+    // and runs in all four matrix columns, so the arity-3 arm executes; nothing
+    // checked it for sharing.
+    //
+    // **A two-branch fixture cannot see a defect that spares one branch.** The map
+    // half got an n(n-1)/2 pair loop from the start; the fanout half got a
+    // hard-coded `a`/`b` comparison, and this is that asymmetry closed.
+    const def = JSON.parse(await readText(`${EX}/valid/fanout-join.flow.json`)) as FlowDefinition;
+    // A third branch, added here rather than to the corpus: `spec/examples/**` is
+    // W32's and the corpus's own arity-3 flow lives in `test/matrix/flows.ts`.
+    const nodes = def.nodes as unknown as Record<string, unknown>[];
+    const split = nodes.find((n) => n.id === 'split')!;
+    split.branches = ['scoreA', 'scoreB', 'scoreC'];
+    const scoreB = nodes.find((n) => n.id === 'scoreB')!;
+    nodes.push({ ...scoreB, id: 'scoreC' });
+
+    const h = harness(def);
+    const RESULT = { shared: ['p'] };
+    h.driver.start({});
+    h.scheduler.settle('r1:ingest:-:0', 'done', { result: RESULT });
+    const branches = h.scheduler.added.filter((t) => t.id.startsWith('r1:score'));
+    equal(branches.length, 3, 'three branches dispatched — the arity this test exists for');
+
+    let pairs = 0;
+    for (let i = 0; i < branches.length; i++) {
+      for (let j = i + 1; j < branches.length; j++) {
+        pairs++;
+        ok(branches[i]!.payload !== branches[j]!.payload,
+          `branches ${i} and ${j} hold the SAME object. JP-R11's invariant is that no two nodes ` +
+          'ever receive the same object, and a copy for the FIRST branch only satisfies a ' +
+          'two-branch fixture while leaving every other pair sharing');
+      }
+    }
+    equal(pairs, 3, 'all THREE pairs compared — n(n-1)/2 at arity 3. A loop that compared only ' +
+      'the first pair would pass the two-branch fixture this test replaces');
+  });
+
+  test('JP-R11 at N = 1 — the arity a `fanout` can never reach, and the one with no pair', async () => {
+    // **The adequacy reader's finding 2, and the conformity reader's finding 5,
+    // reached from opposite ends** — one mutated the driver, one read `JP-R11`'s
+    // own Test column against the tests. Measured: an arm reading
+    // `items.length === 1 ? cloneValue(payload) : cloneValue(items[i])` left the
+    // whole suite **green at 564**.
+    //
+    // **N = 1 is where the pairwise check iterates ZERO pairs**, so the shape test
+    // above cannot see it, and it is the ordinary run-time case — `FD-V9`'s floor
+    // is what makes it unreachable for a `fanout`, which is precisely why a map
+    // needs covering there. At N = 1 the whole value and the item differ by one
+    // array wrapper and nothing else, which is what makes the mistake easy.
+    const h = harness(await load('valid/map-fanout.flow.json'));
+    const ITEM = { only: 'one' };
+    h.driver.start({});
+    h.scheduler.settle('r1:ingest:-:0', 'done', { result: { items: [ITEM] } });
+    const scored = h.scheduler.added.filter((t) => t.id.startsWith('r1:score:'));
+    equal(scored.length, 1, 'one item, one instance');
+    equal(scored[0]!.payload, ITEM, 'the instance receives `over[0]` — its own item');
+    ok(!deepEqual(scored[0]!.payload, { items: [ITEM] }),
+      'and NOT the value the map node received, which at N = 1 differs by one array wrapper');
+  });
+
+  test('JP-R11 at N = 7, and the aliased-pair count the shipped behaviour had', async () => {
+    // `JP-R11`'s Test column names this arity, and it is where the pair count is
+    // large enough to be a claim rather than a coincidence: **21 pairs**, every one
+    // of which was `true` before this rule.
+    const h = harness(await load('valid/map-fanout.flow.json'));
+    h.driver.start({});
+    h.scheduler.settle('r1:ingest:-:0', 'done',
+      { result: { items: Array.from({ length: 7 }, (_v, i) => ({ n: i })) } });
+    const scored = h.scheduler.added.filter((t) => t.id.startsWith('r1:score:'));
+    equal(scored.length, 7, 'seven items, seven instances');
+    let pairs = 0;
+    for (let i = 0; i < 7; i++) {
+      for (let j = i + 1; j < 7; j++) {
+        pairs++;
+        ok(scored[i]!.payload !== scored[j]!.payload, `instances ${i} and ${j} do not share`);
+      }
+    }
+    equal(pairs, 21, 'twenty-one pairs — n(n-1)/2 at N = 7, and the number that were ALIASED ' +
+      'before JP-R11. Counted from what the loop did');
+    for (const [i, t] of scored.entries()) {
+      equal(t.payload, { n: i }, `instance ${i} receives over[${i}]`);
+    }
+  });
+
+  test('JP-R12 — a branch that arrived carrying `null` has a KEY, and is not dropped', async () => {
+    // **The adequacy reader's finding 1, and its sharpest.** `collectArrivals` could
+    // be given `if (v === null) continue` and the whole suite stayed **green at
+    // 564** — because every arriving branch in every firing matrix cell and every
+    // map test carried a non-null result. The distinction the item argues hardest
+    // for — **present with `null`** versus **absent** — had **zero live cases**, in
+    // a test file whose own comments say `1: null` would be a lie.
+    //
+    // The reader's second route confirms the clause is reachable: a `throw` in place
+    // of that `continue` fails **six** existing tests, so null-valued arrivals do
+    // occur — they were simply never asserted about at the join.
+    //
+    // A `task` settling `done` with no `result` produces `result: null`
+    // (`spec/outcome-record.md` section 2), so a branch can arrive carrying `null`
+    // without anything unusual happening.
+    // **BOTH falsy shapes, because they arise differently and a naive collector
+    // drops both.** `result: null` is what `spec/outcome-record.md` section 2
+    // writes for any non-`done` settlement and what a worker returning `null`
+    // produces; a `done` settlement with **no `result` key at all** gives
+    // `structuredClone(undefined)`, which is `undefined`. A `filter(Boolean)`, an
+    // `if (!v) continue` or a `JSON.stringify` round-trip loses both.
+    const h = harness(await load('valid/map-fanout.flow.json'));
+    h.driver.start({});
+    h.scheduler.settle('r1:ingest:-:0', 'done', { result: { items: ['a', 'b', 'c'] } });
+    h.scheduler.settle('r1:score:0:0', 'done', { result: null }); // an explicit null
+    h.scheduler.settle('r1:score:1:0', 'done'); //                    no result key at all
+    h.scheduler.settle('r1:score:2:0', 'done', { result: { at: 2 } });
+    const publish = h.scheduler.added.find((t) => t.id === 'r1:publish:-:0');
+    ok(publish !== undefined, 'the join fired');
+    const payload = publish!.payload as Record<string, unknown>;
+    equal(Object.keys(payload), ['0', '1', '2'],
+      'ALL THREE branches arrived, so all three have keys — including the two that carried ' +
+      'nothing. A collector that skipped falsy values, or built the object with a ' +
+      '`filter(Boolean)`, would give `["2"]` here, and a consumer counting keys would count one ' +
+      'result where three arrived');
+    equal(payload['0'], null, 'key 0 carries the explicit `null` its branch settled with');
+    equal(payload['1'], undefined,
+      'and key 1 carries `undefined`, which is what a `done` settlement with no `result` produces ' +
+      '(`structuredClone(undefined)`). It is a structured-cloneable value, so the record is ' +
+      'conformant and the join must carry it');
+    ok('0' in payload && '1' in payload,
+      'stated separately from the equalities deliberately: reading an ABSENT key also gives ' +
+      '`undefined`, so `in` is what tells present-carrying-nothing from absent, and the ' +
+      'equalities alone would not');
+  });
+});
+
+suite('L2 — JP-R12: a map`s join carries its N results, and that is P10`s point', (test) => {
+  test('three items in, three results out, keyed by ITEM INDEX', async () => {
+    // **This is the sentence [P10](../../doc/plans/p10-is-fan-out-one-feature-or-two.md)
+    // exists for**: *a map that runs N tasks and hands its successor `null` has
+    // computed N results and thrown all of them away.* Until
+    // [ADR 0037](../../doc/decisions/0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md)
+    // that was exactly what happened, and `map.test.ts` asserted it as deliberate.
+    //
+    // **Every expected value is derived from `spec/join-policy.md`'s `JP-R12` and
+    // from the settlements written below, not from a run:** one entry per branch
+    // that emitted `branch.arrived`, keyed by its `branchPath` — which for a map is
+    // the run-time item index (ADR 0036 rule 4) — valued by what that branch
+    // carried into the join, which is the settling node's `result`
+    // (`spec/flow-definition.md` section 3).
+    const h = harness(await load('valid/map-fanout.flow.json'));
+    h.driver.start({});
+    h.scheduler.settle('r1:ingest:-:0', 'done', { result: { items: ['a', 'b', 'c'] } });
+    // Distinct results, so a collection that dropped one, keyed one wrong or
+    // overwrote one is caught. Identical results would make all three
+    // indistinguishable and the assertion below vacuous.
+    h.scheduler.settle('r1:score:0:0', 'done', { result: { scored: 'a', at: 0 } });
+    h.scheduler.settle('r1:score:1:0', 'done', { result: { scored: 'b', at: 1 } });
+    h.scheduler.settle('r1:score:2:0', 'done', { result: { scored: 'c', at: 2 } });
+
+    const publish = h.scheduler.added.find((t) => t.id === 'r1:publish:-:0');
+    ok(publish !== undefined, 'the join fired and dispatched its successor');
+    equal(publish!.payload, {
+      '0': { scored: 'a', at: 0 },
+      '1': { scored: 'b', at: 1 },
+      '2': { scored: 'c', at: 2 },
+    }, 'JP-R12 — every item`s result reaches the join`s successor, keyed by the item index. ' +
+       'This was `null` until ADR 0037, so a map`s whole deliverable was discarded');
+    equal(Object.keys(publish!.payload as object), ['0', '1', '2'],
+      'and the keys are the three item indices in ascending order');
+  });
+
+  test('the collection is the SAME whatever order the items settle in', async () => {
+    // `doc/concept.md` section 5 and `CLAUDE.md`: fan-out completion order is
+    // genuinely non-deterministic and nothing may depend on it. **This is the
+    // property the `null` was protecting**, so it is asserted directly rather than
+    // argued: settle the three instances in each of the six permutations and
+    // compare the collections as STRINGS, which catches a key-order difference
+    // that a deep compare would not.
+    const perms = [[0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0]];
+    // **Two projections of each run, and they pull in opposite directions** — which
+    // is what stops a constant satisfying this test. The author's first version
+    // pushed one string and asserted the set had ONE member, and replacing that
+    // push with a hard-coded literal cost **0 failures**: every assertion was
+    // satisfied by the constant, and the test proved the harness could repeat
+    // itself rather than that the driver was order-independent. **The same trap the
+    // `null` test had**, quoted three tests above and then walked into.
+    const keyOrders: string[] = [];   // must be IDENTICAL across the six runs
+    const collections: string[] = []; // must be DISTINCT — a per-run marker no constant carries
+    for (const order of perms) {
+      const h = harness(await load('valid/map-fanout.flow.json'));
+      h.driver.start({});
+      h.scheduler.settle('r1:ingest:-:0', 'done', { result: { items: ['a', 'b', 'c'] } });
+      for (const i of order) {
+        // `perm` is this run's own settlement order, so the VALUES differ run to
+        // run while the KEY ORDER must not. One projection asserts sameness and
+        // the other asserts difference, and no single constant can do both.
+        h.scheduler.settle(`r1:score:${i}:0`, 'done', { result: { at: i, perm: order.join('') } });
+      }
+      const publish = h.scheduler.added.find((t) => t.id === 'r1:publish:-:0');
+      ok(publish !== undefined, `settlement order ${order.join('')}: the join fired`);
+      keyOrders.push(Object.keys(publish!.payload as object).join(','));
+      collections.push(JSON.stringify(publish!.payload));
+    }
+    equal(keyOrders.length, 6, 'all six permutations ran — counted from what the loop DID, not from ' +
+      'the list it was given (rule 8 (d), and W33`s adequacy reader`s finding)');
+    equal(new Set(keyOrders).size, 1,
+      'ONE key order across all six settlement orders. A join carrying "whichever branch finished ' +
+      'last" would give six different answers here, which is the flaky RESULT ' +
+      '`spec/join-policy.md` section 4 refuses');
+    equal(keyOrders[0], '0,1,2',
+      'and it is the order JP-R12 declares — ascending branch path, not arrival order');
+    equal(new Set(collections).size, 6,
+      'and the six runs produced six DIFFERENT payloads, because each carries its own settlement ' +
+      'order in `perm`. **This is the assertion a constant cannot satisfy**: without it, replacing ' +
+      'the recorded payload with a literal passes everything above');
+    equal(JSON.parse(collections[0]!), { '0': { at: 0, perm: '012' }, '1': { at: 1, perm: '012' }, '2': { at: 2, perm: '012' } },
+      'and the first run`s collection is what JP-R12 declares, values and all');
+  });
+
+  test('a map branch routed away has no key, and a map of zero carries `{}` to nothing', async () => {
+    // The two `JP-R12` clauses that are about ABSENCE, at a run-time arity. The
+    // second is the one no static flow can reach at all (`FD-V9`'s floor).
+    const h = harness(await load('valid/map-fanout.flow.json'));
+    h.driver.start({});
+    h.scheduler.settle('r1:ingest:-:0', 'done', { result: { items: ['a', 'b'] } });
+    h.scheduler.settle('r1:score:0:0', 'done', { result: { at: 0 } });
+    // No `on: ["failed"]` edge on `score`, so a failure ends the path inside the
+    // region — `branch.lost`, and `JP-R12` gives a lost branch no key.
+    h.scheduler.settle('r1:score:1:0', 'failed');
+    const publish = h.scheduler.added.find((t) => t.id === 'r1:publish:-:0');
+    ok(publish !== undefined, 'live-token fires: the region has no live branches, having had two');
+    equal(publish!.payload, { '0': { at: 0 } },
+      'item 1 never arrived, so it has NO key. `1: null` would say it arrived carrying nothing, ' +
+      'and a consumer counting keys would count a result that does not exist');
+
+    const zero = harness(await load('valid/map-fanout.flow.json'));
+    zero.driver.start({});
+    zero.scheduler.settle('r1:ingest:-:0', 'done', { result: { items: [] } });
+    equal(zero.ids(), ['r1:ingest:-:0'],
+      'a map of zero opens nothing and the join never fires, so JP-R12 has nothing to carry and ' +
+      'no successor to carry it to — `spec/join-policy.md` section 5`s N = 0 ruling is unchanged ' +
+      'by ADR 0037');
+  });
+});
+
+suite('L2 — JP-R12: the KEY ORDER, on the only shape that can discriminate it', (test) => {
+  /**
+   * **The constructed case, and rule 8's *does the guard ever fire* is why it
+   * exists.** `collectArrivals` sorts with `compareBranchPaths`, and the author's
+   * first set could delete that sort, replace it with a lexicographic one, and
+   * invert its missing-segment rule — **all three for zero failures**. Measured,
+   * not assumed, and the reason is worth stating because it is the same reason
+   * three times:
+   *
+   * | | why nothing noticed |
+   * |---|---|
+   * | every depth-1 row | its keys are `"0"`, `"1"`, `"2"` — **integer-like**, which the LANGUAGE re-orders ascending whatever the insertion order. A depth-1 join is deterministic for free and no assertion over one can fail |
+   * | the four depth-2 matrix rows | their inner keys are `1.0` and `1.1`, and `scoreC` settles before `scoreD` in every one of them — so insertion order **already equals** sorted order |
+   * | the L2 permutation test | it permutes a top-level map, whose keys are integer-like again |
+   *
+   * So the discriminating shape needs **dotted keys** AND **a settlement order
+   * that is not the sorted one** AND **a two-digit index**, and
+   * `map-in-fanout.flow.json` is the one corpus flow that can carry all three:
+   * `perItem` sits in branch `1` of `outer`, so its instances are `1.0 … 1.N-1`.
+   */
+  test('twelve items, settled DESCENDING, come out in segment-wise numeric order', async () => {
+    const h = harness(await load('valid/map-in-fanout.flow.json'));
+    h.driver.start({});
+    h.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
+    h.scheduler.settle('r1:scoreA:0:0', 'done', { result: { from: 'scoreA' } });
+    // TWELVE, so that `10` and `11` exist: they are what tells a segment-wise
+    // numeric order from a lexicographic one, which sorts `1.10` before `1.2`.
+    const rows = Array.from({ length: 12 }, (_v, i) => `row-${i}`);
+    h.scheduler.settle('r1:extract:1:0', 'done', { result: { rows } });
+
+    const merges = h.ids().filter((id) => id.startsWith('r1:merge:'));
+    equal(merges.length, 12, 'twelve instances, at branch paths 1.0 through 1.11');
+
+    // **Settled in DESCENDING index order**, so insertion order is the reverse of
+    // the answer. Nothing in `spec/` fixes settlement order — this is choosing an
+    // input that makes a property observable, not depending on an order
+    // (`doc/workflow.md` section 5 rule 5, and W17's own note on the same move).
+    let settled = 0;
+    for (let i = 11; i >= 0; i--) {
+      h.scheduler.settle(`r1:merge:1.${i}:0`, 'done', { result: { at: i } });
+      settled++;
+    }
+    equal(settled, 12, 'all twelve settled — counted from what the loop DID');
+
+    // **The inner join fired, asserted on what it actually dispatched.** This read
+    // `find(t => t.id.startsWith('r1:collect') || t.id === 'r1:publish:-:0')` with
+    // the message *"the inner join fired and dispatched onward"* — and the first
+    // disjunct can NEVER match, because `collect` and `gather` are `join` nodes and
+    // `spec/flow-definition.md` section 2 says only a `task` is ever dispatched. So
+    // the assertion was satisfied by the OUTER join's successor and duplicated the
+    // `publish` check two lines below. W34's conformity reader. The inner join's own
+    // observable effect is that `outer`'s branch 1 has a value at all, which is what
+    // the outer payload below carries.
+    const publish = h.scheduler.added.find((t) => t.id === 'r1:publish:-:0');
+    ok(publish !== undefined, 'the outer join fired, which it can only do once branch 1 arrived — ' +
+      'and branch 1 arrives when the INNER join routes out of itself');
+    const outer = publish!.payload as Record<string, unknown>;
+    const inner = outer['1'] as Record<string, unknown>;
+    ok(inner !== undefined && typeof inner === 'object',
+      'branch 1 of `outer` carries the inner region`s collection');
+
+    const expected = Array.from({ length: 12 }, (_v, i) => `1.${i}`);
+    equal(Object.keys(inner), expected,
+      'JP-R12 — ascending segment-wise NUMERIC order. Three answers are ' +
+      'distinguishable here and only one is right: unsorted gives 1.11 … 1.0 ' +
+      '(settlement order), lexicographic gives 1.0, 1.1, 1.10, 1.11, 1.2 …, and ' +
+      'segment-wise numeric gives 1.0 … 1.11. Dotted keys are NOT re-ordered by the ' +
+      'language, which is the whole reason this shape is the only one that can tell');
+
+    // And the values follow the keys, so a sort that reordered the keys without
+    // their values would be caught too.
+    for (let i = 0; i < 12; i++) {
+      equal(inner[`1.${i}`], { at: i },
+        `key 1.${i} carries item ${i}'s own result — the sort moves keys AND values ` +
+        'together, or it is a different defect wearing the same shape');
+    }
+  });
+
+  test('the comparator`s missing-segment rule is UNREACHABLE, and that is measured', () => {
+    // **Rule 8's *where the corpus cannot express a case, RECORD that rather than
+    // arguing it*.** `compareBranchPaths` treats a missing segment as sorting
+    // first, so `1` precedes `1.0`. Inverting that costs **0 failures**, and the
+    // reason is structural rather than a gap in the corpus: **every key of one
+    // region's collection is `pathOf(branch)` for a branch of THAT region**, so
+    // they all have the same segment count. `1` and `1.0` are keys of two
+    // DIFFERENT regions' collections — the outer's and the inner's — and no
+    // `arrivals` map ever holds both.
+    //
+    // **It is kept rather than deleted** because a comparator handed to
+    // `Array.prototype.sort` must be total over whatever pairs the sort chooses,
+    // and a partial one is a defect waiting for the first change that makes
+    // ragged paths reachable. Asserted directly here, since no run can reach it:
+    const cmp = (a: string, b: string) => {
+      const xs = a.split('.');
+      const ys = b.split('.');
+      for (let i = 0; i < Math.max(xs.length, ys.length); i++) {
+        const d = (xs[i] === undefined ? -1 : Number(xs[i])) - (ys[i] === undefined ? -1 : Number(ys[i]));
+        if (d !== 0) return d;
+      }
+      return 0;
+    };
+    ok(cmp('1', '1.0') < 0, 'a shorter path sorts before a longer one sharing its prefix');
+    ok(cmp('1.0', '1') > 0, 'and the relation is antisymmetric, which `sort` requires');
+    equal(['1.10', '1.2', '1', '1.0'].sort(cmp), ['1', '1.0', '1.2', '1.10'],
+      'the whole ordering, including the pair no region can produce. **This is a ' +
+      'copy of the driver`s expression rather than the expression itself**, which ' +
+      'is a weaker test than the one above and is labelled as such: it says the ' +
+      'RULE is right, not that the driver implements it');
   });
 });
 

@@ -129,6 +129,55 @@ function cloneValue(v: unknown): unknown {
 }
 
 /**
+ * Order two `branchPath`s the way `spec/task-id.md` section 1's grammar reads
+ * them: dot-separated non-negative integers, **compared segment-wise as numbers**,
+ * with a shorter path before a longer one that shares its prefix.
+ *
+ * **This exists because the order-dependence a satisfied join's `null` was
+ * protecting against does not vanish when the payload is keyed — it MOVES**, from
+ * *which value* to *which key order*, and it is invisible at depth 1. Measured:
+ * integer-like object keys (`"0"`, `"1"`, `"10"`) are re-ordered **ascending by
+ * the language**, so a depth-1 join is deterministic for free; **dotted keys are
+ * not** — `"1.1"`, `"1.0"`, `"0.2"`, `"0.1"` keep **insertion** order, which for a
+ * join is **settlement** order. So a nested region's collected payload would be
+ * byte-different run to run for the same run, which is the flaky *result*
+ * [ADR 0037](../../doc/decisions/0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md)
+ * exists to refuse.
+ *
+ * **Segment-wise numeric rather than lexicographic**, because lexicographic puts
+ * `"10"` before `"2"`. Both are deterministic and only one reads as an order.
+ */
+function compareBranchPaths(a: string, b: string): number {
+  const xs = a.split('.');
+  const ys = b.split('.');
+  for (let i = 0; i < Math.max(xs.length, ys.length); i++) {
+    // A missing segment sorts FIRST, so `1` precedes `1.0`. `-1` is not a legal
+    // segment (the grammar admits no sign), so it cannot collide with a real one.
+    const d = (xs[i] === undefined ? -1 : Number(xs[i])) - (ys[i] === undefined ? -1 : Number(ys[i]));
+    if (d !== 0) return d;
+  }
+  return 0;
+}
+
+/**
+ * **What a satisfied join carries** — `JP-R12`. One entry per branch that emitted
+ * `branch.arrived`, keyed by its `branchPath`, valued by what that branch carried
+ * into the join. **Inserted in `compareBranchPaths` order**, so the object is the
+ * same value whatever order the branches settled in.
+ *
+ * A join nothing arrived at carries `{}` rather than `null`, and that is a real
+ * case rather than a defensive one: `live-token` fires over an all-exited region,
+ * which is the cost [ADR 0003](../../doc/decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md)
+ * records for it.
+ */
+function collectArrivals(arrived: ReadonlyMap<string, unknown> | undefined): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  if (!arrived) return out;
+  for (const path of [...arrived.keys()].sort(compareBranchPaths)) out[path] = arrived.get(path);
+  return out;
+}
+
+/**
  * **The item index of every `map` region on the path to a dispatch, keyed by map
  * node id** — `branchPathOf`'s third argument
  * ([ADR 0036](../../doc/decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md)
@@ -410,6 +459,29 @@ export class Driver {
   private readonly joinState = new Map<string, unknown>();
   /** A join fires at most once, however many terminal events follow it. */
   private readonly firedJoins = new Set<string>();
+  /**
+   * **What each branch carried into its join, keyed by region and then by
+   * `branchPath`** — [ADR 0037](../../doc/decisions/0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md)
+   * rule 4, and `JP-R11` in [spec/join-policy.md](../../spec/join-policy.md)
+   * section 4.
+   *
+   * **This is why `settleJoin` still takes no payload parameter.** That signature
+   * was left bare because the function is reached from three sites with three
+   * different payloads and *which one arrives* is decided by fan-out completion
+   * order — so a parameter would make the join's downstream data order-dependent
+   * by construction. Recording every arrival and reading the whole map at the exit
+   * is not picking one, so the constraint is met rather than worked around, and
+   * the guard that keeps the choice from being quietly reintroduced is still
+   * exactly where W3 put it.
+   *
+   * **Keyed by the opener's node id, like every other per-region structure here**
+   * — `joinState`, `firedJoins`, `RegionEvent.regionId` and the fold's `regions`.
+   * That keying is total only because a region opener is entered at most once per
+   * run, which a `map` would break; W33 refuses that definition at construction
+   * ([Q160](../../doc/open-questions.md)), and this map is safe for exactly that
+   * reason and no other.
+   */
+  private readonly arrivals = new Map<string, Map<string, unknown>>();
   /**
    * **The one run this driver serves** — ADR 0022 rule 1, fixed at construction
    * and never `null`.
@@ -938,8 +1010,32 @@ export class Driver {
         // moment `FD-V9` is lifted (or a branch entry may be a `join`) the arm
         // stops discarding them. **Said in place rather than left for the next
         // reader to rediscover as dead code.**
+        //
+        // **Each branch gets its OWN COPY** — [ADR 0037](../../doc/decisions/0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md)
+        // rule 2, `JP-R11`. This was one object handed to every branch, so
+        // `a.payload === b.payload` was `true` and a branch mutating what it was
+        // given mutated its siblings' input ([Q154](../../doc/open-questions.md)).
+        // The payload IS cloned once at the edge hop, which protects the log; that
+        // single clone was then shared N ways.
+        //
+        // **Measured on a real scheduler in both pool kinds**: inline, branch B's
+        // worker saw A's write in its own input BEFORE it ran, and A's view gained
+        // B's write AFTER A returned; threaded, each saw only its own. **The
+        // identity is `true` in both** — the sharing is a driver-level fact and only
+        // its observability is a pool option, which the flow author does not control
+        // and this driver cannot see. So a rule conditioned on the pool would be one
+        // the driver cannot evaluate, which is `OR-R2`'s own reason for cloning
+        // unconditionally *including where it is redundant*.
+        //
+        // **The cost is linear in a number the DOCUMENT declares.** `FD-V9`'s floor
+        // is 2 and a fanout's arity is written down, so this is bounded by the
+        // author rather than by the data: measured at 9.3 / 14.2 / 23.0 / 44.3 ms
+        // for arity 2 / 3 / 5 / 10 over a 230 KiB payload, against 4.5-4.8 ms for
+        // one clone. **The same fix on a `map` is quadratic and unaffordable** —
+        // 2207.94 ms against 1.50 ms at N = 1000 — and the map arm below does not
+        // need it, because its instances no longer receive one value at all.
         region.branches.forEach((b, i) =>
-          this.enter(runId, b, payload, paths[i]!, region.fanoutId, itemIndices));
+          this.enter(runId, b, cloneValue(payload), paths[i]!, region.fanoutId, itemIndices));
         return;
       }
 
@@ -1009,19 +1105,35 @@ export class Driver {
         for (const p of paths) {
           this.emit({ type: 'branch.opened', regionId: region.fanoutId, branchPath: p });
         }
-        // **Every instance receives the SAME payload the map itself received**,
-        // which is the `fanout` arm's behaviour unchanged and is deliberately not a
-        // decision this item takes. **What a branch RECEIVES is
-        // [Q11](../../doc/open-questions.md), narrowed to the fan-out edge, and it is
-        // [W34](../../doc/work-items/w34-what-a-branch-receives-and-what-a-join-carries.md)'s**
-        // — P10's decision 2, which orders the two so the rule is written from
-        // cases rather than from a mechanism. **So a map here dispatches N tasks and
-        // hands each one the whole value rather than its own item**: arity-correct
-        // and payload-unchanged, stated loudly because handing instance `i` item `i`
-        // is the obvious edit and it would answer Q11 from inside W33 where nobody
-        // is looking for it — which is the move `JP-R7`'s own paragraph warns about
-        // one layer down. The join still carries `null` for the same reason.
-        idx.forEach((m, i) => this.enter(runId, branch, payload, paths[i]!, region.fanoutId, m));
+        // **Every instance receives its OWN ITEM, as its own copy** —
+        // [ADR 0037](../../doc/decisions/0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md)
+        // rule 3, `JP-R11`. [W33](../../doc/work-items/w33-a-map-at-run-time-arity.md)
+        // shipped this handing every instance the WHOLE value the map node received
+        // — arity-correct and payload-unchanged — deliberately, so that deciding
+        // [Q11](../../doc/open-questions.md) at the fan-out edge would be a visible
+        // edit rather than a silent one. This is that edit.
+        //
+        // **It is what makes `over` mean something.** Handed the whole value, an
+        // instance can only find its own item by an index nothing gives it, and
+        // `over` names an array whose sole use is its `length` — a map that is a
+        // fanout that counts.
+        //
+        // **`cloneValue` per item, and *its own copy* rather than *its own item* is
+        // load-bearing.** `structuredClone` preserves aliasing WITHIN one clone, so
+        // `{items: [x, x]}` survives the edge hop as an array holding one object
+        // twice — measured — and instances 0 and 1 would share it. The invariant is
+        // *no two nodes ever receive the same object*, and indexing alone does not
+        // give it.
+        //
+        // **The cost is LINEAR, and it is the whole reason a map needs no per-branch
+        // clone of the payload.** At N = 1000 over a 117 KiB payload: the shipped
+        // one-shared-clone 1.50 ms, an item each 2.29 ms, a *cloned* item each
+        // 7.99 ms — against **2207.94 ms** for the `fanout` arm's fix applied here,
+        // which is quadratic because a map's arity and its payload grow together.
+        // *The fix that is catastrophic for the feature that needed it is
+        // unnecessary for it.*
+        idx.forEach((m, i) =>
+          this.enter(runId, branch, cloneValue(items[i]), paths[i]!, region.fanoutId, m));
         // **N = 0 opens nothing, and the region is REPORTABLE through the
         // `regionEntered` append above and nothing else.** With that append gone
         // the fold's `regions` has no entry at all, `RN-R10` iterates nothing and
@@ -1087,6 +1199,18 @@ export class Driver {
         // section 4's owner table).
         const region = this.regions.find((r) => r.joinId === nodeId);
         if (!region) return;
+        // **What this branch carried in, recorded before the policy is asked** —
+        // `JP-R12`, [ADR 0037](../../doc/decisions/0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md)
+        // rule 4. `payload` here is the arriving branch's own edge-hop clone, made
+        // by `advance` for this hop and held by nothing else, so no further copy is
+        // taken and none is needed.
+        //
+        // **Before the `settleJoin` below, and that ordering is the rule.** The
+        // policy may answer `satisfied` on THIS event, and the exit reads this map;
+        // recording after would drop the very arrival that fired the join. The
+        // failure is silent — a join firing with N-1 entries — so it is stated here
+        // rather than left to the two lines' order.
+        this.arrivalsOf(region.fanoutId).set(fromBranch, payload);
         this.emit({ type: 'branch.arrived', regionId: region.fanoutId, branchPath: fromBranch });
         this.settleJoin(runId, region, itemIndices);
         return;
@@ -1249,6 +1373,15 @@ export class Driver {
         'could have seen this: `FD-V25` checks that `over` is a key NAME. Return an array (an empty ' +
         'one is a lawful map of zero items), or the previous node did not produce what this flow says it does.',
     );
+  }
+
+  /** The arrival map for one region, created on first arrival. */
+  private arrivalsOf(fanoutId: string): Map<string, unknown> {
+    const existing = this.arrivals.get(fanoutId);
+    if (existing) return existing;
+    const fresh = new Map<string, unknown>();
+    this.arrivals.set(fanoutId, fresh);
+    return fresh;
   }
 
   private pathOf(nodeId: string, itemIndices: ReadonlyMap<string, number> = EMPTY_INDICES): string {
@@ -1502,16 +1635,35 @@ export class Driver {
     const join = this.graph.byId.get(region.joinId);
     if (!join || join.kind !== 'join') return;
     const edge = join.edges?.[0];
-    // **The join passes `null`, deliberately.** `settleJoin` is reached from three
-    // sites with three different payloads, and which one arrives is decided by
-    // fan-out completion order — which `doc/concept.md` section 5 says is
-    // genuinely non-deterministic and CLAUDE.md says nothing may depend on. A
-    // join that forwarded "whichever branch finished last" would make a run's
-    // DATA order-dependent, which is worse than a flaky test.
+    // **The join carries the arrived branches' results, keyed by `branchPath`** —
+    // `JP-R12`, [ADR 0037](../../doc/decisions/0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md)
+    // rule 4, answering [Q36](../../doc/open-questions.md).
     //
-    // `spec/` says nothing about what a join carries downstream
-    // ([Q36](../../doc/open-questions.md)), so this refuses to invent it rather
-    // than picking a branch arbitrarily.
+    // **This paragraph read *"the join passes `null`, deliberately"* and the reason
+    // it gave was correct**: `settleJoin` is reached from three sites with three
+    // different payloads, and *which one arrives* is decided by fan-out completion
+    // order — which `doc/concept.md` section 5 calls genuinely non-deterministic and
+    // `CLAUDE.md` says nothing may depend on. A join forwarding "whichever branch
+    // finished last" makes a run's DATA order-dependent, which is worse than a flaky
+    // test: it is a flaky result.
+    //
+    // **The answer is that the order-dependence is in *which one*, and this carries
+    // ALL of them.** A collection keyed by the branch each value arrived on is the
+    // same value whatever order the branches settled in, so the constraint is
+    // satisfied by construction rather than by refusing to carry anything — and
+    // **`settleJoin` still takes no payload parameter**, which is the guard that has
+    // kept this a question rather than a convention. The arrivals are recorded in
+    // the `join` arm of `enter` as they happen and read here as a whole.
+    //
+    // **`collectArrivals` pins the KEY ORDER, and that is not decoration.** The
+    // order-dependence does not vanish when the payload is keyed; it moves. Measured:
+    // integer-like keys are re-ordered ascending by the language, so a depth-1 join
+    // is deterministic for free, while **dotted keys keep insertion order — which
+    // for a join is settlement order.** Invisible at depth 1 and live at depth 2,
+    // which is W21's and W22's shape a third time in this tree.
+    //
+    // A join nothing arrived at carries `{}`. `live-token` fires over an all-exited
+    // region, so that case is live rather than defensive.
     // **The join's exit carries the path its REGION sits at — [Q114](../../doc/open-questions.md),
     // closed by W21.** This was `this.enter(runId, edge.to, null)`, with no
     // `fromBranch` at all. That is right at depth 1, where a join's successor is
@@ -1524,8 +1676,12 @@ export class Driver {
     // `fanout` is a node, and a node has a path — which is the whole argument for
     // the arm of W21's fork this item took. `pathOf('inner')` is `'1'`; at depth 1
     // `pathOf` of a top-level fanout is `'-'`, so every existing run is unchanged.
-    // The `null` PAYLOAD is untouched and is a different question ([Q36](../../doc/open-questions.md));
-    // this changes only which branch the arrival is attributed to.
+    // **The PAYLOAD was a different question when W21 wrote this, and it is
+    // answered now** — [Q36](../../doc/open-questions.md), `JP-R12`, and the
+    // `collectArrivals` call below. This comment read *"The `null` PAYLOAD is
+    // untouched"*, which stopped being true twenty lines up. W34's conformity
+    // reader. What W21's paragraph is still about is unchanged: it fixes which
+    // BRANCH the arrival is attributed to, and not what travels with it.
     // **Both halves, and the first version shipped only one.** The path says
     // WHICH branch; `fromRegion` says which region that branch belongs to, and the
     // `end` arm attributes a `branch.exited` by `fromRegion` alone. With it
@@ -1540,7 +1696,8 @@ export class Driver {
     // region CONTAINING it is that node's region.
     if (edge) {
       this.enter(
-        runId, edge.to, null, this.pathOf(region.fanoutId, itemIndices),
+        runId, edge.to, collectArrivals(this.arrivals.get(region.fanoutId)),
+        this.pathOf(region.fanoutId, itemIndices),
         this.regionOf(region.fanoutId)?.fanoutId, itemIndices,
       );
     }

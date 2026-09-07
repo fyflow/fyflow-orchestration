@@ -252,3 +252,85 @@ export const nestedExit: FlowDefinition = {
     [{ id: 'abandoned', kind: 'end', outcome: 'branch-abandoned' }],
   ),
 };
+
+/**
+ * **`matrix-map` — the matrix's first `map` region, and P10's Scope item 4.**
+ * [W34](../../doc/work-items/w34-what-a-branch-receives-and-what-a-join-carries.md).
+ *
+ * **A map is a ROW question here and not a column one**, which was W34's written
+ * prediction 3 and is confirmed by what this file needed: a column is a **policy**
+ * (`MATRIX_COLUMNS`), and a map is not a policy. W33 measured that after
+ * `arrival-count`'s re-sourcing **not one shipped policy reads its `Region` at
+ * all**, so nothing about a map changes what a column is; what it changes is the
+ * event stream a column is fed. So the four existing columns run unchanged over
+ * new rows.
+ *
+ * **Why the matrix needs a map row at all, given W33 asserted the policies
+ * directly.** `arrival-count`'s `N` is counted from `branch.opened` since
+ * `spec/join-policy.md` v0.12, and **on every static region the counted N and the
+ * declared N agree** — that is exactly why all 52 cells were unmoved by that
+ * change. A `map` region is the only place they can differ, so it is the only
+ * input under which the re-sourcing is a claim rather than an identity. Until this
+ * row the L5 rung ran the re-sourced policy on inputs that could not tell.
+ *
+ * `over` is `items`, so the arity is whatever `ingest` settles with — which makes
+ * one definition carry N = 3 and N = 0 without a second graph, the property
+ * `FD-V9`'s floor denies a `fanout`.
+ */
+export const mapRegion: FlowDefinition = {
+  flowId: 'matrix-map',
+  version: 1,
+  entry: 'ingest',
+  nodes: [
+    { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'per' }] },
+    { id: 'per', kind: 'map', over: 'items', branch: 'score' },
+    { id: 'score', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'collect' }] },
+    { id: 'collect', kind: 'join', of: 'per', edges: [{ to: 'publish' }] },
+    { id: 'publish', kind: 'task', workerType: 'PublishWorker', edges: [{ to: 'done' }] },
+    { id: 'done', kind: 'end', outcome: 'completed' },
+  ] as unknown as FlowDefinition['nodes'],
+};
+
+/**
+ * **The same region with a decision inside the mapped branch** — P1's case at an
+ * arity nothing declared. `isLowConfidence` reads the settlement's own `result`,
+ * so ONE definition gives *some items routed away* and *every item routed away*
+ * depending only on what the fixture settles, which is the same trick
+ * `nestedExit` uses and for the same reason: the all-exit row must not be a
+ * differently-shaped graph whose result could be blamed on the shape.
+ */
+export const mapRoutedAway: FlowDefinition = {
+  flowId: 'matrix-map-routed-away',
+  version: 1,
+  entry: 'ingest',
+  nodes: [
+    { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'per' }] },
+    { id: 'per', kind: 'map', over: 'items', branch: 'score' },
+    { id: 'score', kind: 'task', workerType: 'ScoreWorker',
+      edges: [{ when: 'isLowConfidence', to: 'abandoned' }, { to: 'collect' }] },
+    { id: 'abandoned', kind: 'end', outcome: 'branch-abandoned' },
+    { id: 'collect', kind: 'join', of: 'per', edges: [{ to: 'publish' }] },
+    { id: 'publish', kind: 'task', workerType: 'PublishWorker', edges: [{ to: 'done' }] },
+    { id: 'done', kind: 'end', outcome: 'completed' },
+  ] as unknown as FlowDefinition['nodes'],
+};
+
+/**
+ * **A mapped branch that is `optional` with no failure edge** — the only road to a
+ * settled `branch.lost` inside a map region, for the same reason
+ * `matrix-optional-lost` is the only road at depth 1: a non-optional task out of
+ * retries becomes `user_action`, not `failed`.
+ */
+export const mapLost: FlowDefinition = {
+  flowId: 'matrix-map-lost',
+  version: 1,
+  entry: 'ingest',
+  nodes: [
+    { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'per' }] },
+    { id: 'per', kind: 'map', over: 'items', branch: 'score' },
+    { id: 'score', kind: 'task', workerType: 'ScoreWorker', optional: true, edges: [{ to: 'collect' }] },
+    { id: 'collect', kind: 'join', of: 'per', edges: [{ to: 'publish' }] },
+    { id: 'publish', kind: 'task', workerType: 'PublishWorker', edges: [{ to: 'done' }] },
+    { id: 'done', kind: 'end', outcome: 'completed' },
+  ] as unknown as FlowDefinition['nodes'],
+};

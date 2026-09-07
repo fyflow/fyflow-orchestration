@@ -1,6 +1,6 @@
 # spec/join-policy — the interface the join policies sit behind
 
-**Status:** v0.12 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.13 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2 acts on the W1 spec-conformity pass**:
 `branch.lost` is redefined against
 [ADR 0004](../doc/decisions/0004-a-non-success-outcome-routes-only-where-an-edge-opts-in-and-user-action-suspends.md)
@@ -60,6 +60,18 @@ it. **Section 5 gains the N = 0 ruling**, and it adds **no POLICY mechanism** �
 event, no fourth verdict, no definition-level refusal. It does add a `regionEntered` input to
 `spec/run-state.md`, which that document's own section 5 records; *"adds no mechanism"* would
 generalise past what was measured (`doc/workflow.md` section 1 rule 5's writing clause).
+
+**v0.13 is [W34](../doc/work-items/w34-what-a-branch-receives-and-what-a-join-carries.md) under
+[P10](../doc/plans/p10-is-fan-out-one-feature-or-two.md), and it is
+[ADR 0037](../doc/decisions/0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md)
+landing in this document** — answering [Q36](../doc/open-questions.md), [Q11](../doc/open-questions.md)
+narrowed to the fan-out edge, and [Q154](../doc/open-questions.md). Section 4 gains **`JP-R11`** and
+**`JP-R12`**, and the paragraph declaring `null` *"a placeholder rather than an answer"* is replaced by
+the answer. **The argument that paragraph made is unchanged** — which event satisfies a join is decided
+by fan-out completion order — and `JP-R12` satisfies it by carrying **all** the arrivals keyed by
+`branchPath` rather than by carrying none. **`settleJoin` still takes no payload parameter**, and the
+owner table gains an **`opened`** row for the moment nothing fixed. **Section 3 is byte-unchanged for
+the second version running**: what a policy sees did not move, because a payload is not a region event.
 
 **Normative.**
 
@@ -428,23 +440,54 @@ a policy.
 |---|---|
 | **open** | The driver calls `open(region)` when the region's opener is entered, **before the first `branch.opened`** — the same constraint `JP-R5` states from the other side. **v0.12: "the opener", not "the fanout"** — a `map` opens a region too, and it does so at the same point in the traversal. A map's arity is known only once the previous node settles, and the map node is entered *because* it settled, so N is known **at this call** exactly as a fanout's is: the two-pass emission below is available to both |
 | **entered** | The driver records that the region was **entered**, whether or not it opens a branch. `spec/run-state.md`'s `regions` is *"one entry per fan-out region ENTERED"* and until v0.8 nothing could supply that for a region opening nothing, because `FD-V9`'s floor makes a `fanout` open at least two. **A map of zero items separates *entered* from *opened at least one branch***, and without this the fold reports such a run **`completed`** — see section 5 |
+| **opened** | Each branch the opener opens is entered with **its own copy** of what `JP-R11` gives it — for a `fanout` the value the fanout node received, for a `map` that instance's own item. **A row of this table since v0.13, and before that the driver's choice**: `open` and `satisfied` fixed what the driver owes at the two ends of a region and nothing fixed what it hands the branches in between, which is the gap [Q154](../doc/open-questions.md) lived in |
 | **step** | **Every** region event is forwarded, all six. `JP-R4` sizes the vocabulary for the richer policy, so a policy ignores what it does not need; a driver that filtered would decide Q4 by omission |
 | **status** | Asked after **every terminal event**, not only on arrival — a join can become satisfiable because the last live branch was `lost` or `exited` without anything arriving, which is P1's case |
-| **satisfied** | The driver routes out of the join's single edge, **at most once** per region however many events follow. **It carries `null`** — see below |
+| **satisfied** | The driver routes out of the join's single edge, **at most once** per region however many events follow. **It carries the arrived branches' results keyed by `branchPath`** — `JP-R12` below. *(Read *"it carries `null`"* until v0.13, which was a placeholder and said so.)* |
 | **unsatisfiable** | The driver **reports** it with the policy's own `describe`, and routes nowhere. It does **not** invent a run-level outcome: that vocabulary is run state's ([Q25](../doc/open-questions.md)). **Once per region, and terminal for it: however many events follow, the join is not reported again and is not routed out of — including when the policy later answers `satisfied`** ([W18](../doc/work-items/w18-the-scheduler-edge-and-what-an-id-we-did-not-mint-means.md), [Q95](../doc/open-questions.md)). **And it emits `branch.lost` for the branch of the ENCLOSING region that the dead region sits in, at that fanout's own `branchPath`** — `JP-R10`, [ADR 0030](../doc/decisions/0030-a-join-is-transitive-and-a-dead-join-ends-the-branch-it-sits-in.md) rule 4. For a region in no region there is nothing to emit and nothing is emitted, which is why this said nothing until nesting existed |
 | **no policy at all** | A definition containing a fan-out is **refused at instantiation**. The alternative is a run that dispatches every branch, sees every one arrive and stops silently — a second cause behind the observation P1 turns on |
 
-**A satisfied join carries `null` downstream, and that is a placeholder rather than an answer.**
-`status` is asked after every terminal event, so *which* event satisfies a join is decided by
-fan-out completion order — which `doc/concept.md` section 5 calls genuinely non-deterministic and
-`CLAUDE.md` says nothing may depend on. A join that forwarded "whichever branch finished last" would
-make a run's **data** order-dependent, which is worse than a flaky test: it is a flaky *result*.
+### What a branch receives and what a join carries — v0.13
 
-So the driver forwards nothing rather than picking arbitrarily, and `settleJoin` takes no payload
-parameter at all so the choice cannot be quietly reintroduced. **What a join should actually carry —
-the arrived branches' results, a declared reducer, or nothing — is
-[Q36](../doc/open-questions.md)**, and it interacts with [Q11](../doc/open-questions.md) (what a node
-receives) and [Q8](../doc/open-questions.md) (what a decision sees).
+[ADR 0037](../doc/decisions/0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md),
+answering [Q36](../doc/open-questions.md), [Q11](../doc/open-questions.md) **narrowed to the fan-out
+edge**, and [Q154](../doc/open-questions.md). **Both moments are this section's** — the driver opens a
+region and the driver routes out of a satisfied join — so both rules live beside the owner table that
+already fixes them, rather than a payload contract being split across the three documents that
+mention the word.
+
+**This replaces a paragraph that said `null` was a placeholder, and the argument that paragraph made
+is UNCHANGED and is what rule `JP-R12` is built to satisfy.** It read: *"`status` is asked after every
+terminal event, so which event satisfies a join is decided by fan-out completion order … a join that
+forwarded 'whichever branch finished last' would make a run's data order-dependent, which is worse
+than a flaky test: it is a flaky result."* **Every word of that is still true.** What changed is the
+observation that the order-dependence is in *which one*, and that carrying **all of them, keyed by the
+branch each arrived on**, is not picking one: the collection is the same value whatever order the
+branches settled in. **`settleJoin` still takes no payload parameter**, which is the guard that kept
+this a question rather than a convention; the driver records arrivals as they happen and reads the
+whole map at the exit.
+
+| id | | Test owed by |
+|---|---|---|
+| `JP-R11` | **What a branch the opener opens receives is a property of the OPENER, and no two nodes ever receive the same object.** A **`fanout`** branch entry receives the value the fanout node received, **as its own copy**. A **`map`** instance receives **its own item** — `over`'s array at that instance's index — **as its own copy**. *Its own copy* rather than *its own value* in both halves, because `structuredClone` preserves aliasing **within** one clone: `{items: [x, x]}` survives the edge hop as an array holding one object twice, so indexing alone does not give the invariant. **Before this rule one clone was shared N ways** and a branch mutating what it was given mutated its siblings' input ([Q154](../doc/open-questions.md)) — measured as `a.payload === b.payload` being `true` for a `fanout`, and **every pair** being `true` for a map. **It is a driver-level fact in both pool kinds and only its OBSERVABILITY differs**: measured on a real scheduler, an inline sibling saw the other's write and a threaded one did not, which is why the rule is not conditioned on the pool — the driver cannot see it, and that is `OR-R2`'s own reason for cloning *including where it is redundant*. Test: at ladder L2, `a.payload === b.payload` for a `fanout` at **arity 2 AND at an arity above 2** — a two-branch fixture has one pair, so a driver that copied for all but one branch would pass it; for a `map` at **N = 1, 2, 3 and 7**, N = 1 being the arity a `fanout` can never reach (`FD-V9`'s floor) and the one where the pairwise check iterates **zero** pairs; that a map instance receives `over[i]` and **not** the value the map node received, asserted **at N = 1 as well**, because at that arity the two differ by one array wrapper and nothing else; and the constructed `[x, x]` case, asserting the two instances do not share. **The invariant is about OBJECTS**: a map over repeated primitives (`['a','a']`) hands two instances the same primitive and that is not a violation, because a primitive cannot be mutated | **[W34](../doc/work-items/w34-what-a-branch-receives-and-what-a-join-carries.md)** |
+| `JP-R12` | **A satisfied join carries an object keyed by `branchPath`, one entry per branch that emitted `branch.arrived`, whose value is what that branch carried into the join.** Keys are inserted in **ascending `branchPath` order, compared segment-wise as numbers** — so `1` precedes `1.0` precedes `2` precedes `10` — which is what makes the object the same value whatever order the branches settled in. **A branch that was routed away, lost, or is still suspended has NO entry**, so the key set is exactly *which branches arrived* and is not the region's width; a join nothing arrived at carries `{}`, which is live rather than defensive because `live-token` fires over an all-exited region ([ADR 0003](../doc/decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md)'s recorded cost). **The key order must be PINNED and that is not decoration**: measured, integer-like object keys are re-ordered ascending **by the language**, so a depth-1 join is deterministic for free, while **dotted keys keep insertion order — which for a join is settlement order.** The hazard is therefore invisible at depth 1 and live at depth 2. Test: at ladder L5, every cell whose join fires, asserting the collected object against a value derived from the row's own steps; the all-exited row asserting `{}`; a routed-away row asserting the absent branch has no key; **a branch that arrived carrying `null`, asserting it has a KEY** — the clause distinguishing *present with `null`* from *absent*, which every other row leaves unexercised because their arrivals all carry objects. **The key-order clause is tested at L2, not at L5, and the reason is structural**: every depth-2 matrix row settles its inner branches in ascending path order, so insertion order already equals sorted order there and no L5 cell can discriminate. The discriminating fixture is a map at **N = 12 nested in a fan-out branch, settled descending** (`1.0 … 1.11`), where unsorted, lexicographic and segment-wise-numeric give three different answers. **The *suspended* road has NO live case and cannot have one**: no shipped or variant policy fires a join while a branch is parked — `arrival-count` is short an arrival and both live-token variants still hold a token — so that third absence road is recorded as untestable rather than left looking covered | **[W34](../doc/work-items/w34-what-a-branch-receives-and-what-a-join-carries.md)** |
+
+**What is NOT decided here, named rather than left implicit.**
+
+- **A declared reducer on the join node** — [Q36](../doc/open-questions.md)'s second candidate — is
+  **not built**, and not because it is wrong:
+  [ADR 0002](../doc/decisions/0002-a-flow-definition-is-data-and-a-predicate-is-registered-by-name.md)
+  rule 3's registered-by-name mechanism would carry it exactly as it carries `when`. It is refused
+  because **a reducer is a function of what the join collects, so it cannot be specified before
+  `JP-R12` is**. `JP-R12` is what a reducer would receive, and adding one is additive.
+  [Q165](../doc/open-questions.md).
+- **[Q11](../doc/open-questions.md) in general.** `JP-R11` is about the fan-out edge. An ordinary edge
+  still carries the previous node's `result` unchanged, a run-scoped accumulator is still unbuilt, and
+  a per-edge mapping is still unbuilt.
+- **What a map instance LOSES** by receiving its item rather than the value around it —
+  [Q166](../doc/open-questions.md), which is Q11-in-general's to fix.
+- **[Q8](../doc/open-questions.md)** — what a decision sees. A predicate still receives one field,
+  the node's effective outcome (`OR-R9`), and `JP-R12` does not change it.
 
 **The driver ships no policy.** All three are W2's, `JP-R7` and `JP-R8` pin what their names mean,
 and W4 decides between the first two. A driver carrying a default would answer
@@ -527,6 +570,24 @@ different arity ([P10](../doc/plans/p10-is-fan-out-one-feature-or-two.md) fact 5
 > **What this leaves for whoever answers [Q97](../doc/open-questions.md)** is a sharper question than
 > the row above states: the case for a fourth event is no longer *"so a policy can choose between two
 > readings that agree"* — it is that a policy cannot see a fact the driver has to act on alone.
+>
+> **And the *"why no policy says `unsatisfiable`"* row's scope is narrower than it reads — v0.13.**
+> It says *"**none can tell**: a policy's state after a region opens nothing is byte-identical to its
+> state before any branch opens"*, and that is **true of the three policies section 3 names** and
+> false of a policy in general. `arrival-count-decrementing` — `JP-R7`'s refused variant, which
+> [ADR 0025](../doc/decisions/0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md)
+> rule 3 requires to stay executable — has **no `need > 0` pin**, so `0 >= 0` reports **`satisfied`**
+> at `open`. Measured at ladder L5 on the `map-zero-items` row by
+> [W34](../doc/work-items/w34-what-a-branch-receives-and-what-a-join-carries.md), which is the first
+> input in the repository that could show it.
+>
+> **This makes W33's removal of the N = 0 `settleJoin` call load-bearing, where that item measured it
+> as costing zero.** Its argument was *"the answer is fixed, so the call claims to consult a policy
+> when it cannot"* — right about the shipped three, and with the call restored this variant would
+> **route the join's successor out over a region no branch ever reached**, which is character for
+> character what ADR 0025 refused it for. The ruling is unchanged; what is corrected is the reason
+> given for one row of it (`doc/workflow.md` section 1 rule 5's writing clause, the same clause this
+> section was already corrected under once).
 
 **What makes the ruling safe rather than merely quiet is the *entered* row in section 4, and it was
 measured before it was written.** Without it a map of zero items appends **nothing at all**: the

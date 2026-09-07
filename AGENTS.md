@@ -135,12 +135,21 @@ a wire.
 > with an `UnresolvedMapArity` naming the node and the key; an empty array is a lawful map of zero
 > items and makes the run `stuck`, because the join can never fire.
 >
-> **Two things a consumer should NOT read into this yet.** Every instance receives the whole value
-> the map node received rather than its own item, and a satisfied join still carries `null` — what a
-> branch receives and what a join carries are
-> [Q11](doc/open-questions.md)/[Q36](doc/open-questions.md), and they are
-> [W34](doc/work-items/w34-what-a-branch-receives-and-what-a-join-carries.md)'s, deliberately after
-> this item so the rule is written from cases rather than from a mechanism.
+> **What each instance receives, and what the join hands on.** Each instance is dispatched with
+> **its own item** — `over`'s array at that instance's index, as its own copy, so no two instances
+> share an object — and the join carries **every item's result keyed by that item's branch path**. A
+> map of three items at the top level dispatches three tasks and its successor receives
+> `{ "0": …, "1": …, "2": … }`; **a map nested in a fan-out branch keys its collection with the whole
+> path**, so a map inside branch 1 gives `{ "1.0": …, "1.1": … }`. *(This said "keyed by its item
+> index", which is the depth-1 case stated as if it were general — W34's conformity reader.)*
+> [ADR 0037](doc/decisions/0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md),
+> and see *What a join carries downstream* in section 5 for what happens when an item's branch does
+> not arrive.
+>
+> *(This paragraph read **"every instance receives the whole value the map node received rather than
+> its own item, and a satisfied join still carries `null`"** until W34, which is where
+> [Q11](doc/open-questions.md) and [Q36](doc/open-questions.md) were deliberately held so the rule
+> would be written from cases rather than from a mechanism.)*
 >
 > **This paragraph is the minimum that is not false and is not the feature write-up.** It read
 > *"NOTHING DISPATCHES ONE YET"* until W33, which is [Q157](doc/open-questions.md)'s second
@@ -336,7 +345,8 @@ road each branch took.
 
 `liveTokenRequiringArrival` is `liveToken` **with one clause added**: it fires only if at least one
 branch actually arrived. On a flow where every branch is routed away, `liveToken` fires a join **no
-branch reached** and carries `null` onward; this one instead reports the join as unfireable — through
+branch reached** and carries **`{}`** onward — an empty collection, which is what a join with no
+arrivals has to say; this one instead reports the join as unfireable — through
 `onUnsatisfiableJoin`, with the policy's own state, and the run folds to **`stuck`** with
 `regions[…].joined === false` whether or not you registered that callback.
 
@@ -398,10 +408,81 @@ is not a supported choice. See
 
 ### What a join carries downstream
 
-**`null`, currently.** A satisfied join can be reached from three different branches and which one
-arrives last is genuinely non-deterministic, so forwarding "whichever finished last" would make your
-data depend on scheduling. Nothing is invented in its place. This is
-[Q36](doc/open-questions.md) and it is open.
+**The arrived branches' results, keyed by branch path.** A satisfied join dispatches its successor
+with an object whose keys are the `branchPath`s of the branches that **reached** it, and whose values
+are what each of those branches carried in — so a fan-out's results are not thrown away, and the
+value is the same whatever order the branches finished in.
+
+```ts run
+import { Driver, liveToken, type FlowDefinition, type Predicate } from 'fyflow-orchestration';
+
+const definition: FlowDefinition = {
+  flowId: 'collect', version: 1, entry: 'split',
+  nodes: [
+    { id: 'split',   kind: 'fanout', branches: ['scoreA', 'scoreB'] },
+    { id: 'scoreA',  kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'collect' }] },
+    { id: 'scoreB',  kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'collect' }] },
+    { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'publish' }] },
+    { id: 'publish', kind: 'task', workerType: 'PublishWorker', edges: [{ to: 'done' }] },
+    { id: 'done',    kind: 'end', outcome: 'completed' },
+  ],
+};
+
+const dispatched: { id: string; payload: unknown }[] = [];
+const listeners = new Map<string, ((e: { detail: unknown }) => void)[]>();
+const driver = new Driver(definition, {
+  runId: 'r', scheduler: {
+    addTask() {},
+    addEventListener(t: string, fn: (e: { detail: unknown }) => void) {
+      listeners.set(t, [...(listeners.get(t) ?? []), fn]);
+    },
+  },
+  createTask: (c) => { dispatched.push({ id: c.id, payload: c.payload }); return c; },
+  predicates: new Map<string, Predicate>(),
+  workerTypes: ['ScoreWorker', 'PublishWorker'],
+  joinPolicy: liveToken,
+});
+const settle = (id: string, result: unknown) => {
+  for (const fn of listeners.get('task.completed') ?? []) fn({ detail: { id, state: 'done', result } });
+};
+
+driver.start({});
+// `split` declares ["scoreA", "scoreB"], so their branch paths are "0" and "1".
+settle('r:scoreB:1:0', { score: 0.4 });        // note the order: B settles FIRST
+settle('r:scoreA:0:0', { score: 0.9 });
+
+const publish = dispatched.find((t) => t.id === 'r:publish:-:0');
+console.log(JSON.stringify(publish?.payload));  // {"0":{"score":0.9},"1":{"score":0.4}}
+if (JSON.stringify(publish?.payload) !== '{"0":{"score":0.9},"1":{"score":0.4}}') {
+  throw new Error(`the join carried ${JSON.stringify(publish?.payload)}`);
+}
+// B settled first and is still under key "1". The collection is keyed by BRANCH,
+// not by arrival order, which is the whole point.
+```
+
+**Three things to know before you write code against it.**
+
+1. **A branch that did not arrive has no key.** Routed away to an `end`, lost with no eligible edge,
+   or still suspended on a person — all three are absent rather than `null`. So `Object.keys(payload)`
+   is *which branches arrived*, and it is **not** the width of the fan-out. Code that assumes N
+   entries is wrong on every non-success outcome.
+2. **`{}` is a real answer, not an error.** Under `liveToken` a join fires once its region has no live
+   branches, and every branch reaching an `end` satisfies that with nothing arrived. If that should be
+   a failure instead, pass `liveTokenRequiringArrival` — see above.
+3. **The keys are strings, in ascending branch-path order**, compared segment by segment as numbers —
+   so `"0"`, `"1"`, `"2"`, `"10"` at the top level, and `"1.0"`, `"1.1"`, `"1.10"` inside branch 1.
+   A nested region's inner join carries its own object, which becomes the value of the outer branch it
+   sits in. **Every key of one collection has the same number of segments**, because they are the
+   branch paths of one region. *(An earlier version of this bullet illustrated the order as `"1"`,
+   `"1.0"`, `"2"`, `"10"` — a mix of depths that no single collection can hold, and one that
+   `Object.keys` would not even return in that order, because JavaScript re-orders integer-like keys
+   ahead of string ones. W34's conformity reader.)*
+
+*(This section read **"`null`, currently … this is [Q36](doc/open-questions.md) and it is open"**
+until [ADR 0037](doc/decisions/0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md).
+The argument for the `null` was real and is unchanged — which branch finishes last is genuinely
+non-deterministic — and what answered it is that carrying **all** the arrivals keyed by branch is not
+picking one. `spec/join-policy.md` section 4, `JP-R12`.)*
 
 ---
 

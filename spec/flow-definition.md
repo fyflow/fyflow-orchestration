@@ -1,6 +1,6 @@
 # spec/flow-definition — the flow definition format
 
-**Status:** v0.9 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.10 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2** acted on the first spec-conformity pass
 (ADR 0004, and `region(F)` made computable). **v0.3** acted on the second, which found that `FD-V19`
 had reintroduced the v0.1 defect class under a new id — a refusal rule rejecting the valid corpus.
@@ -35,6 +35,20 @@ exception on this document): section 2 left *"what happens when `over` names a k
 holds something that is not an array"* to W33 by name and reserved no rule id for it. W33 built the
 refusal and shipped it with no rule anywhere in `spec/`; the id is taken now, beside `FD-R1`, which is
 this document's precedent for a rule about what a RUN does. **No `FD-V` changed and no node kind
+changed.**
+
+**v0.10 is [W34](../doc/work-items/w34-what-a-branch-receives-and-what-a-join-carries.md) under
+[P10](../doc/plans/p10-is-fan-out-one-feature-or-two.md), and it is the OTHER of section 2's two
+questions addressed to an item by name.** [ADR 0037](../doc/decisions/0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md)
+answers *what `over` is a key on* and *what each map instance receives*; section 3 gains **what an
+ordinary edge carries**, which no document in `spec/` had ever stated, and section 4's
+*"what each receives is W33's and W34's"* sentence gains its answer. **No rule id is taken here and
+that is deliberate**: this document has `FD-V*` for a validation rule and `FD-R*` for a runtime
+refusal and **no prefix for a rule about what a run CARRIES** ([Q164](../doc/open-questions.md)), and
+`scripts/check-spec.mjs`'s `RULE_ID` is a closed list of eight prefixes, so an invented one would be
+invisible to `C2` and `C6` — a rule declared, cited and checked by nothing. The rules are `JP-R11` and
+`JP-R12` in [spec/join-policy.md](join-policy.md) section 4, whose owner table already fixes what the
+driver does at both ends of a region. **No `FD-V` changed, no `FD-R` changed and no node kind
 changed.**
 
 **Binds:** [ADR 0002](../doc/decisions/0002-a-flow-definition-is-data-and-a-predicate-is-registered-by-name.md)
@@ -132,13 +146,29 @@ rule 1 binds the whole document: anything that does not survive `JSON.parse(JSON
 not a definition, so *"how many items"* is a name the driver resolves and never a function the
 author supplies.
 
-**What `over` is a key ON is deliberately not settled here.** It is the value the driver hands the
-map node — today the previous node's output unchanged, which is measured rather than specified;
-**what a node receives is [Q11](../doc/open-questions.md) and belongs to
-[W34](../doc/work-items/w34-what-a-branch-receives-and-what-a-join-carries.md)**. This rule is
-stated against whatever that resolves to, and nothing here depends on which of Q11's three
-candidates wins. A `map` may be the `entry` node, and then the value is the run's start payload;
-that needs no rule, because `FD-V3` refuses only a `join` or an `end`.
+**What `over` is a key ON — v0.10, and it is settled now.** It is the value the driver hands the
+map node, which for an ordinary edge is the previous node's `result` unchanged (section 3). A `map`
+may be the `entry` node, and then the value is the run's start payload; that needs no rule, because
+`FD-V3` refuses only a `join` or an `end`. **A map node is never itself a branch entry**
+(`FD-V25` makes a map's `branch` a `task` and `FD-V9` a fanout's entries tasks), so `JP-R11` does not
+reach what a map node receives — only what its instances do.
+
+**What each INSTANCE receives is `over`'s array at that instance's index, as its own copy** —
+`JP-R11` in [spec/join-policy.md](join-policy.md) section 4, and
+[ADR 0037](../doc/decisions/0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md)
+rule 3. **That is what makes `over` mean something**: handed the whole value instead, an instance can
+only find its own item by an index nothing gives it, and `over` would name an array whose sole use is
+its `length`.
+
+*(This paragraph read *"deliberately not settled here … what a node receives is
+[Q11](../doc/open-questions.md) and belongs to
+[W34](../doc/work-items/w34-what-a-branch-receives-and-what-a-join-carries.md)"*. **It is the same
+shape as the `FD-R2` paragraph below and it is answered rather than left**: that one addressed a
+run-time question to W33 by name, W33 built the answer and shipped it with **no rule id anywhere in
+`spec/`**, and only its conformity reader caught it. The rule is `JP-R11` and it lives in
+`spec/join-policy.md` because that is the document whose section 4 fixes what the driver does when it
+opens a region; **[Q164](../doc/open-questions.md) is why it is not `FD-`-prefixed.** Q11 itself stays
+**open in general** — a run-scoped accumulator and a per-edge mapping are both unbuilt.)*
 
 **What happens when `over` names a key that is absent, or holds something that is not an array, is
 a RUN-TIME question, and v0.9 answers it as `FD-R2`.** It was left open here for
@@ -193,6 +223,23 @@ W33 took it as a declared late exception.)*
    [Q8](../doc/open-questions.md); adding a field later is additive rather than a signature change.
 5. A predicate is pure (ADR 0002 rule 4). Purity is not enforced by this document;
    [Q9](../doc/open-questions.md) is about the mechanism.
+
+**What the edge CARRIES, as opposed to which edge is taken — v0.10.** Routing above decides *which*;
+this is the other half and until v0.10 no document in `spec/` stated it, which is the gap
+[Q11](../doc/open-questions.md) and [Q154](../doc/open-questions.md) both lived in.
+
+> **An ordinary edge carries the source node's effective-outcome `result`, deep-copied.** The copy is
+> `spec/outcome-record.md` section 4's *"copying the field copies the reference"* applied to the one
+> exit that reaches a worker: without it the next task's payload **is** the record's `result`, and an
+> inline worker mutating what it was given edits a record already in the log.
+
+**A fan-out edge and a join's exit edge are the two that are not ordinary**, and both are
+[spec/join-policy.md](join-policy.md) section 4's — `JP-R11` for what each opened branch receives, and
+`JP-R12` for what a satisfied join carries. They live there because that section already fixes what
+the driver owes at both ends of a region, and because splitting one payload contract across documents
+is what left it unstated for ten plans. **[Q164](../doc/open-questions.md)** records the other reason:
+this document has an id prefix for a **validation** rule and one for a **runtime refusal**, and none
+for a rule about what a run *carries*.
 
 **Rule 4's *"always the effective outcome"* is what closes a hole the second pass found.** A resumed
 node has two records in the log — the `user_action` settlement and the resolution — and neither is
@@ -400,7 +447,11 @@ the right diagnosis instead of the symptom.
 — they are [W33](../doc/work-items/w33-a-map-at-run-time-arity.md)'s and
 [W34](../doc/work-items/w34-what-a-branch-receives-and-what-a-join-carries.md)'s. This section fixes
 only that the index exists, that it is not derivable from the graph, and that asking for it without
-supplying it is refused.
+supplying it is refused. **Both are answered now and neither answer is here**: the first three are
+`JP-R5` and section 4's owner table in [spec/join-policy.md](join-policy.md), and *what each receives*
+is **`JP-R11`** there — [ADR 0037](../doc/decisions/0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md).
+Recorded here rather than left pointing at two unstarted items, which is
+`doc/workflow.md` section 1 rule 5's *any copy, including your own*.
 
 `region(F)` is computed at instantiation and is what a join policy is given
 ([spec/join-policy.md](join-policy.md) section 1). Region membership must be *computable*, which is
