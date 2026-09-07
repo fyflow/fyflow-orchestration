@@ -224,6 +224,64 @@ running — 125 questions, 85 open, 2 deferred, 38 resolved**, all 120 live ids 
 cell; **Q164-Q166 used, Q167 deliberately NOT taken** because W35 has not reserved.
 
 
+**[W36](doc/work-items/w36-the-scheduler-pin-moves-to-0-5-1.md) is DONE and the scheduler pin is
+`fyflow-scheduler` 0.5.1**, from both registries — npm and JSR, `latest` on both. **It belongs to no
+plan**, on [ADR 0029](doc/decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)'s
+own precedent: an environment change belongs to no plan, and taking a reserved id would make a plan's
+ledger false. It is a **work item rather than a chore** because it falsifies a sentence in the
+normative layer — `spec/README.md` rule 6 named 0.3.0 as *"the version we pin"*.
+
+**The bump is behaviourally clean and that was measured rather than assumed.**
+`core/FyflowScheduler.ts` is **byte-identical** between 0.3.0 and 0.5.1 — 1851 lines, zero changed —
+so all eleven lines `spec/` cites are unmoved; the `user_action` event pair holds, measured by running
+it; `SpawnTaskConfig.parents` is still declared and dead, so `doc/concept.md` section 2's founding
+fact is re-verified at a second version; and **L6 passes 489 assertions / 25 real runs in BOTH
+runtimes**. The reference grows 858 to 887 lines and **every added line is `worker.setup.*` /
+`worker.teardown.*`**, a family this library subscribes to not at all — [Q167](doc/open-questions.md).
+`spec/` is **7 documents, 33 examples, 80 rules**; `task-id` **v0.9**, `outcome-record` **v0.7**,
+`join-policy` **v0.14**, `runtime-targets` **v0.8**. `npm run gate` is **`GATE EXIT=0`, zero FAIL
+lines, 19 entries, 455 s**.
+
+**Its central risk is the thing it got wrong, and its readers found twelve instances.** The item's own
+scope says the 167 citations of `0.3.0` split into **live** and **historical**, and that a blanket
+replace *"would silently rewrite the evidence twelve items were decided from"*. **The split is
+enforced by reading, and it leaked twelve times** — every one a **neighbour** of a line changed
+correctly: the note beside the pin, the row below it, the second half of the same header comment, a
+later section of the same `spec/` document, the Consequences under a re-dated ADR, and
+`spec/task-id.md`, **named in the item's own `Spec:` line and then not touched**. A prefix replace
+also put **`0.5.0`** into ADR 0029 rule 2, in the decision that IS the pin's authority. *Reasoning
+about a line does not sweep what surrounds it.*
+
+**And the adequacy reader's headline is the sharpest finding: a check bound its INPUTS tightly and
+its PREMISE not at all.** Dropping `--import-map` from `test:l6:deno` makes Deno resolve the bare
+specifier out of `node_modules` — **the npm package** — and L6 reports *"on deno 2.9.6"* at 489
+assertions, exit 0, **with `D3` printing `ok`**; the JSR half is never loaded. Replacing the command
+with `node examples/l6.ts` deletes the Deno rung entirely, also for zero. `S12` binds the gate chain's
+entry NAMES; **nothing bound an entry's ARGUMENTS**, so `D3`'s premise — *ladder L6 runs in both
+runtimes* — was a fact about a command string nothing checked. **`D6` closes both**, with two probes
+and two `META` entries. **This is obligation (e) in a fourth shape**: not a check that is not run
+(W24, W30), not a guard that cannot reach its subject (W33), not a value computed and never read
+(W34), but **a check whose stated premise is a fact about a command string**.
+
+**Two more were in code written to FIX a provenance problem.** L6's version banner read `node_modules`
+in both runtimes with a comment claiming that was *"the thing that was loaded"* — true in Node, false
+in Deno — and it read correctly only because `D3` forces the halves to agree, so the bug was invisible
+exactly while the check it depends on passed. The discriminating test is checked in: with the npm
+manifest corrupted, **Node prints 9.9.9 and Deno prints 0.5.1**. And adding `D6` produced a live
+instance of a class this repository had killed as a hypothesis — `ALL_CHECKS` is a **closed
+allowlist**, so `D6:` failure lines were invisible to the id parse ([Q43](doc/open-questions.md)'s class,
+which W29's declaration killed for three other self-tests).
+
+**Rule 8: 25 provocations, 19 caught, 6 declared ceilings, 0 aborted**, with twelve reader edits
+checked back in — **and the re-run found that a fix for a reader's finding was HALF a fix**, which is
+that obligation's founding observation. `PROBES` now carries **three** bounds it did not have —
+citation, distinctness and content — the set `META` has had since W29. **Overlap 1**, the eighteenth
+measurement, inside the 0-4 band, both readers unprimed. **Census: 126 questions — 86 open, 2
+deferred, 38 resolved.** Q167 used; **Q168 and Q169 reserved and unused**. **No ADR**: the decision
+(one exact version, from both registries, `D3` comparing the halves) is ADR 0029's and is unchanged —
+[Q3](doc/open-questions.md) is **amended, not reopened**.
+
+
 **[P8](doc/plans/p8-what-can-be-deleted-with-the-gate-green.md) asks *what can be deleted from this
 repository with `npm run gate` still green?*, and it is the plan that owns `scripts/**` and
 `package.json`** — the paths in nobody's `Owns` that blocked **two** checks in P7 alone, which P7's
@@ -864,7 +922,7 @@ not used for flow control; **a flow definition is data with predicates registere
 an unknown name fails at instantiation rather than at routing time; and **the driver normalizes
 every scheduler event into an immutable outcome record at the listener boundary**, because event
 details are live mutable objects and `task.failed` also fires for `user_action` tasks. Pinned to
-`fyflow-scheduler` **0.3.0**, installed **from npm**, with Deno reaching `@fyflow/scheduler@0.3.0` on **JSR** — [ADR 0029](doc/decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md).
+`fyflow-scheduler` **0.5.1** since [W36](doc/work-items/w36-the-scheduler-pin-moves-to-0-5-1.md), installed **from npm**, with Deno reaching `@fyflow/scheduler@0.5.1` on **JSR** — [ADR 0029](doc/decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md).
 
 **[P1](doc/plans/p1-what-satisfies-a-join.md)'s five work items are all built.** `spec/` holds **six
 normative documents and 73 numbered rules**; `src/` holds the definition validator, the driver and
@@ -1086,7 +1144,7 @@ never dispatched. Three ADRs came out of it, and **each came from a different ki
 
 | | |
 |---|---|
-| [**0013**](doc/decisions/0013-the-scheduler-is-a-development-dependency-reached-from-the-working-tree.md) | `fyflow-scheduler` is a **development** dependency and the published library depends on it **not at all** — `SchedulerLike` is structural and a caller passes its own scheduler in. **`S7` in `scripts/check-source.mjs` refuses any published file that imports it.** **Superseded in part 2026-08-31 by [ADR 0029](doc/decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)** — rule 1 stands, rules 3 and 5 do not. Node reaches 0.3.0 through **npm** → `dist/`; Deno through `examples/deno-import-map.json` → **`jsr:@fyflow/scheduler@0.3.0`** → the source; the browser not at all |
+| [**0013**](doc/decisions/0013-the-scheduler-is-a-development-dependency-reached-from-the-working-tree.md) | `fyflow-scheduler` is a **development** dependency and the published library depends on it **not at all** — `SchedulerLike` is structural and a caller passes its own scheduler in. **`S7` in `scripts/check-source.mjs` refuses any published file that imports it.** **Superseded in part 2026-08-31 by [ADR 0029](doc/decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)** — rule 1 stands, rules 3 and 5 do not. Node reaches **0.5.1** through **npm** → `dist/`; Deno through `examples/deno-import-map.json` → **`jsr:@fyflow/scheduler@0.5.1`** → the source; the browser not at all |
 | [**0014**](doc/decisions/0014-the-driver-produces-the-folds-ordered-input-sequence.md) | **The driver produces the fold's ordered input sequence** — `Driver.foldInputs()`, and `onFoldInput` for the push half. `snapshot()` is now *defined* as its record-kind subsequence. Before this, `FoldInput.pathEnded` had **no producer anywhere** |
 | [**0015**](doc/decisions/0015-a-run-whose-join-can-no-longer-fire-is-stuck.md) | **A run whose join can no longer fire is `stuck`** — the sixth run outcome. Run state used to call such a run `completed` |
 
@@ -1373,7 +1431,7 @@ paths from the repo root in prose; only markdown links are relative.
 
 ## Facts about fyflow-scheduler that catch people out
 
-Grounded in its `AGENTS.md` at **0.3.0**, which **ships inside the npm package**: read it at
+Grounded in its `AGENTS.md` at **0.5.1**, which **ships inside the npm package**: read it at
 `node_modules/fyflow-scheduler/AGENTS.md`, not next door. There is **no changelog**, so a version
 bump means re-reading `AGENTS.md` §6 rather than reading a diff. Re-check there rather than trusting
 this list if it matters.
@@ -1458,7 +1516,7 @@ Node 16 is what a bare `node` resolves to here, and it fails at `??=`-era syntax
 reaches a test.
 
 **`npm install` is just `npm install`.** The scheduler is a pinned registry devDependency
-(`fyflow-scheduler@0.3.0` from npm; Deno reaches `jsr:@fyflow/scheduler@0.3.0`), so nothing needs to
+(`fyflow-scheduler@0.5.1` from npm; Deno reaches `jsr:@fyflow/scheduler@0.5.1`), so nothing needs to
 be checked out beside this repository and **this repo writes nothing outside itself** —
 [ADR 0029](doc/decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md),
 which supersedes ADR 0013 rules 3 and 5.

@@ -28,7 +28,7 @@ Reserves:   Q167-Q168
 **In**
 
 1. **The exit artifact.** A map-fanout on a real scheduler, real workers, end to end, **in both L6
-   runtimes** — Node 24 via npm's `dist/`, Deno via `jsr:@fyflow/scheduler@0.3.0`
+   runtimes** — Node 24 via npm's `dist/`, Deno via `jsr:@fyflow/scheduler@0.5.1`
    ([ADR 0029](../decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)).
    The arity comes from a worker's return value, so **the number of tasks dispatched is not in the
    definition and not in the harness.**

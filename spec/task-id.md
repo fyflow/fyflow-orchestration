@@ -1,6 +1,6 @@
 # spec/task-id — the scheduler task id scheme
 
-**Status:** v0.8 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.9 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2 acts on the W1 spec-conformity pass**:
 section 2 point 3 was **wrong about the source** and is corrected (finding D7), `branchPath` is
 pinned against convergent branches (B3), and the rules name the item owing their test (D8, N19).
@@ -49,6 +49,15 @@ one node mint 500 distinct strings**. So none of the *"every fixture, every log 
 name"* cost this section spends its argument on is paid. **What v0.8 changes is section 1's own
 heading**: inside a `map` region a branch index is a property of the **dispatch**, and `ID-R6` is the
 refusal that keeps a derivation from guessing one.
+
+**v0.9 is [W36](../doc/work-items/w36-the-scheduler-pin-moves-to-0-5-1.md), and it is a VERSION
+re-dating rather than a rule change.** The `fyflow-scheduler` pin moved 0.3.0 to 0.5.1; section 2's *"read in the source at"* is re-dated and gains the byte-identical finding.
+**No rule id, no rule text and no test owed changed** — `core/FyflowScheduler.ts` is **byte-identical**
+between the two versions, so every line this document cites is unmoved and every claim it makes about
+0.3.0 is true at 0.5.1. *(The bump was first shipped with these documents edited and NOT re-versioned,
+which left `spec/README.md`'s column unchanged and made `check-spec`'s `C8` vacuous for the whole
+change — the one check that exists to notice a stale version row. W36's conformity reader.)*
+
 **Normative.** Answers [Q13](../doc/open-questions.md).
 **This is a correctness rule, not a naming convention.** Section 2 is why.
 
@@ -188,7 +197,8 @@ claimed both were unchanged was wrong about the second.
 ## 2. Why a collision corrupts a run
 
 `AGENTS.md` section 5 records this as one line — *"Must be unique; reusing an id overwrites"* — and
-the one line understates it. Read in the source at **0.3.0**:
+the one line understates it. Read in the source at **0.5.1**, where `core/FyflowScheduler.ts` is
+**byte-identical to 0.3.0** and every line cited below is therefore unmoved:
 
 1. **`addTask` overwrites the map entry and queues the new task alongside the old one.**
    `core/FyflowScheduler.ts:444-445` — `this.tasks.set(task.id, task)` then

@@ -130,11 +130,35 @@ const MAP = 'examples/deno-import-map.json';
  * different `node_modules` root by moving the installed package aside — the one
  * thing that cannot be expressed as a file edit.
  */
+/**
+ * **The pin anchors, VERSION-AGNOSTIC.** Every probe below used to name the literal
+ * `0.3.0`, and the moment
+ * [W36](../doc/work-items/w36-the-scheduler-pin-moves-to-0-5-1.md) moved the pin to
+ * 0.5.1 **nine of them reported *"the mutation matched nothing"*** — rule 7 (b)
+ * firing correctly rather than passing, and the fourth item running to hit that
+ * class after W33 lost three probes and W34 one.
+ *
+ * **Re-anchored rather than re-pinned**, which is the only fix that does not
+ * reproduce on the next bump: these match the pin's SHAPE and capture whatever
+ * version is there, so a probe that needs a *different* version derives one from
+ * the captured value rather than hard-coding a second literal.
+ *
+ * **They are deliberately NOT sourced from `package.json` at runtime.** A probe
+ * whose anchor is read from the file it mutates agrees with that file by
+ * construction and can no longer fail to match — which is the thing rule 7 (b)
+ * exists to detect, removed rather than satisfied.
+ */
+const PKG_PIN_RE = /"fyflow-scheduler": "(\d+\.\d+\.\d+)"/;
+const PKG_PIN_LINE_RE = /[ \t]*"fyflow-scheduler": "\d+\.\d+\.\d+",\r?\n/;
+const MAP_PIN_RE = /jsr:@fyflow\/scheduler@(\d+\.\d+\.\d+)/;
+const MAP_ENTRY_RE = /"fyflow-scheduler": "jsr:@fyflow\/scheduler@\d+\.\d+\.\d+"/;
+const INSTALLED_VERSION_RE = /"version": "(\d+)\.(\d+)\.(\d+)"/;
+
 const PROBES = [
   {
     name: 'package.json asks for a RANGE rather than the pin',
     half: PKG, check: 'D2',
-    mutate: (t) => t.replace('"fyflow-scheduler": "0.3.0"', '"fyflow-scheduler": "^0.3.0"'),
+    mutate: (t) => t.replace(PKG_PIN_RE, (_m, v) => `"fyflow-scheduler": "^${v}"`),
   },
   {
     name: 'package.json reinstates the working-tree link',
@@ -142,16 +166,40 @@ const PROBES = [
     // The regression this repository moved away from, and the one that cost it a
     // sibling checkout. D1 does not fire because the INSTALLED package is still
     // the registry one; only the declaration changed.
-    mutate: (t) => t.replace('"fyflow-scheduler": "0.3.0"', '"fyflow-scheduler": "file:../fyflow-scheduler"'),
+    mutate: (t) => t.replace(PKG_PIN_RE, '"fyflow-scheduler": "file:../fyflow-scheduler"'),
   },
   {
     name: 'package.json moves the scheduler to a runtime dependency',
     half: PKG, check: 'D2',
-    mutate: (t) => t.replace('    "fyflow-scheduler": "0.3.0",\n', ''),
+    mutate: (t) => t.replace(PKG_PIN_LINE_RE, ''),
+  },
+  {
+    name: 'the Deno rung stops passing the import map',
+    half: PKG, check: 'D6',
+    // **W36's adequacy reader's blocking finding, as a probe.** Measured before the
+    // clause existed: Deno then resolves the bare specifier out of `node_modules` —
+    // the npm package — and L6 reports `on deno 2.9.6` at 489 assertions, exit 0,
+    // with `D3` printing `ok`. The JSR pin was compared and never read.
+    mutate: (t) => t.replace('--import-map=examples/deno-import-map.json ', ''),
+  },
+  {
+    name: 'the Deno rung replaced by a second NODE run',
+    half: PKG, check: 'D6',
+    // The wider form: the Deno rung of ladder L6 disappears entirely and the banner
+    // says "node" twice, with every check green. `spec/runtime-targets.md` `RT-R1`
+    // says a runtime is supported only if the gate runs in it; this is what enforces
+    // that for L6.
+    mutate: (t) => t.replace(/"test:l6:deno": "deno run[^"]*"/, '"test:l6:deno": "node examples/l6.ts"'),
   },
   {
     name: 'package.json is not readable JSON at all',
-    half: PKG, check: 'D2',
+    // **`D6` does not RUN here, declared rather than discovered** — W36. That clause
+    // reads this repository's own `package.json` too, and when it is unparseable it
+    // stays silent on purpose: `D2` already owns the unreadable-manifest clause, and
+    // a second `fail()` for one cause is the co-firing shape W29 measured. So the
+    // honest report is that D6 did not run, which is what `notRun` says and what
+    // `doc/workflow.md` section 1 rule 4 is about.
+    half: PKG, check: 'D2', notRun: ['D6'],
     // **W29.** `D2`'s own unreadable-manifest clause had no probe: every other PKG
     // probe writes valid JSON. Truncating the first brace is the cheapest edit that
     // reaches `JSON.parse`'s catch and nothing else.
@@ -162,27 +210,32 @@ const PROBES = [
     half: MAP, check: 'D3',
     // **The hazard this rewrite exists for.** Ladder L6 runs in both runtimes and
     // would report both green against two different schedulers.
-    mutate: (t) => t.replace('jsr:@fyflow/scheduler@0.3.0', 'jsr:@fyflow/scheduler@0.2.1'),
+    // The replacement version is DERIVED from the pinned one — its patch level
+    // bumped by one — so it differs from the Node half whatever the pin is.
+    mutate: (t) => t.replace(MAP_PIN_RE, (_m, v) => {
+      const [maj, min, pat] = v.split('.').map(Number);
+      return `jsr:@fyflow/scheduler@${maj}.${min}.${pat + 1}`;
+    }),
   },
   {
     name: 'the Deno half pointed back at a working-tree path',
     half: MAP, check: 'D3',
-    mutate: (t) => t.replace('jsr:@fyflow/scheduler@0.3.0', '../../fyflow-scheduler/index.ts'),
+    mutate: (t) => t.replace(MAP_PIN_RE, '../../fyflow-scheduler/index.ts'),
   },
   {
     name: 'the Deno half pointed at a different JSR package',
     half: MAP, check: 'D3',
-    mutate: (t) => t.replace('jsr:@fyflow/scheduler@0.3.0', 'jsr:@fyflow/schedulr@0.3.0'),
+    mutate: (t) => t.replace(MAP_PIN_RE, (_m, v) => `jsr:@fyflow/schedulr@${v}`),
   },
   {
     name: 'the Deno half unpinned',
     half: MAP, check: 'D3',
-    mutate: (t) => t.replace('jsr:@fyflow/scheduler@0.3.0', 'jsr:@fyflow/scheduler'),
+    mutate: (t) => t.replace(MAP_PIN_RE, 'jsr:@fyflow/scheduler'),
   },
   {
     name: 'the bare specifier dropped from the import map entirely',
     half: MAP, check: 'D3',
-    mutate: (t) => t.replace('"fyflow-scheduler": "jsr:@fyflow/scheduler@0.3.0"', '"_unused": "x"'),
+    mutate: (t) => t.replace(MAP_ENTRY_RE, '"_unused": "x"'),
   },
   {
     name: 'the import map is not readable JSON at all',
@@ -333,13 +386,23 @@ const INSTALL_PROBES = [
     check: 'D2',
     apply: (root, dir) => {
       const p = join(dir, 'package.json');
-      writeFileSync(p, readFileSync(p, 'utf8').replace('"version": "0.3.0"', '"version": "0.2.1"'));
+      writeFileSync(p, readFileSync(p, 'utf8').replace(INSTALLED_VERSION_RE,
+        (_m, maj, min, pat) => `"version": "${maj}.${min}.${Number(pat) + 1}"`));
     },
   },
 ];
 
 /** Every check `check-scheduler.mjs` reports under, in the order it reports them. */
-const ALL_CHECKS = ['D1', 'D2', 'D3', 'D4', 'D5'];
+// **`D6` was added to `check-scheduler.mjs` and NOT to this list, and the effect is
+// worth recording**: `tripped` is built by filtering THIS array against the output,
+// so a `D6:` failure line was invisible to the id parse. Both new probes reported
+// `exited 1, wanted [D6], got []` while the report rows plainly said `D6` — the two
+// projections disagreeing, which is the `agree` check W29 added doing its job on the
+// author who widened the check and forgot the allowlist. **An allowlist is a second
+// place the id vocabulary is written down**, which is [Q43](../doc/open-questions.md)'s
+// class and exactly what W29's declaration killed as a hypothesis for three other
+// self-tests — here it is live.
+const ALL_CHECKS = ['D1', 'D2', 'D3', 'D4', 'D5', 'D6'];
 
 /**
  * **Did the mutated check RUN TO COMPLETION?** A grading requires this, which is
@@ -353,10 +416,10 @@ const ALL_CHECKS = ['D1', 'D2', 'D3', 'D4', 'D5'];
 const RAN = (out) => /^(All checks passed|\d+ failure\(s\)\.)/m.test(out);
 
 /** The floor `check-policies-selftest.mjs` learned to carry: vacuous at zero. */
-const MIN_PROBES = 20;
+const MIN_PROBES = 22;
 
 /** The same floor for `META`, and for the same reason. */
-const MIN_META = 22;
+const MIN_META = 24;
 
 /**
  * **The mutations `check-scheduler.mjs` itself is run against.** Every probe above
@@ -491,6 +554,13 @@ const META = [
   ['D5`s does-not-load clause disabled',
     'a partial publish — the artifact `exports` selects is missing',
     (t) => t.replace("fail('D5', `dist/node/index.js does not load", "[].push(`dist/node/index.js does not load")],
+  // --- D6 ---------------------------------------------------------------------
+  ['D6`s deno-run clause disabled',
+    'the Deno rung replaced by a second NODE run',
+    (t) => t.replace("fail('D6', `\\`test:l6:deno\\` does not invoke", "[].push(`\\`test:l6:deno\\` does not invoke")],
+  ['D6`s import-map clause disabled — the one the reader found missing',
+    'the Deno rung stops passing the import map',
+    (t) => t.replace("fail('D6', `\\`test:l6:deno\\` does not pass", "[].push(`\\`test:l6:deno\\` does not pass")],
   // --- the report block, which no set comparison can see ----------------------
   // **These three are why the `agree` projection exists.** Measured before it was
   // written: with the report broken, every probe still reported `wanted [D3] got
@@ -543,6 +613,130 @@ export async function selfTest(root) {
     console.log('  FAIL  a list is short, and `caught === length` is vacuous at zero.');
     rmSync(dir, { recursive: true, force: true });
     return 1;
+  }
+
+  // **`PROBES` is bounded by CITATION as well as by count — W36's adequacy reader.**
+  // `META` has had a content bound since W29; `PROBES` had only `MIN_PROBES`, a
+  // literal in this file which this file's own ceiling list already declares
+  // lowerable. Measured, both for **zero failures**:
+  //
+  //   * delete the `package.json reinstates the working-tree link` probe and set
+  //     `MIN_PROBES` to 19 — `19/19 probes caught`, `22/22 graded`, exit 0. Extended
+  //     to all three probes no `META` entry names, plus `MIN_PROBES = 17`:
+  //     `17/17`, `22/22`, exit 0. **Two of those three are exactly the probes W29's
+  //     reader added to close `D4`'s three-artifact bound**, so that closure was
+  //     reversible for one edited literal.
+  //   * leave the working-tree-link probe in place and change its `mutate` to the
+  //     wrong-version edit — `20/20 probes caught`, exit 0. The probe for the
+  //     incident that cost a sibling checkout now duplicates another, under its own
+  //     name, and the `file:` specifier shape has no probe anywhere.
+  //
+  // **A probe a `META` entry names is already protected**: deleting it makes the
+  // child abort at exit 3. So the bound is the citation itself — every probe must be
+  // named by some `META` entry, or declared here with a reason. The declared list is
+  // what a reader checks; the alternative is a floor that cannot tell twenty probes
+  // from seventeen plus a lowered number.
+  // **Each uncited probe declares what its mutant must CONTAIN, not just that it
+  // exists** — W36's rule 8 re-run, second pass. The citation bound below stops an
+  // uncited probe being DELETED and the distinctness bound stops it DUPLICATING a
+  // neighbour; neither stops it being **repurposed into a different edit that still
+  // trips the same check**. Measured: change the working-tree-link probe's `mutate`
+  // to the wrong-version edit and it reports `20/20 probes caught`, exit 0 — the
+  // probe passes, `D2` fires, and the `file:` specifier shape (the declaration form
+  // that cost this project a sibling checkout) silently has no coverage anywhere.
+  //
+  // **A probe's NAME is prose and nothing can check that prose describes an edit**
+  // — [Q162](../doc/open-questions.md)'s class. What IS checkable is the one string
+  // the edit must produce, so each exemption carries it.
+  const UNCITED = [
+    // `D1`'s link clause has a `META` entry of its own; this probe drives the same
+    // clause from the OTHER declaration shape — a `file:` specifier in the manifest
+    // rather than a link in `node_modules` — and no clause is disabled for it.
+    ['package.json reinstates the working-tree link', 'file:../fyflow-scheduler'],
+    // `D4`'s three artifacts share one clause and one `META` entry. These two are
+    // the per-artifact cases W29's reader added; citing them would need three
+    // `META` entries for one `fail()` site, which the entry cap refuses. Their
+    // mutants REMOVE a file rather than writing a string, so the bound is on the
+    // artifact each one names.
+    ['a partial publish — the BROWSER artifact is missing', null],
+    ['a partial publish — the TYPES artifact is missing', null],
+  ].map(([name, mustProduce]) => ({ name, mustProduce }));
+  {
+    const cited = new Set(META.map(([, probeName]) => probeName));
+    const names = [...PROBES, ...DTS_PROBES, ...INSTALL_PROBES].map((x) => x.name);
+    const uncited = names.filter((n) => !cited.has(n));
+    const exempt = new Map(UNCITED.map((u) => [u.name, u.mustProduce]));
+    const undeclared = uncited.filter((n) => !exempt.has(n));
+    const stale = [...exempt.keys()].filter((n) => !names.includes(n));
+    if (undeclared.length) {
+      console.log(`  FAIL  ${undeclared.length} probe(s) are named by no META entry and are not ` +
+        `declared UNCITED: ${undeclared.join(', ')}. An uncited probe can be deleted for one ` +
+        'edited floor, or repurposed under its own name, and nothing says so.');
+      rmSync(dir, { recursive: true, force: true });
+      return 1;
+    }
+    if (stale.length) {
+      console.log(`  FAIL  ${stale.length} UNCITED entr(y/ies) name no probe: ${stale.join(', ')}. ` +
+        'The exemption list outlived the probe it exempted, which is how a deletion hides.');
+      rmSync(dir, { recursive: true, force: true });
+      return 1;
+    }
+    if (names.length !== new Set(names).size) {
+      console.log('  FAIL  two probes share a name, so a META citation cannot say which it means.');
+      rmSync(dir, { recursive: true, force: true });
+      return 1;
+    }
+    // **And no two probes may produce the SAME mutant** — W36's rule 8 re-run, which
+    // is where the citation bound above turned out to be half a fix. It stops an
+    // uncited probe being DELETED; it does not stop one being REPURPOSED. Measured:
+    // leaving the `package.json reinstates the working-tree link` probe in place and
+    // changing its `mutate` to the wrong-version edit gives `20/20 probes caught`,
+    // exit 0 — the probe for the incident that cost a sibling checkout silently
+    // becomes a duplicate of another, under its own name, and the `file:` specifier
+    // shape loses its only coverage.
+    //
+    // **This is W29's `META` distinctness guard applied to `PROBES`**, and the same
+    // argument carries: a floor counts entries and cannot tell N distinct mutations
+    // from N-1 plus a duplicate. Comparing the mutated TEXT rather than the mutate
+    // function is what makes two differently-written edits with one effect collide.
+    {
+      // The content half: an exempt probe must still produce the string its
+      // exemption names, so repurposing it fails here rather than passing there.
+      for (const probe of [...PROBES, ...DTS_PROBES]) {
+        const must = exempt.get(probe.name);
+        if (!must || typeof probe.mutate !== 'function' || !probe.half) continue;
+        let mutated = '';
+        try { mutated = probe.mutate(readFileSync(join(root, probe.half), 'utf8')); } catch { /* below */ }
+        if (!mutated.includes(must)) {
+          console.log(`  FAIL  the UNCITED probe ${JSON.stringify(probe.name)} no longer produces ` +
+            `${JSON.stringify(must)}. It is named by no META entry, so this string is the only ` +
+            'thing binding it to the clause it exists for.');
+          rmSync(dir, { recursive: true, force: true });
+          return 1;
+        }
+      }
+
+      const sameHalf = new Map();
+      for (const probe of [...PROBES, ...DTS_PROBES]) {
+        if (typeof probe.mutate !== 'function' || !probe.half) continue;
+        let mutated;
+        try {
+          mutated = probe.mutate(readFileSync(join(root, probe.half), 'utf8'));
+        } catch {
+          continue; // a probe whose mutate throws is the harness's problem, not this bound's
+        }
+        const key = `${probe.half}\u0000${mutated}`;
+        const first = sameHalf.get(key);
+        if (first !== undefined) {
+          console.log(`  FAIL  probes ${JSON.stringify(first)} and ${JSON.stringify(probe.name)} ` +
+            'produce the SAME mutated file. One of them is testing nothing its neighbour does not, ' +
+            'and the clause it was named for has lost its only coverage.');
+          rmSync(dir, { recursive: true, force: true });
+          return 1;
+        }
+        sameHalf.set(key, probe.name);
+      }
+    }
   }
 
   // **`META` is bounded by CONTENT as well as by count, and W29's adequacy reader is

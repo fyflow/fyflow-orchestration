@@ -7,10 +7,10 @@
 // 0.2.1, measured by W5 — so the pin was a `file:../fyflow-scheduler` link into a
 // working tree, Node loaded that tree's gitignored `dist/` and Deno loaded its
 // TypeScript source, and this file existed to stop the two diverging by a stale
-// build. **Both registries now carry 0.3.0**, so:
+// build. **Both registries now carry the pin**, so:
 //
-//   Node   node_modules/fyflow-scheduler   npm  fyflow-scheduler@0.3.0  -> dist/
-//   Deno   examples/deno-import-map.json   JSR  @fyflow/scheduler@0.3.0 -> source
+//   Node   node_modules/fyflow-scheduler   npm  fyflow-scheduler@0.5.1  -> dist/
+//   Deno   examples/deno-import-map.json   JSR  @fyflow/scheduler@0.5.1 -> source
 //
 // **What that removes.** A published tarball cannot go stale against a source it
 // no longer ships, so the old D3/D4 mtime comparison has nothing to compare and
@@ -50,7 +50,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
  * rather than reading a diff. That reference ships inside the npm package, so it
  * is at `node_modules/fyflow-scheduler/AGENTS.md` rather than next door.
  */
-const PIN = '0.3.0';
+const PIN = '0.5.1';
 
 /** The JSR package Deno resolves the same specifier to. */
 const JSR_NAME = '@fyflow/scheduler';
@@ -58,7 +58,9 @@ const JSR_NAME = '@fyflow/scheduler';
 const failures = [];
 const fail = (check, msg) => failures.push(`${check}: ${msg}`);
 /** Which checks actually executed. See the reporting block at the bottom. */
-const ran = { D1: false, D2: false, D3: false, D4: false, D5: false };
+const ran = { D1: false, D2: false, D3: false, D4: false, D5: false, D6: false };
+/** The version the Deno half pins, for the report. `null` until `D3` parses one. */
+let jsrPin = null;
 const rel = (p) => relative(ROOT, p).replace(/\\/g, '/');
 
 // --- D1: installed, readable, and NOT a link into a working tree --------------
@@ -145,6 +147,7 @@ if (manifest) {
         if (m[1] !== JSR_NAME) {
           fail('D3', `${rel(mapPath)} points Deno at "${m[1]}" and this check expects ${JSR_NAME}`);
         }
+        jsrPin = m[2];
         if (m[2] !== PIN) {
           fail('D3', `Deno would load ${m[1]}@${m[2]} and Node would load fyflow-scheduler@${PIN}. ` +
             'Ladder L6 runs in both, so this reports two runtimes green against two different ' +
@@ -234,15 +237,76 @@ if (process.argv.includes('--self-test')) {
 // `if (pkgDir)`, so with the link missing this printed four `ok` lines for four
 // checks that never executed — found by W5's test-adequacy pass. `ran` is set
 // inside each block that actually runs.
+// --- D6: the Deno rung actually READS the Deno pin ----------------------------
+//
+// **`D3` compares two pins and nothing compared the commands that CONSUME them** —
+// W36's adequacy reader, and obligation (e) in the exact form this item's own
+// Verification section named. Measured twice, each for ZERO failures:
+//
+//   1. drop `--import-map=examples/deno-import-map.json` from `test:l6:deno` and
+//      Deno resolves the bare `fyflow-scheduler` specifier out of `node_modules` —
+//      the **npm** package. L6 prints `25 real runs on fyflow-scheduler 0.5.1, on
+//      deno 2.9.6`, 489 assertions, exit 0, and this check prints five `ok` rows
+//      **including `D3`**. The JSR half is never loaded at all.
+//   2. replace the command with `node examples/l6.ts` and the Deno rung is gone,
+//      while every check still passes and the banner says "node" twice.
+//
+// `S12` binds the gate chain's entry NAMES — by equality and in order — and
+// **nothing binds an entry's ARGUMENTS**. So `D3`'s own premise, *ladder L6 runs in
+// both runtimes*, was a fact about a command string that nothing checked, which
+// makes `D3` a comparison between two files one of which need never be opened.
+//
+// **It lives here rather than in `check-source.mjs` because the premise belongs to
+// the check that rests on it**: without this, `D3` is decoration.
+{
+  let ourPkg = null;
+  try {
+    ourPkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
+  } catch {
+    // **Deliberately silent, and `ran.D6` stays false.** `D2` already owns the
+    // unreadable-manifest clause and reports it; a second `fail()` for one cause
+    // would be two clauses under two ids for one defect, which is the co-firing
+    // shape W29 measured and `doc/workflow.md` section 5 rule 8 asks to be told
+    // apart from masking. An unreadable manifest means D6 genuinely **did not
+    // run**, and the report says so — which is W5's own finding and section 1
+    // rule 4's subject.
+  }
+  if (ourPkg) {
+    ran.D6 = true;
+    const rung = ourPkg.scripts?.['test:l6:deno'];
+    const mapRel = 'examples/deno-import-map.json';
+    if (typeof rung !== 'string') {
+      fail('D6', 'package.json has no `test:l6:deno` script, so ladder L6 has no Deno rung — and ' +
+        "`D3`'s premise is that it runs in both runtimes");
+    } else {
+      if (!/(^|\s)deno\s+run(\s|$)/.test(rung)) {
+        fail('D6', `\`test:l6:deno\` does not invoke \`deno run\`: it is ${JSON.stringify(rung)}. ` +
+          'A rung named for a runtime it does not start is a rung reported by omission ' +
+          '(`doc/workflow.md` section 1 rule 4)');
+      }
+      if (!rung.includes(`--import-map=${mapRel}`)) {
+        fail('D6', `\`test:l6:deno\` does not pass \`--import-map=${mapRel}\`, so Deno resolves the ` +
+          'bare `fyflow-scheduler` specifier out of `node_modules` — the npm package — and the JSR ' +
+          'pin D3 just compared is never read. Measured: L6 then reports "on deno" while running ' +
+          'the npm build, with every other clause green');
+      }
+    }
+  }
+}
+
 const checks = [
   ['D1', ran.D1, `D1 the pinned scheduler is installed from a registry, not linked`],
   ['D2', ran.D2, `D2 it is ${PIN}, and package.json asks for exactly ${PIN}`],
   ['D3', ran.D3, `D3 Deno's JSR pin is the same version as Node's npm pin`],
   ['D4', ran.D4, `D4 every artifact \`exports\` selects is present`],
   ['D5', ran.D5, `D5 it loads and exports what its own declarations name`],
+  ['D6', ran.D6, `D6 the Deno rung reads the Deno pin`],
 ];
+// **Both halves carry a VERSION.** This printed the JSR package NAME with no version
+// at all — the one line where a human sees the two pins side by side, omitting the
+// number the whole check is about. W36's adequacy reader.
 console.log(`scheduler check — fyflow-scheduler@${manifest?.version ?? '<not installed>'} ` +
-  `(npm) / ${JSR_NAME} (JSR)\n`);
+  `(npm) / ${JSR_NAME}@${jsrPin ?? '<unpinned>'} (JSR)\n`);
 for (const [id, didRun, label] of checks) {
   const bad = failures.filter((f) => f.startsWith(id + ':'));
   const verdict = bad.length ? 'FAIL   ' : didRun ? 'ok     ' : 'NOT RUN';

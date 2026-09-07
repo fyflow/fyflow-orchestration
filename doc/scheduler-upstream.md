@@ -6,8 +6,11 @@ comment. One row per item, `S1`, `S2`, ... - never reused, never renumbered.
 **Every item must state what we do without it.** An item with no workaround is not a want, it is a
 blocker, and it belongs in a plan instead.
 
-**Nothing here has been raised by us.** Pinned to `fyflow-scheduler` **0.3.0** (landed 2026-08-30).
-Line references are against 0.3.0 unless a row says otherwise.
+**Nothing here has been raised by us.** Pinned to `fyflow-scheduler` **0.5.1** (landed 2026-09-07;
+0.3.0 from 2026-08-30 until then).
+Line references are against **0.5.1** unless a row says otherwise — and `core/FyflowScheduler.ts`
+and `core/threadWrapper.ts` are **byte-identical to 0.3.0**, so every reference taken at that
+version is unmoved.
 
 **On "not yet published": measured by W5 on 2026-08-30, and it is narrower than this repository has
 been saying.** Both registries carry the package and **both top out at 0.2.1** — npm
@@ -310,9 +313,17 @@ of being worked around.
 ## S9 - the published TypeScript source does not load under Node, and `AGENTS.md` §3 says a `.ts` worker cannot either
 
 **Two findings, one root, both measured at Node 24.20.0 and Deno 2.9.6 on 2026-08-30 by
-[W5](work-items/w5-one-real-fan-out-flow-on-a-real-scheduler.md).** They pull in opposite
-directions: the first is a real defect, the second is the reference being *more* pessimistic than
-the runtime.
+[W5](work-items/w5-one-real-fan-out-flow-on-a-real-scheduler.md), and BOTH RE-MEASURED UNCHANGED AT
+0.5.1 on 2026-09-07 by [W36](work-items/w36-the-scheduler-pin-moves-to-0-5-1.md).**
+
+> **The citation moves and the defect does not.** At 0.5.1 `core/threadWrapper.ts:5` still
+> value-imports `BaseWorkerContext` — an interface — alongside real values, on the **same line**;
+> and `AGENTS.md` §3 still tells a consumer to ship a `.js` worker, on the **same lines** (50, 75,
+> 78). **Two versions of evidence rather than one**, which is a stronger case for raising this than
+> a single version's was, and it is still unraised.
+
+They pull in opposite directions: the first is a real defect, the second is the reference being
+*more* pessimistic than the runtime.
 
 **What (a) - `index.ts` cannot be imported by Node.** `import('../fyflow-scheduler/index.ts')` under
 Node 24 throws:

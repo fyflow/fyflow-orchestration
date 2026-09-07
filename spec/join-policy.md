@@ -1,6 +1,6 @@
 # spec/join-policy — the interface the join policies sit behind
 
-**Status:** v0.13 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.14 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2 acts on the W1 spec-conformity pass**:
 `branch.lost` is redefined against
 [ADR 0004](../doc/decisions/0004-a-non-success-outcome-routes-only-where-an-edge-opts-in-and-user-action-suspends.md)
@@ -72,6 +72,15 @@ by fan-out completion order — and `JP-R12` satisfies it by carrying **all** th
 `branchPath` rather than by carrying none. **`settleJoin` still takes no payload parameter**, and the
 owner table gains an **`opened`** row for the moment nothing fixed. **Section 3 is byte-unchanged for
 the second version running**: what a policy sees did not move, because a payload is not a region event.
+
+
+**v0.14 is [W36](../doc/work-items/w36-the-scheduler-pin-moves-to-0-5-1.md), and it is a VERSION
+re-dating rather than a rule change.** The `fyflow-scheduler` pin moved 0.3.0 to 0.5.1; section 2's Q5 table is re-dated from 0.3.0 to 0.5.1.
+**No rule id, no rule text and no test owed changed** — `core/FyflowScheduler.ts` is **byte-identical**
+between the two versions, so every line this document cites is unmoved and every claim it makes about
+0.3.0 is true at 0.5.1. *(The bump was first shipped with these documents edited and NOT re-versioned,
+which left `spec/README.md`'s column unchanged and made `check-spec`'s `C8` vacuous for the whole
+change — the one check that exists to notice a stale version row. W36's conformity reader.)*
 
 **Normative.**
 
@@ -202,7 +211,7 @@ the definition alone, and does not depend on region membership at all.
 
 ### Q5's four cases are three events, and one of the four is not a separate case
 
-[Q5](../doc/open-questions.md) names four ways a branch can fail to succeed. Read against 0.3.0 they
+[Q5](../doc/open-questions.md) names four ways a branch can fail to succeed. Read against 0.5.1 they
 are not four:
 
 | Q5's case | what it is here | |

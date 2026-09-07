@@ -46,12 +46,14 @@ constructor that has no such field. The document's *goals* survive - flow templa
 worker plugins - but its premise does not: there is nothing to build "on top of the DAG" because
 there is no DAG.
 
-Verified rather than assumed - originally at 0.2.1, **re-verified unchanged at 0.3.0**:
+Verified rather than assumed - originally at 0.2.1, re-verified unchanged at 0.3.0, and
+**re-verified unchanged again at 0.5.1** by
+[W36](work-items/w36-the-scheduler-pin-moves-to-0-5-1.md), line by line rather than by reading:
 
 | Claim | Evidence |
 |---|---|
 | No dependency field on `FyflowTask` | No `dependsOn`/`parents` in `core/FyflowScheduler.ts`; the only hits are `spawnedChildren`, which is lineage |
-| `SpawnTaskConfig.parents` exists but is **dead** | Declared at `core/workerInterface.ts:50`, read **nowhere** in the repo. The spawn path (`core/FyflowScheduler.ts:1468-1473` at 0.3.0) constructs the task from `id`, `workerType`, `payload`, `optional`, `retryPolicy`, `workerGroups` and **silently drops `parents`**. **Confirmed vestigial by the maintainer** (2026-08-30): it stays dead and will eventually be removed |
+| `SpawnTaskConfig.parents` exists but is **dead** | Still declared at `core/workerInterface.ts:50` at 0.5.1 — the same line — read **nowhere** in the repo. The spawn path (`core/FyflowScheduler.ts:1468-1473`, **the same lines at 0.3.0 and 0.5.1**) constructs the task from `id`, `workerType`, `payload`, `optional`, `retryPolicy`, `workerGroups` and **silently drops `parents`**. **Confirmed vestigial by the maintainer** (2026-08-30): it stays dead and will eventually be removed |
 | Spawning is not sequencing | `AGENTS.md` section 7: *"This is lineage, not a dependency: spawning never changes dispatch order."* |
 
 That dead field is the worst kind: it typechecks, it reads like the feature exists, and it does
@@ -66,9 +68,18 @@ control flow at all.
 
 ## 3. What the scheduler does give us
 
-*Verified against **0.3.0** (landed 2026-08-30; **on no registry** - npm and JSR both stop at 0.2.1,
-measured by W5). Was 0.2.1 when this
-section was written; every row below was re-checked rather than carried forward.*
+*Verified against **0.3.0** (landed 2026-08-30). Was 0.2.1 when this section was written; every row
+below was re-checked rather than carried forward.*
+
+*(**Two corrections, both by [W36](work-items/w36-the-scheduler-pin-moves-to-0-5-1.md).** The
+parenthetical read **"on no registry - npm and JSR both stop at 0.2.1, measured by W5"**, which
+[ADR 0029](decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)
+superseded on 2026-08-31 — both registries have carried 0.3.0 since, and both carry **0.5.1** now.
+**And the pin is 0.5.1, while this table is still dated 0.3.0 deliberately**: W36 re-verified the
+rows this repository actually depends on — the five task states and the `user_action` event pair by
+running them, `detail`-is-the-live-task by its five line citations, and the dead `parents` field —
+and did **not** re-check every row here. The scope is stated rather than the date being moved over
+work that was not done, which is `doc/workflow.md` section 1 rule 5's writing clause.)*
 
 | Surface | What we get |
 |---|---|
@@ -213,9 +224,15 @@ of leaning produced.
   section 5's invariant is untouched.
 - **Ingestion transports.** Kafka and friends from `FLOW_PLANNING.md` are a consumer of this
   library, not part of it.
-- **Supporting more than one `fyflow-scheduler` version.** We pin **0.3.0** (Q3), landed 2026-08-30
-  and not yet on npm. `fyflow-react-components` still pins 0.2.1 and **needs the same bump** - the
-  two repos being on different versions is a coordination point, not a steady state.
+- **Supporting more than one `fyflow-scheduler` version.** We pin **0.5.1** (Q3), published
+  **2026-09-03** and adopted here 2026-09-07, **from both registries**.
+  `fyflow-react-components` still pins 0.2.1 and **needs the same bump** - the two repos being on
+  different versions is a coordination point, not a steady state. *(This said 0.5.1 "landed
+  2026-09-07 and not yet on npm": the date was the day the pin MOVED rather than the day the version
+  landed - npm's own `time` field says 2026-09-03 - and "not yet on npm" was carried forward from the
+  0.3.0 sentence while 0.5.1 is npm's `latest`. **Both halves of a re-dated claim, wrong in the way
+  re-dating is wrong**, and `doc/decisions/README.md` already lists "not yet on npm" among the things
+  this repository has got wrong once. W36's conformity reader.)*
 
 Things we want *from* `fyflow-scheduler` go in [scheduler-upstream.md](scheduler-upstream.md), never
 into a workaround comment.

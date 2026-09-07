@@ -1059,11 +1059,18 @@ JavaScript, and that is stale at Node 24. **Not the browser**: nothing there exe
 a browser build needs the worker emitted as a bundled `.js` asset. `RT-R10` — ladder L6 runs in Node
 and Deno and not in the browser, and the browser rung is [Q52](doc/open-questions.md).
 
-**Pin the scheduler at 0.3.0.** This library's listener boundary is written against 0.3.0 semantics:
-`task.progress`'s detail changed shape at that version (the id is `id`, not `taskId`), the second
-`task.user_action` dispatch site is new, and `task.timestamp` did not exist before it. At the time of
-writing **npm and JSR both stop at 0.2.1**, so 0.3.0 is reached from a working tree — see
-[ADR 0013](doc/decisions/0013-the-scheduler-is-a-development-dependency-reached-from-the-working-tree.md).
+**Pin the scheduler at 0.5.1.** This library's listener boundary is written against **0.3.0
+semantics, which 0.5.1 does not change**: `task.progress`'s detail changed shape at 0.3.0 (the id is
+`id`, not `taskId`), the second `task.user_action` dispatch site arrived there, and `task.timestamp`
+did not exist before it. **`core/FyflowScheduler.ts` is byte-identical between 0.3.0 and 0.5.1**, so
+every one of those still holds; what 0.5.1 adds is a `worker.setup.*` / `worker.teardown.*` event
+family this library subscribes to not at all. Install it from a registry — npm and JSR both carry it —
+and **never from a working tree**, which is
+[ADR 0029](doc/decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)
+superseding [ADR 0013](doc/decisions/0013-the-scheduler-is-a-development-dependency-reached-from-the-working-tree.md)
+rules 3 and 5. *(This read **"pin at 0.3.0 … npm and JSR both stop at 0.2.1, so 0.3.0 is reached from
+a working tree"** — a live instruction to a consumer, wrong in the version AND in the mechanism, the
+second having been superseded on 2026-08-31. W36's conformity reader.)*
 
 Thirteen worked flows, on a real scheduler, are in [`examples/`](examples/README.md) — including a
 routed-away branch, a lost branch, a human resolving a suspension, and a refusal that stops a run.

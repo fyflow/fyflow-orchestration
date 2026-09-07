@@ -30,7 +30,7 @@ Deno and not in the browser** — [Q33](../doc/open-questions.md), and the brows
 | [`run-flow.ts`](run-flow.ts) | one run: build the scheduler, drive the flow, fold the driver's input sequence, return a report |
 | [`workers/flow-worker.ts`](workers/flow-worker.ts) | **one worker file for both runtimes**, five roles selected by the pool's `config` — one always throws, one returns a value `structuredClone` refuses |
 | [`flows/`](flows/) | the **seven** flows this gate needs that `spec/examples/` cannot express — [Q44](../doc/open-questions.md), whose own text said this would not be needed. `all-exit` is the fifth and the reason is the same one a third time: the corpus's all-exit shape reaches its second exit through a human, which would put a resolution race in a row whose point is elsewhere. **`nested` is the sixth and `nested-suspend` the seventh**, and their reason is different: `spec/examples/valid/nested-fanout.flow.json` exists and its outer join routes to an `end`, so **nothing is dispatched when that join fires** and a row has no id to read as *the join fired* |
-| [`deno-import-map.json`](deno-import-map.json) | how Deno resolves the bare `fyflow-scheduler` specifier — to `jsr:@fyflow/scheduler@0.3.0`, at the same version `package.json` pins for npm ([ADR 0029](../doc/decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md) rule 2) |
+| [`deno-import-map.json`](deno-import-map.json) | how Deno resolves the bare `fyflow-scheduler` specifier — to `jsr:@fyflow/scheduler@0.5.1`, at the same version `package.json` pins for npm ([ADR 0029](../doc/decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md) rule 2) |
 
 ## Five things a reader should not have to rediscover
 
@@ -39,8 +39,8 @@ read **fifteen runs** at nineteen. Both are the count-in-prose failure this repo
 producing, in the document whose job is to state the counts; each now says what it counts.)*
 
 **1. The two runtimes reach the scheduler through two registries, and the version is written down
-twice.** Node installs `fyflow-scheduler@0.3.0` from **npm** and reads its `dist/` build; Deno
-resolves the same bare specifier to **`jsr:@fyflow/scheduler@0.3.0`** and reads its TypeScript
+twice.** Node installs `fyflow-scheduler@0.5.1` from **npm** and reads its `dist/` build; Deno
+resolves the same bare specifier to **`jsr:@fyflow/scheduler@0.5.1`** and reads its TypeScript
 source, because **Node cannot** (`core/threadWrapper.ts:5` value-imports an `interface`, which type
 stripping cannot erase — [S9](../doc/scheduler-upstream.md)). `npm run check:scheduler` **D3** is what
 stops the two runtimes silently running different versions — the hazard survived the move from a

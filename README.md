@@ -117,7 +117,7 @@ npm run gate
 ```
 
 **`npm install` is all the setup there is.** [`fyflow-scheduler`](https://github.com/fyflow/fyflow-scheduler)
-is pinned to **0.3.0** and installed from **npm**; Deno reaches the same version on JSR as
+is pinned to **0.5.1** and installed from **npm**; Deno reaches the same version on JSR as
 `@fyflow/scheduler`, which is why `examples/deno-import-map.json` exists. That is a development
 dependency only: **the published library depends on the scheduler not at all** — `SchedulerLike` is a
 two-method structural interface and a consumer passes its own scheduler in, at whichever version it

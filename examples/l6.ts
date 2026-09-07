@@ -91,6 +91,62 @@ import nestedSuspend from './flows/nested-suspend.flow.json' with { type: 'json'
 import failureEdge from '../spec/examples/valid/failure-edge.flow.json' with { type: 'json' };
 
 /**
+ * **The scheduler version this run actually used — read from the half THIS RUNTIME
+ * loaded.** [W36](../doc/work-items/w36-the-scheduler-pin-moves-to-0-5-1.md). The
+ * banner at the end of this file named `0.3.0` as a literal, so the one line in the
+ * repository reporting *which scheduler the real-worker rung ran against* could say
+ * anything at all, and did not move when the pin did.
+ *
+ * **The two runtimes reach the scheduler by different roads and this reads the road
+ * each one took** — ADR 0029: Node resolves the bare specifier through npm and gets
+ * `node_modules/fyflow-scheduler`; Deno resolves it through the import map and gets
+ * JSR. **The first version of this read `node_modules` in BOTH**, with a comment
+ * claiming it was *"the thing that was loaded"* — true in Node and **false in
+ * Deno**, where it reported the npm manifest for a run that had loaded JSR. It read
+ * correctly only because `D3` forces the two halves to agree, so the bug was
+ * invisible exactly while the check it depends on was passing. W36's adequacy
+ * reader, and `doc/workflow.md` section 1 rule 5's writing clause applied to a
+ * comment in code.
+ *
+ * **A path rather than `import ... with { type: 'json' }`**, because 0.5.1's
+ * `exports` map does not expose `./package.json` — measured, and equally true at
+ * 0.3.0 — so the specifier form is refused by Node's resolver.
+ */
+const SCHEDULER_VERSION: string = await (async () => {
+  const isDeno = typeof (globalThis as Record<string, unknown>).Deno !== 'undefined';
+  const read = async (u: URL): Promise<string> => {
+    const deno = (globalThis as Record<string, unknown>).Deno as
+      { readTextFile?: (x: URL) => Promise<string> } | undefined;
+    return deno?.readTextFile
+      ? await deno.readTextFile(u)
+      : await (await import('node:fs/promises')).readFile(u, 'utf8');
+  };
+  try {
+    if (isDeno) {
+      // The import map IS the Deno pin — `D3` compares it to the npm one and `D6`
+      // asserts this rung actually passes it to `deno run`.
+      const map = JSON.parse(await read(new URL('./deno-import-map.json', import.meta.url))) as
+        { imports?: Record<string, string> };
+      const spec = map.imports?.['fyflow-scheduler'] ?? '';
+      const m = /@([\d][^@]*)$/.exec(spec);
+      return m ? m[1]! : `(unparsed: ${spec || 'no mapping'})`;
+    }
+    const pkg = JSON.parse(await read(new URL('../node_modules/fyflow-scheduler/package.json', import.meta.url))) as
+      { version?: string };
+    return pkg.version ?? '(no version in the installed manifest)';
+  } catch (e) {
+    // **Named for the runtime that failed, not for a road it never took.** This
+    // returned `'(from the import map)'` unconditionally, so a Node run whose read
+    // failed printed a claim about a file Node never consults — measured by pointing
+    // it at a missing manifest: 489 assertions, exit 0, and a false banner. The
+    // `catch` stays wide, because a banner must not fail a run; what it says is now
+    // true of whichever runtime reached it.
+    const why = e instanceof Error ? e.message : String(e);
+    return isDeno ? `(unread from the import map: ${why})` : `(unread from node_modules: ${why})`;
+  }
+})();
+
+/**
  * The corpus's `isLowConfidence`, registered for real. It reads the **effective
  * outcome** (`OR-R9`), so it sees one shape whether the node settled or a human
  * resolved it.
@@ -1938,7 +1994,7 @@ const KEY_W = Math.max(
 // review pass was about. **It counts RUNS, not row labels** - a pair row is
 // one label producing two runs, so the two numbers differ and always have.
 const pairRunCount = pairResults.reduce((n, { runs }) => n + runs.length, 0);
-console.log(`\n  ladder L6 — ${reports.length + pairRunCount} real runs on fyflow-scheduler 0.3.0, on ${runtime}\n`);
+console.log(`\n  ladder L6 — ${reports.length + pairRunCount} real runs on fyflow-scheduler ${SCHEDULER_VERSION}, on ${runtime}\n`);
 /**
  * **Every region of the run, in the row's declared order** — W23's conformity
  * reader, BLOCKING.

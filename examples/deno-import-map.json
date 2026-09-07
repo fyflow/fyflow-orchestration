@@ -1,6 +1,6 @@
 {
-  "_note": "The Deno half of the scheduler pin. Deno resolves the bare `fyflow-scheduler` specifier to JSR's @fyflow/scheduler at the SAME version package.json pins for npm; `scripts/check-scheduler.mjs` D3 is what compares the two. Both registries carry 0.3.0 as of 2026-08-31 - which is what made ADR 0013's working-tree link unnecessary. Deliberately NOT in deno.json: that file is the JSR publish manifest, and this library depends on the scheduler at runtime not at all (ADR 0013 rule 1). Passed with --import-map by the L6 scripts only.",
+  "_note": "The Deno half of the scheduler pin. Deno resolves the bare `fyflow-scheduler` specifier to JSR's @fyflow/scheduler at the SAME version package.json pins for npm; `scripts/check-scheduler.mjs` D3 is what compares the two. Both registries carry 0.5.1 as of 2026-09-07 (0.3.0 from 2026-08-31 until then) - which is what made ADR 0013's working-tree link unnecessary. Deliberately NOT in deno.json: that file is the JSR publish manifest, and this library depends on the scheduler at runtime not at all (ADR 0013 rule 1). Passed with --import-map by the L6 scripts only.",
   "imports": {
-    "fyflow-scheduler": "jsr:@fyflow/scheduler@0.3.0"
+    "fyflow-scheduler": "jsr:@fyflow/scheduler@0.5.1"
   }
 }

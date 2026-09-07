@@ -1,6 +1,6 @@
 # spec/runtime-targets — three runtimes, one source tree
 
-**Status:** v0.7 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.8 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2 acts on the second spec-conformity pass**,
 which found that v0.1's central claim — *a `node:` import is fatal to a Deno build* — is **false at
 Deno 2**, and that the `*.node.ts` mechanism it described does not exist in the form it described.
@@ -22,13 +22,33 @@ been handed a library that does not compose with the one it wraps.
 
 ## 1. The targets
 
-Mirrored from `fyflow-scheduler` 0.3.0, verified in its manifests rather than assumed:
+Mirrored from `fyflow-scheduler` **0.5.1**, verified in the **published** manifests rather than
+assumed:
 
 | Target | Published as | What ships | Verified at |
 |---|---|---|---|
-| **Deno** | **JSR** — `@fyflow/orchestration` | **TypeScript source, directly.** No build step | `../fyflow-scheduler/deno.json` — `exports: "./index.ts"`, with an explicit `publish.exclude` allowlist |
-| **Node >= 24** | **npm** | an esbuild bundle, `platform: "node"` | `../fyflow-scheduler/package.json` — `exports["."].node`, `../fyflow-scheduler/esbuild.config.js:179-181` |
-| **Browser** | **npm**, same package | an esbuild bundle, `platform: "browser"` | `package.json` — `exports["."].browser`, `esbuild.config.js:191-193` |
+| **Deno** | **JSR** — `@fyflow/orchestration` | **TypeScript source, directly.** No build step | `jsr:@fyflow/scheduler@0.5.1`'s `deno.json` — `exports: "./index.ts"`, with an explicit `publish.exclude` allowlist |
+| **Node >= 24** | **npm** | an esbuild bundle, `platform: "node"` | `fyflow-scheduler@0.5.1`'s `package.json` — `exports["."].node` selecting `dist/node/index.js`, present in the tarball |
+| **Browser** | **npm**, same package | an esbuild bundle, `platform: "browser"` | the same `package.json` — `exports["."].browser` selecting `dist/browser/index.js`, present in the tarball |
+
+> **Where these were verified, and why the citation moved — v0.8.** This column cited
+> `../fyflow-scheduler/deno.json`, `../fyflow-scheduler/package.json` and
+> `../fyflow-scheduler/esbuild.config.js:179-181`. **All three are unopenable, and two of them at any
+> version.** `esbuild.config.js` is in **neither** published artifact: not in npm's tarball, whose
+> `files` list is `dist/**/*`, `README.md` and `AGENTS.md`, and not in JSR's publish allowlist. And
+> the `../fyflow-scheduler/` prefix is a **working-tree** path, which
+> [ADR 0029](../doc/decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)
+> abolished on 2026-08-31: nothing here reaches a sibling checkout, and the one that exists on this
+> machine still reads `"version": "0.3.0"`.
+>
+> **So the row said *verified* against evidence a reader could not open** — which is
+> `spec/README.md` rule 6's *"a reviewable diff instead of an archaeology exercise"* failing on its
+> own terms, and it survived a re-dating to 0.5.1 before
+> [W36](../doc/work-items/w36-the-scheduler-pin-moves-to-0-5-1.md)'s conformity reader found it. The
+> citations now name the **published** artifacts, which are what `check:scheduler` `D4` actually
+> inspects and what a reader can fetch. **The claims themselves are unchanged and were re-checked at
+> 0.5.1**: JSR's `deno.json` does export `./index.ts` behind an allowlist, and npm's `exports` does
+> select a `node` and a `browser` bundle, both present.
 
 > **The asymmetry that drives the rules below: JSR publishes the TypeScript source.** npm consumers
 > get a bundle esbuild has already resolved per platform; **Deno consumers get the files as
@@ -200,7 +220,8 @@ Process rather than normative, recorded here because the source layout answers t
 2. **npm, Node and browser in one package**, with conditional `exports` selecting the `dist/node` or
    `dist/browser` bundle and a shared `dist/types`.
 3. **The two versions move together.** `deno.json` and `package.json` carry the same number, as the
-   sibling's do at 0.3.0.
+   sibling's do at 0.5.1 - JSR's `deno.json` and npm's `package.json` both read `0.5.1`, checked at
+   the bump rather than carried forward.
 4. **No changelog** — the sibling has none, and Q3 already records that a version bump there means
    re-reading its reference rather than reading a diff. **Adopting that for our own consumers is a
    choice we have not made**; it is noted so it is made deliberately rather than by imitation.

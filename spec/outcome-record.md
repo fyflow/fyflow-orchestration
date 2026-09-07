@@ -1,6 +1,6 @@
 # spec/outcome-record — the log the driver writes
 
-**Status:** v0.6 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.7 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2 acts on the W1 spec-conformity pass**: the
 resolution record arrives from
 [ADR 0004](../doc/decisions/0004-a-non-success-outcome-routes-only-where-an-edge-opts-in-and-user-action-suspends.md)
@@ -15,6 +15,15 @@ about a class that had reached `OR-R10`'s path **without ever being named as a r
 moves `InvalidTaskId` off the listener boundary entirely, to
 [`ID-R5`](task-id.md). `OR-R10` itself is unchanged; what changes is the list of what reaches it, and
 section 6 now states that list rather than leaving a fourth class to arrive by accident.
+
+**v0.7 is [W36](../doc/work-items/w36-the-scheduler-pin-moves-to-0-5-1.md), and it is a VERSION
+re-dating rather than a rule change.** The `fyflow-scheduler` pin moved 0.3.0 to 0.5.1; section 3's `OR-R3` walkthrough is re-dated from 0.3.0 to 0.5.1.
+**No rule id, no rule text and no test owed changed** — `core/FyflowScheduler.ts` is **byte-identical**
+between the two versions, so every line this document cites is unmoved and every claim it makes about
+0.3.0 is true at 0.5.1. *(The bump was first shipped with these documents edited and NOT re-versioned,
+which left `spec/README.md`'s column unchanged and made `check-spec`'s `C8` vacuous for the whole
+change — the one check that exists to notice a stale version row. W36's conformity reader.)*
+
 **Normative.** This document is what
 [ADR 0007](../doc/decisions/0007-the-driver-normalizes-events-into-an-immutable-outcome-record.md)
 rule 1's *"declared fields"* means.
@@ -97,7 +106,7 @@ record with a field named `state`, `payload`, `task` or `detail` is a review fin
 
 ### OR-R3, spelled out, because the event names lie
 
-At 0.3.0 a non-optional task out of retries sets `state = 'user_action'` and then dispatches
+At 0.5.1 a non-optional task out of retries sets `state = 'user_action'` and then dispatches
 **both** events with the same object (`core/FyflowScheduler.ts:894-910`, and again at `:1130-1142`
 on the orphaned-task path):
 

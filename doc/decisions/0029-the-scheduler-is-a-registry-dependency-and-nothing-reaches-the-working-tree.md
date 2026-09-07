@@ -39,13 +39,13 @@ is one now.
 ## Decision
 
 1. **`fyflow-scheduler` is an ordinary registry devDependency, pinned exactly.**
-   `"fyflow-scheduler": "0.3.0"` in `devDependencies` — not a range, and never a `file:` specifier.
+   `"fyflow-scheduler": "0.5.1"` in `devDependencies` — not a range, and never a `file:` specifier.
    [ADR 0013](0013-the-scheduler-is-a-development-dependency-reached-from-the-working-tree.md) rule 1
    is **unchanged**: `SchedulerLike` is a two-method structural interface, the published npm and JSR
    packages depend on the scheduler **not at all**, and `check-source.mjs` `S7` and `S8` still refuse
    the two ways that could break.
 2. **Deno reaches it from JSR, at the same version.** `examples/deno-import-map.json` maps the bare
-   `fyflow-scheduler` specifier to `jsr:@fyflow/scheduler@0.3.0`. Node reaches npm and gets `dist/`;
+   `fyflow-scheduler` specifier to `jsr:@fyflow/scheduler@0.5.1`. Node reaches npm and gets `dist/`;
    Deno reaches JSR and gets the source. **The two roads are still different and that is still fine**
    — what matters is that they are the same *version*.
 3. **Nothing in this repository resolves the scheduler through a path.** No `file:` dependency, no
@@ -93,7 +93,7 @@ round trip now needs a publish, or a temporary `npm link` that ADR rule 3 forbid
 changes cannot be tried locally without unpinning.
 
 **A version bump is now a deliberate act in two files**, and it always could have been one in zero.
-`package.json` and `examples/deno-import-map.json` both carry `0.3.0`, and `D3` is what makes
+`package.json` and `examples/deno-import-map.json` both carry `0.5.1`, and `D3` is what makes
 forgetting one of them a failure rather than a silent divergence.
 
 **What is unchanged and should not be re-litigated.** [Q33](../open-questions.md)'s answer — L6 runs
