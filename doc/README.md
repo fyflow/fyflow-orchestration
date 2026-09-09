@@ -977,6 +977,48 @@ wins.
    questions, 89 open, 2 deferred, 38 resolved**, both halves at 129 of 129 in exactly one cluster cell; **Q170-Q172 all used**.
 
 
+**[P12](plans/p12-what-a-node-receives-and-what-a-decision-sees.md) is DECLARED — *what does a node
+receive, and what does a decision see?* — and it is the first PRODUCT plan since
+[P10](plans/p10-is-fan-out-one-feature-or-two.md).** It takes [Q11](open-questions.md) **in general**
+and [Q8](open-questions.md) as one subject, because a predicate and a worker are two things asking to
+reach something the previous node did not produce. Three items, serial: **W41** (what a node can reach
+and what NAMES it — **ADR 0040**), **W42** (what a decision sees), **W43** (both blocked flows on real
+workers). **Reserves W41-W44, Q184-Q193, ADR 0040-0041**, and the Q block is **ten rather than five**
+because P11 spent five before its second item raised a question and extended twice.
+
+**Its exit artifact is two ORDINARY flows this library cannot express today** — *score each item
+against the run's config* ([Q166](open-questions.md)) and *score, then fan out over the scores*
+([Q165](open-questions.md)) — both blocked for the same reason, and both worked around today by a
+reshaping `task` node the author should not have to write.
+
+**Its declaration measured six facts and two correct the register rows it is built on — the
+FOURTEENTH time a plan has found one wrong by trying to act on it.** **[Q8](open-questions.md)'s
+stated cost is already paid**: the driver's log is append-only, has one `push` and no `splice`,
+`shift` or reassignment in 1790 lines, carries `result` for every settled task, and is exposed by
+`snapshot()` — so **a run-scoped accumulator is a PROJECTION of state that already exists and adds
+zero retention**, measured by building one over the log with no new driver state.
+[Q19](open-questions.md)'s *"if Q8 or Q11 retains every node output"* therefore describes **today**;
+its premise is corrected and the question it is actually about — whether that retention should be
+**bounded** — is untouched and declared OUT.
+
+**And the sharp one is [ADR 0036](decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md)'s
+deciding fact for the THIRD time.** The obvious accumulator is *an object keyed by node id*. Measured
+over **all four** region-bearing corpus flows: on `fanout-join` at arity 2 and on `nested-fanout` at
+depth 2, **zero** node ids collapse — `FD-V19` refuses a node in two branch entries of one fanout, and
+even the dotted paths give one record each; on `map-fanout` at arity 3 and on `map-in-fanout`, one id
+collapses in each. **Exactly the map regions collapse, at any depth, and no `fanout` does: a node id
+names one output outside a map region and exactly N inside one** — so the plan's decision 2 is that *the KEY is the decision, not the mechanism*, and W41's
+evidence must include a map region or it does not bind. Three candidate keys are named and none
+preferred: the node id, the task id, and the pair `(node id, branchPath)`.
+
+**[Q164](open-questions.md) is FORCED and its own row says so.** `spec/flow-definition.md` has
+`FD-V*` for validation and `FD-R*` for a runtime refusal, and the ordinary edge's payload contract is
+neither — it is prose with no id. That row's stated forcing condition is *"a second rule about what a
+run carries that has no region to hang on"*, which is P12's deliverable in one sentence; it is the one
+`scripts/**` edit the plan expects. **Q11 is decided BEFORE Q8**, reversing the register's dependency
+direction: the payload half has three real cases and the predicate half has one sentence, and Q8's
+mechanism is **one field and one call site** either way.
+
 **[P11](plans/p11-what-should-the-gate-prove.md) is COMPLETE and RETRO'D, and `doc/workflow.md` is
 [v0.12](workflow.md).** Two items —
 [W38](work-items/w38-the-dispatch-nothing-binds.md) and
