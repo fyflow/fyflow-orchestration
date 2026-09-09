@@ -379,6 +379,18 @@ if (r.files < 64) fail('M3', `only ${r.files} markdown file(s) were scanned, so 
 // interval (1357, 1709] — or one probe stops firing `M4` and the other starts. This
 // is a two-sided window rather than a ratchet, and adding documents moves the lower
 // bound UP, which is the opposite of what this file's header argued.
+// **2050 -> 2400 at [W38](../doc/work-items/w38-the-dispatch-nothing-binds.md)**, the
+// FOURTH retune and the third consecutive plan to pay it. Same failure, same line:
+// `wanted [M1,M3,M4], got [M1,M3]`, in the gate, after the item was otherwise
+// finished. Measured on a scratch copy outside the repository: whole tree
+// **78 / 2817 / 127**, `doc/decisions` removed **60 / 2564 / 127**, both removed
+// **48 / 2061 / 127** — so `M4`'s window is `(2061, 2817]` and 2400 is near its
+// middle. `M3` at 64 is still inside `(60, 78]` and is untouched, and `M5` at 60
+// against 127 for the fourth plan running. **W38 added ONE work-item document and a
+// register row**, and the two-directory fixture rose 1754 -> 2061 mostly on links
+// written into `doc/README.md` and `CLAUDE.md` — the prose obligation W33 identified,
+// firing on an item whose subject is *checks that stop checking*.
+//
 // **1720 -> 2050 at [W33](../doc/work-items/w33-a-map-at-run-time-arity.md), and that
 // item added NO DOCUMENT** — which is an instance [Q142](../doc/open-questions.md)'s
 // row does not describe. Every earlier one was *an item that adds documents must
@@ -398,7 +410,7 @@ if (r.files < 64) fail('M3', `only ${r.files} markdown file(s) were scanned, so 
 // untouched at 60 against 99** — no `removes` probe moves it, for the third plan
 // running, because every anchored link is in `doc/`'s top level and `M5`'s own probe
 // takes it to zero.
-if (r.links < 2050) fail('M4', `only ${r.links} relative link(s) were found; M1 is vacuous below that`);
+if (r.links < 2400) fail('M4', `only ${r.links} relative link(s) were found; M1 is vacuous below that`);
 if (r.anchored < 60) fail('M5', `only ${r.anchored} link(s) carry an anchor; M2 is vacuous below that`);
 
 const checks = [

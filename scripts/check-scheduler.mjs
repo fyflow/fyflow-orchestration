@@ -227,7 +227,14 @@ if (manifest) {
 }
 
 if (process.argv.includes('--self-test')) {
-  const { selfTest } = await import('./check-scheduler-selftest.mjs');
+  const mod = process.env.CHECK_SCHEDULER_SELFTEST ?? join(ROOT, 'scripts', 'check-scheduler-selftest.mjs');
+  // `resolve`, not `join`: the default is already absolute and `join` would
+  // concatenate it onto ROOT. **The override is what lets `check-wiring.mjs`'s `G1`
+  // prove this dispatch ROUTES rather than that its text exists** — W38, where the
+  // clause was declared as `S14` inside `check-source` and moved to its own entry
+  // under a cost measurement; the idiom is `CHECK_SOURCE_SELFTEST`'s, which predates
+  // it. `G2` reads the declaration on the line above and compares both names.
+  const { selfTest } = await import(pathToFileURL(resolve(ROOT, mod)).href);
   process.exit(await selfTest(ROOT));
 }
 

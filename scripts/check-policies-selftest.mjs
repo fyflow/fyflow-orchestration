@@ -175,11 +175,19 @@
 // `SELF` entry for it fires. W28's own Record reached half of this from the other
 // side — *"two verdicts and a message, and the message is the product"*.
 //
-// **A `SELF` child here is loaded by a GENERATED RUNNER, and that is an `Owns`
+// **A `SELF` child here is loaded by a GENERATED RUNNER, and that WAS an `Owns`
 // boundary rather than a preference.** `check-source.mjs` reads
 // `CHECK_SOURCE_SELFTEST` and imports the copy it names; `check-policies.mjs`
-// imports this file by a hard relative path with no env indirection, and W31 does
+// imported this file by a hard relative path with no env indirection, and W31 did
 // not own it. So the indirection lives here — see `RUNNER`.
+//
+// **[W38](../doc/work-items/w38-the-dispatch-nothing-binds.md) removed the reason and
+// left the mechanism.** `check-policies.mjs` now reads `CHECK_POLICIES_SELFTEST` like
+// the other five, so `RUNNER` is no longer the only way in — and it is the SAME
+// variable this file already used for the same meaning, *the self-test module to
+// load*, which is why the two mechanisms compose rather than collide. `RUNNER` is
+// left standing: it is W31's, thirteen probes and fourteen `SELF` entries rest on it,
+// and replacing it is not W38's to do. Its stated REASON is what was corrected here.
 //
 // **This paragraph first said the difference cost nothing, and the twelfth `SELF`
 // entry falsified it on the first run.** What it said: *"a `SELF` mutation reaches
@@ -425,9 +433,12 @@ const SELF_RAN = (out) => /check-policies self-test — /.test(out);
  *
  * `check-source.mjs` reads `CHECK_SOURCE_SELFTEST` and imports whatever it names, so
  * a mutated copy reaches every generation of children for free. `check-policies.mjs`
- * imports this file by a hard relative path and **W31 does not own it** — P9 puts a
+ * imported this file by a hard relative path and **W31 did not own it** — P9 puts a
  * change to a check's behaviour out of scope for every item in it — so the
- * indirection lives here instead. `node --input-type=module -e`, spawned with an
+ * indirection lives here instead. **W38 gave `check-policies.mjs` that same env
+ * indirection, under the same variable name and with the same meaning, so this
+ * paragraph's premise is now historical**; the constant stays because this file's
+ * probes and `SELF` entries are written against it. `node --input-type=module -e`, spawned with an
  * args array, so no shell quoting is involved.
  *
  * **It is used in TWO places and the second one was a measured correction.** The

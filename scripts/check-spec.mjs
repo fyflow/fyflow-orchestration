@@ -26,7 +26,7 @@
 
 import { readdirSync, readFileSync, statSync, existsSync } from 'node:fs';
 import { join, dirname, resolve, relative } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 // W25: C5's implementation lives here now. See the C5 block below.
 import { resolveLinks } from './check-markdown.mjs';
@@ -38,7 +38,14 @@ const SPEC = process.env.CHECK_SPEC_DIR ? resolve(ROOT, process.env.CHECK_SPEC_D
 // `check-scheduler.mjs`'s. A META child spawns this script once per entry and the
 // checks it would run first are pure waste; the flag is the whole of the argument.
 if (process.argv.includes('--self-test')) {
-  const { selfTest } = await import('./check-spec-selftest.mjs');
+  const mod = process.env.CHECK_SPEC_SELFTEST ?? join(ROOT, 'scripts', 'check-spec-selftest.mjs');
+  // `resolve`, not `join`: the default is already absolute and `join` would
+  // concatenate it onto ROOT. **The override is what lets `check-wiring.mjs`'s `G1`
+  // prove this dispatch ROUTES rather than that its text exists** — W38, where the
+  // clause was declared as `S14` inside `check-source` and moved to its own entry
+  // under a cost measurement; the idiom is `CHECK_SOURCE_SELFTEST`'s, which predates
+  // it. `G2` reads the declaration on the line above and compares both names.
+  const { selfTest } = await import(pathToFileURL(resolve(ROOT, mod)).href);
   process.exit(await selfTest(ROOT));
 }
 

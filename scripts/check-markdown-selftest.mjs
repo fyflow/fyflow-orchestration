@@ -408,9 +408,11 @@ const PROBES = [
     // probe reported `wanted [M1,M3,M4], got [M1,M3]` again, for the second plan
     // running, because W30's own Record and index paragraphs pushed the fixture's link
     // count from 1217 past the 1350 floor. It read 37/1116/78 at W25, 40/1217/86 at
-    // P9's declaration, 41/1357/94 at W30's close and **45/1507/99 at P10's
-    // declaration**, and **2050** since W33; the entry is anchor-agnostic so it does
-    // not go inert the next time that is right to change.
+    // P9's declaration, 41/1357/94 at W30's close, **45/1507/99 at P10's
+    // declaration**, 2050 since W33 and **48/2061/127 at W38, which took the floor to
+    // 2400** — the fourth retune, and the third consecutive plan to meet this exact
+    // line in the gate after the item was otherwise done. The entry is anchor-agnostic
+    // so it does not go inert the next time that is right to change.
     // [Q142](../doc/open-questions.md) is not fixed by retuning it — the window is
     // two-sided by construction — and the mitigation is the direction: it fails
     // LOUDLY, in the gate, naming the probe and the expected set: the anchors are untouched, because

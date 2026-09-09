@@ -977,12 +977,12 @@ wins.
    questions, 89 open, 2 deferred, 38 resolved**, both halves at 129 of 129 in exactly one cluster cell; **Q170-Q172 all used**.
 
 
-**[P11](plans/p11-what-should-the-gate-prove.md) is DECLARED — *what should the gate prove, and what
-is it actually proving?* — and no item has started.** It takes [Q133](open-questions.md),
-[Q148](open-questions.md) and [Q149](open-questions.md) as one subject: **the gate is 93.2%
-self-test, and the whole of that can be deleted by hand at exit 0.** Two items, serial:
-**W38** closes Q149 in all six checks; **W39** takes the cost decision as **ADR 0039**, implements
-it, and re-measures. W40 is reserved and expected unused. Reserves **Q176-Q180**; **ADR 0038 is spent
+**[P11](plans/p11-what-should-the-gate-prove.md) is RUNNING and
+[W38](work-items/w38-the-dispatch-nothing-binds.md) is DONE — *what should the gate prove, and what
+is it actually proving?*** It takes [Q133](open-questions.md), [Q148](open-questions.md) and
+[Q149](open-questions.md) as one subject: **the gate is 93.2% self-test, and the whole of that can be
+deleted by hand at exit 0.** Two items, serial: **W38** closed Q149; **W39** takes the cost decision
+as **ADR 0039**, implements it, and re-measures. W40 is reserved and expected unused. Reserves **Q176-Q180**; **ADR 0038 is spent
 and not reused**, on the P9-reserved-and-skipped precedent.
 
 **Its declaration measured four facts and two of them correct the register rows the plan is built
@@ -1006,6 +1006,59 @@ hazard is type resolution — `typecheck` fails the same way with no snippet inv
 it was adopted: the first version of the Q149 probe cut more than the dispatch and produced **exit 1
 in all six** — a crash reading as a detection — caught because the control had already been run and
 held.
+
+**[W38](work-items/w38-the-dispatch-nothing-binds.md) is DONE and [Q149](open-questions.md) is
+RESOLVED — in SEVEN checks, by THREE clauses, in a check that did not exist when the item was
+declared.** `scripts/check-wiring.mjs` is new: **`G1`** runs every `:selftest` script with the flag
+and `CHECK_<NAME>_SELFTEST` pointing at a stub, and requires the stub's sentinel exit code — so it
+binds BEHAVIOUR rather than the presence of the string `--self-test`, which is in a **comment** in
+every one of them. `npm run gate` is **`GATE EXIT=0`, zero FAIL lines, 21 entries**; the self-test is
+**16 probes / 8 META gradings / 6 SELF entries**, all passing.
+
+**Two of the three clauses came from the readers, and the first is [Q149](open-questions.md)'s own
+hole living inside the check written to close it.** `G1` sets `CHECK_<NAME>_SELFTEST` on every run and
+**the gate never sets it** — so the one configuration the gate actually runs is the one configuration
+`G1` structurally cannot observe. Verified before acting on it: with
+`if (process.env.CHECK_SPEC_SELFTEST)` wrapped round `check-spec.mjs`'s exit, `check:wiring` printed
+*All checks passed*, its self-test reported 6/6 and 2/2, and `npm run check:spec:selftest` printed the
+plain spec check at exit 0 with **18 probes never running**. **`G2`** closes it by reading the DEFAULT
+target. **`G3`** closes the other half the adequacy reader found: both new gate entries were
+repointable at another script, and deletable outright, for **zero** — `S12` binds entry NAMES — so the
+manifest's entries are now derived from the `scripts/` listing, both ways.
+
+**Its scope was amended mid-item on a measurement, and that measurement is the finding.** The clause
+was declared as `S14` inside `check-source.mjs` and built there. It cost **+236 s** — `check:source`
+0.7 → 9.7 s, `check:source:selftest` 81.2 → 317 s — because **`check-source-selftest.mjs` re-runs
+`check-source` 461 times**, counted with a process-start hook rather than estimated, so a 0.51 s
+per-run clause is multiplied by 461. **A check's price is not what it costs to run — it is that
+multiplied by how often the thing around it is re-run**, and the multiplier is a property of the file
+you add a clause to, written down nowhere. [Q176](open-questions.md), which W39 needs.
+
+**And the trap the item named for itself caught the clause written to avoid it.** Its scope section
+refuses a substring test **by name**, citing W37's `D7`; `G2` then shipped `block.includes(want)`, and
+the conformity reader broke it in one edit — repoint the default and leave
+`/* was check-spec-selftest.mjs */` beside it, for `check:spec:selftest` running **another check's**
+34 probes at exit 0. Rewritten as capture-and-compare, which is the identical fix `D7` took one item
+earlier from the other reader. **Third instance in three items, second made by a reader.**
+[Q178](open-questions.md) is its smaller sibling and happened twice in one hour: `check-wiring.mjs`
+declares `const DISPATCH = "if (process.argv.includes('--self-test')) {"` and then matched **its own
+declaration**; the probe written to test that clause then rewrote the constant instead of the code and
+reported a working check as SURVIVED.
+
+**Rule 8: 8 provocations beyond the 30 checked in, 4 caught, 1 vacuous, 1 declared ceiling, 2
+survivors, both closed** — graded on the failure lines, each mutation restored from a snapshot with
+**the restore asserted by md5**. **P11 prediction 3 is CONFIRMED five times**, and once in the
+sharpest direction: *`G1`'s spawn timeout is one millisecond* was **caught BY the control**, turning a
+harness fault into one named line instead of eight misleading verdicts. **Nine defects, all in the
+instrument and none in the clause.** One survivor was created by a fix made an hour earlier — a
+`NOT RUN` exemption that made a clause reporting `NOT RUN` *while running and failing* invisible to all
+sixteen probes; the other is a loop bound on a loop bounded by a **brace**, closed only by deriving
+the block's end **twice**, from brace matching and from column-0 layout, with a compound probe
+confirming which half does the work. **[Q177](open-questions.md)**: L0 reaches neither file this item
+ships — no lint tree and no tsconfig names `scripts/**`. **Census: 135 questions — 94 open, 2
+deferred, 39 resolved**, all 135 in a cluster cell; **Q176-Q178 used, Q179-Q180 reserved and unused,
+no ADR, no `spec/` change.**
+
 
 **[P10](plans/p10-is-fan-out-one-feature-or-two.md) is COMPLETE and RETRO'D, and `doc/workflow.md`
 is [v0.11](workflow.md).** Its question — *is fan-out one feature or two?* — is answered

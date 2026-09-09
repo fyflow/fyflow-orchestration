@@ -369,9 +369,11 @@ for (const p of exampleSources()) {
 // --- S12/S13: the gate's own chain, and the chains that chain composes --------
 // **`S11` guarded eight of the gate's fifteen entries and nothing guarded the rest**
 // — [Q126](../doc/open-questions.md), measured at W24's declaration. *(Both numbers
-// are of that moment and neither is of now: the chain is **sixteen** entries since
-// this item added `check:source:selftest`, and S11 guards **nine** of them, because
-// what it counts is `check:*` and the entry this item added is one. Stated in past
+// are of that moment and neither is of now: the chain is **twenty-one** entries and
+// `S11` guards **fourteen** of them, because what it counts is `check:*`. *(This read
+// "sixteen" and "nine" — W24's own after-figures — for four items, through W30's two
+// new entries and W38's two. Corrected by W38's conformity reader, which is the class
+// this parenthesis is about, in the parenthesis about it.)* Stated in past
 // tense because a count in a comment is the thing this repository gets wrong most
 // often — W24's conformity reader caught this sentence mixing the two vintages.)*
 // Its loop opens `if (!name.startsWith('check:'))
@@ -417,6 +419,8 @@ const GATE_CHAIN = [
   'check:spec:selftest',
   'check:source',
   'check:source:selftest',
+  'check:wiring',
+  'check:wiring:selftest',
   'check:markdown',
   'check:markdown:selftest',
   'check:scheduler',

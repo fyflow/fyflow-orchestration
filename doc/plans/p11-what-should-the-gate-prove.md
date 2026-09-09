@@ -160,7 +160,7 @@ cheap and independent. Serial, W38 then W39.
 
 | id | | owns |
 |---|---|---|
-| **[W38]** | **The dispatch nothing binds.** Close [Q149](../open-questions.md) in all six checks. The clause belongs in `check-source.mjs`, beside `S11`-`S13`, because that is where the gate's own wiring is already checked — and it must be **provoked in all six**, not in one, since fact 2 is six measurements and not an extrapolation | `scripts/check-source.mjs`, `scripts/check-source-selftest.mjs`, and the `--self-test` dispatch in the six `scripts/check-*.mjs` |
+| **[W38]** | **DONE.** *The dispatch nothing binds.* [Q149](../open-questions.md) is closed in all **seven** checks — six plus the one this item adds, which covers itself. **Three clauses, not one: `G1` runs each script and requires the sentinel; `G2` reads the DEFAULT target the gate actually loads, which `G1` structurally cannot see; `G3` derives the manifest's entries from DISK both ways.** Two of the three came from the readers. **This row's own instruction was falsified by measurement**: inside `check-source.mjs` the clause cost **+236 s**, because that file is re-run **461** times by its own self-test, so it moved to `scripts/check-wiring.mjs` under an amendment put to the maintainer. [Q176](../open-questions.md)-[Q178](../open-questions.md) | `scripts/check-wiring.mjs` and `scripts/check-wiring-selftest.mjs` (**both NEW**), `scripts/check-source.mjs`, `package.json`'s two new entries, and the `--self-test` dispatch in the six `scripts/check-*.mjs` |
 | **[W39]** | **What the gate proves, and what it costs — the decision.** Re-measure fact 1's table, take **ADR 0039**, implement it, and re-measure. The four candidates, none preferred: (a) keep it as it is and record that the cost is deliberate; (b) parallelise within fact 3's constraint; (c) move some or all self-tests to a separate entry the gate does not run, with something else requiring them; (d) reduce what the two 120-second self-tests prove | `package.json`, `scripts/**`, `doc/decisions/0039-*.md` |
 | **[W40]** | **reserved and expected unused**, on P9's precedent. If W39's decision needs a second item to implement it, this is the id | — |
 
@@ -171,9 +171,9 @@ checks the reasoning, and only a prediction about a mechanism's reach can revers
 
 | # | prediction | tested by | what would reverse it |
 |---|---|---|---|
-| 1 | **`S11` and `S12` will not catch the dispatch, and the new clause must read the SCRIPT rather than the manifest.** Derived from fact 2 — the manifest is untouched by the mutation | W38 | either check already covering it, which would make Q149 a documentation error rather than a hole |
+| 1 | **CONFIRMED, and half of it was reversed.** `S11` and `S12` do not catch the dispatch, exactly as derived. But *"read the SCRIPT rather than the manifest"* is **wrong about the manifest**: `G3` exists because both new entries were repointable at another script, and deletable outright, for **zero** — `S12` binds entry NAMES and nothing bound an entry's ARGUMENT. The new clause reads the script AND the manifest AND the directory listing, and it needs all three | W38 | either check already covering it, which would make Q149 a documentation error rather than a hole |
 | 2 | **The decision will not be *delete them*.** Derived from P8's and P9's records: every clause the self-tests grade was earned by a measured hole | W39 | a measurement that some self-test grades nothing its check's own probes do not |
-| 3 | **v0.11's harness requirement fires on W38's own set.** *About a mechanism's reach* — it was adopted from three occurrences in two plans and has fired once, on this declaration. A binding provoked in six places is exactly the shape that produced the other three | W38 | the set running clean, which would make v0.11 a fact about ad-hoc harnesses rather than about provocation harnesses |
+| 3 | **CONFIRMED, five times, and once in the direction that matters most.** Three relocation defects and two stub defects each wore the verdict of a finding until the control separated them; and in the item's own provocation set, *`G1`'s spawn timeout is one millisecond* was **caught BY the control** — one named line instead of eight misleading verdicts. It is a fact about provocation harnesses | W38 | the set running clean, which would make v0.11 a fact about ad-hoc harnesses rather than about provocation harnesses |
 | 4 | **No arrangement gets the gate under ~170 s without changing what is proved.** *About a mechanism's reach* — fact 4 is arithmetic and contention is unmeasured | W39 | a measured arrangement below it, which would mean the serial cost was scheduling rather than work |
 
 ## Open questions this plan carries
@@ -181,7 +181,7 @@ checks the reasoning, and only a prediction about a mechanism's reach can revers
 | Q | | Owner |
 |---|---|---|
 | [Q133](../open-questions.md) | what the gate should cost — **the plan's question** | **W39**, by ADR 0039 |
-| [Q149](../open-questions.md) | the `--self-test` dispatch nothing binds | **W38** |
+| [Q149](../open-questions.md) | the `--self-test` dispatch nothing binds — **RESOLVED by W38**, in all seven | **W38** |
 | [Q148](../open-questions.md) | a META entry is two check runs, and the two self-tests cannot run concurrently — **its row is corrected by fact 3 before any item starts** | **W39** if the decision is (b); otherwise corrected and left open |
 | [Q138](../open-questions.md) | which probe gets the credit is an artefact of `PROBES`' order | no owner — named because W39's option (d) would touch it |
 | [Q158](../open-questions.md) | a whole `*.test.ts` file renamed out of the runner's glob is noticed by nothing | no owner — the same class as Q149 one directory across, and **explicitly not this plan's** |
