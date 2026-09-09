@@ -1007,10 +1007,20 @@ export async function selfTest(root) {
       console.log(`  FAIL  ${name} — the mutation matched nothing`);
       continue;
     }
-    // Written into `scripts/` rather than `dev-dist/`, because the script derives
-    // its ROOT from its own location and a copy one directory deeper would read a
-    // different repository.
-    const rel = join(root, 'scripts', `.meta-${String(i).padStart(2, '0')}.mjs`);
+    // **Written into `dev-dist/`, which is also one directory below ROOT** — the
+    // constraint the first version of this comment named is *a direct child of the
+    // repository root*, and `dev-dist/` is one, which is where the other five
+    // self-tests put their mutants and why `check-wiring.mjs` stages there too.
+    //
+    // It was `scripts/` until [ADR 0039](../doc/decisions/0039-the-gate-climbs-the-ladder-and-the-self-tests-run-concurrently.md),
+    // and `scripts/` is the one directory here that is TRACKED — W24's conformity
+    // reader made exactly this move in `check-source-selftest.mjs` and the reason did
+    // not propagate. Concurrently it is worse than untidy: `check-markdown-selftest.mjs`
+    // copies `scripts/` into its fixture and `check-wiring-selftest.mjs` stages every
+    // `scripts/*.mjs` flat into `dev-dist/`, so a stray `.meta-NN.mjs` here became a
+    // `dev-dist/.meta-NN.mjs` — which is `check-source-selftest.mjs`'s own mutant path,
+    // and wiring deletes what it stages.
+    const rel = join(root, 'dev-dist', `.meta-policies-${String(i).padStart(2, '0')}.mjs`);
     writeFileSync(rel, broken);
     let ok = false, why = '';
     try {
@@ -1097,7 +1107,9 @@ export async function selfTest(root) {
   // out than the plan that exists to close it, inside the entries written to close
   // it.** The path fix is one word; the control run below is what makes it
   // impossible to ship again.
-  const selfPath = (i) => join(root, 'dev-dist', `.self-${String(i).padStart(2, '0')}.mjs`);
+  // **Named for this check** — see the same note in `check-source-selftest.mjs`:
+  // both wrote `.self-NN.mjs`, and ADR 0039 runs them at the same time.
+  const selfPath = (i) => join(root, 'dev-dist', `.self-policies-${String(i).padStart(2, '0')}.mjs`);
   const runSelfChild = (path) => {
     const r = spawnSync(process.execPath, ['--input-type=module', '-e', RUNNER],
       { cwd: root, encoding: 'utf8', timeout: 900_000,

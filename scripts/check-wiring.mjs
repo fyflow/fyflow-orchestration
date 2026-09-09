@@ -75,7 +75,7 @@ if (process.argv.includes('--self-test')) {
 const failures = [];
 const fail = (check, msg) => failures.push(`${check}: ${msg}`);
 /** Which checks actually executed — the `NOT RUN` state W5's finding asks for. */
-const ran = { G1: false, G2: false, G3: false };
+const ran = { G1: false, G2: false, G3: false, G4: false, G5: false };
 
 const PKG_PATH = process.env.CHECK_WIRING_PKG ?? 'package.json';
 const SCRIPTS = process.env.CHECK_WIRING_SCRIPTS
@@ -352,10 +352,23 @@ if (pkg) {
 // dispatch is a check**, and a check owes the manifest two entries that name it — and
 // an entry that names a script owes that script the matching base. Set equality both
 // ways, `S12`'s shape with the disk on one side of it.
+/**
+ * **The gate's chain, and what "the gate runs it" means since
+ * [ADR 0039](../doc/decisions/0039-the-gate-climbs-the-ladder-and-the-self-tests-run-concurrently.md).**
+ * The seven `:selftest` entries are not in the `&&` chain any more — one entry runs
+ * `scripts/run-selftests.mjs`, which derives them from this manifest and runs them
+ * concurrently. `G3`'s membership clause and `S11`'s both mean *reached by the gate*
+ * rather than *spelled in this string*, and **`G4` below is what makes the second
+ * disjunct true rather than assumed.**
+ */
+const CHAIN = (pkg?.scripts?.gate ?? '').split('&&').map((p) => p.trim().replace(/^npm run /, ''));
+const RUNNER_RE = /scripts\/run-selftests\.mjs/;
+const CHAIN_RUNS_SELFTESTS = CHAIN.some((n) => RUNNER_RE.test(pkg?.scripts?.[n] ?? ''));
+const gateRuns = (n) => CHAIN.includes(n) || (CHAIN_RUNS_SELFTESTS && n.endsWith(':selftest'));
+
 if (pkg) {
   ran.G3 = true;
   const scripts = pkg.scripts ?? {};
-  const chain = (scripts.gate ?? '').split('&&').map((p) => p.trim().replace(/^npm run /, ''));
   // **A check is a `scripts/check-*.mjs` that is not a self-test, and the predicate
   // deliberately does NOT mention the dispatch.** The first version required one, and
   // that made every `G1` probe trip `G3` as well: falsifying a dispatch stopped the
@@ -381,8 +394,10 @@ if (pkg) {
           'Measured: pointing an entry at another check`s script leaves `S11` and `S12` green — they ' +
           'bind the entry NAME — and the check the name promises never runs');
       }
-      if (!chain.includes(entry)) {
-        fail('G3', `"${entry}" exists but is not in \`scripts.gate\`, so nothing in the gate runs it`);
+      if (!gateRuns(entry)) {
+        fail('G3', `"${entry}" exists and \`npm run gate\` does not reach it — it is not in the ` +
+          'chain, and no chain entry runs scripts/run-selftests.mjs either, so nothing in the gate ' +
+          'runs it');
       }
     }
   }
@@ -399,10 +414,251 @@ if (pkg) {
   }
 }
 
+// --- G4: the gate RUNS every `:selftest` entry, and the RUNNER is asked ---------
+//
+// **[ADR 0039](../doc/decisions/0039-the-gate-climbs-the-ladder-and-the-self-tests-run-concurrently.md)
+// took the seven `:selftest` entries out of the gate's `&&` chain**, because they
+// were 93% of its wall clock, they ran ahead of `lint` and `typecheck`, and they ran
+// one at a time on a machine with twenty cores. `scripts/run-selftests.mjs` derives
+// them from this manifest and runs them concurrently.
+//
+// **That is obligation (e) reopened by the fix for obligation (e), one item after
+// [Q149](../doc/open-questions.md) was closed.** Before the change an entry leaving
+// the gate was refused three times over — `S11` (it is a `check:*` and the chain does
+// not name it), `S12` (the declared ordered chain), `G3` (the disk-derived pair). All
+// three go quiet the moment the seven are not in the chain. What replaces them:
+//
+//   the gate REACHES the runner            the chain entry's own COMMAND is run, not
+//                                          a command this check composes
+//   its plan IS the manifest               `--plan`, run with no override, compared
+//                                          both ways — and the COMMAND per entry, not
+//                                          only the name
+//   its exclusive set is the DISK's        computed a second time here, from the
+//                                          marker in the self-test file rather than
+//                                          from a list either side carries
+//   its ACCOUNTING runs                    pointed at a stub, it must report every
+//                                          planned entry completed AND exit 0
+//   its VERDICT runs                       pointed at a stub that FAILS, it must
+//                                          exit non-zero
+//   the override is NOT SET in the gate    because if it is, the gate runs stubs
+//
+// **The last three clauses cost ~1 s and W38 dropped its analogue for costing 8.4.**
+// The argument is that one, applied and coming out the other way: *a clause is worth
+// its cost in proportion to how quiet its absence is*. An unconditional dispatch
+// prints a self-test report where a check report belongs and is loud; **a runner that
+// plans seven entries and runs six, or runs seven and ignores what they returned, is
+// `npm run gate` at exit 0 with the self-tests silently gone**, which is the quietest
+// failure this repository has measured and is the one P11 exists because of.
+//
+// **Three of these six clauses come from W39's conformity reader and each is a shape
+// this repository has now found in four consecutive items.** The first version of
+// this block asked *does some chain entry's command MENTION `run-selftests.mjs`* and
+// then spawned `node <runner>` itself: `"selftests": "node scripts/run-selftests.mjs --plan"`
+// and `"selftests": "echo scripts/run-selftests.mjs"` both left `check:wiring` and
+// `check:source` at **exit 0 with nothing run** — **W36's `D6` verbatim** (*the entry
+// name is bound and its argument is not*), in the one entry that reaches the other
+// seven, and in the clause whose own COMMAND test applies that lesson to them. The
+// second version never observed the command the gate actually executes, because both
+// its runs set `CHECK_SELFTESTS_CMD` — **W38's `G2` distinction, missing from the file
+// that cites it**. And nothing read the runner's verdict, so `let ok = true;` cost
+// **zero**.
+if (pkg) {
+  ran.G4 = true;
+  const scripts = pkg.scripts ?? {};
+  const owed = Object.keys(scripts).filter((n) => n.endsWith(':selftest')).sort();
+  const RUNNER_FILE = 'run-selftests.mjs';
+  const chainEntries = CHAIN.filter((n) => RUNNER_RE.test(scripts[n] ?? ''));
+
+  // **The override is refused in the gate's own environment, not just unset in the
+  // children.** `CHECK_SELFTESTS_CMD` replaces every entry's command, which is how the
+  // clauses below stay affordable — and with it exported, `npm run selftests` reports
+  // `7/7 completed, 7 ok` in 0.3 s and the gate is green with no self-test run at all.
+  // W39's conformity reader measured it on the real tree. `G1` and `G2` have the same
+  // exposure through `CHECK_<NAME>_SELFTEST` and it is not this clause's to fix.
+  if (process.env.CHECK_SELFTESTS_CMD !== undefined) {
+    fail('G4', 'CHECK_SELFTESTS_CMD is set in this process`s environment. It replaces the command ' +
+      'every `:selftest` entry runs, so `npm run gate` would report seven green self-tests having ' +
+      'run none of them. It exists for this check`s own clauses and for nothing else');
+  }
+
+  if (chainEntries.length !== 1) {
+    fail('G4', `${chainEntries.length} entries in \`scripts.gate\` name scripts/${RUNNER_FILE} and ` +
+      `exactly one must, or the ${owed.length} \`:selftest\` entries are reached by nothing — S11, ` +
+      'S12 and G3 all compare entry names in the chain, and the seven are not in it since ADR 0039');
+  } else {
+    // **The command is the MANIFEST's, re-pointed at SCRIPTS and run.** Composing
+    // `node <runner>` here is what let `"selftests": "node scripts/run-selftests.mjs --plan"`
+    // and `"echo …"` both pass: this clause would interrogate a runner the gate never
+    // invokes. Now the argument list is the gate's own, so an extra flag or a
+    // different program is the thing that runs.
+    const raw = (scripts[chainEntries[0]] ?? '').trim().split(/\s+/);
+    const idx = raw.findIndex((t) => new RegExp(`scripts/${RUNNER_FILE}$`).test(t));
+    // **EQUALITY, and a shape test is not enough — W39's adequacy reader, BLOCKING.**
+    // The first version required `node` first and the runner somewhere after it, so
+    // `node scripts/run-selftests.mjs || exit 0` passed: `||`, `exit` and `0` are inert
+    // argv tokens to Node, every clause below interrogated a runner that behaves
+    // perfectly, and the SHELL discarded its exit code. `; exit 0` and `|| true` are
+    // the same edit. `S12` sees the segment name unchanged and `S13` skips it.
+    if (raw.length !== 2 || raw[0] !== 'node' || idx !== 1) {
+      fail('G4', `"${chainEntries[0]}" runs \`${raw.join(' ')}\`, and it must be exactly ` +
+        `\`node scripts/${RUNNER_FILE}\`. Measured: \`echo scripts/${RUNNER_FILE}\` and ` +
+        `\`node scripts/${RUNNER_FILE} --plan\` each satisfied every clause this check had, ` +
+        'because they named the file rather than being it; and `|| exit 0` appended to the right ' +
+        'command left all six clauses green while the gate threw the runner`s verdict away');
+    } else {
+      const argv = raw.slice(1);
+      argv[idx - 1] = join(SCRIPTS, RUNNER_FILE);
+      const base = { ...process.env, CHECK_SELFTESTS_PKG: resolve(ROOT, PKG_PATH),
+        CHECK_SELFTESTS_SCRIPTS: relative(ROOT, SCRIPTS).replace(/\\/g, '/') || '.' };
+      delete base.CHECK_SELFTESTS_CMD;
+      const runIt = (extra, env) => spawnSync(process.execPath, [...argv, ...extra],
+        { cwd: ROOT, encoding: 'utf8', env, timeout: 120_000 });
+
+      const p = runIt(['--plan'], base);
+      const lines = `${p.stdout ?? ''}`.split('\n')
+        .map((l) => /^(alone|concurrent)\s+(\S+)\s+::\s+(.+)$/.exec(l.trim())).filter(Boolean);
+      if (p.status !== 0 || lines.length === 0) {
+        fail('G4', `\`${argv.join(' ')} --plan\` exited ${p.status} and named ${lines.length} ` +
+          'entries. A runner that cannot say what it will run is a runner nothing can check');
+      } else {
+        const planned = lines.map((m) => m[2]).sort();
+        for (const e of owed.filter((x) => !planned.includes(x))) {
+          fail('G4', `package.json declares "${e}" and the runner does not plan it, so \`npm run gate\` ` +
+            'does not run it. This is the hole W38 closed one level in: the entry exists, the script ' +
+            'exists, the flag is there, and nothing runs it');
+        }
+        for (const e of planned.filter((x) => !owed.includes(x))) {
+          fail('G4', `the runner plans "${e}" and package.json has no such \`:selftest\` entry`);
+        }
+        // **The COMMAND, not only the name — W36's `D6` finding, which is why this
+        // clause exists at all.** A plan naming the right entries and running something
+        // else is `test:l6:deno` pointed at a file that exports functions and runs
+        // nothing: four checks green, zero failures, the rung silently unrun. `--plan`
+        // prints what the runner WOULD run, override included, so this reads the
+        // default because the run above unsets it.
+        for (const m of lines) {
+          if (owed.includes(m[2]) && m[3] !== `npm run ${m[2]}`) {
+            fail('G4', `the runner plans "${m[2]}" as \`${m[3]}\` rather than \`npm run ${m[2]}\` — ` +
+              'the entry name is bound and its argument was not, which is the shape W35 and W36 both ' +
+              'found one item apart');
+          }
+        }
+        // The exclusive set, computed here from the same authority the runner uses and
+        // compared both ways. A second computation rather than a second source: what it
+        // catches is the runner ceasing to read the marker, not the marker being wrong
+        // ([Q181](../doc/open-questions.md)).
+        const MARK = `SELFTEST-${'EXCLUSIVE'}:`;
+        const wantAlone = owed.filter((e) => {
+          const m = /scripts\/([\w.-]+)\.mjs/.exec(scripts[e] ?? '');
+          const f = m ? join(SCRIPTS, `${m[1]}-selftest.mjs`) : null;
+          return f !== null && existsSync(f) && readFileSync(f, 'utf8').includes(MARK);
+        }).sort();
+        const gotAlone = lines.filter((m) => m[1] === 'alone').map((m) => m[2]).sort();
+        if (wantAlone.join(',') !== gotAlone.join(',')) {
+          fail('G4', `the runner runs [${gotAlone.join(', ') || 'nothing'}] alone and the \`${MARK}\` ` +
+            `marker is carried by [${wantAlone.join(', ') || 'nothing'}]. An entry that mutates state ` +
+            'outside dev-dist/ and runs concurrently is a flake with no obvious cause — Q148, measured ' +
+            'in four entries rather than the one its row named');
+        }
+        // **The accounting and the VERDICT, run for real against stubs.** Everything
+        // above reads a PLAN. These two are the only clauses that watch the runner
+        // finish, and they are two rather than one because the first only ever runs
+        // children that succeed: with a passing stub, `let ok = true;` costs **zero**.
+        // W39's conformity reader, and it is rule 8's own *a survivor needs a second
+        // independent route* applied to a clause rather than to a probe.
+        const stub = (code) => ({ ...base, CHECK_SELFTESTS_CMD: `"${process.execPath}" -e "process.exit(${code})"` });
+        const green = runIt([], stub(0));
+        const done = /(\d+)\/(\d+) completed/.exec(`${green.stdout ?? ''}`);
+        if (green.status !== 0 || !done || done[1] !== done[2] || Number(done[2]) !== planned.length) {
+          fail('G4', `\`${argv.join(' ')}\`, with every entry pointed at a stub that succeeds, exited ` +
+            `${green.status} and reported \`${done ? done[0] : 'no completion line'}\` against ` +
+            `${planned.length} planned. A runner that plans an entry and does not run it is the gate ` +
+            'at exit 0 with a self-test that did not run');
+        }
+        const red = runIt([], stub(1));
+        if (red.status === 0) {
+          fail('G4', `\`${argv.join(' ')}\`, with every entry pointed at a stub that FAILS, exited 0. ` +
+            'The runner is the only thing between a failing self-test and a green gate, and reading ' +
+            'what its children returned is one expression — measured deletable for zero failures');
+        }
+      }
+    }
+  }
+}
+
+// --- G5: the runner's DEFAULT behaviour, which G4's own runs cannot observe -----
+//
+// **`G4` has three runs and every one of them sets an override.** `CHECK_SELFTESTS_PKG`
+// and `CHECK_SELFTESTS_SCRIPTS` on all three, `CHECK_SELFTESTS_CMD` on the two that
+// watch the runner finish. So **the configuration `npm run gate` executes is the one
+// configuration `G4` never takes** — which is `G2`'s sentence, one file across, in the
+// file that quotes it. W39's adequacy reader measured four ways in, all four green
+// under `check:wiring`, `check:source` AND `check:wiring:selftest`:
+//
+//   `spawn(CMD ?? \`echo skipping ${command}\`)`   7/7 completed, 7 ok, **0.1 s**
+//   `PLAN.filter((x) => x.exclusive && false)`    both hazardous entries concurrent
+//   `PLAN = process.env.CHECK_SELFTESTS_PKG ? plan(pkg) : []`   **0/0 completed**, exit 0
+//   `SCRIPTS` defaulting to `dev-dist`            **0 exclusive**, no marker ever read
+//
+// **The affordable answer is `G2`'s answer: read the DEFAULT rather than run it.**
+// Each declaration below is captured and compared to the one form it may take, so a
+// guard on an override, a replaced default and a falsified filter are all a
+// declaration that no longer matches. It is a text clause and it says so; what makes
+// it not a presence test is that it captures the whole declaration and compares it,
+// which is the fix `D7` took at W37 and `G2` took at W38, both after a reader broke
+// the `includes()` version in one edit.
+//
+// **The cost of the alternative, stated rather than implied**: the only run that
+// observes the default end to end is `npm run selftests` itself, and that is 290 s.
+// Gated on the manifest like `G1`-`G4`: with no readable `package.json` there are no
+// `:selftest` entries and so no runner the gate is obliged to have. It also keeps the
+// unreadable-manifest probe's expectation whole — that probe declares that EVERY row
+// reads `NOT RUN`, and a clause that ran anyway is a disagreement.
+if (pkg && existsSync(join(SCRIPTS, 'run-selftests.mjs'))) {
+  ran.G5 = true;
+  const src = readFileSync(join(SCRIPTS, 'run-selftests.mjs'), 'utf8');
+  /** Each: what it is FOR, and the one line it must be. */
+  const REQUIRED = [
+    ['the manifest it reads',
+      "const PKG_PATH = process.env.CHECK_SELFTESTS_PKG ?? join(ROOT, 'package.json');"],
+    ['the scripts directory it reads the markers from',
+      "const SCRIPTS = resolve(ROOT, process.env.CHECK_SELFTESTS_SCRIPTS ?? join(ROOT, 'scripts'));"],
+    ['the command an entry gets when nothing overrides it',
+      "const CMD = process.env.CHECK_SELFTESTS_CMD ?? '';"],
+    ['the plan, computed unconditionally',
+      'const PLAN = plan(pkg);'],
+    ['the command the plan carries, which is the command the run spawns',
+      'return { entry, exclusive, command: CMD || commandFor(entry) };'],
+    ['the spawn, which reads the plan and nothing else',
+      'const child = spawn(command, { cwd: ROOT, shell: true });'],
+    ['the exclusive entries, run alone and first',
+      'for (const p of PLAN.filter((x) => x.exclusive)) results.push(await run(p));'],
+    ['the rest, run concurrently',
+      'const rest = PLAN.filter((x) => !x.exclusive);'],
+    ['the verdict over what the children returned',
+      'let ok = results.every((r) => r.code === 0);'],
+  ];
+  for (const [what, line] of REQUIRED) {
+    // Anchored at a line start, because a literal that quotes the code it searches for
+    // is a false match for itself — [Q178](../doc/open-questions.md), found twice in
+    // one hour in this file at W38.
+    const anchored = new RegExp(`^\\s*${line.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'm');
+    if (!anchored.test(src)) {
+      fail('G5', `scripts/run-selftests.mjs does not declare ${what} as \`${line}\`. This is the ` +
+        'DEFAULT the gate runs, and every one of `G4`\'s runs sets an override, so no clause there ' +
+        'takes this branch: a guard on an override, or a replaced default, is green in all four ' +
+        'checks while `npm run gate` runs no self-test at all. If the declaration is right to ' +
+        'change, change it here in the same commit');
+    }
+  }
+}
+
 const checks = [
   ['G1', ran.G1, 'G1 every :selftest script routes --self-test to a self-test'],
   ['G2', ran.G2, 'G2 and its DEFAULT self-test is its own, reached with no override set'],
   ['G3', ran.G3, 'G3 and the manifest owes it two entries, derived from disk both ways'],
+  ['G4', ran.G4, 'G4 and the gate RUNS every one of them, which the runner is asked'],
+  ['G5', ran.G5, 'G5 and the runner`s DEFAULT behaviour is its own, which G4 cannot observe'],
 ];
 console.log(`wiring check — ${Object.keys(pkg?.scripts ?? {}).filter((n) => n.endsWith(':selftest')).length} :selftest entries\n`);
 for (const [id, didRun, label] of checks) {

@@ -7,18 +7,27 @@
 // Three passes, on the shape `check-policies-selftest.mjs` settled into:
 //
 //   PROBES  break an INPUT and require `check-wiring` to refuse it, naming exactly
-//           the checks the probe declares. **Sixteen**: seven dispatches falsified,
-//           one per `:selftest` entry INCLUDING this check's own — which is what makes
-//           the check self-covering — plus one that breaks routing while leaving the
-//           dispatch's shape intact (`G1` alone), three that break the shape while
-//           leaving routing intact (`G2`, two of them alone),
-//           four manifests (`G3`), and one unreadable manifest, the only probe whose
-//           expected report row is `NOT RUN`.
-//   META    break the CHECK itself and require a named probe to notice. **Eight
-//           against fourteen `fail()` sites — three `G1`, seven `G2`, four `G3` — and
-//           the cap is stated rather than padded**: one entry per DISTINCT mechanism,
-//           plus the report block, which no set comparison can see
-//           ([Q100](../doc/open-questions.md)). The six not covered are the arms that
+//           the checks the probe declares. **Thirty-three**: seven dispatches
+//           falsified, one per `:selftest` entry INCLUDING this check's own — which is
+//           what makes the check self-covering — plus one that breaks routing while
+//           leaving the dispatch's shape intact (`G1` alone), three that break the
+//           shape while leaving routing intact (`G2`, two of them alone), four
+//           manifests (`G3`), **thirteen for `G4`** — five mutations of
+//           `run-selftests.mjs`, five manifests, one environment override and two that
+//           co-fire with `G5` — **four for `G5`**, and one unreadable manifest, the only
+//           probe whose expected report row is `NOT RUN`.
+//           *(This read **Sixteen** and enumerated no `G4` family at all, one item
+//           after W38's conformity reader corrected the same header for the same
+//           class, and then **Twenty-eight** for as long as it took both of W39's
+//           readers to add five more. A count in a header is this repository's most
+//           reliable defect.)*
+//   META    break the CHECK itself and require a named probe to notice. **Fourteen
+//           against twenty-six `fail()` sites — three `G1`, eight `G2`, four `G3`,
+//           ten `G4`, one `G5` — and the cap is stated rather than padded**: one entry
+//           per DISTINCT mechanism, plus the report block, which no set comparison can
+//           see ([Q100](../doc/open-questions.md)). `G5` reports one message for nine
+//           declarations and a second entry there would grade STILL CAUGHT. The twelve
+//           not covered are the arms that
 //           report a variant of a covered arm's message under the same id, where a
 //           second entry would grade STILL CAUGHT by co-firing rather than by
 //           reaching anything new. *(The first version of this header said "one entry
@@ -44,6 +53,21 @@
 // nothing, and so does the check it is controlling for.
 //
 // **Every mutation is written to a COPY; the tree is never touched.**
+//
+// SELFTEST-EXCLUSIVE: `stage()` writes every `scripts/check-*.mjs` into `dev-dist/`
+// FLAT — the one directory every other self-test uses for scratch — and then runs
+// those copies with their dispatch falsified, so a staged `check-docs.mjs` reaches the
+// real `check-docs` body and `rmSync`s `dev-dist/docs`, and a staged `check-spec.mjs`
+// whose override read is removed launches the **whole** `check-spec` self-test, which
+// deletes and rebuilds `dev-dist/spec-selftest`. **Both were measured rather than
+// argued** ([ADR 0039](../doc/decisions/0039-the-gate-climbs-the-ladder-and-the-self-tests-run-concurrently.md)):
+// running the seven concurrently, `check:docs:selftest` reported an `X4` probe
+// uncaught and another tripping `[X1,X4]`, and `check:spec:selftest` reported *the
+// mutant did not run: this is a crash, not a detection* — **a harness fault wearing
+// the verdict of a finding, which is what `doc/workflow.md` v0.11 is about**, arriving
+// from a *neighbouring process* rather than from this one. Isolated: `check:spec:selftest`
+// beside `check:wiring` (the plain check) is green and beside `check:wiring:selftest`
+// is red. `dev-dist/` is a shared namespace and nothing said so.
 
 import { readFileSync, readdirSync, writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
@@ -207,14 +231,239 @@ const G2_PROBES = [
   },
 ];
 
-const PROBES = [...G1_PROBES, ...G1_ONLY, ...G2_PROBES, ...G3_PROBES, ...PKG_PROBE];
+/**
+ * **`G4`'s probes — five mutations of `scripts/run-selftests.mjs` and one manifest.**
+ *
+ * `G4` is the clause that replaces what `S11`, `S12` and `G3` all stopped seeing when
+ * [ADR 0039](../doc/decisions/0039-the-gate-climbs-the-ladder-and-the-self-tests-run-concurrently.md)
+ * took the seven `:selftest` entries out of the gate's `&&` chain. So each of these
+ * asks the question those three used to answer, one indirection further out: **is
+ * this entry still run by `npm run gate`, and is it run as itself?**
+ *
+ * The runner is staged flat in `dev-dist/` by `stage()` like every other script, and
+ * `G4` reaches it through the same `CHECK_WIRING_SCRIPTS` the other clauses use.
+ */
+const G4_PROBES = [
+  {
+    // The entry is in the manifest, the script exists, its dispatch routes — and the
+    // gate does not run it. That is Q149's own sentence with the subject changed.
+    name: 'the runner plans one fewer entry than the manifest declares',
+    file: 'run-selftests.mjs',
+    check: 'G4',
+    mutate: (t) => t.replace("  const entries = Object.keys(scripts).filter((n) => n.endsWith(':selftest')).sort();",
+      "  const entries = Object.keys(scripts).filter((n) => n.endsWith(':selftest')).sort().slice(1);"),
+  },
+  {
+    name: 'the runner plans an entry the manifest does not declare',
+    file: 'run-selftests.mjs',
+    check: 'G4',
+    mutate: (t) => t.replace('  return entries.map((entry) => {',
+      "  return [...entries, 'check:ghost:selftest'].map((entry) => {"),
+  },
+  {
+    // **W36's `D6` and W35's `test:l6` shape, in the runner.** The plan names the
+    // right seven and runs something else for one of them; the entry names are bound
+    // and the argument is not, which is exactly the pair of findings this repository
+    // made one item apart.
+    name: 'the runner names the right entries and would run another command',
+    file: 'run-selftests.mjs',
+    check: 'G4',
+    mutate: (t) => t.replace('const commandFor = (entry) => `npm run ${entry}`;',
+      "const commandFor = (entry) => (entry.includes('docs') ? 'npm run lint' : `npm run ${entry}`);"),
+  },
+  {
+    // Not a cost question: an exclusive entry running concurrently is a flake with no
+    // obvious cause, which is what Q148 predicted and what W39 measured twice.
+    name: 'the runner stops reading the exclusivity marker',
+    file: 'run-selftests.mjs',
+    check: 'G4',
+    mutate: (t) => t.replace("    if (file && existsSync(file)) exclusive = readFileSync(file, 'utf8').includes(MARK);",
+      '    if (false) exclusive = true;'),
+  },
+  {
+    // **The accounting path, and the only probe here that watches the runner FINISH.**
+    // Everything above reads a plan. This drops an entry from the queue and leaves the
+    // plan alone, so the plan comparison is silent and only the completion count moves.
+    name: 'the runner plans every entry and runs one fewer',
+    file: 'run-selftests.mjs',
+    check: 'G4',
+    mutate: (t) => t.replace(NL + 'const queue = [...rest];', NL + 'const queue = [...rest].slice(1);'),
+  },
+  {
+    // **The COMPOUND, and it is what makes the runner's own accounting load-bearing.**
+    // The probe above is caught by `G4` reading the printed counts, so the runner's
+    // `if (missing.length || ...)` was deletable for **zero** — measured by W39's rule 8
+    // set, as a survivor. Here the count is reported as the PLAN's, so `G4`'s
+    // arithmetic is satisfied and the only thing left is the exit code, which that
+    // `if` is the only producer of. *A provenance guard cannot be graded against a
+    // correct implementation* — W34's finding, and W38's `G2` block-end before it.
+    name: 'the runner runs one fewer entry and reports the plan`s count anyway',
+    file: 'run-selftests.mjs',
+    check: 'G4',
+    mutate: (t) => t.replace(NL + 'const queue = [...rest];', NL + 'const queue = [...rest].slice(1);')
+      .replace('${completed.length}/${planned.length} completed', '${planned.length}/${planned.length} completed'),
+  },
+  {
+    // **W39's conformity reader, BLOCKING, and it is W36's `D6` in the one entry that
+    // reaches the other seven.** `G4` asked whether some chain entry's command MENTIONED
+    // the runner and then spawned `node <runner>` itself, so it interrogated a runner the
+    // gate need not invoke: this manifest left `check:wiring` **4/4 ok** and
+    // `check:source` **13/13 ok** while `npm run gate` printed a plan and ran nothing.
+    name: 'the chain entry runs the runner with --plan, so the gate runs nothing',
+    file: null,
+    check: 'G4',
+    env: (dir) => ({ CHECK_WIRING_PKG: `${dir}/pkg-planonly.json` }),
+    mutate: (t) => t,
+  },
+  {
+    // The same reader's second manifest: the command names the file and is not the file.
+    name: 'the chain entry echoes the runner`s path instead of running it',
+    file: null,
+    check: 'G4',
+    env: (dir) => ({ CHECK_WIRING_PKG: `${dir}/pkg-echo.json` }),
+    mutate: (t) => t,
+  },
+  {
+    // **The override, set in the environment the CHECK runs in** — the one shape a
+    // manifest cannot express and a mutated script cannot either. With it exported,
+    // `npm run selftests` reports `7/7 completed, 7 ok` in 0.3 s. W38's `G2` distinction,
+    // missing from the file that cites it until W39's conformity reader measured it.
+    name: 'CHECK_SELFTESTS_CMD is exported into the gate`s own environment',
+    file: null,
+    check: 'G4',
+    env: () => ({ CHECK_SELFTESTS_CMD: `"${process.execPath}" -e ""` }),
+    mutate: (t) => t,
+  },
+  {
+    // **The runner's VERDICT, which no clause read until the same reader deleted it.**
+    // One expression, one line, and every child's exit code discarded: seven failing
+    // self-tests, runner exit 0, gate green. It needs its own stub run because the
+    // accounting clause only ever runs children that succeed.
+    name: 'the runner never reads what its children returned',
+    file: 'run-selftests.mjs',
+    check: 'G4',
+    // Co-fires with `G5`, which requires this exact declaration: one mutation, two
+    // clauses, and they are not the same clause twice — `G4` runs the runner against a
+    // FAILING stub and watches the exit code, `G5` reads the line. The failure COUNT
+    // and the report rows both see the pair, which is W29's discrimination.
+    also: ['G5'],
+    mutate: (t) => t.replace('let ok = results.every((r) => r.code === 0);', 'let ok = true;'),
+  },
+  {
+    // **The DEFAULT command, replaced.** `--plan` prints what the runner would actually
+    // run, so with the override unset this is the default and `G4`'s command clause sees
+    // it. Before that, both of `G4`'s runs set the override and neither observed the
+    // configuration the gate executes.
+    name: 'the runner`s default command becomes a stub when nothing overrides it',
+    file: 'run-selftests.mjs',
+    check: 'G4',
+    also: ['G5'],
+    // *(Re-anchored once already: the declaration gained `?? ''` when the override moved
+    // into `plan()`, and this probe reported *the mutation matched nothing* — rule 7 (b)
+    // firing on the fix for a reader's finding, which is obligation (e)'s own founding
+    // observation about repairs.)*
+    mutate: (t) => t.replace(`const CMD = process.env.CHECK_SELFTESTS_CMD ?? '';`,
+      `const CMD = process.env.CHECK_SELFTESTS_CMD ?? '"node" -e ""';`),
+  },
+  {
+    // **W39's adequacy reader, BLOCKING, and the reason `G5` exists.** Every one of
+    // `G4`'s three runs sets an override, so the branch the gate takes is the one branch
+    // no `G4` clause observes: with this, `npm run selftests` reported `7/7 completed,
+    // 7 ok` in **0.1 s** and `check:wiring`, `check:source` AND `check:wiring:selftest`
+    // were all green. `G4` co-fires now only because its failing-stub run also notices.
+    name: 'the runner prints the command instead of spawning it',
+    file: 'run-selftests.mjs',
+    check: 'G5',
+    also: ['G4'],
+    mutate: (t) => t.replace('const child = spawn(command, { cwd: ROOT, shell: true });',
+      'const child = spawn(`echo skipping ${command}`, { cwd: ROOT, shell: true });'),
+  },
+  {
+    // **`alone` was a LABEL.** `--plan` still printed `alone` for both exclusive entries
+    // and `plan 7 entries, 2 exclusive`, while the run put all seven in five lanes —
+    // `check:scheduler:selftest` deleting `node_modules/` beside the other five. The
+    // exclusivity clause compares the printed plan; only the declaration binds the run.
+    name: 'the exclusive entries are labelled alone and run concurrently',
+    file: 'run-selftests.mjs',
+    check: 'G5',
+    // Co-fires with `G4`: `rest` still excludes the two exclusive entries, so with the
+    // first loop falsified they run NOWHERE and the stub pass reports `5/7 completed`.
+    // Declared rather than discovered — the set caught it on its first run.
+    also: ['G4'],
+    mutate: (t) => t.replace('for (const p of PLAN.filter((x) => x.exclusive)) results.push(await run(p));',
+      'for (const p of PLAN.filter((x) => x.exclusive && false)) results.push(await run(p));'),
+  },
+  {
+    // The plan itself, guarded on an override `G4` sets on every run: `0/0 completed`,
+    // exit 0, the whole self-test half gone, four checks green. `G2`'s own probe
+    // (*check-spec.mjs guards its exit on the override being set*) in the runner.
+    name: 'the plan is computed only when the PKG override is set',
+    file: 'run-selftests.mjs',
+    check: 'G5',
+    mutate: (t) => t.replace('const PLAN = plan(pkg);',
+      'const PLAN = process.env.CHECK_SELFTESTS_PKG ? plan(pkg) : [];'),
+  },
+  {
+    // The markers are read out of `SCRIPTS`, and `G4` sets that too — so moving the
+    // DEFAULT means no marker is ever read and both hazardous entries run concurrently,
+    // with `--plan` reporting `0 exclusive` under the gate's own configuration.
+    name: 'the runner reads its markers from the wrong directory by default',
+    file: 'run-selftests.mjs',
+    check: 'G5',
+    mutate: (t) => t.replace("process.env.CHECK_SELFTESTS_SCRIPTS ?? join(ROOT, 'scripts')",
+      "process.env.CHECK_SELFTESTS_SCRIPTS ?? join(ROOT, 'dev-dist')"),
+  },
+  {
+    // **The "exactly one" half, which the equality clause MASKS in the zero direction.**
+    // W39's rule-8 re-run: with `chainEntries.length !== 1` replaced by `if (false)`,
+    // the no-runner manifest is still refused — `chainEntries[0]` is `undefined`, the
+    // command is `''`, and the equality clause fires in its place. Two clauses, one id,
+    // and the failure COUNT does not move: **masking**, in W29's sense. This manifest is
+    // the discriminating case, and it is the other direction: TWO entries naming the
+    // runner, where `chainEntries[0]` is a real command and equality passes.
+    name: 'two chain entries run the selftest runner',
+    file: null,
+    check: 'G4',
+    env: (dir) => ({ CHECK_WIRING_PKG: `${dir}/pkg-tworunners.json` }),
+    mutate: (t) => t,
+  },
+  {
+    // **The suffix case, and closing the deletion case did not close it.** `|| exit 0`
+    // appended to the right command: `||`, `exit` and `0` are inert argv tokens to Node,
+    // so all six clauses interrogated a runner that behaves perfectly while the SHELL
+    // discarded its verdict. `; exit 0` and `|| true` are the same edit.
+    name: 'the chain entry appends a shell suffix that swallows the verdict',
+    file: null,
+    check: 'G4',
+    env: (dir) => ({ CHECK_WIRING_PKG: `${dir}/pkg-suffix.json` }),
+    mutate: (t) => t,
+  },
+  {
+    // The chain half. `G3` co-fires because `gateRuns` is the same predicate in both,
+    // and it is DECLARED rather than discovered: one manifest, two clauses, and the
+    // failure count is what tells them apart.
+    name: 'the gate chain stops running the selftest runner',
+    file: null,
+    check: 'G4',
+    also: ['G3'],
+    env: (dir) => ({ CHECK_WIRING_PKG: `${dir}/pkg-norunner.json` }),
+    mutate: (t) => t,
+  },
+];
+
+const PROBES = [...G1_PROBES, ...G1_ONLY, ...G2_PROBES, ...G3_PROBES, ...G4_PROBES, ...PKG_PROBE];
 
 /** Vacuous at zero, which is the floor `check-policies-selftest.mjs` taught. */
-const MIN_PROBES = 16;
-const MIN_META = 8;
+const MIN_PROBES = 34;
+const MIN_META = 14;
 const MIN_SELF = 6;
 
-const ALL_CHECKS = ['G1', 'G2', 'G3'];
+// **`G5` had to be added here as well as to the check, and forgetting it is
+// [Q43](../doc/open-questions.md)'s class** — a closed allowlist makes a new id's
+// failure lines invisible to the parse, so a probe declaring `[G4,G5]` reported
+// `got [G4]` while `G5` was failing in the same output. W36 hit this adding `D6`;
+// W39 hit it adding `G5`, one item later, in the file that records it.
+const ALL_CHECKS = ['G1', 'G2', 'G3', 'G4', 'G5'];
 
 /**
  * **The mutations `check-wiring.mjs` itself is run against**, each naming the probe
@@ -250,6 +499,31 @@ const META = [
   ['G1 stops counting the entries it skipped',
     'check-spec.mjs stops routing --self-test',
     (t) => t.replace('    tested.push(name);', '')],
+  ['G4`s unplanned-entry clause stops reporting',
+    'the runner plans one fewer entry than the manifest declares',
+    (t) => t.replace('        fail(\'G4\', `package.json declares "${e}"', '        [].push(`package.json declares "${e}"')],
+  ['G4`s command clause stops reporting',
+    'the runner names the right entries and would run another command',
+    (t) => t.replace("          fail('G4', `the runner plans \"${m[2]}\" as", '          [].push(`the runner plans "${m[2]}" as')],
+  ['G4 stops running the runner to completion, and only reads its plan',
+    'the runner plans every entry and runs one fewer',
+    (t) => t.replace('        if (green.status !== 0 || !done || done[1] !== done[2] || Number(done[2]) !== planned.length) {',
+      '        if (false) {')],
+  // **Named in lower case deliberately.** `npm run gate`'s secondary signal is
+  // *zero FAIL lines*, read by grepping the log — and an `ok` row whose probe name
+  // contains `FAILS` makes that count non-zero on a green gate. W34 recorded the
+  // opposite direction (exit 1 with zero FAIL lines); this is the same lesson, that
+  // the exit code is the predicate and the count is secondary, arriving as a
+  // self-inflicted false positive in W39's own final gate log.
+  ['G4 stops running the runner against a stub that fails',
+    'the runner never reads what its children returned',
+    (t) => t.replace('        if (red.status === 0) {', '        if (false) {')],
+  ['G4 stops requiring the chain entry to BE the runner',
+    'the chain entry echoes the runner`s path instead of running it',
+    (t) => t.replace("      fail('G4', `\"${chainEntries[0]}\" runs", '      [].push(`"${chainEntries[0]}" runs')],
+  ['G4 stops refusing the override in its own environment',
+    'CHECK_SELFTESTS_CMD is exported into the gate`s own environment',
+    (t) => t.replace("    fail('G4', 'CHECK_SELFTESTS_CMD is set in this process", "    [].push('CHECK_SELFTESTS_CMD is set in this process")],
 ];
 
 /**
@@ -273,14 +547,14 @@ const SELF = [
         '  mutate: (t) => t,'),
     (out) => { const m = /(\d+)\/(\d+) probes caught/.exec(out); return !!m && m[1] !== m[2]; }],
   ['MIN_PROBES is lowered and PROBES emptied',
-    (t) => t.replace('const MIN_PROBES = 16;', 'const MIN_PROBES = 0;')
-      .replace('const PROBES = [...G1_PROBES, ...G1_ONLY, ...G2_PROBES, ...G3_PROBES, ...PKG_PROBE];', 'const PROBES = [];')],
+    (t) => t.replace('const MIN_PROBES = 34;', 'const MIN_PROBES = 0;')
+      .replace('const PROBES = [...G1_PROBES, ...G1_ONLY, ...G2_PROBES, ...G3_PROBES, ...G4_PROBES, ...PKG_PROBE];', 'const PROBES = [];')],
   ['MIN_PROBES is lowered, PROBES emptied, and the per-check coverage bound removed',
-    (t) => t.replace('const MIN_PROBES = 16;', 'const MIN_PROBES = 0;')
-      .replace('const PROBES = [...G1_PROBES, ...G1_ONLY, ...G2_PROBES, ...G3_PROBES, ...PKG_PROBE];', 'const PROBES = [];')
+    (t) => t.replace('const MIN_PROBES = 34;', 'const MIN_PROBES = 0;')
+      .replace('const PROBES = [...G1_PROBES, ...G1_ONLY, ...G2_PROBES, ...G3_PROBES, ...G4_PROBES, ...PKG_PROBE];', 'const PROBES = [];')
       .replace('    if (missing.length) {', '    if (false) {')],
   ['ALL_CHECKS is emptied, so no probe can trip anything',
-    (t) => t.replace("const ALL_CHECKS = ['G1', 'G2', 'G3'];", 'const ALL_CHECKS = [];')],
+    (t) => t.replace("const ALL_CHECKS = ['G1', 'G2', 'G3', 'G4', 'G5'];", 'const ALL_CHECKS = [];')],
   ['CHECKS repeats one name instead of naming seven',
     (t) => t.replace("const CHECKS = ['spec', 'source', 'wiring', 'markdown', 'scheduler', 'policies', 'docs'];",
       "const CHECKS = ['spec', 'source', 'spec', 'source', 'spec', 'source', 'spec'];")],
@@ -367,6 +641,26 @@ export async function selfTest(root) {
     // three clauses — measured. One entry keeps this probe about `G3` alone.
     ghost.scripts['check:ghost'] = 'node scripts/check-ghost.mjs';
     writeFileSync(join(dir, 'pkg-ghost.json'), JSON.stringify(ghost));
+    // **`G4`'s chain half.** The runner entry stays in `scripts` and leaves the chain,
+    // which is the one shape that makes all seven `:selftest` entries unreachable in a
+    // single edit — and the shape `S12` catches on ITS declared list and `G3` cannot
+    // catch on a list derived from disk.
+    const norunner = structuredClone(real);
+    norunner.scripts.gate = norunner.scripts.gate.replace(' && npm run selftests', '');
+    writeFileSync(join(dir, 'pkg-norunner.json'), JSON.stringify(norunner));
+    const planonly = structuredClone(real);
+    planonly.scripts.selftests = `${planonly.scripts.selftests} --plan`;
+    writeFileSync(join(dir, 'pkg-planonly.json'), JSON.stringify(planonly));
+    const echoed = structuredClone(real);
+    echoed.scripts.selftests = 'echo scripts/run-selftests.mjs';
+    writeFileSync(join(dir, 'pkg-echo.json'), JSON.stringify(echoed));
+    const suffixed = structuredClone(real);
+    suffixed.scripts.selftests = `${suffixed.scripts.selftests} || exit 0`;
+    writeFileSync(join(dir, 'pkg-suffix.json'), JSON.stringify(suffixed));
+    const two = structuredClone(real);
+    two.scripts['selftests:again'] = two.scripts.selftests;
+    two.scripts.gate = `${two.scripts.gate} && npm run selftests:again`;
+    writeFileSync(join(dir, 'pkg-tworunners.json'), JSON.stringify(two));
   }
 
   const done = (code) => { rmSync(dir, { recursive: true, force: true }); return code; };
@@ -459,6 +753,34 @@ export async function selfTest(root) {
     if (unprobed.length) {
       console.log(`  FAIL  no probe declares ${unprobed.join(', ')}; a check nothing probes is a ` +
         'check this file cannot say anything about.');
+      return done(1);
+    }
+  }
+
+  // **`PROBES` is bounded by COUNT and by COVERAGE and, until W39's adequacy reader,
+  // by nothing about CONTENT.** Re-point one probe's `mutate` at another probe's
+  // mutation and the file still reports `28/28 probes caught` at exit 0 — with the
+  // clause that probe was the only probe for deletable for **zero**. Six of the twelve
+  // `G4` probes are named by a `META` entry and cannot be re-pointed without an ABORT;
+  // the other six could. `META` and `SELF` have asserted distinctness since W30 and
+  // W31; this is the same bound on the list they grade, arriving two items later.
+  // [Q153](../doc/open-questions.md)'s shape in the newest file's `PROBES`.
+  {
+    const sig = PROBES.map((probe) => {
+      if (!probe.file) {
+        // A manifest or environment probe mutates nothing; what distinguishes it is
+        // the input it supplies, so that is what is compared.
+        return `env\u0000${JSON.stringify(probe.env?.(dir) ?? null)}`;
+      }
+      const text = readFileSync(join(root, 'scripts', probe.file), 'utf8');
+      let out = null;
+      try { out = probe.mutate(text); } catch { /* a throwing mutate is its own signature */ }
+      return `${probe.file}\u0000${out}`;
+    });
+    if (new Set(sig).size !== PROBES.length) {
+      console.log(`check-wiring self-test — ${PROBES.length} probes, ${new Set(sig).size} distinct inputs.`);
+      console.log('  FAIL  two probes present the SAME input, so one clause is probed twice and ' +
+        'another not at all — a count and a coverage bound can see neither.');
       return done(1);
     }
   }

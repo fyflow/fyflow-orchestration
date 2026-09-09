@@ -1,6 +1,6 @@
 # Workflow
 
-**Status:** v0.11 - **run to completion TEN times**, by [P1](plans/p1-what-satisfies-a-join.md),
+**Status:** v0.12 - **run to completion ELEVEN times**, by [P1](plans/p1-what-satisfies-a-join.md),
 [P2](plans/p2-the-non-success-half-on-a-real-scheduler.md),
 [P3](plans/p3-a-consumer-reference-the-gate-keeps-true.md),
 [P4](plans/p4-the-drivers-lifetime-and-the-handles-it-gives-out.md),
@@ -8,8 +8,9 @@
 [P6](plans/p6-what-may-share-a-scheduler-with-a-driver.md),
 [P7](plans/p7-is-a-join-transitive-over-nested-fan-out.md),
 [P8](plans/p8-what-can-be-deleted-with-the-gate-green.md),
-[P9](plans/p9-when-a-check-stops-checking-what-notices.md) and
-[P10](plans/p10-is-fan-out-one-feature-or-two.md)
+[P9](plans/p9-when-a-check-stops-checking-what-notices.md),
+[P10](plans/p10-is-fan-out-one-feature-or-two.md) and
+[P11](plans/p11-what-should-the-gate-prove.md)
 **Read this before starting any work item.** *(The status line read "seven times" and listed P1-P7
 until P9's retro: **P8 ran this document to completion and adopted none of its proposals**, which is
 section 6 pass 3 rule 1's expected verdict and is not the same as not having run it.)* Paths are relative to the repo root unless they are
@@ -92,6 +93,100 @@ prediction about rule 8 is answered and is **false**.
    ([ADR 0029](decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)).
    The dependency edge that made the junction seem necessary is gone; **the rule still said nothing
    about the removal**, which is the part that did the damage.
+
+**v0.12 is [P11](plans/p11-what-should-the-gate-prove.md)'s retro, and its central finding is that
+obligation (e) was instantiated by the author THREE times in one item and its two readers then found
+EIGHT more instances of it in the same item.** P11 asked *what should the gate prove, and what is it
+actually proving?* — two items over the gate's own wiring, one ADR, nothing deleted. It adopts
+**three** changes, two of them one sentence each, and refuses three.
+
+1. **Rule 8 obligation (e) gains a SECOND QUESTION: not *was the check run*, but *was what it ran what
+   ships*.** (e) as written asks whether a check, grading or guard *"can be skipped, unreferenced, or
+   reached with nothing to do"* — all three of which are properties of the CHECK. **Five consecutive
+   items shipped a hole that is a property of its SUBJECT**, every one found by a reader, every one
+   blocking, and the last two by authors who quote the previous occurrence in the same file:
+
+   *(In commit order, which is not the order their numbers read.)*
+
+   | | the check | what it bound | what it did not |
+   |---|---|---|---|
+   | W36 | `D3` | both halves of the pin, tightly | its PREMISE — `--import-map` dropped from `test:l6:deno` and Deno resolves the bare specifier out of `node_modules`, so L6 reports 489 assertions at exit 0 with `D3` printing `ok`. **`D6` was created here** |
+   | W35 | `D6` | that `test:l6:deno` runs `deno run` with `--import-map` | the FILE — either rung repointed at `examples/run-flow.ts`, which exports functions and runs nothing, for **zero** failures across four checks. `test:l6` had nothing but its NAME bound |
+   | W37 | `D3` again | that the two pinned version STRINGS agree | that either is REACHABLE — Deno blocks a JSR version published under 24 hours old, so for a day the gate ran a pin one runtime could not fetch, with `D3` comparing two equal strings and printing **`ok`** |
+   | W38 | `G1` | that each `:selftest` script routes the flag **with an override set** | the DEFAULT, which is every run the gate makes — `G2` |
+   | W39 | `G4` | the runner's plan, its commands and its exclusive set, **with an override set** | the DEFAULT again (`G5`), and the chain entry's ARGUMENT: `--plan`, `echo`, and `\|\| exit 0`, each `npm run gate` at exit 0 with the self-tests not running |
+
+   **Two shapes, and each has a procedure that was invented twice independently in this repository:**
+
+   - **the name is bound and the argument is not.** Bind the whole command by **equality**, and run
+     **that command** rather than one the check composes. W39 is the worked case for why shape is not
+     enough: closing the `--plan` and `echo` forms did not close `|| exit 0`, because `||`, `exit`
+     and `0` are inert argv tokens to Node and the **shell** discards the verdict. *A deletion and a
+     suffix are two defects and one clause caught only one.*
+   - **a check that must CONFIGURE its subject to observe it has not observed the configuration that
+     ships.** The override is what makes the check affordable and it is what makes it blind: *the one
+     configuration `npm run gate` executes is the one configuration the check never takes.* The
+     affordable answer is to **read the default declaration rather than running it** — `G2` captures
+     both names out of `const mod = process.env.<NAME> ?? join(ROOT, 'scripts', '<file>');`, and `G5`
+     captures the **nine** declarations that decide an unconfigured run. The alternative is a run with
+     no override at all, which for `G5` is 290 s.
+
+   **It replaces nothing and it is not a sixth obligation**, because it asks (e)'s question of a
+   different noun. **The scope is stated rather than generalised**: all five are checks over the gate's
+   own wiring, in `scripts/**`. What generalises without argument is the second shape — any test that
+   stubs, injects or overrides its subject is by construction not testing what ships, and the two
+   independent inventions of *read the default* one file apart are the evidence that an author will not
+   reach it from the axis alone.
+
+2. **Section 1 rule 5's writing clause gains a WHEN: a measured number is re-taken on the tree the
+   item ships.** v0.10 added *a claim states the scope it was MEASURED at*; it says nothing about the
+   moment of measurement, and **an item is not finished when its work is — it is finished when two
+   readers have changed it.** Rule 8 already requires the provocation SET to be re-run at that point;
+   this says the item's own NUMBERS are re-taken in the same pass. Three occurrences, three items:
+   W23 reported a count read from a file it had itself written for an earlier version of its own work;
+   **W32's Record read *"506 on chromium"* from a run made before the change the Record describes**;
+   and **W39 — the item whose entire subject is measurement — reported its headline saving as
+   `-38.3%`, which is the figure at code-complete, against the `-23.8%` its own ADR carries**, because
+   its readers' twelve blocking findings cost 75 s afterwards. Its census note is the same defect a
+   second time in the same file: **`139 / 96`, taken before the third question that item raised had a
+   row**. *Where a number is derivable in one expression, derive it there — and where it costs seven
+   minutes to take, take it last.*
+
+3. **Section 6 pass 3 gains one sentence: a retro may correct a false claim in the files of the items
+   it reviews, and names which.** Once an item is done its file is on nobody's `Owns`, and a retro has
+   no `Owns` and no declaration in which to take an exception — so change 2's own correction had
+   nowhere legal to land. **This is the second occurrence of P10's parked proposal's SHAPE and not of
+   its wording**, which is why that proposal stays parked: P10 named *another item's Record, where it
+   asserts something false about yours* (W35 correcting W34), and this is a plan's retro correcting an
+   item of its own plan. Both are the same gap — a finished file has no owner — reached from two
+   directions, and the narrower fix is the one taken.
+
+**PROPOSED AND REFUSED: an obligation about the OUTPUTS table on a process item.** (b) — *break every
+row of the `Outputs` table* — degenerates where the outputs are documents and decisions. W39's three
+(b) provocations were *delete the ADR* (caught by `M1` as **11 dead links**, which says nothing about
+the ADR being right), *delete the runner* (caught by `G4`), and *revert Q133's status cell* (**SURVIVED
+— a declared ceiling**). W38 shipped an `Outputs` row — *Q149 closed* — whose *what would fail without
+it* cell is **blank**, which section 4's own note says is the mechanism working. **Two items, one
+plan, and the honest reading is a scope caveat rather than a mechanism problem**: (b) was earned on
+W15/W16/W17, where an output is a renderer or a policy column and breaking it means something. It is
+recorded here so a third occurrence has somewhere to land.
+
+**PROPOSED AND REFUSED: a LEVEL for the gate itself.** Section 6 pass 3 rule 5 asks which rung should
+have caught each defect, and for **every one of P11's seven** the answer is *none* — the order, the
+dispatch, the default the gate runs, two self-tests destroying each other's fixtures, a Record's
+number, a census, four stale counts in `README.md`. **Every one is in the instrument, and section 4's
+ladder is about the product**, while this repository has built a rung's worth of machinery for the
+instrument — `S11`-`S13`, `G1`-`G5`, `D1`-`D7`, seven self-tests — and never put it on the ladder. Two
+arguments against, either sufficient: a level number invites *climb to it and stop*, and the gate's
+own checks are **L0**, which is where ADR 0039 has now put them; and section 4's levels are commands
+you run in order, while *"does the thing that runs the checks run them"* is not one. **One occurrence,
+recorded so a second has somewhere to land.**
+
+**REFUSED, for the ninth time: a check over `doc/`.** The new twist is that the cost of deriving is now
+zero. `npm run gate` prints every self-test's probe count on every run, and **four of the seven rows in
+`README.md`'s command table disagreed with what was on the screen** — two of them P11's own doing,
+`check:source:selftest` at 34 against 35 and `check:wiring:selftest` at 33 against 34. Corrected by
+hand at this retro, as the eight before it were.
 
 **v0.11 is [P10](plans/p10-is-fan-out-one-feature-or-two.md)'s retro, and it is the first retro
 whose central finding is about the INSTRUMENT rather than about what it measures.** P10 was a product
@@ -437,6 +532,22 @@ Four rules that make the loop worth having:
    register is where it lands because the register is where findings are lifted to. Write the number of
    files you ran it in.
 
+   **And a measured number is RE-TAKEN on the tree the item ships — P11's retro, and it is the WHEN
+   that clause has no answer for.** An item is not finished when its work is; it is finished when two
+   readers have changed it, and rule 8 already requires the provocation set to be re-run at that
+   moment. **The item's own numbers are re-taken in the same pass.** Three occurrences, three items:
+   W23 reported a count to a human read from `examples/README.md`, a file that item had written, for
+   an earlier version of its own work; **W32's Record read *"506 on chromium"* from a run made before
+   the change the Record describes**, and running it for real found a defect that had broken every
+   browser runtime; and **W39 — the item whose entire subject is measurement — reported its headline
+   saving as `-38.3%`, the figure at code-complete, against the `-23.8%` its own ADR carries**, because
+   the twelve blocking findings its readers made cost 75 s afterwards. Its census note is the same
+   defect a second time in the same item: **`139 / 96` where the register is `140 / 97`**, taken before
+   the third question that item raised had a row. **No rung of section 4 covers a Record's numbers**;
+   the conformity pass is the only thing that can, and on W39 it caught one count and missed the
+   headline. *Where a number is derivable in one expression, derive it there; where it costs seven
+   minutes to take, take it last.*
+
    **And it is ANY copy, including one you wrote yourself** — P7's retro. W23 reported a count to a
    human that was wrong because it read it from `examples/README.md`, **a file that item had written**,
    for an earlier version of its own work. The rule names indexes because indexes are where the
@@ -645,7 +756,7 @@ Rules:
    | **(b)** | break every row of the `Outputs` table | v0.7, P5's retro |
    | **(c)** | break the PROVENANCE of every value an assertion reads — change the source expression and nothing else | v0.8, P6's retro; procedure added v0.9 |
    | **(d)** | break the LOOP BOUNDS — one entry out, the whole list out, and does anything COUNT it from elsewhere | v0.9, P7's retro |
-   | **(e)** | break the WIRING — what happens when the check is NOT RUN | **v0.10, P9's retro** |
+   | **(e)** | break the WIRING — what happens when the check is NOT RUN, and **is what it ran what SHIPS** | v0.10, P9's retro; second question **v0.12, P11's retro** |
    | | **and on the set as a whole:** | |
    | | a survivor is one only once a **second independent route** confirms the clause was reachable | v0.7, P5's retro |
    | | re-run the whole set **after** acting on the readers, with their exact edits checked back in | v0.8, P6's retro |
@@ -803,6 +914,36 @@ Rules:
    happened, and they are different halves of the wiring. So: ask of every check, grading and guard —
    **can it be skipped, unreferenced, or reached with nothing to do, and would anything say so?**
 
+   **AND ITS SECOND QUESTION — WAS WHAT IT RAN WHAT SHIPS? — P11's retro, and it is the same question
+   asked of the SUBJECT rather than of the check.** The three questions above are all properties of the
+   check itself, and **W39 instantiated them three times by hand and its two readers then found EIGHT
+   more instances in the same item**, every one `npm run gate` at exit 0 with the self-tests silently
+   not running, inside the check written to make that impossible. That is W23's asymmetry a second time
+   — *the author bounded the lists a ROW iterates, the reader bounded the lists the FILE iterates* — in
+   a different obligation. **Five consecutive items, every instance found by a reader, every one
+   blocking:**
+
+   | | the wiring | how it broke, with the gate green |
+   |---|---|---|
+   | W36 | `test:l6:deno`'s **flags** | `--import-map` dropped, so Deno resolves the bare specifier out of `node_modules` — the **npm** package — and L6 reports 489 assertions, exit 0, with `D3` printing `ok`. `D6` was created here |
+   | W35 | `test:l6`'s **argument** | either rung repointed at `examples/run-flow.ts`, which exports functions and runs nothing — **zero** failures across four checks, and every exit artifact in this repository is in that one file |
+   | W37 | the pin's **reachability** | `D3` compares the npm and JSR version strings and stops there. Deno blocks a JSR version published under 24 hours old, so for a day the gate ran a pin one runtime could not fetch, with `D3` printing **`ok`** — the version bound and the artifact not ([Q173](open-questions.md)) |
+   | W38 | the **default** the dispatch loads | `G1` sets `CHECK_<NAME>_SELFTEST` on every run and the gate never does, so the one configuration the gate runs is the one `G1` cannot observe. `check:wiring` green, `check:spec:selftest` at exit 0, **18 probes never running** |
+   | W39 | the **default** again, four ways | the spawn printing instead of running (`7/7 completed` in **0.1 s**), the plan guarded on an override (**`0/0 completed`**), the exclusive filter falsified, the scripts directory moved |
+   | W39 | the chain entry's **argument** | `--plan`, `echo`, and `\|\| exit 0` — the last surviving the clause that closed the first two, because `\|\|`, `exit` and `0` are inert argv tokens to Node and the **shell** throws the runner's verdict away |
+
+   So, two more questions with a procedure each. **Is the command bound by EQUALITY, and does the check
+   run THAT command** rather than one it composes — *a deletion and a suffix are two defects, and a
+   clause written for one catches one.* **And if the check must CONFIGURE its subject in order to
+   observe it, what observes the configuration that SHIPS?** The override is what makes the check
+   affordable and it is what makes it blind. The answer W38 and W39 reached independently, one file
+   apart, is to **read the default declaration rather than running it** — capture the whole declaration
+   and compare it to the one form it may take, which is what keeps it from being a presence test. *(All
+   five are checks over the gate's own wiring, which is the scope. The second half generalises past it
+   without argument — any test that stubs, injects or overrides is by construction not testing what
+   ships — and the evidence that an author does not reach it from the axis alone is that W39 quoted
+   W38's sentence in the file where it then reproduced W38's hole.)*
+
    **AND A PROVOCATION IS EVIDENCE ONLY WHEN IT FIRES, AND ONLY WHEN IT FIRES FOR THE REASON IT
    NAMES — P9's retro, and it is a requirement on the SET rather than a sixth axis.** Two halves, and
    they are the same question in two directions.
@@ -884,15 +1025,20 @@ Windows, `Get-ChildItem -Recurse -Force -Attributes ReparsePoint`. If either is 
 remove it; say so and stop.
 
 **Why two readers rather than one asking both questions**, which is what earlier versions said.
-Measured over **fourteen** items now: W4 1 of 13, W5 3 of ~35, W6 3 of ~25, W9 3 of ~30, W12 3 of 18,
-W13 4 of 24, W14 4 of ~26, W17 3 of ~31, W18 2, W19 4 of 18, **W28 4, W29 1, W30 2, W31 0**. Each overlap arrived from a different direction; one reader
+Measured **nineteen** times now: W4 1 of 13, W5 3 of ~35, W6 3 of ~25, W9 3 of ~30, W12 3 of 18,
+W13 4 of 24, W14 4 of ~26, W17 3 of ~31, W18 2, W19 4 of 18, W28 4, W29 1, W30 2, W31 0, **W32 2,
+W33 2, W34 2, W36 1, W39 4**. **It is a count of measurements TAKEN and not of items reviewed** —
+W35, W37 and W38 each ran both readers and recorded no overlap, which costs nothing now that the
+question is closed, and the scope is stated because this line has twice been read as the second
+number. Each overlap arrived from a different direction; one reader
 answers whichever question it read first. **W17's three are the clearest demonstration of that
 yet** - the same three facts reached by six different routes, and in each case the two readers'
 routes had nothing in common.
 
 **The number to carry is the ABSOLUTE one: two readers produce 0-4 shared findings, whatever the
-item's size** - **fourteen** measurements, and P6's retro declares the question **settled and closed
-to re-litigation**. **The band read 1-4 over ten measurements until W31 came in at ZERO**, and P9's
+item's size** - **nineteen** measurements, and P6's retro declares the question **settled and closed
+to re-litigation**. **The five since — 2, 2, 2, 1 and 4 — are all inside the band and the band has not
+moved.** **The band read 1-4 over ten measurements until W31 came in at ZERO**, and P9's
 retro corrected the number rather than the conclusion: a zero is what *"the second reader finds what
 the first was not looking for"* predicts at its limit, and W31's pair produced **5 and 10 findings
 with eight blocking between them**, the largest yield of P9's four items. **The caveat is recorded
@@ -924,6 +1070,14 @@ ran 148 and found 38.
    item. Deletions are as legitimate an output as additions.
 5. **Name the rung.** For every defect the retro discusses, say which level of section 4 should
    have caught it - and if none would have, that is the finding.
+6. **A retro may correct a false claim in the files of the items it reviews, and names which** -
+   P11's retro. Once an item is done its file is on nobody's `Owns`, and a retro has neither an `Owns`
+   nor a declaration in which to take an exception, so a false number in a finished Record had nowhere
+   legal to be fixed. P11's retro corrected W39's headline saving; P10's retro recorded the same gap
+   from the other direction - W35 needing an exception to correct a claim W34's Record made **about
+   W35**, and W36 acting on that claim in the meantime because it stood. **That proposal stays parked
+   at one occurrence**: it names *another item's Record*, this names *the items a retro reviews*, and
+   the narrower of the two is the one taken.
 
 ## 7. Parallel work
 
@@ -973,6 +1127,19 @@ The loop has to be seconds or the discipline above stops being run.
 | Single test file (watch) | < 2 s | one runtime - whichever you are editing in |
 | Work-item gate (L0-L3) | < 15 s | **one runtime.** The other two run at the join |
 | Plan gate (L0-L6) | < 90 s | **L0-L5 in all three**, L6 per [Q33](open-questions.md) |
+| **Proving the checks can fail** | **none has ever been set** | measured **365 s** of a **393 s** `npm run gate` ([ADR 0039](decisions/0039-the-gate-climbs-the-ladder-and-the-self-tests-run-concurrently.md)). **Not a rung**, and this table had no row for it until P11's retro |
+
+**The three budgets above are MET and always have been, and the row beneath them is what a person
+actually waits for.** Measured after ADR 0039: L0 is **7.9 s**, L1-L6 in three runtimes is **10.7 s**,
+and the seven static checks are **9.5 s** — so *plan gate (L0-L6)* is **18.6 s**, a fifth of its own
+budget, and 28.1 s with the checks included. What makes `npm run gate` 393 s is proving those checks
+can fail, which is **not a level of section 4** and which this table did not budget, because before
+[P8](plans/p8-what-can-be-deleted-with-the-gate-green.md) and
+[P9](plans/p9-when-a-check-stops-checking-what-notices.md) it cost approximately nothing. **That, and
+not a budget overrun, is the answer to *nobody decided this***: there was no row to be over.
+*(ADR 0039 refused its candidate (a) partly on the ground that 516 s was **5.7x** the 90 s budget — a
+comparison across this line, since 488.9 s of that 516 was self-test. The refusal survives on its
+other grounds and the ADR is corrected in place.)*
 
 **The three-runtime requirement lands on the plan gate, not on the edit loop**, and that split is
 deliberate: L0-L5 are pure logic over fixtures, so the second and third pass find configuration

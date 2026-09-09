@@ -195,19 +195,32 @@ const PROBES = [
     half: 'pkg', check: 'S12',
     // The mutation P8's declaration ran by hand and measured at 0 failures with
     // all eight `check:*` entries exiting 0. This is that measurement, checked in.
-    mutate: (t) => t.replace(' && npm run test:l6:deno"', '"'),
+    // **Re-anchored AGNOSTICALLY by W39, which is the second time this file has had
+    // to do it and the first time it was done so the next change cannot repeat it.**
+    // ADR 0039 reordered the chain and moved `test:l6:deno` off the end; the literal
+    // anchor came back *"the mutation matched nothing"* — rule 7 (b) firing correctly,
+    // exactly as it did for W30. The anchor is now *the last entry, whatever it is
+    // called*: a regex whose `"` is the end of the `gate` value.
+    // Anchored on the LAST `test:*` entry rather than on the last entry outright:
+    // since ADR 0039 the chain ends with `selftests`, and dropping THAT costs `S11`
+    // as well (fourteen `:selftest` entries stop being reachable), which is a
+    // different and stronger case — it has its own probe below. Q126's case is an
+    // entry `S11` does not iterate, and a runtime is what that means.
+    mutate: (t) => t.replace(/("gate": "[^"]*) && npm run test:[\w:.-]+/, '$1'),
   },
   {
     name: 'lint dropped from the gate chain',
     half: 'pkg', check: 'S12',
-    mutate: (t) => t.replace(' && npm run lint && ', ' && '),
+    // `lint` is the FIRST entry since ADR 0039, so the ` && ` that used to precede it
+    // is gone. Anchored on the gate's own key rather than on a neighbour's name.
+    mutate: (t) => t.replace('"gate": "npm run lint && ', '"gate": "'),
   },
   {
     name: 'an entry ADDED to the chain and not declared — the direction inclusion cannot see',
     half: 'pkg', check: 'S12',
     // One-way containment catches a deletion and passes an addition. This is why
     // S12 is equality, and it is the probe that fails if it is ever weakened.
-    mutate: (t) => t.replace(' && npm run test:l6:deno"', ' && npm run test:l6:deno && npm run test:scratch"'),
+    mutate: (t) => t.replace(/("gate": "[^"]*) && npm run ([\w:.-]+)"/, '$1 && npm run $2 && npm run test:scratch"'),
   },
   {
     name: 'an entry SWAPPED for another, so the count is unchanged and the set is not',
@@ -232,8 +245,13 @@ const PROBES = [
     // vacuous the moment the chain legitimately changes** — W25's *a comment that
     // quotes the code it explains* and P9's *a mutation pinned to a magic number*,
     // in a third dress. Caught by the guard rather than by a reader.
-    mutate: (t) => t.replace('npm run check:spec && npm run check:spec:selftest && ',
-      'npm run check:spec:selftest && npm run check:spec && '),
+    // **Re-anchored a SECOND time, by W39, and agnostically this time.** W30's fix
+    // re-pinned it to two entry names and ADR 0039 removed one of them, so the probe
+    // went vacuous again — the same class, three items apart, on the same probe. It
+    // now swaps the chain's FIRST TWO entries whatever they are called, anchored on
+    // the `"gate": "` key so it cannot match the `typecheck` composition above it.
+    mutate: (t) => t.replace(/"gate": "npm run ([\w:.-]+) && npm run ([\w:.-]+) && /,
+      '"gate": "npm run $2 && npm run $1 && '),
   },
   {
     name: 'a chain segment with a trailing && , which parses to an EMPTY segment',
@@ -242,7 +260,7 @@ const PROBES = [
     // author's own re-run, not by a reader: adding `.filter((s) => s !== '')` to
     // `parts()` left all seventeen probes green, because no probe until this one
     // produced an empty segment.
-    mutate: (t) => t.replace(' && npm run test:l6:deno"', ' && npm run test:l6:deno && "'),
+    mutate: (t) => t.replace(/("gate": "[^"]*) && npm run ([\w:.-]+)"/, '$1 && npm run $2 && "'),
   },
   {
     name: 'an entry run TWICE in the chain, which only a MULTISET difference sees',
@@ -366,7 +384,10 @@ const PROBES = [
     // `check:*` entry is in GATE_CHAIN, so S11 and S12 cannot disagree about one.
     // Set equality is what turned a wrong declaration into a failure instead of a
     // pass, which is rule 7 (c)'s whole claim.
-    mutate: (t) => t.replace('npm run check:docs && npm run check:docs:selftest && ', ''),
+    // *(ADR 0039 took `check:docs:selftest` out of the chain, so this removes the one
+    // entry that is left. The cascade it names is unchanged: `check:docs` is in
+    // `GATE_CHAIN` and in the chain, so S11 and S12 still cannot disagree about it.)*
+    mutate: (t) => t.replace('npm run check:docs && ', ''),
   },
   {
     name: 'ONE check:* entry removed, leaving its :selftest sibling — the prefix case',
@@ -380,8 +401,35 @@ const PROBES = [
     // *(The reader's wider point stands and is in the Record: every `check:*` name
     // is in `GATE_CHAIN`, so S12 now subsumes S11's membership half. This probe is
     // what keeps the lookahead from rotting in the meantime.)*
-    mutate: (t) => t.replace('npm run check:docs && npm run check:docs:selftest && ',
-      'npm run check:docs:selftest && '),
+    // **The prefix hazard is GONE BY CONSTRUCTION since ADR 0039 and this probe is
+    // re-pointed rather than deleted.** `S11` no longer runs a regex over the whole
+    // chain string: it splits on `&&` and compares segments for equality, because the
+    // seven `:selftest` entries are not in the chain at all and reachability had to be
+    // computed rather than matched. So `npm run check:docs` can no longer match inside
+    // `npm run check:docs:selftest` — there is nothing for it to match inside. What
+    // this probe still shows is that S11 fires for a `check:*` entry whose name is a
+    // PREFIX of a live `:selftest` entry in the manifest: make `gateRuns` a substring
+    // test again and it goes silent.
+    mutate: (t) => t.replace('npm run check:docs && ', 'npm run check:docsX && '),
+  },
+  {
+    name: 'the selftests runner dropped from the chain — one edit unreaches seven entries',
+    half: 'pkg', check: 'S12', also: ['S11'],
+    // **W39's own change, provoked.** Since
+    // [ADR 0039](../doc/decisions/0039-the-gate-climbs-the-ladder-and-the-self-tests-run-concurrently.md)
+    // the seven `:selftest` entries are not in the chain: `S11` reaches them through
+    // the entry that runs `scripts/run-selftests.mjs`. Removing that one entry makes
+    // all seven unreachable in a single edit, and both clauses say so — `S12` because
+    // `GATE_CHAIN` declares it, `S11` **seven** times because `check:X:selftest` is a
+    // `check:*` the gate no longer runs. `G4` in `check-wiring.mjs` refuses it a third
+    // time, from the other side.
+    //
+    // *(This read **fourteen** — the count of `check:*` entries rather than of the
+    // `:selftest` half of them, in a probe whose own Record row said `S11 ×7`. W39's
+    // conformity reader re-derived it: `S11 (7)`, `S12 (1)`, 8 failures. The seven
+    // plain `check:*` entries stay in the chain, which is the whole point of the
+    // reachability split.)*
+    mutate: (t) => t.replace(' && npm run selftests"', '"'),
   },
   {
     name: 'a check:* entry pointed at something that is not a check',
@@ -567,7 +615,7 @@ const RAN = (out) => /^(All checks passed|\d+ failure\(s\)\.)/m.test(out);
  */
 const SELF_RAN = (out) => /self-test — /.test(out);
 
-const MIN_PROBES = 34;
+const MIN_PROBES = 35;
 
 /** The same floor for `META`, and for the same reason. */
 const MIN_META = 24;
@@ -1240,7 +1288,13 @@ export async function selfTest(root) {
       console.log(`  FAIL  ${name} — the mutation matched nothing`);
       continue;
     }
-    const path = join(root, 'dev-dist', `.self-${String(i).padStart(2, '0')}.mjs`);
+    // **Named for this check, because `dev-dist/` is a SHARED namespace.** ADR 0039
+    // runs the seven self-tests concurrently, and `check-policies-selftest.mjs` wrote
+    // its `SELF` mutants to this exact path — two runs overwriting each other's
+    // mutant, which is a grading about the wrong file and prints nothing to say so.
+    // Found by reading rather than by a run; the three concurrent passes W39 measured
+    // never happened to overlap on it, which is the whole reason it is worth fixing.
+    const path = join(root, 'dev-dist', `.self-source-${String(i).padStart(2, '0')}.mjs`);
     writeFileSync(path, broken);
     let ok = false, why = '';
     try {

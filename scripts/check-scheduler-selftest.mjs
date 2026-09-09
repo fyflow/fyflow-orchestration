@@ -127,6 +127,17 @@
 // provocation; the checked-in form is a `SELF` entry, which is out of that item's
 // scope. The gap has an address rather than a fix.
 
+// SELFTEST-EXCLUSIVE: this file's install probes DELETE `node_modules/fyflow-scheduler`
+// and restore it from a stash, so nothing that resolves that package may run while it
+// does. [ADR 0039](../doc/decisions/0039-the-gate-climbs-the-ladder-and-the-self-tests-run-concurrently.md)
+// makes `scripts/run-selftests.mjs` read this marker and run this entry alone;
+// `G4` in `scripts/check-wiring.mjs` derives the same set from this same marker and
+// compares the two. **[Q148](../doc/open-questions.md) named ONE entry that would
+// contend and P11's declaration measured FOUR** — `check:docs` and `typecheck` on
+// `Cannot find module`, `check:scheduler` on its own `D1`, `test:l6` on
+// `ERR_MODULE_NOT_FOUND` — and its stated mechanism (a runtime import from an
+// `AGENTS.md` snippet) was type resolution instead. Running alone is the conservative
+// superset of all four and costs 13 s.
 import { readFileSync, writeFileSync, mkdirSync, rmSync, cpSync, existsSync, lstatSync, symlinkSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';

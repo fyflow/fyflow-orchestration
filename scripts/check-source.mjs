@@ -328,11 +328,33 @@ for (const p of exampleSources()) {
   const scripts = pkg.scripts ?? {};
   const gate = scripts.gate ?? '';
   if (!gate) fail('S11', `${PKG_PATH} has no \`gate\` script`);
+  // **"Run by the gate" stopped being "named in `scripts.gate`" at
+  // [ADR 0039](../doc/decisions/0039-the-gate-climbs-the-ladder-and-the-self-tests-run-concurrently.md).**
+  // The seven `:selftest` entries left the `&&` chain for one entry that derives them
+  // from this same manifest and runs them concurrently, so a textual test over the
+  // chain now reports every one of them missing. **Reachability is the property this
+  // clause has always meant** — its own heading says *reachable from `npm run gate`* —
+  // and textual membership was how it was implemented while a chain was the only
+  // sequencing a manifest had.
+  //
+  // **The half this cannot see is `G4` in `scripts/check-wiring.mjs`, and it is not
+  // optional.** Two of the three clauses that used to refuse an entry leaving the gate
+  // are this one and `S12`, and both go quiet here the moment the seven are out of the
+  // chain; `G4` asks the runner for its plan and compares it to this manifest both
+  // ways, including each entry's COMMAND. Without `G4` this line is a tautology: every
+  // `:selftest` entry is "reachable" because the runner claims to run all of them.
+  const chain = gate.split('&&').map((s) => s.trim().replace(/^npm run /, ''));
+  const runsSelftests = chain.some((n) => /scripts\/run-selftests\.mjs/.test(scripts[n] ?? ''));
+  const gateRuns = (n) => chain.includes(n) || (runsSelftests && n.endsWith(':selftest'));
   for (const [name, cmd] of Object.entries(scripts)) {
     if (!name.startsWith('check:')) continue;
-    if (!new RegExp(`npm run ${name.replace(/[:]/g, '[:]')}(?![:\\w])`).test(gate)) {
+    if (!gateRuns(name)) {
       fail('S11', `${PKG_PATH} declares "${name}" and \`npm run gate\` does not run it — ` +
-        'a check outside the gate is a check that does not exist');
+        'a check outside the gate is a check that does not exist' +
+        (name.endsWith(':selftest') && !runsSelftests
+          ? '. Since ADR 0039 the `:selftest` entries are reached through the entry that runs ' +
+            'scripts/run-selftests.mjs, and no chain entry does'
+          : ''));
     }
     // **And the entry has to run a script that exists.** Being named in the chain
     // is not the same as doing anything: `"check:policies": "node --version"` is
@@ -369,8 +391,14 @@ for (const p of exampleSources()) {
 // --- S12/S13: the gate's own chain, and the chains that chain composes --------
 // **`S11` guarded eight of the gate's fifteen entries and nothing guarded the rest**
 // — [Q126](../doc/open-questions.md), measured at W24's declaration. *(Both numbers
-// are of that moment and neither is of now: the chain is **twenty-one** entries and
-// `S11` guards **fourteen** of them, because what it counts is `check:*`. *(This read
+// are of that moment and neither is of now: since
+// [ADR 0039](../doc/decisions/0039-the-gate-climbs-the-ladder-and-the-self-tests-run-concurrently.md)
+// the chain is **fifteen** entries, only **seven** of which are `check:*`, and the
+// seven `:selftest` entries `S11` also guards are not in the chain at all — they are
+// reached through `selftests`, which is what `G4` binds.
+// *(This read "twenty-one" and "fourteen" — W38's after-figures, stale one item later,
+// in the parenthesis about stale counts, for the second consecutive item. W39's
+// conformity reader.)* *(This read
 // "sixteen" and "nine" — W24's own after-figures — for four items, through W30's two
 // new entries and W38's two. Corrected by W38's conformity reader, which is the class
 // this parenthesis is about, in the parenthesis about it.)* Stated in past
@@ -414,28 +442,38 @@ for (const p of exampleSources()) {
 // found the splice deletable for 0 against the pre-order code, and the conformity
 // reader's order finding dissolved it into a message-quality question while the fix
 // for one was being written for the other.
+//
+// **And the order this list declares CHANGED at
+// [ADR 0039](../doc/decisions/0039-the-gate-climbs-the-ladder-and-the-self-tests-run-concurrently.md),
+// because the order it declared was the ladder's inverse.** The paragraph above
+// states the principle — *"a chain running `test:l6` ahead of `lint` reports a
+// sixty-second rung while L0 is broken"* — and the chain it was written beside ran
+// **489 seconds of `:selftest` entries ahead of `lint`**, measured. A rule stated
+// correctly in a comment, in the file that enforces it, over a list that broke it:
+// `doc/workflow.md` section 6 pass 3 rule 3's sharpest shape. The seven `:selftest`
+// entries are now one entry at the END, and `lint` and `typecheck` are first.
 const GATE_CHAIN = [
-  'check:spec',
-  'check:spec:selftest',
-  'check:source',
-  'check:source:selftest',
-  'check:wiring',
-  'check:wiring:selftest',
-  'check:markdown',
-  'check:markdown:selftest',
-  'check:scheduler',
-  'check:scheduler:selftest',
-  'check:policies',
-  'check:policies:selftest',
-  'check:docs',
-  'check:docs:selftest',
   'lint',
   'typecheck',
+  // **Cheapest first, MEASURED rather than assumed.** The first version of this list
+  // read spec, source, wiring, markdown, scheduler, policies, docs while ADR 0039
+  // claimed *"within a tier the cheapest entry goes first"* — and `check:wiring` is
+  // 1.74 s against `check:scheduler` and `check:policies` at 0.09, so it sat third
+  // ahead of four entries 5-19x cheaper. W39's conformity reader; the claim is now
+  // true of the list rather than of the sentence.
+  'check:scheduler',
+  'check:policies',
+  'check:spec',
+  'check:source',
+  'check:markdown',
+  'check:wiring',
+  'check:docs',
   'test',
   'test:deno',
   'test:browser',
   'test:l6',
   'test:l6:deno',
+  'selftests',
 ];
 
 /**
