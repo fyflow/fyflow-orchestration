@@ -15,7 +15,7 @@ the only document that does. **Every snippet in it is extracted and executed by 
 (`scripts/check-docs.mjs`), so it cannot rot the way a hand-maintained reference does. If you change
 the public surface, that check is what tells you the reference is now wrong.
 
-## Current state: **P1-P9 are ALL complete and retro'd, `doc/workflow.md` is [v0.10](doc/workflow.md), and [P10](doc/plans/p10-is-fan-out-one-feature-or-two.md) is RUNNING — the first PRODUCT plan since P7.** Its question — *is fan-out one feature or two?* ([Q12](doc/open-questions.md), open since P1) — is **ANSWERED by [ADR 0036](doc/decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md): TWO FEATURES OVER ONE REGION.** [W32](doc/work-items/w32-what-a-map-fanout-is.md), [W33](doc/work-items/w33-a-map-at-run-time-arity.md) and [W34](doc/work-items/w34-what-a-branch-receives-and-what-a-join-carries.md) are **all DONE** — each with its author pass, both readers, rule 8's re-run with the readers' own edits checked in, and a green gate after acting on them. **A `map` now DISPATCHES and a satisfied JOIN CARRIES ITS ARRIVALS**: [ADR 0037](doc/decisions/0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md) answers [Q36](doc/open-questions.md), [Q11](doc/open-questions.md) at the fan-out edge and [Q154](doc/open-questions.md), so **BOTH reserved ADRs are taken**. W34's gate is `GATE EXIT=0`, zero FAIL lines, 19 entries, 417 s, with L1 at **21 / 574** in all five runtimes and L6 unmoved at **489 / 25**. **[W35](doc/work-items/w35-a-map-on-real-workers.md) is DONE and P10 HAS ITS EXIT ARTIFACT** — a map runs end to end on a real `FyflowScheduler` in **both** L6 runtimes, at an arity that appears in no definition field and in no harness constant, because a worker returned an array of three. **L6 is 638 assertions / 29 row labels / 31 real runs**, from 489 / 23 / 25; L0-L5 are unmoved, and W35 writes no `spec/` and takes no ADR. **All four P10 items are DONE and only the retro remains.** **Read every status from the item's own file, never from this line.** *(This sentence has now been found stale at two consecutive hand-offs — **and then went stale a third time INSIDE W32**, when a script correcting it aborted on a later substitution and wrote nothing, leaving *"BOTH READERS OUTSTANDING"* standing while their reports were being acted on three paragraphs below. **A batched edit that fails halfway leaves the index describing a state that has not existed for hours**, and nothing checks this line. Treat it as a pointer, not as a fact.)*
+## Current state: **P1-P9 are ALL complete and retro'd, `doc/workflow.md` is [v0.10](doc/workflow.md), and [P10](doc/plans/p10-is-fan-out-one-feature-or-two.md) is RUNNING — the first PRODUCT plan since P7.** Its question — *is fan-out one feature or two?* ([Q12](doc/open-questions.md), open since P1) — is **ANSWERED by [ADR 0036](doc/decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md): TWO FEATURES OVER ONE REGION.** [W32](doc/work-items/w32-what-a-map-fanout-is.md), [W33](doc/work-items/w33-a-map-at-run-time-arity.md) and [W34](doc/work-items/w34-what-a-branch-receives-and-what-a-join-carries.md) are **all DONE** — each with its author pass, both readers, rule 8's re-run with the readers' own edits checked in, and a green gate after acting on them. **A `map` now DISPATCHES and a satisfied JOIN CARRIES ITS ARRIVALS**: [ADR 0037](doc/decisions/0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md) answers [Q36](doc/open-questions.md), [Q11](doc/open-questions.md) at the fan-out edge and [Q154](doc/open-questions.md), so **BOTH reserved ADRs are taken**. W34's gate is `GATE EXIT=0`, zero FAIL lines, 19 entries, 417 s, with L1 at **21 / 574** in all five runtimes and L6 unmoved at **489 / 25**. **[W35](doc/work-items/w35-a-map-on-real-workers.md) is DONE and P10 HAS ITS EXIT ARTIFACT** — a map runs end to end on a real `FyflowScheduler` in **both** L6 runtimes, at an arity that appears in no definition field and in no harness constant, because a worker returned an array of three. **L6 is 638 assertions / 29 row labels / 31 real runs**, from 489 / 23 / 25; L0-L5 are unmoved, and W35 writes no `spec/` and takes no ADR. **All four P10 items are DONE and only the retro remains.** **W37 has since moved the pin to 0.5.2 and closed S9.** **Read every status from the item's own file, never from this line.** *(This sentence has now been found stale at two consecutive hand-offs — **and then went stale a third time INSIDE W32**, when a script correcting it aborted on a later substitution and wrote nothing, leaving *"BOTH READERS OUTSTANDING"* standing while their reports were being acted on three paragraphs below. **A batched edit that fails halfway leaves the index describing a state that has not existed for hours**, and nothing checks this line. Treat it as a pointer, not as a fact.)*
 
 **`map` is a fifth node kind and the library can express something it could not before — the first plan in ten to change that.** `{ "kind": "map", "over": "items", "branch": "score" }`: **one** branch declared, N instances opened by the run, where a `fanout` declares N branches known at authoring time. `spec/flow-definition.md` and `spec/task-id.md` are both **v0.8** with `spec/README.md`'s rows moved by `C8`; `spec/` is **7 documents, 33 examples, 77 rules**; L1 is **20 files / 517 cases in five runtimes**, from 19 / 474. **Nothing dispatches a map yet** — the driver is W33's, and `AGENTS.md` deliberately describes the refusal class and not the feature.
 
@@ -260,6 +260,54 @@ survivors standing**, with two of the catches bought by the `D6` fix. **Census C
 questions, 89 open, 2 deferred, 38 resolved**, both halves at 129 of 129; **Q170-Q172 all used, no
 ADR, no `spec/` change.**
 
+
+**[W37](doc/work-items/w37-the-scheduler-pin-moves-to-0-5-2.md) is DONE and the scheduler pin is
+`fyflow-scheduler` 0.5.2**, from both registries. **It is the fix for [S9](doc/scheduler-upstream.md) — the only item this
+repository has ever raised upstream, raised 2026-09-07 and fixed the same day**, both halves plus a
+second instance of the first that our report had not found (`core/workerManager.ts:3`). It belongs to
+no plan, on ADR 0029's precedent.
+
+**The published TypeScript source now LOADS under Node, and that expires an argument two ADRs rest
+on.** Measured against the JSR 0.5.2 source: `LOADED under node 24.20.0 - exports: 10`. So *"Node
+reads npm's `dist/` because it CANNOT read the source"* is no longer true — **and the split stays**,
+on the reason that outlived it: `dist/` is what an npm consumer gets, so L6 tests the published
+artifact rather than a source tree no consumer resolves, which is what `D4` and `D5` inspect.
+Corrected in place in ADR 0013 rule 2 and ADR 0029, because an agent inheriting *"Node cannot"* would
+design around a constraint that no longer exists. **The bump is otherwise clean and it was measured**:
+`core/FyflowScheduler.ts` is byte-identical for a second consecutive version, `AGENTS.md` §6 is
+byte-identical so ADR 0007's `user_action` pair is untouched, `SpawnTaskConfig.parents` is declared
+and dead at a **third** version, and the whole source diff is **six files** — `import type` splits in **four**
+(`threadWrapper`, `workerManager`, `inlineWrapper`, `workerWrapper`), `deno.json` gaining
+**`verbatimModuleSyntax: true`** so the class cannot recur, and `README.md`'s worker section.
+*(This said **two lines**, measured over four downloaded files and written as a claim about the
+whole diff — the writing clause broken in the item that cites it. W37's conformity reader.)*
+**Our report named ONE file; upstream fixed four and then closed the class with the compiler flag**
+our own report had called the better form and did not expect to get.
+
+**Its headline is that the WHOLE GATE was green at 0.5.2 with six documents naming 0.5.1.** Before a
+single document was edited: `package.json`, the import map and `PIN` all moved, `GATE EXIT=0`, zero
+FAIL lines — while `spec/README.md` rule 6 said *"the version we pin"* was 0.5.1, `AGENTS.md` said
+*"Pin the scheduler at 0.5.1"*, and four more `spec/` documents cited it as current. **`D2` compares
+the manifest to `PIN` and stops at the manifest.** **`D7`** is the answer and was not in the
+declaration: two sentences, in the two documents a consumer reads first, bound to `PIN`. Its
+self-test is **28 probes / 28 gradings** from 26 / 27.
+
+**And Deno refused the pin for a day while `D3` printed `ok`.** `deno run` blocks a JSR version
+published less than 24 hours ago — a supply-chain control, on by default — so `D3` compared two
+strings, found them equal, and reported green for a pin one runtime could not fetch. **Third instance
+in three items of one shape**: W35 found `D6` binding a command's runtime but not its FILE, W36 found
+`D3` binding its inputs but not its PREMISE, this is the version bound but not its REACHABILITY. The
+gate did go red on `test:l6:deno`, loudly. **Waiting was chosen over disabling the control**, by the
+maintainer. [Q173](doc/open-questions.md).
+
+**Rule 8: 14 provocations, 12 caught, 2 declared ceilings, 0 survivors.** A provenance probe on `D7`
+could not be graded against a correct implementation — the literal and `${PIN}` are the same string
+today — so it took a **compound** probe, W34's finding restated. **And this item reproduced W36's own
+central defect within the hour**: correcting `CLAUDE.md`'s S9 sentence left `and it is ready to
+raise.` stranded on the next line, saying the opposite of the sentence before it — the
+neighbour-of-a-corrected-line leak W36 recorded twelve times, found by re-reading rather than by any
+check. **Census: 132 questions — 92 open, 2 deferred, 38 resolved**, both halves at 132 of 132;
+**Q173-Q175 used, ADR 0038 SKIPPED, `deno.lock` regenerated** with its integrity hash unchanged.
 
 **[W36](doc/work-items/w36-the-scheduler-pin-moves-to-0-5-1.md) is DONE and the scheduler pin is
 `fyflow-scheduler` 0.5.1**, from both registries — npm and JSR, `latest` on both. **It belongs to no
@@ -959,7 +1007,7 @@ not used for flow control; **a flow definition is data with predicates registere
 an unknown name fails at instantiation rather than at routing time; and **the driver normalizes
 every scheduler event into an immutable outcome record at the listener boundary**, because event
 details are live mutable objects and `task.failed` also fires for `user_action` tasks. Pinned to
-`fyflow-scheduler` **0.5.1** since [W36](doc/work-items/w36-the-scheduler-pin-moves-to-0-5-1.md), installed **from npm**, with Deno reaching `@fyflow/scheduler@0.5.1` on **JSR** — [ADR 0029](doc/decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md).
+`fyflow-scheduler` **0.5.2** since [W37](doc/work-items/w37-the-scheduler-pin-moves-to-0-5-2.md), installed **from npm**, with Deno reaching `@fyflow/scheduler@0.5.2` on **JSR** — [ADR 0029](doc/decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md).
 
 **[P1](doc/plans/p1-what-satisfies-a-join.md)'s five work items are all built.** `spec/` holds **six
 normative documents and 73 numbered rules**; `src/` holds the definition validator, the driver and
@@ -1181,7 +1229,7 @@ never dispatched. Three ADRs came out of it, and **each came from a different ki
 
 | | |
 |---|---|
-| [**0013**](doc/decisions/0013-the-scheduler-is-a-development-dependency-reached-from-the-working-tree.md) | `fyflow-scheduler` is a **development** dependency and the published library depends on it **not at all** — `SchedulerLike` is structural and a caller passes its own scheduler in. **`S7` in `scripts/check-source.mjs` refuses any published file that imports it.** **Superseded in part 2026-08-31 by [ADR 0029](doc/decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)** — rule 1 stands, rules 3 and 5 do not. Node reaches **0.5.1** through **npm** → `dist/`; Deno through `examples/deno-import-map.json` → **`jsr:@fyflow/scheduler@0.5.1`** → the source; the browser not at all |
+| [**0013**](doc/decisions/0013-the-scheduler-is-a-development-dependency-reached-from-the-working-tree.md) | `fyflow-scheduler` is a **development** dependency and the published library depends on it **not at all** — `SchedulerLike` is structural and a caller passes its own scheduler in. **`S7` in `scripts/check-source.mjs` refuses any published file that imports it.** **Superseded in part 2026-08-31 by [ADR 0029](doc/decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)** — rule 1 stands, rules 3 and 5 do not. Node reaches **0.5.2** through **npm** → `dist/`; Deno through `examples/deno-import-map.json` → **`jsr:@fyflow/scheduler@0.5.2`** → the source; the browser not at all |
 | [**0014**](doc/decisions/0014-the-driver-produces-the-folds-ordered-input-sequence.md) | **The driver produces the fold's ordered input sequence** — `Driver.foldInputs()`, and `onFoldInput` for the push half. `snapshot()` is now *defined* as its record-kind subsequence. Before this, `FoldInput.pathEnded` had **no producer anywhere** |
 | [**0015**](doc/decisions/0015-a-run-whose-join-can-no-longer-fire-is-stuck.md) | **A run whose join can no longer fire is `stuck`** — the sixth run outcome. Run state used to call such a run `completed` |
 
@@ -1452,8 +1500,8 @@ conformity pass; **the register has nothing.**
 
 **A wish for `fyflow-scheduler` goes in [doc/scheduler-upstream.md](doc/scheduler-upstream.md), not
 into a workaround comment.** Every item states what we do without it — an item with no workaround is
-a blocker and belongs in a plan instead. **[S9](doc/scheduler-upstream.md) is the one live item**,
-and it is ready to raise.
+a blocker and belongs in a plan instead. **[S9](doc/scheduler-upstream.md) was the one live item and is now RAISED AND FIXED** in 0.5.2 ([W37](doc/work-items/w37-the-scheduler-pin-moves-to-0-5-2.md)), leaving the register with nothing waiting —
+**the only item it has ever raised.**
 
 **`src/` and `index.ts` may never import `fyflow-scheduler`.** The published npm and JSR packages
 depend on it **not at all** — `SchedulerLike` is a two-method structural interface and the caller
@@ -1468,19 +1516,26 @@ paths from the repo root in prose; only markdown links are relative.
 
 ## Facts about fyflow-scheduler that catch people out
 
-Grounded in its `AGENTS.md` at **0.5.1**, which **ships inside the npm package**: read it at
+Grounded in its `AGENTS.md` at **0.5.2**, which **ships inside the npm package** — and §3 CHANGED at that version, which is why the list below no longer calls it stale: read it at
 `node_modules/fyflow-scheduler/AGENTS.md`, not next door. There is **no changelog**, so a version
 bump means re-reading `AGENTS.md` §6 rather than reading a diff. Re-check there rather than trusting
 this list if it matters.
 
 - **No dependencies, no ordering** — see above. This is the big one.
-- **Its published TypeScript source does not load under Node**, and its `AGENTS.md` §3 is wrong in
-  the other direction about workers. `core/threadWrapper.ts:5` value-imports an `interface`, which
-  Node's type stripping cannot erase — so importing its source throws under Node 24 and works under
-  Deno. Meanwhile a **typed `.ts` worker runs fine** under Node 24, `inline` and threaded, contrary
-  to §3's *"the file must be JavaScript"*. Both are [S9](doc/scheduler-upstream.md), and together
-  they are why **Node reads npm's `dist/` while Deno reads JSR's source**
-  ([ADR 0029](doc/decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)).
+- **Its published TypeScript source DOES load under Node since 0.5.2, and this bullet said the
+  opposite for nine days.** Until then `core/threadWrapper.ts:5` value-imported an `interface`,
+  which Node's type stripping cannot erase, so importing the source threw under Node 24 and worked
+  under Deno; and §3 told Node consumers a worker *"must be JavaScript"*, which was false at Node
+  24. **Both were [S9](doc/scheduler-upstream.md), both were raised on 2026-09-07 and both were
+  fixed in 0.5.2 the same day** — `import type` in `threadWrapper.ts` and in `workerManager.ts`
+  (a second instance upstream found itself), and §3 rewritten to qualify by version rather than
+  forbid. Measured against the JSR 0.5.2 source: `LOADED under node 24.20.0 - exports: 10`.
+  **Node still reads npm's `dist/` and Deno still reads JSR's source, and the reason is now the
+  only one left**: `dist/` is what an npm consumer gets, so L6 tests the published artifact rather
+  than a source tree no consumer resolves
+  ([ADR 0029](doc/decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md),
+  whose stated reason [W37](doc/work-items/w37-the-scheduler-pin-moves-to-0-5-2.md) corrects).
+  **A typed `.ts` worker runs fine under Node 24**, `inline` and threaded, and that is unchanged.
 - **The version is written down twice, and that is the live hazard.** `package.json` pins the npm
   package and `examples/deno-import-map.json` pins the JSR one; ladder L6 runs in both. `npm run
   check:scheduler` **D3** is what stops L6 reporting two runtimes green against two different
@@ -1553,7 +1608,7 @@ Node 16 is what a bare `node` resolves to here, and it fails at `??=`-era syntax
 reaches a test.
 
 **`npm install` is just `npm install`.** The scheduler is a pinned registry devDependency
-(`fyflow-scheduler@0.5.1` from npm; Deno reaches `jsr:@fyflow/scheduler@0.5.1`), so nothing needs to
+(`fyflow-scheduler@0.5.2` from npm; Deno reaches `jsr:@fyflow/scheduler@0.5.2`), so nothing needs to
 be checked out beside this repository and **this repo writes nothing outside itself** —
 [ADR 0029](doc/decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md),
 which supersedes ADR 0013 rules 3 and 5.

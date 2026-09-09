@@ -139,7 +139,7 @@ import failureEdge from '../spec/examples/valid/failure-edge.flow.json' with { t
  * reader, and `doc/workflow.md` section 1 rule 5's writing clause applied to a
  * comment in code.
  *
- * **A path rather than `import ... with { type: 'json' }`**, because 0.5.1's
+ * **A path rather than `import ... with { type: 'json' }`**, because 0.5.2's
  * `exports` map does not expose `./package.json` — measured, and equally true at
  * 0.3.0 — so the specifier form is refused by Node's resolver.
  */

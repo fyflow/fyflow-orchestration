@@ -48,12 +48,13 @@ there is no DAG.
 
 Verified rather than assumed - originally at 0.2.1, re-verified unchanged at 0.3.0, and
 **re-verified unchanged again at 0.5.1** by
-[W36](work-items/w36-the-scheduler-pin-moves-to-0-5-1.md), line by line rather than by reading:
+[W36](work-items/w36-the-scheduler-pin-moves-to-0-5-1.md), **and a THIRD time at 0.5.2** by
+[W37](work-items/w37-the-scheduler-pin-moves-to-0-5-2.md), line by line rather than by reading:
 
 | Claim | Evidence |
 |---|---|
 | No dependency field on `FyflowTask` | No `dependsOn`/`parents` in `core/FyflowScheduler.ts`; the only hits are `spawnedChildren`, which is lineage |
-| `SpawnTaskConfig.parents` exists but is **dead** | Still declared at `core/workerInterface.ts:50` at 0.5.1 — the same line — read **nowhere** in the repo. The spawn path (`core/FyflowScheduler.ts:1468-1473`, **the same lines at 0.3.0 and 0.5.1**) constructs the task from `id`, `workerType`, `payload`, `optional`, `retryPolicy`, `workerGroups` and **silently drops `parents`**. **Confirmed vestigial by the maintainer** (2026-08-30): it stays dead and will eventually be removed |
+| `SpawnTaskConfig.parents` exists but is **dead** | Still declared at `core/workerInterface.ts:50` at 0.5.2 — the same line for a third version — read **nowhere** in the repo. The spawn path (`core/FyflowScheduler.ts:1468-1473`, **the same lines at 0.3.0, 0.5.1 and 0.5.2**) constructs the task from `id`, `workerType`, `payload`, `optional`, `retryPolicy`, `workerGroups` and **silently drops `parents`**. **Confirmed vestigial by the maintainer** (2026-08-30): it stays dead and will eventually be removed |
 | Spawning is not sequencing | `AGENTS.md` section 7: *"This is lineage, not a dependency: spawning never changes dispatch order."* |
 
 That dead field is the worst kind: it typechecks, it reads like the feature exists, and it does
@@ -74,7 +75,7 @@ below was re-checked rather than carried forward.*
 *(**Two corrections, both by [W36](work-items/w36-the-scheduler-pin-moves-to-0-5-1.md).** The
 parenthetical read **"on no registry - npm and JSR both stop at 0.2.1, measured by W5"**, which
 [ADR 0029](decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)
-superseded on 2026-08-31 — both registries have carried 0.3.0 since, and both carry **0.5.1** now.
+superseded on 2026-08-31 — both registries have carried 0.3.0 since, and both carry **0.5.2** now.
 **And the pin is 0.5.1, while this table is still dated 0.3.0 deliberately**: W36 re-verified the
 rows this repository actually depends on — the five task states and the `user_action` event pair by
 running them, `detail`-is-the-live-task by its five line citations, and the dead `parents` field —
@@ -224,8 +225,14 @@ of leaning produced.
   section 5's invariant is untouched.
 - **Ingestion transports.** Kafka and friends from `FLOW_PLANNING.md` are a consumer of this
   library, not part of it.
-- **Supporting more than one `fyflow-scheduler` version.** We pin **0.5.1** (Q3), published
-  **2026-09-03** and adopted here 2026-09-07, **from both registries**.
+- **Supporting more than one `fyflow-scheduler` version.** We pin **0.5.2** (Q3), published
+  **2026-09-07** and adopted here **2026-09-08**, **from both registries**. *(This read *"published
+  2026-09-03 and adopted here 2026-09-07"* — 0.5.1's publish date and 0.5.1's adoption date, left
+  standing when the version beside them moved. npm's `time` says 0.5.2 landed 2026-09-07T16:33Z and
+  it was pinned the next day, because Deno refuses a JSR version under 24 hours old. **The
+  parenthetical below is W36's conformity reader correcting this exact defect on this exact
+  sentence**, and W37 reproduced it in the sentence that correction is attached to. W37's conformity
+  reader.)*
   `fyflow-react-components` still pins 0.2.1 and **needs the same bump** - the two repos being on
   different versions is a coordination point, not a steady state. *(This said 0.5.1 "landed
   2026-09-07 and not yet on npm": the date was the day the pin MOVED rather than the day the version

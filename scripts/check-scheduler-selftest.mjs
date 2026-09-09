@@ -49,6 +49,16 @@
 // correction. A mutant that throws exits non-zero and reports nothing, and an exit
 // code reads that as a catch.
 //
+// **What `D7` leaves unprobed, named rather than omitted — W37.** `D7` has two
+// `fail()` sites: the **pin statement** and the **unreadable document**. Only the
+// first is probed. The second cannot be, for W29's own reason one file across: the
+// `half` mechanism mutates a document and writes it back, so every probe presents a
+// file that IS there and IS readable, and none can present one that is not. It is
+// the same shape as `check-docs`' missing-document refusal, which W29 recorded as
+// reachable by no probe at all. Two probes drive the one clause that can be driven,
+// one per document, because both documents were wrong at once on the bump that added
+// the check.
+//
 // **What W29 added beyond the contract, and why each was measured first.**
 //
 //   1. **Six probes for the six clauses no probe could reach**, all three of `D5`'s
@@ -220,6 +230,56 @@ const PROBES = [
     // own STILL-CAUGHT arm is what said so, which is `doc/workflow.md` rule 8's
     // *fires for the reason it names* enforced by a file rather than by a reader.
     mutate: (t) => t.replace('"test:l6": "node examples/l6.ts"', '"test:l6": "deno run examples/l6.ts"'),
+  },
+  {
+    name: 'spec/README.md names a version that is not the pin',
+    half: 'spec/README.md', check: 'D7',
+    // **The state this whole item was in for an hour, and the gate was green.**
+    // `package.json`, the import map and `PIN` all said 0.5.2 while five `spec/`
+    // documents and `AGENTS.md` still said 0.5.1 — `D2` compares the manifest to
+    // `PIN` and stops there. The mutation is the pin STATEMENT, not any mention of
+    // a version: `spec/` legitimately cites older versions in every re-dating
+    // paragraph, and a check that refused those would refuse the record.
+    mutate: (t) => t.replace(/at \*\*\d+\.\d+\.\d+\*\*, the version we pin/,
+      'at **9.9.9**, the version we pin'),
+  },
+  {
+    name: 'spec/README.md stops stating the pin at all',
+    half: 'spec/README.md', check: 'D7',
+    // **The clause that stops an empty document passing.** `D7` compares every
+    // captured version to `PIN`; with no capture there is nothing to disagree, so a
+    // document that has stopped saying which version to install would pass a
+    // compare-only check. Deleting the sentence is the case.
+    mutate: (t) => t.replace(/at \*\*\d+\.\d+\.\d+\*\*, the version we pin/, 'at the version we pin'),
+  },
+  {
+    name: 'AGENTS.md names a version that is not the pin',
+    half: 'AGENTS.md', check: 'D7',
+    // The consumer-facing half. `AGENTS.md` is the one document a consumer reads
+    // to know what to install, and it is the one `check-docs` executes — so a wrong
+    // pin here is a wrong `npm install` line with every snippet still passing.
+    mutate: (t) => t.replace(/Pin the scheduler at \d+\.\d+\.\d+\./, 'Pin the scheduler at 9.9.9.'),
+  },
+  {
+    name: 'README.md names a version that is not the pin',
+    half: 'README.md', check: 'D7',
+    // **One probe per `D7` site — W37's own rule 8 re-run.** The adequacy reader
+    // added three sites and only the first two had probes, so dropping this one from
+    // `sites` cost **0**: the check stopped reading the repository's front page and
+    // nothing said so. A site with no probe is a site that can leave.
+    mutate: (t) => t.replace(/is pinned to \*\*\d+\.\d+\.\d+\*\* and installed from/,
+      'is pinned to **9.9.9** and installed from'),
+  },
+  {
+    name: 'doc/concept.md names a version that is not the pin',
+    half: 'doc/concept.md', check: 'D7',
+    mutate: (t) => t.replace(/We pin \*\*\d+\.\d+\.\d+\*\* \(Q3\)/, 'We pin **9.9.9** (Q3)'),
+  },
+  {
+    name: 'examples/README.md names a version that is not the pin',
+    half: 'examples/README.md', check: 'D7',
+    mutate: (t) => t.replace(/Node installs `fyflow-scheduler@\d+\.\d+\.\d+` from/,
+      'Node installs `fyflow-scheduler@9.9.9` from'),
   },
   {
     name: 'the Node rung deleted from package.json entirely',
@@ -441,7 +501,7 @@ const INSTALL_PROBES = [
 // place the id vocabulary is written down**, which is [Q43](../doc/open-questions.md)'s
 // class and exactly what W29's declaration killed as a hypothesis for three other
 // self-tests — here it is live.
-const ALL_CHECKS = ['D1', 'D2', 'D3', 'D4', 'D5', 'D6'];
+const ALL_CHECKS = ['D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7'];
 
 /**
  * **Did the mutated check RUN TO COMPLETION?** A grading requires this, which is
@@ -455,10 +515,10 @@ const ALL_CHECKS = ['D1', 'D2', 'D3', 'D4', 'D5', 'D6'];
 const RAN = (out) => /^(All checks passed|\d+ failure\(s\)\.)/m.test(out);
 
 /** The floor `check-policies-selftest.mjs` learned to carry: vacuous at zero. */
-const MIN_PROBES = 26;
+const MIN_PROBES = 32;
 
 /** The same floor for `META`, and for the same reason. */
-const MIN_META = 27;
+const MIN_META = 29;
 
 /**
  * **The mutations `check-scheduler.mjs` itself is run against.** Every probe above
@@ -615,6 +675,17 @@ const META = [
     // and `doc/workflow.md` rule 8's *a provocation is evidence only when it fires*
     // enforced by a check rather than by a reader.
     (t) => t.replace("fail('D6', `\\`${name}\\` does not RUN", "[].push(`\\`${name}\\` does not RUN")],
+  // --- D7 ---------------------------------------------------------------------
+  // Re-anchored when `D7` was rewritten to CAPTURE AND COMPARE after its adequacy
+  // reader: the message went from *"does not state the pin as X"* to *"states the pin
+  // as X"*, and this file said so — `a check id with no grading at all` — rather than
+  // passing. Rule 7 (b), caught by the one bound here a floor edit cannot satisfy.
+  ['D7`s wrong-version clause disabled — W37',
+    'spec/README.md names a version that is not the pin',
+    (t) => t.replace("fail('D7', `${rel_} states the pin as", "[].push(`${rel_} states the pin as")],
+  ['D7`s no-statement clause disabled — W37, and it is what stops an EMPTY document passing',
+    'spec/README.md stops stating the pin at all',
+    (t) => t.replace("fail('D7', `${rel_} states the pin nowhere", "[].push(`${rel_} states the pin nowhere")],
   // --- the report block, which no set comparison can see ----------------------
   // **These three are why the `agree` projection exists.** Measured before it was
   // written: with the report broken, every probe still reported `wanted [D3] got
@@ -721,6 +792,16 @@ export async function selfTest(root) {
     // zero failures across four checks — so it is kept as a probe rather than
     // dropped for being the second of a pair, and the string bounds it.
     ['the Node rung pointed at a module that runs nothing', 'examples/run-flow.ts'],
+    // **W37, and the same reason again.** `D7`'s pin-statement clause is one
+    // `fail()` site inside a loop over two documents, so it takes one `META` entry;
+    // `spec/README.md` cites it and this is `AGENTS.md`. Both were wrong at once on
+    // the bump that added the check, which is why both are probed rather than one.
+    ['AGENTS.md names a version that is not the pin', 'Pin the scheduler at 9.9.9.'],
+    // The other three `D7` sites, for the same reason: one `fail()` site, one `META`
+    // entry, and a probe each so that no site can leave unnoticed.
+    ['README.md names a version that is not the pin', 'is pinned to **9.9.9**'],
+    ['doc/concept.md names a version that is not the pin', 'We pin **9.9.9** (Q3)'],
+    ['examples/README.md names a version that is not the pin', '`fyflow-scheduler@9.9.9`'],
   ].map(([name, mustProduce]) => ({ name, mustProduce }));
   {
     const cited = new Set(META.map(([, probeName]) => probeName));
@@ -765,6 +846,27 @@ export async function selfTest(root) {
       // exemption names, so repurposing it fails here rather than passing there.
       for (const probe of [...PROBES, ...DTS_PROBES]) {
         const must = exempt.get(probe.name);
+        // **`mustProduce: null` was a silent opt-out — W37's adequacy reader,
+        // BLOCKING.** Two tokens (`null`, plus repurposing the probe's `mutate`)
+        // dropped an exempt probe out of this bound for **0** failures, `28/28`
+        // green. The negative control is on the same expression: the repurposing
+        // ALONE, with the string intact, costs 1 and names the probe. The two
+        // legitimate `null`s are `INSTALL_PROBES` with neither a `mutate` nor a
+        // `half`, so they are skipped by the two clauses after this one and the
+        // disjunct was doing no work for them — it was pure opt-out for everyone
+        // else, in a list whose own comment says *each uncited probe declares what
+        // its mutant must CONTAIN*.
+        // `exempt.has` and not `!must`: a CITED probe has no entry here at all, so
+        // `must` is `undefined` for it too. The first version of this guard omitted
+        // that and fired on every cited probe — caught on its first run.
+        if (exempt.has(probe.name) && typeof probe.mutate === 'function' && probe.half && !must) {
+          console.log(`  FAIL  UNCITED probe ${JSON.stringify(probe.name)} declares no string its ` +
+            'mutant must contain, and it has both a `mutate` and a `half` — so it can be repurposed ' +
+            'onto any other clause with nothing to say so. `null` is for a probe that writes no ' +
+            'string at all.');
+          rmSync(dir, { recursive: true, force: true });
+          return 1;
+        }
         if (!must || typeof probe.mutate !== 'function' || !probe.half) continue;
         let mutated = '';
         try { mutated = probe.mutate(readFileSync(join(root, probe.half), 'utf8')); } catch { /* below */ }
@@ -827,6 +929,30 @@ export async function selfTest(root) {
     const hit = (id) => (src.match(new RegExp(`fail\\('${id}',`, 'g')) ?? []).length;
     const uncovered = ALL_CHECKS.filter((id) =>
       !mutants.some((m) => m !== null && (m.match(new RegExp(`fail\\('${id}',`, 'g')) ?? []).length < hit(id)));
+    // **The same bound on PROBES, derived the same way — W37's adequacy reader.**
+    // `MIN_PROBES` is a number and `UNCITED` is a list, and both live in this file:
+    // deleting a probe, deleting its exemption and decrementing the floor is **three
+    // edits in one commit for 0 failures**. This does not close that — the reader's
+    // compound leaves `D7` with its other probe, so an id-level bound is satisfied —
+    // and it closes the case the floor cannot see at all: **a check id whose LAST
+    // probe leaves**, where the floor is happy because some other id gained one.
+    //
+    // *What is NOT closed is stated rather than implied.* A site-level bound would
+    // need an exemption list for the clauses no probe can reach (`D7`'s unreadable
+    // arm, `D2`'s and `D3`'s before it), and that list would live here too — which is
+    // [W31](../doc/work-items/w31-the-self-list-check-policies-never-had.md)'s own
+    // finding: *the regress does not move one list further out; it stops at the first
+    // thing that can return early.* The remaining hole is a reviewer's, and it is
+    // named in W37's Record rather than papered over.
+    const probeIds = new Set([...PROBES, ...DTS_PROBES, ...INSTALL_PROBES].map((p) => p.check));
+    const unprobed = ALL_CHECKS.filter((id) => !probeIds.has(id));
+    if (unprobed.length) {
+      console.log(`check-scheduler self-test — no probe drives any ${unprobed.join(', ')} clause.`);
+      console.log('  FAIL  a check id with no probe at all; MIN_PROBES counts entries and cannot see ' +
+        'which ids they reach, so the last probe for a check can leave for one edited number.');
+      rmSync(dir, { recursive: true, force: true });
+      return 1;
+    }
     if (uncovered.length) {
       console.log(`check-scheduler self-test — no META entry disables any ${uncovered.join(', ')} clause.`);
       console.log('  FAIL  a check id with no grading at all; the count of entries says nothing about ' +

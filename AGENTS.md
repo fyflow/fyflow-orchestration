@@ -1054,16 +1054,20 @@ against — pass the keys of your `workerPools`.
 > attached. It is [Q71](doc/open-questions.md), found while writing the snippet above.
 
 **A worker file can be TypeScript.** Node 24 runs it by stripping types, and Deno natively, so **one
-`.ts` worker serves Node and Deno** — the scheduler's own reference says a Node worker must be
-JavaScript, and that is stale at Node 24. **Not the browser**: nothing there executes TypeScript, so
+`.ts` worker serves Node and Deno**. *(The scheduler's own reference **used to say** a Node worker
+must be JavaScript, which was stale at Node 24 — [S9](doc/scheduler-upstream.md), raised 2026-09-07
+and **fixed in 0.5.2**. Its §3 now version-qualifies: a `.ts` worker works on **Node >= 22.18**, and
+below that it does not, so the old advice is right for that range and wrong for ours. This paragraph
+called the reference stale for nine days and then for one more, in the document above the sentence
+`D7` was built around.)* **Not the browser**: nothing there executes TypeScript, so
 a browser build needs the worker emitted as a bundled `.js` asset. `RT-R10` — ladder L6 runs in Node
 and Deno and not in the browser, and the browser rung is [Q52](doc/open-questions.md).
 
-**Pin the scheduler at 0.5.1.** This library's listener boundary is written against **0.3.0
-semantics, which 0.5.1 does not change**: `task.progress`'s detail changed shape at 0.3.0 (the id is
+**Pin the scheduler at 0.5.2.** This library's listener boundary is written against **0.3.0
+semantics, which neither 0.5.1 nor 0.5.2 changes**: `task.progress`'s detail changed shape at 0.3.0 (the id is
 `id`, not `taskId`), the second `task.user_action` dispatch site arrived there, and `task.timestamp`
-did not exist before it. **`core/FyflowScheduler.ts` is byte-identical between 0.3.0 and 0.5.1**, so
-every one of those still holds; what 0.5.1 adds is a `worker.setup.*` / `worker.teardown.*` event
+did not exist before it. **`core/FyflowScheduler.ts` is byte-identical between 0.3.0, 0.5.1 and 0.5.2**, so
+every one of those still holds; what 0.5.1 added is a `worker.setup.*` / `worker.teardown.*` event
 family this library subscribes to not at all. Install it from a registry — npm and JSR both carry it —
 and **never from a working tree**, which is
 [ADR 0029](doc/decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)

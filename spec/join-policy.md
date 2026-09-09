@@ -1,6 +1,6 @@
 # spec/join-policy — the interface the join policies sit behind
 
-**Status:** v0.14 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.15 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2 acts on the W1 spec-conformity pass**:
 `branch.lost` is redefined against
 [ADR 0004](../doc/decisions/0004-a-non-success-outcome-routes-only-where-an-edge-opts-in-and-user-action-suspends.md)
@@ -81,6 +81,8 @@ between the two versions, so every line this document cites is unmoved and every
 0.3.0 is true at 0.5.1. *(The bump was first shipped with these documents edited and NOT re-versioned,
 which left `spec/README.md`'s column unchanged and made `check-spec`'s `C8` vacuous for the whole
 change — the one check that exists to notice a stale version row. W36's conformity reader.)*
+
+**v0.15 is [W37](../doc/work-items/w37-the-scheduler-pin-moves-to-0-5-2.md), and it is the SAME re-dating one version on.** The pin moved 0.5.1 to **0.5.2**, which is the fix for [S9](../doc/scheduler-upstream.md) — the first item in that register ever raised and fixed. **`core/FyflowScheduler.ts` is byte-identical between 0.5.1 and 0.5.2 as well**, 1851 lines with zero changed, so every line this document cites is unmoved for a second consecutive bump; the whole diff is **six files** — four `import type` splits, `deno.json` gaining `verbatimModuleSyntax: true`, and `README.md`. *(This read "two `import type` lines" and "1850": the first was measured over four downloaded files and stated of the whole diff, the second counts newlines in a file whose last line is unterminated. W37's conformity reader, and `doc/workflow.md` section 1 rule 5's writing clause both times.)* No rule id, no rule text and no test owed changed.
 
 **Normative.**
 
@@ -211,7 +213,7 @@ the definition alone, and does not depend on region membership at all.
 
 ### Q5's four cases are three events, and one of the four is not a separate case
 
-[Q5](../doc/open-questions.md) names four ways a branch can fail to succeed. Read against 0.5.1 they
+[Q5](../doc/open-questions.md) names four ways a branch can fail to succeed. Read against 0.5.2 they
 are not four:
 
 | Q5's case | what it is here | |

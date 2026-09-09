@@ -1,6 +1,6 @@
 # spec/runtime-targets — three runtimes, one source tree
 
-**Status:** v0.8 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.9 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2 acts on the second spec-conformity pass**,
 which found that v0.1's central claim — *a `node:` import is fatal to a Deno build* — is **false at
 Deno 2**, and that the `*.node.ts` mechanism it described does not exist in the form it described.
@@ -12,6 +12,8 @@ which makes `RT-R1` true for all three runtimes for the first time.**
 **v0.7 is [W5](../doc/work-items/w5-one-real-fan-out-flow-on-a-real-scheduler.md)'s and adds
 `RT-R10`** — [Q33](../doc/open-questions.md)'s answer, which is *Node and Deno*, and which overturns
 the register's leaning because the fact that leaning rested on turned out to be false.
+**v0.9 is [W37](../doc/work-items/w37-the-scheduler-pin-moves-to-0-5-2.md), and it is the SAME re-dating one version on.** The pin moved 0.5.1 to **0.5.2**, which is the fix for [S9](../doc/scheduler-upstream.md) — the first item in that register ever raised and fixed. **`core/FyflowScheduler.ts` is byte-identical between 0.5.1 and 0.5.2 as well**, 1851 lines with zero changed, so every line this document cites is unmoved for a second consecutive bump; the whole diff is **six files** — four `import type` splits, `deno.json` gaining `verbatimModuleSyntax: true`, and `README.md`. *(This read "two `import type` lines" and "1850": the first was measured over four downloaded files and stated of the whole diff, the second counts newlines in a file whose last line is unterminated. W37's conformity reader, and `doc/workflow.md` section 1 rule 5's writing clause both times.)* No rule id, no rule text and no test owed changed.
+
 **Normative.** These rules constrain what the source may import and what a gate must run in.
 **Inherited, not chosen.** `fyflow-scheduler` runs on Deno, Node and the browser from one source
 tree and publishes to JSR and npm. **We are a layer over it, so its reach is our floor** — a
@@ -22,13 +24,13 @@ been handed a library that does not compose with the one it wraps.
 
 ## 1. The targets
 
-Mirrored from `fyflow-scheduler` **0.5.1**, verified in the **published** manifests rather than
+Mirrored from `fyflow-scheduler` **0.5.2**, verified in the **published** manifests rather than
 assumed:
 
 | Target | Published as | What ships | Verified at |
 |---|---|---|---|
-| **Deno** | **JSR** — `@fyflow/orchestration` | **TypeScript source, directly.** No build step | `jsr:@fyflow/scheduler@0.5.1`'s `deno.json` — `exports: "./index.ts"`, with an explicit `publish.exclude` allowlist |
-| **Node >= 24** | **npm** | an esbuild bundle, `platform: "node"` | `fyflow-scheduler@0.5.1`'s `package.json` — `exports["."].node` selecting `dist/node/index.js`, present in the tarball |
+| **Deno** | **JSR** — `@fyflow/orchestration` | **TypeScript source, directly.** No build step | `jsr:@fyflow/scheduler@0.5.2`'s `deno.json` — `exports: "./index.ts"`, with an explicit `publish.exclude` allowlist |
+| **Node >= 24** | **npm** | an esbuild bundle, `platform: "node"` | `fyflow-scheduler@0.5.2`'s `package.json` — `exports["."].node` selecting `dist/node/index.js`, present in the tarball |
 | **Browser** | **npm**, same package | an esbuild bundle, `platform: "browser"` | the same `package.json` — `exports["."].browser` selecting `dist/browser/index.js`, present in the tarball |
 
 > **Where these were verified, and why the citation moved — v0.8.** This column cited
@@ -48,7 +50,10 @@ assumed:
 > citations now name the **published** artifacts, which are what `check:scheduler` `D4` actually
 > inspects and what a reader can fetch. **The claims themselves are unchanged and were re-checked at
 > 0.5.1**: JSR's `deno.json` does export `./index.ts` behind an allowlist, and npm's `exports` does
-> select a `node` and a `browser` bundle, both present.
+> select a `node` and a `browser` bundle, both present. **Re-checked again at 0.5.2 by
+> [W37](../doc/work-items/w37-the-scheduler-pin-moves-to-0-5-2.md), by fetching both manifests**: the JSR
+> allowlist and the two conditional `exports` are unchanged, and `dist/node/index.js`,
+> `dist/browser/index.js` and `dist/types/index.d.ts` are all present in the tarball.
 
 > **The asymmetry that drives the rules below: JSR publishes the TypeScript source.** npm consumers
 > get a bundle esbuild has already resolved per platform; **Deno consumers get the files as
@@ -220,7 +225,7 @@ Process rather than normative, recorded here because the source layout answers t
 2. **npm, Node and browser in one package**, with conditional `exports` selecting the `dist/node` or
    `dist/browser` bundle and a shared `dist/types`.
 3. **The two versions move together.** `deno.json` and `package.json` carry the same number, as the
-   sibling's do at 0.5.1 - JSR's `deno.json` and npm's `package.json` both read `0.5.1`, checked at
+   sibling's do at 0.5.2 - JSR's `deno.json` and npm's `package.json` both read `0.5.2`, checked at
    the bump rather than carried forward.
 4. **No changelog** — the sibling has none, and Q3 already records that a version bump there means
    re-reading its reference rather than reading a diff. **Adopting that for our own consumers is a

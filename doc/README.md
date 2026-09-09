@@ -118,7 +118,7 @@ sixth spec document** — answering [Q14](open-questions.md) and [Q25](open-ques
 definition is data and predicates are registered by name, failing at instantiation (0002) · **a
 non-success outcome routes only where an edge opts in, and `user_action` suspends until an external
 resolution record resumes it** (0004) · the driver normalizes every event into an immutable outcome
-record at the listener boundary (0007) · pinned to `fyflow-scheduler` **0.5.1** (Q3) · **three
+record at the listener boundary (0007) · pinned to `fyflow-scheduler` **0.5.2** (Q3) · **three
 runtimes from one source tree - Deno via JSR, Node >= 24 and the browser via npm** · and the
 normative layer itself, [`spec/`](../spec/README.md), six documents · **run state is a fold of our
 own log, and a run has SIX outcomes** (Q14's answer lives in `spec/run-state.md` rather than an
@@ -138,7 +138,9 @@ been re-verified against **the code, not the plan** — details and the S-id map
   it did at 0.2.1.
 - **[S1](scheduler-upstream.md) is answered** — the dead `parents` field stays dead and will
   eventually be removed. That left the register with nothing to raise, and **W5 changed that**:
-  [S9](scheduler-upstream.md) is live and ready.
+  [S9](scheduler-upstream.md) went live. **It was raised on 2026-09-07 and fixed in 0.5.2 the same
+  day** ([W37](work-items/w37-the-scheduler-pin-moves-to-0-5-2.md)) — the only item that register has ever
+  raised, and the list is back to having nothing waiting.
 
 **[Q4](open-questions.md) is answered, and the answer is
 [ADR 0003](decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md): a join is
@@ -181,9 +183,14 @@ longer rests on our own reading. [S1](scheduler-upstream.md).
 
 **What happens next:**
 
-1. **[S9](scheduler-upstream.md) is ready to raise**, and it is the only live item in that register.
-   Two one-line changes with a measurement behind each: `import type` in
-   `core/threadWrapper.ts:5`, and `AGENTS.md` §3's claim that a Node worker must be JavaScript.
+1. **[S9](scheduler-upstream.md) needs nothing further — it is RAISED AND FIXED**, so this is a
+   closure rather than a next step. 2026-09-07, in `fyflow-scheduler`
+   **0.5.2**, both halves, plus a second instance of the first that our report had not found
+   (`core/workerManager.ts:3`). It was two one-line changes with a measurement behind each:
+   `import type` in `core/threadWrapper.ts:5`, and `AGENTS.md` §3's claim that a Node worker must be
+   JavaScript. **The published source now loads under Node** — measured, `LOADED under node
+   24.20.0 - exports: 10` — which retires the REASON for the two-road split without retiring the
+   split. [W37](work-items/w37-the-scheduler-pin-moves-to-0-5-2.md).
 2. **[P5](plans/p5-a-third-and-fourth-policy-or-repairs-of-the-first-two.md) is COMPLETE and
    retro'd, and `doc/workflow.md` is now [v0.7](workflow.md) — five changes, two refusals.** [W15](work-items/w15-the-fourth-column-and-the-chain-nothing-runs.md) is **done**
    — the matrix renders at **four columns**, `JP-R7`'s and `JP-R8`'s variants are asserted as
@@ -316,7 +323,7 @@ longer rests on our own reading. [S1](scheduler-upstream.md).
      **rules** all went red and four of five aimed at what the item **created** survived — W15's
      finding, reproduced in a second item.
    - **The scheduler version is written down twice** — `package.json` pins npm's
-     `fyflow-scheduler@0.5.1`, `examples/deno-import-map.json` pins JSR's `@fyflow/scheduler@0.5.1`,
+     `fyflow-scheduler@0.5.2`, `examples/deno-import-map.json` pins JSR's `@fyflow/scheduler@0.5.2`,
      and ladder L6 runs in both. `npm run check:scheduler` **D3** is the guard.
      *(Until 2026-08-31 the hazard was a gitignored `dist/` in a checkout next door going stale;
      [ADR 0029](decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)
@@ -970,6 +977,54 @@ wins.
    questions, 89 open, 2 deferred, 38 resolved**, both halves at 129 of 129 in exactly one cluster cell; **Q170-Q172 all used**.
 
 
+**[W37](work-items/w37-the-scheduler-pin-moves-to-0-5-2.md) is DONE and the scheduler pin is
+`fyflow-scheduler` 0.5.2**, from both registries. **It is the fix for [S9](scheduler-upstream.md) — the only item this
+repository has ever raised upstream, raised 2026-09-07 and fixed the same day**, both halves plus a
+second instance of the first that our report had not found (`core/workerManager.ts:3`). It belongs to
+no plan, on ADR 0029's precedent.
+
+**The published TypeScript source now LOADS under Node, and that expires an argument two ADRs rest
+on.** Measured against the JSR 0.5.2 source: `LOADED under node 24.20.0 - exports: 10`. So *"Node
+reads npm's `dist/` because it CANNOT read the source"* is no longer true — **and the split stays**,
+on the reason that outlived it: `dist/` is what an npm consumer gets, so L6 tests the published
+artifact rather than a source tree no consumer resolves, which is what `D4` and `D5` inspect.
+Corrected in place in ADR 0013 rule 2 and ADR 0029, because an agent inheriting *"Node cannot"* would
+design around a constraint that no longer exists. **The bump is otherwise clean and it was measured**:
+`core/FyflowScheduler.ts` is byte-identical for a second consecutive version, `AGENTS.md` §6 is
+byte-identical so ADR 0007's `user_action` pair is untouched, `SpawnTaskConfig.parents` is declared
+and dead at a **third** version, and the whole source diff is **six files** — `import type` splits in **four**
+(`threadWrapper`, `workerManager`, `inlineWrapper`, `workerWrapper`), `deno.json` gaining
+**`verbatimModuleSyntax: true`** so the class cannot recur, and `README.md`'s worker section.
+*(This said **two lines**, measured over four downloaded files and written as a claim about the
+whole diff — the writing clause broken in the item that cites it. W37's conformity reader.)*
+**Our report named ONE file; upstream fixed four and then closed the class with the compiler flag**
+our own report had called the better form and did not expect to get.
+
+**Its headline is that the WHOLE GATE was green at 0.5.2 with six documents naming 0.5.1.** Before a
+single document was edited: `package.json`, the import map and `PIN` all moved, `GATE EXIT=0`, zero
+FAIL lines — while `spec/README.md` rule 6 said *"the version we pin"* was 0.5.1, `AGENTS.md` said
+*"Pin the scheduler at 0.5.1"*, and four more `spec/` documents cited it as current. **`D2` compares
+the manifest to `PIN` and stops at the manifest.** **`D7`** is the answer and was not in the
+declaration: two sentences, in the two documents a consumer reads first, bound to `PIN`. Its
+self-test is **28 probes / 28 gradings** from 26 / 27.
+
+**And Deno refused the pin for a day while `D3` printed `ok`.** `deno run` blocks a JSR version
+published less than 24 hours ago — a supply-chain control, on by default — so `D3` compared two
+strings, found them equal, and reported green for a pin one runtime could not fetch. **Third instance
+in three items of one shape**: W35 found `D6` binding a command's runtime but not its FILE, W36 found
+`D3` binding its inputs but not its PREMISE, this is the version bound but not its REACHABILITY. The
+gate did go red on `test:l6:deno`, loudly. **Waiting was chosen over disabling the control**, by the
+maintainer. [Q173](open-questions.md).
+
+**Rule 8: 14 provocations, 12 caught, 2 declared ceilings, 0 survivors.** A provenance probe on `D7`
+could not be graded against a correct implementation — the literal and `${PIN}` are the same string
+today — so it took a **compound** probe, W34's finding restated. **And this item reproduced W36's own
+central defect within the hour**: correcting `CLAUDE.md`'s S9 sentence left `and it is ready to
+raise.` stranded on the next line, saying the opposite of the sentence before it — the
+neighbour-of-a-corrected-line leak W36 recorded twelve times, found by re-reading rather than by any
+check. **Census: 132 questions — 92 open, 2 deferred, 38 resolved**, both halves at 132 of 132;
+**Q173-Q175 used, ADR 0038 SKIPPED, `deno.lock` regenerated** with its integrity hash unchanged.
+
    **[W36](work-items/w36-the-scheduler-pin-moves-to-0-5-1.md) is DONE and the scheduler pin is
 `fyflow-scheduler` 0.5.1**, from both registries — npm and JSR, `latest` on both. **It belongs to no
 plan**, on [ADR 0029](decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)'s
@@ -1282,7 +1337,7 @@ sibling was deleted by a recursive tool following a `node_modules` junction.
 | Repo | Owns | Pinned to |
 |---|---|---|
 | [`fyflow-scheduler`](https://github.com/fyflow/fyflow-scheduler) | executing independent tasks: pools, resource groups, retry, spawn | — |
-| **`fyflow-orchestration`** (here) | **control flow**: sequence, decision, fan-out, join | scheduler **0.5.1** |
+| **`fyflow-orchestration`** (here) | **control flow**: sequence, decision, fan-out, join | scheduler **0.5.2** |
 | `fyflow-react-components` | visualizing a scheduler: collector, wire envelopes, React components | scheduler 0.2.1 — **needs the same bump**; 0.3.0 is what unblocks its `3a`/`3b` views |
 
 Deliberate overlaps, which are coordination points rather than duplication:

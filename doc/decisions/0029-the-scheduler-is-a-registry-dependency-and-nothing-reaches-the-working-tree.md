@@ -39,13 +39,13 @@ is one now.
 ## Decision
 
 1. **`fyflow-scheduler` is an ordinary registry devDependency, pinned exactly.**
-   `"fyflow-scheduler": "0.5.1"` in `devDependencies` — not a range, and never a `file:` specifier.
+   `"fyflow-scheduler": "0.5.2"` in `devDependencies` — not a range, and never a `file:` specifier.
    [ADR 0013](0013-the-scheduler-is-a-development-dependency-reached-from-the-working-tree.md) rule 1
    is **unchanged**: `SchedulerLike` is a two-method structural interface, the published npm and JSR
    packages depend on the scheduler **not at all**, and `check-source.mjs` `S7` and `S8` still refuse
    the two ways that could break.
 2. **Deno reaches it from JSR, at the same version.** `examples/deno-import-map.json` maps the bare
-   `fyflow-scheduler` specifier to `jsr:@fyflow/scheduler@0.5.1`. Node reaches npm and gets `dist/`;
+   `fyflow-scheduler` specifier to `jsr:@fyflow/scheduler@0.5.2`. Node reaches npm and gets `dist/`;
    Deno reaches JSR and gets the source. **The two roads are still different and that is still fine**
    — what matters is that they are the same *version*.
 3. **Nothing in this repository resolves the scheduler through a path.** No `file:` dependency, no
@@ -93,19 +93,37 @@ round trip now needs a publish, or a temporary `npm link` that ADR rule 3 forbid
 changes cannot be tried locally without unpinning.
 
 **A version bump is now a deliberate act in two files**, and it always could have been one in zero.
-`package.json` and `examples/deno-import-map.json` both carry `0.5.1`, and `D3` is what makes
+`package.json` and `examples/deno-import-map.json` both carry `0.5.2`, and `D3` is what makes
 forgetting one of them a failure rather than a silent divergence.
 
 **What is unchanged and should not be re-litigated.** [Q33](../open-questions.md)'s answer — L6 runs
-in Node **and** Deno — stands, and so does the reason: a typed `.ts` worker runs fine under Node 24,
-and Node cannot load the scheduler's *source* because `core/threadWrapper.ts` value-imports an
-`interface`. That is still true of the JSR package's source and is still
-[S9](../scheduler-upstream.md). What changed is only where each runtime gets its copy.
+in Node **and** Deno — stands, and so does half of the reason: a typed `.ts` worker runs fine under
+Node 24.
+
+> **The other half EXPIRED on 2026-09-07 and the conclusion did not.** This paragraph read *"and
+> Node cannot load the scheduler's source because `core/threadWrapper.ts` value-imports an
+> `interface`. That is still true of the JSR package's source and is still S9."* **It is no longer
+> true**: [S9](../scheduler-upstream.md) was raised and **fixed in 0.5.2 the same day**, and the JSR
+> source now loads under Node — measured, `LOADED under node 24.20.0 - exports: 10`
+> ([W37](../work-items/w37-the-scheduler-pin-moves-to-0-5-2.md)).
+>
+> **Rule 2 stands unchanged, on the reason that is now the only one.** Node reads npm's `dist/`
+> because that is **what an npm consumer gets**: L6 then tests the published artifact rather than a
+> source tree no consumer resolves, which is what `D4` and `D5` inspect. Deno reads JSR's source
+> because that is what a JSR consumer gets. *The split was never really about capability — it was
+> about testing what each registry publishes — and while Node's incapacity existed it was doing the
+> arguing.*
+>
+> Recorded rather than quietly edited, because this is `CLAUDE.md`'s own standing warning — **a
+> leaning's argument is worth checking before its conclusion is** — arriving as an upstream fix
+> instead of as a measurement. An agent inheriting *"Node cannot load the source"* would design
+> around a constraint that no longer exists.
 
 **What this does not decide.** Whether this library should ever depend on the scheduler at runtime —
 it should not, that is ADR 0013 rule 1 and it is untouched. Which version to pin next
-([Q3](../open-questions.md)) — 0.3.0, and a bump means re-reading `AGENTS.md` section 6 because there
-is still **no changelog**.
+([Q3](../open-questions.md)) — **0.5.2 since 2026-09-08**, and a bump still means re-reading
+`AGENTS.md` section 6 because there is still **no changelog**. *(This read 0.3.0 when the ADR was
+written; the pin has moved twice since, by W36 and [W37](../work-items/w37-the-scheduler-pin-moves-to-0-5-2.md).)*
 
 ## Alternatives rejected
 

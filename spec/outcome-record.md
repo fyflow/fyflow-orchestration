@@ -1,6 +1,6 @@
 # spec/outcome-record — the log the driver writes
 
-**Status:** v0.7 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.8 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2 acts on the W1 spec-conformity pass**: the
 resolution record arrives from
 [ADR 0004](../doc/decisions/0004-a-non-success-outcome-routes-only-where-an-edge-opts-in-and-user-action-suspends.md)
@@ -23,6 +23,8 @@ between the two versions, so every line this document cites is unmoved and every
 0.3.0 is true at 0.5.1. *(The bump was first shipped with these documents edited and NOT re-versioned,
 which left `spec/README.md`'s column unchanged and made `check-spec`'s `C8` vacuous for the whole
 change — the one check that exists to notice a stale version row. W36's conformity reader.)*
+
+**v0.8 is [W37](../doc/work-items/w37-the-scheduler-pin-moves-to-0-5-2.md), and it is the SAME re-dating one version on.** The pin moved 0.5.1 to **0.5.2**, which is the fix for [S9](../doc/scheduler-upstream.md) — the first item in that register ever raised and fixed. **`core/FyflowScheduler.ts` is byte-identical between 0.5.1 and 0.5.2 as well**, 1851 lines with zero changed, so every line this document cites is unmoved for a second consecutive bump; the whole diff is **six files** — four `import type` splits, `deno.json` gaining `verbatimModuleSyntax: true`, and `README.md`. *(This read "two `import type` lines" and "1850": the first was measured over four downloaded files and stated of the whole diff, the second counts newlines in a file whose last line is unterminated. W37's conformity reader, and `doc/workflow.md` section 1 rule 5's writing clause both times.)* No rule id, no rule text and no test owed changed.
 
 **Normative.** This document is what
 [ADR 0007](../doc/decisions/0007-the-driver-normalizes-events-into-an-immutable-outcome-record.md)
@@ -106,7 +108,7 @@ record with a field named `state`, `payload`, `task` or `detail` is a review fin
 
 ### OR-R3, spelled out, because the event names lie
 
-At 0.5.1 a non-optional task out of retries sets `state = 'user_action'` and then dispatches
+At 0.5.2 a non-optional task out of retries sets `state = 'user_action'` and then dispatches
 **both** events with the same object (`core/FyflowScheduler.ts:894-910`, and again at `:1130-1142`
 on the orphaned-task path):
 

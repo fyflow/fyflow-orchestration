@@ -9,8 +9,8 @@
 // TypeScript source, and this file existed to stop the two diverging by a stale
 // build. **Both registries now carry the pin**, so:
 //
-//   Node   node_modules/fyflow-scheduler   npm  fyflow-scheduler@0.5.1  -> dist/
-//   Deno   examples/deno-import-map.json   JSR  @fyflow/scheduler@0.5.1 -> source
+//   Node   node_modules/fyflow-scheduler   npm  fyflow-scheduler@0.5.2  -> dist/
+//   Deno   examples/deno-import-map.json   JSR  @fyflow/scheduler@0.5.2 -> source
 //
 // **What that removes.** A published tarball cannot go stale against a source it
 // no longer ships, so the old D3/D4 mtime comparison has nothing to compare and
@@ -50,7 +50,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
  * rather than reading a diff. That reference ships inside the npm package, so it
  * is at `node_modules/fyflow-scheduler/AGENTS.md` rather than next door.
  */
-const PIN = '0.5.1';
+const PIN = '0.5.2';
 
 /** The JSR package Deno resolves the same specifier to. */
 const JSR_NAME = '@fyflow/scheduler';
@@ -58,7 +58,7 @@ const JSR_NAME = '@fyflow/scheduler';
 const failures = [];
 const fail = (check, msg) => failures.push(`${check}: ${msg}`);
 /** Which checks actually executed. See the reporting block at the bottom. */
-const ran = { D1: false, D2: false, D3: false, D4: false, D5: false, D6: false };
+const ran = { D1: false, D2: false, D3: false, D4: false, D5: false, D6: false, D7: false };
 /** The version the Deno half pins, for the report. `null` until `D3` parses one. */
 let jsrPin = null;
 const rel = (p) => relative(ROOT, p).replace(/\\/g, '/');
@@ -358,6 +358,90 @@ if (process.argv.includes('--self-test')) {
   }
 }
 
+// --- D7: the NORMATIVE layer names the version we actually pin ----------------
+//
+// **The hole this closes was measured on this item, before a single document was
+// edited.** The pin moved 0.5.1 -> 0.5.2 in `package.json`, the import map and
+// `PIN`, and `npm run gate` was **`GATE EXIT=0` with zero FAIL lines** — while
+// `spec/README.md` rule 6 still said *"a file and line at 0.5.1, the version we
+// pin"*, `AGENTS.md` still said *"Pin the scheduler at 0.5.1"*, and four more
+// `spec/` documents cited 0.5.1 as current. **`D2` compares `package.json` to
+// `PIN` and stops at the manifest**; nothing carried the pin into the layer that
+// tells a consumer what to install.
+//
+// **Two sentences, chosen because each is a STATEMENT OF THE PIN rather than a
+// mention of a version.** `spec/` is full of legitimate references to 0.3.0 and
+// 0.5.1 — every re-dating paragraph is one — so a check that refused any other
+// version would refuse the record of how we got here. These two say *this is what
+// we pin*, in the two documents a consumer reads first, and nothing else does.
+//
+// This is rule 8's obligation (e) in the shape the last three items have been
+// walking into: `D2` binds the manifest, `D3` binds the two pins against each
+// other, `D6` binds the commands that consume them — and none of them binds what
+// the documents SAY the pin is.
+//
+// **CAPTURE AND COMPARE, not `includes` — W37's adequacy reader, BLOCKING, and the
+// first form of this check failed at the thing it was built for.**
+//
+// It asked *does the right sentence appear*. It never asked *does a wrong one*. So
+// with `Pin the scheduler at 0.5.2.` followed by `Pin the scheduler at 0.5.1.` in
+// the same paragraph, `D7` printed **`ok`** — a document holding two contradictory
+// install instructions, which is the **leftover neighbour** this item's own
+// Verification section names as its central risk and its Record admits reproducing
+// within the hour. It also passed when the live statement said 0.5.1 and the
+// phrase was supplied from an HTML comment or a fenced code block, and it **failed**
+// when the live statement was reworded correctly (a comma to an em dash). *Green
+// when the pin was wrong, red when it was right.*
+//
+// So each site declares a PATTERN with the version captured. Every occurrence must
+// equal `PIN`, and there must be at least one — the second clause is what stops an
+// empty file passing, and the first is what stops a stale sibling.
+//
+// **The consequence is a stated constraint: the pin-statement grammar is RESERVED
+// for the live statement.** Recording an old pin is fine and this document is full
+// of it; recording one *in this exact sentence form* is not, because that form is
+// what a consumer reads as an instruction. The failure message says so.
+{
+  const sites = [
+    ['spec/README.md', /at \*\*(\d+\.\d+\.\d+)\*\*, the version we pin/g],
+    ['AGENTS.md', /Pin the scheduler at (\d+\.\d+\.\d+)\./g],
+    // **Three more, added by the same reader.** Each states the pin in a grammar as
+    // bindable as the two above, and each was measured moving to a wrong version for
+    // **0** failures: the repository's front page, the concept document's own
+    // constraint list, and the L6 README that states both halves of the two-road
+    // split. [Q175](../doc/open-questions.md) had called the first two unbound
+    // *citations*; they are statements, and its enumeration is corrected.
+    ['README.md', /is pinned to \*\*(\d+\.\d+\.\d+)\*\* and installed from/g],
+    ['doc/concept.md', /We pin \*\*(\d+\.\d+\.\d+)\*\* \(Q3\)/g],
+    ['examples/README.md', /Node installs `fyflow-scheduler@(\d+\.\d+\.\d+)` from/g],
+  ];
+  for (const [rel_, re] of sites) {
+    let text = null;
+    try {
+      text = readFileSync(join(ROOT, rel_), 'utf8');
+    } catch (e) {
+      fail('D7', `${rel_} is unreadable, so the pin cannot be checked against it: ${e.message}`);
+      continue;
+    }
+    ran.D7 = true;
+    const found = [...text.matchAll(re)].map((m) => m[1]);
+    if (found.length === 0) {
+      fail('D7', `${rel_} states the pin nowhere: nothing matches ${re}. A normative document that ` +
+        'has stopped saying which version to install cannot go stale, and cannot be read either');
+      continue;
+    }
+    const wrong = [...new Set(found.filter((v) => v !== PIN))];
+    if (wrong.length) {
+      fail('D7', `${rel_} states the pin as ${wrong.join(', ')} and the pin is ${PIN} ` +
+        `(${found.length} occurrence(s) of that sentence, ${wrong.length} wrong). A normative ` +
+        'document naming a different one sends a consumer to install the wrong version, and the ' +
+        'whole gate is green either way — measured on the bump that added this check. **The ' +
+        'pin-statement sentence is reserved for the LIVE pin**: record an older one in prose, not ' +
+        'in this form, or this check cannot tell your history from your instruction');
+    }
+  }
+}
+
 const checks = [
   ['D1', ran.D1, `D1 the pinned scheduler is installed from a registry, not linked`],
   ['D2', ran.D2, `D2 it is ${PIN}, and package.json asks for exactly ${PIN}`],
@@ -365,6 +449,7 @@ const checks = [
   ['D4', ran.D4, `D4 every artifact \`exports\` selects is present`],
   ['D5', ran.D5, `D5 it loads and exports what its own declarations name`],
   ['D6', ran.D6, `D6 both L6 rungs run examples/l6.ts, and the Deno one reads the Deno pin`],
+  ['D7', ran.D7, `D7 five documents state the pin, and every statement reads ${PIN}`],
 ];
 // **Both halves carry a VERSION.** This printed the JSR package NAME with no version
 // at all — the one line where a human sees the two pins side by side, omitting the

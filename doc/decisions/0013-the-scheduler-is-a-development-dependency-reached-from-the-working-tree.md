@@ -38,7 +38,7 @@ A registry dependency is therefore not available: pinning `0.2.1` would run L6 a
 whose orphaned-task drop is the exact second cause [P1's validity section](../plans/p1-what-satisfies-a-join.md)
 spent a section retiring, and `latest` is the same thing spelled worse.
 
-### 2. Node **cannot** load the sibling's TypeScript source; Deno can
+### 2. Node **cannot** load the sibling's TypeScript source; Deno can *(true until 0.5.2 — see the note below)*
 
 Measured under Node 24.20.0, importing `../fyflow-scheduler/index.ts` directly:
 
@@ -57,7 +57,27 @@ diagnostic.
 Node's loader refuses — and it is why the two runtimes cannot take the same road to the same library.
 Raised upstream as [S9](../scheduler-upstream.md).
 
-### 3. A **typed** `.ts` worker does run under Node 24 — `AGENTS.md` section 3 is stale
+> **FIXED UPSTREAM 2026-09-07, in `fyflow-scheduler` 0.5.2 — this heading is now HISTORY, and the
+> conclusion it supports survives on a different reason.** [W37](../work-items/w37-the-scheduler-pin-moves-to-0-5-2.md).
+> `core/threadWrapper.ts:5` is `import type` and `core/workerManager.ts:3` — a second instance
+> upstream found itself — with it; the measurement above **no longer reproduces**. Against the JSR
+> 0.5.2 source, `node --input-type=module -e "import('./index.ts')"` prints `LOADED under node
+> 24.20.0 - exports: 10`.
+>
+> **So *Node cannot* is no longer why the two runtimes take different roads.** They still do, and
+> the reason is now the only one left: `dist/` is **what an npm consumer actually gets**, so running
+> ladder L6 against it tests the published artifact rather than a source tree no consumer resolves —
+> which is what `check-scheduler`'s `D4` and `D5` exist to inspect. Pointing Node at the source
+> would delete that coverage to gain nothing.
+>
+> Kept rather than rewritten because it is the evidence rules 3 and 5 were decided on, and because
+> [`doc/decisions/README.md`](README.md) says an ADR is **superseded, never edited into a different
+> decision**, and that correcting a false statement inside one is *"done in place with the correction
+> left visible, dated, and attributed"* — which is what this note is. *(This cited `doc/workflow.md`
+> section 3 for a sentence that document does not contain; section 3 is *Ids and files*. A false
+> citation inside a decision record, found by W37's conformity reader.)*
+
+### 3. A **typed** `.ts` worker does run under Node 24 — `AGENTS.md` section 3 was stale *(fixed at 0.5.2 — see the note below)*
 
 The sibling's reference says *"The file must be JavaScript. Node cannot import TypeScript, so a `.ts`
 worker fails with `Unknown file extension \".ts\"`"*. Measured at Node 24.20.0, a worker with
@@ -67,6 +87,22 @@ parameter types, a return type, an `interface` and `import type` runs **both** `
 That matters here because it removes the premise [Q33](../open-questions.md)'s leaning rested on —
 *"a real worker file per runtime"* — and lets **one** worker file serve Node and Deno. Also
 [S9](../scheduler-upstream.md).
+
+> **FIXED UPSTREAM 2026-09-07, in 0.5.2 — so the heading's second clause is now HISTORY and the
+> finding it supports is unchanged.** [W37](../work-items/w37-the-scheduler-pin-moves-to-0-5-2.md).
+> §3 no longer says *"the file must be JavaScript"*: it **version-qualifies**, and correctly —
+> a `.ts` worker works on **Node >= 22.18** (and 23.6), and **Node < 22.18 genuinely cannot**, which
+> is a range this package still supports and which the sentence above did not name. So the reference
+> is no longer stale; **our own finding was the narrower one**, true of Node 24 and silent about the
+> floor, and upstream's version of it is better than what we reported.
+>
+> The finding itself stands: one `.ts` worker does serve Node and Deno here, `examples/` ships
+> exactly one, and `RT-R10` is unchanged.
+>
+> *(This is the heading [W37](../work-items/w37-the-scheduler-pin-moves-to-0-5-2.md)'s `Outputs` row
+> named — it said "ADR 0013 rule 3" — and the item annotated finding **2** instead and left this one.
+> Its conformity reader. The document has `### 1-4` findings AND `## Decision` rules 1-5, so "rule 3"
+> was ambiguous before it was wrong; the two annotated passages are findings 2 and 3.)*
 
 ### 4. Nothing in the published source may import it, and nothing does
 

@@ -1,6 +1,6 @@
 # spec/task-id — the scheduler task id scheme
 
-**Status:** v0.9 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.10 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2 acts on the W1 spec-conformity pass**:
 section 2 point 3 was **wrong about the source** and is corrected (finding D7), `branchPath` is
 pinned against convergent branches (B3), and the rules name the item owing their test (D8, N19).
@@ -57,6 +57,8 @@ between the two versions, so every line this document cites is unmoved and every
 0.3.0 is true at 0.5.1. *(The bump was first shipped with these documents edited and NOT re-versioned,
 which left `spec/README.md`'s column unchanged and made `check-spec`'s `C8` vacuous for the whole
 change — the one check that exists to notice a stale version row. W36's conformity reader.)*
+
+**v0.10 is [W37](../doc/work-items/w37-the-scheduler-pin-moves-to-0-5-2.md), and it is the SAME re-dating one version on.** The pin moved 0.5.1 to **0.5.2**, which is the fix for [S9](../doc/scheduler-upstream.md) — the first item in that register ever raised and fixed. **`core/FyflowScheduler.ts` is byte-identical between 0.5.1 and 0.5.2 as well**, 1851 lines with zero changed, so every line this document cites is unmoved for a second consecutive bump; the whole diff is **six files** — four `import type` splits, `deno.json` gaining `verbatimModuleSyntax: true`, and `README.md`. *(This read "two `import type` lines" and "1850": the first was measured over four downloaded files and stated of the whole diff, the second counts newlines in a file whose last line is unterminated. W37's conformity reader, and `doc/workflow.md` section 1 rule 5's writing clause both times.)* No rule id, no rule text and no test owed changed.
 
 **Normative.** Answers [Q13](../doc/open-questions.md).
 **This is a correctness rule, not a naming convention.** Section 2 is why.
@@ -197,8 +199,8 @@ claimed both were unchanged was wrong about the second.
 ## 2. Why a collision corrupts a run
 
 `AGENTS.md` section 5 records this as one line — *"Must be unique; reusing an id overwrites"* — and
-the one line understates it. Read in the source at **0.5.1**, where `core/FyflowScheduler.ts` is
-**byte-identical to 0.3.0** and every line cited below is therefore unmoved:
+the one line understates it. Read in the source at **0.5.2**, where `core/FyflowScheduler.ts` is
+**byte-identical to 0.3.0 and to 0.5.1** and every line cited below is therefore unmoved:
 
 1. **`addTask` overwrites the map entry and queues the new task alongside the old one.**
    `core/FyflowScheduler.ts:444-445` — `this.tasks.set(task.id, task)` then

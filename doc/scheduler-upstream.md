@@ -6,10 +6,15 @@ comment. One row per item, `S1`, `S2`, ... - never reused, never renumbered.
 **Every item must state what we do without it.** An item with no workaround is not a want, it is a
 blocker, and it belongs in a plan instead.
 
-**Nothing here has been raised by us.** Pinned to `fyflow-scheduler` **0.5.1** (landed 2026-09-07;
+**One item here has been raised by us — S9, and it was fixed the same day.** Pinned to `fyflow-scheduler` **0.5.2** (landed 2026-09-07, pinned 2026-09-08;
 0.3.0 from 2026-08-30 until then).
-Line references are against **0.5.1** unless a row says otherwise — and `core/FyflowScheduler.ts`
-and `core/threadWrapper.ts` are **byte-identical to 0.3.0**, so every reference taken at that
+Line references are against **0.5.2** unless a row says otherwise — and `core/FyflowScheduler.ts` is
+**byte-identical to 0.3.0**. *(This said `core/threadWrapper.ts` was byte-identical too. **It is not,
+at either version**: `sha256` differs at 0.3.0, 0.5.1 and 0.5.2, and the 0.5.1 file is a 99-line diff
+from 0.3.0. The sentence was already wrong when W36 wrote it, and W37 re-dated the version two words
+earlier while leaving it — making it false about **its own subject**, the file whose line 5 this
+register exists to record. W37's conformity reader, and it is the neighbour-of-a-corrected-line leak
+W36 recorded twelve times.)*, so every reference taken at that
 version is unmoved.
 
 **On "not yet published": measured by W5 on 2026-08-30, and it is narrower than this repository has
@@ -19,12 +24,18 @@ So `@fyflow/scheduler` **is** on JSR, which `spec/runtime-targets.md` section 1 
 had checked; it is only **0.3.0** that is unpublished, on either. That is what forces
 [ADR 0013](decisions/0013-the-scheduler-is-a-development-dependency-reached-from-the-working-tree.md).
 
-**Eight of nine items are closed, deferred, or declined; [S9](#s9---the-published-typescript-source-does-not-load-under-node-and-agentsmd-3-says-a-ts-worker-cannot-either)
-is live and is the first thing here worth raising.** 0.3.0 settled four without us asking - S4
-implemented, S7 fixed, S8 declined and documented - and S1 was answered directly by the maintainer on
-2026-08-30. S5 stays deferred with a costless workaround; S2 and S6 wait for a real need. **S9 was
-found by W5**, the first work item to load the library rather than a structural stand-in for it,
-which is the argument for ladder L6 in one sentence.
+**ALL NINE items are now closed, deferred, or declined, and [S9](#s9---the-published-typescript-source-does-not-load-under-node-and-agentsmd-3-says-a-ts-worker-cannot-either)
+is the ONLY ONE THIS REGISTER HAS EVER RAISED - and it was fixed the same day.** 0.3.0 settled four
+without us asking - S4 implemented, S7 fixed, S8 declined and documented - and S1 was answered
+directly by the maintainer on 2026-08-30. S5 stays deferred with a costless workaround; S2 and S6
+wait for a real need. **S9 was found by W5**, the first work item to load the library rather than a
+structural stand-in for it, which is the argument for ladder L6 in one sentence.
+
+**S9 was raised on 2026-09-07 and fixed in 0.5.2 the same day** ([W37](work-items/w37-the-scheduler-pin-moves-to-0-5-2.md)).
+Both halves, plus a second instance of (a) we had not found. **Nothing here was ever raised before
+it**, so the register's whole record is: eight settled without asking, one raised and fixed. That is
+a fact about how much of this list was worth raising rather than about how responsive upstream is -
+seven of the eight settled themselves, and the one that did not is the one we asked about.
 
 `fyflow-react-components` keeps [its own register](https://github.com/fyflow/fyflow-react-components)
 with an independent `S` sequence. **Two items overlap and must be raised jointly, not twice** - see
@@ -44,7 +55,7 @@ the last section.
 | [S6](#s6---pause-and-resume) | Pause and resume | no - not in the first set | not raised |
 | [S7](#s7---exit-c-drops-a-blocked-task-silently) | Fix the blocked-queue task drop | no longer - **the confounder is gone** | ✅ **fixed in 0.3.0** |
 | [S8](#s8---freeze-or-copy-event-details) | Freeze or copy event details | no | **declined, and now documented** |
-| [S9](#s9---the-published-typescript-source-does-not-load-under-node-and-agentsmd-3-says-a-ts-worker-cannot-either) | `import type` in `core/threadWrapper.ts`, and correct `AGENTS.md` §3 on `.ts` workers | no - Node reads npm's `dist/` and Deno reads JSR's source | **not raised - the only live item.** Its *publication* half is closed: 0.3.0 is on npm and JSR since 2026-08-31 ([ADR 0029](decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)), so the cost is no longer a build step in a sibling checkout - it is that **neither one-line fix can be tried locally without unpinning**, which is that ADR's stated cost |
+| [S9](#s9---the-published-typescript-source-does-not-load-under-node-and-agentsmd-3-says-a-ts-worker-cannot-either) | `import type` in `core/threadWrapper.ts`, and correct `AGENTS.md` §3 on `.ts` workers | no - and the reason CHANGED: Node reads npm's `dist/` because that is what an npm consumer gets, no longer because it *cannot* read the source | **RAISED 2026-09-07 and FIXED in 0.5.2 the same day** - the only item this register has ever raised, closed by [W37](work-items/w37-the-scheduler-pin-moves-to-0-5-2.md). *(The rest of this cell is the record as it stood when it was raised.)* Its *publication* half is closed: 0.3.0 is on npm and JSR since 2026-08-31 ([ADR 0029](decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)), so the cost is no longer a build step in a sibling checkout - it is that **neither one-line fix can be tried locally without unpinning**, which is that ADR's stated cost |
 
 ---
 
@@ -312,6 +323,48 @@ of being worked around.
 
 ## S9 - the published TypeScript source does not load under Node, and `AGENTS.md` §3 says a `.ts` worker cannot either
 
+> **CLOSED - RAISED 2026-09-07, FIXED IN 0.5.2 THE SAME DAY.** Both halves, and the pin moved by
+> [W37](work-items/w37-the-scheduler-pin-moves-to-0-5-2.md). **This is the only item this register has
+> ever raised.** What follows is the report as it stood, kept whole because it is the evidence the
+> fix was asked for on; below it is what 0.5.2 actually changed.
+>
+> **(a) is fixed and the CONSEQUENCE is gone, not just the line.** `core/threadWrapper.ts:5` is now
+> `import type { WorkerInstanceExtensions, WorkerInstanceState, BaseWorkerContext }` with the value
+> import of `WorkerTerminationError` on its own line. Measured against the JSR 0.5.2 source:
+> `node --input-type=module -e "import('./index.ts')"` prints **`LOADED under node 24.20.0 -
+> exports: 10`**. It had never loaded before.
+>
+> **And upstream found a second instance we had not reported**: `core/workerManager.ts:3`,
+> `import type { WorkerStatus }`. Our report named `threadWrapper` only. **The whole source diff
+> between 0.5.1 and 0.5.2 is SIX FILES** — and this sentence said **two**, measured over the four
+> files this item downloaded rather than over JSR's manifest (W37's conformity reader). The four
+> `import type` splits are `core/threadWrapper.ts`, `core/workerManager.ts`,
+> `core/inlineWrapper.ts` and `core/workerWrapper.ts`; **`deno.json` gains
+> `"verbatimModuleSyntax": true`**, which is the fix our own report called the better form —
+> it makes this class a COMPILE error rather than leaving the next instance to a consumer's loader —
+> and `README.md`'s worker section moves with `AGENTS.md` §3. `core/FyflowScheduler.ts` is
+> byte-identical, and so are npm's `dist/node/index.js` and `dist/browser/index.js`: **Node's actual
+> artifact did not change at all.** `AGENTS.md` section 6 is byte-identical too.
+>
+> **(b) is fixed BETTER than it was asked for.** The report suggested saying a `.js` worker is
+> supported rather than required. §3 instead **version-qualifies**: a `.ts` worker works on
+> **Node >= 22.18** (and 23.6), with `Node < 22.18` named as the range that must still ship `.js`,
+> the "ship a `.js` worker" heading dropped, the cross-runtime `typeof Deno` branch demoted to *only
+> if you target the browser or Node < 22.18*, and the troubleshooting row corrected from *"Node
+> cannot import TypeScript"* to *"Node < 22.18 has no type stripping"*. It also adds an
+> **erasable-syntax** caveat naming `enum`, `namespace`, parameter properties, decorators - and the
+> `import type` trap that caused (a), described as *"green everywhere and throws only at load"*.
+> **The question the report flagged as the one it could not answer from outside - what is the
+> supported Node floor - is the one the fix turns on.**
+>
+> **What this does NOT change: the two-road split stays.** Node still reads npm's `dist/` and Deno
+> still reads JSR's source. What expired is the *reason*: it was *because Node cannot read the
+> source*, and it is now *because `dist/` is what an npm consumer actually gets*, so L6 tests the
+> published artifact rather than a tree no consumer resolves. `D4` and `D5` exist for that.
+> Corrected in place in [ADR 0013](decisions/0013-the-scheduler-is-a-development-dependency-reached-from-the-working-tree.md)
+> and [ADR 0029](decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md).
+
+
 **Two findings, one root, both measured at Node 24.20.0 and Deno 2.9.6 on 2026-08-30 by
 [W5](work-items/w5-one-real-fan-out-flow-on-a-real-scheduler.md), and BOTH RE-MEASURED UNCHANGED AT
 0.5.1 on 2026-09-07 by [W36](work-items/w36-the-scheduler-pin-moves-to-0-5-1.md).**
@@ -373,9 +426,11 @@ none of them** — S4 implemented, S7 fixed better than asked, S8 declined-and-d
 deferred with our workaround intact. What is left:
 
 **[S9](#s9---the-published-typescript-source-does-not-load-under-node-and-agentsmd-3-says-a-ts-worker-cannot-either)
-is the one to raise, and it is ready.** Both halves are one-line changes with a measurement behind
-them, and half (b) makes the reference *less* restrictive rather than more. Raise (a) and (b)
-together: they are the same fact about Node's type stripping seen from two sides.
+was the one to raise, it was raised on 2026-09-07, and it was FIXED in 0.5.2 the same day.**
+*(The paragraph this replaces read *"is the one to raise, and it is ready"*, and the plan it
+described is what was sent: both halves in one report, on the ground that they are the same fact
+about Node's type stripping seen from two sides. It worked, so it is recorded rather than deleted.)*
+**Nothing on this list is now waiting to be raised.**
 
 1. **S2 when a fan-out is real.** Much stronger with a measured number for wasted branch execution.
    Do not raise it on principle — and P1 is what would produce the number.

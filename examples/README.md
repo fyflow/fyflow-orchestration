@@ -42,7 +42,7 @@ Deno and not in the browser** — [Q33](../doc/open-questions.md), and the brows
 | [`run-flow.ts`](run-flow.ts) | one run: build the scheduler, drive the flow, fold the driver's input sequence, return a report |
 | [`workers/flow-worker.ts`](workers/flow-worker.ts) | **one worker file for both runtimes**, **seven** roles selected by the pool's `config` — one always throws, one returns a value `structuredClone` refuses, **one returns an ARRAY, which is where a map's arity comes from**, and **one MUTATES what it was handed**, which is what makes ADR 0037 rule 1 falsifiable |
 | [`flows/`](flows/) | the **eleven** flows this gate needs that `spec/examples/` cannot express — [Q44](../doc/open-questions.md), whose own text said this would not be needed. `all-exit` is the fifth and the reason is the same one a third time: the corpus's all-exit shape reaches its second exit through a human, which would put a resolution race in a row whose point is elsewhere. **`nested` is the sixth and `nested-suspend` the seventh**, and their reason is different: `spec/examples/valid/nested-fanout.flow.json` exists and its outer join routes to an `end`, so **nothing is dispatched when that join fires** and a row has no id to read as *the join fired*. **The last three are W35's**, and their reason is the narrowest yet: `spec/examples/valid/map-fanout.flow.json` is the right SHAPE and its entry node is an `IngestWorker`, whose role must keep returning `{ confidence }` for twenty other rows — so `map.flow.json` is that corpus flow with **two fields changed**, `workerType` and the `flowId` every flow here must own. `nested-map.flow.json` keeps `map-in-fanout`'s SHAPE and not its text — nine node lines differ, because every pool that flow names runs a role that would break the row — and `map-no-array.flow.json` is `FD-R2`'s own case. **`map-alias.flow.json` is the eleventh** and its reason is the sharpest: the `split` role memoises per word, so `a a` returns an items array holding ONE object twice — the only shape that can tell ADR 0037 rule 1 from its negation |
-| [`deno-import-map.json`](deno-import-map.json) | how Deno resolves the bare `fyflow-scheduler` specifier — to `jsr:@fyflow/scheduler@0.5.1`, at the same version `package.json` pins for npm ([ADR 0029](../doc/decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md) rule 2) |
+| [`deno-import-map.json`](deno-import-map.json) | how Deno resolves the bare `fyflow-scheduler` specifier — to `jsr:@fyflow/scheduler@0.5.2`, at the same version `package.json` pins for npm ([ADR 0029](../doc/decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md) rule 2) |
 
 ## Five things a reader should not have to rediscover
 
@@ -51,10 +51,11 @@ read **fifteen runs** at nineteen. Both are the count-in-prose failure this repo
 producing, in the document whose job is to state the counts; each now says what it counts.)*
 
 **1. The two runtimes reach the scheduler through two registries, and the version is written down
-twice.** Node installs `fyflow-scheduler@0.5.1` from **npm** and reads its `dist/` build; Deno
-resolves the same bare specifier to **`jsr:@fyflow/scheduler@0.5.1`** and reads its TypeScript
-source, because **Node cannot** (`core/threadWrapper.ts:5` value-imports an `interface`, which type
-stripping cannot erase — [S9](../doc/scheduler-upstream.md)). `npm run check:scheduler` **D3** is what
+twice.** Node installs `fyflow-scheduler@0.5.2` from **npm** and reads its `dist/` build; Deno
+resolves the same bare specifier to **`jsr:@fyflow/scheduler@0.5.2`** and reads its TypeScript
+source. *(That read *"because **Node cannot**"* until 0.5.2 fixed
+[S9](../doc/scheduler-upstream.md) — Node **can** now, measured. The split stays for the reason that
+outlived it: `dist/` is what an npm consumer gets, so this rung tests the published artifact.)* `npm run check:scheduler` **D3** is what
 stops the two runtimes silently running different versions — the hazard survived the move from a
 working-tree link and only changed address. **`D6` is what stops both rungs from not running this
 file**: it binds `test:l6` and `test:l6:deno` to invoking their runtime and to naming
