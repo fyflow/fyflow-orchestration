@@ -977,6 +977,36 @@ wins.
    questions, 89 open, 2 deferred, 38 resolved**, both halves at 129 of 129 in exactly one cluster cell; **Q170-Q172 all used**.
 
 
+**[P11](plans/p11-what-should-the-gate-prove.md) is DECLARED — *what should the gate prove, and what
+is it actually proving?* — and no item has started.** It takes [Q133](open-questions.md),
+[Q148](open-questions.md) and [Q149](open-questions.md) as one subject: **the gate is 93.2%
+self-test, and the whole of that can be deleted by hand at exit 0.** Two items, serial:
+**W38** closes Q149 in all six checks; **W39** takes the cost decision as **ADR 0039**, implements
+it, and re-measures. W40 is reserved and expected unused. Reserves **Q176-Q180**; **ADR 0038 is spent
+and not reused**, on the P9-reserved-and-skipped precedent.
+
+**Its declaration measured four facts and two of them correct the register rows the plan is built
+on** — the thirteenth time a plan has found one wrong by trying to act on it. **The gate is 433.7 s:
+9.1 s of checks, 404.1 s proving they can fail, and 20.5 s for all of L0-L6 in three runtimes
+including both real-scheduler rungs.** Q133's row said *"about a minute"*; P9's retro recorded
+*"about 79%"* of a 438 s gate. **The share rose to 93.2% while the RATIO fell from 81x to 44.3x**,
+because the checks got dearer — and **two files are 61% of the whole gate**,
+`check:markdown:selftest` at 141.7 s and `check:docs:selftest` at 123.0 s against the 1.1 s and 5.1 s
+they grade.
+
+**[Q149](open-questions.md) is confirmed live in ALL SIX at exit 0** — the dispatch cut by a brace
+match so the file stays valid, **151 to 373 bytes**, self-test unrun, everything green. `S11` reads
+the manifest and `S12` compares the chain's entry names, so both are satisfied; what is unbound is
+what the script does with the flag. **And [Q148](open-questions.md)'s hazard is real, wider than
+its row and wrong about its own mechanism**: FOUR entries fail with `node_modules/fyflow-scheduler`
+moved aside, not one, and the `AGENTS.md` snippet the row blames is tagged ` ```ts check `, so the
+hazard is type resolution — `typecheck` fails the same way with no snippet involved.
+
+**`doc/workflow.md` v0.11's harness requirement fired before any item started**, three commits after
+it was adopted: the first version of the Q149 probe cut more than the dispatch and produced **exit 1
+in all six** — a crash reading as a detection — caught because the control had already been run and
+held.
+
 **[P10](plans/p10-is-fan-out-one-feature-or-two.md) is COMPLETE and RETRO'D, and `doc/workflow.md`
 is [v0.11](workflow.md).** Its question — *is fan-out one feature or two?* — is answered
 **TWO FEATURES OVER ONE REGION**, and it is the first plan in ten to make the library able to express
