@@ -977,6 +977,57 @@ wins.
    questions, 89 open, 2 deferred, 38 resolved**, both halves at 129 of 129 in exactly one cluster cell; **Q170-Q172 all used**.
 
 
+**[P10](plans/p10-is-fan-out-one-feature-or-two.md) is COMPLETE and RETRO'D, and `doc/workflow.md`
+is [v0.11](workflow.md).** Its question — *is fan-out one feature or two?* — is answered
+**TWO FEATURES OVER ONE REGION**, and it is the first plan in ten to make the library able to express
+something it could not. Four items, eight reader passes, none empty. At declaration `spec/` was 30
+examples / 75 rules, L1 474 cases, L6 489 assertions over 25 runs; it closes at **33 / 80**, **574
+cases in three runtimes**, and **638 assertions over 31 real runs**.
+
+**All four predictions CONFIRMED — and the retro's account of that is the part to carry.** Three were
+restatements of facts measured at the declaration step, so confirming them tested the **inference**
+rather than the world; **only prediction 3 was about something nobody had measured**, and it is the
+only one that could have gone either way. *A prediction derived from a measurement you already have
+checks your reasoning; a prediction about a mechanism's reach checks the mechanism, and only the second
+can reverse.* v0.10's *"a prediction written down before the item is what makes this a measurement"*
+is corrected to **necessary and not sufficient**.
+
+**v0.10's three changes all hold on PRODUCT items, which is what v0.10 left open.** The fifth
+obligation — break the WIRING — fires in **four shapes inside the plan**: a check not RUN (W32), a
+guard that runs and cannot reach its subject (W33), a value computed and never READ (W34), and **a
+command that starts the right runtime and opens the wrong FILE** (W35), which could silently unrun
+every exit artifact this repository has. *"Fires for the reason it names"* fired four times, and W35
+adds the reading v0.10 does not state: **a probe declared to cost 0 has to be checked for whether it
+SHOULD** — one of W35's declared controls was a real hole. And the WRITING clause fired **four times
+outside the register**, on a Record number measured before the change it described, a check justified
+from its purpose rather than its clauses, and two spec rulings written at one scope and stated at
+another.
+
+**v0.11 adopts ONE change: rule 8 gains a requirement on the HARNESS — it carries a control, and the
+restore is asserted.** Three times across two plans a provocation harness produced a
+plausible-looking result that was its own artefact: W31 graded a deletion it had caused and reported
+`12/13 bounded` at exit 0; **W35's restored with `git checkout` on a dirty tree and deleted the item's
+own uncommitted work mid-run**; W37's applied only the last edit per file and returned four probes as
+WRONG-REASON, which is what a real finding looks like. **None is visible in the verdict.** The
+counter-measure was invented here for the first of the three and never generalised.
+
+**The `Owns` verdict: 5, 9, 5, 3 against P7's five-four-two-zero, and it never reached zero — and the
+blocks were not too narrow.** W34 declared three trees in advance and six files left its late column,
+so predicting a file set works; **not one of the five that remained, nor W35's three, was predictable
+from a file set.** A plan that changes what the library can EXPRESS creates obligations in the
+documents describing the old capability, and which those are is a property of the sentences.
+**Twenty-two late exceptions, zero undeclared.** One is a structural gap and is **proposed and
+refused at one occurrence**: once an item is done its file is on nobody's `Owns`, so W35 could correct
+a false claim W34's Record made about W35 only by exception — the claim W36 had already acted on.
+
+**And the plan's own question was answered by an eighth fact nobody thought to take.** Facts 2 and 3
+said the id grammar and the join policies were ready for run-time arity — both true, both confirmed —
+and they argued for *one feature*. The answer came from **`branchOf`'s key type**: a
+`Map<string, Set<string>>` keyed by branch node id, so a map's repeated-entry encoding collapses to
+one entry and does not express N branches even to the layer that would have to honour them. *The
+declaration step's value is not that it predicts the answer — it is that it removes the questions
+that would otherwise be mistaken for the answer.*
+
 **[W37](work-items/w37-the-scheduler-pin-moves-to-0-5-2.md) is DONE and the scheduler pin is
 `fyflow-scheduler` 0.5.2**, from both registries. **It is the fix for [S9](scheduler-upstream.md) — the only item this
 repository has ever raised upstream, raised 2026-09-07 and fixed the same day**, both halves plus a

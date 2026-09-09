@@ -1,11 +1,12 @@
 # P10 — Is fan-out one feature or two?
 
-**Status:** RUNNING — declared 2026-09-06. **[W32](../work-items/w32-what-a-map-fanout-is.md),
+**Status:** COMPLETE and RETRO'D — declared 2026-09-06, closed 2026-09-09, and
+`doc/workflow.md` is [v0.11](../workflow.md). **[W32](../work-items/w32-what-a-map-fanout-is.md),
 [W33](../work-items/w33-a-map-at-run-time-arity.md) and
 [W34](../work-items/w34-what-a-branch-receives-and-what-a-join-carries.md) and
 [W35](../work-items/w35-a-map-on-real-workers.md) are DONE** — each with its author pass, both
 readers, rule 8's re-run with the readers' own edits checked in, and a green gate after acting on
-them. **All four items are done and only this retro remains**; the exit artifact exists. **Both reserved ADRs are TAKEN** — 0036 by W32 and **0037 by W34** — which is prediction 4 confirmed. **Read every item's status from its own file, never from this line** (`doc/workflow.md`
+them. **All four items are done, the exit artifact exists, and the retro is in the Record below.** **Both reserved ADRs are TAKEN** — 0036 by W32 and **0037 by W34** — which is prediction 4 confirmed. **Read every item's status from its own file, never from this line** (`doc/workflow.md`
 section 1 rule 5, including its *any copy, including your own* clause — which W32's own Record
 violated and corrected, by writing down a browser count measured before the change it described).
 **Runs after [P9](p9-when-a-check-stops-checking-what-notices.md), which is complete and retro'd.**
@@ -508,65 +509,242 @@ it.
 
 ## Record
 
-*Filled in at the join, after the work items are merged. **All four items are done**, so what follows
-is a progress note that the retro has still to replace.*
+**P10 is COMPLETE.** Four items, four done, and the question it was declared to answer —
+*is fan-out one feature or two?* — is **answered: TWO FEATURES OVER ONE REGION**
+([ADR 0036](../decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md)),
+with [Q12](../open-questions.md) resolved after being open since P1. It is the first plan in ten to
+make the library able to express something it could not express before.
 
-**Both reserved ADRs are TAKEN, which is prediction 4 confirmed.**
-[ADR 0036](../decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md)
-answers [Q12](../open-questions.md) — *two features over one region* — and
-[ADR 0037](../decisions/0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md)
-answers [Q36](../open-questions.md), [Q11](../open-questions.md) at the fan-out edge and
-[Q154](../open-questions.md). **The second is the first ADR in this repository to confirm an earlier
-one from a direction that one did not look in**: what a branch receives differs by opener and needed
-two rules; what a join carries is one mechanism for both, because it is keyed by `branchPath` and
-that is already defined for both kinds.
+| | at declaration (`6130fda`) | at `9393ff1`, the last item's commit and before this retro |
+|---|---|---|
+| `spec/` | 7 documents, **30** examples, **75** rules | 7 documents, **33** examples, **80** rules |
+| L1-L5 | **474** `test()` cases, 19 files | **574** cases, 21 files, in node, deno and chromium |
+| L6 | **489** assertions, 23 row labels, 25 real runs | **638** assertions, **29** row labels, **31** real runs |
+| markdown | 67 documents, 2025 links, 99 anchored | **76** documents, **2717** links, **126** anchored *(2747 once this retro's own links land — which is why the column names a sha)* |
+| register | 114 questions | **132** questions |
+| gate | `GATE EXIT=0`, 0 FAIL lines, 19 entries | `GATE EXIT=0`, 0 FAIL lines, 19 entries |
 
-**Prediction 3 is CONFIRMED and P10's retro has its third data point.** Rule 8's fifth obligation
-fires on a `src/` item in **three different shapes**: W32's was a check that is not RUN (a corpus flow
-renamed out of a glob), W33's a guard that RUNS and cannot reach its subject, W34's **a value that is
-COMPUTED and never READ**. Three items, three shapes, so it generalises past a harness.
+*(The two assertion counts count different things and are never added —
+[Q98](../open-questions.md). `npm run gate` runs `test:browser`, which is chromium only; the three
+runtimes above are the three it runs, not the five `test:browser:all` covers.)*
 
-**Predictions 1 and 2 are also confirmed** — see the work items' own Records — and **P10's decision 2
-paid for itself**. Ordering Q36 *after* the map ran is what put the N = 0 case, the routed-away case
-and a run-time arity in front of the decision; a join-payload rule written at W32 would have had the
-static split and nothing else.
+## The four predictions: all four CONFIRMED, and that is the result to be suspicious of
 
-**The `Owns` question this plan owes its retro: five, nine, five.** W32 took 5 late exceptions, W33
-took 9, W34 took 5. **Declaring `spec/**`, `AGENTS.md` and `test/driver/**` in advance moved six files
-out of W34's late column** — every one of which the earlier two took late — and **not one of the five
-that remained was predictable from a file SET**: a false sentence in the one `spec/` document a
-payload contract does not write to, two `scripts/**` checks whose obligations are created by the
-content of an edit, and `examples/**`, which is **W35's**, because L6 pinned `joinPayload: null` as an
-explicit Q36 marker. **The pattern is not that the blocks were drawn too narrow; it is that some
-obligations are created by what a change SAYS rather than by what it touches**, and that is the
-retro's to judge against P7's five-four-two-zero.
+| # | verdict | measured |
+|---|---|---|
+| 1 | **CONFIRMED** | `src/driver/ids.ts` was **not edited at all** — the grammar, `parseTaskId` and `buildTaskId`'s signature are unchanged — and `spec/task-id.md` section 1's *heading* is corrected rather than deleted: a branch index is a property of the **node** in a `fanout` region and of the **dispatch** in a `map` one |
+| 2 | **CONFIRMED** | `live-token` and `live-token-requiring-arrival` are **byte-unchanged**. The whole join cost was `arrival-count`'s `N` and the N = 0 case, exactly as fact 3 predicted — and the sharper form is that after W33 **not one shipped policy reads its `Region` at all**, which `deno lint` reported as an unused import |
+| 3 | **CONFIRMED, in FOUR shapes** | see below |
+| 4 | **CONFIRMED** | both reserved ADRs taken. **0037 is the first ADR here to confirm an earlier one from a direction that one did not look in**: what a branch RECEIVES differs by opener and needed two rules; what a join CARRIES is one mechanism for both, because it is keyed by `branchPath` and that was already defined for both kinds |
 
-**Exit artifact — IT EXISTS.** A map runs end to end on a real `FyflowScheduler` in **both** L6
-runtimes: `r22:score:0:0`, `:1:0` and `:2:0` are dispatched because a worker returned three items,
-and that number is in no definition field and in no constant in the harness. Each instance receives
-its own item and computes a different score; the join carries all three back keyed by branch path;
+**This plan wrote that *"a prediction this plan's retro reverses is worth more than one it
+confirms"*, and then reversed none.** P9 reversed one of its own and earned a workflow change by it,
+so four-for-four is worth an account rather than a victory lap.
+
+**The account is that these four were derived from measurements already taken.** Facts 1-7 were
+measured at the declaration step; predictions 1, 2 and 4 are restatements of what those facts implied,
+and confirming them tested the *inference* rather than the *world*. **Prediction 3 is the only one
+that was about something nobody had measured** — whether rule 8's fifth obligation generalises past a
+harness — and it is the only one that could have gone either way. *A prediction derived from a
+measurement you already have is a check on your reasoning; a prediction about a mechanism's reach is a
+check on the mechanism.* **Both are worth writing down and only the second can reverse**, which is the
+correction P9's *"a prediction written down before the item is what makes this a measurement"* needs:
+it is necessary and not sufficient.
+
+## Verdicts on `doc/workflow.md` v0.10's three changes
+
+**1. The FIFTH obligation — break the WIRING — GENERALISES PAST A HARNESS. Prediction 3, confirmed
+in four shapes inside this plan and two more outside it.**
+
+| item | shape |
+|---|---|
+| [W32](../work-items/w32-what-a-map-fanout-is.md) | a check that is **not RUN** — a corpus flow renamed out of the `.flow.json` glob, noticed by nothing |
+| [W33](../work-items/w33-a-map-at-run-time-arity.md) | a guard that **runs and cannot reach its subject** — `check:policies` compares the policy id SET, so reverting section 3's `arrival-count` wording left three checks and 543 cases green |
+| [W34](../work-items/w34-what-a-branch-receives-and-what-a-join-carries.md) | a value **computed and never read** |
+| [W35](../work-items/w35-a-map-on-real-workers.md) | **a command that starts the right runtime and opens the wrong FILE** — either L6 rung pointed at `examples/run-flow.ts` costs **zero** failures across four checks, and every exit artifact this repository has is in that one file |
+
+**Four shapes, four items, none of them a self-test.** The obligation was earned in P9 on
+`scripts/**` and P9's retro left open whether it was a fact about harnesses; it is not. **And W35's
+is the one that matters most**, because what it can silently delete is P4's, P6's, P7's and P10's exit
+artifacts at once.
+
+*(Two further shapes landed in the same window on items that belong to no plan and are therefore not
+P10's evidence: [W36](../work-items/w36-the-scheduler-pin-moves-to-0-5-1.md) — a check binding its
+INPUTS and not its PREMISE — and [W37](../work-items/w37-the-scheduler-pin-moves-to-0-5-2.md) — a
+declared version bound but not its REACHABILITY. **Six consecutive items have now found one**, which
+is a fact about the obligation's yield rather than about this plan, and it is recorded here because
+the next plan should expect to find one too.)*
+
+**2. *A provocation is evidence only when it FIRES, and only when it fires FOR THE REASON IT NAMES* —
+CONFIRMED on a product item's set, four times, and the second half did more work than the first.**
+
+- **W32**: two probes were **syntax errors rather than mutations** (`const PROBES = [].concat(`), graded WRONG-REASON because the harness reads the failure LINES. **W6's original defect, refused by the grading rather than by the exit code.**
+- **W34**: a probe that emptied a scenario list produced a syntax error and was graded WRONG-REASON for the same reason.
+- **W35**: a probe declared as a **control costing 0** was a real hole — `failureNames: []` disabled the assertion it declares — and another was **vacuous**, because a duplicate key in an object literal is won by the last one. **The reading that catches these runs the other way round: a probe declared to cost 0 has to be checked for whether it SHOULD.** That is new, and it is the half v0.10's wording does not say.
+- **W35 again**: two probes went **inert** on the item's own later edits, and W37 had six go inert at once — rule 7 (b) firing correctly at a scale nothing here had seen.
+
+**3. Section 1 rule 5's WRITING clause — *a claim states the scope it was MEASURED at* — FIRES
+OUTSIDE THE REGISTER, and it is the highest-yield change of the three.**
+
+| item | the claim | the scope it was measured at |
+|---|---|---|
+| W32 | a Record's L1 row, *"506 on chromium"* | a run made **before** the change the Record describes — and the browser bundle was broken in all three browsers |
+| W33 | *"`check:policies` goes red if `POLICIES` and section 3 disagree either way"* | the check's **purpose**; its clauses compare the id SET |
+| W34 | `spec/join-policy.md` section 5's ruling on N = 0 | a map at **depth 1**, stated as general, false of the refused fourth policy |
+| W35 | the `map / N = 0` row's *"no policy can say anything but `waiting`"* | the **three shipped** policies, in a row whose declared Input is the item that scoped it |
+
+**Four occurrences, four items, none in the register.** And the sharpest is outside this plan, in W37:
+*"the whole source diff is two `import type` lines"*, measured over four files that item happened to
+download and written into **eight documents including four normative ones** — where the true answer is
+six files, and the real story was better than the one written. **The clause is doing more work than
+the two it shipped with**, and the pattern in all five is the same: nobody read anything wrong, and
+every one of them generalised a true measurement without saying so.
+
+## The `Owns` question this plan owes: 5, 9, 5, 3 — and it never reached zero
+
+**P7 ran five, four, two, zero and its retro read the descent as a discipline that could be learned.
+P10 ran 5, 9, 5, 3.** The two series are not comparable as discipline, and the reason is in the middle
+two items.
+
+**W34's is the positive result**: declaring `spec/**`, `AGENTS.md` and `test/driver/**` **in advance**
+moved **six** files out of its late column, every one of which W32 or W33 had taken late. *Predicting
+a file set works.*
+
+**And then not one of the five that remained was predictable from a file set.** Nor were W35's three.
+Sorting all twenty-two late exceptions across the four items by what created the obligation:
+
+| what created it | count | example |
+|---|---|---|
+| the CONTENT of a change, not its file | most of them | a false sentence in the one `spec/` document a payload contract does not write to; two `scripts/**` checks whose obligation was created by a measurement the item took |
+| a check the item's own measurement showed to be hollow | 3 | W35's `D6` clauses; W32's corpus-equality check |
+| **a finished item's own file** | **1** | W35 had to correct [W34](../work-items/w34-what-a-branch-receives-and-what-a-join-carries.md)'s Record, which asserted something FALSE about W35 |
+
+**The verdict is that the blocks were NOT drawn too narrow.** A wider `Owns` would have caught the
+files and not the obligations, and W34 demonstrates the mechanism that does work — declaring in
+advance. **What P10 adds to P7's reading is that the descent to zero is not available on a product
+plan**, because a plan that changes what the library can express creates obligations in documents that
+describe the old capability, and which documents those are is a property of the sentences rather than
+of the directories.
+
+**One of the twenty-two is a structural gap rather than a judgement call, and it is new.** Once an
+item is done, **its file is on nobody's `Owns`** — so when W34's Record asserted *"W35 has not
+reserved"*, which was false and which W36 then acted on, W35 could correct it **only by declaring an
+exception or by leaving a false claim standing about itself**. That is `doc/workflow.md` v0.7 change
+3's own shape — *a gap that blocks a fix* — one directory across from where that change fired.
+**Proposed and NOT adopted at one occurrence** (see below).
+
+## The exit artifact
+
+`npm run test:l6` and `npm run test:l6:deno`, at `9393ff1`. Rows `map / live-token`,
+`map / arrival-count`, `map / N = 0`, `nested-map / live-token`,
+`map / FD-R2 — over names no array` and `map / one item, two instances — ADR 0037 rule 1`, in
+[`examples/l6.ts`](../../examples/l6.ts), over four flows in
+[`examples/flows/`](../../examples/flows/).
+
+**A map runs end to end on a real `FyflowScheduler` in both runtimes, and the number of tasks it
+dispatches appears in no definition field and in no constant in the harness** — `r22:score:0:0`,
+`:1:0` and `:2:0` are dispatched because a worker returned an array of three. Each instance receives
+its own item and computes a different score; the join carries all three back keyed by `branchPath`;
 `nested-map` runs a map inside a fan-out branch at the dotted paths `1.0` and `1.1` and hands the
-outer join a collection at key `1`; `map / N = 0` is `stuck`; and `map / FD-R2` is the one map
-refusal no validator can make. **L6 is 638 assertions / 29 row labels / 31 real runs**, from
-489 / 23 / 25. **And what reverting costs is measured**: W32 kills the run at construction with
-`FD-V11`, W33's arity costs 35, W34's collection 6, and **W33's `arrival-count` re-sourcing costs
-exactly ONE** — on the map row alone, with the run still reporting `completed` and the only
-observable being one key where three were declared. Before W35 that revert cost 0.
+outer join **a collection at key `1`**; `map / N = 0` is `stuck` with one task dispatched; and
+`map / FD-R2` is the one map refusal no validator can make.
 
-**What the plan answered.** *Q12 and Q36 are both resolved; the retro owes the write-up.*
+**What reverting each item's change costs, in L6 failures**, which is what makes the artifact a
+demonstration rather than a screenshot:
 
-**Retro.** *`doc/workflow.md` section 6 pass 3, after W35. It owes a verdict on each of v0.10's three
-changes — prediction 3 is answered above, and W34 supplies an instance of *"fires for the reason it
-names"* on a product item's set: a probe that emptied a scenario list produced a **syntax error**,
-which the harness graded WRONG-REASON rather than CAUGHT because it read the failure LINES and found
-none. **W6's original defect, refused by the grading rather than by the exit code.**
+| revert | cost |
+|---|---|
+| **W32** — a `map` opens no region | **the run DIES at construction**, `FD-V11: node is not reachable from entry` — this plan's fact 1 measured from the other side |
+| **W33** — the arity is not taken from the run | **35** |
+| **W33** — `arrival-count`'s `N` read from `region.branches` again | **1**, on the map row alone, every static row unmoved. The run still reports `completed`, every branch still arrives, and the only observable is `publish` receiving **one key where three were declared**. *`N` too large hangs and is loud; `N` too small completes and is silent.* **Before W35 this revert cost 0** |
+| **W34** — a satisfied join carries `null` | **6** |
+| **ADR 0037 rule 1** — the per-instance clone dropped | **2**, and only because W35's adequacy reader built the shape that can express it |
 
-**Exit artifact.** *Where it is, and how to re-produce it.*
+## What the plan answered
 
-**What the plan answered.** *Q12, answered — including "they are one feature after all", which is a
-real possible outcome and is the one this plan's own facts 2 and 3 argue for.*
+**[Q12](../open-questions.md) — RESOLVED. Fan-out is TWO features over ONE region**
+([ADR 0036](../decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md)),
+and **what decided it was a fact about a data structure that nobody had measured**: `branchOf` is a
+`Map<string, Set<string>>` keyed by branch **node id**, so the repeated-entry encoding of a map
+collapses to one entry and *does not express N branches even to the layer that would have to honour
+them*. The plan's own facts 2 and 3 argued for *one feature* — the grammar already admits run-time
+arity, and the join needs almost nothing — and **the answer went the other way on a measurement taken
+after those facts**, which is the outcome this plan named as real and possible.
 
-**Retro.** *`doc/workflow.md` section 6 pass 3. It owes a verdict on each of v0.10's three changes —
-whether the fifth obligation generalises past a harness (prediction 3), whether "fires for the reason
-it names" fires on a product item's set, and whether the WRITING clause fires outside the register —
-and a verdict on each of the four predictions above.*
+**[Q36](../open-questions.md) — RESOLVED.** A satisfied join carries the arrived branches' results
+keyed by `branchPath` (`JP-R12`). **[Q11](../open-questions.md) — answered at the fan-out edge only**
+and left open in general. **[Q154](../open-questions.md) — RESOLVED**, and it was raised by this
+plan's own declaration. **[Q159](../open-questions.md) — ANSWERED NO**, and the question turned out
+not to be about the node KIND at all but about the ARITY, which the event stream already carried.
+
+**And P10's decision 2 paid for itself.** Ordering Q36 *after* the map ran put the N = 0 case, the
+routed-away case and a run-time arity in front of the decision; a join-payload rule written at W32
+would have had the static split and nothing else. **The cost measurement is why**: a clone per branch
+is **2207.94 ms against 1.50 ms at N = 1000** and quadratic for a map, and **linear in a number the
+document declares** for a fanout — *the fix that is catastrophic for the feature that needed it is
+unnecessary for it.*
+
+## Reader passes, and one measurement that was skipped
+
+**Eight passes, none empty**, and the yields are the largest of any plan here: conformity 12, 15, 16,
+16 findings; adequacy 11, 10, 6, 32 survivors. **Overlap 2, 2, 2, and not measured.**
+
+**W35's overlap was not measured at the time and the practice simply stopped.** Reconstructed
+afterwards from the two reports — which is a **different and weaker measurement** than the three
+before it, and is recorded as such rather than added to the series — the two readers shared **no
+finding** and **two subjects**: `failureNames` (one said the widening was sound, the other found three
+ways to disable it) and `examples/README.md`'s counts (one found a self-contradiction, the other a
+fourth unchecked number). That is W31's shape — zero overlap, one shared subject — a second time.
+**P6's retro closed the overlap question to re-litigation, so nothing turns on the number**; what is
+worth recording is that a measurement stops being taken the moment it stops being load-bearing, and
+nobody noticed for a whole item.
+
+**And the standing count in `CLAUDE.md` — *"thirty-one reader-passes have run"* — has been stale for
+four plans.** This retro tried to re-derive it and stopped: the predicate that line states is sound,
+but the item files do not share a row format, so one grep misses the passes W15, W16, W17, W24 and
+W25 recorded and another double-counts the items whose Verification table and Record both carry a
+reader row. **The floor is 51** by a stated predicate — rows in an item's own Record asserting the
+pass RAN — and the exact number needs each Record opened. *A count that is expensive to re-derive is
+one that will be inherited*, which is the same failure the WRITING clause addresses, one level out:
+not a claim measured at the wrong scope, but a claim whose scope nobody can afford to check.
+
+## `doc/workflow.md` v0.11 — one change adopted, one proposed and refused
+
+**ADOPTED. Rule 8 gains a requirement on the HARNESS: it must carry its own control, and the restore
+must be asserted.** Three occurrences across two plans, each producing a plausible-looking result
+that was a harness artefact rather than a finding:
+
+| | what the harness did | what it reported |
+|---|---|---|
+| [W31](../work-items/w31-the-self-list-check-policies-never-had.md), [Q151](../open-questions.md) | wrote mutants into a directory the child deletes on its first line | **`12/12 bounded`, exit 0**, while every grading inside every child read *"the mutant did not run"* |
+| [W35](../work-items/w35-a-map-on-real-workers.md), [Q172](../open-questions.md) | restored with `git checkout -- src/ examples/` on a **dirty tree** | a run of `ABORT`s that read as anchors gone stale — **the item's whole uncommitted `examples/` tree was gone** |
+| [W37](../work-items/w37-the-scheduler-pin-moves-to-0-5-2.md) | applied only the **last** edit per file in a multi-edit probe | four probes reading **WRONG-REASON at one failure each**, which is what a real finding looks like |
+
+**The counter-measure already exists in this repository and was invented for the first of the
+three**: W31 closed Q151 with a **control run** — an unmutated copy, run through the same expression
+the entries use, which must run and must not be graded. Neither W35 nor W37 applied it to an ad-hoc
+harness, because rule 8 says what to break and how to grade it and **nothing about the thing that
+applies the break.** One sentence closes all three.
+
+**PROPOSED AND NOT ADOPTED, at one occurrence: a finished item's file has no owner.** W35 had to
+declare an exception to correct a false claim W34's Record made about W35 — and the alternative was
+leaving it standing, which is what let W36 act on it. The obvious fix is to add *another item's
+Record, where it asserts something false about yours* to section 1 rule 5's record-step list, beside
+`doc/decisions/**`. **One occurrence**, and section 6 rule 2 asks for two before a proposed rule is
+adopted — the same bar P8 applied to both of its proposals and adopted neither. **Recorded here so
+the second occurrence has somewhere to land.**
+
+**REFUSED: widening `Owns` for a product plan.** The `Owns` section above is the argument. A wider
+block catches files; what P10 produced were obligations created by sentences.
+
+**REFUSED: `check-owns.mjs`**, for the sixth consecutive plan. Twenty-two late exceptions and **zero
+undeclared** across four items — the mechanism that is working is the declaration, not a script.
+
+## What this plan taught, in one paragraph
+
+**A plan can measure seven facts before declaring, get four predictions right, and still have its
+central question answered by an eighth fact nobody thought to take.** Facts 2 and 3 said the id
+grammar and the join policies were ready for run-time arity, and both were true; the answer to *one
+feature or two* came from `branchOf`'s key type, which is not a grammar, not a policy, and not
+something any of the seven facts pointed at. **The declaration step's value is not that it predicts
+the answer — it is that it removes the questions that would otherwise be mistaken for the answer.**

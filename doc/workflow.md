@@ -1,14 +1,15 @@
 # Workflow
 
-**Status:** v0.10 - **run to completion nine times**, by [P1](plans/p1-what-satisfies-a-join.md),
+**Status:** v0.11 - **run to completion TEN times**, by [P1](plans/p1-what-satisfies-a-join.md),
 [P2](plans/p2-the-non-success-half-on-a-real-scheduler.md),
 [P3](plans/p3-a-consumer-reference-the-gate-keeps-true.md),
 [P4](plans/p4-the-drivers-lifetime-and-the-handles-it-gives-out.md),
 [P5](plans/p5-a-third-and-fourth-policy-or-repairs-of-the-first-two.md),
 [P6](plans/p6-what-may-share-a-scheduler-with-a-driver.md),
 [P7](plans/p7-is-a-join-transitive-over-nested-fan-out.md),
-[P8](plans/p8-what-can-be-deleted-with-the-gate-green.md) and
-[P9](plans/p9-when-a-check-stops-checking-what-notices.md)
+[P8](plans/p8-what-can-be-deleted-with-the-gate-green.md),
+[P9](plans/p9-when-a-check-stops-checking-what-notices.md) and
+[P10](plans/p10-is-fan-out-one-feature-or-two.md)
 **Read this before starting any work item.** *(The status line read "seven times" and listed P1-P7
 until P9's retro: **P8 ran this document to completion and adopted none of its proposals**, which is
 section 6 pass 3 rule 1's expected verdict and is not the same as not having run it.)* Paths are relative to the repo root unless they are
@@ -91,6 +92,72 @@ prediction about rule 8 is answered and is **false**.
    ([ADR 0029](decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)).
    The dependency edge that made the junction seem necessary is gone; **the rule still said nothing
    about the removal**, which is the part that did the damage.
+
+**v0.11 is [P10](plans/p10-is-fan-out-one-feature-or-two.md)'s retro, and it is the first retro
+whose central finding is about the INSTRUMENT rather than about what it measures.** P10 was a product
+plan — the first since P7 — and it confirmed all three of v0.10's changes on product items rather than
+on harnesses, which is what v0.10 left open. It adopts **one** change, proposes one it refuses to
+adopt at a single occurrence, and refuses two more.
+
+**ONE CHANGE. Rule 8 gains a requirement on the HARNESS: it carries its own control, and the restore
+is asserted.** A provocation harness is code written under time pressure to grade other code, it runs
+with write access to the tree it is measuring, and **three times across two plans it has produced a
+plausible-looking result that was its own artefact**:
+
+- [W31](work-items/w31-the-self-list-check-policies-never-had.md) wrote its mutants into a directory
+  the child deletes on its first line, and reported **`12/12 bounded`, exit 0**, while every grading
+  inside every child read *"the mutant did not run"* ([Q151](open-questions.md)).
+- [W35](work-items/w35-a-map-on-real-workers.md) restored with `git checkout -- src/ examples/` on a
+  **dirty tree**. The item's entire uncommitted `examples/` work was deleted mid-run, and it reported
+  a run of `ABORT`s that read as anchors gone stale ([Q172](open-questions.md)).
+- [W37](work-items/w37-the-scheduler-pin-moves-to-0-5-2.md) staged a multi-edit probe by writing
+  `snapshot(path).replace(...)` **per edit**, so a second edit to one file overwrote the first from
+  the pristine snapshot. Four probes came back **WRONG-REASON at one failure each** — which is what a
+  real finding looks like.
+
+**None of the three is visible in the verdict**, which is the whole difficulty: a harness that
+destroys its subject, one that never applies the mutation, and one that applies half of it all report
+in the same vocabulary as a harness that works. **The counter-measure was invented here for the first
+of the three and never generalised**: W31 closed Q151 with a **control** — an unmutated copy, driven
+through the same expression the entries use, which must RUN and must NOT be graded. So:
+
+> **Run a control through the same path the probes take.** A probe that changes nothing must come
+> back clean, and the restore must be **asserted** rather than assumed — compare the bytes back, do
+> not trust the command that wrote them. And read a uniform verdict as a harness result until proven
+> otherwise: a run of `ABORT`s, or every probe reporting the same thing, is more often the instrument
+> than the subject.
+
+**It replaces nothing.** The five obligations say what to break; the three requirements on the set say
+when a break is evidence. **None of them is about the thing that applies the break**, which is why
+three items wrote one and two of them shipped a defect in it.
+
+**PROPOSED AND REFUSED at one occurrence: a finished item's file has no owner.** W35 had to declare a
+late exception to correct a false claim [W34](work-items/w34-what-a-branch-receives-and-what-a-join-carries.md)'s
+Record made *about W35* — and the alternative was to leave it standing, which is exactly what let W36
+act on it. The fix is one word: add *another item's Record, where it asserts something false about
+yours* to section 1 rule 5's record-step list, beside `doc/decisions/**`. **One occurrence**, and
+section 6 pass 3 rule 2 asks for two — the bar P8 applied to both of its proposals and adopted
+neither. Recorded so the second occurrence has somewhere to land.
+
+**REFUSED: widening `Owns` for a product plan.** P10 ran **5, 9, 5, 3** late exceptions against P7's
+**five, four, two, zero**, and never reached zero. The reading is not that the blocks were too narrow.
+W34 declared `spec/**`, `AGENTS.md` and `test/driver/**` in advance and **six** files left its late
+column — so predicting a file set works — and then **not one of the five that remained, nor W35's
+three, was predictable from a file set**. A plan that changes what the library can EXPRESS creates
+obligations in the documents that describe the old capability, and which documents those are is a
+property of the sentences rather than of the directories. **Twenty-two late exceptions and zero
+undeclared**; the mechanism that works is the declaration.
+
+**REFUSED: `check-owns.mjs`, for the sixth consecutive plan**, on the same evidence.
+
+**And a correction to v0.10's own wording, from four occurrences.** *"A prediction written down before
+the item is what makes this a measurement rather than hindsight"* is **necessary and not sufficient**.
+P10 wrote four predictions and confirmed all four — but three were restatements of facts already
+measured at its declaration step, so confirming them tested the **inference** and not the world. Only
+prediction 3, which was about whether a v0.10 obligation generalises past a harness, could have gone
+either way, and it is the only one that produced anything. *A prediction derived from a measurement
+you already have checks your reasoning; a prediction about a mechanism's reach checks the mechanism,
+and only the second can reverse.*
 
 **v0.10 is P9's retro, and its central finding is that the defect P9 set out to remove was living
 inside rule 8's own procedure.** P9 asked *when a check clause stops checking, what notices — and does
@@ -566,8 +633,8 @@ Rules:
    rather than for checks, and it exists because **three consecutive items shipped a repair that
    could not fail**.
 
-   **This rule has grown to five obligations and two requirements on the set, so it carries its own
-   index.** P6's retro asked whether a fourth obligation should make it a section; P9's retro answered
+   **This rule has grown to five obligations, three requirements on the set and one on the harness,
+   so it carries its own index.** P6's retro asked whether a fourth obligation should make it a section; P9's retro answered
    **no**, because *"section 5 rule 8"* is cited in this document, four plans, eleven work items and
    the register, and section 3's *ids are never renumbered* is the same argument one level out. It is
    indexed instead:
@@ -582,7 +649,9 @@ Rules:
    | | **and on the set as a whole:** | |
    | | a survivor is one only once a **second independent route** confirms the clause was reachable | v0.7, P5's retro |
    | | re-run the whole set **after** acting on the readers, with their exact edits checked back in | v0.8, P6's retro |
-   | | a provocation is evidence only when it **fires**, and only when it fires **for the reason it names** | **v0.10, P9's retro** |
+   | | a provocation is evidence only when it **fires**, and only when it fires **for the reason it names** | v0.10, P9's retro |
+   | | **and on the HARNESS that applies the break:** | |
+   | | it carries a **control** — a probe that changes nothing comes back clean — and the **restore is asserted**, bytes compared back rather than assumed | **v0.11, P10's retro** |
 
    The three founding cases:
    - W4 - the join's `null` payload could become `{}` and survive 251 assertions.

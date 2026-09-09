@@ -15,7 +15,58 @@ the only document that does. **Every snippet in it is extracted and executed by 
 (`scripts/check-docs.mjs`), so it cannot rot the way a hand-maintained reference does. If you change
 the public surface, that check is what tells you the reference is now wrong.
 
-## Current state: **P1-P9 are ALL complete and retro'd, `doc/workflow.md` is [v0.10](doc/workflow.md), and [P10](doc/plans/p10-is-fan-out-one-feature-or-two.md) is RUNNING — the first PRODUCT plan since P7.** Its question — *is fan-out one feature or two?* ([Q12](doc/open-questions.md), open since P1) — is **ANSWERED by [ADR 0036](doc/decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md): TWO FEATURES OVER ONE REGION.** [W32](doc/work-items/w32-what-a-map-fanout-is.md), [W33](doc/work-items/w33-a-map-at-run-time-arity.md) and [W34](doc/work-items/w34-what-a-branch-receives-and-what-a-join-carries.md) are **all DONE** — each with its author pass, both readers, rule 8's re-run with the readers' own edits checked in, and a green gate after acting on them. **A `map` now DISPATCHES and a satisfied JOIN CARRIES ITS ARRIVALS**: [ADR 0037](doc/decisions/0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md) answers [Q36](doc/open-questions.md), [Q11](doc/open-questions.md) at the fan-out edge and [Q154](doc/open-questions.md), so **BOTH reserved ADRs are taken**. W34's gate is `GATE EXIT=0`, zero FAIL lines, 19 entries, 417 s, with L1 at **21 / 574** in all five runtimes and L6 unmoved at **489 / 25**. **[W35](doc/work-items/w35-a-map-on-real-workers.md) is DONE and P10 HAS ITS EXIT ARTIFACT** — a map runs end to end on a real `FyflowScheduler` in **both** L6 runtimes, at an arity that appears in no definition field and in no harness constant, because a worker returned an array of three. **L6 is 638 assertions / 29 row labels / 31 real runs**, from 489 / 23 / 25; L0-L5 are unmoved, and W35 writes no `spec/` and takes no ADR. **All four P10 items are DONE and only the retro remains.** **W37 has since moved the pin to 0.5.2 and closed S9.** **Read every status from the item's own file, never from this line.** *(This sentence has now been found stale at two consecutive hand-offs — **and then went stale a third time INSIDE W32**, when a script correcting it aborted on a later substitution and wrote nothing, leaving *"BOTH READERS OUTSTANDING"* standing while their reports were being acted on three paragraphs below. **A batched edit that fails halfway leaves the index describing a state that has not existed for hours**, and nothing checks this line. Treat it as a pointer, not as a fact.)*
+## Current state: **P1-P10 are ALL complete and retro'd, and `doc/workflow.md` is [v0.11](doc/workflow.md).** [P10](doc/plans/p10-is-fan-out-one-feature-or-two.md) was the first PRODUCT plan since P7 and is now CLOSED; **no plan is running.** Its question — *is fan-out one feature or two?* ([Q12](doc/open-questions.md), open since P1) — is **ANSWERED by [ADR 0036](doc/decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md): TWO FEATURES OVER ONE REGION.** [W32](doc/work-items/w32-what-a-map-fanout-is.md), [W33](doc/work-items/w33-a-map-at-run-time-arity.md) and [W34](doc/work-items/w34-what-a-branch-receives-and-what-a-join-carries.md) are **all DONE** — each with its author pass, both readers, rule 8's re-run with the readers' own edits checked in, and a green gate after acting on them. **A `map` now DISPATCHES and a satisfied JOIN CARRIES ITS ARRIVALS**: [ADR 0037](doc/decisions/0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md) answers [Q36](doc/open-questions.md), [Q11](doc/open-questions.md) at the fan-out edge and [Q154](doc/open-questions.md), so **BOTH reserved ADRs are taken**. W34's gate is `GATE EXIT=0`, zero FAIL lines, 19 entries, 417 s, with L1 at **21 / 574** in all five runtimes and L6 unmoved at **489 / 25**. **[W35](doc/work-items/w35-a-map-on-real-workers.md) is DONE and P10 HAS ITS EXIT ARTIFACT** — a map runs end to end on a real `FyflowScheduler` in **both** L6 runtimes, at an arity that appears in no definition field and in no harness constant, because a worker returned an array of three. **L6 is 638 assertions / 29 row labels / 31 real runs**, from 489 / 23 / 25; L0-L5 are unmoved, and W35 writes no `spec/` and takes no ADR. **All four P10 items are DONE and only the retro remains.** **W37 has since moved the pin to 0.5.2 and closed S9.** **Read every status from the item's own file, never from this line.** *(This sentence has now been found stale at two consecutive hand-offs — **and then went stale a third time INSIDE W32**, when a script correcting it aborted on a later substitution and wrote nothing, leaving *"BOTH READERS OUTSTANDING"* standing while their reports were being acted on three paragraphs below. **A batched edit that fails halfway leaves the index describing a state that has not existed for hours**, and nothing checks this line. Treat it as a pointer, not as a fact.)*
+
+**[P10](doc/plans/p10-is-fan-out-one-feature-or-two.md) is COMPLETE and RETRO'D, and `doc/workflow.md`
+is [v0.11](doc/workflow.md).** Its question — *is fan-out one feature or two?* — is answered
+**TWO FEATURES OVER ONE REGION**, and it is the first plan in ten to make the library able to express
+something it could not. Four items, eight reader passes, none empty. At declaration `spec/` was 30
+examples / 75 rules, L1 474 cases, L6 489 assertions over 25 runs; it closes at **33 / 80**, **574
+cases in three runtimes**, and **638 assertions over 31 real runs**.
+
+**All four predictions CONFIRMED — and the retro's account of that is the part to carry.** Three were
+restatements of facts measured at the declaration step, so confirming them tested the **inference**
+rather than the world; **only prediction 3 was about something nobody had measured**, and it is the
+only one that could have gone either way. *A prediction derived from a measurement you already have
+checks your reasoning; a prediction about a mechanism's reach checks the mechanism, and only the second
+can reverse.* v0.10's *"a prediction written down before the item is what makes this a measurement"*
+is corrected to **necessary and not sufficient**.
+
+**v0.10's three changes all hold on PRODUCT items, which is what v0.10 left open.** The fifth
+obligation — break the WIRING — fires in **four shapes inside the plan**: a check not RUN (W32), a
+guard that runs and cannot reach its subject (W33), a value computed and never READ (W34), and **a
+command that starts the right runtime and opens the wrong FILE** (W35), which could silently unrun
+every exit artifact this repository has. *"Fires for the reason it names"* fired four times, and W35
+adds the reading v0.10 does not state: **a probe declared to cost 0 has to be checked for whether it
+SHOULD** — one of W35's declared controls was a real hole. And the WRITING clause fired **four times
+outside the register**, on a Record number measured before the change it described, a check justified
+from its purpose rather than its clauses, and two spec rulings written at one scope and stated at
+another.
+
+**v0.11 adopts ONE change: rule 8 gains a requirement on the HARNESS — it carries a control, and the
+restore is asserted.** Three times across two plans a provocation harness produced a
+plausible-looking result that was its own artefact: W31 graded a deletion it had caused and reported
+`12/13 bounded` at exit 0; **W35's restored with `git checkout` on a dirty tree and deleted the item's
+own uncommitted work mid-run**; W37's applied only the last edit per file and returned four probes as
+WRONG-REASON, which is what a real finding looks like. **None is visible in the verdict.** The
+counter-measure was invented here for the first of the three and never generalised.
+
+**The `Owns` verdict: 5, 9, 5, 3 against P7's five-four-two-zero, and it never reached zero — and the
+blocks were not too narrow.** W34 declared three trees in advance and six files left its late column,
+so predicting a file set works; **not one of the five that remained, nor W35's three, was predictable
+from a file set.** A plan that changes what the library can EXPRESS creates obligations in the
+documents describing the old capability, and which those are is a property of the sentences.
+**Twenty-two late exceptions, zero undeclared.** One is a structural gap and is **proposed and
+refused at one occurrence**: once an item is done its file is on nobody's `Owns`, so W35 could correct
+a false claim W34's Record made about W35 only by exception — the claim W36 had already acted on.
+
+**And the plan's own question was answered by an eighth fact nobody thought to take.** Facts 2 and 3
+said the id grammar and the join policies were ready for run-time arity — both true, both confirmed —
+and they argued for *one feature*. The answer came from **`branchOf`'s key type**: a
+`Map<string, Set<string>>` keyed by branch node id, so a map's repeated-entry encoding collapses to
+one entry and does not express N branches even to the layer that would have to honour them. *The
+declaration step's value is not that it predicts the answer — it is that it removes the questions
+that would otherwise be mistaken for the answer.*
 
 **`map` is a fifth node kind and the library can express something it could not before — the first plan in ten to change that.** `{ "kind": "map", "over": "items", "branch": "score" }`: **one** branch declared, N instances opened by the run, where a `fanout` declares N branches known at authoring time. `spec/flow-definition.md` and `spec/task-id.md` are both **v0.8** with `spec/README.md`'s rows moved by `C8`; `spec/` is **7 documents, 33 examples, 77 rules**; L1 is **20 files / 517 cases in five runtimes**, from 19 / 474. **Nothing dispatches a map yet** — the driver is W33's, and `AGENTS.md` deliberately describes the refusal class and not the feature.
 
@@ -1210,7 +1261,7 @@ two things Q95's stub asserts about the `unsatisfiable` exit. The second is `doc
 change 3's own argument in a directory it does not cover, and its reason generalises: **which spec
 clause a stub makes load-bearing is not knowable until the stub exists.**
 
-**Thirty-one reader-passes have run and not one came back empty.** *(The predicate: one per reader
+**At least FIFTY-ONE reader-passes have run and not one came back empty — and this line said THIRTY-ONE for four plans.** *(P10's retro tried to re-derive it and stopped: the predicate below is sound, and the item files do not share a row format, so a grep that counts the passes W15, W16, W17, W24 and W25 recorded misses the three W3 ran, and one that catches those double-counts the items whose Verification table and Record both carry a reader row. **51 is a floor with a stated predicate** - rows in an item's own Record asserting the pass RAN - not the answer. P10 alone added eight. The exact total needs each Record read individually, which is what this line has always been a substitute for.)* *(The predicate: one per reader
 per work item, counted from each item's own Record — `doc/workflow.md` section 1 rule 5, never from
 this line.)* W1 ×3, W3 ×3, W2 ×1, W4 ×2, W5 ×2, W6 ×2, W9 ×2, W12 ×2, W13 ×2, W14 ×2, **W15 ×2,
 W16 ×2, W17 ×2, W18 ×2, W19 ×2**. *(Sum the list; it is 31, and the list is the predicate.)* *(This line read **twenty-one** and listed only the first ten items until
