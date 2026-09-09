@@ -2,6 +2,77 @@
 
 ## Current state
 
+**[W41](work-items/w41-what-a-node-can-reach-and-what-names-it.md) is DONE, and [ADR 0040](decisions/0040-what-a-node-can-reach-is-the-runs-own-outputs-and-a-node-id-names-them-relative-to-a-branch-path.md) answers [Q11](open-questions.md) IN GENERAL** — *what a
+node can reach is the run's own outputs, and a node id names them relative to a branch path.*
+`spec/flow-definition.md` is **v0.11** and section 3 gains **`needs`**: an optional object on a
+`task` or a `map` mapping payload keys to declared references, where a reference is `"."`, a node id,
+or a one-element array holding one. **Q11's three candidates turn out to be a STACK rather than a
+fork** — the previous node's output is the default, a run-scoped accumulator is the state, and a
+declared mapping is the access — and **only the third can reach a worker at all, because
+`createTask` takes ONE value**. `spec/` is **7 documents, 38 examples, 86 rules**; L1-L5 is
+**23 files / 612 cases in five runtimes**, from 574; **L6 is unmoved at 638 assertions over 31 real
+runs**, which is the declared result.
+
+**Both of the flows [P12](plans/p12-what-a-node-receives-and-what-a-decision-sees.md) exists for now
+run.** `map-with-context.flow.json` gives a map instance its own item **and** the run's config —
+[Q166](open-questions.md) **CLOSED**, and the reshaping node that row names as the workaround is not
+needed. `map-over-region-output.flow.json` maps over a whole region's output with
+`needs: {"scores": ["score"]}` and **no `over: "0"` anywhere**, so [Q165](open-questions.md)'s
+coupling to branch numbering is gone rather than worked around; its reducer stays refused.
+**[Q164](open-questions.md) is RESOLVED and `FD-C` is the third prefix** — `FD-V` is what a document
+may say, `FD-R` what a run refuses, `FD-C` what a run **CARRIES**.
+
+**What decided the ADR is a fact about a CHANNEL, and it is why the register's fork is a stack.**
+`createTask` receives `{id, workerType, payload, optional}`, so an accumulator that is not *selected
+from* and *composed into* that one value is invisible to the thing that needs it — and adding it
+unconditionally would change what **every** node receives. **The accumulator half is free**: it is a
+projection of a log this driver has always kept, with **no new retention**, which is P12 fact 1
+confirmed from inside the driver. **So the whole cost is the KEY**, and it is the pair
+`(node id, branchPath)`: a node id names one output outside a map region and **N** inside one, which
+is [ADR 0036](decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md)'s
+deciding fact for the **third** time. Measured over **eight** region-bearing corpus flows — four
+`fanout`-only ones collapsing **nothing**, four map-bearing ones every one collapsing.
+
+**Its conformity reader found the new rule REFUSING A VALID DOCUMENT, and the same spec document
+contradicts it nine lines down.** `FD-V28` asked *is the target inside a region the reader is outside
+of*, which is true of a `fanout` too — so `needs: {"a": "scoreA"}` on a node after a two-branch join
+was refused and the author told to write `["scoreA"]` and index `[0]`. **`FD-C2`'s own measurement,
+in the same section, says the ids collapse in exactly the map-bearing flows and in neither with only
+`fanout`s.** Every one of the author's 37 probes used a map region, so the whole `fanout` half was
+unreachable from the set: *a probe set written against the cases a feature was built for cannot see a
+rule that is wrong about the cases it was not.* **18 findings, 7 blocking.**
+
+**Its adequacy reader ran 98 mutations and found 20 real survivors, 8 blocking — and closed
+[Q158](open-questions.md), open for three plans.** Renaming W41's two `.test.ts` files out of the
+runner's glob gave **`21 file(s), 579 assertions, all passed`, exit 0**: 27 cases, the whole evidence
+for six rules, gone with nothing red. **The fix did not have to live where Q158 said it would** —
+that row names `test/runner.ts` and `scripts/**`, both in nobody's `Owns`, which is why nobody built
+one. The runner and the browser bundle glob the same tree, so a suite that did not load is one
+`collected()` does not hold: the bound is a **suite census** in `test/definition/l4-corpus.test.ts`,
+set equality both ways, in all five runtimes. **Overlap 1 of 116**, both readers unprimed, and their
+one shared subject was reached from opposite ends.
+
+**And obligation (e)'s SECOND QUESTION fires on a product item — the verdict P12's Record asks for —
+in a shape neither of P11's two procedures names.** Both instances are **a LIST bound to nothing**
+rather than a command bound by name or an override hiding a default. `RULE_PREFIXES` gained `FD-C`
+and was itself bound to nothing: **dropping `FD-C` from it costs ZERO**, because the two `FD-C` rules
+then match neither pattern and are neither declared nor cited — *Q164's own defect surviving inside
+the fix for it*. And the two new `C2` clauses had **no probe**, because `check-spec-selftest.mjs`
+derives at **id** granularity where `C2` already existed, so two new `fail()` sites moved nothing and
+it reported `20/20, 21/21, exit 0`. **The author instantiated (e) three times as written and all
+three passed; the readers found both of these.**
+
+**Rule 8: 54 provocations, 51 caught, 2 survivors — both classified vacuous with a second route — 0
+aborted, 0 wrong-reason**, run with the readers' own edits checked back in. **Three harness defects,
+all three invisible in the verdict**: `String.replace`'s `$'` truncated a mutation so a **crash** read
+as a **survivor** ([Q184](open-questions.md), which then reproduced in the script that inserted its
+own register row); `green` accepted `all passed` from a **sibling** child while the subject crashed;
+and a probe graded against `check-spec` reported a survivor for a clause whose only binding is
+`check-spec --self-test`. **And the item's own driver work was destroyed by `git checkout` on a
+dirty tree** — W35's defect, by hand, outside the harness whose header forbids it. **Census
+CONFIRMED for the NINTH plan running — 146 questions, 99 open, 2 deferred, 45 resolved**, both halves
+at 146 of 146 in exactly one cluster cell; **Q184-Q189 used, Q11, Q158, Q164 and Q166 resolved**.
+
 **[P1](plans/p1-what-satisfies-a-join.md) is complete — five work items, eleven reader-passes, and
 its retro is run.** [Q4](open-questions.md) is answered:
 [ADR 0003](decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md), **a join is

@@ -1,6 +1,6 @@
 # spec/flow-definition — the flow definition format
 
-**Status:** v0.10 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.11 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2** acted on the first spec-conformity pass
 (ADR 0004, and `region(F)` made computable). **v0.3** acted on the second, which found that `FD-V19`
 had reintroduced the v0.1 defect class under a new id — a refusal rule rejecting the valid corpus.
@@ -46,10 +46,31 @@ ordinary edge carries**, which no document in `spec/` had ever stated, and secti
 that is deliberate**: this document has `FD-V*` for a validation rule and `FD-R*` for a runtime
 refusal and **no prefix for a rule about what a run CARRIES** ([Q164](../doc/open-questions.md)), and
 `scripts/check-spec.mjs`'s `RULE_ID` is a closed list of eight prefixes, so an invented one would be
-invisible to `C2` and `C6` — a rule declared, cited and checked by nothing. The rules are `JP-R11` and
+invisible to `C2` and `C6` — a rule declared, cited and checked by nothing. *(**v0.11 takes the
+prefix**, which is what Q164's row called its forcing condition. `JP-R11` and `JP-R12` keep their ids
+— section 3 of `doc/workflow.md`, ids are never renumbered — and the sentence above stays as the
+record of why they are where they are.)* The rules are `JP-R11` and
 `JP-R12` in [spec/join-policy.md](join-policy.md) section 4, whose owner table already fixes what the
 driver does at both ends of a region. **No `FD-V` changed, no `FD-R` changed and no node kind
 changed.**
+
+**v0.11 answers [Q11](../doc/open-questions.md) IN GENERAL**
+([W41](../doc/work-items/w41-what-a-node-can-reach-and-what-names-it.md) under
+[P12](../doc/plans/p12-what-a-node-receives-and-what-a-decision-sees.md)), by
+[ADR 0040](../doc/decisions/0040-what-a-node-can-reach-is-the-runs-own-outputs-and-a-node-id-names-them-relative-to-a-branch-path.md):
+**what a node can reach is the run's own outputs, and a node id names them relative to a branch
+path.** Section 3 gains **`needs`** — an optional declared mapping on a `task` or a `map` — and with
+it the two rules this document had no prefix for. **[Q164](../doc/open-questions.md) is RESOLVED and
+`FD-C*` is the third prefix**: `FD-V` is a rule about what a DOCUMENT may say, `FD-R` is a rule about
+what a RUN refuses, and `FD-C` is a rule about **what a run CARRIES** — which v0.10 wrote as prose
+with no id at all, because there was no prefix and `scripts/check-spec.mjs`'s `RULE_ID` is a closed
+list. **Measured before the prefix was taken**: a rule declared as `FD-C1` and cited in this document
+is reported by `check-spec` as *8 checks ok, 80 rules* — not counted, not checked for uniqueness, not
+checked for an owner. *A rule declared, cited and checked by nothing*, exactly as Q164's row said.
+**Three `FD-V` are added and none is changed**: `FD-V26`, `FD-V27` and `FD-V28` are `needs`' own
+rules, and *"only a `task` or a `map` may carry it"* is deliberately **not** among them, because
+`FD-V17` already refuses an undeclared key and names the kind. **`JP-R11` and `JP-R12` are NOT
+reopened** (P12 decision 3) and **no node kind is added** (P12 decision 4).
 
 **Binds:** [ADR 0002](../doc/decisions/0002-a-flow-definition-is-data-and-a-predicate-is-registered-by-name.md)
 (the graph is data; a predicate is a name; an unknown name fails at instantiation) and
@@ -87,9 +108,9 @@ ADR 0002 rule 2 taken literally (`when: "isLowConfidence"`).
 
 | kind | keys | |
 |---|---|---|
-| `task` | `id`, `kind`, `workerType`, `edges`, **`optional?`** | binds to a scheduler worker pool. Dispatched as one scheduler task |
+| `task` | `id`, `kind`, `workerType`, `edges`, **`optional?`**, **`needs?`** | binds to a scheduler worker pool. Dispatched as one scheduler task |
 | `fanout` | `id`, `kind`, `branches` | opens a region with **N branches declared here**. Dispatches nothing itself |
-| `map` | `id`, `kind`, `over`, `branch` | opens a region with **one branch, opened N times at run time**. Dispatches nothing itself. v0.8 |
+| `map` | `id`, `kind`, `over`, `branch`, **`needs?`** | opens a region with **one branch, opened N times at run time**. Dispatches nothing itself. v0.8 |
 | `join` | `id`, `kind`, `of`, `edges` | closes the region opened by the `fanout` **or `map`** named in `of`. Dispatches nothing itself |
 | `end` | `id`, `kind`, `outcome` | terminates one path. No edges |
 
@@ -147,7 +168,11 @@ not a definition, so *"how many items"* is a name the driver resolves and never 
 author supplies.
 
 **What `over` is a key ON — v0.10, and it is settled now.** It is the value the driver hands the
-map node, which for an ordinary edge is the previous node's `result` unchanged (section 3). A `map`
+map node — **which since v0.11 is what section 3's `FD-C1` says it is**: the previous node's `result`
+unchanged when the map declares no `needs`, and the object its `needs` describes when it does.
+`map-over-region-output.flow.json` is the second case and it is the whole of why `join -> map` over a
+region's output is expressible. *(This paragraph said only *"for an ordinary edge is the previous
+node's `result` unchanged"* after v0.11 had made it one of two. W41's conformity reader.)* A `map`
 may be the `entry` node, and then the value is the run's start payload; that needs no rule, because
 `FD-V3` refuses only a `join` or an `end`. **A map node is never itself a branch entry**
 (`FD-V25` makes a map's `branch` a `task` and `FD-V9` a fanout's entries tasks), so `JP-R11` does not
@@ -232,6 +257,100 @@ this is the other half and until v0.10 no document in `spec/` stated it, which i
 > `spec/outcome-record.md` section 4's *"copying the field copies the reference"* applied to the one
 > exit that reaches a worker: without it the next task's payload **is** the record's `result`, and an
 > inline worker mutating what it was given edits a record already in the log.
+
+### `needs` — what a node receives, when it is not the previous node's output — v0.11
+
+[ADR 0040](../doc/decisions/0040-what-a-node-can-reach-is-the-runs-own-outputs-and-a-node-id-names-them-relative-to-a-branch-path.md),
+answering [Q11](../doc/open-questions.md) **in general**, with
+[Q166](../doc/open-questions.md) and [Q165](../doc/open-questions.md) as its cases.
+
+```json
+{ "id": "score", "kind": "task", "workerType": "ScoreWorker",
+  "needs": { "item": ".", "run": "ingest" },
+  "edges": [ { "to": "collect" } ] }
+```
+
+**`needs` is optional, and a node without one receives exactly what the paragraph above says.** That
+is the whole of rule 1: the default is unchanged, so every flow written against v0.10 behaves at
+v0.11 exactly as it did — measured, at 574 L1-L5 cases unmoved.
+
+A node that declares one receives **the object `needs` describes, and nothing else**. There is no
+wrapper and no reserved key, because `"."` is how an author asks for what the edge carried.
+
+| a reference is | and resolves to |
+|---|---|
+| `"."` | **whatever this node would have received had it declared nothing** — whichever of this document's arcs it sits on: the ordinary edge's value above, a `fanout` branch entry's own copy or a `map` instance's own item (`JP-R11`), or a satisfied join's collection (`JP-R12`). *(This row enumerated the first and the last of those and omitted the two in between; **`map-over-region-output`'s `rank` sits on a join's exit edge**, so one of the omissions is in this item's own corpus. W41's conformity reader.)* It is the one invented token in the grammar and it is safe because `.` is outside `FD-V16`'s charset, so no node may ever be called it |
+| `"score"` | that node's output **on this node's own branch path**. **None, and the run stops** (`FD-R3`); more than one is unreachable, because `FD-V28` refuses this form wherever the graph admits more |
+| `["score"]` | that node's outputs as an **array**, in ascending `branchPath` order compared segment-wise as numbers — `JP-R12`'s order rule, and the same reason: it is what makes the value the same whatever order the branches settled in. Legal only where this node is **outside** a region containing the named one (`FD-V28`) |
+
+**The array form is JSON's own array syntax rather than a second sigil**, so the grammar invents one
+token rather than two, and a definition still survives `JSON.parse(JSON.stringify(x))`
+(ADR 0002 rule 1).
+
+**Which form is legal is a property of the GRAPH, not of the run, and `FD-V28` is what says so.** A
+node produces more than one output for a reader exactly when the reader is outside a **`map`** region
+containing it — so an author is told at instantiation which form to write, and *which shape will
+arrive* is never a run-time surprise.
+
+> **A `fanout` region is NOT that case, and the rule's first version said it was.** `FD-V19` refuses
+> a non-`end` node in two branch entries of one fanout, so every node in a `fanout` region has
+> **one** output and the bare form is what is legal from outside it. Written against *a region* rather
+> than *a map region*, `FD-V28` refused `needs: {"a": "scoreA"}` on a node after a two-branch join —
+> a valid document — and told the author to write `["scoreA"]` and index `[0]` out of it. **`FD-C2`'s
+> own measurement is what the rule should have been read from**: the ids collapse in exactly the
+> flows with a map region and in neither with only `fanout`s, stated nine lines below, in this
+> document, before the rule was written. W41's conformity reader. **This is what makes `needs` more than the accumulator**:
+[Q11](../doc/open-questions.md)'s second candidate is the state and its third is the access, and only
+the third can reach a worker at all, because `createTask` takes **one** value
+(`{id, workerType, payload, optional}` — measured).
+
+**What NAMES an output is the pair `(node id, branchPath)`** — `FD-C2` — and a node id alone does
+not. Measured over all four region-bearing flows in `spec/examples/valid/`: the pairs are distinct
+**4 of 4, 4 of 4, 5 of 5 and 6 of 6**, while the node ids collapse in exactly the two flows with a
+`map` region, at any depth, and in neither flow with only `fanout`s. That is
+[ADR 0036](../doc/decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md)'s
+deciding fact for the **third** time ([Q160](../doc/open-questions.md)), and it is why an author
+writes a node id and the run resolves it against a path.
+
+**An entry is visible to a node when one path is a prefix of the other**, segment-wise — `-` (no
+region) being a prefix of everything. One predicate gives both forms: `ingest@-` is visible
+everywhere; `extract@1` is visible to `merge@1.0`; and `merge@1.0` and `merge@1.1` are **both**
+visible to a node at `-` after the join, which is the array.
+
+> **Segment-wise and not by string.** `"1"` is a prefix of `"1.0"` and is **not** a prefix of
+> `"10"`, which a `startsWith` gets wrong in exactly the case a nested region produces — `JP-R12`'s
+> own *invisible at depth 1, live at depth 2*, a fourth time in this tree.
+
+**Each key gets its own copy**, which is `JP-R11`'s invariant applied to the one edge that is not a
+fan-out edge: no two nodes ever receive the same object, and a reference is the one way two nodes
+could otherwise be handed one record's `result` twice.
+
+**What a node reaches is a PROJECTION of the log and is not new retention.** The driver already
+holds an append-only `log` with `result` on every settled task and already exposes the whole of it
+through `snapshot()`; the projection adds **zero** fields, and it is computed on demand rather than
+maintained, so a second source cannot disagree with the log.
+[Q19](../doc/open-questions.md)'s *"if Q8 or Q11 retains every node output"* described **today**
+before `needs` existed, and its real question — whether that retention should be **bounded** — is
+untouched.
+
+> **What `needs` costs is what you point it at, and the document is where that is visible.** The
+> mechanism is linear: at a map arity of 1000, `{"item": "."}` is **8.0 ms** against **6.5 ms** for
+> no `needs` at all, and one more key naming a small result is **10.6 ms**. **A key naming a large
+> one is 546.6 ms**, because each instance gets its own copy of it — which is
+> [ADR 0037](../doc/decisions/0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md)'s
+> refused per-instance clone, reached by asking for it. **That is why a reference names a whole node
+> and never a path inside its value**: a path language would make *the small part of the big thing*
+> expressible and would move this cost out of the document and into a selector.
+
+**The effective outcome, never the raw record** — rule 4 above, one level out. A resumed node has two
+records and neither alone is right to hand anybody; a node still suspended has **no** effective
+outcome and therefore **no entry**, which is what makes `FD-R3` fire rather than a reference quietly
+resolving to `undefined`.
+
+| id | | Test owed by |
+|---|---|---|
+| `FD-C1` | **What a node receives.** With no `needs`, the source node's effective-outcome `result`, deep-copied — the paragraph above, unchanged. With a `needs`, **exactly** the object it describes: one key per declared key, each resolved by the table above and each its own copy. Test: at ladder L2, over `map-with-context.flow.json` and `map-over-region-output.flow.json`, asserting the composed payload of **every dispatch a `needs` composes** — which is 2 of that flow's 4 and 3 of this one's 7, the rest being nodes that declare none; and that a node with no `needs` is byte-unchanged, which the 574 unmoved L1-L5 cases assert as a whole | **[W41](../doc/work-items/w41-what-a-node-can-reach-and-what-names-it.md)** |
+| `FD-C2` | **What names an output is the pair `(node id, branchPath)`.** A node id alone names one output outside a `map` region and **N** inside one, so a projection keyed by node id collapses a map's instances — which is what a reference must not do. A `needs` reference names a node **id**, because a branch path inside a map region is a property of the **dispatch** (section 4, `ID-R6`) and no author can write one. Test: at ladder L2, the pairs are distinct over all four region-bearing corpus flows **and over the two this item adds**, while the node ids collapse in exactly the map-bearing ones | **[W41](../doc/work-items/w41-what-a-node-can-reach-and-what-names-it.md)** |
 
 **A fan-out edge and a join's exit edge are the two that are not ordinary**, and both are
 [spec/join-policy.md](join-policy.md) section 4's — `JP-R11` for what each opened branch receives, and
@@ -558,6 +677,9 @@ C4 fails if one is missing.
 | `FD-V23` | a **required key is absent** — a node without `id` or `kind`; a `task` without `workerType` or `edges`; a `fanout` without `branches`; **a `map` without `over` or `branch`**; a `join` without `of` or `edges`; an `end` without `outcome`; an edge without `to`; or the document without `flowId`, `version`, `entry` or `nodes`. **`version` is required**, matching section 1 — an omitted version is one that silently means nothing |
 | `FD-V24` | a node's `kind` is not one of `task`, `fanout`, **`map`**, `join`, `end`. **`kind: "decision"` is the case this exists for** — section 2 warns the author away from that word, and until v0.4 nothing rejected it |
 | `FD-V25` | a `map` has `edges`; its `branch` names a node whose kind is not `task`; or its `over` is not a string matching `^[A-Za-z0-9_-]{1,64}$`. **The map's own rule, and `FD-V9` is unchanged** — each is about one node kind, because a rule about two kinds is the confusion [ADR 0036](../doc/decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md) exists to remove. A map declares ONE branch, so `FD-V9`'s arity floor and repeated-entry clause have nothing to say about it and are not restated here |
+| `FD-V26` | a node's `needs` is not an object, is an empty one, has a key outside `^[A-Za-z0-9_-]{1,64}$`, or has a value that is not `"."`, a node id, or a one-element array holding a node id. **Section 3's grammar and nothing else** — where the reference POINTS is `FD-V27`'s and `FD-V28`'s. *"Only a `task` or a `map` may carry `needs`"* is **deliberately not a clause here**: `needs` is absent from the other three kinds' key lists, so `FD-V17` already refuses it and names the kind, and a second rule saying the same thing is one `FD-V17` could never disagree with |
+| `FD-V27` | a `needs` reference names a node that does not exist, names a node whose kind is not `task` (**only a `task` produces an output** — section 2), or names a node **this node is not reachable from**. The last is what makes a reference a statement about the graph rather than a hope about the run: a reference pointing sideways or backwards names a node that may not have run, and without this the only thing to say so is `FD-R3`, at run time, on the one workload that takes that branch — which is ADR 0002 rule 3's own argument for validating at instantiation |
+| `FD-V28` | a `needs` reference's **form does not match the graph** — `"n"` where this node is outside a **`map`** region containing `n` (so `n` produces one output per ITEM), or `["n"]` where it is not (so `n` produces exactly one). **A `fanout` region is not this case**: `FD-V19` gives every node in one exactly one output, so the bare form is legal from outside it, and the rule's first version refused a valid document by asking *a region* where it meant *a map region*. **Its own id rather than a clause of `FD-V27`** because an author fixes the two differently: `FD-V27` is *that node cannot have produced anything for you* and this is *it produced a different NUMBER of things than you asked for*, and the message names the form to write instead |
 
 **`FD-V19`'s second clause is derived rather than stated.** *"One branch entry is reachable from
 another"* needs no rule of its own: `FD-V9` requires every branch entry to be a `task`, and a branch
@@ -613,6 +735,7 @@ owning item's gate, **not W1's L0**.
 | id | The run terminates when | Test owed by |
 |---|---|---|
 | `FD-R1` | routing reaches a node, eligible edges exist for the settled terminal state, and none evaluates true. The failure names the run id and the node id and is **reported** rather than thrown out of a listener (`OR-R10`). **Unreachable through a valid definition**, and that is `FD-V7` working rather than a gap — see below. Test: assert against the routing function directly, with a node whose eligible edges are all guarded and a registry whose predicates all return false; **and a companion test that the reachable neighbour is not this rule** — no eligible edge at all is a declared path end (section 3) | W3 |
+| `FD-R3` | a `needs` reference names a node and **no output of that node is on this node's branch path** — a decision routed around it, or it settled `user_action` and nobody has resolved it. Reported as an `UnresolvedReference` naming the declaring node, its branch path, the key and the target. **`FD-V27` has already checked that this node is reachable FROM the named one**, which is everything the graph can say; whether it ran is a fact about this run, so no validator rule could have seen this — `FD-R2`'s own argument one door along. **Why its own class and not `UnresolvedMapArity`**: that one says *the previous node did not return an array*, which is a WORKER's bug, and this says *the node you named did not run on your path*, which is the FLOW's shape, and the two send a reader to different places. Reported through `OR-R10` from a listener, and reported **and rethrown** from `resolve()`, which is caller-initiated. **Not from `start()`, and that is a property of `FD-V27` rather than of this rule**: `start()` composes only the entry node, and a reference from the entry node names a target the entry node must be reachable from — which with `FD-V11` makes the entry reachable from it, and that is an `FD-V10` cycle. So the `start()` road is refused at instantiation and has no case. *(This row said `start()` and `resolve()`, and the test named for it asserted neither. W41's conformity reader, and it is `FD-R1`'s own *test that cannot be built* one section up.)* Test: `test/driver/needs.test.ts` | **[W41](../doc/work-items/w41-what-a-node-can-reach-and-what-names-it.md)** |
 
 ### FD-R1's test, corrected
 
@@ -648,6 +771,8 @@ instantiation, and instantiation is a driver action. Hand-written, never generat
 | `fanout-failure.flow.json` | **ADR 0004 inside a region** — one optional branch with a failure edge, one non-optional branch that can suspend. The shapes `branch.lost` and `branch.suspended` are defined against |
 | `nested-fanout.flow.json` | **[ADR 0030](../doc/decisions/0030-a-join-is-transitive-and-a-dead-join-ends-the-branch-it-sits-in.md)'s shape** — a fan-out inside a fan-out's branch, expressible since `FD-V15` was retired at v0.7. **This row was MISSING from v0.7 until v0.8 added it**: [W20](../doc/work-items/w20-what-a-nested-region-is.md) added the file and nothing obliged it to document it, so this table was stale by one for a whole plan. `test/definition/l4-corpus.test.ts` now compares the directory and this table **both ways**, which is what found it |
 | `map-fanout.flow.json` | **a `map`** — v0.8, one branch entry and an arity that is not in the document |
+| `map-with-context.flow.json` | **[Q166](../doc/open-questions.md)'s flow** — *score each item against the run's config*. A map instance that receives its own item **and** the value the map node received, through `needs: {"item": ".", "run": "ingest"}`. v0.11 |
+| `map-over-region-output.flow.json` | **[Q165](../doc/open-questions.md)'s flow** — *score, then fan out over the scores*. A `map` whose `over` names a key `needs: {"scores": ["score"]}` composed from a whole map region's output, **with no `over: "0"` and therefore no coupling to branch numbering**. v0.11 |
 | `map-in-fanout.flow.json` | **a map region nested inside a static one** — the shape that shows the outer `branchPath` prefix is still derived while only the map's own segment is supplied at run time |
 
 **This table and the directory are compared BOTH WAYS, and that is v0.8's addition rather than a

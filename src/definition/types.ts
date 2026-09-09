@@ -12,6 +12,37 @@ export type RoutableState = 'done' | 'failed';
 /** Every terminal state a scheduler task can reach. Five library states, three terminal. */
 export type TerminalState = 'done' | 'failed' | 'user_action';
 
+/**
+ * **A declared reference to something the run has produced** —
+ * `spec/flow-definition.md` section 3's `needs`, and
+ * [ADR 0040](../../doc/decisions/0040-what-a-node-can-reach-is-the-runs-own-outputs-and-a-node-id-names-them-relative-to-a-branch-path.md).
+ *
+ * Three forms, all of them data (ADR 0002 rule 1 — nothing here is a function and
+ * everything survives `JSON.parse(JSON.stringify(x))`):
+ *
+ * | | |
+ * |---|---|
+ * | `"."` | what this node would have received anyway — the ordinary edge's value, and for a `map` instance its own item (`JP-R11`). The one token outside `FD-V16`'s charset, so it can never collide with a node id |
+ * | `"score"` | that node's output **on this node's own branch path**. Exactly one, or the run stops (`FD-R3`) |
+ * | `["score"]` | that node's outputs as an **array**, in ascending segment-wise-numeric `branchPath` order. Legal only where the reader is outside a region containing the named node (`FD-V28`) |
+ *
+ * **The array form uses JSON's own array syntax rather than a sigil**, so the
+ * grammar needs exactly one invented token (`"."`) rather than two.
+ */
+export type Reference = string | readonly [string];
+
+/**
+ * **What a node receives, when it does not want the previous node's output** —
+ * `FD-C1`. An object whose keys are the keys of the payload the node receives and
+ * whose values are references. A node that declares one receives **exactly** the
+ * object this describes; a node that does not receives what section 3 says an
+ * ordinary edge carries, unchanged.
+ *
+ * Only a `task` and a `map` may carry it: `FD-V17` already refuses an undeclared
+ * key on the other three kinds, so that clause needs no rule of its own.
+ */
+export type Needs = Readonly<Record<string, Reference>>;
+
 export interface Edge {
   /** Target node id. Required (FD-V23). */
   to: string;
@@ -35,6 +66,12 @@ export interface TaskNode {
    * the only way a node can *settle* `failed` rather than `user_action`.
    */
   optional?: boolean;
+  /**
+   * **What this node receives** — `FD-C1`, `FD-V26`-`FD-V28`. Optional: a task
+   * without one receives the ordinary edge's value (section 3), which is what
+   * every task received before [ADR 0040](../../doc/decisions/0040-what-a-node-can-reach-is-the-runs-own-outputs-and-a-node-id-names-them-relative-to-a-branch-path.md).
+   */
+  needs?: Needs;
 }
 
 export interface FanoutNode {
@@ -70,6 +107,14 @@ export interface MapNode {
   over: string;
   /** **One** branch entry id, whose kind is a `task` (`FD-V25`). Not a list. */
   branch: string;
+  /**
+   * **What this node receives, and therefore what `over` is a key on** —
+   * `FD-C1`. A `map` carries it for the same reason a `task` does, and it is what
+   * makes *fan out over what a region produced* expressible: `needs: {"scores":
+   * ["score"]}` with `over: "scores"` maps over an array the previous node never
+   * produced ([Q165](../../doc/open-questions.md)).
+   */
+  needs?: Needs;
 }
 
 export interface JoinNode {

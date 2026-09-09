@@ -17,13 +17,14 @@
 // clauses at **ID** granularity and calls `check-spec` *seven clauses*. This file
 // works at **`fail()`-SITE** granularity, and the two reconcile exactly:
 //
-//   19  `fail()` sites in `check-spec.mjs`  — C1×1 C2×2 C3×3 C4×2 C5×2 C6×1 C7×5 C8×3
+//   21  `fail()` sites in `check-spec.mjs`  — C1×1 C2×4 C3×3 C4×2 C5×2 C6×1 C7×5 C8×3
+//       (C2 gained TWO at W41: the `RULE_PREFIXES` binding, both directions.)
 //  - 2  `C5`'s two, which are NOT this file's: `C5` was lifted into
 //       `scripts/check-markdown.mjs` by W25, and its probes and its one grading live
 //       in `scripts/check-markdown-selftest.mjs` (probes at :291 and :430, the META
 //       entry *"C5`s lift removed from check-spec"*). `check-spec` is the caller.
 //  ----
-//   17  probed here, ONE PROBE PER SITE and one META entry per site.
+//   19  probed here, ONE PROBE PER SITE and one META entry per site.
 //  + 1  an eighteenth probe that is deliberately NOT one-per-site: a single flow
 //       tripping TWO `C7` clauses at once, which is what makes the failure-COUNT
 //       discriminator below reachable. Measured: without it, no entry in this file
@@ -257,6 +258,49 @@ const PROBES = [
       '\nA sentence citing `RN-R99`, which no rules table declares.\n'),
   },
 
+  // --- C2's PREFIX binding, added by W41 for Q164 ---------------------------------
+  // `RULE_PREFIXES` is the whole spec's id vocabulary and it was bound to NOTHING:
+  // dropping `FD-C` from it cost **zero**, because the two `FD-C` rules then matched
+  // neither pattern and were neither declared nor cited. That is Q164's own defect —
+  // *a rule declared, cited and checked by nothing* — surviving inside the fix for
+  // it. The clause binds the list to `spec/`'s own declaration rows both ways, and
+  // these are its two directions.
+  {
+    name: 'a rules table declares a prefix RULE_PREFIXES does not carry',
+    check: 'C2',
+    // A rule-id-SHAPED row with a prefix the list has never held. Without the
+    // binding this is invisible: every `XY-Z` rule would be uncounted, unchecked for
+    // uniqueness and unchecked for an owner, and `check-spec` would print `ok`.
+    apply: (spec) => append(join(spec, 'run-state.md'),
+      '\n| `XY-Z1` | a rule whose prefix the check does not know | W2 |\n'),
+  },
+  {
+    name: 'every rule of a declared prefix removed, so RULE_PREFIXES carries an unused one',
+    check: 'C2',
+    // **The other direction, and it has to be reached from the DOCUMENT** — every
+    // probe here rewrites a copy of `spec/` and none may edit the check. Deleting
+    // both `FD-C` declaring rows leaves `FD-C` in `RULE_PREFIXES` with nothing
+    // declaring it, which is the shape a RENAME leaves behind and which a one-way
+    // binding passes. `C6` is not in the set: the rows are gone, so there is no
+    // owner cell to be missing.
+    // **Every MENTION goes too, and that is what makes this probe discriminate.**
+    // Deleting only the declaring rows leaves `FD-C1` and `FD-C2` cited in prose, so
+    // C2's *cited but never declared* clause fires as well — under the SAME id, so
+    // set equality cannot tell the two apart and the META entry below would grade
+    // STILL CAUGHT. That is W29's `D5` masking shape, and it was live in this probe's
+    // first version. Removing the citations too leaves the prefix-unused clause as
+    // the only thing that can report.
+    apply: (spec) => {
+      for (const f of readdirSync(spec)) {
+        if (!f.endsWith('.md')) continue;
+        const p = join(spec, f);
+        writeFileSync(p, readFileSync(p, 'utf8')
+          .split('\n').filter((l) => !/^\|\s*`FD-C\d+`/.test(l)).join('\n')
+          .replace(/`FD-C\d+`/g, '`the carry rule`'));
+      }
+    },
+  },
+
   // --- C3: every invalid example names a declared rule ---------------------------
   {
     name: 'spec/examples/invalid/ removed entirely',
@@ -453,8 +497,8 @@ const trippedIn = (out) => [...new Set([...out.matchAll(/^ {2}(C\d+): /gm)].map(
 const RAN = (out) => /^(All checks passed|\d+ failure\(s\)\.)/m.test(out);
 
 /** Floors, because `caught === PROBES.length` is vacuously true at zero. */
-const MIN_PROBES = 18;
-const MIN_META = 21;
+const MIN_PROBES = 20;
+const MIN_META = 23;
 
 /**
  * **How many gradings may be backed by the CORPUS rather than by the probe they
@@ -519,6 +563,10 @@ const META = [
   ['C1`s parse clause disabled', 'an example that does not parse',
     (t) => t.replace("    fail('C1', `${rel(p)} does not parse", "    [].push('C1', `${rel(p)} does not parse")],
 
+  ['C2`s PREFIX-MISSING clause disabled', 'a rules table declares a prefix RULE_PREFIXES does not carry',
+    (t) => t.replace("      fail('C2', `${pre} is a rule-id prefix declared in spec/", "      [].push('C2', `${pre} is a rule-id prefix declared in spec/")],
+  ['C2`s PREFIX-UNUSED clause disabled', 'every rule of a declared prefix removed, so RULE_PREFIXES carries an unused one',
+    (t) => t.replace("      fail('C2', `RULE_PREFIXES carries ${pre}", "      [].push('C2', `RULE_PREFIXES carries ${pre}")],
   ['C2`s DECLARED-TWICE clause disabled', 'a rule id declared TWICE, in two documents',
     (t) => t.replace("  if (where.length > 1) fail('C2',", "  if (where.length > 1) [].push('C2',")],
   ['C2`s CITED-NEVER-DECLARED clause disabled', 'a rule id cited in prose and declared by no rules table',

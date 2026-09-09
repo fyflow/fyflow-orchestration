@@ -101,8 +101,18 @@ field is a type change and one expression.
 
 **This is recorded because it is the opposite of what the row implies.** Q8 reads as a design question
 with an implementation behind it; the implementation is nearly free and **the decision is the whole
-cost**. The same is true of the payload half: `this.enter(...)` has **six** call sites, of which the
+cost**. The same is true of the payload half: `this.enter(...)` has **five** call sites, of which the
 ordinary edge is one — `cloneValue(outcome.result)` at `driver.ts:942`.
+
+*(**This read SIX and there are FIVE**, corrected in place by
+[W41](../work-items/w41-what-a-node-can-reach-and-what-names-it.md) as a declared late exception on
+this file. `grep -n 'this\.enter('` returns six lines and one of them — `driver.ts:1668` — is inside a
+**comment**, quoting the historical form `` `this.enter(runId, edge.to, null)` `` that W21 replaced.
+The live sites are `start`, `advance`'s ordinary edge, the `fanout` arm, the `map` arm and
+`settleJoin`'s exit. **The fifteenth time a plan or register row has been found wrong by trying to
+act on it, and the first where the wrong number came from a grep counting its own file's prose** —
+`doc/workflow.md` section 1 rule 5's *any copy, including your own*, applied to a count taken from a
+tool rather than from a reading.)*
 
 ### 3. **A node-id key works for a `fanout` and does not express a `map` — and it is ADR 0036's deciding fact for the THIRD time**
 
@@ -291,6 +301,17 @@ range of 386-463 across nine runs ([Q179](../open-questions.md)); the reproducib
 ## Record
 
 *Filled in at the join, after the work items are merged.*
+
+**W41 — done.** *What a node can reach, and what NAMES it.* **[ADR 0040](../decisions/0040-what-a-node-can-reach-is-the-runs-own-outputs-and-a-node-id-names-them-relative-to-a-branch-path.md)**: what a node can reach is the
+run's own outputs, and a node id names them relative to a branch path. `spec/flow-definition.md`
+v0.11 gains **`needs`**, **`FD-C1`**, **`FD-C2`**, **`FD-V26`-`FD-V28`** and **`FD-R3`**;
+`spec/` is 7 / 38 / 86 and L1-L5 is 612 cases in five runtimes, with L6 unmoved at 638.
+**Q11 is answered in general, Q164, Q166 and Q158 are resolved, and Q165's FLOW is expressible while
+its reducer stays refused.** Prediction 1 **CONFIRMED and wrong about its own mechanism** (the
+projection needed no new retention and did need a memo — one field); prediction 2 **CONFIRMED**;
+prediction 4 **CONFIRMED**, `RULE_ID` grew by exactly one prefix. Readers **18 / 7** and
+**98 mutations / 20 real survivors / 8 blocking**, overlap **1**. Rule 8 **54 / 51 / 2 / 0**. Five
+late exceptions, zero undeclared. Q184-Q189 raised.
 
 **Exit artifact.** *The two flows, on real workers, in both runtimes — and what reverting each item
 costs in L6 failures.*

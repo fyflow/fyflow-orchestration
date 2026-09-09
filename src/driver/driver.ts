@@ -17,7 +17,7 @@ import {
   allRegions, branchPathOf, buildGraph, innermostRegionOf, toRegion,
   type Graph, type RegionSets,
 } from '../definition/regions.ts';
-import { validateDefinition, violatedRules } from '../definition/validate.ts';
+import { referenceTarget, validateDefinition, violatedRules } from '../definition/validate.ts';
 import {
   assertRunId, branchIndices, buildTaskId, InvalidTaskId, parseTaskId, type TaskIdParts,
 } from './ids.ts';
@@ -89,6 +89,28 @@ export class DuplicateTaskId extends Error {}
 export class UnresolvedMapArity extends Error {}
 
 /**
+ * **`FD-R3` — a `needs` reference that names a node this run did not produce an
+ * output for on this branch path.**
+ * [ADR 0040](../../doc/decisions/0040-what-a-node-can-reach-is-the-runs-own-outputs-and-a-node-id-names-them-relative-to-a-branch-path.md).
+ *
+ * **Its own class rather than `InvalidDefinition`, for `UnresolvedMapArity`'s own
+ * reason**: `FD-V27` has already checked that the declaring node is reachable from
+ * the named one, which is everything the GRAPH can say. Whether it ran is a fact
+ * about this run — a decision routed around it, or it is suspended on a person —
+ * and a flow author sent to read their document would find nothing wrong there.
+ *
+ * **And it is a different class from `UnresolvedMapArity` rather than a widening of
+ * it**, because the two send a reader to different places: that one says *the
+ * previous node did not return an array*, which is a WORKER's bug; this one says
+ * *the node you named did not run on your path*, which is the FLOW's shape.
+ *
+ * Reported through `OR-R10` from a listener, and reported **and rethrown** from
+ * `start()` and `resolve()`, which are caller-initiated — exactly as
+ * `UnresolvedMapArity` is.
+ */
+export class UnresolvedReference extends Error {}
+
+/**
  * A second `start()` on a driver that already ran one — `ID-R3`.
  *
  * Thrown rather than reported through `onRunFailure`, because `start` is called
@@ -153,6 +175,16 @@ function compareBranchPaths(a: string, b: string): number {
   for (let i = 0; i < Math.max(xs.length, ys.length); i++) {
     // A missing segment sorts FIRST, so `1` precedes `1.0`. `-1` is not a legal
     // segment (the grammar admits no sign), so it cannot collide with a real one.
+    //
+    // **The MIXED-DEPTH clause has no case anywhere in this repository, and that is
+    // recorded rather than argued.** W41's adequacy reader instrumented every call:
+    // every `visible` list `compose` builds and every key set `collectArrivals`
+    // reads is **single-depth**, so `1` is never compared with `1.0` and both
+    // `-1 -> 1e9` and `Math.max -> Math.min` cost **0**. `JP-R12`'s rule text states
+    // the ordering (*"`1` precedes `1.0` precedes `2` precedes `10`"*) and so does
+    // the paragraph above; **nothing exercises it**. The shape that would is a join
+    // collecting from branches at two different depths of one region, which
+    // `FD-V19` and `FD-V22` between them do not admit today.
     const d = (xs[i] === undefined ? -1 : Number(xs[i])) - (ys[i] === undefined ? -1 : Number(ys[i]));
     if (d !== 0) return d;
   }
@@ -175,6 +207,30 @@ function collectArrivals(arrived: ReadonlyMap<string, unknown> | undefined): Rec
   if (!arrived) return out;
   for (const path of [...arrived.keys()].sort(compareBranchPaths)) out[path] = arrived.get(path);
   return out;
+}
+
+/**
+ * **Is `a` a prefix of `b`, segment-wise** — `'-'` (no region) being a prefix of
+ * everything, and every path being a prefix of itself.
+ * [ADR 0040](../../doc/decisions/0040-what-a-node-can-reach-is-the-runs-own-outputs-and-a-node-id-names-them-relative-to-a-branch-path.md)
+ * rule 4's resolution predicate, and `FD-C1`.
+ *
+ * **Segment-wise rather than by string, and that is not decoration**: `'1'` is a
+ * prefix of `'1.0'` and is **not** a prefix of `'10'`, which a `String.startsWith`
+ * gets wrong in exactly the case a map region of eleven or more items produces —
+ * it hands instance `10` the output of instance `1`, which is a wrong answer rather
+ * than a crash. **Invisible below eleven instances and live at twelve**, which is
+ * `JP-R12`'s own *invisible at depth 1, live at depth 2* a fourth time in this tree,
+ * and `test/driver/needs.test.ts`'s two-digit fixture is the only thing in the
+ * repository that discriminates it.
+ */
+function isPathPrefix(a: string, b: string): boolean {
+  if (a === '-') return true;
+  if (b === '-') return false;
+  const xs = a.split('.');
+  const ys = b.split('.');
+  if (xs.length > ys.length) return false;
+  return xs.every((x, i) => x === ys[i]);
 }
 
 /**
@@ -966,9 +1022,24 @@ export class Driver {
     const node = this.graph.byId.get(nodeId);
     if (!node) return;
 
+    // **`FD-C1` — what this node receives.** Identity for every node that declares
+    // no `needs`, which is every node in the corpus that existed before
+    // [ADR 0040](../../doc/decisions/0040-what-a-node-can-reach-is-the-runs-own-outputs-and-a-node-id-names-them-relative-to-a-branch-path.md),
+    // so this line is a no-op on the whole of v0.10's behaviour — measured, at 574
+    // L1-L5 cases unmoved. It sits at the top of `enter` rather than in the two arms
+    // that use it because there is then ONE place a payload is composed, and the
+    // answer to *what did this node receive* does not depend on which arm read it.
+    //
+    // **It throws `UnresolvedReference` and is not caught here**, for the reason the
+    // `map` arm's `mapItems` states one screen down: the two boundaries above
+    // already do the right thing with a throw — `onEvent` catches and reports
+    // (`OR-R10`), `start` catches, reports and rethrows — and catching it here would
+    // make `start()` stop rethrowing.
+    const received = this.compose(node, payload, itemIndices);
+
     switch (node.kind) {
       case 'task':
-        return this.dispatch(runId, node, payload, itemIndices);
+        return this.dispatch(runId, node, received, itemIndices);
 
       case 'fanout': {
         const region = this.regions.find((r) => r.fanoutId === nodeId);
@@ -1035,7 +1106,7 @@ export class Driver {
         // 2207.94 ms against 1.50 ms at N = 1000 — and the map arm below does not
         // need it, because its instances no longer receive one value at all.
         region.branches.forEach((b, i) =>
-          this.enter(runId, b, cloneValue(payload), paths[i]!, region.fanoutId, itemIndices));
+          this.enter(runId, b, cloneValue(received), paths[i]!, region.fanoutId, itemIndices));
         return;
       }
 
@@ -1076,7 +1147,7 @@ export class Driver {
         // that case rather than by reading. The two boundaries above already do the
         // right thing with a throw: `onEvent` catches and reports (`OR-R10`), and
         // `start` catches, reports and rethrows.
-        const items = this.mapItems(node, payload);
+        const items = this.mapItems(node, received);
         if (this.opts.joinPolicy) {
           this.joinState.set(region.fanoutId, this.opts.joinPolicy.open(toRegion(region) as Region));
         }
@@ -1299,6 +1370,207 @@ export class Driver {
         return;
       }
     }
+  }
+
+  /**
+   * **What the run has produced, keyed by `(node id, branchPath)`** —
+   * [ADR 0040](../../doc/decisions/0040-what-a-node-can-reach-is-the-runs-own-outputs-and-a-node-id-names-them-relative-to-a-branch-path.md)
+   * rules 2 and 3, and `FD-C2`.
+   *
+   * **It is a PROJECTION of the log and adds no retention** — measured at
+   * [P12](../../doc/plans/p12-what-a-node-receives-and-what-a-decision-sees.md)'s
+   * declaration and again before this was written: this driver holds
+   * `private readonly log: LogRecord[]` with exactly one `push` and no `splice`,
+   * `shift` or reassignment, `OutcomeRecord.result` is on every settled task, and
+   * `snapshot()` already returns the whole of it publicly. So
+   * [Q19](../../doc/open-questions.md)'s *"if Q8 or Q11 retains every node output"*
+   * described **today** before this method existed, and this adds **no retention**.
+   * *(It adds ONE field — `outputsCache` below — which is a memo the log invalidates
+   * and which holds nothing the log does not. This read *"zero fields"* until W41's
+   * conformity reader read it beside the memo the cost measurement had just added.)*
+   *
+   * **`effectiveOutcome` and not the raw record**, for `spec/flow-definition.md`
+   * section 3 rule 4's own reason: a resumed node has two records in the log and
+   * neither one alone is the right thing to hand anybody. A node that is still
+   * suspended has no effective outcome and therefore no entry — which is what makes
+   * `FD-R3` fire rather than a reference quietly resolving to `undefined`.
+   *
+   * **Computed on demand rather than maintained**, and the cost is why: it is
+   * `O(log)` per call, so maintaining it would be a second source that could
+   * disagree with the log — the defect [Q43](../../doc/open-questions.md) and
+   * `arrival-count`'s re-sourcing are each an instance of. **A node that declares no
+   * `needs` never reaches this method**, which is what keeps ADR 0040 rule 1's *the
+   * default is unchanged* true of the cost as well as of the value.
+   */
+  private outputs(): Map<string, { path: string; result: unknown }[]> {
+    // **Memoised on the log's own LENGTH, and that is not a second source.** The
+    // projection is a pure function of `this.log`, and `this.log` is append-only —
+    // one `push`, no `splice`, no `shift`, no reassignment, which is
+    // [P12](../../doc/plans/p12-what-a-node-receives-and-what-a-decision-sees.md)'s
+    // fact 1 measured over this file. So the length IS a version counter, and a
+    // cache invalidated by the thing it projects cannot disagree with it the way a
+    // MAINTAINED index could — which is the distinction ADR 0040 rule 2 turns on.
+    //
+    // **It is here because the cost was re-taken on the tree this item ships**
+    // (`doc/workflow.md` section 1 rule 5's WHEN), and the first reading was 0.027 ms
+    // over a 6-record log — true, and not the number that matters.
+    //
+    // **Its case is N dispatches in ONE turn over a long log**, which is Q165's flow
+    // at scale: a second map region fanning out over what the first produced, every
+    // instance composing. Measured on `map -> score -> join -> map -> publish` with a
+    // `needs` on `publish`, timing only the settlement that opens the second region:
+    //
+    // | N | with the memo | without |
+    // |---|---|---|
+    // | 100 | 3.4 ms | 11.1 ms |
+    // | 400 | 20.1 ms | 85.2 ms |
+    // | 800 | **69.5 ms** | **312.1 ms** |
+    //
+    // **And it is measurably worth NOTHING on a single map region** — 10.9 ms against
+    // 10.7 at N = 1000, inside the noise — because there the log is two records long.
+    // Both halves are recorded because the second is what a reader measuring this by
+    // the obvious fixture would find, and would then delete it.
+    //
+    // **No test asserts it, deliberately and stated rather than left as a gap.** The
+    // memo changes no observable: all 606 L1-L5 cases pass with the line replaced by
+    // a comment, which is the measurement rather than an assumption. A timing
+    // assertion would be a check whose verdict is not reproducible
+    // ([Q179](../../doc/open-questions.md)), so what stands in for one is the pair of
+    // numbers above.
+    if (this.outputsCache && this.outputsCache.at === this.log.length) return this.outputsCache.byNode;
+    const byNode = new Map<string, { path: string; result: unknown }[]>();
+    // **Grouped in ONE pass, and `effectiveOutcome` is still what decides each
+    // group.** The first version called `effectiveOutcome(this.log, id)` once per
+    // distinct id and that function scans the whole log, so this method was
+    // **O(log²)** — measured on a `needs` composed once per settlement, where a
+    // length-keyed memo misses by construction: **4.8 / 29.3 / 132.2 ms** for
+    // 50 / 200 / 400 settlements, a per-settlement cost rising 0.096 → 0.146 →
+    // 0.331 ms as the log grew.
+    //
+    // **Grouping rather than reimplementing the merge is the whole point.**
+    // `effectiveOutcome` filters by `taskId` anyway, so a sub-log holding only that
+    // task's records is an input it is already total on — which means the settlement/
+    // resolution/`user_action` rules stay in ONE place. Rewriting them here would be
+    // a second source that could disagree with the log, which is the defect
+    // [Q43](../../doc/open-questions.md) and `arrival-count`'s re-sourcing are each
+    // an instance of, and it is what ADR 0040 rule 2 refuses.
+    const groups = new Map<string, LogRecord[]>();
+    for (const r of this.log) {
+      const g = groups.get(r.taskId);
+      if (g) g.push(r);
+      else groups.set(r.taskId, [r]);
+    }
+    for (const [taskId, group] of groups) {
+      const eff = effectiveOutcome(group, taskId);
+      // **`!eff` — a suspended node contributes no entry — has NO reachable case,
+      // and this records that rather than arguing it** (`doc/workflow.md` section 5
+      // rule 8: *construct the case that makes each guard fire, and where the corpus
+      // cannot express one, RECORD that*). W41's adequacy reader measured it: making
+      // a suspended node contribute `{result: undefined}` costs **0**, on the suite
+      // and on a hand-built resumed-map probe. **The reason is a property of every
+      // shipped policy**: a suspended branch still holds a token, so no join fires
+      // while one is parked and no reader downstream of it is ever entered. It is
+      // the same absence `JP-R12`'s row records for its own suspended road, and it
+      // becomes live the moment a policy fires over a parked branch
+      // ([Q97](../../doc/open-questions.md)).
+      //
+      // **What the L2 case named for it DOES test is the resumed node**, which is
+      // reachable and is asserted; its title over-claimed and is corrected there.
+      if (!eff) continue;
+      let parts;
+      try {
+        parts = parseTaskId(taskId);
+      } catch {
+        // Unreachable: every id in this log was minted by `buildTaskId`, and
+        // `ID-R4` tier 2 has already refused any settlement this driver did not
+        // dispatch. Guarded rather than asserted because a parse throw here would
+        // turn one malformed id into a failed run for a reference that does not
+        // name it.
+        continue;
+      }
+      const list = byNode.get(parts.nodeId);
+      if (list) list.push({ path: parts.branchPath, result: eff.result });
+      else byNode.set(parts.nodeId, [{ path: parts.branchPath, result: eff.result }]);
+    }
+    this.outputsCache = { at: this.log.length, byNode };
+    return byNode;
+  }
+
+  /**
+   * The memo above. **Not run state and not a second copy of it** — it is discarded
+   * and rebuilt the moment the log grows, and nothing ever reads it without checking
+   * the length first, so there is no state here that could be stale in a way anything
+   * could observe. `ADR 0014`'s *the driver computes no run state* is untouched.
+   */
+  private outputsCache: { at: number; byNode: Map<string, { path: string; result: unknown }[]> } | null = null;
+
+  /**
+   * **What a node receives** — `FD-C1`, and
+   * [ADR 0040](../../doc/decisions/0040-what-a-node-can-reach-is-the-runs-own-outputs-and-a-node-id-names-them-relative-to-a-branch-path.md)
+   * rule 1: a node that declares no `needs` receives `edgeValue` **unchanged and by
+   * the same expression it took before this method existed**, so every flow in the
+   * corpus takes exactly the road it took at v0.10.
+   *
+   * A node that declares one receives **exactly** the object `needs` describes.
+   * There is no wrapper and no reserved key: `"."` is how an author asks for what
+   * the edge carried, so the composed object is the whole payload and what the
+   * worker gets is what the document says, character for character.
+   *
+   * @throws UnresolvedReference — `FD-R3`.
+   */
+  private compose(node: FlowNode, edgeValue: unknown, itemIndices: ReadonlyMap<string, number>): unknown {
+    const needs = (node as { needs?: Record<string, unknown> }).needs;
+    if (!needs) return edgeValue;
+    const here = this.pathOf(node.id, itemIndices);
+    const produced = this.outputs();
+    const out: Record<string, unknown> = {};
+    for (const [key, ref] of Object.entries(needs)) {
+      // **`!` rather than a guard, and the assertion is the point.** `FD-V26` refuses
+      // every malformed reference at construction, so `referenceTarget` cannot return
+      // `null` for a definition a `Driver` accepted — see below.
+      const t = referenceTarget(ref)!;
+      // **`t === null` was a second disjunct here and is DELETED, on a measurement.**
+      // W41's adequacy reader graded it a survivor: `if (t !== null && t.node === null)`
+      // costs **0**, because the `Driver` constructor runs `validateDefinition` and
+      // `FD-V26` refuses every malformed reference before a run exists. It is the
+      // same argument that deleted `target === n.id` from `FD-V27` in
+      // `../definition/validate.ts`, and **the reader's finding is that this item
+      // applied that argument in one file and not in the other** — so both go.
+      //
+      // What remains is `"."`, which is a real form and the only one with no node:
+      // it composes what the node would have received anyway, whichever of this
+      // document's four arcs it sits on.
+      if (t.node === null) {
+        out[key] = cloneValue(edgeValue);
+        continue;
+      }
+      // **Compatible, not equal.** An entry is visible to this node when one path
+      // is a prefix of the other: `ingest@-` is visible everywhere, `extract@1` is
+      // visible to `merge@1.0`, and `merge@1.0` and `merge@1.1` are both visible to
+      // a node at `-` after the join. That single predicate is what gives the `one`
+      // form and the `all` form from one rule.
+      const visible = (produced.get(t.node) ?? [])
+        .filter((e) => isPathPrefix(e.path, here) || isPathPrefix(here, e.path))
+        .sort((x, y) => compareBranchPaths(x.path, y.path));
+      if (visible.length === 0) {
+        throw new UnresolvedReference(
+          `UnresolvedReference: node "${node.id}" at branch path "${here}" declares ` +
+            `\`needs[${JSON.stringify(key)}]\` naming "${t.node}", and no output of that node is ` +
+            'on this path. `FD-V27` checked that this node is reachable FROM it, which is a ' +
+            'statement about the graph; whether it actually ran is a statement about this run — ' +
+            'a decision routed around it, or it settled `user_action` and nobody has resolved it. ' +
+            'FD-R3.',
+        );
+      }
+      // **Its own copy, per key** — `JP-R11`'s invariant applied to the one edge
+      // that is not a fan-out edge: no two nodes ever receive the same object, and
+      // a reference is the one way two nodes could otherwise be handed one record's
+      // `result` twice.
+      out[key] = t.form === 'all'
+        ? visible.map((e) => cloneValue(e.result))
+        : cloneValue(visible[0]!.result);
+    }
+    return out;
   }
 
   /**

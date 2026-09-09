@@ -283,7 +283,13 @@ if (written.length) {
 // files in advance and not this one: the obligation is created by the CONTENT of
 // the change — adding a runnable snippet — rather than by the file set, which is
 // the half of Q102's row that an `Owns` block cannot anticipate.
-const RUN_FLOOR = 15;
+// **Raised 15 -> 16 by [W41](../doc/work-items/w41-what-a-node-can-reach-and-what-names-it.md)**,
+// which added section 3's `needs` snippet. **Q102's obligation firing for the fourth
+// recorded time, and by the same mechanism as the third**: W41 declared its `Owns`
+// from P12's index row, that row names `scripts/check-spec.mjs` and not this file,
+// and the obligation arrived from the CONTENT of the change. Taken as a declared
+// late exception.
+const RUN_FLOOR = 16;
 {
   // **Only when the document parsed.** A count over a reference whose fences are
   // malformed or untagged is true of the parse and says nothing about coverage —

@@ -49,7 +49,25 @@ if (process.argv.includes('--self-test')) {
   process.exit(await selfTest(ROOT));
 }
 
-const RULE_ID = /\b(FD-V\d+|FD-R\d+|ID-R\d+|OR-R\d+|RS-R\d+|RN-R\d+|RT-R\d+|JP-R\d+)\b/g;
+// **`FD-C` is the ninth prefix and W41 added it** — [Q164](../doc/open-questions.md),
+// resolved. `spec/flow-definition.md` has `FD-V` for a rule about what a DOCUMENT
+// may say and `FD-R` for one about what a RUN refuses, and until v0.11 it had none
+// for a rule about **what a run CARRIES**, so that contract lived in section 3 as
+// prose with no id at all.
+//
+// **This list was written down TWICE in this file** — here, and in C2's declaration
+// pattern below — and the two had to agree or a rule would be declared and never
+// cited, or cited and never declared. That is a provenance hazard rather than a
+// hypothesis: measured before the prefix was taken, a rule declared as `FD-C1` and
+// cited one line below it reported **8 checks ok, 80 rules** and exit 0 — not
+// counted, not checked for uniqueness, not checked for an owner, which is exactly
+// what Q164's row predicted. Both patterns are derived from this one constant now,
+// which is the smallest thing that makes them unable to disagree.
+const RULE_PREFIXES = ['FD-V', 'FD-R', 'FD-C', 'ID-R', 'OR-R', 'RS-R', 'RN-R', 'RT-R', 'JP-R'];
+const RULE_ALT = RULE_PREFIXES.map(p => p + '\\d+').join('|');
+const RULE_ID = new RegExp('\\b(' + RULE_ALT + ')\\b', 'g');
+/** The DECLARATION form: a table row whose first cell is a backticked rule id. */
+const RULE_ROW = new RegExp('^\\|\\s*`(' + RULE_ALT + ')`\\s*\\|(.*)$');
 const failures = [];
 const notes = [];
 const fail = (check, msg) => failures.push(`${check}: ${msg}`);
@@ -93,7 +111,7 @@ for (const p of mdFiles) {
   const text = readFileSync(p, 'utf8');
   for (const m of text.matchAll(RULE_ID)) mentioned.add(m[1]);
   for (const line of text.split(/\r?\n/)) {
-    const m = /^\|\s*`(FD-V\d+|FD-R\d+|ID-R\d+|OR-R\d+|RS-R\d+|RN-R\d+|RT-R\d+|JP-R\d+)`\s*\|(.*)$/.exec(line);
+    const m = RULE_ROW.exec(line);
     if (!m) continue;
     if (!declared.has(m[1])) declared.set(m[1], []);
     declared.get(m[1]).push(rel(p));
@@ -103,6 +121,44 @@ for (const p of mdFiles) {
 }
 for (const [id, where] of declared) {
   if (where.length > 1) fail('C2', `${id} is declared ${where.length} times — ${where.join(', ')}`);
+}
+
+// **And `RULE_PREFIXES` itself is bound to the documents, both ways** — W41. Rule 8
+// measured that dropping `FD-C` from that list costs **zero**: the two `FD-C` rules
+// then match neither pattern, so they are neither declared nor cited and every check
+// is silent. That is exactly [Q164](../doc/open-questions.md)`s defect — *a rule
+// declared, cited and checked by nothing* — surviving inside the fix for it, and it
+// is obligation (e)'s SECOND QUESTION on a product item: the list was bound to
+// nothing, so what the check RAN was not what `spec/` SHIPS.
+//
+// The bound is a rule-id-SHAPED first cell, which is a deliberately WIDER pattern
+// than `RULE_ROW`: any `| `XX-Y7` |` row, whatever its prefix. Both directions,
+// because a prefix that leaves the list and a prefix nobody uses are different
+// mistakes and only the first is silent.
+{
+  const SHAPED = /^\|\s*`([A-Z]{2,4}-[A-Z])\d+`\s*\|/;
+  const inDocs = new Set();
+  for (const p of mdFiles) {
+    for (const line of readFileSync(p, 'utf8').split(/\r?\n/)) {
+      const m = SHAPED.exec(line);
+      if (m) inDocs.add(m[1]);
+    }
+  }
+  for (const pre of [...inDocs].sort()) {
+    if (!RULE_PREFIXES.includes(pre)) {
+      fail('C2', `${pre} is a rule-id prefix declared in spec/ and missing from RULE_PREFIXES — ` +
+        `every ${pre}* rule is invisible to C2 and C6, which is Q164's own defect`);
+    }
+  }
+  for (const pre of RULE_PREFIXES) {
+    if (!inDocs.has(pre)) {
+      fail('C2', `RULE_PREFIXES carries ${pre} and no rules table in spec/ declares a ${pre}* rule`);
+    }
+  }
+  notes.push(
+    `C2 matched ${RULE_PREFIXES.length} rule-id prefixes against spec/'s own declaration rows, ` +
+    'both ways — so a prefix cannot leave the list and take its rules out of every check with it.',
+  );
 }
 for (const id of mentioned) {
   if (!declared.has(id)) fail('C2', `${id} is cited but never declared in a rules table`);

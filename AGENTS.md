@@ -189,9 +189,9 @@ if (bad.length) throw new Error(`section 3's own example is invalid: ${bad.map((
 
 | kind | | refused if |
 |---|---|---|
-| `task` | runs a worker of `workerType`. Has `edges` | it has no `edges`, or **no edge of it is eligible for `done`** (`FD-V7`) |
+| `task` | runs a worker of `workerType`. Has `edges`, and optionally **`needs`** | it has no `edges`, or **no edge of it is eligible for `done`** (`FD-V7`) |
 | `fanout` | `branches: string[]` — the node each branch starts at. Dispatches nothing itself | fewer than two branches, a repeated entry, any `edges` at all, or a branch entry that is not a `task` (`FD-V9`) |
-| `map` | `over: '<key>'` and `branch: '<node id>'` — **one** branch, opened once per item at run time. Dispatches nothing itself; the RUN opens N instances of its one branch | any `edges` at all, a `branch` that is not a `task`, or an `over` outside `^[A-Za-z0-9_-]{1,64}$` (`FD-V25`); a missing `over` or `branch` (`FD-V23`) |
+| `map` | `over: '<key>'` and `branch: '<node id>'` — **one** branch, opened once per item at run time. Dispatches nothing itself; the RUN opens N instances of its one branch. Optionally **`needs`**, which is what `over` is then a key on | any `edges` at all, a `branch` that is not a `task`, or an `over` outside `^[A-Za-z0-9_-]{1,64}$` (`FD-V25`); a missing `over` or `branch` (`FD-V23`) |
 | `join` | `of: '<fanout id>'`. Fires when its policy says so | it does not have **exactly one** edge, or that edge carries `when` or `on` (`FD-V7`) |
 | `end` | terminal. `outcome` is **your label**, never interpreted | — |
 
@@ -201,6 +201,99 @@ if (bad.length) throw new Error(`section 3's own example is invalid: ${bad.map((
 
 **`end.outcome` is a string you choose.** The library never reads it. What the *run* is called is a
 separate, closed vocabulary — section 8.
+
+### `needs` — reaching an output the previous node did not produce
+
+By default **a node receives the previous node's result**, deep-copied. That is still true of every
+node that says nothing, and it is what the whole of this section above describes.
+
+**`needs` is how a node asks for something else** —
+[ADR 0040](doc/decisions/0040-what-a-node-can-reach-is-the-runs-own-outputs-and-a-node-id-names-them-relative-to-a-branch-path.md),
+answering [Q11](doc/open-questions.md). It is an optional object on a `task` or a `map`, mapping the
+keys of the payload you want to **declared references**. A node that declares one receives **exactly**
+that object and nothing else — there is no wrapper and no reserved key.
+
+| a reference is | and you get |
+|---|---|
+| `"."` | what the node would have received anyway — the previous node's result, and for a `map` instance **its own item** |
+| `"someNode"` | that node's result, **on your own branch** |
+| `["someNode"]` | that node's results as an **array**, in ascending branch-path order. Legal only when you are OUTSIDE a region that node is in — which is what makes it more than one |
+
+**Which of the last two is legal is decided by the graph and refused at construction** (`FD-V28`), so
+you are told which to write rather than discovering the shape at run time. The message names the form
+to use instead.
+
+```ts run
+import { Driver, validateDefinition, type FlowDefinition } from 'fyflow-orchestration';
+
+// *Score each item against the run's config* — a map instance seeing its own item AND
+// the context around it. Before ADR 0040 `config` was reachable from a `score` worker
+// by no route at all.
+const withContext: FlowDefinition = {
+  flowId: 'score-against-config', version: 1, entry: 'ingest',
+  nodes: [
+    { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'split' }] },
+    { id: 'split', kind: 'map', over: 'items', branch: 'score' },
+    { id: 'score', kind: 'task', workerType: 'ScoreWorker',
+      needs: { item: '.', run: 'ingest' },          // its own item, and ingest's whole result
+      edges: [{ to: 'collect' }] },
+    { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'publish' }] },
+    { id: 'publish', kind: 'task', workerType: 'PublishWorker', edges: [{ to: 'done' }] },
+    { id: 'done', kind: 'end', outcome: 'completed' },
+  ],
+};
+
+// *Score, then fan out over the scores* — a map whose `over` names a key composed from a
+// whole region's output. No branch numbers appear anywhere, so inserting a branch cannot
+// silently re-point it.
+const overRegion: FlowDefinition = {
+  flowId: 'fan-out-over-the-scores', version: 1, entry: 'ingest',
+  nodes: [
+    { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'split' }] },
+    { id: 'split', kind: 'map', over: 'items', branch: 'score' },
+    { id: 'score', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'collect' }] },
+    { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'rank' }] },
+    { id: 'rank', kind: 'map', over: 'scores', branch: 'publish',
+      needs: { scores: ['score'] } },             // every score, in item order
+    { id: 'publish', kind: 'task', workerType: 'PublishWorker', edges: [{ to: 'gather' }] },
+    { id: 'gather', kind: 'join', of: 'rank', edges: [{ to: 'done' }] },
+    { id: 'done', kind: 'end', outcome: 'completed' },
+  ],
+};
+
+const registry = {
+  predicates: [],
+  workerTypes: ['IngestWorker', 'ScoreWorker', 'PublishWorker'],
+};
+for (const def of [withContext, overRegion]) {
+  const bad = validateDefinition(def, registry);
+  if (bad.length) throw new Error(`${def.flowId} is invalid: ${bad.map((f) => f.rule).join()}`);
+}
+
+// And the wrong FORM is refused at construction, naming the one to write instead.
+const wrongForm: FlowDefinition = {
+  ...overRegion,
+  nodes: overRegion.nodes.map((n) =>
+    n.id === 'rank' ? { ...n, needs: { scores: 'score' } } as typeof n : n),
+};
+const findings = validateDefinition(wrongForm, registry);
+if (!findings.some((f) => f.rule === 'FD-V28' && f.detail.includes('write ["score"]'))) {
+  throw new Error('FD-V28 did not name the form to write instead');
+}
+void Driver;
+```
+
+**What it costs.** A reference that names a node this run never reached stops the run with an
+`UnresolvedReference` (`FD-R3`, section 9) — construction checks that the named node is *upstream of
+you*, which is everything the graph can say, and whether it actually **ran** is a fact about the run.
+And a reference names a **node**, never a path inside its value: `needs: { run: 'ingest' }` gives you
+the whole of `ingest`'s result and your worker reads `.config` off it.
+
+**And inside a `map`, what it costs is what you point it at.** Each instance gets its OWN COPY of
+each key, so a reference to a large result is copied once per item. Measured at a map arity of 1000:
+no `needs` **6.5 ms**, `{item: '.'}` **8.0 ms**, one more key naming a small result **10.6 ms**, and a
+key naming a 1000-item result **546.6 ms**. The mechanism is cheap; the copy is not. That is also why
+a reference names a whole node and never a path inside it — a path language would hide this choice.
 
 ### Validation happens at construction, not at routing time
 
@@ -224,7 +317,7 @@ if (!rules.includes('FD-V2') || !rules.includes('FD-V5')) {
 }
 ```
 
-There are **23 refusals** over the id range `FD-V1` … `FD-V25`, each with a failing example in
+There are **26 refusals** over the id range `FD-V1` … `FD-V28`, each with a failing example in
 `spec/examples/invalid/`. Two ids in that range are **deliberately absent** and have no rule behind
 them: `FD-V14`, which never existed, and **`FD-V15`, retired when nested fan-out became
 expressible**. The ids are never renumbered, so it is safe to assert on them. The full
@@ -842,7 +935,7 @@ void withReporting;
 quoted in prose, so renaming one in `src/` fails this gate instead of silently falsifying the
 paragraphs above.
 
-**Two of the eleven belong to `map`, and they fail for different people.**
+**Two of the twelve belong to `map`, and they fail for different people.**
 
 `UnresolvedBranchPath` is `ID-R6` — `branchPathOf` was asked for the path of a node inside a **`map`**
 region without the item index that region's branch is indexed by, and refused rather than guessing,
@@ -858,6 +951,15 @@ payload or a string payload each stop the run with this class naming the node an
 definition is valid and the previous node did not produce what the flow says it does**, which is a
 different person's bug — a flow author reading `InvalidDefinition` would go and read their flow,
 where there is nothing to find. **An empty array is not this**: zero items is a lawful arity.
+
+`UnresolvedReference` is **W41's**, and it is [ADR 0040](doc/decisions/0040-what-a-node-can-reach-is-the-runs-own-outputs-and-a-node-id-names-them-relative-to-a-branch-path.md)'s
+`FD-R3`. A node declared a `needs` naming another node, and **no output of that node is on this
+node's branch path** — a decision routed around it, or it settled `user_action` and nobody has
+resolved it. `FD-V27` has already checked at instantiation that the declaring node is *reachable
+from* the named one, which is everything the graph can say; whether it actually ran is a fact about
+this run. **It is a different class from `UnresolvedMapArity` deliberately**: that one says *the
+previous node did not return an array*, which is a **worker's** bug, and this says *the node you
+named did not run on your path*, which is the **flow's** shape.
 
 *(This paragraph read *"`UnresolvedBranchPath` is the tenth class, and it belongs to a feature nothing
 dispatches yet … no `Driver` opens one"* until W33, which is the item that made it run.
@@ -878,13 +980,13 @@ import * as lib from 'fyflow-orchestration';
 import {
   DuplicateTaskId, InvalidDefinition, InvalidRunId, InvalidTaskId, MissingJoinPolicy,
   MultipleRuns, NoMatchingEdge, UncloneableResult, UndispatchedTask, UnresolvedBranchPath,
-  UnresolvedMapArity,
+  UnresolvedMapArity, UnresolvedReference,
 } from 'fyflow-orchestration';
 
 const documented = [
   DuplicateTaskId, UncloneableResult, NoMatchingEdge, UndispatchedTask,  // reported inside a listener
   MultipleRuns, InvalidRunId, InvalidDefinition, MissingJoinPolicy,      // thrown at you
-  UnresolvedMapArity,                        // reported in a listener; reported AND thrown from start()/resolve()
+  UnresolvedMapArity, UnresolvedReference,   // reported in a listener; reported AND thrown from start()/resolve()
   InvalidTaskId, UnresolvedBranchPath,                                   // neither — see above
 ].map((c) => c.name);
 

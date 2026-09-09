@@ -16,7 +16,7 @@
  * If this disagrees with `spec/`, **stop and report the conflict** rather than
  * adjusting either (`spec/README.md` rule 2).
  */
-import { equal, listDir, ok, readText, ROOT, suite } from '../harness.ts';
+import { collected, equal, listDir, ok, readText, ROOT, suite } from '../harness.ts';
 import { validateDefinition, violatedRules } from '../../src/definition/validate.ts';
 import type { FlowDefinition, Registry } from '../../src/definition/types.ts';
 
@@ -239,5 +239,194 @@ suite('L4 — the corpus covers the refusals, and FD-V14 has no case', (test) =>
       validNames.includes('p1-routed-away.flow.json'),
       "P1's own case must be an authorable, valid flow. If it is not here, the plan has no input.",
     );
+  });
+});
+
+/**
+ * **The suite census — [Q158](../../doc/open-questions.md), closed here.**
+ *
+ * Found by [W41](../../doc/work-items/w41-what-a-node-can-reach-and-what-names-it.md)'s
+ * adequacy reader, which renamed both of that item's `.test.ts` files out of the
+ * runner's glob and got **`21 file(s), 579 assertions … all passed`, exit 0**, with
+ * every static check green: twenty-seven cases — the entire evidence for `FD-C1`,
+ * `FD-C2`, `FD-R3`, `FD-V26`, `FD-V27` and `FD-V28` — gone with nothing red. Q158
+ * has recorded that hole since [W32](../../doc/work-items/w32-what-a-map-fanout-is.md)
+ * and named `test/runner.ts` and `scripts/**` as where a fix would live, **which is
+ * why nobody built one**: both are in nobody's `Owns`.
+ *
+ * **It does not have to live there.** The runner and the browser bundle glob the
+ * same tree, and a suite that did not load is a suite `collected()` does not hold —
+ * so the bound is over SUITE NAMES, it is one assertion, it works in all five
+ * runtimes, and it is inside `test/definition/**`, which W41 owns. **Set equality
+ * both ways**, for `S12`'s reason: a floor answers *are there at least N* and goes
+ * stale toward weakness ([Q102](../../doc/open-questions.md)), while an equality
+ * fails when a suite disappears AND when one is added without a row here.
+ *
+ * **Read inside a `test()` body and not at module scope**, because the runner
+ * imports every file before running any case; at module scope this would see only
+ * the suites that happened to load first.
+ *
+ * **The limit, stated rather than left to be rediscovered**: this file cannot bind
+ * ITSELF. Renamed out of the glob, it takes this census with it — and the corpus
+ * equality above with it, which is the same regress one door along. *The regress
+ * stops at the first thing that can fail to run*, which is
+ * [W31](../../doc/work-items/w31-the-self-list-check-policies-never-had.md)'s own
+ * sentence about `SELF` lists, in a test file rather than in a self-test.
+ */
+const SUITES = [
+  'ADR 0002 rule 3 — the definition is validated in full at instantiation',
+  'ADR 0004 — user_action suspends, and a resolution resumes the path',
+  'ADR 0014 — the driver produces one ordered input sequence',
+  'ADR 0014 — the ordering clauses no test reached',
+  'ADR 0022 — the surface says what ID-R3 says',
+  'ADR 0030 — a region behaves the same whether or not it is nested',
+  'FD-R1 — eligible edges exist and none matches: the run fails loudly',
+  'FD-V10 and FD-V11 — a cycle does not suppress unreachability',
+  'FD-V18 and FD-V21 — the sub-clauses the corpus case cannot separate',
+  'FD-V2 and FD-V6 — a join.of naming nothing violates both',
+  'FD-V3 — both clauses, not just the one the corpus holds',
+  'FD-V7 — every clause, none shadowing another',
+  'FD-V8, FD-V16, FD-V17, FD-V21, FD-V23 — every clause',
+  'FD-V9 — every clause',
+  'ID-R1 — a duplicate dispatch is refused before addTask sees it',
+  'ID-R2 — the charset is enforced at run creation, not just in the helper',
+  'ID-R3 — a driver serves exactly one run, and start() is called at most once',
+  'ID-R4 — a settlement carrying OUR run id for a task we never dispatched stops the run',
+  'ID-R4 — a settlement for ANOTHER run is ignored, silently',
+  'ID-R4 — both tiers are decided before the terminal state is read',
+  'ID-R5 — an inbound id no driver minted is reported and dropped, not refused',
+  'JP-R1 — every shipped policy is pure',
+  'JP-R2 — describe reports CONTENT, not just valid JSON',
+  'JP-R5 — branch.lost and branch.resumed, which nothing drove before',
+  'JP-R5 — the region event stream',
+  'JP-R7 — decrementing N on branch.exited is a third policy',
+  'JP-R8 — requiring an arrival before satisfied is a third policy, and it is SHIPPED',
+  'L1 — FD-V26: the reference GRAMMAR',
+  'L1 — FD-V27: where a reference POINTS',
+  'L1 — FD-V28: the FORM must match the graph',
+  'L1 — every suite this tree declares actually RAN',
+  'L1 — the two flows P12 exists for validate with zero findings',
+  'L2 — FD-C1: what a node receives',
+  'L2 — FD-C2: what NAMES an output',
+  'L2 — FD-R3: a reference the run did not produce',
+  'L2 — JP-R12: a map`s join carries its N results, and that is P10`s point',
+  'L2 — JP-R12: the KEY ORDER, on the only shape that can discriminate it',
+  'L2 — `joined: false` and `joined: null` are the same outcome',
+  'L2 — `over` must name an array, and that is a RUN-TIME refusal',
+  'L2 — a dead INNER join, through the fold',
+  'L2 — a decision picks the first eligible edge whose predicate passes',
+  'L2 — a map dispatches one task per item, at an arity no document carries',
+  'L2 — a map of ZERO items',
+  'L2 — a region opener INSIDE a map region is refused at construction',
+  'L2 — arrival-count at a run-time arity does not fire EARLY',
+  'L2 — from `unsatisfiable` to `stuck`, in one run',
+  'L2 — sequence routes from a fixture log, with no scheduler',
+  'L2 — the two-digit arity, where three orderings stop agreeing',
+  'L2 — the whole matrix, checked against the fold and against the scheduler',
+  'L3 — a map run folds deterministically',
+  'L3 — determinism: fold the same log twice and deep-compare',
+  'L4 — every invalid example is rejected, naming its own rule',
+  'L4 — every valid example validates clean',
+  'L4 — the corpus IS what spec/flow-definition.md section 7 says it is',
+  'L4 — the corpus covers the refusals, and FD-V14 has no case',
+  'L5 at a run-time arity — the matrix over a `map` region',
+  'L5 at depth 2 — the join over a nested fan-out',
+  'L5 — the fourth column: what each refinement changes',
+  'L5 — the join/failure matrix, cell by cell',
+  'L5 — what the matrix says as a whole',
+  'OR-R1 — nothing reachable from e.detail is retained',
+  'OR-R10 — a stopped run dispatches nothing further on the SCHEDULER edge',
+  'OR-R10 — a stopped run stops on the INBOUND edge too',
+  'OR-R2 and OR-R6 — result is deep-copied, and an uncloneable one fails the run',
+  'OR-R3 — one record per settlement, keyed on terminal state not event name',
+  'OR-R4 — task.running and task.progress produce no record',
+  'OR-R5 and OR-R7 — the log is ordered by append',
+];
+
+/** The rest of the census, split only so neither literal is unreadably long. */
+const LATE_SUITES = [
+  'OR-R7 / ADR 0014 rule 2 — foldInputs() cannot be written through',
+  'OR-R7 / ADR 0014 rule 2 — snapshot() cannot be written through',
+  'OR-R7 / ADR 0014 rule 3 — onFoldInput cannot be written through',
+  'OR-R7 and OR-R8 — the two tests W2 owed and did not ship',
+  'OR-R7 — every ONE of the six region events is frozen, not just the one a fixture happens to emit',
+  'OR-R7 — the seven outbound paths ADR 0014 does not name',
+  'OR-R8 and OR-R9 — the effective outcome',
+  'P1\'s case is now mechanically observable, which is what the plan needs',
+  'P1\'s case — a decision inside a branch routes away from the join',
+  'Q37 — what a consumer WITHOUT the callback can learn',
+  'Q72 — the precondition the topology has, stated rather than assumed',
+  'Q72 — two Drivers on ONE scheduler, which is what MultipleRuns tells you to build',
+  'RN-R1 — step is pure on the RECORD path, not only the region path',
+  'RN-R10 and RN-R12 — the reachable cases no test reached',
+  'RN-R10 and `regionEntered` — an entered region that opened NOTHING',
+  'RN-R10 — a run whose join can no longer fire is `stuck`, not `completed`',
+  'RN-R10 — the precedence, in the order section 3 states it',
+  'RN-R12 — a run is finished exactly when it is neither running nor awaiting_action',
+  'RN-R2 — the fold is still total over any prefix, with the new inputs',
+  'RN-R2 — the fold is total over any prefix',
+  'RN-R3 and OR-R5 — append order, never a timestamp',
+  'RN-R4, RN-R5 — a run holds only what the log says, keyed by task id',
+  'RN-R6 — regions record what happened, not what a policy concluded',
+  'RN-R7 — awaiting_action outranks running, now that both are reachable',
+  'RN-R7, RN-R8 — the run-level outcome vocabulary and its precedence',
+  'RN-R8 — stopped outranks everything, INCLUDING records that follow it',
+  'RN-R9 — a resolved node is indistinguishable from one that settled that way',
+  'RS-R1 — a resolution is refused unless the LAST record is user_action',
+  'TERMINAL_EVENTS is the one list, and it is right',
+  'a dead inner join, and what it does to the branch it sits in',
+  'a policy that misbehaves does not take the run down silently',
+  'branchIndices and branchIndexOf — the two derivations of branchPath',
+  'completed vs failed is about how a PATH ended, not how a node settled',
+  'every executable node kind has an arm — the default is not a narrowing',
+  'every one of the six events reaches the policy',
+  'live-token-requiring-arrival — JP-R8`s refinement, under its own id',
+  'malformed input is reported, never thrown',
+  'map — branchPath is a property of the DISPATCH (spec/task-id.md v0.8, ID-R6)',
+  'map — the definition shape (spec/flow-definition.md v0.8 sections 2 and 5)',
+  'map — the region maths is UNCHANGED (spec/flow-definition.md section 4)',
+  'map — the two corpus flows ARE the shapes section 7 claims',
+  'nested fan-out — which region a node is in when it is in two (FD-V15 retired)',
+  'one refinement is shipped and the other is refused — ADR 0025',
+  'regionOf on a nested flow — the driver reads the INNERMOST region',
+  'regions record what happened — including the distinctions W4 needs',
+  'spec/outcome-record.md section 2 — every declared field comes from its source',
+  'spec/task-id.md — the scheme, the parse, and ID-R2',
+  'the depth-2 rows say what they declare — the readers` gaps',
+  'the depth-2 table renders, and the multi-region arm is executed',
+  'the dispatched task carries what the definition declared',
+  'the end-node exemptions — three shapes the corpus does not hold',
+  'the exited path — status is asked after branch.exited, not only after arrival',
+  'the join seam — the driver asks a policy and acts on the answer',
+  'the log is not reachable from outside, including through result',
+  'the lost path — status is asked after branch.lost too',
+  'the policies against a Region that is not two branches',
+  'the policies on non-conformant streams — asymmetries W4 could misread',
+  'the refused variant is held to the same clause-level rules as the shipped ones',
+  'the region guards — no region event escapes a non-region path',
+  'the run-time-arity table renders',
+  'the two pinned policies carry neither refinement — JP-R7 and JP-R8',
+  'three things the driver decides that spec/ does not state',
+  'two sequential fan-outs sharing one `end` node',
+  'what the driver reports and what it does must agree',
+  'where the two policies AGREE — the cases that separate nothing',
+  'where they DIFFER — P1\'s question, as an executable case',
+];
+
+suite('L1 — every suite this tree declares actually RAN', (test) => {
+  test('the declared suite names are present, and no undeclared one appears', () => {
+    const names = collected().map((s) => s.suite).sort();
+    const declared = [...SUITES, ...LATE_SUITES].sort();
+    const missing = declared.filter((n) => !names.includes(n));
+    const extra = names.filter((n) => !declared.includes(n));
+    equal(missing, [],
+      'a declared suite did not run — its file was renamed out of the runner`s glob, or its ' +
+      'module threw while loading. Q158: before this, that cost ZERO failures at exit 0',
+    );
+    equal(extra, [],
+      'a suite ran that this census does not name. Add it here in the same commit — the ratchet ' +
+      'is deliberate and is `S12`s: an equality catches a rename, a floor does not',
+    );
+    ok(names.length >= SUITES.length, 'and the census is not empty, which would make both sets vacuous');
   });
 });

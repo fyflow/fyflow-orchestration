@@ -17,12 +17,12 @@ const ROUTABLE = ['done', 'failed'] as const;
 
 const DOC_KEYS = ['flowId', 'version', 'entry', 'nodes'];
 const NODE_KEYS: Record<string, { req: string[]; opt: string[] }> = {
-  task: { req: ['id', 'kind', 'workerType', 'edges'], opt: ['optional'] },
+  task: { req: ['id', 'kind', 'workerType', 'edges'], opt: ['optional', 'needs'] },
   fanout: { req: ['id', 'kind', 'branches'], opt: [] },
   // `spec/flow-definition.md` section 2, v0.8. `over` and `branch` are both
   // required: a map that does not say where its arity comes from is one that
   // silently means nothing, which is `FD-V23`'s own argument for `version`.
-  map: { req: ['id', 'kind', 'over', 'branch'], opt: [] },
+  map: { req: ['id', 'kind', 'over', 'branch'], opt: ['needs'] },
   join: { req: ['id', 'kind', 'of', 'edges'], opt: [] },
   end: { req: ['id', 'kind', 'outcome'], opt: [] },
 };
@@ -36,6 +36,26 @@ const asSet = (x: ReadonlySet<string> | readonly string[]): ReadonlySet<string> 
  *   A definition is valid **against a registry**: FD-V4 and FD-V5 are refusals
  *   about one, so there is no such thing as validating without it.
  */
+/**
+ * **The one place `needs`' reference grammar is parsed** — `FD-V26`'s three forms,
+ * and `spec/flow-definition.md` section 3's table. `null` is *not a reference at
+ * all*, which is what `FD-V26` reports; every other return is well formed and
+ * `FD-V27`/`FD-V28` decide whether it is well AIMED.
+ *
+ * **`"."` is the only invented token in the grammar**, and it is safe because it
+ * is outside `FD-V16`'s charset, so no node may ever be called it.
+ */
+export function referenceTarget(
+  ref: unknown,
+): { form: 'self'; node: null } | { form: 'one' | 'all'; node: string } | null {
+  if (ref === '.') return { form: 'self', node: null };
+  if (typeof ref === 'string') return ID_RE.test(ref) ? { form: 'one', node: ref } : null;
+  if (Array.isArray(ref) && ref.length === 1 && typeof ref[0] === 'string' && ID_RE.test(ref[0])) {
+    return { form: 'all', node: ref[0] };
+  }
+  return null;
+}
+
 export function validateDefinition(doc: FlowDefinition, registry: Registry): Finding[] {
   const f: Finding[] = [];
   const add = (rule: string, at: string | null, detail: string) => f.push({ rule, at, detail });
@@ -159,6 +179,36 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
         add('FD-V25', where, `map over ${JSON.stringify(nd.over)} is not [A-Za-z0-9_-]{1,64}`);
       }
     }
+    // ---- FD-V26: `needs`' own shape ----
+    // `spec/flow-definition.md` section 3, v0.11, and ADR 0040.
+    //
+    // **The *"only on a `task` or a `map`"* clause is NOT here, and that is a
+    // measurement rather than an omission**: `needs` is absent from the other three
+    // kinds' `opt` lists, so `FD-V17`'s undeclared-key clause thirty lines up
+    // already refuses it and names the kind. A second rule saying the same thing
+    // would be one `FD-V17` could never disagree with, which is `FD-V19`'s own
+    // twice-earned warning about writing a refusal against a set something else
+    // already computes.
+    if (nd.needs !== undefined) {
+      const nv = nd.needs;
+      if (typeof nv !== 'object' || nv === null || Array.isArray(nv)) {
+        add('FD-V26', where, `needs must be an object, got ${JSON.stringify(nv)}`);
+      } else if (Object.keys(nv).length === 0) {
+        // A node declaring `needs: {}` receives `{}` — every input silently
+        // discarded, with the document reading as though it asked for something.
+        // `FD-V23`'s own argument for `version`.
+        add('FD-V26', where, 'needs is empty; a node that declares one receives exactly what it names');
+      } else {
+        for (const [k, ref] of Object.entries(nv as Record<string, unknown>)) {
+          if (!ID_RE.test(k)) add('FD-V26', where, `needs key ${JSON.stringify(k)} is not [A-Za-z0-9_-]{1,64}`);
+          const target = referenceTarget(ref);
+          if (target === null) {
+            add('FD-V26', where, `needs[${JSON.stringify(k)}] is ${JSON.stringify(ref)}, which is not "." , a node id, or a one-element array holding one`);
+          }
+        }
+      }
+    }
+
     if (nd.edges !== undefined && !Array.isArray(nd.edges)) {
       add('FD-V21', where, 'edges must be an array');
       continue;
@@ -389,6 +439,89 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
           if (r.members.has(t) && kindOf(t) !== 'end') {
             add('FD-V22', t, `node in region(${r.fanoutId}) is entered from "${n.id}", outside it`);
           }
+        }
+      }
+    }
+  }
+
+  // ---- FD-V27 and FD-V28: where a `needs` reference POINTS ----
+  //
+  // `spec/flow-definition.md` section 3, v0.11, and ADR 0040. `FD-V26` above says
+  // a reference is well FORMED; these two say it is well AIMED, and they are two
+  // ids rather than one because they fail for different reasons and an author fixes
+  // them differently: `FD-V27` is *that node cannot have produced anything for you*
+  // and `FD-V28` is *it produced a different NUMBER of things than you asked for*.
+  //
+  // **Both are skipped on a cyclic graph**, exactly as the region family above is
+  // and for the same reason: `region(F)` and reachability-order are not meaningful
+  // there, so these would be noise rather than findings.
+  if (!cyclic) {
+    const regions = allRegions(g, doc);
+    for (const n of nodes) {
+      // `nodes` may hold `null`, a number or a string — `FD-V21` reported that
+      // above and the loop must survive it. Without this guard a malformed
+      // document THROWS out of the validator, which `spec/flow-definition.md`
+      // section 5's *"reported, never thrown"* refuses and two L1 cases assert.
+      if (typeof n !== 'object' || n === null || typeof n.id !== 'string') continue;
+      const nv = (n as unknown as Record<string, unknown>).needs;
+      if (typeof nv !== 'object' || nv === null || Array.isArray(nv)) continue;
+      const where = n.id;
+      for (const [k, ref] of Object.entries(nv as Record<string, unknown>)) {
+        const t = referenceTarget(ref);
+        if (t === null || t.node === null) continue; // FD-V26's, or the `"."` form
+        const target = t.node;
+        if (!g.byId.has(target)) {
+          add('FD-V27', where, `needs[${JSON.stringify(k)}] names "${target}", which is not a node`);
+          continue;
+        }
+        if (kindOf(target) !== 'task') {
+          // **Only a task produces an output** — section 2's own sentence. A
+          // reference to a `fanout`, `map`, `join` or `end` names something that
+          // has no result to give, at any branch path.
+          add('FD-V27', where, `needs[${JSON.stringify(k)}] names "${target}", a ${kindOf(target)}; only a task produces an output`);
+          continue;
+        }
+        // **`target === n.id` was here and is DELETED, on a measurement.** Rule 8
+        // graded that clause a SURVIVOR: dropping it alone costs 0, because
+        // `reachFrom` seeds `seen` from `succ(start)` rather than from `start`, and
+        // this block is guarded on `!cyclic`, so on an acyclic graph a node is never
+        // in its own reach set and the disjunct can never be the clause that fires.
+        // *A guard with no reachable effect is not defence in depth; it is a reader
+        // being told something is checked here when the answer is fixed* — the map
+        // arm's own sentence in `src/driver/driver.ts`, applied to a validator.
+        if (!reachFrom(g, target).has(n.id)) {
+          // The declaring node must be DOWNSTREAM of what it names. A reference
+          // pointing sideways or backwards names a node that may not have run,
+          // and `FD-R3` would be the only thing to say so — at run time, on the
+          // one workload that takes that branch, which is ADR 0002 rule 3's own
+          // argument for validating at instantiation.
+          add('FD-V27', where, `needs[${JSON.stringify(k)}] names "${target}", which this node is not reachable from`);
+          continue;
+        }
+        // **`FD-V28` — the FORM must match the graph**, and the graph is what
+        // decides it: the named node produces more than one output for this reader
+        // exactly when the reader is outside a **`map`** region the named node is in.
+        //
+        // **`r.opensWith === 'map'` is load-bearing and the first version omitted
+        // it**, which W41's conformity reader caught: with a bare `r.members.has`,
+        // `publish` outside `region(split)` naming `scoreA` was refused with
+        // *"produces one output per branch; write `["scoreA"]`"* — while `scoreA`
+        // produces **exactly one**, and the author was forced to write a list and
+        // index `[0]` out of it. `FD-V19` refuses a non-`end` node in two branch
+        // entries of one fanout, so a `fanout` region gives every node **one**
+        // output; only a `map` region enters its branch once per item.
+        //
+        // **That is `FD-C2`'s own measurement, and the rule was written against a
+        // set that contradicted it.** `spec/examples/valid`'s six region-bearing
+        // flows give (node id, branchPath) pairs distinct 4/4, 4/4, 5/5, 6/6, 4/4
+        // and 7/7, and the node ids collapse in **exactly** the four with a map
+        // region and in neither with only `fanout`s. Same document, nine lines
+        // apart, and the code followed the wrong half.
+        const many = regions.some((r) => r.opensWith === 'map' && r.members.has(target) && !r.members.has(n.id));
+        if (many && t.form === 'one') {
+          add('FD-V28', where, `needs[${JSON.stringify(k)}] names "${target}" as one value, but it is inside a map region this node is outside of, so it produces one output per ITEM; write ["${target}"]`);
+        } else if (!many && t.form === 'all') {
+          add('FD-V28', where, `needs[${JSON.stringify(k)}] names ["${target}"] as a list, but it produces exactly one output on this node's branch path; write "${target}"`);
         }
       }
     }
