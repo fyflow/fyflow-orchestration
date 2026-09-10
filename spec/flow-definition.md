@@ -1,6 +1,6 @@
 # spec/flow-definition — the flow definition format
 
-**Status:** v0.14 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.15 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2** acted on the first spec-conformity pass
 (ADR 0004, and `region(F)` made computable). **v0.3** acted on the second, which found that `FD-V19`
 had reintroduced the v0.1 defect class under a new id — a refusal rule rejecting the valid corpus.
@@ -145,6 +145,42 @@ of what it would warn about at N = 1000. **And the numbers this document carried
 taken in one process, which costs up to 4.4x in ACCUMULATION and nothing in ordering** — the cliff
 was robust throughout and the spread among the cheap rows never was a measurement.
 **No `FD-V` changed, no `FD-R` changed, no `FD-C` changed and no node kind changed.**
+
+**v0.15 answers [Q206](../doc/open-questions.md)**
+([W49](../doc/work-items/w49-what-a-reference-across-sibling-regions-means.md) under
+[P14](../doc/plans/p14-what-a-reference-means-when-two-regions-arities-are-independent.md)), by
+[ADR 0044](../doc/decisions/0044-a-reference-is-visible-when-two-paths-agree-on-the-regions-that-contain-both-of-them.md):
+**an output is visible to a reader when their two branch paths agree on the regions that contain
+BOTH of them**, and *one path is a prefix of the other* is that rule's SPECIAL CASE rather than its
+predecessor. Section 3's biconditional — *a node produces more than one output for a reader exactly
+when the reader is outside a `map` region containing it* — was **false for two SIBLING regions**, and
+`FD-V28` was right about the number while resolution delivered a different one. It is true now.
+**`FD-C1` is the rule that moves and `FD-R3` is the rule that NARROWS**: no `FD-V` changes, no node
+kind changes, no rule id is added or retired, and `FD-V27`, `FD-V28` and `FD-V29` are read and not
+edited. *(This read *"`FD-C1` is the one rule that moves … no `FD-R` changes"* and both halves were
+false: `FD-C1`'s row was byte-identical while `FD-R3`'s was the only rule row the item had edited.
+W49's conformity reader, and it is `spec/README.md` rule 4's inverse — the document claiming a rule
+moved that had not, and claiming one had not moved that had.)*
+
+**And the defect was never about a `map` and never about arity, which is a measurement rather than a
+refinement.** [Q206](../doc/open-questions.md)'s row and P14's own facts frame it as a map-arity
+question because every sibling pair in both corpora is `map`/`map`. Constructed — the corpora contain
+**no sibling `fanout` pair at all**, which is why nothing had seen it — a reference from branch **1**
+of a second `fanout` region to branch **0** of the first validates with **zero findings**, is
+`FD-V29`-certain, and **stops the run** at `FD-R3`; written in branch 0 of the same region the same
+reference resolves. *There is no arity anywhere in that document, and which branch the author wrote
+the reference in decided whether the run completed.* The document is built and asserted in
+`test/definition/sibling-regions.test.ts`; **it joins `spec/examples/valid/` with the driver**, because
+until then it is a valid document whose run stops, and a corpus flow is validated AND run.
+
+**The DERIVATION ships here and the DRIVER is **W50**'s**,
+which is v0.8's own split one plan on: `sharedRegionDepth` and `outputIsVisible` are in
+`src/definition/regions.ts` with their L1 cases, and until W50 wires them into `resolveReference` a
+run still resolves by the prefix rule. **Stated rather than left to be discovered** — v0.8 shipped a
+`map` node kind that nothing dispatched for one item and said so in this document, and this is that
+sentence again. What it costs is one item in which section 3 describes a predicate the driver does
+not yet apply; what it buys is two items that each have their own green gate
+(`doc/workflow.md` section 1 rule 1).
 
 **Binds:** [ADR 0002](../doc/decisions/0002-a-flow-definition-is-data-and-a-predicate-is-registered-by-name.md)
 (the graph is data; a predicate is a name; an unknown name fails at instantiation) and
@@ -366,7 +402,7 @@ wrapper and no reserved key, because `"."` is how an author asks for what the ed
 |---|---|
 | `"."` | **whatever this node would have received had it declared nothing** — whichever of this document's arcs it sits on: the ordinary edge's value above, a `fanout` branch entry's own copy or a `map` instance's own item (`JP-R11`), or a satisfied join's collection (`JP-R12`). *(This row enumerated the first and the last of those and omitted the two in between; **`map-over-region-output`'s `rank` sits on a join's exit edge**, so one of the omissions is in this item's own corpus. W41's conformity reader.)* It is one of the grammar's **two** invented tokens — `?` is the other, one row down — and it is safe because `.` is outside `FD-V16`'s charset, so no node may ever be called it. *(This read *"the one invented token"* and stayed that way ten lines above the row that added the second. W45's conformity reader; the neighbour-of-a-corrected-line class.)* |
 | `"score"` | that node's output **on this node's own branch path**. **None, and the run stops** (`FD-R3`); more than one is unreachable, because `FD-V28` refuses this form wherever the graph admits more |
-| `["score"]` | **those of that node's outputs that are VISIBLE on this node's own path** — see the note below the table — as an **array**, in ascending `branchPath` order compared segment-wise as numbers — `JP-R12`'s order rule, and the same reason: it is what makes the value the same whatever order the branches settled in. Legal only where this node is **outside** a region containing the named one (`FD-V28`) |
+| `["score"]` | **those of that node's outputs that are VISIBLE on this node's own path** — see the note below the table — as an **array**, in ascending `branchPath` order compared segment-wise as numbers — `JP-R12`'s order rule, and the same reason: it is what makes the value the same whatever order the branches settled in. Legal only where this node is **outside a `map` region** containing the named one (`FD-V28`). *(This row read *"outside a region"* — the very confusion `FD-V28`'s own note two blockquotes down records its first version making, where a node after a two-branch `fanout` join was refused and told to index `[0]` out of a list. Measured on `fanout-join.flow.json`: `["scoreA"]` is REFUSED and `"scoreA"` accepted, so the row's condition was not the rule's. W49's conformity reader, in a row this item edited.)* **Since v0.15 that is ALL of them wherever the two nodes' region chains share no entry** — a reader after the region, and a reader inside a SIBLING one, which used to receive the one output whose index happened to match its own ([ADR 0044](../doc/decisions/0044-a-reference-is-visible-when-two-paths-agree-on-the-regions-that-contain-both-of-them.md); **the resolver follows in W50** — see the header) |
 | **a `?` suffix on either of the two above** — `"score?"`, `["score?"]` | **the same outputs, and `FD-C4` instead of `FD-R3` when there are none**: the key is **ABSENT** for `"score?"` and **`[]`** for `["score?"]`, and the run does not stop. v0.13. This is what says *if it ran*, and writing it is what exempts a reference from `FD-V29` |
 
 **The array form is JSON's own array syntax rather than a second sigil**, so the grammar invents two
@@ -399,23 +435,33 @@ node produces more than one output for a reader exactly when the reader is outsi
 containing it — so an author is told at instantiation which form to write, and *which shape will
 arrive* is never a run-time surprise.
 
-> **That biconditional is about ANCESTRY, and W45's conformity reader measured where it stops.**
-> `FD-V28` asks a REGION question and resolution then applies a PATH filter (`FD-C1`'s visibility
-> predicate), and the two agree only where the reader is inside or after the region it names. For two
-> **sibling** map regions at the same depth — `reference-past-a-map-arity.flow.json`, the flow in
-> section 7 — `publish` inside `rank` is outside `region(split)`, so `FD-V28` demands `["score"]` and
-> says *"it produces one output per ITEM"*; and the array that arrives holds **at most one** entry,
-> the `score` output whose branch path is numerically equal to `publish`'s own index in an unrelated
-> region. Measured on the shipped document: at `items: 3, slots: 1` instance 0 receives one of three;
-> at equal arities each instance receives its index-matched one; past the arity it is `FD-R3`.
-> **There is no form an author can write from inside `rank` that yields all of `score`'s outputs.**
-> This is a property of `FD-C1`'s prefix rule rather than of `needs`' grammar — sibling indices are
-> prefix-comparable, and section 3's three worked examples of that predicate are all
-> ancestor/descendant — so it belongs to whoever reopens
-> [ADR 0040](../doc/decisions/0040-what-a-node-can-reach-is-the-runs-own-outputs-and-a-node-id-names-them-relative-to-a-branch-path.md)'s
-> KEY, which P13 decision 1 forbids this plan from doing. **[Q206](../doc/open-questions.md)**, with
-> the measurement. *It is `FD-V28`'s own recorded history — a rule about references written against
-> the wrong half of section 4 — in the ACCEPTING direction.*
+> **That biconditional was FALSE for two SIBLING regions until v0.15, and it is what
+> [Q206](../doc/open-questions.md) was.** W45's conformity reader found it: `FD-V28` asks a REGION
+> question and resolution then applied a PATH filter, and the two agreed only where the reader is
+> inside or after the region it names. For two **sibling** map regions at the same depth —
+> `reference-past-a-map-arity.flow.json`, the flow in section 7 — `publish` inside `rank` is outside
+> `region(split)`, so `FD-V28` demands `["score"]` and says *"it produces one output per ITEM"*; and
+> the array that arrived held **at most one** entry, the `score` output whose branch path was
+> numerically equal to `publish`'s own index in an unrelated region. Measured on the shipped document
+> at three arity pairs: at `items: 3, slots: 1` instance 0 received one of three; at equal arities
+> each instance received its index-matched one; past the arity it was `FD-R3`.
+>
+> **`FD-V28` was right and the resolution was wrong**, which is why nothing here moves except the
+> predicate: the rule counts outputs by REGION and the filter compared indices by POSITION, so the
+> two disagreed exactly where the chains do not nest.
+> [ADR 0044](../doc/decisions/0044-a-reference-is-visible-when-two-paths-agree-on-the-regions-that-contain-both-of-them.md)
+> makes the filter ask the same question the rule asks. **Under v0.15's rule** `publish` receives
+> **all three** at every arity pair and `FD-R3` does not fire, so *there is no form an author can
+> write from inside `rank` that yields all of `score`'s outputs* — the sentence this note carried for
+> two versions — is answered by the form they were already writing. **The resolver follows in W50**,
+> and until it does a run still applies the prefix filter and the measurement above is what a run
+> does.
+>
+> **And the defect was never about a `map`.** W49 measured the same shape on a `fanout` pair, which
+> neither corpus contains: branch **1** of a second region reading branch **0** of the first
+> validates with zero findings and **stops the run**, while branch 0 reading the same node resolves.
+> No arity, no `map`, and `FD-V29` correctly calling the target certain, on a document neither
+> corpus contains — which is why nothing had seen it, and is P14 decision 3 by name.
 
 > **A `fanout` region is NOT that case, and the rule's first version said it was.** `FD-V19` refuses
 > a non-`end` node in two branch entries of one fanout, so every node in a `fanout` region has
@@ -437,14 +483,46 @@ not. Measured over all four region-bearing flows in `spec/examples/valid/`: the 
 deciding fact for the **third** time ([Q160](../doc/open-questions.md)), and it is why an author
 writes a node id and the run resolves it against a path.
 
-**An entry is visible to a node when one path is a prefix of the other**, segment-wise — `-` (no
-region) being a prefix of everything. One predicate gives both forms: `ingest@-` is visible
-everywhere; `extract@1` is visible to `merge@1.0`; and `merge@1.0` and `merge@1.1` are **both**
-visible to a node at `-` after the join, which is the array.
+**An entry is visible to a node when their two paths AGREE ON THE REGIONS THAT CONTAIN BOTH of
+them** — v0.15, [ADR 0044](../doc/decisions/0044-a-reference-is-visible-when-two-paths-agree-on-the-regions-that-contain-both-of-them.md).
+A `branchPath` carries **one segment per region on the walk `branchPathOf` makes**, innermost last,
+so segment `i` of one node's path and segment `i` of another's are indices into the *same* namespace
+exactly when entry `i` of their two region CHAINS is the same region. The number of segments there is
+anything to compare is therefore the length of the **common PREFIX of the two chains**, and the
+moment the chains diverge every later segment belongs to an unrelated namespace.
 
-> **Segment-wise and not by string.** `"1"` is a prefix of `"1.0"` and is **not** a prefix of
-> `"10"`, which a `startsWith` gets wrong in exactly the case a nested region produces — `JP-R12`'s
-> own *invisible at depth 1, live at depth 2*, a fourth time in this tree.
+> **It is the CHAIN and not `containing(n)`, and that is a correction rather than a restatement.**
+> This paragraph first derived the depth as the SIZE OF THE INTERSECTION of the two `containing`
+> sets, on the argument that *`containing(n)` is a nesting chain (`FD-V22`), so the regions
+> containing both are always the outermost k of each chain*. **W49's conformity reader measured that
+> false on a document this validator accepts with zero findings**: put a fanout region's JOIN inside
+> a nested region and one node's shared entry is the INNERMOST of the other's chain, so a count
+> returns 1 where the shared region sits at segment 1. The **answer** was still right, because
+> `branchPathOf` walks the opener chain and both paths inherit the outer segment either way — but
+> the justification licensing the implementation was unsound, and the implementation was about to be
+> carried into the driver. Deriving from the same walk the PATH is built from makes *segment `i`
+> corresponds to chain entry `i`* true by construction rather than by an argument about membership. One predicate gives both forms: `ingest@-` is visible
+everywhere; `extract@1` is visible to `merge@1.0`; `merge@1.0` and `merge@1.1` are **both** visible
+to a node at `-` after the join, which is the array; and a node inside a **sibling** region shares no
+region with any of them, so it sees **all** of them.
+
+> **This REPLACED *one path is a prefix of the other*, which is its special case rather than its
+> predecessor.** Where the two chains nest, the regions containing both are the shorter chain
+> entire, so *agree on the first k* and *one is a prefix of the other* pick out the same entries —
+> which is why **every ancestor/descendant reference in both corpora behaves identically under
+> either**, measured, with ladder L6 unmoved in both runtimes. What the prefix rule got wrong is the
+> case where the chains do not nest: `isPathPrefix('0','2')` and `isPathPrefix('2','0')` are both
+> false, so for two sibling regions **only the equality case ever fired** — a reader saw a target
+> because the two strings matched, and equality is the prefix relation's reflexive case.
+> [Q206](../doc/open-questions.md).
+
+> **Segment-wise and not by string, which v0.15 inherits rather than reinvents.** `"1"` and `"10"`
+> are different segments and a `startsWith` says otherwise, in exactly the case a map region of
+> eleven or more items produces — it hands instance `10` the output of instance `1`, a wrong answer
+> rather than a crash. **Invisible below eleven instances and live at twelve** — `JP-R12`'s own
+> *invisible at depth 1, live at depth 2*, a fourth time in this tree — and
+> `test/driver/needs.test.ts`'s two-digit fixture is the only thing in the repository that
+> discriminates it.
 
 **Each key gets its own copy**, which is `JP-R11`'s invariant applied to the one edge that is not a
 fan-out edge: no two nodes ever receive the same object, and a reference is the one way two nodes
@@ -525,7 +603,7 @@ resolving to `undefined`.
 
 | id | | Test owed by |
 |---|---|---|
-| `FD-C1` | **What a node receives.** With no `needs`, the source node's effective-outcome `result`, deep-copied — the paragraph above, unchanged. With a `needs`, **exactly** the object it describes: one key per declared key, each resolved by the table above and each its own copy. Test: at ladder L2, over `map-with-context.flow.json` and `map-over-region-output.flow.json`, asserting the composed payload of **every dispatch a `needs` composes** — which is 2 of that flow's 4 and 3 of this one's 7, the rest being nodes that declare none; and that a node with no `needs` is byte-unchanged, which the 574 unmoved L1-L5 cases assert as a whole | **[W41](../doc/work-items/w41-what-a-node-can-reach-and-what-names-it.md)** |
+| `FD-C1` | **What a node receives.** *(v0.15 — the VISIBILITY half of this rule is amended by [ADR 0044](../doc/decisions/0044-a-reference-is-visible-when-two-paths-agree-on-the-regions-that-contain-both-of-them.md): an output is visible to a reader when their two branch paths agree on the regions their two region CHAINS share, and *one path is a prefix of the other* is that rule's special case. Everything else in this row is unchanged. **The derivation ships with the rule and the RESOLVER follows in W50**, so a run still applies the prefix filter at v0.15 — see the header. Test: at ladder L1, `test/definition/sibling-regions.test.ts` — `sharedRegionDepth` and `outputIsVisible` against a hand-derived table over six documents, the old rule pinned to the sentence this document carried before v0.15, and the two compared over every nesting pair and every sibling pair.)* With no `needs`, the source node's effective-outcome `result`, deep-copied — the paragraph above, unchanged. With a `needs`, **exactly** the object it describes: one key per declared key, each resolved by the table above and each its own copy. Test: at ladder L2, over `map-with-context.flow.json` and `map-over-region-output.flow.json`, asserting the composed payload of **every dispatch a `needs` composes** — which is 2 of that flow's 4 and 3 of this one's 7, the rest being nodes that declare none; and that a node with no `needs` is byte-unchanged, which the 574 unmoved L1-L5 cases assert as a whole | **[W41](../doc/work-items/w41-what-a-node-can-reach-and-what-names-it.md)** |
 | `FD-C4` | **What a CONDITIONAL reference carries when its target produced nothing on this path** — v0.13, [ADR 0042](../doc/decisions/0042-a-reference-says-whether-it-is-conditional-and-the-bare-form-means-the-target-certainly-ran.md) rule 4. For `"n?"` the key is **absent** from the composed object — not present holding `null`, and not present holding `undefined`, because `null` is what a reference to a task that ran and FAILED already resolves to. For `["n?"]` the key is present holding **`[]`**. Everything else is `FD-C1`'s row for the unsuffixed form, unchanged: the visibility predicate, the order, and the per-key copy. **At both declaration sites**, by the same expression — an edge's conditional reference that resolves to nothing leaves `ctx.needs` without that key, so a predicate reads `'f' in ctx.needs` (`FD-C3`). Test: at ladder L2, over `reference-if-it-ran.flow.json` — one flow, **two runs**, the key present on one and absent on the other, and the run completing on both; and the array form over a SIBLING map region past the first's arity, giving `[]`. *(This cell said *"a nested map region"*; `reference-past-a-map-arity`'s two regions are sequential siblings — `rank` is in `after(split)`, not in `region(split)` — and the nested-map flows are `map-in-fanout` and `nested-map`, neither of which is used. Third occurrence in this document of a rule cell naming a test other than the one that exists. W45's conformity reader.)* | **[W45](../doc/work-items/w45-what-a-reference-must-be-able-to-say.md)** |
 | `FD-C2` | **What names an output is the pair `(node id, branchPath)`.** A node id alone names one output outside a `map` region and **N** inside one, so a projection keyed by node id collapses a map's instances — which is what a reference must not do. A `needs` reference names a node **id**, because a branch path inside a map region is a property of the **dispatch** (section 4, `ID-R6`) and no author can write one. Test: at ladder L2, the pairs are distinct over all four region-bearing corpus flows **and over the two this item adds**, while the node ids collapse in exactly the map-bearing ones | **[W41](../doc/work-items/w41-what-a-node-can-reach-and-what-names-it.md)** |
 
@@ -957,7 +1035,7 @@ owning item's gate, **not W1's L0**.
 | id | The run terminates when | Test owed by |
 |---|---|---|
 | `FD-R1` | routing reaches a node, eligible edges exist for the settled terminal state, and none evaluates true. The failure names the run id and the node id and is **reported** rather than thrown out of a listener (`OR-R10`). **Unreachable through a valid definition**, and that is `FD-V7` working rather than a gap — see below. Test: assert against the routing function directly, with a node whose eligible edges are all guarded and a registry whose predicates all return false; **and a companion test that the reachable neighbour is not this rule** — no eligible edge at all is a declared path end (section 3) | W3 |
-| `FD-R3` | **an UNCONDITIONAL** `needs` reference names a node and **no output of that node is on this node's branch path**. Reported as an `UnresolvedReference` naming the declaring node, its branch path, the key and the target. **Since v0.13 the decision-routed-around case is `FD-V29`'s and is refused at instantiation**, and what is left is the two things a validator provably cannot see, both measured rather than argued: (a) **a reader whose branch path is comparable with none of the target's**, which needs no policy at all — two `map` regions of different arity, `reference-past-a-map-arity.flow.json`, where `FD-V29` correctly says the target ran and the third instance of the second region can see neither output of the first; and (b) a join **policy** firing before a branch entry has SETTLED — for any reason, parking at `user_action` being one and a branch entry that has simply not settled yet being another — which `validateDefinition` cannot know about because it is not given the policy (`FD-V15`'s note, [Q97](../doc/open-questions.md)). *(This clause read *"parked at `user_action`"*, as did four other statements of the same limit, and W45's conformity reader measured that parking is inessential: a policy satisfied on the first arrival, with the other branch entry never settling, dispatches the reader and this rule fires with no `user_action` anywhere. `test/driver/needs.test.ts` asserts it under a constructed policy, with a shipped-policy control beside it.)* **A CONDITIONAL reference never reaches this rule** — `FD-C4` is what it does instead. *(Before v0.13 this row read *"a decision routed around it, or it settled `user_action`"* and said *"no validator rule could have seen this"*. **The first clause was `FD-V29`'s all along and the sentence was the argument against looking**; the second half is (b), and (a) was in neither. W45.)* **`FD-V27` has already checked that this node is reachable FROM the named one** and `FD-V29` that it must have run, which together are everything the graph can say. **Why its own class and not `UnresolvedMapArity`**: that one says *the previous node did not return an array*, which is a WORKER's bug, and this says *the node you named did not run on your path*, which is the FLOW's shape, and the two send a reader to different places. Reported through `OR-R10` from a listener, and reported **and rethrown** from `resolve()`, which is caller-initiated. **Not from `start()`, and that is a property of `FD-V27` rather than of this rule**: `start()` composes only the entry node, and a reference from the entry node names a target the entry node must be reachable from — which with `FD-V11` makes the entry reachable from it, and that is an `FD-V10` cycle. So the `start()` road is refused at instantiation and has no case. *(This row said `start()` and `resolve()`, and the test named for it asserted neither. W41's conformity reader, and it is `FD-R1`'s own *test that cannot be built* one section up.)* Test: `test/driver/needs.test.ts` | **[W41](../doc/work-items/w41-what-a-node-can-reach-and-what-names-it.md)** |
+| `FD-R3` | **an UNCONDITIONAL** `needs` reference names a node and **no output of that node is on this node's branch path**. Reported as an `UnresolvedReference` naming the declaring node, its branch path, the key and the target. **Since v0.13 the decision-routed-around case is `FD-V29`'s and is refused at instantiation**, and what is left is the two things a validator provably cannot see, both measured rather than argued: (a) **a reader whose branch path is comparable with none of the target's**, which needs no policy at all — two `map` regions of different arity, `reference-past-a-map-arity.flow.json`, where `FD-V29` correctly says the target ran and the third instance of the second region can see neither output of the first; and (b) a join **policy** firing before a branch entry has SETTLED — for any reason, parking at `user_action` being one and a branch entry that has simply not settled yet being another — which `validateDefinition` cannot know about because it is not given the policy (`FD-V15`'s note, [Q97](../doc/open-questions.md)). *(This clause read *"parked at `user_action`"*, as did four other statements of the same limit, and W45's conformity reader measured that parking is inessential: a policy satisfied on the first arrival, with the other branch entry never settling, dispatches the reader and this rule fires with no `user_action` anywhere. `test/driver/needs.test.ts` asserts it under a constructed policy, with a shipped-policy control beside it.)* **A CONDITIONAL reference never reaches this rule** — `FD-C4` is what it does instead. **AND v0.15 REMOVES (a), which leaves (b) as the only road.** [ADR 0044](../doc/decisions/0044-a-reference-is-visible-when-two-paths-agree-on-the-regions-that-contain-both-of-them.md) makes a reader in a SIBLING region see **all** of the target's outputs, so *comparable with none of the target's* has no instance there — the case (a) names was the sibling road, and it was `FD-C1`'s defect rather than a fact about what a validator can see. **So this rule now has exactly one road that a shipped policy can reach, and it is the POLICY one** — which is `FD-V29`'s own history one version on: that rule removed the decision case and this removes the arity case, each leaving the backstop narrower. *(The removal lands with the DRIVER, which is **W50**'s; at v0.15 the rule is stated and the resolver still applies the prefix filter.)* *(Before v0.13 this row read *"a decision routed around it, or it settled `user_action`"* and said *"no validator rule could have seen this"*. **The first clause was `FD-V29`'s all along and the sentence was the argument against looking**; the second half is (b), and (a) was in neither. W45.)* **`FD-V27` has already checked that this node is reachable FROM the named one** and `FD-V29` that it must have run, which together are everything the graph can say. **Why its own class and not `UnresolvedMapArity`**: that one says *the previous node did not return an array*, which is a WORKER's bug, and this says *the node you named did not run on your path*, which is the FLOW's shape, and the two send a reader to different places. Reported through `OR-R10` from a listener, and reported **and rethrown** from `resolve()`, which is caller-initiated. **Not from `start()`, and that is a property of `FD-V27` rather than of this rule**: `start()` composes only the entry node, and a reference from the entry node names a target the entry node must be reachable from — which with `FD-V11` makes the entry reachable from it, and that is an `FD-V10` cycle. So the `start()` road is refused at instantiation and has no case. *(This row said `start()` and `resolve()`, and the test named for it asserted neither. W41's conformity reader, and it is `FD-R1`'s own *test that cannot be built* one section up.)* Test: `test/driver/needs.test.ts` | **[W41](../doc/work-items/w41-what-a-node-can-reach-and-what-names-it.md)** |
 
 ### FD-R1's test, corrected
 
@@ -998,7 +1076,7 @@ instantiation, and instantiation is a driver action. Hand-written, never generat
 | `decision-on-an-earlier-step.flow.json` | **[Q8](../doc/open-questions.md)'s own flow, carried in that row since P1** — *route to review if an earlier step flagged low confidence*. An **edge** declares `needs: {"earlier": "ingest"}` and its predicate answers on a node it does not sit on, **with the worker's payload unchanged**. v0.12 |
 | `map-in-fanout.flow.json` | **a map region nested inside a static one** — the shape that shows the outer `branchPath` prefix is still derived while only the map's own segment is supplied at run time |
 | `reference-if-it-ran.flow.json` | **[Q187](../doc/open-questions.md)'s flow** — *route to review if an earlier step flagged it, and publish either way*. `publish` declares `needs: {"own": ".", "verdict": "review?"}`, so the key is **present on the review road and absent on the other** and both roads complete. Written unconditionally the same document is `FD-V29`, which is the whole of what the suffix is for. v0.13 |
-| `reference-past-a-map-arity.flow.json` | **the document that keeps `FD-R3` reachable with no custom policy** — two **sibling** `map` regions over different keys, and `publish`'s `needs: {"scored": ["score"]}` names a node `FD-V29` correctly calls certain. Every instance of `rank` beyond `split`'s arity has a branch path comparable with **none** of `score`'s outputs, which is the half `FD-V29` cannot see: *did it run* and *is it on your path* are two questions. **And within the arity it exposes the other half of the same fact** — the array holds the ONE index-matched output rather than all N, which is the note under section 3's reference table and [Q206](../doc/open-questions.md), not something this flow introduces. v0.13 |
+| `reference-past-a-map-arity.flow.json` | **the document that keeps `FD-R3` reachable with no custom policy** — two **sibling** `map` regions over different keys, and `publish`'s `needs: {"scored": ["score"]}` names a node `FD-V29` correctly calls certain. Every instance of `rank` beyond `split`'s arity has a branch path comparable with **none** of `score`'s outputs, which is the half `FD-V29` cannot see: *did it run* and *is it on your path* are two questions. **And within the arity it exposes the other half of the same fact** — the array holds the ONE index-matched output rather than all N, which is the note under section 3's reference table and [Q206](../doc/open-questions.md), not something this flow introduces. **BOTH halves are what v0.15 removes, and the opening sentence of this cell is what it costs**: [ADR 0044](../doc/decisions/0044-a-reference-is-visible-when-two-paths-agree-on-the-regions-that-contain-both-of-them.md) makes `publish` see all N at every arity pair, so **once the resolver follows in W50 this document stops keeping `FD-R3` reachable** and what it demonstrates instead is the fix. *(Until then the first sentence is still true — the run stops at `items 2 / slots 3` today. This cell asserted both in the present tense at once, which W49's conformity reader caught.)* v0.13 |
 
 **This table and the directory are compared BOTH WAYS, and that is v0.8's addition rather than a
 restatement.** `test/definition/l4-corpus.test.ts` asserts the set of `.flow.json` files in

@@ -366,6 +366,150 @@ export function branchPathOf(
 const INDEX = /^(?:0|[1-9][0-9]*)$/;
 
 /**
+ * **The region chain of a node, OUTERMOST FIRST** — one entry per segment of that
+ * node's `branchPath`, derived by the same walk `branchPathOf` makes.
+ *
+ * **It is the walk and not `containing(n)`, and that distinction is a correction
+ * rather than a preference.** The first version of this file derived the shared
+ * depth as the SIZE OF THE INTERSECTION of the two `containing` sets, on the
+ * argument that *`containing(n)` is a nesting chain (`FD-V22`), so the regions
+ * containing both are always the outermost k of each chain*. **W49's conformity
+ * reader measured that false on a document `validateDefinition` accepts with zero
+ * findings**: put a fanout region's JOIN inside a nested region and one node's
+ * intersection entry is the INNERMOST of the other's chain, so a count returns 1
+ * where the shared region sits at segment 1 rather than segment 0. The answer
+ * happened to stay right — `branchPathOf` walks the opener chain, so both paths
+ * inherit the outer segment either way — but *the justification licensing the
+ * implementation was unsound, in the sentence two documents state it in.*
+ *
+ * **So the derivation is now the same walk the PATH is built from**, which makes
+ * *segment `i` corresponds to chain entry `i`* true by construction instead of by
+ * an argument about `containing`. A node not in a region still inherits that
+ * region's segment when its own region was opened inside it, exactly as its path
+ * does.
+ */
+export function regionChainOf(regions: RegionSets[], nodeId: string): string[] {
+  const chain: string[] = [];
+  // The same guard `branchPathOf` carries and for the same reason: `FD-V10`
+  // forbids cycles and a region cannot contain its own opener, so the walk
+  // strictly ascends. It is here because an unbounded loop over caller-supplied
+  // data is one edit away from being one.
+  const seen = new Set<string>();
+  let at = nodeId;
+  for (;;) {
+    const r = innermostRegionOf(regions, at);
+    if (!r || seen.has(r.fanoutId)) break;
+    seen.add(r.fanoutId);
+    chain.push(r.fanoutId);
+    at = r.fanoutId;
+  }
+  return chain.reverse();
+}
+
+/**
+ * **How many leading `branchPath` segments the two nodes have anything to compare
+ * on** — the length of the COMMON PREFIX of their two region chains, and the whole
+ * of what
+ * [ADR 0044](../../doc/decisions/0044-a-reference-is-visible-when-two-paths-agree-on-the-regions-that-contain-both-of-them.md)
+ * decides.
+ *
+ * A `branchPath` carries **one segment per region on the walk above**, innermost
+ * last. So segment `i` of one node's path and segment `i` of another's are indices
+ * into the *same* namespace exactly when chain entry `i` is the same region for
+ * both — and the moment the chains diverge, every later segment belongs to an
+ * unrelated namespace.
+ *
+ * **Beyond that prefix there is nothing to compare, and comparing anyway is the
+ * defect this function exists to remove.** [Q206](../../doc/open-questions.md): for
+ * two SIBLING regions the prefix is empty, every segment belongs to an unrelated
+ * namespace, and a predicate that compares by POSITION reports *visible* when two
+ * indices minted in different regions happen to be equal. Measured on
+ * `spec/examples/valid/reference-past-a-map-arity.flow.json` before this was
+ * written: `publish@0` received one of `score`'s three outputs and the other two
+ * were reachable from nowhere; and on a constructed sibling `fanout` pair, a
+ * reference from branch **1** of the second region to branch **0** of the first
+ * validated with zero findings and **stopped the run** at `FD-R3`, where the same
+ * reference written in branch 0 resolved.
+ *
+ * **`fanout` and `map` alike, and that is the point.** The corpus contains no
+ * sibling `fanout` pair at all, so a set of probes drawn from it cannot see a rule
+ * that is wrong about the case the corpus does not have — W41's finding by name,
+ * and P14 decision 3. The document is built and asserted in
+ * `test/definition/sibling-regions.test.ts`; it joins the corpus with the driver in
+ * **W50**, because until then it is a valid document whose RUN STOPS.
+ *
+ * **And siblings are not only a top-level shape**, which is W49's adequacy
+ * reader's finding: two sequential inner regions inside ONE branch of an outer one
+ * are siblings sharing a prefix of length 1, and there the two rules disagree
+ * while both paths carry two segments. That is the only shape that tells this
+ * function apart from *compare every segment*, and it is asserted.
+ */
+export function sharedRegionDepth(
+  regions: RegionSets[],
+  a: string,
+  b: string,
+): number {
+  const ca = regionChainOf(regions, a);
+  const cb = regionChainOf(regions, b);
+  let i = 0;
+  while (i < ca.length && i < cb.length && ca[i] === cb[i]) i++;
+  return i;
+}
+
+/**
+ * **Is an output at `targetPath` visible to a reader at `readerPath`** — `FD-C1`'s
+ * visibility predicate, and
+ * [ADR 0044](../../doc/decisions/0044-a-reference-is-visible-when-two-paths-agree-on-the-regions-that-contain-both-of-them.md)
+ * rule 2: *the two paths agree on the regions that contain both nodes.*
+ *
+ * **The prefix rule is this rule's special case rather than its predecessor.**
+ * Where the two chains nest, the regions containing both are the shorter chain
+ * entire, so *agree on the first k* and *one path is a prefix of the other* pick
+ * out the same entries — which is why every ancestor/descendant reference in both
+ * corpora behaves identically under either. Measured: with this predicate in the
+ * driver, ladder L6 is unmoved at 879 assertions over 40 real runs in both
+ * runtimes, and the only L1-L5 rows that move are the `FD-R3`/`FD-C4` fixtures
+ * that reached those rules THROUGH the sibling road.
+ *
+ * **Segment-wise and never by string, which is inherited rather than reinvented.**
+ * `'1'` and `'10'` are different segments and a `startsWith` says otherwise, in
+ * exactly the case a map region of eleven or more items produces — it hands
+ * instance `10` the output of instance `1`, a wrong answer rather than a crash.
+ * **Invisible below eleven instances and live at twelve**; `test/driver/needs.test.ts`'s
+ * two-digit fixture is the only thing in the repository that discriminates it, and
+ * it passes unmoved here because the comparison is still per segment.
+ *
+ * @param readerId the node declaring the reference — an edge has no path of its
+ *   own, so for an edge's `needs` this is the node the edge hangs on (`FD-C3`).
+ */
+export function outputIsVisible(
+  regions: RegionSets[],
+  readerId: string,
+  readerPath: string,
+  targetId: string,
+  targetPath: string,
+): boolean {
+  const depth = sharedRegionDepth(regions, readerId, targetId);
+  // **Nothing shared means nothing to disagree about**, which is the half that
+  // changes: a reader outside every region the target is in sees ALL of its
+  // outputs, whether it sits at `-` after the region (unchanged from v0.11) or
+  // inside a sibling region (Q206, and new here).
+  if (depth === 0) return true;
+  const xs = readerPath === '-' ? [] : readerPath.split('.');
+  const ys = targetPath === '-' ? [] : targetPath.split('.');
+  for (let i = 0; i < depth; i++) {
+    // A shared region always contributes a segment to both paths, so a missing one
+    // is a path that was not derived from these regions. Guarded rather than
+    // asserted: `undefined !== undefined` is false, so an unguarded compare would
+    // report two pathless nodes as AGREEING, which is the one direction that
+    // silently widens what a reference reaches.
+    if (xs[i] === undefined || ys[i] === undefined) return false;
+    if (xs[i] !== ys[i]) return false;
+  }
+  return true;
+}
+
+/**
  * Which region a node belongs to, and via which branch — the value the task id's
  * `branchPath` segment is derived from (`spec/task-id.md` section 1).
  *

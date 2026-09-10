@@ -15,7 +15,66 @@ the only document that does. **Every snippet in it is extracted and executed by 
 (`scripts/check-docs.mjs`), so it cannot rot the way a hand-maintained reference does. If you change
 the public surface, that check is what tells you the reference is now wrong.
 
-## Current state: **P1-P13 are ALL complete and retro'd, `doc/workflow.md` is [v0.14](doc/workflow.md), and [P14](doc/plans/p14-what-a-reference-means-when-two-regions-arities-are-independent.md) is DECLARED — no item has started.** **Read every status from the item's own file, never from this line.**
+## Current state: **P1-P13 are ALL complete and retro'd, `doc/workflow.md` is [v0.14](doc/workflow.md), and [P14](doc/plans/p14-what-a-reference-means-when-two-regions-arities-are-independent.md) is RUNNING — [W49](doc/work-items/w49-what-a-reference-across-sibling-regions-means.md) is DONE, W50 and W51 are not.** **Read every status from the item's own file, never from this line.**
+
+**[W49](doc/work-items/w49-what-a-reference-across-sibling-regions-means.md) is DONE and
+[ADR 0044](doc/decisions/0044-a-reference-is-visible-when-two-paths-agree-on-the-regions-that-contain-both-of-them.md)
+answers [Q206](doc/open-questions.md): an output is visible to a reader when their two branch paths
+AGREE ON THE REGIONS THEIR TWO CHAINS SHARE, and *one path is a prefix of the other* is that rule's
+SPECIAL CASE.** `spec/flow-definition.md` is **v0.15**; `spec/` is unmoved at **7 documents, 43
+examples, 89 rules** because no rule id is added or retired; L1-L5 is **25 files / 674 cases in five
+runtimes**; **L6 is unmoved at 879 assertions over 40 real runs**. It is **candidate (b) of the three
+P14 named**, put to the maintainer with both priced — a fourth refusal costs **11** L1-L5 failures and
+removes a corpus flow, the predicate change costs **6** and removes none, and the 6 are a strict
+SUBSET of the 11. **The DERIVATION ships here and the RESOLVER is W50's**, which is v0.8's own split
+(a `map` node kind nothing dispatched for one item) and is written into the document.
+
+**The defect was never about a `map` and never about arity, and P14's own facts said otherwise.**
+Every sibling pair in both corpora is `map`/`map`, so nothing had seen the `fanout` half: constructed,
+a reference from branch **1** of a second `fanout` region to branch **0** of the first **validates
+with zero findings**, is `FD-V29`-certain, and **stops the run**, while the same reference in branch 0
+resolves. **P14 fact 3's mechanism is corrected in place** — `map-over-region-output` works because
+its reference sits on **`rank`, the map NODE**, at path `-` and in no region, so it receives all N
+before any instance exists; *the two flows differ in WHERE the reference is declared, not in their
+arities.* **THREE of P14's four predictions are already reversed**, and prediction 1 reversed because
+the fact it rests on was wrong.
+
+**Its conformity reader falsified the DERIVATION and it changed the CODE rather than the prose.** Both
+documents argued *`containing(n)` is a nesting chain, so the regions containing both are the outermost
+k of each* — **false on a document `validateDefinition` accepts with zero findings**, where a fanout
+region's JOIN inside a nested region makes one node's shared entry the **innermost** of the other's
+chain. The answer survived and the justification did not, *on the eve of that expression going into
+the driver*; `sharedRegionDepth` now derives from the same walk the PATH is built from, and the
+reader's counterexample is a checked-in fixture because re-sourcing it back cost **zero** everywhere
+else. **And its adequacy reader found ADR 0044 rule 1's own clause had NO FIXTURE** — widening the
+loop to compare every segment cost **0**, because every sibling pair in the corpus is TOP-LEVEL and
+every nesting pair has a prefix as long as both paths. **The discriminating shape is two sibling
+regions nested inside ONE outer branch**, where the two rules disagree at depth 1, and adding it
+falsified this suite's own sibling claim on the first run. *A corpus is a claim about what shapes
+EXIST, not about what shapes are legal* — P14 decision 3 named the `fanout` half in advance and
+nobody named the DEPTH half.
+
+**Three more of the conformity reader's six blocking findings were CLAIMS ABOUT WHICH RULE MOVED, and
+all three were false.** *"`FD-C1` is the one rule that moves"* — its row was **byte-identical** and the
+only rule row edited was `FD-R3`; *"no `FD-R` changes"* — beside *"`FD-R3` loses case (a)"*, forty
+words apart in one cell; and section 7's cell for `reference-past-a-map-arity` asserting both that it
+keeps `FD-R3` reachable and that it no longer does, in the present tense. **`FD-C1` is amended in fact
+now**, which also closed the reader's finding that the predicate had shipped with **no rule id and no
+Test cell** — W33's shape. **`FD-R3` NARROWS to one road**, the join-policy one
+([Q218](doc/open-questions.md)).
+
+**Rule 8: 27 probes, 26 caught, 1 declared ceiling MEASURED, 0 survivors standing, 0 aborts**, with
+all eight of the readers' exact edits checked back in — and its own set found **four** holes before
+either reader saw the tree, three of them the obligations v0.13 and v0.14 added, including a probe
+that was **vacuous because the literal it substituted was set-equal to the value it replaced** (W47's
+`c3` verbatim). **Readers 15 / 6 blocking and 52 mutations / 8 real survivors / 4 blocking, overlap
+2** — the **twenty-sixth** measurement, inside the 0-4 band, neither primed. **TWO late exceptions,
+zero undeclared**: `spec/README.md` by `C8`, and **`AGENTS.md`, which no check reaches** — its *what it
+costs* paragraph named two things a run can refuse a reference for and this decision removes one,
+which is section 1 rule 5's THIRD direction in the copy a consumer reads first. **Census CONFIRMED
+for the FOURTEENTH plan running — 178 questions, 128 open, 2 deferred, 48 resolved**; the parser was
+wrong in an **eleventh** direction and it is a CLAUSE ORDER rather than a clause. **Q218-Q221 raised,
+Q206 RESOLVED.**
 
 **[P14](doc/plans/p14-what-a-reference-means-when-two-regions-arities-are-independent.md)
 is DECLARED — *what does a reference mean when two regions' arities are independent?*, and it is the

@@ -320,9 +320,14 @@ void Driver;
 **What it costs.** An **unconditional** reference that names a node with nothing to give you stops the
 run with an `UnresolvedReference` (`FD-R3`, section 9). Since v0.13 most of that is caught at
 construction — `FD-V27` checks the node is *upstream of you* and `FD-V29` that it must have RUN — so
-what is left at run time is the two things the graph cannot know: whether any of its outputs is on
-**your branch path** (two `map` regions of different arity make those different questions), and
-whether the join a policy fired had actually waited for it.
+what is left at run time is **whether the join a policy fired had actually waited for it**. *(This
+read *"the TWO things the graph cannot know"* and named the arity case first — two `map` regions of
+different arity, where a reader inside one could see neither output of the other. **`spec/`
+v0.15 removes that road**: [ADR 0044](doc/decisions/0044-a-reference-is-visible-when-two-paths-agree-on-the-regions-that-contain-both-of-them.md)
+makes a reader see all of a sibling region's outputs, so the case is a defect that was fixed rather
+than a limit of what a validator can see, and one road is left. The RESOLVER follows in W50, so a
+run at v0.15 still takes the old path — `doc/workflow.md` section 1 rule 5's third direction, and
+this sentence is the copy a consumer reads first.)*
 And a reference names a **node**, never a path inside its value: `needs: { run: 'ingest' }` gives you
 the whole of `ingest`'s result and your worker reads `.config` off it.
 

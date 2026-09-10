@@ -2,6 +2,64 @@
 
 ## Current state
 
+**[W49](work-items/w49-what-a-reference-across-sibling-regions-means.md) is DONE and
+[ADR 0044](decisions/0044-a-reference-is-visible-when-two-paths-agree-on-the-regions-that-contain-both-of-them.md)
+answers [Q206](open-questions.md): an output is visible to a reader when their two branch paths
+AGREE ON THE REGIONS THEIR TWO CHAINS SHARE, and *one path is a prefix of the other* is that rule's
+SPECIAL CASE.** `spec/flow-definition.md` is **v0.15**; `spec/` is unmoved at **7 documents, 43
+examples, 89 rules** because no rule id is added or retired; L1-L5 is **25 files / 674 cases in five
+runtimes**, from 24 / 656; **L6 is unmoved at 879 assertions over 40 real runs**. The DERIVATION
+ships here and the RESOLVER is **W50**'s, which is v0.8's own split — a `map` node kind nothing
+dispatched for one item — and it is written into the document rather than left to be discovered.
+
+**Candidate (b) of three, put to the maintainer with both candidates PRICED, which is what P14's
+stop-and-ask list asks for.** A fourth refusal costs **11** L1-L5 failures and takes a corpus flow
+with it; the predicate change costs **6** and takes none, and the 6 are a strict SUBSET of the 11 —
+all of them `FD-R3`/`FD-C4` fixtures that reach those rules through the sibling road. Both leave
+`map-over-region-output` untouched, so P14 decision 2 held under either.
+
+**The defect was never about a `map` and never about arity, and the plan's own facts said otherwise.**
+Every sibling pair in both corpora is `map`/`map`, so nothing had seen the `fanout` half:
+constructed, a reference from branch **1** of a second `fanout` region to branch **0** of the first
+**validates with zero findings**, is `FD-V29`-certain, and **stops the run**, while the same reference
+written in branch 0 resolves. *Which branch the author wrote it in decided whether the run completed.*
+**P14 fact 3's mechanism is corrected in place**: `map-over-region-output` works because its
+reference sits on **`rank`, the map NODE**, at branch path `-` and in no region — so it receives all N
+before any instance exists, and no index-matched entry is involved. **The two flows differ in WHERE
+the reference is declared.**
+
+**THREE of P14's four predictions are already reversed**, and prediction 1 reversed because the fact
+it rests on was wrong — v0.14's correction to P10's distinction reaching a second instance.
+
+**Its conformity reader falsified the DERIVATION and it changed the CODE.** Both documents argued
+*`containing(n)` is a nesting chain, so the regions containing both are the outermost k of each* —
+**false on a document `validateDefinition` accepts with zero findings**, where a fanout region's JOIN
+inside a nested region makes one node's shared entry the innermost of the other's chain. The answer
+survived; the justification did not, *on the eve of that expression going into the driver*.
+`sharedRegionDepth` now derives from the same walk the PATH is built from, and the reader's
+counterexample is a checked-in fixture, because re-sourcing it back cost **zero** on every other
+document.
+
+**And its adequacy reader found that ADR 0044 rule 1's own clause had no fixture** — widening the loop
+to compare EVERY segment cost **0**, because every sibling pair in the corpus is TOP-LEVEL and every
+nesting pair has a prefix as long as both paths. **The discriminating shape is two sibling regions
+nested inside ONE outer branch**, where the two rules disagree at depth 1; adding it falsified this
+suite's own sibling claim on the first run. *A corpus is a claim about what shapes EXIST, not about
+what shapes are legal* — and P14 decision 3 named the `fanout` half in advance while nobody named the
+DEPTH half.
+
+**Readers 15 findings / 6 blocking and 52 mutations / 8 real survivors / 4 blocking, overlap 2** — the
+**twenty-sixth** measurement, inside the 0-4 band, neither reader primed. **Rule 8: 27 probes, 26
+caught, 1 declared ceiling MEASURED, 0 survivors standing, 0 aborts**, with all eight of the readers'
+exact edits checked back in — and its own set found **four** holes before either reader saw the tree,
+three of them the obligations v0.13 and v0.14 added. **TWO late exceptions, ZERO undeclared** —
+`spec/README.md` by `C8`, and **`AGENTS.md`, which no check reaches**: its *what it costs* paragraph
+named two things a run can refuse a reference for and this decision removes one. **Census CONFIRMED
+for the FOURTEENTH plan running — 178 questions, 128 open, 2 deferred, 48 resolved**; the parser was
+wrong in an **eleventh** direction, and it is a CLAUSE ORDER rather than a clause: applying clause 8
+after the width check aborts on exactly the two rows the note tells it how to read.
+**Q218-Q221 raised, Q206 RESOLVED.**
+
 **[P14](plans/p14-what-a-reference-means-when-two-regions-arities-are-independent.md)
 is DECLARED — *what does a reference mean when two regions' arities are independent?*, and it is the
 THIRD PRODUCT PLAN IN A ROW**, the first run of three since P1-P2-P3. It takes

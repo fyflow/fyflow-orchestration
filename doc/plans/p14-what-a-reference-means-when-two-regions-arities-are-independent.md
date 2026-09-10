@@ -1,6 +1,6 @@
 # P14 — What does a reference mean when two regions' arities are independent?
 
-**Status:** declared
+**Status:** in progress — W49 done, W50 and W51 to run
 **Baseline:** `5372147` — `doc/workflow.md` [v0.14](../workflow.md), P1-P13 complete and retro'd, tree
 clean, `npm run gate` `GATE EXIT=0` with zero `FAIL` lines.
 
@@ -223,4 +223,43 @@ next plan after this one starts at **W53** and at whatever id this plan's block 
 
 ## Record
 
-*Filled in at the join, after the work items are merged.*
+*Filled in at the join, after the work items are merged. One row per item as it lands.*
+
+**W49 is DONE and [ADR 0044](../decisions/0044-a-reference-is-visible-when-two-paths-agree-on-the-regions-that-contain-both-of-them.md) answers [Q206](../open-questions.md).** An output is visible to a
+reader when their two branch paths **agree on the regions their two CHAINS share**, and *one path is
+a prefix of the other* is that rule's special case — candidate **(b)**, put to the maintainer with
+both candidates priced, as this plan's stop-and-ask list requires. `spec/flow-definition.md` is
+**v0.15**; `spec/` is unmoved at **7 documents, 43 examples, 89 rules** because no rule id is added or
+retired; L1-L5 is **25 files / 674 cases in five runtimes**; **L6 is unmoved at 879 / 40**.
+
+**THREE of this plan's four predictions are already reversed, and one reversed because a FACT it
+rests on was wrong.**
+
+| # | verdict | |
+|---|---|---|
+| 1 | **REVERSED** | *Candidate (a) cannot be written without an arity clause.* Its own stated reversal condition — *a static predicate that separates them without mentioning arity* — is met, and by a different predicate than the one it guessed: not *the reader's `over` names this very key* but **the reader's REGION CHAIN**. The two flows do not differ in arity at all, which is fact 3 |
+| 2 | **REVERSED** | *The answer is (c), making a region's COLLECTION referenceable.* It is (b). The premise stands — the author's natural spelling really is refused by `FD-V27` rather than by the rule they would read — and it does not follow, because the missing spelling is a second, ADDITIVE gap rather than the cause of this one. [Q219](../open-questions.md) |
+| 3 | **REVERSED** | *W50 is SMALL: no driver code moves.* Its stated reversal condition is *candidate (b) winning*, which it names. The driver is exactly where this lands |
+| 4 | W51's | untouched |
+
+**Fact 3 was WRONG about its mechanism, and it is the sixteenth time a plan has found one of its own
+inputs wrong by trying to act on it.** It says `map-over-region-output` works because *"the two
+arities are equal by construction"*; measured, that flow declares its reference on **`rank`, the map
+NODE**, at branch path `-` and in **no region**, so it receives all N before any instance exists.
+**The two flows differ in where the reference is DECLARED.** Prediction 1 inherited that error, which
+is v0.14's own correction to P10's distinction reaching a second instance: *a derived prediction is
+reversible exactly when the measurement it rests on is narrower — or wrong — in a way its own wording
+hides.*
+
+**And the plan's framing was corrected in the same direction: the defect is not about a `map` and not
+about arity.** Every sibling pair in both corpora is `map`/`map`, so nothing had seen the `fanout`
+half — where a reference from branch **1** of a second region to branch **0** of the first validates
+with **zero findings** and **stops the run**, with no arity anywhere in it. **Decision 3 required that
+evidence and is why the half was covered**; the DEPTH half — two sibling regions nested inside one
+outer branch — was named by nobody and was found by W49's adequacy reader.
+
+| item | | |
+|---|---|---|
+| **W49** | **done** | [ADR 0044](../decisions/0044-a-reference-is-visible-when-two-paths-agree-on-the-regions-that-contain-both-of-them.md); `spec/flow-definition.md` v0.15; `regionChainOf`/`sharedRegionDepth`/`outputIsVisible`; L1 674 in five runtimes; readers 15/6 and 52/8/4; rule 8 **27 probes, 26 caught, 0 survivors, 1 measured ceiling, 0 aborts**; overlap **2**, the 26th measurement; census **178 / 128 / 2 / 48**; **Q218-Q221** raised, **Q206** resolved |
+| **W50** | todo | |
+| **W51** | todo | |
