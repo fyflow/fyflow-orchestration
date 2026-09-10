@@ -2,6 +2,67 @@
 
 ## Current state
 
+**[P14](plans/p14-what-a-reference-means-when-two-regions-arities-are-independent.md)
+is DECLARED — *what does a reference mean when two regions' arities are independent?*, and it is the
+THIRD PRODUCT PLAN IN A ROW**, the first run of three since P1-P2-P3. It takes
+**[Q206](open-questions.md)**, the only open row that says the library cannot express something an
+author would ordinarily want — the position [Q12](open-questions.md) held before P10 and
+[Q11](open-questions.md)/[Q187](open-questions.md) held before P12 and P13. **Three items, serial:
+W49** (what a reference across sibling regions means, as **ADR 0044**), **W50** (what the run carries
+at independent arities), **W51** (the exit artifact on real workers). **Reserves W49-W52,
+Q218-Q232, ADR 0044-0045**, with ADR 0045 expected skipped.
+
+**Its declaration measured SIX facts and THREE of them correct or sharpen the row it is built on** —
+the fifteenth time a plan has found one wrong by trying to act on it. **Q206's own measurement
+reproduces exactly**: on `reference-past-a-map-arity.flow.json` at `items 3 / slots 1`, `publish@0`
+receives **one of three** `score` outputs and the other two are reachable from nowhere; at equal
+arities each instance receives **its index-matched one**; past the arity the run **stops** with
+`UnresolvedReference`.
+
+**But the shape is in FOUR corpus flows and not one, and one of them is P12's own exit artifact.**
+Over both corpora — 22 region-bearing flows of 30 — a sibling pair occurs in
+`map-over-region-output.flow.json` (in **both**), `reference-past-a-map-arity.flow.json` and
+`map-past-a-decision.flow.json`, which is [W47](work-items/w47-the-blocked-flow-on-real-workers.md)'s
+and is three commits old. **Every one is `map`/`map`; no `fanout` pair occurs anywhere.**
+
+**And the defect is ARITY-DEPENDENT, which is why `map-over-region-output` works and is celebrated.**
+That flow is [Q165](open-questions.md)'s answer and carries the same sibling reference; it works
+because **`rank`'s `over` names the resolved reference itself**, so the two arities are equal *by
+construction* and the index-matched entry is the one that instance wants. **So the plan's question is
+not *is the predicate wrong*** — it is *what does a reference mean when the two arities are
+INDEPENDENT*, and *the index-matched one* is right for one flow and arbitrary for the others.
+*A coupling removed by making two numbers equal is not a coupling removed.*
+
+**There is NO spelling that reaches all of a sibling region's outputs, and the natural one is refused
+by a DIFFERENT RULE.** All eight the grammar admits, measured: `"score"` and `"score?"` are refused by
+`FD-V28`; `["score"]` and `["score?"]` give **one** entry; `"."` gives the reader's own item;
+`"regroup"` gives a reshaping node's output — **and `"collect"`, the JOIN, is refused by `FD-V27`,
+because a reference's target must be a TASK.** *A region's collection is unreachable by any reference
+at all*, which nobody had written down, and it means the answer an author reaches for is refused by a
+rule they would not think to read. **So Q206's *there is no form* is CONFIRMED and the workaround is a
+reshaping `task` node — the workaround ADR 0040 exists to remove.**
+
+**A sibling FANOUT pair behaves the OPPOSITE way and `FD-V28` is right about it**: constructed, since
+the corpus has none, `["sA1"]` is **refused** and `"sA1"` is **ACCEPTED**, resolving to the one output
+there is. **So the fix must not disturb the `fanout` half** —
+[W41](work-items/w41-what-a-node-can-reach-and-what-names-it.md)'s conformity-reader finding one rule
+along, and it is decision 3: the evidence must include a sibling fanout pair, because the corpus
+cannot supply one.
+
+**The change surface is ONE expression and twenty citations**: `isPathPrefix` is declared once with
+**two** call sites, while `spec/flow-definition.md` cites `FD-V28` **20** times. And the mechanism is
+sharper than Q206's row: the visible set is *path-EQUAL or ancestor/descendant*, and **for siblings
+only the equality case ever fires** — `isPathPrefix('0','2')` and `isPathPrefix('2','0')` are both
+false, so `publish@0` sees `score@0` **because the strings match**. *Two unrelated regions mint
+indices into one namespace, and equality is the prefix relation's reflexive case.*
+
+**Three candidates, none preferred**: a fourth refusal, a change to the visibility predicate (which is
+**ADR 0040's KEY**, and P13 decision 1's refusal was about an ITEM's authority rather than about the
+question), or **making a region's COLLECTION referenceable** by relaxing `FD-V27`. **Decision 2 is a
+hard constraint**: whatever wins, `map-over-region-output` keeps working and its L6 row keeps its
+numbers. **[Q19](open-questions.md) and [Q22](open-questions.md) are declared OUT** and are the next
+plan's subject, with three measured inputs already waiting.
+
 **[P13](plans/p13-when-is-a-declared-reference-refused.md)'s RETRO is run and
 [`doc/workflow.md`](workflow.md) is v0.14 — THREE changes adopted, FIVE refused, and its central
 finding is that a HARNESS can produce a verdict having run NOTHING.** All three items shipped that
