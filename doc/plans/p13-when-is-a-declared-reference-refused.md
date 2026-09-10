@@ -270,11 +270,34 @@ L1-L5 at **24 files / 656 assertions in five runtimes** from 24 / 633; **L6 at 8
 block extended twice; ADR 0042 taken and 0043 skipped. The next plan starts at W49, Q218 and
 ADR 0044.**
 
-**All four predictions have a verdict.** **1 is CONFIRMED and its inference did NOT survive** — the
-corpus writes 6 aimed references and dominance refuses 0 of them, exactly as fact 2 measured, but
-the corpus **ADMITS 127** and dominance refuses **30**, of which **22** are references a correct
-rule accepts. *A prediction derived from a measurement can be right about the measurement and wrong
-about the world it was taken in.* **2 is REVERSED, and in the way P12's retro named**: the answer is
+**All four predictions have a verdict, and TWO of the four are REVERSED — one of them a DERIVED
+one, which P10's retro said could not happen.**
+
+**1 is REVERSED, and its own stated reversal condition is what reversed it.** The row reads *a
+dominance rule refuses nothing that exists, so adopting it costs zero in the corpus*, and it names
+the condition: *a corpus flow that dominance refuses and an author wants — which is exactly what
+W45's evidence is required to try to construct.* **W45 constructed 22 of them**, over **13 of the 26
+corpus flows**, one being `needs: {"a": "scoreA"}` after a two-branch join — **a document
+`FD-V28`'s own note in the same file calls valid.** The literal half held: the corpus **WRITES** 6
+aimed references and dominance refuses **0**, exactly as fact 2 measured. The inference did not: the
+corpus **ADMITS 127** and dominance refuses **30**, of which 22 a correct rule accepts.
+*(This paragraph read **"1 is CONFIRMED and its inference did NOT survive"** for as long as it took
+to re-read W45's scope clause, which states prediction 1's test as *exhibit a flow a dominance rule
+would refuse and an author would want, or record that none could be constructed*. It exhibited
+twenty-two. **A verdict word chosen from the prediction's summary rather than from its stated
+reversal condition** — and the reversal condition is the only half that can grade it.)*
+
+**That is a DERIVED prediction reversing, and it is the sharpest single result P13 hands the
+retro.** [P10](p10-is-fan-out-one-feature-or-two.md)'s retro settled that *a prediction derived from
+a measurement you already have checks your reasoning; a prediction about a mechanism's reach checks
+the mechanism, and **only the second can reverse***. This one reversed — because the measurement it
+was derived from **answered a narrower question than the prediction stated**: fact 2 measured what
+the corpus WRITES and the prediction claimed something about the corpus. That is P8's retro's third
+count shape — *a correct number answering a narrower question than the sentence around it claimed* —
+firing on a PREDICTION rather than on a count, and it means a derived prediction is reversible
+exactly when its own measurement's scope is narrower than its wording.
+
+**2 is REVERSED, and in the way P12's retro named**: the answer is
 not a fourth form INSTEAD of a validator rule, it is **`FD-V29` and a `?` MODIFIER**, each of which
 makes the other affordable — [Q11](../open-questions.md)'s stack-not-a-fork, one plan on. **3 is
 CONFIRMED with its reversal condition checked rather than assumed** — W46 took no ADR, and the
