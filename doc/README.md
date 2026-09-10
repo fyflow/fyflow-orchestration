@@ -2,8 +2,88 @@
 
 ## Current state
 
-**[P13](plans/p13-when-is-a-declared-reference-refused.md) is DECLARED — *when is a declared
-reference refused, and what does it cost?*, and it is the SECOND PRODUCT PLAN IN A ROW**, the first
+**[W45](work-items/w45-what-a-reference-must-be-able-to-say.md) is DONE and
+[ADR 0042](decisions/0042-a-reference-says-whether-it-is-conditional-and-the-bare-form-means-the-target-certainly-ran.md)
+answers [Q187](open-questions.md): a reference says whether it is CONDITIONAL, and the bare form
+means the target certainly ran.** `spec/flow-definition.md` is **v0.13** — section 3's reference
+table gains **one row**, a `?` MODIFIER on either aimed form, and section 5 gains **`FD-V29`**, which
+refuses an *unconditional* reference a run can reach the declaring node without. **`FD-V27` is the
+one rule that does NOT move**, on `FD-V28`'s own stated precedent that a different fix earns a
+different id. `spec/` is **7 documents, 43 examples, 89 rules**; L1-L5 is **24 files / 654 cases in
+five runtimes**; **L6 is 806 assertions over 38 real runs**, from 760 / 36.
+
+**P13 named a fork and it was not one, and the measurement that says so is one nobody had taken.**
+Fact 2 reproduces exactly — the two corpora WRITE 6 aimed references and dominance refuses **0** —
+**and its zero is a property of what the corpus WRITES.** The corpus **ADMITS 127**, and **plain
+dominance refuses 30 in 13 of the 26 flows** while a **certainty** walk refuses **8 over 7 distinct
+shapes**, a strict subset. **So 22 of the 30 are references a correct rule accepts**, one of them
+`needs: {"a": "scoreA"}` after a two-branch join — a document `FD-V28`'s own note in the same file
+calls *"a valid document"*. **A dominance rule would have contradicted `FD-V28` nine lines up.** The
+cause is that the graph has two kinds of branching and dominance reads them alike: a `task`'s edges
+are **disjunctive**, a region's branches **conjunctive** (`JP-R5`), so a branch entry never dominates
+its own join and has always been dispatched by the time it fires.
+
+**So `FD-V29` AND the modifier, and each is what makes the other affordable** — the rule can refuse
+an uncertain reference only because the form gives the author something to write instead, and the
+form is more than an affordance only because the rule refuses the alternative. **That is ADR 0040's
+own finding about [Q11](open-questions.md) one plan on** — the register presented three candidates
+as a fork and they were a stack.
+
+**Its four headline numbers were WRONG when first written, and its conformity reader re-derived every
+one.** 121 / 29 / 7 / *14 of 25 flows*, from a probe whose hard-coded registry did not carry
+`earlierWasLowConfidence` — so `FD-V4` fired on one of the two `decision-on-an-earlier-step` files
+and the walk silently ran over 25 files where the same table's row above says 26. **`22` was the only
+one of five that survived.** And re-taking it found a second thing: once `FD-V29` ships, using the
+whole validator as the admission test refuses **exactly** the certainty set, so it reports *certainty
+refuses 0* and the measurement is circular — measured, and the test now excludes that rule by name.
+**The four properties the decision rests on are an executable L1 suite rather than prose in three
+files.** [Q199](open-questions.md).
+
+**Both readers found the certainty rule's stated LIMIT had no observer of any kind, from opposite
+ends** — and the item's own `Verification` row claimed it was *"asserted at L2"* while the file it
+pointed at said in prose that the case was deliberately not a fixture, citing a Record that did not
+yet exist. **And every one of FIVE statements of that limit named ONE ROAD**: *parked at
+`user_action`* is inessential — a policy satisfied on the first arrival, with the other branch entry
+simply never settling, dispatches the reader and `FD-R3` fires with no `user_action` anywhere.
+Asserted now, with a **shipped-policy control** beside it so the row is a statement about `FD-V29`
+rather than about any policy this repository ships.
+
+**Its adequacy reader found `FD-V29`'s own central expression unexercised above two predecessors.**
+`for (const p of ps.slice(1))` narrowed to `ps.slice(1, 2)` cost **0 failures** — every fixture in
+the tree merged exactly two paths — and the rule is *"a node is on EVERY path"*. On a three-way merge
+the narrowed walk **accepts** the document and the workload that skips the target dies at run time:
+**Q187 re-opened for one edited slice bound.** And the grammar's four free refusals were held down by
+one integer twenty lines below the comment that names that defect, so the fix GENERATES them —
+sixteen spellings over two axes, three accepted — after which the four rows were deletable for zero
+and were removed.
+
+**And the sharpest finding belongs to neither the ADR nor the rule: `FD-V28` asks a REGION question,
+resolution applies a PATH filter, and section 3 asserted they agree.** For **sibling** map regions at
+the same depth they do not — `FD-V28` demands `["score"]` and says *one output per ITEM*, and the
+array holds **at most one**, the output whose branch path is numerically equal to the reader's own
+index in an unrelated region. **There is no form an author can write from inside the second region
+that yields all of the first's outputs.** The cause is `FD-C1`'s prefix predicate, which is
+ADR 0040's KEY and which P13 decision 1 forbids this plan from reopening —
+**[Q206](open-questions.md)**, recorded with the measurement in section 3.
+
+**Rule 8: 50 provocations, 46 caught, 3 declared ceilings, 0 survivors standing, 0 aborts**, run
+twice with **ten of the readers' exact edits** checked back in — and the re-run caught **`Q102`'s
+shape inside the fix for a reader's finding about `Q102`'s shape**, twice. **Readers 14 / 8 blocking
+and 41 mutations / 6 real survivors / 3 blocking, overlap 2** — the **twenty-third** measurement,
+inside the 0-4 band, both unprimed, and their split is the one the two roles predict: the conformity
+reader found **claims that were false**, four of them numbers the decision is argued from; the
+adequacy reader found **bounds that were not there**, all three of its blocking findings being loop
+or list bounds rather than values. **SIX late exceptions, zero undeclared**, and the answer to the
+test P13 set is **`AGENTS.md` yes, `spec/README.md` yes, `scripts/check-docs.mjs` NO** — while the
+two exceptions that cost real work are the ones the plan's own index row created
+([Q203](open-questions.md)). **Census CONFIRMED for the TWELFTH plan running — 164 questions, 115
+open, 2 deferred, 47 resolved**; the parser aborted **zero** times on its first run and then found a
+defect in one of its own clauses, the tenth direction ([Q204](open-questions.md)).
+**Q199-Q207 used, the block extended by two; ADR 0042 taken.**
+
+**[P13](plans/p13-when-is-a-declared-reference-refused.md)'s DECLARATION, which is what the item
+above was built from — *when is a declared reference refused, and what does it cost?*, and it is the
+SECOND PRODUCT PLAN IN A ROW**, the first
 back-to-back pair since P1-P2. [P12](plans/p12-what-a-node-receives-and-what-a-decision-sees.md)
 gave an author a way to reach an earlier node's output and left **two ways to write one that does not
 work**, both raised by its own readers rather than by its authors. Three items, serial: **W45**
@@ -1186,7 +1266,7 @@ wins.
    **P10 prediction 3 CONFIRMED for the third time in a third shape**: obligation (e) here produced **a
    value that is COMPUTED and never READ**, distinct from W32's check-not-run and W33's guard-that-
    cannot-reach-its-subject, so it generalises past a harness. **Prediction 4 CONFIRMED** — 0037 is
-   taken. **FIVE late exceptions, zero undeclared**, against W32's five and W33's nine — and
+   taken. **SIX late exceptions, zero undeclared**, against W32's five and W33's nine — and
    **declaring `spec/**`, `AGENTS.md` and `test/driver/**` in advance moved six files out of the late
    column**, while **not one of the five that remained was predictable from a file SET**: each was
    created by the CONTENT of the change. **Census CONFIRMED for the SIXTH plan running — 125

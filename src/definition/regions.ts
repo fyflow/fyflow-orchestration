@@ -423,3 +423,149 @@ export function branchIndexOf(regions: RegionSets[], nodeId: string): number | n
   // set maths says cannot occur.
   return null;
 }
+
+/**
+ * **Which nodes have CERTAINLY settled by the time each node is entered** —
+ * `spec/flow-definition.md` section 5's `FD-V29`, and
+ * [ADR 0042](../../doc/decisions/0042-a-reference-says-whether-it-is-conditional-and-the-bare-form-means-the-target-certainly-ran.md).
+ *
+ * **This is NOT dominance, and the difference is a measurement rather than a
+ * refinement.** The graph has two kinds of branching and dominance treats them the
+ * same:
+ *
+ * | out-arcs of | are | because |
+ * |---|---|---|
+ * | a `task`'s `edges` | **disjunctive** — exactly one is taken | section 3's routing rule 2 |
+ * | a `fanout`'s `branches`, a `map`'s `branch` | **conjunctive** — all are entered | `JP-R5`, which emits every `branch.opened` before any dispatch |
+ *
+ * So a branch entry never *dominates* its own join — every path to the join goes
+ * through some other branch too — while it has always been dispatched by the time
+ * the join fires. W45 measured what ignoring that costs: over both corpora, of the
+ * **127** references `FD-V26`/`FD-V27`/`FD-V28` admit today, plain dominance refuses
+ * **30** and this walk refuses **8**, so **22 of the 30 are references a correct rule
+ * accepts** — including `needs: {"a": "scoreA"}` on a node after a two-branch join,
+ * which `FD-V28`'s own note in `spec/flow-definition.md` calls *"a valid document"*.
+ *
+ * **Its LIMIT is a property of the POLICY and is stated rather than discovered.**
+ * *the join fired, therefore every branch entry settled* holds for every shipped
+ * policy and is not a property of the document — `validateDefinition` is not given
+ * the policy (`FD-V15`'s note). Measured: a policy satisfied on the first arrival,
+ * with another branch entry **not settled**, dispatches the reader and `FD-R3` fires.
+ * **Parking at `user_action` is INESSENTIAL and this comment said it was the
+ * condition** — a branch entry that has simply not settled yet does it just as well,
+ * with no `user_action` anywhere. W45's conformity reader. So `FD-V29` **removes cases from `FD-R3`'s reach and does not
+ * replace it** ([Q97](../../doc/open-questions.md)), and an unsound acceptance
+ * degrades to today's behaviour.
+ *
+ * **Meaningless on a cyclic graph** and callers must guard: `FD-V10` is what makes
+ * the fixpoint below terminate at all, exactly as it is for the region family.
+ *
+ * @returns node id -> the ids certainly settled when it is entered. The `entry`
+ *   node maps to the empty set; a node unreachable from `entry` (`FD-V11`) has no
+ *   key at all.
+ */
+export function certainlySettled(g: Graph, doc: FlowDefinition): Map<string, Set<string>> {
+  const entry = (doc as { entry?: unknown }).entry;
+  if (typeof entry !== 'string' || !g.byId.has(entry)) return new Map();
+
+  // Reachable from `entry`, and the predecessors within that set. `Graph` carries
+  // only `succ`, so the reverse arcs are built here rather than added there: this
+  // is the one caller that needs them and `succ` is what four other rules walk.
+  const reach = new Set<string>([entry]);
+  const stack = [entry];
+  while (stack.length) {
+    const x = stack.pop() as string;
+    for (const s of g.succ(x)) {
+      if (g.byId.has(s) && !reach.has(s)) {
+        reach.add(s);
+        stack.push(s);
+      }
+    }
+  }
+  const pred = new Map<string, string[]>([...reach].map((id) => [id, [] as string[]]));
+  for (const a of reach) for (const s of g.succ(a)) if (pred.has(s)) pred.get(s)!.push(a);
+
+  // The conjunctive half: a join's opener, and that opener's branch entries.
+  // Read off the NODES rather than off `allRegions`, because this walk must answer
+  // for a document `FD-V6` refuses too — `allRegions` drops an opener with no
+  // unique join, and dropping one here would silently make its branch entries
+  // uncertain and produce an `FD-V29` finding beside `FD-V6`'s.
+  //
+  // **That reason covers ONE of `FD-V6`'s two shapes, and this comment claimed
+  // both** — W45's conformity reader. For an opener with TWO joins the claim holds
+  // (`['FD-V6']` alone). For a `fanout` with NO join, `openerOfJoin` has no entry
+  // whichever source is used, the branch entries are credited nowhere, and a
+  // downstream reference to one gives `['FD-V29','FD-V6']` — so this source choice
+  // does not fix that half. It is kept for the half it does fix, and the other half
+  // is noise beside a refusal rather than a wrong verdict.
+  const entriesOf = new Map<string, string[]>();
+  const openerOfJoin = new Map<string, string>();
+  for (const n of doc.nodes ?? []) {
+    if (n?.kind === 'fanout') {
+      entriesOf.set(n.id, (Array.isArray(n.branches) ? n.branches : []).filter(isId));
+    } else if (n?.kind === 'map') {
+      entriesOf.set(n.id, isId(n.branch) ? [n.branch] : []);
+    } else if (n?.kind === 'join' && isId((n as { of?: unknown }).of)) {
+      openerOfJoin.set(n.id, (n as { of: string }).of);
+    }
+  }
+
+  // Intersection dataflow: start every non-entry node at EVERYTHING and shrink.
+  // A `Set` per node is affordable because `nodes` is an authored list.
+  const out = new Map<string, Set<string>>();
+  for (const id of reach) out.set(id, id === entry ? new Set() : new Set(reach));
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const id of reach) {
+      if (id === entry) continue;
+      const ps = pred.get(id) ?? [];
+      let next: Set<string>;
+      if (ps.length === 0) {
+        // Unreachable given `reach` above, and `new Set()` rather than a throw for
+        // the reason the `parseTaskId` guard in the driver gives: a malformed
+        // document is `FD-V21`'s and `FD-V11`'s to report, not this walk's.
+        next = new Set();
+      } else {
+        next = new Set([...out.get(ps[0]!)!, ps[0]!]);
+        for (const p of ps.slice(1)) {
+          const s = new Set([...out.get(p)!, p]);
+          next = new Set([...next].filter((x) => s.has(x)));
+        }
+      }
+      // **The one clause that is not dominance.** A join is entered only after its
+      // region opened, and opening a region dispatches every branch entry — so
+      // they are certain even though none of them dominates the join. For a `map`
+      // the arity is the run's, and N = 0 makes the run `stuck` with the join never
+      // firing (`spec/join-policy.md` section 5), so a join that IS entered had at
+      // least one instance of its one declared branch.
+      //
+      // **The `map` half is REDUNDANT today and the comment above argued it at
+      // length as though it were not** — W45's adequacy reader measured it:
+      // `entriesOf.set(n.id, [])` for the map arm costs **0**, because `FD-V25`
+      // makes a map declare ONE branch, so its entry is the sole predecessor chain
+      // into its join and plain dominance already reaches it. Deleting the clause
+      // OUTRIGHT — both kinds — is **5 failures**, so the `fanout` half is
+      // load-bearing.
+      //
+      // **It is kept, and the distinction from the `target === n.id` guard W45
+      // DELETED in `validate.ts` is stated rather than assumed.** That one was
+      // unreachable by an accident of how `reachFrom` seeds itself; this one is
+      // redundant by a RULE, and `FD-V25` is a rule this repository has already
+      // discussed lifting. And the clause is one expression over *whichever kind
+      // opened the region* because `FD-V29` is one rule over both — writing the
+      // `fanout` half alone would make the code say something narrower than the
+      // document does. [Q207](../../doc/open-questions.md).
+      const opener = openerOfJoin.get(id);
+      if (opener !== undefined && reach.has(opener)) {
+        for (const b of entriesOf.get(opener) ?? []) if (reach.has(b)) next.add(b);
+      }
+      const cur = out.get(id)!;
+      if (next.size !== cur.size || [...next].some((x) => !cur.has(x))) {
+        out.set(id, next);
+        changed = true;
+      }
+    }
+  }
+  return out;
+}

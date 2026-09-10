@@ -191,6 +191,48 @@ for (const id of definitionRefusals.sort()) {
 for (const id of covered) {
   if (absent.has(id)) fail('C4', `${id} is declared absent but has a case in spec/examples/invalid/`);
 }
+/**
+ * **`C4` also compares its own count to `spec/README.md`'s prose** — W45's adequacy
+ * reader, obligation (e)'s third shape. That row states the number twice ("**27
+ * refusals**" and "*C4 covered 27 definition refusals*") and **both could be moved to
+ * 28 for zero** while this script printed 27 in the same terminal. The row already
+ * carries a correction from W41's conformity reader for that exact defect, so this is
+ * the second occurrence — and the count is derivable here in one expression, which is
+ * the argument [Q102](../doc/open-questions.md) asks for before a floor becomes a
+ * binding.
+ *
+ * Both statements are compared, because they are two literals and either can drift
+ * alone.
+ */
+{
+  const n = definitionRefusals.length;
+  // `README` is declared with `C8`'s block below, so the path is rebuilt here rather
+  // than hoisted — one line against moving a const out of the section it belongs to.
+  const readmePath = join(SPEC, 'README.md');
+  const readme = existsSync(readmePath) ? readFileSync(readmePath, 'utf8') : '';
+  if (readme) {
+    // **The LAST occurrence of each, because the row is a version HISTORY.** Earlier
+    // versions state earlier counts, and those are true of the version they name; the
+    // row's current claim is its last one. Written this way after the clause's own
+    // first run found `spec/README.md` quoting *"C4 covered 26"* from v0.11 in the
+    // present tense beside v0.13's 27 — which is the live-versus-historical split
+    // [W36](../doc/work-items/w36-the-scheduler-pin-moves-to-0-5-1.md) leaked twelve
+    // times, and the earlier sentences are now past tense.
+    const all = (re) => [...readme.matchAll(re)];
+    const lastOf = (re) => { const m = all(re); return m.length ? m[m.length - 1] : null; };
+    const bold = lastOf(/\*\*(\d+) refusals\*\*/g);
+    const cited = lastOf(/C4 covered (\d+) definition refusals/g);
+    if (!bold) fail('C4', 'spec/README.md states no "**N refusals**" count for flow-definition.md');
+    else if (Number(bold[1]) !== n) {
+      fail('C4', `spec/README.md says **${bold[1]} refusals** and C4 counts ${n}`);
+    }
+    if (!cited) fail('C4', 'spec/README.md does not quote "C4 covered N definition refusals"');
+    else if (Number(cited[1]) !== n) {
+      fail('C4', `spec/README.md quotes "C4 covered ${cited[1]}" and C4 counts ${n}`);
+    }
+  }
+}
+
 const notExamplable = [...declared.keys()].filter(id => !id.startsWith('FD-V'));
 notes.push(
   `C4 covered ${definitionRefusals.length} definition refusals` +

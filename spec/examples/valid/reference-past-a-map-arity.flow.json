@@ -1,0 +1,18 @@
+{
+  "flowId": "reference-past-a-map-arity",
+  "version": 1,
+  "entry": "ingest",
+  "nodes": [
+    { "id": "ingest",  "kind": "task", "workerType": "IngestWorker", "edges": [ { "to": "split" } ] },
+    { "id": "split",   "kind": "map",  "over": "items",  "branch": "score" },
+    { "id": "score",   "kind": "task", "workerType": "ScoreWorker",  "edges": [ { "to": "collect" } ] },
+    { "id": "collect", "kind": "join", "of": "split",    "edges": [ { "to": "regroup" } ] },
+    { "id": "regroup", "kind": "task", "workerType": "MergeWorker",  "edges": [ { "to": "rank" } ] },
+    { "id": "rank",    "kind": "map",  "over": "slots",  "branch": "publish" },
+    { "id": "publish", "kind": "task", "workerType": "PublishWorker",
+      "needs": { "scored": [ "score" ] },
+      "edges": [ { "to": "gather" } ] },
+    { "id": "gather",  "kind": "join", "of": "rank",     "edges": [ { "to": "done" } ] },
+    { "id": "done",    "kind": "end",  "outcome": "completed" }
+  ]
+}

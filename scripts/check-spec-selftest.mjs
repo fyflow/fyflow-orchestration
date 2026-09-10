@@ -17,7 +17,9 @@
 // clauses at **ID** granularity and calls `check-spec` *seven clauses*. This file
 // works at **`fail()`-SITE** granularity, and the two reconcile exactly:
 //
-//   21  `fail()` sites in `check-spec.mjs`  — C1×1 C2×4 C3×3 C4×2 C5×2 C6×1 C7×5 C8×3
+//   25  `fail()` sites in `check-spec.mjs`  — C1×1 C2×4 C3×3 C4×6 C5×2 C6×1 C7×5 C8×3
+//        (C4 gained FOUR at W45: two comparing spec/README.md's own refusal count to
+//         what C4 counted, and two reporting that the count is not stated at all)
 //       (C2 gained TWO at W41: the `RULE_PREFIXES` binding, both directions.)
 //  - 2  `C5`'s two, which are NOT this file's: `C5` was lifted into
 //       `scripts/check-markdown.mjs` by W25, and its probes and its one grading live
@@ -342,6 +344,27 @@ const PROBES = [
       '{ "flowId": "held", "version": 1, "entry": "a", "nodes": [] }\n'),
   },
 
+  // --- C4's THIRD and FOURTH clauses: spec/README.md's own refusal COUNT ----------
+  //
+  // **W45's adequacy reader, and the clause exists because both statements could be
+  // moved for zero** while this script printed the true number in the same terminal.
+  // Two probes because they are two literals in one row and either can drift alone —
+  // obligation (e)'s third shape, closed by comparing rather than by copying.
+  {
+    name: 'spec/README.md`s bold refusal count disagrees with what C4 counted',
+    check: 'C4',
+    apply: (spec) => edit(join(spec, 'README.md'),
+      (t) => t.replace(/\*\*(\d+) refusals\*\*(?![\s\S]*\*\*\d+ refusals\*\*)/,
+        (_m, n) => `**${Number(n) + 1} refusals**`)),
+  },
+  {
+    name: 'spec/README.md`s quoted "C4 covered N" disagrees with what C4 counted',
+    check: 'C4',
+    apply: (spec) => edit(join(spec, 'README.md'),
+      (t) => t.replace(/C4 covered (\d+) definition refusals(?![\s\S]*C4 covered \d+ definition refusals)/,
+        (_m, n) => `C4 covered ${Number(n) + 1} definition refusals`)),
+  },
+
   // --- C6: every non-FD-V rule names the item owing its test ---------------------
   {
     name: 'a non-FD-V rule whose declaring row has no "Test owed by" cell',
@@ -497,7 +520,7 @@ const trippedIn = (out) => [...new Set([...out.matchAll(/^ {2}(C\d+): /gm)].map(
 const RAN = (out) => /^(All checks passed|\d+ failure\(s\)\.)/m.test(out);
 
 /** Floors, because `caught === PROBES.length` is vacuously true at zero. */
-const MIN_PROBES = 20;
+const MIN_PROBES = 22;
 const MIN_META = 23;
 
 /**

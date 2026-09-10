@@ -52,10 +52,10 @@ import { FyflowScheduler, FyflowTask, WorkerManager } from 'fyflow-scheduler';
 import type { Role } from './workers/flow-worker.ts';
 
 /**
- * The **nine** pools `buildScheduler` registers, all served by one worker file.
+ * The **ten** pools `buildScheduler` registers, all served by one worker file.
  *
  * *(This read "the three pools `spec/examples/registry.json` names" from the day it
- * was written. There are nine, naming eight distinct roles, and `SplitWorker`,
+ * was written. There are ten, naming nine distinct roles, and `SplitWorker`,
  * `TallyWorker` and `WeighWorker` are in no registry at all — the registry is the
  * corpus`s and these pools are this file`s. W43`s conformity reader.)*
  */
@@ -594,6 +594,10 @@ function buildScheduler(delayMs: number, threaded: boolean): FyflowScheduler {
     // object would see each other's write, and a thread boundary would clone it
     // away and hide exactly the case the row exists for.
     TallyWorker: pool('tally', false),
+    // **W45's pool.** Inline: it runs once at the end of a linear flow, so a thread
+    // would add a hop and observe nothing. Its role reports whether a conditional
+    // reference's key ARRIVED, which is `FD-C4`'s only observable.
+    AttestWorker: pool('attest', false),
     // Reached only by a flow that names it. Its worker always throws — and what
     // that produces is decided by the NODE, not by the pool: `optional: true`
     // settles `failed` (a branch LOST), `optional: false` ends in `user_action`

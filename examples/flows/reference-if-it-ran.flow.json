@@ -1,0 +1,17 @@
+{
+  "flowId": "reference-if-it-ran",
+  "version": 1,
+  "entry": "ingest",
+  "nodes": [
+    { "id": "ingest",  "kind": "task", "workerType": "IngestWorker", "edges": [ { "to": "decide" } ] },
+    { "id": "decide",  "kind": "task", "workerType": "IngestWorker", "edges": [
+        { "when": "isLowConfidence", "to": "review" },
+        { "to": "publish" }
+    ] },
+    { "id": "review",  "kind": "task", "workerType": "ScoreWorker",  "edges": [ { "to": "publish" } ] },
+    { "id": "publish", "kind": "task", "workerType": "AttestWorker",
+      "needs": { "own": ".", "verdict": "review?" },
+      "edges": [ { "to": "done" } ] },
+    { "id": "done",    "kind": "end",  "outcome": "completed" }
+  ]
+}

@@ -1,9 +1,10 @@
 # P13 — When is a declared reference refused, and what does it cost?
 
-**Status:** DECLARED 2026-09-10, after [P12](p12-what-a-node-receives-and-what-a-decision-sees.md)
-closed and `doc/workflow.md` reached [v0.13](../workflow.md).
+**Status:** IN PROGRESS — declared 2026-09-10 after
+[P12](p12-what-a-node-receives-and-what-a-decision-sees.md) closed and `doc/workflow.md` reached
+[v0.13](../workflow.md). **W45 is DONE**; W46 and W47 are outstanding.
 **It is a PRODUCT plan, and it is the second in a row** — the first back-to-back pair since P1-P2.
-*Read every status from the item's own file.*
+*Read every status from the item's own file, never from this line.*
 
 ```
 Question:   When is a declared reference refused, and what does it cost?
@@ -87,6 +88,18 @@ dominance rule refuses valid flows whose every real workload takes the producing
 instance in this repository.** *(The scope is 6 references over 26 flows, which is small, and it is
 stated rather than generalised: this measures that the corpus contains no counter-example, not that
 none exists.)*
+
+> **THE INFERENCE FROM THIS FACT IS FALSE, and prediction 1 is what tested it** —
+> [W45](../work-items/w45-what-a-reference-must-be-able-to-say.md), corrected here as a declared late
+> exception because the paragraph is what the retro will read. The measurement stands: **6 written,
+> 0 refused.** What does not follow is *therefore adopting dominance costs zero in the corpus*. The
+> corpus **ADMITS 127** references — every (reader, target, form) triple `FD-V26`/`FD-V27`/`FD-V28`
+> accept — and **dominance refuses 30 of them, in 13 of these same 26 flows**, of which **22 a
+> correct rule accepts**, including `needs: {"a": "scoreA"}` after a two-branch join, which
+> `FD-V28`'s own note calls *"a valid document"*. **The six written references are what six authors
+> happened to need; the admitted set is what the rule is about.** *A rule measured against the
+> references a corpus WRITES is measured against its authors' habits* —
+> [Q199](../open-questions.md).
 
 **3. [Q186](../open-questions.md)'s cliff reproduces on the tree this plan starts from.** Timing the
 map's fan-out alone over a 1000-item payload:
@@ -193,7 +206,7 @@ reach prediction can reverse **and** be wrong about its own evidence.
 | 1 | derived | **A dominance rule refuses nothing that exists, so adopting it costs zero in the corpus.** Fact 2 measured it; this checks whether the inference survives the flows W45 writes | W45 | a corpus flow that dominance refuses and an author wants — which is exactly what W45's evidence is required to try to construct |
 | 2 | **reach** | **The answer is a FOURTH REFERENCE FORM and not a validator rule.** Fact 6 says the grammar cannot express *if it ran*, and a dominance rule refuses the flow rather than letting the author say what they mean — this is the reversible one | W45 | dominance expressing everything an author wants, which would make the fourth form a feature with no case behind it |
 | 3 | derived | **W46 takes NO ADR and records why.** Fact 4 says the cost is a property of what a node returns, so any guard must judge SIZE at run time, which is [Q22](../open-questions.md)'s unresolved question | W46 | a warning that needs no size judgement — most likely a static one about a reference into a map region, which the document already knows about |
-| 4 | **reach** | **`FD-V27` is not the only rule that moves.** If prediction 2 holds, `FD-V26` and section 3's reference **table** both grow — and that table's row count is a live bound in three places: `check-spec`, W41's L1 census, and [W43](../work-items/w43-the-two-blocked-flows-on-real-workers.md)'s L6 cross-row clause | W45 | a fourth form expressed without a table row — a modifier on an existing form rather than a new one, which would move `FD-V26` and leave the count alone |
+| 4 | **reach** | **`FD-V27` is not the only rule that moves.** If prediction 2 holds, `FD-V26` and section 3's reference **table** both grow — and that table's row count is a live bound in ~~three~~ **two** places: ~~`check-spec`,~~ W41's L1 census and [W43](../work-items/w43-the-two-blocked-flows-on-real-workers.md)'s L6 cross-row clause. *(**Corrected by [W45](../work-items/w45-what-a-reference-must-be-able-to-say.md) as a declared late exception on this file**, because leaving it would make the retro's verdict on this row false. `scripts/check-spec.mjs` contains the string `reference` **zero** times and has no clause over that table — measured by grepping the whole tree for the table's own header line, which finds `test/definition/needs.test.ts` and `examples/l6.ts` and nothing else. What `check-spec` DOES bound is the RULE census — `C2`, `C4`, `C6`, `C8` — which moves when a rule is added and is a different claim. `doc/workflow.md` section 6 pass 3 rule 6 covers a retro correcting an item's file; this is the other direction and it is taken as an exception rather than assumed.)* | W45 | a fourth form expressed without a table row — a modifier on an existing form rather than a new one, which would move `FD-V26` and leave the count alone |
 
 ## Open questions this plan carries
 
@@ -248,6 +261,52 @@ here ([Q179](../open-questions.md)); the number above is one reading.
 ## Record
 
 *Filled in at the join, after the work items are merged.*
+
+**[W45](../work-items/w45-what-a-reference-must-be-able-to-say.md) is DONE, and
+[ADR 0042](../decisions/0042-a-reference-says-whether-it-is-conditional-and-the-bare-form-means-the-target-certainly-ran.md)
+answers [Q187](../open-questions.md): a reference says whether it is CONDITIONAL, and the bare form
+means the target certainly ran.** `spec/flow-definition.md` is **v0.13**; section 3's reference table
+gains **one row** — a `?` MODIFIER on either aimed form — and section 5 gains **`FD-V29`**, which
+refuses an *unconditional* reference a run can reach the declaring node without. `FD-C4` is what a
+conditional reference carries when the target produced nothing: an **absent key**, or `[]` for the
+array form. `spec/` is **7 documents, 43 examples, 89 rules**; L1-L5 is **24 files / 654 cases in
+five runtimes**; **L6 is 806 assertions over 38 real runs** in both runtimes, from 760 / 36.
+
+**The fork this plan named was not one, and the measurement that says so is one nobody had taken.**
+Fact 2 reproduces exactly — the two corpora WRITE 6 aimed references and dominance refuses **0** —
+and its zero is a property of what the corpus writes. **The corpus ADMITS 127**, and **plain
+dominance refuses 30 in 13 of the 26 flows** while a **certainty** walk refuses **8 over 7 distinct
+shapes**, a strict subset. **So 22 of the 30 are references a correct rule accepts**, and one of them
+is `needs: {"a": "scoreA"}` after a two-branch join — a document `FD-V28`'s own note in the same
+file calls *"a valid document"*. **A dominance rule would have contradicted `FD-V28` nine lines up.**
+The cause is that the graph has two kinds of branching and dominance reads them alike: a `task`'s
+edges are disjunctive, a region's branches conjunctive (`JP-R5`).
+
+**Prediction 1 FAILS** — its reversal condition fires 22 times, from flows already in the corpus.
+**Prediction 2 is CONFIRMED on its conclusion and incomplete on its exclusion**: the answer IS a
+fourth form and it is load-bearing rather than an affordance, and a validator rule is taken as well,
+in a shape the prediction did not consider because it inherited *dominance* from the register.
+**Prediction 4 is CONFIRMED and its own enumeration was wrong by one** — corrected above; and
+`FD-V27` is the one rule that did **not** move, which is sharper than the prediction, on `FD-V28`'s
+own stated precedent that a different fix earns a different id.
+
+**And the four numbers the decision was argued from were WRONG when first written.** 121 / 29 / 7 /
+*14 of 25 flows*, from a probe whose hard-coded registry dropped one corpus file — the symptom being
+two adjacent rows of one table saying 26 flows and 25 flows. W45's conformity reader re-derived every
+one; **`22` was the only survivor**, and the four properties the decision rests on are now an
+executable L1 suite rather than prose in three files. [Q199](../open-questions.md).
+
+**Rule 8: 50 probes, 46 caught, 3 declared ceilings, 0 survivors standing, 0 aborts**, run twice with
+**ten of the readers' exact edits** checked back in — and the re-run caught `Q102`'s shape **inside
+the fix for a reader's finding about `Q102`'s shape**, twice. Readers **14 / 8 blocking** and
+**41 mutations / 6 real survivors / 3 blocking**, **overlap 2**, the **twenty-third** measurement,
+both unprimed. **SIX late exceptions, zero undeclared** — and the answer to the test this plan set
+at its `Owns` note is **`AGENTS.md` yes, `spec/README.md` yes, `scripts/check-docs.mjs` NO**, while
+the two exceptions that cost real work are the ones this plan's own index row created
+([Q203](../open-questions.md)). **Census CONFIRMED for the TWELFTH plan running — 164 questions,
+115 open, 2 deferred, 47 resolved**, and the parser aborted zero times on its first run and then
+found a defect in one of its own clauses ([Q204](../open-questions.md)).
+**Q199-Q207 used — the block extended by two at the Record. ADR 0042 taken.**
 
 **Retro.** *`doc/workflow.md` section 6 pass 3. It owes a verdict on each of the four predictions, on
 whether v0.13's three changes hold on a plan that did not write them, and on the `Owns`

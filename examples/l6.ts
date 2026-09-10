@@ -169,6 +169,7 @@ import mapAlias from './flows/map-alias.flow.json' with { type: 'json' };
 import mapWithContext from './flows/map-with-context.flow.json' with { type: 'json' };
 import mapOverRegionOutput from './flows/map-over-region-output.flow.json' with { type: 'json' };
 import decisionOnAnEarlierStep from './flows/decision-on-an-earlier-step.flow.json' with { type: 'json' };
+import referenceIfItRan from './flows/reference-if-it-ran.flow.json' with { type: 'json' };
 import failureEdge from '../spec/examples/valid/failure-edge.flow.json' with { type: 'json' };
 
 /**
@@ -515,6 +516,7 @@ const MAL = mapAlias as unknown as FlowDefinition;
 const MWC = mapWithContext as unknown as FlowDefinition;
 const MRO = mapOverRegionOutput as unknown as FlowDefinition;
 const DES = decisionOnAnEarlierStep as unknown as FlowDefinition;
+const RIR = referenceIfItRan as unknown as FlowDefinition;
 
 const HIGH = { confidence: 0.9 };
 const LOW = { confidence: 0.1 };
@@ -1761,6 +1763,91 @@ const EXPECTED: Expectation[] = [
       'variable, which is what this file reaches for whenever a value has to be shown to come ' +
       'from where it claims',
   },
+  {
+    /**
+     * **P13's flow, on real workers: *route to review if an earlier step flagged it,
+     * and publish either way*.** [W45](../doc/work-items/w45-what-a-reference-must-be-able-to-say.md),
+     * [ADR 0042](../doc/decisions/0042-a-reference-says-whether-it-is-conditional-and-the-bare-form-means-the-target-certainly-ran.md),
+     * `FD-C4`.
+     *
+     * **Written UNCONDITIONALLY the same document does not start** — `FD-V29`
+     * refuses it, which is [Q187](../doc/open-questions.md)'s whole point. So this
+     * row is the accepted half of a decision whose refused half is an
+     * `spec/examples/invalid/` case rather than a row here.
+     *
+     * **The pair is the assertion, and its halves differ by ONE payload field.** LOW
+     * takes the review road and `verdict` is THERE; HIGH routes around it and
+     * `verdict` is ABSENT — and the run completes either way, which before v0.13
+     * was `FD-R3` stopping it. Neither row means anything without the other:
+     * a driver that always composed the key would pass LOW and fail HIGH, and one
+     * that never did would do the reverse.
+     *
+     * **`AttestWorker` reports the key set AND the `in` test**, two independent
+     * expressions over the same fact — `doc/workflow.md` section 5 rule 8
+     * obligation (c)'s LIMIT, which W43 paid eight failures to discover on a clause
+     * with a single observer.
+     */
+    key: 'reference-if-it-ran LOW / FD-C4 — the key is THERE',
+    definition: RIR, policyId: 'live-token', payload: LOW, threaded: false,
+    outcome: 'completed',
+    dispatched: ['r33:ingest:-:0', 'r33:decide:-:0', 'r33:review:-:0', 'r33:publish:-:0'],
+    regionId: null,
+    pathEnds: [{ reason: 'end', at: 'done' }],
+    nodeResults: {
+      'r33:ingest:-:0': { confidence: 0.1 },
+      'r33:decide:-:0': { confidence: 0.1 },
+      // `review` is a `ScoreWorker` and receives `decide`'s result on the ordinary
+      // edge, so `score` is `round(0.1 * 100)`.
+      'r33:review:-:0': { confidence: 0.1, score: 10 },
+      // `publish` declares `{own: ".", verdict: "review?"}`. `"."` is what it would
+      // have received anyway — `review`'s result, this path's ordinary edge — and
+      // `verdict` is `review`'s output on this path, which exists. So both keys
+      // arrive and `sawVerdict` is true.
+      'r33:publish:-:0': {
+        keys: ['own', 'verdict'],
+        sawVerdict: true,
+        verdict: { confidence: 0.1, score: 10 },
+      },
+    },
+    why: 'W45 — the flow P13 exists for, on real workers. `isLowConfidence` reads decide`s 0.1 and ' +
+      'routes to review, so the conditional reference`s target DID run and `verdict` is present ' +
+      'holding review`s own result. Written as `"review"` rather than `"review?"` the document is ' +
+      'refused by FD-V29 and this run does not start',
+  },
+  {
+    /**
+     * **The half that could not exist before v0.13.** Same flow, same predicate,
+     * same roles; only `confidence` differs, so `decide` returns `0.9`, the guard is
+     * false, the default edge is taken and `review` is never dispatched. **The run
+     * COMPLETES with the key absent**, where the unconditional form would stop it
+     * with `FD-R3` — which is `FD-C4` and the whole of what the suffix buys, on real
+     * workers.
+     *
+     * **`keys: ['own']` is the assertion that no count could make.** A driver that
+     * composed `verdict: null` or `verdict: undefined` would give the same task
+     * count, the same outcome and the same dispatch list; only the key SET says
+     * which happened, and `sawVerdict` says it a second, independent way.
+     */
+    key: 'reference-if-it-ran HIGH / FD-C4 — the key is ABSENT, and the run completes',
+    definition: RIR, policyId: 'live-token', payload: HIGH, threaded: false,
+    outcome: 'completed',
+    dispatched: ['r34:ingest:-:0', 'r34:decide:-:0', 'r34:publish:-:0'],
+    regionId: null,
+    pathEnds: [{ reason: 'end', at: 'done' }],
+    nodeResults: {
+      'r34:ingest:-:0': { confidence: 0.9 },
+      'r34:decide:-:0': { confidence: 0.9 },
+      // `"."` is `decide`'s result here, because that is the edge `publish` came in
+      // on. `verdict` names a node this run routed around, so under `FD-C4` the key
+      // is not written at all — not `null`, which is what a reference to a task that
+      // RAN and FAILED already resolves to.
+      'r34:publish:-:0': { keys: ['own'], sawVerdict: false, verdict: null },
+    },
+    why: 'W45 — the control for the row above, and the row FD-C4 exists for. 0.9 fails the guard, ' +
+      'review is never dispatched, and `publish` receives ONE key rather than two. The run ' +
+      'completes; the unconditional form would have stopped it with FD-R3 on exactly this ' +
+      'workload, which is the moment Q187 says is wrong',
+  },
 ];
 
 // --- assertions ---------------------------------------------------------------
@@ -2489,6 +2576,8 @@ const ROW_KEYS: readonly string[] = [
   'decision-on-an-earlier-step LOW / Q8 — the predicate reads its edge',
   'decision-on-an-earlier-step HIGH / Q8 — the default edge',
   'map-with-context / a SECOND run config — the key is read, not guessed',
+  'reference-if-it-ran LOW / FD-C4 — the key is THERE',
+  'reference-if-it-ran HIGH / FD-C4 — the key is ABSENT, and the run completes',
 ];
 
 /**
@@ -3242,7 +3331,7 @@ const PER_PLAIN_ROW = 15;
  * a per-row assertion dies with the row it is in, and what W23's adequacy reader
  * deleted was the rows.
  */
-const CROSS_ROW = 32;
+const CROSS_ROW = 39;
 const base = (shape: string) => (shape === 'region' ? PER_REGION_ROW : PER_PLAIN_ROW);
 for (const [key, shape, cost, extras] of rowCosts) {
   if (cost !== base(shape) + extras) {
@@ -3347,6 +3436,41 @@ if (rowCosts.length !== EXPECTED.length) {
     assertThat('cross-row', 'and there are two of them at all — the pair is the assertion',
       runConfigs.length === 2, `run configs: ${runConfigs.join(', ')}`);
 
+    /**
+     * **W45's pair, and its adequacy reader found it held down by nothing.** The
+     * two `reference-if-it-ran` rows exist to be each other's other half — LOW takes
+     * the review road and `verdict` arrives, HIGH routes around it and the key is
+     * absent — and the row's own docblock says *"Neither row means anything without
+     * the other"*. Measured: making the HIGH row take the LOW payload, with its
+     * `dispatched` and `nodeResults` edited to match and `DECLARED_TOTAL` bumped by
+     * one, cost **0 failures** — after which `FD-C4` resolving to `null` instead of
+     * ABSENT cost 0, and the whole conditional branch could be deleted for 0.
+     *
+     * `doc/workflow.md` section 5 rule 8's fourth requirement on the SET: whatever
+     * makes a discriminating pair differ is itself a claim. Read from the rows.
+     */
+    const ifItRanRows = EXPECTED.filter((e) => e.key.startsWith('reference-if-it-ran'));
+    check('cross-row', 'the two `reference-if-it-ran` rows are a PAIR — two rows, at two payloads',
+      ifItRanRows.length, 2);
+    check('cross-row', 'and the payloads they run at DIFFER, which is the whole of what the pair is',
+      new Set(ifItRanRows.map((e) => e.payload.confidence)).size, ifItRanRows.length);
+    // And what the two runs DID differ in: one dispatches `review` and the other
+    // does not. A driver that always composed the key, or never did, passes one row
+    // and fails the other only while the two roads are two roads.
+    check('cross-row', 'one row routes through `review` and the other around it',
+      ifItRanRows.map((e) => e.dispatched.some((id) => id.includes(':review:'))).sort(),
+      [false, true]);
+    // And the OBSERVABLE the pair turns on, read from the rows' own expectations
+    // rather than from a literal here: `sawVerdict` is true on one and false on the
+    // other. Collapsing the payloads makes these two equal and this clause red.
+    check('cross-row', 'and `sawVerdict` differs across them — FD-C4`s only observable',
+      ifItRanRows.map((e) => Boolean(
+        (Object.values(e.nodeResults ?? {})
+          .find((r) => r !== null && typeof r === 'object' && 'sawVerdict' in (r as object)) as
+          { sawVerdict?: boolean } | undefined)?.sawVerdict,
+      )).sort(),
+      [false, true]);
+
     const decisionRows = EXPECTED.filter((e) => e.key.startsWith('decision-on-an-earlier-step'));
     const tookReview = decisionRows.map((e) => e.dispatched.some((id) => id.includes(':review:')));
     check('cross-row', '`earlierWasLowConfidence` returned TRUE on one row and FALSE on the other — ' +
@@ -3368,7 +3492,25 @@ if (rowCosts.length !== EXPECTED.length) {
         ...((n as { edges?: { needs?: Record<string, unknown> }[] }).edges ?? []).map((x) => x.needs)];
       for (const site of sites) {
         for (const ref of Object.values(site ?? {})) {
-          forms.add(ref === '.' ? 'self' : Array.isArray(ref) ? 'all' : 'one');
+          // **`suffix` is a FOURTH bucket and not a variant of the other three** —
+          // W45, and it is what `spec/flow-definition.md` section 3's table says: the
+          // `?` is a MODIFIER, so the table has four rows and five spellings. Before
+          // this the bucketing was three-way and could not see a conditional
+          // reference at all — so the two new spellings would have collapsed into
+          // `one` and `all`, and this clause would have read 3 against a table of 4
+          // with no row to point at. *A bucketing that cannot express the thing the
+          // table just gained is a list bound to nothing* (`doc/workflow.md`
+          // section 5 rule 8 obligation (e)'s third shape).
+          const spelling = Array.isArray(ref) ? ref[0] : ref;
+          forms.add(
+            ref === '.'
+              ? 'self'
+              : typeof spelling === 'string' && spelling.endsWith('?')
+                ? 'suffix'
+                : Array.isArray(ref)
+                  ? 'all'
+                  : 'one',
+          );
         }
       }
     }
@@ -3389,6 +3531,11 @@ if (rowCosts.length !== EXPECTED.length) {
   // bound is right for the reason that survives.
   check('cross-row', 'L6 runs one reference form per row of spec/flow-definition.md section 3`s table',
     [...forms].length, referenceFormsInSpec());
+  // And WHICH four, so a fifth bucket appearing is a finding rather than a silently
+  // absorbed one — the same both-ways shape `test/definition/needs.test.ts` uses at
+  // L1, and the half a count cannot see on its own.
+  check('cross-row', 'and they are the four the table names, not four of something else',
+    [...forms].sort(), ['all', 'one', 'self', 'suffix']);
 }
 
 const EXPECTED_TOTAL =
@@ -3468,7 +3615,7 @@ check('cross-row', 'and they reach ID-R5 under TWO scheduler events, not one',
   [...new Set(UNMINTED.map((u) => u.event ?? 'task.completed'))].sort(),
   ['task.completed', 'task.failed']);
 
-const DECLARED_TOTAL = 760;
+const DECLARED_TOTAL = 806;
 if (passed + failures.length !== DECLARED_TOTAL) {
   failures.push(
     'gate\n      the assertion count is not the number this file declares outright\n' +

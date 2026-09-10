@@ -1,0 +1,17 @@
+{
+  "flowId": "FD-V29-reference-across-a-decision",
+  "version": 1,
+  "entry": "ingest",
+  "nodes": [
+    { "id": "ingest",  "kind": "task", "workerType": "IngestWorker", "edges": [ { "to": "decide" } ] },
+    { "id": "decide",  "kind": "task", "workerType": "ScoreWorker",  "edges": [
+        { "when": "isLowConfidence", "to": "flag" },
+        { "to": "publish" }
+    ] },
+    { "id": "flag",    "kind": "task", "workerType": "ReviewWorker", "edges": [ { "to": "publish" } ] },
+    { "id": "publish", "kind": "task", "workerType": "PublishWorker",
+      "needs": { "f": "flag" },
+      "edges": [ { "to": "done" } ] },
+    { "id": "done",    "kind": "end",  "outcome": "completed" }
+  ]
+}

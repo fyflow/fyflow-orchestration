@@ -90,6 +90,61 @@ function harness(def: FlowDefinition, answer: (ctx: DecisionContext) => boolean 
   };
 }
 
+/**
+ * **A document `FD-V29` ACCEPTS whose reference a run cannot resolve, at the EDGE
+ * site** — [W45](../../doc/work-items/w45-what-a-reference-must-be-able-to-say.md).
+ *
+ * Until v0.13 the three tests below used *a decision routed around the target*, and
+ * `FD-V29` refuses that document at instantiation now — which is
+ * [Q187](../../doc/open-questions.md)'s whole point. **What is left is the case a
+ * validator provably cannot see**, and it needs no custom policy: two `map` regions
+ * over different keys. `FD-V29` correctly calls `score` certain for `publish` (a
+ * map's one branch entry is dispatched when its region opens), and with `slots`
+ * longer than `items` the third instance of the second region has a branch path
+ * comparable with **neither** of `score`'s outputs. *`did it run` and `is it on your
+ * path` are two questions.*
+ *
+ * `spec/examples/valid/reference-past-a-map-arity.flow.json` is the same shape at the
+ * NODE site, in the corpus. This one is constructed because the corpus flow puts the
+ * declaration on a node and these three tests are about an EDGE.
+ */
+const pastArity = (publishEdges: unknown[]): FlowDefinition =>
+  ({
+    flowId: 'edge-reference-past-a-map-arity', version: 1, entry: 'ingest',
+    nodes: [
+      { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'split' }] },
+      { id: 'split', kind: 'map', over: 'items', branch: 'score' },
+      { id: 'score', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'collect' }] },
+      { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'regroup' }] },
+      { id: 'regroup', kind: 'task', workerType: 'MergeWorker', edges: [{ to: 'rank' }] },
+      { id: 'rank', kind: 'map', over: 'slots', branch: 'publish' },
+      { id: 'publish', kind: 'task', workerType: 'PublishWorker', edges: publishEdges },
+      // **`audit` is present only when an edge names it**, so a caller that routes
+      // everything to `gather` does not carry an unreachable node — `FD-V11` and
+      // `FD-V20` both fire on one, and a fixture that has to be valid must not need
+      // the caller to remember.
+      ...(publishEdges.some((e) => (e as { to?: string }).to === 'audit')
+        ? [{ id: 'audit', kind: 'task', workerType: 'ReviewWorker', edges: [{ to: 'gather' }] }]
+        : []),
+      { id: 'gather', kind: 'join', of: 'rank', edges: [{ to: 'done' }] },
+      { id: 'done', kind: 'end', outcome: 'completed' },
+    ],
+  } as unknown as FlowDefinition);
+
+/** TWO items and THREE slots — the mismatch is the whole fixture. */
+const MISMATCHED = { items: ['a', 'b'], slots: ['x', 'y', 'z'] };
+
+/** Everything up to and including the settlement that OPENS the second map region. */
+function toTheSecondRegion(h: ReturnType<typeof harness>): void {
+  h.driver.start(MISMATCHED);
+  h.scheduler.settle('r1:ingest:-:0', 'done', { result: MISMATCHED });
+  h.scheduler.settle('r1:score:0:0', 'done', { result: { A: 0 } });
+  h.scheduler.settle('r1:score:1:0', 'done', { result: { A: 1 } });
+  // `regroup` receives the join's collection (`JP-R12`) and returns the key `rank`'s
+  // `over` names.
+  h.scheduler.settle('r1:regroup:-:0', 'done', { result: { slots: ['x', 'y', 'z'] } });
+}
+
 suite('L2 — FD-C3: what a decision sees', (test) => {
   test('Q8`s own flow — the predicate routes on a node it does not sit on', async () => {
     // `spec/examples/valid/decision-on-an-earlier-step.flow.json`, which is Q8's row's
@@ -347,36 +402,29 @@ suite('L2 — FD-C3: what a decision sees', (test) => {
     // rule 2 says the context is built *only for an edge that carries a `when`*, and
     // nothing bound it: adding `contextFor(e)` to the default-edge arm of `selectEdge`
     // cost **0**. It is not a cost claim — it STOPS A VALID RUN, because a default
-    // edge may declare a reference this run routed around, and resolving it throws
+    // edge may declare a reference this run cannot resolve, and resolving it throws
     // `FD-R3` on a flow that routes perfectly well. The author's count assertion
     // counts PREDICATE calls, and a default edge has no predicate to count.
-    const def = {
-      flowId: 'default-edge-declares-the-unreachable', version: 1, entry: 'ingest',
-      nodes: [
-        {
-          id: 'ingest', kind: 'task', workerType: 'IngestWorker',
-          edges: [{ when: 'isHighConfidence', to: 'flag' }, { to: 'skip' }],
-        },
-        { id: 'flag', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'publish' }] },
-        { id: 'skip', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'publish' }] },
-        {
-          id: 'publish', kind: 'task', workerType: 'PublishWorker',
-          edges: [{ to: 'done', needs: { f: 'flag' } }],
-        },
-        { id: 'done', kind: 'end', outcome: 'completed' },
-      ],
-    } as unknown as FlowDefinition;
+    //
+    // **W45 replaced the fixture and the test is unchanged otherwise** — see
+    // `pastArity` above for why the old one is now `FD-V29`.
+    const def = pastArity([{ to: 'gather', needs: { f: ['score'] } }]);
     equal(validateDefinition(def, { predicates: reg.predicates, workerTypes: reg.workerTypes }), [],
       'valid — a default edge may carry a `needs`, and section 3 records that it is INERT');
     const h = harness(def);
-    h.driver.start({});
-    h.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
-    h.scheduler.settle('r1:skip:-:0', 'done', { result: {} });
-    h.scheduler.settle('r1:publish:-:0', 'done', { result: {} });
+    toTheSecondRegion(h);
+    // The THIRD instance is the one whose reference cannot resolve, so it has to be
+    // dispatched for this test to be about anything.
+    equal(h.ids().filter((i) => i.startsWith('r1:publish:')),
+      ['r1:publish:0:0', 'r1:publish:1:0', 'r1:publish:2:0'],
+      'all three instances of the second region are dispatched — the control');
+    for (const i of [0, 1, 2]) h.scheduler.settle(`r1:publish:${i}:0`, 'done', { result: {} });
     equal(h.failures, [],
-      'NO FD-R3 — the declaration names a node this run routed around, and nothing resolved it. ' +
-      'Building a context for an edge with no `when` stops a run the flow routes correctly');
-    equal(h.nodes(), ['ingest', 'skip', 'publish'], 'and the run reached its `end` node');
+      'NO FD-R3 — instance 2`s declaration names outputs on no path of its own, and nothing ' +
+      'resolved it. Building a context for an edge with no `when` stops a run the flow routes ' +
+      'correctly');
+    equal(h.nodes(), ['ingest', 'score', 'score', 'regroup', 'publish', 'publish', 'publish'],
+      'and the run reached its `end` node');
   });
 
   test('`ctx.needs` is FROZEN, and the same at both branches', () => {
@@ -430,8 +478,88 @@ suite('L2 — FD-C3: what a decision sees', (test) => {
     // W42's own rule 8 set: a probe adding an extra `contextFor(eligible[0])` call
     // cost **0**, because over-calling is not observable in a value. *What is
     // observable is calling it for the wrong edge*, and this is what says so.
-    const def = {
-      flowId: 'a-later-edge-is-never-reached', version: 1, entry: 'ingest',
+    const def = pastArity([
+      { when: 'isLowConfidence', to: 'audit' },
+      { when: 'isHighConfidence', to: 'audit', needs: { f: ['score'] } },
+      { to: 'gather' },
+    ]);
+    equal(validateDefinition(def, { predicates: reg.predicates, workerTypes: reg.workerTypes }), [],
+      'a valid document — FD-V29 accepts the reference because `score` certainly RAN; what it ' +
+      'cannot see is that instance 2`s path is comparable with neither of its outputs');
+    // `isLowConfidence` matches at the FIRST guarded edge; `isHighConfidence` never runs.
+    const h = harness(def, (ctx) => ctx.outcome.taskId.startsWith('r1:publish:'));
+    toTheSecondRegion(h);
+    for (const i of [0, 1, 2]) h.scheduler.settle(`r1:publish:${i}:0`, 'done', { result: {} });
+
+    equal(h.failures, [],
+      'NO FD-R3 — the second edge declares a reference instance 2 cannot resolve, and it is ' +
+      'never evaluated, so it is never resolved. Building every eligible context up front ' +
+      'would stop a run that routes correctly');
+    equal(h.nodes().filter((n) => n === 'audit').length, 3,
+      'and every instance took the FIRST guarded edge — three of them, so the second edge was ' +
+      'skipped at the instance that could not have resolved it');
+  });
+
+  test('a CONDITIONAL edge reference the run did not produce leaves the key OUT — FD-C4', () => {
+    // **Rule 8 found this hole and it was worth the pass.** `FD-C4` is asserted at
+    // the NODE site by `test/driver/needs.test.ts`, and at the EDGE site by nothing:
+    // dropping the `v !== ABSENT` guard in `resolveNeeds` — so the key is written
+    // holding the ABSENT sentinel — cost **0 failures** across the whole suite.
+    // A predicate then reads `'f' in ctx.needs` as TRUE and `ctx.needs.f` as a
+    // Symbol, which is the quietest possible form of the thing `FD-C4` exists to
+    // remove.
+    //
+    // **The pair is instance 2 against instances 0 and 1**, so the assertion cannot
+    // pass because every instance happened to see the same thing.
+    const def = pastArity([
+      { when: 'isLowConfidence', to: 'audit', needs: { f: ['score?'] } },
+      { to: 'gather' },
+    ]);
+    equal(validateDefinition(def, { predicates: reg.predicates, workerTypes: reg.workerTypes }), [],
+      'valid, and it would be valid unconditionally too — FD-V29 accepts both here, so this pair ' +
+      'is about FD-C4 and not about the validator');
+    // Answer from `ctx.needs` alone, so what is DISPATCHED is also an assertion
+    // about what the predicate could see: route to `audit` only when the array is
+    // non-empty.
+    const h = harness(def, (ctx) => ((ctx.needs as { f?: unknown[] }).f ?? []).length > 0);
+    toTheSecondRegion(h);
+    for (const i of [0, 1, 2]) h.scheduler.settle(`r1:publish:${i}:0`, 'done', { result: {} });
+
+    equal(h.failures, [], 'no FD-R3 at instance 2 — the reference said *if it ran*');
+    const forInstance = (i: number) =>
+      h.seen.find((x) => x.ctx.outcome.taskId === `r1:publish:${i}:0`)!.ctx.needs;
+    equal(forInstance(0), { f: [{ A: 0 }] },
+      'instance 0`s path IS comparable with score@0, so the key holds that one output');
+    equal(forInstance(2), { f: [] },
+      'instance 2`s is comparable with none, so the key is PRESENT and EMPTY — FD-C4`s array row, ' +
+      'at the edge site, by the same expression the node site uses');
+    ok('f' in forInstance(2), 'present, so a predicate reading ctx.needs.f gets an array either way');
+    // And the ONE form at this site, where the key must be gone rather than empty.
+    const one = pastArity([
+      { when: 'isLowConfidence', to: 'audit', needs: { g: 'regroup?' } },
+      { to: 'gather' },
+    ]);
+    equal(validateDefinition(one, { predicates: reg.predicates, workerTypes: reg.workerTypes }), [],
+      'the control: a conditional ONE-form reference on an edge is valid');
+    const h2 = harness(one, () => false);
+    toTheSecondRegion(h2);
+    h2.scheduler.settle('r1:publish:0:0', 'done', { result: {} });
+    const ctx = h2.seen.find((x) => x.ctx.outcome.taskId === 'r1:publish:0:0')!.ctx;
+    equal(ctx.needs, { g: { slots: ['x', 'y', 'z'] } },
+      'and where the target DID run the key holds its result — the half that makes the row above ' +
+      'a statement about absence rather than about an empty projection');
+
+    // **And the ABSENT case at this site, which is the one rule 8 found unasserted.**
+    // The array form gives `[]` whether or not the guard is there, and `regroup`
+    // always runs — so neither half above reaches `ABSENT`. It takes a ONE-form
+    // reference across a DECISION: `FD-V29` accepts `'flag?'`, this run takes the
+    // other edge, and the key must not be written at all.
+    //
+    // Measured before this: dropping `v !== ABSENT` from `resolveNeeds` cost **0**
+    // across the whole suite, and a predicate then read `'f' in ctx.needs` as TRUE
+    // with `ctx.needs.f` holding a Symbol.
+    const acrossADecision = {
+      flowId: 'edge-conditional-across-a-decision', version: 1, entry: 'ingest',
       nodes: [
         {
           id: 'ingest', kind: 'task', workerType: 'IngestWorker',
@@ -441,8 +569,7 @@ suite('L2 — FD-C3: what a decision sees', (test) => {
         { id: 'skip', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'publish' }] },
         {
           id: 'publish', kind: 'task', workerType: 'PublishWorker', edges: [
-            { when: 'isLowConfidence', to: 'review' },
-            { when: 'isHighConfidence', to: 'review', needs: { f: 'flag' } },
+            { when: 'isLowConfidence', to: 'review', needs: { f: 'flag?' } },
             { to: 'done' },
           ],
         },
@@ -450,58 +577,50 @@ suite('L2 — FD-C3: what a decision sees', (test) => {
         { id: 'done', kind: 'end', outcome: 'completed' },
       ],
     } as unknown as FlowDefinition;
-    equal(validateDefinition(def, { predicates: reg.predicates, workerTypes: reg.workerTypes }), [],
-      'a valid document — FD-V27 accepts the reference because `publish` IS reachable from `flag`');
-    // `isLowConfidence` matches at the FIRST guarded edge; `isHighConfidence` never runs.
-    const h = harness(def, (ctx) => ctx.outcome.taskId === 'r1:publish:-:0');
-    h.driver.start({});
-    h.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
-    h.scheduler.settle('r1:skip:-:0', 'done', { result: {} });
-    h.scheduler.settle('r1:publish:-:0', 'done', { result: {} });
-
-    equal(h.failures, [],
-      'NO FD-R3 — the second edge declares a reference this run cannot resolve, and it is ' +
-      'never evaluated, so it is never resolved. Building every eligible context up front ' +
-      'would stop a run that routes correctly');
-    equal(h.nodes(), ['ingest', 'skip', 'publish', 'review'], 'and the run took the first guarded edge');
+    equal(validateDefinition(acrossADecision, { predicates: reg.predicates, workerTypes: reg.workerTypes }), [],
+      'valid — and the same document with `"flag"` is FD-V29, which is what the suffix is for');
+    const h3 = harness(acrossADecision, () => false);
+    h3.driver.start({});
+    h3.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
+    h3.scheduler.settle('r1:skip:-:0', 'done', { result: {} });
+    h3.scheduler.settle('r1:publish:-:0', 'done', { result: {} });
+    equal(h3.failures, [], 'no FD-R3 — the reference said *if it ran* and this run routed around it');
+    const seen3 = h3.seen.find((x) => x.ctx.outcome.taskId === 'r1:publish:-:0')!.ctx;
+    equal(seen3.needs, {}, 'the key is NOT WRITTEN — `ctx.needs` is empty, not `{f: <something>}`');
+    ok(!('f' in seen3.needs),
+      'and `in` says so, which is the projection a predicate reads. Writing the key holding the ' +
+      'ABSENT sentinel gives a predicate a Symbol and reads as PRESENT');
   });
 
   test('an edge reference the run did not produce is FD-R3, from the same expression', () => {
     // A decision now has a run-time refusal where before it had only `FD-R1`, and it
     // is the same class, message and rule as a node's — ADR 0041's *what it costs*.
     // `flag` is upstream of `publish` (FD-V27 accepts), and this run routes around it.
-    const def = {
-      flowId: 'edge-reference-routed-around', version: 1, entry: 'ingest',
-      nodes: [
-        {
-          id: 'ingest', kind: 'task', workerType: 'IngestWorker',
-          edges: [{ when: 'isHighConfidence', to: 'flag' }, { to: 'skip' }],
-        },
-        { id: 'flag', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'publish' }] },
-        { id: 'skip', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'publish' }] },
-        {
-          id: 'publish', kind: 'task', workerType: 'PublishWorker', edges: [
-            { when: 'isLowConfidence', to: 'review', needs: { f: 'flag' } },
-            { to: 'done' },
-          ],
-        },
-        { id: 'review', kind: 'task', workerType: 'ReviewWorker', edges: [{ to: 'done' }] },
-        { id: 'done', kind: 'end', outcome: 'completed' },
-      ],
-    } as unknown as FlowDefinition;
+    const def = pastArity([
+      { when: 'isLowConfidence', to: 'audit', needs: { f: ['score'] } },
+      { to: 'gather' },
+    ]);
     equal(validateDefinition(def, { predicates: reg.predicates, workerTypes: reg.workerTypes }), [],
-      'FD-V27 accepts it: `publish` IS reachable from `flag`, which is everything the GRAPH can say');
-    const h = harness(def);
-    h.driver.start({});
-    h.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
-    h.scheduler.settle('r1:skip:-:0', 'done', { result: {} });
-    h.scheduler.settle('r1:publish:-:0', 'done', { result: {} });
+      'FD-V27 accepts it, and so does FD-V29: `score` certainly ran. What neither can see is ' +
+      'that instance 2`s branch path is comparable with none of its outputs');
+    // TRUE only at the instance whose reference cannot resolve, so 0 and 1 take the
+    // default edge and route correctly — **the pair, and the difference between its
+    // halves is the instance index** (`doc/workflow.md` section 5 rule 8's fourth
+    // requirement on the set).
+    const h = harness(def, (ctx) => ctx.outcome.taskId === 'r1:publish:2:0');
+    toTheSecondRegion(h);
+    for (const i of [0, 1]) h.scheduler.settle(`r1:publish:${i}:0`, 'done', { result: {} });
+    equal(h.failures, [], 'instances 0 and 1 evaluated the guarded edge`s predicate and routed');
+    h.scheduler.settle('r1:publish:2:0', 'done', { result: {} });
 
     equal(h.failures.length, 1, 'reported exactly once, through OR-R10');
     equal(h.failures[0]!.kind, 'UnresolvedReference', 'FD-R3, and the same class a node`s reference uses');
     ok(h.failures[0]!.message.includes('edge needs["f"]'),
       'and the message names the SITE, so a reader is sent to the edge and not to the node');
-    equal(h.nodes(), ['ingest', 'skip', 'publish'], 'and the run stopped rather than routing');
+    ok(h.failures[0]!.message.includes('branch path "2"'),
+      'and the PATH, which is the whole of why this document is valid and this run is not');
+    equal(h.nodes().filter((n) => n === 'audit').length, 0,
+      'and the run stopped rather than routing instance 2 anywhere');
     ok(new UnresolvedReference('x') instanceof Error, 'no new class was needed');
   });
 });

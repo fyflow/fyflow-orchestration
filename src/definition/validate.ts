@@ -1,7 +1,10 @@
 /**
  * The definition validator — `spec/flow-definition.md` section 5.
  *
- * Twenty-three refusals, `FD-V14` and `FD-V15` deliberately absent. Reports EVERY violation
+ * Twenty-seven refusals, `FD-V14` and `FD-V15` deliberately absent — the number `check-spec`
+ * prints as *C4 covered 27 definition refusals*, derived from the ids in this file. *(This read
+ * 23 before W45 and 24 after it: the increment was applied to a number nothing was tracking, and
+ * it had been wrong by three for several plans. W45's conformity reader.)* Reports EVERY violation
  * rather than the first, because section 5 requires an invalid definition to be
  * rejected *and* the named rule to appear among the findings, and several cases
  * legitimately violate more than one rule.
@@ -9,7 +12,7 @@
  * ADR 0002 rule 3: this runs in full, at instantiation, before any task is queued.
  */
 import type { Edge, Finding, FlowDefinition, FlowNode, Registry } from './types.ts';
-import { allRegions, buildGraph } from './regions.ts';
+import { allRegions, buildGraph, certainlySettled } from './regions.ts';
 
 const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 const KINDS = ['task', 'fanout', 'map', 'join', 'end'] as const;
@@ -80,21 +83,40 @@ function aimedReferences(n: FlowNode): [string, unknown, 'needs' | 'edge needs',
  * all*, which is what `FD-V26` reports; every other return is well formed and
  * `FD-V27`/`FD-V28` decide whether it is well AIMED.
  *
- * **`"."` is the only invented token in the grammar**, and it is safe because it
- * is outside `FD-V16`'s charset, so no node may ever be called it.
+ * **`"."` and `"?"` are the only invented tokens in the grammar**, and both are safe
+ * because they are outside `FD-V16`'s charset, so no node may ever be called `.` or
+ * end in `?`.
  * **On an EDGE the `"."` form is refused** — `FD-V26`s v0.12 clause — but that is the
  * CALLER`s rule: this function parses ONE grammar, and the two sites differ in what
  * they accept of it rather than in how it is read.
+ *
+ * **The `?` suffix is v0.13's, and it decides what happens when the target produced
+ * NOTHING on this path rather than which outputs are named** —
+ * [ADR 0042](../../doc/decisions/0042-a-reference-says-whether-it-is-conditional-and-the-bare-form-means-the-target-certainly-ran.md).
+ * So `conditional` is a third field beside `form` rather than two more values of it:
+ * `FD-V28` asks *how many* and reads `form`; `FD-V29` asks *must it have run* and
+ * reads `conditional`. A `"."` may not carry one — it resolves to the edge's own
+ * value, which is always there — and the remainder after the suffix is stripped must
+ * still be an id, so `"?"`, `"n??"` and `".?"` are all `null` with no extra clause.
  */
 export function referenceTarget(
   ref: unknown,
-): { form: 'self'; node: null } | { form: 'one' | 'all'; node: string } | null {
-  if (ref === '.') return { form: 'self', node: null };
-  if (typeof ref === 'string') return ID_RE.test(ref) ? { form: 'one', node: ref } : null;
-  if (Array.isArray(ref) && ref.length === 1 && typeof ref[0] === 'string' && ID_RE.test(ref[0])) {
-    return { form: 'all', node: ref[0] };
+): { form: 'self'; node: null; conditional: false }
+  | { form: 'one' | 'all'; node: string; conditional: boolean }
+  | null {
+  if (ref === '.') return { form: 'self', node: null, conditional: false };
+  if (typeof ref === 'string') return aimed(ref, 'one');
+  if (Array.isArray(ref) && ref.length === 1 && typeof ref[0] === 'string') {
+    return aimed(ref[0], 'all');
   }
   return null;
+}
+
+/** One aimed reference's node id and its optional `?` suffix. `referenceTarget`'s only helper. */
+function aimed(s: string, form: 'one' | 'all'): { form: 'one' | 'all'; node: string; conditional: boolean } | null {
+  const conditional = s.endsWith('?');
+  const node = conditional ? s.slice(0, -1) : s;
+  return ID_RE.test(node) ? { form, node, conditional } : null;
 }
 
 export function validateDefinition(doc: FlowDefinition, registry: Registry): Finding[] {
@@ -244,7 +266,7 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
           if (!ID_RE.test(k)) add('FD-V26', where, `needs key ${JSON.stringify(k)} is not [A-Za-z0-9_-]{1,64}`);
           const target = referenceTarget(ref);
           if (target === null) {
-            add('FD-V26', where, `needs[${JSON.stringify(k)}] is ${JSON.stringify(ref)}, which is not "." , a node id, or a one-element array holding one`);
+            add('FD-V26', where, `needs[${JSON.stringify(k)}] is ${JSON.stringify(ref)}, which is not "." , a node id with an optional "?" suffix, or a one-element array holding one`);
           }
         }
       }
@@ -308,7 +330,7 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
             if (!ID_RE.test(k)) add('FD-V26', at, `edge needs key ${JSON.stringify(k)} is not [A-Za-z0-9_-]{1,64}`);
             const target = referenceTarget(ref);
             if (target === null) {
-              add('FD-V26', at, `edge needs[${JSON.stringify(k)}] is ${JSON.stringify(ref)}, which is not a node id or a one-element array holding one`);
+              add('FD-V26', at, `edge needs[${JSON.stringify(k)}] is ${JSON.stringify(ref)}, which is not a node id with an optional "?" suffix or a one-element array holding one`);
             } else if (target.node === null) {
               add('FD-V26', at, `edge needs[${JSON.stringify(k)}] is ".", which an EDGE may not use: what a predicate would have received anyway is its node's own outcome, and \`ctx.outcome\` already carries it`);
             }
@@ -522,6 +544,9 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
   // there, so these would be noise rather than findings.
   if (!cyclic) {
     const regions = allRegions(g, doc);
+    // **`FD-V29`'s input, computed once** — `certainlySettled` is a fixpoint over
+    // the whole graph and every reference in the document reads the same answer.
+    const certain = certainlySettled(g, doc);
     for (const n of nodes) {
       // `nodes` may hold `null`, a number or a string — `FD-V21` reported that
       // above and the loop must survive it. Without this guard a malformed
@@ -565,6 +590,47 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
           // argument for validating at instantiation.
           add('FD-V27', at, `${site}[${JSON.stringify(k)}] names "${target}", which this node is not reachable from`);
           continue;
+        }
+        // **`FD-V29` — an UNCONDITIONAL reference names a node that must have run**,
+        // and it is `FD-V27`'s missing half rather than a clause of it:
+        // [Q187](../../doc/open-questions.md), decided as
+        // [ADR 0042](../../doc/decisions/0042-a-reference-says-whether-it-is-conditional-and-the-bare-form-means-the-target-certainly-ran.md).
+        //
+        // **Its own id, on `FD-V28`'s own stated precedent** — *because an author
+        // fixes the two differently.* `FD-V27` is *that node cannot have produced
+        // anything for you* and the fix is to re-point the reference; this is *it
+        // MIGHT not have* and the fix is to write `?`. A message that offered both
+        // would name neither.
+        //
+        // **Not dominance** — see `certainlySettled`, which is where the two kinds
+        // of branching are read apart, and where the 22-of-29 measurement lives.
+        // **A conditional reference is exempt by construction**, which is the whole
+        // of what the suffix buys: `FD-R3` then does not fire and the key is simply
+        // absent.
+        // **`certain.size > 0` first, and it is the entry-validity guard `!cyclic`'s
+        // argument asks for** — W45's adequacy reader. `certainlySettled` returns an
+        // EMPTY map when `entry` names nothing, and `?? false` then read *not
+        // certain* for every node: the validator reported `FD-V29` about a document
+        // with no entry node at all, beside `FD-V3`, saying *"a run can reach this
+        // node without X having run"* of a document no run can enter. `FD-V27` and
+        // `FD-V28` do not depend on `entry` and degrade gracefully; this rule is the
+        // only entry-rooted one, so it is the only one that needed saying.
+        if (!t.conditional && certain.size > 0 && !(certain.get(n.id)?.has(target) ?? false)) {
+          add(
+            'FD-V29',
+            at,
+            `${site}[${JSON.stringify(k)}] names "${target}" unconditionally, and a run can reach ` +
+              `this node without "${target}" having run — a decision routes around it, or it is ` +
+              'inside a region whose branch may be lost before it is entered. `FD-V27` checked that ' +
+              `this node is reachable FROM it, which is weaker. Write "${target}?"` +
+              `${t.form === 'all' ? ' inside the array' : ''} if you mean *if it ran*, and read the ` +
+              `key as ${t.form === 'all' ? 'a possibly-empty array' : 'possibly absent'}; otherwise ` +
+              'move the reference to a node every path reaches',
+          );
+          // No `continue`: `FD-V28`'s question — *how many* — is independent of this
+          // one, and an author with a wrong form AND an uncertain target has two
+          // things to fix. Reporting one would hide the other until the first was
+          // fixed, which section 5's *reports EVERY violation* refuses.
         }
         // **`FD-V28` — the FORM must match the graph**, and the graph is what
         // decides it: the named node produces more than one output for this reader

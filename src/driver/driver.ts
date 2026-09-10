@@ -256,6 +256,22 @@ const EMPTY_INDICES: ReadonlyMap<string, number> = new Map<string, number>();
 const EMPTY_NEEDS: Readonly<Record<string, unknown>> = Object.freeze({});
 
 /**
+ * **What `resolveReference` returns for a CONDITIONAL reference whose target has no
+ * output on this path** — `FD-C4`, and
+ * [ADR 0042](../../doc/decisions/0042-a-reference-says-whether-it-is-conditional-and-the-bare-form-means-the-target-certainly-ran.md)
+ * rule 4. The two callers omit the key rather than writing it.
+ *
+ * **A private `Symbol` and not `undefined` or `null`.** `null` is a value a
+ * reference legitimately resolves to — W45 measured `{"got": null}` for a reference
+ * to an optional task that settled `failed` — and `undefined` is what
+ * `structuredClone` of a missing `result` gives, so neither can carry *there is
+ * nothing here*. A symbol cannot appear in a `result`, because `OR-R2` deep-copies
+ * with `structuredClone` and a symbol is not cloneable, so `v !== ABSENT` cannot be
+ * confused by anything a worker returns.
+ */
+const ABSENT: unique symbol = Symbol('needs.absent');
+
+/**
  * `itemIndices` with one more region's index bound — a COPY, never a mutation.
  *
  * Copying rather than threading one mutable map is what makes an inner map's
@@ -1581,7 +1597,14 @@ export class Driver {
         out[key] = cloneValue(edgeValue);
         continue;
       }
-      out[key] = this.resolveReference(node.id, here, produced, key, t, 'needs');
+      const v = this.resolveReference(node.id, here, produced, key, t, 'needs');
+      // **`ABSENT` and not `null`, and the reason is measured** — W45. A reference
+      // to a task that FAILED already resolves to `null` with the key present
+      // (`fanout-failure` with `scoreA` optional: `publish` receives
+      // `{"got": null}`), so `null` means *ran and produced nothing* and cannot
+      // also mean *did not run*. An absent key is the only answer an author can
+      // tell apart. `ADR 0042` rule 4.
+      if (v !== ABSENT) out[key] = v;
     }
     return out;
   }
@@ -1607,7 +1630,7 @@ export class Driver {
     here: string,
     produced: Map<string, { path: string; result: unknown }[]>,
     key: string,
-    t: { form: 'one' | 'all'; node: string },
+    t: { form: 'one' | 'all'; node: string; conditional: boolean },
     site: 'needs' | 'edge needs',
   ): unknown {
     // **Compatible, not equal.** An entry is visible to this node when one path
@@ -1618,13 +1641,23 @@ export class Driver {
     const visible = (produced.get(t.node) ?? [])
       .filter((e) => isPathPrefix(e.path, here) || isPathPrefix(here, e.path))
       .sort((x, y) => compareBranchPaths(x.path, y.path));
+    if (visible.length === 0 && t.conditional) {
+      // **`FD-C4` — the conditional form's whole effect, and it is asymmetric by
+      // shape rather than by choice.** The `one` form has no value that could mean
+      // *did not run*, because a task that ran and FAILED already resolves to
+      // `null` — so it reports ABSENT and the caller omits the key. The `all` form
+      // does: an array of zero outputs, which an author can iterate without a
+      // guard. `ADR 0042` rule 4.
+      return t.form === 'all' ? [] : ABSENT;
+    }
     if (visible.length === 0) {
       throw new UnresolvedReference(
         `UnresolvedReference: node "${atNodeId}" at branch path "${here}" declares ` +
           `\`${site}[${JSON.stringify(key)}]\` naming "${t.node}", and no output of that node is ` +
-          'on this path. `FD-V27` checked that this node is reachable FROM it, which is a ' +
-          'statement about the graph; whether it actually ran is a statement about this run — ' +
-          'a decision routed around it, or it settled `user_action` and nobody has resolved it. ' +
+          'on this path. `FD-V27` checked that this node is reachable FROM it and `FD-V29` that ' +
+          'it must have RUN, which is everything the graph can say; whether any of its outputs is ' +
+          'on YOUR path is a statement about this run — a reader inside a region whose indices do ' +
+          'not line up with the target`s, or a join policy that fired before that node settled. ' +
           'FD-R3.',
       );
     }
@@ -1664,8 +1697,13 @@ export class Driver {
     for (const [key, ref] of Object.entries(needs)) {
       // `FD-V26` refuses a malformed reference AND the `"."` form on an edge, both at
       // construction, so `t.node` is a string for any definition a `Driver` accepted.
-      const t = referenceTarget(ref) as { form: 'one' | 'all'; node: string };
-      out[key] = this.resolveReference(node.id, here, produced, key, t, 'edge needs');
+      const t = referenceTarget(ref) as { form: 'one' | 'all'; node: string; conditional: boolean };
+      const v = this.resolveReference(node.id, here, produced, key, t, 'edge needs');
+      // The same omission as `compose`'s, at the second site and by the same
+      // expression, so `ctx.needs.f` and `payload.f` mean one thing — ADR 0041
+      // rule 4's *one resolver* carried to what happens when it resolves to
+      // nothing. A predicate reads `'f' in ctx.needs`.
+      if (v !== ABSENT) out[key] = v;
     }
     // **FROZEN, and the same at both branches** — W42's adequacy reader. The shared
     // `EMPTY_NEEDS` was frozen and this was not, so a predicate writing to `ctx.needs`

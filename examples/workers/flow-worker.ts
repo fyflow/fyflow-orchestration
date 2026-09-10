@@ -65,6 +65,14 @@ export interface Confidence {
  */
 export const ROLES = [
   'ingest', 'score', 'publish', 'fail', 'uncloneable', 'split', 'tally', 'weigh',
+  // **W45's role, and it exists because no shipped one can observe an ABSENT key.**
+  // `FD-C4` says a conditional reference whose target produced nothing leaves its
+  // key out of the composed object, and every other role here reads a field by name
+  // — under which *absent* and *present holding undefined* are the same thing.
+  // That is W43's `weigh` finding one rule along: a role that cannot see the
+  // property a decision turns on makes a row that cannot tell the rule from its
+  // negation.
+  'attest',
 ] as const;
 export type Role = typeof ROLES[number];
 
@@ -201,6 +209,31 @@ export default class FlowWorker extends BaseWorker {
             word: typeof p.item?.word === 'string' ? p.item.word : null,
             confidence: mine,
             score: Math.round(mine * theirs * 100),
+          };
+        }
+      case 'attest':
+        // **The role that reports whether a KEY IS THERE — W45, `FD-C4`.**
+        //
+        // **TWO independent expressions over the same fact, and that is
+        // `doc/workflow.md` section 5 rule 8 obligation (c)'s LIMIT applied before a
+        // reader had to find it.** v0.13: *when the compound probe is green, count
+        // the observers; at one, the fix is a second independent expression over the
+        // same fact rather than a better probe.* `keys` is `Object.keys(payload)`
+        // and `sawVerdict` is the `in` operator, so a probe that re-sources either
+        // leaves the other live — where a single reading would remove the only
+        // observer and make the compound measure nothing. That is exactly what W43
+        // measured on `weigh`, and it cost eight failures to find.
+        //
+        // **`keys` also fails on a driver that gives a node MORE than it asked
+        // for**, which no `in` test and no count can see — ADR 0040 rule 6.
+        {
+          const p = (payload ?? {}) as Record<string, unknown>;
+          return {
+            keys: Object.keys(p).sort(),
+            sawVerdict: 'verdict' in p,
+            // And the value, so a row where the key IS present says what arrived
+            // rather than only that something did.
+            verdict: (p.verdict ?? null) as unknown,
           };
         }
       case 'score':

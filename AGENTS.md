@@ -219,10 +219,17 @@ that object and nothing else — there is no wrapper and no reserved key.
 | `"."` | what the node would have received anyway — the previous node's result, and for a `map` instance **its own item** |
 | `"someNode"` | that node's result, **on your own branch** |
 | `["someNode"]` | that node's results as an **array**, in ascending branch-path order. Legal only when you are OUTSIDE a region that node is in — which is what makes it more than one |
+| **a `?` on either of those** — `"someNode?"`, `["someNode?"]` | the same thing, except that **nothing to give leaves the key out** (or gives `[]` for the array form) instead of stopping the run. This is how you say *if it ran* |
 
-**Which of the last two is legal is decided by the graph and refused at construction** (`FD-V28`), so
-you are told which to write rather than discovering the shape at run time. The message names the form
-to use instead.
+**Which of the two aimed forms is legal is decided by the graph and refused at construction**
+(`FD-V28`), so you are told which to write rather than discovering the shape at run time. The message
+names the form to use instead.
+
+**And the bare form is a CLAIM that the node ran.** If a run can reach you without it having run — a
+decision routes around it, or it sits in a region whose branch may be lost — that is `FD-V29` at
+construction, and the fix is the `?`. **It is not dominance**: a `fanout`'s branches are all entered,
+so a branch entry is certain from after the join even though it is not on EVERY path there. See
+[ADR 0042](doc/decisions/0042-a-reference-says-whether-it-is-conditional-and-the-bare-form-means-the-target-certainly-ran.md).
 
 ```ts run
 import { Driver, validateDefinition, type FlowDefinition } from 'fyflow-orchestration';
@@ -281,12 +288,41 @@ const findings = validateDefinition(wrongForm, registry);
 if (!findings.some((f) => f.rule === 'FD-V28' && f.detail.includes('write ["score"]'))) {
   throw new Error('FD-V28 did not name the form to write instead');
 }
+
+// *Route to review if an earlier step flagged it, and publish either way* — a reference
+// to a value only SOME paths produce. Written bare it is FD-V29 at construction; the `?`
+// is how you say *if it ran*, and then `verdict` is simply missing on the other road.
+const ifItRan = (ref: string): FlowDefinition => ({
+  flowId: 'publish-either-way', version: 1, entry: 'decide',
+  nodes: [
+    { id: 'decide', kind: 'task', workerType: 'ScoreWorker', edges: [
+      { when: 'isLowConfidence', to: 'review' },
+      { to: 'publish' },
+    ] },
+    { id: 'review', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'publish' }] },
+    { id: 'publish', kind: 'task', workerType: 'PublishWorker',
+      needs: { own: '.', verdict: ref },
+      edges: [{ to: 'done' }] },
+    { id: 'done', kind: 'end', outcome: 'completed' },
+  ],
+});
+const guarded = { predicates: ['isLowConfidence'], workerTypes: registry.workerTypes };
+const bare = validateDefinition(ifItRan('review'), guarded);
+if (!bare.some((f) => f.rule === 'FD-V29' && f.detail.includes('"review?"'))) {
+  throw new Error('FD-V29 did not refuse the bare form, or did not name the fix');
+}
+if (validateDefinition(ifItRan('review?'), guarded).length) {
+  throw new Error('the conditional form should be accepted');
+}
 void Driver;
 ```
 
-**What it costs.** A reference that names a node this run never reached stops the run with an
-`UnresolvedReference` (`FD-R3`, section 9) — construction checks that the named node is *upstream of
-you*, which is everything the graph can say, and whether it actually **ran** is a fact about the run.
+**What it costs.** An **unconditional** reference that names a node with nothing to give you stops the
+run with an `UnresolvedReference` (`FD-R3`, section 9). Since v0.13 most of that is caught at
+construction — `FD-V27` checks the node is *upstream of you* and `FD-V29` that it must have RUN — so
+what is left at run time is the two things the graph cannot know: whether any of its outputs is on
+**your branch path** (two `map` regions of different arity make those different questions), and
+whether the join a policy fired had actually waited for it.
 And a reference names a **node**, never a path inside its value: `needs: { run: 'ingest' }` gives you
 the whole of `ingest`'s result and your worker reads `.config` off it.
 
@@ -318,7 +354,7 @@ if (!rules.includes('FD-V2') || !rules.includes('FD-V5')) {
 }
 ```
 
-There are **26 refusals** over the id range `FD-V1` … `FD-V28`, each with a failing example in
+There are **27 refusals** over the id range `FD-V1` … `FD-V29`, each with a failing example in
 `spec/examples/invalid/`. Two ids in that range are **deliberately absent** and have no rule behind
 them: `FD-V14`, which never existed, and **`FD-V15`, retired when nested fan-out became
 expressible**. The ids are never renumbered, so it is safe to assert on them. The full

@@ -18,6 +18,7 @@
  * | the ascending array order | the same table's `["n"]` row, which is `JP-R12`'s *ascending `branchPath`, segment-wise numeric* |
  * | the `(node id, branchPath)` pairs | `FD-C2`, and `spec/task-id.md` section 1's four segments |
  * | `UnresolvedReference` | `FD-R3` in section 6 |
+ * | an ABSENT key, and `[]` | section 3's two v0.13 table rows, and `FD-C4` |
  * | *a node with no `needs` is unchanged* | `FD-C1`'s first clause, and ADR 0040 rule 1 |
  */
 import { equal, listDir, ok, readText, ROOT, suite, throws } from '../harness.ts';
@@ -233,6 +234,7 @@ suite('L2 — FD-C2: what NAMES an output', (test) => {
     //   map-over-region  ingest, score x3, publish x3               7 / 3 / 4
     //   fanout-failure   ingest, scoreA, reviewB, publish            4 / 4 / 0
     //   p1-routed-away   ingest, scoreA, scoreB, publish             4 / 4 / 0
+    //   reference-past-a-map-arity  ingest, score x2, regroup, publish x2   6 / 4 / 2
     //
     // **The last two were MISSING and the both-ways bound below is what found them**
     // — added by W41's adequacy reader's finding, on its first run. They carry a
@@ -247,6 +249,12 @@ suite('L2 — FD-C2: what NAMES an output', (test) => {
       ['map-over-region-output', { ids: 7, nodes: 3, lost: 4, map: true }],
       ['fanout-failure', { ids: 4, nodes: 4, lost: 0, map: false }],
       ['p1-routed-away', { ids: 4, nodes: 4, lost: 0, map: false }],
+      // **W45's flow, at MATCHED arities**, so this census measures `FD-C2` rather
+      // than `FD-R3`: ingest, score x2, regroup, publish x2 = 6 / 4 / 2, and the two
+      // lost are the two map regions' one collapsing id each. At MISMATCHED arities
+      // the same document is `FD-R3`'s only remaining case with no custom policy,
+      // which is the suite below.
+      ['reference-past-a-map-arity', { ids: 6, nodes: 4, lost: 2, map: true }],
     ]);
     const entries: [string, unknown, (id: string) => unknown][] = [
       ['fanout-join', { from: 'ingest' }, (id) => ({ by: id })],
@@ -258,6 +266,12 @@ suite('L2 — FD-C2: what NAMES an output', (test) => {
         (id) => (id.includes(':ingest:') ? { items: ['a', 'b', 'c'] } : { by: id })],
       ['fanout-failure', { from: 'ingest' }, (id) => ({ by: id })],
       ['p1-routed-away', { from: 'ingest' }, (id) => ({ by: id })],
+      ['reference-past-a-map-arity', { items: ['a', 'b'], slots: ['x', 'y'] },
+        (id) => (id.includes(':ingest:')
+          ? { items: ['a', 'b'], slots: ['x', 'y'] }
+          : id.includes(':regroup:')
+            ? { slots: ['x', 'y'] }
+            : { by: id })],
     ];
     // **The list is bound to a source this file does not own** — W41's adequacy
     // reader, whose sharpest measurement is that every bound in these two files was
@@ -342,8 +356,8 @@ suite('L2 — FD-C2: what NAMES an output', (test) => {
     }
     equal(ran, entries.map((e) => e[0]), 'every flow was ASSERTED — pushed after the assertions, not before');
     equal([...ran].sort(), onDisk, 'and the SET it ran is the disk`s, not a literal beside it');
-    equal([...expected.values()].filter((v) => v.lost > 0).length, 4,
-      'and exactly the FOUR flows with a map region lose an output');
+    equal([...expected.values()].filter((v) => v.lost > 0).length, 5,
+      'and exactly the FIVE flows with a map region lose an output');
     equal([...expected.values()].filter((v) => !v.map).length, 4,
       'while FOUR carry only `fanout` regions and lose NOTHING — at depth 1, at depth 2, with an ' +
       'optional branch that can fail, and with a branch routed away from its join');
@@ -352,52 +366,226 @@ suite('L2 — FD-C2: what NAMES an output', (test) => {
 
 suite('L2 — FD-R3: a reference the run did not produce', (test) => {
   /**
-   * `ingest` decides between `flag` and `skip`; `publish` needs `flag`. `FD-V27`
-   * accepts it — `publish` IS reachable from `flag` — and the graph cannot know
-   * which edge a run takes, which is `FD-R2`'s own argument one door along.
+   * **W45 REPLACED this suite's fixture, and the replacement IS the finding.**
+   *
+   * Until v0.13 the case was *a decision routed around the target*: `ingest`
+   * decides between `flag` and `skip`, and `publish` declares `needs: {f: 'flag'}`.
+   * **`FD-V29` now refuses that document at instantiation**, which is
+   * [Q187](../../doc/open-questions.md)'s whole point — so the cheap way to build an
+   * unresolvable reference is gone, and what is left is the two things a validator
+   * provably cannot see (`FD-R3`'s own row in section 6).
+   *
+   * **This one needs no custom policy**: `reference-past-a-map-arity.flow.json`, two
+   * `map` regions over different keys. `FD-V29` correctly calls `score` certain for
+   * `publish` — a map's one branch entry is dispatched when its region opens — and
+   * with `slots` longer than `items`, the third instance of the second region has a
+   * branch path comparable with **neither** of `score`'s outputs. *`did it run` and
+   * `is it on your path` are two questions and `FD-V29` answers only the first.*
+   *
+   * The other remaining case is a join **policy** firing before a branch entry has
+   * settled, which `validateDefinition` cannot know about because it is not given
+   * the policy (`FD-V15`'s note, [Q97](../../doc/open-questions.md)). **It IS a
+   * fixture, below, and the first version of this comment said it deliberately was
+   * not** — both of W45's readers found that, and they were right: `ADR 0042` rule 5
+   * is what makes `FD-V29` affordable to have got slightly wrong, and that argument
+   * had no observer anywhere. A policy is an injected seam (`spec/join-policy.md`
+   * section 1), so constructing one costs nine lines and asserts a property of
+   * `FD-V29` rather than of any shipped policy.
    */
-  const routedAround = (): FlowDefinition =>
-    ({
-      flowId: 'reference-routed-around',
-      version: 1,
-      entry: 'ingest',
-      nodes: [
-        {
-          id: 'ingest', kind: 'task', workerType: 'IngestWorker',
-          edges: [{ when: 'isHighConfidence', to: 'flag' }, { to: 'skip' }],
-        },
-        { id: 'flag', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'publish' }] },
-        { id: 'skip', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'publish' }] },
-        {
-          id: 'publish', kind: 'task', workerType: 'PublishWorker',
-          needs: { f: 'flag' }, edges: [{ to: 'done' }],
-        },
-        { id: 'done', kind: 'end', outcome: 'completed' },
-      ],
-    } as unknown as FlowDefinition);
+  const pastArity = () => load('valid/reference-past-a-map-arity.flow.json');
+  /**
+   * THREE slots and TWO items - the mismatch is the whole fixture.
+   *
+   * **The MISMATCH is asserted, not carried by two literals** - `doc/workflow.md`
+   * section 5 rule 8's fourth requirement on the set, and rule 8 found the instance:
+   * `rank`'s arity comes from what `regroup` RETURNS, so the pair's difference lived
+   * in a hard-coded `{slots: [...]}` in each settle call and making `MISMATCHED`
+   * equal cost **0**. Both halves now come from here, and the inequality is a claim.
+   */
+  const MISMATCHED = { items: ['a', 'b'], slots: ['x', 'y', 'z'] };
+  /** What `regroup` returns - the key `rank`'s `over` names, from the same literal. */
+  const REGROUPED = { slots: MISMATCHED.slots };
 
-  test('the run stops, reported through OR-R10, and the message names the cause', () => {
-    const h = harness(routedAround());
-    h.driver.start({});
-    h.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
-    h.scheduler.settle('r1:skip:-:0', 'done', { result: {} });
+  test('the run stops, reported through OR-R10, and the message names the cause', async () => {
+    const h = harness(await pastArity());
+    h.driver.start(MISMATCHED);
+    h.scheduler.settle('r1:ingest:-:0', 'done', { result: MISMATCHED });
+    h.scheduler.settle('r1:score:0:0', 'done', { result: { A: 0 } });
+    h.scheduler.settle('r1:score:1:0', 'done', { result: { A: 1 } });
+    // `regroup` receives the join's collection (`JP-R12`) and returns the key
+    // `rank`'s `over` names. Three slots, two items.
+    h.scheduler.settle('r1:regroup:-:0', 'done', { result: REGROUPED });
+    ok(MISMATCHED.slots.length > MISMATCHED.items.length,
+      'the fixture really is mismatched - if the two arities were equal every instance would ' +
+      'resolve and the assertions below would be about nothing');
 
-    equal(h.ids(), ['r1:ingest:-:0', 'r1:skip:-:0'], 'publish is NOT dispatched — the run stopped');
+    // Derived from `JP-R5` and ADR 0036 rule 5, not from the run: every
+    // `branch.opened` is emitted before any dispatch, and the instances are
+    // dispatched in item order — so 0 and 1 compose and 2 is where it stops.
+    equal(h.ids(), [
+      'r1:ingest:-:0', 'r1:score:0:0', 'r1:score:1:0', 'r1:regroup:-:0',
+      'r1:publish:0:0', 'r1:publish:1:0',
+    ], 'the third instance is NOT dispatched — the run stopped at it');
+    equal(h.payloadOf('r1:publish:0:0'), { scored: [{ A: 0 }] },
+      'and the two that DID compose got the score at their own path — the pair that makes ' +
+      'this a path finding rather than a did-it-run one');
     equal(h.failures.length, 1, 'reported exactly once');
     equal(h.failures[0]!.kind, 'UnresolvedReference', 'FD-R3, and its own class');
-    ok(h.failures[0]!.message.includes('"publish"') && h.failures[0]!.message.includes('"flag"'),
+    ok(h.failures[0]!.message.includes('"publish"') && h.failures[0]!.message.includes('"score"'),
       'and it names both the declaring node and the target');
+    ok(h.failures[0]!.message.includes('branch path "2"'),
+      'and the PATH, which is the whole of why this document is valid and this run is not');
     ok(h.failures[0]!.message.includes('FD-R3'), 'and cites the rule');
     // **The SITE, at the node half** — W42's adequacy reader's finding 42. That item
     // added a `site` label to the shared `resolveReference` so an edge's failure reads
     // `edge needs["f"]`, and bound it at the EDGE site only: swapping the node site's
     // label to `'edge needs'` cost **0**, which would send a reader looking for an
     // edge that does not carry one.
-    ok(h.failures[0]!.message.includes('`needs["f"]`'), 'as a NODE`s `needs`, not an edge`s');
+    ok(h.failures[0]!.message.includes('`needs["scored"]`'), 'as a NODE`s `needs`, not an edge`s');
     ok(!h.failures[0]!.message.includes('edge needs'), 'and it does not say edge');
   });
 
-  test('resolve() both reports and RETHROWS, and start() cannot reach FD-R3 at all', () => {
+  test('and the CONDITIONAL form on the same document does not stop it — FD-C4', async () => {
+    // **The pair, and the difference between the halves is one character**
+    // (`doc/workflow.md` section 5 rule 8's fourth requirement on the set: whatever
+    // makes a discriminating pair differ is itself a claim). Same flow, same
+    // mismatched payload, `["score"]` replaced by `["score?"]` — so the assertion
+    // below cannot pass because the run happened to be well shaped.
+    const base = await pastArity();
+    const conditional = JSON.parse(JSON.stringify(base)) as FlowDefinition;
+    const reader = conditional.nodes.find((n) => n.id === 'publish') as unknown as
+      { needs: Record<string, unknown> };
+    equal(reader.needs, { scored: ['score'] },
+      'the control: the corpus document declares the UNCONDITIONAL array form');
+    reader.needs = { scored: ['score?'] };
+    equal(validateDefinition(conditional, { predicates: [], workerTypes: reg.workerTypes }), [],
+      'and the conditional document is valid too — FD-V29 accepted both, so this pair is ' +
+      'about FD-C4 and not about the validator');
+
+    const h = harness(conditional);
+    h.driver.start(MISMATCHED);
+    h.scheduler.settle('r1:ingest:-:0', 'done', { result: MISMATCHED });
+    h.scheduler.settle('r1:score:0:0', 'done', { result: { A: 0 } });
+    h.scheduler.settle('r1:score:1:0', 'done', { result: { A: 1 } });
+    h.scheduler.settle('r1:regroup:-:0', 'done', { result: REGROUPED });
+    ok(MISMATCHED.slots.length > MISMATCHED.items.length,
+      'the fixture really is mismatched - if the two arities were equal every instance would ' +
+      'resolve and the assertions below would be about nothing');
+
+    equal(h.failures, [], 'no FD-R3 — the reference said *if it ran*');
+    equal(h.ids(), [
+      'r1:ingest:-:0', 'r1:score:0:0', 'r1:score:1:0', 'r1:regroup:-:0',
+      'r1:publish:0:0', 'r1:publish:1:0', 'r1:publish:2:0',
+    ], 'and all THREE instances are dispatched, where the unconditional form stopped at two');
+    // `FD-C4`'s array row: `[]` rather than an absent key, so an author iterates
+    // without a guard. And the two that DID see something are unchanged, which is
+    // what makes `[]` a value rather than a default.
+    equal(h.payloadOf('r1:publish:2:0'), { scored: [] },
+      'the instance past the arity receives `[]` — present, empty, iterable');
+    equal(h.payloadOf('r1:publish:0:0'), { scored: [{ A: 0 }] },
+      'and the suffix changed NOTHING for an instance whose path IS comparable');
+  });
+
+  test('FD-V29`s LIMIT is a POLICY: a join firing before a branch entry settled', async () => {
+    // **`ADR 0042` rule 5's second case, and both readers found it unasserted.**
+    // `FD-V29` credits a region's branch entries as certain for that region's join,
+    // which rests on `JP-R5` AND on the join not firing until they have settled —
+    // and the second half is a property of the POLICY, which the validator is not
+    // given. So the rule REMOVES cases from `FD-R3`'s reach and does not replace it,
+    // and an unsound acceptance degrades to today's behaviour. This is that
+    // degradation, asserted.
+    //
+    // **Parking at `user_action` is INESSENTIAL, and every enumeration of this limit
+    // said it was the condition** — W45's conformity reader. `scoreA` here simply
+    // never settles. No `user_action` anywhere.
+    const def = await load('valid/fanout-join.flow.json');
+    (def.nodes.find((n) => n.id === 'publish') as unknown as { needs: unknown }).needs = { x: 'scoreA' };
+    equal(validateDefinition(def, { predicates: [], workerTypes: reg.workerTypes }), [],
+      'FD-V29 ACCEPTS it — `scoreA` is a branch entry and JP-R5 dispatches it when the region opens');
+
+    /** Satisfied on the first arrival, whatever else is live — [Q97](../../doc/open-questions.md)'s shape. */
+    const eager: JoinPolicy<{ arrived: number }> = {
+      id: 'eager-any-arrival',
+      open: () => ({ arrived: 0 }),
+      step: (st, e) => (e.type === 'branch.arrived' ? { arrived: st.arrived + 1 } : st),
+      status: (st) => (st.arrived > 0 ? 'satisfied' : 'waiting'),
+      describe: (st) => ({ arrived: st.arrived }),
+    };
+    const scheduler = new FakeScheduler();
+    const failures: { kind: string; message: string }[] = [];
+    const driver = new Driver(def, {
+      runId: 'r1', scheduler, createTask: (c) => c, predicates: new Map(),
+      workerTypes: reg.workerTypes, joinPolicy: eager as unknown as JoinPolicy,
+      onRunFailure: (f) => failures.push({ kind: f.kind, message: f.message }),
+    });
+    driver.start({});
+    scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
+    // Only branch 1 settles. `scoreA` is dispatched and never settles at all.
+    scheduler.settle('r1:scoreB:1:0', 'done', { result: { B: 2 } });
+
+    equal(scheduler.added.map((t) => t.id),
+      ['r1:ingest:-:0', 'r1:scoreA:0:0', 'r1:scoreB:1:0'],
+      'both branch entries WERE dispatched — JP-R5, which is the half FD-V29 is right about');
+    equal(failures.length, 1, 'and the reader was entered anyway, so FD-R3 fired');
+    equal(failures[0]!.kind, 'UnresolvedReference',
+      'FD-R3 is the backstop — a policy this repository does not ship falsifies FD-V29`s credit, ' +
+      'and the run stops rather than handing a worker something it did not ask for');
+
+    // **The CONTROL, and it is what makes the row above a statement about the
+    // POLICY rather than about the flow**: the same document, the same payload, the
+    // same references, under a SHIPPED policy — and nothing goes wrong.
+    const s2 = new FakeScheduler();
+    const f2: string[] = [];
+    const d2 = new Driver(def, {
+      runId: 'r1', scheduler: s2, createTask: (c) => c, predicates: new Map(),
+      workerTypes: reg.workerTypes, joinPolicy: liveToken as JoinPolicy,
+      onRunFailure: (f) => f2.push(f.kind),
+    });
+    d2.start({});
+    s2.settle('r1:ingest:-:0', 'done', { result: {} });
+    s2.settle('r1:scoreB:1:0', 'done', { result: { B: 2 } });
+    equal(f2, [], 'under `live-token` the join does not fire while a branch is live, so no FD-R3');
+    ok(!s2.added.some((t) => t.id.startsWith('r1:publish:')),
+      'and the reader is not entered at all — which is why every shipped policy makes this ' +
+      'unreachable and why the fixture has to bring its own');
+  });
+
+  test('a branch ROUTED AWAY from its join still resolves — the certainty credit, at run time', async () => {
+    // **Measurement 9, which W45's Verification claimed was asserted and was not** —
+    // its conformity reader. Two of the three non-arrival roads had no assertion,
+    // and the interesting one is this: `publish` reads the branch that **LEFT the
+    // region**, and gets its result. `JP-R12` gives an exited branch NO KEY in the
+    // join's collection, so a `needs` reference reaches a value the join deliberately
+    // does not carry.
+    const def = await load('valid/p1-routed-away.flow.json');
+    for (const [label, target, expected] of [
+      ['the ARRIVING branch', 'scoreA', { A: 1 }],
+      ['the branch that LEFT the region', 'scoreB', { B: 2 }],
+    ] as const) {
+      const d = JSON.parse(JSON.stringify(def)) as FlowDefinition;
+      (d.nodes.find((n) => n.id === 'publish') as unknown as { needs: unknown }).needs = { got: target };
+      equal(validateDefinition(d, { predicates: ['isLowConfidence'], workerTypes: reg.workerTypes }), [],
+        `${label}: FD-V29 accepts it — a fanout branch entry is dispatched whatever the run does`);
+      const scheduler = new FakeScheduler();
+      const failures: string[] = [];
+      const driver = new Driver(d, {
+        runId: 'r1', scheduler, createTask: (c) => c,
+        // TRUE, so `scoreB` takes its `when` edge to the `end` and never arrives.
+        predicates: new Map([['isLowConfidence', () => true]]),
+        workerTypes: reg.workerTypes, joinPolicy: liveToken as JoinPolicy,
+        onRunFailure: (f) => failures.push(f.kind),
+      });
+      driver.start({});
+      scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
+      scheduler.settle('r1:scoreA:0:0', 'done', { result: { A: 1 } });
+      scheduler.settle('r1:scoreB:1:0', 'done', { result: { B: 2 } });
+      equal(failures, [], `${label}: no FD-R3`);
+      equal(scheduler.added.find((t) => t.id === 'r1:publish:-:0')?.payload, { got: expected },
+        `${label}: and the reference resolves to that branch`);
+    }
+  });
+
+  test('resolve() both reports and RETHROWS, and start() cannot reach FD-R3 at all', async () => {
     // **`start()` has no case, and this test's first version claimed it did.**
     // `start()` composes only the entry node; a reference from the entry node names
     // a target the entry node must be reachable FROM (`FD-V27`), which with
@@ -419,13 +607,12 @@ suite('L2 — FD-R3: a reference the run did not produce', (test) => {
     h.driver.start({});
     equal(h.ids(), ['r1:ingest:-:0'], 'the control: with no needs anywhere, start() dispatches normally');
 
-    const h2 = harness(routedAround());
-    h2.driver.start({});
-    h2.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
+    const h2 = harness(await pastArity());
+    h2.driver.start(MISMATCHED);
     throws(
       () => {
-        if (!h2.driver.resolve('r1:skip:-:0', 'done', { result: {}, actor: 'test' })) {
-          throw new Error('refused: r1:skip:-:0 is not suspended');
+        if (!h2.driver.resolve('r1:ingest:-:0', 'done', { result: {}, actor: 'test' })) {
+          throw new Error('refused: r1:ingest:-:0 is not suspended');
         }
       },
       'refused',
@@ -434,33 +621,25 @@ suite('L2 — FD-R3: a reference the run did not produce', (test) => {
     );
 
     // **The reachable half: `resolve()` reports AND rethrows.** A node suspends,
-    // a person resolves it, and the successor it resumes into names a node this run
-    // routed around — so `compose` throws inside `resolve()`, with the caller on the
-    // stack. Nothing asserted this before; the test was named for `start()`, which
-    // `FD-V27` makes unreachable.
-    const onResume = {
-      flowId: 'reference-unresolvable-on-resume', version: 1, entry: 'ingest',
-      nodes: [
-        {
-          id: 'ingest', kind: 'task', workerType: 'IngestWorker',
-          edges: [{ when: 'isHighConfidence', to: 'flag' }, { to: 'sub' }],
-        },
-        { id: 'flag', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'publish' }] },
-        { id: 'sub', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'publish' }] },
-        {
-          id: 'publish', kind: 'task', workerType: 'PublishWorker',
-          needs: { f: 'flag' }, edges: [{ to: 'done' }],
-        },
-        { id: 'done', kind: 'end', outcome: 'completed' },
-      ],
-    } as unknown as FlowDefinition;
-    const h3 = harness(onResume);
-    h3.driver.start({});
-    h3.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
-    h3.scheduler.settle('r1:sub:-:0', 'user_action', {});
+    // a person resolves it, and the region it resumes into opens instances whose
+    // paths reach past the earlier map's arity — so `compose` throws inside
+    // `resolve()`, with the caller on the stack. Nothing asserted this before W41;
+    // the test was named for `start()`, which `FD-V27` makes unreachable.
+    //
+    // **The suspending node is `regroup`, which is where W45 had to move it**: the
+    // old fixture suspended a node on the other side of a decision, and `FD-V29`
+    // refuses that document now. `regroup` is the node whose settlement OPENS the
+    // second map region, so resolving it is what dispatches the instance that
+    // cannot compose.
+    const h3 = harness(await pastArity());
+    h3.driver.start(MISMATCHED);
+    h3.scheduler.settle('r1:ingest:-:0', 'done', { result: MISMATCHED });
+    h3.scheduler.settle('r1:score:0:0', 'done', { result: { A: 0 } });
+    h3.scheduler.settle('r1:score:1:0', 'done', { result: { A: 1 } });
+    h3.scheduler.settle('r1:regroup:-:0', 'user_action', {});
     equal(h3.failures, [], 'suspended, and nothing has gone wrong yet');
     throws(
-      () => h3.driver.resolve('r1:sub:-:0', 'done', { result: {}, actor: 'a-person' }),
+      () => h3.driver.resolve('r1:regroup:-:0', 'done', { result: REGROUPED, actor: 'a-person' }),
       'UnresolvedReference',
       'resolve() RETHROWS, because the caller is on the stack — FD-R3, the one road it has',
     );
@@ -659,5 +838,115 @@ suite('L2 — the two-digit arity, where three orderings stop agreeing', (test) 
     // can see what this assertion is discriminating between.
     const lex = [...Array.from({ length: N }, (_v, i) => String(i))].sort();
     equal(lex.slice(0, 4), ['0', '1', '10', '11'], 'lexicographic really does differ here');
+  });
+});
+
+/**
+ * `FD-C4` — what a CONDITIONAL reference carries when its target produced nothing.
+ * [ADR 0042](../../doc/decisions/0042-a-reference-says-whether-it-is-conditional-and-the-bare-form-means-the-target-certainly-ran.md)
+ * rule 4, [W45](../../doc/work-items/w45-what-a-reference-must-be-able-to-say.md).
+ *
+ * **Every expected value is derived from section 3's table:** an ABSENT KEY for
+ * `"n?"` and `[]` for `["n?"]`, and everything else exactly `FD-C1`'s row for the
+ * unsuffixed form.
+ *
+ * **The asymmetry is asserted rather than assumed**, because it is the one thing in
+ * this rule that could have been a choice: the `one` form has no VALUE available to
+ * mean *did not run*, since a reference to a task that ran and FAILED already
+ * resolves to `null` with the key present. The last test here is that measurement.
+ */
+suite('L2 — FD-C4: a conditional reference, when the target produced nothing', (test) => {
+  const IF_IT_RAN = 'valid/reference-if-it-ran.flow.json';
+
+  test('Q187`s flow — the key is PRESENT on the review road and ABSENT on the other', async () => {
+    // **One flow, TWO runs, and the difference is the predicate's answer** — so no
+    // literal in this test can stand in for the reference (`doc/workflow.md`
+    // section 5 rule 8's fourth requirement on the set: whatever makes a
+    // discriminating pair differ is itself a claim, so it is read from the fixtures
+    // and compared).
+    const took: Record<string, string[]> = {};
+    const payloads: Record<string, unknown> = {};
+    for (const low of [true, false]) {
+      const def = await load(IF_IT_RAN);
+      const scheduler = new FakeScheduler();
+      const failures: { kind: string }[] = [];
+      const driver = new Driver(def, {
+        runId: 'r1', scheduler, createTask: (c) => c,
+        predicates: new Map([['isLowConfidence', () => low], ['isHighConfidence', () => !low]]),
+        workerTypes: reg.workerTypes, joinPolicy: liveToken as JoinPolicy,
+        onRunFailure: (f) => failures.push({ kind: f.kind }),
+      });
+      driver.start({ doc: 1 });
+      scheduler.settle('r1:ingest:-:0', 'done', { result: { doc: 1 } });
+      scheduler.settle('r1:decide:-:0', 'done', { result: { confidence: low ? 0.2 : 0.9 } });
+      if (low) scheduler.settle('r1:review:-:0', 'done', { result: { verdict: 'keep' } });
+      equal(failures, [], `low=${low}: the run did NOT stop — FD-R3 is what the suffix removes`);
+      took[String(low)] = scheduler.added.map((t) => t.id.split(':')[1]!);
+      payloads[String(low)] = scheduler.added.find((t) => t.id === 'r1:publish:-:0')?.payload;
+    }
+
+    // The two runs took different roads, which is what makes the two payloads
+    // comparable at all. Read from what was dispatched, not declared here.
+    equal(took['true'], ['ingest', 'decide', 'review', 'publish'], 'low: through review');
+    equal(took['false'], ['ingest', 'decide', 'publish'], 'high: around it');
+    ok(took['true']!.length !== took['false']!.length,
+      'the PAIR really is a pair — if the two roads were the same the assertions below would ' +
+      'both be about one case');
+
+    // Section 3's table: `"."` is what the node would have received anyway, and
+    // `"review?"` is `"review"` with the key absent instead of the run stopping.
+    equal(payloads['true'], { own: { verdict: 'keep' }, verdict: { verdict: 'keep' } },
+      'low: `verdict` is PRESENT and is review`s result, exactly as the unsuffixed form would be');
+    equal(payloads['false'], { own: { confidence: 0.9 } },
+      'high: the key is ABSENT — not present holding null, and not present holding undefined');
+    ok(!('verdict' in (payloads['false'] as Record<string, unknown>)),
+      'and `in` says so, which is the projection FD-C4 promises an author');
+  });
+
+  test('the ARRAY form gives `[]`, and `.` beside it is untouched', async () => {
+    // The other row of `FD-C4`, over the shape the corpus can express: a map region
+    // whose reader is a LATER map region's instance, past the first's arity.
+    const def = JSON.parse(
+      JSON.stringify(await load('valid/reference-past-a-map-arity.flow.json')),
+    ) as FlowDefinition;
+    const reader = def.nodes.find((n) => n.id === 'publish') as unknown as
+      { needs: Record<string, unknown> };
+    reader.needs = { own: '.', scored: ['score?'] };
+    const h = harness(def);
+    h.driver.start({ items: ['a'], slots: ['x', 'y'] });
+    h.scheduler.settle('r1:ingest:-:0', 'done', { result: { items: ['a'], slots: ['x', 'y'] } });
+    h.scheduler.settle('r1:score:0:0', 'done', { result: { A: 0 } });
+    h.scheduler.settle('r1:regroup:-:0', 'done', { result: { slots: ['x', 'y'] } });
+
+    equal(h.failures, [], 'no FD-R3 at either instance');
+    equal(h.payloadOf('r1:publish:0:0'), { own: 'x', scored: [{ A: 0 }] },
+      'instance 0`s path IS comparable with score@0, so the suffix changed nothing');
+    equal(h.payloadOf('r1:publish:1:0'), { own: 'y', scored: [] },
+      'instance 1`s is comparable with none, so `scored` is PRESENT and EMPTY — and `own` is ' +
+      'still its own item, so the empty array is this key`s answer and not the composition failing');
+  });
+
+  test('and `null` is why the ONE form reports an ABSENT key rather than a value', async () => {
+    // **The measurement rule 4 rests on**, as an assertion. A reference to a task
+    // that RAN and FAILED resolves to `null` with the key PRESENT — so `null` already
+    // means *ran and produced nothing*, and no value is available to mean *did not
+    // run*. Without this, `{f: null}` would be the obvious design and would collapse
+    // two cases an author has to tell apart.
+    const def = JSON.parse(
+      JSON.stringify(await load('valid/fanout-failure.flow.json')),
+    ) as FlowDefinition;
+    const reader = def.nodes.find((n) => n.id === 'publish') as unknown as
+      { needs: Record<string, unknown> };
+    reader.needs = { got: 'scoreA' };
+    const h = harness(def);
+    h.driver.start({});
+    h.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
+    h.scheduler.settle('r1:scoreA:0:0', 'failed');
+    h.scheduler.settle('r1:reviewB:1:0', 'done', { result: { B: 2 } });
+
+    equal(h.failures, [], 'a branch that EXITED via a failure edge is not FD-R3 — it ran');
+    const p = h.payloadOf('r1:publish:-:0') as Record<string, unknown>;
+    equal(p, { got: null }, 'and the reference resolves to `null`, with the key present');
+    ok('got' in p, 'PRESENT — which is the whole reason FD-C4 could not use null for *did not run*');
   });
 });
