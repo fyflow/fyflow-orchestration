@@ -1,6 +1,6 @@
 # Workflow
 
-**Status:** v0.12 - **run to completion ELEVEN times**, by [P1](plans/p1-what-satisfies-a-join.md),
+**Status:** v0.13 - **run to completion TWELVE times**, by [P1](plans/p1-what-satisfies-a-join.md),
 [P2](plans/p2-the-non-success-half-on-a-real-scheduler.md),
 [P3](plans/p3-a-consumer-reference-the-gate-keeps-true.md),
 [P4](plans/p4-the-drivers-lifetime-and-the-handles-it-gives-out.md),
@@ -10,7 +10,8 @@
 [P8](plans/p8-what-can-be-deleted-with-the-gate-green.md),
 [P9](plans/p9-when-a-check-stops-checking-what-notices.md),
 [P10](plans/p10-is-fan-out-one-feature-or-two.md) and
-[P11](plans/p11-what-should-the-gate-prove.md)
+[P11](plans/p11-what-should-the-gate-prove.md) and
+[P12](plans/p12-what-a-node-receives-and-what-a-decision-sees.md)
 **Read this before starting any work item.** *(The status line read "seven times" and listed P1-P7
 until P9's retro: **P8 ran this document to completion and adopted none of its proposals**, which is
 section 6 pass 3 rule 1's expected verdict and is not the same as not having run it.)* Paths are relative to the repo root unless they are
@@ -93,6 +94,83 @@ prediction about rule 8 is answered and is **false**.
    ([ADR 0029](decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)).
    The dependency edge that made the junction seem necessary is gone; **the rule still said nothing
    about the removal**, which is the part that did the damage.
+
+**v0.13 is [P12](plans/p12-what-a-node-receives-and-what-a-decision-sees.md)'s retro, and its
+central finding is that all three of its items shipped a claim their own evidence could not
+falsify — and in every case the author had followed this document's procedure for exactly that.**
+P12 asked *what does a node receive, and what does a decision see?* — three items, two ADRs, and the
+first plan since P10 to make the library able to express something it could not. It adopts **three**
+changes and refuses **four**.
+
+1. **Rule 8 obligation (e) gains a THIRD SHAPE: a LIST is a claim about another list.** v0.12's two
+   procedures are both about a **command** — what it is bound to, and what it runs. **P12 produced
+   four instances in three items of a shape that is neither**: `RULE_PREFIXES` and an `accepted`
+   list (W41), `EDGE_KEYS` (W42), and a `Role` union, a `switch`'s arms and a pool registry (W43).
+   The question that finds all four is (e)'s second one asked of a **declaration**: *what does this
+   list have to agree with, and what would say so?* — and the procedure is **find the other list and
+   compare both ways**. **v0.12 stated the scope as `scripts/**`; two of the four are there, one is
+   `src/` and one is `examples/**`**, so the shape is not a property of check-writing, which is the
+   first evidence either way. **W41 recorded it as a third shape on ONE item with an argument**; W42
+   and W43 supplied the second and third items and the argument is now unnecessary.
+2. **Obligation (c)'s procedure gains its LIMIT, and it is a rule that was FOLLOWED.**
+   [W34](work-items/w34-what-a-branch-receives-and-what-a-join-carries.md) settled that a provenance
+   probe cannot be graded against a correct implementation and prescribed a **compound** probe. W43
+   ran one and it came back **green** — because the clause it aimed at had exactly **one** observer,
+   and the probe removed it. *A SENSOR CANNOT CORROBORATE ITSELF.* So: **when the compound is green,
+   count the observers**; at one, the fix is a second independent expression over the same fact
+   rather than a better probe. **One occurrence, and the argument for generality is that the axis
+   never asks the question** — (c) asks where a value came from and says nothing about how many
+   things can see it. W43's author declared it a ceiling **with a correct reason and a named second
+   route at L2**; its adequacy reader measured that the reason was costing eight failures.
+   *A ceiling declared with a correct reason is still a hole if the reason is about the OBSERVER
+   rather than about the fact.*
+3. **Rule 8 gains a fourth requirement on the SET: whatever makes a discriminating PAIR differ is
+   itself a claim.** This repository reaches for *two runs differing in one variable* whenever a
+   value must be shown to come from where it claims — and in three items across two plans the
+   property that made the halves differ was carried by literals nothing compared.
+   [W17](work-items/w17-the-all-exit-row-at-l6.md)'s two join-path rows collapsed when one `Set`
+   literal in another file was reversed; **both** of W43's pairs collapsed for **0**, and with either
+   collapsed the mechanism underneath became deletable for 0 as well. *Assert the difference* — it is
+   `JP-R9`'s *compare the two halves rather than copy one of them*, applied to a FIXTURE.
+
+**REFUSED, each with a measurement.** **(1) A ladder level for L6's own self-test**
+([Q198](open-questions.md)): every cross-row bound in `examples/l6.ts` can be made
+`check(expected, expected)` for zero and L6 has no `SELF` list, which
+[W31](work-items/w31-the-self-list-check-policies-never-had.md) built for a check and measured at
+thirteen mutations moved from 0 to non-zero. **The cost is why not**: a check costs ~1 s and L6 costs
+~20 s a run, so a self-test over W43's 43 mutations is the whole of what
+[ADR 0039](decisions/0039-the-gate-climbs-the-ladder-and-the-self-tests-run-concurrently.md) just
+bought back. **The cheaper half is what W43 did instead** — bind each clause to a source OUTSIDE the
+file, so a vacuous clause is one edit from a red one somewhere else. **Second time a level has been
+proposed and refused**, after P11's for the gate. **(2) An `Owns` pre-declaration rule** for the
+three documents a `spec/`-rule item always reaches — `AGENTS.md`, `spec/README.md` and
+`scripts/check-docs.mjs`. The pattern is real and predictable, and W34 measured that declaring trees
+in advance moves files out of the late column; it is refused because **twenty-two late exceptions
+across three items were declared and ZERO were undeclared**, so the mechanism is working and the
+rule would trade a recorded exception for an unrecorded assumption. [Q157](open-questions.md) and
+[Q102](open-questions.md) stay open; **if the next product plan repeats it, adopt it.** **(3) An
+obligation for the evidence that a DECISION's stated reason is true.** ADR 0041's forcing fact was
+false and its own conformity reader derived the counter-example in one expression — but nothing in
+sections 4-6 covers a decision's argument and no rung could, so it is a reading problem and the
+two-reader pass is the mechanism that caught it. **(4) A `doc/` check, for the TENTH time.**
+
+**All four predictions have a verdict and prediction 3 REVERSED — the first outright reversal since
+the distinction was drawn.** P10's retro settled that only a **reach** prediction can reverse and
+P11 found two that were right about the conclusion and wrong about the mechanism; **P12 adds the
+third case: a reach prediction that reversed AND whose reversal was justified by a false fact.** The
+ADR that prediction 3 earned said a *diamond* made a node's payload underivable because choosing
+between two settled predecessors needs append order; W42's conformity reader derived it with none.
+The conclusion survived on two facts nobody had written down. *A reach prediction can reverse on the
+right conclusion and the wrong evidence, and only a reader re-deriving the evidence finds that* —
+[Q193](open-questions.md).
+
+**Name the rung: ONE of P12's seven defects has one, and it is the same verdict P11 reached.** The
+one is `FD-V28` refusing a valid document, which **L1 would have caught and did not, because the
+fixture did not exist** — all 37 of the author's probes used a map region and the rule is wrong about
+the case they did not cover. The other six are a false fact in a decision, three lists bound to
+nothing, a fixture pair holding nothing down, and two Record numbers taken before the tree they
+describe. **L0-L6 climb over the product; nothing climbs over the evidence**, and that is now two
+plans running.
 
 **v0.12 is [P11](plans/p11-what-should-the-gate-prove.md)'s retro, and its central finding is that
 obligation (e) was instantiated by the author THREE times in one item and its two readers then found
@@ -744,7 +822,7 @@ Rules:
    rather than for checks, and it exists because **three consecutive items shipped a repair that
    could not fail**.
 
-   **This rule has grown to five obligations, three requirements on the set and one on the harness,
+   **This rule has grown to five obligations, FOUR requirements on the set and one on the harness,
    so it carries its own index.** P6's retro asked whether a fourth obligation should make it a section; P9's retro answered
    **no**, because *"section 5 rule 8"* is cited in this document, four plans, eleven work items and
    the register, and section 3's *ids are never renumbered* is the same argument one level out. It is
@@ -754,13 +832,14 @@ Rules:
    |---|---|---|
    | **(a)** | break the rule's own CLAUSES | v0.6, P4's retro |
    | **(b)** | break every row of the `Outputs` table | v0.7, P5's retro |
-   | **(c)** | break the PROVENANCE of every value an assertion reads — change the source expression and nothing else | v0.8, P6's retro; procedure added v0.9 |
+   | **(c)** | break the PROVENANCE of every value an assertion reads — change the source expression and nothing else | v0.8, P6's retro; procedure added v0.9; **its LIMIT v0.13, P12's retro** |
    | **(d)** | break the LOOP BOUNDS — one entry out, the whole list out, and does anything COUNT it from elsewhere | v0.9, P7's retro |
-   | **(e)** | break the WIRING — what happens when the check is NOT RUN, and **is what it ran what SHIPS** | v0.10, P9's retro; second question **v0.12, P11's retro** |
+   | **(e)** | break the WIRING — what happens when the check is NOT RUN, and **is what it ran what SHIPS** | v0.10, P9's retro; second question **v0.12, P11's retro**; **third shape v0.13, P12's retro** |
    | | **and on the set as a whole:** | |
    | | a survivor is one only once a **second independent route** confirms the clause was reachable | v0.7, P5's retro |
    | | re-run the whole set **after** acting on the readers, with their exact edits checked back in | v0.8, P6's retro |
    | | a provocation is evidence only when it **fires**, and only when it fires **for the reason it names** | v0.10, P9's retro |
+   | | whatever makes a **discriminating PAIR differ** is itself a claim, and the set breaks it | **v0.13, P12's retro** |
    | | **and on the HARNESS that applies the break:** | |
    | | it carries a **control** — a probe that changes nothing comes back clean — and the **restore is asserted**, bytes compared back rather than assumed | **v0.11, P10's retro** |
 
@@ -944,6 +1023,93 @@ Rules:
    ships — and the evidence that an author does not reach it from the axis alone is that W39 quoted
    W38's sentence in the file where it then reproduced W38's hole.)*
 
+   **AND ITS THIRD SHAPE — A LIST IS A CLAIM ABOUT ANOTHER LIST — P12's retro, and the scope the
+   paragraph above states is now measured rather than assumed.** The two procedures above are both
+   about a **command**: what it is bound to, and what it runs. **P12 produced four instances in three
+   items of a shape that is neither**, and the question that finds all four is (e)'s second one asked
+   of a **DECLARATION**: *what does this list have to agree with, and what would say so?*
+
+   | | the list | how it broke, with the gate green |
+   |---|---|---|
+   | W41 | `RULE_PREFIXES` in `scripts/check-spec.mjs` | the fix for [Q164](open-questions.md) added `FD-C` and derived both of the check's patterns from it so they could not disagree — **and the constant itself was bound to nothing.** Dropping `FD-C` costs **zero**: the two `FD-C` rules then match neither pattern and are neither declared nor cited. *Q164's own defect surviving inside the fix for it* |
+   | W41 | an `accepted` forms list in a test | the three reference forms written as a literal beside a document that declares three rows |
+   | W42 | `EDGE_KEYS` in `src/definition/validate.ts` | `FD-V17` refuses *a key its kind does not declare*, and section 3's Edge key table is the document's only statement of what an edge declares. Nothing compared them, so for one item **the code accepted `needs` on an edge while the table did not list it** — `spec/README.md` rule 4's inverse, in the ACCEPTING direction |
+   | W43 | `Role`, the `switch` arms in a worker, and a pool registry | three lists saying the same eight things, in `examples/**`. One letter in a pool's role and `run()` falls off the end of a switch TypeScript does not require to be exhaustive, returns `undefined`, and **the SCHEDULER's own message handler dies** before any assertion runs ([Q194](open-questions.md)) |
+
+   So, a third question with a procedure. **Find the other list and compare the two BOTH WAYS.** A
+   floor is not a binding and neither is a subset: three of the four above were closed by set equality
+   against the document or the manifest that is the other half, which is `JP-R9`'s own sentence —
+   *compare the two halves rather than copy one of them*.
+
+   **And W43's answer was a TYPE, which is what the scope correction turns on.** `Role` is
+   `typeof ROLES[number]` and the pool constructor takes one, so an invented role is a **typecheck**
+   failure at ladder L0 — cheaper and earlier than any assertion, and available in product code where
+   a `.mjs` check has nothing like it. **But a type closes ONE direction**: a member added to `ROLES`
+   with no arm and no use costs zero, at L6 and at typecheck both, and only the adequacy reader's
+   measurement established that ([Q196](open-questions.md)). *The question generalises; the answer does
+   not, and a one-directional binding is worth having as long as the direction is written down.*
+
+   **The scope P11's retro stated was *checks over the gate's own wiring, in `scripts/**`*.** Two of
+   P12's four are there, one is `src/` and one is `examples/**` — **so the shape is not a property of
+   check-writing**, and this is the first evidence either way. W41 recorded it as a third shape on one
+   item with the argument that the first two are instances of it; W42 and W43 supplied the second and
+   third items, and the argument is now unnecessary.
+
+   **The author reaches none of them.** Across the three items the authors instantiated (e) as written
+   — W41 three times, W42 three, W43 three — and **every one passed**; all four instances above were
+   found by a reader or by asking the declaration question deliberately. That is W39's asymmetry for
+   the third plan running.
+
+   **THE LIMIT OF (c)'s PROCEDURE, AND IT IS A RULE THAT WAS FOLLOWED — P12's retro.** W34 settled
+   that a provenance probe cannot be graded against a correct implementation, because a source swap on
+   working code leaves both sources agreeing, and prescribed a **compound probe**: swap the source AND
+   break the subject, then ask whether the pair is still red. **W43 followed it and the compound came
+   back GREEN**, and the reason is not a defect in the probe.
+
+   ADR 0040 rule 6 says a node receives **exactly** the object its declaration describes. The only
+   thing at ladder L6 that can observe a **superset** is a worker reading its own payload's key set —
+   so the probe that re-sources that reading **removes the only observer**, and the compound then
+   measures nothing. Re-sourcing it to a literal cost **0**; with it live, a driver composing one extra
+   key costs **8**. *A SENSOR CANNOT CORROBORATE ITSELF, and no probe over one observer can tell a
+   bound clause from an unbound one.*
+
+   So the procedure gains its limit: **when the compound probe is green, count the observers.** If the
+   clause has exactly one, the fix is not a better probe — it is a **second independent expression over
+   the same fact**, after which a probe that re-sources either one leaves the other live. W43's is the
+   negative form of the same reading, `extraKeys`, and the compound then fires.
+
+   **One occurrence, and the argument for why it generalises is that the axis never asks the
+   question**: (c) asks *where did this value come from* and every clause with a single observer has
+   this property, whatever it is about. The alternative reading — that this is a ceiling to be declared
+   rather than a hole to be closed — is what W43's **author** wrote, with a correct reason and a named
+   second route at L2; its adequacy reader measured the eight failures that reason was costing.
+   *A ceiling declared with a correct reason is still a hole if the reason is about the OBSERVER rather
+   than about the fact.*
+
+   **AND WHATEVER MAKES A DISCRIMINATING PAIR DIFFER IS ITSELF A CLAIM — P12's retro, and it is a
+   requirement on the SET rather than a sixth axis.** This repository reaches for **two runs differing
+   in one variable** whenever a value has to be shown to come from where it claims: `r5`/`r6`,
+   `r14`/`r15`/`r16`, `nested LOW`/`nested HIGH`, and W43's two of its own. **The pair is the
+   assertion — and in three items across two plans the property that made the two halves differ was
+   carried by literals that nothing compared.**
+
+   | | the pair | what it cost to collapse it |
+   |---|---|---|
+   | W17 | two rows reaching the `lost` and `exited` join paths, arranged by a per-role delay | reversing one `Set` literal in a different file restored W6's original defect exactly — `settleJoin` deletable from the `lost` path with the gate green, and `exit-last` from four failures to **none**. Closed by `Expectation.joinSettledBy` |
+   | W43 | two runs of one flow at two run configs, so no literal can stand in for a declared key | making the two configs equal cost **0**; with that done, hard-coding the declared key's value in the worker cost **0** as well, and the whole of [Q166](open-questions.md) was green |
+   | W43 | a LOW and a HIGH decision row, so a predicate cannot pass by returning a constant | making the HIGH row LOW cost **0**; with that done, a predicate of `() => true` cost **0**, and W42's mechanism was unasserted |
+
+   So: **assert the difference.** Whatever the pair turns on — two payloads, two configs, two arranged
+   orders — read it from the fixtures and compare, so that collapsing the pair is a failure rather than
+   a smaller suite. It is `JP-R9`'s sentence applied to a FIXTURE instead of to a rule, and the
+   measurement that earns it is the second row of each pair above: *the mechanism underneath became
+   deletable for zero the moment the pair stopped being one.*
+
+   **Why a requirement on the set rather than an axis.** (a) through (e) each name a thing to break in
+   the SUBJECT; this names a property of the EVIDENCE, which is where the other three requirements
+   live. And it is not (c): a provenance probe changes where a value comes from, while this changes
+   what two fixtures disagree about — W43's author ran (c) over the same rows and reached neither.
+
    **AND A PROVOCATION IS EVIDENCE ONLY WHEN IT FIRES, AND ONLY WHEN IT FIRES FOR THE REASON IT
    NAMES — P9's retro, and it is a requirement on the SET rather than a sixth axis.** Two halves, and
    they are the same question in two directions.
@@ -1025,9 +1191,15 @@ Windows, `Get-ChildItem -Recurse -Force -Attributes ReparsePoint`. If either is 
 remove it; say so and stop.
 
 **Why two readers rather than one asking both questions**, which is what earlier versions said.
-Measured **nineteen** times now: W4 1 of 13, W5 3 of ~35, W6 3 of ~25, W9 3 of ~30, W12 3 of 18,
-W13 4 of 24, W14 4 of ~26, W17 3 of ~31, W18 2, W19 4 of 18, W28 4, W29 1, W30 2, W31 0, **W32 2,
-W33 2, W34 2, W36 1, W39 4**. **It is a count of measurements TAKEN and not of items reviewed** —
+Measured **twenty-two** times now: W4 1 of 13, W5 3 of ~35, W6 3 of ~25, W9 3 of ~30, W12 3 of 18,
+W13 4 of 24, W14 4 of ~26, W17 3 of ~31, W18 2, W19 4 of 18, W28 4, W29 1, W30 2, W31 0, W32 2,
+W33 2, W34 2, W36 1, W39 4, **W41 1 of 116, W42 2 of 61, W43 2 of 39**.
+**The ORDINAL is derived by counting this list, and P12's three items each got it wrong by two** —
+W41 wrote *eighteenth*, which is W36's, and W42 and W43 incremented from it, so three consecutive
+Records were internally consistent with each other and wrong against the only list there is. All
+three are corrected under pass 3 rule 6. *Section 1 rule 5's provenance clause — any copy including
+your own — on a number nothing had to derive.*
+**It is a count of measurements TAKEN and not of items reviewed** —
 W35, W37 and W38 each ran both readers and recorded no overlap, which costs nothing now that the
 question is closed, and the scope is stated because this line has twice been read as the second
 number. Each overlap arrived from a different direction; one reader
@@ -1036,9 +1208,10 @@ yet** - the same three facts reached by six different routes, and in each case t
 routes had nothing in common.
 
 **The number to carry is the ABSOLUTE one: two readers produce 0-4 shared findings, whatever the
-item's size** - **nineteen** measurements, and P6's retro declares the question **settled and closed
-to re-litigation**. **The five since — 2, 2, 2, 1 and 4 — are all inside the band and the band has not
-moved.** **The band read 1-4 over ten measurements until W31 came in at ZERO**, and P9's
+item's size** - **twenty-two** measurements, and P6's retro declares the question **settled and closed
+to re-litigation**. **The eight since — 2, 2, 2, 1, 4, 1, 2 and 2 — are all inside the band and the
+band has not moved.** **W41's 1 of 116 is the largest denominator ever recorded here and it did not
+move the numerator**, which is the clearest single datum against reading the fraction. **The band read 1-4 over ten measurements until W31 came in at ZERO**, and P9's
 retro corrected the number rather than the conclusion: a zero is what *"the second reader finds what
 the first was not looking for"* predicts at its limit, and W31's pair produced **5 and 10 findings
 with eight blocking between them**, the largest yield of P9's four items. **The caveat is recorded

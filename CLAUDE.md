@@ -15,7 +15,15 @@ the only document that does. **Every snippet in it is extracted and executed by 
 (`scripts/check-docs.mjs`), so it cannot rot the way a hand-maintained reference does. If you change
 the public surface, that check is what tells you the reference is now wrong.
 
-## Current state: **P1-P11 are ALL complete and retro'd, `doc/workflow.md` is [v0.12](doc/workflow.md), and [P12](doc/plans/p12-what-a-node-receives-and-what-a-decision-sees.md)'s THREE ITEMS ARE ALL DONE — its EXIT ARTIFACT EXISTS and its RETRO IS NOT RUN.** **Read every status from the item's own file, never from this line.**
+## Current state: **P1-P12 are ALL complete and retro'd, and `doc/workflow.md` is [v0.13](doc/workflow.md).** **Read every status from the item's own file, never from this line.**
+
+**[P12](doc/plans/p12-what-a-node-receives-and-what-a-decision-sees.md) is COMPLETE and RETRO'D, and its question — *what does a node receive, and what does a decision see?* — is answered by TWO ADRs.** What a node can reach is the run's own outputs, named by the pair `(node id, branchPath)` and reached only by DECLARING them ([ADR 0040](doc/decisions/0040-what-a-node-can-reach-is-the-runs-own-outputs-and-a-node-id-names-them-relative-to-a-branch-path.md)); a decision sees its node's effective outcome plus whatever its **own edge** declares ([ADR 0041](doc/decisions/0041-a-decision-sees-its-nodes-outcome-and-whatever-its-own-edge-declares.md)). **[Q11](doc/open-questions.md)'s row asked the wrong shape of question** — its three candidates are a **stack**, not a fork, and only the third reaches a worker at all because `createTask` takes ONE value. **Both flows the plan exists for run on real workers in both L6 runtimes**; L6 is **760 assertions over 36 real runs**, from 638 / 31.
+
+**Its central finding is that ALL THREE items shipped a claim their own evidence could not falsify, and in each case the author had FOLLOWED this document's procedure for exactly that.** W41's 37 probes all used a map region, so a rule wrong about `fanout` regions was unreachable from the set. W42 wrote an ADR whose forcing fact was **false** and whose conclusion was right. W43 built an exit artifact in which every map instance scored **zero** and would have shipped it as evidence for a rule it could not distinguish from its negation. **Six of the plan's seven defects have NO RUNG, and every one of the six is in the EVIDENCE rather than in the product** — [P11](doc/plans/p11-what-should-the-gate-prove.md)'s finding for a second plan running, this time on a PRODUCT plan. *L0-L6 climb over what the library does; nothing climbs over whether the thing that says so could have said otherwise.*
+
+**v0.13 adopts THREE changes and refuses FOUR.** **(1) Rule 8 obligation (e) gains a THIRD SHAPE — a LIST is a claim about another list**, four instances in three items (`RULE_PREFIXES` and an `accepted` list, `EDGE_KEYS`, and a `Role` union / `switch` arms / pool registry), procedure *find the other list and compare BOTH WAYS*. **(2) Obligation (c)'s procedure gains its LIMIT**: W34's compound probe was FOLLOWED and came back green, because the clause had exactly one observer and the probe removed it — *a sensor cannot corroborate itself* — so **count the observers** and, at one, add a second independent expression rather than a better probe. **(3) A fourth requirement on the SET: whatever makes a discriminating PAIR differ is itself a claim** — W17's two join-path rows and BOTH of W43's pairs collapsed for **0**, and with either collapsed the mechanism underneath was deletable for 0 too. **REFUSED**: a ladder level for L6's own self-test (on cost; second time a level has been proposed and refused), an `Owns` pre-declaration rule (twenty-two late exceptions, **zero undeclared**), an obligation for the evidence behind a decision's stated reason, and a `doc/` check **for the TENTH time**.
+
+**All four predictions have a verdict, prediction 3 REVERSED, and its reversal was justified by a FALSE FACT** — the third case in the sequence P10 and P11 built, and the sharpest ([Q193](doc/open-questions.md)). **And the verdict v0.12 asked for: obligation (e)'s second question FIRED on a product item, four times** — two instances in `scripts/**`, one in `src/`, one in `examples/**`, so the shape is not a property of check-writing. **The ANSWER is not portable even though the question is**: W43's was a TYPE, which fails at L0 and is unavailable to a `.mjs` check, and **a type closes one direction only** ([Q196](doc/open-questions.md)). **The author reaches none of them** — nine instantiations of (e) as written, all nine passing, every one of the four found by a reader. **Readers six passes, overlap 1 / 2 / 2** (the twentieth to twenty-second measurements, all in the 0-4 band) — **and all three items got that ORDINAL wrong by two, each inheriting it from the one before**, corrected under section 6 pass 3 rule 6. **Rule 8 across the plan: 137 provocations, 121 caught, ZERO undeclared survivors, ZERO aborts.** **W44 CLOSED as reserved and never issued; Q184-Q198 all used, the block extended once; ADR 0040 and 0041 both taken. The next plan starts at W45, Q199 and ADR 0042.** **Census CONFIRMED for the ELEVENTH plan running — 155 questions, 107 open, 2 deferred, 46 resolved.**
 
 **[W43](doc/work-items/w43-the-two-blocked-flows-on-real-workers.md) is DONE and it is P12's EXIT ARTIFACT: both ordinary flows this library could not express before this plan now run end to end on a real `FyflowScheduler`, in BOTH L6 runtimes.** [Q166](doc/open-questions.md)'s *score each item against the run's config* runs at `needs: {"item": ".", "run": "ingest"}`, three instances scoring 4 / 8 / 12 from **both** declared keys; [Q165](doc/open-questions.md)'s *score, then fan out over the scores* runs a second map over `needs: {"scores": ["score"]}` with **no `over: "0"` anywhere**, so the brittleness that row names is gone rather than worked around — two regions, and the second's arity comes from what the first's branches returned. Ladder L6 is **760 assertions over 36 real runs**, from 638 / 31. **`spec/` is unmoved at 7 documents, 40 examples, 87 rules and L1-L5 at 633 cases in five runtimes, which is the declared result — an exit artifact writes no rule.** **What reverting each item costs: W41 is 18 L6 failures, W42 is 2, both are 20**, additive; **W42's was 0 before this item**, because neither flow the plan named carries an edge-level `needs`.
 
@@ -1337,7 +1345,7 @@ two things Q95's stub asserts about the `unsatisfiable` exit. The second is `doc
 change 3's own argument in a directory it does not cover, and its reason generalises: **which spec
 clause a stub makes load-bearing is not knowable until the stub exists.**
 
-**At least SIXTY-THREE reader-passes have run and not one came back empty — and this line said THIRTY-ONE for four plans and FIFTY-ONE for two more.** *(P10's retro tried to re-derive it and stopped: the predicate below is sound, and the item files do not share a row format, so a grep that counts the passes W15, W16, W17, W24 and W25 recorded misses the three W3 ran, and one that catches those double-counts the items whose Verification table and Record both carry a reader row. **63 is a floor with a stated predicate** - rows in an item's own Record asserting the pass RAN - not the answer. P10 added eight and P11 four, each read from that plan's own retro. The exact total needs each Record read individually, which is what this line has always been a substitute for.)* *(The predicate: one per reader
+**At least SIXTY-NINE reader-passes have run and not one came back empty — and this line said THIRTY-ONE for four plans and FIFTY-ONE for two more.** *(P10's retro tried to re-derive it and stopped: the predicate below is sound, and the item files do not share a row format, so a grep that counts the passes W15, W16, W17, W24 and W25 recorded misses the three W3 ran, and one that catches those double-counts the items whose Verification table and Record both carry a reader row. **63 is a floor with a stated predicate** - rows in an item's own Record asserting the pass RAN - not the answer. P10 added eight, P11 four and P12 six, each read from that plan's own retro. The exact total needs each Record read individually, which is what this line has always been a substitute for.)* *(The predicate: one per reader
 per work item, counted from each item's own Record — `doc/workflow.md` section 1 rule 5, never from
 this line.)* W1 ×3, W3 ×3, W2 ×1, W4 ×2, W5 ×2, W6 ×2, W9 ×2, W12 ×2, W13 ×2, W14 ×2, **W15 ×2,
 W16 ×2, W17 ×2, W18 ×2, W19 ×2**. *(Sum the list; it is 31, and the list is the predicate.)* *(This line read **twenty-one** and listed only the first ten items until
@@ -1475,9 +1483,16 @@ that depends on fan-out completion order.
 
 ## How work is done
 
-**[doc/workflow.md](doc/workflow.md) — read it before starting any work item. It is v0.12, run to
-completion by ELEVEN plans.** *(This line read "v0.10, run to completion by NINE plans" while v0.11
+**[doc/workflow.md](doc/workflow.md) — read it before starting any work item. It is v0.13, run to
+completion by TWELVE plans.** *(This line read "v0.10, run to completion by NINE plans" while v0.11
 and v0.12 landed above it.)*
+
+**v0.13 is P12's retro and its three changes are above.** The short form: **obligation (e) gains a
+THIRD shape — a LIST is a claim about another list**, and the procedure is to find the other list and
+compare both ways; **obligation (c)'s procedure gains its LIMIT** — when the compound probe is green,
+count the observers, because a sensor cannot corroborate itself; and **rule 8 gains a fourth
+requirement on the SET** — whatever makes a discriminating pair differ is itself a claim, so assert
+the difference.
 
 **v0.12 is P11's retro and its three changes are above.** The short form: **rule 8 obligation (e)
 gains a second question — not *was the check run*, but *was what it RAN what SHIPS***, on five
@@ -1596,7 +1611,7 @@ concept -> plan -> work items -> verify (ladder, spec conformity, retro) -> reco
 
   ```bash
   npm run gate            # everything, both L6 runtimes included
-  npm run test:l6         # ladder L6, node 24 - twenty-one real runs
+  npm run test:l6         # ladder L6, node 24 - thirty-six real runs
   npm run test:l6:deno    # ladder L6, deno
   ```
 

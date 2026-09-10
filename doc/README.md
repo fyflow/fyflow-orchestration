@@ -2,6 +2,70 @@
 
 ## Current state
 
+**[P12](plans/p12-what-a-node-receives-and-what-a-decision-sees.md) is COMPLETE and RETRO'D, and
+`doc/workflow.md` is [v0.13](workflow.md).** Its question — *what does a node receive, and what does a
+decision see?* — is answered by **two ADRs**: what a node can reach is the run's own outputs, named
+by the pair `(node id, branchPath)` and reached only by DECLARING them
+([ADR 0040](decisions/0040-what-a-node-can-reach-is-the-runs-own-outputs-and-a-node-id-names-them-relative-to-a-branch-path.md));
+and a decision sees its node's effective outcome plus whatever its **own edge** declares
+([ADR 0041](decisions/0041-a-decision-sees-its-nodes-outcome-and-whatever-its-own-edge-declares.md)).
+**[Q11](open-questions.md)'s row asked the wrong shape of question** — its three candidates are a
+**stack**, not a fork: the previous node's output is the DEFAULT, an accumulator is the STATE, a
+declared mapping is the ACCESS, and only the third reaches a worker at all because `createTask`
+takes ONE value. Open since P1, read by every plan since, and the correction came from trying to
+build all three.
+
+**Its central finding is that ALL THREE items shipped a claim their own evidence could not falsify —
+and in each case the author had followed this document's procedure for exactly that.** W41's 37
+probes all used a map region, so a rule wrong about `fanout` regions was unreachable from the set.
+W42 wrote an ADR whose forcing fact was **false** and whose conclusion was right. W43 built an exit
+artifact in which every map instance scored **zero**, ran it end to end on real workers, and would
+have shipped it as evidence for a rule it could not distinguish from its negation. **None is
+carelessness and six of the plan's seven defects have NO RUNG** — every one of the six is in the
+EVIDENCE rather than in the product, which is [P11](plans/p11-what-should-the-gate-prove.md)'s
+finding for a second plan running and this time on a PRODUCT plan.
+
+**v0.13 adopts THREE changes and refuses FOUR.** **(1) Obligation (e) gains a THIRD SHAPE — a LIST
+is a claim about another list**, four instances in three items, procedure *find the other list and
+compare both ways*; **v0.12 stated the scope as `scripts/**` and two of the four are outside it**,
+so the shape is not a property of check-writing. **(2) Obligation (c)'s procedure gains its LIMIT**:
+[W34](work-items/w34-what-a-branch-receives-and-what-a-join-carries.md)'s compound probe was
+FOLLOWED and came back green, because the clause had exactly one observer and the probe removed it —
+*a sensor cannot corroborate itself* — so when the compound is green, **count the observers**.
+**(3) A fourth requirement on the SET: whatever makes a discriminating PAIR differ is itself a
+claim** — W17's two join-path rows and BOTH of W43's pairs collapsed for **0**, and with either
+collapsed the mechanism underneath was deletable for 0 too. **REFUSED**: a ladder level for L6's own
+self-test (on cost — second time a level has been proposed and refused), an `Owns` pre-declaration
+rule (twenty-two late exceptions, **zero undeclared**, so the mechanism works), an obligation for the
+evidence behind a decision's stated reason, and a `doc/` check **for the TENTH time**.
+
+**All four predictions have a verdict and prediction 3 REVERSED — and its reversal was justified by a
+FALSE FACT.** ADR 0041 said a *diamond* made a node's payload underivable because choosing between
+two settled predecessors needs append order; W42's conformity reader derived it in one expression
+with none. The conclusion survived on two facts nobody had written down. P10's retro settled that
+only a **reach** prediction can reverse and P11 found two right about the conclusion and wrong about
+the mechanism; **this is the third case and the sharpest** — [Q193](open-questions.md).
+
+**And the verdict v0.12 asked for: obligation (e)'s second question on a PRODUCT item FIRED, four
+times.** `RULE_PREFIXES` and an `accepted` list (W41), `EDGE_KEYS` (W42), and a `Role` union, a
+`switch`'s arms and a pool registry (W43) — **two in `scripts/**`, one in `src/`, one in
+`examples/**`**. **The ANSWER is not portable even though the question is**: W43's was a TYPE, which
+fails at ladder L0 and is unavailable to a `.mjs` check, and **a type closes one direction only**
+([Q196](open-questions.md)). **The author reaches none of them** — nine instantiations of (e) as
+written across the three items, all nine passing, and every one of the four found by a reader.
+
+**Reader passes: six, none empty, overlap 1, 2 and 2** — the twentieth, twenty-first and
+twenty-second measurements, all inside the 0-4 band, all six unprimed. **W41's 1 of 116 is the
+largest denominator ever recorded here and did not move the numerator.** **And all three items got
+the ORDINAL wrong by two, each inheriting it from the one before** — corrected in all three files
+under section 6 pass 3 rule 6, its second use. **Rule 8 across the plan: 137 provocations, 121
+caught, ZERO undeclared survivors, ZERO aborts** — and the three defects that mattered most were
+found by readers rather than by it, which is why all three of v0.13's changes are about what the set
+does not ask. **W44 CLOSED as reserved and never issued; Q184-Q198 all used and the block extended
+once; ADR 0040 and 0041 both taken. The next plan starts at W45, Q199 and ADR 0042.** **Census
+CONFIRMED for the ELEVENTH plan running — 155 questions, 107 open, 2 deferred, 46 resolved**, and
+W43's parser, written from scratch, aborted **zero** times on its first run.
+
 **[P12](plans/p12-what-a-node-receives-and-what-a-decision-sees.md)'s EXIT ARTIFACT EXISTS and
 [W43](work-items/w43-the-two-blocked-flows-on-real-workers.md) is DONE.** The two ordinary flows the
 plan named as *things this library cannot express today* run end to end on a real `FyflowScheduler`,

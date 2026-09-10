@@ -200,7 +200,10 @@ finds it is (e)'s second one asked of a DECLARATION rather than a command**: *wh
 to agree with, and what would say so?* **For P12's retro**, with the scope stated: two of the three
 are `scripts/**` and one is `src/`, so it is not a property of the gate's own wiring.
 
-**Overlap: 2 of 61** — the nineteenth measurement, inside the settled 0-4 band, both readers unprimed.
+**Overlap: 2 of 61** — the TWENTY-FIRST measurement, inside the settled 0-4 band, both readers
+unprimed.
+*(This read **the nineteenth** until P12's retro. `doc/workflow.md` section 6 lists nineteen measurements ending at W39, and [W36](w36-the-scheduler-pin-moves-to-0-5-1.md) and [W39](w39-what-the-gate-proves-and-what-it-costs.md) number themselves eighteenth and nineteenth in their own Records — so this item is the twenty-first. **All three of P12's items were wrong by two, each inheriting the ordinal from the one before**: W41 took W36's number and W42 and W43 incremented from it. Section 1 rule 5's provenance clause — *any copy including your own* — on a number that was derivable by counting one list. Corrected under section 6 pass 3 rule 6.)*
+
 Their shared subjects: **the untested region path** (conformity from the item's own Verification table
 claiming *covered*, adequacy from forcing `here = '-'` for **0** — two routes, one hole), and **the
 inert `needs`** (conformity that it is accepted and recorded nowhere, adequacy that *building a

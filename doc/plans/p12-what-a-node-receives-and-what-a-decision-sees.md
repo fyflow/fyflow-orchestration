@@ -1,7 +1,8 @@
 # P12 — What does a node receive, and what does a decision see?
 
-**Status:** DECLARED 2026-09-09, after [P11](p11-what-should-the-gate-prove.md) closed and
-`doc/workflow.md` reached [v0.12](../workflow.md).
+**Status:** COMPLETE and RETRO'D 2026-09-10. `doc/workflow.md` is now [v0.13](../workflow.md).
+*(Declared 2026-09-09, after [P11](p11-what-should-the-gate-prove.md) closed and `doc/workflow.md`
+reached v0.12.)*
 **It is a PRODUCT plan, and it is the first since [P10](p10-is-fan-out-one-feature-or-two.md).**
 *Read every status from the item's own file.*
 
@@ -389,6 +390,214 @@ costs in L6 failures.*
 
 **What the plan answered.** *Q11 in general, and Q8.*
 
-**Retro.** *`doc/workflow.md` section 6 pass 3. It owes a verdict on each of the four predictions, and
-on v0.12's three changes — in particular obligation (e)'s second question, which has been earned
-entirely on `scripts/**` and which a product plan is the first thing to test it against.*
+**Retro — RUN.** *`doc/workflow.md` section 6 pass 3, and `doc/workflow.md` is now
+[v0.13](../workflow.md). Everything below is the retro; the item rows above are the items'.*
+
+## The plan's question, answered
+
+**What does a node receive?** Whatever it DECLARES, out of the run's own outputs, named by the pair
+`(node id, branchPath)` — [ADR 0040](../decisions/0040-what-a-node-can-reach-is-the-runs-own-outputs-and-a-node-id-names-them-relative-to-a-branch-path.md).
+**What does a decision see?** Its node's effective outcome and whatever its OWN EDGE declares —
+[ADR 0041](../decisions/0041-a-decision-sees-its-nodes-outcome-and-whatever-its-own-edge-declares.md).
+
+**The answer to the first half is that [Q11](../open-questions.md)'s row asked the wrong shape of
+question.** It presents three candidates as a fork — the previous node's output, a run-scoped
+accumulator, a declared per-edge mapping — and they are a **stack**: the previous node's output is
+the DEFAULT, the accumulator is the STATE, and the declared mapping is the ACCESS. **Only the third
+can reach a worker at all, because `createTask` takes ONE value.** A row open since P1, read by
+every plan since, and the correction came from trying to build all three.
+
+## The four predictions
+
+| # | kind | prediction | verdict |
+|---|---|---|---|
+| 1 | derived | the accumulator adds no retention and the ADR will say so | **CONFIRMED.** ADR 0040 rule 2: what a node can reach is a PROJECTION of the log, computed and not maintained. The driver gained no field; `outputs()` groups the log in one pass and is memoised on `log.length` |
+| 2 | **reach** | the KEY is what the ADR turns on, and a node-id key will be refused | **CONFIRMED, and right about its mechanism.** The pair `(node id, branchPath)`, decided from a measurement over **eight** region-bearing corpus flows — the ids collapse in exactly the map-bearing ones. [ADR 0036](../decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md)'s deciding fact for the third time |
+| 3 | **reach** | **W42 needs no ADR** | **REVERSED.** A predicate needs a **shape** a worker does not (no `"."`) and a **SITE**, because *what the node received* is not available where a decision is made |
+| 4 | derived | [Q164](../open-questions.md) fires, and `RULE_ID` grows by exactly one prefix | **CONFIRMED.** `FD-C` is the third prefix — `FD-V` what a DOCUMENT may say, `FD-R` what a RUN refuses, `FD-C` what a run CARRIES |
+
+**Prediction 3 is the result, and it reversed on evidence that was itself FALSE.** ADR 0041's stated
+forcing fact was *a diamond makes a node's payload underivable, because choosing between two settled
+predecessors needs append order.* W42's conformity reader derived it in one expression with no append
+order at all — drop any settled predecessor another settled one is reachable **from**, and `FD-V19`
+makes the survivor unique. **The conclusion survived on two facts nobody had written down**: the
+**entry** node's payload is in **no record at any moment**, and re-deriving any other node's
+re-implements `compose`, `JP-R11` and `JP-R12` at a second site, which ADR 0040 rule 2 refuses by
+name. [Q193](../open-questions.md).
+
+**Where that sits in the sequence this repository has been building.**
+[P10](p10-is-fan-out-one-feature-or-two.md)'s retro settled that a **derived** prediction checks your
+reasoning and a **reach** prediction checks the mechanism, and only the second can reverse.
+[P11](p11-what-should-the-gate-prove.md) found two that were right about the conclusion and wrong
+about the mechanism. **P12 adds the third case and it is the sharpest: a reach prediction that
+reversed, and whose reversal was justified by a fact that was not true.** It would have stood as this
+repository's account of why Q8 needed a decision at all, and **only a reader re-deriving the evidence
+rather than reading it could have found that** — which is what pass 2 asks of the conformity reader
+in one sentence and had never before been the thing that caught a DECISION.
+
+**And prediction 4 confirmed with a defect inside the confirmation.** `RULE_ID` did grow by exactly
+one prefix — and the constant it grew was itself bound to nothing, so dropping `FD-C` cost **zero**.
+*A derived prediction can be confirmed by a mechanism that does not work.*
+
+## Name the rung: ONE of seven, and it is the same verdict P11 reached
+
+| defect | rung |
+|---|---|
+| `FD-V28` refused a valid document (a `fanout` region read as a map region) | **L1 — and the fixture did not exist.** All 37 of the author's probes used a map region, so the whole `fanout` half was unreachable from the set. *A probe set written against the cases a feature was built for cannot see a rule that is wrong about the cases it was not* |
+| ADR 0041's forcing fact was false | **none, and none could be.** Nothing in sections 4-6 covers a decision's ARGUMENT |
+| `RULE_PREFIXES`, `EDGE_KEYS`, the role lists — bound to nothing | **none.** Each is a declaration agreeing with another declaration, and the gate compares neither |
+| both of W43's discriminating pairs collapsed for 0 | **none.** L6 was green and stayed green |
+| `map-with-context` scored every instance 0 — the exit artifact proving nothing | **none.** It ran, it completed, and every assertion passed |
+| two revert costs measured before the tree they describe | **none.** A Record number |
+| the gate RED at L0 twice with zero `FAIL` lines | **L0, and it RAN** — the one that worked, and only because the exit code is the predicate |
+
+**Six of seven have no rung, and every one of the six is in the EVIDENCE rather than in the
+product.** That is [P11](p11-what-should-the-gate-prove.md)'s finding for a second plan running, and
+this one is a PRODUCT plan where P11's was about the gate — so the reading generalises: **L0-L6 climb
+over what the library does, and nothing climbs over whether the thing that says so could have said
+otherwise.** A level for it is proposed and refused below, for the second time.
+
+## `doc/workflow.md` v0.13 — three changes adopted, four proposals refused
+
+**Adopted.** (1) **Obligation (e) gains a THIRD SHAPE — a LIST is a claim about another list** —
+four instances in three items, and the procedure is *find the other list and compare both ways*.
+(2) **Obligation (c)'s procedure gains its LIMIT** — when the compound probe is green, count the
+observers; at one, the fix is a second independent expression, not a better probe. (3) **A fourth
+requirement on the SET: whatever makes a discriminating PAIR differ is itself a claim.** The full
+text and the evidence for each is in [`doc/workflow.md`](../workflow.md).
+
+**Refused, each with a measurement.** A **ladder level for L6's own self-test**
+([Q198](../open-questions.md)) — the cost is ~20 s a run against a check's ~1 s, so a self-test over
+W43's 43 mutations is the whole of what ADR 0039 bought back; **second time a level has been proposed
+and refused.** An **`Owns` pre-declaration rule** for the three documents a `spec/`-rule item always
+reaches — refused because **twenty-two late exceptions across three items were declared and ZERO were
+undeclared**, so the mechanism works; [Q157](../open-questions.md) and [Q102](../open-questions.md)
+stay open and **the next product plan should adopt it if the pattern repeats**. An **obligation for
+the evidence behind a DECISION's stated reason** — nothing could reach it and the two-reader pass is
+what caught it. And a **`doc/` check, for the TENTH time.**
+
+## The verdict v0.12 asked for: obligation (e)'s second question on a PRODUCT item
+
+**v0.12 earned it entirely on `scripts/**` — five consecutive items, all checks over the gate's own
+wiring — and stated that scope in place. P12 is the first plan to instantiate it on a product item,
+and it FIRED, four times.** The instances are `RULE_PREFIXES` and an `accepted` list (W41),
+`EDGE_KEYS` (W42), and the `Role`/`switch`/pool triple (W43). **Two are `scripts/**`, one is
+`src/` and one is `examples/**`**, which is the first evidence that the shape is not a property of
+check-writing.
+
+**Three things the retro carries beyond *it works*.**
+
+1. **The shape is neither of v0.12's two procedures**, and W41 said so on one item with an argument
+   before W42 and W43 supplied the occurrences. v0.12's procedures ask about a **command**; this asks
+   about a **declaration**, and the question that reaches it is *what does this list have to agree
+   with, and what would say so?*
+2. **The ANSWER is not portable even though the question is.** W43's was a TYPE — `Role` is
+   `typeof ROLES[number]` and the pool constructor takes one, so an invented role fails **typecheck
+   at L0**, earlier and cheaper than any assertion and unavailable to a `.mjs` check. **And a type
+   closes one direction only**: a member added to the list with no use costs zero
+   ([Q196](../open-questions.md)), where the three `scripts/**` and `src/` instances were closed by
+   **set equality both ways**. *The question generalises; the answer does not.*
+3. **The author reaches none of them.** Across the three items the authors instantiated (e) as
+   written nine times and **all nine passed**; every one of the four was found by a reader or by
+   asking the declaration question deliberately. **W39's asymmetry for the third plan running** — the
+   author breaks the CHECK's wiring, the reader breaks the SUBJECT's.
+
+## Reader passes
+
+**Six passes, none empty, overlap 1, 2 and 2** — the twentieth, twenty-first and twenty-second
+measurements, all inside the settled 0-4 band, **all six readers unprimed**. **W41's 1 of 116 is the
+largest denominator ever recorded here and it did not move the numerator**, which is the clearest
+single datum against reading the fraction.
+
+**And all three items got the ORDINAL wrong, by two, each inheriting it from the one before.** W41
+wrote *eighteenth*, which is W36's; W42 and W43 incremented from it. The list is in
+`doc/workflow.md` section 6 and counting it is the whole derivation. **Corrected in all three files
+under section 6 pass 3 rule 6** — the rule P11's retro added for exactly this, and its second use.
+*Section 1 rule 5's provenance clause, on a number nothing had to derive.*
+
+**The split is what the two roles predict, three times out of three.** The conformity readers found
+**claims that were false**: a rule refusing a valid document, an ADR's own forcing fact, a table the
+code had outgrown, two revert costs, four counts in a README, a rule citation, a `flowId`
+convention. The adequacy readers found **bounds that were not there**: 20 real survivors of 98, 14 of
+45, 19 of 28 — and **W43's four blocking findings are three of one shape**, *a discriminating pair
+whose difference is carried by literals nothing compares*, which is v0.13's third change.
+
+## Rule 8 across the plan
+
+| | probes | caught | survivors | aborted |
+|---|---|---|---|---|
+| W41 | 54 | 51 | 2, both classified vacuous | 0 |
+| W42 | 40 | 38 | 1, classified a REWRITE on [Q112](../open-questions.md)'s reasoning | 0 |
+| W43 | 43 | 32 | 11, **all declared ceilings** | 0 |
+
+**137 provocations, 121 caught, ZERO undeclared survivors and ZERO aborts across three items.** The
+set is doing its work — and **the three defects that mattered most in this plan were found by
+readers, not by it**, which is why v0.13's three changes are all about what the set does not ask.
+
+**W41's harness produced three defects invisible in its own verdict**, which is v0.11's harness
+requirement earning its place a fourth time: `String.replace`'s `$` vocabulary truncated a
+replacement so a **crash read as a SURVIVOR** ([Q184](../open-questions.md), which then reproduced in
+the script inserting its own register row), a `green` predicate accepted `all passed` from a
+**sibling** child, and a probe was graded against a check whose clause only the self-test binds.
+**And W41's own driver work was destroyed by `git checkout` on a dirty tree** — W35's defect, by
+hand, outside the harness whose header forbids invoking git.
+
+## What the plan answered, and what it did not
+
+**Answered.** [Q11](../open-questions.md) in general, [Q8](../open-questions.md) (open since P1),
+[Q164](../open-questions.md), [Q166](../open-questions.md), [Q165](../open-questions.md)'s FLOW and
+[Q158](../open-questions.md) — the last after three plans in which its own row named a fix in files
+nobody owned. **[Q160](../open-questions.md) gets the verdict the plan promised it: keying a
+per-region structure by node id alone is a DEFECT and not a convention**, and ADR 0040 is the
+**third** mechanism in three plans to reach for the pair `(node id, branchPath)` after `branchOf`
+and the driver's run-time maps. The row stays open because its own subject — the driver's four
+run-time structures — is refused at construction rather than fixed.
+
+**Not answered, and named.** [Q165](../open-questions.md)'s **reducer** is not built and stays
+unowned; the flow that forced it now runs without one. [Q19](../open-questions.md)'s real question —
+whether retention is BOUNDED — is untouched, and ADR 0040 makes it sharper rather than softer, since
+a projection over the whole log is exactly what a bound would have to bite on.
+[Q22](../open-questions.md) gains its **third clone site**: `resolveReference` copies per key, which
+the plan predicted it might and which is now measured rather than hypothetical.
+
+## Ids
+
+**W41, W42 and W43 all used. W44 is CLOSED as reserved and never issued** — the
+third consecutive plan to reserve a trailing item and not need it, which is section 3's *reserve
+generously* working rather than failing. **ADR 0040 and 0041 both taken**, which P12 predicted and
+P9 and P11 did not manage. **Q184-Q198 all used — fifteen, and the block was extended once**, at
+W43's declaration, because ten was not generous either: W41 spent six and W42 four, so the block was
+empty before the plan's last item started. **Third consecutive plan to extend.**
+
+**The next plan starts at W45, Q199 and ADR 0042.**
+
+## Census — CONFIRMED for the ELEVENTH plan running
+
+**155 questions — 107 open, 2 deferred, 46 resolved**, 41 ids in both tables, and both halves at
+**155 of 155 in exactly one cluster cell**. The retro raises no question and resolves none.
+
+**W43's parser was written FROM SCRATCH from the register's own note and aborted ZERO times on its
+first run** — the second time that has happened, after P11's retro, and **the first on a product
+item**. It then aborted **five** times, correctly, on that item's own new ids sitting in no cluster
+cell, which is [W34](../work-items/w34-what-a-branch-receives-and-what-a-join-carries.md)'s instance
+for the **fourth consecutive item**. *Four items running, the only thing an aborting census has
+caught is the item running it — which is either the mechanism working or the mechanism having
+nothing left to find, and the two are not distinguishable from here.*
+
+## What this plan taught, in one paragraph
+
+**Every one of P12's three items shipped a claim its own evidence could not falsify, and in each case
+the author had followed this document's procedure for exactly that.** W41's 37 probes all used a map
+region, so a rule wrong about `fanout` regions was unreachable from the set. W42 wrote an ADR whose
+forcing fact was false and whose conclusion was right. W43 built an exit artifact in which every map
+instance scored zero, ran it end to end on real workers, and would have shipped it as evidence for a
+rule it could not distinguish from its negation — then measured both revert costs before its own last
+two edits. **None of the three is carelessness and none has a rung.** What they have in common is
+that the thing under test was fine and the thing doing the testing agreed with itself: a probe set
+agreeing with the cases the feature was built for, a decision agreeing with its own argument, a
+fixture pair agreeing about the variable that made it a pair. **v0.13's three changes are all one
+question asked in three places — *what would this have to disagree with, and does anything ask?* —
+and the reason it takes three changes rather than one is that the answer is different every time:
+another list, another expression, another fixture.**
+
+

@@ -288,7 +288,10 @@ not in a `.mjs` check; and it closed **one direction only**, which none of the t
 instances did — the check-side ones were set equality *both ways*. *The question generalises; the
 answer does not.*
 
-**Overlap: 2 of 39** — the twentieth measurement, inside the settled 0-4 band, both readers unprimed.
+**Overlap: 2 of 39** — the TWENTY-SECOND measurement, inside the settled 0-4 band, both readers
+unprimed.
+*(This read **the twentieth** until P12's retro. `doc/workflow.md` section 6 lists nineteen measurements ending at W39, and [W36](w36-the-scheduler-pin-moves-to-0-5-1.md) and [W39](w39-what-the-gate-proves-and-what-it-costs.md) number themselves eighteenth and nineteenth in their own Records — so this item is the twenty-second. **All three of P12's items were wrong by two, each inheriting the ordinal from the one before**: W41 took W36's number and W42 and W43 incremented from it. Section 1 rule 5's provenance clause — *any copy including your own* — on a number that was derivable by counting one list. Corrected under section 6 pass 3 rule 6.)*
+
 Their shared subjects: **the revert costs** (conformity by re-running the measurement, adequacy by
 hitting it in passing — the same wrong number from two directions), and **the thinness of the W42
 row** (conformity noting that declaring `review`'s result would add a second assertion, adequacy

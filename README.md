@@ -153,17 +153,17 @@ happens next.
 - [doc/concept.md](doc/concept.md) — what we are building and why
 - [spec/](spec/README.md) — **the normative layer**: **six normative documents, 87 numbered rules, 40 hand-written examples**. Since **v0.8** the definition has a **fifth node kind, `map`** — [ADR 0036](doc/decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md) answering [Q12](doc/open-questions.md): fan-out is **two features over one region**, and since W33 a `Driver` RUNS one. **Since v0.11 a node may declare `needs`** — [ADR 0040](doc/decisions/0040-what-a-node-can-reach-is-the-runs-own-outputs-and-a-node-id-names-them-relative-to-a-branch-path.md) answering [Q11](doc/open-questions.md) in general — and `spec/flow-definition.md` gains a THIRD id prefix, `FD-C`, for a rule about what a run **carries**. **v0.12 answers [Q8](doc/open-questions.md)** — [ADR 0041](doc/decisions/0041-a-decision-sees-its-nodes-outcome-and-whatever-its-own-edge-declares.md), and an **edge** may declare a `needs` for its own predicate. *(`npm run check:spec` reports **7 documents** because it counts `spec/README.md` itself; the six are the normative ones. Re-derived from the check's own output at P10's declaration, where this line read 72 and 29.)*
 - [doc/decisions/](doc/decisions/) — **eighteen ADRs**, **five** carrying an in-place `## Correction` section. *(Both numbers re-derived from the directory at P11's retro, where this line read *fifteen ADRs, one carrying a Correction*; it read ten at P10's declaration. The second number was stale in a direction nobody looked: **five** ADRs carry it — 0003, 0013, 0014, 0015 and 0023.)*
-- [doc/plans/](doc/plans/) — **P1-P11 all complete and retro'd; [P12](doc/plans/p12-what-a-node-receives-and-what-a-decision-sees.md) declared and running**, `doc/workflow.md` at [v0.12](doc/workflow.md). *(This line read P1-P9 with P10 running, and before that P1-P4 while five more plans closed behind it — `doc/` is checked by nothing, and this is the front-door document.)*
+- [doc/plans/](doc/plans/) — **P1-P12 all complete and retro'd**, `doc/workflow.md` at [v0.13](doc/workflow.md). *(This line read P1-P9 with P10 running, and before that P1-P4 while five more plans closed behind it — `doc/` is checked by nothing, and this is the front-door document.)*
 - [doc/open-questions.md](doc/open-questions.md) — the register
 - [doc/workflow.md](doc/workflow.md) — how work is planned, split and verified
 - [doc/scheduler-upstream.md](doc/scheduler-upstream.md) — what we want from the scheduler
 
 **How the work is done is itself documented and is unusual**: every change is a declared work item
 with its own gate, and every one is read afterwards by two reviewers who did not write it — one
-against the spec, one by mutation. **Sixty-three such passes have run and not one has come back empty.** *(This line read **twenty-one**
+against the spec, one by mutation. **Sixty-nine such passes have run and not one has come back empty.** *(This line read **twenty-one**
 while thirty more ran, and **fifty-one** while twelve more did. The predicate is one pass per reader per work item, counted from each item's
 own Record — `doc/workflow.md` section 1 rule 5 — and the figure here is **summed from the per-plan
-totals**: 31 through W19 as `CLAUDE.md` enumerates them, plus eight in P7, four in P8, eight in P9, eight in P10 and four in P11,
+totals**: 31 through W19 as `CLAUDE.md` enumerates them, plus eight in P7, four in P8, eight in P9, eight in P10, four in P11 and six in P12,
 each read from that plan's own retro. **Stated that way rather than as a fresh count of the item
 files**, because a `grep` over their Record tables does not agree with itself across the two Record
 formats those files use, and a number that cannot be derived in one expression should say where it

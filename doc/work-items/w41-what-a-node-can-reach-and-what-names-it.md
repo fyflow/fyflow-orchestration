@@ -210,7 +210,9 @@ never reached, the rule rows deleted while cited — and all three passed. **The
 asked of the SUBJECT, and the author reached neither**, which is W39's asymmetry reproduced on a
 product item one plan later.
 
-**Overlap: 1 of 116** — the eighteenth measurement recorded, inside the settled 0-4 band, **and it is
+**Overlap: 1 of 116** — the TWENTIETH measurement recorded, inside the settled 0-4 band,
+*(This read **the eighteenth** until P12's retro. `doc/workflow.md` section 6 lists nineteen measurements ending at W39, and [W36](w36-the-scheduler-pin-moves-to-0-5-1.md) and [W39](w39-what-the-gate-proves-and-what-it-costs.md) number themselves eighteenth and nineteenth in their own Records — so this item is the twentieth. **All three of P12's items were wrong by two, each inheriting the ordinal from the one before**: W41 took W36's number and W42 and W43 incremented from it. Section 1 rule 5's provenance clause — *any copy including your own* — on a number that was derivable by counting one list. Corrected under section 6 pass 3 rule 6.)*
+ **and it is
 the second ZERO-adjacent pair after [W31](w31-the-self-list-check-policies-never-had.md)'s**. Their
 one shared subject is `test/driver/needs.test.ts`'s `FD-R3` suite, reached from opposite ends: the
 conformity reader from `spec/`'s claim that `FD-R3` is *reported and rethrown from `start()`* (which
