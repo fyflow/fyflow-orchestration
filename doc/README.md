@@ -2,6 +2,53 @@
 
 ## Current state
 
+**[P12](plans/p12-what-a-node-receives-and-what-a-decision-sees.md)'s EXIT ARTIFACT EXISTS and
+[W43](work-items/w43-the-two-blocked-flows-on-real-workers.md) is DONE.** The two ordinary flows the
+plan named as *things this library cannot express today* run end to end on a real `FyflowScheduler`,
+in **both** L6 runtimes: [Q166](open-questions.md)'s *score each item against the run's config* and
+[Q165](open-questions.md)'s *score, then fan out over the scores*, the second with **no `over: "0"`
+anywhere**. Ladder L6 is **760 assertions over 36 real runs**, from 638 / 31; `spec/` is unmoved at
+**7 documents, 40 examples, 87 rules** and L1-L5 at **633 cases in five runtimes**, which is the
+declared result — **an exit artifact writes no rule.** **What reverting each item costs: W41 is 18 L6
+failures, W42 is 2, both are 20** — and W42's was **0** before this item, because neither flow the
+plan named carries an edge-level `needs`.
+
+**Its declaration step found that both flows RUN and PROVE NOTHING, and that is the result to
+carry.** They complete on real workers exactly as written, and `map-with-context`'s three instances
+each returned `{confidence: 0, score: 0}`: every shipped worker role reads `payload.confidence`, and
+under a `needs` the payload is **exactly** the object `needs` describes. *A row that cannot tell
+ADR 0040 rule 6 from its negation is not evidence* — [W35](work-items/w35-a-map-on-real-workers.md)'s
+own `text` reasoning one rule across — and the same held for the decision pair from the other
+direction, where `ctx.outcome` and `ctx.needs` carry the same number on the corpus's own spelling.
+
+**Rule 8 obligation (e)'s SECOND QUESTION ran on a PRODUCT item for the first time and it FIRED.**
+v0.12 earned *"was what it RAN what SHIPS"* entirely on `scripts/**`; asked here of a **declaration**
+rather than of a command, it produced the **fourth** instance in one plan of *a LIST BOUND TO
+NOTHING* — `Role`, the worker's `switch` arms and the pool registry, three lists saying the same
+eight things with nothing comparing them, where one letter in a pool's role makes `run()` return
+`undefined` and kills **the scheduler's own message handler** before any assertion runs
+([Q194](open-questions.md)). **The answer was a TYPE rather than a set equality**, which product code
+has and a `.mjs` check does not, and **it closes one direction only** — which none of the three
+earlier instances did, and which only the adequacy reader's measurement established
+([Q196](open-questions.md)). *The question generalises; the answer does not.*
+
+**Its readers found 11 / 3 blocking and 28 mutations / 19 survivors / 4 blocking, overlap 2** — and
+three of the adequacy reader's four blocking findings are ONE shape: **a discriminating pair whose
+discriminating property is carried by literals that nothing compares.** This item added two rows
+whose whole purpose is to be the other half of a row beside them, and in both cases making the pair
+identical cost **zero** — after which the mechanism underneath could be deleted for zero as well
+([Q197](open-questions.md)). **And a SENSOR CANNOT CORROBORATE ITSELF**
+([Q195](open-questions.md)): ADR 0040 rule 6's *exactly* is observable only by a worker reading its
+own payload's key set, the author's rule 8 pass declared that a ceiling with a correct reason, and
+the reader measured what the ceiling cost — 8 failures, deletable by one fixture-side literal.
+*A ceiling declared with a correct reason is still a hole if the reason is about the observer rather
+than about the fact.* **Both revert costs were also WRONG when first written** — 14 and 1, taken
+before the item's own last two edits — which is v0.12 change 2 firing on the numbers that are the
+item's whole point. Rule 8: **43 provocations, 32 caught, 11 declared ceilings, 0 undeclared, 0 crash,
+0 aborted**, ten reader edits checked back in and all ten firing. **ONE late exception, zero
+undeclared.** **Census CONFIRMED for the ELEVENTH plan running — 155 questions, 107 open, 2 deferred,
+46 resolved**, and the parser, written **from scratch**, aborted **zero** times on its first run.
+
 **[W42](work-items/w42-what-a-decision-sees.md) is DONE and [ADR 0041](decisions/0041-a-decision-sees-its-nodes-outcome-and-whatever-its-own-edge-declares.md)
 answers [Q8](open-questions.md), open since P1 — *a decision sees its node's effective outcome and
 whatever its OWN EDGE declares.*** `spec/flow-definition.md` is **v0.12**: `FD-C3`, and an **edge**

@@ -1,17 +1,26 @@
 /**
- * **Ladder L6 — the gate.** Twenty-five real runs on a real scheduler: P1's exit
- * artifact, P2's, P4's, P5's, P6's and **P7's**.
+ * **Ladder L6 — the gate.** Every real run this repository makes: P1's exit
+ * artifact, P2's, P4's, P5's, P6's, **P7's**, **P10's** and **P12's**.
  *
- * **Twenty-five runs and twenty-three row labels, and the two counts have
- * different predicates.** A row label is an entry in `EXPECTED[]` or a `PairRow`;
- * a run is one `Driver` on one flow, and a `PairRow` is one label producing
- * **two**. Both numbers in the printed header are derived from the arrays rather
- * than typed, because this line read *six* for two rows longer than it was true —
- * **and it then read *twenty-one* and *nineteen* for the whole of W23**, which is
- * the same failure in the same comment, found by that item's conformity reader.
- * The printed counts were right throughout; only these were not. **Derive them:**
- * `EXPECTED.length + PAIR_ROWS.length` labels, `EXPECTED.length + 2 * PAIR_ROWS.length`
- * runs.
+ * **A run and a row label are two different counts.** A row label is an entry in
+ * `EXPECTED[]` or a `PairRow`; a run is one `Driver` on one flow, and a `PairRow`
+ * is one label producing **two**. Both numbers in the printed header are derived
+ * from the arrays rather than typed, and **this comment no longer states either of
+ * them**, which is the whole of the fix.
+ *
+ * **It carried them as literals through THREE wrong values.** It read *six* for two
+ * rows longer than it was true; then *twenty-one* and *nineteen* for the whole of
+ * W23, found by that item's conformity reader; then **twenty-five and twenty-three
+ * for the whole of P10 and P11** — the file printed 31 and 29 — found at W43's
+ * declaration step. The printed counts were right every time; only these were not.
+ * **The second fix wrote *"Derive them: `EXPECTED.length + PAIR_ROWS.length` labels,
+ * `EXPECTED.length + 2 * PAIR_ROWS.length` runs"* and then restated the literals in
+ * the same paragraph** — so the instruction to derive was itself carried as prose
+ * beside the numbers it was correcting, and W35 added five rows past it without
+ * moving either. *A comment that tells the next reader to derive a number, in the
+ * same breath as carrying that number as a literal, is a literal.* The expressions
+ * are kept; the numbers are gone, and the only place either count is written is the
+ * line this file PRINTS.
  *
  * ```
  *   npm run test:l6         node examples/l6.ts
@@ -119,6 +128,47 @@ import map from './flows/map.flow.json' with { type: 'json' };
 import nestedMap from './flows/nested-map.flow.json' with { type: 'json' };
 import mapNoArray from './flows/map-no-array.flow.json' with { type: 'json' };
 import mapAlias from './flows/map-alias.flow.json' with { type: 'json' };
+// **W43 — P12's exit artifact, and the three flows are LOCAL rather than the
+// corpus's for one reason each.** `spec/examples/valid/` holds all three under the
+// corresponding `flowId`, and those are the normative documents; these are the same
+// SHAPE with the `workerType` names this file's pools register, which is the split
+// [Q44](../doc/open-questions.md) has recorded since W5.
+//
+// **"The same GRAPH with the workerType names changed" is what this said, and it is
+// true of two of the three** — W43's conformity reader.
+// `decision-on-an-earlier-step` also renames its middle node `score` to `tally`,
+// names a different predicate, and points `review` at a different pool, and the
+// paragraph below then says the `TallyWorker` substitution *"is the whole of what
+// makes it discriminating"* — true of the discrimination and false of the diff, in
+// the sentence above the one that states the diff.
+//
+// **Each also owns its own `flowId`**, prefixed `l6-`. The first drafts reused the
+// corpus ids verbatim, which would have been the first such collision in the
+// repository and is refused by `examples/README.md`'s own sentence about
+// `map.flow.json`: *"the `flowId` every flow here must own"*. Nothing enforces it,
+// so the reader found it by reading — same conformity reader.
+//
+//   - `map-with-context` — [Q166](../doc/open-questions.md)'s *score each item
+//     against the run's config*. The corpus points its map-feeding node at
+//     `IngestWorker`, which returns no array, so the corpus document run verbatim
+//     here stops at `FD-R2` — measured at W43's declaration. It points at
+//     `SplitWorker`, and its branch entry at **`WeighWorker`**, the role W43 adds
+//     because no shipped role reads a declared key.
+//   - `map-over-region-output` — [Q165](../doc/open-questions.md)'s *score, then
+//     fan out over the scores*, with **no `over: "0"` anywhere**, which is the
+//     brittleness that row names rather than a workaround for it. Same
+//     `SplitWorker` substitution and nothing else.
+//   - `decision-on-an-earlier-step` — [Q8](../doc/open-questions.md)'s own
+//     sentence since P1, and the row W42 has no other coverage at. Its middle node
+//     is **`TallyWorker`**, not the corpus's `ScoreWorker`, and that is the whole
+//     of what makes it discriminating: `tally` returns `{seen, word}` and carries
+//     **no `confidence` at all**, so a predicate reading `ctx.outcome` can never
+//     route to review and one reading `ctx.needs` always can. With `ScoreWorker`
+//     the two carry the same number and reverting W42 costs zero — measured at the
+//     declaration step, on the flow this row would otherwise have been.
+import mapWithContext from './flows/map-with-context.flow.json' with { type: 'json' };
+import mapOverRegionOutput from './flows/map-over-region-output.flow.json' with { type: 'json' };
+import decisionOnAnEarlierStep from './flows/decision-on-an-earlier-step.flow.json' with { type: 'json' };
 import failureEdge from '../spec/examples/valid/failure-edge.flow.json' with { type: 'json' };
 
 /**
@@ -186,7 +236,38 @@ const isLowConfidence: Predicate = (ctx) => {
   const r = ctx.outcome.result as { confidence?: number } | null;
   return typeof r?.confidence === 'number' && r.confidence < 0.5;
 };
-const predicates = new Map<string, Predicate>([['isLowConfidence', isLowConfidence]]);
+/**
+ * **W43's predicate, and it reads `ctx.needs` where the one above reads
+ * `ctx.outcome`** — [ADR 0041](../doc/decisions/0041-a-decision-sees-its-nodes-outcome-and-whatever-its-own-edge-declares.md)
+ * and `FD-C3`: a decision sees its node's effective outcome **and whatever its own
+ * edge declares**.
+ *
+ * **It is deliberately NOT total in the way `isLowConfidence` is.** That one guards
+ * its read so a node with no `confidence` routes down the default edge; this one
+ * does the same, and the guard is what carries the claim: on
+ * `decision-on-an-earlier-step` the node it sits on is a `TallyWorker`, whose
+ * result has **no `confidence` field**, so `isLowConfidence` applied to
+ * `ctx.outcome` there is `false` on **both** payloads. The two predicates therefore
+ * disagree on that flow at every input, which is what makes the row able to fail:
+ * a driver that left `ctx.needs` empty routes the LOW run to `publish` and the row
+ * says so by name.
+ *
+ * **`ctx.needs` is frozen, and that is a DRIVER-level decision rather than an ADR
+ * rule.** This cited *"ADR 0041 rule 4"*, which is the grammar rule; `grep -i frozen`
+ * over that ADR returns nothing, and neither it nor `FD-C3` says so. The freeze is
+ * W42's adequacy reader's, and it lives in `src/driver/driver.ts` beside
+ * `EMPTY_NEEDS` — W43's conformity reader. This predicate reads and does not write,
+ * which is what a predicate is for; [Q9](../doc/open-questions.md) is untouched and
+ * still declined.
+ */
+const earlierWasLowConfidence: Predicate = (ctx) => {
+  const e = (ctx.needs as { earlier?: { confidence?: number } }).earlier;
+  return typeof e?.confidence === 'number' && e.confidence < 0.5;
+};
+const predicates = new Map<string, Predicate>([
+  ['isLowConfidence', isLowConfidence],
+  ['earlierWasLowConfidence', earlierWasLowConfidence],
+]);
 
 interface Expectation {
   key: string;
@@ -431,6 +512,9 @@ const MP = map as unknown as FlowDefinition;
 const NM = nestedMap as unknown as FlowDefinition;
 const MNA = mapNoArray as unknown as FlowDefinition;
 const MAL = mapAlias as unknown as FlowDefinition;
+const MWC = mapWithContext as unknown as FlowDefinition;
+const MRO = mapOverRegionOutput as unknown as FlowDefinition;
+const DES = decisionOnAnEarlierStep as unknown as FlowDefinition;
 
 const HIGH = { confidence: 0.9 };
 const LOW = { confidence: 0.1 };
@@ -456,6 +540,56 @@ const NO_WORDS = { confidence: 0.9, text: '' };
  * the same object* — from its negation.
  */
 const SAME_WORD_TWICE = { confidence: 0.9, text: 'a a' };
+/**
+ * **W43's payload, and its `confidence` is 0.4 for a reason rule 8 found.**
+ *
+ * `map-with-context`'s `score` node declares `{item: ".", run: "ingest"}` and
+ * `weigh` returns `round(item.confidence * run.confidence * 100)`, so the `run`
+ * key's contribution is only observable if `run.confidence` differs from every
+ * literal a worker could plausibly carry. **At `THREE_WORDS`' 0.9 it did not**:
+ * replacing `theirs` with that literal left **every assertion green** (measured at
+ * the author pass, when the file declared 728 of them), so the row could not tell
+ * *reads its declared `run` key* from *hardcodes the number that key happens to
+ * hold*. That is [W34](../doc/work-items/w34-what-a-branch-receives-and-what-a-join-carries.md)'s
+ * finding — **a provenance probe cannot be graded against a correct
+ * implementation**.
+ *
+ * **Changing the payload MOVED the coincidence rather than removing it, and that is
+ * the correction to make**: at 0.4 the literal `0.4` passed just as `0.9` had. What
+ * removes it is `CONTEXTED_AGAIN` — **two rows whose run configs differ** — and the
+ * substitution now costs 4. *(This paragraph said the fix "is not a compound probe
+ * but a payload"; a payload is what moved it and a PAIR is what removed it. It also
+ * quoted 728, which was the total before the second row and the reference-form
+ * check existed, with no scope stated — the writing clause, in the comment that
+ * explains why the fixture changed. W43's conformity reader.)*
+ *
+ * `0.4` also keeps the three items' own confidences (0.1, 0.2, 0.3) distinct from
+ * it. **Swapping `mine` and `theirs` costs 8 — by the `confidence:` echo rather
+ * than by `score`**, because the product is commutative: right conclusion, wrong
+ * stated mechanism, and W43's adequacy reader measured which assertion fires.
+ */
+const CONTEXTED = { confidence: 0.4, text: 'a bb ccc' };
+/**
+ * **The second run config, and it exists because ONE was not enough** — rule 8
+ * obligation (c), and the finding is that the fixture rather than the probe was
+ * what could not discriminate.
+ *
+ * `weigh` returns `round(item.confidence * run.confidence * 100)`. With a single
+ * row, replacing `run.confidence` with **the literal that row's run happens to
+ * hold** leaves every assertion green — measured at 0.9 and again at 0.4, so
+ * changing the payload moved the coincidence rather than removing it. **The
+ * property that removes it is TWO rows whose run configs differ**, because no
+ * single literal satisfies both: the same substitution that passes at 0.4 fails at
+ * 0.6 and the other way round.
+ *
+ * That is [W34](../doc/work-items/w34-what-a-branch-receives-and-what-a-join-carries.md)'s
+ * *a provenance probe cannot be graded against a correct implementation* answered
+ * with a FIXTURE rather than with a compound probe — this file's own `r5`/`r6`,
+ * `r14`/`r15`/`r16` and `nested LOW`/`nested HIGH` shape, applied to a declared
+ * key instead of to a policy. **Two runs differing in one variable** is what L6 has
+ * reached for every time a value needed to be shown to come from where it claims.
+ */
+const CONTEXTED_AGAIN = { confidence: 0.6, text: 'a bb ccc' };
 
 const EXPECTED: Expectation[] = [
   {
@@ -1351,6 +1485,282 @@ const EXPECTED: Expectation[] = [
       'make the second instance read the first`s write: both read `seen: 1` here and the second ' +
       'reads 2 without the clone. Dropping that clone cost 0 failures before this row existed',
   },
+
+  // === W43 — P12's EXIT ARTIFACT =============================================
+  //
+  // Three flows, four rows, and the two the plan names are **ordinary flows this
+  // library could not express before P12**. Every expected value below is derived
+  // from `spec/flow-definition.md` v0.12 and `spec/join-policy.md` before the first
+  // run — `doc/workflow.md` section 5 rule 1 — and the derivations are written out
+  // in the comments rather than left as numbers to take on trust.
+  {
+    /**
+     * **[Q166](../doc/open-questions.md) on real workers, and the row is about what
+     * a node RECEIVES rather than about what it produces.**
+     *
+     * A map instance receives its own item — ADR 0037 rule 3, *map* means `f(x_i)` —
+     * and that is exactly the cost Q166 recorded: given `{confidence, items}` an
+     * instance sees `items[i]` and the run's own configuration is reachable by **no
+     * route at all**. `needs: {"item": ".", "run": "ingest"}` is ADR 0040's answer,
+     * and this row is it crossing a real scheduler.
+     *
+     * **The derivation, from `spec/` and from the worker roles, before the run:**
+     *
+     *   `ingest` is a `SplitWorker`, so it returns `{confidence: 0.9, items: [...]}`
+     *   with one item per word of `THREE_WORDS` and each item's confidence its own
+     *   word's length over ten — `0.1`, `0.2`, `0.3`.
+     *
+     *   `split` is a map over `items`, so the run opens **three** branches at the
+     *   run-time arity — `spec/join-policy.md` section 4's owner table and ADR 0036,
+     *   and the number is in no field of the definition. *(This cited `ID-R6`, which
+     *   is the REFUSAL when no item index is supplied rather than what opens N
+     *   branches; the dotted ids themselves are `spec/task-id.md` section 1's. W43's
+     *   conformity reader.)*
+     *
+     *   `score` declares two keys, so by `FD-C1` and ADR 0040 rule 6 it receives
+     *   **exactly** `{item, run}`: `item` is the `"."` form — what it would have
+     *   received anyway, which for a map instance is its own item (`JP-R11`) — and
+     *   `run` is the node-id form aimed at a node OUTSIDE the map region, which by
+     *   `FD-C2` names one output and is written unbracketed.
+     *
+     *   `weigh` returns `keys`, `word`, its item's own `confidence`, and
+     *   `score = round(item.confidence * run.confidence * 100)` — so with
+     *   `CONTEXTED`'s 0.4 that is `round(0.1 * 0.4 * 100) = 4`,
+     *   `round(0.2 * 0.4 * 100) = 8`, `round(0.3 * 0.4 * 100) = 12`. **The 0.4 is
+     *   load-bearing and rule 8 is what found it** — see `CONTEXTED`.
+     *
+     *   `collect` is satisfied by `live-token` when the live count reaches zero
+     *   having been positive, and carries the arrived branches keyed by
+     *   `branchPath` in ascending segment-wise-numeric order (`JP-R12`).
+     *
+     * **Three independent things fail if the mechanism is wrong, and no two of them
+     * fail together**: `keys` is `['item','run']` and nothing else, which is the
+     * only assertion here that catches a driver giving a node MORE than it asked
+     * for; the three scores are three DIFFERENT numbers, which catches an instance
+     * handed the whole value or handed item 0; and `word` names which item each
+     * instance actually got, so a failure says which rather than that a number
+     * differed.
+     */
+    key: 'map-with-context / Q166 — a map instance sees the run',
+    definition: MWC, policyId: 'live-token', payload: CONTEXTED, threaded: true,
+    outcome: 'completed',
+    dispatched: ['r28:ingest:-:0', 'r28:score:0:0', 'r28:score:1:0', 'r28:score:2:0', 'r28:publish:-:0'],
+    regionId: 'split',
+    joined: true,
+    settled: { '0': 'arrived', '1': 'arrived', '2': 'arrived' },
+    joinSettledBy: 'branch.arrived',
+    pathEnds: [{ reason: 'end', at: 'done' }],
+    nodeResults: {
+      'r28:ingest:-:0': {
+        confidence: 0.4,
+        items: [{ word: 'a', confidence: 0.1 }, { word: 'bb', confidence: 0.2 }, { word: 'ccc', confidence: 0.3 }],
+      },
+      'r28:score:0:0': { keys: ['item', 'run'], extraKeys: [], word: 'a', confidence: 0.1, score: 4 },
+      'r28:score:1:0': { keys: ['item', 'run'], extraKeys: [], word: 'bb', confidence: 0.2, score: 8 },
+      'r28:score:2:0': { keys: ['item', 'run'], extraKeys: [], word: 'ccc', confidence: 0.3, score: 12 },
+      'r28:publish:-:0': {
+        published: true,
+        joinPayload: {
+          '0': { keys: ['item', 'run'], extraKeys: [], word: 'a', confidence: 0.1, score: 4 },
+          '1': { keys: ['item', 'run'], extraKeys: [], word: 'bb', confidence: 0.2, score: 8 },
+          '2': { keys: ['item', 'run'], extraKeys: [], word: 'ccc', confidence: 0.3, score: 12 },
+        },
+      },
+    },
+    why: 'W43 — P12 EXIT ARTIFACT, Q166 on real workers. A map instance receives its own item AND ' +
+      'the value its map node received, because it DECLARED both: needs {"item": ".", "run": ' +
+      '"ingest"}, ADR 0040 rules 5 and 6. The scores are 4/8/12 because each is a function of ' +
+      'BOTH keys, so neither can be dropped for zero; `keys` is [item, run] and nothing else, ' +
+      'which is the only clause here that catches a driver handing a node MORE than it asked for. ' +
+      'Before ADR 0040 the run config was reachable by no route and the workaround was a ' +
+      'reshaping task node',
+  },
+  {
+    /**
+     * **[Q165](../doc/open-questions.md) on real workers — *score, then fan out over
+     * the scores* — and the point is what is NOT in the document.**
+     *
+     * That row's affordance was `{"kind": "map", "over": "0"}` after a join, which
+     * validates and runs and **couples the flow to the fan-out's branch numbering**:
+     * insert a branch and it silently re-points. There is no `over: "0"` here.
+     * `rank` declares `needs: {"scores": ["score"]}` — the bracketed form, because
+     * `score` is inside a map region `rank` is outside of, so by `FD-C2` it names
+     * **N** outputs and `FD-V28` refuses the unbracketed spelling — and `over` names
+     * that key. The list is in branch order by construction rather than by the
+     * flow's arithmetic.
+     *
+     * **Two regions, and the second is opened by a value the first produced.** This
+     * is the only row at L6 where a map's arity comes from a JOIN's collection: the
+     * outer `split` opens three branches from a worker's array, and `rank` opens
+     * three more from what those three branches returned. Nothing in the definition
+     * says three, twice over.
+     *
+     * **The derivation, before the run**: `score` is an ordinary `ScoreWorker` here
+     * and declares nothing, so by ADR 0040 rule 1 it receives what it received at
+     * v0.10 — its own item — and returns `{confidence, score: round(confidence *
+     * 100)}`, giving `10`, `20`, `30`. `collect` carries them keyed `0`/`1`/`2`
+     * (`JP-R12`); `rank`'s `scores` is the same three as a LIST; each `publish`
+     * instance receives its own element (`JP-R11`) and echoes it; `gather` collects
+     * the three `publish` results, and `done` ends the run.
+     */
+    key: 'map-over-region-output / Q165 — a map over what a join collected',
+    definition: MRO, policyId: 'live-token', payload: THREE_WORDS, threaded: true,
+    outcome: 'completed',
+    dispatched: [
+      'r29:ingest:-:0', 'r29:score:0:0', 'r29:score:1:0', 'r29:score:2:0',
+      'r29:publish:0:0', 'r29:publish:1:0', 'r29:publish:2:0',
+    ],
+    regionId: 'split',
+    joined: true,
+    settled: { '0': 'arrived', '1': 'arrived', '2': 'arrived' },
+    otherRegions: {
+      rank: { joined: true, settled: { '0': 'arrived', '1': 'arrived', '2': 'arrived' } },
+    },
+    pathEnds: [{ reason: 'end', at: 'done' }],
+    nodeResults: {
+      'r29:ingest:-:0': {
+        confidence: 0.9,
+        items: [{ word: 'a', confidence: 0.1 }, { word: 'bb', confidence: 0.2 }, { word: 'ccc', confidence: 0.3 }],
+      },
+      'r29:score:0:0': { confidence: 0.1, score: 10 },
+      'r29:score:1:0': { confidence: 0.2, score: 20 },
+      'r29:score:2:0': { confidence: 0.3, score: 30 },
+      // **Each instance receives its own ELEMENT of the resolved list**, not the
+      // list and not the join's collection — which is what makes the second map a
+      // map rather than a second reference.
+      'r29:publish:0:0': { published: true, joinPayload: { confidence: 0.1, score: 10 } },
+      'r29:publish:1:0': { published: true, joinPayload: { confidence: 0.2, score: 20 } },
+      'r29:publish:2:0': { published: true, joinPayload: { confidence: 0.3, score: 30 } },
+    },
+    why: 'W43 — P12 EXIT ARTIFACT, Q165 on real workers. A map over what a join collected, with NO ' +
+      '`over: "0"` anywhere: rank declares needs {"scores": ["score"]}, the bracketed form FD-C2 ' +
+      'requires for a node inside a map region this one is outside of, and `over` names that key. ' +
+      'Two regions, and the second`s arity comes from what the first`s branches returned — nothing ' +
+      'in the definition says three, twice over. The workaround this replaces is a reshaping task ' +
+      'node between the join and the map',
+  },
+  {
+    /**
+     * **[Q8](../doc/open-questions.md)'s own sentence since P1, on real workers** —
+     * *route to review if an earlier step flagged low confidence* — and the row
+     * [W42](../doc/work-items/w42-what-a-decision-sees.md) has no other coverage at.
+     *
+     * **What makes it able to fail is the middle node.** `tally` returns
+     * `{seen, word}` and carries **no `confidence`**, so a predicate reading
+     * `ctx.outcome.result` finds nothing on either payload and routes both runs to
+     * `publish`. `earlierWasLowConfidence` reads `ctx.needs.earlier`, which
+     * `FD-C3` fills from the edge's own declaration — `{"earlier": "ingest"}` — and
+     * that is the entry payload's confidence, `0.1`. **The two predicates disagree
+     * at every input on this flow**, which is what the corpus's own
+     * `ScoreWorker` spelling could not do: there `score` passes `confidence`
+     * through, so both read `0.1` and reverting W42 costs nothing.
+     *
+     * **The pair is the assertion.** LOW dispatches `review`; HIGH does not; and
+     * neither is meaningful without the other, which is this file's `r5`/`r6` and
+     * `r14`/`r15`/`r16` shape applied to a declaration rather than to a policy.
+     */
+    key: 'decision-on-an-earlier-step LOW / Q8 — the predicate reads its edge',
+    definition: DES, policyId: 'live-token', payload: LOW, threaded: false,
+    outcome: 'completed',
+    dispatched: ['r30:ingest:-:0', 'r30:tally:-:0', 'r30:review:-:0', 'r30:publish:-:0'],
+    regionId: null,
+    pathEnds: [{ reason: 'end', at: 'done' }],
+    nodeResults: {
+      'r30:ingest:-:0': { confidence: 0.1 },
+      // **No `confidence` field at all** — this is the whole discriminator, and it
+      // is asserted rather than described so the row fails if the role ever changes.
+      'r30:tally:-:0': { seen: 1, word: null },
+      // **The review node`s own result — W43`s conformity reader.** Without it the
+      // whole W42 revert is caught by ONE assertion, the `dispatched` list; with it
+      // the row says what the branch it took actually did. `review` is a
+      // `PublishWorker` here, and its payload is `tally`s result on the ordinary
+      // edge (ADR 0040 rule 1: it declares nothing, so it receives what it always
+      // did) — NOT the edge`s `needs`, which reaches the predicate and no worker.
+      'r30:review:-:0': { published: true, joinPayload: { seen: 1, word: null } },
+    },
+    why: 'W43 — Q8 on real workers, and the row W42 has no other coverage at. `tally` returns no ' +
+      'confidence, so a predicate reading ctx.outcome routes BOTH payloads to publish; ' +
+      'earlierWasLowConfidence reads ctx.needs.earlier, which FD-C3 fills from the edge`s own ' +
+      '{"earlier": "ingest"}, and routes this one to review. Without an edge-level needs the ' +
+      'declaration is refused at construction and this run does not start',
+  },
+  {
+    /**
+     * **The negative half, and it is what makes the row above an assertion rather
+     * than a demonstration.** Same flow, same predicate, same worker roles; only
+     * the entry payload differs. `ingest` returns `{confidence: 0.9}`, the edge's
+     * `earlier` is that, `0.9 < 0.5` is false, and the default edge is taken —
+     * `review` is never dispatched. A predicate that ignored its declaration and
+     * returned a constant would pass one of these two rows and fail the other,
+     * whichever constant it chose.
+     */
+    key: 'decision-on-an-earlier-step HIGH / Q8 — the default edge',
+    definition: DES, policyId: 'live-token', payload: HIGH, threaded: false,
+    outcome: 'completed',
+    dispatched: ['r31:ingest:-:0', 'r31:tally:-:0', 'r31:publish:-:0'],
+    regionId: null,
+    pathEnds: [{ reason: 'end', at: 'done' }],
+    nodeResults: {
+      'r31:ingest:-:0': { confidence: 0.9 },
+      'r31:tally:-:0': { seen: 1, word: null },
+    },
+    why: 'W43 — the control for the row above. Same flow, same predicate, same roles; the entry ' +
+      'payload is 0.9, so the edge`s declared `earlier` is 0.9, the guard is false and the ' +
+      'default edge is taken. review is never dispatched, and a predicate returning a constant ' +
+      'fails one of these two rows whichever constant it returns',
+  },
+  {
+    /**
+     * **The same flow at a DIFFERENT run config, and it exists because one row could
+     * not tell a declared key from a literal** — rule 8 obligation (c), and it is
+     * [W34](../doc/work-items/w34-what-a-branch-receives-and-what-a-join-carries.md)'s
+     * finding answered with a FIXTURE rather than with a compound probe. See
+     * `CONTEXTED_AGAIN`.
+     *
+     * Everything is identical to `map-with-context / Q166` except `run.confidence`:
+     * `0.6` rather than `0.4`, so `round(item.confidence * run.confidence * 100)` is
+     * `6`, `12`, `18` where the other row is `4`, `8`, `12`. **No single literal
+     * substituted for `run.confidence` passes both**, which is the whole of what the
+     * second row buys and is not reachable from any number of assertions on one.
+     *
+     * **The items are the same three**, so what differs between the two rows is one
+     * variable, and `word` and `confidence` are unmoved across them — which is what
+     * makes the SCORE the thing being measured rather than the payload.
+     */
+    key: 'map-with-context / a SECOND run config — the key is read, not guessed',
+    definition: MWC, policyId: 'live-token', payload: CONTEXTED_AGAIN, threaded: true,
+    outcome: 'completed',
+    dispatched: ['r32:ingest:-:0', 'r32:score:0:0', 'r32:score:1:0', 'r32:score:2:0', 'r32:publish:-:0'],
+    regionId: 'split',
+    joined: true,
+    settled: { '0': 'arrived', '1': 'arrived', '2': 'arrived' },
+    joinSettledBy: 'branch.arrived',
+    pathEnds: [{ reason: 'end', at: 'done' }],
+    nodeResults: {
+      'r32:ingest:-:0': {
+        confidence: 0.6,
+        items: [{ word: 'a', confidence: 0.1 }, { word: 'bb', confidence: 0.2 }, { word: 'ccc', confidence: 0.3 }],
+      },
+      'r32:score:0:0': { keys: ['item', 'run'], extraKeys: [], word: 'a', confidence: 0.1, score: 6 },
+      'r32:score:1:0': { keys: ['item', 'run'], extraKeys: [], word: 'bb', confidence: 0.2, score: 12 },
+      'r32:score:2:0': { keys: ['item', 'run'], extraKeys: [], word: 'ccc', confidence: 0.3, score: 18 },
+      'r32:publish:-:0': {
+        published: true,
+        joinPayload: {
+          '0': { keys: ['item', 'run'], extraKeys: [], word: 'a', confidence: 0.1, score: 6 },
+          '1': { keys: ['item', 'run'], extraKeys: [], word: 'bb', confidence: 0.2, score: 12 },
+          '2': { keys: ['item', 'run'], extraKeys: [], word: 'ccc', confidence: 0.3, score: 18 },
+        },
+      },
+    },
+    why: 'W43 — the same flow at a different run config, and the row exists because ONE could not ' +
+      'tell *reads its declared `run` key* from *hardcodes the number that key happens to hold*: ' +
+      'substituting the literal left every assertion green at 0.9 and again at 0.4, so moving the ' +
+      'payload moved the coincidence rather than removing it. The scores here are 6/12/18 against ' +
+      'the other row`s 4/8/12, so no single literal passes both. Two runs differing in one ' +
+      'variable, which is what this file reaches for whenever a value has to be shown to come ' +
+      'from where it claims',
+  },
 ];
 
 // --- assertions ---------------------------------------------------------------
@@ -1777,6 +2187,36 @@ for (const [i, e] of EXPECTED.entries()) {
 
 // --- cross-row assertions, which are where the finding lives -------------------
 
+/**
+ * **Every row produced a report, asserted BEFORE anything indexes `reports`** —
+ * W43, rule 8 obligation (e).
+ *
+ * Emptying the loop above (`for (const [i, e] of [].entries())`) used to reach the
+ * cross-row block with `reports` empty and die inside `settledOf` with
+ * *"Cannot read properties of undefined (reading 'state')"* — loud, at exit 1, and
+ * naming a helper rather than the wiring. [Q138](../doc/open-questions.md): a crash
+ * is not a detection, because it cannot tell a fired clause from a broken harness.
+ * The assertion-count floors further down would have caught it and never ran.
+ *
+ * **It is placed here rather than beside those floors** for the same reason: this
+ * is the first line that would read `reports[...]`, so it is the last point at
+ * which the failure can still be described.
+ */
+check('cross-row', 'every EXPECTED row produced a report — the loop above ran at all',
+  reports.length, EXPECTED.length);
+// **And it STOPS here rather than reporting and continuing**, which is the half
+// that makes it a detection instead of a crash. Reporting alone left the run to
+// reach `reports[i]!` two hundred lines down and die with *"Cannot read properties
+// of undefined (reading 'state')"* — so the file printed a correct diagnosis and
+// then a stack trace that buried it. **Every assertion below reads `reports`, so
+// past this point they are claims about a tree that is not there** — which is
+// [W31](../doc/work-items/w31-the-self-list-check-policies-never-had.md)'s finding
+// exactly: a whole pass can measure its own harness rather than its subject.
+if (reports.length !== EXPECTED.length) {
+  console.log('\n' + failures.map((f) => `  FAIL  ${f}`).join('\n\n') + '\n');
+  exit(1);
+}
+
 const byRun = (prefix: string) => reports.find((r) => r.runId === prefix);
 const low = byRun('r5');
 const lowAc = byRun('r6');
@@ -2044,7 +2484,38 @@ const ROW_KEYS: readonly string[] = [
   'nested-map / live-token',
   'map / FD-R2 — over names no array',
   'map / one item, two instances — ADR 0037 rule 1',
+  'map-with-context / Q166 — a map instance sees the run',
+  'map-over-region-output / Q165 — a map over what a join collected',
+  'decision-on-an-earlier-step LOW / Q8 — the predicate reads its edge',
+  'decision-on-an-earlier-step HIGH / Q8 — the default edge',
+  'map-with-context / a SECOND run config — the key is read, not guessed',
 ];
+
+/**
+ * **How many reference forms `spec/flow-definition.md` section 3 declares** — read
+ * from the document, so the bound below cannot be satisfied by a literal.
+ *
+ * Same shape as W41's `referenceTableRows()` at L1 and as the node-kind bound
+ * below: *compare the two halves rather than copy one of them*, which is `JP-R9`'s
+ * sentence and the only defence this file has against a clause it wrote itself.
+ */
+async function referenceFormsInSpecAsync(): Promise<number> {
+  const deno = (globalThis as Record<string, unknown>).Deno as
+    { readTextFile?: (x: URL) => Promise<string> } | undefined;
+  const u = new URL('../spec/flow-definition.md', import.meta.url);
+  const text = deno?.readTextFile
+    ? await deno.readTextFile(u)
+    : await (await import('node:fs/promises')).readFile(u, 'utf8');
+  const lines = text.split(/\r?\n/);
+  const head = lines.findIndex((l) => l.startsWith('| a reference is | and resolves to |'));
+  if (head < 0) throw new Error('spec/flow-definition.md section 3`s reference table is not there');
+  let n = 0;
+  for (let i = head + 2; i < lines.length && lines[i]!.startsWith('|'); i++) n++;
+  if (n === 0) throw new Error('the reference table has no body rows, so the bound would be vacuous');
+  return n;
+}
+const REFERENCE_FORMS_IN_SPEC = await referenceFormsInSpecAsync();
+const referenceFormsInSpec = () => REFERENCE_FORMS_IN_SPEC;
 
 check('cross-row', 'EXPECTED runs exactly the rows this file declares, in order',
   EXPECTED.map((e) => e.key), ROW_KEYS);
@@ -2771,7 +3242,7 @@ const PER_PLAIN_ROW = 15;
  * a per-row assertion dies with the row it is in, and what W23's adequacy reader
  * deleted was the rows.
  */
-const CROSS_ROW = 22;
+const CROSS_ROW = 32;
 const base = (shape: string) => (shape === 'region' ? PER_REGION_ROW : PER_PLAIN_ROW);
 for (const [key, shape, cost, extras] of rowCosts) {
   if (cost !== base(shape) + extras) {
@@ -2782,6 +3253,144 @@ for (const [key, shape, cost, extras] of rowCosts) {
 if (rowCosts.length !== EXPECTED.length) {
   failures.push(`gate\n      ${rowCosts.length} of ${EXPECTED.length} rows completed their assertion block`);
 }
+/**
+ * **L6 runs a `needs` at BOTH SITES, and this is what says so — W43.**
+ *
+ * The four rows this item adds are P12's exit artifact, and W23's adequacy reader
+ * measured what holds a set of rows down: **nothing**. Its four nested rows could
+ * be deleted, `DECLARED_TOTAL` edited to match, and the two now-unused imports
+ * dropped, and L6 was green at 388 with every check passing. `ROW_KEYS` is a
+ * literal, so deleting a row and its name is two edits in one diff rather than an
+ * impossibility; the cross-row block is where a bound whose authority is elsewhere
+ * belongs.
+ *
+ * **Both halves, because either alone is satisfied by the other's absence** — and
+ * the two are genuinely different mechanisms rather than one written twice. A
+ * `needs` on a NODE says what its worker receives, is resolved in `enter`, and
+ * reaches a real worker process; a `needs` on an EDGE says what that edge's
+ * predicate sees, is resolved in `advance` per edge, and reaches no worker at all.
+ * [ADR 0040](../doc/decisions/0040-what-a-node-can-reach-is-the-runs-own-outputs-and-a-node-id-names-them-relative-to-a-branch-path.md)
+ * and [ADR 0041](../doc/decisions/0041-a-decision-sees-its-nodes-outcome-and-whatever-its-own-edge-declares.md)
+ * are two decisions, and this is two clauses.
+ *
+ * **Read from the DEFINITIONS the rows run, not from a list of row keys**, so
+ * renaming a row does not move it and deleting the rows does.
+ */
+{
+  const nodeNeeds = EXPECTED.some((e) => e.definition.nodes.some(
+    (n) => (n as { needs?: unknown }).needs !== undefined));
+  const edgeNeeds = EXPECTED.some((e) => e.definition.nodes.some(
+    (n) => ((n as { edges?: { needs?: unknown }[] }).edges ?? []).some((x) => x.needs !== undefined)));
+  check('cross-row', 'L6 runs a flow whose NODE declares a needs — ADR 0040 on real workers',
+    nodeNeeds, true);
+  /**
+   * **A row that declares a NODE-level `needs` declares what every task it
+   * dispatched RETURNED — W43's adequacy reader, BLOCKING.**
+   *
+   * Measured: deleting the whole `nodeResults` block from the three map rows and
+   * editing **one** number — `DECLARED_TOTAL` — leaves `736 assertions, 0 failed`
+   * at `36 real runs`, with `ROW_KEYS` untouched and all three bounds in this block
+   * still green. **ADR 0040 rules 5 and 6, `JP-R11` and `JP-R12` become unasserted
+   * for one edited literal**, and the W41 revert falls from 18 failures to 7, all of
+   * them structural. The per-row floor cannot see it: `extras` is derived from the
+   * expectation, so a thinner expectation lowers both sides of that comparison.
+   *
+   * **The bound is derived from the row's own `dispatched` list**, which `ROW_KEYS`
+   * and the row's other clauses already pin — so it cannot be satisfied by trimming
+   * it, and it says the thing the rows exist to say: *what did each node receive*
+   * is only answerable if each node's result is written down.
+   *
+   * **Scoped to the NODE site**, because that is where the claim is about a value a
+   * worker computed. The two edge-site rows assert their mechanism through
+   * `dispatched` — which of two edges was taken — and pinning every node's result
+   * there would be a bound with no argument behind it.
+   */
+  for (const e of EXPECTED) {
+    if (!e.definition.nodes.some((n) => (n as { needs?: unknown }).needs !== undefined)) continue;
+    check(e.key, 'declares a nodeResults entry for every id it dispatched — ADR 0040 rules 5 and 6 ' +
+      'are only asserted where a result is written down',
+      Object.keys(e.nodeResults ?? {}).sort(), [...e.dispatched].sort());
+  }
+  check('cross-row', 'and a flow whose EDGE declares one — ADR 0041, a different site and a different call',
+    edgeNeeds, true);
+  /**
+   * **The two discriminating PAIRS actually differ — W43's adequacy reader, and it
+   * is the same shape twice.**
+   *
+   * This item added two rows whose whole purpose is to be the *other half* of a row
+   * beside them, and in both cases the differing property was carried by literals
+   * that nothing compared:
+   *
+   *   - `map-with-context` runs twice at two run configs, so that no single literal
+   *     substituted for the declared `run` key passes both. Editing
+   *     `CONTEXTED_AGAIN` back to `0.4` and its five expected scores to match cost
+   *     **0** — and with the two rows identical, `theirs = 0.4` in the worker cost
+   *     **0** too. *The declared key is never read and the whole of Q166 is green.*
+   *   - `decision-on-an-earlier-step` runs LOW and HIGH so a predicate cannot pass
+   *     by returning a constant. Editing the HIGH row's payload to `LOW` cost **0**,
+   *     and a predicate of `() => true` then cost **0**.
+   *
+   * Both are `check-policies`' own `JP-R9` sentence — *compare the two halves rather
+   * than copy one of them* — unapplied to the fixtures this item added for exactly
+   * that reason. `isLowConfidence` has carried a *"returned FALSE at 0.9 and TRUE at
+   * 0.1 — it can fail"* clause since W5; W43's predicate was given none.
+   *
+   * **Read from the rows' PAYLOADS and from the runs' own verdicts**, so neither
+   * clause can be satisfied by renaming a row.
+   */
+  {
+    const runConfigs = EXPECTED.filter((e) => e.key.startsWith('map-with-context'))
+      .map((e) => e.payload.confidence);
+    check('cross-row', 'the two map-with-context rows run at DIFFERENT run configs — without which ' +
+      'a literal in the worker stands in for the declared `run` key and costs nothing',
+      new Set(runConfigs).size, runConfigs.length);
+    assertThat('cross-row', 'and there are two of them at all — the pair is the assertion',
+      runConfigs.length === 2, `run configs: ${runConfigs.join(', ')}`);
+
+    const decisionRows = EXPECTED.filter((e) => e.key.startsWith('decision-on-an-earlier-step'));
+    const tookReview = decisionRows.map((e) => e.dispatched.some((id) => id.includes(':review:')));
+    check('cross-row', '`earlierWasLowConfidence` returned TRUE on one row and FALSE on the other — ' +
+      'it can fail, which a constant predicate cannot be told from without both',
+      [...tookReview].sort(), [false, true]);
+  }
+  /**
+   * **And the THREE reference forms, because a form is what `FD-V28` decides on.**
+   * `"."` is *what I would have received anyway*, a bare node id names ONE output,
+   * and `["n"]` names one per item of a map region the reader is outside of. Two of
+   * the three were unreachable at L6 before this item and the third has never been
+   * here at all; a row set carrying only the bare form would satisfy both clauses
+   * above while leaving `FD-C2`'s whole distinction untested on real workers.
+   */
+  const forms = new Set<string>();
+  for (const e of EXPECTED) {
+    for (const n of e.definition.nodes) {
+      const sites = [(n as { needs?: Record<string, unknown> }).needs,
+        ...((n as { edges?: { needs?: Record<string, unknown> }[] }).edges ?? []).map((x) => x.needs)];
+      for (const site of sites) {
+        for (const ref of Object.values(site ?? {})) {
+          forms.add(ref === '.' ? 'self' : Array.isArray(ref) ? 'all' : 'one');
+        }
+      }
+    }
+  }
+  // **The expected side comes from `spec/flow-definition.md`'s own table, not from
+  // a literal here** — the pattern the node-kind bound above uses, and for the same
+  // reason: a literal on both sides of a comparison is a list bound to nothing.
+  // Deleting a row from that table now moves this bound and the run goes red, which
+  // a literal `3` could never see.
+  //
+  // **What it does NOT fix is the probe named beside it, and this comment claimed
+  // otherwise** — W43's adequacy reader. *"A probe that replaces the computed side
+  // with the expected one leaves the two equal"* is true of `referenceFormsInSpec()`
+  // exactly as it was of `3`: substituting the expected side for the computed one
+  // still costs zero. **Re-sourcing the EXPECTED half cannot close a hole in the
+  // COMPUTED half**, and the two clauses above — one per site — are what stand
+  // against it. The claim is corrected rather than the bound removed, because the
+  // bound is right for the reason that survives.
+  check('cross-row', 'L6 runs one reference form per row of spec/flow-definition.md section 3`s table',
+    [...forms].length, referenceFormsInSpec());
+}
+
 const EXPECTED_TOTAL =
   rowCosts.reduce((n, [, shape, , extras]) => n + base(shape) + extras, 0) + CROSS_ROW + PAIR_ROW;
 if (passed + failures.length !== EXPECTED_TOTAL) {
@@ -2859,7 +3468,7 @@ check('cross-row', 'and they reach ID-R5 under TWO scheduler events, not one',
   [...new Set(UNMINTED.map((u) => u.event ?? 'task.completed'))].sort(),
   ['task.completed', 'task.failed']);
 
-const DECLARED_TOTAL = 638;
+const DECLARED_TOTAL = 760;
 if (passed + failures.length !== DECLARED_TOTAL) {
   failures.push(
     'gate\n      the assertion count is not the number this file declares outright\n' +

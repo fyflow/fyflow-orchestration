@@ -47,8 +47,18 @@ import {
   type UnsatisfiableJoin,
 } from '../index.ts';
 import { FyflowScheduler, FyflowTask, WorkerManager } from 'fyflow-scheduler';
+// **The worker file`s own role list, imported rather than repeated** — W43. See
+// `ROLES` there: three lists said the same seven things and nothing compared them.
+import type { Role } from './workers/flow-worker.ts';
 
-/** The three pools `spec/examples/registry.json` names, all served by one worker file. */
+/**
+ * The **nine** pools `buildScheduler` registers, all served by one worker file.
+ *
+ * *(This read "the three pools `spec/examples/registry.json` names" from the day it
+ * was written. There are nine, naming eight distinct roles, and `SplitWorker`,
+ * `TallyWorker` and `WeighWorker` are in no registry at all — the registry is the
+ * corpus`s and these pools are this file`s. W43`s conformity reader.)*
+ */
 const WORKER_URL = new URL('./workers/flow-worker.ts', import.meta.url).href;
 
 export interface RunReport {
@@ -531,7 +541,13 @@ function buildScheduler(delayMs: number, threaded: boolean): FyflowScheduler {
   // becomes threaded or gains a second thread, dispatch order stops implying
   // settle order and this is what remains. [Q99](../doc/open-questions.md).
   const SETTLES_LAST = new Set(['fail', 'uncloneable']);
-  const pool = (role: string, threaded: boolean, maxThreads = 1) =>
+  // **`Role`, not `string` — W43.** This parameter was `string`, so the eight
+  // `config: { role }` literals below were bound to nothing and a typo reached a
+  // worker that has no arm for it. It is the same fix `Expectation.policyId` got at
+  // W17 for the same reason, and unlike that one it DOES bite: `Role` is derived
+  // from `ROLES` in the worker file rather than repeating half of it, so a name this
+  // file invents fails `npm run typecheck` at ladder L0.
+  const pool = (role: Role, threaded: boolean, maxThreads = 1) =>
     new WorkerManager(WORKER_URL, {
       maxThreads,
       inline: !threaded,
@@ -558,6 +574,21 @@ function buildScheduler(delayMs: number, threaded: boolean): FyflowScheduler {
     // constraint**: nothing it returns resists `structuredClone`. It is inline
     // because it runs once per run and a thread would only add a hop.
     SplitWorker: pool('split', false),
+    // **W43's pool, and it is THREADED for the same reason `ScoreWorker` is: so
+    // that two tasks are genuinely in flight at once and their settle order is the
+    // scheduler's rather than this file's.** `maxThreads: 2` at an arity of three is
+    // what makes the overlap real.
+    //
+    // **It is NOT held down by an assertion, and the first version of this comment
+    // argued that it was** — W43's adequacy reader. That version said the thread
+    // boundary is *"where a shared reference between two instances would show"*;
+    // measured, `pool('weigh', false, 1)` costs **zero**, because no
+    // `map-with-context` row runs the aliasing payload — `SAME_WORD_TWICE` is
+    // `TallyWorker`'s, on `map.flow.json`, which is where W35 put the one shape that
+    // can falsify ADR 0037 rule 1. *An argument for a configuration is not a test of
+    // it*, and this is the `threaded`/`delayMs` gap [Q99](../doc/open-questions.md)
+    // already names, in a third pool.
+    WeighWorker: pool('weigh', threaded, 2),
     // **The one worker here that MUTATES its payload — W35's adequacy reader.**
     // Inline, and it must be: the whole point is that two map instances handed one
     // object would see each other's write, and a thread boundary would clone it

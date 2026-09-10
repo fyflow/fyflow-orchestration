@@ -1,0 +1,15 @@
+{
+  "flowId": "l6-map-with-context",
+  "version": 1,
+  "entry": "ingest",
+  "nodes": [
+    { "id": "ingest",  "kind": "task", "workerType": "SplitWorker", "edges": [ { "to": "split" } ] },
+    { "id": "split",   "kind": "map",  "over": "items",             "branch": "score" },
+    { "id": "score",   "kind": "task", "workerType": "WeighWorker",
+      "needs": { "item": ".", "run": "ingest" },
+      "edges": [ { "to": "collect" } ] },
+    { "id": "collect", "kind": "join", "of": "split",               "edges": [ { "to": "publish" } ] },
+    { "id": "publish", "kind": "task", "workerType": "PublishWorker", "edges": [ { "to": "done" } ] },
+    { "id": "done",    "kind": "end",  "outcome": "completed" }
+  ]
+}

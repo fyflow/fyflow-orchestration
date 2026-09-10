@@ -7,11 +7,19 @@
 
 ```
 Question:   What does a node receive, and what does a decision see?
-Reserves:   W41-W44 (W44 expected unused), Q184-Q193, ADR 0040-0041
+Reserves:   W41-W44 (W44 expected unused), Q184-Q198, ADR 0040-0041
             (TEN questions, not five. P11 reserved five, spent them before its
             second item raised one, and extended the block TWICE. Section 3
             says reserve generously; five is not generous and the last plan
             measured that.)
+            EXTENDED to Q198 at W43's declaration, and TEN was not generous
+            either: W41 spent Q184-Q189 and W42 spent Q190-Q193, so the block
+            was empty before the plan's last item had started. This is the
+            THIRD consecutive plan to extend, after P11 twice - and unlike
+            P11's it is an extension made at a declaration rather than
+            mid-item. It changes no scope, no Owns block and nothing the plan
+            costs; an id block is a numbering reservation, and section 3's
+            *never reused or renumbered* is what it protects.
 Exit:       two ordinary flows that this library cannot express today, running
             end to end on a real `FyflowScheduler` in both L6 runtimes:
               1. *score each item AGAINST THE RUN'S CONFIG* - a map whose
@@ -232,7 +240,7 @@ sixth kind would be answering a payload question with a graph change.
 |---|---|---|
 | **W41** | *What a node can reach, and what NAMES it.* Q11's two remaining candidates, decided as **ADR 0040** from Q166's and Q165's cases plus fact 3's key problem. Builds the projection and the `spec/` rule, which forces **Q164**. Its evidence must include a **map** region or it does not bind. | `src/driver/driver.ts`, `src/driver/routing.ts`, `src/definition/**`, `spec/flow-definition.md`, `spec/examples/**`, `test/driver/**`, `test/definition/**`, `doc/decisions/0040-*.md`, and `scripts/check-spec.mjs` if Q164 lands |
 | **W42** | *What a decision sees.* [Q8](../open-questions.md), from W41's mechanism rather than beside it. One field on `DecisionContext`, one construction site, and the same key. **ADR 0041** only if W41's answer does not already decide it — which is the prediction below. | `src/driver/routing.ts`, `src/driver/driver.ts`, `spec/flow-definition.md` section 3, `test/driver/**`, `doc/decisions/0041-*.md` |
-| **W43** | *The two blocked flows on real workers.* P12's exit artifact: *score each item against the run's config*, and *score, then fan out over the scores*, end to end on a real `FyflowScheduler` in **both** L6 runtimes, with what reverting each item costs measured in L6 failures. | `examples/**` |
+| **[W43](../work-items/w43-the-two-blocked-flows-on-real-workers.md)** | *The two blocked flows on real workers.* P12's exit artifact: *score each item against the run's config*, and *score, then fan out over the scores*, end to end on a real `FyflowScheduler` in **both** L6 runtimes, with what reverting each item costs measured in L6 failures. | `examples/**` |
 | **W44** | **reserved and expected unused**, on P9's and P11's precedent. If ADR 0040 needs a second implementation item, this is the id. A reserved id that is not spent is still not free. | — |
 
 **Serial, and the reason is section 7 rule 2**: W41 and W42 would both edit `src/driver/driver.ts`
@@ -301,6 +309,45 @@ range of 386-463 across nine runs ([Q179](../open-questions.md)); the reproducib
 ## Record
 
 *Filled in at the join, after the work items are merged.*
+
+**W43 — done, and P12's EXIT ARTIFACT EXISTS.** *The two blocked flows on real workers.*
+**Both ordinary flows this library could not express before this plan now run end to end on a real
+`FyflowScheduler`, in BOTH L6 runtimes.** Ladder L6 is **760 assertions over 36 real runs**, from
+638 / 31. [Q166](../open-questions.md)'s *score each item against the run's config* runs at
+`needs: {"item": ".", "run": "ingest"}`, three instances scoring 4 / 8 / 12 from **both** declared
+keys; [Q165](../open-questions.md)'s *score, then fan out over the scores* runs a second map over
+`needs: {"scores": ["score"]}` with **no `over: "0"` anywhere**, so the brittleness that row names
+is gone rather than worked around — two regions, and the second's arity comes from what the first's
+branches returned. **No ADR, no `spec/` change, no new rule**: `spec/` is unmoved at 7 / 40 / 87 and
+L1-L5 at 633, which is the declared result.
+
+**What reverting each item costs, in L6 failures: W41 is 18, W42 is 2, and both are 20** — additive,
+neither masking the other. **Before this item W42's was 0**, because neither flow the plan named
+carries an edge-level `needs`: that is the item's third declared output and it was found at the
+declaration step by reading its own plan row's last clause.
+
+**Its declaration step found the two flows RUN and PROVE NOTHING**, which is the finding to carry.
+Both corpus documents complete on real workers today, and `map-with-context`'s three instances each
+returned `{confidence: 0, score: 0}` — every shipped worker role reads `payload.confidence`, which
+under a `needs` is not there. **A row that cannot tell ADR 0040 rule 6 from its negation is not
+evidence**, and it took a worker role that reads its declared keys. The same held for the decision
+pair from the other side: on the corpus's own spelling both `ctx.outcome` and `ctx.needs` carry the
+same number, so reverting W42 would have cost nothing.
+
+**Obligation (e)'s SECOND QUESTION was instantiated on a PRODUCT item for the first time and it
+FIRED** — a fourth instance in one plan of *a LIST BOUND TO NOTHING*, and the first outside
+`scripts/**` and `src/`: `Role`, the worker's `switch` arms and the pool registry all said the same
+thing and nothing compared them, and one letter in a pool's role kills the SCHEDULER's own message
+handler before any assertion runs ([Q194](../open-questions.md)). Closed in one direction by a type;
+**the other direction is still open and only the adequacy reader's measurement says so**
+([Q196](../open-questions.md)).
+
+Readers **11 / 3 blocking** and **28 mutations / 19 survivors / 4 blocking**, overlap **2**. Rule 8
+**43 / 32 / 11 declared ceilings / 0 undeclared / 0 crash / 0 aborted**, with ten of the readers'
+edits checked back in and all ten firing. **ONE late exception**, zero undeclared — the lowest of any
+product item in three plans, and structurally so: an exit artifact owns one tree and writes no rule.
+**Census CONFIRMED for the ELEVENTH plan running — 155 / 107 / 2 / 46**, and the parser, written from
+scratch, aborted **zero** times on its first run. Q194-Q198 raised, none resolved.
 
 **W42 — done.** *What a decision sees.* **[ADR 0041](../decisions/0041-a-decision-sees-its-nodes-outcome-and-whatever-its-own-edge-declares.md)
 — and prediction 3 REVERSED.** A decision sees its node's effective outcome and whatever its **own

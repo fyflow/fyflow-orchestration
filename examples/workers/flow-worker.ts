@@ -9,9 +9,12 @@
  * [Q33](../../doc/open-questions.md)'s answer *Node and Deno* rather than
  * *Node only* — the leaning's whole argument was one worker file per runtime.
  *
- * **One class, three roles**, selected by the pool's `config` — which is how
- * `spec/examples/registry.json`'s three `workerType` names are satisfied without
- * three near-identical files.
+ * **One class, EIGHT roles**, selected by the pool's `config` — which is how
+ * `examples/run-flow.ts`'s nine pools are satisfied without nine near-identical
+ * files. *(This read "three roles" and "`spec/examples/registry.json`'s three
+ * `workerType` names" from the day it was written; the roles have been seven since
+ * W35 and the registry lists **six**. W43's conformity reader, in the file whose own
+ * change is "the role list is one list" — see `ROLES`.)*
  *
  * **A worker computes and does not route** ([ADR 0001](../../doc/decisions/0001-routing-executes-in-the-driver-outside-the-scheduler.md)
  * rule 2). `context.taskId` is available and this file does not read it: deriving
@@ -27,7 +30,43 @@ export interface Confidence {
   confidence: number;
 }
 
-type Role = 'ingest' | 'score' | 'publish' | 'fail' | 'uncloneable' | 'split' | 'tally';
+/**
+ * **The roles this file handles, as a VALUE — W43, and a LIST BOUND TO NOTHING is
+ * what rule 8 obligation (e)'s second question found.**
+ *
+ * There were **three** lists and nothing compared them: this union, the `switch`
+ * arms in `run()`, and the `config: { role }` literals `buildScheduler` passes in
+ * `../run-flow.ts`. All three said the same **seven** things before this item added
+ * an eighth, and none of them had to — and the third is **nine** `pool()` call sites
+ * naming eight distinct roles, because `fail` is registered twice. *(This paragraph
+ * said "the same eight things" of the state BEFORE the eighth existed. W43's
+ * conformity reader.)*
+ * **Measured**: one letter changed in the pool's role — `pool('weighh', ...)` — and
+ * `run()` falls off the end of the switch, returns `undefined`, and from a THREAD
+ * pool the scheduler's own message handler dies with
+ * `Cannot read properties of undefined (reading 'isWorkerTerminationRequest')`,
+ * taking the process down before any assertion runs. Loud, and naming nothing that
+ * points at the typo.
+ *
+ * **The list is now one list IN ONE DIRECTION, and the direction is stated because
+ * the reader measured the other one.** `Role` is `typeof ROLES[number]` and
+ * `buildScheduler`'s `pool()` takes a `Role`, so a role a POOL invents is a
+ * **typecheck** failure — ladder L0, before anything runs (measured: `pool('weighh',
+ * …)` gives `TS2345` naming all eight), and removing `'weigh'` from `ROLES` is red
+ * in two files. **What is still bound to nothing is `ROLES` -> the switch**: adding
+ * `'zzz'` to `ROLES` with no arm and no pool costs **zero**, at L6 and at typecheck
+ * both, so the list can still grow members nothing uses.
+ * [Q196](../../doc/open-questions.md). `run()` carries a `default` arm for the half
+ * a type cannot reach — a config built at run time — and that arm turns the missing
+ * case into a named refusal instead of the scheduler crash below. It is
+ * [W32](../../doc/work-items/w32-what-a-map-fanout-is.md)'s `enter()` finding one
+ * file across: *a switch over a union TypeScript does not require to be exhaustive,
+ * with no `default`, returns `undefined` and the caller believes it.*
+ */
+export const ROLES = [
+  'ingest', 'score', 'publish', 'fail', 'uncloneable', 'split', 'tally', 'weigh',
+] as const;
+export type Role = typeof ROLES[number];
 
 export default class FlowWorker extends BaseWorker {
   private readonly role: Role;
@@ -108,6 +147,62 @@ export default class FlowWorker extends BaseWorker {
           p.seen = (p.seen ?? 0) + 1;
           return { seen: p.seen, word: typeof p.word === 'string' ? p.word : null };
         }
+      case 'weigh':
+        // **The role that reads its DECLARED KEYS, and W43 exists because no
+        // shipped role did.** [ADR 0040](../../doc/decisions/0040-what-a-node-can-reach-is-the-runs-own-outputs-and-a-node-id-names-them-relative-to-a-branch-path.md)
+        // rule 6: a node that declares `needs` receives **exactly the object
+        // `needs` describes**, each key its own copy. Every other role here reads
+        // `payload.confidence`, which under a `needs` is `undefined` — so
+        // `map-with-context` ran end to end on real workers with all three
+        // instances returning `{confidence: 0, score: 0}`, and the row could not
+        // tell rule 6 from its negation. Measured at W43's declaration step.
+        //
+        // **Three things are made observable and each is a separate rule:**
+        //
+        //   - `keys` is `Object.keys(payload).sort()`, which is **rule 6 itself**.
+        //     Hand this node what its predecessor produced instead and the keys are
+        //     `confidence, items`; hand it the whole value merged with its item and
+        //     they are four. It is the one assertion here that fails on a driver
+        //     that gives a node MORE than it asked for, which no count can see.
+        //   - `score` is a function of **both** declared keys, so neither can be
+        //     dropped for zero: `item` is the `"."` form (`FD-C1`, and ADR 0037
+        //     rule 3's *its own item*) and `run` is the node-id form resolved from
+        //     outside the map region (`FD-C2`). The three instances return three
+        //     DIFFERENT scores, which is W35's `text` reasoning one rule across.
+        //   - `word` echoes the item's own field, so a driver handing every
+        //     instance item 0 is a failure naming which item it got, rather than a
+        //     number that happens to be equal.
+        //
+        // **Total, like `confidenceOf`**: a worker that throws on a shape is a
+        // worker that hides a routing bug, and here it would hide the very defect
+        // this role was added to see.
+        {
+          const p = (payload ?? {}) as { item?: { word?: unknown; confidence?: unknown }; run?: unknown };
+          const mine = typeof p.item?.confidence === 'number' ? p.item.confidence : 0;
+          const theirs = confidenceOf(p.run);
+          const seen = Object.keys((payload ?? {}) as Record<string, unknown>);
+          return {
+            keys: seen.slice().sort(),
+            // **A SECOND, INDEPENDENT reading of the same payload — W43's adequacy
+            // reader, BLOCKING.** `keys` was the only thing anywhere that could
+            // observe a driver composing MORE than `needs` describes, and a sensor
+            // cannot corroborate itself: re-sourcing it to the literal
+            // `['item', 'run']` cost **0**, and with that literal in place a driver
+            // seeded with an extra key cost 0 as well — where with `keys` live it
+            // costs 8. **One expression, one edit, and ADR 0040 rule 6's *exactly*
+            // is unasserted.**
+            //
+            // This is a different expression over the same fact, so a probe that
+            // re-sources either one leaves the other live. It is deliberately the
+            // NEGATIVE form — what should not be here — because that is what a
+            // superset makes true and an exact match makes empty, and an empty array
+            // is a value the row can pin without restating the declaration.
+            extraKeys: seen.filter((k) => k !== 'item' && k !== 'run').sort(),
+            word: typeof p.item?.word === 'string' ? p.item.word : null,
+            confidence: mine,
+            score: Math.round(mine * theirs * 100),
+          };
+        }
       case 'score':
         // `score` is derived from the payload alone, so the result is a function
         // of the input and the run is reproducible.
@@ -149,6 +244,23 @@ export default class FlowWorker extends BaseWorker {
         // than this worker, because the echo was written to pass the value through
         // rather than to interpret it.)*
         return { published: true, joinPayload: payload ?? null };
+      default:
+        // **A role the switch does not handle is a REFUSAL, not `undefined`** —
+        // W43, and the run-time half of `ROLES` above. TypeScript does not require
+        // a switch over a union to be exhaustive and this one has eight arms, so
+        // without this the function returns `undefined` and the scheduler crashes
+        // in its own message handler. `role` is typed, so this arm is unreachable
+        // from a literal; it is reachable from a `config` built at run time, which
+        // is exactly how a pool is configured.
+        //
+        // **It throws rather than returning a marker**, because a worker that
+        // returns something plausible for a role nobody wrote is the silent failure
+        // this arm exists to remove — and the message names the role and the file to
+        // edit, which is what the upstream crash did not.
+        throw new Error(
+          `flow-worker: no arm for role "${String(this.role)}". ROLES declares ` +
+            `[${ROLES.join(', ')}]; add a case to run() or fix the pool's config.`,
+        );
     }
   }
 }
