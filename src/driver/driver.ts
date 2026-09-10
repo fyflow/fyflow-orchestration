@@ -12,7 +12,7 @@
  * driver turns out to need a second copy of run truth, that is a finding about the
  * spec rather than a thing to build.
  */
-import type { FlowDefinition, FlowNode, Registry, TerminalState } from '../definition/types.ts';
+import type { Edge, FlowDefinition, FlowNode, Registry, TerminalState } from '../definition/types.ts';
 import {
   allRegions, branchPathOf, buildGraph, innermostRegionOf, toRegion,
   type Graph, type RegionSets,
@@ -247,6 +247,13 @@ function isPathPrefix(a: string, b: string): boolean {
  * (`doc/concept.md` section 1).
  */
 const EMPTY_INDICES: ReadonlyMap<string, number> = new Map<string, number>();
+
+/**
+ * **What a predicate sees under `ctx.needs` when its edge declares none** — `FD-C3`.
+ * One frozen shared instance, for `EMPTY_INDICES`s reason: it is the value on every
+ * edge in the corpus and on every edge of every flow written before v0.12.
+ */
+const EMPTY_NEEDS: Readonly<Record<string, unknown>> = Object.freeze({});
 
 /**
  * `itemIndices` with one more region's index bound — a COPY, never a mutation.
@@ -961,8 +968,38 @@ export class Driver {
     // The predicate sees a COPY. `effectiveOutcome` returns the stored settlement
     // record by reference when there is no resolution, and a predicate is ordinary
     // user code (ADR 0002 rule 4 asks it to be pure; nothing enforces that — Q9).
-    const ctx = { outcome: cloneRecord(outcome) };
-    const result = selectEdge(node, runId, outcome.terminalState, ctx, this.opts.predicates);
+    //
+    // **And a context PER EDGE, built only for an edge that carries a `when`** —
+    // `FD-C3`,
+    // [ADR 0041](../../doc/decisions/0041-a-decision-sees-its-nodes-outcome-and-whatever-its-own-edge-declares.md).
+    // `resolveNeeds` is `compose`'s reference half with **no `edgeValue`**, because a
+    // predicate has no `"."`: *what it would have received anyway* is `ctx.outcome`,
+    // which it already has, and `FD-V26` refuses the token on an edge for that reason.
+    //
+    // **That absence is why Q8 is its own decision.** Handing a predicate *what its
+    // NODE received* is not available: the **entry** node's payload is `start(payload)`
+    // and appears in **no record** — an `OutcomeRecord` carries `result` and no payload
+    // field — so that node has no derivation at all, and for every other node a
+    // derivation re-implements `compose`, `JP-R11` and `JP-R12` at a second site, which
+    // ADR 0040 rule 2 refuses by name. Keeping it instead would be a payload retained
+    // per dispatched node — [Q19](../../doc/open-questions.md)'s own subject.
+    // **The references are derivable; the payload is not.**
+    //
+    // *(This comment cited a DIAMOND — a node reachable from two predecessors that both
+    // settle — and said choosing between them needs append order. W42's conformity
+    // reader derived it in one expression with none: drop any settled predecessor that
+    // another settled one is reachable FROM, and `FD-V19` makes the survivor unique.
+    // The conclusion held; the reason was wrong and is replaced.)*
+    const result = selectEdge(
+      node,
+      runId,
+      outcome.terminalState,
+      (edge) => ({
+        outcome: cloneRecord(outcome),
+        needs: this.resolveNeeds(node, edge, itemIndices),
+      }),
+      this.opts.predicates,
+    );
     if (result.taken === null) {
       // No edge opts into this state. The path ends — declared by omission.
       const region = this.regionOf(nodeId);
@@ -1544,33 +1581,100 @@ export class Driver {
         out[key] = cloneValue(edgeValue);
         continue;
       }
-      // **Compatible, not equal.** An entry is visible to this node when one path
-      // is a prefix of the other: `ingest@-` is visible everywhere, `extract@1` is
-      // visible to `merge@1.0`, and `merge@1.0` and `merge@1.1` are both visible to
-      // a node at `-` after the join. That single predicate is what gives the `one`
-      // form and the `all` form from one rule.
-      const visible = (produced.get(t.node) ?? [])
-        .filter((e) => isPathPrefix(e.path, here) || isPathPrefix(here, e.path))
-        .sort((x, y) => compareBranchPaths(x.path, y.path));
-      if (visible.length === 0) {
-        throw new UnresolvedReference(
-          `UnresolvedReference: node "${node.id}" at branch path "${here}" declares ` +
-            `\`needs[${JSON.stringify(key)}]\` naming "${t.node}", and no output of that node is ` +
-            'on this path. `FD-V27` checked that this node is reachable FROM it, which is a ' +
-            'statement about the graph; whether it actually ran is a statement about this run — ' +
-            'a decision routed around it, or it settled `user_action` and nobody has resolved it. ' +
-            'FD-R3.',
-        );
-      }
-      // **Its own copy, per key** — `JP-R11`'s invariant applied to the one edge
-      // that is not a fan-out edge: no two nodes ever receive the same object, and
-      // a reference is the one way two nodes could otherwise be handed one record's
-      // `result` twice.
-      out[key] = t.form === 'all'
-        ? visible.map((e) => cloneValue(e.result))
-        : cloneValue(visible[0]!.result);
+      out[key] = this.resolveReference(node.id, here, produced, key, t, 'needs');
     }
     return out;
+  }
+
+  /**
+   * **One reference, resolved against the projection** — `FD-C1`'s table, and the
+   * half `FD-C3` shares with it.
+   *
+   * **Extracted by [W42](../../doc/work-items/w42-what-a-decision-sees.md) rather
+   * than copied.** An EDGE's `needs` resolves by exactly these rules — same grammar,
+   * same visibility predicate, same order, same per-key copy — and the ONE difference
+   * is that an edge has no `"."` form, which is a property of the caller rather than
+   * of this expression. *Two callers, one resolution, so a change to what a reference
+   * means cannot mean two different things to a worker and to a predicate*, which is
+   * the mechanism-invented-twice that
+   * [P12](../../doc/plans/p12-what-a-node-receives-and-what-a-decision-sees.md)'s
+   * *why this plan* exists to refuse.
+   *
+   * @throws UnresolvedReference — `FD-R3`.
+   */
+  private resolveReference(
+    atNodeId: string,
+    here: string,
+    produced: Map<string, { path: string; result: unknown }[]>,
+    key: string,
+    t: { form: 'one' | 'all'; node: string },
+    site: 'needs' | 'edge needs',
+  ): unknown {
+    // **Compatible, not equal.** An entry is visible to this node when one path
+    // is a prefix of the other: `ingest@-` is visible everywhere, `extract@1` is
+    // visible to `merge@1.0`, and `merge@1.0` and `merge@1.1` are both visible to
+    // a node at `-` after the join. That single predicate is what gives the `one`
+    // form and the `all` form from one rule.
+    const visible = (produced.get(t.node) ?? [])
+      .filter((e) => isPathPrefix(e.path, here) || isPathPrefix(here, e.path))
+      .sort((x, y) => compareBranchPaths(x.path, y.path));
+    if (visible.length === 0) {
+      throw new UnresolvedReference(
+        `UnresolvedReference: node "${atNodeId}" at branch path "${here}" declares ` +
+          `\`${site}[${JSON.stringify(key)}]\` naming "${t.node}", and no output of that node is ` +
+          'on this path. `FD-V27` checked that this node is reachable FROM it, which is a ' +
+          'statement about the graph; whether it actually ran is a statement about this run — ' +
+          'a decision routed around it, or it settled `user_action` and nobody has resolved it. ' +
+          'FD-R3.',
+      );
+    }
+    // **Its own copy, per key** — `JP-R11`'s invariant applied to the one edge
+    // that is not a fan-out edge: no two nodes ever receive the same object, and
+    // a reference is the one way two nodes could otherwise be handed one record's
+    // `result` twice.
+    return t.form === 'all'
+      ? visible.map((e) => cloneValue(e.result))
+      : cloneValue(visible[0]!.result);
+  }
+
+  /**
+   * **What a decision sees, beyond its node's outcome** — `FD-C3`, and
+   * [ADR 0041](../../doc/decisions/0041-a-decision-sees-its-nodes-outcome-and-whatever-its-own-edge-declares.md).
+   *
+   * **`{}` for an edge that declares nothing, and the projection is not computed at
+   * all in that case** — which is every edge in the corpus before W42, and is what
+   * keeps ADR 0041 rule 1 true of the cost.
+   *
+   * **No `"."`, and `FD-V26` refuses it on an edge**: *what this predicate would have
+   * received anyway* is `ctx.outcome`, which it already has. So there is no
+   * `edgeValue` parameter here and none is derivable — see the call site.
+   *
+   * @throws UnresolvedReference — `FD-R3`, from the same expression a node's does.
+   */
+  private resolveNeeds(
+    node: FlowNode,
+    edge: Edge,
+    itemIndices: ReadonlyMap<string, number>,
+  ): Readonly<Record<string, unknown>> {
+    const needs = (edge as { needs?: Record<string, unknown> }).needs;
+    if (!needs) return EMPTY_NEEDS;
+    const here = this.pathOf(node.id, itemIndices);
+    const produced = this.outputs();
+    const out: Record<string, unknown> = {};
+    for (const [key, ref] of Object.entries(needs)) {
+      // `FD-V26` refuses a malformed reference AND the `"."` form on an edge, both at
+      // construction, so `t.node` is a string for any definition a `Driver` accepted.
+      const t = referenceTarget(ref) as { form: 'one' | 'all'; node: string };
+      out[key] = this.resolveReference(node.id, here, produced, key, t, 'edge needs');
+    }
+    // **FROZEN, and the same at both branches** — W42's adequacy reader. The shared
+    // `EMPTY_NEEDS` was frozen and this was not, so a predicate writing to `ctx.needs`
+    // THREW when its edge declared nothing and succeeded silently when it declared
+    // something — and with the freeze gone, a write to the shared instance would be
+    // read by the NEXT predicate. `ADR 0002` rule 4 asks a predicate to be pure and
+    // nothing enforces it ([Q9](../../doc/open-questions.md)); this does not enforce
+    // purity either, it makes the ONE observable consequence uniform. `OR-R7`'s idiom.
+    return Object.freeze(out);
   }
 
   /**

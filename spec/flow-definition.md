@@ -1,6 +1,6 @@
 # spec/flow-definition — the flow definition format
 
-**Status:** v0.11 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.12 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2** acted on the first spec-conformity pass
 (ADR 0004, and `region(F)` made computable). **v0.3** acted on the second, which found that `FD-V19`
 had reintroduced the v0.1 defect class under a new id — a refusal rule rejecting the valid corpus.
@@ -71,6 +71,28 @@ checked for an owner. *A rule declared, cited and checked by nothing*, exactly a
 rules, and *"only a `task` or a `map` may carry it"* is deliberately **not** among them, because
 `FD-V17` already refuses an undeclared key and names the kind. **`JP-R11` and `JP-R12` are NOT
 reopened** (P12 decision 3) and **no node kind is added** (P12 decision 4).
+
+**v0.12 answers [Q8](../doc/open-questions.md)**
+([W42](../doc/work-items/w42-what-a-decision-sees.md) under
+[P12](../doc/plans/p12-what-a-node-receives-and-what-a-decision-sees.md)), by
+[ADR 0041](../doc/decisions/0041-a-decision-sees-its-nodes-outcome-and-whatever-its-own-edge-declares.md):
+**a decision sees its node's effective outcome and whatever its OWN EDGE declares.** `FD-C3` is the
+rule and an **edge** may carry `needs` — the same grammar and the same aiming rules as a node's,
+**minus the `"."` form**, which `FD-V26` refuses there because *what a predicate would have received
+anyway* is `ctx.outcome` and it already has it. **[P12](../doc/plans/p12-what-a-node-receives-and-what-a-decision-sees.md)
+prediction 3 said Q8 would need no ADR and it REVERSED**, on one measurement: a node's payload is
+**not derivable from the log at routing time** — the **entry** node's payload is `start(payload)` and
+appears in **no record at all**, and for every other node a derivation would re-implement `compose`,
+`JP-R11` and `JP-R12` at a second site, which
+[ADR 0040](../doc/decisions/0040-what-a-node-can-reach-is-the-runs-own-outputs-and-a-node-id-names-them-relative-to-a-branch-path.md)
+rule 2 refuses by name. *(This read *"on a diamond … choosing which supplied the payload needs append
+order"*, and W42's conformity reader derived the diamond in one expression with no append order at
+all — drop any settled predecessor another settled one is reachable from, and `FD-V19` makes the
+survivor unique. **The conclusion held and its stated reason did not.**)* **So a predicate cannot be handed
+*what its node received* without retaining a payload per dispatched node**, and it does not need to
+be: the references resolve from the same projection with no new state. **No node kind changed, no
+`FD-V` changed** — `FD-V26`, `FD-V27` and `FD-V28` gained a second SITE and no new clause but the
+`"."` refusal — and `spec/join-policy.md` section 4 is untouched.
 
 **Binds:** [ADR 0002](../doc/decisions/0002-a-flow-definition-is-data-and-a-predicate-is-registered-by-name.md)
 (the graph is data; a predicate is a name; an unknown name fails at instantiation) and
@@ -232,6 +254,14 @@ W33 took it as a declared late exception.)*
 | `to` | required | a node id |
 | `on` | optional, default `["done"]` | the terminal states this edge is eligible for. Values: `"done"`, `"failed"` (`FD-V18`) |
 | `when` | optional | a predicate name. An edge without one is the default for its eligible states |
+| `needs` | optional, v0.12 | **what this edge's PREDICATE sees**, under `ctx.needs` — `FD-C3` below. Same grammar as a node's `needs`, **minus the `"."` form** (`FD-V26`). An edge with no `when` may carry one and no predicate ever reads it |
+
+> **This table is what `FD-V17` refuses against, so `needs` being absent from it made the code
+> accept a key the document did not declare.** `FD-V17` reads *"a node object, **an edge object**, or
+> the document carries a key its kind does not declare"*, and section 2's node table was widened at
+> v0.11 for exactly that reason while this one was not — so for one item `EDGE_KEYS` and this table
+> disagreed, in the accepting direction, which is `spec/README.md` rule 4's inverse. W42's conformity
+> reader. *An undeclared-key rule is only as good as the table it reads.*
 
 **Routing, in order:**
 
@@ -242,10 +272,13 @@ W33 took it as a declared late exception.)*
    is taken. Later edges are not evaluated. An edge with no `when` always passes.
 3. `when` is resolved against the predicate registry at instantiation, never at routing time
    (ADR 0002 rule 3). An unknown name is an instantiation error (`FD-V4`).
-4. A predicate receives a single `DecisionContext` argument and returns a boolean. **P1 populates
-   exactly one field, `outcome`, and it is always the node's effective outcome** — one shape, whether
-   the node settled or was resolved. Whether the context also carries accumulated run state is
-   [Q8](../doc/open-questions.md); adding a field later is additive rather than a signature change.
+4. A predicate receives a single `DecisionContext` argument and returns a boolean. It carries
+   **`outcome`** — always the node's effective outcome, one shape whether the node settled or was
+   resolved — and, since v0.12, **`needs`**: what **this edge** declared, or `{}`. *(This rule read
+   *"P1 populates exactly one field … whether the context also carries accumulated run state is
+   [Q8](../doc/open-questions.md); adding a field later is additive rather than a signature change"*.
+   **It was additive and the sentence was right about that**; what it did not predict is that the
+   field would be declared on the EDGE — see `FD-C3`.)*
 5. A predicate is pure (ADR 0002 rule 4). Purity is not enforced by this document;
    [Q9](../doc/open-questions.md) is about the mechanism.
 
@@ -351,6 +384,50 @@ resolving to `undefined`.
 |---|---|---|
 | `FD-C1` | **What a node receives.** With no `needs`, the source node's effective-outcome `result`, deep-copied — the paragraph above, unchanged. With a `needs`, **exactly** the object it describes: one key per declared key, each resolved by the table above and each its own copy. Test: at ladder L2, over `map-with-context.flow.json` and `map-over-region-output.flow.json`, asserting the composed payload of **every dispatch a `needs` composes** — which is 2 of that flow's 4 and 3 of this one's 7, the rest being nodes that declare none; and that a node with no `needs` is byte-unchanged, which the 574 unmoved L1-L5 cases assert as a whole | **[W41](../doc/work-items/w41-what-a-node-can-reach-and-what-names-it.md)** |
 | `FD-C2` | **What names an output is the pair `(node id, branchPath)`.** A node id alone names one output outside a `map` region and **N** inside one, so a projection keyed by node id collapses a map's instances — which is what a reference must not do. A `needs` reference names a node **id**, because a branch path inside a map region is a property of the **dispatch** (section 4, `ID-R6`) and no author can write one. Test: at ladder L2, the pairs are distinct over all four region-bearing corpus flows **and over the two this item adds**, while the node ids collapse in exactly the map-bearing ones | **[W41](../doc/work-items/w41-what-a-node-can-reach-and-what-names-it.md)** |
+
+### An EDGE may declare `needs` too, and what it gives is what its PREDICATE sees — v0.12
+
+[ADR 0041](../doc/decisions/0041-a-decision-sees-its-nodes-outcome-and-whatever-its-own-edge-declares.md),
+answering [Q8](../doc/open-questions.md).
+
+```json
+{ "when": "isLowConfidence", "to": "review", "needs": { "earlier": "ingest" } }
+```
+
+**Same grammar, same aiming rules, minus the `"."` form.** A reference on an edge is a node id or a
+one-element array holding one; `"."` is refused by `FD-V26`, because *what this predicate would have
+received anyway* is `ctx.outcome` and it already has it. `FD-V27` and `FD-V28` ask the same two
+questions of an edge's references as of a node's, **with the same reader** — an edge has no path of
+its own, so the node it hangs on is what a reference resolves relative to.
+
+**Why the EDGE and not the node**, stated because it is the whole of what
+[P12](../doc/plans/p12-what-a-node-receives-and-what-a-decision-sees.md) prediction 3 got wrong:
+
+| | |
+|---|---|
+| a node's `needs` would rewrite what its **WORKER** receives | measured: `score` with no `needs` receives `{"flagged":true}`, and with `needs: {"own": ".", "up": "ingest"}` receives `{"own":…,"up":…}`. **Giving the predicate reach would change the worker's contract** |
+| and *what the node received* is **not derivable at routing time** | The **entry** node's payload is `start(payload)` and is in **no record**: an `OutcomeRecord` carries `result` and no payload field, so that node has no derivation at all — not a hard one, none. For every other node a derivation re-implements `compose`, `JP-R11` and `JP-R12` at a second site, which [ADR 0040](../doc/decisions/0040-what-a-node-can-reach-is-the-runs-own-outputs-and-a-node-id-names-them-relative-to-a-branch-path.md) rule 2 refuses by name; keeping it instead is a payload retained per dispatched node, which is [Q19](../doc/open-questions.md)'s own subject. *(This row cited a **diamond** and append order, and W42's conformity reader derived the diamond with neither.)* |
+| the **references** are derivable, and cost nothing new | they resolve from the same projection `FD-C1` uses, at the moment the decision is made, with **no new driver state** |
+
+> **A `needs` on an edge no predicate reads is ACCEPTED and INERT, and that is a decision rather
+> than an oversight.** Two shapes: an edge with a `needs` and **no `when`**, which nothing evaluates;
+> and a **`join`**'s single exit edge, which `FD-V7` forbids from carrying a `when` at all. Both
+> validate with zero findings and neither is ever resolved. **Refusing them would put a rule about a
+> KIND inside a rule about a GRAMMAR**: `FD-V26` says what a reference IS, *may a predicate sit here*
+> is `FD-V7`'s question, and `FD-V17` — which owns *a key this kind does not declare* — cannot
+> express *a key this kind declares and cannot use*. **The cost is that an author can write one and
+> see nothing happen**, which is why it is written down rather than left to be discovered. W42's
+> conformity reader; `test/driver/decision-context.test.ts` asserts both shapes.
+
+**A predicate on an edge that declares nothing sees `ctx.needs = {}`, and the projection is not
+computed at all** — which is every edge written before v0.12, so nothing changes for a flow that
+declares nothing. **`{}` and never `undefined`**, for rule 4's own reason one level out: a predicate
+written `ctx.needs.flag` must mean one thing.
+
+| id | | Test owed by |
+|---|---|---|
+| `FD-C3` | **What a decision sees.** Its node's **effective outcome** (rule 4, unchanged since P1), and **`needs`** — the object THIS EDGE's `needs` describes, resolved by `FD-C1`'s table with the reader being the node the edge hangs on, or `{}` when the edge declares none. **A different edge of the same node may declare something different**, so the context is built per edge and only for an edge that carries a `when`. Test: at ladder L2, over `decision-on-an-earlier-step.flow.json` — one flow, two runs, the predicate answering differently because of a node it does not sit on; that a node with no `needs` anywhere has its worker payload **unchanged**; and that an edge which is never REACHED is never resolved, so a later edge's unresolvable reference does not stop a run the flow routes correctly. **On a CONSTRUCTED fixture, because that corpus flow cannot express them**: that another edge of the same node sees `{}`, which needs a node with **two guarded edges** since a default carries no `when` and so builds no context; and that a **resumed** node's predicate sees the resolution's result under `outcome` while `needs` resolves against the run. *(This cell prescribed both of those over the corpus flow, and prescribed the second as "the resolution's result under BOTH fields" — which no flow can express, because for `needs` to carry the resumed node's own result the edge would have to name its own node, and `FD-V27` refuses that. Section 6's "FD-R1's test, corrected" is the same class and this is its second occurrence in this document. W42's conformity reader.)* | **[W42](../doc/work-items/w42-what-a-decision-sees.md)** |
+
 
 **A fan-out edge and a join's exit edge are the two that are not ordinary**, and both are
 [spec/join-policy.md](join-policy.md) section 4's — `JP-R11` for what each opened branch receives, and
@@ -677,7 +754,7 @@ C4 fails if one is missing.
 | `FD-V23` | a **required key is absent** — a node without `id` or `kind`; a `task` without `workerType` or `edges`; a `fanout` without `branches`; **a `map` without `over` or `branch`**; a `join` without `of` or `edges`; an `end` without `outcome`; an edge without `to`; or the document without `flowId`, `version`, `entry` or `nodes`. **`version` is required**, matching section 1 — an omitted version is one that silently means nothing |
 | `FD-V24` | a node's `kind` is not one of `task`, `fanout`, **`map`**, `join`, `end`. **`kind: "decision"` is the case this exists for** — section 2 warns the author away from that word, and until v0.4 nothing rejected it |
 | `FD-V25` | a `map` has `edges`; its `branch` names a node whose kind is not `task`; or its `over` is not a string matching `^[A-Za-z0-9_-]{1,64}$`. **The map's own rule, and `FD-V9` is unchanged** — each is about one node kind, because a rule about two kinds is the confusion [ADR 0036](../doc/decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md) exists to remove. A map declares ONE branch, so `FD-V9`'s arity floor and repeated-entry clause have nothing to say about it and are not restated here |
-| `FD-V26` | a node's `needs` is not an object, is an empty one, has a key outside `^[A-Za-z0-9_-]{1,64}$`, or has a value that is not `"."`, a node id, or a one-element array holding a node id. **Section 3's grammar and nothing else** — where the reference POINTS is `FD-V27`'s and `FD-V28`'s. *"Only a `task` or a `map` may carry `needs`"* is **deliberately not a clause here**: `needs` is absent from the other three kinds' key lists, so `FD-V17` already refuses it and names the kind, and a second rule saying the same thing is one `FD-V17` could never disagree with |
+| `FD-V26` | a `needs` — **on a node OR on an edge** — is not an object, is an empty one, has a key outside `^[A-Za-z0-9_-]{1,64}$`, or has a value that is not `"."`, a node id, or a one-element array holding a node id; **or is on an EDGE and uses `"."`**, which a predicate has no use for because `ctx.outcome` already carries what it would otherwise name (v0.12). **Section 3's grammar and nothing else** — where the reference POINTS is `FD-V27`'s and `FD-V28`'s. *"Only a `task` or a `map` may carry `needs`"* is **deliberately not a clause here**: `needs` is absent from the other three kinds' key lists, so `FD-V17` already refuses it and names the kind, and a second rule saying the same thing is one `FD-V17` could never disagree with |
 | `FD-V27` | a `needs` reference names a node that does not exist, names a node whose kind is not `task` (**only a `task` produces an output** — section 2), or names a node **this node is not reachable from**. The last is what makes a reference a statement about the graph rather than a hope about the run: a reference pointing sideways or backwards names a node that may not have run, and without this the only thing to say so is `FD-R3`, at run time, on the one workload that takes that branch — which is ADR 0002 rule 3's own argument for validating at instantiation |
 | `FD-V28` | a `needs` reference's **form does not match the graph** — `"n"` where this node is outside a **`map`** region containing `n` (so `n` produces one output per ITEM), or `["n"]` where it is not (so `n` produces exactly one). **A `fanout` region is not this case**: `FD-V19` gives every node in one exactly one output, so the bare form is legal from outside it, and the rule's first version refused a valid document by asking *a region* where it meant *a map region*. **Its own id rather than a clause of `FD-V27`** because an author fixes the two differently: `FD-V27` is *that node cannot have produced anything for you* and this is *it produced a different NUMBER of things than you asked for*, and the message names the form to write instead |
 
@@ -773,6 +850,7 @@ instantiation, and instantiation is a driver action. Hand-written, never generat
 | `map-fanout.flow.json` | **a `map`** — v0.8, one branch entry and an arity that is not in the document |
 | `map-with-context.flow.json` | **[Q166](../doc/open-questions.md)'s flow** — *score each item against the run's config*. A map instance that receives its own item **and** the value the map node received, through `needs: {"item": ".", "run": "ingest"}`. v0.11 |
 | `map-over-region-output.flow.json` | **[Q165](../doc/open-questions.md)'s flow** — *score, then fan out over the scores*. A `map` whose `over` names a key `needs: {"scores": ["score"]}` composed from a whole map region's output, **with no `over: "0"` and therefore no coupling to branch numbering**. v0.11 |
+| `decision-on-an-earlier-step.flow.json` | **[Q8](../doc/open-questions.md)'s own flow, carried in that row since P1** — *route to review if an earlier step flagged low confidence*. An **edge** declares `needs: {"earlier": "ingest"}` and its predicate answers on a node it does not sit on, **with the worker's payload unchanged**. v0.12 |
 | `map-in-fanout.flow.json` | **a map region nested inside a static one** — the shape that shows the outer `branchPath` prefix is still derived while only the map's own segment is supplied at run time |
 
 **This table and the directory are compared BOTH WAYS, and that is v0.8's addition rather than a

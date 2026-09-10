@@ -53,6 +53,20 @@ export interface Edge {
   on?: RoutableState[];
   /** Predicate name, resolved against the registry at instantiation (FD-V4). */
   when?: string;
+  /**
+   * **What this edge's PREDICATE sees, beyond its node's outcome** — `FD-C3`, and
+   * [ADR 0041](../../doc/decisions/0041-a-decision-sees-its-nodes-outcome-and-whatever-its-own-edge-declares.md),
+   * answering [Q8](../../doc/open-questions.md).
+   *
+   * Same grammar as a node's, same aiming rules (`FD-V26`-`FD-V28`), **minus the
+   * `"."` form** — *what this predicate would have received anyway* is
+   * `ctx.outcome`, which it already has, so the token has nothing to name.
+   *
+   * **On the EDGE and not on the node**, and that is the whole of why Q8 turned out
+   * to be its own decision: a node's `needs` rewrites what its WORKER receives, and
+   * a node's payload is not derivable at routing time.
+   */
+  needs?: Needs;
 }
 
 export interface TaskNode {

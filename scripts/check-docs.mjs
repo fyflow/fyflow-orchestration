@@ -289,7 +289,7 @@ if (written.length) {
 // from P12's index row, that row names `scripts/check-spec.mjs` and not this file,
 // and the obligation arrived from the CONTENT of the change. Taken as a declared
 // late exception.
-const RUN_FLOOR = 16;
+const RUN_FLOOR = 17;
 {
   // **Only when the document parsed.** A count over a reference whose fences are
   // malformed or untagged is true of the parse and says nothing about coverage —

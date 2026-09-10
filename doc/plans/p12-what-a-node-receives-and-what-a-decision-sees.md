@@ -302,6 +302,30 @@ range of 386-463 across nine runs ([Q179](../open-questions.md)); the reproducib
 
 *Filled in at the join, after the work items are merged.*
 
+**W42 — done.** *What a decision sees.* **[ADR 0041](../decisions/0041-a-decision-sees-its-nodes-outcome-and-whatever-its-own-edge-declares.md)
+— and prediction 3 REVERSED.** A decision sees its node's effective outcome and whatever its **own
+EDGE** declares: `FD-C3`, an edge-level `needs`, same grammar minus the `"."` form, resolved from
+ADR 0040's projection with no new state. `spec/flow-definition.md` is **v0.12**; `spec/` is 7 / 40 /
+87; L1-L5 is **633 cases in five runtimes**, L6 unmoved at 638. **[Q8](../open-questions.md) is
+RESOLVED**, open since P1, and its own row's fork turns out to be the wrong shape.
+
+**Prediction 3's reversal is the plan's sharpest result and its evidence was wrong twice over.** The
+reversal condition — *a predicate needing something a worker does not* — is met on a **shape** (no
+`"."`) and on a **site**, and the ADR's stated forcing fact for the site was **a diamond makes a
+node's payload underivable**. Its conformity reader derived the diamond in one expression with no
+append order at all. The conclusion survived on two facts nobody had written down: **the entry node's
+payload is in no record at any moment**, and re-deriving any other node's re-implements `compose`,
+`JP-R11` and `JP-R12` at a second site, which ADR 0040 rule 2 refuses by name.
+[Q193](../open-questions.md).
+
+Readers **16 / 10** and **45 mutations / 14 survivors / 9 blocking**, overlap **2**. Rule 8
+**40 / 38 / 1 classified rewrite / 0 aborted**. **The gate was RED at L0 TWICE**, each time on one unused
+binding with zero `FAIL` lines, the second stranded by a reader's own fix and caught by re-reading a
+23-line log the Record had already called green. **TEN late exceptions**, zero undeclared, the count rewritten three
+times and each rewrite before the next arrived; **[Q142](../open-questions.md) fired and BOTH
+`check-markdown` floors moved for the first time** — `M3` to 74, `M4` to 2700. This item's own `Owns` block
+predicted one of them by name and was wrong about what to call it. Q190-Q193 raised.
+
 **W41 — done.** *What a node can reach, and what NAMES it.* **[ADR 0040](../decisions/0040-what-a-node-can-reach-is-the-runs-own-outputs-and-a-node-id-names-them-relative-to-a-branch-path.md)**: what a node can reach is the
 run's own outputs, and a node id names them relative to a branch path. `spec/flow-definition.md`
 v0.11 gains **`needs`**, **`FD-C1`**, **`FD-C2`**, **`FD-V26`-`FD-V28`** and **`FD-R3`**;

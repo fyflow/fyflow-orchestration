@@ -16,7 +16,7 @@
  * | *"only a `task` or a `map` may carry it is NOT a clause"* | section 5's `FD-V26` row, which says `FD-V17` already refuses it and names the kind |
  */
 import { equal, ok, readText, ROOT, suite } from '../harness.ts';
-import { referenceTarget, validateDefinition } from '../../src/definition/validate.ts';
+import { EDGE_KEYS_DECLARED, referenceTarget, validateDefinition } from '../../src/definition/validate.ts';
 import type { FlowDefinition } from '../../src/definition/types.ts';
 
 const EX = `${ROOT}spec/examples`;
@@ -327,6 +327,47 @@ suite('L1 — FD-V28: the FORM must match the graph', (test) => {
   test('the `.` form is never an FD-V28 case, in either position', () => {
     equal(rulesOf(region('inside', { x: '.' })), [], 'inside a region');
     equal(rulesOf(region('outside', { x: '.' })), [], 'and outside one — `.` names no node');
+  });
+});
+
+suite('L1 — what `FD-V17` refuses against IS what `spec/` declares', (test) => {
+  /**
+   * **The third instance in one plan of *a list bound to nothing*** — W41 found
+   * `RULE_PREFIXES` and its own `accepted` list, and W42's conformity reader found
+   * this: `FD-V17` reads *"a node object, **an edge object**, or the document carries
+   * a key its kind does not declare"*, and the only statement of what an edge
+   * declares is section 3's Edge key table. `EDGE_KEYS` is a literal in
+   * `src/definition/validate.ts`, and **nothing compared the two**: for one item the
+   * code accepted `needs` on an edge while the table did not declare it, which is
+   * `spec/README.md` rule 4's inverse in the accepting direction.
+   *
+   * **Both ways.** A key in the code and not the table is a rule refusing against a
+   * set the document does not state; a key in the table and not the code is a
+   * document promising a key `FD-V17` then refuses.
+   *
+   * Measured: rewriting the table's `needs` row struck through cost **0** before this.
+   */
+  const keyRows = (heading: string): string[] => {
+    const lines = specText.split(/\r?\n/);
+    const head = lines.findIndex((l) => l.startsWith(heading));
+    ok(head >= 0, `${heading} is where this comes from, and it is not there`);
+    const out: string[] = [];
+    for (let i = head + 2; i < lines.length && lines[i]!.startsWith('|'); i++) {
+      const first = lines[i]!.split('|')[1]!.trim();
+      const m = /^`([A-Za-z]+)`$/.exec(first);
+      if (m) out.push(m[1]!);
+    }
+    return out.sort();
+  };
+
+  test('the EDGE key table and `EDGE_KEYS` are the same set, both ways', () => {
+    const declared = keyRows('| Edge key | | |');
+    equal(declared, ['needs', 'on', 'to', 'when'],
+      'section 3 declares exactly four edge keys — and a row struck through or added is red here ' +
+      'rather than silently disagreeing with the validator');
+    equal([...EDGE_KEYS_DECLARED].sort(), declared,
+      '`FD-V17` refuses against the same four the document declares. A key in one and not the ' +
+      'other is a rule whose set nobody wrote down');
   });
 });
 

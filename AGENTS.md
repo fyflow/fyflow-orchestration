@@ -210,7 +210,8 @@ node that says nothing, and it is what the whole of this section above describes
 **`needs` is how a node asks for something else** —
 [ADR 0040](doc/decisions/0040-what-a-node-can-reach-is-the-runs-own-outputs-and-a-node-id-names-them-relative-to-a-branch-path.md),
 answering [Q11](doc/open-questions.md). It is an optional object on a `task` or a `map`, mapping the
-keys of the payload you want to **declared references**. A node that declares one receives **exactly**
+keys of the payload you want to **declared references**. *(Since v0.12 an **edge** may carry one too,
+and it says what that edge's PREDICATE sees rather than what a worker receives — section 4.)* A node that declares one receives **exactly**
 that object and nothing else — there is no wrapper and no reserved key.
 
 | a reference is | and you get |
@@ -358,7 +359,11 @@ const outcome = {
 // the edges that are already eligible.
 console.log(eligibleEdges(node, 'done').map((e) => e.to));   // [ 'review', 'publish' ]
 
-const taken = selectEdge(node, 'r1', 'done', { outcome }, new Map([['isLowConfidence', isLowConfidence]]));
+// **A context BUILDER, not a context** - each edge declares its own `needs`, so each
+// predicate sees a different `ctx.needs`. `selectEdge` calls this only for an edge
+// that carries a `when`, so a default edge costs nothing.
+const taken = selectEdge(node, 'r1', 'done', () => ({ outcome, needs: {} }),
+  new Map([['isLowConfidence', isLowConfidence]]));
 console.log(taken.taken?.to);                                 // 'review'
 if (taken.taken?.to !== 'review') throw new Error('the guarded edge should win at 0.2');
 ```
@@ -372,6 +377,84 @@ section 3's example can declare its `on: ['failed']` edge first: for `done` the 
 A predicate receives the node's **effective outcome** — the same shape whether the task settled or a
 human resolved it. It should be pure: it is called during routing, and the library does not enforce
 that.
+
+### An edge can let its predicate see an EARLIER node
+
+By default a predicate sees **only its own node's outcome**. *Route to review if an earlier step
+flagged low confidence* was not expressible until v0.12 —
+[ADR 0041](doc/decisions/0041-a-decision-sees-its-nodes-outcome-and-whatever-its-own-edge-declares.md),
+answering [Q8](doc/open-questions.md).
+
+**An edge may carry `needs`, and its predicate sees the result under `ctx.needs`.** Same grammar as
+a node's (section 3) — a node id, or a one-element array holding one — **minus `"."`**, which an edge
+has no use for: *what a predicate would have received anyway* is `ctx.outcome`.
+
+```ts run
+import { validateDefinition, type FlowDefinition, type Predicate } from 'fyflow-orchestration';
+
+const registry = {
+  predicates: ['flaggedEarlier'],
+  workerTypes: ['IngestWorker', 'ScoreWorker', 'ReviewWorker', 'PublishWorker'],
+};
+
+const flow: FlowDefinition = {
+  flowId: 'route-on-an-earlier-step', version: 1, entry: 'ingest',
+  nodes: [
+    { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'score' }] },
+    { id: 'score', kind: 'task', workerType: 'ScoreWorker', edges: [
+      // this edge's predicate can see `ingest`; the default edge below sees `{}`
+      { when: 'flaggedEarlier', to: 'review', needs: { earlier: 'ingest' } },
+      { to: 'publish' },
+    ] },
+    { id: 'review', kind: 'task', workerType: 'ReviewWorker', edges: [{ to: 'publish' }] },
+    { id: 'publish', kind: 'task', workerType: 'PublishWorker', edges: [{ to: 'done' }] },
+    { id: 'done', kind: 'end', outcome: 'completed' },
+  ],
+};
+
+const flaggedEarlier: Predicate = (ctx) =>
+  (ctx.needs as { earlier?: { flagged?: boolean } }).earlier?.flagged === true;
+
+const bad = validateDefinition(flow, registry);
+if (bad.length) throw new Error(`invalid: ${bad.map((f) => f.rule).join()}`);
+
+// And the predicate is CALLED, so the one thing this section exists to show is
+// executed rather than only typechecked.
+const asDriverWouldBuildIt = {
+  outcome: { result: { score: 0.9 } } as never,
+  needs: { earlier: { flagged: true } },
+};
+if (!flaggedEarlier(asDriverWouldBuildIt)) throw new Error('ctx.needs.earlier was not what the edge declared');
+if (flaggedEarlier({ ...asDriverWouldBuildIt, needs: {} })) {
+  throw new Error('an edge that declares nothing must give {} and the predicate must say no');
+}
+
+// `"."` is refused ON AN EDGE, and the message names what you already have.
+const withSelf = {
+  ...flow,
+  nodes: flow.nodes.map((n) =>
+    n.id === 'score'
+      ? { ...n, edges: [{ when: 'flaggedEarlier', to: 'review', needs: { x: '.' } }, { to: 'publish' }] }
+      : n),
+} as FlowDefinition;
+const findings = validateDefinition(withSelf, registry);
+if (!findings.some((f) => f.rule === 'FD-V26' && f.detail.includes('ctx.outcome'))) {
+  throw new Error('FD-V26 did not refuse `"."` on an edge');
+}
+```
+
+**It is on the EDGE and not on the node, for two reasons worth knowing.** A `needs` on the node
+changes what its **worker** receives, so you could not give a predicate reach without editing a
+worker; and *what the node received* is not something the driver can reconstruct when the decision is
+made — the **entry** node's payload is never written to the log at all, and reconstructing any other
+node's would mean re-deriving the whole payload contract a second time. **A reference resolves from
+what the run produced**, which is available either way.
+
+**`ctx.needs` is `{}` when the edge declares nothing**, never `undefined`; it is **frozen**, so a
+predicate that writes to it throws rather than editing what the next predicate reads; and a reference
+the run did not produce stops the run with an `UnresolvedReference` (`FD-R3`, section 9) exactly as a
+node's does. **An edge with no `when` may carry a `needs` and nothing will ever read it** — accepted
+and inert, which `spec/flow-definition.md` section 3 records rather than refuses.
 
 ---
 
@@ -953,7 +1036,10 @@ different person's bug — a flow author reading `InvalidDefinition` would go an
 where there is nothing to find. **An empty array is not this**: zero items is a lawful arity.
 
 `UnresolvedReference` is **W41's**, and it is [ADR 0040](doc/decisions/0040-what-a-node-can-reach-is-the-runs-own-outputs-and-a-node-id-names-them-relative-to-a-branch-path.md)'s
-`FD-R3`. A node declared a `needs` naming another node, and **no output of that node is on this
+`FD-R3`. **A node OR AN EDGE** declared a `needs` naming another node — the edge site is
+[ADR 0041](doc/decisions/0041-a-decision-sees-its-nodes-outcome-and-whatever-its-own-edge-declares.md)'s
+and means **a predicate can now stop a run**, with the message saying `edge needs[…]` so you are sent
+to the edge — and **no output of that node is on this
 node's branch path** — a decision routed around it, or it settled `user_action` and nobody has
 resolved it. `FD-V27` has already checked at instantiation that the declaring node is *reachable
 from* the named one, which is everything the graph can say; whether it actually ran is a fact about

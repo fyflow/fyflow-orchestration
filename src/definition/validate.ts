@@ -26,7 +26,14 @@ const NODE_KEYS: Record<string, { req: string[]; opt: string[] }> = {
   join: { req: ['id', 'kind', 'of', 'edges'], opt: [] },
   end: { req: ['id', 'kind', 'outcome'], opt: [] },
 };
-const EDGE_KEYS = { req: ['to'], opt: ['on', 'when'] };
+const EDGE_KEYS = { req: ['to'], opt: ['on', 'when', 'needs'] };
+/**
+ * **The keys `FD-V17` refuses against, exported so a test can compare them to
+ * `spec/flow-definition.md` section 3s own Edge key table** — W42s conformity reader.
+ * That table is the documents ONLY statement of what an edge declares, and for one
+ * item the code accepted `needs` while the table did not list it.
+ */
+export const EDGE_KEYS_DECLARED: readonly string[] = [...EDGE_KEYS.req, ...EDGE_KEYS.opt];
 
 const asSet = (x: ReadonlySet<string> | readonly string[]): ReadonlySet<string> =>
   x instanceof Set ? x : new Set(x as readonly string[]);
@@ -37,6 +44,37 @@ const asSet = (x: ReadonlySet<string> | readonly string[]): ReadonlySet<string> 
  *   about one, so there is no such thing as validating without it.
  */
 /**
+ * **Every reference a node's declarations aim, from BOTH sites** — W42.
+ *
+ * A `needs` on the node and a `needs` on any of its edges are aimed by the same two
+ * rules, at the same reader, so `FD-V27` and `FD-V28` iterate one sequence rather
+ * than two loops that could drift apart. The third element is what the message says,
+ * which is the only thing the two sites do not share.
+ */
+function aimedReferences(n: FlowNode): [string, unknown, 'needs' | 'edge needs', string][] {
+  const out: [string, unknown, 'needs' | 'edge needs', string][] = [];
+  const push = (v: unknown, site: 'needs' | 'edge needs', at: string) => {
+    if (typeof v !== 'object' || v === null || Array.isArray(v)) return;
+    for (const [k, ref] of Object.entries(v as Record<string, unknown>)) out.push([k, ref, site, at]);
+  };
+  push((n as unknown as Record<string, unknown>).needs, 'needs', n.id);
+  const edges = (n as { edges?: unknown }).edges;
+  if (Array.isArray(edges)) {
+    // **Every edge, and each reporting its OWN index** — W42's adequacy reader found
+    // both halves: `edges.slice(0, 1)` cost **0**, because every edge-site fixture in
+    // the tree put its `needs` on edge 0; and `FD-V27`/`FD-V28` reported `at: <node
+    // id>` for an edge-site violation while `FD-V26`'s clauses report `<node>#edgeN`,
+    // so an author with three edges was told the node and not the edge.
+    edges.forEach((e, i) => {
+      if (typeof e === 'object' && e !== null) {
+        push((e as Record<string, unknown>).needs, 'edge needs', `${n.id}#edge${i}`);
+      }
+    });
+  }
+  return out;
+}
+
+/**
  * **The one place `needs`' reference grammar is parsed** — `FD-V26`'s three forms,
  * and `spec/flow-definition.md` section 3's table. `null` is *not a reference at
  * all*, which is what `FD-V26` reports; every other return is well formed and
@@ -44,6 +82,9 @@ const asSet = (x: ReadonlySet<string> | readonly string[]): ReadonlySet<string> 
  *
  * **`"."` is the only invented token in the grammar**, and it is safe because it
  * is outside `FD-V16`'s charset, so no node may ever be called it.
+ * **On an EDGE the `"."` form is refused** — `FD-V26`s v0.12 clause — but that is the
+ * CALLER`s rule: this function parses ONE grammar, and the two sites differ in what
+ * they accept of it rather than in how it is read.
  */
 export function referenceTarget(
   ref: unknown,
@@ -249,6 +290,30 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
       }
       if (ed?.when !== undefined && (typeof ed.when !== 'string' || !preds.has(ed.when))) {
         add('FD-V4', at, `when names "${String(ed.when)}", which is not a registered predicate`);
+      }
+      // ---- FD-V26 on an EDGE, and the one clause a node's does not have ----
+      // `spec/flow-definition.md` section 3, v0.12, and ADR 0041. The grammar is the
+      // same, and `"."` is REFUSED: *what this predicate would have received anyway*
+      // is `ctx.outcome`, which it already has, so the token has nothing to name.
+      // **It is the same rule id rather than a new one** because it is the same
+      // grammar with one form removed, and an author fixing it reads the same row.
+      if (ed?.needs !== undefined) {
+        const nv = ed.needs;
+        if (typeof nv !== 'object' || nv === null || Array.isArray(nv)) {
+          add('FD-V26', at, `edge needs must be an object, got ${JSON.stringify(nv)}`);
+        } else if (Object.keys(nv).length === 0) {
+          add('FD-V26', at, 'edge needs is empty; an edge that declares one names at least one thing');
+        } else {
+          for (const [k, ref] of Object.entries(nv as Record<string, unknown>)) {
+            if (!ID_RE.test(k)) add('FD-V26', at, `edge needs key ${JSON.stringify(k)} is not [A-Za-z0-9_-]{1,64}`);
+            const target = referenceTarget(ref);
+            if (target === null) {
+              add('FD-V26', at, `edge needs[${JSON.stringify(k)}] is ${JSON.stringify(ref)}, which is not a node id or a one-element array holding one`);
+            } else if (target.node === null) {
+              add('FD-V26', at, `edge needs[${JSON.stringify(k)}] is ".", which an EDGE may not use: what a predicate would have received anyway is its node's own outcome, and \`ctx.outcome\` already carries it`);
+            }
+          }
+        }
       }
     });
   }
@@ -463,22 +528,25 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
       // document THROWS out of the validator, which `spec/flow-definition.md`
       // section 5's *"reported, never thrown"* refuses and two L1 cases assert.
       if (typeof n !== 'object' || n === null || typeof n.id !== 'string') continue;
-      const nv = (n as unknown as Record<string, unknown>).needs;
-      if (typeof nv !== 'object' || nv === null || Array.isArray(nv)) continue;
-      const where = n.id;
-      for (const [k, ref] of Object.entries(nv as Record<string, unknown>)) {
+      // **Both SITES, in one loop** — W42. A `needs` on the node says what its WORKER
+      // receives and a `needs` on an edge says what that edge's PREDICATE sees, and
+      // `FD-V27` and `FD-V28` are the same two questions of both: *can that node have
+      // produced anything for you*, and *did it produce the NUMBER of things you asked
+      // for*. The reader is the same node in both cases — an edge has no path of its
+      // own — so nothing below distinguishes them except the message.
+      for (const [k, ref, site, at] of aimedReferences(n)) {
         const t = referenceTarget(ref);
         if (t === null || t.node === null) continue; // FD-V26's, or the `"."` form
         const target = t.node;
         if (!g.byId.has(target)) {
-          add('FD-V27', where, `needs[${JSON.stringify(k)}] names "${target}", which is not a node`);
+          add('FD-V27', at, `${site}[${JSON.stringify(k)}] names "${target}", which is not a node`);
           continue;
         }
         if (kindOf(target) !== 'task') {
           // **Only a task produces an output** — section 2's own sentence. A
           // reference to a `fanout`, `map`, `join` or `end` names something that
           // has no result to give, at any branch path.
-          add('FD-V27', where, `needs[${JSON.stringify(k)}] names "${target}", a ${kindOf(target)}; only a task produces an output`);
+          add('FD-V27', at, `${site}[${JSON.stringify(k)}] names "${target}", a ${kindOf(target)}; only a task produces an output`);
           continue;
         }
         // **`target === n.id` was here and is DELETED, on a measurement.** Rule 8
@@ -495,7 +563,7 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
           // and `FD-R3` would be the only thing to say so — at run time, on the
           // one workload that takes that branch, which is ADR 0002 rule 3's own
           // argument for validating at instantiation.
-          add('FD-V27', where, `needs[${JSON.stringify(k)}] names "${target}", which this node is not reachable from`);
+          add('FD-V27', at, `${site}[${JSON.stringify(k)}] names "${target}", which this node is not reachable from`);
           continue;
         }
         // **`FD-V28` — the FORM must match the graph**, and the graph is what
@@ -519,9 +587,9 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
         // apart, and the code followed the wrong half.
         const many = regions.some((r) => r.opensWith === 'map' && r.members.has(target) && !r.members.has(n.id));
         if (many && t.form === 'one') {
-          add('FD-V28', where, `needs[${JSON.stringify(k)}] names "${target}" as one value, but it is inside a map region this node is outside of, so it produces one output per ITEM; write ["${target}"]`);
+          add('FD-V28', at, `${site}[${JSON.stringify(k)}] names "${target}" as one value, but it is inside a map region this node is outside of, so it produces one output per ITEM; write ["${target}"]`);
         } else if (!many && t.form === 'all') {
-          add('FD-V28', where, `needs[${JSON.stringify(k)}] names ["${target}"] as a list, but it produces exactly one output on this node's branch path; write "${target}"`);
+          add('FD-V28', at, `${site}[${JSON.stringify(k)}] names ["${target}"] as a list, but it produces exactly one output on this node's branch path; write "${target}"`);
         }
       }
     }

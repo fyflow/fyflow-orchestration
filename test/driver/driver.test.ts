@@ -142,7 +142,10 @@ suite('FD-R1 — eligible edges exist and none matches: the run fails loudly', (
       id: 'score', kind: 'task' as const, workerType: 'ScoreWorker',
       edges: [{ when: 'isLowConfidence', to: 'review' }, { when: 'isHighConfidence', to: 'publish' }],
     };
-    const ctx = { outcome: { kind: 'outcome', terminalState: 'done' } as never };
+    // **A context PER EDGE since W42** — `FD-C3`. `selectEdge` takes a builder, not
+    // a `DecisionContext`, because each edge declares its own `needs`. Here every
+    // edge gets the same one, which is what a flow that declares nothing gets.
+    const ctx = () => ({ outcome: { kind: 'outcome', terminalState: 'done' } as never, needs: {} });
     throws(
       () => selectEdge(node, 'r1', 'done', ctx, new Map([
         ['isLowConfidence', alwaysFalse], ['isHighConfidence', alwaysFalse],
@@ -166,7 +169,7 @@ suite('FD-R1 — eligible edges exist and none matches: the run fails loudly', (
       id: 'score', kind: 'task' as const, workerType: 'ScoreWorker',
       edges: [{ to: 'publish' }], // opts into "done" only, by default
     };
-    const r = selectEdge(node, 'r1', 'failed', { outcome: {} as never }, new Map());
+    const r = selectEdge(node, 'r1', 'failed', () => ({ outcome: {} as never, needs: {} }), new Map());
     equal(r, { taken: null, reason: 'no-eligible-edge' }, 'a failure with no on:["failed"] edge ends the path');
   });
 

@@ -369,7 +369,24 @@ for (const d of r.deadAnchors) fail('M2', d);
 //   doc/decisions + doc/plans removed   45 files / 1507 links / 99 anchored  -> M3 and M4
 //
 // The file floor must be **> 56 and <= 72**; 64 sits near the middle of that window.
-if (r.files < 64) fail('M3', `only ${r.files} markdown file(s) were scanned, so M1 and M2 are ` +
+//
+// **64 -> 74 at [W42](../doc/work-items/w42-what-a-decision-sees.md), and it is the
+// FIRST time `M3` has moved since P10's declaration** — three plans and eleven items
+// of `M4`-only retunes, so the file half looked like a ratchet nobody had to pay.
+// P12 added **two work items, a plan file and two ADRs** and the one-directory
+// fixture rose **56 -> 64**, which is the floor exactly: `64 < 64` is false, probe 1
+// went silent, and the gate said `wanted [M1,M3], got [M1]`. *A two-sided window
+// closes from below on the file count as well as on the link count, and it took a
+// plan that adds documents to `doc/decisions` — the directory probe 1 REMOVES — to
+// show it.* Measured on a scratch copy outside the repository, unmutated:
+//
+//   whole tree                          85 files / 3328 links / 167 anchored
+//   doc/decisions removed               64 files / 3014 links / 167 anchored
+//   doc/decisions + doc/plans removed   51 files / 2406 links / 167 anchored
+//
+// So `M3`'s window is `(64, 85]` and 74 is near its middle; `M5` is untouched at 60
+// against 167, for the sixth plan running.
+if (r.files < 74) fail('M3', `only ${r.files} markdown file(s) were scanned, so M1 and M2 are ` +
   'true of the walk rather than of the tree');
 // **1200 -> 1350 at P9's declaration, 1350 -> 1530 by W30, and both times because
 // ordinary work closed the window from below.** [Q142](../doc/open-questions.md).
@@ -410,7 +427,15 @@ if (r.files < 64) fail('M3', `only ${r.files} markdown file(s) were scanned, so 
 // untouched at 60 against 99** — no `removes` probe moves it, for the third plan
 // running, because every anchored link is in `doc/`'s top level and `M5`'s own probe
 // takes it to zero.
-if (r.links < 2400) fail('M4', `only ${r.links} relative link(s) were found; M1 is vacuous below that`);
+// **2400 -> 2700 at [W42](../doc/work-items/w42-what-a-decision-sees.md)**, the FIFTH
+// retune and the fourth consecutive plan to pay it — and the first time BOTH floors
+// moved in one edit, which is why the counts are recorded once in the `M3` block
+// above rather than twice. `M4`'s window is `(2406, 3014]` and 2700 is near its
+// middle. **P12 wrote the links as well as the files**: the two-directory fixture
+// rose 2061 -> 2406 on prose in `doc/README.md`, `CLAUDE.md` and
+// `doc/open-questions.md`, which is W33's *the obligation is on writing PROSE* for
+// the third time.
+if (r.links < 2700) fail('M4', `only ${r.links} relative link(s) were found; M1 is vacuous below that`);
 if (r.anchored < 60) fail('M5', `only ${r.anchored} link(s) carry an anchor; M2 is vacuous below that`);
 
 const checks = [

@@ -1,0 +1,15 @@
+{
+  "flowId": "decision-on-an-earlier-step",
+  "version": 1,
+  "entry": "ingest",
+  "nodes": [
+    { "id": "ingest",  "kind": "task", "workerType": "IngestWorker", "edges": [ { "to": "score" } ] },
+    { "id": "score",   "kind": "task", "workerType": "ScoreWorker",  "edges": [
+        { "when": "isLowConfidence", "to": "review", "needs": { "earlier": "ingest" } },
+        { "to": "publish" }
+    ] },
+    { "id": "review",  "kind": "task", "workerType": "ReviewWorker",  "edges": [ { "to": "publish" } ] },
+    { "id": "publish", "kind": "task", "workerType": "PublishWorker", "edges": [ { "to": "done" } ] },
+    { "id": "done",    "kind": "end",  "outcome": "completed" }
+  ]
+}

@@ -301,13 +301,16 @@ const SUITES = [
   'JP-R5 — the region event stream',
   'JP-R7 — decrementing N on branch.exited is a third policy',
   'JP-R8 — requiring an arrival before satisfied is a third policy, and it is SHIPPED',
+  'L1 — FD-V26 on an EDGE: the grammar, minus one form',
   'L1 — FD-V26: the reference GRAMMAR',
   'L1 — FD-V27: where a reference POINTS',
   'L1 — FD-V28: the FORM must match the graph',
   'L1 — every suite this tree declares actually RAN',
   'L1 — the two flows P12 exists for validate with zero findings',
+  'L1 — what `FD-V17` refuses against IS what `spec/` declares',
   'L2 — FD-C1: what a node receives',
   'L2 — FD-C2: what NAMES an output',
+  'L2 — FD-C3: what a decision sees',
   'L2 — FD-R3: a reference the run did not produce',
   'L2 — JP-R12: a map`s join carries its N results, and that is P10`s point',
   'L2 — JP-R12: the KEY ORDER, on the only shape that can discriminate it',
@@ -339,12 +342,12 @@ const SUITES = [
   'OR-R10 — a stopped run stops on the INBOUND edge too',
   'OR-R2 and OR-R6 — result is deep-copied, and an uncloneable one fails the run',
   'OR-R3 — one record per settlement, keyed on terminal state not event name',
-  'OR-R4 — task.running and task.progress produce no record',
-  'OR-R5 and OR-R7 — the log is ordered by append',
 ];
 
 /** The rest of the census, split only so neither literal is unreadably long. */
 const LATE_SUITES = [
+  'OR-R4 — task.running and task.progress produce no record',
+  'OR-R5 and OR-R7 — the log is ordered by append',
   'OR-R7 / ADR 0014 rule 2 — foldInputs() cannot be written through',
   'OR-R7 / ADR 0014 rule 2 — snapshot() cannot be written through',
   'OR-R7 / ADR 0014 rule 3 — onFoldInput cannot be written through',

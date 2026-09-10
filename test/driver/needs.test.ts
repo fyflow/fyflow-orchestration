@@ -388,6 +388,13 @@ suite('L2 — FD-R3: a reference the run did not produce', (test) => {
     ok(h.failures[0]!.message.includes('"publish"') && h.failures[0]!.message.includes('"flag"'),
       'and it names both the declaring node and the target');
     ok(h.failures[0]!.message.includes('FD-R3'), 'and cites the rule');
+    // **The SITE, at the node half** — W42's adequacy reader's finding 42. That item
+    // added a `site` label to the shared `resolveReference` so an edge's failure reads
+    // `edge needs["f"]`, and bound it at the EDGE site only: swapping the node site's
+    // label to `'edge needs'` cost **0**, which would send a reader looking for an
+    // edge that does not carry one.
+    ok(h.failures[0]!.message.includes('`needs["f"]`'), 'as a NODE`s `needs`, not an edge`s');
+    ok(!h.failures[0]!.message.includes('edge needs'), 'and it does not say edge');
   });
 
   test('resolve() both reports and RETHROWS, and start() cannot reach FD-R3 at all', () => {

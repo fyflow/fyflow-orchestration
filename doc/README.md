@@ -2,6 +2,54 @@
 
 ## Current state
 
+**[W42](work-items/w42-what-a-decision-sees.md) is DONE and [ADR 0041](decisions/0041-a-decision-sees-its-nodes-outcome-and-whatever-its-own-edge-declares.md)
+answers [Q8](open-questions.md), open since P1 — *a decision sees its node's effective outcome and
+whatever its OWN EDGE declares.*** `spec/flow-definition.md` is **v0.12**: `FD-C3`, and an **edge**
+may carry a `needs` — the same grammar as a node's and the same aiming rules, **minus the `"."`
+form**, which `FD-V26` refuses there because *what a predicate would have received anyway* is
+`ctx.outcome`. `spec/` is **7 documents, 40 examples, 87 rules**; L1-L5 is **24 files / 633 cases in
+five runtimes**; **L6 is unmoved at 638 / 31**, the declared result. **Q8's own flow now runs** —
+`decision-on-an-earlier-step.flow.json`, *route to review if an earlier step flagged low confidence*,
+which that row has carried since P1 — **with the worker's payload untouched**, which is the whole
+reason the declaration sits on the edge.
+
+**[P12](plans/p12-what-a-node-receives-and-what-a-decision-sees.md) prediction 3 REVERSED, and its
+evidence was wrong twice over — which is the result to carry.** That prediction said Q8 would need no
+ADR. It needs one: a predicate needs a **shape** a worker does not, and a **site**, because *what the
+node received* is not available where a decision is made. **But the ADR's stated forcing fact was
+false**: it said a *diamond* — a node reachable from two settled predecessors — made the payload
+underivable *because choosing between them needs append order*, and W42's conformity reader derived it
+in one expression with none, the uniqueness guaranteed by `FD-V19`. **The conclusion survived on two
+facts nobody had written down**: the **entry** node's payload is in **no record at any moment**, and
+re-deriving any other node's means re-implementing `compose`, `JP-R11` and `JP-R12` at a second site,
+which ADR 0040 rule 2 refuses by name. *A reach prediction can reverse on the right conclusion and the
+wrong evidence, and only a reader re-deriving the evidence finds that* —
+[Q193](open-questions.md).
+
+**Its readers found 16 / 10 blocking and 45 mutations / 14 survivors / 9 blocking, overlap 2** — and
+**the gate was RED at L0 TWICE** — an unused import, then a dead `const where = n.id` left stranded
+by the fix for a reader's own finding — each time `deno lint` exit 1 with **zero `FAIL` lines**, and
+since [ADR 0039](decisions/0039-the-gate-climbs-the-ladder-and-the-self-tests-run-concurrently.md)
+`lint` is the chain's first entry, so **both times nothing after it ran at all** and the second run's
+whole log is **23 lines**. *The exit code is the predicate and a FAIL count is a secondary signal*,
+recorded for two plans and caught for the first time here — **and then caught a second time in the
+same item, by re-reading the log's own tail while this paragraph already said the gate was green.**
+The two conditions `GATE EXIT=0` **and** zero `FAIL` lines are both satisfied by a chain that stopped
+at entry one, because `FAIL` is a word the seven checks print and `lint` does not. **And
+[Q142](open-questions.md) fired with BOTH `check-markdown` floors moving for the first time**: P12 is
+the first plan in four to add documents to `doc/decisions`, the directory probe 1 REMOVES, so the
+one-directory fixture rose 56 -> 64 against a floor of `< 64` and probe 1 went silent. `M3` is **74**
+and `M4` **2700**, retuned from a scratch copy outside the repository — and `M3`'s `META` entry, still
+pinned to the literal after three plans of `M4`-only retunes, reported *"the mutation matched nothing"*
+and is now agnostic as `M4`'s has been since W33. **TEN late exceptions, zero undeclared.** **Obligation (e)'s second question produced a THIRD instance of W41's own new shape — a
+LIST bound to nothing**: `FD-V17` refuses *a key its kind does not declare*, section 3's Edge key
+table is the document's only statement of what an edge declares, and `EDGE_KEYS` is a literal in the
+validator that **nothing compared to it** — so for one item the code accepted `needs` on an edge while
+the table did not list it. Three instances in one plan, closed the same way each time: set equality
+against the document, both ways. **Rule 8: 40 provocations, 38 caught, 1 classified a REWRITE on
+[Q112](open-questions.md)'s own reasoning, 0 aborted.** **Census CONFIRMED for the TENTH plan running
+— 150 questions, 102 open, 2 deferred, 46 resolved**; **Q190-Q193 used**.
+
 **[W41](work-items/w41-what-a-node-can-reach-and-what-names-it.md) is DONE, and [ADR 0040](decisions/0040-what-a-node-can-reach-is-the-runs-own-outputs-and-a-node-id-names-them-relative-to-a-branch-path.md) answers [Q11](open-questions.md) IN GENERAL** — *what a
 node can reach is the run's own outputs, and a node id names them relative to a branch path.*
 `spec/flow-definition.md` is **v0.11** and section 3 gains **`needs`**: an optional object on a

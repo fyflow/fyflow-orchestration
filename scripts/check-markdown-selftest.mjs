@@ -551,7 +551,12 @@ const META = [
   // Anchored on the `fail(` that only the real clause carries.
   ['M3`s file floor disabled',
     'doc/decisions removed from the tree — the FILE floor, alone',
-    (t) => t.replace("if (r.files < 64) fail('M3'", "if (false) fail('M3'")],
+    // **Anchor-agnostic since W42, for the reason `M4`'s has been since W33** — and
+    // this entry is the demonstration that the reason was general rather than a
+    // property of the link floor. It stayed pinned for three plans because `M3`
+    // never moved; the moment it did, this reported *"the mutation matched nothing"*
+    // and would have graded a live floor as unmutatable. [Q142](../doc/open-questions.md).
+    (t) => t.replace(/if \(r\.files < \d+\) fail\('M3'/, "if (false) fail('M3'")],
   ['M4`s link floor disabled',
     'doc/decisions AND doc/plans removed — the LINK floor, with the anchors left alone',
     // **Anchor-agnostic since W33.** Pinned to the literal this reported *"the
