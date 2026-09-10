@@ -1,0 +1,23 @@
+{
+  "flowId": "l6-sibling-map-fanout",
+  "version": 1,
+  "entry": "ingest",
+  "nodes": [
+    { "id": "ingest",  "kind": "task",   "workerType": "SplitWorker", "edges": [ { "to": "split" } ] },
+    { "id": "split",   "kind": "map",    "over": "items", "branch": "score" },
+    { "id": "score",   "kind": "task",   "workerType": "ScoreWorker", "edges": [ { "to": "refine" } ] },
+    { "id": "refine",  "kind": "task",   "workerType": "PublishWorker",
+      "needs": { "mine": "score" },
+      "edges": [ { "to": "collect" } ] },
+    { "id": "collect", "kind": "join",   "of": "split",   "edges": [ { "to": "splitB" } ] },
+    { "id": "splitB",  "kind": "fanout", "branches": [ "pubA", "pubB" ] },
+    { "id": "pubA",    "kind": "task",   "workerType": "PublishWorker",
+      "needs": { "scored": [ "score" ] },
+      "edges": [ { "to": "joinB" } ] },
+    { "id": "pubB",    "kind": "task",   "workerType": "PublishWorker",
+      "needs": { "scored": [ "score" ] },
+      "edges": [ { "to": "joinB" } ] },
+    { "id": "joinB",   "kind": "join",   "of": "splitB",  "edges": [ { "to": "done" } ] },
+    { "id": "done",    "kind": "end",    "outcome": "completed" }
+  ]
+}

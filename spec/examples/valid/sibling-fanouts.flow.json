@@ -6,7 +6,7 @@
     { "id": "ingest",  "kind": "task",   "workerType": "IngestWorker", "edges": [ { "to": "splitA" } ] },
     { "id": "splitA",  "kind": "fanout", "branches": [ "scoreA1", "scoreA2" ] },
     { "id": "scoreA1", "kind": "task",   "workerType": "ScoreWorker",  "edges": [ { "to": "joinA" } ] },
-    { "id": "scoreA2", "kind": "task",   "workerType": "ScoreWorker",  "edges": [ { "to": "joinA" } ] },
+    { "id": "scoreA2", "kind": "task",   "workerType": "ReviewWorker", "edges": [ { "to": "joinA" } ] },
     { "id": "joinA",   "kind": "join",   "of": "splitA",               "edges": [ { "to": "splitB" } ] },
     { "id": "splitB",  "kind": "fanout", "branches": [ "publishB1", "publishB2" ] },
     { "id": "publishB1", "kind": "task", "workerType": "PublishWorker",

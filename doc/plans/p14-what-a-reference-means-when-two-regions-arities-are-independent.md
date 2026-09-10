@@ -1,6 +1,6 @@
 # P14 — What does a reference mean when two regions' arities are independent?
 
-**Status:** in progress — W49 done, W50 and W51 to run
+**Status:** COMPLETE — W49, W50 and W51 all done. Retro outstanding.
 **Baseline:** `5372147` — `doc/workflow.md` [v0.14](../workflow.md), P1-P13 complete and retro'd, tree
 clean, `npm run gate` `GATE EXIT=0` with zero `FAIL` lines.
 
@@ -272,8 +272,21 @@ document the validator refuses never starts*; this is *a filter no run exercises
 artifact must add a flow whose shared depth is above zero, or a sibling pair**, or the plan's exit
 rung proves nothing about the plan's subject.
 
+**PREDICTION 4 IS CONFIRMED, and it is the one this plan could not have derived.** *This plan supplies
+[Q214](../open-questions.md)'s second instance — a rule whose whole effect is that a run never
+happens, invisible to L6.* It does, in a **different mechanism** from W47's: that was *a document the
+validator refuses never starts*; this is **a filter no run exercises**. W50 measured ladder L6 blind
+to ADR 0044 for a whole item — all eleven aimed references in both corpora at a shared region depth
+of ZERO, so reverting the resolver cost 6 at L1-L5 and **0 at L6** — and W51 moved it to **12**, with
+the opposite direction moving from 0 to **2**. Its stated reversal condition (*the decision landing as
+a run-time refusal, which L6 CAN see*) did not occur: ADR 0044 is a rule about what a run CARRIES.
+
+**So all four predictions have a verdict: 1, 2 and 3 REVERSED and 4 CONFIRMED** — the highest
+reversal rate of any plan, and the cause of three of them is one thing: **fact 3's mechanism was
+wrong**, and prediction 1 was derived from it.
+
 | item | | |
 |---|---|---|
 | **W49** | **done** | [ADR 0044](../decisions/0044-a-reference-is-visible-when-two-paths-agree-on-the-regions-that-contain-both-of-them.md); `spec/flow-definition.md` v0.15; `regionChainOf`/`sharedRegionDepth`/`outputIsVisible`; L1 674 in five runtimes; readers 15/6 and 52/8/4; rule 8 **27 probes, 26 caught, 0 survivors, 1 measured ceiling, 0 aborts**; overlap **2**, the 26th measurement; census **178 / 128 / 2 / 48**; **Q218-Q221** raised, **Q206** resolved |
 | **W50** | **done** | the resolver applies ADR 0044 at both sites by one expression and **`isPathPrefix` is DELETED**; the six `FD-R3`/`FD-C4` fixtures moved onto roads that still exist; `sibling-fanouts.flow.json` promoted to the corpus; L1-L5 **681 in five runtimes**, L6 unmoved at **879 / 40**; reverting the resolver costs **6 L1-L5 and 0 L6**; readers 16/5 blocking and 36 mutations / 4 survivors / 5 blocking, overlap **2**, the 27th measurement; rule 8 **24 probes, 20 caught, 0 survivors, 4 measured ceilings, 0 aborts**; census **179 / 129 / 2 / 48**; **Q222** raised, **ADR 0045 SKIPPED** |
-| **W51** | todo | |
+| **W51** | **done** | **P14's EXIT ARTIFACT** — a reader inside one region receiving EVERY output of a sibling region, at independent arities, on real workers in both L6 runtimes. Two flows: `sibling-fanouts` (two sequential `fanout` regions — a run that used to STOP) and `sibling-map-fanout` (a `map` of three beside a `fanout` of two, plus a WITHIN-region reference). **L6 942 / 42** from 879 / 40; L1-L5 unmoved at 681. **Reverting the resolver costs 12 L6 failures and every entry made visible costs 2, where BOTH were zero.** Readers 7/2 blocking and 10 mutations / 4 survivors / 4 blocking, overlap **1**, the 28th measurement; rule 8 **20 probes, 19 caught, 1 measured ceiling, 0 survivors, 0 aborts**; census unmoved at **179 / 129 / 2 / 48**; **no question raised, Q223-Q228 skipped, no ADR** |

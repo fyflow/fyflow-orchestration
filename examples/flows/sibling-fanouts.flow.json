@@ -1,0 +1,21 @@
+{
+  "flowId": "l6-sibling-fanouts",
+  "version": 1,
+  "entry": "ingest",
+  "nodes": [
+    { "id": "ingest",  "kind": "task",   "workerType": "IngestWorker", "edges": [ { "to": "splitA" } ] },
+    { "id": "splitA",  "kind": "fanout", "branches": [ "scoreA1", "scoreA2" ] },
+    { "id": "scoreA1", "kind": "task",   "workerType": "ScoreWorker",  "edges": [ { "to": "joinA" } ] },
+    { "id": "scoreA2", "kind": "task",   "workerType": "TallyWorker",  "edges": [ { "to": "joinA" } ] },
+    { "id": "joinA",   "kind": "join",   "of": "splitA",               "edges": [ { "to": "splitB" } ] },
+    { "id": "splitB",  "kind": "fanout", "branches": [ "publishB1", "publishB2" ] },
+    { "id": "publishB1", "kind": "task", "workerType": "PublishWorker",
+      "needs": { "own": ".", "first": "scoreA1" },
+      "edges": [ { "to": "joinB" } ] },
+    { "id": "publishB2", "kind": "task", "workerType": "PublishWorker",
+      "needs": { "own": ".", "first": "scoreA1" },
+      "edges": [ { "to": "joinB" } ] },
+    { "id": "joinB",   "kind": "join",   "of": "splitB",               "edges": [ { "to": "done" } ] },
+    { "id": "done",    "kind": "end",    "outcome": "completed" }
+  ]
+}

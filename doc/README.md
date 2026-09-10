@@ -2,6 +2,53 @@
 
 ## Current state
 
+**[W51](work-items/w51-the-sibling-region-flow-on-real-workers.md) is DONE and it is P14's EXIT
+ARTIFACT.** A reader inside one region receives **every** output of a sibling region, at arities
+neither derives from the other, end to end on a real `FyflowScheduler` in **both** L6 runtimes.
+**L6 is 942 assertions over 42 real runs**, from 879 / 40; L1-L5 is unmoved at **681 in five
+runtimes**, which is the declared result.
+
+**Its headline is the number it exists to move.** W50 measured ladder L6 **BLIND** to
+[ADR 0044](decisions/0044-a-reference-is-visible-when-two-paths-agree-on-the-regions-that-contain-both-of-them.md)
+— all eleven aimed references in both corpora at a shared region depth of **zero**, so reverting the
+resolver cost **0** L6 failures against 6 at L1-L5. Now: **the prefix rule costs 12 and making every
+entry visible costs 2**, both from zero. **Two directions, because a wrong predicate can be wrong in
+two** — and it is [Q214](open-questions.md)'s shape in a second mechanism, which is **prediction 4
+confirmed**.
+
+**And the 12 decomposes**, which its adequacy reader took apart: **10 on one flow and 2 on the
+other**, and the 10 are one stopped run with nine knock-ons. *A failure count is not a count of
+observations.*
+
+**Its adequacy reader found EVERY property the item's Outputs claim carried by literals** — four
+blocking survivors, three costing one integer edit and the fourth costing nothing: both rows deleted
+back to the pre-item numbers, the two arities made EQUAL with the row's key still reading *three
+items, two branches*, the within-region reference removed so the permissive direction went back to
+zero, and the sibling `fanout` pair's second reader deleted at an unmoved assertion count. **W23's
+finding at its FOURTH iteration**, and `ROW_KEYS` and `DECLARED_TOTAL` reach none of them. Closed by
+the reader's own prescription: a cross-row clause computed **from the row definitions and from the
+folded run**, plus subjects naming it.
+
+**Its conformity reader found the row asserting a FAN-OUT COMPLETION ORDER**, which
+`doc/workflow.md` section 5 rule 5 forbids by name — measured **25/25 identical at `threaded: false`
+and 12/12 REVERSED at `threaded: true`**, a knob nothing asserts. *The row was green on a property of
+the inline pool's timer FIFO.* Closed by `Expectation.unorderedDispatch`, with the justification
+asserted rather than stated.
+
+**AND THE TREE MOVED FIVE TIMES UNDER THAT READER, WITH ONE SNAPSHOT RED** — its copy caught
+`examples/l6.ts` at six digests and, at one instant, a **live rule-8 probe** in
+`src/driver/driver.ts`. Section 6's recorded contamination reached from the other side: the reader
+isolated correctly and **the author did not stop editing**. The cause is that rule 8's set runs
+against the live tree by construction, and this item ran it during a review. **For the retro**, with
+the counter-measure stated.
+
+**Readers 7 / 2 blocking and 10 mutations / 4 real survivors / 4 blocking, overlap 1** — the
+**twenty-eighth** measurement, inside the 0-4 band, neither primed. **Rule 8: 20 probes, 19 caught,
+1 declared ceiling MEASURED, 0 survivors standing, 0 aborts**, with all seven of the readers' exact
+edits checked back in. **THREE late exceptions, ZERO undeclared. Census unmoved at 179 / 129 / 2 / 48
+— no question raised**, which is what an exit artifact looks like when its readers' findings all land
+in the artifact. **Q223-Q228 skipped; no ADR.**
+
 **[W50](work-items/w50-what-the-run-carries-at-independent-arities.md) is DONE and the RESOLVER applies
 [ADR 0044](decisions/0044-a-reference-is-visible-when-two-paths-agree-on-the-regions-that-contain-both-of-them.md).**
 `resolveReference`'s visibility filter is `outputIsVisible` at both declaration sites by one

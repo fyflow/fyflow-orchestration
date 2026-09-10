@@ -1,6 +1,9 @@
 /**
  * **Ladder L6 — the gate.** Every real run this repository makes: P1's exit
- * artifact, P2's, P4's, P5's, P6's, **P7's**, **P10's** and **P12's**.
+ * artifact, P2's, P4's, P5's, P6's, **P7's**, **P10's**, **P12's**, **P13's** and
+ * **P14's**. *(This list stopped at P12 while W47's two rows and W51's two were in
+ * the file — a count carried as prose in the paragraph above this file's own
+ * monument to that. W51's conformity reader.)*
  *
  * **A run and a row label are two different counts.** A row label is an entry in
  * `EXPECTED[]` or a `PairRow`; a run is one `Driver` on one flow, and a `PairRow`
@@ -61,9 +64,19 @@
 import {
   InvalidTaskId,
   POLICIES,
+  // **W51's, and they reach the package ROOT like everything else here.** The
+  // cross-row block below reads a reference's SHARED REGION DEPTH through the
+  // shipped derivation rather than from a list of node names beside itself, so a
+  // flow that stops being a sibling pair moves the clause with it.
+  // *(That these three are on the package surface at all is
+  // [Q221](../doc/open-questions.md) — an `export *` made them public the moment
+  // they were declared, and nobody chose it.)*
+  allRegions,
   branchIndices,
+  buildGraph,
   buildTaskId,
   parseTaskId,
+  sharedRegionDepth,
   // **W47, and it reaches the package ROOT like everything else here.** An example
   // that reached past `index.ts` would be exercising a surface no consumer has —
   // `AGENTS.md`'s own snippets import this name from `'fyflow-orchestration'`, so
@@ -176,6 +189,8 @@ import mapOverRegionOutput from './flows/map-over-region-output.flow.json' with 
 import decisionOnAnEarlierStep from './flows/decision-on-an-earlier-step.flow.json' with { type: 'json' };
 import referenceIfItRan from './flows/reference-if-it-ran.flow.json' with { type: 'json' };
 import mapPastADecision from './flows/map-past-a-decision.flow.json' with { type: 'json' };
+import siblingFanouts from './flows/sibling-fanouts.flow.json' with { type: 'json' };
+import siblingMapFanout from './flows/sibling-map-fanout.flow.json' with { type: 'json' };
 import failureEdge from '../spec/examples/valid/failure-edge.flow.json' with { type: 'json' };
 
 /**
@@ -503,6 +518,28 @@ interface Expectation {
    * the opposite of the rule.
    */
   expectBackstop?: true;
+  /**
+   * **The ids whose DISPATCH ORDER this run does not fix** — W51's conformity
+   * reader, BLOCKING, and it is `sortedSettled`'s finding one field across.
+   *
+   * `dispatched` is compared **in order**, which is right wherever the order is
+   * causal. It is not causal when a node is dispatched by the settlement of ONE
+   * map instance and the instances are genuinely in flight together: then the
+   * list is the settle order of a fan-out, which
+   * `doc/workflow.md` section 5 rule 5 forbids a test from depending on.
+   *
+   * **Measured rather than argued** — 25 runs of `sibling-map-fanout` per
+   * configuration: `threaded: false` gives the same order 25/25 in node and in
+   * deno, and `threaded: true` gives a DIFFERENT order 12/12. So the row was green
+   * on a property of the inline pool's timer FIFO, and `Expectation.threaded` is a
+   * knob this file records as held down by no assertion
+   * ([Q99](../doc/open-questions.md)) — flipping it would have turned a correct row
+   * red.
+   *
+   * Names listed here are compared as a SET; everything else keeps its order, so
+   * the dependency is removed exactly where it exists and nowhere else.
+   */
+  unorderedDispatch?: readonly string[];
 }
 
 const FJ = fanoutJoin as unknown as FlowDefinition;
@@ -533,6 +570,38 @@ const RIR = referenceIfItRan as unknown as FlowDefinition;
  * ABSENT` was deletable for **zero** L6 failures before these two rows.
  */
 const MPD = mapPastADecision as unknown as FlowDefinition;
+
+/**
+ * **W51's, and the row this plan exists to produce.** Two sequential `fanout`
+ * regions, with BOTH branches of the second declaring `needs: {"own": ".",
+ * "first": "scoreA1"}` against branch 0 of the first.
+ *
+ * **Before [ADR 0044](../doc/decisions/0044-a-reference-is-visible-when-two-paths-agree-on-the-regions-that-contain-both-of-them.md)
+ * this document validated with ZERO findings and its run STOPPED**: `publishB1` at
+ * path `0` resolved because the two strings matched, and `publishB2` at path `1`
+ * hit `FD-R3`. No arity anywhere in it, `FD-V29` correctly calling the target
+ * certain, and which branch the author wrote the reference in deciding whether the
+ * run completed. *The corpus contained no sibling `fanout` pair at all, which is
+ * why nothing had seen it* — P14 decision 3.
+ */
+const SFO = siblingFanouts as unknown as FlowDefinition;
+/**
+ * **A `map` region and a `fanout` region as SIBLINGS, at arities neither derives
+ * from the other** — W51, and it is P14's question in one document.
+ *
+ * The map's arity is a run-time fact (`split` returns one item per word) and the
+ * fanout's is written down (`branches` has two). At `'a bb ccc'` that is **three
+ * against two**, and both `pubA` at path `0` and `pubB` at path `1` receive **all
+ * three** scores. Under the prefix rule each received the ONE output whose index
+ * matched its own — `pubA` got `score@0` and `pubB` got `score@1`, and the third
+ * was reachable from nowhere.
+ *
+ * **This is the row that makes reverting ADR 0044 cost something at L6.** W50
+ * measured that revert at **6 L1-L5 failures and ZERO here**, because all eleven
+ * aimed references in both corpora had a shared region depth of zero and paths
+ * that were prefix-comparable anyway ([Q214](../doc/open-questions.md)).
+ */
+const SMF = siblingMapFanout as unknown as FlowDefinition;
 
 const HIGH = { confidence: 0.9 };
 const LOW = { confidence: 0.1 };
@@ -2002,6 +2071,144 @@ const EXPECTED: Expectation[] = [
       'an UnresolvedReference instead — `[]` and ABSENT are two different run outcomes here, ' +
       'which neither of W45`s rows can say',
   },
+  {
+    /**
+     * **P14's EXIT ARTIFACT, and the row a run used to fail** — W51.
+     *
+     * Two sequential `fanout` regions. **Both** branches of the second declare the
+     * same reference against branch 0 of the first, so the only thing that differs
+     * between the two readers is the branch the author wrote it in. Before
+     * [ADR 0044](../doc/decisions/0044-a-reference-is-visible-when-two-paths-agree-on-the-regions-that-contain-both-of-them.md)
+     * `publishB1` at path `0` resolved — because the two strings matched — and
+     * `publishB2` at path `1` stopped the run at `FD-R3`, on a document
+     * `validateDefinition` accepts with **zero findings** and whose target `FD-V29`
+     * correctly calls certain.
+     *
+     * **No arity anywhere in it**, which is the half [Q206](../doc/open-questions.md)'s
+     * row and P14's own facts did not have: every sibling pair in both corpora was
+     * `map`/`map`, so the shape that shows the defect is not about arity existed
+     * nowhere until W49 built it.
+     *
+     * `own: "."` is here so that `first` resolving is distinguishable from the
+     * composition working at all. **It is NOT this row's evidence for `JP-R11`, and
+     * the first version of this docblock said it was** — W51's adequacy reader
+     * measured it: handing every branch the SAME object rather than its own copy,
+     * which is exactly what `JP-R11` forbids, costs **ZERO here** and is caught at
+     * L1-L5 by `L2 — JP-R11: a fanout of arity THREE`. The reason is that `check`
+     * compares by `JSON.stringify`, which cannot see identity. *A value assertion
+     * cannot observe an aliasing rule*, and the scope belongs in the sentence
+     * (`doc/workflow.md` section 1 rule 5's writing clause).
+     *
+     * **The same goes for `JP-R12`'s ORDER half**: `own`'s keys are `'0'` and `'1'`,
+     * canonical array indices, which V8 emits ascending however they were inserted —
+     * so *keys in ascending segment-wise-numeric order* is unobservable on this row
+     * and is asserted where the paths are dotted.
+     */
+    key: 'sibling-fanouts / ADR 0044 — a run that used to STOP',
+    definition: SFO, policyId: 'live-token', payload: { confidence: 0.4 }, threaded: false,
+    outcome: 'completed',
+    dispatched: [
+      'r37:ingest:-:0', 'r37:scoreA1:0:0', 'r37:scoreA2:1:0',
+      'r37:publishB1:0:0', 'r37:publishB2:1:0',
+    ],
+    regionId: 'splitA',
+    joined: true,
+    settled: { '0': 'arrived', '1': 'arrived' },
+    otherRegions: {
+      splitB: { joined: true, settled: { '0': 'arrived', '1': 'arrived' } },
+    },
+    pathEnds: [{ reason: 'end', at: 'done' }],
+    nodeResults: {
+      'r37:ingest:-:0': { confidence: 0.4 },
+      // **The two branch entries run DIFFERENT roles, and that is the pair's own
+      // claim** (`doc/workflow.md` section 5 rule 8's fourth requirement on the
+      // set). With both on `ScoreWorker` their results were IDENTICAL, so which
+      // one `first` names was unobservable: rule 8 graded re-pointing the
+      // reference at `scoreA2` a SURVIVOR at **0** L6 failures. Two roles, two
+      // shapes, and reading the wrong branch is now a failure that says so.
+      'r37:scoreA1:0:0': { confidence: 0.4, score: 40 },
+      'r37:scoreA2:1:0': { seen: 1, word: null },
+      'r37:publishB1:0:0': { published: true, joinPayload: { own: { '0': { confidence: 0.4, score: 40 }, '1': { seen: 1, word: null } }, first: { confidence: 0.4, score: 40 } } },
+      'r37:publishB2:1:0': { published: true, joinPayload: { own: { '0': { confidence: 0.4, score: 40 }, '1': { seen: 1, word: null } }, first: { confidence: 0.4, score: 40 } } },
+    },
+    why: 'W51 — P14`s exit artifact. Two SIBLING fanout regions on real workers, with both ' +
+      'branches of the second reading branch 0 of the first. Under the prefix rule this document ' +
+      'validated with zero findings and its run STOPPED at FD-R3 in branch 1 while branch 0 ' +
+      'resolved — the two branches receiving different answers to one reference because their ' +
+      'indices were compared across unrelated namespaces. Both receive `scoreA1` now, and the two ' +
+      'payloads being IDENTICAL is what says the reader`s own index reaches nothing',
+  },
+  {
+    /**
+     * **INDEPENDENT ARITIES, which is P14's question in one document** — W51.
+     *
+     * A `map` region and a `fanout` region as siblings. The map's arity is a
+     * run-time fact — `split` returns one item per word, and `'a bb ccc'` is three
+     * — and the fanout's is written down as two. **Neither is derived from the
+     * other**, which is what makes this the plan's own shape rather than
+     * `map-over-region-output`'s, where the second region's `over` names the
+     * resolved reference itself and the two arities are equal by construction.
+     *
+     * **Both branches receive all THREE scores.** Under the prefix rule `pubA` at
+     * path `0` received `score@0` and `pubB` at path `1` received `score@1`, and
+     * the third output was reachable from nowhere — the shape
+     * [Q206](../doc/open-questions.md) measured, on real workers.
+     *
+     * **This is the row that makes reverting ADR 0044 cost something at L6.** W50
+     * measured that revert at 6 L1-L5 failures and ZERO here, because all eleven
+     * aimed references in both corpora had a shared region depth of zero
+     * ([Q214](../doc/open-questions.md)).
+     */
+    key: 'sibling-map-fanout / ADR 0044 — three items, two branches, all three seen',
+    definition: SMF, policyId: 'live-token', payload: THREE_WORDS, threaded: false,
+    outcome: 'completed',
+    dispatched: [
+      'r38:ingest:-:0', 'r38:score:0:0', 'r38:score:1:0', 'r38:score:2:0',
+      'r38:refine:0:0', 'r38:refine:1:0', 'r38:refine:2:0',
+      'r38:pubA:0:0', 'r38:pubB:1:0',
+    ],
+    // **Each `refine` is dispatched when ITS OWN `score` settles**, and the three
+    // `score` instances are genuinely in flight together — this row's own `overlap`
+    // column reads `yes`. So their relative order is the fan-out's and not the
+    // run's, and declaring it in order made a correct row depend on the inline
+    // pool's timer FIFO. W51's conformity reader, BLOCKING, measured at 12/12
+    // reversed under `threaded: true`.
+    unorderedDispatch: ['r38:refine:0:0', 'r38:refine:1:0', 'r38:refine:2:0'],
+    regionId: 'split',
+    joined: true,
+    settled: { '0': 'arrived', '1': 'arrived', '2': 'arrived' },
+    otherRegions: {
+      splitB: { joined: true, settled: { '0': 'arrived', '1': 'arrived' } },
+    },
+    pathEnds: [{ reason: 'end', at: 'done' }],
+    nodeResults: {
+      'r38:ingest:-:0': {
+        confidence: 0.9,
+        items: [{ word: 'a', confidence: 0.1 }, { word: 'bb', confidence: 0.2 }, { word: 'ccc', confidence: 0.3 }],
+      },
+      'r38:score:0:0': { confidence: 0.1, score: 10 },
+      'r38:score:1:0': { confidence: 0.2, score: 20 },
+      'r38:score:2:0': { confidence: 0.3, score: 30 },
+      // **The WITHIN-region reference, and it is the other direction.** `refine` is
+      // inside `region(split)` with `score`, so their chains SHARE that region and
+      // the shared segment must AGREE: each instance sees its OWN score and never a
+      // sibling's. `FD-V28` demands the BARE form here for the same reason — a node
+      // in a map region produces one output per item, and from inside that region a
+      // reader wants one. **Three different values is what says so**: a resolver
+      // that made every entry visible would hand all three `score@0`, which is the
+      // permissive direction and which nothing at L6 could observe before this row.
+      'r38:refine:0:0': { published: true, joinPayload: { mine: { confidence: 0.1, score: 10 } } },
+      'r38:refine:1:0': { published: true, joinPayload: { mine: { confidence: 0.2, score: 20 } } },
+      'r38:refine:2:0': { published: true, joinPayload: { mine: { confidence: 0.3, score: 30 } } },
+      'r38:pubA:0:0': { published: true, joinPayload: { scored: [{ confidence: 0.1, score: 10 }, { confidence: 0.2, score: 20 }, { confidence: 0.3, score: 30 }] } },
+      'r38:pubB:1:0': { published: true, joinPayload: { scored: [{ confidence: 0.1, score: 10 }, { confidence: 0.2, score: 20 }, { confidence: 0.3, score: 30 }] } },
+    },
+    why: 'W51 — P14`s question at the rung that runs. A map region of THREE and a fanout region ' +
+      'of TWO, siblings, with neither arity derived from the other: both branches receive all ' +
+      'three scores in ascending branchPath order. Under the prefix rule each received the one ' +
+      'output whose index matched its own and the third was reachable from nowhere. Revert the ' +
+      'resolver and this row is what goes red — before it, that revert cost ZERO at L6',
+  },
 ];
 
 // --- assertions ---------------------------------------------------------------
@@ -2098,7 +2305,33 @@ for (const [i, e] of EXPECTED.entries()) {
   if (report.finishedBy !== wantFinish) continue;
 
   check(e.key, 'run-state outcome — spec/run-state.md section 3', report.state.outcome, e.outcome);
-  check(e.key, 'dispatched task ids, in order — spec/task-id.md', [...report.dispatched], e.dispatched);
+  // **Order-insensitive only for the ids a row NAMES** — see `unorderedDispatch`.
+  // The names are pulled out of both sides and compared as sorted sets; the rest of
+  // the list keeps its order, so a row that declares none is compared exactly as
+  // before and the two halves cannot drift apart.
+  {
+    const loose = new Set(e.unorderedDispatch ?? []);
+    const split = (ids: readonly string[]) => [
+      ids.filter((id) => !loose.has(id)),
+      ids.filter((id) => loose.has(id)).slice().sort(),
+    ] as const;
+    const [gotOrdered, gotLoose] = split(report.dispatched);
+    const [wantOrdered, wantLoose] = split(e.dispatched);
+    check(e.key, 'dispatched task ids, in order — spec/task-id.md', gotOrdered, wantOrdered);
+    if (loose.size > 0) {
+      check(e.key, 'and the ids whose dispatch order the RUN does not fix, as a set',
+        gotLoose, wantLoose);
+      // **And the row's JUSTIFICATION for declaring them is asserted, not stated.**
+      // The order is not causal only because the branches genuinely overlapped; a
+      // row that declared `unorderedDispatch` on a sequential run would be
+      // weakening an assertion for no reason, and nothing would say so. *Whatever
+      // makes a clause affordable is itself a claim.*
+      assertThat(e.key, 'and its branches really did OVERLAP, which is why that order is not the ' +
+        'run`s to fix', report.branchesOverlapped,
+        'declaring unorderedDispatch on a run whose branches did not overlap weakens the ' +
+        'comparison for nothing');
+    }
+  }
   // **The region-event stream, per branch.** Between branches the order is fan-out
   // completion order and nothing may assert it (section 5 rule 5); within one
   // branch `JP-R5` fixes it. This is what makes `branch.resumed` and
@@ -2437,6 +2670,10 @@ for (const [i, e] of EXPECTED.entries()) {
     + Object.keys(e.otherRegions ?? {}).length * 2
     + Object.keys(e.resolveOnSuspend ?? {}).length * 2
     + (e.joinSettledBy ? 1 : 0)
+    // **The set comparison a row buys by declaring `unorderedDispatch`** — one
+    // assertion, and it is derived from the expectation like every other extra here
+    // so that declaring the field moves the floor with it.
+    + (e.unorderedDispatch ? 2 : 0)
     + (e.stoppedBy !== undefined ? 1 : 0);
   rowCosts.push([e.key, e.regionId === null ? 'no-region' : 'region',
     passed + failures.length - before, extras]);
@@ -2750,6 +2987,8 @@ const ROW_KEYS: readonly string[] = [
   'reference-if-it-ran HIGH / FD-C4 — the key is ABSENT, and the run completes',
   'map-past-a-decision LOW / FD-C4 — the array RESOLVES',
   'map-past-a-decision HIGH / FD-C4 — the array is `[]`, and the run is stuck',
+  'sibling-fanouts / ADR 0044 — a run that used to STOP',
+  'sibling-map-fanout / ADR 0044 — three items, two branches, all three seen',
 ];
 
 /**
@@ -2798,6 +3037,9 @@ const CROSS_ROW_SUBJECTS = [
   'at least one DOTTED branch path',
   'the printed table names region',
   'the foreign-task list is six',
+  'a reference across SIBLING regions',
+  'TWO branches of one region both declare a reference',
+  'two regions opened DIFFERENT numbers of branches',
 ];
 
 /**
@@ -3812,8 +4054,19 @@ for (const row of PAIR_ROWS) console.log(`    ${w(row.key, KEY_W)}${row.why}`);
 const PER_REGION_ROW = 17;
 const PER_PLAIN_ROW = 15;
 /**
- * **The cross-row block's own size, and it is a number a human writes** — 13 at
- * W23, 18 at W35, 32 at W43, 39 at W45, **57 at W47**. They are cross-row rather
+ * **A number a human writes, and its NAME over-reads** — 13 at W23, 18 at W35, 32
+ * at W43, 39 at W45, **61 at W47** and **68 at W51**.
+ *
+ * *(This read "57 at W47" and the constant that item shipped was **61** — the
+ * sequence was mis-stated in the same commit as the parenthetical telling the next
+ * item to append to it, and W51 took it 61 → 68 without appending. And it is NOT
+ * "the cross-row block's own size": measured on the shipped file, **66** assertions
+ * run under the `cross-row` label, **58** of them before the line that consumes
+ * this constant, and the constant is **68** — it silently absorbs one per-row
+ * assertion that runs after the row loop, so adding a row moves it for two
+ * unrelated reasons at once. W51's conformity reader.)*
+ *
+ * They are cross-row rather
  * than per-row for the reason W23's dotted-path clause is — a per-row assertion
  * dies with the row it is in, and what W23's adequacy reader deleted was the rows.
  *
@@ -3823,7 +4076,7 @@ const PER_PLAIN_ROW = 15;
  * W47's conformity reader; it is now a SEQUENCE rather than a latest value, so the
  * next item appends rather than rewriting.)*
  */
-const CROSS_ROW = 61;
+const CROSS_ROW = 68;
 const base = (shape: string) => (shape === 'region' ? PER_REGION_ROW : PER_PLAIN_ROW);
 for (const [key, shape, cost, extras] of rowCosts) {
   if (cost !== base(shape) + extras) {
@@ -4262,6 +4515,147 @@ if (rowCosts.length !== EXPECTED.length) {
   }
 }
 
+/**
+ * **L6 runs a reference across SIBLING regions, at a shared depth of ZERO and of
+ * MORE than zero** — W51, and it is P14's subject stated as a bound.
+ *
+ * **W50 measured that this rung was BLIND to
+ * [ADR 0044](../doc/decisions/0044-a-reference-is-visible-when-two-paths-agree-on-the-regions-that-contain-both-of-them.md)**:
+ * all eleven aimed references in both corpora had a shared region depth of **zero**
+ * AND paths that were prefix-comparable anyway, so `outputIsVisible` returned true
+ * without entering its loop for everything L6 ran, and reverting the resolver to the
+ * prefix rule cost **0** L6 failures against 6 at L1-L5.
+ * [Q214](../doc/open-questions.md)'s shape in a second mechanism — W47's was *a
+ * document the validator refuses never starts*, this is *a filter no run exercises*.
+ *
+ * **So the bound is over the two DIRECTIONS a wrong predicate can be wrong in**, and
+ * one row alone satisfies neither:
+ *
+ *   - **depth 0** — a reader in a SIBLING region, where the answer is *everything*
+ *     and a predicate that filters is too narrow. Reverting the resolver costs 12.
+ *   - **depth above 0** — a reader inside the SAME map region as its target, where
+ *     the answer is *the index-matched one* and a predicate that does not filter is
+ *     too permissive. Making every entry visible costs 2.
+ *
+ * **Read from the DEFINITIONS through `sharedRegionDepth`**, which is the shipped
+ * derivation, rather than from a list of node names beside itself: a flow that stops
+ * being a sibling pair moves this clause with it.
+ */
+{
+  const depthsIn = (d: FlowDefinition): number[] => {
+    const rs = allRegions(buildGraph(d), d);
+    const out: number[] = [];
+    for (const n of d.nodes) {
+      const needs = (n as unknown as { needs?: Record<string, unknown> }).needs;
+      if (!needs) continue;
+      for (const v of Object.values(needs)) {
+        const raw = Array.isArray(v) ? v[0] : v;
+        if (typeof raw !== 'string' || raw === '.') continue;
+        out.push(sharedRegionDepth(rs, n.id as string, raw.replace(/\?$/, '')));
+      }
+    }
+    return out;
+  };
+  const depths = EXPECTED.flatMap((e) => depthsIn(e.definition));
+  // **The SET of shared depths, as an EQUALITY rather than two floors** — `S12`'s
+  // reason one file across, and rule 8 is what earned it here: written as
+  // `filter(d => d === 0).length > 0` and `some(d => d > 0)`, each clause was its
+  // OWN ONLY OBSERVER, and relaxing either comparison to `>=` cost **zero**
+  // ((c)'s LIMIT — count the observers). An equality over the set cannot be
+  // relaxed, fails when a direction LEAVES, and fails loudly and namefully when a
+  // depth nobody has thought about ARRIVES.
+  check('cross-row', 'L6 runs a reference across SIBLING regions AND one inside a shared region — ' +
+    'the two directions ADR 0044 can be got wrong in, and this rung could see NEITHER before W51',
+    [...new Set(depths)].sort(), [0, 1]);
+  // **A sibling FANOUT pair specifically** — P14 decision 3, and the case neither
+  // corpus contained. Read from the region openers rather than from a flow name.
+  const siblingFanoutPairs = EXPECTED.filter((e) => {
+    const rs = allRegions(buildGraph(e.definition), e.definition);
+    if (rs.length < 2) return false;
+    if (!rs.every((r) => r.opensWith === 'fanout')) return false;
+    return rs.some((a) => rs.some((b) => a !== b &&
+      ![...a.members].every((x) => b.members.has(x)) &&
+      ![...b.members].every((x) => a.members.has(x))));
+  });
+  assertThat('cross-row', 'and a sibling FANOUT pair runs here — the shape neither corpus ' +
+    'contained, which P14 decision 3 required the evidence to include because the two kinds ' +
+    'behave oppositely and a probe set drawn from the corpus cannot see the missing one',
+    siblingFanoutPairs.length > 0,
+    `rows whose regions are all fanouts and at least one pair siblings: ${siblingFanoutPairs.length}`);
+  // **And the KINDS are asserted, not merely filtered on.** Rule 8 graded dropping
+  // the `opensWith === 'fanout'` filter a SURVIVOR at 0: three other rows carry a
+  // sibling pair — `map`/`map` and `map`/`fanout` — so the clause above passed on
+  // one of those instead, and P14 decision 3's requirement was satisfied by
+  // precisely the case it exists to exclude. Reading the opener kinds off the
+  // selected row is what makes the filter load-bearing.
+  // **A reference is declared in MORE THAN ONE BRANCH of the reader's region, across
+  // a pair the chains do not share** — W51's adequacy reader's finding 4, and it is
+  // the clause `siblingFanoutPairs` above could not make: that one asks whether a
+  // row HAS a sibling fanout pair, and the reader deleted `publishB2`'s reference
+  // for **zero**, leaving a row whose key still read *a run that used to STOP* and
+  // whose run never could have. *The pair is the evidence and the pair is two
+  // BRANCHES both declaring, not one.*
+  {
+    // **Scoped to the sibling FANOUT rows, and that scoping is the finding.** Written
+    // over every row this clause was satisfied by `sibling-map-fanout`'s `pubA`/`pubB`
+    // and could not see `sibling-fanouts` losing its second reader — so it asserted
+    // *some row somewhere* where P14 decision 3 asks for THIS one.
+    const crossBranchReaders = siblingFanoutPairs.filter((e) => {
+      const rs = allRegions(buildGraph(e.definition), e.definition);
+      const readers = (e.definition.nodes ?? []).filter((n) => {
+        const needs = (n as unknown as { needs?: Record<string, unknown> }).needs;
+        if (!needs || !rs.some((r) => r.members.has(n.id as string))) return false;
+        return Object.values(needs).some((v) => {
+          const raw = Array.isArray(v) ? v[0] : v;
+          if (typeof raw !== 'string' || raw === '.') return false;
+          const target = raw.replace(/\?$/, '');
+          // the target is inside a region too, and the two share none
+          return rs.some((r) => r.members.has(target)) &&
+            sharedRegionDepth(rs, n.id as string, target) === 0;
+        });
+      });
+      if (readers.length < 2) return false;
+      // and the two sit in DIFFERENT branches of one region, which is the property
+      // that makes the cross-index case exist at all.
+      return rs.some((r) => new Set(readers.map((n) =>
+        [...r.branchOf.entries()].find(([, set]) => set.has(n.id as string))?.[0])
+        .filter((b) => b !== undefined)).size >= 2);
+    });
+    assertThat('cross-row', 'and TWO branches of one region both declare a reference across the ' +
+      'pair — the cross-index case, which is what makes a reader`s own index reach the answer ' +
+      'and which one branch alone cannot show',
+      crossBranchReaders.length > 0,
+      `rows with two cross-region readers in different branches: ${crossBranchReaders.length}`);
+  }
+
+  // **And two sibling regions that OPENED different numbers of branches, read from
+  // the folded state rather than from the definition** — W51's adequacy reader's
+  // finding 2. Collapsing `sibling-map-fanout` to two items beside two branches cost
+  // **zero** and left the row's key still saying *three items, two branches*: the
+  // arities being INDEPENDENT is P14's whole question and no literal in this file
+  // could see it. *An arity is a fact about the RUN, so the claim has to be read
+  // from one.*
+  {
+    const differingArities = reports.filter((r) => {
+      const opened = Object.values(r.state.regions ?? {})
+        .map((v) => (v as { opened?: readonly string[] }).opened?.length ?? 0)
+        .filter((n) => n > 0);
+      return new Set(opened).size >= 2;
+    });
+    assertThat('cross-row', 'and a run in which two regions opened DIFFERENT numbers of branches ' +
+      '— the arities are independent, which is P14`s question and which equal arities cannot ask',
+      differingArities.length > 0,
+      `runs whose regions opened differing branch counts: ${differingArities.length}`);
+  }
+
+  check('cross-row', 'and BOTH its openers really are `fanout`s, which is what decision 3 asks',
+    siblingFanoutPairs.length === 0
+      ? []
+      : allRegions(buildGraph(siblingFanoutPairs[0]!.definition), siblingFanoutPairs[0]!.definition)
+        .map((r) => r.opensWith).sort(),
+    ['fanout', 'fanout']);
+}
+
 const EXPECTED_TOTAL =
   rowCosts.reduce((n, [, shape, , extras]) => n + base(shape) + extras, 0) + CROSS_ROW + PAIR_ROW;
 if (passed + failures.length !== EXPECTED_TOTAL) {
@@ -4351,7 +4745,7 @@ check('cross-row', 'every cross-row SUBJECT this file declares was asserted abou
   'deleted with the counts is a block that fails naming what it was about',
   CROSS_ROW_SUBJECTS.filter((t) => crossRowLabels.some((l) => l.includes(t))), CROSS_ROW_SUBJECTS);
 
-const DECLARED_TOTAL = 879;
+const DECLARED_TOTAL = 942;
 if (passed + failures.length !== DECLARED_TOTAL) {
   failures.push(
     'gate\n      the assertion count is not the number this file declares outright\n' +
