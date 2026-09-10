@@ -260,6 +260,32 @@ here ([Q179](../open-questions.md)); the number above is one reading.
 
 ## Record
 
+**P13'S RETRO IS RUN AND `doc/workflow.md` IS [v0.14](../workflow.md) — THREE changes adopted, FIVE
+refused, and its central finding is that a HARNESS can produce a verdict having run nothing.** All
+three items shipped that code path, all three declared ceilings against it, and **v0.11's two
+requirements on the harness were satisfied throughout** — a control ran and every restore was
+asserted — which makes it section 6 pass 3 rule 3's sharpest kind: a rule followed that did not work.
+**The retro measured all eleven ceilings the plan declared**: eight hold, **W47's `c3` was false**
+because the literal it substituted was set-equal to the value it replaced, and **W45's `e4` is stale**
+— a ceiling W47 closed, which a run against L1 cannot see, and which is why the clause names the rung.
+Both corrections are in those items' own files under pass 3 rule 6.
+
+**The other two changes are `(d)` gains *a count is not a membership*** — three items in three plans
+walked a whole layer of assertions out past `DECLARED_TOTAL`, which is exactly what (d)'s existing
+*does anything COUNT it from elsewhere* asks for — **and section 1 rule 5's writing clause gains a
+third direction: a WITHDRAWN claim is searched for**, after W46's readers withdrew four claims and all
+four survived in `spec/README.md`'s own row for the document W46 had just changed.
+
+**REFUSED: five.** An `Owns` pre-declaration rule — **and this plan WAS the test v0.13 asked for**,
+answered *no*; a rung for the evidence, for the third plan running; a `doc/` check for the eleventh
+time; a rule about where a detector's fixture lives; and a fourth list below `CROSS_ROW_SUBJECTS`.
+
+**v0.13's three changes are all CONFIRMED and KEPT, and each found its own limit** — *both ways* is a
+direction and not an observer count (Q216); (c)'s LIMIT extends to a DETECTOR; the PAIR requirement
+found no limit and is the cleanest of the three. **And v0.12's *the author reaches none of them* is
+REVERSED**, three times, with the mechanism visible: an obligation run as a step in a set passes, and
+the same obligation asked as a question of one artefact fires.
+
 **P13 IS COMPLETE. Three items, all done, no ADR beyond 0042, and the plan's question is answered on
 both halves: a declared reference is refused when it names a node the run may reach the reader
 without — `FD-V29`, on CERTAINTY and not on dominance — and what it costs is a 70x cliff that

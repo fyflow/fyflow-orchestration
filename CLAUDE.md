@@ -15,7 +15,80 @@ the only document that does. **Every snippet in it is extracted and executed by 
 (`scripts/check-docs.mjs`), so it cannot rot the way a hand-maintained reference does. If you change
 the public surface, that check is what tells you the reference is now wrong.
 
-## Current state: **P1-P12 are ALL complete and retro'd, `doc/workflow.md` is [v0.13](doc/workflow.md), and [P13](doc/plans/p13-when-is-a-declared-reference-refused.md) is COMPLETE and NOT YET RETRO'D — all three items done, W48 closed as reserved and never issued.** **Read every status from the item's own file, never from this line.**
+## Current state: **P1-P13 are ALL complete and retro'd, and `doc/workflow.md` is [v0.14](doc/workflow.md) — run to completion THIRTEEN times. The next plan starts at W49, Q218 and ADR 0044.** **Read every status from the item's own file, never from this line.**
+
+**[P13](doc/plans/p13-when-is-a-declared-reference-refused.md)'s RETRO is run and
+[`doc/workflow.md`](doc/workflow.md) is v0.14 — THREE changes adopted, FIVE refused, and its central
+finding is that a HARNESS can produce a verdict having run NOTHING.** All three items shipped that
+code path, all three declared ceilings against it, and **v0.11's two requirements on the harness were
+satisfied throughout** — a control ran, every restore was asserted — which makes it section 6 pass 3
+rule 3's sharpest kind: a rule followed that did not work. What found it is
+[W47](doc/work-items/w47-the-blocked-flow-on-real-workers.md)'s conformity reader **timing** a probe,
+**0.26 s against 3.4 s** for one that runs.
+
+**The retro measured all ELEVEN ceilings the plan declared, and the yield is a number rather than a
+ratio.** Eight of W45's and W46's come back clean and their reasons hold. **W47's `c3` was false** —
+the literal it substituted was **set-equal** to the value it replaced, so the probe changed the input
+without changing anything observable, under a reason that was *about the observer rather than about
+the fact*, which is (c)'s LIMIT's own closing sentence. **And W45's `e4` is stale on the tree the plan
+ships**: *a member added to `ROLES` with no arm and no pool costs ZERO* was true when written and W47
+closed it — the same mutation now costs **2 at L6**, which a run against L1 cannot see. **So the
+clause names the rung**: run each declared survivor against the rung its own reason cites. Both
+corrections are in those items' own files under pass 3 rule 6.
+
+**Change 2: obligation (d) gains *a count is not a membership*.** (d) already asks *does anything
+COUNT it from elsewhere*, and `DECLARED_TOTAL` **is** that — and the same deletion has walked out past
+it three times in three plans: W23's four L6 rows for one number, W35's five more plus the whole
+cross-row block for two, and **W47's entire cross-row layer for two numbers and one import line**, back
+to the exact pre-item figures with every check green. So a layer declares its **members by name** —
+`ROW_KEYS` and now `CROSS_ROW_SUBJECTS` — with the limit adopted alongside: both are literals, so a
+member and its name are two edits in one diff ([Q217](doc/open-questions.md)), and *three iterations each
+closed one layer further out is an argument that the answer is not a fourth list.*
+
+**Change 3: section 1 rule 5's writing clause gains a THIRD direction — a WITHDRAWN claim is searched
+for.** W46's two readers withdrew four claims and **all four survived in `spec/README.md`'s own row
+for the document W46 had just changed, in a file W46 edited in the same commit**; W45's
+`validate.ts` header said *"Twenty-four refusals"* where the file implements 27; W47's reader found
+**seven** stale counts in `examples/**` whose true values that item's own new clauses compute three
+lines away. *An index contradicts the document it indexes on precisely the sentence that was just
+corrected, because that is the sentence somebody was looking at.*
+
+**REFUSED, five, each with a measurement.** An **`Owns` pre-declaration rule — and P13 WAS the test
+v0.13 asked for**, answered *no*: over three items `AGENTS.md` is yes/yes/**no**, `spec/README.md`
+yes/yes/yes, `scripts/check-docs.mjs` **no**/yes/**no**, so only one of the three was taken by all
+three and a rule naming all three would have been wrong twice on each of the other two
+([Q157](doc/open-questions.md)); late exceptions fell **6 → 4 → 1** with zero undeclared. A **rung for the
+EVIDENCE**, for the third plan running — **exactly one of the defects this retro discusses has a rung,
+and it is the one where the rung's own shape is the finding** ([Q214](doc/open-questions.md)). A **`doc/`
+check for the ELEVENTH time**, and P13 gives the sharpest instance against it: the four false claims
+were prose in a table cell whose only machine-comparable field is the version column, so the check
+would have to compare English — *a number in prose is checkable and a sentence is not*. A rule about
+where a **detector's positive fixture** lives, at one occurrence. And a fourth list below
+`CROSS_ROW_SUBJECTS`.
+
+**TWO of four predictions REVERSED, and one is a DERIVED prediction reversing — which P10's retro
+settled could not happen.** Prediction 1's own stated reversal condition is what reversed it: W45's
+evidence clause obliged the item to try to construct a flow dominance refuses and an author wants,
+and **it constructed twenty-two**. The literal half held — the corpus WRITES 6 and dominance refuses
+0 — and the inference did not, because **the measurement answered a narrower question than the
+prediction's wording**: what the corpus writes, against a corpus that ADMITS 127. P8's retro's third
+count shape firing on a PREDICTION. **P10's sentence is corrected in place**: a derived prediction is
+reversible exactly when the scope of its measurement is narrower than its own wording.
+
+**v0.13's three changes: all CONFIRMED and KEPT, each with a limit found.** *Both ways* is a
+**direction, not an observer count** — W47 compared three lists pairwise both ways and its reader
+defeated all three with one source swap ([Q216](doc/open-questions.md)); **(c)'s LIMIT extends to a
+DETECTOR**, a regex with one observer and no case that made it fire; and the **PAIR requirement found
+no limit**. **And v0.12's *the author reaches none of them* is REVERSED** — three instances, and the
+mechanism is visible: an obligation run as a step in a set passes, and the same obligation asked as a
+question of one artefact fires.
+
+**Rule 8 across the plan: 115 provocations, 95 caught, 15 declared survivors, 2 bound, ZERO
+undeclared survivors, ZERO aborts.** **Readers six passes, none empty — 44 / 24 blocking and 90
+mutations / 30 survivors / 17 blocking, overlap 2, 2, 2**, the twenty-third to twenty-fifth
+measurements. **Census CONFIRMED for the THIRTEENTH plan running — 174 / 125 / 2 / 47.**
+**Q199-Q217 all used; ADR 0042 taken, 0043 skipped; W48 closed as reserved and never issued. The next
+plan starts at W49, Q218 and ADR 0044.**
 
 **[W47](doc/work-items/w47-the-blocked-flow-on-real-workers.md) is DONE and it is P13's EXIT
 ARTIFACT.** Both flows run end to end on a real `FyflowScheduler` in **both** L6 runtimes — the one
@@ -1763,9 +1836,18 @@ that depends on fan-out completion order.
 
 ## How work is done
 
-**[doc/workflow.md](doc/workflow.md) — read it before starting any work item. It is v0.13, run to
-completion by TWELVE plans.** *(This line read "v0.10, run to completion by NINE plans" while v0.11
+**[doc/workflow.md](doc/workflow.md) — read it before starting any work item. It is v0.14, run to
+completion by THIRTEEN plans.** *(This line read "v0.10, run to completion by NINE plans" while v0.11
 and v0.12 landed above it.)*
+
+**v0.14 is P13's retro and its three changes are above.** The short form: **rule 8's requirement on
+the HARNESS gains that every declared survivor is RUN**, against the rung its own reason names,
+because three items shipped a harness that executed nothing for a ceiling and the retro's measurement
+of all eleven found one false and one stale; **obligation (d) gains that a COUNT is not a
+MEMBERSHIP**, because a whole layer of assertions has walked out past `DECLARED_TOTAL` three times in
+three plans; and **section 1 rule 5's writing clause gains a third direction — a WITHDRAWN claim is
+searched for**, because W46's readers withdrew four claims and all four survived in the index row for
+the document W46 had just changed.
 
 **v0.13 is P12's retro and its three changes are above.** The short form: **obligation (e) gains a
 THIRD shape — a LIST is a claim about another list**, and the procedure is to find the other list and
