@@ -310,6 +310,7 @@ const SUITES = [
   'L1 — every suite this tree declares actually RAN',
   'L1 — outputIsVisible: the prefix rule is the SPECIAL CASE',
   'L1 — sharedRegionDepth: how many regions contain BOTH nodes',
+  'L2 — ADR 0044: what a run carries across SIBLING regions',
   'L1 — a sibling fanout pair: the case neither corpus contained',
   'L1 — the two flows P12 exists for validate with zero findings',
   'L1 — what `FD-V17` refuses against IS what `spec/` declares',

@@ -6,10 +6,9 @@
  * [P14](../../doc/plans/p14-what-a-reference-means-when-two-regions-arities-are-independent.md).
  *
  * **This file is L1 and tests the DERIVATION.** `sharedRegionDepth` and
- * `outputIsVisible` are pure functions of the region sets; wiring them into
- * `resolveReference` is **W50**'s,
- * and until then a run still resolves by the prefix rule — which is why nothing
- * here reads a `Driver`.
+ * `outputIsVisible` are pure functions of the region sets, and nothing here reads a
+ * `Driver`; **W50** wired them into `resolveReference` and asserts the run half at
+ * L2, in `test/driver/needs.test.ts`.
  *
  * **The load-bearing claim is that the new rule GENERALISES the old one**, so the
  * old one is written out below as `prefixVisible`, from the sentence
@@ -51,12 +50,12 @@ const reg = JSON.parse(await readText(`${EX}/registry.json`)) as
  * P14 decision 3, and W41's finding by name: a probe set drawn from the corpus
  * cannot see a rule that is wrong about the case the corpus does not have.
  *
- * **It is not in `spec/examples/valid/` and that is a fact about the tree rather
- * than a preference.** A corpus flow is validated at L4 **and run** by the
- * `FD-C2` census, and until **W50**
- * wires `outputIsVisible` into the resolver this document is a valid definition
- * whose RUN STOPS at `FD-R3` — which is the defect, exhibited. It joins the corpus
- * with the driver.
+ * **It is ALSO in `spec/examples/valid/` since W50**, and it was not at W49 for a
+ * reason worth keeping: a corpus flow is validated at L4 **and run** by the `FD-C2`
+ * census, and until the resolver applied `outputIsVisible` this document was a valid
+ * definition whose RUN STOPPED at `FD-R3` — which is the defect, exhibited. **The
+ * copy here stays** so this file's L1 cases do not depend on the corpus, and the two
+ * are compared below.
  *
  * **Both branches of the second region declare the SAME reference**, so the only
  * thing that differs between the two readers is the branch the author wrote it in.
@@ -543,6 +542,27 @@ suite('L1 — outputIsVisible: the prefix rule is the SPECIAL CASE', (test) => {
     equal(outputIsVisible(rs, 'publishB1', '0', 'publishB2', '1'), false, 'other branch is not');
   });
 
+  test('it is SYMMETRIC in the two PATHS, and asymmetric in the two NODES', () => {
+    // **Rule 8 graded a path-swap probe a SURVIVOR and it is VACUOUS** — *agree on
+    // the shared prefix* is symmetric by construction, so swapping the reader's path
+    // with the entry's changes no observable. Recorded as an assertion rather than
+    // as a note, because a reader looking at the call site cannot tell a symmetric
+    // predicate from an untested argument order.
+    //
+    // **The NODES are not symmetric**, and that is the half that matters: the shared
+    // depth is a property of the pair, but which node is the READER decides whose
+    // chain the paths are read against. A probe passing the target as the reader
+    // costs 14 failures.
+    const rs = regionsOf(NESTED_SIBLINGS);
+    for (const [a, b] of [['1.1', '1.0'], ['1.1', '0.0'], ['0', '1'], ['-', '1.0']] as const) {
+      equal(
+        outputIsVisible(rs, 'y2', a, 'x1', b),
+        outputIsVisible(rs, 'y2', b, 'x1', a),
+        `symmetric in the paths: ${a} / ${b}`,
+      );
+    }
+  });
+
   test('segments compare as SEGMENTS and never as strings — the two-digit case', () => {
     // `"1"` and `"10"` are different segments; a `startsWith` says otherwise and
     // hands instance 10 the output of instance 1. Invisible below eleven instances
@@ -555,6 +575,20 @@ suite('L1 — outputIsVisible: the prefix rule is the SPECIAL CASE', (test) => {
 });
 
 suite('L1 — a sibling fanout pair: the case neither corpus contained', (test) => {
+  test('the inline copy IS the corpus document — two sources, compared', async () => {
+    // **W50 promoted this document to `spec/examples/valid/` and there are now TWO
+    // copies of it**, which is two sources that can disagree — ADR 0040 rule 2's own
+    // refusal. W50's conformity reader found them agreeing today with nothing saying
+    // they must.
+    //
+    // **The inline copy stays** so this file's L1 cases do not depend on the corpus
+    // — it asserts a DERIVATION over region sets and must keep working if the flow
+    // is ever renamed — and the two are compared here instead.
+    const onDisk = JSON.parse(await readText(`${EX}/valid/sibling-fanouts.flow.json`)) as FlowDefinition;
+    equal(SIBLING_FANOUTS, onDisk,
+      'the fixture built here and the corpus document are the same flow, node for node');
+  });
+
   test('it validates with ZERO findings, which is what makes the defect silent', () => {
     equal(validateDefinition(SIBLING_FANOUTS, reg).length, 0, 'sibling-fanouts must be valid');
   });

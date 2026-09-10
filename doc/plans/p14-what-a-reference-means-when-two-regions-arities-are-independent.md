@@ -258,8 +258,22 @@ with **zero findings** and **stops the run**, with no arity anywhere in it. **De
 evidence and is why the half was covered**; the DEPTH half — two sibling regions nested inside one
 outer branch — was named by nobody and was found by W49's adequacy reader.
 
+**W50 confirms prediction 3's REVERSAL with a number: the driver is where this landed.** The resolver
+is one expression, `isPathPrefix` is gone, and **six L1-L5 fixtures had to move** because ADR 0044
+removed the road they reached `FD-R3` and `FD-C4` by. *This plan predicted `W50` would be small and
+that no driver code would move; it is the largest of the three items so far.*
+
+**And L6 is BLIND to the decision, which is the thing to carry into W51.** All **11** aimed references
+in both corpora have a shared region depth of **zero** — every reader sits at `-` or reads a target at
+`-` — so `outputIsVisible` returns `true` without entering its loop for every reference L6 runs, and
+reverting the resolver costs **0 L6 failures** against 6 at L1-L5. **[Q214](../open-questions.md)'s
+shape in a second mechanism**, and prediction 4's subject arriving one item early: W47's was *a
+document the validator refuses never starts*; this is *a filter no run exercises*. **W51's exit
+artifact must add a flow whose shared depth is above zero, or a sibling pair**, or the plan's exit
+rung proves nothing about the plan's subject.
+
 | item | | |
 |---|---|---|
 | **W49** | **done** | [ADR 0044](../decisions/0044-a-reference-is-visible-when-two-paths-agree-on-the-regions-that-contain-both-of-them.md); `spec/flow-definition.md` v0.15; `regionChainOf`/`sharedRegionDepth`/`outputIsVisible`; L1 674 in five runtimes; readers 15/6 and 52/8/4; rule 8 **27 probes, 26 caught, 0 survivors, 1 measured ceiling, 0 aborts**; overlap **2**, the 26th measurement; census **178 / 128 / 2 / 48**; **Q218-Q221** raised, **Q206** resolved |
-| **W50** | todo | |
+| **W50** | **done** | the resolver applies ADR 0044 at both sites by one expression and **`isPathPrefix` is DELETED**; the six `FD-R3`/`FD-C4` fixtures moved onto roads that still exist; `sibling-fanouts.flow.json` promoted to the corpus; L1-L5 **681 in five runtimes**, L6 unmoved at **879 / 40**; reverting the resolver costs **6 L1-L5 and 0 L6**; readers 16/5 blocking and 36 mutations / 4 survivors / 5 blocking, overlap **2**, the 27th measurement; rule 8 **24 probes, 20 caught, 0 survivors, 4 measured ceilings, 0 aborts**; census **179 / 129 / 2 / 48**; **Q222** raised, **ADR 0045 SKIPPED** |
 | **W51** | todo | |

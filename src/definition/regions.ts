@@ -435,8 +435,9 @@ export function regionChainOf(regions: RegionSets[], nodeId: string): string[] {
  * sibling `fanout` pair at all, so a set of probes drawn from it cannot see a rule
  * that is wrong about the case the corpus does not have — W41's finding by name,
  * and P14 decision 3. The document is built and asserted in
- * `test/definition/sibling-regions.test.ts`; it joins the corpus with the driver in
- * **W50**, because until then it is a valid document whose RUN STOPS.
+ * `spec/examples/valid/sibling-fanouts.flow.json`, which **W50** added once the
+ * resolver followed — until then it was a valid document whose RUN STOPPED, and a
+ * corpus flow is validated at L4 AND run.
  *
  * **And siblings are not only a top-level shape**, which is W49's adequacy
  * reader's finding: two sequential inner regions inside ONE branch of an outer one

@@ -15,7 +15,53 @@ the only document that does. **Every snippet in it is extracted and executed by 
 (`scripts/check-docs.mjs`), so it cannot rot the way a hand-maintained reference does. If you change
 the public surface, that check is what tells you the reference is now wrong.
 
-## Current state: **P1-P13 are ALL complete and retro'd, `doc/workflow.md` is [v0.14](doc/workflow.md), and [P14](doc/plans/p14-what-a-reference-means-when-two-regions-arities-are-independent.md) is RUNNING — [W49](doc/work-items/w49-what-a-reference-across-sibling-regions-means.md) is DONE, W50 and W51 are not.** **Read every status from the item's own file, never from this line.**
+## Current state: **P1-P13 are ALL complete and retro'd, `doc/workflow.md` is [v0.14](doc/workflow.md), and [P14](doc/plans/p14-what-a-reference-means-when-two-regions-arities-are-independent.md) is RUNNING — W49 and W50 are DONE, W51 is not.** **Read every status from the item's own file, never from this line.**
+
+**[W50](doc/work-items/w50-what-the-run-carries-at-independent-arities.md) is DONE and the RESOLVER applies
+[ADR 0044](doc/decisions/0044-a-reference-is-visible-when-two-paths-agree-on-the-regions-that-contain-both-of-them.md).**
+`resolveReference`'s visibility filter is `outputIsVisible` at both declaration sites by one
+expression, and **`isPathPrefix` is DELETED** — two predicates are two sources that can disagree, and
+`deno lint` said so first: with the resolver re-pointed, L0 reported `isPathPrefix is never used`
+before any test ran. L1-L5 is **25 files / 681 cases in five runtimes**; **L6 is unmoved at 879 / 40**;
+`spec/examples/valid/` is **15 files**. **Reverting the resolver costs 6 L1-L5 failures and ZERO at
+L6**, matching ADR 0044's declared candidate-(b) figure.
+
+**P14's question at run time: every instance receives ALL N, at every arity pair, and the array is
+the same whatever the two arities are** — asserted as a pair over two runs differing in both
+directions. **P14 prediction 3's reversal is confirmed with a number**: the driver is exactly where
+this landed, and six L1-L5 fixtures had to move because ADR 0044 removed the road they reached
+`FD-R3` and `FD-C4` by.
+
+**THE GATE WAS RED AT L0 AND THE AUTHOR'S OWN VERIFICATION MISSED IT.** The new test was `async` with
+no `await`; `deno lint` exited **1**; `lint` is the chain's FIRST entry since ADR 0039, so
+`npm run gate` would have been `EXIT 1` with **zero `FAIL` lines** and nothing after entry one
+running. **Both readers found it independently.** The cause is exact: the author read
+`npm run lint | tail -1`, saw `Checked 49 files` — which `deno lint` prints either way — and took it
+for a pass. *The exit code is the predicate and a tail line is a secondary signal*, which is this
+file's own sentence, reproduced two plans after it was written.
+
+**Moving a fixture EVICTS the assertions living in it, and nothing in rule 8 asks what a deletion
+took.** Three of the four things `FD-R3` normatively names — the branch path, the declaring node, the
+target — lost their only observer, each costing **zero** afterwards; so did the NODE site's `site`
+label, which was W42's adequacy reader's finding 42 with the measurement in its comment. All re-sited.
+**And the harness's failure channel had THIRTEEN reads and not one positive case** — neutering
+`onRunFailure` cost zero, and the compound with the resolver reverted came back at the same six.
+
+**Ladder L6 is BLIND to this decision and the conformity reader measured why**: **all 11 aimed
+references in both corpora have a shared region depth of ZERO**, so the filter never enters its loop
+on anything L6 runs. **[Q214](doc/open-questions.md)'s shape in a second mechanism** — W47's was *a
+document the validator refuses never starts*, this is *a filter no run exercises* — and it is what
+W51's exit artifact has to close. **The narrowing direction was answered with a measured ABSENCE**:
+the two shapes that would give it a second observer are refused, one by `FD-V27` and one by the
+DRIVER ([Q156](doc/open-questions.md)), so the single expressible shape is W41's two-digit fixture.
+
+**Readers 16 / 5 blocking and 36 mutations / 4 real survivors / 5 blocking, overlap 2** — the
+**twenty-seventh** measurement, inside the 0-4 band, neither primed. **Rule 8: 24 probes, 20 caught,
+4 declared ceilings MEASURED, 0 survivors standing, 0 aborts**, with all ten of the readers' exact
+edits checked back in. **FIVE late exceptions, ZERO undeclared** — and two of them are
+`spec/README.md` and `AGENTS.md` carrying *the resolver follows in W50*, true when W49 wrote it and
+false the moment this item shipped, which is section 1 rule 5's THIRD direction firing on a claim that
+NAMES the item that falsifies it. **Census 179 / 129 / 2 / 48**; **Q222 raised, ADR 0045 SKIPPED.**
 
 **[W49](doc/work-items/w49-what-a-reference-across-sibling-regions-means.md) is DONE and
 [ADR 0044](doc/decisions/0044-a-reference-is-visible-when-two-paths-agree-on-the-regions-that-contain-both-of-them.md)

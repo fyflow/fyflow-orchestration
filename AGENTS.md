@@ -325,9 +325,9 @@ read *"the TWO things the graph cannot know"* and named the arity case first —
 different arity, where a reader inside one could see neither output of the other. **`spec/`
 v0.15 removes that road**: [ADR 0044](doc/decisions/0044-a-reference-is-visible-when-two-paths-agree-on-the-regions-that-contain-both-of-them.md)
 makes a reader see all of a sibling region's outputs, so the case is a defect that was fixed rather
-than a limit of what a validator can see, and one road is left. The RESOLVER follows in W50, so a
-run at v0.15 still takes the old path — `doc/workflow.md` section 1 rule 5's third direction, and
-this sentence is the copy a consumer reads first.)*
+than a limit of what a validator can see, and one road is left. `doc/workflow.md` section 1 rule 5's
+third direction, and this sentence is the copy a consumer reads first — it said *the resolver follows
+in W50* for exactly as long as that was true.)*
 And a reference names a **node**, never a path inside its value: `needs: { run: 'ingest' }` gives you
 the whole of `ingest`'s result and your worker reads `.config` off it.
 

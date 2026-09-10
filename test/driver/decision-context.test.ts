@@ -63,7 +63,11 @@ class FakeScheduler {
  * answering from `ctx.needs` alone — so an assertion about what was DISPATCHED is
  * also an assertion about what the predicate could SEE.
  */
-function harness(def: FlowDefinition, answer: (ctx: DecisionContext) => boolean = () => false) {
+function harness(
+  def: FlowDefinition,
+  answer: (ctx: DecisionContext) => boolean = () => false,
+  policy: JoinPolicy = liveToken as JoinPolicy,
+) {
   const scheduler = new FakeScheduler();
   const failures: { kind: string; message: string }[] = [];
   const seen: { name: string; ctx: DecisionContext }[] = [];
@@ -79,7 +83,7 @@ function harness(def: FlowDefinition, answer: (ctx: DecisionContext) => boolean 
     createTask: (c) => c,
     predicates,
     workerTypes: reg.workerTypes,
-    joinPolicy: liveToken as JoinPolicy,
+    joinPolicy: policy,
     onRunFailure: (f) => failures.push({ kind: f.kind, message: f.message }),
   });
   return {
@@ -96,13 +100,14 @@ function harness(def: FlowDefinition, answer: (ctx: DecisionContext) => boolean 
  *
  * Until v0.13 the three tests below used *a decision routed around the target*, and
  * `FD-V29` refuses that document at instantiation now — which is
- * [Q187](../../doc/open-questions.md)'s whole point. **What is left is the case a
- * validator provably cannot see**, and it needs no custom policy: two `map` regions
- * over different keys. `FD-V29` correctly calls `score` certain for `publish` (a
- * map's one branch entry is dispatched when its region opens), and with `slots`
- * longer than `items` the third instance of the second region has a branch path
- * comparable with **neither** of `score`'s outputs. *`did it run` and `is it on your
- * path` are two questions.*
+ * [Q187](../../doc/open-questions.md)'s whole point. **They then used two `map`
+ * regions over different keys, and W50 took that road away too**:
+ * [ADR 0044](../../doc/decisions/0044-a-reference-is-visible-when-two-paths-agree-on-the-regions-that-contain-both-of-them.md)
+ * makes a reader in a SIBLING region see ALL of the target's outputs, so this
+ * document now RESOLVES at every arity and is used below as a **control** rather
+ * than as an `FD-R3` case. What reaches `FD-R3` is `fanoutJoinEdge` with an eager
+ * policy, and what reaches `FD-C4`'s array row is `skippedRegion`.
+ * [Q218](../../doc/open-questions.md).
  *
  * `spec/examples/valid/reference-past-a-map-arity.flow.json` is the same shape at the
  * NODE site, in the corpus. This one is constructed because the corpus flow puts the
@@ -135,6 +140,64 @@ const pastArity = (publishEdges: unknown[]): FlowDefinition =>
 const MISMATCHED = { items: ['a', 'b'], slots: ['x', 'y', 'z'] };
 
 /** Everything up to and including the settlement that OPENS the second map region. */
+/**
+ * **The same two-map document with the DECISION routing around the first region** —
+ * W50. `FD-C4`'s array row needs a target that ran NOWHERE, which is what an empty
+ * array means at this site once
+ * [ADR 0044](../../doc/decisions/0044-a-reference-is-visible-when-two-paths-agree-on-the-regions-that-contain-both-of-them.md)
+ * makes a sibling reference resolve at every arity.
+ */
+const skippedRegion = (publishEdges: unknown[]): FlowDefinition =>
+  ({
+    flowId: 'edge-reference-past-a-skipped-region', version: 1, entry: 'ingest',
+    nodes: [
+      { id: 'ingest', kind: 'task', workerType: 'IngestWorker',
+        edges: [{ when: 'isHighConfidence', to: 'split' }, { to: 'regroup' }] },
+      { id: 'split', kind: 'map', over: 'items', branch: 'score' },
+      { id: 'score', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'collect' }] },
+      { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'regroup' }] },
+      { id: 'regroup', kind: 'task', workerType: 'MergeWorker', edges: [{ to: 'rank' }] },
+      { id: 'rank', kind: 'map', over: 'slots', branch: 'publish' },
+      { id: 'publish', kind: 'task', workerType: 'PublishWorker', edges: publishEdges },
+      ...(publishEdges.some((e) => (e as { to?: string }).to === 'audit')
+        ? [{ id: 'audit', kind: 'task', workerType: 'ReviewWorker', edges: [{ to: 'gather' }] }]
+        : []),
+      { id: 'gather', kind: 'join', of: 'rank', edges: [{ to: 'done' }] },
+      { id: 'done', kind: 'end', outcome: 'completed' },
+    ],
+  } as unknown as FlowDefinition);
+
+/**
+ * **`fanout-join` with the reference on an EDGE** — W50, and it is `FD-R3`'s ONE
+ * remaining road at this site: a join policy firing before a branch entry has
+ * settled ([Q218](../../doc/open-questions.md)).
+ */
+const fanoutJoinEdge = (publishEdges: unknown[]): FlowDefinition =>
+  ({
+    flowId: 'edge-reference-before-a-branch-settled', version: 1, entry: 'ingest',
+    nodes: [
+      { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'split' }] },
+      { id: 'split', kind: 'fanout', branches: ['scoreA', 'scoreB'] },
+      { id: 'scoreA', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'collect' }] },
+      { id: 'scoreB', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'collect' }] },
+      { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'publish' }] },
+      { id: 'publish', kind: 'task', workerType: 'PublishWorker', edges: publishEdges },
+      ...(publishEdges.some((e) => (e as { to?: string }).to === 'audit')
+        ? [{ id: 'audit', kind: 'task', workerType: 'ReviewWorker', edges: [{ to: 'done' }] }]
+        : []),
+      { id: 'done', kind: 'end', outcome: 'completed' },
+    ],
+  } as unknown as FlowDefinition);
+
+/** Satisfied on the first ARRIVAL, whatever else is live — [Q97](../../doc/open-questions.md)'s shape. */
+const eagerPolicy: JoinPolicy<{ arrived: number }> = {
+  id: 'eager-any-arrival',
+  open: () => ({ arrived: 0 }),
+  step: (st, e) => (e.type === 'branch.arrived' ? { arrived: st.arrived + 1 } : st),
+  status: (st) => (st.arrived > 0 ? 'satisfied' : 'waiting'),
+  describe: (st) => ({ arrived: st.arrived }),
+};
+
 function toTheSecondRegion(h: ReturnType<typeof harness>): void {
   h.driver.start(MISMATCHED);
   h.scheduler.settle('r1:ingest:-:0', 'done', { result: MISMATCHED });
@@ -509,8 +572,15 @@ suite('L2 — FD-C3: what a decision sees', (test) => {
     // Symbol, which is the quietest possible form of the thing `FD-C4` exists to
     // remove.
     //
-    // **The pair is instance 2 against instances 0 and 1**, so the assertion cannot
-    // pass because every instance happened to see the same thing.
+    // **The pair MOVED at W50, from an INDEX to a ROAD.** It used to be instance 2
+    // against instances 0 and 1, on the ground that instance 2's branch path was
+    // comparable with none of `score`'s outputs;
+    // [ADR 0044](../../doc/decisions/0044-a-reference-is-visible-when-two-paths-agree-on-the-regions-that-contain-both-of-them.md)
+    // makes every instance see every output, so the two halves would now be
+    // identical and the assertion would pass because nothing distinguishes them.
+    // **What still gives `[]` is a target that ran NOWHERE** — the same run, with
+    // the map region skipped, which is `FD-R3`'s remaining shape one rule across
+    // ([Q218](../../doc/open-questions.md)).
     const def = pastArity([
       { when: 'isLowConfidence', to: 'audit', needs: { f: ['score?'] } },
       { to: 'gather' },
@@ -525,15 +595,40 @@ suite('L2 — FD-C3: what a decision sees', (test) => {
     toTheSecondRegion(h);
     for (const i of [0, 1, 2]) h.scheduler.settle(`r1:publish:${i}:0`, 'done', { result: {} });
 
-    equal(h.failures, [], 'no FD-R3 at instance 2 — the reference said *if it ran*');
+    equal(h.failures, [], 'no FD-R3 anywhere — the reference said *if it ran*, and it did');
     const forInstance = (i: number) =>
       h.seen.find((x) => x.ctx.outcome.taskId === `r1:publish:${i}:0`)!.ctx.needs;
-    equal(forInstance(0), { f: [{ A: 0 }] },
-      'instance 0`s path IS comparable with score@0, so the key holds that one output');
-    equal(forInstance(2), { f: [] },
-      'instance 2`s is comparable with none, so the key is PRESENT and EMPTY — FD-C4`s array row, ' +
-      'at the edge site, by the same expression the node site uses');
-    ok('f' in forInstance(2), 'present, so a predicate reading ctx.needs.f gets an array either way');
+    // **ADR 0044**: `publish` and `score` are in SIBLING regions and share none, so
+    // every instance sees every output whatever its own index.
+    equal(forInstance(0), { f: [{ A: 0 }, { A: 1 }] },
+      'instance 0 sees BOTH outputs — the two regions share no region, so there is nothing ' +
+      'for their paths to disagree about');
+    equal(forInstance(2), { f: [{ A: 0 }, { A: 1 }] },
+      'and so does the instance past the first region`s arity, which used to receive `[]`');
+
+    // **THE OTHER HALF OF THE PAIR — a run where `score` produced nothing at all.**
+    // `FD-C4`'s array row needs a target that ran NOWHERE, which is what the empty
+    // array now means at this site.
+    const skipped = skippedRegion([
+      { when: 'isLowConfidence', to: 'audit', needs: { f: ['score?'] } },
+      { to: 'gather' },
+    ]);
+    equal(
+      validateDefinition(skipped, { predicates: reg.predicates, workerTypes: reg.workerTypes }),
+      [],
+      'valid — and unconditionally it is FD-V29, which is what makes the suffix load-bearing',
+    );
+    const hSkip = harness(skipped, (ctx) => ((ctx.needs as { f?: unknown[] }).f ?? []).length > 0);
+    hSkip.driver.start({ items: ['a', 'b'] });
+    hSkip.scheduler.settle('r1:ingest:-:0', 'done', { result: { items: ['a', 'b'] } });
+    hSkip.scheduler.settle('r1:regroup:-:0', 'done', { result: { slots: ['x'] } });
+    hSkip.scheduler.settle('r1:publish:0:0', 'done', { result: {} });
+    equal(hSkip.failures, [], 'no FD-R3 — the target ran nowhere and the reference said *if it ran*');
+    const seenSkip = hSkip.seen.find((x) => x.ctx.outcome.taskId === 'r1:publish:0:0')!.ctx.needs;
+    equal(seenSkip, { f: [] },
+      'the key is PRESENT and EMPTY — FD-C4`s array row, at the edge site, by the same ' +
+      'expression the node site uses');
+    ok('f' in seenSkip, 'present, so a predicate reading ctx.needs.f gets an array either way');
     // And the ONE form at this site, where the key must be gone rather than empty.
     const one = pastArity([
       { when: 'isLowConfidence', to: 'audit', needs: { g: 'regroup?' } },
@@ -595,33 +690,56 @@ suite('L2 — FD-C3: what a decision sees', (test) => {
   test('an edge reference the run did not produce is FD-R3, from the same expression', () => {
     // A decision now has a run-time refusal where before it had only `FD-R1`, and it
     // is the same class, message and rule as a node's — ADR 0041's *what it costs*.
-    // `flag` is upstream of `publish` (FD-V27 accepts), and this run routes around it.
-    const def = pastArity([
-      { when: 'isLowConfidence', to: 'audit', needs: { f: ['score'] } },
-      { to: 'gather' },
+    //
+    // **The fixture MOVED at W50.** It used to be instance 2 of a second map region
+    // reading past the first's arity, and
+    // [ADR 0044](../../doc/decisions/0044-a-reference-is-visible-when-two-paths-agree-on-the-regions-that-contain-both-of-them.md)
+    // makes that resolve. `FD-R3`'s remaining road is a join **policy** firing
+    // before a branch entry has settled ([Q218](../../doc/open-questions.md)), so
+    // this fixture brings its own — and the SHIPPED-policy control below is what
+    // makes it a statement about the edge site rather than about the policy.
+    const def = fanoutJoinEdge([
+      { when: 'isLowConfidence', to: 'audit', needs: { f: 'scoreA' } },
+      { to: 'done' },
     ]);
     equal(validateDefinition(def, { predicates: reg.predicates, workerTypes: reg.workerTypes }), [],
-      'FD-V27 accepts it, and so does FD-V29: `score` certainly ran. What neither can see is ' +
-      'that instance 2`s branch path is comparable with none of its outputs');
-    // TRUE only at the instance whose reference cannot resolve, so 0 and 1 take the
-    // default edge and route correctly — **the pair, and the difference between its
-    // halves is the instance index** (`doc/workflow.md` section 5 rule 8's fourth
-    // requirement on the set).
-    const h = harness(def, (ctx) => ctx.outcome.taskId === 'r1:publish:2:0');
-    toTheSecondRegion(h);
-    for (const i of [0, 1]) h.scheduler.settle(`r1:publish:${i}:0`, 'done', { result: {} });
-    equal(h.failures, [], 'instances 0 and 1 evaluated the guarded edge`s predicate and routed');
-    h.scheduler.settle('r1:publish:2:0', 'done', { result: {} });
+      'FD-V27 accepts it, and so does FD-V29: `scoreA` is a branch entry and JP-R5 dispatches ' +
+      'it when the region opens. What neither can see is a policy that fires before it settles');
+
+    const h = harness(def, () => true, eagerPolicy as unknown as JoinPolicy);
+    h.driver.start({});
+    h.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
+    // Only branch 1 settles. `scoreA` is dispatched and never settles at all.
+    h.scheduler.settle('r1:scoreB:1:0', 'done', { result: { B: 2 } });
+    ok(h.ids().includes('r1:publish:-:0'),
+      'the eager policy fired the join with `scoreA` still live, so the reader WAS dispatched — ' +
+      'which is what makes the edge below reachable at all');
+    // An edge's `needs` is resolved when the node SETTLES and its edges are
+    // evaluated, not when it is dispatched — `FD-C3`, and it is why this line is
+    // here rather than the failure arriving with the join.
+    h.scheduler.settle('r1:publish:-:0', 'done', { result: {} });
 
     equal(h.failures.length, 1, 'reported exactly once, through OR-R10');
     equal(h.failures[0]!.kind, 'UnresolvedReference', 'FD-R3, and the same class a node`s reference uses');
     ok(h.failures[0]!.message.includes('edge needs["f"]'),
       'and the message names the SITE, so a reader is sent to the edge and not to the node');
-    ok(h.failures[0]!.message.includes('branch path "2"'),
-      'and the PATH, which is the whole of why this document is valid and this run is not');
+    ok(h.failures[0]!.message.includes('FD-R3'), 'and cites the rule');
     equal(h.nodes().filter((n) => n === 'audit').length, 0,
-      'and the run stopped rather than routing instance 2 anywhere');
+      'and the run stopped rather than routing anywhere');
     ok(new UnresolvedReference('x') instanceof Error, 'no new class was needed');
+
+    // **The CONTROL** — the same document, the same payload, the same edge, under a
+    // SHIPPED policy: the join does not fire while `scoreA` is live, the reader is
+    // never entered, and there is no FD-R3.
+    const c = harness(def, () => true);
+    c.driver.start({});
+    c.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
+    c.scheduler.settle('r1:scoreB:1:0', 'done', { result: { B: 2 } });
+    ok(!c.ids().includes('r1:publish:-:0'),
+      'under a shipped policy the join does not fire while `scoreA` is live, so the reader is ' +
+      'never entered');
+    equal(c.failures, [], 'under `live-token` there is no FD-R3 — so the row above is about the ' +
+      'policy road and not about the edge site being broken');
   });
 });
 

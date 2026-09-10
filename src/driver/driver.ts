@@ -14,7 +14,7 @@
  */
 import type { Edge, FlowDefinition, FlowNode, Registry, TerminalState } from '../definition/types.ts';
 import {
-  allRegions, branchPathOf, buildGraph, innermostRegionOf, toRegion,
+  allRegions, branchPathOf, buildGraph, innermostRegionOf, outputIsVisible, toRegion,
   type Graph, type RegionSets,
 } from '../definition/regions.ts';
 import { referenceTarget, validateDefinition, violatedRules } from '../definition/validate.ts';
@@ -210,28 +210,27 @@ function collectArrivals(arrived: ReadonlyMap<string, unknown> | undefined): Rec
 }
 
 /**
- * **Is `a` a prefix of `b`, segment-wise** — `'-'` (no region) being a prefix of
- * everything, and every path being a prefix of itself.
- * [ADR 0040](../../doc/decisions/0040-what-a-node-can-reach-is-the-runs-own-outputs-and-a-node-id-names-them-relative-to-a-branch-path.md)
- * rule 4's resolution predicate, and `FD-C1`.
+ * **`isPathPrefix` lived here and is GONE** —
+ * [ADR 0044](../../doc/decisions/0044-a-reference-is-visible-when-two-paths-agree-on-the-regions-that-contain-both-of-them.md)
+ * rule 2, and this note is here so its removal reads as a decision rather than as
+ * a deletion. It answered *is one path a prefix of the other, segment-wise*, which
+ * is the SPECIAL CASE of `outputIsVisible`'s *do the two paths agree on the regions
+ * their chains share*: where the chains nest the shared regions are the shorter
+ * chain entire and the two pick out the same entries. Where they do not nest it was
+ * wrong, and only its reflexive case ever fired ([Q206](../../doc/open-questions.md)).
  *
- * **Segment-wise rather than by string, and that is not decoration**: `'1'` is a
- * prefix of `'1.0'` and is **not** a prefix of `'10'`, which a `String.startsWith`
- * gets wrong in exactly the case a map region of eleven or more items produces —
- * it hands instance `10` the output of instance `1`, which is a wrong answer rather
- * than a crash. **Invisible below eleven instances and live at twelve**, which is
- * `JP-R12`'s own *invisible at depth 1, live at depth 2* a fourth time in this tree,
- * and `test/driver/needs.test.ts`'s two-digit fixture is the only thing in the
- * repository that discriminates it.
+ * **Keeping both would be two sources that can disagree**, which ADR 0040 rule 2
+ * refuses by name — and `deno lint` said so first: with the resolver re-pointed,
+ * L0 reported `isPathPrefix is never used` before any test ran.
+ *
+ * **What its docblock carried is not lost.** The measured claim — `'1'` is a prefix
+ * of `'1.0'` and is NOT a prefix of `'10'`, which a `String.startsWith` gets wrong
+ * in exactly the case a map region of eleven or more items produces, invisible
+ * below eleven instances and live at twelve — is now on `outputIsVisible` in
+ * `src/definition/regions.ts`, and `test/driver/needs.test.ts`'s two-digit fixture
+ * is still the only thing in the repository that discriminates it.
  */
-function isPathPrefix(a: string, b: string): boolean {
-  if (a === '-') return true;
-  if (b === '-') return false;
-  const xs = a.split('.');
-  const ys = b.split('.');
-  if (xs.length > ys.length) return false;
-  return xs.every((x, i) => x === ys[i]);
-}
+
 
 /**
  * **The item index of every `map` region on the path to a dispatch, keyed by map
@@ -1633,13 +1632,27 @@ export class Driver {
     t: { form: 'one' | 'all'; node: string; conditional: boolean },
     site: 'needs' | 'edge needs',
   ): unknown {
-    // **Compatible, not equal.** An entry is visible to this node when one path
-    // is a prefix of the other: `ingest@-` is visible everywhere, `extract@1` is
-    // visible to `merge@1.0`, and `merge@1.0` and `merge@1.1` are both visible to
-    // a node at `-` after the join. That single predicate is what gives the `one`
-    // form and the `all` form from one rule.
+    // **Compatible, not equal.** An entry is visible to this node when their two
+    // paths AGREE ON THE REGIONS THEIR TWO CHAINS SHARE — `FD-C1`, and
+    // [ADR 0044](../../doc/decisions/0044-a-reference-is-visible-when-two-paths-agree-on-the-regions-that-contain-both-of-them.md)
+    // rule 1. `ingest@-` is visible everywhere, `extract@1` is visible to
+    // `merge@1.0`, and `merge@1.0` and `merge@1.1` are both visible to a node at
+    // `-` after the join. That single predicate is what gives the `one` form and
+    // the `all` form from one rule.
+    //
+    // **It REPLACES `isPathPrefix`, which was its special case** (ADR 0044 rule 2).
+    // Where the two chains nest the regions they share are the shorter chain
+    // entire, so the two pick out the same entries — measured, with L6 unmoved.
+    // Where they do NOT nest, the prefix rule compared an index minted in one
+    // region against an index minted in another and reported *visible* when the two
+    // strings happened to match: `isPathPrefix('0','2')` and `isPathPrefix('2','0')`
+    // are both false, so only the reflexive case ever fired.
+    // [Q206](../../doc/open-questions.md).
+    //
+    // **Two predicates would be two sources that can disagree**, which is ADR 0040
+    // rule 2's own refusal, so the old one is gone rather than kept beside it.
     const visible = (produced.get(t.node) ?? [])
-      .filter((e) => isPathPrefix(e.path, here) || isPathPrefix(here, e.path))
+      .filter((e) => outputIsVisible(this.regions, atNodeId, here, t.node, e.path))
       .sort((x, y) => compareBranchPaths(x.path, y.path));
     if (visible.length === 0 && t.conditional) {
       // **`FD-C4` — the conditional form's whole effect, and it is asymmetric by
