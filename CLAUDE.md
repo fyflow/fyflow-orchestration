@@ -15,7 +15,81 @@ the only document that does. **Every snippet in it is extracted and executed by 
 (`scripts/check-docs.mjs`), so it cannot rot the way a hand-maintained reference does. If you change
 the public surface, that check is what tells you the reference is now wrong.
 
-## Current state: **P1-P12 are ALL complete and retro'd, `doc/workflow.md` is [v0.13](doc/workflow.md), and [P13](doc/plans/p13-when-is-a-declared-reference-refused.md) is IN PROGRESS — [W45](doc/work-items/w45-what-a-reference-must-be-able-to-say.md) and [W46](doc/work-items/w46-what-a-reference-costs-and-whether-anything-says-so.md) are DONE and W47 is outstanding.** **Read every status from the item's own file, never from this line.**
+## Current state: **P1-P12 are ALL complete and retro'd, `doc/workflow.md` is [v0.13](doc/workflow.md), and [P13](doc/plans/p13-when-is-a-declared-reference-refused.md) is COMPLETE and NOT YET RETRO'D — all three items done, W48 closed as reserved and never issued.** **Read every status from the item's own file, never from this line.**
+
+**[W47](doc/work-items/w47-the-blocked-flow-on-real-workers.md) is DONE and it is P13's EXIT
+ARTIFACT.** Both flows run end to end on a real `FyflowScheduler` in **both** L6 runtimes — the one
+the plan exists for, and a second the item's own adequacy reader **built**. **L6 is 879 assertions
+over 40 real runs**, from 806 / 38; `spec/` is unmoved at **7 documents, 43 examples, 89 rules** and
+L1-L5 at **24 files / 656 cases in five runtimes**, which is the declared result.
+
+**Its headline is that ladder L6 was BLIND to [ADR 0042](doc/decisions/0042-a-reference-says-whether-it-is-conditional-and-the-bare-form-means-the-target-certainly-ran.md)'s
+headline for a whole item.** Deleting `FD-V29` cost **ZERO** L6 failures before this item — against a
+clean control both sides — while `FD-C4` cost 5 and the suffix left unparsed stopped the run from
+reporting at all. **Every reference L6 runs is either `"."`, certain, or written with a `?`, because a
+row IS a run and a document `FD-V29` refuses does not start.** *A rule whose whole effect is that a
+run never happens is invisible to a rung made of runs* ([Q214](doc/open-questions.md)) —
+[W35](doc/work-items/w35-a-map-on-real-workers.md)'s *`N` too small completes and is silent* one rule
+along, from the other direction. **The scope is stated**: L6 was the only blind rung, since the same
+deletion costs **7** at L1-L5 and fails `check-docs` `X4` on `AGENTS.md`'s own executed snippet. It
+now costs **3**, and reverting W45 whole is **12** — additive, `FD-V29` 3 and `FD-C4` 9.
+
+**Output (3) was answered with a measured ABSENCE and BOTH READERS took it apart from opposite
+ends.** The item recorded `["n?"]` as unreachable at L6 because *"a map region inside a branch the run
+loses is a flow this repository does not have"*. Its **conformity reader** measured that false on
+`nested-map.flow.json`, **which L6 already runs**, and named `map-in-fanout` as a second instance —
+**both are in ADR 0042's own seven-shape row**. Its **adequacy reader** measured the consequence —
+`resolveReference`'s array arm, ADR 0042 rule 4's `[]` half, **deletable for ZERO** — and then
+**constructed the flow that observes it**. *Two readers, opposite ends, one hole.* The coverage is
+therefore **taken rather than recorded**: `map-past-a-decision.flow.json` is `map-over-region-output`
+plus **one guarded edge**, which makes **all three of section 3's axes decide one reference** —
+without the suffix `FD-V29`, at the one form `FD-V28`, as written accepted. Its pair is *the array
+RESOLVES* against *the array is `[]`*, and the second reaches
+[W33](doc/work-items/w33-a-map-at-run-time-arity.md)'s N = 0 ruling **from a reference rather than
+from a worker returning an empty list**.
+
+**The two sharpest findings are about the HARNESS rather than the artifact, and the second hid the
+first.** A declared **ceiling** whose stated reason was false — the registry *is* a source both
+assertions read, and the probe survived only because the literal it substituted was **set-equal to
+the derived value**, which is W17's vacuous probe verbatim. And **the harness ran NOTHING for its
+five declared-survivor rows**: with `red: []` the command list was empty and the verdict restated the
+declaration, **0.26 s against 3.4 s for a real probe** — [Q151](doc/open-questions.md)'s shape one
+obligation across. **Closing that found five more defects in the same pass.** Six more of the
+conformity reader's findings were claims that were false, and **five of the six were COUNTS in files
+this item owns** while the item's own new clauses computed the same lists correctly.
+
+**Its adequacy reader's central finding is [W23](doc/work-items/w23-a-nested-flow-on-real-workers.md)'s
+at its THIRD iteration**: deleting **all** of W47's cross-row work took **two integer edits and one
+import line**, and L6 came back at the exact pre-W47 numbers — green, both runtimes, all five checks
+at exit 0 — and each of the three blocks was separately deletable the same way. **W35 answered the
+ROW half with `ROW_KEYS`, set equality and order; nothing did that for the CROSS-ROW layer**, which is
+where three consecutive items have put their whole output. `CROSS_ROW_SUBJECTS` is the analogue — the
+same deletion now costs 1 and **names which subject left** — and **the regress moves rather than
+closing**, which is stated ([Q217](doc/open-questions.md)). Two more of its blocking findings are
+**obligation (c)'s LIMIT unmet in the block that names it by id** ([Q216](doc/open-questions.md)):
+sourcing one of three lists from another costs 0 and the compound comes back green, so *"each clause
+is the other two's evidence"* was false, and it is **recorded as a limit rather than repaired**
+because the only second derivation available is a second regex over the same text.
+
+**Rule 8: 43 provocations, 33 CAUGHT, 7 declared survivors all MEASURED, 2 BOUND, 0 undeclared, 0
+aborts, 0 wrong-reason**, run twice with **seven of the readers' exact edits checked in** — and the
+re-run found a probe of the author's own reporting **WRONG-REASON because the ARTIFACT crashed** on an
+unguarded dereference rather than failing an assertion, which is v0.10's own requirement on the set
+firing inside the item that quotes it. **Readers 14 / 8 blocking and 27 mutations / 13 survivors / 6
+blocking, overlap 2** — the **twenty-fifth** measurement, inside the 0-4 band, both unprimed. **ONE
+late exception, zero undeclared** — the lowest of any product item in three plans, and it is
+`spec/README.md`, whose v0.14 row carried **four claims W46's own readers had withdrawn** in a cell
+`C8` does not compare. **P13's `Owns` test is answered ONE OF THREE here**, so over the plan it is `AGENTS.md` yes/yes/no, `spec/README.md` yes/yes/yes,
+`scripts/check-docs.mjs` no/yes/no — **a pre-declaration rule would have been wrong twice on two of
+the three** ([Q157](doc/open-questions.md)). **Census CONFIRMED for the THIRTEENTH plan running — 174
+questions, 125 open, 2 deferred, 47 resolved**, 0 aborts, on a parser written from scratch that was
+wrong in **three** directions first and then found a **fourth** register row rendering wrong:
+unescaped pipes **inside a code span**, in the row W45 added *about a census parser*, and **the row
+raised to record it carried the defect too** ([Q215](doc/open-questions.md)). **Q213-Q217 used; no
+ADR — 0042 is W45's and 0043 was skipped.** `npm run gate` is **`GATE EXIT=0`, zero FAIL lines,
+15 entries**, with L1-L5 **measured at 656 in all five runtimes** rather than inherited — and
+**[Q142](doc/open-questions.md) was re-measured and does NOT fire**, the first time in six retunes
+that the prediction has been checked and come back no.
 
 **[W46](doc/work-items/w46-what-a-reference-costs-and-whether-anything-says-so.md) is DONE, it takes NO
 ADR, and [Q186](doc/open-questions.md) is DECIDED and deliberately NOT CLOSED.** `spec/flow-definition.md`
@@ -1817,7 +1891,7 @@ concept -> plan -> work items -> verify (ladder, spec conformity, retro) -> reco
 
   ```bash
   npm run gate            # everything, both L6 runtimes included
-  npm run test:l6         # ladder L6, node 24 - thirty-eight real runs
+  npm run test:l6         # ladder L6, node 24 - forty real runs
   npm run test:l6:deno    # ladder L6, deno
   ```
 

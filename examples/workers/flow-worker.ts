@@ -9,9 +9,13 @@
  * [Q33](../../doc/open-questions.md)'s answer *Node and Deno* rather than
  * *Node only* — the leaning's whole argument was one worker file per runtime.
  *
- * **One class, EIGHT roles**, selected by the pool's `config` — which is how
- * `examples/run-flow.ts`'s nine pools are satisfied without nine near-identical
- * files. *(This read "three roles" and "`spec/examples/registry.json`'s three
+ * **One class, NINE roles**, selected by the pool's `config` — which is how
+ * `examples/run-flow.ts`'s TEN pools are satisfied without ten near-identical
+ * files. *(These read "EIGHT" and "nine" of the state before W45 added `attest` and
+ * `AttestWorker`; corrected by [W47](../../doc/work-items/w47-the-blocked-flow-on-real-workers.md),
+ * whose conformity reader found five such counts in this file and one next door —
+ * and whose own new clauses in `examples/l6.ts` compute all three lists, so the day
+ * a tenth role lands the clause goes red where the prose cannot.)* *(This read "three roles" and "`spec/examples/registry.json`'s three
  * `workerType` names" from the day it was written; the roles have been seven since
  * W35 and the registry lists **six**. W43's conformity reader, in the file whose own
  * change is "the role list is one list" — see `ROLES`.)*
@@ -36,9 +40,10 @@ export interface Confidence {
  *
  * There were **three** lists and nothing compared them: this union, the `switch`
  * arms in `run()`, and the `config: { role }` literals `buildScheduler` passes in
- * `../run-flow.ts`. All three said the same **seven** things before this item added
- * an eighth, and none of them had to — and the third is **nine** `pool()` call sites
- * naming eight distinct roles, because `fail` is registered twice. *(This paragraph
+ * `../run-flow.ts`. All three said the same **seven** things before W43 added an
+ * eighth, and none of them had to — and the third is **TEN** `pool()` call sites
+ * naming **NINE** distinct roles, because `fail` is registered twice. *(This read
+ * "nine call sites naming eight distinct roles" before W45's `AttestWorker`. W47.)* *(This paragraph
  * said "the same eight things" of the state BEFORE the eighth existed. W43's
  * conformity reader.)*
  * **Measured**: one letter changed in the pool's role — `pool('weighh', ...)` — and
@@ -52,10 +57,15 @@ export interface Confidence {
  * the reader measured the other one.** `Role` is `typeof ROLES[number]` and
  * `buildScheduler`'s `pool()` takes a `Role`, so a role a POOL invents is a
  * **typecheck** failure — ladder L0, before anything runs (measured: `pool('weighh',
- * …)` gives `TS2345` naming all eight), and removing `'weigh'` from `ROLES` is red
+ * …)` gives `TS2345` naming all nine), and removing `'weigh'` from `ROLES` is red
  * in two files. **What is still bound to nothing is `ROLES` -> the switch**: adding
  * `'zzz'` to `ROLES` with no arm and no pool costs **zero**, at L6 and at typecheck
- * both, so the list can still grow members nothing uses.
+ * both, so the list can still grow members nothing uses. **[W47](../../doc/work-items/w47-the-blocked-flow-on-real-workers.md)
+ * CLOSED that**: `examples/l6.ts` reads this file's `ROLES` block and `run()`'s arms
+ * as source text and compares them to `buildScheduler`'s registry both ways, so
+ * `'zzz'` now costs **2** and an arm for a role nothing declares costs **1**. That
+ * is rule 8 obligation (e)'s third shape at v0.13, in the direction the TYPE above
+ * cannot reach ([Q196](../../doc/open-questions.md)).**
  * [Q196](../../doc/open-questions.md). `run()` carries a `default` arm for the half
  * a type cannot reach — a config built at run time — and that arm turns the missing
  * case into a named refusal instead of the scheduler crash below. It is

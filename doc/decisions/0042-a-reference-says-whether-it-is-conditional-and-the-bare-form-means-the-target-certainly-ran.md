@@ -158,6 +158,15 @@ which is sharper than the prediction; `FD-V26`, `FD-V28`, `FD-R3`, `FD-C1`'s tab
   actually do, which is `FD-V28`'s own standard for a refusal message.
 - **A predicate can be conditional too.** An edge's `needs: {"earlier": "review?"}` gives a predicate
   a key that is there or is not, read as `'earlier' in ctx.needs`, with no second grammar.
+- **Two of the seven shapes above now run on real workers** — [W47](../work-items/w47-the-blocked-flow-on-real-workers.md),
+  and no rule changes. `nested-map: publish ["item"]` is that row's own entry, given
+  `needs: {"own": ".", "scores": ["item?"]}`; and `map-past-a-decision` is a new flow of exactly the
+  shape rule 2 is about — a decision routing around a whole map region — where the array **resolves**
+  on one payload and is **`[]`** on the other, so `over` names an empty array and the run folds to
+  `stuck`. **Rule 4's ARRAY half was observable nowhere before that**: `resolveReference`'s
+  `t.form === 'all' ? [] : ABSENT` arm was deletable for **zero** L6 failures, and it now costs 4.
+  *(That flow is the item's adequacy reader's construction, after W47 had recorded the array spelling
+  as unreachable at L6 and its conformity reader had falsified the stated reason.)*
 
 **What it costs, stated rather than discovered later.**
 

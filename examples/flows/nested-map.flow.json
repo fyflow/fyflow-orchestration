@@ -10,7 +10,9 @@
     { "id": "item",    "kind": "task",   "workerType": "ScoreWorker",  "edges": [ { "to": "gather" } ] },
     { "id": "gather",  "kind": "join",   "of": "perItem",              "edges": [ { "to": "collect" } ] },
     { "id": "collect", "kind": "join",   "of": "outer",                "edges": [ { "to": "publish" } ] },
-    { "id": "publish", "kind": "task",   "workerType": "PublishWorker","edges": [ { "to": "done" } ] },
+    { "id": "publish", "kind": "task",   "workerType": "PublishWorker",
+      "needs": { "own": ".", "scores": ["item?"] },
+      "edges": [ { "to": "done" } ] },
     { "id": "done",    "kind": "end",    "outcome": "completed" }
   ]
 }

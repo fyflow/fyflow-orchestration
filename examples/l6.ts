@@ -64,6 +64,11 @@ import {
   branchIndices,
   buildTaskId,
   parseTaskId,
+  // **W47, and it reaches the package ROOT like everything else here.** An example
+  // that reached past `index.ts` would be exercising a surface no consumer has —
+  // `AGENTS.md`'s own snippets import this name from `'fyflow-orchestration'`, so
+  // asserting a refusal here asserts the refusal a consumer gets.
+  validateDefinition,
   type FlowDefinition,
   type PolicyId,
   type Predicate,
@@ -170,6 +175,7 @@ import mapWithContext from './flows/map-with-context.flow.json' with { type: 'js
 import mapOverRegionOutput from './flows/map-over-region-output.flow.json' with { type: 'json' };
 import decisionOnAnEarlierStep from './flows/decision-on-an-earlier-step.flow.json' with { type: 'json' };
 import referenceIfItRan from './flows/reference-if-it-ran.flow.json' with { type: 'json' };
+import mapPastADecision from './flows/map-past-a-decision.flow.json' with { type: 'json' };
 import failureEdge from '../spec/examples/valid/failure-edge.flow.json' with { type: 'json' };
 
 /**
@@ -517,6 +523,16 @@ const MWC = mapWithContext as unknown as FlowDefinition;
 const MRO = mapOverRegionOutput as unknown as FlowDefinition;
 const DES = decisionOnAnEarlierStep as unknown as FlowDefinition;
 const RIR = referenceIfItRan as unknown as FlowDefinition;
+/**
+ * **W47's, and it exists because its adequacy reader CONSTRUCTED it.** The item
+ * had recorded the conditional ARRAY form as unreachable at L6 and its reader built
+ * a flow of exactly the shape P13 is about — a decision routing around a whole map
+ * region — that validates with zero findings, runs, and makes
+ * [ADR 0042](../doc/decisions/0042-a-reference-says-whether-it-is-conditional-and-the-bare-form-means-the-target-certainly-ran.md)
+ * rule 4's ARRAY half observable: `resolveReference`'s `t.form === 'all' ? [] :
+ * ABSENT` was deletable for **zero** L6 failures before these two rows.
+ */
+const MPD = mapPastADecision as unknown as FlowDefinition;
 
 const HIGH = { confidence: 0.9 };
 const LOW = { confidence: 0.1 };
@@ -533,6 +549,13 @@ const LOW = { confidence: 0.1 };
  * rule 3 and is what `nodeResults` below is pointed at.
  */
 const THREE_WORDS = { confidence: 0.9, text: 'a bb ccc' };
+/**
+ * **The same three words at a confidence a decision routes on** — W47. `LOW` above
+ * carries no `text`, so it cannot drive a map, and `THREE_WORDS` cannot drive a
+ * decision: the pair `map-past-a-decision` runs at needs both, and this is the half
+ * that did not exist.
+ */
+const THREE_WORDS_LOW = { confidence: 0.1, text: 'a bb ccc' };
 const TWO_WORDS = { confidence: 0.9, text: 'a bb' };
 const NO_WORDS = { confidence: 0.9, text: '' };
 /**
@@ -1372,15 +1395,36 @@ const EXPECTED: Expectation[] = [
     pathEnds: [{ reason: 'end', at: 'done' }],
     nodeResults: {
       // Branch 0 got a copy of the run's payload and scored it whole; branch 1's
-      // map split it into two and scored each item on its own.
+      // map split it into two and scored each item on its own. **Every dispatched
+      // id, because this row now declares a node-level `needs`** — W43's adequacy
+      // reader's bound, and W47 is the first item it obliged.
+      'r25:scoreA:0:0': { confidence: 0.9, score: 90 },
+      'r25:prep:1:0': {
+        confidence: 0.9,
+        items: [{ word: 'a', confidence: 0.1 }, { word: 'bb', confidence: 0.2 }],
+      },
+      'r25:item:1.0:0': { confidence: 0.1, score: 10 },
+      'r25:item:1.1:0': { confidence: 0.2, score: 20 },
       'r25:publish:-:0': {
         published: true,
         joinPayload: {
-          '0': { confidence: 0.9, score: 90 },
-          '1': {
-            '1.0': { confidence: 0.1, score: 10 },
-            '1.1': { confidence: 0.2, score: 20 },
+          // `"."` — what this node would have received had it declared nothing,
+          // which after a join is `JP-R12`'s collection. The row's original claim,
+          // unchanged and now reached through the self form.
+          own: {
+            '0': { confidence: 0.9, score: 90 },
+            '1': {
+              '1.0': { confidence: 0.1, score: 10 },
+              '1.1': { confidence: 0.2, score: 20 },
+            },
           },
+          // **`["item?"]` — the FIFTH spelling of section 3's table, on real
+          // workers.** `item` is inside `perItem`, which is inside `outer`'s branch
+          // 1, so `FD-V28` requires the array form and `FD-V29` refuses it
+          // WITHOUT the suffix: a run can reach `publish` without `item` having
+          // run, because branch 1 can be lost. Ascending `branchPath` order,
+          // `JP-R12`'s rule, so the value does not depend on settle order.
+          scores: [{ confidence: 0.1, score: 10 }, { confidence: 0.2, score: 20 }],
         },
       },
     },
@@ -1388,7 +1432,10 @@ const EXPECTED: Expectation[] = [
       'minted at an arity a worker chose, where W23`s dotted ids came from branch entries somebody ' +
       'wrote down; the inner join fires and enters the outer one AS branch 1 arriving, carrying its ' +
       'own JP-R12 collection — so the outer collection`s `1` is a collection. ADR 0030 rules 1-3 ' +
-      'and ADR 0037 rule 4, in one run',
+      'and ADR 0037 rule 4, in one run. W47 gave `publish` a `needs` of {own: ".", scores: ' +
+      '["item?"]}, which is the FIFTH spelling of section 3`s table reaching a real worker: ' +
+      'without the suffix FD-V29 refuses this document, so the `?` is load-bearing here and not ' +
+      'decoration — and `own` carries the collection this row has always asserted',
   },
   {
     // **`FD-R2` on real workers — the map's ONE run-time refusal, and the only
@@ -1848,6 +1895,113 @@ const EXPECTED: Expectation[] = [
       'completes; the unconditional form would have stopped it with FD-R3 on exactly this ' +
       'workload, which is the moment Q187 says is wrong',
   },
+  {
+    /**
+     * **The conditional ARRAY form on real workers, and its target is routed around
+     * by a DECISION** — W47, and the flow is its adequacy reader's construction.
+     *
+     * **What it exists for.** The item's first answer recorded `["n?"]` as
+     * unreachable at L6 and gave a reason its conformity reader falsified; its
+     * adequacy reader then measured the consequence — `resolveReference`'s
+     * `t.form === 'all' ? [] : ABSENT` arm, which is
+     * [ADR 0042](../doc/decisions/0042-a-reference-says-whether-it-is-conditional-and-the-bare-form-means-the-target-certainly-ran.md)
+     * rule 4's ARRAY half, was **deletable for zero L6 failures** — and built the
+     * flow that observes it. *Two readers, opposite ends, one hole.*
+     *
+     * **The shape is `map-over-region-output` plus a DECISION**, which is the whole
+     * difference: there `rank`'s `["score"]` is certain, so `FD-V29` is silent and no
+     * `?` is needed. Here `ingest` routes to `split` only when its own result is low
+     * confidence, so a run can reach `rank` without `score` having run — measured:
+     * without the suffix the document is refused under **`FD-V29` alone**, and with
+     * the ONE form under **`FD-V28`**, so all three of section 3's axes decide this
+     * one reference.
+     *
+     * **This row is the arriving half.** The payload is low confidence, so `split`
+     * runs, three `score` instances settle, and `["score?"]` resolves to their three
+     * outputs in ascending `branchPath` order — which `rank`'s `over` then makes an
+     * arity of three. Neither this row nor the next means anything without the
+     * other: the pair is *the key is there* against *the key is `[]`*.
+     */
+    key: 'map-past-a-decision LOW / FD-C4 — the array RESOLVES',
+    definition: MPD, policyId: 'live-token', payload: THREE_WORDS_LOW, threaded: false,
+    outcome: 'completed',
+    dispatched: [
+      'r35:ingest:-:0', 'r35:score:0:0', 'r35:score:1:0', 'r35:score:2:0',
+      'r35:publish:0:0', 'r35:publish:1:0', 'r35:publish:2:0',
+    ],
+    regionId: 'split',
+    joined: true,
+    settled: { '0': 'arrived', '1': 'arrived', '2': 'arrived' },
+    otherRegions: {
+      rank: { joined: true, settled: { '0': 'arrived', '1': 'arrived', '2': 'arrived' } },
+    },
+    pathEnds: [{ reason: 'end', at: 'done' }],
+    nodeResults: {
+      'r35:ingest:-:0': {
+        confidence: 0.1,
+        items: [{ word: 'a', confidence: 0.1 }, { word: 'bb', confidence: 0.2 }, { word: 'ccc', confidence: 0.3 }],
+      },
+      'r35:score:0:0': { confidence: 0.1, score: 10 },
+      'r35:score:1:0': { confidence: 0.2, score: 20 },
+      'r35:score:2:0': { confidence: 0.3, score: 30 },
+      'r35:publish:0:0': { published: true, joinPayload: { confidence: 0.1, score: 10 } },
+      'r35:publish:1:0': { published: true, joinPayload: { confidence: 0.2, score: 20 } },
+      'r35:publish:2:0': { published: true, joinPayload: { confidence: 0.3, score: 30 } },
+    },
+    why: 'W47 — the conditional ARRAY form `["score?"]` on real workers, past a DECISION. This is ' +
+      'map-over-region-output plus one guarded edge, and the edge is the whole difference: a run ' +
+      'can reach `rank` without `score` having run, so FD-V29 refuses the unconditional form and ' +
+      'FD-V28 refuses the one form — all three of section 3`s axes on one reference. Here the ' +
+      'guard holds, so the array resolves to three outputs in ascending branchPath order and ' +
+      '`over` makes them an arity of three. Its adequacy reader built this flow after measuring ' +
+      'ADR 0042 rule 4`s array half deletable for ZERO',
+  },
+  {
+    /**
+     * **`[]`, and the run STOPS ON ITS OWN ARITHMETIC** — W47, and the row ADR 0042
+     * rule 4's array half exists for.
+     *
+     * The payload is high confidence, so `ingest`'s guard is false and the run goes
+     * straight to `rank`. `score` never ran, so `["score?"]` resolves to **`[]`**
+     * rather than stopping the run with `FD-R3` — which is the whole of the `?` —
+     * and `over: "scores"` then names an **empty array**. A map of zero items opens
+     * no branches, dispatches nothing and can never be joined, so
+     * `spec/run-state.md`'s `RN-R10` makes the run **`stuck`** with **one** task
+     * dispatched. W33's N = 0 ruling, reached for the first time by a REFERENCE
+     * rather than by a worker returning an empty list.
+     *
+     * **`joined` is `null`, not `false`**: no policy said anything, exactly as the
+     * `map / N = 0` row records.
+     *
+     * **The discriminating pair.** With the arm deleted — `return ABSENT` for both
+     * forms — `scores` is absent instead of `[]`, `over` finds no key, and this run
+     * is `stopped` with an `UnresolvedReference` rather than `stuck`. *One row where
+     * `[]` and absent are two different run outcomes*, which is what neither of
+     * W45's two rows could say: there the form is `"n?"` and both spellings of
+     * *nothing* collapse to an absent key.
+     */
+    key: 'map-past-a-decision HIGH / FD-C4 — the array is `[]`, and the run is stuck',
+    definition: MPD, policyId: 'live-token', payload: THREE_WORDS, threaded: false,
+    outcome: 'stuck',
+    dispatched: ['r36:ingest:-:0'],
+    regionId: 'rank',
+    joined: null,
+    settled: {},
+    pathEnds: [],
+    nodeResults: {
+      'r36:ingest:-:0': {
+        confidence: 0.9,
+        items: [{ word: 'a', confidence: 0.1 }, { word: 'bb', confidence: 0.2 }, { word: 'ccc', confidence: 0.3 }],
+      },
+    },
+    why: 'W47 — the control for the row above, and the row ADR 0042 rule 4`s ARRAY half exists ' +
+      'for. 0.9 fails `ingest`s guard, so the run reaches `rank` without `score` having run: the ' +
+      'conditional array resolves to `[]` rather than stopping the run with FD-R3, `over` names ' +
+      'an empty array, and a map of zero items folds to `stuck` by RN-R10 with ONE task ' +
+      'dispatched. Delete the `t.form === "all" ? [] : ABSENT` arm and this run is `stopped` with ' +
+      'an UnresolvedReference instead — `[]` and ABSENT are two different run outcomes here, ' +
+      'which neither of W45`s rows can say',
+  },
 ];
 
 // --- assertions ---------------------------------------------------------------
@@ -1877,13 +2031,29 @@ let passed = 0;
 const sortedSettled = (m: Record<string, string> | undefined) =>
   m === undefined ? undefined : Object.fromEntries(Object.entries(m).sort(([x], [y]) => x.localeCompare(y)));
 
+/**
+ * **Every cross-row label, as it runs** — W47's adequacy reader, BLOCKING finding 1.
+ *
+ * It deleted each of W47's three new blocks in turn and then **all of W47's cross-row
+ * work at once**, editing `CROSS_ROW` and `DECLARED_TOTAL` and one import line, and
+ * L6 came back at **806 assertions / 38 real runs, 0 failed** in both runtimes with
+ * all five checks at exit 0 — *exactly the pre-W47 numbers.* That is W23's finding at
+ * its THIRD iteration: W35 answered the ROW half with `ROW_KEYS`, set equality **and**
+ * order, so *"a deleted row fails naming itself"* — and **there was no analogue for
+ * the cross-row layer**, which is where W47 put all of its output.
+ *
+ * `CROSS_ROW_SUBJECTS` below is that analogue, and this array is what feeds it.
+ */
+const crossRowLabels: string[] = [];
 const check = (row: string, what: string, actual: unknown, expected: unknown): void => {
+  if (row === 'cross-row') crossRowLabels.push(what);
   const a = JSON.stringify(actual);
   const e = JSON.stringify(expected);
   if (a === e) passed++;
   else failures.push(`${row}\n      ${what}\n      expected: ${e}\n      actual:   ${a}`);
 };
 const assertThat = (row: string, what: string, cond: boolean, detail = ''): void => {
+  if (row === 'cross-row') crossRowLabels.push(what);
   if (cond) passed++;
   else failures.push(`${row}\n      ${what}${detail ? `\n      ${detail}` : ''}`);
 };
@@ -2578,6 +2748,56 @@ const ROW_KEYS: readonly string[] = [
   'map-with-context / a SECOND run config — the key is read, not guessed',
   'reference-if-it-ran LOW / FD-C4 — the key is THERE',
   'reference-if-it-ran HIGH / FD-C4 — the key is ABSENT, and the run completes',
+  'map-past-a-decision LOW / FD-C4 — the array RESOLVES',
+  'map-past-a-decision HIGH / FD-C4 — the array is `[]`, and the run is stuck',
+];
+
+/**
+ * **What the cross-row layer ASSERTS ABOUT, one subject per block** — W47, and it is
+ * `ROW_KEYS`' analogue one layer in.
+ *
+ * `ROW_KEYS` makes a deleted ROW fail naming itself. Nothing did that for the
+ * cross-row clauses, so W47's adequacy reader deleted all three of this item's blocks
+ * for **two integers and one import line** and L6 reported the pre-W47 numbers, green.
+ * Each string below is a substring of a label some cross-row block emits; the clause
+ * at the foot of this file requires every one of them to have been emitted, so
+ * **deleting a block fails naming the subject that left** rather than passing at a
+ * lower count.
+ *
+ * **The residual regress is stated rather than hidden**: this list is a literal, so
+ * deleting a block AND its subject is two edits in one diff — which is exactly what
+ * `ROW_KEYS`' own header says of itself, and is [Q102](../doc/open-questions.md)'s
+ * shape. What it removes is the *silent* case, where an integer edit leaves no name
+ * behind. [Q217](../doc/open-questions.md).
+ *
+ * **A substring rather than the whole label**, because a label is prose that gets
+ * re-worded and a subject is what the block is about — the same reason `ROW_KEYS`
+ * holds keys rather than `why` strings.
+ */
+const CROSS_ROW_SUBJECTS = [
+  'the loop above ran at all',
+  'RN-R6',
+  'Q41: the sequence carries pathEnded',
+  'isLowConfidence returned FALSE at 0.9',
+  'ADR 0025: the same run completes',
+  'JP-R9 at L6',
+  'L6 runs a `map`',
+  'EXPECTED runs exactly the rows this file declares',
+  'every node kind the spec corpus expresses',
+  'whose NODE declares a needs',
+  'the two map-with-context rows run at DIFFERENT run configs',
+  'the two `reference-if-it-ran` rows are a PAIR',
+  '`earlierWasLowConfidence` returned TRUE on one row',
+  'one reference form per row of spec/flow-definition.md',
+  'L6 runs the flow P13 exists for',
+  'one more SPELLING than it has rows',
+  'the conditional ARRAY form included',
+  'has a POOL',
+  '`ROLES` declares, both ways',
+  'reaches past index.ts into src/',
+  'at least one DOTTED branch path',
+  'the printed table names region',
+  'the foreign-task list is six',
 ];
 
 /**
@@ -2605,6 +2825,272 @@ async function referenceFormsInSpecAsync(): Promise<number> {
 }
 const REFERENCE_FORMS_IN_SPEC = await referenceFormsInSpecAsync();
 const referenceFormsInSpec = () => REFERENCE_FORMS_IN_SPEC;
+
+/**
+ * **A SPELLING is not a ROW, and section 3's table has four rows and five
+ * spellings** — [W47](../doc/work-items/w47-the-blocked-flow-on-real-workers.md).
+ *
+ * `referenceFormsInSpec()` above counts the table's body ROWS, which is what the
+ * `forms` bucketing below is a claim about. **W45 made `?` a MODIFIER rather than a
+ * fourth form**, so the table's fourth row carries *two* spellings — `"score?"` and
+ * `["score?"]` — and a bucketing over rows cannot see that L6 runs one of them and
+ * not the other. This is the second source, and the claim it supports is an
+ * ABSENCE — which the row set has otherwise only ever recorded in a comment, the
+ * control pair's empty `onUnmintedTask` array being an absence this file already
+ * asserts.
+ *
+ * **One normaliser, two sources.** `spellingOf` is used on the table's tokens and on
+ * the definitions the rows run, so the comparison is about the two SOURCES rather
+ * than about two copies of one expression — `doc/workflow.md` section 5 rule 8
+ * obligation (c)'s procedure. **Its LIMIT applies and is answered**: a normaliser
+ * shared by both sides moves both sides together, so the count clause below is the
+ * second, independent observer over it — collapse `spellingOf` and the table stops
+ * naming one more spelling than it has rows.
+ */
+const spellingOf = (ref: unknown): string => {
+  const one = Array.isArray(ref) ? ref[0] : ref;
+  const suffix = typeof one === 'string' && one.endsWith('?') ? '?' : '';
+  return ref === '.' ? '.' : `${Array.isArray(ref) ? '["n"]' : '"n"'}${suffix}`;
+};
+
+async function referenceSpellingsInSpecAsync(): Promise<string[]> {
+  const deno = (globalThis as Record<string, unknown>).Deno as
+    { readTextFile?: (x: URL) => Promise<string> } | undefined;
+  const u = new URL('../spec/flow-definition.md', import.meta.url);
+  const text = deno?.readTextFile
+    ? await deno.readTextFile(u)
+    : await (await import('node:fs/promises')).readFile(u, 'utf8');
+  const lines = text.split(/\r?\n/);
+  const head = lines.findIndex((l) => l.startsWith('| a reference is | and resolves to |'));
+  if (head < 0) throw new Error('spec/flow-definition.md section 3`s reference table is not there');
+  const out = new Set<string>();
+  for (let i = head + 2; i < lines.length && lines[i]!.startsWith('|'); i++) {
+    // The FIRST cell only — the second is prose about what the form resolves to and
+    // quotes node ids and rule ids in backticks.
+    const cell = lines[i]!.slice(1).split('|')[0] ?? '';
+    for (const m of cell.matchAll(/`([^`]+)`/g)) {
+      // **A spelling, not the row's own commentary.** Section 3's grammar admits a
+      // JSON string or a one-element JSON array and nothing else, so a token that
+      // does not parse as one of those is prose — which is exactly what the fourth
+      // row's `?` is, and it is why this filters by PARSE rather than by position.
+      let v: unknown;
+      try {
+        v = JSON.parse(m[1]!);
+      } catch {
+        continue;
+      }
+      const one = Array.isArray(v) ? v[0] : v;
+      if (typeof one !== 'string') continue;
+      out.add(spellingOf(v));
+    }
+  }
+  if (out.size === 0) {
+    throw new Error('section 3`s reference table names no spellings, so the bound would be vacuous');
+  }
+  return [...out].sort();
+}
+const REFERENCE_SPELLINGS_IN_SPEC = await referenceSpellingsInSpecAsync();
+
+/**
+ * **The pool registry, `ROLES` and `run()`'s arms are THREE lists saying the same
+ * nine things, and one of the three comparisons is recorded as costing zero** —
+ * [W47](../doc/work-items/w47-the-blocked-flow-on-real-workers.md), and it is this
+ * item's deliberate instantiation of `doc/workflow.md` section 5 rule 8 obligation
+ * (e)'s **THIRD SHAPE** at v0.13: *a LIST is a claim about another list; find the
+ * other list and compare BOTH WAYS.*
+ *
+ * `examples/workers/flow-worker.ts`'s own header says it: *"What is still bound to
+ * nothing is `ROLES` -> the switch: adding `'zzz'` to `ROLES` with no arm and no pool
+ * costs **zero**, at L6 and at typecheck."* W43 closed the other direction with a
+ * **TYPE** — `pool`'s parameter is `Role`, so `pool('weighh', …)` is `TS2345` at
+ * ladder L0 — and [Q196](../doc/open-questions.md) is the finding that **a type closes
+ * one direction only.** This is the direction it cannot: a role declared and used by
+ * nothing. **The THIRD pair is nobody's**: neither W43's Record nor Q196 says anything
+ * about the registry against the documents' workerTypes, and this item is the first to
+ * compare them. *(This paragraph read *"W43 recorded that two of the three comparisons
+ * cost zero"* and *"nothing would have said so had W45 added only one"* — both false,
+ * and both v0.7 change 4's case, a claim about another item read from somewhere other
+ * than that item's own file. W47's conformity reader.)*
+ *
+ * **Measured before the clauses were written, and the measurement is the result:**
+ * the pool registry declares **10** workerTypes and the 18 flow documents L6 runs
+ * name exactly those **10**; the registry uses **9** distinct roles, `ROLES` declares
+ * **9** and `run()` has **9** arms; **all three pairs agree in both directions and no
+ * defect is live.** So this is a bound with no live case, which is
+ * [W25](../doc/work-items/w25-a-link-is-a-link-and-an-anchor-is-an-anchor.md)'s own
+ * situation stated rather than dressed up: *a check written for a defect you just
+ * fixed has no live case, so its probes are the whole of its evidence.* It is taken
+ * because W45 added BOTH a role and a pool, and of the two ways that could have gone
+ * wrong the pool-only one is `TS2345` at L0 and **the role-only one is silent** —
+ * which is the asymmetry Q196 names.
+ *
+ * **Read as SOURCE TEXT rather than imported**, deliberately and for two reasons: the
+ * pool registry is an object literal inside `buildScheduler` and is not a value any
+ * module exports, and importing `flow-worker.ts` for `ROLES` would load a worker
+ * module into the harness process. This is v0.12's own procedure for obligation (e)'s
+ * second question — *read the default DECLARATION rather than running it* — and every
+ * extraction **throws** when it finds nothing, because a regex that silently returns
+ * `[]` makes a set equality pass on two empty sides.
+ */
+async function workerListsAsync(): Promise<{
+  poolTypes: string[];
+  poolRoles: string[];
+  declaredRoles: string[];
+  switchArms: string[];
+}> {
+  const deno = (globalThis as Record<string, unknown>).Deno as
+    { readTextFile?: (x: URL) => Promise<string> } | undefined;
+  const read = async (rel: string): Promise<string> => {
+    const u = new URL(rel, import.meta.url);
+    return deno?.readTextFile
+      ? await deno.readTextFile(u)
+      : await (await import('node:fs/promises')).readFile(u, 'utf8');
+  };
+  const nonEmpty = <T>(xs: T[], what: string): T[] => {
+    if (xs.length === 0) throw new Error(`${what} extracted nothing, so the bound would be vacuous`);
+    return xs;
+  };
+
+  // ---- the pool registry: the object literal `buildScheduler` returns ----
+  const rf = await read('./run-flow.ts');
+  const at = rf.indexOf('return new FyflowScheduler({');
+  if (at < 0) throw new Error('examples/run-flow.ts no longer returns a pool registry literal');
+  const registry = [...rf.slice(at).matchAll(/^ {4}(\w+): pool\('(\w+)'/gm)];
+  nonEmpty(registry, 'the pool registry');
+
+  // ---- ROLES: comment lines dropped, because the block carries prose ----
+  const wf = await read('./workers/flow-worker.ts');
+  const rolesAt = wf.indexOf('export const ROLES = [');
+  if (rolesAt < 0) throw new Error('examples/workers/flow-worker.ts no longer declares ROLES');
+  const rolesBlock = wf.slice(rolesAt, wf.indexOf('] as const;', rolesAt))
+    .split('\n').filter((l) => !l.trimStart().startsWith('//')).join('\n');
+  const declaredRoles = nonEmpty([...rolesBlock.matchAll(/'(\w+)'/g)].map((m) => m[1]!), 'ROLES');
+  // ---- and `run()`'s arms. One switch in that file, over `this.role`. ----
+  const switchArms = nonEmpty([...wf.matchAll(/^ {6}case '(\w+)':/gm)].map((m) => m[1]!), "run()`s arms");
+
+  return {
+    poolTypes: [...new Set(registry.map((m) => m[1]!))].sort(),
+    poolRoles: [...new Set(registry.map((m) => m[2]!))].sort(),
+    declaredRoles: [...new Set(declaredRoles)].sort(),
+    switchArms: [...new Set(switchArms)].sort(),
+  };
+}
+const WORKER_LISTS = await workerListsAsync();
+
+/**
+ * **Does ladder L6 exercise the surface a CONSUMER has?** — W47, and it is this
+ * item's instantiation of `doc/workflow.md` section 5 rule 8 obligation (e)'s
+ * **SECOND QUESTION** at v0.12: not *was the check run*, but **was what it RAN what
+ * SHIPS.**
+ *
+ * An example reaching past `index.ts` into `src/` would be exercising a surface **no
+ * consumer resolves**, and the reason is the manifests rather than any prose: npm
+ * ships a bundle and `exports["."]` selects `dist/node/index.js`, while JSR's
+ * `deno.json` publishes `src/` behind a `publish.exclude` allowlist and gates the
+ * whole of it behind `exports: "./index.ts"`. **Either way `src/…` is not a specifier
+ * a consumer of either package can name.** *(This cited `spec/runtime-targets.md`
+ * section 1 for *"both publish `./index.ts` and nothing else"*, which that table says
+ * of neither half — it is mirrored from the SCHEDULER's manifests and its npm row
+ * reads `dist/node/index.js`. W47's conformity reader; the conclusion survives on the
+ * two facts above and its stated evidence did not.)* **No document states the
+ * consequence for `examples/**` as a rule** — which is why this clause states it
+ * rather than citing it. This item is the first to import a *validator* into L6 —
+ * every earlier import here was a driver, an id helper or a policy — so it is the
+ * first item for which the shorter path was available and tempting.
+ *
+ * **Measured with the item's own provocation set, and RE-TAKEN on the tree this item
+ * ships** (section 1 rule 5's WHEN clause): rewriting `l6.ts`'s `validateDefinition`
+ * import to `'../src/definition/validate.ts'` leaves `check-source` at **`All checks
+ * passed`, exit 0**, `deno lint` at `Checked 48 files`, both typechecks clean — and
+ * **this clause red**, reporting `expected: [] / actual: ["./l6.ts"]`. *(The first
+ * version of this paragraph said "both L6 rungs at 818 assertions" and "nothing
+ * noticed", which was the tree BEFORE this clause and the two beside it existed —
+ * true of no tree the item ships. W47's conformity reader.)* Today no file under
+ * `examples/` reaches into `src/` at all, so it is a bound with no live case and its
+ * probe is the whole of its evidence — and P12's retro found that *the author reaches
+ * none of* obligation (e)'s instances, all nine of its own passing and every one found
+ * by a reader. **This one is the author's**, which is a datum P13's retro is owed.
+ *
+ * **It lives here rather than in `scripts/check-source.mjs`** because `scripts/**` is
+ * in nobody's `Owns` — [Q121](../doc/open-questions.md)'s and
+ * [Q126](../doc/open-questions.md)'s standing problem, and P8's own reason for
+ * declining two checks — and because the claim is about `examples/**`, which is this
+ * item's block. The regress it leaves is [Q213](../doc/open-questions.md): a check
+ * inside the thing it checks is deletable with it, and what stands against that here
+ * is `D6` (both rungs run THIS file) plus `DECLARED_TOTAL`.
+ */
+const REACHES_PAST_INDEX = /from\s+'(?:\.\.\/)+src\//;
+/**
+ * **The detector's POSITIVE case, checked in** — W47's adequacy reader, finding 4.
+ *
+ * Neutralising the regex — `src` to `zzz` — cost **zero**, and the compound (the real
+ * defect present, the regex neutralised) came back green in both runtimes with
+ * `check-source`, `lint` and both typechecks at exit 0. **The clause had exactly one
+ * observer and no case that made it fire**, which is obligation (c)'s LIMIT stated of
+ * a detector rather than of a value: *a sensor cannot corroborate itself.*
+ *
+ * These three strings are that second observer. They are not a sample of the tree —
+ * the tree is clean, which is the whole problem — so they are the only place the
+ * matching itself is exercised, and the third one is what stops the regex being
+ * widened to `/src/` and matching every relative import here.
+ */
+// **Assembled from parts, and it has to be**: written as literals these three cases
+// would make THIS file its own offender — the sweep reads `l6.ts` and the regex would
+// match the fixture. Measured: it did, and the clause failed naming `./l6.ts`. *A
+// detector's positive fixture cannot be written in a file the detector reads.*
+const UP = '..' + '/';
+const REACH_CASES: [string, boolean][] = [
+  [`import { validateDefinition } from '${UP}src/definition/validate.ts';`, true],
+  [`import { Driver } from '${UP}${UP}src/driver/driver.ts';`, true],
+  [`import { POLICIES } from '${UP}index.ts';`, false],
+];
+async function examplesReachingPastIndexAsync(): Promise<
+  { files: string[]; read: string[]; offenders: string[] }
+> {
+  const deno = (globalThis as Record<string, unknown>).Deno as {
+    readTextFile?: (x: URL) => Promise<string>;
+    readDir?: (x: URL) => AsyncIterable<{ name: string }>;
+  } | undefined;
+  const listDir = async (rel: string): Promise<string[]> => {
+    const u = new URL(rel, import.meta.url);
+    if (deno?.readDir) {
+      const out: string[] = [];
+      for await (const e of deno.readDir(u)) out.push(e.name);
+      return out;
+    }
+    return await (await import('node:fs/promises')).readdir(u);
+  };
+  const readText = async (rel: string): Promise<string> => {
+    const u = new URL(rel, import.meta.url);
+    return deno?.readTextFile
+      ? await deno.readTextFile(u)
+      : await (await import('node:fs/promises')).readFile(u, 'utf8');
+  };
+  // Both directories that hold TypeScript here, listed from disk rather than named:
+  // a third one appearing is not this clause's business, but a file appearing in
+  // either of these is.
+  const files: string[] = [];
+  for (const dir of ['./', './workers/']) {
+    for (const name of await listDir(dir)) if (name.endsWith('.ts')) files.push(`${dir}${name}`);
+  }
+  if (files.length === 0) {
+    throw new Error('the examples/ sweep listed no TypeScript at all, so the bound would be vacuous');
+  }
+  const offenders: string[] = [];
+  // **`read` is what was actually OPENED, and it is a different list from `files`** —
+  // the adequacy reader's finding 4b: narrowing this loop to `files.slice(1)` skipped
+  // `l6.ts`, the one file the clause was written against, and the companion clause
+  // below read the LISTING and passed. Both lists are returned and compared.
+  const read: string[] = [];
+  for (const f of files) {
+    read.push(f);
+    // `from '<any number of ../>src/...'` — the shape a shortcut takes whichever
+    // directory it is written from.
+    if (REACHES_PAST_INDEX.test(await readText(f))) offenders.push(f);
+  }
+  return { files, read, offenders };
+}
+const EXAMPLES_REACH = await examplesReachingPastIndexAsync();
 
 check('cross-row', 'EXPECTED runs exactly the rows this file declares, in order',
   EXPECTED.map((e) => e.key), ROW_KEYS);
@@ -3326,12 +3812,18 @@ for (const row of PAIR_ROWS) console.log(`    ${w(row.key, KEY_W)}${row.why}`);
 const PER_REGION_ROW = 17;
 const PER_PLAIN_ROW = 15;
 /**
- * **18 since W35**, from 13: the five clauses that hold the map shape down. They
- * are cross-row rather than per-row for the reason W23's dotted-path clause is —
- * a per-row assertion dies with the row it is in, and what W23's adequacy reader
- * deleted was the rows.
+ * **The cross-row block's own size, and it is a number a human writes** — 13 at
+ * W23, 18 at W35, 32 at W43, 39 at W45, **57 at W47**. They are cross-row rather
+ * than per-row for the reason W23's dotted-path clause is — a per-row assertion
+ * dies with the row it is in, and what W23's adequacy reader deleted was the rows.
+ *
+ * *(This paragraph read "18 since W35, from 13" for two plans while the constant
+ * below went to 39 and then to 57, three lines above the number it described —
+ * [Q202](../doc/open-questions.md)'s shape in the file that carries the count.
+ * W47's conformity reader; it is now a SEQUENCE rather than a latest value, so the
+ * next item appends rather than rewriting.)*
  */
-const CROSS_ROW = 39;
+const CROSS_ROW = 61;
 const base = (shape: string) => (shape === 'region' ? PER_REGION_ROW : PER_PLAIN_ROW);
 for (const [key, shape, cost, extras] of rowCosts) {
   if (cost !== base(shape) + extras) {
@@ -3478,7 +3970,8 @@ if (rowCosts.length !== EXPECTED.length) {
       [...tookReview].sort(), [false, true]);
   }
   /**
-   * **And the THREE reference forms, because a form is what `FD-V28` decides on.**
+   * **And the reference FORMS, because a form is what `FD-V28` decides on** — four of
+   * them since W45 made `?` a modifier, which is what the bound below compares.**
    * `"."` is *what I would have received anyway*, a bare node id names ONE output,
    * and `["n"]` names one per item of a map region the reader is outside of. Two of
    * the three were unreachable at L6 before this item and the third has never been
@@ -3536,6 +4029,237 @@ if (rowCosts.length !== EXPECTED.length) {
   // L1, and the half a count cannot see on its own.
   check('cross-row', 'and they are the four the table names, not four of something else',
     [...forms].sort(), ['all', 'one', 'self', 'suffix']);
+
+  /**
+   * **`FD-V29`'s REFUSAL, made observable at L6 — W47, and it is this item's
+   * headline.**
+   *
+   * **Measured before this block existed: deleting `FD-V29` from
+   * `src/definition/validate.ts` cost ZERO L6 failures.** `806 assertions, 0 failed,
+   * exit 0`, against a clean control before and after. So
+   * [ADR 0042](../doc/decisions/0042-a-reference-says-whether-it-is-conditional-and-the-bare-form-means-the-target-certainly-ran.md)
+   * rule 2 — the half [Q187](../doc/open-questions.md) was asked for — was
+   * unobserved on real workers, while `FD-C4` cost 5 and the suffix going unparsed
+   * stopped the run from reporting at all.
+   *
+   * **The reason is structural rather than an oversight in the row set.** Every
+   * reference any L6 row runs is either certain or written with a `?`, because a row
+   * is a RUN and *a document `FD-V29` refuses does not start*. A row for the refused
+   * document would be a row with no run, no dispatch and no worker — which is why
+   * this is not another `EXPECTED` entry. **A rule whose whole effect is that a run
+   * never happens is invisible to a rung made of runs**, which is
+   * [W35](../doc/work-items/w35-a-map-on-real-workers.md)'s *`N` too small completes
+   * and is silent* one rule along, and W23's *four rows deletable for one edited
+   * number* from the other direction.
+   *
+   * So the refusal is asserted **on the definition this file RUNS**: take `RIR`, make
+   * its one reference unconditional, and require `validateDefinition` — reached
+   * through `index.ts`, which is the surface a consumer has — to refuse it under
+   * `FD-V29` and nothing else.
+   *
+   * **Two observers over one fact** (obligation (c)'s LIMIT): the finding's `rule`
+   * and the finding's `detail`. A refusal that fired under the wrong id passes
+   * neither; a refusal reported with a useless message passes the first only.
+   *
+   * **The registry is held CONSTANT across the pair** and is derived from the
+   * document's own nodes, deliberately: the claim is about the suffix, so the
+   * registry must not be a second variable. **It is a source both assertions read** —
+   * W47's conformity reader measured that a registry missing `AttestWorker` takes the
+   * refusal set to `["FD-V29","FD-V5"]` and the control from 0 to 1 — so the probe
+   * for it is a PROVENANCE probe rather than a ceiling, and the literal it substitutes
+   * has to differ from the derived value or it changes nothing. **`FD-V5` is the
+   * workerType rule** — *a `task`'s `workerType` is not a key in the scheduler's
+   * `workerPools`* — and this block's first version cited `FD-V16`, which is the id
+   * charset.
+   */
+  {
+    const ran = EXPECTED.filter((e) => e.definition === RIR);
+    check('cross-row', 'L6 runs the flow P13 exists for, and runs it at both of its payloads',
+      ran.length, 2);
+    // The reference the rows above actually carry, read off the definition rather
+    // than restated here — so editing the flow moves this clause with it.
+    const needsOf = (d: FlowDefinition, id: string) =>
+      (d.nodes.find((n) => n.id === id) as unknown as { needs: Record<string, unknown> }).needs;
+    check('cross-row', 'and its reference is written CONDITIONALLY, which is what lets it run at all',
+      needsOf(RIR, 'publish').verdict, 'review?');
+
+    // The same document with the suffix removed — one character, and nothing else.
+    const bare = JSON.parse(JSON.stringify(RIR)) as FlowDefinition;
+    needsOf(bare, 'publish').verdict = 'review';
+    // **And that the pair differs in exactly that one character is itself a claim** —
+    // rule 8's fourth requirement on the SET. Putting the suffix back must give the
+    // document L6 runs, byte for byte; without this the `bare` construction could
+    // drift into a second difference and the refusal below would be about that.
+    const restored = JSON.parse(JSON.stringify(bare)) as FlowDefinition;
+    needsOf(restored, 'publish').verdict = 'review?';
+    check('cross-row', 'and the two documents differ in exactly that one character — the pair`s own claim',
+      JSON.stringify(restored), JSON.stringify(RIR));
+
+    const registry = {
+      predicates: [...predicates.keys()],
+      workerTypes: RIR.nodes.filter((n) => n.kind === 'task')
+        .map((n) => (n as unknown as { workerType: string }).workerType),
+    };
+    const refused = validateDefinition(bare, registry);
+    check('cross-row', 'and WITHOUT the suffix the same document is REFUSED, under FD-V29 and nothing else',
+      [...new Set(refused.map((f) => f.rule))].sort(), ['FD-V29']);
+    assertThat('cross-row',
+      'and the refusal names the fix — `"review?"`, which is the document L6 actually runs',
+      refused.some((f) => f.detail.includes('"review?"')),
+      `details: ${refused.map((f) => f.detail).join(' | ').slice(0, 240)}`);
+    // **The CONTROL, and it is what stops all of the above passing for the wrong
+    // reason** (`doc/workflow.md` section 5 rule 8's requirement on the harness): the
+    // document L6 runs is ACCEPTED, so the refusal is a property of the suffix rather
+    // than of the flow, of the registry, or of a validator that refuses everything.
+    check('cross-row', 'while the document L6 RUNS is accepted — the control for the three above',
+      validateDefinition(RIR, registry).length, 0);
+  }
+
+  /**
+   * **All FIVE of section 3's spellings reach a real worker** — W47, and this item's
+   * declared Output (3).
+   *
+   * The `forms` bound above compares four buckets to the table's four ROWS and is
+   * satisfied by four spellings, because the table's fourth row carries **two** —
+   * `"n?"` and `["n?"]` — and a bucketing over rows cannot see that one of them is
+   * absent. So a spelling is not a row, and this is the second source.
+   *
+   * **The first version of this block asserted an ABSENCE and its stated reason was
+   * FALSE** — W47's conformity reader. It said `["n?"]` needs *"a map region inside a
+   * branch the run loses, which is a flow this repository does not have"*, and
+   * `nested-map.flow.json` is that shape and is a row on this rung; `map-in-fanout`
+   * in the normative corpus is a second instance, and ADR 0042's own seven-shape list
+   * names both. **Measured on the shipped document**: `publish.needs.x = ["item"]`
+   * gives `FD-V29`, `["item?"]` is ACCEPTED. So the coverage the item owed was one
+   * `needs` key away on a flow already running, and it is taken rather than recorded
+   * as an absence.
+   *
+   * **Both halves**, because either alone is satisfiable by the other's absence: the
+   * COUNT says the table names one more spelling than it has rows, and the SET says
+   * which five.
+   */
+  {
+    const l6Spellings = new Set<string>();
+    for (const e of EXPECTED) {
+      for (const n of e.definition.nodes) {
+        const sites = [(n as { needs?: Record<string, unknown> }).needs,
+          ...((n as { edges?: { needs?: Record<string, unknown> }[] }).edges ?? []).map((x) => x.needs)];
+        for (const site of sites) for (const ref of Object.values(site ?? {})) l6Spellings.add(spellingOf(ref));
+      }
+    }
+    // **Derived from the ROW count rather than from a literal `5`**, and it says the
+    // structural thing: exactly one of the table's rows carries two spellings, which
+    // is what *`?` is a modifier* means in the table rather than in the prose.
+    check('cross-row', 'section 3`s table names exactly one more SPELLING than it has rows — `?` is a modifier',
+      REFERENCE_SPELLINGS_IN_SPEC.length, referenceFormsInSpec() + 1);
+    assertThat('cross-row', 'and the conditional ARRAY spelling is one the table actually NAMES, ' +
+      'so the set equality below is over five and not over four',
+      REFERENCE_SPELLINGS_IN_SPEC.includes('["n"]?'),
+      `the table names: ${REFERENCE_SPELLINGS_IN_SPEC.join(', ')}`);
+    check('cross-row', 'and L6 runs every one of them, the conditional ARRAY form included',
+      [...l6Spellings].sort(), REFERENCE_SPELLINGS_IN_SPEC);
+    // **And that the fifth one's `?` is LOAD-BEARING where L6 runs it**, which is
+    // what stops it being a spelling somebody wrote for the sake of the count:
+    // strip the suffix from `nested-map`'s own reference and `FD-V29` refuses the
+    // document. Same shape as the `RIR` block above, at the other aimed form, and
+    // derived from the definition this file runs rather than from a literal.
+    {
+      // **`?? {}` and not a dereference** — rule 8's own requirement that a
+      // provocation fires FOR THE REASON IT NAMES. Removing the reference from
+      // `nested-map.flow.json` left this `undefined` and L6 **crashed**, which reads
+      // as a detection and is not one: the run reported no assertions at all. It now
+      // fails as an assertion naming the key that left.
+      const nmPublish = ((NM.nodes.find((n) => n.id === 'publish') as unknown as
+        { needs?: Record<string, unknown> }).needs) ?? {};
+      check('cross-row', 'and the fifth spelling is written where `FD-V28` requires the array form',
+        nmPublish.scores ?? null, ['item?']);
+      // Built defensively for the same reason as above: with the reference gone this
+      // must still produce a document, so that the clause which FAILS is the one that
+      // says the reference left rather than a `TypeError` that says nothing.
+      const bareNm = JSON.parse(JSON.stringify(NM)) as FlowDefinition;
+      const bareNmPublish = bareNm.nodes.find((n) => n.id === 'publish') as unknown as
+        { needs?: Record<string, unknown> };
+      bareNmPublish.needs = { ...(bareNmPublish.needs ?? {}), scores: ['item'] };
+      const reg = {
+        predicates: [...predicates.keys()],
+        workerTypes: NM.nodes.filter((n) => n.kind === 'task')
+          .map((n) => (n as unknown as { workerType: string }).workerType),
+      };
+      check('cross-row', 'and WITHOUT its suffix that document is REFUSED under FD-V29 — the `?` ' +
+        'is load-bearing at the ARRAY form too, which the `RIR` pair cannot say',
+        [...new Set(validateDefinition(bareNm, reg).map((f) => f.rule))].sort(), ['FD-V29']);
+      check('cross-row', 'while the document L6 runs is accepted — the control for the two above',
+        validateDefinition(NM, reg).length, 0);
+    }
+  }
+
+  /**
+   * **The three lists, compared both ways** — W47, and the reasoning is at
+   * `workerListsAsync` above.
+   *
+   * **This block claimed each clause was the OTHER two's evidence that the extraction
+   * worked, and that is FALSE** — W47's adequacy reader. It is true of an extraction
+   * returning NOTHING, which `nonEmpty` throws on; it is false of one **re-sourced to
+   * its counterpart.** Measured: `poolRoles` sourced from `declaredRoles` costs 0, and
+   * the compound — a role declared with an arm and no pool, which is the one direction
+   * these clauses exist for — comes back **green** where the real source costs 1. The
+   * same for `poolTypes` sourced from `documentTypes`.
+   *
+   * **So each of the three facts has exactly ONE observer, and that is a declared
+   * limit rather than a repaired one** ([Q216](../doc/open-questions.md)). The second
+   * observer v0.13 asks for would have to be a second DERIVATION of the same fact, and
+   * the only one available is a second regex over the same text — *a sensor
+   * corroborating itself*, which is what obligation (c)'s LIMIT names. What the block
+   * does buy is measured and is not nothing: `'zzz'` in `ROLES` costs **2**, an arm
+   * for a role nothing declares costs **1**, a pool no document names costs **1**, and
+   * all three were **0** before it. [Q212](../doc/open-questions.md)'s shape — a proxy
+   * bounded in one direction, recorded rather than dressed up.
+   */
+  {
+    const documentTypes = new Set<string>();
+    for (const e of EXPECTED) {
+      for (const n of e.definition.nodes) {
+        const wt = (n as unknown as { workerType?: string }).workerType;
+        if (wt !== undefined) documentTypes.add(wt);
+      }
+    }
+    check('cross-row', 'every workerType the flows L6 runs name has a POOL, and every pool is named ' +
+      'by one of them — the registry is not a list bound to nothing',
+      [...documentTypes].sort(), WORKER_LISTS.poolTypes);
+    check('cross-row', 'and every role the registry uses is one `ROLES` declares, both ways — ' +
+      'the direction W43`s TYPE cannot close (Q196)',
+      WORKER_LISTS.poolRoles, WORKER_LISTS.declaredRoles);
+    check('cross-row', 'and `run()` has an arm for every role `ROLES` declares, both ways — the ' +
+      'comparison flow-worker.ts`s own header records as costing ZERO',
+      WORKER_LISTS.switchArms, WORKER_LISTS.declaredRoles);
+
+    // **Obligation (e)'s SECOND QUESTION, and the reasoning is at
+    // `examplesReachingPastIndexAsync` above**: no file under `examples/` may reach
+    // past `index.ts` into `src/`, because L6's whole standing is that it exercises
+    // the surface a consumer has. **Both halves**, because an empty offender list is
+    // also what a sweep that read nothing returns — obligation (e)'s own shape one
+    // level in, and the same reason the extractions above throw.
+    check('cross-row', 'no file under examples/ reaches past index.ts into src/ — L6 runs the ' +
+      'surface a consumer resolves, which is the whole of why it is evidence',
+      EXAMPLES_REACH.offenders, []);
+    // **The detector FIRES on the shape it refuses, and not on the shape it must
+    // not** — the positive case the adequacy reader found missing. Without this the
+    // regex is bound to nothing: the tree is clean, so an empty offender list is what
+    // a broken matcher returns too.
+    check('cross-row', 'and the detector fires on an import that reaches past index.ts, at either ' +
+      'depth, and NOT on one that does not — the case the clean tree cannot supply',
+      REACH_CASES.map(([text]) => REACHES_PAST_INDEX.test(text)), REACH_CASES.map(([, want]) => want));
+    // **What was READ, both ways against what was LISTED** — obligation (e)'s third
+    // shape, and the half the first version got wrong: it read the LISTING, so a
+    // narrowed read loop skipped `l6.ts` and this clause passed.
+    check('cross-row', 'and the sweep OPENED exactly the files it listed, both ways',
+      [...EXAMPLES_REACH.read].sort(), [...EXAMPLES_REACH.files].sort());
+    assertThat('cross-row', 'and the listing reached both directories, naming the three files this ' +
+      'block`s own extractions read',
+      ['./l6.ts', './run-flow.ts', './workers/flow-worker.ts']
+        .every((f) => EXAMPLES_REACH.files.includes(f)),
+      `swept ${EXAMPLES_REACH.files.length}: ${EXAMPLES_REACH.files.join(', ')}`);
+  }
 }
 
 const EXPECTED_TOTAL =
@@ -3615,7 +4339,19 @@ check('cross-row', 'and they reach ID-R5 under TWO scheduler events, not one',
   [...new Set(UNMINTED.map((u) => u.event ?? 'task.completed'))].sort(),
   ['task.completed', 'task.failed']);
 
-const DECLARED_TOTAL = 806;
+/**
+ * **Every cross-row SUBJECT was asserted about** — W47's adequacy reader, finding 1,
+ * and the last cross-row clause in the file because it reads what all the others did.
+ *
+ * Both directions matter and only one is available: a subject that left is NAMED here,
+ * and a block nobody declared a subject for is invisible — which is `ROW_KEYS`' own
+ * limit, and is why `CROSS_ROW` stays beside this rather than being replaced by it.
+ */
+check('cross-row', 'every cross-row SUBJECT this file declares was asserted about — a block ' +
+  'deleted with the counts is a block that fails naming what it was about',
+  CROSS_ROW_SUBJECTS.filter((t) => crossRowLabels.some((l) => l.includes(t))), CROSS_ROW_SUBJECTS);
+
+const DECLARED_TOTAL = 879;
 if (passed + failures.length !== DECLARED_TOTAL) {
   failures.push(
     'gate\n      the assertion count is not the number this file declares outright\n' +

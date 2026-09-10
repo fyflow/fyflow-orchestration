@@ -541,7 +541,7 @@ function buildScheduler(delayMs: number, threaded: boolean): FyflowScheduler {
   // becomes threaded or gains a second thread, dispatch order stops implying
   // settle order and this is what remains. [Q99](../doc/open-questions.md).
   const SETTLES_LAST = new Set(['fail', 'uncloneable']);
-  // **`Role`, not `string` — W43.** This parameter was `string`, so the eight
+  // **`Role`, not `string` — W43.** This parameter was `string`, so the TEN
   // `config: { role }` literals below were bound to nothing and a typo reached a
   // worker that has no arm for it. It is the same fix `Expectation.policyId` got at
   // W17 for the same reason, and unlike that one it DOES bite: `Role` is derived

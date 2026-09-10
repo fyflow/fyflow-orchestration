@@ -260,7 +260,65 @@ here ([Q179](../open-questions.md)); the number above is one reading.
 
 ## Record
 
-*Filled in at the join, after the work items are merged.*
+**P13 IS COMPLETE. Three items, all done, no ADR beyond 0042, and the plan's question is answered on
+both halves: a declared reference is refused when it names a node the run may reach the reader
+without — `FD-V29`, on CERTAINTY and not on dominance — and what it costs is a 70x cliff that
+NOTHING WARNS about, which is a decision written into `spec/flow-definition.md` section 3 rather
+than into an ADR.** `spec/` closes at **7 documents, 43 examples, 89 rules** from 7 / 40 / 87;
+L1-L5 at **24 files / 656 assertions in five runtimes** from 24 / 633; **L6 at 879 assertions over
+40 real runs** from 760 / 36. **W48 is CLOSED as reserved and never issued; Q199-Q217 all used, the
+block extended twice; ADR 0042 taken and 0043 skipped. The next plan starts at W49, Q218 and
+ADR 0044.**
+
+**All four predictions have a verdict.** **1 is CONFIRMED and its inference did NOT survive** — the
+corpus writes 6 aimed references and dominance refuses 0 of them, exactly as fact 2 measured, but
+the corpus **ADMITS 127** and dominance refuses **30**, of which **22** are references a correct
+rule accepts. *A prediction derived from a measurement can be right about the measurement and wrong
+about the world it was taken in.* **2 is REVERSED, and in the way P12's retro named**: the answer is
+not a fourth form INSTEAD of a validator rule, it is **`FD-V29` and a `?` MODIFIER**, each of which
+makes the other affordable — [Q11](../open-questions.md)'s stack-not-a-fork, one plan on. **3 is
+CONFIRMED with its reversal condition checked rather than assumed** — W46 took no ADR, and the
+static predicate that needs no size judgement was constructed, measured, and declined because it
+fires on 3 of 3 intended uses. **4 is CONFIRMED and the row was corrected before it could be
+graded**: `FD-V26` and the table both grew, and the row's own claim of *three* live bounds on the
+table's row count was measured at **two**.
+
+**[W47](../work-items/w47-the-blocked-flow-on-real-workers.md) is DONE and it is P13's EXIT
+ARTIFACT.** Both flows run end to end on a real `FyflowScheduler` in **both** L6 runtimes — the one
+the plan exists for, and a second the item's own reader built. **L6 is 879 assertions over 40 real
+runs**, from 806 / 38; `spec/` and L1-L5 are unmoved, which is the declared result.
+
+**Its headline is that ladder L6 was BLIND to ADR 0042's headline for a whole item.** Deleting
+`FD-V29` cost **ZERO** L6 failures before this item — because every reference L6 runs is either
+`"."`, certain, or written with a `?`, and **a document `FD-V29` refuses does not start**. *A rule
+whose whole effect is that a run never happens is invisible to a rung made of runs*
+([Q214](../open-questions.md)), and the scope is stated: **L6 was the only blind rung**, since the
+same deletion costs 7 at L1-L5 and fails `check-docs` `X4`. It now costs **3**. Reverting W45 whole
+is **12** — `FD-V29` 3, `FD-C4` 9 — with the `?` left unparsed stopping the run at `Driver`
+construction.
+
+**Output (3) was answered with a measured ABSENCE and both readers took it apart from opposite
+ends** — the conformity reader on the document (`nested-map` IS the shape the item said did not
+exist, and ADR 0042's own seven-shape row names it), the adequacy reader on the consequence
+(`FD-C4`'s ARRAY arm deletable for zero) — and it then **CONSTRUCTED the flow**. So the coverage is
+taken rather than recorded: `map-past-a-decision.flow.json` is `map-over-region-output` plus one
+guarded edge, and **all three of section 3's axes decide its one reference**. Its pair is *the array
+RESOLVES* against *the array is `[]`*, and the second reaches W33's N = 0 ruling **from a reference
+rather than from a worker returning an empty list**.
+
+**Rule 8: 43 provocations, 33 CAUGHT, 7 declared survivors all MEASURED, 2 BOUND, 0 undeclared, 0
+aborts, 0 wrong-reason**, run twice with seven of the readers' edits checked in. **Readers 14 / 8
+blocking and 27 mutations / 13 survivors / 6 blocking, overlap 2** — the twenty-fifth measurement,
+inside the 0-4 band, both unprimed. **The two sharpest findings are both about the HARNESS**: a
+declared ceiling whose reason was false because its literal was set-equal to the value it replaced,
+and **a harness that ran nothing at all for its five declared-survivor rows** — closing which found
+five more defects in the same pass. **ONE late exception, zero undeclared** — the lowest of any product
+item in three plans — and **it is `spec/README.md`, one of P13's three named files**, so the plan's test is answered
+`AGENTS.md` yes/yes/no, `spec/README.md` yes/yes/yes, `scripts/check-docs.mjs` no/yes/no — **an
+`Owns` pre-declaration rule would have been wrong twice on two of the three**
+([Q157](../open-questions.md)). **Census CONFIRMED for the THIRTEENTH plan running — 174 / 125 / 2 /
+47**, 0 aborts, on a parser written from scratch that was wrong in three directions first and found
+a **fourth** register row rendering wrong ([Q215](../open-questions.md)). **Q213-Q217 used.**
 
 **[W46](../work-items/w46-what-a-reference-costs-and-whether-anything-says-so.md) is DONE, it takes
 NO ADR, and [Q186](../open-questions.md) is DECIDED and deliberately NOT CLOSED** —
