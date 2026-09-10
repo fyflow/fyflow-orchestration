@@ -309,12 +309,102 @@ const RUN_FLOOR = 17;
   }
 }
 
+// ---------------------------------------------------------------------------
+// X6 — the cost figures AGENTS.md quotes are `spec/flow-definition.md`'s
+//
+// **Obligation (e)'s third shape, at three copies** — W46's adequacy reader.
+// `spec/flow-definition.md` section 3's cost table, `AGENTS.md`'s cost paragraph and
+// `doc/decisions/0040-*.md` all carried the same five figures, and **nothing compared
+// any two**: editing the spec's `613.6 ms` to `6.1 ms`, or AGENTS.md's to `61.3`, cost
+// **zero** across all four checks while destroying the `71x` claim in its own table.
+//
+// **The ADR's copy is now marked HISTORICAL and is deliberately not compared** — it is
+// the record of what that decision was made on. What must agree is the normative
+// document and the consumer reference, because both are read as current.
+//
+// **BOTH WAYS, and by SET rather than by count**: a figure in one and not the other is
+// a failure in either direction, which is `JP-R9`'s *compare the two halves rather
+// than copy one of them* over two files.
+{
+  const SPEC = join(ROOT, 'spec', 'flow-definition.md');
+  // **The document the check is POINTED AT, not a hard-coded path** —
+  // `doc/workflow.md` section 5 rule 8 obligation (e)'s second question, and this
+  // check's own self-test found it: `X6` read `AGENTS.md` directly, so all three of
+  // its probes exited 0 while the harness had written its mutated copy elsewhere and
+  // pointed the check at that. *A check that reads a path instead of its subject is
+  // not testing what ships* — W36's `D3` and W35's `test:l6` in a third shape, caught
+  // here by the substitution mechanism that exists for exactly this.
+  const AG = join(ROOT, DOCS[0]);
+  const msIn = (text, from, to) => {
+    const a = text.indexOf(from);
+    const b = a < 0 ? -1 : text.indexOf(to, a);
+    if (a < 0 || b < 0) return null;
+    return [...new Set(text.slice(a, b).match(/\d+\.\d+ ms/g) ?? [])].sort();
+  };
+  /**
+   * The LAST figure on each table row — the spec's table is
+   * `| label | arity 100 | arity 1000 |` and `AGENTS.md` quotes the arity-1000
+   * column, so the two halves are only comparable one column at a time. **The first
+   * version filtered by magnitude (`>= 5`) and the check caught it**: the arity-100
+   * large figure is 8.1 ms, which passes any such threshold and is in neither column
+   * AGENTS.md quotes. A filter by VALUE cannot separate two columns; a filter by
+   * POSITION can.
+   */
+  const lastPerRow = (text, from, to) => {
+    const a = text.indexOf(from);
+    const b = a < 0 ? -1 : text.indexOf(to, a);
+    if (a < 0 || b < 0) return null;
+    const out = [];
+    for (const line of text.slice(a, b).split(/\r?\n/)) {
+      if (!line.includes('|')) continue;
+      const all = line.match(/\d+\.\d+ ms/g);
+      if (all) out.push(all[all.length - 1]);
+    }
+    return out.length ? [...new Set(out)].sort() : null;
+  };
+  if (!existsSync(SPEC) || !existsSync(AG)) {
+    fail('X6', 'spec/flow-definition.md or AGENTS.md is missing, so the cost figures cannot be compared');
+  } else {
+    // The spec's ARITY-1000 column, which is the one AGENTS.md quotes: the table rows
+    // between the header and the sentence that follows them.
+    const specTable = lastPerRow(readFileSync(SPEC, 'utf8'),
+      '| what the branch entry declares | arity 100 | arity 1000 |', '> **71x,');
+    const agents = msIn(readFileSync(AG, 'utf8'),
+      '**And inside a `map`, what it costs is what you point it at.**', 'The mechanism makes one copy');
+    if (specTable === null) {
+      fail('X6', 'spec/flow-definition.md section 3`s cost table is not where X6 looks for it');
+    } else if (agents === null) {
+      fail('X6', 'AGENTS.md`s cost paragraph is not where X6 looks for it');
+    } else {
+      // AGENTS.md quotes the arity-1000 figures only, so the spec side is filtered to
+      // those — the arity-100 column is the spec's alone and is not a disagreement.
+      const spec1000 = specTable;
+      const missing = agents.filter((x) => !spec1000.includes(x));
+      const extra = spec1000.filter((x) => !agents.includes(x));
+      if (missing.length) {
+        fail('X6', `AGENTS.md quotes ${missing.join(', ')}, which spec/flow-definition.md ` +
+          `section 3's table does not — it has ${spec1000.join(', ')}`);
+      }
+      if (extra.length) {
+        fail('X6', `spec/flow-definition.md section 3 states ${extra.join(', ')}, which AGENTS.md ` +
+          `does not quote — it has ${agents.join(', ')}`);
+      }
+      if (!missing.length && !extra.length) {
+        console.log(`note: X6 compared ${spec1000.length} cost figures between ` +
+          'spec/flow-definition.md section 3 and AGENTS.md, both ways — three documents carried ' +
+          'them and nothing compared any two.');
+      }
+    }
+  }
+}
+
 const checks = [
   'X1 the reference exists and its fences parse',
   'X2 every ```ts block is tagged run or check, or opts out explicitly',
   'X3 every tagged snippet typechecks against index.ts',
   'X4 every `run` snippet executes, and asserts something',
   'X5 how much of the reference the DOM lib costs (Q71) — reported',
+  'X6 AGENTS.md`s cost figures ARE spec/flow-definition.md section 3`s, both ways',
 ];
 const runCount = written.filter((x) => x.tag === 'run').length;
 console.log(`docs check — ${all.length} snippet(s): ${runCount} run, ` +

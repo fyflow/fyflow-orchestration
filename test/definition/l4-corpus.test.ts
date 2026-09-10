@@ -317,6 +317,7 @@ const SUITES = [
   'L2 — FD-R3: a reference the run did not produce',
   'L2 — JP-R12: a map`s join carries its N results, and that is P10`s point',
   'L2 — JP-R12: the KEY ORDER, on the only shape that can discriminate it',
+  'L2 — Q186: what a reference costs, as a product and as a decision',
   'L2 — `joined: false` and `joined: null` are the same outcome',
   'L2 — `over` must name an array, and that is a RUN-TIME refusal',
   'L2 — a dead INNER join, through the fold',

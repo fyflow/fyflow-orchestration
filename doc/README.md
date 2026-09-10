@@ -2,6 +2,88 @@
 
 ## Current state
 
+**[W46](work-items/w46-what-a-reference-costs-and-whether-anything-says-so.md) is DONE, it takes NO
+ADR, and [Q186](open-questions.md) is DECIDED and deliberately NOT CLOSED.** `spec/flow-definition.md`
+is **v0.14** — section 3's cost blockquote gains the measurement, the METHOD, and a four-row table of
+why **nothing warns** — on [Q190](open-questions.md)'s precedent: recorded in that section and
+asserted at ladder L2. **[P13](plans/p13-when-is-a-declared-reference-refused.md) prediction 3
+predicted exactly this and is CONFIRMED**, with its stated reversal condition checked rather than
+assumed. `spec/` is unmoved at **7 documents, 43 examples, 89 rules**; L1-L5 is **24 files / 656 cases
+in five runtimes**; **L6 is unmoved at 806 / 38**, which is the declared result.
+
+**Its central finding is that a VERDICT can be right for a reason that is the negation of its own
+evidence.** Three of the four reasons hold. **The second was inverted**: it said the size-free static
+predicate — *a reference on a node inside a map region naming one outside it* — *warns about the
+feature*, on the ground that `map-with-context`'s reference is a false positive. **Measured on the
+shipped document, unedited: 604.9-643.6 ms as the corpus writes it against 7.9-9.1 ms with the `run`
+key removed — ~70x, on the showcase itself.** The predicate is **right**, because `ingest`'s result
+*holds the array `over` names*, which is P13 fact 4 exactly. **The conclusion held and its reason was
+the opposite of the truth**: it is declined because it fires on **3 of 3 intended uses and nothing
+else**, so it restates the feature rather than diagnosing anything. **And it is not the only such
+predicate** — both readers independently constructed a second one that fires on the same 3.
+[Q193](open-questions.md)'s shape, on a decision with no ADR.
+
+**And the item's own headline METHOD claim did not reproduce.** It said the numbers this document had
+carried since v0.11 were taken by a method *worth 2.5x in run POSITION*, with the two large cases
+*swapping their numbers exactly*. Its conformity reader could reproduce neither: **the comparison had
+been reversed-in-one-process against one-case-per-process, two variables at once**, and the isolating
+comparison was never taken. Taken now, **ORDER costs nothing** — forward and reversed medians agree —
+and **ACCUMULATION costs up to 4.4x**: five passes over one list in one process take a cheap row from
+**6.8 to 30.1 ms** and the large row from **622 to 1632**. So *later in the process is dearer whatever
+the order*, the last row of a one-process table carries the whole accumulation, **the cliff was robust
+throughout, and the spread among the three cheap rows never was a measurement**.
+[Q208](open-questions.md).
+
+**Two more of the four reasons were repaired rather than kept.** *There is no CHANNEL* stated an
+absence where [ADR 0027](decisions/0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md)'s
+*ignore it, but report it* is an unweighed choice — it is weighed now, and declined because
+`onUnmintedTask` reports a fact about a RUN while *resolved once per item* is a fact about the
+DOCUMENT. And the **~1%** cost of measuring was unreproducible; what reproduces is **~29% of ONE
+clone**, taken once per (node, key) against N clones, so **~0.03%** of what it would warn about at
+N = 1000 — *a number that could not be reproduced replaced by one that can, and the argument got
+stronger*.
+
+**Q186 stays OPEN because closing it would delete the question.** *How large is too large* occurs in
+**exactly one place in the register — Q186's own row** — and not in [Q22](open-questions.md), which
+asks whether a result must be structured-**cloneable**. Its status reads *decided as NOTHING WARNS,
+and the decision is written down*, with a forcing condition. Conformity reader.
+
+**Its L2 suite was REPLACED and both readers reached that from different ends.** The first asserted
+*N instances, N distinct copies* — and **doubling the clones cost 0**, because a `Set` over what N
+receivers RECEIVED is bounded by N however many copies were discarded; it was also a **fourth
+restatement** of what W41 and W42 already assert 2-7 ways. Replaced by the **product** — the summed
+serialised length of the N composed payloads, which *is* arity x size, at **two arities** so
+*quadratic* is distinguishable from *linear in the arity* — and by the **decision**,
+`map-with-context` validating with zero findings, which is what a warning channel would break.
+*A clock-free proxy for a cost has to be bounded in the direction the cost grows*
+([Q212](open-questions.md)), and **the number of copies a driver MAKES is observable to no test here**.
+
+**Three documents stated the same five figures and nothing compared any two** — editing either for
+**zero** while destroying the `71x` claim in its own table. `check-docs` gains **`X6`**, comparing
+them both ways and **by column position** rather than by magnitude, which its own first run caught.
+**And `X6` produced three findings of its own, each a rule this repository already had**:
+`ALL_CHECKS` was a closed allowlist, so **`X6` shipped with four clauses, no probe and no grading at
+14/14, 8/8, exit 0** ([Q43](open-questions.md)'s class, [Q209](open-questions.md), closed here and
+live in three other self-tests); `X6` then read `AGENTS.md` **by name** rather than the document the
+check is pointed at, so all three of its probes exited 0 — obligation (e)'s **second question** in a
+third shape and **the first of the three caught by the author's own set** ([Q210](open-questions.md));
+and its META entry came back **STILL CAUGHT** because both directions of the comparison co-fire —
+W29's shape, closed by a probe per direction. `check:docs:selftest` is **18 probes / 10 gradings**
+from 14 / 8.
+
+**Rule 8: 22 probes, 16 caught, 5 declared ceilings, 0 survivors standing, 0 aborts**, the whole set
+rebuilt because the suite the first one aimed at was replaced — **and the re-run found a guard written
+to close a reader's finding**: *the ratio RISES with the arity* is satisfied by making the LOW baseline
+bigger, which is what collapsing the low pair does, for **0**. **Readers 16 / 8 blocking and 22
+mutations / 10 survivors / 8 blocking, overlap 2** — the **twenty-fourth** measurement, inside the 0-4
+band, both unprimed, and their split is again the one the two roles predict. **FOUR late exceptions,
+zero undeclared**, plus a scoping defect in the declaration's own `Owns` line — *an `Owns` line that
+names a SECTION cannot bound a document whose header is checked against it*. **So P13's `Owns`
+pre-declaration test is answered `AGENTS.md` YES, `spec/README.md` YES, `scripts/check-docs.mjs` YES**
+— all three over the two items, exactly as P12's retro predicted and refused to act on
+([Q157](open-questions.md)). **Census CONFIRMED for the TWELFTH plan running — 169 questions, 120
+open, 2 deferred, 47 resolved.** **Q208-Q212 used; ADR 0043 SKIPPED and not reused.**
+
 **[W45](work-items/w45-what-a-reference-must-be-able-to-say.md) is DONE and
 [ADR 0042](decisions/0042-a-reference-says-whether-it-is-conditional-and-the-bare-form-means-the-target-certainly-ran.md)
 answers [Q187](open-questions.md): a reference says whether it is CONDITIONAL, and the bare form

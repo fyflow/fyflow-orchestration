@@ -189,6 +189,25 @@ never renumbered.
   | `{"item": ".", "up": <a small result>}` | 1.7 ms | **10.6 ms** |
   | `{"item": ".", "up": <the 1000-item result>}` | 9.5 ms | **546.6 ms** |
 
+  **RE-TAKEN by [W46](../work-items/w46-what-a-reference-costs-and-whether-anything-says-so.md), and
+  the numbers above are HISTORICAL** — kept as the record of what this decision was made on, not as
+  a current claim. They were timed in ONE process in run order, and W46 measured what that method
+  costs: **accumulation, not ordering.** Five passes over the same list in one process take a cheap
+  row from **6.8 ms to 30.1 ms** and the large row from **622 ms to 1632 ms**, while forward and
+  reversed agree within noise — so *later in the process is dearer, whatever the order*, and **the
+  last row of a one-process table carries the whole accumulation**. **The cliff is robust throughout;
+  the spread among the three cheap rows was never a measurement**, so *`{"item": "."}` costs more than
+  nothing* is withdrawn as a claim.
+
+  *(This paragraph first said the method was worth **2.5x in run POSITION** and that reversing made
+  the two large cases **swap their numbers exactly**. W46's conformity reader could not reproduce
+  either: the comparison had been reversed-in-one-process against one-case-per-process, two variables
+  at once, and nothing swaps. The isolating comparison gives no ordering effect at all.)*
+
+  **The current table lives in one place — `spec/flow-definition.md` section 3 v0.14 — with the
+  method beside it**, and `check-docs`' `X6` compares it to `AGENTS.md`'s copy both ways.
+  [Q179](../open-questions.md), [Q208](../open-questions.md).
+
   **The mechanism is linear and cheap; what an author points it AT is what costs.** So this is not a
   cost the decision imposes — it is one it makes reachable, per key, on a document the author wrote,
   and the same reference outside a map region is one clone. **The honest statement is that ADR 0037

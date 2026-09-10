@@ -2,7 +2,7 @@
 
 **Status:** IN PROGRESS — declared 2026-09-10 after
 [P12](p12-what-a-node-receives-and-what-a-decision-sees.md) closed and `doc/workflow.md` reached
-[v0.13](../workflow.md). **W45 is DONE**; W46 and W47 are outstanding.
+[v0.13](../workflow.md). **W45 and W46 are DONE**; W47 is outstanding.
 **It is a PRODUCT plan, and it is the second in a row** — the first back-to-back pair since P1-P2.
 *Read every status from the item's own file, never from this line.*
 
@@ -261,6 +261,29 @@ here ([Q179](../open-questions.md)); the number above is one reading.
 ## Record
 
 *Filled in at the join, after the work items are merged.*
+
+**[W46](../work-items/w46-what-a-reference-costs-and-whether-anything-says-so.md) is DONE, it takes
+NO ADR, and [Q186](../open-questions.md) is DECIDED and deliberately NOT CLOSED** —
+`spec/flow-definition.md` **v0.14**, section 3, on [Q190](../open-questions.md)'s precedent.
+**Prediction 3 is CONFIRMED and its reversal condition was checked rather than assumed.** `spec/` is
+unmoved at 7 / 43 / 89, L1-L5 is 656 in five runtimes, L6 unmoved at 806 / 38.
+
+**Two of the verdict's four reasons were wrong and both were caught by its readers.** The second was
+**inverted**: `map-with-context`'s reference is the CLIFF, not a false positive — **604.9-643.6 ms as
+the corpus writes it against 7.9-9.1 ms with the `run` key removed**, ~70x on the showcase — so the
+predicate is right, and it is declined because it fires on **3 of 3 intended uses and nothing else**.
+The third stated an absence where [ADR 0027](../decisions/0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md)'s
+*report* is an unweighed choice. **And the item's own headline method claim did not reproduce**: order
+costs nothing and **accumulation costs up to 4.4x**, so a one-process table measures its last row's
+position rather than its rows ([Q208](../open-questions.md)).
+
+**Rule 8: 22 probes, 16 caught, 5 declared ceilings, 0 survivors, 0 aborts**; readers **16 / 8** and
+**22 mutations / 10 survivors / 8 blocking**, **overlap 2**, the twenty-fourth measurement. `X6` binds
+three copies of one cost table and produced three findings of its own, including a **closed allowlist
+that let a whole check id ship ungraded** ([Q209](../open-questions.md)). **FOUR late exceptions, zero
+undeclared** — and **P13's `Owns` test is answered YES on all three files over the two items**
+([Q157](../open-questions.md)). **Census CONFIRMED — 169 / 120 / 2 / 47.** **Q208-Q212 used;
+ADR 0043 SKIPPED.**
 
 **[W45](../work-items/w45-what-a-reference-must-be-able-to-say.md) is DONE, and
 [ADR 0042](../decisions/0042-a-reference-says-whether-it-is-conditional-and-the-bare-form-means-the-target-certainly-ran.md)

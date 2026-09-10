@@ -112,8 +112,16 @@
 // reader measured it.
 
 import { readFileSync, writeFileSync, mkdirSync, rmSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
+
+/**
+ * **This file's own repository root**, so `ALL_CHECKS` below can read
+ * `check-docs.mjs`'s report list at module scope rather than waiting for the `root`
+ * argument `selfTest` receives. It is the same derivation `check-docs.mjs` uses.
+ */
+const SELFTEST_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 /**
  * Each probe returns the mutated reference and names the check that must refuse
@@ -139,6 +147,39 @@ const PROBES = [
     name: 'an untagged block',
     check: 'X2',
     mutate: (t) => t.replace('```ts run', '```ts'),
+  },
+  // --- X6: AGENTS.md's cost figures against spec/flow-definition.md's, both ways ---
+  //
+  // **Three of `X6`'s four clauses are reachable from this side**, which is what the
+  // harness can mutate: it writes a modified AGENTS.md and points the check at it.
+  // Both DIRECTIONS of the comparison are here — a figure that disagrees and a figure
+  // that is missing — because a one-directional binding is what
+  // [Q196](../doc/open-questions.md) records as the thing a type cannot fix.
+  {
+    name: 'a cost figure in AGENTS.md that spec/flow-definition.md does not state',
+    check: 'X6',
+    mutate: (t) => t.replace('**613.6 ms** — **71x**', '**61.3 ms** — **7x**'),
+  },
+  {
+    name: 'a cost figure spec/flow-definition.md states that AGENTS.md drops — the OTHER direction',
+    check: 'X6',
+    mutate: (t) => t.replace('the `?` suffix costs nothing (**617.4 ms**)', 'the `?` suffix costs nothing'),
+  },
+  {
+    // **This one trips only the `missing` direction, and that is why it exists.**
+    // Changing a figure trips BOTH clauses at once — co-firing, which W29 measured is
+    // invisible to set equality — so neither could be graded alone. Adding a figure
+    // the spec does not have separates them.
+    name: 'AGENTS.md quotes an EXTRA figure the spec does not have — the `missing` direction alone',
+    check: 'X6',
+    mutate: (t) => t.replace('the `?` suffix costs nothing (**617.4 ms**)',
+      'the `?` suffix costs nothing (**617.4 ms**, and once **99.9 ms**)'),
+  },
+  {
+    name: 'AGENTS.md`s cost paragraph moved, so X6 cannot find its own subject',
+    check: 'X6',
+    mutate: (t) => t.replace('**And inside a `map`, what it costs is what you point it at.**',
+      '**And inside a map, the cost is what you point it at.**'),
   },
   {
     name: 'an untagged block whose preceding line merely contains the word "prose"',
@@ -216,7 +257,33 @@ const PROBES = [
 ];
 
 /** Every check `check-docs.mjs` reports under, in the order it reports them. */
-const ALL_CHECKS = ['X1', 'X2', 'X3', 'X4', 'X5'];
+/**
+ * **DERIVED from `check-docs.mjs`'s own report list, not written down here** — W46,
+ * and it is [Q43](../doc/open-questions.md)'s class caught live in this file. It read
+ * `['X1', 'X2', 'X3', 'X4', 'X5']`, and W46 shipped **`X6`** into `check-docs.mjs`
+ * with four clauses, ran this self-test, and got **14/14 probes caught, 8/8 noticed,
+ * exit 0** — a whole check id with no probe and no grading, invisible because the
+ * universe of ids was a literal beside the thing it was supposed to bound.
+ * `doc/workflow.md` section 5 rule 8 obligation (e)'s third shape: *find the other
+ * list and compare both ways.* This IS the other list.
+ *
+ * **W36 found the identical defect in another self-test** — a closed allowlist making
+ * a new check's failure lines invisible to the id parse — and closed it there. This
+ * is the second occurrence, in the file that had not been fixed.
+ */
+const ALL_CHECKS = (() => {
+  const src = readFileSync(join(SELFTEST_ROOT, 'scripts', 'check-docs.mjs'), 'utf8');
+  const head = src.indexOf('const checks = [');
+  const body = head < 0 ? '' : src.slice(head, src.indexOf('];', head));
+  const ids = [...new Set((body.match(/'(X\d+) /g) ?? []).map((m) => m.slice(1, -1)))].sort();
+  if (ids.length === 0) {
+    console.log('check-docs self-test — check-docs.mjs`s `checks` array named no X-ids.');
+    console.log('  FAIL  the universe of check ids could not be derived, so every coverage bound ' +
+      'below would be vacuous. Q43`s class, and the reason this list is not a literal.');
+    process.exit(1);
+  }
+  return ids;
+})();
 
 /**
  * **Did the mutated check RUN TO COMPLETION?** A grading requires this, which is how
@@ -234,10 +301,10 @@ const RAN = (out) => /^(All checks passed|\d+ failure\(s\)\.)/m.test(out);
  * it — would report `0/0 probes caught` and exit 0. W16's adequacy reader's finding,
  * inherited rather than rediscovered; **this file had no floor at all until W29.**
  */
-const MIN_PROBES = 14;
+const MIN_PROBES = 18;
 
 /** The same floor for `META`, and for the same reason. */
-const MIN_META = 8;
+const MIN_META = 10;
 
 /**
  * **The mutations `check-docs.mjs` itself is run against**, one per check id plus
@@ -271,6 +338,22 @@ const META = [
   ['X5`s DOM-lib count refusal disabled, so Q71 can get worse unnoticed',
     'a snippet that stops compiling',
     (t) => t.replace('  if (hit.size > 1) {', '  if (false) {')],
+  // **`X6`'s comparison disabled, so three documents can drift apart in silence** —
+  // W46. The clause it silences is the *AGENTS.md quotes what the spec does not*
+  // direction, which is what the named probe trips.
+  // **TWO entries, one per DIRECTION, and each named for the probe that trips only
+  // that one.** The first version had one entry named for the change-a-figure probe,
+  // and it came back **STILL CAUGHT**: changing a figure trips `missing` AND `extra`
+  // together, so disabling either leaves the other reporting under the same id and
+  // set equality cannot tell. That is W29's **co-firing** shape — detectable by the
+  // failure COUNT and not by the id set — and the fix is a probe per direction rather
+  // than a better grading.
+  ['X6`s `AGENTS quotes what the spec does not` direction disabled',
+    'AGENTS.md quotes an EXTRA figure the spec does not have — the `missing` direction alone',
+    (t) => t.replace('      if (missing.length) {', '      if (false) {')],
+  ['X6`s `the spec states what AGENTS does not quote` direction disabled — the other way',
+    'a cost figure spec/flow-definition.md states that AGENTS.md drops — the OTHER direction',
+    (t) => t.replace('      if (extra.length) {', '      if (false) {')],
   // (b) the report block. **These two are why the `agree` projection exists**, and
   // it was measured before it was written: with the verdict loop forced to `ok`,
   // every probe still reported `wanted [X2] got [X2] exit 1` and passed. A mutation

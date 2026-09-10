@@ -386,7 +386,7 @@ for (const d of r.deadAnchors) fail('M2', d);
 //
 // So `M3`'s window is `(64, 85]` and 74 is near its middle; `M5` is untouched at 60
 // against 167, for the sixth plan running.
-if (r.files < 74) fail('M3', `only ${r.files} markdown file(s) were scanned, so M1 and M2 are ` +
+if (r.files < 80) fail('M3', `only ${r.files} markdown file(s) were scanned, so M1 and M2 are ` +
   'true of the walk rather than of the tree');
 // **1200 -> 1350 at P9's declaration, 1350 -> 1530 by W30, and both times because
 // ordinary work closed the window from below.** [Q142](../doc/open-questions.md).
@@ -430,12 +430,34 @@ if (r.files < 74) fail('M3', `only ${r.files} markdown file(s) were scanned, so 
 // **2400 -> 2700 at [W42](../doc/work-items/w42-what-a-decision-sees.md)**, the FIFTH
 // retune and the fourth consecutive plan to pay it — and the first time BOTH floors
 // moved in one edit, which is why the counts are recorded once in the `M3` block
-// above rather than twice. `M4`'s window is `(2406, 3014]` and 2700 is near its
+// above rather than twice. `M4`'s window was `(2406, 3014]` and 2700 was near its
 // middle. **P12 wrote the links as well as the files**: the two-directory fixture
 // rose 2061 -> 2406 on prose in `doc/README.md`, `CLAUDE.md` and
 // `doc/open-questions.md`, which is W33's *the obligation is on writing PROSE* for
 // the third time.
-if (r.links < 2700) fail('M4', `only ${r.links} relative link(s) were found; M1 is vacuous below that`);
+//
+// **2700 -> 3080 and 74 -> 80 at [W46](../doc/work-items/w46-what-a-reference-costs-and-whether-anything-says-so.md)**,
+// the SIXTH retune and the FIFTH consecutive plan to pay it. **`M4` was the one that
+// fired**, in the gate, at `GATE EXIT=1` with **zero `FAIL` lines** — the exit code
+// being the predicate, for the third time in two plans. Measured on a scratch copy
+// OUTSIDE the repository: whole tree **91 / 3770 / 187**, `doc/decisions` removed
+// **69 / 3437 / 187**, both removed **55 / 2738 / 187**. So `M4`'s fixture had risen
+// past the floor (2738 against 2700) and probe 2 reported `wanted [M1,M3,M4], got
+// [M1,M3]`. **New windows: `M3` is `(69, 91]` and `M4` is `(2738, 3437]`**, and 80
+// and 3080 sit near the middle of each, leaving **11 files** and **342 links** of
+// headroom below and 11 / 357 above.
+//
+// **`M3` did NOT fire and is retuned anyway**, which is the part worth recording: at
+// 74 against a one-directory fixture of 69 it had **five files** of headroom, and
+// P13's own two remaining Records plus W47's item file would have spent them. *A
+// two-sided window is worth re-centring when you are already in the file* — the
+// alternative is paying [Q142](../doc/open-questions.md) twice in one plan, which
+// P12 did.
+//
+// **Both bounds RISE TOGETHER as prose is added**, and the gap between them is the
+// links in `doc/plans/` — 699 here. So the window slides upward at a stable width,
+// which is why re-centring buys headroom in both directions rather than only one.
+if (r.links < 3080) fail('M4', `only ${r.links} relative link(s) were found; M1 is vacuous below that`);
 if (r.anchored < 60) fail('M5', `only ${r.anchored} link(s) carry an anchor; M2 is vacuous below that`);
 
 const checks = [

@@ -1,6 +1,6 @@
 # spec/flow-definition — the flow definition format
 
-**Status:** v0.13 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.14 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2** acted on the first spec-conformity pass
 (ADR 0004, and `region(F)` made computable). **v0.3** acted on the second, which found that `FD-V19`
 had reintroduced the v0.1 defect class under a new id — a refusal rule rejecting the valid corpus.
@@ -126,6 +126,25 @@ answers *did it run* correctly and the reader's branch path is comparable with n
 `reference-past-a-map-arity.flow.json` is the second, in the corpus, with **no custom policy**.
 **No node kind is added** (P13 decision 3) and **`spec/join-policy.md` section 4 is not reopened**
 (P13 decision 2, `JP-R5` read and not edited).
+
+**v0.14 decides [Q186](../doc/open-questions.md)**
+([W46](../doc/work-items/w46-what-a-reference-costs-and-whether-anything-says-so.md) under
+[P13](../doc/plans/p13-when-is-a-declared-reference-refused.md)), and **it takes no rule id and no
+ADR**: section 3's cost blockquote gains the measurement, the METHOD, and the reason **nothing
+warns**, on [Q190](../doc/open-questions.md)'s precedent — recorded in this document and asserted at
+ladder L2. **[P13](../doc/plans/p13-when-is-a-declared-reference-refused.md) prediction 3 said so
+before the item ran and is CONFIRMED, and its stated reversal condition was checked rather than
+assumed**: *a static warning about a reference into a map region* is buildable, needs no size
+judgement, and is **RIGHT** — it fires on 3 of 13 corpus references and `map-with-context`'s is the
+cliff itself, ~70x on the shipped document. **It is declined because it fires on every intended use
+and on nothing else**, which restates the feature rather than diagnosing anything. Two of the four
+reasons this note first gave were wrong and both were caught by its readers: the showcase is a true
+positive, not a false one, and a **report** channel exists ([ADR 0027](../doc/decisions/0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md))
+and is weighed rather than absent. **Measuring is not the obstacle** — a size measurement is ~0.03%
+of what it would warn about at N = 1000. **And the numbers this document carried since v0.11 were
+taken in one process, which costs up to 4.4x in ACCUMULATION and nothing in ordering** — the cliff
+was robust throughout and the spread among the cheap rows never was a measurement.
+**No `FD-V` changed, no `FD-R` changed, no `FD-C` changed and no node kind changed.**
 
 **Binds:** [ADR 0002](../doc/decisions/0002-a-flow-definition-is-data-and-a-predicate-is-registered-by-name.md)
 (the graph is data; a predicate is a name; an unknown name fails at instantiation) and
@@ -440,13 +459,64 @@ before `needs` existed, and its real question — whether that retention should 
 untouched.
 
 > **What `needs` costs is what you point it at, and the document is where that is visible.** The
-> mechanism is linear: at a map arity of 1000, `{"item": "."}` is **8.0 ms** against **6.5 ms** for
-> no `needs` at all, and one more key naming a small result is **10.6 ms**. **A key naming a large
-> one is 546.6 ms**, because each instance gets its own copy of it — which is
+> mechanism makes **one copy per instance** and each copy costs what it holds, so the product is what
+> an author pays. At a map arity of 1000 over a ~126 KiB payload, **one case per process** — see the
+> method note below, which is part of the measurement:
+>
+> | what the branch entry declares | arity 100 | arity 1000 |
+> |---|---|---|
+> | no `needs` at all | 0.8 ms | **5.5 ms** |
+> | `{"item": "."}` | 1.1 ms | **7.7 ms** |
+> | + one key naming a genuinely SMALL node | 1.2 ms | **8.7 ms** |
+> | + the same key naming the LARGE node | 8.1 ms | **613.6 ms** |
+> | + that key written **conditionally**, `"n?"` | 7.7 ms | **617.4 ms** |
+>
+> **71x, and which node id the author typed is the whole of the difference** — that being
+> 613.6 / 8.7, the small node against the large one, which is the pair the sentence is about.
+> *(Three ratios are in circulation for one cliff, and each names a different denominator: 613.6/8.7
+> is **71x**, 613.6/7.7 against `{"item": "."}` is **80x**, and 613.6/5.5 against no `needs` at all is
+> **112x**. [Q186](../doc/open-questions.md)'s row says 85x and P13's declaration 64x, on the third
+> and second bases respectively. W46's conformity reader; the number moves with the question.)*
+> Each instance gets its own copy, which is
 > [ADR 0037](../doc/decisions/0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md)'s
-> refused per-instance clone, reached by asking for it. **That is why a reference names a whole node
-> and never a path inside its value**: a path language would make *the small part of the big thing*
-> expressible and would move this cost out of the document and into a selector.
+> refused per-instance clone, reached by asking for it — and the **`?` suffix costs nothing**, because
+> the two forms resolve through **one expression** and the suffix is read only when there is nothing
+> to copy. **That is why a reference names a whole node and never a path inside its value**: a path
+> language would make *the small part of the big thing* expressible and would move this cost out of
+> the document and into a selector.
+>
+> **THE METHOD IS PART OF THE MEASUREMENT — v0.14, W46.** These read **6.5 / 8.0 / 10.6 / 546.6** at
+> v0.11, taken in ONE process in run order. **What that method costs is ACCUMULATION and not
+> ordering**, and the two were conflated when this note was first written:
+>
+> | measured, five passes over the whole list in one process | |
+> |---|---|
+> | a cheap row, first pass to last | **6.8 ms → 30.1 ms**, 4.4x |
+> | the large row, first pass to last | **622 ms → 1632 ms**, 2.6x |
+> | forward against **reversed**, median per row | **agree within noise** — 9.4/9.2/10.0/1060/1390 against 9.5/15.7/24.3/1312/1048 |
+>
+> So *later in the process is dearer*, whatever the order — and **a table taken in one process is not
+> a measurement of the differences between its rows**, because the last row carries the whole
+> accumulation. One case per process reproduces within **4%**, independently re-derived. *(This note
+> first read *"worth 2.5x in run POSITION … reversed, the two large cases swap their numbers
+> exactly"*, and its conformity reader could not reproduce it: the comparison had been
+> **reversed-in-one-process against one-case-per-process**, two variables at once, and nothing swaps.
+> The isolating comparison is the third row above and it was never taken. The **cliff** was robust
+> throughout; what was never a measurement is the spread among the three cheap rows.)*
+> [Q179](../doc/open-questions.md), and [Q208](../doc/open-questions.md) for what it is a cause of.
+>
+> **And nothing WARNS about it, which is a decision** — [Q186](../doc/open-questions.md), W46, and
+> **no ADR**, on [Q190](../doc/open-questions.md)'s precedent: a decision recorded in this section and
+> asserted at ladder L2, which is what `doc/workflow.md` section 1 rule 3 asks of one.
+>
+> | | |
+> |---|---|
+> | **the predicate that needs no size judgement fires on every INTENDED use, and on nothing else** | *a reference on a node inside a map region naming one outside it* is decidable from the document. Over both corpora it fires on **3 of 13** references in **2 distinct flows**, and **`map-with-context`'s is the CLIFF rather than a false positive**: measured on the shipped document, unedited, **604.9-643.6 ms as the corpus writes it against 7.9-9.1 ms with the `run` key removed** — ~70x, on the flow this feature exists for. So the predicate is RIGHT, and it is right about **3 of 3** intended uses; the only remedy for the expensive one is the reshaping node [ADR 0040](../doc/decisions/0040-what-a-node-can-reach-is-the-runs-own-outputs-and-a-node-id-names-them-relative-to-a-branch-path.md) exists to remove. **A predicate that fires on every intended use and nothing else restates the feature's definition rather than diagnosing anything.** *(This cell read *"warns about the FEATURE"* on the ground that the showcase was a false positive, which W46's adequacy reader falsified with the measurement above. **The conclusion held and its reason was the opposite of the truth.**)* And it is **not the only** such predicate: *a reference naming the node the `over` array was read from* fires on the same 3, which both readers found independently |
+> | **there is no threshold, and the question is THIS ROW's own** | a run-time guard must answer *how large is too large*. **That phrase occurs in exactly one place in the register — [Q186](../doc/open-questions.md)'s own row** — and not in [Q22](../doc/open-questions.md), which asks whether a result must be structured-CLONEABLE and where that constraint sits. *(This cell deferred to Q22, and W46's conformity reader found that answering Q22 as written would supply no threshold. So the question is not owned elsewhere: it is the reason this row stays OPEN with its decision recorded, rather than resolved.)* |
+> | **a REPORT channel exists and is declined rather than absent** | [ADR 0027](../doc/decisions/0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md) faced *stop / ignore / report* and chose **report** — `onUnmintedTask`. That is the option between a refusal and silence, it is in this codebase, and it is **weighed here rather than omitted**: `onUnmintedTask` reports a fact about a RUN that a caller could not otherwise know, and *this reference is resolved once per item* is a fact about the DOCUMENT, decidable by reading it. `validateDefinition` and `Finding` are both exported from the package root, so a `severity` field would be a **type** change rather than a new option — cheaper than an option and still a change to a published type, for a diagnostic with no action behind it. *(This cell read *"there is no CHANNEL"*, which stated an absence where what exists is an unweighed choice. W46's conformity reader.)* |
+> | **and MEASURING is not the obstacle** | Q186's row makes the guessing the whole of the objection, and it is right. A size measurement is **~29% of ONE clone** — `JSON.stringify().length` at **0.140 ms** against **0.482 ms**, independently re-derived at 0.125 against 0.418 — and it is taken **once per (node, key)** against **N** clones, because for the case a guard would target the value is the same for all N. At N = 1000 that is **~0.03%** of what it would warn about. *(This cell claimed **~1%** from a budgeted walk at 0.0053 ms; W46's conformity reader could not reproduce any budget below 0.02-0.03 ms, because the first pop expands a 1000-element array. The budgeted figure is withdrawn and the two that reproduce are what the row now rests on — a stronger number by two orders of magnitude.)* **The scope is stated**: *the value is the same for all N* is true of a reference from inside a map region to a node outside it, and false for `"."` and for a reference to another node in the same region |
+>
+> **What would force it:** an author reporting a flow whose cost surprised them, a **threshold** arriving from anywhere, or a second reference form for which the size is not a property of the whole node.
 
 **The effective outcome, never the raw record** — rule 4 above, one level out. A resumed node has two
 records and neither alone is right to hand anybody; a node still suspended has **no** effective

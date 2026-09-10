@@ -327,10 +327,23 @@ And a reference names a **node**, never a path inside its value: `needs: { run: 
 the whole of `ingest`'s result and your worker reads `.config` off it.
 
 **And inside a `map`, what it costs is what you point it at.** Each instance gets its OWN COPY of
-each key, so a reference to a large result is copied once per item. Measured at a map arity of 1000:
-no `needs` **6.5 ms**, `{item: '.'}` **8.0 ms**, one more key naming a small result **10.6 ms**, and a
-key naming a 1000-item result **546.6 ms**. The mechanism is cheap; the copy is not. That is also why
-a reference names a whole node and never a path inside it — a path language would hide this choice.
+each key, so a reference to a large result is copied once per item. Measured at a map arity of 1000
+over a ~126 KiB payload, **one case per process**: no `needs` **5.5 ms**, `{item: '.'}` **7.7 ms**,
+one more key naming a genuinely small node **8.7 ms**, and the same key naming the large one
+**613.6 ms** — **71x**, and the `?` suffix costs nothing (**617.4 ms**). The mechanism makes one copy
+per instance and the cost is linear in the size of each, so the product is what you pay. That is also
+why a reference names a whole node and never a path inside it — a path language would hide this
+choice. *(These five figures are compared to `spec/flow-definition.md` section 3's own table by
+`check-docs`' `X6`, both ways — three documents carried them and nothing compared any two, which is
+`doc/workflow.md` section 5 rule 8 obligation (e)'s third shape.)*
+
+**Nothing warns about it, and that is a decision rather than a gap.** There is no threshold to warn
+at; the static predicate that needs no threshold fires on **every** intended use of the feature,
+including the flow it exists for, so it restates the definition rather than diagnosing anything; and
+a report channel exists (`onUnmintedTask`'s shape) and is declined because *this reference is resolved
+once per item* is a fact about your document rather than about your run. **Measuring is not the
+obstacle** — a size measurement is about 0.03% of what it would warn about at arity 1000.
+`spec/flow-definition.md` section 3 carries the whole verdict and the measurements.
 
 ### Validation happens at construction, not at routing time
 

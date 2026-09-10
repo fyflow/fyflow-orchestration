@@ -950,3 +950,130 @@ suite('L2 — FD-C4: a conditional reference, when the target produced nothing',
     ok('got' in p, 'PRESENT — which is the whole reason FD-C4 could not use null for *did not run*');
   });
 });
+
+
+/**
+ * **What a reference COSTS, stated so a machine can check it** —
+ * [W46](../../doc/work-items/w46-what-a-reference-costs-and-whether-anything-says-so.md),
+ * [Q186](../../doc/open-questions.md), and `spec/flow-definition.md` section 3's cost blockquote.
+ *
+ * **A timing assertion is refused in advance** — wall time here is not reproducible
+ * ([Q179](../../doc/open-questions.md)), and W46 measured a cause: a table taken in
+ * ONE process carries up to **4.4x of accumulation** in its last row. So the numbers
+ * live in section 3 and this suite asserts what is deterministic.
+ *
+ * **This suite is W46's SECOND, and the first is recorded here rather than deleted
+ * quietly.** That one asserted *N instances, N distinct copies* — and both readers
+ * showed it was the wrong sensor:
+ *
+ * | | |
+ * |---|---|
+ * | it could not go above N | doubling the clones (`cloneValue(cloneValue(x))`) cost **0**, because a `Set` over what N receivers RECEIVED cannot exceed N however many copies were made |
+ * | it was a fourth restatement | every mutation it caught was already caught by 2-7 assertions in W41's `JP-R11` suites and W42's edge-site suite |
+ * | and it asserted the half that cannot go wrong for a SIZE reason | *one copy per instance* is the arity half; the document's claim is *and the cost is linear in the size of each, so the PRODUCT is what an author pays*, which it said nothing about |
+ *
+ * So the two clauses below are the two things nothing else asserts: **the product**,
+ * as a deterministic proxy its own adequacy reader proposed, and **the decision**,
+ * which is [Q190](../../doc/open-questions.md)'s bar for a verdict recorded in
+ * `spec/` with no ADR.
+ */
+suite('L2 — Q186: what a reference costs, as a product and as a decision', (test) => {
+  const MWC = 'valid/map-with-context.flow.json';
+
+  /** Drive `map-with-context` to the settlement that opens its region. */
+  async function dispatchWith(context: Record<string, unknown>, drop: boolean) {
+    const def = JSON.parse(JSON.stringify(await load(MWC))) as FlowDefinition;
+    if (drop) {
+      const score = def.nodes.find((n) => n.id === 'score') as unknown as { needs: Record<string, unknown> };
+      delete score.needs.run;
+    }
+    const h = harness(def);
+    h.driver.start(context);
+    h.scheduler.settle('r1:ingest:-:0', 'done', { result: context });
+    equal(h.failures, [], 'the run did not stop');
+    const items = context.items as unknown[];
+    const payloads = items.map((_v, i) => h.payloadOf(`r1:score:${i}:0`));
+    ok(payloads.every((x) => x !== undefined), `all ${items.length} instances were dispatched`);
+    return { payloads, def };
+  }
+
+  test('the PRODUCT is what an author pays — arity times what each copy holds', async () => {
+    // **The deterministic proxy for the cost, and W46's adequacy reader proposed it**:
+    // the summed serialised length of the N composed payloads IS *arity x size*, and it
+    // is a pure function of the fixture. So *the product is what an author pays* is
+    // falsifiable at L2 with no clock.
+    //
+    // **The pair is the SHIPPED document against itself with one key removed**, which
+    // is what makes this a statement about the reference rather than about the payload:
+    // `spec/examples/valid/map-with-context.flow.json` declares
+    // `needs: {"item": ".", "run": "ingest"}`, and dropping `run` leaves the arity, the
+    // items and the worker contract untouched.
+    const ITEMS = Array.from({ length: 8 }, (_v, i) => ({ i, pad: 'x'.repeat(64) }));
+    const CTX = { items: ITEMS, config: { threshold: 7 }, runLabel: 'nightly' };
+    const total = (ps: unknown[]) => ps.reduce((n: number, p) => n + JSON.stringify(p).length, 0);
+
+    const withRun = await dispatchWith(CTX, false);
+    const without = await dispatchWith(CTX, true);
+    equal(withRun.payloads.length, ITEMS.length, 'the arity is the items` — unchanged by `needs`');
+    equal(without.payloads.length, ITEMS.length, 'and it is the SAME on the other half of the pair');
+
+    // **`ingest`'s result HOLDS the array `over` names**, which is the whole of why the
+    // showcase is the cliff — a reference names a NODE, so it carries everything that
+    // node returned (P13 fact 4). Read from the document and from the run, not declared.
+    const split = withRun.def.nodes.find((n) => n.kind === 'map') as unknown as { over: string };
+    ok(Object.hasOwn(CTX, split.over),
+      `\`ingest\`'s result holds "${split.over}", the very array the map iterates — so the ` +
+      '`run` key carries the items once per item');
+
+    const paid = total(withRun.payloads);
+    const baseline = total(without.payloads);
+    // Each of the N payloads carries the WHOLE context, so the product grows with the
+    // arity AND with the size. Quadratic in the fixture, stated as a ratio so the
+    // literal below is a shape rather than a byte count.
+    ok(paid > 8 * baseline,
+      `declaring the reference multiplies what the dispatch carries: ${baseline} bytes against ` +
+      `${paid} — more than 8x at arity ${ITEMS.length}, and the multiplier IS the arity. That is ` +
+      'the product section 3 names, and it is why the cost is not a property of the mechanism');
+    // And the ratio RISES with the arity, which is what *quadratic* means and what one
+    // arity cannot show. The two arities are the discriminating pair.
+    const small = { items: ITEMS.slice(0, 2), config: CTX.config, runLabel: CTX.runLabel };
+    const lowPaid = total((await dispatchWith(small, false)).payloads);
+    const lowBase = total((await dispatchWith(small, true)).payloads);
+    // **BOTH ratios must be real, and rule 8 found why**: `paid / baseline >
+    // lowPaid / lowBase` alone is satisfied by making the LOW baseline bigger, which
+    // is exactly what collapsing the low pair does — the inequality holds while its
+    // right-hand side means nothing. A guard on a difference needs both terms bounded.
+    ok(lowPaid / lowBase > 1,
+      `the LOW arity's pair is a pair too — ${(lowPaid / lowBase).toFixed(1)}x at ` +
+      `${small.items.length} items. Collapsing it makes the ratio 1 and the comparison below ` +
+      'true for the wrong reason');
+    ok(paid / baseline > lowPaid / lowBase,
+      `and the ratio RISES with the arity — ${(lowPaid / lowBase).toFixed(1)}x at ` +
+      `${small.items.length} items against ${(paid / baseline).toFixed(1)}x at ${ITEMS.length}. ` +
+      'A cost linear in the arity alone would hold the ratio flat, and that is the difference the ' +
+      'document calls quadratic');
+    ok(small.items.length < ITEMS.length, 'the two arities really differ — the pair is a pair');
+  });
+
+  test('and NOTHING refuses it: the decision, asserted — Q190`s bar', async () => {
+    // **[Q190](../../doc/open-questions.md)'s precedent for a verdict with no ADR is
+    // *recorded in section 3 AND asserted at L2*, and W46's conformity reader found
+    // this line missing.** The decision is that the flow whose reference the candidate
+    // predicate fires on is **accepted with zero findings** — so if a warning channel
+    // is ever added, this goes red and whoever adds it has to come here.
+    const def = await load(MWC);
+    equal(validateDefinition(def, { predicates: [], workerTypes: reg.workerTypes }), [],
+      'map-with-context validates with ZERO findings — the reference the candidate predicate ' +
+      'fires on is accepted, and nothing warns. That is Q186`s decision, and it is what a ' +
+      'warning channel would have to break');
+    // And it is not vacuous: the SAME document with the reference aimed somewhere the
+    // graph refuses is a finding, so this file can tell an accepted document from a
+    // refused one.
+    const bad = JSON.parse(JSON.stringify(def)) as FlowDefinition;
+    (bad.nodes.find((n) => n.id === 'score') as unknown as { needs: Record<string, unknown> })
+      .needs.run = 'publish';
+    ok(validateDefinition(bad, { predicates: [], workerTypes: reg.workerTypes }).length > 0,
+      'the control: the same flow with the reference pointed DOWNSTREAM is refused, so the ' +
+      'assertion above is about this document and not about the validator being silent');
+  });
+});
