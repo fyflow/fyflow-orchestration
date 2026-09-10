@@ -2,6 +2,50 @@
 
 ## Current state
 
+**[P13](plans/p13-when-is-a-declared-reference-refused.md) is DECLARED — *when is a declared
+reference refused, and what does it cost?*, and it is the SECOND PRODUCT PLAN IN A ROW**, the first
+back-to-back pair since P1-P2. [P12](plans/p12-what-a-node-receives-and-what-a-decision-sees.md)
+gave an author a way to reach an earlier node's output and left **two ways to write one that does not
+work**, both raised by its own readers rather than by its authors. Three items, serial: **W45**
+([Q187](open-questions.md) — reachability is not dominance, as **ADR 0042**), **W46**
+([Q186](open-questions.md) — the cost nothing warns about), **W47** (the blocked flow on real
+workers). **Reserves W45-W48, Q199-Q213, ADR 0042-0043** — fifteen questions, because P11 reserved
+five and extended twice and P12 reserved ten and extended once.
+
+**Its question is [ADR 0002](decisions/0002-a-flow-definition-is-data-and-a-predicate-is-registered-by-name.md)
+rule 3 failing against a rule written four days earlier.** `FD-V27` requires **reachability** and not
+**dominance**, so a reference across a decision is accepted at instantiation and refused at run time
+*on the one workload that takes the other branch* — the exact shape that rule exists to prevent.
+**Reproduced at the declaration**: `validateDefinition` returns **0 findings**, the LOW payload
+dispatches all four tasks, and the HIGH payload dispatches two and stops with `UnresolvedReference`
+naming the node, the key, the target and the path. *The message is good and the moment is wrong.*
+
+**Its declaration measured SIX facts, and EVERY REGISTER ROW HELD — which breaks a streak of
+FOURTEEN consecutive plans finding one wrong by trying to act on it.** The two things that turned out
+wrong were **the declaration's own probes**, and both are recorded as such: a crude search reported an
+expression for *optional* in section 3 that is the `optional` field on a task node, and the first
+cost fixture named a "small" node whose result **contained** the large array. **That second error is
+the plan's sharpest input**: it cost **562.6 ms**, the full cliff, from a key an author wrote in order
+to get something small — because **a reference names a NODE, so it carries everything that node
+returned**, which is one step further out than [Q186](open-questions.md)'s row states it.
+
+**And the objection W41 made its choice on has NO INSTANCE in this repository.** Dominance over the
+entry-rooted DAG is computable, and run across **both** corpora — 26 flows, **6 aimed references** —
+it would refuse **0 of the 6**, while refusing the broken flow above. [Q187](open-questions.md)'s
+row says a dominance rule *refuses valid flows whose every real workload takes the producing branch*;
+nothing here exhibits one. **The scope is stated rather than generalised**: that measures that the
+corpus contains no counter-example, not that none exists — and W45's evidence is required to try to
+construct one. **[Q186](open-questions.md)'s cliff re-measured on today's tree at
+8.3 / 8.7 / 10.0 / 560.5 ms against W41's 6.5 / 8.0 / 10.6 / 546.6** — 64x, and which node id the
+author typed is the whole of the difference.
+
+**[Q190](open-questions.md) is confirmed in BOTH shapes and declared OUT**, because its status
+cell already reads *decided as ACCEPTED* and its forcing condition has not occurred — reopening it
+would be section 6 pass 3 rule 1's *measuring your own output*. **And P13 is the test of a rule P12's
+retro refused**: neither W45 nor W46 pre-declares `AGENTS.md`, `spec/README.md` or
+`scripts/check-docs.mjs`, so if both take all three as late exceptions again, the next retro should
+adopt it.
+
 **[P12](plans/p12-what-a-node-receives-and-what-a-decision-sees.md) is COMPLETE and RETRO'D, and
 `doc/workflow.md` is [v0.13](workflow.md).** Its question — *what does a node receive, and what does a
 decision see?* — is answered by **two ADRs**: what a node can reach is the run's own outputs, named
