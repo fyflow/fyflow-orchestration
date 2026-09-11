@@ -1,15 +1,15 @@
 # P16 — What is a node type, and what does the library owe the scheduler to have one?
 
-**Status:** DRAFT — written 2026-09-11 from a maintainer conversation on the tree at `82ff3ba`
-(P15 declared, nothing started) and **re-verified the same day on `b317486`, after
-[P15](p15-what-a-run-retains-and-what-a-result-may-be.md) completed and its retro moved
-`doc/workflow.md` to [v0.16](../workflow.md)**. **Not declared.** Declaring it means the record-step
-files below are updated and the baseline gate is re-taken on the tree it starts from. *Read every
-status from the item's own file, never from this line.*
+**Status:** DECLARED — declared 2026-09-11 on `8550978`, the commit that carried this file as a
+draft, after [P15](p15-what-a-run-retains-and-what-a-result-may-be.md) completed and its retro moved
+`doc/workflow.md` to [v0.16](../workflow.md). **No item has started.** *(Drafted the same morning on
+`82ff3ba` while P15 was in flight, re-verified on `b317486` after it closed, committed as a draft so
+its decisions lived in a plan rather than a transcript, and declared here.)* *Read every status from
+the item's own file, never from this line.*
 
-**Baseline:** `b317486` — `doc/workflow.md` [v0.16](../workflow.md), **P1-P15 complete and retro'd,
-no plan running.** P15's last commit records `GATE EXIT=0` with zero lines beginning `FAIL`; *this
-draft did not re-run the gate*, and the declaration does. *(This paragraph read *"SERIAL AFTER P15 —
+**Baseline:** `8550978` — `doc/workflow.md` [v0.16](../workflow.md), **P1-P15 complete and retro'd,
+no plan running**, tree clean, `npm run gate` `GATE EXIT=0` with zero lines beginning `FAIL`, 15
+chain entries — see *The baseline this plan starts from*. *(This paragraph read *"SERIAL AFTER P15 —
 W53 measures the driver"* while P15 was in flight; P15 closed the same day, so the serial constraint
 is discharged and every fact below was re-taken against the tree it left.)*
 
@@ -82,13 +82,14 @@ names as its own follow-on — [Q219](../open-questions.md), making a region's c
 
 ## What was measured before this plan was drafted
 
-**Five facts, taken read-only on `82ff3ba` with the tree held still, none of them a gate, and
-every citation below re-checked on `b317486` after P15 landed.** The harness is two files in this
-session's scratchpad, outside the repository; a declaration would move them to `dev-dist/p16/` and
-re-take them. *(Section 6's held-still rule is why nothing here ran `npm run gate` or rule 8's set:
-P15's W53 was taking its own baseline in the same tree at 09:44. P15's three items moved
-`src/driver/driver.ts` by 166 lines and none of the four fields `dispatch` hands `createTask`; the
-line numbers below are the post-P15 ones.)*
+**Five facts, first taken read-only on `82ff3ba` with the tree held still, and RE-TAKEN at this
+declaration on `8550978` by `dev-dist/p16/facts.mjs`, which prints every number below and is the
+file an item re-runs rather than transcribes.** All five reproduced. *(The draft's harness was two
+files in a session scratchpad outside the repository; section 6's held-still rule is why the draft
+ran neither `npm run gate` nor rule 8's set, because P15's W53 was taking its own baseline in the
+same tree at 09:44. P15's three items then moved `src/driver/driver.ts` by 166 lines and none of the
+four fields `dispatch` hands `createTask`; the line numbers below are the post-P15 ones, and
+`facts.mjs` derives them rather than quoting them.)*
 
 **1. The driver hands the scheduler four fields and the scheduler accepts eight.** `TaskFactory`'s
 parameter type is `{ id, workerType, payload, optional }` (`src/driver/driver.ts:430`, and the one
@@ -238,13 +239,13 @@ measure them.*
 
 | Id | Item | Owns | Depends on | Gate |
 |---|---|---|---|---|
-| W57 | **The scheduler is a dependency — ADR 0048.** `peerDependencies`, `import type` in `src/driver/driver.ts`, a default `createTask` of `new FyflowTask(config)`, `S7`/`S8`/`S9` narrowed with their probes and `META` entries repointed, Q71 closed, `AGENTS.md` section 12 rewritten and the `check` snippet that needed the cast made a `run` one | `package.json`, `deno.json`, `src/driver/**`, `scripts/check-source.mjs`, `scripts/check-source-selftest.mjs`, `scripts/check-scheduler.mjs`, `spec/runtime-targets.md`, `AGENTS.md` §1 and §12, `doc/decisions/0048-*` | P15's driver items merged | L0-L6 in five runtimes at the declared pre-item numbers; `check:source:selftest` at its new probe count; the section 12 snippet **executed** under `tsconfig.docs.json` with `lib: ["ES2022", "DOM"]`, which is the configuration fact 3 fails in today; rule 8 over every narrowed clause |
-| W58 | **What a node says about its own task.** `retryPolicy` and `workerGroups` on a `task` node, `FD-V30`-`FD-V31` (ids to be confirmed against `spec/flow-definition.md` section 5 at declaration), `Registry.groups`, `defaultRetryPolicy`, `TaskFactory` widened, the driver passing both through, corpus fixtures valid and invalid | `src/definition/**`, `src/driver/driver.ts` (the `dispatch` site only), `spec/flow-definition.md` §2 §5 §7, `spec/examples/**`, `test/definition/**`, `test/driver/**`, `AGENTS.md` §3 | W57 | L1-L5 with the new refusals fixtured; **an L6 row where a worker role fails once and succeeds on retry, `attempts === 1` on the outcome record, the first non-zero `attempts` a SCHEDULER has ever set at any rung** (L1's `log.test.ts` feeds 2 and 3 from fixtures); an L6 row where a task carrying a group is `resource.blocked` behind a `ConcurrentLimitGroup(1)` the row holds; rule 8 obligation (e) on `Registry.groups` both ways |
-| W59 | **What a node type is — ADR 0049.** `NodeType` and `Registry.nodeTypes`; `type` and `settings` on a task node with `FD-V` refusals for an unknown type, a settings object the type's schema refuses, and `type` beside `workerType`; the envelope as `FD-C5` (id to be confirmed); the bootstrap helper as a sub-path export; the exit artifact | `src/definition/**`, `src/driver/**`, `src/scheduler/**` (new), `index.ts`, `deno.json` allowlist, `spec/flow-definition.md` §2 §3 §5 §7, `spec/examples/**`, `test/**`, `examples/**`, `AGENTS.md` §3 and a new section, `doc/decisions/0049-*` | W58 | L1-L5 in five runtimes; **L6: two typed nodes of one type with different settings on real workers in both runtimes, each worker receiving `{ settings, input }` and computing a different answer from `settings`**, with the two pools built by the helper and a group the type declared; reverting W57, W58 and W59 each measured in L6 failures; `map-with-context` and `map-over-region-output` at the numbers P15 left them (L6 closed P15 at **1061 assertions over 42 real runs**, and those two rows are unmoved by it); **and, per v0.16's obligation (a), the typed-node fixtures include a shape the feature was not built for** — a typed task inside a `fanout` branch and a typed `map` branch — not only the top-level task |
-| W60 | *reserved — expected unused* | | | |
+| [W57](../work-items/w57-the-scheduler-is-a-dependency.md) | **The scheduler is a dependency — ADR 0048.** `peerDependencies`, `import type` in `src/driver/driver.ts`, a default `createTask` of `new FyflowTask(config)`, `S7`/`S8`/`S9` narrowed with their probes and `META` entries repointed, Q71 closed, `AGENTS.md` section 12 rewritten and the `check` snippet that needed the cast made a `run` one | `package.json`, `deno.json`, `src/driver/**`, `scripts/check-source.mjs`, `scripts/check-source-selftest.mjs`, `scripts/check-scheduler.mjs`, `spec/runtime-targets.md`, `AGENTS.md` §1 and §12, `doc/decisions/0048-*` | P15's driver items merged | L0-L6 in five runtimes at the declared pre-item numbers; `check:source:selftest` at its new probe count; the section 12 snippet **executed** under `tsconfig.docs.json` with `lib: ["ES2022", "DOM"]`, which is the configuration fact 3 fails in today; rule 8 over every narrowed clause |
+| [W58](../work-items/w58-what-a-node-says-about-its-own-task.md) | **What a node says about its own task.** `retryPolicy` and `workerGroups` on a `task` node, `FD-V30`-`FD-V31` (ids confirmed against `spec/flow-definition.md` section 5 at the item's start, `FD-V29` being the highest at declaration), `Registry.groups`, `defaultRetryPolicy`, `TaskFactory` widened, the driver passing both through, corpus fixtures valid and invalid | `src/definition/**`, `src/driver/driver.ts` (the `dispatch` site and `DriverOptions` only), `spec/flow-definition.md` §2 §5 §7, `spec/README.md`, `spec/examples/**`, `test/definition/**`, `test/driver/**`, `examples/**` (the two L6 rows and the retrying role), `AGENTS.md` §3 | W57 | L1-L5 with the new refusals fixtured; **an L6 row where a worker role fails once and succeeds on retry, `attempts === 1` on the outcome record, the first non-zero `attempts` a SCHEDULER has ever set at any rung** (L1's `log.test.ts` feeds 2 and 3 from fixtures); an L6 row where a task carrying a group is `resource.blocked` behind a `ConcurrentLimitGroup(1)` the row holds; rule 8 obligation (e) on `Registry.groups` both ways |
+| [W59](../work-items/w59-what-a-node-type-is.md) | **What a node type is — ADR 0049.** `NodeType` and `Registry.nodeTypes`; `type` and `settings` on a task node with `FD-V` refusals for an unknown type, a settings object the type's VALIDATOR refuses (a registered function, as a predicate is — the schema LANGUAGE is P18's), and `type` beside `workerType`; the envelope as `FD-C5` (`FD-C4` being the highest at declaration); the bootstrap helper as a sub-path export; the exit artifact | `src/definition/**`, `src/driver/**`, `src/scheduler/**` (new), `index.ts`, `package.json` (the sub-path export), `deno.json` (allowlist and export), `spec/flow-definition.md` §2 §3 §5 §7 and a new section, `spec/README.md`, `spec/examples/**`, `test/**`, `examples/**`, `AGENTS.md` §3 and a new section, `doc/decisions/0049-*` | W58 | L1-L5 in five runtimes; **L6: two typed nodes of one type with different settings on real workers in both runtimes, each worker receiving `{ settings, input }` and computing a different answer from `settings`**, with the two pools built by the helper and a group the type declared; reverting W57, W58 and W59 each measured in L6 failures; `map-with-context` and `map-over-region-output` at the numbers P15 left them (L6 closed P15 at **1061 assertions over 42 real runs**, and those two rows are unmoved by it); **and, per v0.16's obligation (a), the typed-node fixtures include a shape the feature was not built for** — a typed task inside a `fanout` branch and a typed `map` branch — not only the top-level task |
+| [W60](../work-items/w60-reserved.md) | *reserved — expected unused; its three issuance conditions are in its file* | | | |
 
-Each has its own file under `doc/work-items/` **once the plan is declared**; none exists for this
-draft. This table is an index, not the declaration.
+Each has its own file under `doc/work-items/`, declared with this plan. This table is an index, not
+the declaration.
 
 **Why serial and in this order.** W57 changes what `createTask` is and what `src/` may import, and
 both W58 and W59 build on that; W58's passthrough of `workerGroups` is what W59's type-declared
@@ -365,6 +366,10 @@ and a plan whose first two items ship nothing observable is P11's shape.
 ## Stop and ask a human
 
 - **The peer range** (decision 1). Exact pin or caret. W57 prices both; the maintainer chooses.
+- **How the JSR package declares the scheduler.** JSR has no `peerDependencies`; a dependency there
+  is a `deno.json` `imports` entry, which `S8` refuses today and which ADR 0029 rule 2 keeps in
+  `examples/deno-import-map.json` on purpose. W57 decides it inside ADR 0048 or issues W60 on its
+  first condition; either way the maintainer sees it before it lands.
 - **Retiring versus narrowing `S7`** (prediction 4). If D1-D3 cover it, retiring loses probes and
   a clause id cited in seven documents; narrowing keeps an id whose reason has changed. Either is
   defensible and the ADR must say which and why.
@@ -373,17 +378,71 @@ and a plan whose first two items ship nothing observable is P11's shape.
 - **Anything that would change what a `map-with-context` or `map-over-region-output` instance
   receives.** Decision 4 forbids it; an item that finds it necessary stops.
 
-## The record step this draft does not take
+## A note on ids
 
-Declaring this plan touches, beyond this file: `doc/README.md` (the current-state paragraph and the
-plan history table), `CLAUDE.md`'s current-state line, `README.md`, `doc/open-questions.md` (Q248-Q250
-rows and the *Reserved* note), and four work-item files under `doc/work-items/` (W57, W58, W59, and
-`w60-reserved.md` on P15's precedent). **None of that is done here**, because this tree is a
-worktree branched for the draft and a declaration is the maintainer's call. It also re-takes the
-five facts in `dev-dist/p16/` and the baseline gate on the tree it starts from, per section 1
-rule 5's WHEN clause. *The worktree branch was fast-forwarded to `b317486` on 2026-09-11 with the
-draft as its only untracked file, so a declaration commit applies on top of P15's last commit with
-nothing to merge.*
+**Reserves W57-W60, Q248-Q262, ADR 0048-0050.** Derived rather than inherited: the highest work item
+on disk is **W55** and **W56 was reserved by P15 and never issued**; the highest Q in the register is
+**Q246** and **Q247 was reserved by P15 and unused**; the highest decision on disk is **ADR 0046**
+and **0047 was skipped**. All of those are spent and not reused, so the next free triple is **W57,
+Q248, ADR 0048** — which is what P15's retro wrote into `doc/README.md`, and what this derivation
+confirms independently.
+
+**Fifteen questions**, on P15's argument that the block size is set by the worse case. **Two ADRs
+expected and a third reserved**: 0048 is W57's and 0049 is W59's; 0050 is taken only if W60's first
+condition fires, and the plan says which rather than reserving work for it.
+
+## The baseline this plan starts from
+
+`8550978`, clean tree, `GATE EXIT=0`, zero lines beginning `FAIL`, 15 chain entries — the gate run
+over the draft's own commit, read from `dev-dist/p16/gate-8550978.log` by exit code rather than from
+a piped line (v0.16 change 1). **Every figure below was RE-TAKEN at this declaration rather than
+transcribed:**
+
+```
+27 file(s), 703 assertions, in node 24.20.0, deno 2.9.6, chromium, firefox and webkit
+1061 assertions at L6, 0 failed, 42 real runs, in node and deno
+spec        - 7 documents, 44 examples, 92 rules
+markdown    - 103 documents, 4614 relative links, 240 anchored
+register    - 191 questions, 139 open, 2 deferred, 50 resolved, before this declaration's four rows
+selftests   - 7/7 completed, 7 ok, 550.5 s wall, 5 lanes; check-markdown 37/37 caught, 7/7 bounded
+```
+
+**The five-runtime claim is measured, not inherited**: `npm run gate` runs `test:browser`, which is
+chromium only, so `npm run test:browser:all` was run for firefox and webkit — exit 0, 27 / 703 in
+each, `dev-dist/p16/browser-all-8550978.log`. **703 counts `test()` cases and 1061 counts individual
+assertions ([Q98](../open-questions.md)) — they are never added.**
+
+**The census parser is P15's, unchanged** (`dev-dist/p15/census.mjs`), and it reproduced the
+standing line exactly before this declaration's rows were written — **191 / 139 / 2 / 50, 44 ids in
+both tables, 191 of 191 in exactly one cluster cell, 0 aborts**. The re-run after the four rows is
+recorded in the register's own note beside them.
+
+**[Q142](../open-questions.md) was checked rather than assumed.** This declaration adds four
+documents under `doc/work-items/`, which neither `removes` probe cuts, so `M3`'s one-directory
+fixture and `M4`'s two-directory one both rise; P15's declaration retuned them to **90** and
+**3490** against fixtures of 78 and 3109, and the gate over `8550978` — with this plan file already
+counted — reports the `check-markdown` self-test at 37/37 caught and 7/7 bounded. The declaration's
+own gate below is the measurement with the item files in.
+
+**The declaration's own tree gates green, measured with the tree HELD STILL** — `git status
+--porcelain` was written to a file before `npm run gate` started and again after it returned, and
+the two are identical; the log is `dev-dist/p16/gate-declared.log`, read by exit code:
+
+```
+GATE EXIT=0, zero lines beginning FAIL, 15 chain entries
+27 file(s), 703 assertions, in node 24.20.0, deno 2.9.6 and chromium
+1061 assertions at L6, 0 failed, 42 real runs, in node and deno
+spec        - 7 documents, 44 examples, 92 rules
+markdown    - 107 documents, 4681 relative links, 243 anchored
+selftests   - 7/7 completed, 7 ok, 439.5 s wall, 5 lanes (550.5 s over the draft's commit; Q179)
+check-markdown self-test - 37/37 probes caught, 7/7 bounded
+```
+
+**The last line is [Q142](../open-questions.md)'s verification**: four documents under
+`doc/work-items/` took the tree from 103 to 107 and both `removes` probes still trip exactly the set
+they declare, so P15's retune of `M3` to 90 and `M4` to 3490 holds with this declaration in. **No
+floor was moved and no file outside section 1 rule 5's record step was edited** — the declaration's
+whole diff is this plan, four work-item files, the register, and the three indexes.
 
 ## Record
 

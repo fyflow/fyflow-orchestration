@@ -2,6 +2,27 @@
 
 ## Current state
 
+**[P16](plans/p16-what-a-node-type-is-and-what-the-library-owes-the-scheduler.md) is DECLARED —
+*what is a node type, and what does the library owe the scheduler to have one?* — and it is the
+FIFTH PRODUCT PLAN IN A ROW, with NO ITEM STARTED.** A flow names a worker pool by a string and hands
+it a payload, and that is everything a node can say about the thing that runs it. Three items,
+serial: **[W57](work-items/w57-the-scheduler-is-a-dependency.md)** (the scheduler is a declared
+dependency — **ADR 0048** superseding
+[ADR 0013](decisions/0013-the-scheduler-is-a-development-dependency-reached-from-the-working-tree.md)
+rule 1, whose forcing fact expired on 2026-08-31; [Q71](open-questions.md) closes by `import type`),
+**[W58](work-items/w58-what-a-node-says-about-its-own-task.md)** (`retryPolicy` and `workerGroups`
+as declared keys mirroring `optional`, and a registry `groups` set because the scheduler **silently
+ignores an unknown group id**, measured), **[W59](work-items/w59-what-a-node-type-is.md)** (a node
+type as a registry entry — **ADR 0049** — with the envelope `{ settings, input }` that leaves ADR 0040
+rule 6 intact for untyped nodes, the bootstrap helper as a sub-path export, and the exit artifact on
+real workers in both L6 runtimes). **Reserves W57-W60, Q248-Q262, ADR 0048-0050.** Its follow-on
+slices are ordered and not reserved: a per-node JSONata **transform applied in the type's worker
+wrapper** ([Q251](open-questions.md)), then schemas with a sample-based pre-flight, then strict
+mode. **Five facts measured and re-taken on `8550978` by `dev-dist/p16/facts.mjs`; prediction 2
+reversed by its own grep within the hour and narrowed.** Drafted and committed as a draft the same
+morning P15 closed, so its six decisions lived in a plan rather than a transcript before they were
+declared. **Read every status from the item's own file, never from this line.**
+
 **[P15](plans/p15-what-a-run-retains-and-what-a-result-may-be.md) is DECLARED — *what does a run
 retain, and what may a result be?* — and it is the FOURTH PRODUCT PLAN IN A ROW.** It takes
 [Q19](open-questions.md) and [Q22](open-questions.md) as ONE question: they are **the two oldest rows
@@ -2944,3 +2965,4 @@ trying to append to it. P10-P14 added below.)*
 | [P13](plans/p13-when-is-a-declared-reference-refused.md) | **By CERTAINTY rather than by reachability or by dominance, and a reference says whether it is CONDITIONAL** — [ADR 0042](decisions/0042-a-reference-says-whether-it-is-conditional-and-the-bare-form-means-the-target-certainly-ran.md): `FD-V29` refuses an unconditional reference a run can reach the declaring node without, and a `?` modifier is what says *if it ran*. **Measured: of the 127 references the two corpora ADMIT, dominance refuses 30 and `FD-V29` refuses 8**, so a dominance rule would have cost 22 valid ones. The cost half is [W46](work-items/w46-what-a-reference-costs-and-whether-anything-says-so.md)'s and the verdict is that **nothing warns** | [W47](work-items/w47-the-blocked-flow-on-real-workers.md) — both flows on real workers in both L6 runtimes, L6 **879 assertions / 40 real runs**; and the finding that ladder L6 was BLIND to the plan's own headline for a whole item ([Q214](open-questions.md)) | 2026-09-10 |
 | [P14](plans/p14-what-a-reference-means-when-two-regions-arities-are-independent.md) | **It means all of the target's outputs, which is what `FD-V28` always said — an output is visible when two branch paths AGREE ON THE REGIONS THEIR CHAINS SHARE** — [ADR 0044](decisions/0044-a-reference-is-visible-when-two-paths-agree-on-the-regions-that-contain-both-of-them.md), and *one path is a prefix of the other* is that rule's special case. **The defect was never about a `map` and never about arity**: on a sibling `fanout` pair, which neither corpus contained, which branch the author wrote the reference in decided whether the run completed. **Three of four predictions reversed, and three trace to one wrong declaration fact** | [W51](work-items/w51-the-sibling-region-flow-on-real-workers.md) — a reader inside one region receiving EVERY output of a sibling region at arities neither derives from the other, on real workers in both L6 runtimes; L6 **942 assertions / 42 real runs**, and **reverting the resolver went from 0 L6 failures to 12** | 2026-09-11 |
 | [P15](plans/p15-what-a-run-retains-and-what-a-result-may-be.md) | **A run retains what its tasks returned — *(tasks settled) x (bytes each returned)* — and a result is a VALUE, not an OBJECT** — [ADR 0046](decisions/0046-a-run-retains-what-its-tasks-returned-and-a-region-releases-its-collection-when-its-join-becomes-terminal.md) and `OR-R11`, resolving [Q19](open-questions.md) and [Q22](open-questions.md), **the two oldest rows in the register**, in one plan. A region releases its collection when its join becomes TERMINAL — half of what a region-bearing run held was a second copy nothing reads — and what crosses `OR-R2`'s clone is a value's own data, never its behaviour, **silently**. **Its exit artifact is a MEASURED NUMBER rather than a flow**, the first time section 2's other option has been taken | [W55](work-items/w55-a-run-at-scale-on-real-workers.md) — what ONE run holds on a real `FyflowScheduler`, before and after, byte-identically in both L6 runtimes, with the extrapolation to **3174.8 → 1610.9 MiB** at ten thousand concurrent runs; L6 **1061 assertions / 42 real runs**, the run count deliberately unmoved, and **reverting the decision went from 0 L6 failures to 29** | 2026-09-11 |
+| [P16](plans/p16-what-a-node-type-is-and-what-the-library-owes-the-scheduler.md) | *declared 2026-09-11 — not yet answered.* What is a node type, and what does the library owe the scheduler to have one? | *pending — [W59](work-items/w59-what-a-node-type-is.md)'s typed flow on real workers in both L6 runtimes, with what reverting each of the three items costs* | — |
