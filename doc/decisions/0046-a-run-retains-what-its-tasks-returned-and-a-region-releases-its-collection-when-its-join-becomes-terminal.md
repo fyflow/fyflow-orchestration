@@ -62,8 +62,9 @@ string beside the pointer. **So prediction 1's conclusion holds and its scope ce
 direction that mattered**: there is no second 49.8% to find, and the reason is not that the fifth
 structure is empty.
 
-**3. `arrivals` is a SECOND COPY and it is half of a region-bearing run.** `bytes([inputs, arrivals])`
-exceeds `bytes(inputs)` by **49.8%** at map arities 4, 16 **and** 64 over 64 KiB results, and an
+**3. `arrivals` is a SECOND COPY and it is half of a region-bearing run.** The collection is
+**49.8% of `bytes([inputs, arrivals])`** at map arities 4, 16 **and** 64 over 64 KiB results — which
+is what *half of what a region-bearing run holds* means — and an
 identity check says the stored value is neither the log record's `result` object nor the worker's
 own — it is the arriving branch's own edge-hop clone. **What it costs to release it:**
 
@@ -71,6 +72,19 @@ own — it is the arriving branch's own edge-hop clone. **What it costs to relea
 |---|---|---|
 | release the region's collection **BEFORE** the join reads it — the negative control | **14 failures** on the tree this ADR ships; **13** on the suite as it stood before W53, the fourteenth being W53's own *the release is AFTER the read* | not run |
 | release it **AFTER** the join reads it — what this ADR takes | **0 failures** | **0 failures** |
+
+*(**This sentence read *"`bytes([inputs, arrivals])` exceeds `bytes(inputs)` by 49.8%"*, and that is
+a different ratio** — [W55](../work-items/w55-a-run-at-scale-on-real-workers.md), by re-running
+`dev-dist/p15/facts.ts` with rule 3 reverted rather than transcribing its number. That harness
+computes `(both - inp) / both` and prints *"of the pair"*; as an EXCESS over `bytes(inputs)` the same
+three runs read **+99.2 / +99.4 / +99.4%**. The error is by a factor of two and it **UNDERSTATES the
+saving**; the conclusion, the headline and every MiB figure below are unaffected, because they are
+measurements of the whole rather than of the ratio. Four documents carried the derived sentence and
+`spec/join-policy.md`'s `JP-R12`, W53's own file and [Q19](../open-questions.md)'s resolved row
+carried the correct one. [Q243](../open-questions.md), which also records that **neither ratio is a
+constant**: the divisor is one copy per SETTLED RESULT, so it is a property of the FLOW as well as of
+the payload — +97.5% with no node after the join, +49.3% with one that echoes the collection, +33.0%
+on the flow ladder L6 measures.)*
 
 **And what it buys, re-taken with the change in place:** a completed region-bearing run's `arrivals`
 share goes **49.8% → 0.0%** at all three arities, and the scale table moves
@@ -236,11 +250,21 @@ count, so it works in all five runtimes and fails naming the field a new copy la
 P15 measured, **3174.8 MiB → 1610.9 MiB**.
 
 **What it costs a consumer: nothing observable, and that is also the problem.** No rung of section 4
-sees a whole structure leave — the release costs 0 at L1-L5 and 0 at L6, and the only thing that
-distinguishes it from doing nothing at all is the L2 pair this item added and the measured number
-[W55](../work-items/w55-a-run-at-scale-on-real-workers.md) will take. **That is
+saw a whole structure leave — at this decision the release cost 0 at L1-L5 and 0 at L6, and the only
+thing distinguishing it from doing nothing at all was the L2 pair this item added. **That is
 [Q214](../open-questions.md)'s third instance and the first from the REMOVAL side**, which is P15
 prediction 4.
+
+**And [W55](../work-items/w55-a-run-at-scale-on-real-workers.md) REVERSED that prediction, which
+sharpens this paragraph rather than deleting it.** Reverting rule 3 now costs **29 L6 failures in
+both runtimes**, across 23 distinct rows — so a rung CAN see it, and the rung is `examples/l6.ts`
+asserting the RELATION on every row: the collection non-empty before its join becomes terminal, empty
+after, with the run's outcome and every task id unchanged. **What stays true is the sentence that
+matters to a consumer**: nothing a run *reports* moves. The outcome, the ids, the log, the fold and
+every callback are byte-identical either way, which is why the release was safe to make, and the only
+observer is a reach past that surface into the driver's own state — [Q233](../open-questions.md)'s
+subject. *A rung made of runs cannot see this through anything a run reports; it can see it by not
+being made only of what a run reports.*
 
 **And it moves a cost onto [Q219](../open-questions.md) rather than off it**, which is recorded
 above rather than discovered later: a decision that makes a region's collection unreachable sooner

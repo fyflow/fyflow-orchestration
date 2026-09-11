@@ -18,7 +18,7 @@ the only document that does. **Every snippet in it is extracted and executed by 
 (`scripts/check-docs.mjs`), so it cannot rot the way a hand-maintained reference does. If you change
 the public surface, that check is what tells you the reference is now wrong.
 
-## Current state: **P1-P14 are ALL complete and retro'd, `doc/workflow.md` is [v0.15](doc/workflow.md), and [P15](doc/plans/p15-what-a-run-retains-and-what-a-result-may-be.md) is RUNNING — [W53](doc/work-items/w53-what-a-run-retains-that-nothing-reads.md) and [W54](doc/work-items/w54-what-a-result-may-be-and-what-bounding-it-would-cost.md) are DONE, W55 has not started.** **Read every status from the item's own file, never from this line.**
+## Current state: **P1-P14 are ALL complete and retro'd, `doc/workflow.md` is [v0.15](doc/workflow.md), and [P15](doc/plans/p15-what-a-run-retains-and-what-a-result-may-be.md) has ALL THREE ITEMS DONE — [W53](doc/work-items/w53-what-a-run-retains-that-nothing-reads.md), [W54](doc/work-items/w54-what-a-result-may-be-and-what-bounding-it-would-cost.md) and [W55](doc/work-items/w55-a-run-at-scale-on-real-workers.md) — so only its RETRO is outstanding.** **Read every status from the item's own file, never from this line.**
 
 **[P15](doc/plans/p15-what-a-run-retains-and-what-a-result-may-be.md) is DECLARED — *what does a run
 retain, and what may a result be?*, and it is the FOURTH PRODUCT PLAN IN A ROW.** It takes
@@ -26,8 +26,74 @@ retain, and what may a result be?*, and it is the FOURTH PRODUCT PLAN IN A ROW.*
 rows in the register whose owner cell says the same thing, *no owner, needs a measured run*, both
 since P1 — and **this declaration took that run.** Three items, serial: **W53** (what a run retains
 that nothing reads, as **ADR 0046**), **W54** (what a result may be, and what bounding it would cost),
-**W55** (a run at scale on real workers). **Reserves W53-W56, Q233-Q247, ADR 0046-0047.** **W53 and W54 are
-DONE and are below; W55 has not started.**
+**W55** (a run at scale on real workers). **Reserves W53-W56, Q233-Q247, ADR 0046-0047.** **All three
+are DONE and are below.**
+
+**[W55](doc/work-items/w55-a-run-at-scale-on-real-workers.md) is DONE and it is P15's EXIT ARTIFACT
+— a MEASURED NUMBER rather than a flow, which the plan's decision 3 declared before any item
+started.** `examples/retention.ts` is checked in and reports what ONE run holds on a real
+`FyflowScheduler`, before and after
+[ADR 0046](doc/decisions/0046-a-run-retains-what-its-tasks-returned-and-a-region-releases-its-collection-when-its-join-becomes-terminal.md),
+with both observers named — **byte-identically in both L6 runtimes**. **L6 is 1061 assertions over 42
+real runs**, from 942 / 42, and **the run count does not move**, because an artifact that is a number
+adds no flow. `spec/` unmoved at **7 documents, 44 examples, 92 rules**; L1-L5 unmoved at **27 files /
+703 cases in five runtimes**. **NO ADR and no spec rule.**
+
+**P15 prediction 4 REVERSES, and the reversal is NARROWER than its own reversal clause.** Reverting
+ADR 0046 rule 3 cost **ZERO** L6 failures before this item and costs **29 in BOTH runtimes** after it,
+across **23 distinct rows** — a count of observations rather than of knock-ons. The prediction guessed
+*"most likely by asserting the footprint itself"*; **the footprint is reported and never asserted**,
+and what moved the number is the **RELATION**, observed by reaching past the surface a run reports
+into the driver's own `arrivals` ([Q233](doc/open-questions.md)). **What
+[Q214](doc/open-questions.md) keeps is the half that matters to a consumer**: the outcome, every task
+id, the log, the fold and every callback are byte-identical either way, which is exactly why the
+release was safe to make. *A rung made of runs cannot see this through anything a run REPORTS; it can
+see it by not being made only of what a run reports.*
+
+**FACT 3's 49.8% IS THE SHARE OF THE PAIR, AND FOUR DOCUMENTS STATE IT AS THE EXCESS OVER
+`bytes(inputs)`, WHICH IS +99.2 TO +99.4%** — wrong by a factor of two, and wrong in the direction
+that **understates** the saving. Found by re-running fact 3's own harness with the release reverted
+rather than transcribing it. The headline — *half of what a region-bearing run holds is a second copy*
+— is the share-of-the-pair reading and is **right**, as are `JP-R12`, W53's own file and
+[Q19](doc/open-questions.md)'s resolved row. **And neither ratio is a constant**: the divisor is one
+copy per SETTLED RESULT, so it is a property of the FLOW as well as of the payload — **+97.5%** with
+no node after the join, **+49.3%** with one that echoes the collection, **+33.0%** on the flow L6
+measures. [Q243](doc/open-questions.md).
+
+**P15 fact 5's whole table re-takes TO THE DECIMAL in both directions** — 10.2 / 101.8 / 317.4 /
+**3174.8** / 1584.9 MiB before, 6.2 / 62.1 / 161.1 / **1610.9** / 803.0 after — with the two observers
+agreeing within **1.7-4.2%** at the large sizes, where P15 said within 3%.
+
+**Its sharpest finding is that the SECOND OBSERVER WAS MEASURING THE FIRST ONE'S INSTRUMENT.** The
+peak sampler holds the arrived payload objects, that snapshot is reachable from `driver.opts`, and the
+byte walk skips `opts` **by name** — so observer 1 could not see it and observer 2 could, and every
+kept driver retained **a second copy of the very collection the decision releases**: **141.9 against
+129.4 MiB**, one collection a run, confirmed at a second scale. *A sensor cannot corroborate itself*,
+and here the second sensor was measuring the first one's instrument.
+
+**And the byte observer — the item's whole deliverable — was bound by NOTHING, three separate ways**,
+each costing 0 with 1050 assertions green: the serializer made unavailable, a second `continue` inside
+the walk (777.5 KiB to 0.6), the reconstruction's `extra` list emptied. **`walkOf` and `retainedBytes`
+were two expressions over one literal and only one reached an assertion.** The measurement takes its
+key list FROM the asserted list now, and the harness's predicate gained three RELATIONS rather than
+figures — the rung has a serializer, the reconstruction exceeds the end, and **what a run holds cannot
+be smaller than what it released**, because a collection is a SUBSET of what `inputs` holds.
+
+**The headline number rested on ONE `check` call that three integer edits removed**, after which the
+revert cost **2 instead of 25** — [W23](doc/work-items/w23-a-nested-flow-on-real-workers.md)'s finding
+at its **FIFTH** iteration, closed by `PER_ROW_SUBJECTS` bound **both ways**. **N runs on ONE shared
+scheduler is O(N^2)** (115 / 277 / 884 / 3304 ms at 100 / 200 / 400 / 800) **and on their own is
+linear** (108 / 183 / 313), while the driver's share is flat at 15.0-15.1 KiB a run — and
+`AGENTS.md` section 9 recommends the expensive topology ([Q244](doc/open-questions.md)). **A run's
+footprint is not only the driver's**: `scheduler.tasks` holds six tasks a run beside it and
+**`v8.serialize` REFUSES a `FyflowTask`** ([Q245](doc/open-questions.md)).
+
+**Readers 13 / 3 blocking and 41 mutations / 19 survivors / 6 blocking, OVERLAP 2** — the
+**thirty-first** measurement, in band, neither primed, the two shared subjects reached from opposite
+ends. **Rule 8: 46 probes, 34 caught, 12 declared ceilings, 0 aborts, 0 against declaration**, run
+twice with the readers' sixteen exact edits in the set — and the re-run found **a CRASH where a
+failure belonged**. **ONE late exception, zero undeclared. Census 191 / 139 / 2 / 50, 0 aborts;
+Q243-Q246 raised, Q247 unused; [Q142](doc/open-questions.md) does NOT fire.**
 
 **[W54](doc/work-items/w54-what-a-result-may-be-and-what-bounding-it-would-cost.md) is DONE and
 [Q22](doc/open-questions.md) is RESOLVED by `OR-R11` in `spec/outcome-record.md` **v0.9** — open
@@ -132,7 +198,7 @@ NOT fire.**
 **Its declaration measured EIGHT facts and FIVE correct or sharpen a row it is built on** — the
 seventeenth time a plan has found one of its own inputs wrong by trying to act on it. **The headline:
 HALF of what a region-bearing run holds is a SECOND COPY that nothing reads.** The driver's
-`arrivals` map aliases nothing — `bytes([inputs, arrivals])` exceeds `bytes(inputs)` by **49.8%** at
+`arrivals` map aliases nothing — the collection is **49.8% of `bytes([inputs, arrivals])`** at
 map arities 4, 16 **and** 64 over 64 KiB results, and the stored value is neither the log record's
 `result` object nor the worker's own. **Clearing it after the join reads it costs 0 at L1-L5 and 0 at
 L6**, with a negative control firing at **13 failures** when it is cleared before, and it takes ten
