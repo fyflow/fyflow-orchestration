@@ -9,8 +9,82 @@ in the register whose owner cell says the same thing — *no owner, needs a meas
 have said it since P1. **This declaration took that run.** Three items, serial: **W53** (what a run
 retains that nothing reads, as **ADR 0046**), **W54** (what a result may be, and what bounding it
 would cost), **W55** (a run at scale on real workers). **Reserves W53-W56, Q233-Q247, ADR 0046-0047.**
-**W53 is DONE; W54 and W55 have not started. Read every status from the item's own file, never from
-this line.**
+**W53 and W54 are DONE; W55 has not started. Read every status from the item's own file, never
+from this line.**
+
+**[W54](work-items/w54-what-a-result-may-be-and-what-bounding-it-would-cost.md) is DONE and
+[Q22](open-questions.md) is RESOLVED by **`OR-R11`** in `spec/outcome-record.md` **v0.9** — open
+since P1, and the SECOND of the two oldest rows whose owner cell said *no owner, needs a measured
+run*. With [Q19](open-questions.md) closed by
+[W53](work-items/w53-what-a-run-retains-that-nothing-reads.md) one item earlier, BOTH are answered in
+one plan.** `spec/` is **7 documents, 44 examples, 92 rules**; L1-L5 is **27 files / 703 cases in
+five runtimes**; **L6 is unmoved at 942 / 42**. **NO ADR — 0047 is SKIPPED and not reused**, on
+`doc/decisions/README.md`'s own *a spec rule with a rationale paragraph is better than a spec rule
+plus an ADR restating it*.
+
+**A result is a VALUE, not an OBJECT.** What crosses `OR-R2`'s clone is a value's own enumerable
+string-keyed DATA plus the built-in types' internal state; what does not is the **prototype** (so
+methods, `instanceof` and privacy), **accessors**, **non-enumerable** properties, **symbol keys**,
+**property attributes** — a frozen object arrives unfrozen — and an **`Error`'s own extra fields**.
+**Q22's fork is the wrong shape**: it IS the driver's constraint, `OR-R2` and `OR-R6` unchanged, and
+the question an author actually hits is not *may I return this* but **what arrives**.
+
+**The document W54 owns carried a FALSE sentence, in the direction that matters.** It said
+`structuredClone` *"throws on a function, a class instance with behaviour, or anything else
+non-cloneable"*. It does not throw — it clones it **lossily**, prototype gone, methods gone,
+`instanceof` false, **no error and no report**. So the boundary has **three** answers where the
+document named two, and it is now **27 rows, one per shape — 5 refused, 11 intact, 11 lossy** —
+asserted in **all five runtimes**, which is P15 prediction 3's own stated way of being wrong checked
+rather than assumed.
+
+**Prediction 3's CONCLUSION is confirmed and its stated REASON reverses**, which is
+[P12](plans/p12-what-a-node-receives-and-what-a-decision-sees.md)'s [Q193](open-questions.md) and
+P14's retro's sharpest kind. It says no ADR *because a driver cannot tell a class instance from the
+plain object its author meant to return*. **Measured, it can**: a prototype comparison after the
+clone fires on every top-level lossy shape and on none of the intact ones, at **0.02-0.65% of one
+clone**. What is true is narrower — the cheap check is **blind to more than half the lossy rows**,
+including the NESTED case a worker actually writes, and the walk that sees them costs **23-60%** of
+the clone per settlement ([Q238](open-questions.md)).
+
+**`OR-R12` is new and is the sharpest single finding: `OR-R6` was stated of the whole boundary and
+holds only at the LISTENER.** `resolve()`'s clone is unguarded, so an uncloneable resolution value
+throws a bare `DataCloneError` to its caller, **appends nothing, does not fail the run and never
+reaches `onRunFailure`** — and that class is in neither `spec/outcome-record.md` section 6's
+enumeration nor `AGENTS.md`'s executed error-class snippet. The asymmetry is DEFENDED rather than
+removed — a settlement has nobody to throw to; a resolution is a synchronous call the consumer made —
+and whether the two should be unified is [Q241](open-questions.md).
+
+**Its central lesson is that A SUITE THAT DEFINES ITS OWN ORACLE CANNOT DISAGREE WITH THE DOCUMENT.**
+The first version classified every shape by comparing top-level prototypes — **the very predicate
+section 4 declines four paragraphs later for being blind to the nested case**, applied to a table
+whose lossy row contains that case. Every row passed; the table and the suite said different things;
+nothing could observe the difference. **What fixed it was deleting the classifier**, so each row
+asserts the property its own row names — a refusal, a content ROUND TRIP, or the NAMED loss — and the
+suite **reads the table out of the document** and compares both ways. *That binding caught the item's
+own first split, 5 / 10 / 12, on its first run.*
+
+**And the item broke its own rule inside the section that states it.** Section 4 closes with *quote
+the shape and the ratio, never the millisecond*, and four paragraphs above it stood two percentage
+bands taken from a single run — **0.04-0.52% and 27-55%, whose stated upper bounds sat below every
+N = 100 reading**. Re-taken as 21 medians per reading, five readings at two payload sizes: **0.02-0.65%
+and 23-60%**. `doc/workflow.md` section 6 pass 3 rule 3's sharpest kind, inside one document.
+
+**Four more things measured at ZERO before the readers found them**: the `rows` list was bound by
+nothing — 16 of 19 left with the assertion count unmoved; `equal(seen.get(k), undefined)` **passes
+when `k` is absent**; the `14 / 124 / 89%` split was a literal in `spec/` with no observer, in a tree
+whose L4 suite already walks both corpora; and `OR-R11`'s claim that the loss happens at `OR-R2`
+was asserted by nothing, because **three** clone sites carry it and deleting `cloneValue` left the
+whole suite green. `normalizeEvent` is `OR-R2`'s own site and the attribution is pinned there now.
+
+**Readers 15 / 6 blocking and 41 mutations / 17 survivors / 6 blocking, OVERLAP 4** — the
+**thirtieth** measurement, at the TOP of the 0-4 band, neither reader primed. **Rule 8: 30 probes,
+21 caught, 9 declared ceilings, 0 aborts, 0 against declaration**, with the readers' own edits in the
+set **from the start** because both reported before it was written. **FIVE late exceptions, zero
+undeclared**, and **P15's `Owns` test is answered `AGENTS.md` YES, `spec/README.md` YES,
+`scripts/check-docs.mjs` YES** — against W53's no/yes/no, so a pre-declaration rule would have been
+wrong twice on W53 ([Q157](open-questions.md)). **[Q142](open-questions.md) measured before the gate
+and does NOT fire**, for the third consecutive time. **Census 186 / 134 / 2 / 50**, 44 ids in both
+tables, 0 aborts. **Q238-Q242 raised; Q243-Q247 unused.**
 
 **[W53](work-items/w53-what-a-run-retains-that-nothing-reads.md) is DONE and
 [ADR 0046](decisions/0046-a-run-retains-what-its-tasks-returned-and-a-region-releases-its-collection-when-its-join-becomes-terminal.md)

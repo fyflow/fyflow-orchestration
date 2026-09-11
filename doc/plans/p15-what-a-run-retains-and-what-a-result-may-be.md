@@ -472,7 +472,7 @@ paying out in a direction nobody aimed it.
 | item | | |
 |---|---|---|
 | **W53** | **DONE** — [Q19](../open-questions.md) is RESOLVED by [ADR 0046](../decisions/0046-a-run-retains-what-its-tasks-returned-and-a-region-releases-its-collection-when-its-join-becomes-terminal.md), open since P1. `spec/run-state.md` is **v0.6** with a new section 7 and **`RN-R13`**; `spec/join-policy.md` is **v0.16** with `JP-R11`/`JP-R12`'s LIFETIME and no new rule id. `spec/` is 7 / 44 / **90**; L1-L5 is **26 / 695** in five runtimes; **L6 unmoved at 942 / 42**. | **A region releases its collection when its join becomes TERMINAL** — at three moments, two per region and one per run. Measured: the `arrivals` share of a completed region-bearing run **49.8% → 0.0%**, and 10 000 concurrent runs **3174.8 → 1610.9 MiB**, which is the figure this plan's fact 3 predicted to the decimal. Releasing after the read costs **0** at both rungs; before it, **14** (13 on the pre-item suite). **Nothing is evicted from `inputs`**, refused on fact 4 rather than on taste — decision 2 holds and prediction 2's reversal did not occur. Readers **16 / 6 blocking** and **9 survivors / 6 blocking, overlap 2** (the 29th measurement, in band). Rule 8 **36 probes / 32 caught / 4 survivors / 0 aborts**, run twice with the readers' eight exact edits checked back in — and the re-run found this item's own re-entrancy test asserting the right thing **by the wrong route**, a throw that unwinds past the guard it was written for. **Q233-Q235 raised, Q236-Q237 unused; census 182 / 131 / 2 / 49, 0 aborts.** |
-| **W54** | not started | |
+| **W54** | **DONE** — [Q22](../open-questions.md) is RESOLVED by **`OR-R11`** in `spec/outcome-record.md` **v0.9**, open since P1. **NO ADR: 0047 is SKIPPED and not reused.** `spec/` is 7 / 44 / **92** (`OR-R11` and `OR-R12`); L1-L5 is **27 / 703** in five runtimes; **L6 unmoved at 942 / 42**. | **A result is a VALUE, not an OBJECT** — its fields cross `OR-R2`'s clone and its BEHAVIOUR does not, silently. **Q22's fork is the wrong shape**: it IS the driver's constraint, and the question an author hits is *what arrives*. **The document said `structuredClone` THROWS on a class instance and it clones it LOSSILY** — so the boundary has three answers where it named two, and the table is 27 rows now, 5 refused / 11 intact / 11 lossy, asserted in **all five runtimes**. **Prediction 3's CONCLUSION is confirmed and its stated REASON reverses**: a driver CAN tell, at 0.02-0.65% of a clone — it is blind to the NESTED case instead, and the walk that sees it is 23-60% ([Q238](../open-questions.md)). **`OR-R12` is new and is the sharpest finding**: `OR-R6` was stated of the whole boundary and holds only at the LISTENER ([Q241](../open-questions.md)). Readers **15 / 6 blocking** and **41 mutations / 17 survivors / 6 blocking, overlap 4** — the 30th measurement, at the top of the band. Rule 8 **30 probes / 21 caught / 9 ceilings / 0 aborts**, the readers' own edits in the set from the start. **FIVE late exceptions, zero undeclared; Q238-Q242 raised, Q243-Q247 unused; census 186 / 134 / 2 / 50.** |
 | **W55** | not started | |
 | **W56** | reserved, expected unused | |
 
@@ -499,6 +499,27 @@ may write.** Four, and the first is the one prediction 1 named:
    It is 244 at W53's own commit and every one is `i/lf`.
 4. **`v8.serialize` is in TWO of the five runtimes, not one** — node and deno, through `node:v8`.
    Three documents said one. The conclusion is unaffected: a rung green in two of five is not a rung.
+
+**W54's verdict on prediction 3, and it is the pattern P14's retro named.** The prediction says
+*W54 takes NO ADR: `OR-R2` and `OR-R6` stand as written, and the silent lossy case is recorded rather
+than refused — … because a driver cannot tell a class instance from the plain object its author meant
+to return.* **Every clause of the conclusion holds and the stated reason is measured FALSE.** A
+prototype comparison after the clone fires on every top-level lossy shape and on none of the intact
+ones, at **0.02-0.65% of one clone**. What is true is narrower and is what `OR-R11` says instead: the
+cheap check is **blind to more than half the lossy rows** — a nested instance, a non-enumerable
+property, a symbol-keyed one, a lost frozen-ness, an `Error`'s dropped fields — and the walk that
+sees them costs **23-60%** of the clone per settlement. *A prediction right about the conclusion and
+wrong about the mechanism*, which P12's retro recorded as [Q193](../open-questions.md) and P14's
+retro made the sharpest kind. **Its stated way of being WRONG was also checked rather than assumed**:
+`structuredClone` accepts a class instance in all five runtimes, not only Node 24.
+
+**And the plan's own fact 7 is corrected twice.** Its two-column table calls the boundary *refused*
+and *cloneable*; there are **three** answers, and the third — cloned **lossily** — is the one the
+plan is about. Its *"a class instance clones and comes back as a plain `Object`"* is right and
+incomplete: a subclass of `Array` or `Error` keeps that prototype and loses its own methods **and its
+own fields**, a plain `Error` loses its own fields with no prototype change at all, and a frozen
+object arrives unfrozen. **Fact 7's other half — the 89% — reproduces exactly** (14 of 124 named, 110
+not), and it is derived from both corpora by W54's suite rather than left as a literal.
 
 **Prediction 4 is CONFIRMED and prediction 1 is CONFIRMED with its scope corrected.** The release
 costs **0** at L1-L5 and **0** at L6, so no rung made of runs can see a whole structure leave —

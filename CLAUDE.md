@@ -18,7 +18,7 @@ the only document that does. **Every snippet in it is extracted and executed by 
 (`scripts/check-docs.mjs`), so it cannot rot the way a hand-maintained reference does. If you change
 the public surface, that check is what tells you the reference is now wrong.
 
-## Current state: **P1-P14 are ALL complete and retro'd, `doc/workflow.md` is [v0.15](doc/workflow.md), and [P15](doc/plans/p15-what-a-run-retains-and-what-a-result-may-be.md) is RUNNING — [W53](doc/work-items/w53-what-a-run-retains-that-nothing-reads.md) is DONE, W54 and W55 have not started.** **Read every status from the item's own file, never from this line.**
+## Current state: **P1-P14 are ALL complete and retro'd, `doc/workflow.md` is [v0.15](doc/workflow.md), and [P15](doc/plans/p15-what-a-run-retains-and-what-a-result-may-be.md) is RUNNING — [W53](doc/work-items/w53-what-a-run-retains-that-nothing-reads.md) and [W54](doc/work-items/w54-what-a-result-may-be-and-what-bounding-it-would-cost.md) are DONE, W55 has not started.** **Read every status from the item's own file, never from this line.**
 
 **[P15](doc/plans/p15-what-a-run-retains-and-what-a-result-may-be.md) is DECLARED — *what does a run
 retain, and what may a result be?*, and it is the FOURTH PRODUCT PLAN IN A ROW.** It takes
@@ -26,8 +26,53 @@ retain, and what may a result be?*, and it is the FOURTH PRODUCT PLAN IN A ROW.*
 rows in the register whose owner cell says the same thing, *no owner, needs a measured run*, both
 since P1 — and **this declaration took that run.** Three items, serial: **W53** (what a run retains
 that nothing reads, as **ADR 0046**), **W54** (what a result may be, and what bounding it would cost),
-**W55** (a run at scale on real workers). **Reserves W53-W56, Q233-Q247, ADR 0046-0047.** **W53 is
-DONE and is below; W54 and W55 have not started.**
+**W55** (a run at scale on real workers). **Reserves W53-W56, Q233-Q247, ADR 0046-0047.** **W53 and W54 are
+DONE and are below; W55 has not started.**
+
+**[W54](doc/work-items/w54-what-a-result-may-be-and-what-bounding-it-would-cost.md) is DONE and
+[Q22](doc/open-questions.md) is RESOLVED by `OR-R11` in `spec/outcome-record.md` **v0.9** — open
+since P1, and with [Q19](doc/open-questions.md) closed by W53 one item earlier, **BOTH of the two
+oldest rows whose owner cell said *no owner, needs a measured run* are answered in one plan.**
+`spec/` is **7 documents, 44 examples, 92 rules**; L1-L5 is **27 files / 703 cases in five
+runtimes**; **L6 unmoved at 942 / 42**. **NO ADR — 0047 SKIPPED and not reused.**
+
+**A result is a VALUE, not an OBJECT.** What crosses `OR-R2`'s clone is a value's own enumerable
+string-keyed DATA plus the built-ins' internal state; what does not is the **prototype** (so methods,
+`instanceof` and privacy), **accessors**, **non-enumerable** properties, **symbol keys**, **property
+attributes** — a frozen object arrives unfrozen — and an **`Error`'s own extra fields**. **Q22's fork
+is the wrong shape**: it IS the driver's constraint, and the question an author hits is *what
+arrives*.
+
+**The document W54 owns carried a FALSE sentence in the direction that matters** — it said
+`structuredClone` *throws on a class instance with behaviour*, and it clones it **LOSSILY**, with no
+error and no report. So the boundary has **three** answers where it named two, and the table is now
+**27 rows, 5 refused / 11 intact / 11 lossy**, asserted in **all five runtimes**.
+
+**Prediction 3's CONCLUSION is confirmed and its stated REASON reverses.** It says no ADR *because a
+driver cannot tell*; measured, a prototype comparison fires on every top-level lossy shape and on no
+intact one at **0.02-0.65% of one clone**. What is true is narrower: the cheap check is blind to more
+than half the lossy rows, including the NESTED case a worker writes, and the walk that sees them
+costs **23-60%** per settlement ([Q238](doc/open-questions.md)).
+
+**`OR-R12` is the sharpest single finding: `OR-R6` was stated of the whole boundary and holds only at
+the LISTENER.** `resolve()`'s clone is unguarded, so an uncloneable resolution throws a bare
+`DataCloneError` to its caller, appends nothing, does not fail the run and never reaches
+`onRunFailure` ([Q241](doc/open-questions.md)).
+
+**Its central lesson: A SUITE THAT DEFINES ITS OWN ORACLE CANNOT DISAGREE WITH THE DOCUMENT.** The
+first classifier was **the very predicate section 4 declines for being blind to the nested case**,
+applied to a table whose lossy row contains that case — every row passed while the two said different
+things. What fixed it was deleting the classifier, so each row asserts the property its own row
+names, and the suite **reads the table out of the document** both ways. *That binding caught the
+item's own first split, 5 / 10 / 12, on its first run.* **And the item broke its own rule inside the
+section that states it** — section 4 closes with *quote the shape and the ratio, never the
+millisecond*, four paragraphs below two percentage bands from a single run whose upper bounds sat
+below every N = 100 reading.
+
+**Readers 15 / 6 and 41 / 17 / 6, OVERLAP 4** — the thirtieth measurement, at the top of the band.
+**Rule 8: 30 probes, 21 caught, 9 ceilings, 0 aborts**, the readers' edits in the set from the start.
+**FIVE late exceptions, zero undeclared**, and P15's `Owns` test is **YES / YES / YES** against W53's
+no/yes/no. **Census 186 / 134 / 2 / 50; Q238-Q242 raised, Q243-Q247 unused.**
 
 **[W53](doc/work-items/w53-what-a-run-retains-that-nothing-reads.md) is DONE and
 [ADR 0046](doc/decisions/0046-a-run-retains-what-its-tasks-returned-and-a-region-releases-its-collection-when-its-join-becomes-terminal.md)

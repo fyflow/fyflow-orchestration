@@ -125,7 +125,17 @@ const threw = (f: () => unknown): boolean => {
  * cell. `assert` is what the row's *what does NOT cross* column claims, made
  * executable — never a label, so there is nothing to collapse.
  */
-const SHAPES: { key: string; verdict: 'refused' | 'intact' | 'lossy'; assert: () => void }[] = [
+/**
+ * **A SECOND, independent record that every `assert` ran** — `doc/workflow.md`
+ * section 5 rule 8 obligation (c)'s LIMIT. The loop below keeps its own list of what
+ * it asserted, and re-sourcing THAT list to `SHAPES` costs nothing on its own, because
+ * a clause with one observer cannot corroborate itself. This counter is incremented
+ * inside each wrapped `assert`, so it survives a probe that rewrites the loop's record
+ * and the compound — slice the loop AND re-source its list — is caught.
+ */
+let assertsRun = 0;
+
+const RAW_SHAPES: { key: string; verdict: 'refused' | 'intact' | 'lossy'; assert: () => void }[] = [
   // ---- refused: OR-R6 ----
   { key: 'a function', verdict: 'refused', assert: () => ok(threw(() => clone(() => 1)), 'a function throws') },
   {
@@ -333,6 +343,8 @@ const SHAPES: { key: string; verdict: 'refused' | 'intact' | 'lossy'; assert: ()
   },
 ];
 
+const SHAPES = RAW_SHAPES.map((s) => ({ ...s, assert: () => { assertsRun++; s.assert(); } }));
+
 /**
  * **Section 4's table, read out of the document.** The first cell of each row is the
  * shape key; the second carries the verdict in bold. Obligation (e)'s third shape —
@@ -379,7 +391,19 @@ suite('OR-R11 — a result is a VALUE, and each shape asserts what does NOT cros
   });
 
   test('and each row asserts the property its own row names', async () => {
-    for (const s of SHAPES) s.assert();
+    const declaredCount = (await tableRows()).length;
+    // **The loop's own bound, asserted** — `doc/workflow.md` section 5 rule 8
+    // obligation (d) applied to the FILE's loop rather than to a row. Narrowing this
+    // to `SHAPES.slice(0, 3)` cost ZERO before this counter existed, because the
+    // comparisons below read `SHAPES` and not what actually RAN.
+    const ran: string[] = [];
+    for (const s of SHAPES) { s.assert(); ran.push(s.key); }
+    equal(ran, SHAPES.map((s) => s.key), 'every shape in the list was asserted, in order');
+    equal(assertsRun, declaredCount,
+      'and a SECOND, independent count says so — incremented inside each `assert` rather than by ' +
+      'the loop, so a probe that re-sources the list above leaves this one live. Obligation (c)`s ' +
+      'LIMIT: one observer cannot corroborate itself',
+    );
     // **The per-class counts are DERIVED from the document, not written down here** —
     // the first version wrote 5 / 10 / 12 as literals and the true split is 5 / 11 / 11,
     // which this assertion caught on its first run. A literal count beside a membership
@@ -501,17 +525,26 @@ suite('OR-R11 — a result is a VALUE, and each shape asserts what does NOT cros
       seen.set(label, { state: node!.state, result: node!.result });
     }
     equal([...seen.keys()].sort(), cases.map((c) => c[0]).sort(),
-      'all three cases were driven — an assertion on a key this map does not hold passes for ' +
-      'the wrong reason, which is how the first version of this case read',
+      'all three cases were driven — the list below is read from the same table that drove them',
+    );
+    // **Driven from `cases` rather than by hand-written lookups.** A named lookup on a
+    // key the map does not hold returns `undefined`, which is the expected value for
+    // two of these three — so `seen.get('NO SUCH LABEL')` PASSED, and the first
+    // version of this case had three such lookups. W54's adequacy reader.
+    const want = new Map<string, unknown>([
+      ['returned null', null],
+      ['returned undefined', undefined],
+      ['no result key at all', undefined],
+    ]);
+    equal([...want.keys()].sort(), cases.map((c) => c[0]).sort(),
+      'and the expectations are keyed by the same labels, both ways, so neither list can drift',
     );
     for (const [label] of cases) {
-      equal(seen.get(label)?.state, 'done',
-        label + ' — the task SUCCEEDED, so the `state` field does not disambiguate it',
-      );
+      const got = seen.get(label);
+      ok(got !== undefined, label + ' — the map holds this case, so the assertions below read it');
+      equal(got!.state, 'done', label + ' — the task SUCCEEDED, so the `state` field does not disambiguate it');
+      equal(got!.result, want.get(label), label + ' — and this is what it carries');
     }
-    equal(seen.get('returned null')?.result, null, 'a worker returning null gives result null');
-    equal(seen.get('returned undefined')?.result, undefined, 'returning undefined gives result undefined');
-    equal(seen.get('no result key at all')?.result, undefined, 'and so does a detail with no result key');
 
     const h = harness();
     h.driver.start({});
