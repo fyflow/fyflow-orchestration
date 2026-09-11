@@ -106,13 +106,13 @@ v0.15); the counts beside them are the secondary signal.
 | Clause | Verdict | Notes |
 |---|---|---|
 | L0 | **RAN — green** | `npm run lint` exit 0, `npm run typecheck` exit 0 |
-| L1-L3 | **RAN — green** | **27 files / 703 cases** in node 24.20.0, deno 2.9.6, chromium, firefox and webkit. The three-way boundary runs in **all five**, which is prediction 3's own stated way of being wrong checked rather than assumed |
+| L1-L3 | **RAN — green**, at the SECOND attempt | **27 files / 703 cases** in node 24.20.0, deno 2.9.6, chromium, firefox and webkit, `EXIT 0` in each. The three-way boundary runs in **all five**, which is prediction 3's own stated way of being wrong checked rather than assumed. **The three browsers were RED for two reported-green runs** — see *What broke* |
 | L4 | **RAN — green** | `npm run check:spec` — `spec/` is **7 documents, 44 examples, 92 rules**, from 91: `OR-R11` and `OR-R12` are the two added. `C8` compares `spec/README.md`'s row against `outcome-record.md`'s own v0.9 header |
 | L5, L6 | **RAN — green**, as regressions | the matrix inside `npm test`; **L6 unmoved at 942 / 42** in both runtimes |
 | conformity reader | **RAN** | **15 findings, 6 blocking** |
 | adequacy reader | **RAN** | **41 mutations, 17 survivors, 6 blocking**, in an isolated worktree at `../fyflow-w54-adequacy` with copied `node_modules`, zero links, verified green before it started |
 | rule 8 | **RAN** | **30 probes, 21 caught, 9 declared ceilings, 0 aborts, 0 against declaration.** The readers' own edits are in the set **from the start** — both reported before the author's set was written, so v0.8's re-run requirement is met by construction. Every file compared back byte-identical after every probe |
-| `npm run gate` | **RAN — `GATE EXIT=0`** | zero lines beginning `FAIL`, 15 chain entries, taken with the tree HELD STILL: digest before and after identical |
+| `npm run gate` | **RAN TWICE. First `GATE EXIT=1` with ZERO `FAIL` lines; then `GATE EXIT=0`** | 15 chain entries, both taken with the tree HELD STILL — digest before and after identical each time. The first is the finding, not the second |
 
 **Outputs — what was actually built.**
 
@@ -182,6 +182,23 @@ LABEL` passed; the case is driven from its own table now. The `14 / 124 / 89%` s
 a `spec/` file with no observer, in a tree whose L4 suite already walks both corpora; it is derived.
 And slicing the assert loop cost zero even after the list was bound, because the counts afterwards
 read `SHAPES` rather than what **ran**.
+
+**THE GATE WAS RED AND I REPORTED THE BROWSERS GREEN TWICE.** `test/fold/result-value.test.ts`
+reads `spec/outcome-record.md` to compare its 27 shapes against that document's table, and walks
+**both** corpora to derive the 14 / 124 / 89% split. The browser bundle inlined neither, so three
+tests failed in every browser — and the third failed in the more dangerous of the two ways: **it did
+not fail to RUN; it ran against half a corpus and reported 6 where the document says 14.** It was
+caught only because that assertion is an equality against the document rather than a floor.
+
+**That is [W32](w32-what-a-map-fanout-is.md)'s and [W33](w33-a-map-at-run-time-arity.md)'s defect for
+the third time, and what is NEW is how it was missed.** I ran `npm run test:browser:all` twice after
+those reads were added and reported it green both times, because the command was piped through
+`grep -E "file\(s\)|PARITY"` — and the `27 file(s), 703 assertions` line prints **before** the
+failures. **`doc/workflow.md` section 4, v0.15: a rung reported GREEN means its command EXITED 0, and
+a line of its output is never the predicate.** That clause was adopted one plan ago, **this item's own
+Verification table quotes it**, and I broke it while quoting it — which is section 6 pass 3 rule 3's
+sharpest kind for the second time in one item. The bundler's comment records the miss rather than
+only the fix, and `scripts/build-browser-tests.mjs` is a **sixth** late exception.
 
 **And `AGENTS.md`'s new block stranded the sentence after it** — *"The first half of that is executed
 rather than asserted:"*, which introduces the frozen-copies snippet and now read as introducing the
@@ -257,18 +274,21 @@ item.**
 | `scripts/check-docs.mjs` | `RUN_FLOOR` 17 → 18, forced by the snippet above. [Q102](../open-questions.md)'s obligation for the **sixth** recorded time | late |
 | `test/definition/l4-corpus.test.ts` | the suite census is set equality over suite names both ways, so two new suites must be named there in the same commit | late |
 | `spec/run-state.md` | one number this item's measurement made misleading — the `8.7x` factor, which is a property of one fixture. W53's document, corrected in place with the reason | late |
+| `scripts/build-browser-tests.mjs` | the browser bundle inlines fixtures by name, and this item's suite reads two it did not carry. **Forced by the gate going red**, not found by reading | late |
 
-**Five late exceptions, zero undeclared.** **P15's `Owns` test is answered `AGENTS.md` YES,
+**SIX late exceptions, zero undeclared.** **P15's `Owns` test is answered `AGENTS.md` YES,
 `spec/README.md` YES, `scripts/check-docs.mjs` YES** — all three, where W53 answered NO / YES / NO.
 *Over the plan's two product items that is no/yes/no and yes/yes/yes, so a pre-declaration rule naming
 all three would have been wrong twice on W53* ([Q157](../open-questions.md)), which is the fourth
 consecutive plan to measure that and the third to reach the same answer.
 
 **[Q142](../open-questions.md) re-measured on a scratch copy BEFORE the gate and does NOT fire**, for
-the third consecutive time. Whole tree **102 / 4416 / 233**, `doc/decisions` removed **78 / 4040 /
-233**, both removed **62 / 3246 / 233**, against floors `M3` 90, `M4` 3490 and `M5` 60. The
-two-directory fixture has **266 links of headroom** and `M3`'s one-directory fixture is unmoved at
-**78**, because this item adds no document to `doc/`.
+the third consecutive time. **Re-taken on the tree that ships** rather than mid-item — section 1 rule 5's WHEN clause, and the
+first reading was three commits early. Whole tree **102 / 4456 / 233**, `doc/decisions` removed
+**78 / 4080 / 233**, both removed **62 / 3282 / 233**, against floors `M3` 90, `M4` 3490 and `M5` 60. The
+two-directory fixture has **208 links of headroom** and `M3`'s one-directory fixture is unmoved at
+**78**, because this item adds no document to `doc/`. *(Measured at 3246 before the record step; the
+conclusion is the same and these are the shipped numbers.)*
 
 **The `W54` grep returns 13 outside `doc/`**, and the item's declaration recorded **0** at that
 moment, which was true. Three of the thirteen were sentences this item's own completion falsified —

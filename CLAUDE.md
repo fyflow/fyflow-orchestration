@@ -71,6 +71,10 @@ below every N = 100 reading.
 
 **Readers 15 / 6 and 41 / 17 / 6, OVERLAP 4** — the thirtieth measurement, at the top of the band.
 **Rule 8: 30 probes, 21 caught, 9 ceilings, 0 aborts**, the readers' edits in the set from the start.
+**And the gate was RED once, `GATE EXIT=1` with ZERO `FAIL` lines** — the browser bundle inlined
+neither `spec/outcome-record.md` nor the second corpus, and the browsers had been reported green
+twice from a `grep` for the count line, which prints before the failures. *Section 4's v0.15 clause,
+quoted in this item's own Verification table and broken while being quoted.*
 **FIVE late exceptions, zero undeclared**, and P15's `Owns` test is **YES / YES / YES** against W53's
 no/yes/no. **Census 186 / 134 / 2 / 50; Q238-Q242 raised, Q243-Q247 unused.**
 

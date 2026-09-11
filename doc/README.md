@@ -79,7 +79,11 @@ whole suite green. `normalizeEvent` is `OR-R2`'s own site and the attribution is
 **Readers 15 / 6 blocking and 41 mutations / 17 survivors / 6 blocking, OVERLAP 4** — the
 **thirtieth** measurement, at the TOP of the 0-4 band, neither reader primed. **Rule 8: 30 probes,
 21 caught, 9 declared ceilings, 0 aborts, 0 against declaration**, with the readers' own edits in the
-set **from the start** because both reported before it was written. **FIVE late exceptions, zero
+set **from the start** because both reported before it was written. **And the gate was RED once —
+`GATE EXIT=1` with ZERO `FAIL` lines** — because the browser bundle inlined neither
+`spec/outcome-record.md` nor the second corpus, and **the browsers had been reported green twice**
+from a `grep` for the count line, which prints before the failures. *Section 4's v0.15 clause, quoted
+in this item's own Verification table and broken while being quoted.* **FIVE late exceptions, zero
 undeclared**, and **P15's `Owns` test is answered `AGENTS.md` YES, `spec/README.md` YES,
 `scripts/check-docs.mjs` YES** — against W53's no/yes/no, so a pre-declaration rule would have been
 wrong twice on W53 ([Q157](open-questions.md)). **[Q142](open-questions.md) measured before the gate
