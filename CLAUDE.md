@@ -76,7 +76,7 @@ neither `spec/outcome-record.md` nor the second corpus, and the browsers had bee
 twice from a `grep` for the count line, which prints before the failures. *Section 4's v0.15 clause,
 quoted in this item's own Verification table and broken while being quoted.*
 **FIVE late exceptions, zero undeclared**, and P15's `Owns` test is **YES / YES / YES** against W53's
-no/yes/no. **Census 186 / 134 / 2 / 50; Q238-Q242 raised, Q243-Q247 unused.**
+no/yes/no. **Census 187 / 135 / 2 / 50; Q238-Q242 raised, Q243-Q247 unused.**
 
 **[W53](doc/work-items/w53-what-a-run-retains-that-nothing-reads.md) is DONE and
 [ADR 0046](doc/decisions/0046-a-run-retains-what-its-tasks-returned-and-a-region-releases-its-collection-when-its-join-becomes-terminal.md)

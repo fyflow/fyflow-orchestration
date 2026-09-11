@@ -296,10 +296,18 @@ moment, which was true. Three of the thirteen were sentences this item's own com
 corrected at the record step. *Section 1 rule 5's third direction working exactly as v0.15 intends:
 the item that falsifies a claim is not the item that wrote it.*
 
-**Census CONFIRMED for the FIFTEENTH plan running — 186 / 134 / 2 / 50**, from 182 / 131 / 2 / 49:
-four new ids and [Q22](../open-questions.md) moving from open to resolved. **44 ids in both tables**,
-and both halves at **186 of 186 in exactly one cluster cell**, **0 aborts**, on P15's declaration
-parser unchanged.
+**Census CONFIRMED for the FIFTEENTH plan running — 187 / 135 / 2 / 50**, from 182 / 131 / 2 / 49:
+five new ids and [Q22](../open-questions.md) moving from open to resolved. **44 ids in both tables**,
+and both halves at **187 of 187 in exactly one cluster cell**, on P15's declaration parser unchanged.
+
+*(It read 186 / 134 and **four** new ids until W55's prompt was being written: **[Q242](../open-questions.md)
+was cited in five documents — this Record twice, the plan, `doc/README.md` and `CLAUDE.md` — and had
+NO ROW in the register.** A question raised in prose and declared nowhere, which is `FD-V`'s own
+cited-but-never-declared shape one layer out, and nothing reaches it: `M2` validates the `#live`
+anchor a Q link points at and nothing validates the Q ID. **And the census then ABORTED on the row
+that fixed it** — unescaped pipes inside a code span, [Q131](../open-questions.md)'s shape, in the row
+recording a missing binding. Both are the aborting parser earning its place for the fourth item
+running.)*
 
 **And with [Q19](../open-questions.md) closed by [W53](w53-what-a-run-retains-that-nothing-reads.md)
 one item earlier, BOTH of the two oldest rows whose owner cell said *no owner — needs a measured

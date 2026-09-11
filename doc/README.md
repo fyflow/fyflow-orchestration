@@ -87,8 +87,10 @@ in this item's own Verification table and broken while being quoted.* **FIVE lat
 undeclared**, and **P15's `Owns` test is answered `AGENTS.md` YES, `spec/README.md` YES,
 `scripts/check-docs.mjs` YES** — against W53's no/yes/no, so a pre-declaration rule would have been
 wrong twice on W53 ([Q157](open-questions.md)). **[Q142](open-questions.md) measured before the gate
-and does NOT fire**, for the third consecutive time. **Census 186 / 134 / 2 / 50**, 44 ids in both
-tables, 0 aborts. **Q238-Q242 raised; Q243-Q247 unused.**
+and does NOT fire**, for the third consecutive time. **Census 187 / 135 / 2 / 50**, 44 ids in both
+tables, 0 aborts. **Q238-Q242 raised; Q243-Q247 unused** — and **Q242 was cited in five documents with
+no ROW for it** until the next item's prompt was being written, which nothing checks: `M2` validates
+the anchor and nothing validates a Q id.
 
 **[W53](work-items/w53-what-a-run-retains-that-nothing-reads.md) is DONE and
 [ADR 0046](decisions/0046-a-run-retains-what-its-tasks-returned-and-a-region-releases-its-collection-when-its-join-becomes-terminal.md)
