@@ -177,7 +177,13 @@ deterministically, and could never be persisted.
 The alternative — declare it a contract that a worker must not retain what it returns — is cheaper
 and unenforceable, and this repo has already rejected that shape of answer once:
 [Q9](../doc/open-questions.md) says *"please write pure functions" is not a mechanism*. The cost is
-real and is [Q19](../doc/open-questions.md)'s to measure.
+real. *(This read *"and is [Q19](../doc/open-questions.md)'s to measure"*. Q19 is measured and
+RESOLVED since [W53](../doc/work-items/w53-what-a-run-retains-that-nothing-reads.md) —
+`RN-R13` — and what it measured is **space**; the CONSTRAINT half of this paragraph is
+[Q22](../doc/open-questions.md)'s and is
+[W54](../doc/work-items/w54-what-a-result-may-be-and-what-bounding-it-would-cost.md)'s, with the
+re-taken clone timings and the silent lossy case in that row. W53's conformity reader; a declared
+late exception.)*
 
 ## 5. The resolution record
 

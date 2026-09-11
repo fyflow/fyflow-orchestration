@@ -18,7 +18,7 @@ the only document that does. **Every snippet in it is extracted and executed by 
 (`scripts/check-docs.mjs`), so it cannot rot the way a hand-maintained reference does. If you change
 the public surface, that check is what tells you the reference is now wrong.
 
-## Current state: **P1-P14 are ALL complete and retro'd, `doc/workflow.md` is [v0.15](doc/workflow.md), and [P15](doc/plans/p15-what-a-run-retains-and-what-a-result-may-be.md) is DECLARED with NO ITEM STARTED.** **Read every status from the item's own file, never from this line.**
+## Current state: **P1-P14 are ALL complete and retro'd, `doc/workflow.md` is [v0.15](doc/workflow.md), and [P15](doc/plans/p15-what-a-run-retains-and-what-a-result-may-be.md) is RUNNING — [W53](doc/work-items/w53-what-a-run-retains-that-nothing-reads.md) is DONE, W54 and W55 have not started.** **Read every status from the item's own file, never from this line.**
 
 **[P15](doc/plans/p15-what-a-run-retains-and-what-a-result-may-be.md) is DECLARED — *what does a run
 retain, and what may a result be?*, and it is the FOURTH PRODUCT PLAN IN A ROW.** It takes
@@ -26,8 +26,59 @@ retain, and what may a result be?*, and it is the FOURTH PRODUCT PLAN IN A ROW.*
 rows in the register whose owner cell says the same thing, *no owner, needs a measured run*, both
 since P1 — and **this declaration took that run.** Three items, serial: **W53** (what a run retains
 that nothing reads, as **ADR 0046**), **W54** (what a result may be, and what bounding it would cost),
-**W55** (a run at scale on real workers). **Reserves W53-W56, Q233-Q247, ADR 0046-0047.** **No item
-has started.**
+**W55** (a run at scale on real workers). **Reserves W53-W56, Q233-Q247, ADR 0046-0047.** **W53 is
+DONE and is below; W54 and W55 have not started.**
+
+**[W53](doc/work-items/w53-what-a-run-retains-that-nothing-reads.md) is DONE and
+[ADR 0046](doc/decisions/0046-a-run-retains-what-its-tasks-returned-and-a-region-releases-its-collection-when-its-join-becomes-terminal.md)
+answers [Q19](doc/open-questions.md), open since P1: a run retains *(tasks settled) x (bytes each
+returned)*, plus one further copy of each result that has arrived at a join that has NOT YET BECOME
+TERMINAL.** `spec/run-state.md` is **v0.6** — section 6's *Bounded retention* bullet is struck,
+section 7 is new, **`RN-R13`** is the rule; `spec/join-policy.md` is **v0.16**, giving
+`JP-R11`/`JP-R12` the LIFETIME of what a join collects with **no rule id added and no policy
+changed**. `spec/` is **7 documents, 44 examples, 90 rules**; L1-L5 is **26 files / 695 cases in five
+runtimes**; **L6 is unmoved at 942 / 42**.
+
+**A region's collection is released at THREE moments — two per region and one per run**: routed out
+of (after the read), reported `unsatisfiable` (after the latch), and the run stopped (`OR-R10`). And
+**outside that window nothing is RECORDED**, because a policy may lawfully settle a join with
+branches still live — [Q95](doc/open-questions.md)'s own precondition, reaching the same region
+through a second door. **Measured: the `arrivals` share of a completed region-bearing run goes 49.8%
+to 0.0%, and ten thousand concurrent runs go 3174.8 MiB to 1610.9 MiB** — P15 fact 3's predicted
+figure, to the decimal. Releasing after the read costs **0** at L1-L5 and **0** at L6; before it,
+**14** (13 on the suite as it stood before this item). **Nothing is evicted from `inputs`**, refused
+on fact 4 rather than on taste: a fold over a truncated log reports `completed` with **ZERO** nodes
+and no signal.
+
+**Its central finding is that a REACHABILITY SET CANNOT TELL AN ALIAS FROM A COPY, and both readers
+reached it from opposite ends — the one subject they shared.** `RN-R13`'s first form said the
+structures a settled result is reachable from are *exactly `{inputs, log}`*. The conformity reader
+ran that predicate on a corpus flow declaring a `needs` and got a **third** name; the adequacy reader
+made `outputsCache` **clone** what it stores — a real second copy of every result — **for ZERO
+failures at every rung**, because both L2 fixtures declared no `needs` so the memo was `null` in all
+eight cases. **That is P15 fact 1's own defect reproduced inside the test written to correct it** —
+fact 1 recorded `outputsCache` as `null` because it enumerated properties on flows with no `needs`,
+and the fix for it then chose its fixtures the same way. The rule is a **SET and an IDENTITY** now.
+
+**`OR-R10` had a door that was already open and this item made it SILENT.** `append` calls
+`onFoldInput` un-wrapped, so a re-entrant listener reaches `failRun` from **inside** `settleJoin` —
+the door on the STACK, which `failRun`'s own enumeration missed. A stopped run routing out of a join
+pre-dates W53; before it the successor carried the full collection and after it **`{}`**. Guarded, at
+**0** failures at both rungs — **and the test written for it asserted the right thing by the WRONG
+ROUTE**, a throw that unwinds past the guard, so removing the guard cost zero until rule 8's re-run
+checked the reader's own edit back in.
+
+**The adequacy reader's six blocking findings are ONE fact: the rule has exactly one observer, and it
+ran one region kind at one depth.** Outside `test/driver/retention.test.ts`, rules 3, 4 and 5 and the
+whole of `RN-R13` have **zero** observers. So a **nested** region and a **`fanout`** region could
+each never release for zero — [W41](doc/work-items/w41-what-a-node-can-reach-and-what-names-it.md)'s
+finding verbatim — the walk could not see a holder in a nested `Set` or a **cyclic** object while its
+`catch` arm asserted the falsehood, its loop universe could be pinned, and seven of eight cases
+deleted for zero. All closed, and **the universe binding caught the author's own wrong literal on its
+first run**. **Readers 16 / 6 and 9 / 6, OVERLAP 2** — the twenty-ninth measurement, in band. **Rule
+8: 36 probes, 32 caught, 4 survivors, 0 aborts**, run twice. **Q233-Q235 raised, Q236-Q237 unused;
+census 182 / 131 / 2 / 49, 0 aborts; [Q142](doc/open-questions.md) measured before the gate and does
+NOT fire.**
 
 **Its declaration measured EIGHT facts and FIVE correct or sharpen a row it is built on** — the
 seventeenth time a plan has found one of its own inputs wrong by trying to act on it. **The headline:

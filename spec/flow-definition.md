@@ -534,8 +534,15 @@ holds an append-only `log` with `result` on every settled task and already expos
 through `snapshot()`; the projection adds **zero** fields, and it is computed on demand rather than
 maintained, so a second source cannot disagree with the log.
 [Q19](../doc/open-questions.md)'s *"if Q8 or Q11 retains every node output"* described **today**
-before `needs` existed, and its real question — whether that retention should be **bounded** — is
-untouched.
+before `needs` existed. *(This sentence ended *"and its real question — whether that retention should
+be **bounded** — is untouched"*, which stopped being true at
+[W53](../doc/work-items/w53-what-a-run-retains-that-nothing-reads.md):
+[ADR 0046](../doc/decisions/0046-a-run-retains-what-its-tasks-returned-and-a-region-releases-its-collection-when-its-join-becomes-terminal.md)
+answers it, and `RN-R13` in [spec/run-state.md](run-state.md) section 7 is the rule. **What is still
+untouched is what this paragraph is about**: the projection adds no retention, and `RN-R13` says so
+by naming `outputsCache` as holding results **by reference only**. W53's conformity reader, and a
+declared late exception in that item — `doc/workflow.md` section 1 rule 5's third direction, which
+obliges the search and not the edit.)*
 
 > **What `needs` costs is what you point it at, and the document is where that is visible.** The
 > mechanism makes **one copy per instance** and each copy costs what it holds, so the product is what

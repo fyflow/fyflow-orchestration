@@ -9,7 +9,85 @@ in the register whose owner cell says the same thing — *no owner, needs a meas
 have said it since P1. **This declaration took that run.** Three items, serial: **W53** (what a run
 retains that nothing reads, as **ADR 0046**), **W54** (what a result may be, and what bounding it
 would cost), **W55** (a run at scale on real workers). **Reserves W53-W56, Q233-Q247, ADR 0046-0047.**
-**No item has started. Read every status from the item's own file, never from this line.**
+**W53 is DONE; W54 and W55 have not started. Read every status from the item's own file, never from
+this line.**
+
+**[W53](work-items/w53-what-a-run-retains-that-nothing-reads.md) is DONE and
+[ADR 0046](decisions/0046-a-run-retains-what-its-tasks-returned-and-a-region-releases-its-collection-when-its-join-becomes-terminal.md)
+answers [Q19](open-questions.md), open since P1 and one of the two oldest rows in the register with
+no owner: a run retains *(tasks settled) x (bytes each returned)*, plus one further copy of each
+result that has arrived at a join that has NOT YET BECOME TERMINAL.** `spec/run-state.md` is
+**v0.6** — section 6's *Bounded retention* bullet is struck, section 7 is new and **`RN-R13`** is the
+rule; `spec/join-policy.md` is **v0.16**, giving `JP-R11`/`JP-R12` the LIFETIME of what a join
+collects with **no rule id added and no policy changed**. `spec/` is **7 documents, 44 examples, 90
+rules**; L1-L5 is **26 files / 695 cases in five runtimes**; **L6 is unmoved at 942 / 42**, which is
+what an item that adds no flow and no worker should do to it.
+
+**A region's collection lives from its first arrival until its join becomes TERMINAL, and is
+released at three moments — two per region and one per run.** Routed out of (after the read),
+reported `unsatisfiable` (after the latch), and the run stopped (`OR-R10`). **Outside that window
+nothing is RECORDED**, because a policy may lawfully settle a join with branches still live, which
+is [Q95](open-questions.md)'s own precondition reaching the same region through a second door.
+Measured: the `arrivals` share of a completed region-bearing run goes **49.8% to 0.0%**, and ten
+thousand concurrent runs go **3174.8 MiB to 1610.9 MiB** — the figure P15's fact 3 predicted, to the
+decimal. Releasing after the read costs **0** at L1-L5 and **0** at L6; before it, **14** (13 on the
+suite as it stood before this item).
+
+**Nothing is evicted from `inputs`, and that is refused on a measurement rather than on taste.** A
+fold over a log truncated to its last input reports **`completed` with ZERO nodes and ZERO regions**,
+no throw and no signal — a plausible wrong answer rather than a silent one — so an eviction needs a
+way for the fold to say it was handed less, which is a new `FoldInput` kind. **P15 decision 2 holds
+and prediction 2's stated reversal did not occur.** `maxCompletedTasks` is recorded as a candidate
+**measured and refused**: it caps `scheduler.tasks` and reaches nothing this layer holds.
+
+**Its central finding is that a REACHABILITY SET CANNOT TELL AN ALIAS FROM A COPY, and both readers
+found it from opposite ends — the one subject they shared.** `RN-R13`'s first form said the
+structures a settled result is reachable from are *exactly `{inputs, log}`*. The conformity reader
+ran that predicate on a corpus flow declaring a `needs` and got a **third** name; the adequacy reader
+made `outputsCache` **clone** what it stores — a real second copy of every result — **for ZERO
+failures across lint, typecheck, `check:spec`, L1-L5 and L6**, because both L2 fixtures declared no
+`needs` so the memo was `null` in all eight cases. **That is P15 fact 1's own defect reproduced
+inside the test written to correct it**: fact 1 recorded `outputsCache` as `null` because it
+enumerated properties on flows with no `needs`. The rule is a **SET and an IDENTITY** now, and the
+memo's entries are asserted `===` a log record's own result.
+
+**Three more claims were false and the conformity reader measured each.** `RN-R13`'s second term said
+*whose region is still LIVE* — but `p1-routed-away` under `arrival-count` has **zero live branches**
+and still retains, because *live* is what a BRANCH is and *terminal* is what a JOIN becomes. **The
+code had THREE release moments and three documents enumerated TWO**, so ADR 0046 rule 5 contradicted
+rule 3 and is now scoped *in a run that has not stopped*. And the negative control is **14** on the
+tree this item ships where three copies said 13.
+
+**And `OR-R10` had a door that was already open, which this item made SILENT.** `append` calls
+`onFoldInput` un-wrapped, so a re-entrant listener reaches `failRun` from **inside** `settleJoin` —
+the one door `failRun`'s own enumeration missed, because it is on the stack rather than ahead of it.
+A stopped run routing out of a join pre-dates W53; before it the successor carried the full
+collection and after it **`{}`**, indistinguishable from `live-token`'s legitimate all-exited case.
+`settleJoin` returns at `this.failed`: **0** at both rungs, and it tightens an existing rule rather
+than relaxing one. **The test written for it then asserted the right thing by the WRONG ROUTE** — a
+throw, which unwinds past the guard it was written for, so removing that guard cost zero. Found by
+rule 8's re-run with the reader's own edit checked back in.
+
+**The adequacy reader's six blocking findings are all one fact: the rule has exactly ONE observer,
+and it ran one region kind at one depth on two fixtures declaring no `needs`.** Measured: outside
+`test/driver/retention.test.ts`, rules 3, 4 and 5 and the whole of `RN-R13` have **zero** observers;
+only the read/release ORDER has a second route. So a **nested** region and a **`fanout`** region
+could each never release for zero — [W41](work-items/w41-what-a-node-can-reach-and-what-names-it.md)'s
+finding verbatim — the walk could not see a holder in a nested `Set` or a **cyclic** object while its
+`catch` arm asserted the falsehood, its loop universe could be pinned to the answer it expects, and
+seven of eight cases deleted for zero. All closed; **the universe binding caught the author's own
+wrong literal on its first run.**
+
+**Readers 16 / 6 blocking and 9 survivors / 6 blocking, OVERLAP 2** — the **twenty-ninth**
+measurement, inside the 0-4 band, neither reader primed. **Rule 8: 36 probes, 32 caught, 4 survivors,
+0 aborts**, run twice with the readers' eight exact edits checked back in and every file compared
+back byte-identical. **ONE undeclared survivor, recorded rather than closed**:
+[Q234](open-questions.md) — emptying a test BODY costs zero and the runner's `assertions` figure
+cannot fall, because it counts `test()` **cases**. **FOUR late exceptions, zero undeclared**, and
+P15's `Owns` prediction is answered `AGENTS.md` NO, `spec/README.md` YES, `scripts/check-docs.mjs` NO
+for the first of three items. **[Q142](open-questions.md) was measured before the gate and does NOT
+fire**, for the second consecutive time. **Census CONFIRMED for the FIFTEENTH plan running — 182 /
+131 / 2 / 49**, 43 ids in both tables, 0 aborts. **Q233-Q235 raised; Q236-Q237 unused.**
 
 **Its declaration measured EIGHT facts and FIVE of them correct or sharpen a row it is built on** —
 the seventeenth time a plan has found one of its own inputs wrong by trying to act on it. **The

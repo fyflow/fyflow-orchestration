@@ -705,6 +705,22 @@ suite(SUITE, (test) => {
       'and it holds one per settled task rather than a subset, so the identity check above is ' +
       'not vacuous on an almost-empty cache',
     );
+
+    // **And the holder SET on this same run reaches a FOURTH name**, which is what
+    // makes the walk's universe load-bearing rather than decorative. Every other case
+    // in this file expects a subset of {inputs, log, arrivals}, so pinning the walk to
+    // exactly those three names cost ZERO — measured in rule 8's re-run, with the
+    // adequacy reader's own edit checked back in. This row is the one that fails.
+    const MARK = 'W53-ALIAS-3e8a';
+    const h2 = harness(await load('valid/map-over-region-output.flow.json'), liveToken as JoinPolicy);
+    h2.driver.start({});
+    h2.scheduler.settle('r1:ingest:-:0', 'done', { result: { items: ['a', 'b'] } });
+    for (const i of [0, 1]) h2.scheduler.settle(`r1:score:${i}:0`, 'done', { result: { s: MARK } });
+    equal(holdersOf(h2.driver, MARK), ['inputs', 'log', 'outputsCache'],
+      'RN-R13 — on a flow that declares a `needs` the memo is a HOLDER, and the set says so. ' +
+      'This is the case the rule`s first draft denied: `exactly {inputs, log}` is false wherever ' +
+      '`outputs()` has been called, and only the identity check above says it is not a COPY',
+    );
   });
 
   /**
@@ -773,7 +789,16 @@ suite(SUITE, (test) => {
       onFoldInput: (i: FoldInput) => {
         if (stopOnJoinSettled && i.kind === 'joinSettled' && i.fired) {
           stopOnJoinSettled = false;
-          throw new Error('W53 — a listener that stops the run mid-append');
+          // **It must reach `failRun` and RETURN, not unwind.** The first version of
+          // this listener THREW, which reported the same failure and asserted the same
+          // absence — and it asserted it by the wrong route: a throw propagates out of
+          // `append` and out of `settleJoin`, so the guard below it is never reached
+          // and removing that guard cost ZERO. Measured, in rule 8's re-run with the
+          // reader's own edit checked back in. What reaches `failRun` and comes BACK
+          // is a re-entrant scheduler event: `onEvent` catches, calls `failRun`, and
+          // returns normally — leaving `this.failed` true with `settleJoin` still on
+          // the stack, which is the shape the conformity reader measured.
+          scheduler.settle('r1:score:0:0', 'done', { result: { uncloneable: () => 1 } });
         }
       },
     });
@@ -788,9 +813,10 @@ suite(SUITE, (test) => {
       'successor is NOT dispatched. Without the guard it is dispatched carrying `{}`, because ' +
       'failRun released every region one frame earlier',
     );
-    equal(failures.map((f) => f.kind), ['Error'],
-      'and the run really did stop rather than the listener being unreachable — the refusal ' +
-      'was reported through onRunFailure exactly once',
+    equal(failures.map((f) => f.kind), ['UncloneableResult'],
+      'and the run really did stop rather than the listener being unreachable — `OR-R6` fired ' +
+      'on the re-entrant settlement and was reported through onRunFailure exactly once. This ' +
+      'is the pair`s second half: without a stop there is nothing for the guard to guard',
     );
     equal(fold(driver.foldInputs()).outcome, 'stopped', 'RN-R8 — stopped outranks everything');
   });

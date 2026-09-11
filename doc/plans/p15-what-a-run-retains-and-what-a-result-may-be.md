@@ -471,10 +471,41 @@ paying out in a direction nobody aimed it.
 
 | item | | |
 |---|---|---|
-| **W53** | not started | |
+| **W53** | **DONE** — [Q19](../open-questions.md) is RESOLVED by [ADR 0046](../decisions/0046-a-run-retains-what-its-tasks-returned-and-a-region-releases-its-collection-when-its-join-becomes-terminal.md), open since P1. `spec/run-state.md` is **v0.6** with a new section 7 and **`RN-R13`**; `spec/join-policy.md` is **v0.16** with `JP-R11`/`JP-R12`'s LIFETIME and no new rule id. `spec/` is 7 / 44 / **90**; L1-L5 is **26 / 695** in five runtimes; **L6 unmoved at 942 / 42**. | **A region releases its collection when its join becomes TERMINAL** — at three moments, two per region and one per run. Measured: the `arrivals` share of a completed region-bearing run **49.8% → 0.0%**, and 10 000 concurrent runs **3174.8 → 1610.9 MiB**, which is the figure this plan's fact 3 predicted to the decimal. Releasing after the read costs **0** at both rungs; before it, **14** (13 on the pre-item suite). **Nothing is evicted from `inputs`**, refused on fact 4 rather than on taste — decision 2 holds and prediction 2's reversal did not occur. Readers **16 / 6 blocking** and **9 survivors / 6 blocking, overlap 2** (the 29th measurement, in band). Rule 8 **36 probes / 32 caught / 4 survivors / 0 aborts**, run twice with the readers' eight exact edits checked back in — and the re-run found this item's own re-entrancy test asserting the right thing **by the wrong route**, a throw that unwinds past the guard it was written for. **Q233-Q235 raised, Q236-Q237 unused; census 182 / 131 / 2 / 49, 0 aborts.** |
 | **W54** | not started | |
 | **W55** | not started | |
 | **W56** | reserved, expected unused | |
+
+**What W53 found wrong in this plan's own inputs, recorded here because the Record is where an item
+may write.** Four, and the first is the one prediction 1 named:
+
+1. **Fact 1 says the driver retains FOUR growing structures; there are seven own properties in five
+   groups, and the fifth group is not empty.** `outputsCache` is recorded as *`null` in every run
+   measured* — which is a property of the flows fact 1 ran, not of the driver: they declare no
+   `needs`, so `outputs()` is never called. On a flow that declares one it is **non-null**, and it
+   **ALIASES** — 5/5, 17/17 and 65/65 of its entries are a log record's own `result` object, costing
+   ~25 B an entry. **Prediction 1's conclusion HOLDS and its scope cell was narrow in the direction
+   that mattered**: there is no second 49.8% to find, and the reason is not that the fifth structure
+   is empty. *(And the same fixture gap then reproduced inside the L2 test written to correct it,
+   where making that memo clone what it stores cost ZERO at every rung. Both of W53's readers found
+   it, from opposite ends.)*
+2. **Fact 2, the `Spec:` line and four other places cite `spec/run-state.md` section 5; the
+   *Bounded retention* bullet is in section 6.** Section 5 is *Three things v0.1 claimed*. Corrected
+   in the item's own file, in the register and in `doc/README.md`; this plan's two copies (lines 94
+   and 226) are its own.
+3. **The plan's baseline paragraph says `git ls-files --eol` is 237 of 237 `i/lf`; at `82ff3ba` it
+   is 242**, and five is exactly the number of documents that declaration added. **Section 1 rule
+   5's WHEN clause, on the declaration's own tree** — a number taken before the change it describes.
+   It is 244 at W53's own commit and every one is `i/lf`.
+4. **`v8.serialize` is in TWO of the five runtimes, not one** — node and deno, through `node:v8`.
+   Three documents said one. The conclusion is unaffected: a rung green in two of five is not a rung.
+
+**Prediction 4 is CONFIRMED and prediction 1 is CONFIRMED with its scope corrected.** The release
+costs **0** at L1-L5 and **0** at L6, so no rung made of runs can see a whole structure leave —
+[Q214](../open-questions.md)'s third instance, from the REMOVAL side. **Prediction 2 is not yet
+verdicted**: no eviction shipped and decision 2's constraint was not met, which is what it predicts,
+but its stated reversal — *a marker that costs one field rather than a kind* — was looked for and not
+found rather than shown impossible.
 
 ## Retro
 
