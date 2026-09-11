@@ -72,10 +72,34 @@ const suites = walk(join(ROOT, 'test'), (n) => n.endsWith('.test.ts')).sort();
 // `0 file(s), 1 assertion`. Same defect, same check, and the difference is entirely
 // WHERE the read happens. A fixture read at module scope is a bundle-wide hazard;
 // the same read inside a test is an ordinary failing test.
+// **`spec/outcome-record.md` is here because `OR-R11`'s suite reads its boundary
+// TABLE** — `test/fold/result-value.test.ts` compares the 27 shapes it asserts to the
+// rows that document tabulates, both ways, and derives the `14 / 124 / 89%` split from
+// both corpora and checks it against that document's own sentence. Added by
+// [W54](../doc/work-items/w54-what-a-result-may-be-and-what-bounding-it-would-cost.md),
+// and it is the THIRD time a suite reading a `spec/**` document has turned the browser
+// rungs red while node and deno stayed green — W32's, W33's, and this.
+//
+// **What is new is how it was MISSED, and it is worth more than the fix.** The author
+// ran `npm run test:browser:all` twice after the reads were added and reported it green
+// both times, because the command was piped through `grep -E "file\(s\)|PARITY"` — and
+// the `27 file(s), 703 assertions` line prints BEFORE the failures. `doc/workflow.md`
+// section 4, v0.15: **a rung reported GREEN means its command EXITED 0, and a line of
+// its output is never the predicate.** That clause was adopted one plan ago, this item
+// quotes it in its own Verification table, and it was broken while being quoted.
 const fixtures = [
   ...walk(join(ROOT, 'spec', 'examples'), (n) => n.endsWith('.json')),
   join(ROOT, 'spec', 'flow-definition.md'),
   join(ROOT, 'spec', 'join-policy.md'),
+  join(ROOT, 'spec', 'outcome-record.md'),
+  // **The SECOND corpus, for the same suite.** `OR-R11`'s corpus half walks BOTH
+  // `spec/examples/valid/` and `examples/flows/` — that is what makes the split
+  // `14 of 124` rather than 6 of 60 — and only the first was inlined. Without these
+  // the assertion does not fail to RUN; it runs against half a corpus and reports a
+  // different number, which is the more dangerous of the two failure modes and is why
+  // it is caught by an equality against the document rather than by a floor.
+  // 18 files, ~69 KiB.
+  ...walk(join(ROOT, 'examples', 'flows'), (n) => n.endsWith('.json')),
 ].sort();
 const corpus = Object.fromEntries(fixtures.map((p) => [relPosix(p), readFileSync(p, 'utf8')]));
 
