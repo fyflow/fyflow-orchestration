@@ -25,7 +25,7 @@ the driver is invisible to every rung this repository has*, which is
 **And [Q19](open-questions.md)'s row names the wrong variable.** Four dimensions measured one at a
 time: ~262 B/node, ~469 B/fan-out branch, ~456 B/map instance — **one** variable, how many tasks
 settle — and **linear in the whole of every result**, which is the multiplier neither that row nor
-`spec/run-state.md` section 5 names. **A 4-node chain returning 256 KiB retains 1025 KiB; a 128-node
+`spec/run-state.md` section 6 names. **A 4-node chain returning 256 KiB retains 1025 KiB; a 128-node
 chain returning one key retains 33 KiB** — thirty-one times the footprint at a thirty-second of the
 node count. The footprint is *(tasks settled) x (bytes each returned)*.
 

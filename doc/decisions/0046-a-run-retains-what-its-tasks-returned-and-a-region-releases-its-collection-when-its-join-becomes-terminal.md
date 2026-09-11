@@ -36,7 +36,13 @@ tasks settle* — and **linear in the whole of every result**, which is the fact
 nor the spec bullet named. A **4**-node chain returning 256 KiB retains **1025 KiB**; a **128**-node
 chain returning one key retains **33 KiB**.
 
-**2. The driver holds FIVE growing structures and Q19's row names TWO.**
+**2. The driver holds SEVEN own properties that grow with the run, in the FIVE groups below, and
+Q19's row names TWO of them.** *(The grouping is stated because it has to be: this table reaches
+five by putting `dispatched`, `joinState` and `firedJoins` in one row while splitting `log` out of
+`inputs`, and P15 fact 1's **four** used a different grouping again — so *four* and *five* were
+never comparable, and the first draft of this ADR did arithmetic across them. W53's conformity
+reader. The seven are `log`, `inputs`, `dispatched`, `joinState`, `firedJoins`, `arrivals` and
+`outputsCache`, which is what `RN-R13` enumerates and what the L2 suite binds by name.)*
 
 | | | what it holds |
 |---|---|---|
@@ -63,7 +69,7 @@ own — it is the arriving branch's own edge-hop clone. **What it costs to relea
 
 | probe | L1-L5 | L6 |
 |---|---|---|
-| release the region's collection **BEFORE** the join reads it — the negative control | **13 failures** | not run |
+| release the region's collection **BEFORE** the join reads it — the negative control | **14 failures** on the tree this ADR ships; **13** on the suite as it stood before W53, the fourteenth being W53's own *the release is AFTER the read* | not run |
 | release it **AFTER** the join reads it — what this ADR takes | **0 failures** | **0 failures** |
 
 **And what it buys, re-taken with the change in place:** a completed region-bearing run's `arrivals`
@@ -100,10 +106,24 @@ the exception stated rather than left to the clear site.**
 
 1. **What a run retains is what its tasks returned, once — *(tasks settled) x (bytes each
    returned)*.** `inputs` is the structure that holds it and `log` is its record-kind subsequence by
-   reference. `spec/run-state.md` section 7's **`RN-R13`** is the rule, and its falsifiable form is a
-   **set**: for any settled result, the driver's own growing structures it is reachable from are
-   exactly `{inputs, log}` once its region's join is terminal. **A sixth structure holding a result
-   is a second copy and this is what would say so.**
+   reference. `spec/run-state.md` section 7's **`RN-R13`** is the rule, and its falsifiable form is
+   **a SET and an IDENTITY**: *which* of the driver's growing structures a settled result is
+   reachable from, and *whether* each holds a **copy** or an alias. **A new structure holding a COPY
+   is what the pair says so about**, and the L2 suite binds the walk's own universe to the driver's
+   own property names both ways, so a field added to the driver fails there naming itself.
+
+   *(The first draft said the SET alone was the test, and that it was "exactly `{inputs, log}`".
+   **Both of W53's readers falsified that from opposite ends, and it is the one subject they
+   shared.** The conformity reader ran the stated predicate on a corpus flow that declares a `needs`
+   and got a THIRD name — `outputsCache` holds a settled result, so the claim is false wherever
+   `outputs()` has been called. The adequacy reader came the other way and made that memo
+   `structuredClone` what it stores — **a real second copy of every result, for ZERO failures across
+   lint, typecheck, `check:spec`, L1-L5 and L6** — because both of the L2 suite's fixtures declared
+   no `needs`, so the memo was `null` in every one of its cases. **A reachability SET cannot tell an
+   alias from a copy.** And it is measurement 2's own defect one layer in: fact 1 recorded
+   `outputsCache` as `null` because it enumerated properties on flows with no `needs`, this ADR
+   corrects that by name, and the test written to make the rule falsifiable then chose its fixtures
+   the same way.)*
 
 2. **Nothing may be evicted from `inputs`, and the reason is the fold rather than the bytes.**
    `RN-R1` makes the fold a pure function of the sequence and `RN-R2` makes it total over any
@@ -125,7 +145,18 @@ the exception stated rather than left to the clear site.**
 
    **The ORDER at the first is the rule and it has a measured negative control**: released after the
    read it costs **0** at both rungs; released before it, the join carries `{}` and L1-L5 reports
-   **13**.
+   **14** on the tree this ADR ships (**13** before W53's own suite existed).
+
+   **The third moment needs one guard, and W53's conformity reader is what bought it.** `failRun`'s
+   argument enumerates the three doors into `settleJoin` and they are all shut behind `this.failed`
+   — but it missed the door on the **stack**: `append` calls `onFoldInput` un-wrapped, so a
+   re-entrant listener can reach `failRun` from inside `settleJoin`, and `failRun` is where every
+   collection is released. **W53 did not create the defect and it made it SILENT**: a stopped run
+   routing out of a join at all is `OR-R10`'s own violation and pre-dates this decision, but before
+   it the successor was dispatched with the full collection and after it with **`{}`** — which is
+   indistinguishable from `live-token`'s legitimate all-exited case. `settleJoin` therefore returns
+   at `this.failed` immediately after announcing the join. **Measured at 0 failures at L1-L5 and 0
+   at L6**, and it TIGHTENS an existing rule rather than relaxing one.
 
    **The LOG is untouched at all three**, including the third. A stopped run is a run a consumer
    folds to find out what happened, so releasing what the fold reads there would be rule 2's
@@ -140,9 +171,17 @@ the exception stated rather than left to the clear site.**
    once* latch. **The same hypothetical policy, reaching the same region through a second door**, and
    it is guarded rather than commented for that reason.
 
-5. **A region whose join NEVER becomes terminal holds its collection until the caller releases the
-   driver, and that is the BOUND rather than a leak.** This is the run whose footprint matters most
-   and the three moments above do not reach it. **The driver cannot know**: `stuck` is decided in the
+5. **In a run that has NOT STOPPED, a region whose join never becomes terminal holds its collection
+   until the caller releases the driver, and that is the BOUND rather than a leak.** This is the run
+   whose footprint matters most and the two PER-REGION moments above do not reach it.
+
+   *(The scope — *in a run that has not stopped* — is W53's conformity reader, and without it this
+   rule contradicted rule 3: the third moment reaches exactly that region, which is what the L2 row
+   asserting a `failRun` release with the join still `waiting` measures. Three documents also
+   enumerated only the two per-region moments while the code had three, so a reader implementing the
+   driver from `spec/` alone would not have written the third; all three name it now.)*
+
+   **The driver cannot know**: `stuck` is decided in the
    **fold**, at a quiescent point, from a region whose `joined` is not `true` (`RN-R10`), and giving
    the driver an event for it would put a run-state determination inside the driver —
    [ADR 0014](0014-the-driver-produces-the-folds-ordered-input-sequence.md) rule 4 and
@@ -206,3 +245,18 @@ prediction 4.
 **And it moves a cost onto [Q219](../open-questions.md) rather than off it**, which is recorded
 above rather than discovered later: a decision that makes a region's collection unreachable sooner
 makes referencing it dearer, and the two are the same plan's subjects.
+
+**[ADR 0037](0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md)
+rule 1 is still stated wider than the code holds it, and this decision BOUNDS that rather than
+closing it.** That rule says *a node's payload is reachable from nothing else the run holds*;
+[Q19](../open-questions.md)'s row recorded that the join's successor payload **is** reachable from
+`arrivals`, and it still is — **inside `JP-R12`'s window**. What changes is that the window now has
+an end. The sub-finding is carried here because resolving Q19 retires the row it was written in and
+it would otherwise reach no owner: W53's conformity reader.
+
+**The rule's only observer is one L2 file, and that is stated rather than left to be discovered.**
+W53's adequacy reader measured it: outside `test/driver/retention.test.ts`, rules 3, 4 and 5 and the
+whole of `RN-R13` have **zero** observers — only the read/release **ORDER** has a second route, the
+thirteen pre-existing `JP-R12` cases. That is obligation (c)'s LIMIT for four of the six rules here,
+and it is why that file binds its own case list, its own walk universe and the driver's own field
+names: with one observer, the observer's bounds are the decision's bounds.

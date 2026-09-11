@@ -857,14 +857,24 @@ export class Driver {
 
   private failRun(cause: unknown): void {
     // `RN-R8` — `stopped` outranks everything, and the fold learns it here.
-    // Appended before `failed` is set so a re-entrant `onFoldInput` listener
-    // sees the same order a later `foldInputs()` reader does.
+    //
+    // *(This read *"Appended before `failed` is set so a re-entrant `onFoldInput`
+    // listener sees the same order a later `foldInputs()` reader does"* — which is
+    // the OPPOSITE of what the three lines below do: `failed` is set FIRST and the
+    // `stopped` element is appended after it. The order is right and the sentence
+    // was not; W53's conformity reader, in a file W53 owns, on a comment W53 wrote
+    // its own paragraph directly beneath.)*
+    //
+    // **`failed` being set before the append is what makes the guard in
+    // `settleJoin` reachable**: a re-entrant `onFoldInput` listener that reaches
+    // `failRun` from inside `settleJoin` leaves `this.failed` true by the time
+    // control returns there.
     const already = this.failed;
     this.failed = true;
     const err = cause instanceof Error ? cause : new Error(String(cause));
     if (!already) {
       this.append({ kind: 'stopped', reason: `${err.constructor?.name ?? 'Error'}: ${err.message}` });
-      // **The SECOND of the two moments
+      // **The RUN-LEVEL moment — the THIRD of the three
       // [ADR 0046](../../doc/decisions/0046-a-run-retains-what-its-tasks-returned-and-a-region-releases-its-collection-when-its-join-becomes-terminal.md)
       // rule 3 names**, and it is not per-region: `OR-R10` says the driver has
       // stopped routing this run, so no join of any region will settle again. The
@@ -1499,6 +1509,13 @@ export class Driver {
    * `snapshot()` already returns the whole of it publicly. So
    * [Q19](../../doc/open-questions.md)'s *"if Q8 or Q11 retains every node output"*
    * described **today** before this method existed, and this adds **no retention**.
+   * *(Q19 is RESOLVED since W53 —
+   * [ADR 0046](../../doc/decisions/0046-a-run-retains-what-its-tasks-returned-and-a-region-releases-its-collection-when-its-join-becomes-terminal.md)
+   * — and `RN-R13` names this memo by id: it holds results **by reference only**,
+   * asserted by IDENTITY at ladder L2 rather than by a byte count, because a
+   * reachability SET cannot tell an alias from a copy. W53's readers found that
+   * from both ends — the rule's stated test returned a third name on a `needs`
+   * flow, and cloning here cost ZERO.)*
    * *(It adds ONE field — `outputsCache` below — which is a memo the log invalidates
    * and which holds nothing the log does not. This read *"zero fields"* until W41's
    * conformity reader read it beside the memo the cost measurement had just added.)*
@@ -2161,6 +2178,23 @@ export class Driver {
     // does not violate `RN-R6`: `fired` is "routing left the join", an action, and
     // the same two policies over the same events still produce identical `regions`.
     this.append({ kind: 'joinSettled', regionId: region.fanoutId, joinId: region.joinId, fired: true });
+    // **`OR-R10` on the one door into this function that is already OPEN — W53's
+    // conformity reader.** The three doors into `settleJoin` are all shut behind
+    // `this.failed`, and the argument in `failRun` enumerates them correctly; what it
+    // missed is the door on the STACK. `append` calls `this.opts.onFoldInput`
+    // un-wrapped, so a re-entrant listener can reach `failRun` from the line above —
+    // and `failRun` is exactly where every region's collection is released.
+    //
+    // **W53 did not create the defect; it made it SILENT, which is worse.** A stopped
+    // run routing out of a join at all is `OR-R10`'s own violation and pre-dates this
+    // item. Before W53 the successor was dispatched with the full collection; after
+    // it, measured on one flow with one re-entrant listener, the successor is
+    // dispatched with **`{}`** — a run that has been stopped, handing a node an empty
+    // object that looks like `live-token`'s legitimate all-exited case.
+    //
+    // **Costs 0 at L1-L5 and 0 at L6**, and it tightens an existing rule rather than
+    // relaxing one: `OR-R10` already says the driver has stopped routing this run.
+    if (this.failed) return;
     // **The collection is read ONCE and the region is released in the same breath —
     // [ADR 0046](../../doc/decisions/0046-a-run-retains-what-its-tasks-returned-and-a-region-releases-its-collection-when-its-join-becomes-terminal.md)
     // rule 3.** `collectArrivals` is a pure projection of the map, so hoisting it
@@ -2171,7 +2205,11 @@ export class Driver {
     //
     // **The ORDER is the whole rule and it has a measured negative control**: this
     // release AFTER the read costs 0 failures at L1-L5 and 0 at L6; moved BEFORE it,
-    // the join carries `{}` and L1-L5 reports **13**. P15 fact 3, re-run by W53.
+    // the join carries `{}` and L1-L5 reports **14** on the tree this item ships —
+    // **13** on the suite as it stood before W53, the fourteenth being this item's
+    // own `the release is AFTER the read`. P15 fact 3, re-run by W53 and re-taken
+    // at its readers (`doc/workflow.md` section 1 rule 5's WHEN clause: three
+    // copies of this number said 13 and the register row already said both).
     //
     // **Why it is safe to release before `enter` runs**: `enter` dispatches the
     // join's successor, which is outside this region or in the enclosing one, and

@@ -4,7 +4,7 @@
 **Plan:** [P15](../plans/p15-what-a-run-retains-and-what-a-result-may-be.md)
 
 ```
-Spec:       spec/run-state.md section 5 (the "Bounded retention" bullet, open
+Spec:       spec/run-state.md section 6 (the "Bounded retention" bullet, open
             since v0.1) and spec/join-policy.md section 4 (JP-R11, JP-R12)
 Owns:       src/driver/**, test/driver/**, spec/run-state.md,
             spec/join-policy.md, doc/decisions/0046-*.md
@@ -14,7 +14,7 @@ Inputs:     P15 facts 1-4, read from the PLAN's own file and RE-RUN from
             ADR 0037 rule 1 and rule 4; ADR 0040 rule 2; ADR 0014.
 Outputs:    (1) ADR 0046 - what a run retains, what it may forget, and when
             (2) the `arrivals` clear, with the join-never-fires case answered
-            (3) spec/run-state.md section 5's bullet RESOLVED rather than
+            (3) spec/run-state.md section 6's bullet RESOLVED rather than
                 restated, with the variable named correctly (fact 2)
             (4) JP-R11/JP-R12 stating the lifetime of what a join collects
             (5) an L2 assertion that the cleared structure is empty after the
@@ -34,7 +34,7 @@ Reserves:   Q233-Q237, ADR 0046
 **In**
 
 1. **[Q19](../open-questions.md), decided as ADR 0046.** What a run retains, what it may forget, and
-   when. The decision has to be falsifiable — `spec/run-state.md` section 5 has carried this as an
+   when. The decision has to be falsifiable — `spec/run-state.md` section 6 has carried this as an
    unanswered bullet since v0.1, and a restatement is not an answer.
 2. **The measured-free half**: `arrivals` is a second copy of every branch result and is **49.8%** of
    what a region-bearing run holds (fact 3). Clearing it after the join reads it costs **0 at L1-L5
@@ -44,7 +44,7 @@ Reserves:   Q233-Q237, ADR 0046
    branch settled). *A run that hangs is exactly the run that keeps everything*, and the ADR must say
    what happens to it rather than leave it to the clear site.
 4. **Correcting the variable.** Fact 2 measures the footprint as *(tasks settled) x (bytes each
-   returned)*; `spec/run-state.md` section 5 says *"proportional to its dispatched-node count"* and
+   returned)*; `spec/run-state.md` section 6 says *"proportional to its dispatched-node count"* and
    [Q19](../open-questions.md)'s row says *"proportional to its node count"*. Both name the smaller
    half. The corrected statement lands in the document this item owns.
 5. **Naming `inputs`.** Fact 1: the register names `log` and `arrivals`; `inputs` is what actually
@@ -112,7 +112,7 @@ direction, with the procedure v0.15 adopted. At this declaration that returns **
 |---|---|---|
 | ADR 0046 | | |
 | the `arrivals` clear | | |
-| `spec/run-state.md` section 5 resolved | | |
+| `spec/run-state.md` section 6 resolved | | |
 | `JP-R11`/`JP-R12` lifetime | | |
 | the L2 discriminating pair | | |
 

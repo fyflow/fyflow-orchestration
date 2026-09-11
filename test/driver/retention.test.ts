@@ -11,11 +11,13 @@
  *
  * | what | from |
  * |---|---|
- * | which structures may hold a settled result | `RN-R13` in [spec/run-state.md](../../spec/run-state.md) section 7 — `inputs`, and `log` as its record-kind subsequence |
+ * | which structures may hold a settled result | `RN-R13` in [spec/run-state.md](../../spec/run-state.md) section 7 — `inputs` holds it, `log` is its record-kind subsequence BY REFERENCE, and `outputsCache` aliases it |
  * | when a region's collection is released | `JP-R11`/`JP-R12` in [spec/join-policy.md](../../spec/join-policy.md) section 4, and ADR 0046 rule 3 |
  * | what a satisfied join carries | `JP-R12` — one entry per branch that emitted `branch.arrived`, keyed by `branchPath`, ascending segment-wise-numeric |
  * | `stuck` on `p1-routed-away` under `arrival-count` | `RN-R10`, and `spec/join-policy.md` section 3's first row |
- * | that a stopped run releases | `OR-R10`, and ADR 0046 rule 3's second moment |
+ * | that a stopped run releases | `OR-R10`, and ADR 0046 rule 3's THIRD moment — the run-level one |
+ * | that a stopped run does not ROUTE | `OR-R10` again, and it is the guard W53's conformity reader bought |
+ * | a `fanout` region, a NESTED region, and `outputsCache`'s alias | ADR 0046 rules 1 and 3, and all three are cases W53's adequacy reader bought |
  *
  * ---
  *
@@ -29,14 +31,18 @@
  * both worse. A public accessor would enlarge the surface for a test's convenience,
  * which is [Q53](../../doc/open-questions.md)'s own finding (*a redundant surface is
  * read as a permissive one*); and a byte measurement would need `v8.serialize`,
- * which does not exist in three of the five runtimes L1-L5 must be green in
- * (`spec/runtime-targets.md`).
+ * which exists in only **two** of the five runtimes L1-L5 must be green in — node and
+ * deno, through `node:v8`, and in none of the three browsers
+ * (`spec/runtime-targets.md`). *(Three documents said it was in ONE. Measured:
+ * `deno eval "import v8 from 'node:v8'; console.log(typeof v8.serialize)"` prints
+ * `function`. W53's conformity reader; the conclusion is unaffected, because a
+ * rung green in two runtimes of five is not a rung.)*
  *
  * **So the reach is deliberate, it is one named helper rather than casts scattered
  * through the file, and it is recorded here as the cost of the rule being
  * unobservable from outside.** [Q233](../../doc/open-questions.md).
  */
-import { deepEqual, equal, ok, suite } from '../harness.ts';
+import { collected, deepEqual, equal, ok, suite } from '../harness.ts';
 import { readText, ROOT } from '../harness.ts';
 import { Driver } from '../../src/driver/driver.ts';
 import { arrivalCount, liveToken } from '../../src/fold/policies.ts';
@@ -112,40 +118,132 @@ const heldArrivals = (d: Driver): number => {
 };
 
 /**
- * **`RN-R13`'s own observer: which of the driver's structures a settled result's
- * text is reachable from.** Identity cannot answer this — `OR-R2` deep-copies
- * `result` at the listener boundary, so the worker's own object is in none of them —
- * and a byte count cannot, because `v8.serialize` is Node-only. A unique marker
- * string and a JSON walk work in all five runtimes and say exactly what the rule is
- * about: *how many places hold it*, not how big they are.
- *
- * `graph`, `opts` and `def` are excluded because they are the DEFINITION and the
- * caller's options — neither grows with the run, which is the rule's subject.
+ * **What the walk below does NOT look in, and why each is excluded.** `graph`, `opts`
+ * and `def` are the DEFINITION and the caller's own options: neither grows with the
+ * run, which is `RN-R13`'s subject. Nothing else is excluded, and the test below
+ * asserts that this list and the driver's own property names account for each other
+ * BOTH WAYS — so a new field cannot join the driver without this file saying so,
+ * which is the whole of *a sixth structure holding a result is a second copy and this
+ * is what would say so*.
  */
+const NOT_RUN_STATE = ['def', 'graph', 'opts'];
+
+/** The driver's own growing structures — every own property that is not in the list above. */
+const walkableKeys = (d: Driver): string[] =>
+  Object.keys(d as unknown as Record<string, unknown>).filter((k) => !NOT_RUN_STATE.includes(k)).sort();
+
+/**
+ * **Does this value hold the marker anywhere inside it?** An explicit graph walk with
+ * a `seen` set, and **not** `JSON.stringify` — which is what this was, and W53's
+ * adequacy reader measured two shapes it structurally could not see:
+ *
+ * | shape | why the JSON walk missed it |
+ * |---|---|
+ * | a `Set` below the top level | the top-level unwrap handled `Set`, and the replacer handled only `Map`, so a nested `Set` serialised as `{}` |
+ * | a **cyclic** object | `stringify` threw and the `catch` arm said *"a cyclic structure holds no settled result here"* — which is the exact thing the probe falsified, and `structuredClone` **accepts** cycles (P15 fact 7), so a worker result may be one |
+ *
+ * Both shapes retained every arrived branch result for the life of the driver — the
+ * defect ADR 0046 exists to remove — and were invisible to the rule's only observer.
+ * *A comment that states as a fact the thing a probe is about to falsify is worse
+ * than no comment.*
+ *
+ * **Identity cannot stand in for this** — `OR-R2` deep-copies `result` at the
+ * listener boundary, so the worker's own object is in none of these structures — and
+ * a byte count cannot, because `v8.serialize` is absent from three of the five
+ * runtimes L1-L5 must be green in — the three browsers. A unique marker string is
+ * what works everywhere.
+ */
+function holdsMarker(v: unknown, marker: string, seen: Set<object>): boolean {
+  if (typeof v === 'string') return v.includes(marker);
+  if (!v || typeof v !== 'object') return false;
+  // A cycle is not a hiding place: every node is visited once and then skipped.
+  if (seen.has(v as object)) return false;
+  seen.add(v as object);
+  const inner: unknown[] = v instanceof Map
+    ? [...(v as Map<unknown, unknown>).keys(), ...(v as Map<unknown, unknown>).values()]
+    : v instanceof Set
+    ? [...(v as Set<unknown>)]
+    : Array.isArray(v)
+    ? v
+    : Object.values(v as Record<string, unknown>);
+  for (const x of inner) if (holdsMarker(x, marker, seen)) return true;
+  return false;
+}
+
+/** `RN-R13`'s observer: which of the driver's growing structures hold the marker. */
 function holdersOf(d: Driver, marker: string): string[] {
   const o = d as unknown as Record<string, unknown>;
-  const out: string[] = [];
-  for (const k of Object.keys(o)) {
-    if (k === 'graph' || k === 'opts' || k === 'def') continue;
-    const v = o[k];
-    const flat = v instanceof Map || v instanceof Set ? [...v] : v;
-    if (!flat || typeof flat !== 'object') continue;
-    let text: string;
-    try {
-      text = JSON.stringify(flat, (_key, val) => (val instanceof Map ? [...val] : val));
-    } catch {
-      continue; // a cyclic structure holds no settled result here
-    }
-    if (typeof text === 'string' && text.includes(marker)) out.push(k);
-  }
-  return out.sort();
+  return walkableKeys(d).filter((k) => holdsMarker(o[k], marker, new Set<object>())).sort();
 }
+
+/**
+ * **The memo's entries, for the ALIAS half of `RN-R13`.** `outputsCache` holds a
+ * settled result **by reference** — every entry IS a log record's own `result`
+ * object — so it is a holder in the reachability sense and is not a second copy.
+ * A holder SET cannot tell those apart; identity can, and this is what it reads.
+ */
+const cachedResults = (d: Driver): unknown[] => {
+  const c = (d as unknown as {
+    outputsCache: { byNode: Map<string, { path: string; result: unknown }[]> } | null;
+  }).outputsCache;
+  return c ? [...c.byNode.values()].flatMap((list) => list.map((e) => e.result)) : [];
+};
+
+/** The `result` object of every settled record in the driver's own log, by reference. */
+const loggedResults = (d: Driver): unknown[] =>
+  (d as unknown as { log: { result?: unknown }[] }).log
+    .filter((r) => r && typeof r === 'object' && 'result' in r).map((r) => r.result);
 
 /** A 3-item map over `over: "items"`, so the arity is the RUN's and not the document's. */
 const MAP_FANOUT = 'valid/map-fanout.flow.json';
 const THREE = { items: ['a', 'b', 'c'], rows: ['x', 'y'] };
 
-suite('ADR 0046 / RN-R13 — a region releases its collection when its join becomes terminal', (test) => {
+/**
+ * **Every own property of a `Driver`, sorted.** The other half of `NOT_RUN_STATE`:
+ * this is the list the walk's universe is checked against, and it is `RN-R13`'s
+ * ratchet — a new field here is a candidate second copy and the rule has to be
+ * re-measured for it. **Its limit is `ROW_KEYS`'** — it is a literal, so a field and
+ * its name here are two edits in one diff ([Q102](../../doc/open-questions.md)).
+ */
+const DRIVER_FIELDS = [
+  'arrivals', 'def', 'dispatched', 'failed', 'firedJoins', 'graph', 'inputs', 'joinState',
+  'log', 'now', 'opts', 'outputsCache', 'regions', 'runId', 'started',
+].sort();
+// *(This list read THIRTEEN on its first run and the assertion below caught it
+// immediately: it was derived from `dev-dist/p15/facts.ts`, whose enumeration skips
+// anything that is not an object, so the two booleans `failed` and `started` were
+// invisible to it. They stay in the WALK rather than in `NOT_RUN_STATE` — a boolean
+// holds no result, so walking one costs nothing, and excluding it would be a second
+// judgement to keep right. The binding earning its place on its first run is the
+// argument for it.)*
+
+const SUITE = 'ADR 0046 / RN-R13 — a region releases its collection when its join becomes terminal';
+
+/**
+ * **The cases this suite declares** — its own `ROW_KEYS`, and the last test in the
+ * file compares it to what actually ran, both ways. W53's adequacy reader deleted
+ * seven of the eight cases that existed before it and every rung stayed at exit 0,
+ * because `test/definition/l4-corpus.test.ts`'s census is a membership over SUITE
+ * names and the suite was still there.
+ */
+const DECLARED_CASES = [
+  'the pair — arrivals are EMPTY once the join has fired and NON-EMPTY before it',
+  'the release is AFTER the read — the join carries all three, keyed by branchPath',
+  'RN-R13 — a settled branch result is reachable from `inputs` and `log`, and nothing else',
+  'nothing the fold reads moved — no FoldInput carries what a join collected',
+  'the unsatisfiable exit releases too — a region declared dead with arrivals in it',
+  'rule 4 — an arrival at a join that has ALREADY become terminal records nothing',
+  'a refusal that stops the run releases every region, and leaves the log whole',
+  'rule 5 — a run the FOLD calls `stuck` still holds its collection, and that is the bound',
+  'a `fanout` region releases as a `map` one does — the half that had no observer',
+  'a nested region releases its OWN collection and leaves the enclosing one held',
+  'RN-R13 — `outputsCache` holds results BY REFERENCE, and identity is what says so',
+  'the walk looks at EVERY growing structure — a new driver field fails here naming itself',
+  'a run stopped from inside `append` does not route out of the join it was settling',
+  'every case this suite declares actually ran — a deleted case fails naming itself',
+];
+
+suite(SUITE, (test) => {
   /**
    * **THE DISCRIMINATING PAIR, and `doc/workflow.md` section 5 rule 8's fourth
    * requirement on the set is why the difference is asserted too.** Two runs of ONE
@@ -203,8 +301,9 @@ suite('ADR 0046 / RN-R13 — a region releases its collection when its join beco
    * obligation (c)'s LIMIT: a clause with one observer cannot corroborate itself.
    * The test above reads the driver's own map; this reads what the join CARRIED.
    * A release moved before `collectArrivals` leaves the first assertion green and
-   * this one red — which is P15 fact 3's negative control, measured at **13**
-   * L1-L5 failures.
+   * this one red — which is P15 fact 3's negative control, RE-TAKEN by W53 on the tree
+   * this file ships at **14** L1-L5 failures, against **13** on the suite as it stood
+   * before this file existed. The fourteenth is this case.
    */
   test('the release is AFTER the read — the join carries all three, keyed by branchPath', async () => {
     const h = harness(await load(MAP_FANOUT), liveToken as JoinPolicy);
@@ -312,15 +411,23 @@ suite('ADR 0046 / RN-R13 — a region releases its collection when its join beco
    * what this asserts.
    */
   test('the unsatisfiable exit releases too — a region declared dead with arrivals in it', async () => {
-    let terminals = 0;
+    // **The counter lives in the policy's own state `S`, and that is not tidiness** —
+    // W53's adequacy reader. The first version kept it in a closure, so `step` mutated
+    // something outside `S` and `status` was **not a function of its argument**: `S`
+    // was `{}` throughout and the answer changed anyway. `JP-R1` says *every method is
+    // pure — no clock, no scheduler, no IO, no mutation of `S`*, so the exhibit for
+    // ADR 0046 rule 3's unsatisfiable arm was a policy this document's FIRST rule
+    // forbids, while that rule's justification rests on such a policy being LAWFUL.
+    // Rewritten below with the counter in `S`; every assertion is unchanged.
+    type DeadState = { terminals: number };
     const deadAfterTwo: JoinPolicy = {
       id: 'w53-dead-after-two',
-      open: () => ({}),
-      step: (s: unknown, e: RegionEvent) => {
-        if (e.type === 'branch.arrived' || e.type === 'branch.exited' || e.type === 'branch.lost') terminals++;
-        return s;
-      },
-      status: () => (terminals >= 2 ? 'unsatisfiable' : 'waiting'),
+      open: () => ({ terminals: 0 }),
+      step: (s: DeadState, e: RegionEvent) =>
+        (e.type === 'branch.arrived' || e.type === 'branch.exited' || e.type === 'branch.lost'
+          ? { terminals: s.terminals + 1 }
+          : s),
+      status: (s: DeadState) => (s.terminals >= 2 ? 'unsatisfiable' : 'waiting'),
       describe: () => 'w53 — declared dead with one branch already arrived',
     } as unknown as JoinPolicy;
 
@@ -369,6 +476,14 @@ suite('ADR 0046 / RN-R13 — a region releases its collection when its join beco
    * [Q95](../../doc/open-questions.md) records for `settleJoin`'s own `at most once`
    * latch. The same hypothetical policy, reaching the same region through a second
    * door.
+   *
+   * **And the guard is LESS hypothetical than that sentence says** — W53's conformity
+   * reader instrumented it: over one `node test/runner.ts` it fires **nine** times, and
+   * only three of those are this file's constructed policies. The other six come from
+   * four pre-existing test policies — `stub-arrival`, `always`, `dead-on-first-arrival`
+   * and `dead-then-alive` — on regions `split` and `perItem`. So the suite already
+   * exercises rule 4 outside this case, which is stronger than a constructed row and is
+   * recorded rather than left looking speculative.
    */
   test('rule 4 — an arrival at a join that has ALREADY become terminal records nothing', async () => {
     const eagerly: JoinPolicy = {
@@ -471,6 +586,250 @@ suite('ADR 0046 / RN-R13 — a region releases its collection when its join beco
     equal(fold(h.driver.foldInputs()).outcome, 'stuck',
       'RN-R10 says `stuck` and the DRIVER was never told — which is why the bound is stated ' +
       'over regions whose join is still live rather than over the run',
+    );
+  });
+
+  /**
+   * **A `fanout` region releases too, and before this case the WHOLE `fanout` half of
+   * rule 3 had no observer** — W53's adequacy reader, which made `releaseArrivals`
+   * return early for anything that is not a `map` region and measured **zero**
+   * failures at every rung. Every release-observing case above uses
+   * `map-fanout.flow.json`; the one `fanout` flow in this file is the case where the
+   * join does NOT fire.
+   *
+   * **It is [W41](../../doc/work-items/w41-what-a-node-can-reach-and-what-names-it.md)'s
+   * finding verbatim** — *every one of the author's 37 probes used a map region, so a
+   * rule wrong about `fanout` regions was unreachable from the set* — and it is what
+   * `JP-R11`'s own Test cell insists on by requiring both kinds.
+   */
+  test('a `fanout` region releases as a `map` one does — the half that had no observer', async () => {
+    const h = harness(await load('valid/fanout-join.flow.json'), liveToken as JoinPolicy);
+    h.driver.start({});
+    h.scheduler.settle('r1:ingest:-:0', 'done', { result: { seed: 1 } });
+
+    h.scheduler.settle('r1:scoreA:0:0', 'done', { result: { s: 'a' } });
+    equal(heldArrivals(h.driver), 1, 'one branch in, the join still waiting — the window is open');
+
+    h.scheduler.settle('r1:scoreB:1:0', 'done', { result: { s: 'b' } });
+    ok(
+      deepEqual(h.payloadOf('r1:publish:-:0'), { 0: { s: 'a' }, 1: { s: 'b' } }),
+      'JP-R12 — both branches, keyed by branchPath, so the release came after the read here too',
+    );
+    equal(heldArrivals(h.driver), 0,
+      'ADR 0046 rule 3 is about a REGION and not about a region KIND. `FD-V9`s floor makes a ' +
+      'fanout`s arity something an author wrote down, which is exactly why a rule wrong about ' +
+      'this half would never show up in a map fixture',
+    );
+  });
+
+  /**
+   * **A NESTED region releases its own collection and NOT its parent's** — W53's
+   * adequacy reader, which made `releaseArrivals` return early whenever the region was
+   * itself inside a region and measured **zero** failures at every rung.
+   *
+   * This falsifies a claim in the item's own Verification section: *a nested fan-out
+   * ([Q6](../../doc/open-questions.md)) is covered, because the clear is keyed by
+   * region and a nested region has its own key.* **Keyed-by-region was an argument and
+   * not a case** — every fixture above is depth 1 — and a nested region is where the
+   * arity multiplies, so it is the shape fact 3's 49.8% is largest on.
+   */
+  test('a nested region releases its OWN collection and leaves the enclosing one held', async () => {
+    const h = harness(await load('valid/nested-fanout.flow.json'), liveToken as JoinPolicy);
+    h.driver.start({});
+
+    // `scoreA` arrives at the OUTER join; `scoreC`/`scoreD` arrive at the INNER one.
+    h.scheduler.settle('r1:scoreA:0:0', 'done', { result: { s: 'a' } });
+    h.scheduler.settle('r1:scoreB:1:0', 'done', { result: { s: 'b' } });
+    equal([...arrivalsOf(h.driver).keys()].sort(), ['outer'],
+      'only the outer region has a collection so far: scoreA arrived there, and the inner ' +
+      'region has just been opened by scoreB settling',
+    );
+
+    h.scheduler.settle('r1:scoreC:1.0:0', 'done', { result: { s: 'c' } });
+    equal([...arrivalsOf(h.driver).keys()].sort(), ['inner', 'outer'],
+      'both windows are open at once, at two depths — which is the state a release keyed by ' +
+      'anything other than the region would destroy',
+    );
+    equal(heldArrivals(h.driver), 2, 'one arrival in each');
+
+    h.scheduler.settle('r1:scoreD:1.1:0', 'done', { result: { s: 'd' } });
+    equal([...arrivalsOf(h.driver).keys()].sort(), [],
+      'the inner join fired and released `inner`; the outer join then fired on the inner ' +
+      'join`s arrival as branch 1 and released `outer`. Both, in one settlement',
+    );
+    equal(fold(h.driver.foldInputs()).outcome, 'completed',
+      'ADR 0030 — a join is transitive over nested fan-out, and releasing per region did not ' +
+      'disturb it. Releasing ALL regions instead costs 1 failure in the L5 matrix, where a ' +
+      'nested outer join then carries ["1"] against the ["0","1"] JP-R12 declares',
+    );
+  });
+
+  /**
+   * **`RN-R13`'s ALIAS half, and it needs IDENTITY rather than a holder set** — both of
+   * W53's readers, from opposite ends, and it is the one subject they shared.
+   *
+   * The conformity reader ran this file's own `holdersOf` predicate against a corpus
+   * flow that declares a `needs` and got a **third** name: `outputsCache` holds a
+   * settled result, so *"the set is exactly `{inputs, log}`"* is false wherever
+   * `outputs()` has been called. The adequacy reader came the other way and made that
+   * memo `structuredClone` what it stores — **a real second copy of every result, for
+   * ZERO failures at every rung** — because both fixtures above declare no `needs`, so
+   * the memo is `null` in all of their cases.
+   *
+   * **That is P15 fact 1's own defect reproduced inside the test written to correct
+   * it.** Fact 1 recorded `outputsCache` as `null` because it enumerated properties on
+   * flows with no `needs`; ADR 0046's measurement 2 corrects that by name, and this
+   * file then chose its fixtures the same way.
+   *
+   * **A reachability SET cannot tell an alias from a copy. Identity can**, and that is
+   * what the rule now says and what this asserts.
+   */
+  test('RN-R13 — `outputsCache` holds results BY REFERENCE, and identity is what says so', async () => {
+    const h = harness(await load('valid/map-over-region-output.flow.json'), liveToken as JoinPolicy);
+    h.driver.start({});
+    h.scheduler.settle('r1:ingest:-:0', 'done', { result: { items: ['a', 'b'] } });
+    for (const i of [0, 1]) h.scheduler.settle(`r1:score:${i}:0`, 'done', { result: { s: i } });
+
+    const cached = cachedResults(h.driver);
+    ok(cached.length > 0,
+      'the memo is POPULATED — `rank` declares needs {scores: ["score"]}, so `outputs()` ran. ' +
+      'On a flow that declares no `needs` it is null, which is the fixture gap both readers found',
+    );
+    const logged = loggedResults(h.driver);
+    equal(cached.filter((r) => !logged.some((l) => l === r)), [],
+      'RN-R13 — every entry IS a log record`s own result object, by reference. Clone them here ' +
+      'and the memo becomes a second copy of every result: measured at ZERO failures across ' +
+      'lint, typecheck, check:spec, L1-L5 and L6 before this assertion existed',
+    );
+    equal(cached.length, logged.length,
+      'and it holds one per settled task rather than a subset, so the identity check above is ' +
+      'not vacuous on an almost-empty cache',
+    );
+  });
+
+  /**
+   * **The walk's UNIVERSE is bound to the driver's own property names, both ways** —
+   * W53's adequacy reader, which pinned `holdersOf`'s loop to
+   * `['inputs', 'log', 'arrivals']` and measured **zero** failures at every rung with
+   * both expected literals untouched. `doc/workflow.md` section 5 rule 8 obligation
+   * (d), applied to the observer's own loop rather than to a row — and obligation
+   * (e)'s third shape, because `NOT_RUN_STATE` is a list and the driver's fields are
+   * the other list.
+   *
+   * **This is also `RN-R13`'s ratchet.** *A sixth structure holding a result is a
+   * second copy and this is what would say so* is only true if the walk looks at
+   * everything; a new field on the driver fails here, naming itself.
+   */
+  test('the walk looks at EVERY growing structure — a new driver field fails here naming itself', async () => {
+    const h = harness(await load(MAP_FANOUT), liveToken as JoinPolicy);
+    h.driver.start({});
+    h.scheduler.settle('r1:ingest:-:0', 'done', { result: THREE });
+
+    const own = Object.keys(h.driver as unknown as Record<string, unknown>).sort();
+    equal(own, DRIVER_FIELDS,
+      'the driver`s own property names. A field ADDED here is a candidate second copy and ' +
+      'RN-R13 is the rule that has to be re-measured for it; a field REMOVED is a structure ' +
+      'this file stops observing. Either way it is one edit and this names it',
+    );
+    equal(NOT_RUN_STATE.filter((k) => !own.includes(k)), [],
+      'everything the walk excludes actually exists on the driver — an exclusion for a field ' +
+      'that is gone silently widens nothing and hides that the list went stale',
+    );
+    equal(walkableKeys(h.driver).filter((k) => NOT_RUN_STATE.includes(k)), [],
+      'and the walk excludes exactly those three, so the two lists account for each other ' +
+      'BOTH WAYS: pinning the universe to the answer the assertions expect fails here',
+    );
+    equal(walkableKeys(h.driver).length, own.length - NOT_RUN_STATE.length,
+      'a count BESIDE the membership — it catches a duplicate entry, which set equality cannot',
+    );
+  });
+
+  /**
+   * **`OR-R10` on the one door into `settleJoin` that is already OPEN** — W53's
+   * conformity reader. `append` calls `onFoldInput` un-wrapped, so a re-entrant
+   * listener can reach `failRun` — and `failRun` is where every region's collection is
+   * released. The three doors `failRun`'s own comment enumerates are all shut behind
+   * `this.failed`; the door on the STACK is not.
+   *
+   * **W53 did not create the defect and it made it SILENT.** A stopped run routing out
+   * of a join is `OR-R10`'s violation and pre-dates this item; before W53 the successor
+   * was dispatched with the full collection, and after it with **`{}`** — which looks
+   * exactly like `live-token`'s legitimate all-exited case.
+   */
+  test('a run stopped from inside `append` does not route out of the join it was settling', async () => {
+    const scheduler = new FakeScheduler();
+    const failures: { kind: string; message: string }[] = [];
+    let stopOnJoinSettled = false;
+    const driver = new Driver(await load(MAP_FANOUT), {
+      runId: 'r1',
+      scheduler,
+      createTask: (c) => c,
+      predicates: new Map() as never,
+      workerTypes: reg.workerTypes,
+      joinPolicy: liveToken as JoinPolicy,
+      onRunFailure: (f) => failures.push({ kind: f.kind, message: f.message }),
+      // A listener that stops the run at the moment the join settles. `OR-R10` says
+      // the driver has stopped routing from here on; nothing may be dispatched after.
+      onFoldInput: (i: FoldInput) => {
+        if (stopOnJoinSettled && i.kind === 'joinSettled' && i.fired) {
+          stopOnJoinSettled = false;
+          throw new Error('W53 — a listener that stops the run mid-append');
+        }
+      },
+    });
+    driver.start({});
+    scheduler.settle('r1:ingest:-:0', 'done', { result: THREE });
+    stopOnJoinSettled = true;
+    for (const i of [0, 1, 2]) scheduler.settle(`r1:score:${i}:0`, 'done', { result: { s: i } });
+
+    const dispatched = scheduler.added.map((t) => t.id);
+    equal(dispatched.filter((id) => id.includes(':publish:')), [],
+      'OR-R10 — the run was stopped inside the append that announced the join, so the join`s ' +
+      'successor is NOT dispatched. Without the guard it is dispatched carrying `{}`, because ' +
+      'failRun released every region one frame earlier',
+    );
+    equal(failures.map((f) => f.kind), ['Error'],
+      'and the run really did stop rather than the listener being unreachable — the refusal ' +
+      'was reported through onRunFailure exactly once',
+    );
+    equal(fold(driver.foldInputs()).outcome, 'stopped', 'RN-R8 — stopped outranks everything');
+  });
+
+  /**
+   * **The CASE MEMBERSHIP, and it is this suite's own `ROW_KEYS`** — W53's adequacy
+   * reader, which deleted seven of this file's eight cases plus the helpers they
+   * orphaned and measured **exit 0 at every rung**, with `LATE_SUITES` still green
+   * because that census is a membership over SUITE NAMES and the suite was still
+   * there. The assertion count fell 689 -> 682 and nothing reads it.
+   *
+   * **`ROW_KEYS`' shape, one layer in** — set equality against the cases that actually
+   * ran, so a deleted case fails NAMING itself. **Its limit is stated rather than
+   * hidden**, exactly as `ROW_KEYS`' and `CROSS_ROW_SUBJECTS`' are: this is a literal,
+   * so deleting a case and its name is two edits in one diff
+   * ([Q102](../../doc/open-questions.md), [Q217](../../doc/open-questions.md)).
+   *
+   * **What it does NOT catch is [Q234](../../doc/open-questions.md)**, and the two are
+   * the count/membership distinction playing out: a case EMPTIED with an early return
+   * is still present, still named, and still counted. A membership catches deletion;
+   * nothing here catches an emptied body.
+   */
+  test('every case this suite declares actually ran — a deleted case fails naming itself', () => {
+    // `collected()` is `{suite, cases}[]`, registered at module load, so by the time
+    // this case RUNS every case in this file is in it.
+    const ran = collected().filter((s) => s.suite === SUITE)
+      .flatMap((s) => s.cases.map((c) => c.name)).sort();
+    const declared = [...DECLARED_CASES].sort();
+    equal(declared.filter((n) => !ran.includes(n)), [],
+      'a declared case did not run — it was deleted, renamed, or its suite stopped loading. ' +
+      'Deleting seven of eight cost ZERO before this assertion existed',
+    );
+    equal(ran.filter((n) => !declared.includes(n)), [],
+      'a case ran that this list does not name. Add it here in the same commit; the ratchet is ' +
+      'deliberate and is `ROW_KEYS`s',
+    );
+    equal(ran.length, DECLARED_CASES.length,
+      'and the COUNT beside the membership, which catches a duplicated name that set equality ' +
+      'reads as one',
     );
   });
 });
