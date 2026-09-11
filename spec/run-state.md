@@ -342,7 +342,16 @@ above is that shape applied here.
 
 - **Bounding what a CONSUMER reads.** `RunState.nodes[taskId].result` **is** the retained result, so
   dropping one changes what a run reports. Measured: blanking every `result` takes a fold's input
-  from 13984 B to 1612 B — a factor of **8.7** — and changes `RunState`. Over both corpora **110 of
+  from 13984 B to 1612 B — a factor of **8.7** *(on one fixture, and the factor is not a constant:
+  the blanked sequence is a floor whatever the payload, so the same measurement over a 4-task chain
+  reads 1.0 / 4.7 / 15.5 / 58.7 / 231.8 at 0 / 1 / 4 / 16 / 64 KiB results. What blanking removes is
+  **the whole of every result**, which is `RN-R13`'s own variable, so a ratio only ever reports how
+  big the fixture's results were —
+  [W54](../doc/work-items/w54-what-a-result-may-be-and-what-bounding-it-would-cost.md) and
+  [Q240](../doc/open-questions.md), found by both of that item's readers. Corrected here as a
+  declared late exception, because this document is
+  [W53](../doc/work-items/w53-what-a-run-retains-that-nothing-reads.md)'s and the number moved after
+  it shipped)* — and changes `RunState`. Over both corpora **110 of
   124 task nodes (89%)** are named by no `needs`, so *drop a result no reference can name* is
   decidable from the document; it is a change to the library's public answer rather than a driver
   optimisation, and it is [W54](../doc/work-items/w54-what-a-result-may-be-and-what-bounding-it-would-cost.md)'s

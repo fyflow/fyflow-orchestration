@@ -181,56 +181,95 @@ fixture that needs a `new Date()` in it.**
 **The refusal that comes with it, and the SECOND boundary nobody had written down.** This document
 read: *"`structuredClone` throws on a function, a class instance with behaviour, or anything else
 non-cloneable."* **The middle clause is FALSE, and it is false in the direction that matters** — it
-names the silent case as though it were the loud one. Measured on the tree this version ships, in
-Node 24 and asserted in all five runtimes at ladder L1:
+names the silent case as though it were the loud one.
 
-| | what `structuredClone` does |
-|---|---|
-| a function; an object **holding** a function; a `Symbol`; a `Promise`; a `WeakMap` | **REFUSED** — `DataCloneError`, and `OR-R6` makes it a run failure |
-| a plain object; an array; a `Date`; a `Map`; a `Set`; a `RegExp`; a typed array; **a cyclic object**, whose cycle survives | **CLONED, faithfully** |
-| **a class instance** — with a method, with a getter, or frozen; `Object.create(proto)`; a class instance **nested inside** a plain object | **CLONED, LOSSILY** — the prototype is `Object.prototype`, the methods are gone, `instanceof` is false, the fields are intact, and **there is no error and no report** |
-
-**So there are THREE outcomes and this document named two.** A subclass of `Array` or of `Error` is
-a fourth shape and is the one exception in the lossy row: `structuredClone` gives it `Array.prototype`
-or `Error.prototype`, so `Array.isArray` still holds and the subclass's own methods are still gone.
-
-**The first row is a run failure and that is unchanged.** A node result that cannot be cloned cannot
-be logged, cannot be handed to a predicate deterministically, and could never be persisted.
+**`OR-R6` is the loud half and it is unchanged.** A node result that cannot be cloned cannot be
+logged, cannot be handed to a predicate deterministically, and could never be persisted.
 
 | id | The run terminates when | Test owed by |
 |---|---|---|
-| `OR-R6` | `structuredClone(d.result)` throws. The run fails with `UncloneableResult` naming the task id. Test: a worker returning a function, asserting the named failure and that no record was written | W3 |
+| `OR-R6` | `structuredClone(d.result)` throws. The run fails with `UncloneableResult` naming the task id. **At the LISTENER boundary** — the resolution path is `OR-R12` in section 5 and behaves differently. Test: a worker returning a function, asserting the named failure and that no record was written | W3 |
 
 ### `OR-R11` — a result is a VALUE, not an OBJECT
 
 **Stated here for the first time, and it is [Q22](../doc/open-questions.md)'s real answer.** That row
 asks whether *a result must be structured-cloneable* is a constraint on workers or on the driver, and
-the fork is the wrong shape: it is the driver's constraint — `OR-R2`, unchanged — and the question
-an author actually hits is not *may I return this* but *what arrives*.
+the fork is the wrong shape: it is the driver's constraint — `OR-R2`, unchanged — and the question an
+author actually hits is not *may I return this* but **what arrives**.
 
 | id | | Test owed by |
 |---|---|---|
-| `OR-R11` | **A result is a VALUE. Its fields cross the boundary; its BEHAVIOUR does not.** Prototype, methods, accessors, privacy and `instanceof` are lost at `OR-R2`'s clone, silently and by design, because `structuredClone` is a structural copy and a flow's log has to be a value a run can be folded from. **A worker returning `new Score(0.9)` hands its successor `{value: 0.9}` with `isHigh` undefined**, and `RunState.nodes[*].result` reports the same — measured end to end through a real `Driver`, with **zero** run failures reported. The rule is not that this is wrong; it is that it is **the contract**, so a worker returns data and a consumer reads data. **The loud half is `OR-R6`** — what cannot be cloned at all stops the run — and this is the quiet half, which had no rule. Test: at ladder L1, in **all five runtimes**, the three-way boundary above asserted in each direction — refused, cloned faithfully, cloned lossily — because the boundary was measured in one runtime and a runtime that refused a class instance would make `OR-R6` fire where this rule says it does not; and at L2, the end-to-end case, asserting that the successor's payload has the fields, lacks the method, and that nothing was reported | **[W54](../doc/work-items/w54-what-a-result-may-be-and-what-bounding-it-would-cost.md)** |
+| `OR-R11` | **What crosses `OR-R2`'s clone is a value's own enumerable string-keyed DATA, plus the internal state of the built-in types the structured-clone algorithm names. Everything else does not cross, silently.** What does not: the **prototype** (so methods, `instanceof` and privacy go with it), **accessors** (a getter is read once and arrives as the data it returned), **non-enumerable** own properties, **symbol-keyed** properties, **property attributes** (a frozen object arrives unfrozen), and an **`Error`'s own extra fields** (the algorithm serialises `name`, `message`, `stack` and `cause` and nothing else). **A worker returning `new Score(0.9)` hands its successor `{value: 0.9}` with `isHigh` undefined**, and `RunState.nodes[*].result` reports the same — measured end to end through a real `Driver`, with **zero** run failures reported. The rule is not that this is wrong; it is that it is **the contract**, so a worker returns data and a consumer reads data. Test: at ladder L1, in **all five runtimes**, every row of the table below asserted for the property that row names — a refusal for the refused rows, a content round-trip for the intact ones, and the NAMED loss for each lossy one — because the boundary was measured in one runtime and a runtime that refused a class instance would make `OR-R6` fire where this rule says it does not; and at L2, the end-to-end case through a `Driver`, plus `normalizeEvent` in isolation, which is `OR-R2`'s own site and the only place the attribution can be pinned | **[W54](../doc/work-items/w54-what-a-result-may-be-and-what-bounding-it-would-cost.md)** |
+
+**The boundary, one row per shape.** *(Grouped into three rows until this version, and the grouping
+is what hid the rest: the groups did not close arithmetically, and "faithful" was standing for
+"did not throw and kept its prototype" rather than for "the value crossed". W54's two readers, from
+opposite ends.)* Each first cell is the shape; `test/fold/result-value.test.ts` compares this column
+to its own both ways, so a row cannot be added here without an assertion or asserted without a row.
+
+| result shape | `structuredClone` | what does NOT cross |
+|---|---|---|
+| `a function` | **refused** | — `OR-R6` stops the run |
+| `an object holding a function` | **refused** | — |
+| `a Symbol` | **refused** | — |
+| `a Promise` | **refused** | — |
+| `a WeakMap` | **refused** | — |
+| `a plain object` | **intact** | nothing |
+| `an array` | **intact** | nothing |
+| `a Date` | **intact** | nothing |
+| `a Map` | **intact** | nothing |
+| `a Set` | **intact** | nothing |
+| `a RegExp` | **intact** | nothing |
+| `a typed array` | **intact** | nothing |
+| `a BigInt` | **intact** | nothing |
+| `undefined` | **intact** | nothing |
+| `null` | **intact** | nothing |
+| `a cyclic object` | **intact** | nothing — **the cycle survives as a cycle** |
+| `a class instance with a method` | **lossy** | the prototype, so the method and `instanceof` |
+| `a class instance with a getter` | **lossy** | the accessor — it is read once and arrives as data |
+| `a frozen class instance` | **lossy** | the prototype **and** the frozen-ness |
+| `a frozen plain object` | **lossy** | the frozen-ness — and this row is why "intact" cannot mean "kept its prototype" |
+| `an object with a non-enumerable own property` | **lossy** | that property, entirely |
+| `an object with a symbol-keyed property` | **lossy** | that property, entirely |
+| `Object.create(proto)` | **lossy** | the prototype |
+| `a class instance nested in a plain object` | **lossy** | the INNER prototype. The outer object is a plain object and crosses intact, which is what makes this row the one a cheap detector cannot see |
+| `a subclass of Array` | **lossy** | the subclass prototype and its own methods. `Array.prototype` and the elements DO cross, so `Array.isArray` still holds |
+| `a subclass of Error` | **lossy** | the subclass prototype, its own methods, **and its own extra fields** |
+| `an Error` | **lossy** | its own extra fields. `Error.prototype`, `name`, `message`, `stack` and `cause` cross; anything else a worker set on it does not |
+
+**Five refused, eleven intact, eleven lossy — twenty-seven rows.** *(That split read *five, ten,
+twelve* in the first draft of this version, and the suite's own comparison against this table caught
+it on its first run — which is the point of comparing the two lists rather than copying one.)* *(It was asserted beside it, as "14 of 14 … none of the eight this
+document blesses", and 8 + 4 does not make 14. Four documents carried four different sets. W54's
+conformity reader.)*
 
 **Why nothing warns, and the reason is measured rather than asserted.** A detector is possible, which
 [P15](../doc/plans/p15-what-a-run-retains-and-what-a-result-may-be.md) prediction 3 said it was not:
-comparing `Object.getPrototypeOf(original)` to `Object.getPrototypeOf(clone)` is **right on 14 of 14
-shapes** — it fires on every lossy one and on none of the eight this document blesses, including
-`Map`, `Date`, `Set`, `RegExp`, typed arrays and the cyclic case — and it costs **0.04-0.52% of one
-clone**. It is declined on two measurements instead:
+comparing `Object.getPrototypeOf(original)` to `Object.getPrototypeOf(clone)` fires on every lossy row
+above **whose loss is at the top level**, and on none of the intact ones — `Map`, `Date`, `Set`,
+`RegExp`, typed arrays and the cyclic case all stay quiet. **So prediction 3's stated reason — *a
+driver cannot tell* — is FALSE.** It is declined on two measurements instead:
 
-1. **It is blind to the case a worker actually writes.** `{ok: 1, score: new Score(0.9)}` is a plain
-   object at the top level, so the cheap check is **quiet** while `score.isHigh` is gone. The
-   complete check is a recursive walk, and it costs **27-55% of the clone** on the hot path, once per
-   settlement — the same order [W46](../doc/work-items/w46-what-a-reference-costs-and-whether-anything-says-so.md)
-   measured for a size walk and declined on the same ground.
-2. **There is nothing for it to say that is not already this rule.** A report would fire on every
+1. **It is blind to more than half the lossy rows, including the case a worker actually writes.** The
+   top-level check cannot see a **nested** instance, a **non-enumerable** or **symbol-keyed**
+   property, a lost **frozen-ness**, or an **`Error`'s** dropped fields — for each of those the
+   prototype it compares is unchanged. `{ok: 1, score: new Score(0.9)}` is a plain object at the top
+   level, so the cheap check is **quiet** while `score.isHigh` is gone.
+2. **The complete check costs the same order as the clone it is checking.** A recursive walk comparing
+   prototypes pairwise, run 21 times per reading and read five times at each of two payload sizes
+   (N = 100 and N = 1000 items over a 138.6 KiB value), measures **23-60% of one clone** where the
+   top-level check measures **0.02-0.65%** — on the hot path, once per settlement. That is the order
+   [W46](../doc/work-items/w46-what-a-reference-costs-and-whether-anything-says-so.md) measured for a
+   size walk and declined on the same ground. **The bands are what reproduce; the individual readings
+   do not**, and a first version of this paragraph quoted narrower ones taken from a single run —
+   which is this section's own closing sentence broken inside this section. [Q179](../doc/open-questions.md).
+3. **And there is nothing for it to say that is not already this rule.** A report would fire on every
    correct use of a class as a transfer shape, which is the ordinary way to write a worker; it would
-   be `OR-R2`'s contract restated once per settlement rather than a diagnosis, which is exactly W46's
-   finding about a predicate that *fires on 3 of 3 intended uses*.
+   be `OR-R11` restated once per settlement rather than a diagnosis, which is exactly W46's finding
+   about a predicate that *fires on 3 of 3 intended uses*.
 
 **So the answer is: it is written down, and it is the one thing a worker author has to know.**
-`AGENTS.md` is where a consumer meets it.
+`AGENTS.md` section 10 is where a consumer meets it, as an executed snippet.
 
 ### What `OR-R2` costs, and the method the numbers were taken by
 
@@ -293,11 +332,20 @@ rule 2's plausible-wrong-answer shape in a second structure**: not a fold that c
 handed a short log, but a `RunState` that cannot tell a consumer what it is not being given.
 
 **Not taken here.** P15 decision 1 makes a change to what a consumer reads the maintainer's, and its
-stop-and-ask list is where it goes. **The evidence for it is stronger than the plan assumed** — over
-the whole tree the only readers of `RunState.nodes[*].result` are **two tests**, and `AGENTS.md`, the
-consumer reference every snippet of which is executed by the gate, **never reads it**; every snippet
-there reads `state.outcome`. **The evidence against is the table above**, and it is a shape change
-rather than a flag.
+stop-and-ask list is where it goes.
+
+**What reads it, counted rather than assumed.** `AGENTS.md` — the consumer reference, every snippet
+of which the gate executes — **never reads it**: all four of its run-state reads are `state.outcome`.
+In the rest of the tree there are **three** readers, and the third is the one that decides the price:
+`test/fold/fold.test.ts` and this item's own suite, and **`examples/l6.ts` — ladder L6, driving a
+real `FyflowScheduler`, where it is an ASSERTION**. So taking the bound breaks L6 rows, which is a
+materially different price from *two tests*. *(This paragraph said "two tests" until W54's conformity
+reader counted them.)* **And the surface is wider than the field**: `nodeOf(state, taskId)` is
+exported from `src/fold/run-state.ts` and reaches the package root through `index.ts`'s `export *`,
+so a consumer reaching a stored result has an accessor as well as a field — [Q101](../doc/open-questions.md)'s
+shape, and neither this section nor [Q239](../doc/open-questions.md) named it before.
+
+**The evidence against is the vocabulary table above**, and it is a shape change rather than a flag.
 
 **Whether this constraint belongs on the driver or on workers is [Q22](../doc/open-questions.md), and
 it is ANSWERED: on the DRIVER, unchanged, with `OR-R11` as the half the fork did not name.**
@@ -339,6 +387,21 @@ visible and accepts the answer.
 **There is no `attempts`, `startTime`, `endTime` or `executionTime`.** A resolution is not an
 execution, and carrying those fields as `null` would invite a fold to treat the two records as one
 shape.
+
+### `OR-R12` — an uncloneable resolution value throws to the CALLER, and does not fail the run
+
+**Recorded rather than decided, and it is a behaviour that was in no document.** Section 4's
+`OR-R6` was stated of the whole boundary and holds only at the **listener**: the clone above is
+`structuredClone(value.result ?? null)` with **no guard**, where the listener's is wrapped.
+
+| id | | Test owed by |
+|---|---|---|
+| `OR-R12` | **A resolution whose value is not structured-cloneable throws out of `resolve()` to its caller** — a `DataCloneError`, not an `UncloneableResult` — and the run is **not** failed: nothing is appended, `OR-R10` does not fire, `onRunFailure` is not called, and the driver keeps routing. **The asymmetry is not arbitrary**: a settlement arrives from the scheduler with nobody to throw to, so `OR-R6` must turn it into a run failure; a resolution is a **synchronous call the consumer made**, and a throw reaches the one party that can fix it. **What is NOT decided here is whether the two should be the same** — the class differs, the reporting channel differs, and a `DataCloneError` is in neither section 6's enumeration of what reaches `OR-R10` nor `AGENTS.md`'s executed error-class snippet ([Q241](../doc/open-questions.md)). Test: at ladder L2, `resolve()` with an uncloneable value, asserting the throw, that no record was appended, that `onRunFailure` saw nothing, and that a later settlement still routes | **[W54](../doc/work-items/w54-what-a-result-may-be-and-what-bounding-it-would-cost.md)** |
+
+*(Found by W54's conformity reader, on this item's own subject: a sentence naming one boundary as
+though it were the whole boundary. `src/driver/**` is
+[W53](../doc/work-items/w53-what-a-run-retains-that-nothing-reads.md)'s `Owns`, so this version
+writes the behaviour down and raises the question rather than changing it.)*
 
 | id | | Test owed by |
 |---|---|---|

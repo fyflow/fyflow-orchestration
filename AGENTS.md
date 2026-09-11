@@ -1176,49 +1176,6 @@ After a refusal the run is **stopped**: nothing routes for it again, and its sta
   you that state, and writing to it changes what the join decides. Return a copy from `describe()`
   — [Q82](doc/open-questions.md).
 
-**`OR-R11`, executed rather than asserted** — a worker returns a class with a method, and what
-the driver logs is a plain object with the field and no method:
-
-```ts run
-import { Driver, type FlowDefinition } from 'fyflow-orchestration';
-
-class Score {
-  readonly value: number;
-  constructor(value: number) { this.value = value; }
-  isHigh(): boolean { return this.value > 0.5; }
-}
-
-const listeners: ((e: { detail: unknown }) => void)[] = [];
-const scheduler = {
-  addTask() {},
-  addEventListener(_t: string, fn: (e: { detail: unknown }) => void) { listeners.push(fn); },
-};
-const flow: FlowDefinition = {
-  flowId: 'or-r11', version: 1, entry: 'a',
-  nodes: [
-    { id: 'a', kind: 'task', workerType: 'W', edges: [{ to: 'done' }] },
-    { id: 'done', kind: 'end', outcome: 'completed' },
-  ],
-};
-const failures: string[] = [];
-const driver = new Driver(flow, {
-  runId: 'r1', scheduler, createTask: (c) => c, predicates: new Map(), workerTypes: ['W'],
-  onRunFailure: (f) => failures.push(f.kind),
-});
-driver.start({});
-for (const fn of listeners) {
-  fn({ detail: { id: 'r1:a:-:0', state: 'done', attempts: 0, timestamp: 1, result: new Score(0.9) } });
-}
-
-const logged = driver.snapshot()[0]!.result as { value?: number; isHigh?: unknown };
-console.log(logged.value, typeof logged.isHigh, logged instanceof Score, failures.length);
-// 0.9 undefined false 0
-if (logged.value !== 0.9) throw new Error('the FIELDS cross the boundary');
-if (typeof logged.isHigh !== 'undefined') throw new Error('the BEHAVIOUR does not');
-if (logged instanceof Score) throw new Error('the prototype is lost, so instanceof is false');
-if (failures.length !== 0) throw new Error('and nothing is reported: OR-R11 is silent by design');
-```
-
 The first half of that is executed rather than asserted:
 
 ```ts run
@@ -1272,6 +1229,49 @@ if (Object.keys(frozen).length !== 4) {
   the other half of this bullet: a settlement now reaches only the driver that dispatched it.
 
 ---
+
+**`OR-R11`, executed rather than asserted** — a worker returns a class with a method, and what
+the driver logs is a plain object with the field and no method:
+
+```ts run
+import { Driver, type FlowDefinition } from 'fyflow-orchestration';
+
+class Score {
+  readonly value: number;
+  constructor(value: number) { this.value = value; }
+  isHigh(): boolean { return this.value > 0.5; }
+}
+
+const listeners: ((e: { detail: unknown }) => void)[] = [];
+const scheduler = {
+  addTask() {},
+  addEventListener(_t: string, fn: (e: { detail: unknown }) => void) { listeners.push(fn); },
+};
+const flow: FlowDefinition = {
+  flowId: 'or-r11', version: 1, entry: 'a',
+  nodes: [
+    { id: 'a', kind: 'task', workerType: 'W', edges: [{ to: 'done' }] },
+    { id: 'done', kind: 'end', outcome: 'completed' },
+  ],
+};
+const failures: string[] = [];
+const driver = new Driver(flow, {
+  runId: 'r1', scheduler, createTask: (c) => c, predicates: new Map(), workerTypes: ['W'],
+  onRunFailure: (f) => failures.push(f.kind),
+});
+driver.start({});
+for (const fn of listeners) {
+  fn({ detail: { id: 'r1:a:-:0', state: 'done', attempts: 0, timestamp: 1, result: new Score(0.9) } });
+}
+
+const logged = driver.snapshot()[0]!.result as { value?: number; isHigh?: unknown };
+console.log(logged.value, typeof logged.isHigh, logged instanceof Score, failures.length);
+// 0.9 undefined false 0
+if (logged.value !== 0.9) throw new Error('the FIELDS cross the boundary');
+if (typeof logged.isHigh !== 'undefined') throw new Error('the BEHAVIOUR does not');
+if (logged instanceof Score) throw new Error('the prototype is lost, so instanceof is false');
+if (failures.length !== 0) throw new Error('and nothing is reported: OR-R11 is silent by design');
+```
 
 ## 11. What does NOT exist — do not write code using it
 

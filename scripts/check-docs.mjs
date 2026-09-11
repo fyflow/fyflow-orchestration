@@ -289,14 +289,22 @@ if (written.length) {
 // from P12's index row, that row names `scripts/check-spec.mjs` and not this file,
 // and the obligation arrived from the CONTENT of the change. Taken as a declared
 // late exception.
+// **16 -> 17 by [W42](../doc/work-items/w42-what-a-decision-sees.md)**, which added
+// section 4's edge-level `needs` snippet. *(This block skipped that raise until W54's
+// conformity reader ran `git log -S"RUN_FLOOR = 17"` and found `5557e01`, so the
+// running count below was one short of the truth for three plans — a history that
+// narrates itself and misses an entry is exactly what `doc/workflow.md` section 1 rule
+// 5's provenance clause is about.)*
 // **Raised 17 -> 18 by [W54](../doc/work-items/w54-what-a-result-may-be-and-what-bounding-it-would-cost.md)**,
 // which added section 10's `OR-R11` snippet — a worker returning a class instance, and
-// what the driver logs instead. **Q102's obligation firing for the FIFTH recorded time
-// and by the same mechanism as the third and fourth**: W54 declared its `Owns` from
-// P15's index row, that row names `spec/outcome-record.md` and not this file, and the
-// obligation arrived from the CONTENT of the change. Taken as a declared late
-// exception. *(And P15 predicted the `AGENTS.md` half of it by name and refused to make
-// a pre-declaration rule of it — this item answers that test `AGENTS.md` YES.)*
+// what the driver logs instead. **Q102's obligation firing for the SIXTH recorded time
+// and by the same mechanism as the third, fourth and fifth**: W54 declared its `Owns`
+// from P15's index row, that row names `spec/outcome-record.md` and not this file, and
+// the obligation arrived from the CONTENT of the change. Taken as a declared late
+// exception. *(P15 does not PREDICT the `AGENTS.md` half — it lists that file among
+// three no item pre-declares and makes one narrower prediction, about `spec/README.md`
+// alone. Naming a file is not predicting it; this item answers that test `AGENTS.md`
+// YES, which is a data point for P15's retro rather than a confirmation.)*
 const RUN_FLOOR = 18;
 {
   // **Only when the document parsed.** A count over a reference whose fences are
