@@ -2,6 +2,78 @@
 
 ## Current state
 
+**[P15](plans/p15-what-a-run-retains-and-what-a-result-may-be.md) is DECLARED — *what does a run
+retain, and what may a result be?* — and it is the FOURTH PRODUCT PLAN IN A ROW.** It takes
+[Q19](open-questions.md) and [Q22](open-questions.md) as ONE question: they are **the two oldest rows
+in the register whose owner cell says the same thing — *no owner, needs a measured run*** — and both
+have said it since P1. **This declaration took that run.** Three items, serial: **W53** (what a run
+retains that nothing reads, as **ADR 0046**), **W54** (what a result may be, and what bounding it
+would cost), **W55** (a run at scale on real workers). **Reserves W53-W56, Q233-Q247, ADR 0046-0047.**
+**No item has started. Read every status from the item's own file, never from this line.**
+
+**Its declaration measured EIGHT facts and FIVE of them correct or sharpen a row it is built on** —
+the seventeenth time a plan has found one of its own inputs wrong by trying to act on it. **The
+headline is that half of what a region-bearing run holds is a SECOND COPY that nothing reads.** The
+driver's `arrivals` map is not an alias: `bytes([inputs, arrivals])` exceeds `bytes(inputs)` by
+**49.8%** at map arities 4, 16 **and** 64 over 64 KiB results, and the stored value is neither the log
+record's `result` object nor the worker's own. **Clearing it after the join reads it costs 0 at L1-L5
+and 0 at L6** — with a negative control that fires at **13 failures** when it is cleared before —
+and takes ten thousand concurrent runs from **3174.8 MiB to 1610.9 MiB**. *A whole structure leaving
+the driver is invisible to every rung this repository has*, which is
+[Q214](open-questions.md)'s shape a third time, from the removal side.
+
+**And [Q19](open-questions.md)'s row names the wrong variable.** Four dimensions measured one at a
+time: ~262 B/node, ~469 B/fan-out branch, ~456 B/map instance — **one** variable, how many tasks
+settle — and **linear in the whole of every result**, which is the multiplier neither that row nor
+`spec/run-state.md` section 5 names. **A 4-node chain returning 256 KiB retains 1025 KiB; a 128-node
+chain returning one key retains 33 KiB** — thirty-one times the footprint at a thirty-second of the
+node count. The footprint is *(tasks settled) x (bytes each returned)*.
+
+**THE MEASURED RUN, which both rows have waited for since P1: the target scale RUNS, and the margin
+is a factor of one rather than of ten.** 1 000 runs x arity 4 x 1 KiB is **10.2 MiB**; 10 000 x 4 x
+1 KiB is **101.8 MiB**; **10 000 x 10 x 16 KiB is 3174.8 MiB**. Two observers — `v8.serialize` and
+`heapUsed` after a forced `gc()` — agreeing within 3% at the large sizes.
+
+**`maxCompletedTasks` is NOT inheritable, and its shape is worse here than Q19's row says.** It caps
+`scheduler.tasks`, the scheduler's own map, and reaches nothing the driver holds. Applying the shape
+to our own sequence: **`fold()` over a log evicted to its last input reports `completed` with ZERO
+nodes and ZERO regions**, no throw and no signal. *Not a silent eviction — a plausible wrong answer*,
+and it is what a fold defined as a pure function of a complete log does when the log stops being one.
+**That is the half that could make P15 a spec plan rather than a driver plan**, and it is the plan's
+decision 2.
+
+**[Q22](open-questions.md)'s own numbers do not reproduce as its row states them.** Re-taken **one
+case per process** — [W46](work-items/w46-what-a-reference-costs-and-whether-anything-says-so.md)'s
+settled method — the single edge-hop clone is **0.64 ms** against 1.50 and a clone per map instance at
+N = 1000 is **516.77 ms** against 2207.94. **The conclusion is unchanged and the argument is
+stronger**: still ~800x, still quadratic for a map. Every absolute is 2-5x lower, because W34's were
+taken accumulated in one process. *A register row quoting an absolute is quoting a method.* **And the
+cloneability boundary is not where that row draws it: a class instance CLONES and arrives as a plain
+`Object`** — prototype gone, methods gone, `instanceof` false, **no error and no report**. `OR-R6`
+makes the loud case a run failure; nothing anywhere is a rule about the quiet one.
+
+**The exit artifact is a MEASURED NUMBER rather than a flow, and that is decided on a measurement**:
+`npm run test:l6` is **4236 ms for 42 real runs**, ~101 ms each, so a thousand real runs is already
+over `doc/workflow.md` section 8's whole **90 s** plan-gate budget. **Adding a rung or a budget row is
+refused**, and both are on the plan's stop-and-ask list.
+
+**And the scale target this plan is named for is cited from a document this machine cannot read.**
+`FLOW_PLANNING.md` is in the scheduler repository and **is not there** — lost when
+[ADR 0029](decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)'s
+`git worktree remove --force` went through the sibling, restored from a published package that ships
+no planning documents. **`doc/concept.md` says *"thousands at a time"* and contains `1000s` nowhere**,
+and [ADR 0023](decisions/0023-an-inbound-settlement-is-this-runs-only-if-this-driver-dispatched-it.md)
+attributed the `1000s-10000s` figure **to it** — corrected in place here. The claim is not withdrawn;
+the provenance is.
+
+**Census CONFIRMED for the FIFTEENTH plan running — 179 / 129 / 2 / 48**, 42 ids in both tables, 179
+of 179 in exactly one cluster cell, **0 aborts on a parser written from scratch and right first
+time** (the fifth time, and the second in a row). **The declaration raises NO question**; it gives
+Q19 and Q22 their first owners in fifteen plans and corrects three rows in place.
+**[Q142](open-questions.md) FIRES and was PREDICTED from the pre-edit counts** rather than found by
+the gate going red — `M4`'s margin was **50 links** and four work-item documents land in
+`doc/work-items`, which neither `removes` probe cuts.
+
 **[P14](plans/p14-what-a-reference-means-when-two-regions-arities-are-independent.md) is COMPLETE and
 RETRO'D, and [`doc/workflow.md`](workflow.md) is v0.15 — THREE changes adopted, FIVE refused, and its
 central finding is that v0.14's OWN counter-measure was followed and did not work.** P14 asked *what
@@ -2497,6 +2569,7 @@ deferred, 38 resolved.** Q167 used; **Q168 and Q169 reserved and unused**. **No 
 | [plans/p2-...](plans/p2-the-non-success-half-on-a-real-scheduler.md) | **Complete, and its Record carries the retro that made this document v0.4.** One question, one work item, no new features. Two facts measured before it was written, both of which changed it |
 | [plans/p3-...](plans/p3-a-consumer-reference-the-gate-keeps-true.md) | **Complete, and its Record carries the retro that made `workflow.md` v0.5.** Can a reference be kept true by the gate rather than by discipline? Yes — and the gate covers about **16%** of it. The retro's answer to whether the other 84% is acceptable is the part to read |
 | [plans/p4-...](plans/p4-the-drivers-lifetime-and-the-handles-it-gives-out.md) | **Complete, and its Record carries the retro that made `workflow.md` v0.6.** What is a `Driver`'s lifetime, and what makes an inbound event or an outbound handle *this run's*? Three reader-found defects fixed, two ADRs, and **the first plan whose readers found a shipped ADR rule false** |
+| [plans/p15-...](plans/p15-what-a-run-retains-and-what-a-result-may-be.md) | **DECLARED, no item started.** *What does a run retain, and what may a result be?* — [Q19](open-questions.md) and [Q22](open-questions.md) as one question, and the first plan to take the measured run both rows have asked for since P1. Its *what was measured* section is the part to read: **half of a region-bearing run's footprint is a second copy nothing reads**, and removing it is invisible to every rung |
 | [../AGENTS.md](../AGENTS.md) | **The consumer reference** — the only document that describes this library from outside. Every snippet is executed by the gate |
 | [open-questions.md](open-questions.md) | The register. **179 questions - 129 open, 2 deferred, 48 resolved** *(re-derived at P14's retro. This cell read **140 / 97 / 2 / 41** — P11's figure — through the whole of P12, P13 and P14, **three plans behind the `Document status` row for the same file ten lines below, which was itself two plans behind**: two rows for one document in one index, stale by different amounts. Before P11 it read 34 open / 13 resolved.)* - and **it is the one artifact here that is read as authoritative and checked by nothing**, which W5 found the hard way ([Q43](open-questions.md)) |
 | [scheduler-upstream.md](scheduler-upstream.md) | S1-S9, plus **the S-id map for reading `RESOURCE_EVENTS_PLAN.md`**, which uses `fyflow-react-components`' numbering. **Nothing here blocks us, and nothing is left to raise** - **S9 is the only item this repository has ever raised, and it was fixed the same day in 0.5.2** *(this cell read S1-S8 through the whole of S9's life; P11's retro)* |

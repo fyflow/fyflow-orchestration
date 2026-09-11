@@ -386,7 +386,17 @@ for (const d of r.deadAnchors) fail('M2', d);
 //
 // So `M3`'s window is `(64, 85]` and 74 is near its middle; `M5` is untouched at 60
 // against 167, for the sixth plan running.
-if (r.files < 80) fail('M3', `only ${r.files} markdown file(s) were scanned, so M1 and M2 are ` +
+// **80 -> 90 at [P15](../doc/plans/p15-what-a-run-retains-and-what-a-result-may-be.md)'s
+// declaration**, and it is the FIRST retune of this floor taken with the probe still
+// FIRING. `M3`'s margin had fallen to **two documents**: the one-directory fixture read
+// 73 before that declaration and **78** after it, against a floor of `< 80`, so the next
+// plan to add five documents would have silenced it exactly as P9's and P10's did.
+// Measured on a scratch copy outside the repository, after the declaration's documents
+// landed: whole tree **101 / 4255 / 211**, `doc/decisions` removed **78 / 3900 / 211**,
+// both removed **62 / 3109 / 211**. So `M3`'s window is `(78, 101]` and 90 is near its
+// middle. [Q142](../doc/open-questions.md), and the retune was **PREDICTED from the
+// pre-edit counts** for the second time, which is the mitigation that row has.
+if (r.files < 90) fail('M3', `only ${r.files} markdown file(s) were scanned, so M1 and M2 are ` +
   'true of the walk rather than of the tree');
 // **1200 -> 1350 at P9's declaration, 1350 -> 1530 by W30, and both times because
 // ordinary work closed the window from below.** [Q142](../doc/open-questions.md).
@@ -457,7 +467,18 @@ if (r.files < 80) fail('M3', `only ${r.files} markdown file(s) were scanned, so 
 // **Both bounds RISE TOGETHER as prose is added**, and the gap between them is the
 // links in `doc/plans/` — 699 here. So the window slides upward at a stable width,
 // which is why re-centring buys headroom in both directions rather than only one.
-if (r.links < 3080) fail('M4', `only ${r.links} relative link(s) were found; M1 is vacuous below that`);
+// **3080 -> 3490 at [P15](../doc/plans/p15-what-a-run-retains-and-what-a-result-may-be.md)'s
+// declaration**, the SEVENTH retune and the SIXTH consecutive plan to pay it. The
+// two-directory fixture rose **3030 -> 3109**, past a floor of 3080, so the probe declaring
+// `[M1,M3,M4]` would have reported `got [M1,M3]` — the same line, in the gate, for the sixth
+// time. **It was PREDICTED from the pre-edit counts rather than discovered by the gate going
+// red**: the margin was measured at **50 links** BEFORE any document was written, and this
+// declaration writes four work-item documents into `doc/work-items`, which **neither
+// `removes` probe cuts**. Counts are in the `M3` block above, taken once for both floors.
+// `M4`'s window is `(3109, 3900]` and 3490 is near its middle; `M5` is untouched at 60
+// against 211, for the eighth plan running, because no `removes` probe moves an anchored
+// count — every anchored link is in `doc/`'s top level. [Q142](../doc/open-questions.md).
+if (r.links < 3490) fail('M4', `only ${r.links} relative link(s) were found; M1 is vacuous below that`);
 if (r.anchored < 60) fail('M5', `only ${r.anchored} link(s) carry an anchor; M2 is vacuous below that`);
 
 const checks = [

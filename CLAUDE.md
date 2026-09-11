@@ -6,7 +6,10 @@ Guidance for Claude Code working in this repository.
 
 A **flow orchestration layer over [fyflow-scheduler](https://github.com/fyflow/fyflow-scheduler)**:
 flows with sequence, **decision** routing, **fan-out** and **join**, instantiated per workload at
-1000s-10000s scale.
+1000s-10000s scale. *(That figure is `FLOW_PLANNING.md`'s, in the scheduler repository, **which is not
+on this machine** — see [P15](doc/plans/p15-what-a-run-retains-and-what-a-result-may-be.md) fact 8.
+What `doc/concept.md` says, and what you can check, is **"thousands at a time"**. P15 measured a run
+at both ends of that range.)*
 
 Full context: [doc/concept.md](doc/concept.md). Do not re-derive it — read it.
 
@@ -15,7 +18,82 @@ the only document that does. **Every snippet in it is extracted and executed by 
 (`scripts/check-docs.mjs`), so it cannot rot the way a hand-maintained reference does. If you change
 the public surface, that check is what tells you the reference is now wrong.
 
-## Current state: **P1-P14 are ALL complete and retro'd, and `doc/workflow.md` is [v0.15](doc/workflow.md).** **Read every status from the item's own file, never from this line.**
+## Current state: **P1-P14 are ALL complete and retro'd, `doc/workflow.md` is [v0.15](doc/workflow.md), and [P15](doc/plans/p15-what-a-run-retains-and-what-a-result-may-be.md) is DECLARED with NO ITEM STARTED.** **Read every status from the item's own file, never from this line.**
+
+**[P15](doc/plans/p15-what-a-run-retains-and-what-a-result-may-be.md) is DECLARED — *what does a run
+retain, and what may a result be?*, and it is the FOURTH PRODUCT PLAN IN A ROW.** It takes
+**[Q19](doc/open-questions.md) and [Q22](doc/open-questions.md) as ONE question** — the two oldest
+rows in the register whose owner cell says the same thing, *no owner, needs a measured run*, both
+since P1 — and **this declaration took that run.** Three items, serial: **W53** (what a run retains
+that nothing reads, as **ADR 0046**), **W54** (what a result may be, and what bounding it would cost),
+**W55** (a run at scale on real workers). **Reserves W53-W56, Q233-Q247, ADR 0046-0047.** **No item
+has started.**
+
+**Its declaration measured EIGHT facts and FIVE correct or sharpen a row it is built on** — the
+seventeenth time a plan has found one of its own inputs wrong by trying to act on it. **The headline:
+HALF of what a region-bearing run holds is a SECOND COPY that nothing reads.** The driver's
+`arrivals` map aliases nothing — `bytes([inputs, arrivals])` exceeds `bytes(inputs)` by **49.8%** at
+map arities 4, 16 **and** 64 over 64 KiB results, and the stored value is neither the log record's
+`result` object nor the worker's own. **Clearing it after the join reads it costs 0 at L1-L5 and 0 at
+L6**, with a negative control firing at **13 failures** when it is cleared before, and it takes ten
+thousand concurrent runs from **3174.8 MiB to 1610.9 MiB**. *A whole structure leaving the driver is
+invisible to every rung this repository has* — [Q214](doc/open-questions.md)'s shape a third time,
+from the REMOVAL side. **And it does not reach the run that matters most**: a region whose join never
+fires holds its arrivals for the life of the run.
+
+**[Q19](doc/open-questions.md)'s row names the wrong variable, and so does `spec/run-state.md`.** Four
+dimensions measured one at a time: **~262 B/node, ~469 B/fan-out branch, ~456 B/map instance** — one
+variable, *how many tasks settle* — and **linear in the whole of every result**, which neither
+document names. **A 4-node chain returning 256 KiB retains 1025 KiB; a 128-node chain returning one
+key retains 33 KiB.** The footprint is *(tasks settled) x (bytes each returned)*. **And the row names
+TWO structures where the driver has four** — `inputs` is what actually holds every result, is what
+`foldInputs()` returns, and is in no row of the register; `log` is its record-kind subsequence **by
+reference** and costs **16 B** on top.
+
+**THE MEASURED RUN: the target scale RUNS, and the margin is a factor of one rather than of ten.**
+1 000 runs x arity 4 x 1 KiB = **10.2 MiB**; 10 000 x 4 x 1 KiB = **101.8 MiB**; **10 000 x 10 x
+16 KiB = 3174.8 MiB**; 1 000 x 50 x 16 KiB = **1584.9 MiB**. Two observers — `v8.serialize` and
+`heapUsed` after a forced `gc()` — agreeing within 3% at the large sizes.
+
+**`maxCompletedTasks` is NOT inheritable and its shape is worse here than Q19's row says.** It caps
+`scheduler.tasks`, the scheduler's own map, and reaches nothing the driver holds — so there is no
+answer to inherit, only a shape. **`fold()` over a log evicted to its last input reports `completed`
+with ZERO nodes and ZERO regions**, no throw and no signal: *a plausible wrong answer rather than a
+silent one*, which is what a fold defined as a pure function of a complete log does when the log stops
+being complete. **That is the half that could make P15 a spec plan**, and it is the plan's decision 2:
+nothing it decides may make `fold()` return a plausible wrong answer.
+
+**[Q22](doc/open-questions.md)'s numbers do not reproduce as its row states them, and the cloneability
+boundary is not where it draws it.** Re-taken **one case per process** — W46's settled method — the
+single edge-hop clone is **0.64 ms** against 1.50 and a clone per map instance at N = 1000 is
+**516.77 ms** against 2207.94. **The conclusion is unchanged and the argument is stronger**: still
+~800x, still quadratic for a map. Every absolute is 2-5x lower, because W34's were taken accumulated
+in one process — *a register row quoting an absolute is quoting a method.* **And a class instance
+CLONES: it arrives as a plain `Object`** with its prototype and methods gone, `instanceof` false, **no
+error and no report.** `OR-R6` makes the loud case a run failure; nothing anywhere is a rule about the
+quiet one. **The remaining retention is load-bearing**: 110 of 124 corpus task nodes (**89%**) are
+named by no `needs`, so *drop a result no reference can name* is decidable from the document — and it
+is **not free**, because `RunState.nodes[taskId].result` **is** the retained result.
+
+**The exit artifact is a MEASURED NUMBER rather than a flow, decided on a measurement**: `npm run
+test:l6` is **4236 ms for 42 real runs**, ~101 ms each, so a thousand real runs is already over
+`doc/workflow.md` section 8's whole **90 s** plan-gate budget. **A rung and a budget row are both
+refused**, and both are on the plan's stop-and-ask list.
+
+**And the scale target this plan is named for is cited from a document this machine cannot read.**
+`FLOW_PLANNING.md` is in the scheduler repository and **is not in it** — lost when
+[ADR 0029](doc/decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)'s
+`git worktree remove --force` went through the sibling, restored from a published package that ships
+no planning documents. **`doc/concept.md` says *"thousands at a time"* and contains `1000s` nowhere**,
+while [ADR 0023](doc/decisions/0023-an-inbound-settlement-is-this-runs-only-if-this-driver-dispatched-it.md)
+attributed the `1000s-10000s` figure **to it** — corrected in place. The three other citations name
+`FLOW_PLANNING.md` and are accurate. *The claim is not withdrawn; the provenance is.*
+
+**Census CONFIRMED for the FIFTEENTH plan running — 179 / 129 / 2 / 48**, 42 ids in both tables, 179
+of 179 in exactly one cluster cell, **0 aborts on a parser written from scratch and right first
+time**. **The declaration raises NO question.** **[Q142](doc/open-questions.md) FIRES and was
+PREDICTED from the pre-edit counts** — `M4`'s margin was **50 links**, and four work-item documents
+land in `doc/work-items`, which neither `removes` probe cuts.
 
 **[P14](doc/plans/p14-what-a-reference-means-when-two-regions-arities-are-independent.md)'s RETRO is
 run and `doc/workflow.md` is [v0.15](doc/workflow.md) — THREE changes adopted, FIVE refused, and its
@@ -2428,6 +2506,16 @@ recoverable only because 0.3.0 had been pushed publicly. Every recursive tool th
 
 **Do not rewrite files with `Get-Content | Set-Content`** — PS 5.1 reads UTF-8 without a BOM as
 CP1252 and silently double-encodes every non-ASCII character. Use the Edit or Write tool.
+
+**And do not rewrite files with Python's TEXT mode either — `pathlib.Path.write_text` and
+`open(p, "w")` translate a newline to a carriage-return-newline pair on Windows**, so a
+read-modify-write converts the whole file to CRLF where the index is LF throughout, and the script
+cannot see it.
+**[Q123](doc/open-questions.md), and it has now happened three times — W22, W41 and P15's
+declaration** — each time turning a small edit into a whole-file diff, each time caught only by
+`check-wiring`'s `G2` going red with a message about a *dispatch block*. **Use `read_bytes()` and
+`write_bytes()`**, or the Edit and Write tools. `git ls-files --eol` is the check by hand: every
+tracked file here is `i/lf`.
 
 ## Git
 

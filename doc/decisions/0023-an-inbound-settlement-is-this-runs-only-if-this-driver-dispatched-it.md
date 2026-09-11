@@ -146,7 +146,18 @@ another driver's run and named that other run in the report.
 **Rule 1 is corrected to:** *ownership is decided from the **task id alone**, before anything else
 reads the detail.* `parseTaskId` still runs first, so rule 2 is unchanged. This is also cheaper — a
 driver no longer deep-copies the result of every settlement it is about to discard, which at the
-1000s-10000s scale `doc/concept.md` targets is `O(drivers)` wasted clones per settlement.
+scale this repository targets is `O(drivers)` wasted clones per settlement.
+*(This read "the 1000s-10000s scale `doc/concept.md` targets" until
+[P15](../plans/p15-what-a-run-retains-and-what-a-result-may-be.md)'s declaration went to check the
+number. **`doc/concept.md` does not carry it** — what it says is *"Flows are instantiated per
+workload, thousands at a time"*, and the `1000s-10000s` figure is `FLOW_PLANNING.md`'s, in the
+scheduler repository, **which is not on this machine**: that file was lost when
+[ADR 0029](0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)'s
+`git worktree remove --force` went through the sibling, and the restore came from the published
+package, which ships no planning documents. **The scale claim is not withdrawn and the argument is
+unaffected** — P15 fact 5 brackets *thousands at a time* on both sides with a measured run — but an
+agent who goes to check the citation finds nothing, which is `doc/workflow.md` section 1 rule 5's
+provenance clause on a citation rather than on a count.)*
 
 **A second consequence, recorded because it is a behaviour change:** a `user_action` task fires two
 events for one task (ADR 0007 rule 2), and the first of them — `task.failed` carrying
