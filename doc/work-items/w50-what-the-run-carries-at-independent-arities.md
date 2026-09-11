@@ -100,9 +100,14 @@ Reserves:   Q222-Q228, ADR 0045 (expected SKIPPED - P14 says one decision is
 
 ### Exceptions — files edited outside `Owns` and outside section 1 rule 5's record step
 
-`doc/workflow.md` section 7 rule 2, declared before the item is marked done. **All three are
-`test/definition/**` or `spec/examples/**`, which P14's index row gives to W49** — and all three are
-forced by this item's own declared Output 4.
+`doc/workflow.md` section 7 rule 2, declared before the item is marked done. **SIX, all forced.**
+Three are `test/definition/**` or `spec/examples/**`, which P14's index row gives to W49, and follow
+from this item's own declared Output 4; three are withdrawn claims.
+
+*(This sentence read **"All three are `test/definition/** or `spec/examples/**`"** beside a table of
+six rows — written when the table had three and never re-taken when the conformity reader's findings
+added the other three. Corrected by P14's retro under section 6 pass 3 rule 6, with the Record's own
+count of FIVE; the audit is SIX and ZERO undeclared.)*
 
 | exception | why | forced? |
 |---|---|---|
@@ -234,10 +239,18 @@ reader derived that it holds for every shape the region rules admit and could no
 binding. [Q222](../open-questions.md).
 
 **`Owns` audit — 9 tracked files changed and 2 added, against a block of 3 paths plus section 1
-rule 5's six record-step files. FIVE late exceptions, ZERO undeclared**, all five declared in this
+rule 5's six record-step files. SIX late exceptions, ZERO undeclared**, all six declared in this
 file before the item was marked done. Three are `test/definition/**` and `spec/examples/**`, which
 P14's index row gives to W49; two — `spec/README.md` and `AGENTS.md` — are withdrawn claims found by
-the conformity reader.
+the conformity reader; and the sixth is `src/definition/regions.ts`, which is W49's tree.
+
+*(This paragraph read **FIVE** and enumerated five, while the exceptions table three sections up
+declares **six** and the commit touches exactly those six — the sixth being `src/definition/regions.ts`,
+whose docblock this item had to un-write. **A count in a Record contradicting the table above it, in
+the item whose own headline is ten stale sentences**, and neither reader caught it because both were
+reading the table. Corrected by P14's retro under `doc/workflow.md` section 6 pass 3 rule 6; the
+plan's total is **2 → 6 → 3 = 11**, and the ZERO undeclared is unchanged, since the sixth was
+declared.)*
 
 **So P13's retro's narrower reading holds for a THIRD item and its limit is now visible.** *An item
 that changes what a reference may say will reach `spec/README.md`* — W50 changes what a reference

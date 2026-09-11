@@ -1,6 +1,6 @@
 # Workflow
 
-**Status:** v0.14 - **run to completion THIRTEEN times**, by [P1](plans/p1-what-satisfies-a-join.md),
+**Status:** v0.15 - **run to completion FOURTEEN times**, by [P1](plans/p1-what-satisfies-a-join.md),
 [P2](plans/p2-the-non-success-half-on-a-real-scheduler.md),
 [P3](plans/p3-a-consumer-reference-the-gate-keeps-true.md),
 [P4](plans/p4-the-drivers-lifetime-and-the-handles-it-gives-out.md),
@@ -12,7 +12,8 @@
 [P10](plans/p10-is-fan-out-one-feature-or-two.md) and
 [P11](plans/p11-what-should-the-gate-prove.md) and
 [P12](plans/p12-what-a-node-receives-and-what-a-decision-sees.md) and
-[P13](plans/p13-when-is-a-declared-reference-refused.md)
+[P13](plans/p13-when-is-a-declared-reference-refused.md) and
+[P14](plans/p14-what-a-reference-means-when-two-regions-arities-are-independent.md)
 **Read this before starting any work item.** *(The status line read "seven times" and listed P1-P7
 until P9's retro: **P8 ran this document to completion and adopted none of its proposals**, which is
 section 6 pass 3 rule 1's expected verdict and is not the same as not having run it.)* Paths are relative to the repo root unless they are
@@ -95,6 +96,210 @@ prediction about rule 8 is answered and is **false**.
    ([ADR 0029](decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)).
    The dependency edge that made the junction seem necessary is gone; **the rule still said nothing
    about the removal**, which is the part that did the damage.
+
+**v0.15 is [P14](plans/p14-what-a-reference-means-when-two-regions-arities-are-independent.md)'s
+retro, and its central finding is that v0.14's OWN counter-measure was followed and did not work.**
+P14 asked *what does a reference mean when two regions' arities are independent?* — three items, one
+ADR, and the third product plan in a row. **THREE of its four predictions REVERSED, the highest rate
+of any plan**, and the cause of three is one thing: **a fact measured at the DECLARATION step was
+wrong.** v0.14 adopted *the prediction table states the SCOPE of the measurement it rests on* as the
+counter-measure to P13's derived reversal. **P14 is the first plan to carry that column; it stated
+prediction 1's scope correctly — *fact 3, measured on the four sibling-region flows the two corpora
+contain and on no constructed one* — and prediction 1 reversed anyway, because the fact underneath
+was FALSE rather than narrow.** Section 6 pass 3 rule 3's sharpest kind, on a clause three commits
+old. It adopts **three** changes and refuses **five**.
+
+1. **Section 4 gains: a rung reported GREEN means its command EXITED 0 — a line of its output is
+   never the predicate.** Three occurrences, two plans, every one `GATE EXIT=1` with **zero lines
+   beginning `FAIL`**. [W42](work-items/w42-what-a-decision-sees.md) twice, on an unused import and
+   then on a dead `const` stranded by the fix for a reader's own finding — **and its Record had
+   already claimed the gate was green** the second time; and
+   [W50](work-items/w50-what-the-run-carries-at-independent-arities.md), whose author ran
+   `npm run lint 2>&1 | tail -1`, saw `Checked 49 files` — **which `deno lint` prints whether or not
+   it found anything** — and read it as a pass. Since
+   [ADR 0039](decisions/0039-the-gate-climbs-the-ladder-and-the-self-tests-run-concurrently.md)
+   `lint` is the chain's FIRST entry, so nothing after it runs, and `FAIL` is a word the seven checks
+   print and `lint` does not. **What it replaces is an apparent CONTRADICTION rather than a rule.**
+   Rule 8 says **read the failure LINES, not the exit code**, and that is right for GRADING A
+   PROVOCATION, where an exit code cannot tell a detection from a crash. The two directions are
+   opposite and this document stated only one of them: *to call a rung green the exit code is
+   NECESSARY; to call a provocation caught it is NOT SUFFICIENT.* **And the sentence already existed
+   in the wrong document** — `CLAUDE.md` has carried *the exit code is the predicate and a FAIL count
+   is a secondary signal* since v0.12, is read before every item, and W50 reproduced it two plans
+   later in a THIRD secondary signal nobody had named. A procedure belongs in the procedure document.
+
+2. **Section 6 gains: a whole-tree measurement is taken with the tree HELD STILL.** Two occurrences,
+   two items in one plan, **two different observers**.
+   [W51](work-items/w51-the-sibling-region-flow-on-real-workers.md): its conformity reader's copy
+   picked up `examples/l6.ts` at **six digests** and, at one instant, a **live rule-8 probe** in
+   `src/driver/driver.ts` — **one snapshot RED, on correct code**. W50: its first `npm run gate` was
+   started in the background and W51's edits landed in the tree while it ran, so its verdict was
+   **about a tree that no longer existed**; re-run with the tree still, it is green. **Section 6
+   already records this contamination from the READER's side** — P4's retro, *two agents editing one
+   tree is not a review method* — and fixed the reader's half with the isolated copy. **The author's
+   half was never stated and it is the likelier one**, because rule 8's set mutates the shared tree by
+   construction and v0.8's re-run lands in exactly the window a reader is working in. It replaces
+   nothing; it is the other half of a paragraph that has been here since v0.6.
+
+3. **Section 1 rule 5's THIRD DIRECTION gains a procedure: an item greps the tree for its OWN ID.**
+   v0.14's clause says *search the tree for the phrase or the number*. It does not say what the phrase
+   is, and there is exactly one case where it is EXACT — a claim written by an earlier item that names
+   the later one by id. Measured over this repository's own history, outside `doc/`:
+
+   | at | grep for | hits |
+   |---|---|---|
+   | W32's commit | `W33` | **19**, in eight files, one of them reading *"These are W33's cases only until W33 exists"* |
+   | W33's commit | `W34` | **10** |
+   | W49's commit | `W50` | **12** — six in the document W50 owns and four outside it, plus its own test file |
+   | W41's commit | `W42` | **0** |
+   | W50's commit | `W51` | **0** |
+
+   **Zero false positives in the three that fire, and nothing at all in the two that do not**, so the
+   search costs one command and returns either the set or silence. **Two occurrences in two plans,
+   both blocking and both found by a conformity reader**: W33 shipped a run-time refusal with **no
+   rule id anywhere in `spec/`** where `spec/flow-definition.md` section 2 had addressed that question
+   **to W33 by name**; W50 shipped **ten** sentences saying a run still applies the prefix rule, every
+   one of them **true when W49 wrote it**. *A claim with an expiry date is written by one item and
+   falsified by another, and only the second can search for it.*
+
+**REFUSED, each with a measurement.** **(1) A `doc/` check, for the TWELFTH time — and P14 supplies
+the best instance yet for one.** [W49](work-items/w49-what-a-reference-across-sibling-regions-means.md)'s
+conformity reader found three false claims about WHICH RULE MOVED: *"`FD-C1` is the one rule that
+moves"*, whose row was **byte-identical** to the baseline while the only rule row the item had edited
+was `FD-R3`; *"no `FD-R` changes"*, sitting **forty words** from *"`FD-R3` loses case (a)"* in one
+cell; and section 7's cell asserting both halves of a contradiction in the present tense. **W49
+declined to raise a Q for it and said why**: the claim is machine-comparable — a rule id against a
+`git diff` of a rule row — where all eleven earlier refusals turned on comparing English. **The
+measurement that refuses it anyway is where the three claims lived**: three different documents, and
+two of the three were self-contradictory *inside one cell*, so a check would need the claim in a
+structured field that nothing writes. `C2`, `C6` and `C8` already compare ids, counts and owner
+cells; **none of them compares a CLAIM**, and the part of this that IS exact — an item id — is
+adopted above as a procedure rather than built as a check. **(2) A rung for the EVIDENCE, for the
+FOURTH plan running.** Name the rung for P14's five defects: **one has a rung, and it is the one where
+the rung was green by not running** — W50's L0 failure, which `lint` catches as the gate's first entry
+and which its author read past. The other four are a declaration fact that was false, a tree that
+moved under a reader, four properties of an exit artifact carried by literals, and a filter no run
+exercised. *A level for the evidence would have been green on every one of them.* P11's, P12's and
+P13's refusals stand. **(3) An `Owns` pre-declaration rule, and P14 is the SECOND plan run as the
+test v0.13 asked for.** Over its three items `AGENTS.md` is **yes / yes / no**, `spec/README.md`
+**yes / yes / no**, `scripts/check-docs.mjs` **no / no / no**. **The exit artifact reached NEITHER of
+the two**, which P13's three items did not show — W47 took `spec/README.md` as its one exception — so
+a rule naming them would have been wrong on **both** files for W51. Late exceptions **2 → 6 → 3 = 11,
+ZERO undeclared**, which does not fall the way P13's 6 → 4 → 1 did. **The narrower reading survives
+with its scope now visible**: over six items across two plans `spec/README.md` was reached **five
+times by TWO different mechanisms** — `C8`'s version row (W45, W46, W49) and a withdrawn claim in its
+prose (W47, W50) — and the one item that reached neither wrote no rule and withdrew no claim. *One
+half is a check that fires and the other is a reader noticing a sentence, which is why a
+pre-declaration rule cannot be right about both.* [Q157](open-questions.md) stays open. **(4) A
+fourth list below `CROSS_ROW_SUBJECTS` — refused at v0.14 as a prediction, and P14 is the fourth
+iteration that tests it.** W51's adequacy reader found **every property that item's `Outputs` claim
+carried by literals**: both L6 rows deletable back to the exact pre-item `879 / 40`, **the two arities
+made EQUAL for zero** with the row's key still reading *three items, two branches*, the within-region
+reference for one integer, and the sibling `fanout` pair's second reader **for nothing at all — the
+assertion count did not move**. `ROW_KEYS` and `DECLARED_TOTAL` reach none of them, because **W51 had
+added no cross-row clause and so had no subject to name.** **It did not add a fourth list.** The
+answer taken is the reader's own — a cross-row clause computed **from the row definitions and from
+the folded run**: the set of shared region depths across every row asserted as an EQUALITY, so it
+fails when a direction leaves *and* when a depth nobody thought about arrives; two branches of one
+region declaring a reference across the pair, *scoped to the rows it is about*; and a run in which
+two regions opened DIFFERENT numbers of branches, read from the fold. *An arity is a fact about the
+RUN, so the claim is read from one.* **So v0.14's refusal is CONFIRMED with evidence rather than
+re-argued, and [Q217](open-questions.md)'s regress stops where a clause is DERIVED instead of
+declared.** **(5) An obligation that an item RE-RUN the facts its plan was declared on.** It is the
+mechanism that caught P14's founding error and **it already exists**: W49's `Inputs:` line reads
+*"P14 facts 1-6, read from the PLAN's own file and RE-RUN from `dev-dist/p14/facts.ts` rather than
+transcribed"*, written by that item's own author out of `doc/work-items/TEMPLATE.md`'s `Inputs` row,
+and it is what measured fact 3's mechanism false. **Zero occurrences of it failing**, and making a
+working practice a rule trades a declaration an author thought about for a checkbox.
+
+**All four predictions have a verdict, THREE REVERSED and ONE CONFIRMED — the highest reversal rate
+of any plan, and three of the four trace to ONE wrong fact.** **Prediction 1** (derived) said
+*candidate (a), a fourth refusal, cannot be written without an arity clause*. Its own stated reversal
+condition — *a static predicate that separates the two flows without mentioning arity* — is met, and
+by a different predicate than it guessed: not *the reader's `over` names this very key* but **the
+reader's REGION CHAIN**. Re-measured at this retro: `map-over-region-output`'s reader `rank` is at
+path `-` with a region chain of **length 0** — in no region at all — while
+`reference-past-a-map-arity`'s `publish` has the chain `[rank]`. *The two flows do not differ in
+arity; they differ in WHERE the reference is declared*, and no arity is read anywhere in the
+predicate that separates them. **Prediction 2** (reach) said *the answer is (c), making a region's
+COLLECTION referenceable*. It is **(b)**; the premise stands and the inference does not, because the
+missing spelling is a second, ADDITIVE gap rather than the cause of this one
+([Q219](open-questions.md)). **Prediction 3** (derived) said *W50 is SMALL: no driver code moves*;
+its own stated reversal condition, *candidate (b) winning*, occurred, and W50 is the largest of the
+three items. **Prediction 4** (reach) is **CONFIRMED**, and it is the only one the plan could not have
+derived: P14 supplies [Q214](open-questions.md)'s second instance in a **different mechanism** from
+W47's — that was *a document the validator refuses never starts*, this is *a filter no run
+exercises* — and W51 moved it from **0 L6 failures to 12**, with the opposite direction moving from
+**0 to 2**.
+
+**So P13's correction to P10's sentence is corrected again, and it is the SECOND failure mode rather
+than a replacement.** P10's retro settled that only a reach prediction can reverse; P13 found that a
+derived one reverses *when the scope of the measurement it rests on is narrower than its own
+wording*; **P14 finds the other way it can fail — the measurement can be WRONG.** Fact 3 said
+`map-over-region-output` works *because the two arities are equal by construction*, and the reader is
+simply outside every region. **The counter-measure v0.14 prescribed was applied and did not catch
+it**, because stating a measurement's scope says nothing about whether the measurement is true. *What
+caught it is an ITEM re-running the fact it was handed* — refusal (5) above — which is section 1
+rule 5's provenance clause, *any copy including your own*, reaching a PLAN's declaration for the
+first time. **Sixteenth time a plan has found one of its own inputs wrong by trying to act on it.**
+
+**v0.14's three changes: all three CONFIRMED and KEPT, and each found its own limit.**
+
+- **The HARNESS's ceiling clause fired in all three items, and its best case is W50's.** Six ceilings
+  were declared in the plan's harnesses and **all six are rows that RUN**, each printing the rung, the
+  exit code, the failure count **and the elapsed time** — the signal that found P13's defect is now
+  printed by construction. **This retro re-measured all six: five hold and ONE IS CLOSED.** W50's
+  `e2` declared a ceiling whose stated reason named a FUTURE rung — *"no L6 row has a reference some
+  of whose outputs are filtered OUT … W51's exit artifact is what it must move. Re-run it there"* —
+  and re-run today it reports **L6 exit 1, 2 failures**. *A ceiling that names the rung that will
+  close it is the clause working at its best.* **Its LIMIT: the clause binds the HARNESS, and a
+  ceiling declared in a Record's PROSE is outside it.** W49 declared **two** and only one is a probe
+  row; the second — *the spec's normative sentence can be inverted back to the prefix rule with
+  everything green* — is prose with a measurement beside it, so this retro had to take it by hand.
+  **Re-measured, with a control and the bytes compared back: inverting `spec/flow-definition.md`'s own
+  normative sentence to say the opposite of what the driver does leaves `npm test`, `check:spec` and
+  `check:docs` at exit 0 with zero `FAIL` lines.** It holds, and it is the standing `doc/`-prose class
+  refused above.
+- **(d)'s *a COUNT is not a MEMBERSHIP* was reached by an AUTHOR before either reader saw the tree** —
+  W49's own set found a `CASES` list with a count and no membership, which is v0.13's reversal of *the
+  author reaches none of them* holding for a second plan. **Its LIMIT, measured by W51's adequacy
+  reader: a membership list is a claim about a LAYER, and an item that adds no layer has no membership
+  to declare.** All four of W51's blocking survivors are properties carried by literals inside the row
+  definitions themselves; `ROW_KEYS` names rows and `CROSS_ROW_SUBJECTS` names cross-row subjects, and
+  there was no cross-row clause to have a subject. *The clause protects a layer from deletion and says
+  nothing about a property the item never asserted.*
+- **The THIRD DIRECTION fired hardest of the three — fourteen instances in three items.** W49's
+  `AGENTS.md` *what it costs* paragraph, naming two things a run can refuse a reference for where
+  ADR 0044 removes one; **W50's ten**, six of them inside the document W50 owns plus `spec/README.md`,
+  `AGENTS.md`, `src/definition/regions.ts` and its own test file; and W51's four stale counts in
+  `examples/README.md` — *thirty-six real runs, 760 assertions, thirty-two entries, thirty-four row
+  labels* against **42 / 942 / 38 / 40** — plus `CROSS_ROW`'s sequence reading **57** where W47 shipped
+  **61**, in the same commit as the sentence telling the next item to append to it. **Its LIMIT is the
+  second direction the clause does not name**: a claim with an EXPIRY DATE is written by one item and
+  falsified by another, so the item that must un-write it is not the item that wrote it — which is
+  change 3 above, and the phrase to search for is an id.
+
+**And v0.13's (c) LIMIT — *when the compound is green, count the observers* — fired in all three items
+and in both directions.** W49's own set found a depth table with exactly **one** observer and had to
+make its `c3` probe COMPOUND, because re-sourcing one observer of a CORRECT function leaves the other
+passing; W51's first cross-row clause was written as **two floors, each its own only observer**, and
+relaxing either cost **zero** until they were made one equality; and **W50 found the other end of it —
+not one observer but NONE**, a harness failure channel with **thirteen reads and not one positive
+case**, so neutering `onRunFailure` cost zero and the compound with the resolver reverted came back at
+the same six.
+
+**Rule 8 across the plan: 71 provocations, 65 caught, SEVEN declared ceilings — six in the harnesses
+and one in prose — ALL MEASURED at this retro, ZERO undeclared survivors, ZERO aborts**, each item's
+set run twice, with **25 of the readers' exact edits checked back in**. **Readers: six passes, none
+empty — 38 conformity findings with 13 blocking, and 98 mutations with 16 real survivors and 13
+blocking. Overlap 2, 2, 1**, the twenty-sixth to twenty-eighth measurements, all inside the 0-4 band
+and **none primed**, and their SPLIT held in all three: the conformity reader found claims that were
+false and the adequacy reader found bounds that were not there. **`check-owns.mjs` stays retired for
+the tenth plan.** **Census CONFIRMED for the FOURTEENTH plan running — 179 questions, 129 open, 2
+deferred, 48 resolved**, 42 ids in both tables, 179 of 179 in exactly one cluster cell, **0 aborts on
+a parser written from scratch and right first time**, the fourth time that has happened.
+**Q218-Q222 used of Q218-Q232 reserved; Q223-Q232 are spent and not reused. ADR 0044 taken and 0045
+SKIPPED; W52 closed as reserved and never issued. The next plan starts at W53, Q233 and ADR 0046.**
 
 **v0.14 is [P13](plans/p13-when-is-a-declared-reference-refused.md)'s retro, and its central
 finding is that a HARNESS can produce a verdict having run nothing — three items shipped that code
@@ -471,6 +676,19 @@ and the counter-measure is section 1 rule 5's writing clause applied to the pred
 retro's third count shape — *a correct number answering a narrower question than the sentence around
 it claimed* — firing on a PREDICTION rather than on a count. Corrected by P13's retro.)*
 
+*(**And P14's prediction 1 is a derived prediction that reversed for the OTHER reason, so the sentence
+gains a second failure mode rather than a replacement: the measurement can be WRONG.** P14's
+declaration measured six facts and **fact 3 was false about its mechanism** — it said
+`map-over-region-output` works *"because the two arities are equal by construction"*, and the reader
+is simply outside every region, at path `-` with a region chain of length **0**. Prediction 1
+inherited that and reversed; so did the plan's whole framing, which asked whether the defect was about
+arity when it was about **where the reference is declared**. **P14 is also the first plan to carry
+v0.14's counter-measure** — a `scope of that measurement` column in the prediction table — **and it
+stated prediction 1's scope correctly and reversed anyway**, because stating a measurement's scope
+says nothing about whether the measurement is true. *What caught it is an ITEM re-running the fact it
+was handed*, which is this rule's provenance clause reaching a PLAN's declaration for the first time.
+Corrected by P14's retro.)*
+
 **v0.10 is P9's retro, and its central finding is that the defect P9 set out to remove was living
 inside rule 8's own procedure.** P9 asked *when a check clause stops checking, what notices — and does
 it notice for the right reason?* The answer for the checks is now 118 gradings that name the probe
@@ -764,6 +982,20 @@ Four rules that make the loop worth having:
    number before recording.** *An index that contradicts the document it indexes does so on precisely
    the sentence that was just corrected*, because that is the sentence somebody was looking at.
 
+   **The one case where the phrase is EXACT is an item's own ID, and the procedure is a grep — P14's
+   retro.** A claim with an expiry date is written by one item and falsified by another, so the item
+   that must un-write it is not the item that wrote it, and it has one unambiguous string to search
+   for. Measured over this repository's own history, outside `doc/`: at W32's commit `W33` returns
+   **19** hits in eight files, one of them *"These are W33's cases only until W33 exists"*; at W33's,
+   `W34` returns **10**; at W49's, `W50` returns **12**. At W41's, `W42` returns **0**, and at W50's,
+   `W51` returns **0**. **Zero false positives in the three that fire and nothing in the two that do
+   not**, so the search costs one command and returns either the set or silence. Two occurrences, two
+   plans, both blocking and both found by a conformity reader: **W33** shipped a run-time refusal
+   with no rule id anywhere in `spec/`, where `spec/flow-definition.md` section 2 had addressed that
+   question **to W33 by name**; **W50** shipped ten sentences saying a run still applies the prefix
+   rule, **every one true when W49 wrote it**. *So: before an item is done, it greps the tree for its
+   own id.*
+
    **And a measured number is RE-TAKEN on the tree the item ships — P11's retro, and it is the WHEN
    that clause has no answer for.** An item is not finished when its work is; it is finished when two
    readers have changed it, and rule 8 already requires the provocation set to be re-run at that
@@ -894,6 +1126,31 @@ where it is required to run:
 
 **A rung reported green without saying which runtimes it ran in is a rung that ran in one.** Section
 1 rule 4 applies to this axis exactly as it applies to skipped levels.
+
+**And a rung reported GREEN means its command EXITED 0. A line of its output is never the predicate**
+— P14's retro, and it is the opposite direction from the one section 5 rule 8 states, which is why
+both are written down. Three occurrences, two plans, every one `GATE EXIT=1` with **zero lines
+beginning `FAIL`**: [W42](work-items/w42-what-a-decision-sees.md) twice, on an unused import and then
+on a dead `const` stranded by the fix for a reader's finding — **run 1 exited at chain entry 1 with a
+23-line log, and this Record's own `npm run gate` row had already been written as green**; and
+[W50](work-items/w50-what-the-run-carries-at-independent-arities.md), whose author ran
+`npm run lint 2>&1 | tail -1`, saw `Checked 49 files` — **which `deno lint` prints whether or not it
+found anything** — and read it as a pass. Since
+[ADR 0039](decisions/0039-the-gate-climbs-the-ladder-and-the-self-tests-run-concurrently.md) `lint`
+is the chain's FIRST entry, so a chain that fails there runs nothing after it, and `FAIL` is a word
+the seven checks print and `lint` does not.
+
+> **The two directions, because the document stated only one and it cost three blocking findings.**
+> To call a rung **GREEN**, the exit code is **NECESSARY** — a zero `FAIL` count is satisfied by a
+> chain that stopped at entry one and by a check that prints a count either way. To call a
+> provocation **CAUGHT**, the exit code is **NOT SUFFICIENT** — it cannot tell a detection from a
+> crash, from noise, or from a sibling covering for the clause, which is section 5 rule 8's *read the
+> failure LINES* and [Q138](open-questions.md).
+
+**The sentence existed and was in the wrong document.** `CLAUDE.md` has carried *the exit code is the
+predicate and a FAIL count is a secondary signal* since v0.12 and is read before every item; W50
+reproduced it two plans later, in a THIRD secondary signal nobody had named, and **both** its readers
+found it independently. A procedure belongs in the procedure document.
 
 **Levels 0-6 are the agent's job. Level 7 is where a person enters.** Never spend a person on
 something an L<=6 assertion could have caught. If a human finds a bug a machine check could have
@@ -1427,10 +1684,33 @@ than the copy's; and **scan for links before `--force` anything** — `find <cop
 Windows, `Get-ChildItem -Recurse -Force -Attributes ReparsePoint`. If either is non-empty, do not
 remove it; say so and stop.
 
+**And while a reader is reading, the AUTHOR's tree holds still — P14's retro, and it is the other
+half of the paragraph above.** The isolated copy fixes the reader's side of P4's contamination; it
+does nothing about the author continuing to edit the tree the reader took its copy from, and **rule
+8's set mutates that tree by construction**, so running it during a review is the same defect from
+the other end. Two occurrences, two items, **two different observers**:
+[W51](work-items/w51-the-sibling-region-flow-on-real-workers.md)'s conformity reader picked up
+`examples/l6.ts` at **six digests** and, at one instant, a **live rule-8 probe** in
+`src/driver/driver.ts` — **one snapshot RED, on correct code**, and every number in that report had
+to name the digest it was taken at; and
+[W50](work-items/w50-what-the-run-carries-at-independent-arities.md)'s first `npm run gate` ran in
+the background while W51's edits landed, so **its verdict was about a tree that no longer existed**.
+*A measurement over a moving tree is a claim about no tree.* So: **an item's rule 8 re-run, its gate
+and its Record's numbers are taken with the tree still** — which is where v0.8's *re-run the set
+after acting on the readers* already put the re-run, for a different reason.
+
+*(**And the retro that adopted this broke it within the hour**, which is the third occurrence and the
+one that says the rule is worth having: P14's retro started its confirming `npm run gate` in the
+background and then went on editing `doc/README.md` and `README.md` while it ran. It was stopped
+unfinished and re-run against the final tree. The pull is always the same — a gate costs ten minutes
+and there is obvious work to do meanwhile — and **the thing that makes it a defect rather than a
+habit is that the verdict is reported as though it were about the tree that ships.**)*
+
 **Why two readers rather than one asking both questions**, which is what earlier versions said.
-Measured **twenty-five** times now: W4 1 of 13, W5 3 of ~35, W6 3 of ~25, W9 3 of ~30, W12 3 of 18,
+Measured **twenty-eight** times now: W4 1 of 13, W5 3 of ~35, W6 3 of ~25, W9 3 of ~30, W12 3 of 18,
 W13 4 of 24, W14 4 of ~26, W17 3 of ~31, W18 2, W19 4 of 18, W28 4, W29 1, W30 2, W31 0, W32 2,
-W33 2, W34 2, W36 1, W39 4, W41 1 of 116, W42 2 of 61, W43 2 of 39, **W45 2, W46 2, W47 2**.
+W33 2, W34 2, W36 1, W39 4, W41 1 of 116, W42 2 of 61, W43 2 of 39, W45 2, W46 2, W47 2,
+**W49 2, W50 2, W51 1**.
 **The ORDINAL is derived by counting this list, and P12's three items each got it wrong by two** —
 W41 wrote *eighteenth*, which is W36's, and W42 and W43 incremented from it, so three consecutive
 Records were internally consistent with each other and wrong against the only list there is. All
@@ -1445,9 +1725,9 @@ yet** - the same three facts reached by six different routes, and in each case t
 routes had nothing in common.
 
 **The number to carry is the ABSOLUTE one: two readers produce 0-4 shared findings, whatever the
-item's size** - **twenty-five** measurements, and P6's retro declares the question **settled and closed
-to re-litigation**. **The eleven since — 2, 2, 2, 1, 4, 1, 2, 2, 2, 2 and 2 — are all inside the band
-and the band has not moved.** **P13's three are 2, 2, 2**, and its readers' SPLIT held in all three:
+item's size** - **twenty-eight** measurements, and P6's retro declares the question **settled and closed
+to re-litigation**. **The fourteen since — 2, 2, 2, 1, 4, 1, 2, 2, 2, 2, 2, 2, 2 and 1 — are all inside
+the band and the band has not moved.** **P13's three are 2, 2, 2 and P14's are 2, 2, 1**, and its readers' SPLIT held in all three:
 the conformity reader found claims that were false — twelve of its twenty-four blocking findings
 across the plan were numbers — and the adequacy reader found bounds that were not there. **W41's 1 of 116 is the largest denominator ever recorded here and it did not
 move the numerator**, which is the clearest single datum against reading the fraction. **The band read 1-4 over ten measurements until W31 came in at ZERO**, and P9's
