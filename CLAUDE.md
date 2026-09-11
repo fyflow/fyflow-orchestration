@@ -18,7 +18,7 @@ the only document that does. **Every snippet in it is extracted and executed by 
 (`scripts/check-docs.mjs`), so it cannot rot the way a hand-maintained reference does. If you change
 the public surface, that check is what tells you the reference is now wrong.
 
-## Current state: **P1-P14 are ALL complete and retro'd, `doc/workflow.md` is [v0.15](doc/workflow.md), and [P15](doc/plans/p15-what-a-run-retains-and-what-a-result-may-be.md) has ALL THREE ITEMS DONE — [W53](doc/work-items/w53-what-a-run-retains-that-nothing-reads.md), [W54](doc/work-items/w54-what-a-result-may-be-and-what-bounding-it-would-cost.md) and [W55](doc/work-items/w55-a-run-at-scale-on-real-workers.md) — so only its RETRO is outstanding.** **Read every status from the item's own file, never from this line.**
+## Current state: **P1-P15 are ALL complete and retro'd, and `doc/workflow.md` is [v0.16](doc/workflow.md).** [P15](doc/plans/p15-what-a-run-retains-and-what-a-result-may-be.md)'s three items — [W53](doc/work-items/w53-what-a-run-retains-that-nothing-reads.md), [W54](doc/work-items/w54-what-a-result-may-be-and-what-bounding-it-would-cost.md) and [W55](doc/work-items/w55-a-run-at-scale-on-real-workers.md) — are done, the retro is run, and **no plan is running.** **Read every status from the item's own file, never from this line.**
 
 **[P15](doc/plans/p15-what-a-run-retains-and-what-a-result-may-be.md) is DECLARED — *what does a run
 retain, and what may a result be?*, and it is the FOURTH PRODUCT PLAN IN A ROW.** It takes
@@ -28,6 +28,65 @@ since P1 — and **this declaration took that run.** Three items, serial: **W53*
 that nothing reads, as **ADR 0046**), **W54** (what a result may be, and what bounding it would cost),
 **W55** (a run at scale on real workers). **Reserves W53-W56, Q233-Q247, ADR 0046-0047.** **All three
 are DONE and are below.**
+
+**[P15](doc/plans/p15-what-a-run-retains-and-what-a-result-may-be.md) is COMPLETE and RETRO'D, and
+`doc/workflow.md` is [v0.16](doc/workflow.md) — THREE changes adopted, FIVE refused, and its central
+finding is that of ELEVEN defects exactly ONE had a rung, the rung FIRED, and it was reported GREEN
+twice.** Nine of the other ten were found by a reader and one by rule 8's re-run. W54 piped
+`npm run test:browser:all` through a `grep` for the count line — which prints **before** the
+failures — and reported three red browsers green, in the item whose own Verification table quotes
+v0.15's *a line of its output is never the predicate*. **The ladder was not what failed; the reading
+of it was.**
+
+**THE THREE CHANGES.** **(1) Section 4's green clause gains a PROCEDURE: a rung is RUN, never PIPED —
+redirect it and read `$?`.** Four occurrences across three plans (W42 twice, W50, W54), and all four
+are an author reading a LINE because the rung's output was too long to read whole; stating the
+predicate was not enough, and *do not pipe* is the one thing the four share. **(2) Rule 8 obligation
+(a) gains the SHAPES a rule quantifies over, not only its clauses** — a clause is a sentence, a shape
+is a value of the kind it ranges over, and **the author picks the shape the feature was built for
+every time**: W41's 37 probes all used a `map` region, W53's release cases all used one `map` region
+at depth 1 (hiding THREE defects), and P15's own fact 1 produced it a third time, **after which the
+item written to correct it chose its fixtures the same way**. **(3) Obligation (c)'s LIMIT gains what
+*independent* excludes: the second observer must not be DOWNSTREAM of the first's apparatus** — W55's
+was measuring the first one's instrument, and **every mechanism in rule 8 is blind to that by
+construction**, because a control can only see what a probe ADDS and the clean run is contaminated
+identically.
+
+**REFUSED, five, each with a measurement**: a **`doc/` check for the THIRTEENTH time** — *49.8%* is
+right in three documents and wrong in four and the difference is **which divisor the sentence
+names**, so a check would have to do arithmetic in English; an **`Owns` pre-declaration rule** for
+the fourth plan running, and **P15 is the first plan to PREDICT the pattern correctly** while a rule
+naming the three files would still have been wrong twice on two of three items; a **fourth membership
+list** for [Q217](doc/open-questions.md)'s regress — W55 closed the per-row layer **BOTH WAYS** and
+could not close the cross-row layer at all, so the answer is a **HANDLE rather than a list**; a rung
+or a budget row for the plan's scale; and a rule obliging an item to re-take its own grep COUNT,
+where the procedure fired in all three items and two recorded the wrong number beside it.
+
+**THREE of four predictions CONFIRMED, and prediction 4 REVERSED in a THIRD way this document had no
+name for.** P10's retro settled that only a reach prediction can reverse; P13's added *when its
+measurement is narrower than its wording*; P14's added *or when the fact underneath is FALSE*. **This
+one reversed because the item whose job was to try, TRIED** — the prediction's own reversal clause
+named a CONSTRUCTIVE test and became W55's Scope In 4 almost verbatim. **So a reversal clause DIRECTS
+an item**, which nobody had written down — **and it was wrong about the mechanism**, guessing *most
+likely by asserting the footprint itself* where the footprint is reported and never asserted.
+
+**v0.15's three changes: all CONFIRMED and KEPT, and the one that was BROKEN is the evidence FOR
+it.** *Held still* was followed by all three items with zero occurrences; the *grep your own id*
+procedure fired in all three and found a real expiry-dated claim each time, with its limit being the
+COUNT rather than the procedure — two of three recorded the wrong number and the sentences were found
+anyway. **And v0.14's ceiling clause had its first full plan with a yield of ZERO**: all **twenty-four**
+declared ceilings were re-run at the retro on the tree the plan ships and every one behaves as
+declared, against P13's eleven where one was false and one stale.
+
+**Rule 8 across the plan: 112 provocations, 87 caught, 25 survivors — 24 declared and ONE undeclared
+and recorded — 0 aborts, 0 against declaration**, every set run twice with the readers' own edits
+checked back in. **Two re-runs found a defect in the FIX rather than in the product**, which is
+v0.8's founding observation. **Readers six passes, none empty — overlaps 2 / 4 / 2**, the
+twenty-ninth to thirty-first measurements, band unmoved and closed. **ELEVEN late exceptions, zero
+undeclared. Census CONFIRMED for the FIFTEENTH plan running — 191 / 139 / 2 / 50, 0 aborts**, and
+**[Q142](doc/open-questions.md) was measured four times and does not fire.** **W56 CLOSED as reserved
+and never issued; Q233-Q246 used, Q236/Q237/Q247 spent; ADR 0046 taken, 0047 skipped. The next plan
+starts at W57, Q248 and ADR 0048.**
 
 **[W55](doc/work-items/w55-a-run-at-scale-on-real-workers.md) is DONE and it is P15's EXIT ARTIFACT
 — a MEASURED NUMBER rather than a flow, which the plan's decision 3 declared before any item
@@ -2223,7 +2282,7 @@ two things Q95's stub asserts about the `unsatisfiable` exit. The second is `doc
 change 3's own argument in a directory it does not cover, and its reason generalises: **which spec
 clause a stub makes load-bearing is not knowable until the stub exists.**
 
-**At least EIGHTY-ONE reader-passes have run and not one came back empty — and this line said THIRTY-ONE for four plans, FIFTY-ONE for two more, and SIXTY-NINE while P13's six and P14's six ran behind it.** *(P10's retro tried to re-derive it and stopped: the predicate below is sound, and the item files do not share a row format, so a grep that counts the passes W15, W16, W17, W24 and W25 recorded misses the three W3 ran, and one that catches those double-counts the items whose Verification table and Record both carry a reader row. **63 is a floor with a stated predicate** - rows in an item's own Record asserting the pass RAN - not the answer. P10 added eight, P11 four, P12 six, P13 six and P14 six, each read from that plan's own retro. The exact total needs each Record read individually, which is what this line has always been a substitute for.)* *(The predicate: one per reader
+**At least EIGHTY-SEVEN reader-passes have run and not one came back empty — and this line said THIRTY-ONE for four plans, FIFTY-ONE for two more, and SIXTY-NINE while P13's six and P14's six ran behind it.** *(P10's retro tried to re-derive it and stopped: the predicate below is sound, and the item files do not share a row format, so a grep that counts the passes W15, W16, W17, W24 and W25 recorded misses the three W3 ran, and one that catches those double-counts the items whose Verification table and Record both carry a reader row. **63 is a floor with a stated predicate** - rows in an item's own Record asserting the pass RAN - not the answer. P10 added eight, P11 four, P12 six, P13 six, P14 six and P15 six, each read from that plan's own retro. The exact total needs each Record read individually, which is what this line has always been a substitute for.)* *(The predicate: one per reader
 per work item, counted from each item's own Record — `doc/workflow.md` section 1 rule 5, never from
 this line.)* W1 ×3, W3 ×3, W2 ×1, W4 ×2, W5 ×2, W6 ×2, W9 ×2, W12 ×2, W13 ×2, W14 ×2, **W15 ×2,
 W16 ×2, W17 ×2, W18 ×2, W19 ×2**. *(Sum the list; it is 31, and the list is the predicate.)* *(This line read **twenty-one** and listed only the first ten items until
@@ -2361,9 +2420,17 @@ that depends on fan-out completion order.
 
 ## How work is done
 
-**[doc/workflow.md](doc/workflow.md) — read it before starting any work item. It is v0.15, run to
-completion by FOURTEEN plans.** *(This line read "v0.10, run to completion by NINE plans" while v0.11
+**[doc/workflow.md](doc/workflow.md) — read it before starting any work item. It is v0.16, run to
+completion by FIFTEEN plans.** *(This line read "v0.10, run to completion by NINE plans" while v0.11
 and v0.12 landed above it.)*
+
+**v0.16 is P15's retro and its three changes are above.** The short form: **section 4's green clause
+gains a PROCEDURE — a rung is RUN, never PIPED, so redirect it and read `$?`**, because four items
+across three plans have read a line instead of an exit code and the fourth did it while quoting the
+clause; **rule 8 obligation (a) gains the SHAPES a rule quantifies over**, because an author picks the
+shape the feature was built for and one such choice hid three defects at once; and **obligation (c)'s
+LIMIT gains what *independent* excludes** — the second observer must not be downstream of the first's
+apparatus, and no mechanism in rule 8 can see that, because a control only sees what a probe adds.
 
 **v0.15 is P14's retro and its three changes are above.** The short form: **section 4 gains that a
 rung reported GREEN means its command EXITED 0** — a line of its output is never the predicate, which

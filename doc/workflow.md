@@ -1,6 +1,6 @@
 # Workflow
 
-**Status:** v0.15 - **run to completion FOURTEEN times**, by [P1](plans/p1-what-satisfies-a-join.md),
+**Status:** v0.16 - **run to completion FIFTEEN times**, by [P1](plans/p1-what-satisfies-a-join.md),
 [P2](plans/p2-the-non-success-half-on-a-real-scheduler.md),
 [P3](plans/p3-a-consumer-reference-the-gate-keeps-true.md),
 [P4](plans/p4-the-drivers-lifetime-and-the-handles-it-gives-out.md),
@@ -13,7 +13,8 @@
 [P11](plans/p11-what-should-the-gate-prove.md) and
 [P12](plans/p12-what-a-node-receives-and-what-a-decision-sees.md) and
 [P13](plans/p13-when-is-a-declared-reference-refused.md) and
-[P14](plans/p14-what-a-reference-means-when-two-regions-arities-are-independent.md)
+[P14](plans/p14-what-a-reference-means-when-two-regions-arities-are-independent.md) and
+[P15](plans/p15-what-a-run-retains-and-what-a-result-may-be.md)
 **Read this before starting any work item.** *(The status line read "seven times" and listed P1-P7
 until P9's retro: **P8 ran this document to completion and adopted none of its proposals**, which is
 section 6 pass 3 rule 1's expected verdict and is not the same as not having run it.)* Paths are relative to the repo root unless they are
@@ -96,6 +97,77 @@ prediction about rule 8 is answered and is **false**.
    ([ADR 0029](decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)).
    The dependency edge that made the junction seem necessary is gone; **the rule still said nothing
    about the removal**, which is the part that did the damage.
+
+**v0.16 is [P15](plans/p15-what-a-run-retains-and-what-a-result-may-be.md)'s retro, and its central
+finding is that of the plan's ten defects EXACTLY ONE had a rung, the rung FIRED, and it was reported
+GREEN anyway.** P15 asked *what does a run retain, and what may a result be?* — [Q19](open-questions.md)
+and [Q22](open-questions.md), the two oldest rows in the register, both resolved in one plan, three
+items and six reader passes. Its exit artifact is a **measured number** rather than a flow, which is
+the first time section 2's other option has been taken. It adopts **three** changes and refuses
+**five**.
+
+**Name the rung, and the answer is the retro's shape.** Nine of the ten defects below have **no**
+rung and every one was found by a reader or by rule 8 — a reachability set that cannot tell an alias
+from a copy, a suite computing its own oracle, an observer inside its own subject, a per-row layer
+bound by three integers. **The tenth is W54's browser failure, and `npm run test:browser:all` exited
+non-zero exactly as it should have.** The author read a count line from a pipe and reported it green
+twice. *The ladder was not the thing that failed; the reading of it was* — and that is change 1.
+
+1. **Section 4's green clause gains a PROCEDURE: a rung is RUN, never PIPED — redirect it and read
+   `$?`.** v0.15 wrote *a rung reported GREEN means its command EXITED 0* and
+   [W54](work-items/w54-what-a-result-may-be-and-what-bounding-it-would-cost.md) **broke it one plan
+   later while quoting it in its own Verification table**, piping `test:browser:all` through a `grep`
+   for the count line — which prints **before** the failures. **Four occurrences across three plans**
+   (W42 twice, W50, W54), and all four are an author reading a LINE because the output was too long
+   to read whole. Stating the predicate was not enough; *do not pipe* is what an author can act on,
+   and it is what the four have in common. **v0.9's argument for obligation (c)'s procedure, in a
+   second place.**
+
+2. **Rule 8 obligation (a) gains the SHAPES a rule quantifies over, not only its clauses.** A clause
+   is a sentence; a shape is a value of the kind that sentence ranges over — *a region* is a `fanout`
+   or a `map`, at depth 1 or nested — and **the author picks the shape the feature was built for,
+   every time**. [W41](work-items/w41-what-a-node-can-reach-and-what-names-it.md): all 37 probes used
+   a `map` region, and the rule was wrong about a `fanout` and refused a valid document.
+   [W53](work-items/w53-what-a-run-retains-that-nothing-reads.md), one plan later: every release case
+   used one `map` region at depth 1 on a flow with no `needs`, which hid **three** defects at once.
+   And P15's own fact 1 produced it a third time from the measurement side, **after which the item
+   written to correct it chose its fixtures the same way**. W53's Record argued the mechanism already
+   existed — it does, and that is exactly why it keeps failing: *a clause enumeration is finite and
+   visible, and the values a clause ranges over are neither.*
+
+3. **Obligation (c)'s LIMIT gains what *independent* excludes: the second observer must not be
+   DOWNSTREAM of the first's apparatus.** [W55](work-items/w55-a-run-at-scale-on-real-workers.md)
+   added a second observer that was independent in every way the word suggests and **it was measuring
+   the first one's instrument** — the byte observer's own snapshot was reachable from the driver, so
+   each retained driver held a second copy of the very structure under test, **141.9 MiB against
+   129.4**. **Every mechanism in rule 8 is blind to this by construction**: a control can only see
+   what a probe ADDS, and the clean run is contaminated identically. One occurrence, adopted on that
+   argument rather than on a second instance.
+
+**REFUSED, five, each with a measurement.** A **`doc/` check for the THIRTEENTH time** — P15's
+instance is the sharpest yet and the least checkable: *49.8%* is right in three documents and wrong
+in four, and the difference is **which divisor the sentence names**, so a check would have to do
+arithmetic in English. An **`Owns` pre-declaration rule for the FOURTH plan running** — and P15 is
+the first plan to *predict* the pattern correctly (*if W53 and W54 reach `spec/README.md` and W55
+does not*), which is exactly what happened, and a rule naming the three files would still have been
+wrong twice on W53 and twice on W55 ([Q157](open-questions.md)). A **fourth membership list** as the
+general answer to [Q217](open-questions.md)'s regress — W55 closed the per-row layer **both ways**
+and could not close the cross-row layer at all, so the answer is a **handle**, not a list, and one
+occurrence of a handle is not a rule. A **rung or a budget row for the plan's scale** — P15 decision 3
+refused both, W55 then found the number behind that refusal was a per-ROW figure rather than a
+per-run one ([Q246](open-questions.md)), and the refusal survives on its other grounds. And a rule
+obliging an item to **re-take its own grep count**: v0.15's grep procedure fired in all three items
+and **two of the three recorded the wrong number while the obligation still worked**, which is the
+standing count-in-prose class and not a new one.
+
+**v0.15's three changes: all CONFIRMED and KEPT.** The grep procedure fired in all three items and
+found real expiry-dated claims each time; **held still** was followed by all three with zero
+occurrences; and the green clause is the one that was broken, which is the evidence that it is worth
+having rather than evidence against it. **And v0.14's ceiling clause had its first full plan and the
+yield is ZERO**: all twenty-four ceilings the three items declared were re-run at this retro, on the
+tree the plan ships, and every one behaves as declared with its stated reason intact — against P13's
+eleven, where one was false and one stale. *A clause adopted because two claims nobody ran turned out
+wrong, producing a plan where none did.*
 
 **v0.15 is [P14](plans/p14-what-a-reference-means-when-two-regions-arities-are-independent.md)'s
 retro, and its central finding is that v0.14's OWN counter-measure was followed and did not work.**
@@ -1152,6 +1224,32 @@ predicate and a FAIL count is a secondary signal* since v0.12 and is read before
 reproduced it two plans later, in a THIRD secondary signal nobody had named, and **both** its readers
 found it independently. A procedure belongs in the procedure document.
 
+**AND THE PROCEDURE, because stating the predicate was not enough — P15's retro.** v0.15 wrote the
+clause above and **[W54](work-items/w54-what-a-result-may-be-and-what-bounding-it-would-cost.md) broke
+it one plan later while quoting it in its own Verification table**: it ran
+`npm run test:browser:all` through `grep -E "file\(s\)|PARITY"`, and the `27 file(s), 703 assertions`
+line prints **before** the failures — so three browsers were red and reported green **twice**. That
+is **four occurrences across three plans** — W42 twice, W50, W54 — and every one of the four is an
+author reading a LINE because the rung's output was too long to read whole.
+
+> **So: a rung is RUN, never PIPED. Redirect it to a file and read `$?` in the same command.**
+>
+> ```bash
+> npm run gate > gate.log 2>&1; echo "GATE EXIT=$?"
+> ```
+>
+> A pipe replaces the exit code with the last stage's — `cmd | grep` exits on whether `grep` matched
+> — and the count line every runner here prints is emitted before the failures it is being read as
+> evidence about. **Grep the log afterwards if you want the lines; grep is a reading tool and never a
+> verdict.**
+
+**Why a procedure rather than a restatement**, which is v0.9's argument for obligation (c)'s: the
+axis was right and could not be instantiated from what it said. *Do not read a line* is what the
+clause says; *do not pipe* is what an author can act on, and it is the one thing all four occurrences
+have in common. **The measured cost of following it is nothing** —
+[W55](work-items/w55-a-run-at-scale-on-real-workers.md) ran every rung this way, including both L6
+runtimes and `test:browser:all`, and the log is still there to grep.
+
 **Levels 0-6 are the agent's job. Level 7 is where a person enters.** Never spend a person on
 something an L<=6 assertion could have caught. If a human finds a bug a machine check could have
 found, the fix is to **add the check**, not just fix the bug.
@@ -1241,9 +1339,9 @@ Rules:
 
    | | obligation | added by |
    |---|---|---|
-   | **(a)** | break the rule's own CLAUSES | v0.6, P4's retro |
+   | **(a)** | break the rule's own CLAUSES — **and the SHAPES those clauses quantify over** | v0.6, P4's retro; **the shapes clause v0.16, P15's retro** |
    | **(b)** | break every row of the `Outputs` table | v0.7, P5's retro |
-   | **(c)** | break the PROVENANCE of every value an assertion reads — change the source expression and nothing else | v0.8, P6's retro; procedure added v0.9; **its LIMIT v0.13, P12's retro** |
+   | **(c)** | break the PROVENANCE of every value an assertion reads — change the source expression and nothing else | v0.8, P6's retro; procedure added v0.9; **its LIMIT v0.13, P12's retro; and what *independent* excludes, v0.16, P15's retro** |
    | **(d)** | break the LOOP BOUNDS — one entry out, the whole list out, and does anything COUNT it from elsewhere — **a count is not a membership** | v0.9, P7's retro; **the membership clause v0.14, P13's retro** |
    | **(e)** | break the WIRING — what happens when the check is NOT RUN, and **is what it ran what SHIPS** | v0.10, P9's retro; second question **v0.12, P11's retro**; **third shape v0.13, P12's retro** |
    | | **and on the set as a whole:** | |
@@ -1279,6 +1377,28 @@ Rules:
    So: enumerate the **rule's own clauses** and break each — every terminal state, every event
    variant, every branch of a two-tier test — rather than enumerating the ways the fix could be
    undone. A set written from the fix inherits the fix's blind spot by construction.
+
+   **AND THE SHAPES THE RULE QUANTIFIES OVER, NOT ONLY ITS CLAUSES — P15's retro, and it is the
+   third time one fixture choice has hidden a rule being wrong.** A clause is a sentence; a shape is
+   a value of the KIND that sentence ranges over, and this repository's rules range over kinds
+   constantly — *a region* is a `fanout` or a `map`, at depth 1 or nested; *a reference* is aimed or
+   `"."`, bare or conditional; *a result* is a plain object or a built-in or a class instance. **An
+   author picks the shape the feature was built for, every time.**
+
+   | | the rule | the one shape the set used | what it hid |
+   |---|---|---|---|
+   | [W41](work-items/w41-what-a-node-can-reach-and-what-names-it.md) | `FD-V28`, stated over *a region* | **all 37 probes used a `map` region** | the rule was wrong about a `fanout` and **refused a valid document**; the whole half was unreachable from the set, and its own document contradicted it nine lines down |
+   | [W53](work-items/w53-what-a-run-retains-that-nothing-reads.md) | ADR 0046 rule 3, stated over *a region* | **every release case: one `map` region, at depth 1, on a flow with no `needs`** | a **nested** region and a **`fanout`** region could each never release for ZERO, and the whole of `outputsCache` — three defects, one choice |
+   | [P15](plans/p15-what-a-run-retains-and-what-a-result-may-be.md)'s own fact 1 | *what the driver retains* | properties enumerated on flows with **no `needs`** | `outputsCache` recorded as **`null`**, which is a property of the fixtures rather than of the driver — **and the item written to correct it chose its fixtures the same way** |
+
+   **So: for every KIND a rule names, the set instantiates more than one value of it — and where the
+   corpus has only one, say so rather than leaving the set looking complete.** W41 recorded this
+   shape, W53 reproduced it one plan later, and P15's declaration produced it a third time from the
+   measurement side; W53's own Record argued it was already covered by *enumerate the clauses*, which
+   is true and is exactly why it keeps failing — **a clause enumeration is finite and visible, and
+   the values a clause ranges over are neither**. This is v0.13's recorded correction again: *an
+   obligation run as a step in a set passes; the same obligation asked as a question of one artefact
+   fires.* Ask it of the KIND.
 
    **AND enumerate the `Outputs` table's rows and break each of those — P5's retro, and the amendment
    above is right but not sufficient.** Its prediction was fewer reader survivors; measured over
@@ -1550,6 +1670,33 @@ Rules:
    *A ceiling declared with a correct reason is still a hole if the reason is about the OBSERVER rather
    than about the fact.*
 
+   **AND *INDEPENDENT* MEANS THE SECOND OBSERVER IS NOT DOWNSTREAM OF THE FIRST'S APPARATUS — P15's
+   retro, and every mechanism in this rule is blind to it BY CONSTRUCTION.** The LIMIT above says to
+   add a second independent expression and does not say what independent excludes.
+   [W55](work-items/w55-a-run-at-scale-on-real-workers.md) added one that was independent in every
+   way the word suggests — `v8.serialize` over a named set of fields against
+   `process.memoryUsage().heapUsed` after a forced `gc()`, two different mechanisms measuring two
+   different things — and **the second was measuring the first one's instrument**. The byte observer
+   keeps a snapshot of what it measured; that snapshot was reachable from the driver's own options,
+   which the byte walk skips by name; so observer 1 could not see it and observer 2 could, and every
+   retained driver held **a second copy of the very structure the decision under test releases**.
+   Measured: **141.9 MiB against 129.4** at fifty runs, one whole collection each, and confirmed at a
+   second scale.
+
+   **Why no existing mechanism reaches it.** v0.11's requirement on the harness is *a probe that
+   changes nothing comes back clean* — and the clean run is contaminated **identically**, because the
+   instrument is present in it. A control can only see what a probe ADDS. Rule 7 (b) asks whether the
+   probe changed its input, which it did. The set's own reachability definition asks whether the
+   mutated clause was observable, which it was. **Every one of those is blind here by construction**,
+   and the item's own Scope had written *a sensor cannot corroborate itself* and *this item is where
+   that matters most* one paragraph before building it.
+
+   **So, when a second observer is added to corroborate the first: ask what the first one RETAINS,
+   and whether the second can see it.** Where the instrument is inside the measured graph — memory,
+   reachability, a live set, a count of what is held — **drop it once it has been read**, and say in
+   the code that this is why. One occurrence, and the argument is the paragraph above rather than a
+   second instance: the blindness is a property of the mechanisms, not of this item.
+
    **AND WHATEVER MAKES A DISCRIMINATING PAIR DIFFER IS ITSELF A CLAIM — P12's retro, and it is a
    requirement on the SET rather than a sixth axis.** This repository reaches for **two runs differing
    in one variable** whenever a value has to be shown to come from where it claims: `r5`/`r6`,
@@ -1707,10 +1854,10 @@ and there is obvious work to do meanwhile — and **the thing that makes it a de
 habit is that the verdict is reported as though it were about the tree that ships.**)*
 
 **Why two readers rather than one asking both questions**, which is what earlier versions said.
-Measured **twenty-eight** times now: W4 1 of 13, W5 3 of ~35, W6 3 of ~25, W9 3 of ~30, W12 3 of 18,
+Measured **thirty-one** times now: W4 1 of 13, W5 3 of ~35, W6 3 of ~25, W9 3 of ~30, W12 3 of 18,
 W13 4 of 24, W14 4 of ~26, W17 3 of ~31, W18 2, W19 4 of 18, W28 4, W29 1, W30 2, W31 0, W32 2,
 W33 2, W34 2, W36 1, W39 4, W41 1 of 116, W42 2 of 61, W43 2 of 39, W45 2, W46 2, W47 2,
-**W49 2, W50 2, W51 1**.
+W49 2, W50 2, W51 1, **W53 2, W54 4, W55 2**.
 **The ORDINAL is derived by counting this list, and P12's three items each got it wrong by two** —
 W41 wrote *eighteenth*, which is W36's, and W42 and W43 incremented from it, so three consecutive
 Records were internally consistent with each other and wrong against the only list there is. All
@@ -1725,9 +1872,10 @@ yet** - the same three facts reached by six different routes, and in each case t
 routes had nothing in common.
 
 **The number to carry is the ABSOLUTE one: two readers produce 0-4 shared findings, whatever the
-item's size** - **twenty-eight** measurements, and P6's retro declares the question **settled and closed
-to re-litigation**. **The fourteen since — 2, 2, 2, 1, 4, 1, 2, 2, 2, 2, 2, 2, 2 and 1 — are all inside
-the band and the band has not moved.** **P13's three are 2, 2, 2 and P14's are 2, 2, 1**, and its readers' SPLIT held in all three:
+item's size** - **thirty-one** measurements, and P6's retro declares the question **settled and closed
+to re-litigation**. **The seventeen since — 2, 2, 2, 1, 4, 1, 2, 2, 2, 2, 2, 2, 2, 1, 2, 4 and 2 — are
+all inside the band and the band has not moved.** **P13's three are 2, 2, 2, P14's are 2, 2, 1 and
+P15's are 2, 4, 2**, and its readers' SPLIT held in all three:
 the conformity reader found claims that were false — twelve of its twenty-four blocking findings
 across the plan were numbers — and the adequacy reader found bounds that were not there. **W41's 1 of 116 is the largest denominator ever recorded here and it did not
 move the numerator**, which is the clearest single datum against reading the fraction. **The band read 1-4 over ten measurements until W31 came in at ZERO**, and P9's

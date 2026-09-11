@@ -1,8 +1,9 @@
 # P15 — What does a run retain, and what may a result be?
 
-**Status:** DECLARED — declared 2026-09-11 after
+**Status:** COMPLETE and RETRO'D — declared 2026-09-11 after
 [P14](p14-what-a-reference-means-when-two-regions-arities-are-independent.md) closed and
-`doc/workflow.md` reached [v0.15](../workflow.md). **No item has started.**
+`doc/workflow.md` reached [v0.15](../workflow.md); all three items merged and the retro run the same
+day, taking that document to [v0.16](../workflow.md).
 *Read every status from the item's own file, never from this line.*
 
 **Baseline:** `3b023a6` — tree clean, `npm run gate` `GATE EXIT=0` with zero lines beginning `FAIL`,
@@ -101,9 +102,17 @@ over 16 / 64 / 256 KiB.
 holds, and dropping it costs ZERO at every rung this repository has.** Q19's row records it as
 retention *"proportional to the fan-out width times the payload"*, which is right, and as something
 *"nothing reads once `firedJoins` has latched"*, which is also right. **What no document says is that
-it aliases nothing**: measured on a map of A items each returning 64 KiB, `bytes([inputs, arrivals])`
-exceeds `bytes(inputs)` by **49.8%** at A = 4, 16 **and** 64, and an identity check says the stored
-value is neither the log record's `result` object nor the worker's own object.
+it aliases nothing**: measured on a map of A items each returning 64 KiB, the collection is **49.8%
+of `bytes([inputs, arrivals])`** at A = 4, 16 **and** 64, and an identity check says the stored value
+is neither the log record's `result` object nor the worker's own object. *(This read *"`bytes([inputs,
+arrivals])` exceeds `bytes(inputs)` by 49.8%"*, **which is a different ratio** — that excess is
+**+99.2 / +99.4 / +99.4%**. `dev-dist/p15/facts.ts` computes `(both - inp) / both` and prints *"of
+the pair"*, so the harness was right and the sentence derived from it was wrong by a factor of two,
+**understating the saving**. Found by [W55](../work-items/w55-a-run-at-scale-on-real-workers.md)
+re-running that harness with the release reverted rather than transcribing its number; corrected in
+[ADR 0046](../decisions/0046-a-run-retains-what-its-tasks-returned-and-a-region-releases-its-collection-when-its-join-becomes-terminal.md),
+`CLAUDE.md` and `doc/README.md` at that item's record step, and **here by this plan's own retro**,
+which is the only pass that may write to a declaration. [Q243](../open-questions.md).)*
 
 | probe | L1-L5 | L6 |
 |---|---|---|
@@ -554,4 +563,196 @@ found rather than shown impossible.
 
 ## Retro
 
-*Run once the items are merged. `doc/workflow.md` section 6 pass 3.*
+**Run 2026-09-11, after W53, W54 and W55 were merged. `doc/workflow.md` section 6 pass 3, and it
+takes that document to [v0.16](../workflow.md) — THREE changes adopted, FIVE refused.**
+
+P15 asked *what does a run retain, and what may a result be?* — [Q19](../open-questions.md) and
+[Q22](../open-questions.md), the two oldest rows in the register, whose owner cells had both said
+*no owner, needs a measured run* since P1. **Both are resolved, in one plan.** Three items, six
+reader passes, one ADR, and an exit artifact that is a **measured number** rather than a flow —
+the first time section 2's other option has been taken in fifteen plans.
+
+At declaration: `spec/` 7 documents / 44 examples / **89** rules; L1-L5 **25 files / 681 cases**;
+L6 **942 assertions / 42 real runs**; register **179 / 129 / 2 / 48**. It closes at **7 / 44 / 92**,
+**27 / 703**, **1061 / 42** — the run count deliberately unmoved — and **191 / 139 / 2 / 50**.
+
+### Name the rung, and it is this retro's shape
+
+| | defect | rung |
+|---|---|---|
+| W53 | `RN-R13`'s test was a reachability SET, and a set cannot tell an alias from a copy | **none** — making the memo clone what it stores cost **0** at every rung |
+| W53 | the second term's predicate: *live* is what a BRANCH is, *terminal* is what a JOIN becomes | **none** — conformity reader, on the rule's own fixture |
+| W53 | the code had THREE release moments and three documents enumerated TWO | **none** — `doc/`, the standing class |
+| W53 | `OR-R10`'s re-entrant door, made SILENT rather than created | **none** — 0 at L1-L5 and 0 at L6 |
+| W54 | the suite's classifier WAS the predicate the document declines, so the two could not disagree | **none** — every row passed |
+| W54 | *faithful* never checked that the value crossed; four silent losses inside one label | **none** — adequacy reader, one inserted expression each |
+| W54 | two percentage bands false in both directions, from a single run | **none**, and [Q179](../open-questions.md) says why one cannot exist |
+| W54 | the browser bundle inlined neither document the new suite reads | **L1-L5, and IT FIRED** — `npm run test:browser:all` exited non-zero |
+| W55 | observer 2 was measuring observer 1's instrument | **none** — the contamination is in the control too |
+| W55 | the byte observer — the item's whole deliverable — bound by nothing, three ways | **none** — 0 failures, 1050 assertions, exit 0 |
+| W55 | the headline number carried by one `check` call three integer edits removed | **none** — 1012 assertions, exit 0, and the revert then cost 2 instead of 25 |
+
+**Eleven defects. ONE had a rung, the rung fired, and it was reported GREEN twice** — because the
+command was piped through a `grep` for a count line that prints before the failures. *The ladder was
+not what failed; the reading of it was*, and that is the retro's first change.
+
+### The three changes
+
+1. **Section 4's green clause gains a PROCEDURE: a rung is RUN, never PIPED — redirect it and read
+   `$?`.** v0.15 wrote *a rung reported GREEN means its command EXITED 0; a line of its output is
+   never the predicate*, and W54 broke it **one plan later, while quoting it in its own Verification
+   table**. **Four occurrences across three plans** — W42 twice, W50, W54 — and all four are an
+   author reading a LINE because the rung's output was too long to read whole. Stating the predicate
+   was not enough; *do not pipe* is what an author can act on and is the one thing the four share.
+   **The cost of following it is nothing**: W55 ran every rung that way, both L6 runtimes and
+   `test:browser:all` included, and the log is still there to grep afterwards.
+2. **Rule 8 obligation (a) gains the SHAPES a rule quantifies over, not only its clauses.** W41: all
+   37 probes used a `map` region, and the rule was wrong about a `fanout` and refused a valid
+   document. W53, one plan later: every release case used one `map` region at depth 1 on a flow with
+   no `needs`, hiding **three** defects. And P15's own fact 1 produced it a third time from the
+   measurement side — after which **the item written to correct it chose its fixtures the same way**.
+   W53's Record argued *enumerate the clauses* already covers it; it does, and that is why it keeps
+   failing — *a clause enumeration is finite and visible, and the values a clause ranges over are
+   neither.*
+3. **Obligation (c)'s LIMIT gains what *independent* excludes: the second observer must not be
+   DOWNSTREAM of the first's apparatus.** W55 added one that was independent in every way the word
+   suggests and **it was measuring the first one's instrument** — 141.9 MiB against 129.4, one whole
+   collection per run. **Every mechanism in rule 8 is blind to this by construction**: a control can
+   only see what a probe ADDS, and the clean run is contaminated identically. One occurrence, adopted
+   on that argument.
+
+### Five refused, each with a measurement
+
+- **A `doc/` check, the THIRTEENTH time.** P15's instance is the least checkable yet: *49.8%* is
+  **right** in `spec/join-policy.md`, W53's file and Q19's resolved row, and **wrong** in four other
+  documents — and the difference is which divisor the sentence names. A check would have to do
+  arithmetic in English.
+- **An `Owns` pre-declaration rule, the FOURTH plan running.** P15 is the first plan to *predict* the
+  pattern — *if W53 and W54 reach `spec/README.md` and W55 does not* — and that is exactly what
+  happened. It is still refused: the three files were taken no/yes/no, yes/yes/yes and no/no/no, so a
+  rule naming them would have been wrong **twice on W53 and twice on W55**
+  ([Q157](../open-questions.md)). *A pattern predictable from an item's CONTENT is not a rule about
+  its file list.*
+- **A fourth membership list**, as the general answer to [Q217](../open-questions.md)'s regress. W55
+  closed the per-row layer **both ways** — the first binding of that kind here — and **could not
+  close the cross-row layer at all**, because its labels are prose continuations sharing no handle.
+  So the answer is a **handle**, not a list, and one occurrence of a handle is not a rule. Recorded
+  rather than ruled, and it is news for Q217's row.
+- **A rung, or a row in section 8's budget table.** Decision 3 refused both before any item started;
+  W55 then found the number that refusal rests on is a per-ROW figure rather than a per-run one
+  ([Q246](../open-questions.md)). **The refusal survives on its other grounds** and overturning it is
+  not a retro's call either.
+- **A rule obliging an item to re-take its own grep COUNT.** v0.15's grep procedure fired in all
+  three items and **two of the three recorded the wrong number while the obligation still worked** —
+  W53 recorded one where `git grep` gives three, W55 recorded nought where it gives one. The
+  procedure is what matters and it worked; the number beside it is the standing count-in-prose class.
+
+### The predictions: three CONFIRMED, one REVERSED, and the reversal was CAUSED by its own clause
+
+| # | kind | verdict |
+|---|---|---|
+| 1 | derived | **CONFIRMED, scope corrected.** There is no second 49.8% to find — and the reason is not that `outputsCache` is empty. Its scope cell was narrow in the direction that mattered, and W53 measured the correction rather than inheriting the note |
+| 2 | **reach** | **CONFIRMED.** No eviction shipped, decision 2's constraint was not met, and the stated reversal — *a marker that costs one field rather than a kind* — was looked for and not found rather than assumed impossible |
+| 3 | derived | **CONCLUSION confirmed, stated REASON measured FALSE.** W54 takes no ADR; *a driver cannot tell* is wrong — a prototype comparison fires at 0.02-0.65% of a clone. What is true is narrower: it is blind to the NESTED case, which is what a worker writes |
+| 4 | **reach** | **CONFIRMED at W53 and REVERSED at W55.** The release cost 0 L6 failures at W53 and costs **29** after W55, across 23 distinct rows |
+
+**Prediction 4's reversal is a THIRD way a prediction can reverse, and this document had two.** P10's
+retro settled that only a reach prediction can reverse; P13's added *a derived one reverses when its
+measurement is narrower than its wording*; P14's added *or when the fact underneath is false*.
+**P15's reversed because the item whose job was to try, tried** — and the reason it tried is that the
+prediction's own reversal clause named a **constructive** test, which became W55's Scope In 4 almost
+verbatim: *if this item can move that number above zero, it has written the rung nobody had.*
+
+**So a reversal clause has a second function nobody wrote down: it DIRECTS an item.** P13's retro
+added the column to make predictions falsifiable; here it made one *actionable*. **And it was wrong
+about the mechanism** — it guessed *most likely by asserting the footprint itself*, and the footprint
+is reported and never asserted ([Q179](../open-questions.md)); what moved the number was the
+RELATION, seen by reaching past the surface a run reports. *A reversal clause is good at saying what
+to attempt and says nothing reliable about how the attempt will succeed.* Recorded, not ruled: one
+occurrence.
+
+### v0.15's three changes, and v0.14's ceiling clause
+
+| v0.15 change | What would show it was wrong | **P15's verdict** |
+|---|---|---|
+| **Section 4: a rung reported GREEN means its command EXITED 0** | a rung is read from its output again | **Right, and BROKEN in this plan — which is the evidence FOR it.** W54 piped `test:browser:all` through a `grep` and reported three red browsers green **twice**, in the item whose Verification table quotes the clause. Fourth occurrence in three plans. **The clause is kept and gains the procedure it was missing** |
+| **Section 6: a whole-tree measurement is taken with the tree HELD STILL** | a verdict is reported about a tree that has moved | **Right, FOLLOWED by all three items, zero occurrences.** Every item recorded a digest before its gate and after, and all three matched; W55 took two gates that way and its readers both worked against one commit. **Nothing had to be refused**, which is the outcome the rule exists to make possible rather than evidence about it |
+| **Section 1 rule 5: an item greps the tree for its OWN ID** | an expiry-dated claim survives an item again | **Right, and EARNED in its first full plan — it fired in all three.** W53 found *"No item has started"*, W54 thirteen hits including three of that shape, W55 four. **Its limit is the count, not the procedure**: two of three items recorded the wrong number beside it, and the sentences were found anyway |
+
+**And v0.14's ceiling clause — *every declared survivor is RUN, against the rung its own reason
+names* — had its first full plan, and the yield is ZERO.** All **twenty-four** ceilings the three
+items declared were re-run at this retro on the tree the plan ships: W53's three, W54's nine and
+W55's twelve, every one behaving as declared with its stated reason intact. **P13's retro measured
+eleven and found one false and one stale**; this one found neither. *A clause adopted because two
+claims nobody ran turned out wrong, producing a plan where none did.* The one mismatch is
+bookkeeping in a gitignored harness: W53's `b5` still carries `expect: 'caught'` for a probe its own
+Record classifies as the pass's one undeclared survivor and raises [Q234](../open-questions.md) for.
+
+### The measurements
+
+**Readers: six passes, none empty — 16 / 6 blocking, 15 / 6 blocking, 13 / 3 blocking, against
+mutation counts of 27 / 41 / 41 with 9 / 17 / 19 survivors.** Overlaps **2, 4, 2** — the
+**twenty-ninth, thirtieth and thirty-first** measurements, all inside the 0-4 band, none primed. The
+band has not moved in thirty-one measurements and stays closed to re-litigation. **The split held in
+all three**: the conformity reader found claims that were false — a ratio, a predicate, an
+enumeration that did not close, three statements about a file's own behaviour — and the adequacy
+reader found bounds that were not there, and in every item its findings were about **the observer's
+own bounds** rather than about the product.
+
+**Rule 8 across the plan: 112 provocations, 87 caught, 25 survivors — 24 declared ceilings and ONE
+undeclared and recorded — 0 aborts, 0 against declaration.** Every set was run twice, with the
+readers' own edits checked back in: eight in W53, W54's in the set from the start, sixteen in W55.
+**Two re-runs found a defect in the fix rather than in the product**, which is v0.8's founding
+observation: W53's re-entrancy test asserted the right thing by the wrong route, and W55's revert
+probe found **a crash where a failure belonged** — an `undefined` dereference that took the whole
+rung's report down before any of its twenty-nine real failures could be read.
+
+**And re-running W55's set at this retro found a gap in v0.8's own clause.** Three of its probes
+were pinned to `DECLARED_TOTAL` and `CROSS_ROW`, and both constants **moved after that set was last
+run** — the crash-guard fix, which W55's own revert probe found *after* the post-reader re-run. So
+the harness **aborted** rather than passing (rule 7 (b) working exactly as written: *a mutation
+pinned to a magic number is unmutatable the moment the number is right to change*), and re-pointed it
+is **46 probes, 34 caught, 12 ceilings, 0 aborts, 0 against declaration** with nothing else moved.
+**v0.8's trigger is *after acting on the READERS' findings*, and the last fix an item makes is not
+always a reader's** — W55's came from its own measurement, one step past the clause. *A repair that
+could not fail is this rule's founding case, and the last repair is the one most likely to be it.*
+**One occurrence; recorded rather than ruled**, and a second would earn changing the trigger from
+*the readers* to *the last fix*.
+
+**Late exceptions: 4 + 6 + 1 = ELEVEN, zero undeclared.** **Census CONFIRMED for the FIFTEENTH plan
+running — 191 / 139 / 2 / 50**, 44 ids in both tables, 191 of 191 in exactly one cluster cell, and
+**0 aborts at this retro**. The parser has been P15's declaration parser throughout, unchanged across
+five re-derivations, and the only thing it aborted on in the whole plan was an item's own insertion —
+twice. **[Q142](../open-questions.md) was measured on a scratch copy at every item and at this retro
+and does NOT fire**, the fourth consecutive plan to check it and the first to check it four times.
+**But the margin is closing, and the trend is the thing to hand on**: `M4`'s two-directory fixture
+went **3194 → 3282 → 3361 → 3393** across W53, W54, W55 and this retro, against a floor of **3490**
+— from 296 links of headroom to **97**. Nothing here fires; **the next plan to add four documents
+probably does**, which is precisely the two-sided window that row describes and the sixth consecutive
+plan to have to think about it.
+
+### What the plan taught, beyond its own question
+
+**A RATIO IS A CLAIM ABOUT A DIVISOR.** The headline of this plan's founding measurement —
+*half of what a region-bearing run holds is a second copy* — is **right**, and the derived sentence
+four documents carried was wrong by a factor of two in the direction that understates it. What found
+it is the `Inputs:` line: **every item of this plan re-ran the facts it was handed, and every one
+found something wrong** — W53 that `outputsCache` was recorded `null` for a fixture reason, W54 that
+the boundary had three answers where the document named two, W55 that the ratio named the wrong
+divisor and that a per-run cost was a per-row one. *Three items, three corrections, from one line in
+a template.*
+
+**AND A MEASUREMENT'S OWN APPARATUS IS PART OF WHAT IT MEASURES.** This plan measured retention, so
+every observer it built was a thing that holds something — and the two sharpest findings are both
+that: a reachability SET that cannot tell an alias from a copy, and a byte observer whose snapshot
+became a second copy of the structure under test. **Neither is visible to a control**, because both
+are present in the clean run. *When the subject is what a program holds, the instrument is in the
+subject.*
+
+### Ids
+
+**W53, W54 and W55 issued; W56 CLOSED as reserved and never issued**, on P9's, P11's, P12's, P13's
+and P14's precedent. **Q233-Q246 used; Q236, Q237 and Q247 spent and not reused.** **ADR 0046 taken;
+0047 SKIPPED** on `doc/decisions/README.md`'s own *a spec rule with a rationale paragraph is better
+than a spec rule plus an ADR restating it*. **The next plan starts at W57, Q248 and ADR 0048.**
+

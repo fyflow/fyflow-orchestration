@@ -9,8 +9,64 @@ in the register whose owner cell says the same thing — *no owner, needs a meas
 have said it since P1. **This declaration took that run.** Three items, serial: **W53** (what a run
 retains that nothing reads, as **ADR 0046**), **W54** (what a result may be, and what bounding it
 would cost), **W55** (a run at scale on real workers). **Reserves W53-W56, Q233-Q247, ADR 0046-0047.**
-**W53, W54 and W55 are ALL DONE, so the plan's three items are merged and only its RETRO is
-outstanding. Read every status from the item's own file, never from this line.**
+**W53, W54 and W55 are ALL DONE and the RETRO IS RUN. Read every status from the item's own file,
+never from this line.**
+
+**[P15](plans/p15-what-a-run-retains-and-what-a-result-may-be.md) is COMPLETE and RETRO'D, and
+`doc/workflow.md` is [v0.16](workflow.md).** Its question — *what does a run retain, and what may a
+result be?* — is answered on both halves: [Q19](open-questions.md) by
+[ADR 0046](decisions/0046-a-run-retains-what-its-tasks-returned-and-a-region-releases-its-collection-when-its-join-becomes-terminal.md)
+and [Q22](open-questions.md) by `OR-R11`, **the two oldest rows in the register, both resolved in one
+plan**. Three items, six reader passes, and an exit artifact that is a **measured number** rather than
+a flow — the first time section 2's other option has been taken in fifteen plans. `spec/` goes
+7 / 44 / **89 → 92**; L1-L5 **25 / 681 → 27 / 703**; L6 **942 → 1061** with the run count deliberately
+unmoved at 42; the register **179 → 191**.
+
+**Its central finding is that of ELEVEN defects, exactly ONE had a rung — the rung FIRED — and it was
+reported GREEN twice.** Nine of the other ten were found by a reader and one by rule 8's re-run. W54
+piped `npm run test:browser:all` through a `grep` for the count line, which prints **before** the
+failures, and reported three red browsers green in the item whose own Verification table quotes
+v0.15's *a line of its output is never the predicate*. **The ladder was not what failed; the reading
+of it was.**
+
+**v0.16 adopts THREE changes.** **(1) Section 4's green clause gains a PROCEDURE: a rung is RUN, never
+PIPED — redirect it and read `$?`.** Four occurrences across three plans, and all four are an author
+reading a LINE because the output was too long to read whole; stating the predicate was not enough.
+**(2) Rule 8 obligation (a) gains the SHAPES a rule quantifies over, not only its clauses** — W41's
+37 probes all used a `map` region, W53's release cases all used one `map` region at depth 1, and P15's
+own fact 1 produced it a third time, after which the item written to correct it chose its fixtures the
+same way. **(3) Obligation (c)'s LIMIT gains what *independent* excludes: the second observer must not
+be DOWNSTREAM of the first's apparatus** — W55's was measuring the first one's instrument, and every
+mechanism in rule 8 is blind to that by construction, because a control can only see what a probe
+ADDS.
+
+**REFUSED, five**: a `doc/` check for the **thirteenth** time (*49.8%* is right in three documents and
+wrong in four, and the difference is which divisor the sentence names — a check would have to do
+arithmetic in English); an `Owns` pre-declaration rule for the **fourth** plan running, and **P15 is
+the first plan to PREDICT the pattern correctly** and a rule would still have been wrong twice on two
+of three items; a **fourth membership list** for [Q217](open-questions.md)'s regress — W55 closed the
+per-row layer **both ways** and could not close the cross-row layer at all, so the answer is a HANDLE
+rather than a list; a rung or a budget row for the plan's scale; and a rule obliging an item to re-take
+its own grep count, where the procedure fired in all three items and two recorded the wrong number
+beside it.
+
+**Three of four predictions CONFIRMED, and prediction 4 REVERSED in a THIRD way this document had no
+name for.** P10's retro settled that only a reach prediction can reverse; P13's added *when its
+measurement is narrower than its wording*; P14's added *or when the fact underneath is false*. **This
+one reversed because the item whose job was to try, tried** — the prediction's own reversal clause
+named a CONSTRUCTIVE test and became W55's Scope In 4 almost verbatim. **So a reversal clause DIRECTS
+an item, which nobody had written down — and it was wrong about the mechanism**, guessing *by
+asserting the footprint itself* where the footprint is reported and never asserted.
+
+**v0.15's three changes: all CONFIRMED and KEPT** — and the one that was BROKEN is the evidence for
+it. **And v0.14's ceiling clause had its first full plan with a yield of ZERO**: all **twenty-four**
+declared ceilings re-run at the retro on the tree the plan ships, every one behaving as declared,
+against P13's eleven where one was false and one stale. **Rule 8 across the plan: 112 provocations,
+87 caught, 25 survivors — 24 declared and one recorded — 0 aborts, 0 against declaration.** Readers
+**six passes, none empty, overlaps 2 / 4 / 2**, the twenty-ninth to thirty-first measurements, band
+unmoved. **Eleven late exceptions, zero undeclared. Census CONFIRMED for the FIFTEENTH plan running —
+191 / 139 / 2 / 50, 0 aborts.** **W56 closed as reserved and never issued; Q233-Q246 used, Q236/Q237/Q247
+spent; ADR 0046 taken, 0047 skipped. The next plan starts at W57, Q248 and ADR 0048.**
 
 **[W55](work-items/w55-a-run-at-scale-on-real-workers.md) is DONE and it is P15's EXIT ARTIFACT: a
 MEASURED NUMBER rather than a flow, which is what [P15](plans/p15-what-a-run-retains-and-what-a-result-may-be.md)
@@ -2887,3 +2943,4 @@ trying to append to it. P10-P14 added below.)*
 | [P12](plans/p12-what-a-node-receives-and-what-a-decision-sees.md) | **What a node can reach is the run's own outputs, named by the pair `(node id, branchPath)` and reached only by DECLARING them; a decision sees its node's effective outcome plus whatever its OWN EDGE declares** — [ADR 0040](decisions/0040-what-a-node-can-reach-is-the-runs-own-outputs-and-a-node-id-names-them-relative-to-a-branch-path.md) and [ADR 0041](decisions/0041-a-decision-sees-its-nodes-outcome-and-whatever-its-own-edge-declares.md). **[Q11](open-questions.md)'s three candidates are a STACK, not a fork**, and only the third reaches a worker at all, because `createTask` takes ONE value | [W43](work-items/w43-the-two-blocked-flows-on-real-workers.md) — both ordinary flows this library could not express before the plan, running end to end on real workers in both L6 runtimes, with **no `over: "0"` anywhere**; L6 **760 assertions / 36 real runs** | 2026-09-10 |
 | [P13](plans/p13-when-is-a-declared-reference-refused.md) | **By CERTAINTY rather than by reachability or by dominance, and a reference says whether it is CONDITIONAL** — [ADR 0042](decisions/0042-a-reference-says-whether-it-is-conditional-and-the-bare-form-means-the-target-certainly-ran.md): `FD-V29` refuses an unconditional reference a run can reach the declaring node without, and a `?` modifier is what says *if it ran*. **Measured: of the 127 references the two corpora ADMIT, dominance refuses 30 and `FD-V29` refuses 8**, so a dominance rule would have cost 22 valid ones. The cost half is [W46](work-items/w46-what-a-reference-costs-and-whether-anything-says-so.md)'s and the verdict is that **nothing warns** | [W47](work-items/w47-the-blocked-flow-on-real-workers.md) — both flows on real workers in both L6 runtimes, L6 **879 assertions / 40 real runs**; and the finding that ladder L6 was BLIND to the plan's own headline for a whole item ([Q214](open-questions.md)) | 2026-09-10 |
 | [P14](plans/p14-what-a-reference-means-when-two-regions-arities-are-independent.md) | **It means all of the target's outputs, which is what `FD-V28` always said — an output is visible when two branch paths AGREE ON THE REGIONS THEIR CHAINS SHARE** — [ADR 0044](decisions/0044-a-reference-is-visible-when-two-paths-agree-on-the-regions-that-contain-both-of-them.md), and *one path is a prefix of the other* is that rule's special case. **The defect was never about a `map` and never about arity**: on a sibling `fanout` pair, which neither corpus contained, which branch the author wrote the reference in decided whether the run completed. **Three of four predictions reversed, and three trace to one wrong declaration fact** | [W51](work-items/w51-the-sibling-region-flow-on-real-workers.md) — a reader inside one region receiving EVERY output of a sibling region at arities neither derives from the other, on real workers in both L6 runtimes; L6 **942 assertions / 42 real runs**, and **reverting the resolver went from 0 L6 failures to 12** | 2026-09-11 |
+| [P15](plans/p15-what-a-run-retains-and-what-a-result-may-be.md) | **A run retains what its tasks returned — *(tasks settled) x (bytes each returned)* — and a result is a VALUE, not an OBJECT** — [ADR 0046](decisions/0046-a-run-retains-what-its-tasks-returned-and-a-region-releases-its-collection-when-its-join-becomes-terminal.md) and `OR-R11`, resolving [Q19](open-questions.md) and [Q22](open-questions.md), **the two oldest rows in the register**, in one plan. A region releases its collection when its join becomes TERMINAL — half of what a region-bearing run held was a second copy nothing reads — and what crosses `OR-R2`'s clone is a value's own data, never its behaviour, **silently**. **Its exit artifact is a MEASURED NUMBER rather than a flow**, the first time section 2's other option has been taken | [W55](work-items/w55-a-run-at-scale-on-real-workers.md) — what ONE run holds on a real `FyflowScheduler`, before and after, byte-identically in both L6 runtimes, with the extrapolation to **3174.8 → 1610.9 MiB** at ten thousand concurrent runs; L6 **1061 assertions / 42 real runs**, the run count deliberately unmoved, and **reverting the decision went from 0 L6 failures to 29** | 2026-09-11 |
