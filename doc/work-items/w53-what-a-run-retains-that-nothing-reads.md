@@ -252,10 +252,13 @@ sentences are ones this item's answer falsified. **P15's `Owns` prediction is an
 
 **[Q142](../open-questions.md) was re-measured BEFORE the gate and does NOT fire**, which is the
 second consecutive time it has been checked and come back no. On a scratch copy outside the
-repository: whole tree **102 / 4330 / 221**, `doc/decisions` removed **78 / 3954 / 221**, both
-removed **62 / 3163 / 221**, against floors `M3` 90, `M4` 3490 and `M5` 60. The two-directory fixture
-went 3109 → 3163 with **327 links of headroom**, and `M3`'s one-directory fixture is **unmoved at
-78**, because this item's one new document is an ADR and both `removes` probes cut `doc/decisions`.
+repository, **on the tree this item ships** rather than mid-item — section 1 rule 5's WHEN clause,
+and the first reading was taken two commits early: whole tree **102 / 4364 / 221**, `doc/decisions`
+removed **78 / 3988 / 221**, both removed **62 / 3194 / 221**, against floors `M3` 90, `M4` 3490 and
+`M5` 60. The two-directory fixture went 3109 → 3194 with **296 links of headroom**, and `M3`'s
+one-directory fixture is **unmoved at 78**, because this item's one new document is an ADR and both
+`removes` probes cut `doc/decisions`. *(Measured at 4330 / 3954 / 3163 before the record-step commit
+landed; the conclusion is the same and the numbers are the shipped ones.)*
 
 **The `W53` grep returned THREE at the declaration and this item's own file recorded ONE.**
 `git grep -n 'W53' 82ff3ba -- . ':!doc/'` gives three hits, all in `CLAUDE.md` — lines 27, 29 and
