@@ -2265,6 +2265,74 @@ const assertThat = (row: string, what: string, cond: boolean, detail = ''): void
   else failures.push(`${row}\n      ${what}${detail ? `\n      ${detail}` : ''}`);
 };
 
+/**
+ * **Every region this row declares an answer for, as `[joined, settled]`** — W55.
+ *
+ * A row's own region is `regionId`/`joined`/`settled` and every OTHER one is a value
+ * of `otherRegions`, which is how `Expectation` has carried a nested run since W23.
+ * Both derivations below iterate this, so a depth-2 row is two regions to them and a
+ * region-free row is none — and adding a third region to a row moves both numbers
+ * without either of them being rewritten.
+ */
+const regionsDeclaredBy = (e: Expectation): [boolean | null | undefined, Record<string, string> | undefined][] => [
+  [e.joined, e.settled],
+  ...Object.values(e.otherRegions ?? {}).map(
+    (r) => [r.joined, r.settled] as [boolean | null, Record<string, string>],
+  ),
+];
+
+const arrivedIn = (settled: Record<string, string> | undefined): number =>
+  Object.values(settled ?? {}).filter((how) => how === 'arrived').length;
+
+/**
+ * **How many entries this run's driver RECORDED, by
+ * [ADR 0046](../doc/decisions/0046-a-run-retains-what-its-tasks-returned-and-a-region-releases-its-collection-when-its-join-becomes-terminal.md)
+ * rule 4** — one per branch that emitted `branch.arrived`, and **nothing outside that
+ * window**.
+ *
+ * `spec/join-policy.md`'s `JP-R12` is where the window is stated: it opens at a
+ * region's first arrival and closes when its join becomes terminal. Every shipped
+ * policy settles a join only once nothing is left to arrive — `arrival-count` on the
+ * N-th of N, both `live-token`s when the last live branch goes terminal — so on this
+ * corpus *recorded* and *arrived* are the same number, and a driver that recorded a
+ * late arrival would be one entry over. **That equality is the assertion**; a policy
+ * that settled a join early would make the two differ, and there is none here
+ * ([Q95](../doc/open-questions.md) is the row that records why not).
+ *
+ * A branch that was routed away, lost, or is still suspended has no entry — which is
+ * `JP-R12`'s own sentence, and it is why this counts `arrived` rather than the
+ * region's width.
+ */
+const arrivedInRun = (e: Expectation): number =>
+  regionsDeclaredBy(e).reduce((n, [, settled]) => n + arrivedIn(settled), 0);
+
+/**
+ * **What the driver is still holding when the run is over**, by ADR 0046 rules 3 and
+ * 5 — and the two are a DISCRIMINATING PAIR whose discriminating property is the
+ * row's own `joined`.
+ *
+ *   - **rule 3, the run-level moment.** A refusal that stops the run releases
+ *     **every** region's collection, including one whose join is still `waiting`,
+ *     because the driver has stopped routing (`OR-R10`). So a row with a `stoppedBy`
+ *     holds nothing, whatever its regions did.
+ *   - **rule 3, the two per-region moments.** A join that was routed out of, or
+ *     reported `unsatisfiable`, is TERMINAL — `joined` is `true` or `false` — and its
+ *     collection was released at that exit. Nothing.
+ *   - **rule 5.** A region whose join never became terminal — `joined: null` — holds
+ *     what arrived until the caller releases the driver. **That is the bound rather
+ *     than a leak**, and it is the run whose footprint matters most: this rung's two
+ *     instances of it are a `stuck` run under `arrival-count` and a run parked on a
+ *     person nobody answers.
+ *
+ * **`joined` is absent on a flow with no fan-out**, and `undefined !== null`, so a
+ * region-free row asserts that the driver recorded and holds **nothing at all** —
+ * which is a claim about `arrivalsOf` being empty rather than a vacuous zero.
+ */
+const heldWhenOver = (e: Expectation): number =>
+  e.stoppedBy !== undefined
+    ? 0
+    : regionsDeclaredBy(e).reduce((n, [joined, settled]) => n + (joined === null ? arrivedIn(settled) : 0), 0);
+
 const reports: RunReport[] = [];
 /** Per row: key, shape, assertions actually run, and how many are row-specific extras. */
 const rowCosts: [string, string, number, number][] = [];
@@ -2652,6 +2720,27 @@ for (const [i, e] of EXPECTED.entries()) {
   // column in the table below instead, and the cost is named in the Record: the
   // `threaded` and `delayMs` knobs have no assertion behind them.
 
+  // **What ADR 0046 says this run's driver is still holding, and what it recorded on
+  // the way — W55, and it is P15's exit artifact stated as a RELATION.**
+  //
+  // The two numbers are derived from the row's own `joined`, `settled` and
+  // `stoppedBy` and from the decision's rules; **nothing here reads a byte count**,
+  // because a footprint is a property of one run on one machine
+  // ([Q179](../doc/open-questions.md)) and the rule is about *which structures hold a
+  // result, and for how long*. The bytes are printed by `examples/retention.ts`.
+  //
+  // **This is the rung [Q214](../doc/open-questions.md) said could not exist.** Before
+  // this item, reverting ADR 0046 rule 3 — the two `releaseArrivals` calls — cost
+  // **0** L6 failures and 8 at L1-L5, measured on the tree this item started from:
+  // a whole structure leaving the driver was invisible to a rung made of runs,
+  // because nothing a run REPORTS changes when it goes. The Record carries what it
+  // costs now.
+  check(e.key, 'ADR 0046 — when the run was over the driver held exactly the arrivals whose join ' +
+    'never became terminal, and nothing else',
+    report.retention.endEntries, heldWhenOver(e));
+  check(e.key, 'ADR 0046 rule 4 — and it had recorded one entry per branch that arrived, and none ' +
+    'after a join became terminal',
+    report.retention.peakEntries, arrivedInRun(e));
   // The row's declared extras, derived from the expectation rather than typed, so
   // adding an optional assertion to a row updates the floor along with it.
   const extras = (e.outcomesSeen?.length ?? 0)
@@ -2674,7 +2763,17 @@ for (const [i, e] of EXPECTED.entries()) {
     // assertion, and it is derived from the expectation like every other extra here
     // so that declaring the field moves the floor with it.
     + (e.unorderedDispatch ? 2 : 0)
-    + (e.stoppedBy !== undefined ? 1 : 0);
+    + (e.stoppedBy !== undefined ? 1 : 0)
+    // **`JP-R12`'s SECOND-COPY claim, and only where there is something to be a copy
+    // of.** A row that records no arrival would assert `0 === 0`, which is the
+    // vacuity `doc/workflow.md` section 5 rule 3 refuses — so it is an extra derived
+    // from the row's own `settled`, and declaring an arrival moves the floor with it.
+    + (arrivedInRun(e) > 0 ? 1 : 0);
+  if (arrivedInRun(e) > 0) {
+    check(e.key, 'JP-R12 — and what it collected is a SECOND COPY: no held value is the log ' +
+      'record`s own result object, on real workers',
+      report.retention.peakAliasingLog, 0);
+  }
   rowCosts.push([e.key, e.regionId === null ? 'no-region' : 'region',
     passed + failures.length - before, extras]);
 }
@@ -3040,6 +3139,10 @@ const CROSS_ROW_SUBJECTS = [
   'a reference across SIBLING regions',
   'TWO branches of one region both declare a reference',
   'two regions opened DIFFERENT numbers of branches',
+  'RELEASED it when its join became terminal',
+  'is still holding what arrived',
+  'told apart by ONE property',
+  'the other two release moments have NO case at this rung',
 ];
 
 /**
@@ -4051,8 +4154,8 @@ for (const row of PAIR_ROWS) console.log(`    ${w(row.key, KEY_W)}${row.why}`);
  * rather than in `extras` because every region row pays it, and a row's
  * `otherRegions` cost is two per region and is in `extras` because it is not.
  */
-const PER_REGION_ROW = 17;
-const PER_PLAIN_ROW = 15;
+const PER_REGION_ROW = 19;
+const PER_PLAIN_ROW = 17;
 /**
  * **A number a human writes, and its NAME over-reads** — 13 at W23, 18 at W35, 32
  * at W43, 39 at W45, **61 at W47** and **68 at W51**.
@@ -4076,7 +4179,7 @@ const PER_PLAIN_ROW = 15;
  * W47's conformity reader; it is now a SEQUENCE rather than a latest value, so the
  * next item appends rather than rewriting.)*
  */
-const CROSS_ROW = 68;
+const CROSS_ROW = 74;
 const base = (shape: string) => (shape === 'region' ? PER_REGION_ROW : PER_PLAIN_ROW);
 for (const [key, shape, cost, extras] of rowCosts) {
   if (cost !== base(shape) + extras) {
@@ -4656,6 +4759,103 @@ if (rowCosts.length !== EXPECTED.length) {
     ['fanout', 'fanout']);
 }
 
+/**
+ * **ADR 0046's two answers are a DISCRIMINATING PAIR, and both halves are here** —
+ * W55, and it is P15's exit artifact at the rung its prediction 4 said could not see
+ * it.
+ *
+ * The per-row clauses above assert what each run held; **nothing there says the row
+ * set contains both kinds**, and a class with no member is a clause that passes by
+ * being empty — W23's finding, at the layer `ROW_KEYS` does not reach. So: at least
+ * one region collected and RELEASED (rule 3), at least one collected and is STILL
+ * HOLDING (rule 5), and the property that tells them apart is asserted rather than
+ * assumed (`doc/workflow.md` section 5 rule 8's fourth requirement on the set —
+ * *whatever makes a discriminating pair differ is itself a claim*).
+ *
+ * **Read from the REPORTS on one side and from the DECLARATIONS on the other**, so a
+ * driver that released everything and a row set that declared everything terminal
+ * are two different failures rather than one silent agreement.
+ */
+{
+  const held = reports.filter((r) => r.retention.endEntries > 0).map((r) => r.runId);
+  const released = reports
+    .filter((r) => r.retention.peakEntries > 0 && r.retention.endEntries === 0)
+    .map((r) => r.runId);
+  assertThat('cross-row', 'ADR 0046 rule 3: a region on real workers collected what arrived and ' +
+    'RELEASED it when its join became terminal — the saving P15 measured at 49.8% of a ' +
+    'region-bearing run', released.length > 0, `released: ${released.join(' ') || 'none'}`);
+  assertThat('cross-row', 'ADR 0046 rule 5: and a region whose join NEVER became terminal is still ' +
+    'holding what arrived — the bound rather than a leak, and the run whose footprint matters most',
+    held.length > 0, `holding: ${held.join(' ') || 'none'}`);
+  // **The pair's discriminating property, from the ROWS' own declarations.** Both
+  // lists above come from the reports; this is the other source, and the two are
+  // compared as sets. Collapsing the pair — making every row's join terminal — empties
+  // the second list and fails the clause above; making the two classes agree by
+  // reading one from the other is what this clause refuses.
+  const heldByDeclaration = EXPECTED
+    .map((e, i) => [e, `r${i + 1}`] as const)
+    .filter(([e]) => heldWhenOver(e) > 0).map(([, id]) => id);
+  check('cross-row', 'and the two classes are told apart by ONE property — whether the join became ' +
+    'terminal — read from the reports and from the rows` own `joined`, both ways',
+    [...held].sort(), [...heldByDeclaration].sort());
+  // **The byte measurement's own UNIVERSE, bound both ways** — obligation (e)'s third
+  // shape, *a LIST is a claim about another list*, and it is the clause this item's
+  // own provocation set bought.
+  //
+  // `run-flow.ts`'s `NOT_RUN_STATE` decides what `retainedBytes` walks, and it is a
+  // literal. Measured: adding `'arrivals'` to it costs **ZERO** at both L6 rungs,
+  // because every other clause in this file reads the collection's SIZE through the
+  // driver's own map and never through the walk — so the number `examples/retention.ts`
+  // prints would silently stop counting the one structure this item is about, while
+  // every assertion here stayed green. **`DRIVER_FIELDS` is the other list**, and it
+  // is `test/driver/retention.test.ts`'s own ratchet at ladder L2 — a field added to
+  // the driver fails here naming itself, which is what `RN-R13` needs from an
+  // observer with one of them.
+  const DRIVER_FIELDS = [
+    'arrivals', 'def', 'dispatched', 'failed', 'firedJoins', 'graph', 'inputs', 'joinState',
+    'log', 'now', 'opts', 'outputsCache', 'regions', 'runId', 'started',
+  ].sort();
+  const anyRun = reports[0]!;
+  check('cross-row', 'the byte measurement WALKS every growing structure the driver has and skips ' +
+    'only the definition and the caller`s options — the two lists account for the driver`s own ' +
+    'fields, both ways',
+    [...anyRun.retention.walked, ...anyRun.retention.skipped].sort(), DRIVER_FIELDS);
+  check('cross-row', 'and `arrivals` is on the WALKED side of that split, which is the one structure ' +
+    'ADR 0046 rule 3 is about',
+    { walked: anyRun.retention.walked.includes('arrivals'), skipped: anyRun.retention.skipped },
+    { walked: true, skipped: ['def', 'graph', 'opts'] });
+  // **The two release moments this rung cannot reach, recorded rather than argued** —
+  // `doc/workflow.md` section 5 rule 8: *construct the case that makes each guard
+  // fire, and where the corpus cannot express one, RECORD that.*
+  //
+  // ADR 0046 rule 3 names three moments. The satisfied exit is exercised above. The
+  // `unsatisfiable` exit and `failRun`'s run-level clear are **not**, and neither is
+  // a gap in the row set: **no shipped policy declares a region dead with an arrival
+  // recorded in it** — which is the ADR's own reason for the L2 row needing a
+  // constructed policy — and no flow here stops a run after a branch has arrived.
+  // Asserted as empty so that a row which DOES reach one fails here, naming it,
+  // instead of passing under a clause written when there were none.
+  //
+  // **The question is about a REGION and the first version of it asked about a
+  // ROW**, which `nested LOW / live-token-requiring-arrival` falsified on its first
+  // run: that row's INNER join is reported dead and its OUTER region has an arrival,
+  // so *this row reports `unsatisfiable` and this row recorded an arrival* are both
+  // true of a run where the dead region collected nothing. `UnsatisfiableJoin`
+  // carries the `fanoutId`, so the region is nameable — W22's `Cell` finding, in a
+  // clause written to record an absence.
+  const settledOfRegion = (e: Expectation, fanoutId: string): Record<string, string> | undefined =>
+    e.regionId === fanoutId ? e.settled : e.otherRegions?.[fanoutId]?.settled;
+  const unsatisfiableWithArrival = EXPECTED.flatMap((e) =>
+    (e.unsatisfiable ?? [])
+      .filter((u) => arrivedIn(settledOfRegion(e, u.fanoutId)) > 0)
+      .map((u) => `${e.key} / ${u.fanoutId}`));
+  const stoppedWithArrival = EXPECTED
+    .filter((e) => e.stoppedBy !== undefined && arrivedInRun(e) > 0).map((e) => e.key);
+  check('cross-row', 'and the other two release moments have NO case at this rung: no row reports an ' +
+    'unsatisfiable join with an arrival recorded, and none stops a run after one — recorded, not argued',
+    { unsatisfiableWithArrival, stoppedWithArrival }, { unsatisfiableWithArrival: [], stoppedWithArrival: [] });
+}
+
 const EXPECTED_TOTAL =
   rowCosts.reduce((n, [, shape, , extras]) => n + base(shape) + extras, 0) + CROSS_ROW + PAIR_ROW;
 if (passed + failures.length !== EXPECTED_TOTAL) {
@@ -4745,7 +4945,7 @@ check('cross-row', 'every cross-row SUBJECT this file declares was asserted abou
   'deleted with the counts is a block that fails naming what it was about',
   CROSS_ROW_SUBJECTS.filter((t) => crossRowLabels.some((l) => l.includes(t))), CROSS_ROW_SUBJECTS);
 
-const DECLARED_TOTAL = 942;
+const DECLARED_TOTAL = 1050;
 if (passed + failures.length !== DECLARED_TOTAL) {
   failures.push(
     'gate\n      the assertion count is not the number this file declares outright\n' +

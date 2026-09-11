@@ -61,6 +61,68 @@ import type { Role } from './workers/flow-worker.ts';
  */
 const WORKER_URL = new URL('./workers/flow-worker.ts', import.meta.url).href;
 
+/**
+ * **What the driver was still holding, observed at the two ends of `JP-R12`'s
+ * window** — [W55](../doc/work-items/w55-a-run-at-scale-on-real-workers.md), and it is
+ * [ADR 0046](../doc/decisions/0046-a-run-retains-what-its-tasks-returned-and-a-region-releases-its-collection-when-its-join-becomes-terminal.md)'s
+ * only observable.
+ *
+ * **A footprint is REPORTED; what is ASSERTED is the RELATION** — this item's own
+ * `Tests:` line, and [Q179](../doc/open-questions.md) is why: a byte count is a
+ * property of one run on one machine, and the rule is about *which structures hold a
+ * result and for how long*. So the two ENTRY counts below are what `examples/l6.ts`
+ * asserts, and the two BYTE counts are what `examples/retention.ts` prints.
+ *
+ * **`bytesBeforeRelease` is a RECONSTRUCTION and says so.** It is the same
+ * `v8.serialize` call with the collection as it stood at its peak added to the list,
+ * so an object reachable twice is still counted once — which is exactly what the
+ * driver held before ADR 0046 rule 3, because the release is the only difference and
+ * nothing else drops an entry. **It is validated against the real thing rather than
+ * trusted**: W55 reverted the two `releaseArrivals` calls and re-took the numbers,
+ * and the item's Record carries both columns.
+ */
+export interface Retention {
+  /** Arrival entries held, per region, at the moment that region's collection was largest. */
+  peakByRegion: Readonly<Record<string, number>>;
+  /** Arrival entries held, per region, when the run was declared over. */
+  endByRegion: Readonly<Record<string, number>>;
+  /** The two above, summed across regions. */
+  peakEntries: number;
+  endEntries: number;
+  /**
+   * **How many of the values held at the peak are the SAME OBJECT as a log record's
+   * `result`** — `JP-R12`'s *second copy* claim, and it is the half a byte count
+   * cannot answer. Expected **0**: what a branch carries into a join is the edge-hop
+   * clone `advance` made for that hop, and the log holds `OR-R2`'s listener-boundary
+   * clone. P15 fact 3 measured this at ladder L2; this is the same claim on real
+   * workers.
+   */
+  peakAliasingLog: number;
+  /**
+   * `v8.serialize(...).length` over the driver's own growing structures in ONE call.
+   * `null` where `node:v8` is absent, `-1` where the serializer refused the graph —
+   * two different facts, and the refusal is one this rung can actually reach
+   * (`uncloneable / OR-R6` puts a function in nobody's structures, but a policy's
+   * opaque state is not this file's to promise).
+   */
+  bytesAtEnd: number | null;
+  /** The same call with the peak collection added — the shape before ADR 0046 rule 3. */
+  bytesBeforeRelease: number | null;
+  /**
+   * **The driver's own property names the byte measurement WALKED, and the ones it
+   * skipped** — obligation (e)'s third shape, *a LIST is a claim about another list*.
+   *
+   * `NOT_RUN_STATE` is a literal, so without this it is bound to nothing: measured,
+   * adding `'arrivals'` to it costs **zero** at both L6 rungs, because every other
+   * clause here reads the collection's SIZE through `arrivalsOf` and never through
+   * the walk. The byte number would then have silently stopped counting the one
+   * structure this whole item is about. `examples/l6.ts` compares the two lists
+   * against the driver's own keys, both ways.
+   */
+  walked: readonly string[];
+  skipped: readonly string[];
+}
+
 export interface RunReport {
   runId: string;
   flowId: string;
@@ -221,6 +283,19 @@ export interface RunReport {
    * own surface.
    */
   unmintedTasks: readonly UnmintedTask[];
+  /** W55 — see `Retention`. Measured on every run; asserted by the RELATION, never by the bytes. */
+  retention: Retention;
+  /**
+   * **The `Driver` itself, and only when the caller asked for it** —
+   * `RunOptions.keepDriver`.
+   *
+   * `examples/retention.ts`'s scale mode holds N completed drivers and measures
+   * `heapUsed` after a forced `gc()`, and a driver nobody references is collected
+   * before that observer can see it. Every other caller leaves it `undefined`, so
+   * ladder L6 keeps forty-two drivers reachable for exactly as long as it did before
+   * this field existed.
+   */
+  driver?: Driver;
 }
 
 export interface RunOptions {
@@ -279,6 +354,12 @@ export interface RunOptions {
    * else in a `RunReport` comes from that run's own driver.
    */
   scheduler?: FyflowScheduler;
+  /**
+   * **Hand the `Driver` back in the report — W55, and only the scale measurement
+   * asks for it.** See `RunReport.driver`: an observer that reads `heapUsed` after a
+   * forced `gc()` cannot see what nothing references.
+   */
+  keepDriver?: boolean;
 }
 
 /**
@@ -516,7 +597,113 @@ export interface PairFacts {
  * The pools and the scheduler, in one place so `runFlow` and `runPair` cannot
  * drift apart about what a worker does. W14 extracted it unchanged.
  */
-function buildScheduler(delayMs: number, threaded: boolean): FyflowScheduler {
+// --- W55: the retention observer ------------------------------------------------
+
+/**
+ * **The ONE reach into the driver's private state, named once** — W55, and it is
+ * `test/driver/retention.test.ts`'s reach at ladder L6.
+ *
+ * [Q233](../doc/open-questions.md) is the record of why it has to be a reach:
+ * [ADR 0046](../doc/decisions/0046-a-run-retains-what-its-tasks-returned-and-a-region-releases-its-collection-when-its-join-becomes-terminal.md)
+ * rule 1 is a statement about what a run HOLDS and **no public surface can observe
+ * it** — `snapshot()` and `foldInputs()` both return the log, and the region
+ * collections `RN-R13`'s second term is about are reachable from neither, which is
+ * that rule's own point. W53 measured both alternatives and refused both: a public
+ * accessor enlarges the surface for a test's convenience ([Q53](../doc/open-questions.md)
+ * — *a redundant surface is read as a permissive one*), and a byte measurement needs
+ * `v8.serialize`, which exists in two of the five runtimes.
+ *
+ * **The shape is the field's own declaration**, `Map<fanoutId, Map<branchPath, payload>>`.
+ */
+const arrivalsOf = (d: Driver): Map<string, Map<string, unknown>> =>
+  (d as unknown as { arrivals: Map<string, Map<string, unknown>> }).arrivals;
+
+/** The `result` object of every settled record in the driver's own log, **by reference**. */
+const loggedResults = (d: Driver): unknown[] =>
+  (d as unknown as { log: { result?: unknown }[] }).log
+    .filter((r) => r && typeof r === 'object' && 'result' in r).map((r) => r.result);
+
+/**
+ * **What the walk below does NOT look in, and why each is excluded** — the same
+ * three `test/driver/retention.test.ts` excludes, for the same reason. `graph`,
+ * `opts` and `def` are the DEFINITION and the caller's own options: neither grows
+ * with the run, which is `RN-R13`'s subject. **The list is stated rather than
+ * implied**, because a byte figure whose universe is unwritten is a figure nobody
+ * can re-take — and it is the same universe `dev-dist/p15/scale.ts` used, so this
+ * rung's number and P15 fact 5's table are the same measurement at two scales.
+ */
+const NOT_RUN_STATE = ['def', 'graph', 'opts'];
+
+/** The two halves of `NOT_RUN_STATE`'s claim, for the clause in `examples/l6.ts` that binds it. */
+const walkOf = (d: Driver): { walked: string[]; skipped: string[] } => {
+  const keys = Object.keys(d as unknown as Record<string, unknown>);
+  return {
+    walked: keys.filter((k) => !NOT_RUN_STATE.includes(k)).sort(),
+    skipped: keys.filter((k) => NOT_RUN_STATE.includes(k)).sort(),
+  };
+};
+
+/**
+ * **`v8.serialize`, loaded once and never assumed.** It is in **two** of the five
+ * runtimes — node and deno, through `node:v8`, and in none of the three browsers
+ * ([Q233](../doc/open-questions.md), corrected there from *one*). Ladder L6 runs in
+ * exactly those two, so it is available at both L6 rungs and at neither browser one.
+ */
+let serializeFn: ((v: unknown) => { length: number }) | null | undefined;
+async function serializer(): Promise<((v: unknown) => { length: number }) | null> {
+  if (serializeFn !== undefined) return serializeFn;
+  try {
+    serializeFn = (await import('node:v8')).serialize as unknown as (v: unknown) => { length: number };
+  } catch {
+    serializeFn = null;
+  }
+  return serializeFn;
+}
+
+/**
+ * **What a run RETAINS, in bytes, in ONE serialize call** — so an object reachable
+ * twice is counted once, which is the whole reason it is one call and not a sum.
+ *
+ * `extra` is what the caller wants counted **beside** the driver's own structures:
+ * `runFlow` passes the collection as it stood at its peak, which reconstructs the
+ * pre-ADR-0046 shape. A `Map` and a `Set` are spread first, matching P15's own
+ * method exactly; a function (`now`) and the primitives are skipped, because the
+ * serializer refuses the first and the second are not results.
+ *
+ * Returns `null` where there is no serializer and **`-1`** where it refused the
+ * graph — two different facts, and collapsing them would make *this runtime cannot
+ * measure* indistinguishable from *this run holds something uncloneable*.
+ */
+export async function retainedBytes(d: Driver, extra: readonly unknown[] = []): Promise<number | null> {
+  const ser = await serializer();
+  if (!ser) return null;
+  const o = d as unknown as Record<string, unknown>;
+  const parts: unknown[] = [];
+  for (const k of Object.keys(o).sort()) {
+    if (NOT_RUN_STATE.includes(k)) continue;
+    const v = o[k];
+    if (Array.isArray(v)) parts.push(v);
+    else if (v instanceof Map) parts.push([...v]);
+    else if (v instanceof Set) parts.push([...v]);
+    else if (v && typeof v === 'object') parts.push(v);
+  }
+  for (const x of extra) parts.push(x);
+  try {
+    return ser(parts).length;
+  } catch {
+    return -1;
+  }
+}
+
+/**
+ * **Exported since W55, and only so that a batch can SHARE one.**
+ *
+ * `runFlow` builds its own unless one is passed, and `runPair` is the other caller
+ * that passes one. `examples/retention.ts`'s scale mode is the third: N runs on ONE
+ * real scheduler is what makes *at scale* a real-worker measurement rather than an
+ * extrapolation from one run.
+ */
+export function buildScheduler(delayMs: number, threaded: boolean): FyflowScheduler {
   // **A role that must settle LAST is given a longer delay**, so the branch that
   // arrives is not the branch that finishes. Without it, `settleJoin` on the
   // `lost` and `exited` paths is unreachable at L6 — the arriving branch always
@@ -662,6 +849,34 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
   // finished cannot claim nothing arrived afterwards.
   let finishIndex = -1;
 
+  // **The peak of `JP-R12`'s window, per region — W55.**
+  //
+  // **Sampled on every fold input, and that is the whole of why it works.** The
+  // driver records an arrival, THEN emits `branch.arrived`, THEN asks the policy
+  // (`src/driver/driver.ts`'s `join` arm, and the order is stated there as a rule) —
+  // so the element that reaches this callback for the last arrival is delivered
+  // while the collection is still whole and the join has not yet become terminal.
+  // A sample taken anywhere else would be a sample of the released state.
+  //
+  // **Per region rather than across regions**, because a nested run has two and they
+  // peak at different moments: `max(total)` would report the larger of two maxima
+  // rather than the sum of them, and a region that filled and emptied before the
+  // other started would vanish from the number entirely.
+  //
+  // **The snapshot holds the payload OBJECTS**, which is what makes the
+  // reconstruction below a measurement of the same graph rather than of a copy of
+  // it — and what makes `peakAliasingLog` answerable at all.
+  const peakByRegion: Record<string, number> = {};
+  const peakSnapshot = new Map<string, Map<string, unknown>>();
+  const samplePeak = (): void => {
+    for (const [region, held] of arrivalsOf(driver)) {
+      if (held.size > (peakByRegion[region] ?? 0)) {
+        peakByRegion[region] = held.size;
+        peakSnapshot.set(region, new Map(held));
+      }
+    }
+  };
+
   // In-flight tracking, for the overlap check. `task.running` and the settlement
   // events are the scheduler's own, and this is the example rather than the
   // library, so subscribing directly is fine — `OR-R4` only says they write no
@@ -721,6 +936,7 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
     onFoldInput: (input) => {
       inputs.push(input);
       state = step(state, input);
+      samplePeak();
 
       // **The inbound step.** A branch has parked on a person; this is the person.
       // Deferred to a microtask rather than called here: `resolve()` appends and
@@ -882,6 +1098,31 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
   const log = driver.snapshot();
   const finalState = state;
 
+  // **What the driver is still holding, read in the same place and for the same
+  // reason `dispatched` is: BEFORE `shutdown()`** — W55. A drain settles what was in
+  // flight and the driver routes it, so a collection read afterwards would be a
+  // collection at a different moment in the run.
+  const endByRegion: Record<string, number> = {};
+  for (const [region, held] of arrivalsOf(driver)) endByRegion[region] = held.size;
+  const peakValues = [...peakSnapshot.values()].flatMap((m) => [...m.values()]);
+  // **Identity, not equality** — `JP-R12`'s *second copy* claim. `OR-R2` deep-copies
+  // at the listener boundary and `advance` clones again for the edge hop, so an
+  // arrived payload that WERE a log record's own object would mean one of those two
+  // clones had stopped happening. Counted rather than asserted here: this file
+  // reports, `examples/l6.ts` asserts.
+  const logged = new Set<unknown>(loggedResults(driver));
+  const sum = (m: Record<string, number>) => Object.values(m).reduce((a, b) => a + b, 0);
+  const retention: Retention = {
+    peakByRegion,
+    endByRegion,
+    peakEntries: sum(peakByRegion),
+    endEntries: sum(endByRegion),
+    peakAliasingLog: peakValues.filter((v) => logged.has(v)).length,
+    bytesAtEnd: await retainedBytes(driver),
+    bytesBeforeRelease: await retainedBytes(driver, [[...peakSnapshot].map(([r, m]) => [r, [...m]])]),
+    ...walkOf(driver),
+  };
+
   // REQUIRED, or the process stays alive (`AGENTS.md` §2) — but only for a
   // scheduler this run BUILT. A shared one belongs to the caller (`runPair`),
   // and shutting it down here would drain the other run out from under itself.
@@ -909,5 +1150,7 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
     unmintedTasks,
     lateInputs,
     branchesOverlapped,
+    retention,
+    driver: opts.keepDriver === true ? driver : undefined,
   };
 }
