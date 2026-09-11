@@ -289,7 +289,15 @@ if (written.length) {
 // from P12's index row, that row names `scripts/check-spec.mjs` and not this file,
 // and the obligation arrived from the CONTENT of the change. Taken as a declared
 // late exception.
-const RUN_FLOOR = 17;
+// **Raised 17 -> 18 by [W54](../doc/work-items/w54-what-a-result-may-be-and-what-bounding-it-would-cost.md)**,
+// which added section 10's `OR-R11` snippet — a worker returning a class instance, and
+// what the driver logs instead. **Q102's obligation firing for the FIFTH recorded time
+// and by the same mechanism as the third and fourth**: W54 declared its `Owns` from
+// P15's index row, that row names `spec/outcome-record.md` and not this file, and the
+// obligation arrived from the CONTENT of the change. Taken as a declared late
+// exception. *(And P15 predicted the `AGENTS.md` half of it by name and refused to make
+// a pre-declaration rule of it — this item answers that test `AGENTS.md` YES.)*
+const RUN_FLOOR = 18;
 {
   // **Only when the document parsed.** A count over a reference whose fences are
   // malformed or untagged is true of the parse and says nothing about coverage —

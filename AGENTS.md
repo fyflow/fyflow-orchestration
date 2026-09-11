@@ -1165,10 +1165,59 @@ After a refusal the run is **stopped**: nothing routes for it again, and its sta
   hold. **The other accessors return copies that are not frozen** (`dispatchedIds()`,
   `regionsForPolicies()`, `effectiveOutcomeOf()`, `terminalStateOf()`): writing to one changes
   nothing in the driver, but it is not a document to edit and hand back.
+- **Returning a CLASS INSTANCE from a worker.** It does not throw and it does not arrive intact.
+  `structuredClone` copies the fields and drops the prototype, so the next node receives a plain
+  object: `instanceof` is false, the methods are gone, and **nothing is reported** — `OR-R11` in
+  `spec/outcome-record.md` section 4. **Return data, read data.** The loud half is a result that
+  cannot be cloned at all (a function, a `Promise`, a `WeakMap`), which stops the run with
+  `UncloneableResult`; this is the quiet half, and it is the one people hit.
 - **Assuming `joinStatusOf().describe` is yours.** It is whatever **your** policy's `describe()`
   returned. The two shipped policies return a fresh object; a policy that returns its own state hands
   you that state, and writing to it changes what the join decides. Return a copy from `describe()`
   — [Q82](doc/open-questions.md).
+
+**`OR-R11`, executed rather than asserted** — a worker returns a class with a method, and what
+the driver logs is a plain object with the field and no method:
+
+```ts run
+import { Driver, type FlowDefinition } from 'fyflow-orchestration';
+
+class Score {
+  readonly value: number;
+  constructor(value: number) { this.value = value; }
+  isHigh(): boolean { return this.value > 0.5; }
+}
+
+const listeners: ((e: { detail: unknown }) => void)[] = [];
+const scheduler = {
+  addTask() {},
+  addEventListener(_t: string, fn: (e: { detail: unknown }) => void) { listeners.push(fn); },
+};
+const flow: FlowDefinition = {
+  flowId: 'or-r11', version: 1, entry: 'a',
+  nodes: [
+    { id: 'a', kind: 'task', workerType: 'W', edges: [{ to: 'done' }] },
+    { id: 'done', kind: 'end', outcome: 'completed' },
+  ],
+};
+const failures: string[] = [];
+const driver = new Driver(flow, {
+  runId: 'r1', scheduler, createTask: (c) => c, predicates: new Map(), workerTypes: ['W'],
+  onRunFailure: (f) => failures.push(f.kind),
+});
+driver.start({});
+for (const fn of listeners) {
+  fn({ detail: { id: 'r1:a:-:0', state: 'done', attempts: 0, timestamp: 1, result: new Score(0.9) } });
+}
+
+const logged = driver.snapshot()[0]!.result as { value?: number; isHigh?: unknown };
+console.log(logged.value, typeof logged.isHigh, logged instanceof Score, failures.length);
+// 0.9 undefined false 0
+if (logged.value !== 0.9) throw new Error('the FIELDS cross the boundary');
+if (typeof logged.isHigh !== 'undefined') throw new Error('the BEHAVIOUR does not');
+if (logged instanceof Score) throw new Error('the prototype is lost, so instanceof is false');
+if (failures.length !== 0) throw new Error('and nothing is reported: OR-R11 is silent by design');
+```
 
 The first half of that is executed rather than asserted:
 

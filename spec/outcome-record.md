@@ -1,7 +1,21 @@
 # spec/outcome-record — the log the driver writes
 
-**Status:** v0.8 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
-[P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2 acts on the W1 spec-conformity pass**: the
+**Status:** v0.9 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+[P1](../doc/plans/p1-what-satisfies-a-join.md).
+**v0.9 is [W54](../doc/work-items/w54-what-a-result-may-be-and-what-bounding-it-would-cost.md) under
+[P15](../doc/plans/p15-what-a-run-retains-and-what-a-result-may-be.md), and it ANSWERS
+[Q22](../doc/open-questions.md), open since P1.** Section 4 gains **`OR-R11`** — *a result is a
+VALUE, not an OBJECT* — plus the three-way cloneability boundary, the re-taken `OR-R2` timings with
+their METHOD, the measured reason **nothing warns**, and the price of bounding
+`RunState.nodes[*].result`. **It corrects a FALSE sentence**: this document said `structuredClone`
+*throws on a class instance with behaviour*, and it does not — it clones it **lossily**, with the
+prototype and the methods gone and no error, which is the silent case the loud one was standing in
+for. **`OR-R2` and `OR-R6` are unchanged**, which is
+[P15](../doc/plans/p15-what-a-run-retains-and-what-a-result-may-be.md) prediction 3's conclusion
+confirmed — while its stated REASON, *a driver cannot tell*, is measured FALSE and replaced by one
+about coverage and cost.
+
+**v0.2 acts on the W1 spec-conformity pass**: the
 resolution record arrives from
 [ADR 0004](../doc/decisions/0004-a-non-success-outcome-routes-only-where-an-edge-opts-in-and-user-action-suspends.md)
 rule 6 (finding B1), and findings D8 and D11 are addressed in place. **v0.3 acts on the second
@@ -164,26 +178,135 @@ keep fixtures trivial — at the price of a `Date` silently becoming a string an
 vanishing, with no error. **Silent data loss in the log a run is folded from is worse than a
 fixture that needs a `new Date()` in it.**
 
-**The refusal that comes with it.** `structuredClone` throws on a function, a class instance with
-behaviour, or anything else non-cloneable. That is treated as a run failure rather than caught and
-worked around: a node result that cannot be cloned cannot be logged, cannot be handed to a predicate
-deterministically, and could never be persisted.
+**The refusal that comes with it, and the SECOND boundary nobody had written down.** This document
+read: *"`structuredClone` throws on a function, a class instance with behaviour, or anything else
+non-cloneable."* **The middle clause is FALSE, and it is false in the direction that matters** — it
+names the silent case as though it were the loud one. Measured on the tree this version ships, in
+Node 24 and asserted in all five runtimes at ladder L1:
+
+| | what `structuredClone` does |
+|---|---|
+| a function; an object **holding** a function; a `Symbol`; a `Promise`; a `WeakMap` | **REFUSED** — `DataCloneError`, and `OR-R6` makes it a run failure |
+| a plain object; an array; a `Date`; a `Map`; a `Set`; a `RegExp`; a typed array; **a cyclic object**, whose cycle survives | **CLONED, faithfully** |
+| **a class instance** — with a method, with a getter, or frozen; `Object.create(proto)`; a class instance **nested inside** a plain object | **CLONED, LOSSILY** — the prototype is `Object.prototype`, the methods are gone, `instanceof` is false, the fields are intact, and **there is no error and no report** |
+
+**So there are THREE outcomes and this document named two.** A subclass of `Array` or of `Error` is
+a fourth shape and is the one exception in the lossy row: `structuredClone` gives it `Array.prototype`
+or `Error.prototype`, so `Array.isArray` still holds and the subclass's own methods are still gone.
+
+**The first row is a run failure and that is unchanged.** A node result that cannot be cloned cannot
+be logged, cannot be handed to a predicate deterministically, and could never be persisted.
 
 | id | The run terminates when | Test owed by |
 |---|---|---|
 | `OR-R6` | `structuredClone(d.result)` throws. The run fails with `UncloneableResult` naming the task id. Test: a worker returning a function, asserting the named failure and that no record was written | W3 |
 
-**Whether this constraint belongs on the driver or on workers is [Q22](../doc/open-questions.md).**
+### `OR-R11` — a result is a VALUE, not an OBJECT
+
+**Stated here for the first time, and it is [Q22](../doc/open-questions.md)'s real answer.** That row
+asks whether *a result must be structured-cloneable* is a constraint on workers or on the driver, and
+the fork is the wrong shape: it is the driver's constraint — `OR-R2`, unchanged — and the question
+an author actually hits is not *may I return this* but *what arrives*.
+
+| id | | Test owed by |
+|---|---|---|
+| `OR-R11` | **A result is a VALUE. Its fields cross the boundary; its BEHAVIOUR does not.** Prototype, methods, accessors, privacy and `instanceof` are lost at `OR-R2`'s clone, silently and by design, because `structuredClone` is a structural copy and a flow's log has to be a value a run can be folded from. **A worker returning `new Score(0.9)` hands its successor `{value: 0.9}` with `isHigh` undefined**, and `RunState.nodes[*].result` reports the same — measured end to end through a real `Driver`, with **zero** run failures reported. The rule is not that this is wrong; it is that it is **the contract**, so a worker returns data and a consumer reads data. **The loud half is `OR-R6`** — what cannot be cloned at all stops the run — and this is the quiet half, which had no rule. Test: at ladder L1, in **all five runtimes**, the three-way boundary above asserted in each direction — refused, cloned faithfully, cloned lossily — because the boundary was measured in one runtime and a runtime that refused a class instance would make `OR-R6` fire where this rule says it does not; and at L2, the end-to-end case, asserting that the successor's payload has the fields, lacks the method, and that nothing was reported | **[W54](../doc/work-items/w54-what-a-result-may-be-and-what-bounding-it-would-cost.md)** |
+
+**Why nothing warns, and the reason is measured rather than asserted.** A detector is possible, which
+[P15](../doc/plans/p15-what-a-run-retains-and-what-a-result-may-be.md) prediction 3 said it was not:
+comparing `Object.getPrototypeOf(original)` to `Object.getPrototypeOf(clone)` is **right on 14 of 14
+shapes** — it fires on every lossy one and on none of the eight this document blesses, including
+`Map`, `Date`, `Set`, `RegExp`, typed arrays and the cyclic case — and it costs **0.04-0.52% of one
+clone**. It is declined on two measurements instead:
+
+1. **It is blind to the case a worker actually writes.** `{ok: 1, score: new Score(0.9)}` is a plain
+   object at the top level, so the cheap check is **quiet** while `score.isHigh` is gone. The
+   complete check is a recursive walk, and it costs **27-55% of the clone** on the hot path, once per
+   settlement — the same order [W46](../doc/work-items/w46-what-a-reference-costs-and-whether-anything-says-so.md)
+   measured for a size walk and declined on the same ground.
+2. **There is nothing for it to say that is not already this rule.** A report would fire on every
+   correct use of a class as a transfer shape, which is the ordinary way to write a worker; it would
+   be `OR-R2`'s contract restated once per settlement rather than a diagnosis, which is exactly W46's
+   finding about a predicate that *fires on 3 of 3 intended uses*.
+
+**So the answer is: it is written down, and it is the one thing a worker author has to know.**
+`AGENTS.md` is where a consumer meets it.
+
+### What `OR-R2` costs, and the method the numbers were taken by
+
+**[Q190](../doc/open-questions.md)'s precedent: the measurement goes in the section, with the
+method.** Every figure below is **one case per process**, which is
+[W46](../doc/work-items/w46-what-a-reference-costs-and-whether-anything-says-so.md)'s settled method —
+that item measured accumulation in one process at up to **4.4x** and run order at **nothing**, so a
+one-process table's last row carries the whole accumulation. Node 24, over a **138.6 KiB** payload of
+1000 items:
+
+| | median |
+|---|---|
+| **the shipped single edge-hop clone** — `OR-R2`, once per settlement | **0.58 ms** |
+| a clone per **map** instance at N = 1000 — what `JP-R11` would cost if a map cloned the whole value | **499.16 ms** |
+| each instance receiving its own item, no clone | **0.02 ms** |
+| a clone of that item — what `JP-R11` does cost | **1.68 ms** |
+
+**The ratio is ~860x and it is QUADRATIC for a map**, because a map's arity and its payload grow
+together; for a `fanout` over 278.2 KiB it is **linear in a number the document declares** — 2.61 /
+3.71 / 5.91 / 11.79 ms at arity 2 / 3 / 5 / 10, against 1.17 ms for one clone.
+
+**What reproduces and what does not, stated because a register row quoting an absolute is quoting a
+method.** The SHAPE reproduces exactly — linear for a `fanout`, quadratic for a `map` — and so does
+the ratio class, ~800x both times. **The ABSOLUTES do not**, even under the settled method:
+[Q22](../doc/open-questions.md)'s row quoted 1.50 / 2207.94 ms from
+[W34](../doc/work-items/w34-what-a-branch-receives-and-what-a-join-carries.md), taken accumulated in
+one process; P15's declaration re-took them at 0.64 / 516.77; this version reads 0.58 / 499.16, and
+the `fanout` row is **1.8x apart from P15's on the same fixture and the same method**. So
+[Q179](../doc/open-questions.md) binds harder than *one process versus many*: **quote the shape and
+the ratio, never the millisecond.**
+
+### What bounding `RunState.nodes[*].result` would cost — priced, not taken
+
+**Named here because `OR-R2`'s copy is what makes the result big enough to be worth bounding, and
+because `RN-R13` in [run-state.md](run-state.md) section 7 says a run retains the whole of every
+one.** Three readers touch a stored result: the **edge hop**, which reads every one once and is
+finished the moment the successor is dispatched; **reference resolution**, which reads only what a
+`needs` names — **14 of 124** corpus task nodes, so **110 (89%)** are named by none; and the
+**fold**, which is `RunState.nodes[*].result` and reads every one, for ever.
+
+**So after the hop, a result no `needs` names has exactly one reader left, and it is the public
+surface.** The saving is the whole of every result: blanking them takes a 4-task chain's fold input
+to a floor of **284 B** whatever the payload, so the factor is **1.0 / 4.7 / 15.5 / 58.7 / 231.8** at
+0 / 1 / 4 / 16 / 64 KiB results. *(P15 quotes **8.7x** from one fixture; the factor is
+`(bytes returned) / (record overhead)` and is not a constant.)*
+
+**What it costs is a VOCABULARY, not bytes, and that is the finding.** `RunState` has no way to say
+*withheld*, because both candidates are taken and both mean something else:
+
+| | reachable today | means |
+|---|---|---|
+| `result: null` with `state: 'done'` | a worker returned `null` | it returned nothing |
+| `result: null` with `state: 'failed'` | `OR-R2`'s own guard | it did not succeed |
+| `result: undefined`, key **present** | a worker returned `undefined`, **or** the detail carried no `result` at all | it returned nothing |
+
+So a withheld result needs a **fourth** encoding — a new field, a new node state, or a sentinel —
+and without one a consumer cannot tell *we dropped it* from *it returned nothing*. **That is
+[ADR 0046](../doc/decisions/0046-a-run-retains-what-its-tasks-returned-and-a-region-releases-its-collection-when-its-join-becomes-terminal.md)
+rule 2's plausible-wrong-answer shape in a second structure**: not a fold that cannot tell it was
+handed a short log, but a `RunState` that cannot tell a consumer what it is not being given.
+
+**Not taken here.** P15 decision 1 makes a change to what a consumer reads the maintainer's, and its
+stop-and-ask list is where it goes. **The evidence for it is stronger than the plan assumed** — over
+the whole tree the only readers of `RunState.nodes[*].result` are **two tests**, and `AGENTS.md`, the
+consumer reference every snippet of which is executed by the gate, **never reads it**; every snippet
+there reads `state.outcome`. **The evidence against is the table above**, and it is a shape change
+rather than a flag.
+
+**Whether this constraint belongs on the driver or on workers is [Q22](../doc/open-questions.md), and
+it is ANSWERED: on the DRIVER, unchanged, with `OR-R11` as the half the fork did not name.**
 The alternative — declare it a contract that a worker must not retain what it returns — is cheaper
 and unenforceable, and this repo has already rejected that shape of answer once:
 [Q9](../doc/open-questions.md) says *"please write pure functions" is not a mechanism*. The cost is
-real. *(This read *"and is [Q19](../doc/open-questions.md)'s to measure"*. Q19 is measured and
-RESOLVED since [W53](../doc/work-items/w53-what-a-run-retains-that-nothing-reads.md) —
-`RN-R13` — and what it measured is **space**; the CONSTRAINT half of this paragraph is
-[Q22](../doc/open-questions.md)'s and is
-[W54](../doc/work-items/w54-what-a-result-may-be-and-what-bounding-it-would-cost.md)'s, with the
-re-taken clone timings and the silent lossy case in that row. W53's conformity reader; a declared
-late exception.)*
+real and is now measured above rather than deferred. *(This paragraph read *"is [Q19](../doc/open-questions.md)'s
+to measure"*, corrected by [W53](../doc/work-items/w53-what-a-run-retains-that-nothing-reads.md)'s
+conformity reader, and then *"the cost is real"* with no number, corrected here.)*
 
 ## 5. The resolution record
 
