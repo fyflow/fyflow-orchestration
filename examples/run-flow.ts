@@ -99,6 +99,29 @@ export interface Retention {
    */
   peakAliasingLog: number;
   /**
+   * **How many `result` objects the log held when that count was taken** — W55's
+   * adequacy reader, BLOCKING, and it is obligation (c)'s LIMIT on a SENSOR.
+   *
+   * `peakAliasingLog` is a count of an intersection, so it is `0` both when nothing
+   * aliases and when one of the two sets is **empty**. Measured: making
+   * `loggedResults` return `[]` cost **zero** — twenty-six assertions of `JP-R12`'s
+   * second-copy claim went on passing against an empty `Set`. This is the other
+   * side's size, so `examples/l6.ts` can assert the observer had something to see.
+   */
+  loggedResults: number;
+  /**
+   * **How many values the peak snapshot actually holds** — W55's adequacy reader.
+   *
+   * `peakEntries` counts what the driver recorded; this counts what the harness kept,
+   * and the two are what `bytesBeforeRelease` is a subtraction between. Measured:
+   * storing an EMPTY map at the peak cost **zero** — the collection column read 0.0
+   * KiB on every row while twenty-six aliasing assertions passed against nothing, and
+   * the reconstruction stayed *strictly larger* than the end because an empty map is
+   * still a few bytes. **Two counts of one thing is what discriminates**, and it is a
+   * relation rather than a byte figure ([Q179](../doc/open-questions.md)).
+   */
+  snapshotEntries: number;
+  /**
    * `v8.serialize(...).length` over the driver's own growing structures in ONE call.
    * `null` where `node:v8` is absent, `-1` where the serializer refused the graph —
    * two different facts, and the refusal is one this rung can actually reach
@@ -679,8 +702,15 @@ export async function retainedBytes(d: Driver, extra: readonly unknown[] = []): 
   if (!ser) return null;
   const o = d as unknown as Record<string, unknown>;
   const parts: unknown[] = [];
-  for (const k of Object.keys(o).sort()) {
-    if (NOT_RUN_STATE.includes(k)) continue;
+  // **The key list comes from `walkOf` and from nowhere else** — W55's adequacy
+  // reader, BLOCKING. It used to consult `NOT_RUN_STATE` itself, so `walkOf` and
+  // this function were **two expressions over one literal** and only `walkOf`'s
+  // output reached an assertion: measured, a second `continue` inside this loop
+  // dropping `arrivals`, `inputs` and `log` cost **ZERO** at both L6 rungs while the
+  // artifact's *held at end* went 777.5 KiB to 0.6 KiB. Adding `'arrivals'` to the
+  // literal was caught and skipping it here was not. **One expression, so the list
+  // `examples/l6.ts` asserts IS the list this measures.**
+  for (const k of walkOf(d).walked) {
     const v = o[k];
     if (Array.isArray(v)) parts.push(v);
     else if (v instanceof Map) parts.push([...v]);
@@ -693,6 +723,79 @@ export async function retainedBytes(d: Driver, extra: readonly unknown[] = []): 
   } catch {
     return -1;
   }
+}
+
+/**
+ * **What `examples/retention.ts` REFUSES to report, and it lives here so that ladder
+ * L6 can bind it** — W55's adequacy reader, BLOCKING.
+ *
+ * That file is a reporter: everything else in it is a `console.log`, so it exited
+ * **0** whatever it measured until this predicate existed — and then the predicate
+ * itself was deletable for zero, because nothing at L6 or in the gate runs that file.
+ * *A command that cannot fail is not evidence that anything held.* Declared here and
+ * given a positive case in `examples/l6.ts`, which is the shape W47 settled for a
+ * detector whose tree is clean: **a sensor with no case that makes it fire is bound
+ * to nothing.**
+ *
+ * **It asserts the RELATION and never the bytes** — this item's own `Tests:` line, and
+ * [Q179](../doc/open-questions.md) is why. On a run that COMPLETED,
+ * [ADR 0046](../doc/decisions/0046-a-run-retains-what-its-tasks-returned-and-a-region-releases-its-collection-when-its-join-becomes-terminal.md)
+ * rule 3 says the collection is gone and `JP-R12` says one entry was recorded per
+ * branch that arrived. The two BYTE clauses are relations too: a serializer this rung
+ * is required to have (`node:v8`, in both L6 runtimes) must have produced a number,
+ * and the reconstruction must exceed the end — which is what makes *the collection it
+ * released* a measurement rather than a subtraction of a value from itself.
+ */
+export function violations(r: RunReport, arity: number): string[] {
+  const bad: string[] = [];
+  if (r.state.outcome !== 'completed') bad.push(`outcome ${r.state.outcome}, not completed`);
+  if (r.retention.peakEntries !== arity) {
+    bad.push(`JP-R12: recorded ${r.retention.peakEntries} arrivals, not ${arity}`);
+  }
+  if (r.retention.endEntries !== 0) {
+    bad.push(`ADR 0046 rule 3: still holding ${r.retention.endEntries} after the join became terminal`);
+  }
+  if (r.retention.peakAliasingLog !== 0 || r.retention.loggedResults === 0) {
+    bad.push(
+      `JP-R12: ${r.retention.peakAliasingLog} held values ARE a log record's own result, ` +
+        `against ${r.retention.loggedResults} logged`,
+    );
+  }
+  // **The byte columns are RELATIONS here too, and the adequacy reader is why.** Three
+  // separate edits turned the measurement off with every assertion green: making the
+  // serializer unavailable (every column `n/a`), skipping keys inside the walk (777.5
+  // KiB to 0.6), and dropping the `extra` list (the collection column to 0.0). None is
+  // a claim about a NUMBER — they are *this rung has a serializer*, *it measured
+  // something*, and *the reconstruction is larger than the end* — so `Q179` is
+  // untouched and a measurement that stopped measuring fails.
+  if (r.retention.bytesAtEnd === null) bad.push('no serializer: both L6 runtimes have node:v8');
+  else if (r.retention.bytesAtEnd <= 0) bad.push(`bytesAtEnd ${r.retention.bytesAtEnd}`);
+  if (arity > 0 && (r.retention.bytesBeforeRelease ?? 0) <= (r.retention.bytesAtEnd ?? 0)) {
+    bad.push('the reconstruction is not larger than the end, so nothing was released');
+  }
+  // **What the run holds is at least what it released, and that is STRUCTURAL rather
+  // than a figure** — W55's adequacy reader, whose edit put a second `continue` inside
+  // the walk and dropped `inputs`, `log` and `arrivals` for **zero**, taking the byte
+  // column from 777.5 KiB to 0.6 while every other relation here still held.
+  //
+  // `inputs` holds every settled result once (`RN-R13`'s first term) and a region's
+  // collection is one entry per branch that ARRIVED — a subset of those same results.
+  // So a measurement that still counts `inputs` cannot come out smaller than the
+  // collection it is measuring the release of. A walk that stopped walking does.
+  const released = (r.retention.bytesBeforeRelease ?? 0) - (r.retention.bytesAtEnd ?? 0);
+  if (arity > 0 && (r.retention.bytesAtEnd ?? 0) < released) {
+    bad.push(
+      `the run holds ${r.retention.bytesAtEnd} B and released ${released} B — the collection is a ` +
+        'SUBSET of what `inputs` holds, so the walk is not counting what it says it counts',
+    );
+  }
+  if (r.retention.snapshotEntries !== r.retention.peakEntries) {
+    bad.push(
+      `the peak snapshot holds ${r.retention.snapshotEntries} values for ${r.retention.peakEntries} ` +
+        'recorded arrivals, so the reconstruction is a subtraction over the wrong set',
+    );
+  }
+  return bad;
 }
 
 /**
@@ -1118,10 +1221,24 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
     peakEntries: sum(peakByRegion),
     endEntries: sum(endByRegion),
     peakAliasingLog: peakValues.filter((v) => logged.has(v)).length,
+    loggedResults: logged.size,
+    snapshotEntries: peakValues.length,
     bytesAtEnd: await retainedBytes(driver),
     bytesBeforeRelease: await retainedBytes(driver, [[...peakSnapshot].map(([r, m]) => [r, [...m]])]),
     ...walkOf(driver),
   };
+  // **The instrument is dropped once it has been read, and that is observer 2's
+  // whole standing** — W55's conformity reader, BLOCKING.
+  //
+  // `samplePeak` closes over `peakSnapshot`, `samplePeak` is reachable from
+  // `onFoldInput`, and `onFoldInput` is on `driver.opts` — which `retainedBytes`
+  // skips by name. So observer 1 could not see it and observer 2 could: under
+  // `keepDriver` every kept driver transitively retained **a second copy of the very
+  // collection ADR 0046 releases**. Measured at `scale 50 16 16 own`: **141.9 MiB as
+  // shipped against 129.4 MiB with this line**, which is 256 KiB a run — exactly one
+  // collection each, 9% of the figure being reported. *A sensor cannot corroborate
+  // itself, and here the second sensor was measuring the first one's instrument.*
+  peakSnapshot.clear();
 
   // REQUIRED, or the process stays alive (`AGENTS.md` §2) — but only for a
   // scheduler this run BUILT. A shared one belongs to the caller (`runPair`),

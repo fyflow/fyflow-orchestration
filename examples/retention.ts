@@ -50,10 +50,19 @@
  *      `node:v8`, and in none of the three browsers — and ladder L6 runs in exactly
  *      those two ([Q233](../doc/open-questions.md)).
  *   2. **`process.memoryUsage().heapUsed` after a forced `gc()`** — the real thing,
- *      and noisy. It needs `--expose-gc` (`--v8-flags=--expose-gc` under Deno) and it
- *      is **below its own noise floor for one run**, which this file measures rather
- *      than asserts: it is reported for the scale mode, where N runs are held at
- *      once, and printed as `n/a` for one.
+ *      and it needs `--expose-gc` (`--v8-flags=--expose-gc` under Deno). **It is
+ *      called only from the `scale` mode**, and the reason is measured rather than
+ *      asserted: at one run it reads **0.7 MiB, identically on 5 of 5 consecutive
+ *      readings**, against the driver's own 15.0 KiB. So it is not *noisy* — it is
+ *      **dominated by fixed process overhead, by a factor of about 47**, which is a
+ *      different fact and the one worth writing down. N runs held at once is what
+ *      makes it a measurement of the run rather than of the interpreter.
+ *      *(This paragraph said it was noisy, that this file measured a one-run noise
+ *      floor, and that the artifact printed `n/a` for one run. **All three were
+ *      false**: nothing called it from `artifact()` at all, so there was no `n/a` to
+ *      print and no floor was ever measured. W55's conformity reader, and it is
+ *      `doc/workflow.md` section 1 rule 5's writing clause on a claim about this
+ *      file's own behaviour.)*
  *
  * ## The method, stated because a number without one is not re-takeable
  *
@@ -73,7 +82,7 @@
  * and re-taking every row, rather than trusting it.
  */
 import { POLICIES } from '../index.ts';
-import { buildScheduler, retainedBytes, runFlow, type RunReport } from './run-flow.ts';
+import { buildScheduler, retainedBytes, runFlow, violations, type RunReport } from './run-flow.ts';
 import mapAlias from './flows/map-alias.flow.json' with { type: 'json' };
 import type { FlowDefinition } from '../index.ts';
 
@@ -156,41 +165,21 @@ async function oneRun(arity: number, sizeKib: number): Promise<RunReport> {
   });
 }
 
-/**
- * **The harness's own predicate, and it exists because rule 8 measured its absence.**
- *
- * Everything else here is a `console.log`, so `node examples/retention.ts` exited **0**
- * whatever it measured: pointing it at a flow with no region at all, or making it
- * report a driver that had run nothing, both survived. *A command that cannot fail is
- * not evidence that anything held*, which is `doc/workflow.md` section 5 rule 3 asked
- * of a reporter rather than of a test.
- *
- * **It asserts the RELATION and never the bytes** — the item's own `Tests:` line. On a
- * run that COMPLETED, ADR 0046 rule 3 says the collection is gone and `JP-R12` says one
- * entry was recorded per branch that arrived; a footprint is not checked here and is
- * not checkable ([Q179](../doc/open-questions.md)).
- */
-function violations(r: RunReport, arity: number): string[] {
-  const bad: string[] = [];
-  if (r.state.outcome !== 'completed') bad.push(`outcome ${r.state.outcome}, not completed`);
-  if (r.retention.peakEntries !== arity) {
-    bad.push(`JP-R12: recorded ${r.retention.peakEntries} arrivals, not ${arity}`);
-  }
-  if (r.retention.endEntries !== 0) {
-    bad.push(`ADR 0046 rule 3: still holding ${r.retention.endEntries} after the join became terminal`);
-  }
-  if (r.retention.peakAliasingLog !== 0) {
-    bad.push(`JP-R12: ${r.retention.peakAliasingLog} held values ARE a log record's own result`);
-  }
-  return bad;
-}
-
 function exit(code: number): never {
   const g = globalThis as unknown as Record<string, { exit?: (c: number) => never } | undefined>;
   if (g.Deno?.exit) g.Deno.exit(code);
   g.process?.exit?.(code);
   throw new Error('unreachable');
 }
+
+/**
+ * **The sweep, declared and then COUNTED** - W55's adequacy reader. It was an inline
+ * literal, so truncating it to one row cost nothing and both 16 KiB rows - which carry
+ * `RN-R13`'s *linear in the whole of every result* axis and produce the ratio this file
+ * quotes - vanished silently. The two axes are named, and the loop's own count is
+ * checked against the list below.
+ */
+const SWEEP: readonly (readonly [number, number])[] = [[2, 1], [4, 1], [4, 16], [16, 16]];
 
 async function artifact(): Promise<void> {
   console.log(`\n  ladder L6 — what ONE run holds, on a real FyflowScheduler, on ${runtime}\n`);
@@ -199,10 +188,12 @@ async function artifact(): Promise<void> {
   // the collection as a share OF THE WHOLE, and four documents stated it as the
   // EXCESS over what the run holds without it. They differ by a factor of two.
   const failed: string[] = [];
+  const held: number[] = [];
+  let ran = 0;
   console.log('    arity   result      held at end   the collection    held BEFORE     excess   of the');
   console.log('               KiB           (KiB)       it released      W53 (KiB)      over      whole');
   console.log('                                                                         after');
-  for (const [arity, size] of [[2, 1], [4, 1], [4, 16], [16, 16]] as const) {
+  for (const [arity, size] of SWEEP) {
     const r = await oneRun(arity, size);
     const after = r.retention.bytesAtEnd;
     const before = r.retention.bytesBeforeRelease;
@@ -222,6 +213,28 @@ async function artifact(): Promise<void> {
         `, aliasing the log: ${r.retention.peakAliasingLog}`,
     );
     for (const v of violations(r, arity)) failed.push(`arity ${arity} / ${size} KiB: ${v}`);
+    held.push(after ?? 0);
+    ran++;
+  }
+  if (ran !== SWEEP.length) failed.push(`the sweep ran ${ran} of ${SWEEP.length} declared rows`);
+  // **`RN-R13` IS a monotonicity claim, and asserting it is what catches a walk that
+  // stopped walking** — W55's adequacy reader, whose edit skipped `arrivals`, `inputs`
+  // and `log` INSIDE the loop, leaving the byte column at 0.6 KiB on every row while
+  // every relation above still held. The rule says the footprint is *(tasks settled) x
+  // (bytes each returned)*, and `SWEEP` is ordered so that product rises; a number
+  // that stops rising with it is not measuring the run. **No figure is asserted** —
+  // only that the order of the four is the order of the products.
+  const products = SWEEP.map(([a, k]) => a * k);
+  for (let i = 1; i < held.length; i++) {
+    if (products[i]! > products[i - 1]! && held[i]! <= held[i - 1]!) {
+      failed.push(
+        `arity x KiB rose ${products[i - 1]} to ${products[i]} and what the run holds did not ` +
+          `(${held[i - 1]} to ${held[i]} B) — RN-R13 says the footprint is that product`,
+      );
+    }
+  }
+  if (new Set(SWEEP.map(([, k]) => k)).size < 2 || new Set(SWEEP.map(([a]) => a)).size < 2) {
+    failed.push('the sweep varies only ONE of the two axes RN-R13 is stated over');
   }
   if (failed.length) {
     console.log('\n  FAIL  the relation this file exists to report does not hold:');
@@ -233,15 +246,19 @@ async function artifact(): Promise<void> {
     '\n  TWO RATIOS, because one of them was quoted as the other. `excess over after` is the\n' +
       '  collection over everything else the run stored; `of the whole` is its share of the pair.\n' +
       '  P15 fact 3`s **49.8%** is the second kind — the collection is HALF of what a region-bearing\n' +
-      '  run holds — and on that same run the first kind reads **+99.2%**. Four documents state the\n' +
+      '  run holds — and on that same run the first kind reads **+99.2 to +99.4%**, rising with the\n' +
+      '  arity. Four documents state the\n' +
       '  second number in the first number`s words. W55 settled it by re-running fact 3`s own\n' +
       '  harness with the release reverted (dev-dist/p15/facts.ts).\n' +
       '\n  And neither ratio is a constant, because the divisor is a property of the FLOW rather than\n' +
-      '  of the driver: it is one copy per settled result, so it depends on how many nodes settle\n' +
-      '  and how large each result is. Measured on one map shape at arity 16 over 16 KiB — no node\n' +
-      '  after the join **+97.5%**, a node after the join that echoes the collection **+49.3%**, and\n' +
-      '  `map-alias` above **+33.0%**, whose entry node`s own result IS the items. That is Q240`s\n' +
-      '  lesson with a second variable in it: a ratio reports the fixture`s results AND its shape.\n',
+      '  of the driver: it is one copy per SETTLED RESULT, so it depends on how many nodes settle\n' +
+      '  and how large each result is. The rows above are `map-alias`, whose entry node`s own\n' +
+      '  result IS the items, so the run stores the collection`s worth of bytes three times over\n' +
+      '  and the excess sits near a third; P15 fact 3`s flow has no node after the join and reads\n' +
+      '  near a half. Both figures are in W55`s Record with the harness that took them — only the\n' +
+      '  rows above are re-takeable from THIS file, and saying which is which is the point (Q242).\n' +
+      '  That is Q240`s lesson with a second variable in it: a ratio reports the fixture`s results\n' +
+      '  AND its shape.\n',
   );
 }
 
@@ -317,6 +334,15 @@ async function scale(runs: number, arity: number, sizeKib: number, shared: boole
     if (b === null || b < 0) unmeasured++;
     else serialized += b;
   }
+  // **The same predicate the artifact runs, and the scale mode had NONE** - W55's
+  // adequacy reader. Three separate edits printed 0.0 MiB, `n/a` and a 0.0 KiB per-run
+  // figure at exit 0: the driver never handed back, observer 2 disabled, and the
+  // serialized sum accumulating zero. A mode whose whole output is a number has to be
+  // able to refuse to print one.
+  const wrong = reports.flatMap((r) => violations(r, arity).map((v) => `${r.runId}: ${v}`));
+  if (unmeasured > 0) wrong.push(`${unmeasured} of ${runs} drivers were not measured at all`);
+  if (serialized <= 0) wrong.push('observer 1 summed to nothing');
+  if (gc && (heap0 === null || heap1 === null)) wrong.push('observer 2 is available and produced nothing');
   const outcomes = [...new Set(reports.map((r) => r.state.outcome))].sort();
   const held = reports.reduce((n, r) => n + r.retention.endEntries, 0);
   const collected = reports.reduce((n, r) => n + r.retention.peakEntries, 0);
@@ -344,6 +370,12 @@ async function scale(runs: number, arity: number, sizeKib: number, shared: boole
       }`,
   );
   console.log(`    per run                   ${(serialized / runs / 1024).toFixed(1)} KiB   |   ${elapsed} ms wall\n`);
+  if (wrong.length) {
+    console.log('  FAIL  the relation this mode exists to report does not hold:');
+    for (const w of wrong.slice(0, 8)) console.log(`    ${w}`);
+    console.log('');
+    exit(1);
+  }
   console.log(
     '  The extrapolation is stated AS an extrapolation: per-run bytes x N, and nothing here adds\n' +
       '  a real-worker number to an in-process one. P15 fact 5`s ten-thousand-run rows are that\n' +

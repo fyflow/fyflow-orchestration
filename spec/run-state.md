@@ -379,5 +379,13 @@ above is that shape applied here.
   [ADR 0014](../doc/decisions/0014-the-driver-produces-the-folds-ordered-input-sequence.md) rule 4
   and [ADR 0001](../doc/decisions/0001-routing-executes-in-the-driver-outside-the-scheduler.md)
   rule 1 both refuse. **So a region whose join never becomes terminal holds its collection until the
-  caller releases the driver**, and `RN-R13`'s second term is stated over live regions for exactly
-  that reason.
+  caller releases the driver**, and `RN-R13`'s second term is stated over **regions whose JOIN is
+  still live** for exactly that reason. *(This read "over live regions", which is the predicate
+  `RN-R13`'s own parenthetical rejects by name — *live* is what a BRANCH is and *terminal* is what a
+  JOIN becomes, and `p1-routed-away.flow.json` under `arrival-count` has zero live branches and
+  still retains. The rule and
+  [ADR 0046](../doc/decisions/0046-a-run-retains-what-its-tasks-returned-and-a-region-releases-its-collection-when-its-join-becomes-terminal.md)
+  rule 5 both had it right and this one sentence of the section that cites them did not.
+  [W55](../doc/work-items/w55-a-run-at-scale-on-real-workers.md)'s conformity reader, reading `spec/`
+  first; taken as a **declared late exception**, because this document is
+  [W53](../doc/work-items/w53-what-a-run-retains-that-nothing-reads.md)'s and W53 is done.)*

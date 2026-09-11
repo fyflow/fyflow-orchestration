@@ -90,7 +90,8 @@ import {
   type UnsatisfiableJoin,
 } from '../index.ts';
 import {
-  runFlow, runPair, type ForeignTask, type PairFacts, type RunReport,
+  runFlow, runPair, violations,
+  type ForeignTask, type PairFacts, type Retention, type RunReport,
 } from './run-flow.ts';
 import fanoutJoin from '../spec/examples/valid/fanout-join.flow.json' with { type: 'json' };
 import routedAway from '../spec/examples/valid/p1-routed-away.flow.json' with { type: 'json' };
@@ -2252,15 +2253,35 @@ const sortedSettled = (m: Record<string, string> | undefined) =>
  * `CROSS_ROW_SUBJECTS` below is that analogue, and this array is what feeds it.
  */
 const crossRowLabels: string[] = [];
-const check = (row: string, what: string, actual: unknown, expected: unknown): void => {
+/**
+ * **What each PER-ROW assertion was about, and which row it ran for** — W55's
+ * adequacy reader, BLOCKING, and it is W23's finding at its FIFTH iteration.
+ *
+ * `ROW_KEYS` makes a deleted ROW fail naming itself and `CROSS_ROW_SUBJECTS` makes a
+ * deleted cross-row BLOCK fail naming its subject. **Nothing did either for a per-row
+ * assertion**, and that is where this item's product lives: measured, deleting the one
+ * `check` call that carries the whole revert cost and editing THREE integers —
+ * `PER_REGION_ROW`, `PER_PLAIN_ROW`, `DECLARED_TOTAL` — left **1012 assertions, 0
+ * failed, exit 0**, after which reverting ADR 0046 rule 3 cost **2 instead of 25**.
+ * *Three integer edits took "the rung Q214 said nobody had written" back to almost
+ * nothing, and nothing named what had left.*
+ *
+ * `PER_ROW_SUBJECTS` below is the analogue, and this map is what feeds it.
+ */
+const perRowLabels = new Map<string, string[]>();
+const note = (row: string, what: string): void => {
   if (row === 'cross-row') crossRowLabels.push(what);
+  else perRowLabels.set(row, [...(perRowLabels.get(row) ?? []), what]);
+};
+const check = (row: string, what: string, actual: unknown, expected: unknown): void => {
+  note(row, what);
   const a = JSON.stringify(actual);
   const e = JSON.stringify(expected);
   if (a === e) passed++;
   else failures.push(`${row}\n      ${what}\n      expected: ${e}\n      actual:   ${a}`);
 };
 const assertThat = (row: string, what: string, cond: boolean, detail = ''): void => {
-  if (row === 'cross-row') crossRowLabels.push(what);
+  note(row, what);
   if (cond) passed++;
   else failures.push(`${row}\n      ${what}${detail ? `\n      ${detail}` : ''}`);
 };
@@ -2328,6 +2349,49 @@ const arrivedInRun = (e: Expectation): number =>
  * region-free row asserts that the driver recorded and holds **nothing at all** —
  * which is a claim about `arrivalsOf` being empty rather than a vacuous zero.
  */
+/**
+ * **The one region a row's own `settled`/`joined` are about, read from the FLOW** —
+ * W55, and it exists because `Expectation.regionId` is optional and most rows leave
+ * it out.
+ *
+ * `null` when the flow declares no region at all (then `settled` must be absent too)
+ * or when it declares more than one — a nested row names its regions explicitly, in
+ * `regionId` and `otherRegions`, precisely so that nothing has to guess.
+ */
+const soleRegionOf = (e: Expectation): string | null => {
+  const rs = allRegions(buildGraph(e.definition), e.definition);
+  return rs.length === 1 ? rs[0]!.fanoutId : null;
+};
+
+/**
+ * **Which of this row's regions are still holding when the run is over** — the region
+ * NAMES behind `heldWhenOver`'s count, so `Retention.endByRegion`'s per-region shape
+ * is asserted rather than only its sum (W55's adequacy reader).
+ *
+ * The others are the keys of `otherRegions`. A region is still holding when its join
+ * never became terminal AND something arrived at it — an empty collection is never
+ * recorded at all (`JP-R12`).
+ *
+ * **The row's OWN region is named from the DEFINITION, not from `regionId`**, and
+ * that is W55's conformity reader's finding 5 reached from the other side.
+ * `Expectation.regionId` is optional — `null` means *this flow has no fan-out*, and
+ * **absent means the row simply never spelled it**: three of the four rows that hold
+ * do not, and `all-exit / live-token-requiring-arrival` does not either, which is
+ * what made the absence clause below read *no arrivals recorded* for the row it is
+ * most about. So the id comes from the flow document the row runs, through the
+ * shipped `allRegions` — an independent source, and the same one the resolver uses.
+ */
+const regionsStillLive = (e: Expectation): string[] => {
+  if (e.stoppedBy !== undefined) return [];
+  const out: string[] = [];
+  const own = e.regionId ?? soleRegionOf(e);
+  if (own != null && e.joined === null && arrivedIn(e.settled) > 0) out.push(own);
+  for (const [id, r] of Object.entries(e.otherRegions ?? {})) {
+    if (r.joined === null && arrivedIn(r.settled) > 0) out.push(id);
+  }
+  return out.sort();
+};
+
 const heldWhenOver = (e: Expectation): number =>
   e.stoppedBy !== undefined
     ? 0
@@ -2768,11 +2832,30 @@ for (const [i, e] of EXPECTED.entries()) {
     // of.** A row that records no arrival would assert `0 === 0`, which is the
     // vacuity `doc/workflow.md` section 5 rule 3 refuses — so it is an extra derived
     // from the row's own `settled`, and declaring an arrival moves the floor with it.
-    + (arrivedInRun(e) > 0 ? 1 : 0);
+    + (arrivedInRun(e) > 0 ? 1 : 0)
+    // W55's adequacy reader: the region NAMES behind the count, on the rows that hold.
+    + (heldWhenOver(e) > 0 ? 1 : 0);
   if (arrivedInRun(e) > 0) {
+    // **The OTHER side's size is in the assertion, and it has to be** — W55's
+    // adequacy reader, BLOCKING. `peakAliasingLog` is the size of an intersection,
+    // so `0` is what a real second copy gives AND what an empty observer gives:
+    // measured, `loggedResults` returning `[]` cost **zero** and left these
+    // twenty-six assertions comparing against an empty `Set`. Asserting the pair
+    // makes the sensor's own reach part of the claim, which is obligation (c)'s
+    // LIMIT — *a sensor cannot corroborate itself*.
     check(e.key, 'JP-R12 — and what it collected is a SECOND COPY: no held value is the log ' +
-      'record`s own result object, on real workers',
-      report.retention.peakAliasingLog, 0);
+      'record`s own result object, on real workers — and the log had results to compare against',
+      { aliasing: report.retention.peakAliasingLog, logHadResults: report.retention.loggedResults > 0 },
+      { aliasing: 0, logHadResults: true });
+  }
+  // **WHICH region is holding, not just how many entries** — W55's adequacy reader.
+  // `endByRegion`'s per-region shape was unbound: only the sum is read anywhere, so
+  // collapsing it to one aggregate key cost zero. On a row that holds, the region
+  // named is the one whose join never became terminal, and the row declares which.
+  if (heldWhenOver(e) > 0) {
+    check(e.key, 'ADR 0046 rule 5 — and it names WHICH region is still holding: the one whose ' +
+      'join never became terminal',
+      Object.keys(report.retention.endByRegion).sort(), regionsStillLive(e));
   }
   rowCosts.push([e.key, e.regionId === null ? 'no-region' : 'region',
     passed + failures.length - before, extras]);
@@ -3112,6 +3195,33 @@ const ROW_KEYS: readonly string[] = [
  * re-worded and a subject is what the block is about — the same reason `ROW_KEYS`
  * holds keys rather than `why` strings.
  */
+/**
+ * **What every ROW must have been asked, by subject and by HOW MANY rows** — W55's
+ * adequacy reader, BLOCKING, and it is `CROSS_ROW_SUBJECTS`' analogue one layer in.
+ *
+ * Each entry is a substring of a per-row label and a function giving how many rows
+ * must have emitted it, derived from the rows themselves. **The count is derived and
+ * the subject is a literal**, which is the split `ROW_KEYS` and `CROSS_ROW_SUBJECTS`
+ * both use: a deleted assertion fails naming what it was about rather than moving an
+ * integer, and a row that stops paying for one fails without the floor having to see
+ * it.
+ *
+ * **Its limit is theirs**: the list is a literal, so deleting a clause AND its subject
+ * is two edits in one diff — [Q102](../doc/open-questions.md)'s shape,
+ * [Q217](../doc/open-questions.md). What it removes is the silent case, where three
+ * integer edits leave no name behind.
+ *
+ * **Scoped to W55's own assertions, deliberately.** Every other per-row assertion in
+ * this file predates this list and is bound the way it always was; claiming them here
+ * would be a membership list nobody measured.
+ */
+const PER_ROW_SUBJECTS: readonly [string, (rows: readonly Expectation[]) => number][] = [
+  ['when the run was over the driver held exactly the arrivals', (rows) => rows.length],
+  ['it had recorded one entry per branch that arrived', (rows) => rows.length],
+  ['what it collected is a SECOND COPY', (rows) => rows.filter((e) => arrivedInRun(e) > 0).length],
+  ['it names WHICH region is still holding', (rows) => rows.filter((e) => heldWhenOver(e) > 0).length],
+];
+
 const CROSS_ROW_SUBJECTS = [
   'the loop above ran at all',
   'RN-R6',
@@ -3140,9 +3250,18 @@ const CROSS_ROW_SUBJECTS = [
   'TWO branches of one region both declare a reference',
   'two regions opened DIFFERENT numbers of branches',
   'RELEASED it when its join became terminal',
+  'and that class is not empty',
   'is still holding what arrived',
   'told apart by ONE property',
+  'COUNTED before they are reported absent',
   'the other two release moments have NO case at this rung',
+  'the reporter`s predicate is SILENT on a real released run',
+  'every run this file makes is in the retention claim',
+  'FOUR more runs than the row loop produces',
+  'the byte measurement WALKS every growing structure',
+  'is on the WALKED side of that split',
+  'every PER-ROW subject this file declares was asked',
+  'no per-row assertion about ADR 0046 or JP-R12 is left uncovered',
 ];
 
 /**
@@ -4179,7 +4298,7 @@ const PER_PLAIN_ROW = 17;
  * W47's conformity reader; it is now a SEQUENCE rather than a latest value, so the
  * next item appends rather than rewriting.)*
  */
-const CROSS_ROW = 74;
+const CROSS_ROW = 80;
 const base = (shape: string) => (shape === 'region' ? PER_REGION_ROW : PER_PLAIN_ROW);
 for (const [key, shape, cost, extras] of rowCosts) {
   if (cost !== base(shape) + extras) {
@@ -4781,9 +4900,19 @@ if (rowCosts.length !== EXPECTED.length) {
   const released = reports
     .filter((r) => r.retention.peakEntries > 0 && r.retention.endEntries === 0)
     .map((r) => r.runId);
-  assertThat('cross-row', 'ADR 0046 rule 3: a region on real workers collected what arrived and ' +
+  // **A SET, both ways, rather than a floor** — W55's adequacy reader. `released`
+  // was `> 0`, so truncating it to one entry, or computing it over the first thirty
+  // reports, cost zero; only the `held` half had a declaration-side counterpart.
+  // Both halves are read from the reports on one side and from the rows' own
+  // declarations on the other now, and neither is a floor.
+  const releasedByDeclaration = EXPECTED
+    .map((e, i) => [e, `r${i + 1}`] as const)
+    .filter(([e]) => arrivedInRun(e) > 0 && heldWhenOver(e) === 0).map(([, id]) => id);
+  check('cross-row', 'ADR 0046 rule 3: a region on real workers collected what arrived and ' +
     'RELEASED it when its join became terminal — the saving P15 measured at 49.8% of a ' +
-    'region-bearing run', released.length > 0, `released: ${released.join(' ') || 'none'}`);
+    'region-bearing run', [...released].sort(), [...releasedByDeclaration].sort());
+  assertThat('cross-row', 'and that class is not empty, so the rule has a case at this rung at all',
+    released.length > 0, `released: ${released.join(' ') || 'none'}`);
   assertThat('cross-row', 'ADR 0046 rule 5: and a region whose join NEVER became terminal is still ' +
     'holding what arrived — the bound rather than a leak, and the run whose footprint matters most',
     held.length > 0, `holding: ${held.join(' ') || 'none'}`);
@@ -4798,6 +4927,72 @@ if (rowCosts.length !== EXPECTED.length) {
   check('cross-row', 'and the two classes are told apart by ONE property — whether the join became ' +
     'terminal — read from the reports and from the rows` own `joined`, both ways',
     [...held].sort(), [...heldByDeclaration].sort());
+  // **The reporter's own PREDICATE, and its positive case** — W55's adequacy reader,
+  // BLOCKING, and it is W47's `REACH_CASES` shape one file across.
+  //
+  // `examples/retention.ts` is not in the gate chain and nothing at L6 runs it, so
+  // `violations()` — the one thing that makes that file able to fail — was deletable
+  // for **zero**. It lives in `run-flow.ts` now and this is what binds it: a REAL
+  // report must produce no complaint, and a report carrying each of the four defects
+  // ADR 0046 rule 3 and `JP-R12` forbid must produce one naming it. **The negative
+  // case alone is what a broken detector also returns**, which is the whole reason a
+  // detector over a clean tree needs a constructed positive one.
+  {
+    // **Guarded, and the guard is an assertion rather than a `!`** — found by this
+    // item's own revert probe, which is v0.10's requirement on the set firing inside
+    // the item that quotes it. With ADR 0046 rule 3 reverted no run released anything,
+    // so `find` returned `undefined` and this block died with *Cannot read properties
+    // of undefined* — **a crash, not a detection**, and it took the whole rung's
+    // report down before any of the twenty-five real failures could be read.
+    const real = reports.find((r) => r.retention.peakEntries > 0 && r.retention.endEntries === 0);
+    assertThat('cross-row', 'there is a released run to point the reporter`s predicate at — without ' +
+      'one the block below cannot run, and a crash is not a detection',
+      real !== undefined, `${reports.length} runs, none of them collected and released`);
+    const arity = real?.retention.peakEntries ?? 0;
+    const bent = (over: Partial<Retention>): RunReport | undefined =>
+      real && ({ ...real, retention: { ...real.retention, ...over } });
+    check('cross-row', 'the reporter`s predicate is SILENT on a real released run and FIRES on each ' +
+      'of the four things ADR 0046 rule 3 and JP-R12 forbid — a detector with no case that makes ' +
+      'it fire is bound to nothing',
+      // **Fires or is silent, not HOW MANY times.** The claim is that the detector
+      // discriminates; a count is a property of how the complaints are worded, and
+      // the first version of this asserted 2 where the code says 1 because the
+      // no-serializer arm short-circuits the reconstruction arm.
+      [
+        real !== undefined && violations(real, arity).length === 0,
+        ...([
+          { endEntries: 1 },
+          { peakAliasingLog: 1 },
+          { loggedResults: 0 },
+          { snapshotEntries: 99 },
+          { bytesAtEnd: null },
+          { bytesBeforeRelease: real?.retention.bytesAtEnd ?? null },
+        ] as Partial<Retention>[]).map((over) => {
+          const r = bent(over);
+          return r !== undefined && violations(r, arity).length > 0;
+        }),
+      ],
+      [true, true, true, true, true, true, true]);
+  }
+
+  // **All FORTY-TWO runs, not thirty-eight** — W55's conformity reader. `reports` is
+  // the `EXPECTED` loop's; the two PAIR rows produce four more real runs on a SHARED
+  // scheduler, they carry `retention` like every other run, and nothing read it. They
+  // run `fanout-join` under `live-token`, so every branch arrives and the join fires:
+  // the arity is read from the flow's own region rather than typed, so a document
+  // that changed width would move this clause with it.
+  {
+    const pairArity = allRegions(buildGraph(FJ), FJ)[0]!.branches.length;
+    const pairRuns = pairResults.flatMap(({ runs }) => runs.map(([who, rep]) => [who, rep] as const));
+    check('cross-row', 'every run this file makes is in the retention claim, the pair rows included — ' +
+      'two drivers on ONE scheduler each collected their own region and released it',
+      pairRuns.map(([who, rep]) => `${who} ${rep.retention.peakEntries}/${rep.retention.endEntries}`),
+      pairRuns.map(([who]) => `${who} ${pairArity}/0`));
+    check('cross-row', 'and that is FOUR more runs than the row loop produces, so the claim covers ' +
+      'every run rather than most of them',
+      reports.length + pairRuns.length, EXPECTED.length + pairResults.reduce((n, { runs }) => n + runs.length, 0));
+  }
+
   // **The byte measurement's own UNIVERSE, bound both ways** — obligation (e)'s third
   // shape, *a LIST is a claim about another list*, and it is the clause this item's
   // own provocation set bought.
@@ -4843,14 +5038,36 @@ if (rowCosts.length !== EXPECTED.length) {
   // true of a run where the dead region collected nothing. `UnsatisfiableJoin`
   // carries the `fanoutId`, so the region is nameable — W22's `Cell` finding, in a
   // clause written to record an absence.
+  // **The lookup has to RESOLVE, and on the shipped tree one of its two cases did
+  // not** — W55's conformity reader, BLOCKING, and W55's adequacy reader from the
+  // other end. `all-exit / live-token-requiring-arrival` reports a dead `split` and
+  // never spells `regionId`, so `e.regionId === fanoutId` was false and the lookup
+  // returned `undefined` — the clause read *no arrivals recorded* for the row it is
+  // most about, **by accident**. Three separate edits then cost zero: emptying the
+  // `unsatisfiable` list, falsifying the `stoppedBy` filter, and making the lookup
+  // return `undefined` outright. So the pairs are counted and every one must have
+  // resolved, and the region id falls back to the FLOW's own rather than to nothing.
   const settledOfRegion = (e: Expectation, fanoutId: string): Record<string, string> | undefined =>
-    e.regionId === fanoutId ? e.settled : e.otherRegions?.[fanoutId]?.settled;
-  const unsatisfiableWithArrival = EXPECTED.flatMap((e) =>
-    (e.unsatisfiable ?? [])
-      .filter((u) => arrivedIn(settledOfRegion(e, u.fanoutId)) > 0)
-      .map((u) => `${e.key} / ${u.fanoutId}`));
-  const stoppedWithArrival = EXPECTED
-    .filter((e) => e.stoppedBy !== undefined && arrivedInRun(e) > 0).map((e) => e.key);
+    (e.regionId ?? soleRegionOf(e)) === fanoutId ? e.settled : e.otherRegions?.[fanoutId]?.settled;
+  const unsatisfiablePairs = EXPECTED.flatMap((e) =>
+    (e.unsatisfiable ?? []).map((u) => ({ key: e.key, region: u.fanoutId, settled: settledOfRegion(e, u.fanoutId) })));
+  const stoppedRows = EXPECTED.filter((e) => e.stoppedBy !== undefined);
+  check('cross-row', 'the two release moments this rung cannot reach are COUNTED before they are ' +
+    'reported absent — every unsatisfiable join names a region this row declares, and every ' +
+    'stopped row is looked at',
+    {
+      unsatisfiable: unsatisfiablePairs.length,
+      resolved: unsatisfiablePairs.filter((p) => p.settled !== undefined).length,
+      stopped: stoppedRows.length,
+    },
+    {
+      unsatisfiable: EXPECTED.reduce((n, e) => n + (e.unsatisfiable?.length ?? 0), 0),
+      resolved: EXPECTED.reduce((n, e) => n + (e.unsatisfiable?.length ?? 0), 0),
+      stopped: EXPECTED.filter((e) => e.stoppedBy !== undefined).length,
+    });
+  const unsatisfiableWithArrival = unsatisfiablePairs
+    .filter((p) => arrivedIn(p.settled) > 0).map((p) => `${p.key} / ${p.region}`);
+  const stoppedWithArrival = stoppedRows.filter((e) => arrivedInRun(e) > 0).map((e) => e.key);
   check('cross-row', 'and the other two release moments have NO case at this rung: no row reports an ' +
     'unsatisfiable join with an arrival recorded, and none stops a run after one — recorded, not argued',
     { unsatisfiableWithArrival, stoppedWithArrival }, { unsatisfiableWithArrival: [], stoppedWithArrival: [] });
@@ -4941,11 +5158,49 @@ check('cross-row', 'and they reach ID-R5 under TWO scheduler events, not one',
  * and a block nobody declared a subject for is invisible — which is `ROW_KEYS`' own
  * limit, and is why `CROSS_ROW` stays beside this rather than being replaced by it.
  */
+/**
+ * **And every PER-ROW subject, on the number of rows that owe it** — W55's adequacy
+ * reader, BLOCKING. See `PER_ROW_SUBJECTS`: this item's whole product is thirty-eight
+ * pairs of per-row assertions, and before this clause three integer edits deleted the
+ * one that carries its headline number and left nothing naming it.
+ *
+ * **Both halves**: the subject must have been asked, and it must have been asked the
+ * number of times the ROWS require — so an assertion that quietly stops running
+ * inside a row that is still there fails here, which a count of everything cannot see.
+ */
+check('cross-row', 'every PER-ROW subject this file declares was asked, on exactly the rows that ' +
+  'owe it — an assertion deleted with the floors is one that fails naming what it was about',
+  PER_ROW_SUBJECTS.map(([subject]) =>
+    `${subject}: ${[...perRowLabels.values()].filter((ls) => ls.some((l) => l.includes(subject))).length}`),
+  PER_ROW_SUBJECTS.map(([subject, howMany]) => `${subject}: ${howMany(EXPECTED)}`));
+
+/**
+ * **And BOTH WAYS, which is what stops a subject being deleted alongside the clause it
+ * names** — W55's adequacy reader, and it is `CROSS_ROW_SUBJECTS`' own recorded limit
+ * ([Q217](../doc/open-questions.md)) closed on this side of it.
+ *
+ * The clause above maps over the LIST, so removing an entry removes it from both
+ * halves and costs nothing. This maps over the LABELS: every per-row assertion whose
+ * subject is one of the two rules W55 is about must be covered by a declared subject,
+ * so a deleted entry leaves its own labels uncovered and fails naming them.
+ *
+ * **The prefix is what makes it computable** and it is stated rather than inferred:
+ * these are the assertions whose text begins with the rule they are about, which is
+ * the convention W55 introduced and the only thing here that could tell its own
+ * per-row assertions from the thirty-odd that predate it.
+ */
+check('cross-row', 'and no per-row assertion about ADR 0046 or JP-R12 is left uncovered by that ' +
+  'list — the other direction, so a subject cannot leave with the clause it names',
+  [...new Set([...perRowLabels.values()].flat())]
+    .filter((l) => /^(ADR 0046|JP-R12)/.test(l))
+    .filter((l) => !PER_ROW_SUBJECTS.some(([subject]) => l.includes(subject))),
+  []);
+
+
 check('cross-row', 'every cross-row SUBJECT this file declares was asserted about — a block ' +
   'deleted with the counts is a block that fails naming what it was about',
   CROSS_ROW_SUBJECTS.filter((t) => crossRowLabels.some((l) => l.includes(t))), CROSS_ROW_SUBJECTS);
-
-const DECLARED_TOTAL = 1050;
+const DECLARED_TOTAL = 1061;
 if (passed + failures.length !== DECLARED_TOTAL) {
   failures.push(
     'gate\n      the assertion count is not the number this file declares outright\n' +
