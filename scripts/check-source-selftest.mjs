@@ -141,16 +141,18 @@
 // smaller instance of the same thing. Named because a ceiling list that omits its
 // largest hole is worse than no list.
 //
-// **And the probes cover 6 of `check-source`'s 13 checks** — `S8`, `S11`, `S12` and
+// **And the probes cover 6 of `check-source`'s 12 checks** — `S8`, `S11`, `S12` and
 // `S13`, the four a manifest can reach, plus **`S4` and `S7`, added by W30** through a
-// copy of the published tree (`CHECK_SOURCE_SRC`). *(This paragraph read **4 of 13**
+// copy of the published tree (`CHECK_SOURCE_SRC`). *(13 until W57 retired `S9` with
+// ADR 0013 rule 6; `S8`'s `deno.json` half gained its first probe there, through
+// `CHECK_SOURCE_DENO`.)* *(This paragraph read **4 of 13**
 // and named `S1`-`S7`, `S9`, `S10` as the pattern lists nothing probes; two of those
 // nine are now probed and the sentence is corrected rather than left to rot.)*
 //
-// **`S1`, `S2`, `S3`, `S5`, `S6`, `S9` and `S10` remain unprobed and the cap is
+// **`S1`, `S2`, `S3`, `S5`, `S6` and `S10` remain unprobed and the cap is
 // STATED, on [P9](../doc/plans/p9-when-a-check-stops-checking-what-notices.md)
 // decision 3's argument**: `S1`-`S3` are guarded a second way by `typecheck:deno` and
-// `typecheck:browser`, and `S5`, `S6`, `S9`, `S10` are publish-set bookkeeping with a
+// `typecheck:browser`, and `S5`, `S6`, `S10` are publish-set bookkeeping with a
 // second route. **`S4` and `S7` were the two with none** — `S4` is `RT-R9`, which all
 // four typecheckers accept and Node refuses to load, and `S7` is ADR 0013 rule 1's only
 // enforcement. **Measured before they were probed**: emptying `UNSTRIPPABLE`, making
@@ -461,11 +463,11 @@ const PROBES = [
   // clause made inert.
   //
   // **`S1`, `S2`, `S3` are left out on P9 decision 3's argument** — `typecheck:deno`
-  // and `typecheck:browser` guard them a second way — and `S5`, `S6`, `S9`, `S10`
+  // and `typecheck:browser` guard them a second way — and `S5`, `S6`, `S10`
   // are publish-set bookkeeping with a second route. `S4` and `S7` have none: `S4`
   // is `RT-R9`, which **all four typecheckers accept and Node refuses to load**, and
   // `S7` is [ADR 0013](../doc/decisions/0013-the-scheduler-is-a-development-dependency-reached-from-the-working-tree.md)
-  // rule 1's ONLY enforcement, which `CLAUDE.md` calls *"one autocomplete away from
+  // rule 1's only enforcement while that rule stood (`S7` is `RT-R11`'s since W57), which `CLAUDE.md` called *"one autocomplete away from
   // being broken"*.
   {
     name: 'an enum in published source — RT-R9, which every typechecker accepts',
@@ -483,9 +485,19 @@ const PROBES = [
     mutate: (t) => `${t}\nclass Probe {\n  constructor(private readonly n: number) {}\n}\n`,
   },
   {
-    name: 'a published file importing the scheduler by its NPM name',
-    half: 'src', file: 'src/fold/policies.ts', check: 'S7',
+    // **The CONTROL, and it was a probe until W57.** ADR 0048 rule 4 PERMITS exactly this
+    // form — the bare npm specifier, in any published file — so this row asserts the
+    // narrowed `S7` lets it through: `clean` means the run must exit 0 tripping nothing.
+    // Without it a check that still refused every import would pass every other probe here
+    // and be wrong about the one thing the narrowing changed.
+    name: 'the bare npm specifier in a published file — PERMITTED since ADR 0048 (control)',
+    half: 'src', file: 'src/fold/policies.ts', clean: true,
     mutate: (t) => `${t}\nimport { FyflowScheduler } from 'fyflow-scheduler';\n`,
+  },
+  {
+    name: 'the npm name reached with an npm: prefix — a form only Deno resolves',
+    half: 'src', file: 'src/fold/policies.ts', check: 'S7',
+    mutate: (t) => `${t}\nimport { FyflowScheduler } from 'npm:fyflow-scheduler';\n`,
   },
   {
     name: 'a published file importing the scheduler by its JSR name, bare',
@@ -494,7 +506,8 @@ const PROBES = [
     // names; a Deno consumer runs `deno add jsr:@fyflow/scheduler` and then writes
     // the BARE `@fyflow/scheduler` with no `jsr:` prefix anywhere near the import.
     // A side-effect import rather than a `from`, so it reaches a different entry of
-    // `SCHEDULER_REACH` than the probe above.
+    // entry of W30's `SCHEDULER_REACH` list than the probe above; since W57 `S7` is one predicate
+    // over the captured specifier, so the two probes differ in the FORM they carry, not the entry.
     mutate: (t) => `${t}\nimport '@fyflow/scheduler';\n`,
   },
 
@@ -527,33 +540,40 @@ const PROBES = [
     mutate: (t) => `${t}\nimport probe = require("node:path");\n`,
   },
   {
-    name: 'a DYNAMIC import of the scheduler in published source',
+    name: 'a DYNAMIC import of the scheduler by its jsr: form in published source',
     half: 'src', file: 'src/driver/events.ts', check: 'S7',
-    mutate: (t) => `${t}\nconst probe = () => import('fyflow-scheduler');\n`,
+    mutate: (t) => `${t}\nconst probe = () => import('jsr:@fyflow/scheduler');\n`,
   },
   {
-    name: 'a require() of the scheduler in published source — S1 as well, by the same list',
+    name: 'a DYNAMIC import of the scheduler in a TEMPLATE LITERAL — the adequacy reader`s m05',
+    half: 'src', file: 'src/driver/events.ts', check: 'S7',
+    // The quote class read `['"]`; a backtick-quoted specifier passed every form of `S7` and
+    // only `typecheck:node` saw it (TS2307), while Deno accepted the import.
+    mutate: (t) => `${t}\nconst probe2 = () => import(\`jsr:@fyflow/scheduler\`);\n`,
+  },
+  {
+    name: 'a require() of the scheduler by its npm: form — S1 as well',
     half: 'src', file: 'src/driver/ids.ts', check: 'S1', also: ['S7'],
-    mutate: (t) => `${t}\nconst probe = require("fyflow-scheduler");\n`,
+    mutate: (t) => `${t}\nconst probe = require("npm:fyflow-scheduler");\n`,
   },
   {
     name: 'a RELATIVE reach into ../fyflow-scheduler — the 2026-08-31 shape',
     half: 'src', file: 'src/driver/policy.ts', check: 'S7',
     // ADR 0029: a path into a sibling checkout is the form a junction in
-    // `node_modules` made look ordinary, and it is the one this list exists for.
-    //
-    // **This probe trips `S7` TWICE and no probe can ever make it trip once**, which
-    // is a fact about the CHECK rather than about the probes. `SCHEDULER_REACH[4]` —
-    // *a relative reach into ../fyflow-scheduler* — and `SCHEDULER_REACH[0]` — *an
-    // import of the scheduler* — share the prefix ``\bfrom\s+['\"][^'\"]*``, and any
-    // string containing `../fyflow-scheduler` contains `fyflow-scheduler`. **So [4]
-    // is SUBSUMED BY [0] for every possible input**: deleting it changes no verdict,
-    // and W30 measured that (28/28 with it gone) before concluding it. It is already
-    // present-but-inert, so *what notices when it goes inert* has the answer
-    // **nothing, and nothing could** — W29's `check-scheduler.mjs:191` shape, second
-    // occurrence, in a different check. **Not fixed**: removing a clause is a change
-    // to what `S7` checks, which P9 declares out of scope.
+    // `node_modules` made look ordinary, and it is the one `S7` was KEPT for at W57 —
+    // `D1`-`D3` read no source file, so nothing else sees this shape in `src/`.
+    // *(Until W57 this comment recorded that the probe tripped `S7` TWICE, because two
+    // entries of the old `SCHEDULER_REACH` list matched one string. The narrowed clause
+    // is one predicate over one captured specifier, so it fires once per occurrence.)*
     mutate: (t) => `${t}\nimport { x } from '../../fyflow-scheduler/dist/index.js';\n`,
+  },
+  {
+    name: 'a file: specifier reaching the scheduler in published source',
+    half: 'src', file: 'src/driver/log.ts', check: 'S7',
+    // The declaration form that cost this project a sibling checkout, written as an
+    // import rather than as a manifest entry. `check-scheduler`'s `D2` refuses it in
+    // `package.json`; nothing but `S7` sees it in a `.ts` file.
+    mutate: (t) => `${t}\nimport type { Probe } from 'file:../fyflow-scheduler/index.ts';\n`,
   },
   {
     name: 'the scheduler declared as a runtime dependency',
@@ -562,6 +582,30 @@ const PROBES = [
     // here because the manifest half already has a harness.
     mutate: (t) => t.replace('  "devDependencies": {',
       '  "dependencies": {\n    "fyflow-scheduler": "0.3.0"\n  },\n  "devDependencies": {'),
+  },
+  {
+    name: 'the scheduler declared as an optionalDependency — a second copy, optionally',
+    half: 'pkg', check: 'S8',
+    // The third field `S8` reads, and the one no probe had reached: `dependencies` had
+    // W30's probe, `peerDependencies` is what `D8` now requires, and this is the remaining
+    // way to install a second copy beside the consumer's.
+    mutate: (t) => t.replace('  "devDependencies": {',
+      '  "optionalDependencies": {\n    "fyflow-scheduler": "0.5.2"\n  },\n  "devDependencies": {'),
+  },
+  {
+    name: 'deno.json maps the scheduler to a working-tree PATH — ADR 0029`s incident, in the publish manifest',
+    half: 'deno', check: 'S8',
+    // `S8`'s `deno.json` half had NO probe until W57, because its only clause refused any
+    // mapping and no probe wanted to add one. ADR 0048 rule 2 requires the `jsr:` mapping,
+    // so the clause now refuses a PATH — and this is the path.
+    mutate: (t) => t.replace(/"fyflow-scheduler": "jsr:@fyflow\/scheduler@\d+\.\d+\.\d+"/,
+      '"fyflow-scheduler": "../fyflow-scheduler/index.ts"'),
+  },
+  {
+    name: 'deno.json re-maps the scheduler to a working-tree PATH inside a scopes block — the adequacy reader`s m22',
+    half: 'deno', check: 'S8',
+    mutate: (t) => t.replace('  "publish": {',
+      '  "scopes": {\n    "./src/": { "fyflow-scheduler": "../fyflow-scheduler/index.ts" }\n  },\n  "publish": {'),
   },
 ];
 
@@ -615,10 +659,10 @@ const RAN = (out) => /^(All checks passed|\d+ failure\(s\)\.)/m.test(out);
  */
 const SELF_RAN = (out) => /self-test — /.test(out);
 
-const MIN_PROBES = 35;
+const MIN_PROBES = 41;
 
 /** The same floor for `META`, and for the same reason. */
-const MIN_META = 24;
+const MIN_META = 27;
 
 /** And for `SELF`. */
 const MIN_SELF = 10;
@@ -761,8 +805,10 @@ const META = [
   // mutation **0**, and this mutation alone on a clean tree **0**.
   ['the linted trees no longer read the examples walk — the disk half of the derived clause`s source',
     'lint`s coverage left to the DERIVED clause alone — the lint row gone AND examples/ dropped',
-    (t) => t.replace('const walked = new Set([...files, ...browserBundleInputs(), ...exampleSources()].map((p) => {',
-      'const walked = new Set([...files, ...browserBundleInputs()].map((p) => {')],
+    // Re-anchored by W57: the test-tree walker is `testSources()` since `S9` was retired, and
+    // the old anchor matched nothing — which this file reported rather than grading.
+    (t) => t.replace('const walked = new Set([...files, ...testSources(), ...exampleSources()].map((p) => {',
+      'const walked = new Set([...files, ...testSources()].map((p) => {')],
   ['the chain read from GATE_CHAIN instead of from package.json',
     'a runtime dropped from the gate chain — Q126, reproduced',
     (t) => t.replace("const gate = typeof scripts.gate === 'string' ? scripts.gate.trim() : '';",
@@ -780,15 +826,27 @@ const META = [
   ['UNSTRIPPABLE emptied — the whole pattern list leaving',
     'a constructor PARAMETER PROPERTY in published source — RT-R9`s own example',
     (t) => t.replace(/const UNSTRIPPABLE = \[\n[\s\S]*?\n\];/, 'const UNSTRIPPABLE = [];')],  // `[\n` so the result cannot re-match
-  ['S7`s clause disabled', 'a published file importing the scheduler by its NPM name',
-    (t) => t.replace("      fail('S7',", "      [].push('S7',")],
-  ['the PUBLISHED half of SCHEDULER_REACH emptied, leaving S9`s half alone',
-    'a published file importing the scheduler by its JSR name, bare',
-    // Narrowed to `S7`'s own loop head rather than to the shared array: `S9` reads
-    // the same list through `for (const [re] of SCHEDULER_REACH)`, and emptying the
-    // array would disable two checks while naming one. That is precisely what the
-    // GLOBAL guard below refuses, asked of an entry rather than of an anchor.
-    (t) => t.replace('  for (const [re, what] of SCHEDULER_REACH) {', '  for (const [re, what] of []) {')],
+  ['S7`s clause disabled', 'a published file importing the scheduler by its JSR name, bare',
+    (t) => t.replace("        fail('S7',", "        [].push('S7',")],
+  ['SPECIFIER_FORMS emptied at S7`s loop head — the whole list leaving',
+    'the npm name reached with an npm: prefix — a form only Deno resolves',
+    // Narrowed to `S7`'s own loop head rather than to the array: `S1`'s `NODE_IMPORT` is a
+    // separate list, so nothing else reads this one — but the GLOBAL guard below is what
+    // refuses an anchor that could, and the loop head is the one string that cannot.
+    (t) => t.replace('  for (const re of SPECIFIER_FORMS) {', '  for (const re of []) {')],
+  ['S7`s predicate made vacuous — every specifier reads as the canonical one',
+    'a file: specifier reaching the scheduler in published source',
+    // The narrowed clause is a PREDICATE over a captured specifier, so the list bound above
+    // and the fail() site do not cover it: with `&& false` appended, every form is read as
+    // the bare name and the clause fires on nothing while the loop runs over everything.
+    (t) => t.replace("const reachesSchedulerWrongly = (spec) => SCHEDULER_NAMES.test(spec) && spec !== CANONICAL_SPECIFIER;",
+      "const reachesSchedulerWrongly = (spec) => SCHEDULER_NAMES.test(spec) && spec !== CANONICAL_SPECIFIER && false;")],
+  ['S8`s second-declaration clause disabled',
+    'the scheduler declared as an optionalDependency — a second copy, optionally',
+    (t) => t.replace("      fail('S8', `${PKG_PATH} ${field} declares", "      [].push(`${PKG_PATH} ${field} declares")],
+  ['S8`s deno.json PATH clause disabled',
+    'deno.json maps the scheduler to a working-tree PATH — ADR 0029`s incident, in the publish manifest',
+    (t) => t.replace("    fail('S8', `${DENO_PATH} ${where} maps", "    [].push(`${DENO_PATH} ${where} maps")],
 
   ['every failure swallowed',
     'the scheduler declared as a runtime dependency', (t) => t.replace('const fail = (check, msg) => failures.push(`${check}: ${msg}`);', 'const fail = () => {};')],
@@ -907,8 +965,8 @@ const SELF = [
     // element, and both anchor guards stop applying to it. One edit, and `META` sits
     // above `SELF` so nothing self-matches.
     (t) => t.replace(
-      "  ['S7`s clause disabled', 'a published file importing the scheduler by its NPM name',",
-      "  ['S7`s clause disabled', 'a published file importing the scheduler by its NPM name', undefined, 'a second exemption nobody bounded',")],
+      "  ['S7`s clause disabled', 'a published file importing the scheduler by its JSR name, bare',",
+      "  ['S7`s clause disabled', 'a published file importing the scheduler by its JSR name, bare', undefined, 'a second exemption nobody bounded',")],
   ['one META mutation made VACUOUS — rule 7 (b) at the grading layer',
     (t) => t.replace("(t) => t.replace('    if (unreadable.length === 0) {', '    if (false) {')",
       "(t) => t.replace('a string this file does not contain', 'nor this one')")],
@@ -936,6 +994,7 @@ export async function selfTest(root) {
   const nested = nestedScript || nestedSelf;
   const source = {
     pkg: readFileSync(join(root, 'package.json'), 'utf8'),
+    deno: readFileSync(join(root, 'deno.json'), 'utf8'),
     check: readFileSync(script, 'utf8'),
   };
 
@@ -1005,7 +1064,10 @@ export async function selfTest(root) {
     // whole reason this file exists.
     //
     // Read from the FAILURE LINES, which say which check owns each failure.
-    const declared = [probe.check, ...(probe.also ?? [])].sort();
+    // **`clean`: the probe is a CONTROL and the check must ACCEPT its input** — W57, for the
+    // one form the narrowed `S7` permits. Declared as the empty set, and `refused` then means
+    // exit 0 with nothing tripped; every other probe keeps its non-zero-exit meaning.
+    const declared = probe.clean ? [] : [probe.check, ...(probe.also ?? [])].sort();
     const tripped = trippedIn(out);
     // **AND from the per-check REPORT ROWS, which are a second, independent
     // projection of the same fact.** W24's conformity reader found that the report
@@ -1018,7 +1080,7 @@ export async function selfTest(root) {
     const rows = [...out.matchAll(/^ {2}(ok {2}|FAIL) {2}(S\d+) /gm)]
       .filter((m) => m[1] === 'FAIL').map((m) => m[2]).sort();
     const agree = rows.join(',') === tripped.join(',');
-    const refused = r.status !== 0 && tripped.join(',') === declared.join(',') && agree;
+    const refused = (probe.clean ? r.status === 0 : r.status !== 0) && tripped.join(',') === declared.join(',') && agree;
     return {
       vacuous: false, refused, ran: RAN(out), declared, tripped, agree, status: r.status,
       msg: `exited ${r.status}, wanted [${declared.join(',')}], ` +
@@ -1086,6 +1148,10 @@ export async function selfTest(root) {
     if (probe.half === 'pkg') {
       writeFileSync(join(root, `${stem}.json`), mutated);
       env.CHECK_SOURCE_PKG = `${stem}.json`;
+    } else if (probe.half === 'deno') {
+      // W57: `S8`'s JSR half reads `deno.json`, and `CHECK_SOURCE_DENO` is its copy handle.
+      writeFileSync(join(root, `${stem}.deno.json`), mutated);
+      env.CHECK_SOURCE_DENO = `${stem}.deno.json`;
     } else {
       // **Written one level down from ROOT, in `dev-dist/`.** `check-source.mjs`
       // derives `ROOT` as `resolve(dirname(self), '..')`, so a copy must sit
@@ -1176,7 +1242,7 @@ export async function selfTest(root) {
   for (const [i, probe] of PROBES.entries()) {
     const v = runOne(i, probe);
     if (v.refused) caught++;
-    console.log(`  ${v.refused ? 'ok  ' : 'FAIL'}  ${probe.check}  ${probe.name}` +
+    console.log(`  ${v.refused ? 'ok  ' : 'FAIL'}  ${probe.clean ? 'ctl' : probe.check}  ${probe.name}` +
       (v.refused ? '' : `  — ${v.msg}`));
     // Once a probe has gone uncaught in a nested child the answer is settled and
     // the remaining spawns are waste.

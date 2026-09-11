@@ -27,17 +27,26 @@ have: **sequence**, **decision routing**, **fan-out** and **join**.
 | worker pools, threads, retry, resource limits, task execution | `fyflow-scheduler` |
 | what runs after what, and on what condition | **here** |
 
-**This package does not depend on the scheduler.** Nothing under `src/` imports it; `SchedulerLike`
-is a two-method structural interface and **you pass your own scheduler in**. Install whichever
-version you like.
+**This package depends on the scheduler, and says so where your installer reads it.** Since
+[ADR 0048](doc/decisions/0048-the-scheduler-is-a-declared-dependency-reached-by-one-bare-specifier.md)
+`fyflow-scheduler` is a `peerDependencies` entry at **exactly** the version section 12 pins — npm 7
+and later install it for you — and the JSR package maps it to `@fyflow/scheduler` at the same
+version. The driver is written against that version's event shapes, and the range is exact because
+there is no upstream changelog to read a wider one from. **You still pass your own scheduler in**:
+`SchedulerLike` is a two-method structural interface, a real `FyflowScheduler` satisfies it as it is,
+and the one thing the library builds itself is a `FyflowTask` when you omit `createTask`. *(This
+paragraph read "does not depend on the scheduler … install whichever version you like" from W9 to
+W57, while section 12 said to pin it — two sentences a consumer reads first, contradicting each
+other twenty-one sections apart.)*
 
 ```ts check
 import type { SchedulerLike } from 'fyflow-orchestration';
 
-// The entire surface this library needs from a scheduler.
+// The entire surface this library needs from a scheduler. The listener takes `object` — what an
+// `EventTarget` hands a listener — and the driver reads `detail` off it (section 12, Q71).
 const shape: SchedulerLike = {
   addTask(_task: unknown) { return undefined; },
-  addEventListener(_type: string, _listener: (e: { detail: unknown }) => void) {},
+  addEventListener(_type: string, _listener: (e: object) => void) {},
 };
 void shape;
 ```
@@ -1298,51 +1307,80 @@ on. What is missing is an agreed envelope shape between the two repositories, no
 
 ## 12. Wiring it to a real scheduler
 
-The two things you supply are `createTask` and the scheduler itself.
+You supply the scheduler, and that is all you have to supply. Since
+[ADR 0048](doc/decisions/0048-the-scheduler-is-a-declared-dependency-reached-by-one-bare-specifier.md)
+this library **depends on `fyflow-scheduler`** and says so where your installer reads it — a
+`peerDependencies` entry, at the pin stated at the end of this section — and `createTask` is
+**optional**: the driver's default is `(config) => new FyflowTask(config)`, the object a
+`FyflowScheduler` consumes.
 
-```ts check
-import { Driver, liveToken, type FlowDefinition, type Predicate } from 'fyflow-orchestration';
+```ts run
+import { Driver, fold, isTerminal, liveToken, type FlowDefinition, type FoldInput, type RunState } from 'fyflow-orchestration';
 import { FyflowScheduler, FyflowTask, WorkerManager } from 'fyflow-scheduler';
 
-declare const definition: FlowDefinition;
-declare const predicates: Map<string, Predicate>;
-declare const workerUrl: string;
+// Your worker module — here the one this repository's own L6 rung runs, so this snippet is
+// a real run on a real scheduler rather than a sketch. One class, a role per pool.
+const workerUrl = new URL('../../examples/workers/flow-worker.ts', import.meta.url).href;
+
+const definition: FlowDefinition = {
+  flowId: 'wired', version: 1, entry: 'ingest',
+  nodes: [
+    { id: 'ingest',  kind: 'task', workerType: 'IngestWorker',  edges: [{ to: 'publish' }] },
+    { id: 'publish', kind: 'task', workerType: 'PublishWorker', edges: [{ to: 'done' }] },
+    { id: 'done',    kind: 'end',  outcome: 'completed' },
+  ],
+};
 
 const scheduler = new FyflowScheduler({
-  IngestWorker: new WorkerManager(workerUrl, { maxThreads: 2, inline: true, config: { role: 'ingest' } }),
+  IngestWorker:  new WorkerManager(workerUrl, { maxThreads: 1, inline: true, config: { role: 'ingest' } }),
+  PublishWorker: new WorkerManager(workerUrl, { maxThreads: 1, inline: true, config: { role: 'publish' } }),
 });
 
-const driver = new Driver(definition, {
-  runId: 'run-1',
-  scheduler,
-  createTask: (config) => new FyflowTask(config),
-  predicates,
-  workerTypes: ['IngestWorker'],
-  joinPolicy: liveToken,
-  onRunFailure: (f) => console.error(f.kind, f.message),
+// A run is over when its OWN fold says so — never `scheduler.completed`, which fires every
+// time the scheduler drains (section 8). `onFoldInput` is the push half of `foldInputs()`, and
+// the outcome is read on a `queueMicrotask`, AFTER the driver's turn: a prefix cut mid-turn is
+// not a resting state, and section 8 says so.
+const inputs: FoldInput[] = [];
+const state = await new Promise<RunState>((resolve, reject) => {
+  const driver = new Driver(definition, {
+    runId: 'run-1',
+    scheduler,                                    // the real class, as it is — no cast (Q71)
+    predicates: new Map(),
+    workerTypes: Object.keys(scheduler.workerPools),
+    joinPolicy: liveToken,
+    onFoldInput: (input) => {
+      inputs.push(input);
+      queueMicrotask(() => { const s = fold(inputs); if (isTerminal(s)) resolve(s); });
+    },
+    onRunFailure: (f) => reject(new Error(`${f.kind}: ${f.message}`)),
+  });
+  driver.start({ confidence: 0.9 });
 });
+const tasks = [...scheduler.tasks.values()];   // read BEFORE shutdown, which clears the map
+await scheduler.shutdown();
 
-driver.start({ some: 'payload' });
+if (state.outcome !== 'completed') throw new Error(`expected completed, got ${state.outcome}`);
+// `nodes` is keyed by TASK id (`run-1:publish:-:0`), so look the node up by its id.
+const publish = Object.values(state.nodes).find((n) => n.nodeId === 'publish');
+if (publish?.state !== 'done') throw new Error(`publish never settled: ${publish?.state}`);
+// And the tasks the scheduler ran were the class's own — the driver built them, you did not.
+// The scheduler would have run a plain object too (it duck-types its task, with `attempts` left
+// undefined), which is why this is asserted rather than assumed.
+if (tasks.length !== 2 || !tasks.every((t) => t instanceof FyflowTask)) throw new Error('the default createTask did not build FyflowTasks');
 ```
 
-`createTask` exists so this library never constructs a scheduler object, which is what keeps it free
-of a dependency on the scheduler. `workerTypes` is the set the validator checks a definition
-against — pass the keys of your `workerPools`.
+`workerTypes` is the set the validator checks a definition against — pass the keys of your
+`workerPools`, as above, rather than a second list. Pass `createTask` only to run against a
+double — ladder L2-L5 here hand the driver `(c) => c` and read the plain object back — or to build
+something other than a plain `FyflowTask`.
 
-> **You will probably need a cast here, and it is our fault.** Write
-> `scheduler: scheduler as unknown as SchedulerLike` and import `SchedulerLike` alongside `Driver`.
->
-> `FyflowScheduler extends EventTarget`, so **with the DOM lib in scope** it picks up
-> `addEventListener(type, EventListenerOrEventListenerObject | null, options?)`, which
-> `SchedulerLike`'s narrower `(type, (e: { detail: unknown }) => void)` is not compatible with.
->
-> **The DOM lib is TypeScript's default when you do not set `lib` yourself**, so the failing
-> configuration is the common one and the working one is the exception. The snippet above compiles
-> here only because `tsconfig.docs.json` sets `lib: ["ES2022"]` explicitly. Measured: of this
-> document's snippets, this is the **only** one that fails under a DOM configuration.
->
-> **This is a defect in our type, not in yours**, and a documented cast is a defect with an apology
-> attached. It is [Q71](doc/open-questions.md), found while writing the snippet above.
+**The `scheduler` option takes a `FyflowScheduler` as it is.** Until W57 it did not, under the one
+configuration most consumers have: `FyflowScheduler extends EventTarget`, so with the DOM lib in
+scope — TypeScript's default when `lib` is unset — its `addEventListener` was not assignable to
+`SchedulerLike`'s, and this section told you to write `scheduler as unknown as SchedulerLike`. That
+was [Q71](doc/open-questions.md), a defect in our type and not in yours, and it is closed:
+`SchedulerLike`'s listener parameter is `object`, which is what makes the real class satisfy it,
+and every snippet in this document is typechecked under the DOM lib by `npm run check:docs`.
 
 **A worker file can be TypeScript.** Node 24 runs it by stripping types, and Deno natively, so **one
 `.ts` worker serves Node and Deno**. *(The scheduler's own reference **used to say** a Node worker
@@ -1363,7 +1401,11 @@ family this library subscribes to not at all. Install it from a registry — npm
 and **never from a working tree**, which is
 [ADR 0029](doc/decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)
 superseding [ADR 0013](doc/decisions/0013-the-scheduler-is-a-development-dependency-reached-from-the-working-tree.md)
-rules 3 and 5. *(This read **"pin at 0.3.0 … npm and JSR both stop at 0.2.1, so 0.3.0 is reached from
+rules 3 and 5. **The manifests say the same thing**, since
+[ADR 0048](doc/decisions/0048-the-scheduler-is-a-declared-dependency-reached-by-one-bare-specifier.md):
+`package.json` names it in `peerDependencies` at exactly that version and `deno.json` maps it to
+`jsr:@fyflow/scheduler` at exactly that version, and `npm run check:scheduler`'s `D8` holds both to
+the pin the same way `D7` holds this sentence. *(This read **"pin at 0.3.0 … npm and JSR both stop at 0.2.1, so 0.3.0 is reached from
 a working tree"** — a live instruction to a consumer, wrong in the version AND in the mechanism, the
 second having been superseded on 2026-08-31. W36's conformity reader.)*
 

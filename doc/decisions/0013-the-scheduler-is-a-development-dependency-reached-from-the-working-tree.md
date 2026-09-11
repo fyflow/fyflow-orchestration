@@ -3,8 +3,18 @@
 **Date:** 2026-08-30
 **Status:** accepted — **rules 3 and 5 superseded 2026-08-31 by
 [ADR 0029](0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)**,
-after both registries began carrying 0.3.0. **Rules 1, 2 and 4 stand unchanged**, and rule 1 — the
-published library depends on the scheduler *not at all* — is the load-bearing one and is untouched.
+after both registries began carrying 0.3.0. **Rules 1, 2 and 6 superseded 2026-09-11 by
+[ADR 0048](0048-the-scheduler-is-a-declared-dependency-reached-by-one-bare-specifier.md)**: the
+published library now DEPENDS on the scheduler, `S7` is narrowed to the FORM of the reach and `S9` is
+retired. ADR 0048 answers the claim rule 1 protected — *Consequences* below, *"a driver that can
+construct a scheduler is a driver that will"* — on ADR 0001's own terms, and records that the
+`peerDependency` this document rejected as *"a false statement in a manifest"* stopped being one
+when the pin reached a registry (context fact 1, expired 2026-08-31). **Rule 4 stands** and is
+normative as `RT-R11`. *(This line read "Rules 1, 2 and 4 stand unchanged, and rule 1 … is the
+load-bearing one and is untouched" from 2026-08-31 to 2026-09-11 — and for a few hours on
+2026-09-11 it read that rule 1 "had expired with ADR 0029 and was left standing on nothing it was
+decided on", which this document's own fact 4 and its Consequences cost 1 contradict; W57's
+conformity reader.)*
 The title of this document is now historical: the scheduler is a **registry** dependency — **two clauses corrected in place, 2026-08-30**, see *Correction*
 **Raised by:** [Q51](../open-questions.md), taken by [W5](../work-items/w5-one-real-fan-out-flow-on-a-real-scheduler.md)
 under [P1](../plans/p1-what-satisfies-a-join.md)

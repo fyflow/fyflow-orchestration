@@ -1,10 +1,13 @@
 /**
  * Ladder **L6** — one real run, on a real `FyflowScheduler`, with real workers.
  *
- * This is the only code in the repository that touches the library. Everything
+ * This is the only code in the repository that DRIVES the library end to end. Everything
  * under `src/` talks to `SchedulerLike`, a structural interface with two methods
- * (`ADR 0001`, and [ADR 0013](../doc/decisions/0013-the-scheduler-is-a-development-dependency-reached-from-the-working-tree.md)
- * rule 1: the published package depends on the scheduler **not at all**).
+ * (`ADR 0001`); since [ADR 0048](../doc/decisions/0048-the-scheduler-is-a-declared-dependency-reached-by-one-bare-specifier.md)
+ * the published package also DEPENDS on the scheduler — a peer dependency, and one import
+ * in `src/driver/driver.ts` for the default `createTask` — which is why this harness no
+ * longer writes that factory itself. *(This read ADR 0013 rule 1's "depends on the scheduler
+ * **not at all**" from W5 until W57 superseded that rule.)*
  *
  * ## How a run is known to be over, with no clock
  *
@@ -208,6 +211,24 @@ export interface RunReport {
    * latent flake reported as a pass is the worst shape of green.
    */
   lateInputs: readonly string[];
+  /**
+   * **What the scheduler HELD when the run was over, and how many of those were the class's
+   * own — W57, ADR 0048 rule 5's only observer at L6.** `FyflowScheduler.addTask` duck-types
+   * its task: rule 8 probe `a3` swapped the driver's default `createTask` for `(config) => config`
+   * and every row stayed green, because a plain object runs to `done` too. Counted from
+   * `scheduler.tasks`, the scheduler's own map, never from the driver.
+   */
+  tasksHeld: number;
+  fyflowTasksHeld: number;
+  /**
+   * **How many settlement events the SCHEDULER reported, and how many of their live task
+   * objects carried a NUMERIC `attempts`.** The second thing a plain-object task lacks —
+   * `FyflowTask` sets `attempts: 0` at construction — read at the listener off the scheduler's
+   * own object, which is independent of `tasksHeld` (the scheduler's map) and of the driver's
+   * log (whose listener normalises `attempts`, so a record could not see this).
+   */
+  settlementsSeen: number;
+  numericAttemptsSeen: number;
   /**
    * Whether the two fan-out branches were ever in flight at the same time.
    * Symmetric, so it depends on no completion order — which nothing may
@@ -996,13 +1017,22 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
     if (branches.length > 1) branchesOverlapped = true;
   };
   const settledByScheduler = new Set<string>();
+  // **W57's second observer for ADR 0048 rule 5, read off the scheduler's LIVE task object at
+  // the listener** (`OR-R1`, synchronously, never retained): a `FyflowTask` carries a numeric
+  // `attempts` from construction and a plain object handed to `addTask` carries none. The
+  // driver's own record cannot see this — its listener normalises `attempts` — so this is
+  // independent of both the driver and the `instanceof` count below.
+  let settlementsSeen = 0;
+  let numericAttemptsSeen = 0;
   const noteDone = (e: { detail: unknown }) => {
     const id = (e.detail as { id?: string })?.id;
     if (typeof id !== 'string') return;
     inFlight.delete(id);
     // Read synchronously from the live detail and never retained (`OR-R1`); only
-    // the id, which is a string.
+    // the id, which is a string, and whether `attempts` is a number.
     settledByScheduler.add(id);
+    settlementsSeen++;
+    if (typeof (e.detail as { attempts?: unknown }).attempts === 'number') numericAttemptsSeen++;
   };
   scheduler.addEventListener('task.running', noteRunning);
   scheduler.addEventListener('task.completed', noteDone);
@@ -1011,7 +1041,12 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
   const driver = new Driver(definition, {
     runId,
     scheduler,
-    createTask: (config) => new FyflowTask(config),
+    // **No `createTask` — deliberately, since W57.** The driver's default is
+    // `(config) => new FyflowTask(config)` (ADR 0048), and this is the ONE place a real
+    // scheduler is driven, so omitting the option here is what makes ladder L6 run the
+    // factory that SHIPS rather than a copy of it written in a harness — `doc/workflow.md`
+    // rule 8 obligation (e), *was what it RAN what SHIPS*. Restoring the explicit line is
+    // the control: it must cost nothing, because it builds the same object.
     predicates: opts.predicates ?? new Map<string, Predicate>(),
     // **Read from the SCHEDULER, not written out again — W35, and it is
     // `doc/workflow.md` rule 8's obligation (c) caught by walking into it.**
@@ -1200,6 +1235,12 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
   for (const id of dispatched) settled[id] = driver.terminalStateOf(id);
   const log = driver.snapshot();
   const finalState = state;
+  // **And what the SCHEDULER holds, sampled at the same quiescent point** — W57. Not at the
+  // report literal below: by then the retention observer has awaited, and the first version of
+  // this read `scheduler.tasks.size` there and saw **0 on every row**, which the cross-row
+  // non-vacuity clause in `l6.ts` caught on its first run.
+  const tasksHeld = scheduler.tasks.size;
+  const fyflowTasksHeld = [...scheduler.tasks.values()].filter((t) => t instanceof FyflowTask).length;
 
   // **What the driver is still holding, read in the same place and for the same
   // reason `dispatched` is: BEFORE `shutdown()`** — W55. A drain settles what was in
@@ -1255,6 +1296,10 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
     settled,
     log,
     settledByScheduler: [...settledByScheduler],
+    tasksHeld,
+    fyflowTasksHeld,
+    settlementsSeen,
+    numericAttemptsSeen,
     wallMs,
     outcomesSeen,
     resolved,

@@ -56,6 +56,15 @@ Use [TEMPLATE.md](TEMPLATE.md).
 | [0030](0030-a-join-is-transitive-and-a-dead-join-ends-the-branch-it-sits-in.md) | A join is transitive over nested fan-out, and a join that can never fire ends the branch it sits in | Q6 / W22 | 2026-09-02 |
 | [0036](0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md) | Fan-out is **two features over one region**: a `map` is a second node kind, and a `branchPath` inside one is a property of the dispatch | Q12 / W32 | 2026-09-06 |
 | [0037](0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md) | What a branch receives is a property of the **fan-out**; what a satisfied join carries is a property of the **region** | Q36, Q11, Q154 / W34 | 2026-09-07 |
+| [0039](0039-the-gate-climbs-the-ladder-and-the-self-tests-run-concurrently.md) | The gate climbs the ladder, and proving the checks can fail runs concurrently | W39 / P11 | 2026-09-09 |
+| [0040](0040-what-a-node-can-reach-is-the-runs-own-outputs-and-a-node-id-names-them-relative-to-a-branch-path.md) | What a node can reach is the run's own outputs, and a node id names them relative to a branch path | Q11 (Q164-Q166) / W41 | 2026-09-09 |
+| [0041](0041-a-decision-sees-its-nodes-outcome-and-whatever-its-own-edge-declares.md) | A decision sees its node's outcome and whatever its own edge declares | Q8 / W42 | 2026-09-10 |
+| [0042](0042-a-reference-says-whether-it-is-conditional-and-the-bare-form-means-the-target-certainly-ran.md) | A reference says whether it is conditional, and the bare form means the target certainly ran | Q187 / W45 | 2026-09-10 |
+| [0044](0044-a-reference-is-visible-when-two-paths-agree-on-the-regions-that-contain-both-of-them.md) | A reference is visible when two paths agree on the regions that contain both of them | Q206 / W49 | 2026-09-10 |
+| [0046](0046-a-run-retains-what-its-tasks-returned-and-a-region-releases-its-collection-when-its-join-becomes-terminal.md) | A run retains what its tasks returned, and a region releases its collection when its join becomes terminal | Q19 / W53 | 2026-09-11 |
+| [0048](0048-the-scheduler-is-a-declared-dependency-reached-by-one-bare-specifier.md) | The scheduler is a declared dependency, reached by one bare specifier — **supersedes 0013 rules 1, 2 and 6** | P16 decision 1 / W57 | 2026-09-11 |
+
+**Seven rows were missing when W57 added its own — 0039 through 0046 — and all seven are added together, each derived from its ADR's header.** The table had stopped at 0037 for four plans, which is the defect this document's own note below records for the third time; W34's precedent (derive every row from the header, never from another index) is followed rather than re-argued.
 
 
 **Three rows were missing when W34 added its own, and all three are added together.** The table

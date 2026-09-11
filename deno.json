@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "license": "MIT",
   "exports": "./index.ts",
+  "imports": {
+    "fyflow-scheduler": "jsr:@fyflow/scheduler@0.5.2"
+  },
   "publish": {
     "exclude": [
       "**",

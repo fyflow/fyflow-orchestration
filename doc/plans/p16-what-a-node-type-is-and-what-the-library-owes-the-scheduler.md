@@ -1,8 +1,14 @@
 # P16 — What is a node type, and what does the library owe the scheduler to have one?
 
-**Status:** DECLARED — declared 2026-09-11 on `8550978`, the commit that carried this file as a
-draft, after [P15](p15-what-a-run-retains-and-what-a-result-may-be.md) completed and its retro moved
-`doc/workflow.md` to [v0.16](../workflow.md). **No item has started.** *(Drafted the same morning on
+**Status:** IN PROGRESS — **[W57](../work-items/w57-the-scheduler-is-a-dependency.md) is DONE**
+(2026-09-11, [ADR 0048](../decisions/0048-the-scheduler-is-a-declared-dependency-reached-by-one-bare-specifier.md);
+its three stop-and-ask items were answered *exact pin*, *`deno.json` gains the `jsr:` import and the
+L6 map stays — W60 not issued*, and *`S7` narrowed*; Q71 resolved, Q252-Q253 raised) and
+**[W58](../work-items/w58-what-a-node-says-about-its-own-task.md) is next**. Declared 2026-09-11 on
+`8550978`, the commit that carried this file as a draft, after
+[P15](p15-what-a-run-retains-and-what-a-result-may-be.md) completed and its retro moved
+`doc/workflow.md` to [v0.16](../workflow.md). *(This read "No item has started" until W57 closed.)*
+*(Drafted the same morning on
 `82ff3ba` while P15 was in flight, re-verified on `b317486` after it closed, committed as a draft so
 its decisions lived in a plan rather than a transcript, and declared here.)* *Read every status from
 the item's own file, never from this line.*
@@ -70,6 +76,20 @@ decided on**, and a node type that defines its worker, its pool and its resource
 scheduler-specific code by construction. Deciding this is the plan's first item, not a side effect
 of its third.
 
+> **Corrected by [W57](../work-items/w57-the-scheduler-is-a-dependency.md), 2026-09-11, on its
+> conformity reader's finding.** ADR 0013 does NOT ground rule 1 on context fact 1. Its stated
+> ground is context fact 4 — *nothing in the published source may import it, and nothing does*,
+> because ADR 0001 rule 2 and `RT-R2` "already imply it" — and its Consequences PREDICT that when
+> the pin reaches a registry *"rule 3 becomes a version range and rules 1, 2 and 4 are unchanged"*,
+> which ADR 0029 then did; so 0029 followed 0013 rather than leaving something standing. What fact
+> 1 forced was the shape of the ALTERNATIVE (a peer was *a false statement in a manifest* because
+> nobody could install the version), not the rule. **The claim the rule protected is the one in
+> 0013's Consequences — *"a driver that can construct a scheduler is a driver that will"* — and
+> [ADR 0048](../decisions/0048-the-scheduler-is-a-declared-dependency-reached-by-one-bare-specifier.md)
+> answers that claim on ADR 0001's own terms** rather than resting on an expiry. The paragraph
+> above is left as written because three of its measurements are right and W57 acted on it; its
+> argument is not.
+
 **Why now.** P15 answered what a run *retains*
 ([ADR 0046](../decisions/0046-a-run-retains-what-its-tasks-returned-and-a-region-releases-its-collection-when-its-join-becomes-terminal.md))
 and what a result *may be* (`OR-R11`, `OR-R12`); this plan answers what a node *is*. Nothing here
@@ -113,7 +133,10 @@ rule 3 already prescribes for exactly this shape of error. *(The scheduler's own
 `workerGroups` is "added to the pool's groups"; it does not say what an unknown id does. Now it is
 measured.)*
 
-**3. [Q71](../open-questions.md) reproduces at 0.5.2, and it is the DOM lib alone.** `const x:
+**3. [Q71](../open-questions.md) reproduces at 0.5.2, and it is the DOM lib alone.** *(The closing
+sentence of this fact — *an `import type` closes it by construction* — was measured FALSE by W57: the
+import alone changes nothing about assignability, and what closes Q71 is `SchedulerLike`'s listener
+parameter, `object`; the type import survives as an L0 assertion. ADR 0048's Q71 table.)* `const x:
 SchedulerLike = s` with `s: FyflowScheduler` typechecks under `lib: ["ES2022"]` and fails under
 `["ES2022", "DOM"]` with `TS2322` on `addEventListener`: the DOM `EventListenerOrEventListenerObject
 | null` parameter is not compatible with `(e: { detail: unknown }) => void`. `AGENTS.md` section 12
@@ -203,7 +226,9 @@ measure them.*
 
 1. **The scheduler is a hard dependency, and the refusal is counterproductive.** The maintainer's
    words. ADR 0048 records the decision with the measurement, on the shape of ADR 0029 and the S9
-   note: the forcing fact expired, here is what changing it costs. **The structural seam survives**:
+   note: the forcing fact expired, here is what changing it costs *(W57 measured that the ADR has
+   to answer ADR 0013's actual ground — ADR 0001's separation — and does; see the correction under
+   *Why this plan*)*. **The structural seam survives**:
    `SchedulerLike` is what makes L2-L5 run against fakes, and that is a testing decision the manifest
    never touched. **Stop-and-ask:** the peer *range*. `^0.5.2` says "any 0.x above 0.5.2", which is
    false the day upstream changes an event shape again with no changelog; an exact pin in a

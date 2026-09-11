@@ -17,7 +17,8 @@
 // Exits 0 when every check passes, 1 otherwise. It reports; it does not fix.
 //
 // `CHECK_SOURCE_PKG` points the manifest checks (`S8`, `S11`, `S12`, `S13`) at a
-// copy, which is how `--self-test` breaks the manifest without touching the tree.
+// copy, which is how `--self-test` breaks the manifest without touching the tree;
+// `CHECK_SOURCE_DENO` does the same for `deno.json` (`S5`, `S6`, and `S8`'s JSR half — W57).
 // `CHECK_SOURCE_SELFTEST` points `--self-test` at a copy of the probe file, which
 // is how the probe list's own floor is provoked.
 //
@@ -149,7 +150,10 @@ for (const p of files) {
 // would have shipped a dangling export. `published()` above walks `src/` on disk,
 // so on its own it could never disagree with `deno.json`; this is the comparison
 // that makes the allowlist checkable rather than decorative.
-const denoJson = JSON.parse(readFileSync(join(ROOT, 'deno.json'), 'utf8'));
+// `CHECK_SOURCE_DENO` points this at a copy, on `CHECK_SOURCE_PKG`'s pattern — W57, for
+// `S8`'s `deno.json` half, which had no probe while its only clause refused a mapping outright.
+const DENO_PATH = process.env.CHECK_SOURCE_DENO ?? 'deno.json';
+const denoJson = JSON.parse(readFileSync(join(ROOT, DENO_PATH), 'utf8'));
 const allowed = new Set(
   (denoJson.publish?.exclude ?? []).filter((e) => e.startsWith('!')).map((e) => e.slice(1)),
 );
@@ -164,48 +168,52 @@ for (const p of files) {
   }
 }
 
-// S7 — ADR 0013 rule 2. **No published file may import the scheduler**, by any
-// name and by any route.
+// S7 — `RT-R11`, ADR 0048 rule 4, superseding ADR 0013 rule 2. **A published file
+// reaches the scheduler by the BARE specifier `fyflow-scheduler`, and by no other form.**
 //
-// The library depends on `fyflow-scheduler` NOT AT ALL: `SchedulerLike` and
-// `TaskFactory` are structural (ADR 0001 rule 2), and a consumer passes its own
-// scheduler in. That is what makes the published npm and JSR packages
-// dependency-free, and W5 is the first item with the library on disk and a
-// `node_modules` entry pointing at it — so it is the first item that could break
-// it by autocomplete.
+// Until W57 this clause refused the import in EVERY form, because ADR 0013 rule 1 said
+// the library depends on the scheduler not at all. ADR 0048 makes it a declared
+// dependency — `src/driver/driver.ts` imports `FyflowTask` for the default `createTask`
+// — and NARROWS this clause to the FORM of the reach rather than retiring it. Measured
+// at W57 before choosing: `check-scheduler.mjs`'s `D1`-`D3` read `node_modules`,
+// `package.json` and the L6 import map and no source file, so a relative reach into
+// `../fyflow-scheduler` from `src/` — the 2026-08-31 shape — would otherwise be guarded
+// by nothing but whether a sibling checkout happens to exist on the machine.
 //
-// It would typecheck, `deno publish --dry-run` would pass (JSR resolves the
-// specifier), and every other check here would stay green. The failure is
-// architectural, not mechanical: a driver that can construct a scheduler is a
-// driver that will.
-// **The package answers to TWO names, and the second was the one this check
-// missed.** npm publishes `fyflow-scheduler`; JSR publishes **`@fyflow/scheduler`**
-// — ADR 0013's own Context measured both, at 0.2.1. A Deno consumer runs
-// `deno add jsr:@fyflow/scheduler` and then writes the **bare** `@fyflow/scheduler`
-// in source, with no `jsr:` prefix anywhere near the import. That is the
-// highest-probability real form of this mistake and it was the one form not
-// matched. Found by W5's test-adequacy pass; the `jsr:`/`npm:` prefixed forms fall
-// out of the same alternation.
-const NAMES = '(?:fyflow-scheduler|@fyflow/scheduler)';
-const SCHEDULER_REACH = [
-  [new RegExp(`\\bfrom\\s+['"][^'"]*${NAMES}`), 'an import of the scheduler'],
-  [new RegExp(`^\\s*import\\s+['"][^'"]*${NAMES}`, 'm'), 'a side-effect import of the scheduler'],
-  [new RegExp(`\\bimport\\s*\\(\\s*['"][^'"]*${NAMES}`), 'a dynamic import of the scheduler'],
-  [new RegExp(`\\brequire\\s*\\(\\s*['"][^'"]*${NAMES}`), 'a require() of the scheduler'],
-  [/\bfrom\s+['"][^'"]*\.\.\/fyflow-scheduler/, 'a relative reach into ../fyflow-scheduler'],
+//   `@fyflow/scheduler`     the JSR name, which Node cannot resolve
+//   `jsr:` / `npm:` prefix  a registry, which Node and the browser cannot resolve
+//   `file:`                 a working tree
+//   `../fyflow-scheduler`   a working tree, by path
+//
+// The resolution is configuration — `node_modules`, `deno.json`, the L6 map — and never
+// the specifier: ADR 0013 rule 4, kept and made normative as `RT-R11`.
+//
+// **What a regex cannot close, stated so `S7`'s reach is not overstated:** a specifier
+// built at run time — `import('fyflow' + '-scheduler')`, or a `const` holding the name.
+// Both survive. `S7` raises the cost of the mistake; it does not make it impossible.
+const SCHEDULER_NAMES = /fyflow-scheduler|@fyflow\/scheduler/;
+const CANONICAL_SPECIFIER = 'fyflow-scheduler';
+/** Every import form's specifier, captured: `from`, side-effect, dynamic, `require()`. */
+const SPECIFIER_FORMS = [
+  // The quote class carries the BACKTICK since W57's adequacy reader (m05): `import(`jsr:…`)` in a
+  // template literal passed every form and only `typecheck:node` saw it.
+  /\bfrom\s+['"`]([^'"`]+)['"`]/g,
+  /^\s*import\s+['"`]([^'"`]+)['"`]/gm,
+  /\bimport\s*\(\s*['"`]([^'"`]+)['"`]/g,
+  /\brequire\s*\(\s*['"`]([^'"`]+)['"`]/g,
 ];
-// **What a regex cannot close, stated so `S7`'s reach is not overstated:** a
-// specifier built at run time — `import('fyflow' + '-scheduler')`, or a `const`
-// holding the name. Both survive. `S7` raises the cost of the mistake; it does not
-// make it impossible.
+const reachesSchedulerWrongly = (spec) => SCHEDULER_NAMES.test(spec) && spec !== CANONICAL_SPECIFIER;
 for (const p of files) {
   // Import specifiers live in string literals, so this reads the comment-stripped
   // text rather than `code()` — which blanks strings and would blank the evidence.
   const imports = withoutComments(readFileSync(p, 'utf8'));
-  for (const [re, what] of SCHEDULER_REACH) {
-    if (re.test(imports)) {
-      fail('S7', `${rel(p)} contains ${what} — ADR 0013 rule 1. The published library depends on ` +
-        'the scheduler NOT AT ALL; SchedulerLike is structural and the caller passes one in');
+  for (const re of SPECIFIER_FORMS) {
+    for (const m of imports.matchAll(re)) {
+      if (reachesSchedulerWrongly(m[1])) {
+        fail('S7', `${rel(p)} reaches the scheduler as "${m[1]}" — RT-R11 / ADR 0048 rule 4. A published ` +
+          `file names it by the bare specifier "${CANONICAL_SPECIFIER}" and nothing else: the JSR name ` +
+          'and a jsr:/npm: prefix resolve in one runtime and not the others, and file: or ../ is a working tree');
+      }
     }
   }
 }
@@ -223,43 +231,57 @@ for (const entry of allowed) {
   }
 }
 
-// S8 — ADR 0013 rule 1's MANIFEST half. `S7` refuses the import; nothing refused
-// the declaration, and ADR 0013's own *Alternatives rejected* calls a
-// `peerDependency` on the scheduler "a false statement in a manifest".
+// S8 — `RT-R11`'s MANIFEST half: ADR 0048 rules 1, 2 and 7, superseding ADR 0013 rule 1's.
+// `S7` binds the FORM of the reach in source; this binds the DECLARATION in the two
+// published manifests, and `check-scheduler.mjs`'s `D8` binds both declarations to `PIN`.
 //
-// **Read once, here, and used by `S8`, `S11`, `S12` and `S13`.** It was read
-// twice before W24 — this block and `S11`'s — and a self-test needs one place to
-// point at a copy.
+// Until W57 this refused a `peerDependencies` entry as *"a false statement in a
+// manifest"* — ADR 0013's words, true while the pinned version was on no registry. `D8`
+// now REQUIRES that entry. What stays refused is a SECOND declaration: a `dependencies`
+// or `optionalDependencies` entry installs a private copy of the scheduler beside
+// whatever the consumer holds, and two copies of `FyflowTask` are two classes —
+// `addTask` takes one and `instanceof` sees the other.
+//
+// **Read once, here, and used by `S8`, `S11`, `S12` and `S13`.** It was read twice
+// before W24 — this block and `S11`'s — and a self-test needs one place to point at a copy.
 const pkg = JSON.parse(readFileSync(join(ROOT, PKG_PATH), 'utf8'));
-for (const field of ['dependencies', 'peerDependencies', 'optionalDependencies']) {
+for (const field of ['dependencies', 'optionalDependencies']) {
   for (const name of Object.keys(pkg[field] ?? {})) {
-    if (/fyflow-scheduler|@fyflow\/scheduler/.test(name)) {
-      fail('S8', `${PKG_PATH} ${field} declares "${name}" — ADR 0013 rule 1. The published ` +
-        'package depends on the scheduler NOT AT ALL; it belongs in devDependencies, which ' +
-        'consumers do not install');
+    if (SCHEDULER_NAMES.test(name)) {
+      fail('S8', `${PKG_PATH} ${field} declares "${name}" — RT-R11 / ADR 0048 rule 7. The scheduler is a ` +
+        'PEER dependency (D8 holds it to the pin); a second declaration here installs a second copy ' +
+        'beside the consumer`s, and two copies of FyflowTask are two classes');
     }
   }
 }
-for (const spec of Object.keys(denoJson.imports ?? {})) {
-  if (/fyflow-scheduler|@fyflow\/scheduler/.test(spec)) {
-    fail('S8', `deno.json imports "${spec}" — ADR 0013 rule 3. deno.json is the JSR publish ` +
-      'manifest; the Deno mapping belongs in examples/deno-import-map.json, which only the L6 ' +
-      'runner reads');
+// The JSR manifest's half. `deno.json` MUST map the scheduler — ADR 0048 rule 2, to the
+// pinned `jsr:` form, which `D8` checks — and may NOT map it to a PATH. That was ADR 0013
+// rule 3's real objection (*a path outside the package sitting in what we publish*), it
+// survives that rule, and it is ADR 0029 rule 3's incident arriving in the publish manifest.
+// **`imports` AND every `scopes` block** — W57's adequacy reader (m22) re-mapped the scheduler for
+// `./src/` alone, to a working tree, with `imports` intact and every check green. And an ABSOLUTE
+// Windows path (`C:/…`) is a path too (m24).
+const denoMaps = [['imports', denoJson.imports ?? {}],
+  ...Object.entries(denoJson.scopes ?? {}).map(([s, m]) => [`scopes["${s}"]`, m ?? {}])];
+for (const [where, map] of denoMaps) for (const [spec, target] of Object.entries(map)) {
+  const t = String(target);
+  if (!SCHEDULER_NAMES.test(spec) && !SCHEDULER_NAMES.test(t)) continue;
+  if (t.startsWith('.') || t.startsWith('/') || t.includes('..') || t.startsWith('file:') || /^[A-Za-z]:[\\/]/.test(t)) {
+    fail('S8', `${DENO_PATH} ${where} maps "${spec}" to a PATH ("${t}") — RT-R11 / ADR 0029 rule 3. deno.json is ` +
+      'the JSR publish manifest; the scheduler is reached from a registry, jsr:@fyflow/scheduler at the ' +
+      'pin, and never from a working tree');
   }
 }
 
-// S9 — ADR 0013 rule 6 / `RT-R10`, which claimed to be structural and was not.
-//
-// `scripts/build-browser-tests.mjs` globs `test/**/*.test.ts`. That glob is what
-// would carry a scheduler import INTO the browser bundle, not what keeps one out:
-// the sibling ships a `browser` export condition, so esbuild resolves it happily
-// and the bundle grows by the whole scheduler with no warning. Measured by both of
-// W5's review passes, independently. This is the mechanism the rule asserted.
-//
-// `RT-R7` exempts tooling from the *import* rules; this is a different constraint
-// — what the browser bundle's INPUT SET may reach — and L6 is in `examples/`
-// precisely so it is out of that set.
-function browserBundleInputs() {
+// The test tree, walked for `S13`'s lint-target clause below. **Until W57 this was `S9`'s
+// input set** — *no file in the browser bundle's input set imports the scheduler*, ADR 0013
+// rule 6 — and `S9` is RETIRED by ADR 0048 rule 7: once `src/driver/driver.ts` imports the
+// scheduler, every suite that imports the driver carries its browser build into
+// `dev-dist/browser/tests.js` by construction (measured at W57: 27 files / 703 cases in
+// chromium, firefox and webkit with it in), and a rule whose property nothing can have is
+// not a rule. What still keeps a scheduler RUN out of the browser is the glob: L6 lives in
+// `examples/**`, which `scripts/build-browser-tests.mjs` does not reach — `RT-R10`.
+function testSources() {
   const out = [];
   const walk = (dir) => {
     for (const name of readdirSync(dir)) {
@@ -270,16 +292,6 @@ function browserBundleInputs() {
   };
   walk(join(ROOT, 'test'));
   return out;
-}
-for (const p of browserBundleInputs()) {
-  const imports = withoutComments(readFileSync(p, 'utf8'));
-  for (const [re] of SCHEDULER_REACH) {
-    if (re.test(imports)) {
-      fail('S9', `${rel(p)} imports the scheduler, and test/** is bundled for the browser by ` +
-        'scripts/build-browser-tests.mjs — ADR 0013 rule 6. Ladder L6 lives in examples/, which ' +
-        'that glob does not reach');
-    }
-  }
 }
 
 // S10 — ADR 0013 rule 4: the specifier is bare in source and the resolution is
@@ -611,20 +623,20 @@ function missingFrom(a, b) {
 
   // **And the same question for `lint`'s directory list**, whose independent source
   // is the disk rather than the manifest: every tree this script already walks —
-  // `published()` for `src/` and `index.ts`, `browserBundleInputs()` for `test/`,
+  // `published()` for `src/` and `index.ts`, `testSources()` for `test/`,
   // `exampleSources()` for `examples/` — must be a target `deno lint` is given.
   // Dropping `examples/` therefore fails twice, by two routes that share no code.
   const lintCmd = scripts.lint ?? '';
   if (lintCmd) {
     const targets = new Set(parts(lintCmd, 'ws').slice(2));
-    const walked = new Set([...files, ...browserBundleInputs(), ...exampleSources()].map((p) => {
+    const walked = new Set([...files, ...testSources(), ...exampleSources()].map((p) => {
       const r = rel(p);
       return r.includes('/') ? r.slice(0, r.indexOf('/') + 1) : r;
     }));
     for (const t of [...walked].sort()) {
       if (!targets.has(t)) {
-        fail('S13', `"lint" does not lint ${t}, which this script walks for S1-S4, S7, S9 or ` +
-          'S10 — an unlinted tree is a tree L0 half covers');
+        fail('S13', `"lint" does not lint ${t}, which this script walks for S1-S4, S7, S10 or ` +
+          'S13 — an unlinted tree is a tree L0 half covers');
       }
     }
   }
@@ -637,9 +649,8 @@ const checks = [
   'S4 no syntax Node cannot type-strip',
   'S5 no *.node.ts in the JSR publish set',
   'S6 the published set and the JSR allowlist describe each other',
-  'S7 no published file imports the scheduler',
-  'S8 no manifest declares the scheduler as a runtime dependency',
-  'S9 nothing in the browser bundle’s input set imports the scheduler',
+  'S7 a published file reaches the scheduler only by its bare specifier',
+  'S8 no second declaration of the scheduler, and no path in deno.json',
   'S10 no file under examples/ writes a path into the sibling repository',
   'S11 every check:* script is reachable from `npm run gate`',
   'S12 `npm run gate` runs exactly the entries GATE_CHAIN declares',

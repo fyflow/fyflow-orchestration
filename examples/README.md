@@ -72,8 +72,12 @@ that dropping the import map and W35 measured that pointing either rung at `run-
 exports functions and runs nothing — each cost **zero** failures across four checks, with every exit
 artifact in this file silently unrun. All of this is
 [ADR 0029](../doc/decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md),
-and none of it is visible to a consumer: the published library depends on the scheduler **not at
-all**.
+and none of it is visible to a consumer beyond what the manifest says: since
+[ADR 0048](../doc/decisions/0048-the-scheduler-is-a-declared-dependency-reached-by-one-bare-specifier.md)
+the published library **depends on the scheduler** — a `peerDependencies` entry at the pin, and
+one `import { FyflowTask }` in `src/driver/driver.ts` for the default `createTask` — so the version
+these roads reach is also the version a consumer's installer is told about. *(This read "depends on
+the scheduler **not at all**" from W35 until W57 superseded ADR 0013 rule 1.)*
 
 **2. How a run is known to be over, with no clock.** The three obvious answers are wrong:
 `scheduler.completed` fires **every time the scheduler drains**, `stats` reads `queued=0 running=0`

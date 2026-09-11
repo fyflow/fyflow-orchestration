@@ -169,7 +169,12 @@ const MAP = 'examples/deno-import-map.json';
  * construction and can no longer fail to match — which is the thing rule 7 (b)
  * exists to detect, removed rather than satisfied.
  */
-const PKG_PIN_RE = /"fyflow-scheduler": "(\d+\.\d+\.\d+)"/;
+// **Anchored inside `devDependencies` since W57**: with `peerDependencies` above it, the first
+// `"fyflow-scheduler": "x.y.z"` in the file was the PEER, three D2 probes mutated it, and the
+// distinctness guard refused two probes producing one file — a legitimate manifest reorder
+// turning this self-test red (the adequacy reader`s m51). Two groups: the prefix through the
+// opening quote, and the version.
+const PKG_PIN_RE = /("devDependencies": \{[^}]*"fyflow-scheduler": ")(\d+\.\d+\.\d+)"/;
 const PKG_PIN_LINE_RE = /[ \t]*"fyflow-scheduler": "\d+\.\d+\.\d+",\r?\n/;
 const MAP_PIN_RE = /jsr:@fyflow\/scheduler@(\d+\.\d+\.\d+)/;
 const MAP_ENTRY_RE = /"fyflow-scheduler": "jsr:@fyflow\/scheduler@\d+\.\d+\.\d+"/;
@@ -179,7 +184,7 @@ const PROBES = [
   {
     name: 'package.json asks for a RANGE rather than the pin',
     half: PKG, check: 'D2',
-    mutate: (t) => t.replace(PKG_PIN_RE, (_m, v) => `"fyflow-scheduler": "^${v}"`),
+    mutate: (t) => t.replace(PKG_PIN_RE, (_m, pre, v) => `${pre}^${v}"`),
   },
   {
     name: 'package.json reinstates the working-tree link',
@@ -187,7 +192,7 @@ const PROBES = [
     // The regression this repository moved away from, and the one that cost it a
     // sibling checkout. D1 does not fire because the INSTALLED package is still
     // the registry one; only the declaration changed.
-    mutate: (t) => t.replace(PKG_PIN_RE, '"fyflow-scheduler": "file:../fyflow-scheduler"'),
+    mutate: (t) => t.replace(PKG_PIN_RE, '$1file:../fyflow-scheduler"'),
   },
   {
     name: 'package.json moves the scheduler to a runtime dependency',
@@ -354,6 +359,66 @@ const PROBES = [
     // `D2`'s did not: every other MAP probe writes valid JSON.
     mutate: (t) => t.replace('{\n', '{{\n'),
   },
+  // --- D8: the PUBLISHED manifests — W57, ADR 0048 rules 1-3 ------------------
+  {
+    name: 'package.json declares no peer dependency on the scheduler',
+    half: PKG, check: 'D8',
+    // The state this repository was in for sixteen plans: a devDependency the gate installs
+    // and nothing a consumer's installer reads. `D2` is satisfied; only `D8` sees it.
+    mutate: (t) => t.replace(/,\r?\n[ \t]*"peerDependencies": \{\r?\n[ \t]*"fyflow-scheduler": "\d+\.\d+\.\d+"\r?\n[ \t]*\}/, ''),
+  },
+  {
+    name: 'the peer range is a CARET rather than the pin',
+    half: PKG, check: 'D8',
+    // Anchored on the `peerDependencies` block; `PKG_PIN_RE` is anchored on the devDependencies
+    // block, so neither depends on the order the two appear in (W57, and its adequacy reader).
+    mutate: (t) => t.replace(/("peerDependencies": \{\s*"fyflow-scheduler": ")(\d+\.\d+\.\d+)/, '$1^$2'),
+  },
+  {
+    name: 'the peer pinned to a DIFFERENT version from the devDependency',
+    half: PKG, check: 'D8',
+    mutate: (t) => t.replace(/("peerDependencies": \{\s*"fyflow-scheduler": ")(\d+)\.(\d+)\.(\d+)/,
+      (_m, p, a, b, c) => `${p}${a}.${b}.${Number(c) + 1}`),
+  },
+  {
+    name: 'deno.json maps no fyflow-scheduler import',
+    half: 'deno.json', check: 'D8',
+    // Measured at W57: `deno publish --dry-run` then passes in this repository — resolving the
+    // bare specifier through package.json to the npm build — and refuses in a clean copy.
+    mutate: (t) => t.replace(/[ \t]*"imports": \{\r?\n[ \t]*"fyflow-scheduler": "jsr:@fyflow\/scheduler@\d+\.\d+\.\d+"\r?\n[ \t]*\},\r?\n/, ''),
+  },
+  {
+    name: 'deno.json maps the scheduler to a DIFFERENT version',
+    half: 'deno.json', check: 'D8',
+    mutate: (t) => t.replace(/("imports": \{\s*"fyflow-scheduler": "jsr:@fyflow\/scheduler@)(\d+)\.(\d+)\.(\d+)/,
+      (_m, p, a, b, c) => `${p}${a}.${b}.${Number(c) + 1}`),
+  },
+  {
+    name: 'deno.json maps the scheduler to npm: — the build ADR 0029 refused for Deno',
+    half: 'deno.json', check: 'D8',
+    mutate: (t) => t.replace(/"fyflow-scheduler": "jsr:@fyflow\/scheduler@(\d+\.\d+\.\d+)"/, '"fyflow-scheduler": "npm:fyflow-scheduler@$1"'),
+  },
+  {
+    name: 'deno.json is not readable JSON at all',
+    half: 'deno.json', check: 'D8',
+    mutate: () => '{ this is not json',
+  },
+  {
+    name: 'the peer marked OPTIONAL in peerDependenciesMeta',
+    half: PKG, check: 'D8',
+    // **The adequacy reader`s m20**: with this block present, `npm install <tgz>` in a fresh
+    // consumer added the library and NOT the scheduler, and D2, D8 and S8 were all green.
+    mutate: (t) => t.replace('  "peerDependencies": {',
+      '  "peerDependenciesMeta": {\n    "fyflow-scheduler": { "optional": true }\n  },\n  "peerDependencies": {'),
+  },
+  {
+    name: 'deno.json re-maps the scheduler to a working-tree path inside a scopes block',
+    half: 'deno.json', check: 'D8',
+    // **The adequacy reader`s m22**: `deno info` resolved `src/driver/driver.ts`'s specifier to
+    // `../fyflow-scheduler/index.ts` with the `imports` entry intact and every check green.
+    mutate: (t) => t.replace('  "publish": {',
+      '  "scopes": {\n    "./src/": { "fyflow-scheduler": "../fyflow-scheduler/index.ts" }\n  },\n  "publish": {'),
+  },
 ];
 
 /**
@@ -512,7 +577,7 @@ const INSTALL_PROBES = [
 // place the id vocabulary is written down**, which is [Q43](../doc/open-questions.md)'s
 // class and exactly what W29's declaration killed as a hypothesis for three other
 // self-tests — here it is live.
-const ALL_CHECKS = ['D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7'];
+const ALL_CHECKS = ['D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'D8'];
 
 /**
  * **Did the mutated check RUN TO COMPLETION?** A grading requires this, which is
@@ -526,10 +591,10 @@ const ALL_CHECKS = ['D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7'];
 const RAN = (out) => /^(All checks passed|\d+ failure\(s\)\.)/m.test(out);
 
 /** The floor `check-policies-selftest.mjs` learned to carry: vacuous at zero. */
-const MIN_PROBES = 32;
+const MIN_PROBES = 41;
 
 /** The same floor for `META`, and for the same reason. */
-const MIN_META = 29;
+const MIN_META = 36;
 
 /**
  * **The mutations `check-scheduler.mjs` itself is run against.** Every probe above
@@ -617,7 +682,7 @@ const META = [
   // discriminator its own [Q146](../doc/open-questions.md) row proposes is what
   // falsified it. **Co-firing is not masking**, and only `D5` below is the real
   // thing.
-  ['D2`s devDependency clause disabled — ADR 0013 rule 1`s half',
+  ['D2`s devDependency clause disabled — the pin the GATE installs (ADR 0029 rule 1; it was ADR 0013 rule 1`s half until W57)',
     'package.json moves the scheduler to a runtime dependency',
     (t) => t.replace("fail('D2', 'package.json does not declare", "[].push('package.json does not declare")],
   ['D2`s exact-pin clause disabled, so a range passes',
@@ -697,6 +762,28 @@ const META = [
   ['D7`s no-statement clause disabled — W37, and it is what stops an EMPTY document passing',
     'spec/README.md stops stating the pin at all',
     (t) => t.replace("fail('D7', `${rel_} states the pin nowhere", "[].push(`${rel_} states the pin nowhere")],
+  // --- D8 — W57 ---------------------------------------------------------------
+  ['D8`s missing-peer clause disabled',
+    'package.json declares no peer dependency on the scheduler',
+    (t) => t.replace("fail('D8', 'package.json declares no peerDependencies", "[].push('package.json declares no peerDependencies")],
+  ['D8`s exact-peer clause disabled — a caret or a different version passes',
+    'the peer pinned to a DIFFERENT version from the devDependency',
+    (t) => t.replace("fail('D8', `package.json declares the peer as", "[].push(`package.json declares the peer as")],
+  ['D8`s missing-JSR-import clause disabled',
+    'deno.json maps no fyflow-scheduler import',
+    (t) => t.replace("fail('D8', 'deno.json maps no", "[].push('deno.json maps no")],
+  ['D8`s JSR-form clause disabled — npm: and a wrong version pass',
+    'deno.json maps the scheduler to a DIFFERENT version',
+    (t) => t.replace("fail('D8', `deno.json maps \"fyflow-scheduler\" to", "[].push(`deno.json maps \"fyflow-scheduler\" to")],
+  ['D8`s unreadable-deno.json clause disabled',
+    'deno.json is not readable JSON at all',
+    (t) => t.replace("fail('D8', `deno.json is unreadable", "[].push(`deno.json is unreadable")],
+  ['D8`s optional-peer clause disabled — the adequacy reader`s m20',
+    'the peer marked OPTIONAL in peerDependenciesMeta',
+    (t) => t.replace("fail('D8', 'package.json marks the fyflow-scheduler peer OPTIONAL", "[].push('package.json marks the fyflow-scheduler peer OPTIONAL")],
+  ['D8`s scopes clause disabled — the adequacy reader`s m22',
+    'deno.json re-maps the scheduler to a working-tree path inside a scopes block',
+    (t) => t.replace("fail('D8', `deno.json re-maps the scheduler inside scopes", "[].push(`deno.json re-maps the scheduler inside scopes")],
   // --- the report block, which no set comparison can see ----------------------
   // **These three are why the `agree` projection exists.** Measured before it was
   // written: with the report broken, every probe still reported `wanted [D3] got
@@ -813,6 +900,10 @@ export async function selfTest(root) {
     ['README.md names a version that is not the pin', 'is pinned to **9.9.9**'],
     ['doc/concept.md names a version that is not the pin', 'We pin **9.9.9** (Q3)'],
     ['examples/README.md names a version that is not the pin', '`fyflow-scheduler@9.9.9`'],
+    // **W57, `D8`.** Two clauses, one `META` entry each; the second probe of each pair drives
+    // the same site from the other declaration shape and is bound by the string it writes.
+    ['the peer range is a CARET rather than the pin', '"fyflow-scheduler": "^'],
+    ['deno.json maps the scheduler to npm: — the build ADR 0029 refused for Deno', 'npm:fyflow-scheduler@'],
   ].map(([name, mustProduce]) => ({ name, mustProduce }));
   {
     const cited = new Set(META.map(([, probeName]) => probeName));
@@ -968,6 +1059,31 @@ export async function selfTest(root) {
       console.log(`check-scheduler self-test — no META entry disables any ${uncovered.join(', ')} clause.`);
       console.log('  FAIL  a check id with no grading at all; the count of entries says nothing about ' +
         'which clauses they reach.');
+      rmSync(dir, { recursive: true, force: true });
+      return 1;
+    }
+  }
+
+  // **`D8` compares to `PIN` and to nothing else — W57's rule 8 provenance probe `c1`.**
+  // Swapping `peer !== PIN` for `peer !== '0.5.2'` is invisible to every probe here on a
+  // correct tree — W34's rule, both sources agree until the pin moves — and blind the day it
+  // does: measured with `PIN` moved to 0.5.3 and the literal left, `D8` named the JSR half
+  // and not the peer. A META entry cannot bind it (an entry must make a probe stop being
+  // caught, and this one changes nothing observable), so the check's SOURCE is bound instead:
+  // the pin's value may appear in the check's CODE exactly ONCE — the `PIN` declaration — and a
+  // second occurrence is a comparison that will not move with it. **In any spelling**: the first
+  // version split on `'0.5.2'` and was blind to `"0.5.2"` and to `'jsr:@fyflow/scheduler@0.5.2'`
+  // (the adequacy reader`s m28 and m29, each green at 39/39, 34/34), so the bound now counts the
+  // bare version string with comments stripped, which no quote style or prefix escapes.
+  {
+    const src = readFileSync(join(root, 'scripts', 'check-scheduler.mjs'), 'utf8');
+    const pin = /const PIN = '(\d+\.\d+\.\d+)';/.exec(src)?.[1];
+    const code = src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/.*$/gm, '$1 ');
+    const literals = pin ? code.split(pin).length - 1 : 0;
+    if (!pin || literals !== 1) {
+      console.log(`  FAIL  the pin's value appears ${literals} time(s) in check-scheduler.mjs's code ` +
+        '(comments stripped); exactly one — the PIN declaration — is allowed, or a comparison ' +
+        'stops moving with the pin.');
       rmSync(dir, { recursive: true, force: true });
       return 1;
     }

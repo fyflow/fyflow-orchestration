@@ -335,9 +335,12 @@ const META = [
   ['X4a`s no-throw refusal disabled, so a snippet that asserts nothing passes',
     'a `run` snippet whose assertions are deleted, so it only exits zero',
     (t) => t.replace('  if (!/\\bthrow\\b/.test(body)) {', '  if (false) {')],
-  ['X5`s DOM-lib count refusal disabled, so Q71 can get worse unnoticed',
+  // Re-anchored by W57: the allowance was `> 1` while Q71 accounted for one failing snippet,
+  // and is `> 0` since W57 closed it. The old anchor then matched nothing and this file said
+  // so — rule 7 (b) — rather than grading a mutation that never happened.
+  ['X5`s DOM-lib refusal disabled, so a snippet failing under the consumer`s default lib passes',
     'a snippet that stops compiling',
-    (t) => t.replace('  if (hit.size > 1) {', '  if (false) {')],
+    (t) => t.replace('  if (hit.size > 0) {', '  if (false) {')],
   // **`X6`'s comparison disabled, so three documents can drift apart in silence** —
   // W46. The clause it silences is the *AGENTS.md quotes what the spec does not*
   // direction, which is what the named probe trips.

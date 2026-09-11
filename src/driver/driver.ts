@@ -30,6 +30,14 @@ import type { JoinPolicy, Region, UnsatisfiableJoin } from './policy.ts';
 // The driver PRODUCES this sequence (ADR 0014) and the fold consumes it; the type
 // stays where `spec/run-state.md` defines it rather than being copied here.
 import type { FoldInput } from '../fold/run-state.ts';
+// **The scheduler, by NAME — ADR 0048, superseding ADR 0013 rule 1** ([W57](../../doc/work-items/w57-the-scheduler-is-a-dependency.md)).
+// `FyflowTask` is what `createTask` builds when the option is omitted, so a consumer
+// wires a real scheduler up without writing a factory; the type import is what makes
+// Q71's closure an L0 assertion (see `SchedulerLike`). `fyflow-scheduler` is a peer
+// dependency, declared where an installer reads it, and this BARE specifier is the one
+// form a published file may reach it by — `S7` refuses every other.
+import { FyflowTask } from 'fyflow-scheduler';
+import type { FyflowScheduler } from 'fyflow-scheduler';
 
 export class InvalidDefinition extends Error {
   /**
@@ -420,19 +428,66 @@ export interface UnmintedTask {
   reason: string;
 }
 
-/** What the driver needs from a scheduler. Structural, so W3 is testable without one. */
+/**
+ * What the driver needs from a scheduler. Structural, so W3 is testable without one — and
+ * satisfied by a real `FyflowScheduler` under EVERY lib configuration, which is what closed
+ * [Q71](../../doc/open-questions.md) ([W57](../../doc/work-items/w57-the-scheduler-is-a-dependency.md)).
+ *
+ * **The listener takes `object`, not `{ detail: unknown }`, and that is the whole of Q71's fix.**
+ * `FyflowScheduler extends EventTarget`, and with the DOM lib in scope its `addEventListener`
+ * takes `EventListenerOrEventListenerObject | null`. TypeScript compares a callback parameter's
+ * OWN parameter covariantly, so the seam's listener has to accept whatever the DOM says a listener
+ * receives — and `{ detail: unknown }` is not a supertype of `Event`, which was `TS2322` for every
+ * consumer who did not set `lib`, because the DOM lib is TypeScript's default. Measured over
+ * seven candidate shapes at W57: `object` and `unknown` are the only two the real class AND the
+ * L2-L5 fakes both satisfy under `ES2022`, `ES2022+DOM`, the browser config and `deno check`; a
+ * union with the named class typechecked only with a cast at the boundary. **Nothing downstream
+ * reads `e` as an event** — `detailOf` narrows to `detail` at the subscription site and ADR 0007
+ * normalises from there, exactly as before. What changed is the declared shape, not what is read.
+ *
+ * The two-method shape is what the seam IS — an `EventTarget` without `addTask` still does not
+ * get through — so Q71's own objection to widening does not apply to this widening.
+ */
 export interface SchedulerLike {
   addTask(task: unknown, options?: { createPromise?: boolean }): unknown;
-  addEventListener(type: string, listener: (e: { detail: unknown }) => void): void;
+  addEventListener(type: string, listener: (e: object) => void): void;
 }
 
-/** W5 supplies `new FyflowTask({...})`; W3's tests supply a plain object. */
+/**
+ * **Q71, asserted at L0 in every typecheck rather than in a scratch harness.** A real
+ * `FyflowScheduler` must satisfy the seam; if it stops doing so — the DOM signature changing
+ * upstream, or the seam narrowing back — this alias fails to instantiate under
+ * `tsc -p tsconfig.browser.json` and `deno check`, both of which carry the DOM lib. Type-level
+ * only, so nothing ships for it and Node's type stripping erases it (`RT-R9`).
+ */
+type Assert<T extends true> = T;
+type _Q71RealSchedulerSatisfiesSeam = Assert<FyflowScheduler extends SchedulerLike ? true : false>;
+
+/** The one field the driver reads off a scheduler event. `'detail' in e` narrows without a cast. */
+function detailOf(e: object): unknown {
+  return 'detail' in e ? e.detail : undefined;
+}
+
+/**
+ * What `createTask` builds from what the driver hands it. **Optional since W57**: omitted, the
+ * driver builds `new FyflowTask(config)` itself (ADR 0048), which is what a real scheduler
+ * consumes and what ladder L6 runs. The L2-L5 fakes still pass `(c) => c` and read the plain
+ * object back — the option is the seam's other half, kept for exactly that.
+ */
 export type TaskFactory = (config: {
   id: string;
   workerType: string;
   payload: unknown;
   optional: boolean;
 }) => unknown;
+
+/**
+ * **The default factory, and it is why the scheduler is a dependency at all.**
+ * `new FyflowTask(config)` is the object `FyflowScheduler.addTask` takes; until W57 every consumer
+ * wrote this line themselves, because `src/` was forbidden to import the class (ADR 0013 rule 1,
+ * superseded by ADR 0048).
+ */
+const defaultCreateTask: TaskFactory = (config) => new FyflowTask(config);
 
 export interface DriverOptions {
   /**
@@ -448,7 +503,12 @@ export interface DriverOptions {
    */
   runId: string;
   scheduler: SchedulerLike;
-  createTask: TaskFactory;
+  /**
+   * Optional. The default is `(config) => new FyflowTask(config)` — the real scheduler's own
+   * task class, so wiring a `FyflowScheduler` up needs nothing but the scheduler. Pass one to run
+   * against a double (ladder L2-L5), or to build something other than a plain `FyflowTask`.
+   */
+  createTask?: TaskFactory;
   predicates: PredicateRegistry;
   workerTypes: Iterable<string>;
   /**
@@ -697,7 +757,10 @@ export class Driver {
     for (const name of SETTLEMENT_EVENTS) {
       // ADR 0007 rule 1: the normalization happens HERE, synchronously, while the
       // listener runs. Nothing downstream ever sees `e.detail`.
-      opts.scheduler.addEventListener(name, (e) => this.onEvent(name, e.detail as TaskDetailLike));
+      // The seam's listener takes `object` (see `SchedulerLike`); `detail` is read here, once,
+      // and an event without one — which no `FyflowScheduler` emits — reaches `onEvent` as
+      // `undefined`, where ADR 0027's producer table already says what a detail with no `id` is.
+      opts.scheduler.addEventListener(name, (e) => this.onEvent(name, detailOf(e) as TaskDetailLike));
     }
   }
 
@@ -738,7 +801,7 @@ export class Driver {
           // run id mint the SAME task ids, so `dispatched.has()` is true in both, `ID-R4` cannot
           // see it, and one settlement dispatches the successor twice with nothing reported.
           // **No driver can detect it** — `SchedulerLike` has two methods and neither asks who else
-          // is subscribed (ADR 0013 rule 1) — so it stays a precondition, and the least the
+          // is subscribed (the seam is two methods by ADR 0001, and stays so under ADR 0048) — so it stays a precondition, and the least the
           // library can do is not advise against it in its own error text.
           'Construct a second Driver WITH A DIFFERENT RUN ID; ADR 0023 makes that safe on the ' +
           'same scheduler. Run ids must be unique across the drivers sharing one — nothing ' +
@@ -1836,7 +1899,7 @@ export class Driver {
     this.append({ kind: 'dispatched', taskId });
 
     this.opts.scheduler.addTask(
-      this.opts.createTask({
+      (this.opts.createTask ?? defaultCreateTask)({
         id: taskId,
         workerType: node.workerType,
         payload,

@@ -226,13 +226,18 @@ for (const w of written.filter((x) => x.tag === 'run')) {
 }
 
 // X5 — the same snippets under the lib set a BROWSER-targeting consumer compiles
-// with. **Reported, never failed**, because the one snippet that breaks is
-// [Q71](../doc/open-questions.md) and this item is not permitted to fix it.
+// with. **Reported, and since W57 FAILED at any count above zero.** It was written
+// *reported, never failed*, because the one snippet that broke under the DOM lib was
+// [Q71](../doc/open-questions.md) and W9 was not permitted to fix it; so it carried an
+// allowance of exactly one, pinned so the caveat could not get worse unnoticed.
 //
-// Its value is the number. W9 shipped Q71 as a rhetorical caveat — *"if your
-// tsconfig includes the DOM lib"* — without measuring how much of the reference it
-// costs. That is the shape of defect this whole script exists to refuse, so the
-// caveat is now pinned at a count that moves if it gets worse.
+// **[W57](../doc/work-items/w57-the-scheduler-is-a-dependency.md) closed Q71** — a real
+// `FyflowScheduler` satisfies `SchedulerLike` under the DOM lib — and moved
+// `tsconfig.docs.json` itself onto `["ES2022", "DOM"]`, so `X3` now typechecks every
+// snippet under the consumer's default. That leaves this clause as the second observer
+// over a slightly wider lib set (`DOM.Iterable`), and its allowance is ZERO: a snippet
+// failing here and not at `X3` is a regression nothing else sees, and one failing at
+// both is `X3`'s cascade, which the self-test's `X3` probe declares.
 let domFailing = 'not run';
 if (written.length) {
   const domCfg = join(OUT, 'tsconfig.dom.json');
@@ -253,10 +258,10 @@ if (written.length) {
       .filter(Boolean),
   );
   domFailing = `${hit.size} of ${written.length} (${[...hit].map((l) => `AGENTS.md:${l}`).join(', ') || 'none'})`;
-  // Q71 is one snippet. If it ever becomes more, that is a regression nothing else sees.
-  if (hit.size > 1) {
-    fail('X5', `${hit.size} snippets fail under the DOM lib, and Q71 accounts for one. ` +
-      `Newly failing: ${[...hit].map((l) => `AGENTS.md:${l}`).join(', ')}`);
+  // Zero since W57 — Q71 no longer accounts for one, and nothing else may.
+  if (hit.size > 0) {
+    fail('X5', `${hit.size} snippet(s) fail under the DOM lib, and since W57 closed Q71 none may. ` +
+      `Failing: ${[...hit].map((l) => `AGENTS.md:${l}`).join(', ')}`);
   }
 }
 
@@ -305,7 +310,14 @@ if (written.length) {
 // three no item pre-declares and makes one narrower prediction, about `spec/README.md`
 // alone. Naming a file is not predicting it; this item answers that test `AGENTS.md`
 // YES, which is a data point for P15's retro rather than a confirmation.)*
-const RUN_FLOOR = 18;
+// **Raised 18 -> 19 by [W57](../doc/work-items/w57-the-scheduler-is-a-dependency.md)**,
+// which made section 12's wiring snippet a `run` one: a real `FyflowScheduler` passed by
+// name with no cast (Q71 closed) and no `createTask` (the default is the driver's), run to
+// `completed`. **Q102's obligation firing for the SEVENTH recorded time, and for once from a
+// DECLARED exception rather than a late one**: W57's `Owns` was written from P16's index
+// row, that row names four `scripts/**` files and not this one, and the item declared this
+// file at its start because `X5`'s Q71 allowance was already in its path.
+const RUN_FLOOR = 19;
 {
   // **Only when the document parsed.** A count over a reference whose fences are
   // malformed or untagged is true of the parse and says nothing about coverage —
@@ -419,7 +431,7 @@ const checks = [
   'X2 every ```ts block is tagged run or check, or opts out explicitly',
   'X3 every tagged snippet typechecks against index.ts',
   'X4 every `run` snippet executes, and asserts something',
-  'X5 how much of the reference the DOM lib costs (Q71) — reported',
+  'X5 no snippet fails under the DOM lib a browser consumer compiles with (zero since W57 closed Q71)',
   'X6 AGENTS.md`s cost figures ARE spec/flow-definition.md section 3`s, both ways',
 ];
 const runCount = written.filter((x) => x.tag === 'run').length;

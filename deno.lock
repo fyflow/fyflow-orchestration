@@ -9,6 +9,9 @@
     }
   },
   "workspace": {
+    "dependencies": [
+      "jsr:@fyflow/scheduler@0.5.2"
+    ],
     "packageJson": {
       "dependencies": [
         "npm:@types/node@^24.13.3",

@@ -7,7 +7,11 @@
  * is the reason it matters: these are the values W2 and W3 are supposed to meet
  * at, rather than meeting at each other's code.
  */
-import { equal, ok, suite } from '../harness.ts';
+import { deepEqual, equal, ok, suite } from '../harness.ts';
+// The scheduler's task class, by name — ADR 0048 rule 5 is a statement about it and this file is
+// where that statement is falsifiable without a scheduler running. Permitted in `test/**` since `S9`
+// was retired with the same decision.
+import { FyflowTask } from 'fyflow-scheduler';
 import { readText, ROOT } from '../harness.ts';
 import { Driver } from '../../src/driver/driver.ts';
 import { innermostRegionOf } from '../../src/definition/regions.ts';
@@ -713,5 +717,50 @@ suite('a dead inner join, and what it does to the branch it sits in', (test) => 
       'and NOTHING is ended by it: `split` is in no region, so there is no branch to end. ' +
       'This is why the gap survived every plan before nesting existed');
     equal(d.joinStatusOf('split')?.status, 'unsatisfiable', 'the depth-1 answer is unchanged');
+  });
+});
+
+// **ADR 0048 rule 5, both halves, at L1 — W57's adequacy reader (m37, m38, m39).** Every fake in
+// this repository hands the driver `createTask: (c) => c` and reads the plain object back, and NONE
+// asserted that the object it received was the one its factory RETURNED: with the option ignored
+// outright, 703 cases and 1138 L6 assertions stayed green. And the two L6 observers accept ANY
+// `FyflowTask`, so a default that quietly added a `retryPolicy` or a `workerGroups` entry — the two
+// fields W58 is about to make node-declared — was green everywhere. Rule 5 says the default is
+// EXACTLY `new FyflowTask(config)` and the option is honoured; this is where each is one assertion.
+suite('ADR 0048 rule 5 — createTask: the option is honoured, and the default is exactly new FyflowTask(config)', (test) => {
+  const def: FlowDefinition = {
+    flowId: 'ct', version: 1, entry: 'a',
+    nodes: [
+      { id: 'a', kind: 'task', workerType: 'W', edges: [{ to: 'done' }] },
+      { id: 'done', kind: 'end', outcome: 'completed' },
+    ],
+  };
+  test('the object the scheduler receives is the one the FACTORY returned — not a FyflowTask built beside it', () => {
+    const s = new Fake();
+    new Driver(def, {
+      runId: 'r1', scheduler: s, predicates: new Map(), workerTypes: ['W'],
+      createTask: (c) => ({ marker: 'from-my-factory', ...c }),
+    }).start({ x: 1 });
+    equal(s.added.length, 1, 'one dispatch');
+    const got = s.added[0] as { marker?: string; id: string };
+    equal(got.marker, 'from-my-factory', 'the factory`s own object reached addTask — the option is honoured, not overridden by the default');
+    equal(got.id, 'r1:a:-:0', 'and it carries the config the driver handed the factory');
+    ok(!(got instanceof FyflowTask), 'a plain object from the factory stays a plain object');
+  });
+  test('omitted, the driver builds EXACTLY new FyflowTask(config) — the four fields and nothing added', () => {
+    const s = new Fake();
+    new Driver(def, { runId: 'r1', scheduler: s, predicates: new Map(), workerTypes: ['W'] }).start({ x: 1 });
+    equal(s.added.length, 1, 'one dispatch');
+    const built = s.added[0] as unknown;
+    ok(built instanceof FyflowTask, 'the default builds the scheduler`s own class (ADR 0048 rule 5)');
+    // Field for field against a task built from the same four fields, private bookkeeping aside:
+    // a default that injected `retryPolicy`, `workerGroups`, `handleRejection` or `limitKey`
+    // beyond what the config carries differs here and nowhere else at L1-L6.
+    const expected = new FyflowTask({ id: 'r1:a:-:0', workerType: 'W', payload: { x: 1 }, optional: false });
+    const own = (t: object) => Object.fromEntries(Object.entries(t).filter(([k]) => !k.startsWith('_')));
+    ok(deepEqual(own(built as object), own(expected)),
+      `the default task equals new FyflowTask(config) field for field — got ${JSON.stringify(own(built as object))}`);
+    equal((built as { retryPolicy?: unknown }).retryPolicy, undefined, 'no retryPolicy the node did not declare (W58`s field)');
+    equal(JSON.stringify((built as { workerGroups?: unknown }).workerGroups), '[]', 'no workerGroups the node did not declare (W58`s field)');
   });
 });

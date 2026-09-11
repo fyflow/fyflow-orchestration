@@ -2582,6 +2582,23 @@ for (const [i, e] of EXPECTED.entries()) {
   assertThat(e.key, 'ID-R1: every dispatched id is distinct',
     new Set(report.dispatched).size === report.dispatched.length);
 
+  // **ADR 0048 rule 5 at the one rung that runs the DEFAULT `createTask` — W57's rule 8 probe
+  // `a3`.** `FyflowScheduler.addTask` duck-types its task: with the driver's default swapped for
+  // `(config) => config`, every row here stayed green at 1061 / 0, because a plain object runs to
+  // `done` too — with `attempts` left UNDEFINED and `instanceof FyflowTask` false, and nothing
+  // here read either. So the two properties the documents already promise are asserted, per row
+  // and vacuously true only for a row that dispatched nothing (the cross-row clause below refuses
+  // that being every row): every task the scheduler holds is the class's own, and every outcome
+  // settlement the scheduler reported carried a numeric `attempts` on its LIVE task object — read
+  // at the harness's own listener, because the driver's listener normalises `attempts` and a log
+  // record cannot see it (rule 8 probe `a3c` measured that: with the first observer re-sourced,
+  // a record-based second one caught nothing). Two observers on two different structures, so
+  // re-sourcing either (`a3c`, `a3n`) leaves the other live.
+  assertThat(e.key, 'ADR 0048 rule 5: every task the scheduler holds is a FyflowTask the default createTask built',
+    report.fyflowTasksHeld === report.tasksHeld, `${report.fyflowTasksHeld} of ${report.tasksHeld}`);
+  assertThat(e.key, 'ADR 0048 rule 5, second observer: every settlement the scheduler reported carried a NUMERIC attempts on its live task — a plain object has none',
+    report.numericAttemptsSeen === report.settlementsSeen, `${report.numericAttemptsSeen} of ${report.settlementsSeen}`);
+
   // `RN-R4` — a node in `nodes` was dispatched, and every dispatched node is there.
   check(e.key, 'RN-R4: `nodes` holds exactly the dispatched task ids',
     Object.keys(report.state.nodes).sort(), [...report.dispatched].sort());
@@ -3222,8 +3239,16 @@ const PER_ROW_SUBJECTS: readonly [string, (rows: readonly Expectation[]) => numb
   ['it names WHICH region is still holding', (rows) => rows.filter((e) => heldWhenOver(e) > 0).length],
 ];
 
+// **The two W57 observers above are vacuous on a row that dispatched nothing, so this says they
+// were not vacuous everywhere** — the tasks the scheduler held and the outcome records it produced,
+// summed over every row, are both positive, read from the reports rather than from a literal.
+assertThat('cross-row', 'ADR 0048 rule 5 was observed on tasks the scheduler actually HELD, and on settlements it actually reported',
+  reports.reduce((n, r) => n + r.tasksHeld, 0) > 0 && reports.reduce((n, r) => n + r.settlementsSeen, 0) > 0,
+  `${reports.reduce((n, r) => n + r.tasksHeld, 0)} tasks held, ${reports.reduce((n, r) => n + r.settlementsSeen, 0)} settlements seen`);
+
 const CROSS_ROW_SUBJECTS = [
   'the loop above ran at all',
+  'ADR 0048 rule 5 was observed on tasks the scheduler actually HELD',
   'RN-R6',
   'Q41: the sequence carries pathEnded',
   'isLowConfidence returned FALSE at 0.9',
@@ -4272,9 +4297,14 @@ for (const row of PAIR_ROWS) console.log(`    ${w(row.key, KEY_W)}${row.why}`);
  * run entered **exactly** the regions it declares. That check is in the base
  * rather than in `extras` because every region row pays it, and a row's
  * `otherRegions` cost is two per region and is in `extras` because it is not.
+ *
+ * **21 and 19 since W57, from 19 and 17**: every row now asserts ADR 0048 rule 5 (every task
+ * the scheduler holds is a `FyflowTask`) and `OR-R1`'s numeric `attempts`, in the base because
+ * every row pays them — they are vacuous only for a row that dispatched nothing, and the
+ * cross-row clause beside `CROSS_ROW_SUBJECTS` refuses that being every row.
  */
-const PER_REGION_ROW = 19;
-const PER_PLAIN_ROW = 17;
+const PER_REGION_ROW = 21;
+const PER_PLAIN_ROW = 19;
 /**
  * **A number a human writes, and its NAME over-reads** — 13 at W23, 18 at W35, 32
  * at W43, 39 at W45, **61 at W47** and **68 at W51**.
@@ -4297,8 +4327,11 @@ const PER_PLAIN_ROW = 17;
  * [Q202](../doc/open-questions.md)'s shape in the file that carries the count.
  * W47's conformity reader; it is now a SEQUENCE rather than a latest value, so the
  * next item appends rather than rewriting.)*
+ *
+ * **81 at W57, from 80**: one cross-row clause — the two rule 5 observers were not vacuous
+ * everywhere.
  */
-const CROSS_ROW = 80;
+const CROSS_ROW = 81;
 const base = (shape: string) => (shape === 'region' ? PER_REGION_ROW : PER_PLAIN_ROW);
 for (const [key, shape, cost, extras] of rowCosts) {
   if (cost !== base(shape) + extras) {
@@ -5200,7 +5233,7 @@ check('cross-row', 'and no per-row assertion about ADR 0046 or JP-R12 is left un
 check('cross-row', 'every cross-row SUBJECT this file declares was asserted about — a block ' +
   'deleted with the counts is a block that fails naming what it was about',
   CROSS_ROW_SUBJECTS.filter((t) => crossRowLabels.some((l) => l.includes(t))), CROSS_ROW_SUBJECTS);
-const DECLARED_TOTAL = 1061;
+const DECLARED_TOTAL = 1138;
 if (passed + failures.length !== DECLARED_TOTAL) {
   failures.push(
     'gate\n      the assertion count is not the number this file declares outright\n' +

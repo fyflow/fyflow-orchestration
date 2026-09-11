@@ -354,6 +354,8 @@ const SUITES = [
 
 /** The rest of the census, split only so neither literal is unreadably long. */
 const LATE_SUITES = [
+  // W57 — ADR 0048 rule 5 at L1, in `test/driver/surface.test.ts`.
+  'ADR 0048 rule 5 — createTask: the option is honoured, and the default is exactly new FyflowTask(config)',
   'ADR 0046 / RN-R13 — a region releases its collection when its join becomes terminal',
   'OR-R11 — a result is a VALUE, and each shape asserts what does NOT cross',
   'OR-R11 — the corpus half of what bounding a result would cost',

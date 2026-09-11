@@ -66,5 +66,8 @@
     "fyflow-scheduler": "0.5.2",
     "playwright": "^1.62.1",
     "typescript": "^5.9.2"
+  },
+  "peerDependencies": {
+    "fyflow-scheduler": "0.5.2"
   }
 }

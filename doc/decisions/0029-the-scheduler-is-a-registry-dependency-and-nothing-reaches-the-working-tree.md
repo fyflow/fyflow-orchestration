@@ -44,6 +44,19 @@ is one now.
    is **unchanged**: `SchedulerLike` is a two-method structural interface, the published npm and JSR
    packages depend on the scheduler **not at all**, and `check-source.mjs` `S7` and `S8` still refuse
    the two ways that could break.
+
+   > **The second sentence EXPIRED on 2026-09-11 — [ADR 0048](0048-the-scheduler-is-a-declared-dependency-reached-by-one-bare-specifier.md)
+   > supersedes ADR 0013 rule 1.** Writing *"rule 1 is unchanged"* here was ADR 0013's own
+   > prediction followed — its Consequences cost 1 says that when the pin reaches a registry *"rules
+   > 1, 2 and 4 are unchanged"* — so this note is not a correction of this decision. What this
+   > decision DID remove is the fact that made a `peerDependency` *"a false statement in a
+   > manifest"*, and ADR 0048 is where that alternative was finally priced and taken. The published
+   > packages now DEPEND on the scheduler (a peer at the pin, a
+   > `jsr:` import in `deno.json`); `S7` refuses every reach but the bare specifier rather than every
+   > reach; `S8` refuses a second declaration and a path rather than a declaration. **The first
+   > sentence is untouched**: the gate still installs the scheduler as a registry devDependency at
+   > the exact pin, which is this rule's own subject. Recorded rather than edited, per
+   > [`README.md`](README.md)'s correction convention.
 2. **Deno reaches it from JSR, at the same version.** `examples/deno-import-map.json` maps the bare
    `fyflow-scheduler` specifier to `jsr:@fyflow/scheduler@0.5.2`. Node reaches npm and gets `dist/`;
    Deno reaches JSR and gets the source. **The two roads are still different and that is still fine**
@@ -120,7 +133,10 @@ Node 24.
 > around a constraint that no longer exists.
 
 **What this does not decide.** Whether this library should ever depend on the scheduler at runtime —
-it should not, that is ADR 0013 rule 1 and it is untouched. Which version to pin next
+it should not, that is ADR 0013 rule 1 and it is untouched. *(**Decided YES on 2026-09-11 by
+[ADR 0048](0048-the-scheduler-is-a-declared-dependency-reached-by-one-bare-specifier.md)**, which
+supersedes that rule; the sentence stays as the record of what this decision believed it was leaving
+alone.)* Which version to pin next
 ([Q3](../open-questions.md)) — **0.5.2 since 2026-09-08**, and a bump still means re-reading
 `AGENTS.md` section 6 because there is still **no changelog**. *(This read 0.3.0 when the ADR was
 written; the pin has moved twice since, by W36 and [W37](../work-items/w37-the-scheduler-pin-moves-to-0-5-2.md).)*

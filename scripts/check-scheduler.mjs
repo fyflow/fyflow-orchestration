@@ -26,6 +26,11 @@
 // versions with both green. `D3` is that comparison, and it is this file's whole
 // remaining reason to exist.
 //
+// **And since W57 (ADR 0048) the PUBLISHED manifests declare the scheduler**, so `D8`
+// holds `package.json`'s `peerDependencies` entry and `deno.json`'s `jsr:` import to the
+// same pin — a third and a fourth copy of it, each with a reader the gate never runs: a
+// consumer's installer.
+//
 //   node scripts/check-scheduler.mjs
 //
 // Exits 0 when every check passes, 1 otherwise. It reports; it does not fix.
@@ -58,7 +63,7 @@ const JSR_NAME = '@fyflow/scheduler';
 const failures = [];
 const fail = (check, msg) => failures.push(`${check}: ${msg}`);
 /** Which checks actually executed. See the reporting block at the bottom. */
-const ran = { D1: false, D2: false, D3: false, D4: false, D5: false, D6: false, D7: false };
+const ran = { D1: false, D2: false, D3: false, D4: false, D5: false, D6: false, D7: false, D8: false };
 /** The version the Deno half pins, for the report. `null` until `D3` parses one. */
 let jsrPin = null;
 const rel = (p) => relative(ROOT, p).replace(/\\/g, '/');
@@ -104,8 +109,9 @@ if (manifest) {
   }
   const spec = own?.devDependencies?.['fyflow-scheduler'];
   if (spec === undefined) {
-    fail('D2', 'package.json does not declare fyflow-scheduler as a devDependency. It must never ' +
-      'be a runtime dependency — ADR 0013 rule 1, and `check-source.mjs` S8 refuses that half');
+    fail('D2', 'package.json does not declare fyflow-scheduler as a devDependency — the pin the GATE ' +
+      'installs. Since ADR 0048 it is ALSO a peer at the same pin, which D8 holds; a devDependency ' +
+      'alone is what a consumer never sees, and a peer alone is what the gate never installs');
   } else if (spec !== PIN) {
     fail('D2', `package.json asks for "${spec}" and this check pins ${PIN}. A range would let ` +
       'the two runtimes drift on an ordinary install, which is exactly what D3 exists to stop; ' +
@@ -449,6 +455,82 @@ if (process.argv.includes('--self-test')) {
   }
 }
 
+// --- D8: the two PUBLISHED manifests declare the scheduler, at the pin --------
+//
+// ADR 0048 rules 1-3 (W57). `D2` binds what the gate INSTALLS (`devDependencies`) and
+// `D3` binds the L6 import map; neither reads what a CONSUMER's installer is told.
+// `package.json`'s `peerDependencies` is that statement for npm, and `deno.json`'s
+// `imports` is it for JSR — a JSR package's dependency is declared there and nowhere
+// else. Measured at W57: `deno publish --dry-run` refuses a bare import with no entry,
+// and in THIS repository passes without one only because `devDependencies` resolves
+// the specifier through `node_modules` to the npm build — which is not what a Deno
+// consumer should be handed (ADR 0029). So both are held to `PIN`, EXACTLY: the range
+// is exact by ADR 0048 rule 1, and the JSR entry must be the pinned `jsr:` form — not a
+// path (`check-source.mjs` `S8` refuses that at its own address) and not `npm:`.
+{
+  let ourPkg = null;
+  let ourDeno = null;
+  try {
+    ourPkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
+  } catch {
+    // `D2` owns and reports the unreadable manifest; one cause, one clause (W29's shape).
+  }
+  try {
+    ourDeno = JSON.parse(readFileSync(join(ROOT, 'deno.json'), 'utf8'));
+  } catch (e) {
+    fail('D8', `deno.json is unreadable, so the JSR declaration cannot be checked: ${e.message}`);
+  }
+  if (ourPkg) {
+    ran.D8 = true;
+    const peer = ourPkg.peerDependencies?.['fyflow-scheduler'];
+    if (peer === undefined) {
+      fail('D8', 'package.json declares no peerDependencies entry for fyflow-scheduler — ADR 0048 rule 1. ' +
+        'The published library depends on the scheduler, and a consumer`s installer reads that here ' +
+        'and nowhere else');
+    } else if (peer !== PIN) {
+      fail('D8', `package.json declares the peer as "${peer}" and the pin is ${PIN} — ADR 0048 rule 1: the ` +
+        'range is EXACT, because the driver is written against one version`s event shapes and there ' +
+        'is no upstream changelog to read a wider range from');
+    }
+    // **`peerDependenciesMeta` can make the peer OPTIONAL, and then nothing above is a
+    // declaration at all** — W57's adequacy reader (m20), measured at the installer: a consumer
+    // who installs only this library gets no scheduler and fails at import, with D2, D8 and S8
+    // all green. A third field decides what the second one means.
+    if (ourPkg.peerDependenciesMeta?.['fyflow-scheduler']?.optional === true) {
+      fail('D8', 'package.json marks the fyflow-scheduler peer OPTIONAL in peerDependenciesMeta — ADR 0048 ' +
+        'rule 1. The published bundle imports the scheduler at load, so a consumer who takes the option ' +
+        'fails at import; the peer is a statement of what is REQUIRED');
+    }
+  }
+  if (ourDeno) {
+    ran.D8 = true;
+    const want = `jsr:${JSR_NAME}@${PIN}`;
+    const entry = ourDeno.imports?.['fyflow-scheduler'];
+    if (entry === undefined) {
+      fail('D8', 'deno.json maps no "fyflow-scheduler" import — ADR 0048 rule 2. A JSR package`s dependency ' +
+        'is declared there and nowhere else; without it `deno publish` either refuses the bare ' +
+        'specifier or resolves it through package.json to the npm build');
+    } else if (entry !== want) {
+      fail('D8', `deno.json maps "fyflow-scheduler" to "${entry}" and ADR 0048 rule 2 says "${want}" — the ` +
+        'pinned JSR form, so a Deno consumer reads the same version and the same SOURCE the L6 rung does');
+    }
+    // **And `scopes` can re-map the specifier for part of the package under `imports`' nose** —
+    // W57's adequacy reader (m22): `{ "scopes": { "./src/": { "fyflow-scheduler": "../fyflow-scheduler/index.ts" } } }`
+    // resolved `src/driver/driver.ts` to a working tree with the `imports` entry intact and every
+    // check green. A scope naming the scheduler makes the `imports` entry a statement about nothing.
+    const NAMES = /fyflow-scheduler|@fyflow\/scheduler/;
+    for (const [scope, map] of Object.entries(ourDeno.scopes ?? {})) {
+      for (const [key, target] of Object.entries(map ?? {})) {
+        if (NAMES.test(key) || NAMES.test(String(target))) {
+          fail('D8', `deno.json re-maps the scheduler inside scopes["${scope}"] ("${key}" -> "${target}") — ` +
+            'ADR 0048 rule 2. The imports entry is the ONE declaration; a scope overriding it for part of ' +
+            'the package is a second, and it is a path or a different registry');
+        }
+      }
+    }
+  }
+}
+
 const checks = [
   ['D1', ran.D1, `D1 the pinned scheduler is installed from a registry, not linked`],
   ['D2', ran.D2, `D2 it is ${PIN}, and package.json asks for exactly ${PIN}`],
@@ -457,6 +539,7 @@ const checks = [
   ['D5', ran.D5, `D5 it loads and exports what its own declarations name`],
   ['D6', ran.D6, `D6 both L6 rungs run examples/l6.ts, and the Deno one reads the Deno pin`],
   ['D7', ran.D7, `D7 five documents state the pin, and every statement reads ${PIN}`],
+  ['D8', ran.D8, `D8 both PUBLISHED manifests declare the scheduler at ${PIN} — the peer, and the jsr: import`],
 ];
 // **Both halves carry a VERSION.** This printed the JSR package NAME with no version
 // at all — the one line where a human sees the two pins side by side, omitting the
