@@ -1,7 +1,17 @@
 # spec/run-state — what a run holds, and what it is derived from
 
-**Status:** v0.5 — written by [W2](../doc/work-items/w2-the-fold-and-both-join-policies.md) under
+**Status:** v0.6 — written by [W2](../doc/work-items/w2-the-fold-and-both-join-policies.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md).
+**v0.6 is [W53](../doc/work-items/w53-what-a-run-retains-that-nothing-reads.md) under
+[P15](../doc/plans/p15-what-a-run-retains-and-what-a-result-may-be.md), and it ANSWERS the one
+bullet section 6 has carried since v0.1.** *Bounded retention* stated that a run's footprint is
+*"proportional to its dispatched-node count"*, which is **measured false** — the count is the smaller
+half and the whole of every result is the multiplier neither that sentence nor
+[Q19](../doc/open-questions.md)'s row named. **Section 7 is new, `RN-R13` is the rule, and
+[ADR 0046](../doc/decisions/0046-a-run-retains-what-its-tasks-returned-and-a-region-releases-its-collection-when-its-join-becomes-terminal.md)
+is the decision.** No `FoldInput` moved, no `RN-R*` rule was changed and no cell of run state moved:
+what a run RETAINS and what a run REPORTS are different questions, and only the first is answered
+here.
 **v0.3 is [W5](../doc/work-items/w5-one-real-fan-out-flow-on-a-real-scheduler.md)'s**, and it changes
 two things this document said were open: **section 6's last bullet is done** — the input sequence
 exists and the driver produces it
@@ -240,9 +250,16 @@ currently unfalsifiable, and why. This document did not, and that is the finding
   took `join-policy.md` as a declared exception for exactly this sentence and **missed this copy of
   it**; its conformity reader found it. `doc/workflow.md` section 1 rule 5's *any copy, including
   your own*, one document across.)*
-- **Bounded retention** — [Q19](../doc/open-questions.md). A run's footprint is proportional to its
-  dispatched-node count and the total is that times the run count, which is the measurement P1 was
-  always going to need and does not have.
+- ~~**Bounded retention**~~ — **[Q19](../doc/open-questions.md), ANSWERED in v0.6. See section 7.**
+  This bullet read *"A run's footprint is proportional to its dispatched-node count and the total is
+  that times the run count, which is the measurement P1 was always going to need and does not have."*
+  **The measurement exists since [P15](../doc/plans/p15-what-a-run-retains-and-what-a-result-may-be.md)'s
+  declaration and the sentence is FALSE in the half that matters**: the dispatched-node count is one
+  factor and *the whole of every result* is the other, which this sentence and Q19's row both omitted.
+  A **4**-node chain returning 256 KiB retains **1025 KiB**; a **128**-node chain returning one key
+  retains **33 KiB**. Kept rather than deleted (`spec/README.md` rule 1), because the shape of the
+  error is the finding: a document can carry a correct-sounding proportionality for fourteen plans
+  when nobody has multiplied it out.
 - **Durability** — [Q15](../doc/open-questions.md). `RN-R2` is what would make it additive; it does
   not make it done.
 - **An event family for a UI** — [Q21](../doc/open-questions.md).
@@ -269,3 +286,78 @@ currently unfalsifiable, and why. This document did not, and that is the finding
 - **What a consumer should do about a `stuck` run.** [Q38](../doc/open-questions.md) asks whether a
   `stopped` run is resumable and neither is answered here; there is no cancel
   ([Q18](../doc/open-questions.md)), so today the honest answer is *report it and abandon it*.
+
+## 7. What a run RETAINS, and what it may forget — [Q19](../doc/open-questions.md), answered
+
+**v0.6, and it is the one bullet above that moved out of section 6.**
+[ADR 0046](../doc/decisions/0046-a-run-retains-what-its-tasks-returned-and-a-region-releases-its-collection-when-its-join-becomes-terminal.md)
+is the decision; this is what the document says.
+
+**Sections 1-6 are about what a run REPORTS. This section is about what a run HOLDS**, and the two
+are different questions with different answers: a `RunState` is a value a caller computes and drops,
+and the retained footprint is the driver's, for as long as the caller keeps the driver.
+
+### The variable, and why the old sentence was wrong
+
+| dimension, varied one at a time | measured | per unit |
+|---|---|---|
+| a chain of N tasks, each returning one key | 599 … **33490 B** at N = 2 … 128 | linear, **~262 B/node** |
+| one `fanout` of W branches, arity AUTHORED | 1523 … **30007 B** at W = 2 … 64 | linear, **~469 B/branch** |
+| one `map` over A items, arity from the DATA | 1546 … **116814 B** at A = 2 … 256 | linear, **~456 B/instance** |
+| the SAME 4-task chain, each result K KiB | 1113 B … **1025.1 KiB** at K = 0 … 256 | linear, and it is **the whole of every result** |
+
+**The first three are ONE variable — how many tasks SETTLE — and the fourth is the multiplier the old
+bullet omitted.** Thirty-one times the footprint at a thirty-second of the node count.
+
+| id | | Test owed by |
+|---|---|---|
+| `RN-R13` | **A run's retained footprint is *(tasks settled) x (bytes each returned)*, plus one further copy of each result that has arrived at a join whose region is still live.** The first term is `inputs` — the fold's own sequence, which is what `Driver.foldInputs()` returns and what holds every `result`; `log` is its **record-kind subsequence by reference** and costs **16-18 B** on top of it rather than a second copy. The second term is the region collections `JP-R12` is about, and it is bounded by the window `JP-R11`/`JP-R12` now state: from a region's first arrival until its join becomes terminal, and **not one byte longer**. Everything else the driver holds is per-region or per-id and does not scale with a result: `dispatched` is task-id **strings** (44 B for 3 ids), `joinState` and `firedJoins` are per region (41 B and 14 B on a one-region flow), and `outputsCache` is an **alias-only memo** — every entry in it **is** a log record's own `result` object, measured 5/5, 17/17 and 65/65, costing ~25 B an entry for the `branchPath` string beside it. **Nothing else is a second copy, and that is the falsifiable half**: for any settled result, the set of the driver's own growing structures it is reachable from is exactly `{inputs, log}` once its region's join is terminal, and `{inputs, log, arrivals}` before. Test: at ladder L2, a unique marker in a branch result and the set of holders asserted at both ends of that window — identity cannot answer it, because `OR-R2` deep-copies at the listener boundary, and a byte count cannot, because `v8.serialize` is in one of the five runtimes | **[W53](../doc/work-items/w53-what-a-run-retains-that-nothing-reads.md)** |
+
+### What a run may NOT forget, and it is the fold that decides
+
+**Nothing may be evicted from `inputs`.** `RN-R1` makes the fold a pure function of the sequence and
+`RN-R2` makes it total over any **prefix** — neither says anything about a sequence with a hole in
+it, and the fold has no way to say it was handed less than the whole log. Measured on a 37-input
+sequence truncated from the front:
+
+| `fold()` over | outcome | nodes | regions |
+|---|---|---|---|
+| the complete log, 37 inputs | `completed` | 9 | 1 |
+| the last **18** | `completed` | 8 | 1 |
+| the last **1** | `completed` | **0** | **0** |
+
+**It does not throw and it does not say it is incomplete.** A run state reporting `completed` while
+knowing nothing about the run is not a silent eviction; it is a **plausible wrong answer**, which is
+what a fold defined over a complete log does when the log stops being complete. So an eviction
+candidate needs a way for the fold to say it was handed less, and that is a new `FoldInput` kind —
+a change to the one value this repository's whole invariant hangs off. **Not taken here.**
+
+**`maxCompletedTasks` is not an answer to inherit.** [Q19](../doc/open-questions.md)'s row said *"the
+scheduler already has this problem and answers it with `maxCompletedTasks` and eviction; we would
+inherit the answer and its sharp edge"*. Measured: it caps **`scheduler.tasks`**, the scheduler's own
+map, and reaches nothing this layer holds. There is no answer to inherit, only a shape, and the table
+above is that shape applied here.
+
+### What this section does NOT fix
+
+- **Bounding what a CONSUMER reads.** `RunState.nodes[taskId].result` **is** the retained result, so
+  dropping one changes what a run reports. Measured: blanking every `result` takes a fold's input
+  from 13984 B to 1612 B — a factor of **8.7** — and changes `RunState`. Over both corpora **110 of
+  124 task nodes (89%)** are named by no `needs`, so *drop a result no reference can name* is
+  decidable from the document; it is a change to the library's public answer rather than a driver
+  optimisation, and it is [W54](../doc/work-items/w54-what-a-result-may-be-and-what-bounding-it-would-cost.md)'s
+  to price.
+- **What a result may BE** — [Q22](../doc/open-questions.md), and `OR-R2`/`OR-R6` are where it lives.
+- **Durability** — [Q15](../doc/open-questions.md), and this section sharpens it rather than
+  answering it. **A join's collection is in no `FoldInput` at all**: `dispatched` carries a `taskId`
+  and nothing else, so a run resumed from a persisted sequence cannot be handed what a join collected
+  and cannot recompute it. That was true before v0.6 and is visible now that the collection has a
+  stated lifetime.
+- **Whether a `stuck` run can be released early.** `RN-R10` decides `stuck` **here**, at a quiescent
+  point, from a region whose `joined` is not `true`. The driver has no event for it, and giving it
+  one would put a run-state determination inside the driver — which
+  [ADR 0014](../doc/decisions/0014-the-driver-produces-the-folds-ordered-input-sequence.md) rule 4
+  and [ADR 0001](../doc/decisions/0001-routing-executes-in-the-driver-outside-the-scheduler.md)
+  rule 1 both refuse. **So a region whose join never becomes terminal holds its collection until the
+  caller releases the driver**, and `RN-R13`'s second term is stated over live regions for exactly
+  that reason.

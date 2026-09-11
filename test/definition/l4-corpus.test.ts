@@ -354,6 +354,7 @@ const SUITES = [
 
 /** The rest of the census, split only so neither literal is unreadably long. */
 const LATE_SUITES = [
+  'ADR 0046 / RN-R13 — a region releases its collection when its join becomes terminal',
   'OR-R4 — task.running and task.progress produce no record',
   'OR-R5 and OR-R7 — the log is ordered by append',
   'OR-R7 / ADR 0014 rule 2 — foldInputs() cannot be written through',

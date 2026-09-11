@@ -558,6 +558,28 @@ export class Driver {
    * run, which a `map` would break; W33 refuses that definition at construction
    * ([Q160](../../doc/open-questions.md)), and this map is safe for exactly that
    * reason and no other.
+   *
+   * **Its LIFETIME is
+   * [ADR 0046](../../doc/decisions/0046-a-run-retains-what-its-tasks-returned-and-a-region-releases-its-collection-when-its-join-becomes-terminal.md)
+   * rule 3, and until W53 it had none.** An entry lives from a region's first
+   * arrival until that region's join becomes terminal, and is dropped there —
+   * `releaseArrivals` below, at both exits of `settleJoin`, plus `arrivals.clear()`
+   * when a refusal stops the run. Before that this map held every arrived branch's
+   * result for the life of the driver, which P15 fact 3 measured at **49.8%** of
+   * what a region-bearing run holds at map arities 4, 16 and 64 over 64 KiB
+   * results, and which no rung of `doc/workflow.md` section 4 could see removed
+   * ([Q214](../../doc/open-questions.md)).
+   *
+   * **It is a SECOND COPY and that is measured rather than assumed**: the stored
+   * value is the arriving branch's own edge-hop clone, and an identity check says
+   * it is neither the log record's `result` object nor the worker's own. So this is
+   * not an index over the log the way `outputsCache` is — dropping it frees bytes,
+   * and dropping that would free almost none.
+   *
+   * **What the rule does NOT reach is stated in the rule**: a region whose join
+   * never becomes terminal holds its arrivals until the driver is released. That is
+   * the run this repository calls `stuck`, and `stuck` is decided in the FOLD at a
+   * quiescent point (`RN-R10`), not here — ADR 0046 rule 5.
    */
   private readonly arrivals = new Map<string, Map<string, unknown>>();
   /**
@@ -842,6 +864,21 @@ export class Driver {
     const err = cause instanceof Error ? cause : new Error(String(cause));
     if (!already) {
       this.append({ kind: 'stopped', reason: `${err.constructor?.name ?? 'Error'}: ${err.message}` });
+      // **The SECOND of the two moments
+      // [ADR 0046](../../doc/decisions/0046-a-run-retains-what-its-tasks-returned-and-a-region-releases-its-collection-when-its-join-becomes-terminal.md)
+      // rule 3 names**, and it is not per-region: `OR-R10` says the driver has
+      // stopped routing this run, so no join of any region will settle again. The
+      // three doors into `settleJoin` are all shut behind `this.failed` — a
+      // settlement returns at `onEventOrThrow`'s guard before `advance`, a
+      // resolution is refused by `resolve`, and `start` has already thrown — so
+      // every region's collection is unreadable from here whether or not its join
+      // had fired.
+      //
+      // **The LOG is untouched, and that asymmetry is rule 2.** A stopped run is a
+      // run a consumer folds to find out what happened; releasing what the fold
+      // reads would be the plausible wrong answer P15 decision 2 forbids. This
+      // drops only the structure no `FoldInput` carries.
+      this.arrivals.clear();
     }
     this.opts.onRunFailure?.({
       runId: this.runId,
@@ -1333,7 +1370,32 @@ export class Driver {
         // recording after would drop the very arrival that fired the join. The
         // failure is silent — a join firing with N-1 entries — so it is stated here
         // rather than left to the two lines' order.
-        this.arrivalsOf(region.fanoutId).set(fromBranch, payload);
+        //
+        // **The `firedJoins` guard is
+        // [ADR 0046](../../doc/decisions/0046-a-run-retains-what-its-tasks-returned-and-a-region-releases-its-collection-when-its-join-becomes-terminal.md)
+        // rule 4's OPENING bound, and without it rule 3's release is a leak with a
+        // narrower mouth.** The release at the exit drops what the region collected;
+        // an arrival reaching a join that has ALREADY become terminal would call
+        // `arrivalsOf` again, mint a fresh inner map and store a payload nothing can
+        // ever read — so the structure would refill after being released, once per
+        // late arrival, for the life of the run.
+        //
+        // **No shipped policy produces that arrival and a third-party one may**,
+        // which is why this is a guard rather than a comment. `arrival-count` fires
+        // on the N-th of N arrivals and `live-token`/`live-token-requiring-arrival`
+        // fire when the last live branch goes terminal, so all three settle the join
+        // only once nothing is left to arrive. A policy that settles a join **before
+        // every branch is terminal** is exactly the precondition
+        // [Q95](../../doc/open-questions.md) records for the `at most once` latch
+        // twenty lines down in `settleJoin` — the same hypothetical policy, reaching
+        // the same region through a second door.
+        //
+        // So the window a region's collection exists in is stated at both ends: it
+        // opens at the first arrival and closes when the join becomes terminal, and
+        // outside it nothing is recorded and nothing is held.
+        if (!this.firedJoins.has(region.fanoutId)) {
+          this.arrivalsOf(region.fanoutId).set(fromBranch, payload);
+        }
         this.emit({ type: 'branch.arrived', regionId: region.fanoutId, branchPath: fromBranch });
         this.settleJoin(runId, region, itemIndices);
         return;
@@ -1802,6 +1864,32 @@ export class Driver {
     );
   }
 
+  /**
+   * **Drop one region's collection —
+   * [ADR 0046](../../doc/decisions/0046-a-run-retains-what-its-tasks-returned-and-a-region-releases-its-collection-when-its-join-becomes-terminal.md)
+   * rule 3.** Called from the two arms of `settleJoin` and from nowhere else; the
+   * run-level moment is `failRun`'s `arrivals.clear()`, which is a different fact.
+   *
+   * **A method rather than an inline `delete`, and the reason is `firedJoins`.**
+   * The rule is *a region's collection lives from the first arrival until its join
+   * becomes terminal*, and this repository has three call sites that decide
+   * "terminal" — the two exits here and the guard in `enter`'s `join` arm. One named
+   * expression is what lets a reader check that they agree; three `delete` calls are
+   * three sources that can drift, which is
+   * [ADR 0040](../../doc/decisions/0040-what-a-node-can-reach-is-the-runs-own-outputs-and-a-node-id-names-them-relative-to-a-branch-path.md)
+   * rule 2's own objection.
+   *
+   * **What it is NOT**: it does not touch `log`, `inputs`, `dispatched`, `joinState`
+   * or `firedJoins`. `joinState` in particular stays, because `joinStatusOf` is a
+   * public accessor a consumer may call after the join has settled, and because a
+   * policy's state is what `describe` reads. What leaves is the one structure P15
+   * fact 3 measured as a SECOND COPY — 49.8% of a region-bearing run, aliasing
+   * neither the log record's `result` nor the worker's own object.
+   */
+  private releaseArrivals(fanoutId: string): void {
+    this.arrivals.delete(fanoutId);
+  }
+
   /** The arrival map for one region, created on first arrival. */
   private arrivalsOf(fanoutId: string): Map<string, unknown> {
     const existing = this.arrivals.get(fanoutId);
@@ -1984,6 +2072,20 @@ export class Driver {
       // describing it as though it could is*.
       const describe = policy.describe(state);
       this.firedJoins.add(region.fanoutId);
+      // **[ADR 0046](../../doc/decisions/0046-a-run-retains-what-its-tasks-returned-and-a-region-releases-its-collection-when-its-join-becomes-terminal.md)
+      // rule 3 — the latch on the line above is the whole of the argument.** This
+      // arm routes nowhere, so it never reads the collection at all; and once
+      // `firedJoins` holds this region, every later `settleJoin` for it returns at
+      // the first guard and the `join` arm of `enter` records nothing more. Nothing
+      // can reach the region's arrivals again, so they are released here.
+      //
+      // **This is the half a release at the SATISFIED exit does not cover**, and it
+      // is the reachable part of the case P15 fact 3 records as the exception: a
+      // region whose join never fires holds its arrivals for the life of the run.
+      // A policy reporting `unsatisfiable` is the one such region the driver is
+      // TOLD about. The rest — a region nothing ever settles — is the bound rather
+      // than a leak, and ADR 0046 rule 5 says why the driver cannot know.
+      this.releaseArrivals(region.fanoutId);
       // ADR 0015 — the join is settled and it did NOT fire. Nothing downstream of
       // it will ever be dispatched, which is what makes the run `stuck` rather
       // than `completed`.
@@ -2059,6 +2161,24 @@ export class Driver {
     // does not violate `RN-R6`: `fired` is "routing left the join", an action, and
     // the same two policies over the same events still produce identical `regions`.
     this.append({ kind: 'joinSettled', regionId: region.fanoutId, joinId: region.joinId, fired: true });
+    // **The collection is read ONCE and the region is released in the same breath —
+    // [ADR 0046](../../doc/decisions/0046-a-run-retains-what-its-tasks-returned-and-a-region-releases-its-collection-when-its-join-becomes-terminal.md)
+    // rule 3.** `collectArrivals` is a pure projection of the map, so hoisting it
+    // above the `join` lookup below changes nothing about what travels; what it buys
+    // is that the read and the release are one pair of adjacent lines with no
+    // early return between them, which is what makes *released when the join becomes
+    // terminal* a property of this function rather than of the path taken through it.
+    //
+    // **The ORDER is the whole rule and it has a measured negative control**: this
+    // release AFTER the read costs 0 failures at L1-L5 and 0 at L6; moved BEFORE it,
+    // the join carries `{}` and L1-L5 reports **13**. P15 fact 3, re-run by W53.
+    //
+    // **Why it is safe to release before `enter` runs**: `enter` dispatches the
+    // join's successor, which is outside this region or in the enclosing one, and
+    // `firedJoins` already holds this region — so no path out of that call can read
+    // or refill what is dropped here.
+    const collected = collectArrivals(this.arrivals.get(region.fanoutId));
+    this.releaseArrivals(region.fanoutId);
     const join = this.graph.byId.get(region.joinId);
     if (!join || join.kind !== 'join') return;
     const edge = join.edges?.[0];
@@ -2123,7 +2243,7 @@ export class Driver {
     // region CONTAINING it is that node's region.
     if (edge) {
       this.enter(
-        runId, edge.to, collectArrivals(this.arrivals.get(region.fanoutId)),
+        runId, edge.to, collected,
         this.pathOf(region.fanoutId, itemIndices),
         this.regionOf(region.fanoutId)?.fanoutId, itemIndices,
       );
