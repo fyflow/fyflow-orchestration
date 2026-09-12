@@ -212,7 +212,9 @@ the cost re-taken across a THREAD boundary, which fact 6 does not include.
 ## Decisions taken before fan-out
 
 *Section 7 rule 3: decide, then fan out. Decisions 1 and 2 are the maintainer's of 2026-09-11,
-recorded in P16 and [Q251](../open-questions.md); the rest are derived from the facts above and are
+recorded in P16 and [Q251](../open-questions.md); **decisions 4 and 7, and ADR 0052 standing
+alone, are the maintainer's of 2026-09-12, taken at this declaration from the stop-and-ask list
+below with each alternative named**; the rest are derived from the facts above and are
 recorded here so an item argues from them rather than re-deriving them. The two that are
 architectural become ADRs inside the items that measure them.*
 
@@ -233,7 +235,9 @@ architectural become ADRs inside the items that measure them.*
    writes the worker URL into the typed pool's config beside `worker` and `config`, and the wrapper
    loads it in `setup()`, once per worker instance, and compiles each expression **once per
    instance** rather than per task. **What the split cannot see is [Q264](../open-questions.md).**
-4. **The shape is `transform: { lang, expr }`, both strings, on a typed task node only.** A
+4. **The shape is `transform: { lang, expr }`, both strings, on a typed task node only — the
+   maintainer's, 2026-09-12**, over a bare string with the language fixed (a second language would
+   need a new key) and over another key name. A
    third key in the envelope, present only when declared, carrying exactly that object. Refusals,
    ids confirmed against `spec/flow-definition.md` section 5 at W61's start (`FD-V34` and `FD-C5`
    are the highest at this declaration): **`FD-V35`** a `lang` the registry's `languages` does not
@@ -259,8 +263,10 @@ architectural become ADRs inside the items that measure them.*
 7. **The expression sees its input as the context value and its settings as a binding.** `$` is
    `input` — so `*.score` over a join's record and `$.confidence` over a map item read as an author
    expects — and the node's effective `settings` are bound as **`$settings`**, so one expression can
-   be parameterised per node without a second key. Both names are spelled once; the first is
-   JSONata's own convention and the second is this plan's, and it is on the stop-and-ask list.
+   be parameterised per node without a second key. **The maintainer's, 2026-09-12**, over `$` as
+   the input alone (a per-node variation would need a second expression text) and over `$` as the
+   whole envelope (every expression typing `$.input`). Both names are spelled once; the first is
+   JSONata's own convention and the second is this plan's.
 8. **A typed node WITHOUT a transform is dispatched byte-identically, and every existing L6 row
    keeps its numbers.** Fact 8 plus W58's *a key is added only when present*. A hard constraint on
    every item, asserted the way W59 asserted the P12 flows: a byte-identical dispatch comparison
@@ -330,11 +336,13 @@ language — so the plan's first item is not P11's shape.
   makes the consumer install it and is the shape W57's adequacy reader found adjacent to the one a
   check reads; `optionalDependencies` is a third. W62 prices all three with `npm pack` and
   `deno publish --dry-run` on scratch copies; the maintainer chooses.
-- **Whether ADR 0052 is its own decision or a clause of 0051.** A second bare specifier reached from
-  one sub-path is `RT-R11`'s shape a second time; it can be that rule's second row or its own ADR.
-- **The transform's bindings** (decision 7): `$` is the input; whether `settings` is bound as
-  `$settings`, under another name, or not at all. Spelled once, read by every expression after.
-- **The key's name and shape** (decision 4): `transform: { lang, expr }`.
+- ~~**Whether ADR 0052 is its own decision or a clause of 0051.**~~ **Answered at the declaration,
+  2026-09-12: its own ADR** — a second bare specifier reached from one sub-path is `RT-R11`'s shape a
+  second time, and a decision of that weight gets its own record, as ADR 0048 did. W62 still prices
+  the three shapes before the maintainer chooses one.
+- ~~**The transform's bindings** (decision 7)~~ and ~~**the key's name and shape** (decision 4)~~ —
+  **both answered at the declaration, 2026-09-12**: `$` is the input and `$settings` is bound;
+  `transform: { lang, expr }`. Recorded in the decisions; W61 argues from them.
 - **Whether `$eval` is unbound** ([Q265](../open-questions.md)).
 - **Anything that would change what a typed node WITHOUT a transform receives, or what any
   existing L6 row asserts.** Decision 8 forbids it; an item that finds it necessary stops.
@@ -348,8 +356,8 @@ reused, so the next free triple is **W61, Q263, ADR 0051** — which is what P16
 `doc/README.md`, confirmed here independently.
 
 **Fifteen questions**, on P15's and P16's argument that the block is sized by the worse case (P16
-used twelve of fifteen). **Two ADRs expected**: 0051 is W61's; 0052 is W62's unless the maintainer
-folds the dependency decision into 0051, in which case it is skipped and the plan says so.
+used twelve of fifteen). **Two ADRs expected and both TAKEN**: 0051 is W61's; 0052 is W62's, its own decision by the
+maintainer's answer at this declaration.
 
 ## The baseline this plan starts from
 
