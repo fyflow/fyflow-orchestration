@@ -1,6 +1,6 @@
 # P16 — What is a node type, and what does the library owe the scheduler to have one?
 
-**Status:** IN PROGRESS — **[W57](../work-items/w57-the-scheduler-is-a-dependency.md) is DONE**
+**Status:** COMPLETE and RETRO'D — retro run 2026-09-12, `doc/workflow.md` to [v0.17](../workflow.md), three changes adopted and five refused; see *Retro* in the Record. *(The paragraph below is the status line as the items closed, kept as the plan's own record.)* **[W57](../work-items/w57-the-scheduler-is-a-dependency.md) is DONE**
 (2026-09-11, [ADR 0048](../decisions/0048-the-scheduler-is-a-declared-dependency-reached-by-one-bare-specifier.md);
 its three stop-and-ask items were answered *exact pin*, *`deno.json` gains the `jsr:` import and the
 L6 map stays — W60 not issued*, and *`S7` narrowed*; Q71 resolved, Q252-Q253 raised), **[W58](../work-items/w58-what-a-node-says-about-its-own-task.md) is DONE** (2026-09-12, **no ADR** — decision 3 is the decision; its three stop-and-ask items were answered *exact shape*, *no `defaultWorkerGroups` — W60's second condition does not fire*, and *strict: an absent registry set is empty*; Q256-Q258 raised, Q253 extended, Q16's task half landed; prediction 2 CONFIRMED — the first non-zero `attempts` a scheduler set at any rung, on a `map` of three) and **[W59](../work-items/w59-what-a-node-type-is.md) is DONE** (2026-09-12, [ADR 0049](../decisions/0049-a-node-type-is-a-registry-entry-and-its-worker-receives-an-envelope.md); its four stop-and-ask items were answered *`settings`/`input`*, *an `exports` map with `./scheduler`*, *node > type > driver default, whole* and *record the by-reference road, Q259*; Q259-Q262 raised, Q239 extended; prediction 3 CONFIRMED — every refusal an `FD-V`, the envelope an `FD-C`, no `FD-R`; W60 not issued, ADR 0050 skipped) — **all three items are done and the plan's RETRO is next**. Declared 2026-09-11 on
@@ -491,4 +491,184 @@ Three of four predictions confirmed as written (1, 2 narrowed at the declaration
 confirmed with `S7` narrowed. Facts 1-5 all held; fact 3's mechanism was false (W57). Q71 resolved;
 Q248-Q262 used but Q254, Q255 — check the register before reusing either.
 
-**Retro.** —
+## Retro
+
+**Run 2026-09-12, after W57, W58 and W59 were merged. `doc/workflow.md` section 6 pass 3, and it
+takes that document to [v0.17](../workflow.md) — THREE changes adopted, FIVE refused.**
+
+P16 asked *what is a node type, and what does the library owe the scheduler to have one?* Three
+items, six reader passes, two ADRs, and an exit artifact on real workers in both L6 runtimes. At
+declaration: `spec/` **7 / 44 / 92**, L1-L5 **27 files / 703 cases**, L6 **1061 / 42**, register
+**191 / 139 / 2 / 50**. It closes at **7 / 51 / 99**, **32 / 858**, **1281 / 46** and
+**204 / 151 / 2 / 51**. What the library owes the scheduler is a DECLARED dependency reached by one
+bare specifier (ADR 0048) and ONE sub-path that constructs scheduler objects (ADR 0049); what a node
+type is, is a registry entry named by `type`, whose worker receives `{ settings, input }`.
+
+### Name the rung, and it is this retro's shape
+
+| | defect | rung |
+|---|---|---|
+| W57 | ADR 0048's supersession argument was a claim about ADR 0013 that ADR 0013 does not make | **none** — conformity reader, reading the two ADRs together |
+| W57 | fields ADJACENT to the ones a check reads — `peerDependenciesMeta`, `scopes`, `"0.5.2"` in double quotes — every one green | **none** — adequacy reader; obligation (a)'s kind is *a field* |
+| W57 | `createTask` ignored outright cost **0 of 705 and 0 of 1138**; a default injecting W58's two fields, green everywhere | **none** — until the item added two observers |
+| W57 | a green `deno publish --dry-run` was the wrong answer | **none**, and none can be built from it ([Q252](../open-questions.md)) |
+| W57 | the declaration's facts harness read fact 1 wrong at exit 0 — and W58 found it wrong two more ways | **none** — it is untracked ([Q253](../open-questions.md)) |
+| W58 | the rule 8 harness applied only the LAST edit per file — seven probes measured that instead of the tree | **none** — reading the failure LINES against what each probe claimed |
+| W58 | the same harness kept an applied edit when a later anchor failed; thirteen later probes crashed on it | **none** — `git status` cannot see a file modified either way |
+| W58 | the three SHAPES were a list bound to nothing but the printed case count | **none** — adequacy reader; the item's headline claim unfalsifiable by its own suite |
+| W58 | `defaultRetryPolicy` validated nowhere while a comment said the driver read it | **none** — a probe the mutations could not reach |
+| W58 | a THIRD present-tense copy of W54's corpus count | **none** — conformity reader grepping the NUMBER where the author grepped the phrase |
+| W58 | `M4`'s fixture rose past its floor in the item's final gate | **the gate's self-test — IT FIRED, and it was READ correctly** ([Q142](../open-questions.md)) |
+| W59 | a probe dropping `nodeTypes` took ladder L6 down with ZERO FAIL lines | **L6 — it fired as a CRASH**, which section 4 says is not a detection; the reading caught it and the row loop was fixed |
+| W59 | two probes re-tagged a snippet instead of deleting it — caught by `X2`, not by the floor they named | **none** — failure lines, P9's *for the reason it names* |
+| W59 | the helper's group check had no fixture whose map key differed from the group's own name — a helper checking the inert NAME survived L1 AND L6 | **none** — adequacy reader; a fact measured, written, and unobserved |
+| W59 | `FD-C5` names FOUR kinds of `input` and the suites instantiated three | **none** — adequacy reader; the shapes clause's fourth iteration |
+| W59 | the construction loop over types bounded by single-entry fixtures; the pure entry's non-export bound by nothing | **none** — adequacy reader, two loop-bound and wiring holes |
+| W59 | `AGENTS.md` section 3's refusal count twelve lines below a table the item rewrote; `examples/README.md` an hour early | **none** — conformity reader |
+| W59 | [Q262](../open-questions.md) attributed a doubled acquisition to RETRY; it is ADMISSION | **none** — the reader flipped one pool to threaded and measured |
+
+**Eighteen defects; TWO had a rung; both rungs FIRED and both were READ correctly** — Q142 as a red
+self-test in W58's final gate, and W59's crash as *exit 1 with zero FAIL lines*, which section 4's
+v0.15 clause names in so many words. P15's retro found the one rung that fired reported green twice;
+this plan's two were read as what they were. **Sixteen of eighteen have no rung and every one of the
+sixteen was found by a reader or by reading rule 8's failure lines** — and five of the sixteen are
+in the INSTRUMENTS (two harness defects, two wrong-reason probes, a facts harness), which is where
+P11 found all seven of its own.
+
+### The three changes
+
+1. **Rule 8's requirement on the HARNESS gains PER-EDIT integrity: every edit's anchor is checked
+   against the CURRENT text, an abort UNDOES what it applied, and the tree is held still by a
+   CONTENT DIGEST.** v0.11 wrote *a control, and the restore asserted*; v0.14 added *every ceiling
+   run*. **[W58](../work-items/w58-what-a-node-says-about-its-own-task.md) satisfied all three
+   throughout and its harness measured nothing on seven probes**: `apply()` replaced against the
+   ORIGINAL bytes on every edit, so a two-edit probe kept only its last — W37's defect verbatim,
+   inside a harness with a control — and, fixed, the ABORT path then kept an edit it had applied,
+   so thirteen later probes crashed at load while the held-still check, a `git status` diff, saw
+   nothing. **Three occurrences across two plans** (W37; W58 twice), and none of v0.11's or v0.14's
+   requirements could see them, because all three are about a probe that RAN.
+   [W59](../work-items/w59-what-a-node-type-is.md)'s harness carried the clause and its one abort —
+   an anchor the fourth shape had moved — undid cleanly, with the digest identical.
+2. **Obligation (a)'s shapes clause gains: where a rule ENUMERATES the values it ranges over, the
+   set is that enumeration — not *more than one*.** v0.16 said *instantiate more than one value of
+   each kind*, and W59 did: three shapes on every rule, chosen deliberately under the clause. `FD-C5`'s
+   own row lists **four** kinds of `input` — the ordinary edge, `needs`, a map item, a join's
+   collection — and the fourth was the one no suite instantiated; a driver handing a typed join
+   successor `{}` cost **0** at L2 and L6. **W41's, W53's and P15's shape a FOURTH time, one shape
+   past the three the author chose**, and W58's adequacy finding is the same lesson from the other
+   side: its three-shape list was *bound by nothing but the printed case count*. Two items, one
+   clause: *more than one* is a ceiling an author sets at two or three, and where the rule counts
+   its own values the count is the rule's.
+3. **v0.14's ceiling clause gains its DATE: a ceiling whose reason is *a literal set-equal to the
+   value it replaces* is a CATCH the moment the value moves, and the item that moves the value
+   re-runs it.** This retro re-ran all **twenty-three** ceilings the three items declared on the
+   tree the plan ships: twenty-one hold with their reasons intact, **two are catches** — W58's `c3`
+   and `c6`, literals equal to the scheduler's groups and to the task key list on W58's day, both
+   moved by W59 (`scorer`; `type` and `settings`) — and two anchors had moved (`b6`, `c4`; re-anchored,
+   both hold). **P13's retro found the same thing**: W45's `e4`, true when written and false on the
+   tree W47 shipped. Two plans, the same class, and the retro is the wrong place to find it — W59
+   edited the two values and could have run W58's eight ceilings in a minute. So: *an item re-runs
+   the previous item's declared ceilings where its own edits touch the value a reason names.*
+
+### Five refused, each with a measurement
+
+- **A `doc/` check, the FOURTEENTH time.** W59's conformity reader found *29 refusals over `FD-V1` …
+  `FD-V31`* in `AGENTS.md` section 3, twelve lines below the table the item rewrote to cite
+  `FD-V32`-`FD-V34`. The number is checkable and the sentence is not: which sentences carry a count
+  is unbounded, `C4` reads `spec/README.md` and `X6` reads five cost figures, and the reader found
+  it by reading the two together. Same ground as the thirteen before.
+- **An `Owns` pre-declaration rule, the FIFTH plan running — with a NEW datum.** Late exceptions ran
+  **1, 5, 0**: W57 declared five and took one late; W58 declared none and took five, none predictable
+  from a file set; **W59 declared six and took none, and two of the six were W58's late table read
+  forward** — the two corpus-split documents fired exactly as predicted, and `check-markdown.mjs`,
+  predicted from W58's too, did not. *What predicted W59's exceptions was the PREVIOUS ITEM's
+  exceptions table, not a file list.* Recorded as a procedure worth trying (an item seeds its table
+  from the item before it) and not adopted: one occurrence, and it is a claim about a plan's
+  SECOND and THIRD items only ([Q157](../open-questions.md)).
+- **Tracking the declaration's facts harness, or making its facts L1 assertions.** `dev-dist/p16/facts.mjs`
+  was wrong five ways across two items at exit 0 and the plan re-ran it three times; every earlier
+  plan's was in the same ignored directory. Refused as a rule: a declaration instrument is the plan's
+  and not the workflow's, and *make fact 1 an L1 assertion* is a per-fact call the next plan makes
+  ([Q253](../open-questions.md) stays open with that choice named).
+- **A rung for `deno publish --dry-run`.** It PASSES in this repository for the wrong reason —
+  `devDependencies` resolves the bare specifier to the npm build — so a rung reading its exit code
+  would be green on the shape ADR 0029 refused. W59's L6 clause (2c) binds the two manifests' exports
+  instead, from the files. [Q252](../open-questions.md) stays.
+- **A rule about a harness's per-row catch.** W59 closed the L6 row loop's crash shape that W23 and
+  W58 had recorded; it is a fix in a file, not a rule, and section 4's *a crash is not a detection*
+  is the rule that already covers it.
+
+### The predictions: four of four CONFIRMED, and the declaration corrected one of them itself
+
+| # | kind | verdict |
+|---|---|---|
+| 1 | derived | **CONFIRMED** — the peer entry and the import cost 0 at L0-L6 in every runtime, the scheduler's browser build in the bundle. **The fact under half of it was FALSE and the prediction held anyway**: fact 3's *an `import type` closes Q71 by construction* measured false at W57 (assignability does not move; the seam's `object` parameter is what closes it), and the cost was 0 either way |
+| 2 | derived | **CONFIRMED, narrowed BEFORE any item ran** — the declaration's own grep reversed *first non-zero `attempts` at any rung* to *the first a SCHEDULER set* within the hour, and W58's map of three then set it. The first time a plan corrected its own prediction at the declaration step |
+| 3 | derived | **CONFIRMED** — every refusal W58 and W59 added is an `FD-V`, the envelope is `FD-C5`, no node kind and no `FD-R`; the one refusal that looked like a run-time one (a type whose `settings` is not a function) lands at Driver construction, naming the type |
+| 4 | **reach** | **CONFIRMED by the measurement it named** — `D1`-`D3` read no source file, so `S7` is narrowed to the FORM of the reach and keeps four of five shapes |
+
+**Four of four, for the first time since P10 — and P10's retro's reading holds**: three are derived
+from the declaration's facts and test the inference, and 4 is the one reach prediction and the only
+one that could have reversed. What is new is prediction 1's shape: **a derived prediction whose
+premise was false and whose conclusion was right**, the third such case after W42's ADR and P13's
+prediction 3, and the first where nobody had to reverse anything — the false premise was a
+MECHANISM (why the cost is zero) and the prediction was about the COST.
+
+### v0.16's three changes, and the ceiling re-run
+
+| v0.16 change | What would show it was wrong | **P16's verdict** |
+|---|---|---|
+| **Section 4: a rung is RUN, never PIPED — redirect and read `$?`** | a rung is read from a piped line again | **Right, FOLLOWED by all three items with zero occurrences, and it is what read W59's crash correctly** — `GATE EXIT`/`L6 EXIT` from a file, and *exit 1 with zero FAIL lines* was legible because nothing was piped |
+| **Obligation (a) gains the SHAPES a rule quantifies over** | an author picks the built-for shape again | **Right, FOLLOWED, and NOT SUFFICIENT — extended (change 2).** W58 and W59 both enumerated three shapes deliberately under the clause; W58's list was bound by nothing but its count, W59's was one short of the rule's own enumeration. *An obligation run as a step satisfies the step* — v0.13's recorded correction, on v0.16's newest clause, twice |
+| **Obligation (c)'s LIMIT: the second observer is not DOWNSTREAM of the first's apparatus** | a second observer measures the first's instrument again | **Right, and EXERCISED in W58**: `schedulerGroups` had one reading and the driver's registry was downstream of it; the fix was a second observer over the constructor call's SOURCE, which is the clause's own prescription. W59 built three readings of one registry from the start |
+
+**And v0.14's ceiling clause, at its second full plan, yields TWO of twenty-three** (P13: two of
+eleven; P15: none of twenty-four) — both the same class, and that class is change 3.
+
+### The measurements
+
+**Readers: six passes, none empty — 13 / 2, 12 / 2, 12 / 2 blocking, against mutation counts of
+64 / 106 / 37 with 13 / 16 / 20 survivors and 5 / 3 / 4 blocking.** Overlaps **0, 1, 1** — the
+**thirty-second, thirty-third and thirty-fourth** measurements, inside the 0-4 band, none primed. The
+split held in all three: the conformity reader found claims that were false (an ADR's argument, a
+stale 1061, seven identifiers, a third copy of a count, a section number, a refusal count twelve
+lines below its table, a number written an hour early, a mechanism named wrong in a register row);
+the adequacy reader found bounds that were not there (fields adjacent to the ones a check reads, the
+option half of a rule no fake asserted, a shapes list bound by count, a pair of literals, a single
+observer, a validator nowhere, a fixture, a fourth shape, a loop, an export).
+
+**Rule 8 across the plan: 240 provocations, 209 caught, 24 declared ceilings all RUN, 0 undeclared
+survivors, 0 against declaration on every final pass, 1 abort — on the re-run, re-anchored and then
+caught.** Five instrument defects in three items, every one found by reading failure LINES: W58's two
+harness defects, W59's L6 crash with zero FAIL lines and two wrong-reason probes. **Late exceptions
+1, 5, 0 — six, zero undeclared.** [Q142](../open-questions.md) fired once (W58's final gate, retuned
+3490 → 3960) and was checked three times more without firing (this declaration; W59, margin 369; this retro, **3610
+against 3960** on the two-directory fixture built from the tree it ships, margin 350). **Census CONFIRMED for the SIXTEENTH plan running — 204 / 151 / 2 / 51**, 0 aborts,
+204 of 204 in one cluster cell; this retro raises no question.
+
+### What the plan taught, beyond its own question
+
+- **The scheduler's reference is silent on five facts this plan needed, and all five were learned by
+  measurement**: an unknown group id is ignored at the task AND the pool level; `addTask` duck-types
+  its task and runs a plain object; `resource.*` is emitted only once something listens; a group
+  resolves by the scheduler's map KEY and its own name is inert; a group is acquired once per
+  ADMISSION. None is a defect and none is documented upstream; they are [Q258](../open-questions.md)
+  and [Q262](../open-questions.md) and the ADRs' fact tables, and a row in
+  `doc/scheduler-upstream.md` is the next plan's call if it ever costs a consumer something.
+- **A fact measured for a decision is not a test until a fixture depends on it.** Fact 2 (key, not
+  name) was measured at W59's declaration, written into ADR 0049 and the spec, and every fixture in
+  the tree then made key and name equal. Recorded beside change 2 rather than adopted: one occurrence.
+- **A decision about what a module does NOT export has no observer by default.** ADR 0049 rule 5's
+  second half — the pure entry loads no `WorkerManager` — was green under every check with the
+  helper re-exported from `index.ts`, because `S7` binds imports and nothing binds re-exports.
+- **The per-item numbers were right and re-taken every time**, which two plans ago was the standing
+  failure; what went stale this plan was in the DOCUMENTS beside them, and the readers found all of
+  it — which is the standing refusal's own evidence.
+
+### Ids
+
+W57-W59 used, **W60 CLOSED as reserved and never issued** (its three conditions did not fire);
+Q248-Q262 used but **Q254 and Q255, spent and not reused**; ADR 0048 and 0049 taken, **0050
+skipped**. **The next plan starts at W61, Q263 and ADR 0051.** Its subject is written down: P17,
+*what a node may DO to its input before its worker sees it* — the transform in the envelope
+worker, `FD-C5`'s wording already holding the door.
