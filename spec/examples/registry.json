@@ -1,5 +1,6 @@
 {
-  "note": "The predicate and worker names the valid corpus resolves against. FD-V4 and FD-V5 are refusals ABOUT a registry, so their cases name entries this file deliberately omits.",
+  "note": "The predicate, worker and resource-group names the valid corpus resolves against. FD-V4, FD-V5 and FD-V31 are refusals ABOUT a registry, so their cases name entries this file deliberately omits.",
   "predicates": [ "isLowConfidence", "isHighConfidence" ],
-  "workerTypes": [ "IngestWorker", "ScoreWorker", "ReviewWorker", "PublishWorker", "ExtractWorker", "MergeWorker" ]
+  "workerTypes": [ "IngestWorker", "ScoreWorker", "ReviewWorker", "PublishWorker", "ExtractWorker", "MergeWorker" ],
+  "groups": [ "gpu", "api" ]
 }

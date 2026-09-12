@@ -1,10 +1,11 @@
 /**
  * The definition validator — `spec/flow-definition.md` section 5.
  *
- * Twenty-seven refusals, `FD-V14` and `FD-V15` deliberately absent — the number `check-spec`
- * prints as *C4 covered 27 definition refusals*, derived from the ids in this file. *(This read
+ * Twenty-nine refusals, `FD-V14` and `FD-V15` deliberately absent — the number `check-spec`
+ * prints as *C4 covered 29 definition refusals*, derived from the ids in this file. *(This read
  * 23 before W45 and 24 after it: the increment was applied to a number nothing was tracking, and
- * it had been wrong by three for several plans. W45's conformity reader.)* Reports EVERY violation
+ * it had been wrong by three for several plans. W45's conformity reader. **27 until W58 added
+ * `FD-V30` and `FD-V31`.**)* Reports EVERY violation
  * rather than the first, because section 5 requires an invalid definition to be
  * rejected *and* the named rule to appear among the findings, and several cases
  * legitimately violate more than one rule.
@@ -20,7 +21,10 @@ const ROUTABLE = ['done', 'failed'] as const;
 
 const DOC_KEYS = ['flowId', 'version', 'entry', 'nodes'];
 const NODE_KEYS: Record<string, { req: string[]; opt: string[] }> = {
-  task: { req: ['id', 'kind', 'workerType', 'edges'], opt: ['optional', 'needs'] },
+  // `retryPolicy` and `workerGroups` since v0.16 (W58): what a node says about its OWN task,
+  // as declared keys rather than an opaque bag — P16 decision 3, because `FD-V17`'s whole job
+  // is refusing a key the kind does not declare, and a bag is where a typo lives until run time.
+  task: { req: ['id', 'kind', 'workerType', 'edges'], opt: ['optional', 'needs', 'retryPolicy', 'workerGroups'] },
   fanout: { req: ['id', 'kind', 'branches'], opt: [] },
   // `spec/flow-definition.md` section 2, v0.8. `over` and `branch` are both
   // required: a map that does not say where its arity comes from is one that
@@ -37,6 +41,63 @@ const EDGE_KEYS = { req: ['to'], opt: ['on', 'when', 'needs'] };
  * item the code accepted `needs` while the table did not list it.
  */
 export const EDGE_KEYS_DECLARED: readonly string[] = [...EDGE_KEYS.req, ...EDGE_KEYS.opt];
+/**
+ * **The keys `FD-V17` accepts on a `task` node, exported for the same reason** — W58, and it is
+ * obligation (e)'s third shape (*a list is a claim about another list*) on the row this item
+ * edits: `spec/flow-definition.md` section 2's kind table is the document's only statement of
+ * what a task declares, and `test/definition/task-config.test.ts` compares the two both ways.
+ */
+export const TASK_KEYS_DECLARED: readonly string[] = [...NODE_KEYS.task!.req, ...NODE_KEYS.task!.opt];
+/**
+ * **Every kind's declared keys, for the same comparison over EVERY row of section 2's table** —
+ * W58's adequacy reader (`adj03`): with only the `task` row bound, `retryPolicy` added to the
+ * `map` kind's optional keys cost 0, and a key accepted on a kind that dispatches nothing is
+ * P16 decision 3's silent-key hole one row over.
+ */
+export const NODE_KEYS_DECLARED: Readonly<Record<string, readonly string[]>> = Object.fromEntries(
+  Object.entries(NODE_KEYS).map(([kind, k]) => [kind, [...k.req, ...k.opt]]),
+);
+/**
+ * **The two keys a `retryPolicy` carries, and no others** — `FD-V30`. The scheduler's own
+ * constructor at 0.5.2 destructures exactly these; a key beside them is a typo the scheduler
+ * would drop in silence, which is W57's adequacy-reader lesson (*a check that reads a field is
+ * blind to the field beside it*) applied to the field this item adds.
+ */
+export const RETRY_POLICY_KEYS: readonly string[] = ['maxRetries', 'backoffMs'];
+
+/**
+ * **Why a `retryPolicy` is malformed, or `null` when it is exactly the scheduler's shape** —
+ * `FD-V30`'s whole predicate, in one place so the L1 suite and the driver's option read one
+ * definition of *well formed*.
+ *
+ * **Every clause was chosen from a measurement of what the scheduler DOES with the shape,
+ * not from taste** (W58's declaration step, on a real inline scheduler at 0.5.2): `{}` and
+ * `{ backoffMs: 5 }` silently mean *no retries*; `{ maxRetries: "1" }` retries by coercion;
+ * `1.5` retries; `-1` never does; a negative `backoffMs` makes Node warn and then retry at
+ * once. A definition is data that arrives from anywhere, so none of those may mean something
+ * quietly.
+ */
+export function retryPolicyProblem(v: unknown): string | null {
+  if (typeof v !== 'object' || v === null || Array.isArray(v)) {
+    return `retryPolicy must be an object { maxRetries, backoffMs }, got ${JSON.stringify(v)}`;
+  }
+  const o = v as Record<string, unknown>;
+  for (const k of RETRY_POLICY_KEYS) {
+    if (o[k] === undefined) return `retryPolicy is missing required key "${k}"`;
+  }
+  for (const k of Object.keys(o)) {
+    if (!RETRY_POLICY_KEYS.includes(k)) {
+      return `retryPolicy carries undeclared key "${k}"; the scheduler would drop it in silence`;
+    }
+  }
+  if (typeof o.maxRetries !== 'number' || !Number.isInteger(o.maxRetries) || o.maxRetries < 0) {
+    return `retryPolicy.maxRetries must be an integer >= 0, got ${JSON.stringify(o.maxRetries)}`;
+  }
+  if (typeof o.backoffMs !== 'number' || !Number.isFinite(o.backoffMs) || o.backoffMs < 0) {
+    return `retryPolicy.backoffMs must be a finite number >= 0, got ${JSON.stringify(o.backoffMs)}`;
+  }
+  return null;
+}
 
 const asSet = (x: ReadonlySet<string> | readonly string[]): ReadonlySet<string> =>
   x instanceof Set ? x : new Set(x as readonly string[]);
@@ -124,6 +185,9 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
   const add = (rule: string, at: string | null, detail: string) => f.push({ rule, at, detail });
   const preds = asSet(registry.predicates);
   const wts = asSet(registry.workerTypes);
+  // **Absent means EMPTY, not unchecked** — `Registry.groups`' own doc comment, and the
+  // maintainer's call at W58's stop-and-ask with both directions priced.
+  const groups = asSet(registry.groups ?? []);
   const d = doc as unknown as Record<string, unknown>;
 
   // ---- document shape: FD-V23, FD-V17, FD-V21, FD-V16 ----
@@ -191,6 +255,39 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
         add('FD-V21', where, 'workerType must be a string');
       } else if (typeof nd.workerType === 'string' && !wts.has(nd.workerType)) {
         add('FD-V5', where, `workerType "${nd.workerType}" is not a registered worker pool`);
+      }
+      // ---- FD-V30: what a node says about its task's RETRIES ----
+      // `spec/flow-definition.md` section 2, v0.16 (W58). Its own id rather than a clause of
+      // `FD-V21`, on `FD-V26`'s precedent: the rule owns the key's whole shape, because the
+      // fix is the same whichever clause fired — write `{ maxRetries, backoffMs }` — and a
+      // reader with a malformed policy reads one row.
+      if (nd.retryPolicy !== undefined) {
+        const problem = retryPolicyProblem(nd.retryPolicy);
+        if (problem !== null) add('FD-V30', where, problem);
+      }
+      // ---- FD-V31: what a node says about its task's RESOURCE GROUPS ----
+      // Same section. Every id must be one the registry declares, because the scheduler
+      // ignores an unknown one in silence (P16 fact 2, re-measured at W58 with a resource
+      // listener attached: no `resource.blocked`, no throw, `done`). Empty and repeated
+      // entries are refused too: `[]` declares nothing while reading as though it did
+      // (`FD-V26`'s empty-`needs` clause), and the scheduler dedupes a repeat in silence.
+      if (nd.workerGroups !== undefined) {
+        const wg = nd.workerGroups;
+        if (!Array.isArray(wg)) {
+          add('FD-V31', where, `workerGroups must be an array of group ids, got ${JSON.stringify(wg)}`);
+        } else if (wg.length === 0) {
+          add('FD-V31', where, 'workerGroups is empty; a node that declares it names at least one group');
+        } else {
+          for (const g of wg) {
+            if (typeof g !== 'string') {
+              add('FD-V31', where, `workerGroups entry ${JSON.stringify(g)} is not a string`);
+            } else if (!groups.has(g)) {
+              add('FD-V31', where, `workerGroups names "${g}", which the registry does not declare` +
+                (groups.size ? ` (it declares ${[...groups].sort().map((x) => `"${x}"`).join(', ')})` : ' (it declares no groups)'));
+            }
+          }
+          if (new Set(wg).size !== wg.length) add('FD-V31', where, 'workerGroups repeats an entry');
+        }
       }
     }
     if (nd.kind === 'end') {

@@ -25,7 +25,7 @@
  * It is covered by ladder L0 — `npm run lint` lints `examples/` and
  * `tsconfig.examples.json` includes it, so it cannot rot into something that does not
  * compile — and by nothing else. What binds its OBSERVER is `examples/l6.ts`: the
- * peak/end entry counts this file prints are the same `Retention` value forty-two L6
+ * peak/end entry counts this file prints are the same `Retention` value forty-four L6
  * runs assert against ADR 0046, in both runtimes. *A number nobody can re-take is not
  * evidence* (P15 decision 3), which is why it is checked in;
  * [Q242](../doc/open-questions.md) is the row that says W54's was not.
@@ -206,7 +206,7 @@ async function artifact(): Promise<void> {
     );
     // **Reported beside the bytes, because the bytes are the half nobody can
     // re-take.** These four are what `examples/l6.ts` asserts on every one of its
-    // forty-two rows; here they say which run the numbers above belong to.
+    // forty-four rows; here they say which run the numbers above belong to.
     console.log(
       `            outcome ${r.state.outcome}, ${r.dispatched.length} tasks, collected ` +
         `${r.retention.peakEntries} and holds ${r.retention.endEntries}` +

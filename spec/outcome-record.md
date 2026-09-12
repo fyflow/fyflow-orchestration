@@ -307,7 +307,7 @@ the ratio, never the millisecond.**
 because `RN-R13` in [run-state.md](run-state.md) section 7 says a run retains the whole of every
 one.** Three readers touch a stored result: the **edge hop**, which reads every one once and is
 finished the moment the successor is dispatched; **reference resolution**, which reads only what a
-`needs` names — **14 of 124** corpus task nodes, so **110 (89%)** are named by none; and the
+`needs` names — **14 of 136** corpus task nodes, so **122 (90%)** are named by none *(14 of 124, 110 and 89% when W54 measured it; three flows W58 added carry twelve task nodes and no `needs`, and `test/fold/result-value.test.ts` re-derives every one of these four numbers from both corpora on every run — which is how the sentence was told it had moved)*; and the
 **fold**, which is `RunState.nodes[*].result` and reads every one, for ever.
 
 **So after the hop, a result no `needs` names has exactly one reader left, and it is the public

@@ -49,16 +49,16 @@ import {
   type Predicate, type RunOutcome, type RunState, type UnmintedTask,
   type UnsatisfiableJoin,
 } from '../index.ts';
-import { FyflowScheduler, FyflowTask, WorkerManager } from 'fyflow-scheduler';
+import { ConcurrentLimitGroup, FyflowScheduler, FyflowTask, WorkerManager } from 'fyflow-scheduler';
 // **The worker file`s own role list, imported rather than repeated** — W43. See
 // `ROLES` there: three lists said the same seven things and nothing compared them.
 import type { Role } from './workers/flow-worker.ts';
 
 /**
- * The **ten** pools `buildScheduler` registers, all served by one worker file.
+ * The **eleven** pools `buildScheduler` registers, all served by one worker file.
  *
  * *(This read "the three pools `spec/examples/registry.json` names" from the day it
- * was written. There are ten, naming nine distinct roles, and `SplitWorker`,
+ * was written. There are eleven since W58 — ten until then — naming ten distinct roles, and `SplitWorker`,
  * `TallyWorker` and `WeighWorker` are in no registry at all — the registry is the
  * corpus`s and these pools are this file`s. W43`s conformity reader.)*
  */
@@ -230,6 +230,34 @@ export interface RunReport {
   settlementsSeen: number;
   numericAttemptsSeen: number;
   /**
+   * **The `attempts` each settled task carried on the scheduler's LIVE object, per task id —
+   * W58, the retry row's SECOND observer.** The outcome record's `attempts` is the driver's
+   * listener copying the same field (`OR-R2`), so a row that read only the record would be
+   * reading one observer through a normaliser; this is read at the harness's own listener,
+   * synchronously and never retained (`OR-R1`), and the row asserts the two AGREE. Where
+   * `numericAttemptsSeen` above counts *is it a number*, this records *which number*.
+   */
+  attemptsSeen: Readonly<Record<string, number>>;
+  /**
+   * **What the scheduler said about a task's RESOURCES, in order, per task id — W58.** The
+   * four `resource.*` events the scheduler emits on the task's behalf (`AGENTS.md` §6: blocked
+   * on every push onto a blocked queue, unblocked on every exit, acquired immediately after
+   * `onStart`, released immediately after `onFinish`) interleaved with its `task.running`, so a
+   * row can assert not only that the task was blocked but that it was blocked BEFORE it ran.
+   * Empty for a task that names no group and whose pool declares none — which is every task
+   * before this item, and the negative control: with the passthrough reverted the gated task
+   * has no entry here at all.
+   */
+  resourceEvents: Readonly<Record<string, readonly string[]>>;
+  /**
+   * The ids of the resource groups the scheduler holds, read from `scheduler.groups` at
+   * construction — the same reading the driver's `groups` option is derived from, so a
+   * cross-row clause can compare what the L6 flows NAME to what the scheduler DECLARES.
+   */
+  schedulerGroups: readonly string[];
+  /** How many times `holdGroup`'s slot was released by this harness. `0` when nothing was held. */
+  heldGroupReleases: number;
+  /**
    * Whether the two fan-out branches were ever in flight at the same time.
    * Symmetric, so it depends on no completion order — which nothing may
    * (`doc/concept.md` section 5).
@@ -336,7 +364,7 @@ export interface RunReport {
    * `examples/retention.ts`'s scale mode holds N completed drivers and measures
    * `heapUsed` after a forced `gc()`, and a driver nobody references is collected
    * before that observer can see it. Every other caller leaves it `undefined`, so
-   * ladder L6 keeps forty-two drivers reachable for exactly as long as it did before
+   * ladder L6 keeps forty-four drivers reachable for exactly as long as it did before
    * this field existed.
    */
   driver?: Driver;
@@ -404,6 +432,17 @@ export interface RunOptions {
    * forced `gc()` cannot see what nothing references.
    */
   keepDriver?: boolean;
+  /**
+   * **A resource group this HARNESS holds when the run starts, and releases once the
+   * scheduler reports a task blocked behind it — W58's group row.** The group is a
+   * `ConcurrentLimitGroup(1)` `buildScheduler` registers; the harness takes its one slot with
+   * the group's own `onStart()` before `driver.start`, so a task whose node declares it in
+   * `workerGroups` is `resource.blocked` on dispatch. The release is driven by that event and
+   * not by a clock: on the first `resource.blocked` naming this group the slot is given back
+   * on a microtask, and the scheduler's own heartbeat re-dispatches the task. No foreign task
+   * is involved, so `onUnmintedTask` stays empty and the row is about the group alone.
+   */
+  holdGroup?: string;
 }
 
 /**
@@ -921,6 +960,18 @@ export function buildScheduler(delayMs: number, threaded: boolean): FyflowSchedu
     // all; from a thread pool the scheduler refuses it first and the task ends
     // `user_action` with no result ever reaching us. [Q61](../doc/open-questions.md).
     MergeWorker: pool('uncloneable', false),
+    // **W58's pool, and inline because its memo is per process** — see `thrownOnce` in the
+    // worker. Its role fails the first attempt of every task id and succeeds the second, so a
+    // node that declares `retryPolicy: { maxRetries: 1, … }` settles `done` with `attempts: 1`,
+    // and one that declares nothing ends `user_action` — one worker, two outcomes, chosen by
+    // the NODE, which is `fail`'s own lesson with a retry in it.
+    RetryWorker: pool('retry', false),
+  }, {
+    // **The one resource group this scheduler declares — W58's group row.** A limit of ONE so
+    // the harness can hold its whole capacity with a single `onStart()`, and any task naming
+    // it is blocked until the harness lets go. It is the value `runFlow` derives the driver's
+    // `groups` option from, read back off `scheduler.groups` rather than named twice.
+    gate: new ConcurrentLimitGroup(1, 'gate'),
   });
 }
 
@@ -1024,6 +1075,9 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
   // independent of both the driver and the `instanceof` count below.
   let settlementsSeen = 0;
   let numericAttemptsSeen = 0;
+  // **W58: WHICH `attempts`, per id, off the same live object** — the retry row's second
+  // observer, independent of the driver's record (which is the listener's normalised copy).
+  const attemptsSeen: Record<string, number> = {};
   const noteDone = (e: { detail: unknown }) => {
     const id = (e.detail as { id?: string })?.id;
     if (typeof id !== 'string') return;
@@ -1032,11 +1086,47 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
     // the id, which is a string, and whether `attempts` is a number.
     settledByScheduler.add(id);
     settlementsSeen++;
-    if (typeof (e.detail as { attempts?: unknown }).attempts === 'number') numericAttemptsSeen++;
+    const attempts = (e.detail as { attempts?: unknown }).attempts;
+    if (typeof attempts === 'number') { numericAttemptsSeen++; attemptsSeen[id] = attempts; }
   };
   scheduler.addEventListener('task.running', noteRunning);
   scheduler.addEventListener('task.completed', noteDone);
   scheduler.addEventListener('task.failed', noteDone);
+
+  // **W58: the scheduler's own account of a task's RESOURCES, per task id, with `task.running`
+  // interleaved** — see `RunReport.resourceEvents`. `resource.*` is emitted only once something
+  // listens (the scheduler checks for an observer before building the detail), so these
+  // listeners are what make the group row observable at all; on every other row they record
+  // nothing, because no task names a group and no pool declares one.
+  const resourceEvents: Record<string, string[]> = {};
+  const noteResource = (name: string) => (e: { detail: unknown }) => {
+    const d = e.detail as { holderKind?: string; holderId?: string; groupId?: string };
+    if (d?.holderKind !== 'task' || typeof d.holderId !== 'string') return;
+    (resourceEvents[d.holderId] ??= []).push(name);
+    if (name === 'resource.blocked' && d.groupId === opts.holdGroup && heldGroupReleases === 0) {
+      // The task the row exists for is now parked behind the slot this harness holds. Give the
+      // slot back — on a microtask, after the scheduler's own turn, and exactly once.
+      heldGroupReleases++;
+      queueMicrotask(() => heldGroup!.onFinish());
+    }
+  };
+  for (const n of ['resource.blocked', 'resource.unblocked', 'resource.acquired', 'resource.released']) {
+    scheduler.addEventListener(n, noteResource(n));
+  }
+  scheduler.addEventListener('task.running', (e: { detail: unknown }) => {
+    const id = (e.detail as { id?: string })?.id;
+    if (typeof id === 'string' && id in resourceEvents) resourceEvents[id]!.push('task.running');
+  });
+  const schedulerGroups = Object.keys(scheduler.groups as Record<string, unknown>).sort();
+  let heldGroupReleases = 0;
+  const heldGroup = opts.holdGroup === undefined
+    ? null
+    : (scheduler.groups as Record<string, ConcurrentLimitGroup | undefined>)[opts.holdGroup] ?? null;
+  if (opts.holdGroup !== undefined && heldGroup === null) {
+    throw new Error(`holdGroup "${opts.holdGroup}" is not a group this scheduler declares (${schedulerGroups.join(', ')})`);
+  }
+  // Taken BEFORE `driver.start`, so the gated task finds the slot gone at its first dispatch.
+  heldGroup?.onStart();
 
   const driver = new Driver(definition, {
     runId,
@@ -1070,6 +1160,14 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
     // name a pool this scheduler lacks, by construction — it lives in
     // `spec/examples/invalid/` at L1. What lives here is the derivation.
     workerTypes: Object.keys(scheduler.workerPools as Record<string, unknown>),
+    // **The third set, read from the SCHEDULER for the same reason `workerTypes` is — W58,
+    // `FD-V31`.** `scheduler.groups` is the map the scheduler resolves a task's `workerGroups`
+    // against, so it is the authority the rule names; a hand-written list beside it is what
+    // `workerTypes` was before W35 and would drift the same way. Obligation (e), both ways:
+    // this direction is closed by construction (the validator's set IS the scheduler's keys),
+    // and the other — every group the scheduler declares is one some L6 flow names — is a
+    // cross-row clause in `l6.ts` over `RunReport.schedulerGroups`.
+    groups: schedulerGroups,
     joinPolicy: policy,
     onFoldInput: (input) => {
       inputs.push(input);
@@ -1300,6 +1398,10 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
     fyflowTasksHeld,
     settlementsSeen,
     numericAttemptsSeen,
+    attemptsSeen,
+    resourceEvents,
+    schedulerGroups,
+    heldGroupReleases,
     wallMs,
     outcomesSeen,
     resolved,

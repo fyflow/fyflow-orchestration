@@ -174,7 +174,11 @@ const shapes: FlowDefinition = {
   entry: 'score',
   nodes: [
     // A task runs a worker. `optional` decides what a failure MEANS — section 6.
-    { id: 'score', kind: 'task', workerType: 'ScoreWorker', optional: false, edges: [
+    // `retryPolicy` and `workerGroups` say what the node wants of its OWN task — below.
+    { id: 'score', kind: 'task', workerType: 'ScoreWorker', optional: false,
+      retryPolicy: { maxRetries: 1, backoffMs: 250 },   // exactly the scheduler's shape
+      workerGroups: ['gpu'],                             // must be a group the registry declares
+      edges: [
       { on: ['failed'], to: 'quarantine' },   // eligible only when the task failed
       { when: 'isLowConfidence', to: 'review' }, // guarded by a registered predicate
       { to: 'publish' },                      // the default: no `on`, no `when`
@@ -192,13 +196,25 @@ const shapes: FlowDefinition = {
 const bad = validateDefinition(shapes, {
   predicates: ['isLowConfidence'],
   workerTypes: ['ScoreWorker', 'ReviewWorker', 'PublishWorker'],
+  groups: ['gpu'],                                   // the third set — pass Object.keys(scheduler.groups)
 });
 if (bad.length) throw new Error(`section 3's own example is invalid: ${bad.map((f) => f.rule).join()}`);
+
+// And `groups` is what makes `workerGroups` checkable at all: leave it out and the SAME
+// definition is refused, because a registry that lists no groups declares none. The scheduler
+// would have run the task with the unknown group silently ignored — no throw, no
+// `resource.blocked` — so construction is the only place a typo in a group id is caught.
+const noGroups = validateDefinition(shapes, {
+  predicates: ['isLowConfidence'], workerTypes: ['ScoreWorker', 'ReviewWorker', 'PublishWorker'],
+});
+if (!noGroups.some((f) => f.rule === 'FD-V31' && f.at === 'score')) {
+  throw new Error(`expected FD-V31 at score, got ${noGroups.map((f) => `${f.rule}@${f.at}`).join() || 'nothing'}`);
+}
 ```
 
 | kind | | refused if |
 |---|---|---|
-| `task` | runs a worker of `workerType`. Has `edges`, and optionally **`needs`** | it has no `edges`, or **no edge of it is eligible for `done`** (`FD-V7`) |
+| `task` | runs a worker of `workerType`. Has `edges`, and optionally **`needs`**, **`retryPolicy`** and **`workerGroups`** — what it says about its own task, below | it has no `edges`, or **no edge of it is eligible for `done`** (`FD-V7`); its `retryPolicy` is not exactly `{ maxRetries, backoffMs }` — an integer >= 0 and a finite number >= 0, no other key (`FD-V30`); its `workerGroups` is not a non-empty array of distinct ids the registry's `groups` declares (`FD-V31`) |
 | `fanout` | `branches: string[]` — the node each branch starts at. Dispatches nothing itself | fewer than two branches, a repeated entry, any `edges` at all, or a branch entry that is not a `task` (`FD-V9`) |
 | `map` | `over: '<key>'` and `branch: '<node id>'` — **one** branch, opened once per item at run time. Dispatches nothing itself; the RUN opens N instances of its one branch. Optionally **`needs`**, which is what `over` is then a key on | any `edges` at all, a `branch` that is not a `task`, or an `over` outside `^[A-Za-z0-9_-]{1,64}$` (`FD-V25`); a missing `over` or `branch` (`FD-V23`) |
 | `join` | `of: '<fanout id>'`. Fires when its policy says so | it does not have **exactly one** edge, or that edge carries `when` or `on` (`FD-V7`) |
@@ -210,6 +226,30 @@ if (bad.length) throw new Error(`section 3's own example is invalid: ${bad.map((
 
 **`end.outcome` is a string you choose.** The library never reads it. What the *run* is called is a
 separate, closed vocabulary — section 8.
+
+### `retryPolicy` and `workerGroups` — what a node says about its own task
+
+`optional` was the one scheduler task field a node could set; since
+`spec/flow-definition.md` v0.16 ([W58](doc/work-items/w58-what-a-node-says-about-its-own-task.md))
+there are two more, and both are **passed through to the scheduler task exactly as `optional` is**.
+They are declared keys rather than an opaque bag, so a typo is refused at construction instead of
+reaching the scheduler, which would drop it in silence.
+
+| key | | |
+|---|---|---|
+| `retryPolicy` | `{ maxRetries, backoffMs }` — **exactly** the scheduler's shape, an integer >= 0 and a finite number >= 0, no other key (`FD-V30`) | the scheduler retries a failed attempt **inside the same task id**, and the outcome record's `attempts` says how many retries were used. `{}` and a string count are refused because the scheduler would accept them and mean something else |
+| `workerGroups` | a non-empty array of distinct group ids, every one in the registry's **`groups`** set (`FD-V31`) | the task acquires these **in addition to** its pool's `groups`. Pass `groups: Object.keys(scheduler.groups)` to the `Driver`, as you pass `workerTypes` — **omitting it means the registry declares NO groups**, and any node naming one is refused, because a group id the scheduler does not know is silently ignored at run time |
+
+**A driver may carry a `defaultRetryPolicy`**, applied to every task node that declares none — held
+to `FD-V30` at construction like a node's own — and
+**the node wins, whole** — a node with its own policy is dispatched with exactly that object, and the
+default is consulted only when the node declares none. There is no `defaultWorkerGroups`: a pool's own `groups` already applies to
+every task it runs, and the scheduler unions the two. A node that declares neither key is dispatched
+with the exact object it was before, so nothing you have already written changes.
+
+**Flow-level retry — re-dispatching a NODE under a new attempt, possibly routing elsewhere — is
+still not built** (section 11). This is the scheduler's retry of one task, and it is the whole of
+what `attempts` counts.
 
 ### `needs` — reaching an output the previous node did not produce
 
@@ -381,7 +421,7 @@ if (!rules.includes('FD-V2') || !rules.includes('FD-V5')) {
 }
 ```
 
-There are **27 refusals** over the id range `FD-V1` … `FD-V29`, each with a failing example in
+There are **29 refusals** over the id range `FD-V1` … `FD-V31`, each with a failing example in
 `spec/examples/invalid/`. Two ids in that range are **deliberately absent** and have no rule behind
 them: `FD-V14`, which never existed, and **`FD-V15`, retired when nested fan-out became
 expressible**. The ids are never renumbered, so it is safe to assert on them. The full
@@ -1286,7 +1326,7 @@ if (failures.length !== 0) throw new Error('and nothing is reported: OR-R11 is s
 
 | not available | instead |
 |---|---|
-| flow-level **retry** | the scheduler's `retryPolicy`, per task |
+| flow-level **retry** — re-dispatching a NODE under a new attempt, possibly routing elsewhere | **task-level retry IS built** since [W58](doc/work-items/w58-what-a-node-says-about-its-own-task.md): declare `retryPolicy` on the node (section 3) and the scheduler retries inside the same task id, reported on the record's `attempts`. Re-dispatching the node is [Q16](doc/open-questions.md)'s other half and the task id's fourth segment, and nothing mints one |
 | **cancellation** | nothing. The scheduler cannot cancel a queued task either |
 | **durability** — resuming a run after a restart | nothing. The fold is designed to make it additive; it is not built |
 | **nested fan-out** — a branch that fans out again | **built, and the join over it is settled.** `FD-V15` is retired; a task inside a nested region is dispatched at its whole dotted `branchPath` (`r1:scoreC:1.0:0`); and every policy in section 5 is **transitive** — each region answers exactly as it would if it were not nested ([ADR 0030](doc/decisions/0030-a-join-is-transitive-and-a-dead-join-ends-the-branch-it-sits-in.md)). One thing to know: if an inner join is reported through `onUnsatisfiableJoin`, the outer branch containing it **ends** rather than waiting, so the outer join may still fire and its successor may run — and once that work settles the run folds to `stuck`, because a region that never fired is what `stuck` reads. **Fold too early and you will see `running`.** The four matrix rows and the join seam are tested at **depth 2**; the dead-join cascade is asserted at depth 3, and nothing else about depth 3 is a tested claim |
@@ -1347,6 +1387,7 @@ const state = await new Promise<RunState>((resolve, reject) => {
     scheduler,                                    // the real class, as it is — no cast (Q71)
     predicates: new Map(),
     workerTypes: Object.keys(scheduler.workerPools),
+    groups: Object.keys(scheduler.groups),        // the resource groups a node may name (section 3)
     joinPolicy: liveToken,
     onFoldInput: (input) => {
       inputs.push(input);

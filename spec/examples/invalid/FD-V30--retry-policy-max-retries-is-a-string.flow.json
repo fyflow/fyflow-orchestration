@@ -1,0 +1,11 @@
+{
+  "flowId": "retry-policy-coerced",
+  "version": 1,
+  "entry": "score",
+  "nodes": [
+    { "id": "score", "kind": "task", "workerType": "ScoreWorker",
+      "retryPolicy": { "maxRetries": "1", "backoffMs": 0 },
+      "edges": [ { "to": "done" } ] },
+    { "id": "done",  "kind": "end",  "outcome": "completed" }
+  ]
+}

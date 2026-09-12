@@ -69,6 +69,25 @@ export interface Edge {
   needs?: Needs;
 }
 
+/**
+ * **How a task node's attempts are retried by the SCHEDULER** — `spec/flow-definition.md`
+ * section 2, v0.16 ([W58](../../doc/work-items/w58-what-a-node-says-about-its-own-task.md),
+ * [Q16](../../doc/open-questions.md)'s task half). Exactly the scheduler's own shape at 0.5.2,
+ * `{ maxRetries: number; backoffMs: number }`, with the ranges `FD-V30` refuses outside of: the
+ * scheduler coerces (`maxRetries: "1"` retries, `1.5` retries, `{}` silently means *no
+ * retries*), and a definition is data that arrives from anywhere, so the shape is pinned here.
+ *
+ * A retry happens INSIDE one task id and is reported on the outcome record's `attempts`
+ * (`OR-R2`); the id's fourth segment is for a flow-level retry, which this library does not
+ * mint ([Q111](../../doc/open-questions.md)).
+ */
+export interface RetryPolicy {
+  /** How many times the scheduler re-dispatches a failed attempt. An integer >= 0. */
+  maxRetries: number;
+  /** Milliseconds between a failed attempt and its retry. A finite number >= 0. */
+  backoffMs: number;
+}
+
 export interface TaskNode {
   id: string;
   kind: 'task';
@@ -80,6 +99,22 @@ export interface TaskNode {
    * the only way a node can *settle* `failed` rather than `user_action`.
    */
   optional?: boolean;
+  /**
+   * **What this node says about its own task's retries** — passed through to the
+   * scheduler task exactly as `optional` is (ADR 0004 rule 7's precedent). Absent, the
+   * driver's `defaultRetryPolicy` applies if one was given; declared, **the node wins,
+   * whole** — never field by field. `FD-V30` refuses any shape but `RetryPolicy`'s.
+   */
+  retryPolicy?: RetryPolicy;
+  /**
+   * **The resource groups this node's task must acquire**, in addition to its pool's
+   * (the scheduler unions the two — measured at W58). Every id must be one the
+   * registry's `groups` declares (`FD-V31`), because the scheduler **silently ignores**
+   * an unknown group id: the task runs and settles `done` with no `resource.blocked`
+   * and no throw (P16 fact 2), so instantiation is the only place a typo is caught —
+   * ADR 0002 rule 3's shape, and `FD-V5`'s for a worker type.
+   */
+  workerGroups?: string[];
   /**
    * **What this node receives** — `FD-C1`, `FD-V26`-`FD-V28`. Optional: a task
    * without one receives the ordinary edge's value (section 3), which is what
@@ -167,6 +202,16 @@ export interface FlowDefinition {
 export interface Registry {
   predicates: ReadonlySet<string> | readonly string[];
   workerTypes: ReadonlySet<string> | readonly string[];
+  /**
+   * **The resource-group ids a task node may name in `workerGroups`** — the third set,
+   * added at v0.16 ([W58](../../doc/work-items/w58-what-a-node-says-about-its-own-task.md)).
+   * **Optional in SHAPE and strict in MEANING: absent means EMPTY**, so a definition
+   * declaring any group against a registry that lists none is refused (`FD-V31`). The
+   * alternative — absent means *unchecked* — would hand P16 fact 2's silence back to
+   * exactly the consumer who forgot to pass the set. A consumer passes
+   * `Object.keys(scheduler.groups)`, the scheduler's own map, rather than a second list.
+   */
+  groups?: ReadonlySet<string> | readonly string[];
 }
 
 /**
@@ -176,7 +221,7 @@ export interface Registry {
  * legitimately violate more than one rule.
  */
 export interface Finding {
-  /** `FD-V1` … `FD-V25`. Never renumbered, so it is safe to assert on. */
+  /** `FD-V1` … `FD-V31`. Never renumbered, so it is safe to assert on. */
   rule: string;
   /** Node id, edge index, or document-level `null`. */
   at: string | null;

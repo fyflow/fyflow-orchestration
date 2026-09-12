@@ -3,8 +3,7 @@
 **Status:** IN PROGRESS — **[W57](../work-items/w57-the-scheduler-is-a-dependency.md) is DONE**
 (2026-09-11, [ADR 0048](../decisions/0048-the-scheduler-is-a-declared-dependency-reached-by-one-bare-specifier.md);
 its three stop-and-ask items were answered *exact pin*, *`deno.json` gains the `jsr:` import and the
-L6 map stays — W60 not issued*, and *`S7` narrowed*; Q71 resolved, Q252-Q253 raised) and
-**[W58](../work-items/w58-what-a-node-says-about-its-own-task.md) is next**. Declared 2026-09-11 on
+L6 map stays — W60 not issued*, and *`S7` narrowed*; Q71 resolved, Q252-Q253 raised), **[W58](../work-items/w58-what-a-node-says-about-its-own-task.md) is DONE** (2026-09-12, **no ADR** — decision 3 is the decision; its three stop-and-ask items were answered *exact shape*, *no `defaultWorkerGroups` — W60's second condition does not fire*, and *strict: an absent registry set is empty*; Q256-Q258 raised, Q253 extended, Q16's task half landed; prediction 2 CONFIRMED — the first non-zero `attempts` a scheduler set at any rung, on a `map` of three) and **[W59](../work-items/w59-what-a-node-type-is.md) is next**. Declared 2026-09-11 on
 `8550978`, the commit that carried this file as a draft, after
 [P15](p15-what-a-run-retains-and-what-a-result-may-be.md) completed and its retro moved
 `doc/workflow.md` to [v0.16](../workflow.md). *(This read "No item has started" until W57 closed.)*

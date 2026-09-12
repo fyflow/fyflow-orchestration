@@ -478,7 +478,19 @@ if (r.files < 90) fail('M3', `only ${r.files} markdown file(s) were scanned, so 
 // `M4`'s window is `(3109, 3900]` and 3490 is near its middle; `M5` is untouched at 60
 // against 211, for the eighth plan running, because no `removes` probe moves an anchored
 // count — every anchored link is in `doc/`'s top level. [Q142](../doc/open-questions.md).
-if (r.links < 3490) fail('M4', `only ${r.links} relative link(s) were found; M1 is vacuous below that`);
+// **3490 -> 3960 at [W58](../doc/work-items/w58-what-a-node-says-about-its-own-task.md)**, the
+// EIGHTH retune, and the first to be found by the GATE rather than predicted: P16's declaration
+// checked [Q142](../doc/open-questions.md) with a margin of 388 links over the two-directory
+// fixture (3102 against 3490), and W58's spec subsection, register rows, Record and index
+// paragraphs took that fixture **3102 -> 3532** — every one of them a link-dense document under
+// `doc/` or `spec/`'s top level, which neither `removes` probe cuts. So the probe declaring
+// `[M1,M3,M4]` reported `got [M1,M3]` in the item's FINAL gate, after every other rung was green.
+// Measured on a scratch copy outside the repository, on the tree the item ships: whole tree
+// **108 / 4792 / 247**, `doc/decisions` removed **83 / 4386 / 247**, both removed
+// **66 / 3532 / 247**. `M4`'s window is `(3532, 4386]` and 3960 is near its middle; `M3` at 90 is
+// inside `(83, 108]` and untouched; `M5` at 60 against 247, untouched for the ninth plan running.
+// A late exception on `scripts/**` for the item, on W42's and P15's precedent.
+if (r.links < 3960) fail('M4', `only ${r.links} relative link(s) were found; M1 is vacuous below that`);
 if (r.anchored < 60) fail('M5', `only ${r.anchored} link(s) carry an anchor; M2 is vacuous below that`);
 
 const checks = [

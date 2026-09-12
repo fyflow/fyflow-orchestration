@@ -725,7 +725,7 @@ suite('a dead inner join, and what it does to the branch it sits in', (test) => 
 // asserted that the object it received was the one its factory RETURNED: with the option ignored
 // outright, 703 cases and 1138 L6 assertions stayed green. And the two L6 observers accept ANY
 // `FyflowTask`, so a default that quietly added a `retryPolicy` or a `workerGroups` entry — the two
-// fields W58 is about to make node-declared — was green everywhere. Rule 5 says the default is
+// fields W58 then made node-declared (this read "is about to" until W58's conformity reader) — was green everywhere. Rule 5 says the default is
 // EXACTLY `new FyflowTask(config)` and the option is honoured; this is where each is one assertion.
 suite('ADR 0048 rule 5 — createTask: the option is honoured, and the default is exactly new FyflowTask(config)', (test) => {
   const def: FlowDefinition = {
@@ -762,5 +762,32 @@ suite('ADR 0048 rule 5 — createTask: the option is honoured, and the default i
       `the default task equals new FyflowTask(config) field for field — got ${JSON.stringify(own(built as object))}`);
     equal((built as { retryPolicy?: unknown }).retryPolicy, undefined, 'no retryPolicy the node did not declare (W58`s field)');
     equal(JSON.stringify((built as { workerGroups?: unknown }).workerGroups), '[]', 'no workerGroups the node did not declare (W58`s field)');
+  });
+  // **W58 changed what the default may carry, and this suite is changed DELIBERATELY rather than
+  // around** — the item's brief. The test above still holds for a node that declares nothing; this
+  // is the other half of rule 5 now that a node CAN declare: the default builds exactly
+  // `new FyflowTask(config)` for a six-field config too, and the two new fields arrive on the
+  // scheduler's own class as the node wrote them.
+  test('and for a node that DECLARES both keys, the default builds EXACTLY new FyflowTask(config) with them — W58', () => {
+    const s = new Fake();
+    const declared: FlowDefinition = {
+      flowId: 'ct2', version: 1, entry: 'a',
+      nodes: [
+        { id: 'a', kind: 'task', workerType: 'W', retryPolicy: { maxRetries: 2, backoffMs: 50 }, workerGroups: ['gpu'], edges: [{ to: 'done' }] },
+        { id: 'done', kind: 'end', outcome: 'completed' },
+      ],
+    };
+    new Driver(declared, { runId: 'r1', scheduler: s, predicates: new Map(), workerTypes: ['W'], groups: ['gpu'] }).start({ x: 1 });
+    const built = s.added[0] as unknown;
+    ok(built instanceof FyflowTask, 'still the scheduler`s own class');
+    const expected = new FyflowTask({
+      id: 'r1:a:-:0', workerType: 'W', payload: { x: 1 }, optional: false,
+      retryPolicy: { maxRetries: 2, backoffMs: 50 }, workerGroups: ['gpu'],
+    });
+    const own = (t: object) => Object.fromEntries(Object.entries(t).filter(([k]) => !k.startsWith('_')));
+    ok(deepEqual(own(built as object), own(expected)),
+      `field for field, six fields in — got ${JSON.stringify(own(built as object))}`);
+    equal((built as { retryPolicy?: unknown }).retryPolicy, { maxRetries: 2, backoffMs: 50 }, 'the node`s retryPolicy, whole');
+    equal((built as { workerGroups?: unknown }).workerGroups, ['gpu'], 'the node`s workerGroups');
   });
 });

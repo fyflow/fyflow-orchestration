@@ -31,7 +31,7 @@ import type { JoinPolicy } from '../../src/driver/policy.ts';
 
 const EX = `${ROOT}spec/examples`;
 const load = async (rel: string) => JSON.parse(await readText(`${EX}/${rel}`)) as FlowDefinition;
-const reg = JSON.parse(await readText(`${EX}/registry.json`)) as { workerTypes: string[] };
+const reg = JSON.parse(await readText(`${EX}/registry.json`)) as { workerTypes: string[]; groups?: string[] };
 
 /** The whole scheduler, for level 2. It queues nothing and runs nothing. */
 class FakeScheduler {
@@ -79,6 +79,10 @@ function harness(
     predicates: predicates ??
       new Map([['isHighConfidence', () => false], ['isLowConfidence', () => false]]),
     workerTypes: reg.workerTypes,
+    // The corpus's own group ids — W58. `task-config.flow.json` declares `workerGroups`, and a
+    // driver given no `groups` reads that as NONE declared (`FD-V31`), so the census over the
+    // region-bearing corpus refused it at construction the moment the flow existed.
+    groups: reg.groups ?? [],
     // **A caller may bring its own** — W50. `FD-R3`'s one remaining road is a join
     // policy firing before a branch entry has settled, and until this parameter
     // existed the fixtures that reach it had to build a `Driver` by hand, which is
@@ -277,6 +281,13 @@ suite('L2 — FD-C2: what NAMES an output', (test) => {
       // makes `FD-C2`'s no `fanout` ever collapses rest on five flows rather than
       // four, and it is the only one whose two regions are siblings.*
       ['sibling-fanouts', { ids: 5, nodes: 5, lost: 0, map: false }],
+      // **W58's document — a `fanout` region followed by a `map` region.** Derived by
+      // reading its nodes: ingest, scoreA, scoreB, regroup, rank x3, publish = **8 ids /
+      // 6 node ids / 2 lost**, the two lost being the map's one collapsing id twice.
+      // It is in the corpus for `retryPolicy` and `workerGroups` in all three task
+      // shapes, and this census does not care about either key — which is the point:
+      // a flow that gains a region is red here until it is censused.
+      ['task-config', { ids: 8, nodes: 6, lost: 2, map: true }],
     ]);
     const entries: [string, unknown, (id: string) => unknown][] = [
       ['fanout-join', { from: 'ingest' }, (id) => ({ by: id })],
@@ -295,6 +306,9 @@ suite('L2 — FD-C2: what NAMES an output', (test) => {
             ? { slots: ['x', 'y'] }
             : { by: id })],
       ['sibling-fanouts', { from: 'ingest' }, (id) => ({ by: id })],
+      // W58: `regroup` feeds the map, so it is the one task whose result carries `items`.
+      ['task-config', { from: 'ingest' },
+        (id) => (id.includes(':regroup:') ? { items: ['a', 'b', 'c'] } : { by: id })],
     ];
     // **The list is bound to a source this file does not own** — W41's adequacy
     // reader, whose sharpest measurement is that every bound in these two files was
@@ -379,8 +393,12 @@ suite('L2 — FD-C2: what NAMES an output', (test) => {
     }
     equal(ran, entries.map((e) => e[0]), 'every flow was ASSERTED — pushed after the assertions, not before');
     equal([...ran].sort(), onDisk, 'and the SET it ran is the disk`s, not a literal beside it');
-    equal([...expected.values()].filter((v) => v.lost > 0).length, 5,
-      'and exactly the FIVE flows with a map region lose an output');
+    // **SIX since W58, from five**: `task-config` carries a map region beside its fanout, and
+    // this literal is a COUNT beside a membership — the `expected` table above is the
+    // membership, and `onDisk` binds it to the directory both ways, so this line is the
+    // count a human writes and the two above are what stop it being the only bound.
+    equal([...expected.values()].filter((v) => v.lost > 0).length, 6,
+      'and exactly the SIX flows with a map region lose an output');
     equal([...expected.values()].filter((v) => !v.map).length, 5,
       'while FIVE carry only `fanout` regions and lose NOTHING — at depth 1, at depth 2, with an ' +
       'optional branch that can fail, with a branch routed away from its join, and — since W50 — ' +

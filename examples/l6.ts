@@ -60,10 +60,15 @@
  * | **W14 — `two runs / two drivers / one scheduler`** | **P4's exit artifact**, and the only row that runs two drivers. The pairing `MultipleRuns` tells a caller to build: before [ADR 0023](../doc/decisions/0023-an-inbound-settlement-is-this-runs-only-if-this-driver-dispatched-it.md) each driver received the other's settlements and dispatched its successors — one task id under two outcomes, with nothing reported. It is `ID-R4` tier 1's only L6 coverage; tier 2 is not reachable here ([Q90](../doc/open-questions.md)) |
  * | **W17 — `all-exit` × all three policies** | **P5's exit artifact, and the row L6 has never had**: every branch reaches an `end` and nothing arrives at the join. It is the shape [ADR 0003](../doc/decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md) records as `live-token`'s cost and the one [ADR 0025](../doc/decisions/0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md) turns on. One flow, one payload, three policies, three answers — `completed`, silently `stuck`, and **`stuck` with `joined: false`**, which nothing at L6 had ever reached |
  * | **W19 - the second pair row** | **P6's exit artifact**: the same topology as the row above with **one variable changed** - the scheduler also carries a task this library did not mint. Its settlement lands FIRST, while both runs are live, and both runs still complete. [ADR 0027](../doc/decisions/0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md) and `ID-R5`, on real workers; under the ADR 0023 rule 2 it supersedes, one such settlement stopped **every** driver on the scheduler. The control row beside it is what makes `onUnmintedTask`'s empty array an assertion rather than a decoration |
+ * | **W58 — `retry`** | **P16's first observable, and the first non-zero `attempts` a scheduler has ever set at any rung**: a `map` of three whose branch task declares `retryPolicy: { maxRetries: 1, backoffMs: 0 }` on a pool whose role fails every task id's FIRST attempt. Each instance is retried inside its own id and settles `done` with `attempts: 1` on two observers — the outcome record and the live task — and the per-instance policy is what a single-task row could not show (`doc/workflow.md` rule 8 obligation (a), v0.16) |
+ * | **W58 — `group`** | **`workerGroups` on real workers, and P16 fact 2 answered where it shows**: a linear flow whose middle node names a `ConcurrentLimitGroup(1)` this harness holds when the run starts. The task is `resource.blocked` on dispatch, the harness lets go on that very event, and the task runs — the scheduler's own four resource events in order with `task.running` after the acquisition. Its pool declares no group, so nothing but the node's key put it there |
  */
 import {
   InvalidTaskId,
   POLICIES,
+  // W58: the two keys `FD-V30` requires, compared to the scheduler's own `.d.ts` in the
+  // cross-row block — through the package root, like everything else here.
+  RETRY_POLICY_KEYS,
   // **W51's, and they reach the package ROOT like everything else here.** The
   // cross-row block below reads a reference's SHARED REGION DEPTH through the
   // shipped derivation rather than from a list of node names beside itself, so a
@@ -192,6 +197,13 @@ import referenceIfItRan from './flows/reference-if-it-ran.flow.json' with { type
 import mapPastADecision from './flows/map-past-a-decision.flow.json' with { type: 'json' };
 import siblingFanouts from './flows/sibling-fanouts.flow.json' with { type: 'json' };
 import siblingMapFanout from './flows/sibling-map-fanout.flow.json' with { type: 'json' };
+// **W58's two, and [Q44](../doc/open-questions.md)'s reason a further time, narrower still**:
+// `spec/examples/valid/task-config.flow.json` carries both keys in all three shapes and is
+// validated at L4 and never run, because its `MergeWorker` is the corpus's and every pool it
+// names runs a role that would break a row. What a real retry and a real block look like are
+// these two — one node each, on the pools `buildScheduler` registers for exactly that.
+import retryFlow from './flows/retry.flow.json' with { type: 'json' };
+import groupFlow from './flows/group.flow.json' with { type: 'json' };
 import failureEdge from '../spec/examples/valid/failure-edge.flow.json' with { type: 'json' };
 
 /**
@@ -541,6 +553,31 @@ interface Expectation {
    * the dependency is removed exactly where it exists and nowhere else.
    */
   unorderedDispatch?: readonly string[];
+  /**
+   * **The `attempts` a settled task's OUTCOME RECORD must carry, per task id — W58, and it is
+   * the first non-zero `attempts` a SCHEDULER has ever set at any rung** (P16 prediction 2:
+   * `test/driver/log.test.ts` feeds 2 and 3 to the listener from fixtures, and nothing above
+   * L1 had ever seen one). Two assertions per id, over two observers that reach the field by
+   * different roads: the record, which is the driver's listener copying the live task's
+   * field (`OR-R2`), and `RunReport.attemptsSeen`, read at the harness's own listener off the
+   * live object. A row that declares this is the only kind of row on which `attempts` is
+   * non-zero, and the cross-row clause says so both ways.
+   */
+  attempts?: Record<string, number>;
+  /**
+   * **What the scheduler said about a task's resources, in order, per task id — W58.** The
+   * `resource.*` events on the task's behalf with its `task.running` interleaved (see
+   * `RunReport.resourceEvents`), so a row asserts not only that the task was blocked but that
+   * it was blocked BEFORE it ran. Two assertions per id. Every row that does not declare it is
+   * covered by the cross-row clause: no task anywhere else produced a resource event, because
+   * no other node names a group and no pool declares one.
+   */
+  resourceEvents?: Record<string, string[]>;
+  /**
+   * A group `buildScheduler` registers whose one slot the HARNESS holds when the run starts
+   * and releases once a task is reported blocked behind it — `RunOptions.holdGroup`.
+   */
+  holdGroup?: string;
 }
 
 const FJ = fanoutJoin as unknown as FlowDefinition;
@@ -603,6 +640,8 @@ const SFO = siblingFanouts as unknown as FlowDefinition;
  * that were prefix-comparable anyway ([Q214](../doc/open-questions.md)).
  */
 const SMF = siblingMapFanout as unknown as FlowDefinition;
+const RT = retryFlow as unknown as FlowDefinition;
+const GR = groupFlow as unknown as FlowDefinition;
 
 const HIGH = { confidence: 0.9 };
 const LOW = { confidence: 0.1 };
@@ -2210,6 +2249,97 @@ const EXPECTED: Expectation[] = [
       'output whose index matched its own and the third was reachable from nowhere. Revert the ' +
       'resolver and this row is what goes red — before it, that revert cost ZERO at L6',
   },
+
+  // --- W58: what a node says about its own task, on real workers ----------------
+  //
+  // **Two rows, and P16's prediction 2 is the first.** `retry.flow.json` is a `map` over
+  // three items whose branch task declares `retryPolicy: { maxRetries: 1, backoffMs: 0 }`
+  // on a pool whose role fails the FIRST attempt of every task id and succeeds the second.
+  // So three tasks each fail once, the scheduler re-dispatches each inside its own id, all
+  // three settle `done`, and every outcome record carries `attempts: 1` — read twice, from
+  // the record and from the live task. **A map rather than a single task, deliberately**:
+  // `doc/workflow.md` section 5 rule 8 obligation (a)'s v0.16 clause says instantiate the
+  // shape the feature was NOT built for, and a per-node policy inside a map region is per
+  // INSTANCE — three separate retry budgets from one declared object, which no single-task
+  // row can show. `nodeResults` pins the second attempt's marker, so a scheduler that
+  // reported `attempts: 1` while running the first attempt's code would fail on the value.
+  //
+  // **The negative control is the row's `why`**: revert the passthrough and every instance
+  // ends `user_action` on its first failure with `attempts: 0` — the run suspends, and
+  // `dispatched`, `outcome`, `settled` and both `attempts` observers all go red at once.
+  {
+    key: 'retry / a task fails ONCE and the scheduler retries it — attempts is 1, per instance',
+    definition: RT, policyId: 'live-token', payload: THREE_WORDS, threaded: false,
+    regionId: 'split',
+    outcome: 'completed',
+    // Three instances at the map's arity, dispatched in one turn in index order (JP-R5), each
+    // re-dispatched once by the scheduler under the SAME id — a retry mints nothing.
+    dispatched: ['r39:ingest:-:0', 'r39:flaky:0:0', 'r39:flaky:1:0', 'r39:flaky:2:0', 'r39:publish:-:0'],
+    joined: true,
+    settled: { '0': 'arrived', '1': 'arrived', '2': 'arrived' },
+    pathEnds: [{ reason: 'end', at: 'done' }],
+    // Derived from `spec/flow-definition.md` section 2 (v0.16) and the worker's `retry` arm:
+    // each instance's SECOND attempt returns `score`'s shape plus `retried: true`, so a run in
+    // which the first attempt had somehow succeeded fails here on the value.
+    nodeResults: {
+      'r39:ingest:-:0': {
+        confidence: 0.9,
+        items: [{ word: 'a', confidence: 0.1 }, { word: 'bb', confidence: 0.2 }, { word: 'ccc', confidence: 0.3 }],
+      },
+      'r39:flaky:0:0': { confidence: 0.1, score: 10, retried: true },
+      'r39:flaky:1:0': { confidence: 0.2, score: 20, retried: true },
+      'r39:flaky:2:0': { confidence: 0.3, score: 30, retried: true },
+      'r39:publish:-:0': { published: true, joinPayload: {
+        '0': { confidence: 0.1, score: 10, retried: true },
+        '1': { confidence: 0.2, score: 20, retried: true },
+        '2': { confidence: 0.3, score: 30, retried: true },
+      } },
+    },
+    // `maxRetries: 1` and one failure each: exactly one retry used, per instance, on both
+    // observers. `OR-R2` carries the field; `spec/flow-definition.md` section 2 says what it
+    // counts.
+    attempts: { 'r39:flaky:0:0': 1, 'r39:flaky:1:0': 1, 'r39:flaky:2:0': 1 },
+    why: 'W58 — Q16`s TASK half on real workers, and P16 prediction 2: the first non-zero ' +
+      '`attempts` a scheduler has ever set at any rung. The node declares `retryPolicy`, the ' +
+      'driver passes it through as it passes `optional`, the worker fails each instance`s first ' +
+      'attempt, and the scheduler retries inside the same task id — three budgets from one ' +
+      'declared object, because inside a map the policy is per instance. With the passthrough ' +
+      'reverted every instance ends `user_action` at attempts 0 and the run suspends',
+  },
+  // **The group row.** `group.flow.json` is linear — ingest, a `gated` node declaring
+  // `workerGroups: ["gate"]`, publish — on a scheduler whose one group is a
+  // `ConcurrentLimitGroup(1)` named `gate`. The harness takes that one slot before the run
+  // starts (`holdGroup`), so `gated` is `resource.blocked` on dispatch; the harness gives the
+  // slot back on the scheduler's own `resource.blocked` event, and the task then runs. The
+  // sequence asserted is the scheduler reference's own ordering — blocked on the push,
+  // unblocked on the exit, acquired immediately after `onStart`, released immediately after
+  // `onFinish` — with `task.running` where a dispatch can only come after acquisition.
+  // **The negative control**: with the passthrough reverted the task names no group, is never
+  // blocked, runs at once, and has NO resource events at all — the sequence assertion and the
+  // cross-row clause both go red.
+  {
+    key: 'group / a task blocked behind a ConcurrentLimitGroup(1) the harness holds, then released',
+    definition: GR, policyId: 'live-token', payload: HIGH, threaded: false,
+    regionId: null,
+    outcome: 'completed',
+    dispatched: ['r40:ingest:-:0', 'r40:gated:-:0', 'r40:publish:-:0'],
+    pathEnds: [{ reason: 'end', at: 'done' }],
+    nodeResults: {
+      'r40:ingest:-:0': { confidence: 0.9 },
+      'r40:gated:-:0': { confidence: 0.9, score: 90 },
+      'r40:publish:-:0': { published: true, joinPayload: { confidence: 0.9, score: 90 } },
+    },
+    holdGroup: 'gate',
+    resourceEvents: {
+      'r40:gated:-:0': ['resource.blocked', 'resource.unblocked', 'resource.acquired', 'task.running', 'resource.released'],
+    },
+    why: 'W58 — `workerGroups` on real workers, and P16 fact 2`s answer at the rung that shows ' +
+      'it: the node names a group the registry declares, the driver passes it through, and the ' +
+      'scheduler blocks the task behind a slot the harness holds — then runs it when the slot is ' +
+      'released. Nothing but the node`s own key puts the task behind that group: its pool ' +
+      'declares none. With the passthrough reverted the task runs unblocked and reports no ' +
+      'resource event, which is exactly what the scheduler does with an UNKNOWN group id too',
+  },
 ];
 
 // --- assertions ---------------------------------------------------------------
@@ -2416,6 +2546,7 @@ for (const [i, e] of EXPECTED.entries()) {
     // more slowly — and if it were ever too short the row fails loudly, with the
     // outcome reading `running` rather than `awaiting_action`.
     backstopMs: e.backstopMs,
+    holdGroup: e.holdGroup,
   });
   reports.push(report);
   const before = passed + failures.length;
@@ -2490,6 +2621,29 @@ for (const [i, e] of EXPECTED.entries()) {
   }
   for (const [id, want] of Object.entries(e.nodeResults ?? {})) {
     check(e.key, `Q36: what ${id.split(':')[1]} received`, report.state.nodes[id]?.result, want);
+  }
+  // **W58 — `attempts`, on two observers that reach the field by different roads.** The
+  // record is the driver's listener copying the live task's field (`OR-R2`); `attemptsSeen`
+  // is the harness's own listener reading the same live object. A driver that normalised the
+  // field to 0 would fail the first and not the second; a scheduler that never retried would
+  // fail both — and a row asserting only the record would be reading one sensor through a
+  // normaliser, which is obligation (c)'s LIMIT.
+  for (const [id, want] of Object.entries(e.attempts ?? {})) {
+    const record = report.log.find((r) => r.kind === 'outcome' && r.taskId === id);
+    check(e.key, `OR-R2: the outcome record's attempts for ${id.split(':')[1]}@${id.split(':')[2]} — the scheduler retried inside this id`,
+      record?.kind === 'outcome' ? record.attempts : undefined, want);
+    check(e.key, `and the LIVE task the scheduler settled carried the same attempts — the second observer`,
+      report.attemptsSeen[id], want);
+  }
+  // **W58 — the scheduler's account of a task's resources, in order, and that the task was
+  // blocked BEFORE it ran.** The whole sequence first, so a missing or extra event names
+  // itself; then the ordering claim the row is for, separately, so it reads as a claim.
+  for (const [id, want] of Object.entries(e.resourceEvents ?? {})) {
+    const got = report.resourceEvents[id] ?? [];
+    check(e.key, `resource events for ${id.split(':')[1]}, in order, with task.running interleaved`, got, want);
+    assertThat(e.key, 'and it was resource.blocked BEFORE it ran — the group the node declared held it',
+      got.includes('resource.blocked') && got.indexOf('resource.blocked') < got.indexOf('task.running'),
+      `sequence: ${got.join(', ') || '(none)'}`);
   }
   for (const never of e.outcomesNotSeen ?? []) {
     assertThat(e.key, `the run was never quiescently \`${never}\``,
@@ -2845,6 +2999,10 @@ for (const [i, e] of EXPECTED.entries()) {
     // so that declaring the field moves the floor with it.
     + (e.unorderedDispatch ? 2 : 0)
     + (e.stoppedBy !== undefined ? 1 : 0)
+    // W58: two observers per declared `attempts`, and a sequence plus an ordering per
+    // declared `resourceEvents` — derived from the expectation like every other extra here.
+    + Object.keys(e.attempts ?? {}).length * 2
+    + Object.keys(e.resourceEvents ?? {}).length * 2
     // **`JP-R12`'s SECOND-COPY claim, and only where there is something to be a copy
     // of.** A row that records no arrival would assert `0 === 0`, which is the
     // vacuity `doc/workflow.md` section 5 rule 3 refuses — so it is an extra derived
@@ -3188,6 +3346,8 @@ const ROW_KEYS: readonly string[] = [
   'map-past-a-decision HIGH / FD-C4 — the array is `[]`, and the run is stuck',
   'sibling-fanouts / ADR 0044 — a run that used to STOP',
   'sibling-map-fanout / ADR 0044 — three items, two branches, all three seen',
+  'retry / a task fails ONCE and the scheduler retries it — attempts is 1, per instance',
+  'group / a task blocked behind a ConcurrentLimitGroup(1) the harness holds, then released',
 ];
 
 /**
@@ -3287,6 +3447,12 @@ const CROSS_ROW_SUBJECTS = [
   'is on the WALKED side of that split',
   'every PER-ROW subject this file declares was asked',
   'no per-row assertion about ADR 0046 or JP-R12 is left uncovered',
+  // W58
+  'non-zero attempts occurs in exactly the rows that declare it',
+  'the groups the L6 flows NAME are the groups the scheduler DECLARES',
+  'the groups the scheduler was BUILT with, read as source text',
+  'a resource event was reported for exactly the task ids some row declares',
+  'the scheduler`s own declaration of retryPolicy',
 ];
 
 /**
@@ -3382,7 +3548,7 @@ const REFERENCE_SPELLINGS_IN_SPEC = await referenceSpellingsInSpecAsync();
 
 /**
  * **The pool registry, `ROLES` and `run()`'s arms are THREE lists saying the same
- * nine things, and one of the three comparisons is recorded as costing zero** —
+ * ten things *(nine until W58)*, and one of the three comparisons is recorded as costing zero** —
  * [W47](../doc/work-items/w47-the-blocked-flow-on-real-workers.md), and it is this
  * item's deliberate instantiation of `doc/workflow.md` section 5 rule 8 obligation
  * (e)'s **THIRD SHAPE** at v0.13: *a LIST is a claim about another list; find the
@@ -3404,7 +3570,9 @@ const REFERENCE_SPELLINGS_IN_SPEC = await referenceSpellingsInSpecAsync();
  * **Measured before the clauses were written, and the measurement is the result:**
  * the pool registry declares **10** workerTypes and the 18 flow documents L6 runs
  * name exactly those **10**; the registry uses **9** distinct roles, `ROLES` declares
- * **9** and `run()` has **9** arms; **all three pairs agree in both directions and no
+ * **9** and `run()` has **9** arms *(11 / 20 / 10 / 10 / 10 since W58 added `RetryWorker`, its
+ * `retry` role and two flows — appended rather than rewritten, because the sentence is the
+ * measurement W47 took)*; **all three pairs agree in both directions and no
  * defect is live.** So this is a bound with no live case, which is
  * [W25](../doc/work-items/w25-a-link-is-a-link-and-an-anchor-is-an-anchor.md)'s own
  * situation stated rather than dressed up: *a check written for a defect you just
@@ -3426,6 +3594,8 @@ async function workerListsAsync(): Promise<{
   poolRoles: string[];
   declaredRoles: string[];
   switchArms: string[];
+  /** The resource-group ids `buildScheduler` REGISTERS, read from the source — W58's second observer of `scheduler.groups`. */
+  groupIds: string[];
 }> {
   const deno = (globalThis as Record<string, unknown>).Deno as
     { readTextFile?: (x: URL) => Promise<string> } | undefined;
@@ -3446,6 +3616,12 @@ async function workerListsAsync(): Promise<{
   if (at < 0) throw new Error('examples/run-flow.ts no longer returns a pool registry literal');
   const registry = [...rf.slice(at).matchAll(/^ {4}(\w+): pool\('(\w+)'/gm)];
   nonEmpty(registry, 'the pool registry');
+  // ---- and the RESOURCE GROUPS the same constructor call registers, as source text — W58's
+  // adequacy reader (c04b): `RunReport.schedulerGroups` is ONE reading of `scheduler.groups`
+  // and the driver's `groups` option is derived from that same variable, so a literal in its
+  // place hid a second registered group for zero. This is the other observer: the literal the
+  // scheduler is BUILT from, which the runtime reading must agree with. ----
+  const groupIds = nonEmpty([...rf.slice(at).matchAll(/^ {4}(\w+): new ConcurrentLimitGroup\(/gm)].map((m) => m[1]!), 'the resource-group registry');
 
   // ---- ROLES: comment lines dropped, because the block carries prose ----
   const wf = await read('./workers/flow-worker.ts');
@@ -3458,6 +3634,7 @@ async function workerListsAsync(): Promise<{
   const switchArms = nonEmpty([...wf.matchAll(/^ {6}case '(\w+)':/gm)].map((m) => m[1]!), "run()`s arms");
 
   return {
+    groupIds: [...new Set(groupIds)].sort(),
     poolTypes: [...new Set(registry.map((m) => m[1]!))].sort(),
     poolRoles: [...new Set(registry.map((m) => m[2]!))].sort(),
     declaredRoles: [...new Set(declaredRoles)].sort(),
@@ -4330,8 +4507,14 @@ const PER_PLAIN_ROW = 19;
  *
  * **81 at W57, from 80**: one cross-row clause — the two rule 5 observers were not vacuous
  * everywhere.
+ *
+ * **87 at W58, from 81**: six cross-row assertions in four clauses — non-zero `attempts` in
+ * exactly the declaring rows and that set non-empty, the groups named against the groups
+ * declared and against the groups the scheduler was BUILT with (the adequacy reader's second
+ * observer), the resource-event ids against the declaring rows, and `RETRY_POLICY_KEYS` against
+ * the scheduler's own `.d.ts`. *(86 at the author pass.)*
  */
-const CROSS_ROW = 81;
+const CROSS_ROW = 87;
 const base = (shape: string) => (shape === 'region' ? PER_REGION_ROW : PER_PLAIN_ROW);
 for (const [key, shape, cost, extras] of rowCosts) {
   if (cost !== base(shape) + extras) {
@@ -4741,6 +4924,79 @@ if (rowCosts.length !== EXPECTED.length) {
       'comparison flow-worker.ts`s own header records as costing ZERO',
       WORKER_LISTS.switchArms, WORKER_LISTS.declaredRoles);
 
+    // **W58 — four cross-row clauses, each a membership rather than a count.**
+    //
+    // (1) A non-zero `attempts` on an outcome record occurs in EXACTLY the rows that declare
+    //     `attempts`, both ways. The per-row assertion says a declared id carried its number;
+    //     this says no undeclared row's task was ever retried — and that at least one was,
+    //     which is P16 prediction 2 stated as a set rather than a boolean.
+    {
+      const rowsWithRetries = EXPECTED
+        .filter((_, i) => reports[i]!.log.some((r) => r.kind === 'outcome' && r.attempts > 0))
+        .map((e) => e.key).sort();
+      const rowsDeclaring = EXPECTED.filter((e) => e.attempts !== undefined).map((e) => e.key).sort();
+      check('cross-row', 'non-zero attempts occurs in exactly the rows that declare it, both ways — ' +
+        'the first non-zero attempts a scheduler has ever set at this rung, and only where a node asked for a retry',
+        rowsWithRetries, rowsDeclaring);
+      assertThat('cross-row', 'and that set is not empty — a real retry happened somewhere',
+        rowsDeclaring.length > 0, 'no row declares attempts');
+    }
+    // (2) Obligation (e) on `Registry.groups`, the direction `runFlow` does not close by
+    //     construction: every group a flow document NAMES is one the scheduler declares, and
+    //     every group the scheduler declares is named by some flow this file runs — so a group
+    //     registered and used by nothing is red here, as a pool no document names is above.
+    {
+      const named = new Set<string>();
+      for (const e of EXPECTED) {
+        for (const n of e.definition.nodes) {
+          for (const g of ((n as unknown as { workerGroups?: string[] }).workerGroups ?? [])) named.add(g);
+        }
+      }
+      const declaredBySchedulers = [...new Set(reports.flatMap((r) => r.schedulerGroups))].sort();
+      check('cross-row', 'the groups the L6 flows NAME are the groups the scheduler DECLARES, both ways — ' +
+        'FD-V31`s registry set is read off the scheduler, and this is the other direction',
+        [...named].sort(), declaredBySchedulers);
+      // **A SECOND observer of what the scheduler declares, read from the constructor call's
+      // source rather than from the running object** — the adequacy reader's c04b: re-sourcing
+      // `schedulerGroups` to a literal and registering a second group nothing names cost ZERO,
+      // because the driver's registry and this clause both read the one variable. The two readings
+      // must agree, so a literal in either place is red the moment the source moves.
+      check('cross-row', 'and the groups the scheduler was BUILT with, read as source text, are the groups it reports holding — ' +
+        'two readings of one fact, so neither can be a literal standing in for the other',
+        WORKER_LISTS.groupIds, declaredBySchedulers);
+    }
+    // (3) The resource-event observer is bound the way `attempts` is: a resource event was
+    //     reported for exactly the task ids some row declares `resourceEvents` for. Every other
+    //     task of every other row produced none, because no other node names a group and no
+    //     pool declares one — so the group row's sequence is the ONLY place the scheduler said
+    //     anything about a resource, and a pool that quietly gained `groups` would show here.
+    {
+      const seen = reports.flatMap((r) => Object.keys(r.resourceEvents)).sort();
+      const declared = EXPECTED.flatMap((e) => Object.keys(e.resourceEvents ?? {})).sort();
+      check('cross-row', 'a resource event was reported for exactly the task ids some row declares, both ways',
+        seen, declared);
+    }
+    // (4) Obligation (e)'s third shape on the SCHEDULER's side: `RETRY_POLICY_KEYS` — the two
+    //     keys `FD-V30` requires and refuses anything beside — equals the two keys the
+    //     scheduler's own published declaration destructures, both ways. Read as SOURCE TEXT
+    //     from the npm build's `.d.ts` at the pin, the same way `workerListsAsync` reads the
+    //     worker file: a bump that renames or adds a field to `retryPolicy` upstream is red
+    //     here before a document could declare it.
+    {
+      const dtsUrl = new URL('../node_modules/fyflow-scheduler/dist/types/core/FyflowScheduler.d.ts', import.meta.url);
+      const deno = (globalThis as Record<string, unknown>).Deno as
+        { readTextFile?: (x: URL) => Promise<string> } | undefined;
+      const dts = deno?.readTextFile
+        ? await deno.readTextFile(dtsUrl)
+        : await (await import('node:fs/promises')).readFile(dtsUrl, 'utf8');
+      const m = /retryPolicy\?: \{([^}]*)\}/.exec(dts);
+      if (!m) throw new Error('the scheduler`s .d.ts no longer declares a `retryPolicy?: { … }` field, so this bound would be vacuous');
+      const upstream = [...m[1]!.matchAll(/(\w+): number/g)].map((x) => x[1]!).sort();
+      check('cross-row', 'the scheduler`s own declaration of retryPolicy has exactly the keys FD-V30 requires, both ways — ' +
+        'read from the published .d.ts at the pin, not from a literal beside RETRY_POLICY_KEYS',
+        upstream, [...RETRY_POLICY_KEYS].sort());
+    }
+
     // **Obligation (e)'s SECOND QUESTION, and the reasoning is at
     // `examplesReachingPastIndexAsync` above**: no file under `examples/` may reach
     // past `index.ts` into `src/`, because L6's whole standing is that it exercises
@@ -5008,7 +5264,7 @@ if (rowCosts.length !== EXPECTED.length) {
       [true, true, true, true, true, true, true]);
   }
 
-  // **All FORTY-TWO runs, not thirty-eight** — W55's conformity reader. `reports` is
+  // **All FORTY-FOUR runs (forty-two until W58), not thirty-eight** — W55's conformity reader. `reports` is
   // the `EXPECTED` loop's; the two PAIR rows produce four more real runs on a SHARED
   // scheduler, they carry `retention` like every other run, and nothing read it. They
   // run `fanout-join` under `live-token`, so every branch arrives and the join fires:
@@ -5233,7 +5489,7 @@ check('cross-row', 'and no per-row assertion about ADR 0046 or JP-R12 is left un
 check('cross-row', 'every cross-row SUBJECT this file declares was asserted about — a block ' +
   'deleted with the counts is a block that fails naming what it was about',
   CROSS_ROW_SUBJECTS.filter((t) => crossRowLabels.some((l) => l.includes(t))), CROSS_ROW_SUBJECTS);
-const DECLARED_TOTAL = 1138;
+const DECLARED_TOTAL = 1203;
 if (passed + failures.length !== DECLARED_TOTAL) {
   failures.push(
     'gate\n      the assertion count is not the number this file declares outright\n' +

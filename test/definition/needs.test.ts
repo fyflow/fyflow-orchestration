@@ -24,8 +24,11 @@ const EX = `${ROOT}spec/examples`;
 const reg = JSON.parse(await readText(`${EX}/registry.json`)) as {
   workerTypes: string[];
   predicates?: string[];
+  groups?: string[];
 };
-const REGISTRY = { predicates: reg.predicates ?? [], workerTypes: reg.workerTypes };
+// `groups` since W58: `task-config.flow.json` declares `workerGroups`, and a registry that omits
+// the set declares NO groups (`FD-V31`), so the corpus-wide loop below needs the corpus's own.
+const REGISTRY = { predicates: reg.predicates ?? [], workerTypes: reg.workerTypes, groups: reg.groups ?? [] };
 
 /** Rules for a definition. `nodes` is spread in so each case names only what it changes. */
 const doc = (nodes: unknown[]): FlowDefinition =>

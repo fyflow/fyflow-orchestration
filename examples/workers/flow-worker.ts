@@ -9,9 +9,9 @@
  * [Q33](../../doc/open-questions.md)'s answer *Node and Deno* rather than
  * *Node only* — the leaning's whole argument was one worker file per runtime.
  *
- * **One class, NINE roles**, selected by the pool's `config` — which is how
- * `examples/run-flow.ts`'s TEN pools are satisfied without ten near-identical
- * files. *(These read "EIGHT" and "nine" of the state before W45 added `attest` and
+ * **One class, TEN roles**, selected by the pool's `config` — which is how
+ * `examples/run-flow.ts`'s ELEVEN pools are satisfied without eleven near-identical
+ * files. *(NINE and TEN until W58 added `retry` and `RetryWorker`.)* *(These read "EIGHT" and "nine" of the state before W45 added `attest` and
  * `AttestWorker`; corrected by [W47](../../doc/work-items/w47-the-blocked-flow-on-real-workers.md),
  * whose conformity reader found five such counts in this file and one next door —
  * and whose own new clauses in `examples/l6.ts` compute all three lists, so the day
@@ -21,10 +21,12 @@
  * change is "the role list is one list" — see `ROLES`.)*
  *
  * **A worker computes and does not route** ([ADR 0001](../../doc/decisions/0001-routing-executes-in-the-driver-outside-the-scheduler.md)
- * rule 2). `context.taskId` is available and this file does not read it: deriving
- * a score from a branch index is the first step towards a worker that decides
- * where its own output goes. Which branch takes which road is decided by the
- * *entry payload* and the definition's predicate, and by nothing in here.
+ * rule 2). `context.taskId` is available and **exactly one arm reads it — `retry`, since
+ * W58 — to remember which ATTEMPT this is, and it derives no output from it** (see
+ * `thrownOnce`): deriving a score from a branch index is the first step towards a worker
+ * that decides where its own output goes. Which branch takes which road is decided by the
+ * *entry payload* and the definition's predicate, and by nothing in here. *(This sentence
+ * read "this file does not read it" until W58, and was true until then.)*
  */
 import { BaseWorker } from 'fyflow-scheduler';
 import type { BaseWorkerContext, TaskWorkerContext, WorkerConfig } from 'fyflow-scheduler';
@@ -83,8 +85,29 @@ export const ROLES = [
   // property a decision turns on makes a row that cannot tell the rule from its
   // negation.
   'attest',
+  // **W58's role, and it exists because no shipped one FAILS ONCE.** `fail` fails every
+  // time, so a retry policy on it only spends the budget; this one throws on the first
+  // attempt of a task id and returns on the second, which is the only way a real
+  // scheduler ever sets a non-zero `attempts` on a task that settles `done`.
+  'retry',
 ] as const;
 export type Role = typeof ROLES[number];
+
+/**
+ * **The task ids the `retry` role has already thrown for, per PROCESS.** A retry is a
+ * second attempt of the SAME task id (`spec/flow-definition.md` section 2, v0.16), so
+ * the memo is keyed by the id and nothing else — which is why the role reads
+ * `context.taskId`, the one place in this file that does. **It is read to decide
+ * whether THIS attempt throws, never to decide what is returned or where it goes**:
+ * the second attempt returns a function of the payload alone, exactly as `score` does,
+ * so the role computes and does not route (ADR 0001 rule 2) — the header's own warning
+ * is about deriving an OUTPUT from the id, and this derives none.
+ *
+ * Per process, so the pool must be **inline**: a thread torn down between attempts
+ * would forget, and the row would then measure the pool's lifetime rather than the
+ * scheduler's retry.
+ */
+const thrownOnce = new Set<string>();
 
 export default class FlowWorker extends BaseWorker {
   private readonly role: Role;
@@ -103,13 +126,26 @@ export default class FlowWorker extends BaseWorker {
   async setup(): Promise<void> {}
   async teardown(): Promise<void> {}
 
-  async run(payload: unknown, _context?: TaskWorkerContext): Promise<unknown> {
+  async run(payload: unknown, context?: TaskWorkerContext): Promise<unknown> {
     // A real await, so the two fan-out branches genuinely overlap and their
     // completion order is the scheduler's rather than this file's. Nothing may
     // depend on that order (`doc/concept.md` section 5).
     if (this.delayMs > 0) await new Promise((r) => setTimeout(r, this.delayMs));
 
     switch (this.role) {
+      case 'retry':
+        // **Fails ONCE per task id, then succeeds — W58.** See `thrownOnce` for why
+        // the id is read and what it is not used for. The second attempt's result is
+        // `score`'s shape plus a marker, so a row can tell a retried settlement from a
+        // first-attempt one by the value as well as by `attempts`.
+        {
+          const id = context?.taskId ?? '';
+          if (!thrownOnce.has(id)) {
+            thrownOnce.add(id);
+            throw new Error(`retry worker: first attempt of ${id} fails on purpose`);
+          }
+          return { confidence: confidenceOf(payload), score: Math.round(confidenceOf(payload) * 100), retried: true };
+        }
       case 'ingest':
         return { confidence: confidenceOf(payload) };
       case 'split':

@@ -25,10 +25,15 @@ const EX = `${ROOT}spec/examples`;
 const registryDoc = JSON.parse(await readText(`${EX}/registry.json`)) as {
   predicates: string[];
   workerTypes: string[];
+  groups: string[];
 };
 const registry: Registry = {
   predicates: new Set(registryDoc.predicates),
   workerTypes: new Set(registryDoc.workerTypes),
+  // The third set, v0.16 (W58). Read from the corpus's own registry document, as the other two
+  // are: `FD-V31` is a refusal ABOUT a registry, so `task-config.flow.json` validates only
+  // against one that declares `gpu` and `api`, and the `FD-V31` case names an id it omits.
+  groups: new Set(registryDoc.groups),
 };
 
 const specText = await readText(`${ROOT}spec/flow-definition.md`);
@@ -356,6 +361,12 @@ const SUITES = [
 const LATE_SUITES = [
   // W57 — ADR 0048 rule 5 at L1, in `test/driver/surface.test.ts`.
   'ADR 0048 rule 5 — createTask: the option is honoured, and the default is exactly new FyflowTask(config)',
+  // W58 — `FD-V30`, `FD-V31` and the passthrough, in `test/definition/task-config.test.ts` and
+  // `test/driver/task-config.test.ts`.
+  'FD-V30 — retryPolicy is exactly the scheduler`s shape, every clause, on every shape',
+  'FD-V31 — workerGroups names only groups the registry declares, every clause, on every shape',
+  'the task key table — section 2 and FD-V17 agree on what a task declares, both ways',
+  'W58 — retryPolicy and workerGroups reach createTask exactly as the node declares them',
   'ADR 0046 / RN-R13 — a region releases its collection when its join becomes terminal',
   'OR-R11 — a result is a VALUE, and each shape asserts what does NOT cross',
   'OR-R11 — the corpus half of what bounding a result would cost',

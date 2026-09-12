@@ -17,7 +17,7 @@ import {
   allRegions, branchPathOf, buildGraph, innermostRegionOf, outputIsVisible, toRegion,
   type Graph, type RegionSets,
 } from '../definition/regions.ts';
-import { referenceTarget, validateDefinition, violatedRules } from '../definition/validate.ts';
+import { referenceTarget, retryPolicyProblem, validateDefinition, violatedRules } from '../definition/validate.ts';
 import {
   assertRunId, branchIndices, buildTaskId, InvalidTaskId, parseTaskId, type TaskIdParts,
 } from './ids.ts';
@@ -30,6 +30,8 @@ import type { JoinPolicy, Region, UnsatisfiableJoin } from './policy.ts';
 // The driver PRODUCES this sequence (ADR 0014) and the fold consumes it; the type
 // stays where `spec/run-state.md` defines it rather than being copied here.
 import type { FoldInput } from '../fold/run-state.ts';
+// W58 — the shape `retryPolicy` and `defaultRetryPolicy` share, defined once beside the node.
+import type { RetryPolicy } from '../definition/types.ts';
 // **The scheduler, by NAME — ADR 0048, superseding ADR 0013 rule 1** ([W57](../../doc/work-items/w57-the-scheduler-is-a-dependency.md)).
 // `FyflowTask` is what `createTask` builds when the option is omitted, so a consumer
 // wires a real scheduler up without writing a factory; the type import is what makes
@@ -479,6 +481,14 @@ export type TaskFactory = (config: {
   workerType: string;
   payload: unknown;
   optional: boolean;
+  /**
+   * **Present only when the node declared one or the driver has a `defaultRetryPolicy`** —
+   * W58. A node that says nothing hands the factory the exact four-field object it always
+   * did, so every L2-L5 fake reading `(c) => c` sees no new key on a node that declares none.
+   */
+  retryPolicy?: RetryPolicy;
+  /** Present only when the node declared it — W58. The scheduler unions it with the pool's. */
+  workerGroups?: string[];
 }) => unknown;
 
 /**
@@ -511,6 +521,28 @@ export interface DriverOptions {
   createTask?: TaskFactory;
   predicates: PredicateRegistry;
   workerTypes: Iterable<string>;
+  /**
+   * **The resource-group ids a node may name in `workerGroups`** — `FD-V31`, W58. Pass
+   * `Object.keys(scheduler.groups)`, the scheduler's own map, rather than a second list.
+   * **Omitted means EMPTY**: a definition that declares any group is then refused at
+   * construction, naming the node and the id, because the scheduler would run the task with
+   * the unknown group silently ignored (P16 fact 2). Optional in shape so that no consumer
+   * whose flows declare no group has to change anything.
+   */
+  groups?: Iterable<string>;
+  /**
+   * **A retry policy for every task node that declares none** — W58,
+   * `spec/flow-definition.md` section 2's merge rule: **the node wins, whole.** A node with
+   * its own `retryPolicy` is dispatched with exactly that object and this one is not consulted
+   * field by field. **Held to `FD-V30` at construction**, before the definition is validated —
+   * the first version said *typed rather than re-validated*, and W58's adequacy reader handed it
+   * `{}`, `null`, a string and an extra key, every one of which reached `createTask` untouched.
+   *
+   * There is deliberately **no `defaultWorkerGroups`**: the scheduler already unions a task's
+   * `workerGroups` with its POOL's `groups`, so a pool-level default exists upstream where a
+   * retry default does not (`WorkerManagerOptions` carries none — measured at W58).
+   */
+  defaultRetryPolicy?: RetryPolicy;
   /**
    * Required when the definition contains a fan-out. **W3 ships none** — both
    * policies are W2's and which is right is W4's question (`JP-R7`, `JP-R8`), so
@@ -670,9 +702,23 @@ export class Driver {
     // subscribed to a scheduler for a run it cannot name.
     assertRunId(opts.runId);
     this.runId = opts.runId;
+    // **`defaultRetryPolicy` is held to `FD-V30` here, before the definition is validated** — W58's
+    // adequacy reader (`x03`): a string, `{}`, `null` or an extra key all reached `createTask`
+    // untouched while `retryPolicyProblem`'s own comment said the driver's option read it. The
+    // default is the policy a node would otherwise have declared, so the rule that refuses the
+    // shape on a node refuses it here, under the same id and the same message.
+    if (opts.defaultRetryPolicy !== undefined) {
+      const problem = retryPolicyProblem(opts.defaultRetryPolicy);
+      if (problem !== null) {
+        throw new InvalidDefinition(['FD-V30'], `defaultRetryPolicy is not a RetryPolicy — FD-V30: ${problem}`);
+      }
+    }
     const registry: Registry = {
       predicates: new Set(opts.predicates.keys()),
       workerTypes: new Set(opts.workerTypes),
+      // `FD-V31` — absent means empty (W58). `new Set(undefined)` would also be empty, and
+      // the `?? []` is here so the reading is stated rather than an accident of the constructor.
+      groups: new Set(opts.groups ?? []),
     };
     const findings = validateDefinition(definition, registry);
     if (findings.length) {
@@ -1898,12 +1944,25 @@ export class Driver {
     // deliver the outcome before the dispatch that caused it.
     this.append({ kind: 'dispatched', taskId });
 
+    // **W58 — the two fields a node says about its own task, passed through exactly as
+    // `optional` is.** `retryPolicy` is the node's, whole, or the driver's default when the node
+    // declares none (section 2's merge rule: the node WINS — and since `FD-V30` requires both
+    // keys, a field-wise merge could not differ from this on a valid document; rule 8 measured
+    // that, and the spec says so); `workerGroups`
+    // is the node's alone — the scheduler unions it with the pool's, so there is no default to
+    // merge. **Each key is present only when there is something to pass**, so a node that
+    // declares nothing hands the factory the exact four-field object it did before this item:
+    // `new FyflowTask` reads `undefined` and an absent key identically, and every L2-L5 fake
+    // deep-compares the object it received.
+    const retryPolicy = node.retryPolicy ?? this.opts.defaultRetryPolicy;
     this.opts.scheduler.addTask(
       (this.opts.createTask ?? defaultCreateTask)({
         id: taskId,
         workerType: node.workerType,
         payload,
         optional: node.optional === true,
+        ...(retryPolicy !== undefined ? { retryPolicy } : {}),
+        ...(node.workerGroups !== undefined ? { workerGroups: node.workerGroups } : {}),
       }),
     );
   }
