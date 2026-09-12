@@ -2,7 +2,10 @@
   "name": "@fyflow/orchestration",
   "version": "0.1.0",
   "license": "MIT",
-  "exports": "./index.ts",
+  "exports": {
+    ".": "./index.ts",
+    "./scheduler": "./src/scheduler/index.ts"
+  },
   "imports": {
     "fyflow-scheduler": "jsr:@fyflow/scheduler@0.5.2"
   },
@@ -22,6 +25,9 @@
       "!src/driver/driver.ts",
       "!src/fold/run-state.ts",
       "!src/fold/policies.ts",
+      "!src/scheduler/index.ts",
+      "!src/scheduler/bootstrap.ts",
+      "!src/scheduler/envelope-worker.ts",
       "!README.md"
     ]
   },

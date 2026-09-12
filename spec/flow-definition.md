@@ -1,6 +1,6 @@
 # spec/flow-definition — the flow definition format
 
-**Status:** v0.16 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.17 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2** acted on the first spec-conformity pass
 (ADR 0004, and `region(F)` made computable). **v0.3** acted on the second, which found that `FD-V19`
 had reintroduced the v0.1 defect class under a new id — a refusal rule rejecting the valid corpus.
@@ -198,6 +198,19 @@ id and lands on the outcome record's `attempts`, which a real scheduler sets non
 for the first time under this version. **`FD-V17`'s key table is the only thing that moves for an
 existing document** — every corpus flow validates unchanged, and a node that declares neither key
 is dispatched with the exact object it was before.
+**v0.17 answers [P16](../doc/plans/p16-what-a-node-type-is-and-what-the-library-owes-the-scheduler.md)'s
+question — what a node TYPE is** ([ADR 0049](../doc/decisions/0049-a-node-type-is-a-registry-entry-and-its-worker-receives-an-envelope.md),
+[W59](../doc/work-items/w59-what-a-node-type-is.md)): a `task` may name a **`type`** instead of a
+`workerType` and carry **`settings`**; the type is a REGISTRY entry — worker, pool, groups, config,
+a settings VALIDATOR and a retry default — in a **fourth set, `nodeTypes`**, and the definition
+names none of those; its pool is keyed by the type's name; and its worker receives the **envelope
+`{ settings, input }`**, which is **`FD-C5`** in section 3, defining `input` as *the value this node
+receives* and nothing narrower. Section 5 gains **`FD-V32`**, **`FD-V33`** and **`FD-V34`**, and
+`FD-V23` learns that a task names its pool one of two ways. **A bare `workerType` node is a
+degenerate type and is unchanged to the byte** — every corpus flow validates as it did and every
+untyped dispatch is the object it was. So this document now holds **32 refusals** — `FD-V1` …
+`FD-V34` less `FD-V14` and `FD-V15` — and it is the number `check-spec` prints as *C4 covered 32
+definition refusals*.
 
 **Binds:** [ADR 0002](../doc/decisions/0002-a-flow-definition-is-data-and-a-predicate-is-registered-by-name.md)
 (the graph is data; a predicate is a name; an unknown name fails at instantiation) and
@@ -235,7 +248,7 @@ ADR 0002 rule 2 taken literally (`when: "isLowConfidence"`).
 
 | kind | keys | |
 |---|---|---|
-| `task` | `id`, `kind`, `workerType`, `edges`, **`optional?`**, **`needs?`**, **`retryPolicy?`**, **`workerGroups?`** | binds to a scheduler worker pool. Dispatched as one scheduler task. The last two are what it says about that task — v0.16, below |
+| `task` | `id`, `kind`, `edges`, **exactly one of `workerType` and `type`**, **`settings?`**, **`optional?`**, **`needs?`**, **`retryPolicy?`**, **`workerGroups?`** | binds to a scheduler worker pool — by its key, or through a node TYPE whose pool is keyed by the type's name (v0.17, below). Dispatched as one scheduler task. `retryPolicy` and `workerGroups` are what it says about that task — v0.16, below |
 | `fanout` | `id`, `kind`, `branches` | opens a region with **N branches declared here**. Dispatches nothing itself |
 | `map` | `id`, `kind`, `over`, `branch`, **`needs?`** | opens a region with **one branch, opened N times at run time**. Dispatches nothing itself. v0.8 |
 | `join` | `id`, `kind`, `of`, `edges` | closes the region opened by the `fanout` **or `map`** named in `of`. Dispatches nothing itself |
@@ -352,6 +365,90 @@ TASK half. Re-dispatching a *node* under a new attempt, which is the task id's f
 open. `limitKey`, the scheduler's per-workload bucket for a keyed group, is not configuration and has
 no home here ([Q248](../doc/open-questions.md)); `handleRejection` is irrelevant to a driver that
 routes on events.
+
+### `type` and `settings` — a node TYPE, and the envelope its worker receives — v0.17
+
+```json
+{ "id": "score", "kind": "task", "type": "Scorer", "settings": { "factor": 10 },
+  "edges": [ { "to": "publish" } ] }
+```
+
+A `task` names the thing that runs it **one of two ways**: `workerType`, a key in the scheduler's
+`workerPools`, exactly as it always has; or **`type`**, the name of a **node type** the registry
+declares ([ADR 0049](../doc/decisions/0049-a-node-type-is-a-registry-entry-and-its-worker-receives-an-envelope.md),
+[P16](../doc/plans/p16-what-a-node-type-is-and-what-the-library-owes-the-scheduler.md) decisions 2,
+4, 5 and 6, [W59](../doc/work-items/w59-what-a-node-type-is.md)). **A node type is a REGISTRY
+entry and the definition stays data**: `{ worker, pool, groups, config, settings, retryPolicy }` —
+the worker's module URL, the pool's options, the resource groups the POOL declares, the pool's
+global config, a per-node settings VALIDATOR and a retry default — live in `Registry.nodeTypes`,
+the fourth set beside `predicates`, `workerTypes` and `groups`, and **the definition names none of
+them, never a file and never a URL**. A bare `workerType` node is a degenerate type and is unchanged
+to the byte.
+
+| key | | |
+|---|---|---|
+| `type` | one of `type` and `workerType`, exactly | the name of a node type in the registry's `nodeTypes` **and** of a pool in its `workerTypes` — **a type's pool is keyed by the type's name**, which is what the bootstrap helper builds and what `FD-V32` checks, in that order. Both keys on one node is `FD-V34`; neither is `FD-V23`; a non-string `type` is `FD-V21`, as a non-string `workerType` is, and only a string reaches `FD-V32` |
+| `settings` | optional, typed nodes only | a **plain JSON object** the type's validator accepts (`FD-V33`); **absent means `{}`**, and the validator sees `{}`. On a node with no `type` it is `FD-V34`, because it would be carried nowhere |
+
+**What the worker receives is the ENVELOPE `{ settings, input }` — `FD-C5`, section 3.** `settings`
+is the node's effective settings, as its **own copy** per dispatch (a map's N instances get N
+copies — `JP-R11`'s invariant one field over); **`input` is the value this node receives** —
+exactly what an untyped node in the same position would have been handed as its whole payload.
+An untyped node receives no envelope and no reserved key, so [ADR 0040](../doc/decisions/0040-what-a-node-can-reach-is-the-runs-own-outputs-and-a-node-id-names-them-relative-to-a-branch-path.md)
+rule 6 is untouched. The alternative — one pool per distinct settings value, settings delivered
+as pool `config` — needs no envelope and is recorded in ADR 0049 as the road not taken, with its
+cost ([Q250](../doc/open-questions.md)).
+
+**Why a VALIDATOR and not a schema.** The type's `settings` entry is a function, registered by name
+exactly as a predicate is (ADR 0002 rule 3): `null` accepts, a string is *why* and becomes
+`FD-V33`'s detail; a validator that **throws** refuses, with its message, and one returning a
+boolean refuses too, because a boolean has two readings and this contract has one. A declared,
+portable schema language is P18's subject, and inventing one here to make `FD-V33` decidable would
+decide that plan from the convenience of this rule. *Plain object* is checked as the shape
+`JSON.parse` can produce — an object, not `null`, not an array — so a hand-built definition carrying
+a `Date` or a class instance passes the shape clause and reaches the envelope as `structuredClone`
+leaves it (`OR-R11`'s lossy rows), which is ADR 0002 rule 1's own limit and not this rule's. An
+unregistered `type` beside a malformed `settings` reports **both** `FD-V32` and `FD-V33`, section
+5's *every violation*. **The validator runs at construction and
+nowhere else.** Measured at W59: the driver holds the definition **by reference**, so a document
+mutated after `new Driver` — `settings`, `workerType`, `optional`, any key — is dispatched as
+mutated, and no rule here sees it; that road pre-dates this version, is the same for every key, and
+is recorded rather than closed ([Q259](../doc/open-questions.md)).
+
+A `settings` entry that is **not a function** — the schema an author reaches for — is the
+registry's mistake and is refused at construction under `FD-V33` naming the TYPE, not on every node
+of it.
+
+**What a type declares FOR its nodes, and how it merges.** `retryPolicy`: **the node wins, whole;
+then the type; then the driver's `defaultRetryPolicy`** — v0.16's rule with one more level, and a
+type's policy is held to `FD-V30` at construction naming the type, as the default is. `groups` are
+the POOL's: every task of the type acquires them and the scheduler **unions** them with the node's
+own `workerGroups` (W58's measurement), so nothing merges. Each must be one `Registry.groups`
+declares, held at construction under `FD-V31` naming the type — because **a pool naming a group the
+scheduler lacks acquires nothing and says nothing**, measured at W59 in both runtimes: P16 fact 2
+one level up, and the same silence a task gets. And groups resolve by the scheduler's **map key**;
+a group object's own `name` is inert (measured).
+
+**The bootstrap helper is the one place the published package constructs scheduler objects** —
+`fyflow-orchestration/scheduler`, a sub-path so the pure entry stays free of it (P16 decision 5,
+legal since [ADR 0048](../doc/decisions/0048-the-scheduler-is-a-declared-dependency-reached-by-one-bare-specifier.md)).
+`bootstrap(nodeTypes, groups)` returns `{ workerPools, resourceGroups }`: one `WorkerManager` per
+type, **keyed by the type's name**, running the package's envelope worker with the type's `worker`
+and `config` in its pool config, its `pool` options and its `groups`; and refuses, **both ways**, a
+type naming a group with no object and an object no type names — the second because a group
+registered and used by nothing is the silent kind. The consumer spreads its own bare pools and
+groups beside those, and passes the driver `Object.keys(scheduler.workerPools)`,
+`Object.keys(scheduler.groups)` and the same `nodeTypes` — read from the scheduler, never written
+out again (`FD-V5`'s precedent at ladder L6). **What no check sees**: a type name colliding with a
+consumer's own bare pool key, which a constructor-argument spread overwrites in silence; the
+envelope worker's refusal of a non-envelope payload — a task failure naming the pool, measured —
+is the backstop ([Q260](../doc/open-questions.md)).
+
+**What this is NOT.** A type says nothing about what its worker EXPECTS or RETURNS — input and
+output schemas are P18's. A transform on the envelope is P17's ([Q251](../doc/open-questions.md)),
+and `FD-C5`'s wording is what leaves it a place to sit. A node type has no VERSION
+([Q249](../doc/open-questions.md)). Cases: `spec/examples/valid/typed.flow.json` carries a typed
+task on all three shapes; `spec/examples/invalid/` carries one document per rule.
 
 ### `map` — a region whose arity is not in the document — v0.8
 
@@ -706,6 +803,7 @@ resolving to `undefined`.
 | `FD-C1` | **What a node receives.** *(v0.15 — the VISIBILITY half of this rule is amended by [ADR 0044](../doc/decisions/0044-a-reference-is-visible-when-two-paths-agree-on-the-regions-that-contain-both-of-them.md): an output is visible to a reader when their two branch paths agree on the regions their two region CHAINS share, and *one path is a prefix of the other* is that rule's special case. Everything else in this row is unchanged. **The derivation shipped with the rule and the RESOLVER followed in W50**, so a run applies it — see the header. Test: at ladder L1, `test/definition/sibling-regions.test.ts` — `sharedRegionDepth` and `outputIsVisible` against a hand-derived table over six documents, the old rule pinned to the sentence this document carried before v0.15, and the two compared over every nesting pair and every sibling pair.)* With no `needs`, the source node's effective-outcome `result`, deep-copied — the paragraph above, unchanged. With a `needs`, **exactly** the object it describes: one key per declared key, each resolved by the table above and each its own copy. Test: at ladder L2, over `map-with-context.flow.json` and `map-over-region-output.flow.json`, asserting the composed payload of **every dispatch a `needs` composes** — which is 2 of that flow's 4 and 3 of this one's 7, the rest being nodes that declare none; and that a node with no `needs` is byte-unchanged, which the L1-L5 suite asserts as a whole — **574 cases when `FD-C1` was written and 681 now**, and the claim is that the number MOVES only for reasons an item names | **[W41](../doc/work-items/w41-what-a-node-can-reach-and-what-names-it.md)** |
 | `FD-C4` | **What a CONDITIONAL reference carries when its target produced nothing on this path** — v0.13, [ADR 0042](../doc/decisions/0042-a-reference-says-whether-it-is-conditional-and-the-bare-form-means-the-target-certainly-ran.md) rule 4. For `"n?"` the key is **absent** from the composed object — not present holding `null`, and not present holding `undefined`, because `null` is what a reference to a task that ran and FAILED already resolves to. For `["n?"]` the key is present holding **`[]`**. Everything else is `FD-C1`'s row for the unsuffixed form, unchanged: the visibility predicate, the order, and the per-key copy. **At both declaration sites**, by the same expression — an edge's conditional reference that resolves to nothing leaves `ctx.needs` without that key, so a predicate reads `'f' in ctx.needs` (`FD-C3`). Test: at ladder L2, over `reference-if-it-ran.flow.json` — one flow, **two runs**, the key present on one and absent on the other, and the run completing on both; and the array form over a SIBLING map region past the first's arity, giving `[]`. *(This cell said *"a nested map region"*; `reference-past-a-map-arity`'s two regions are sequential siblings — `rank` is in `after(split)`, not in `region(split)` — and the nested-map flows are `map-in-fanout` and `nested-map`, neither of which is used. Third occurrence in this document of a rule cell naming a test other than the one that exists. W45's conformity reader.)* | **[W45](../doc/work-items/w45-what-a-reference-must-be-able-to-say.md)** |
 | `FD-C2` | **What names an output is the pair `(node id, branchPath)`.** A node id alone names one output outside a `map` region and **N** inside one, so a projection keyed by node id collapses a map's instances — which is what a reference must not do. A `needs` reference names a node **id**, because a branch path inside a map region is a property of the **dispatch** (section 4, `ID-R6`) and no author can write one. Test: at ladder L2, the pairs are distinct over **every region-bearing corpus flow** — the census derives that set from the directory rather than from a list beside itself, and it is **ten** flows since W50 added `sibling-fanouts` — while the node ids collapse in exactly the map-bearing ones. *(This cell read *"all four … and the two this item adds"*, which was W41's count and went stale twice. W50's conformity reader.)* | **[W41](../doc/work-items/w41-what-a-node-can-reach-and-what-names-it.md)** |
+| `FD-C5` | **What a TYPED node's worker receives: the envelope `{ settings, input }`** — v0.17, [ADR 0049](../doc/decisions/0049-a-node-type-is-a-registry-entry-and-its-worker-receives-an-envelope.md) rule 3, section 2's `type` subsection. `settings` is the node's effective `settings` (`{}` when it declares none), as its **own copy** per dispatch; **`input` is THE VALUE THIS NODE RECEIVES** — exactly what an untyped node in the same position would have been handed as its whole payload: the ordinary edge's value (section 3), the object its `needs` describes (`FD-C1`), its own item as a map instance (`JP-R11`), or the collection as a join's successor (`JP-R12`). No more and no less: an untyped node receives no envelope and no reserved key (ADR 0040 rule 6 untouched), and a typed node's worker reads its two keys by name. **Defined as the value RECEIVED and never as "what `needs` composed"**, deliberately, so a later per-node transform ([Q251](../doc/open-questions.md)) sits between composition and this envelope without rewording the rule. Two typed nodes of one type with different `settings` receive different envelopes and the same `input` rule, which is what the exit artifact shows on real workers | **[W59](../doc/work-items/w59-what-a-node-type-is.md)** — `test/driver/node-type.test.ts` at L2 on all three shapes, as a PAIR against the untyped node's whole payload; `examples/l6.ts` at L6 |
 
 ### An EDGE may declare `needs` too, and what it gives is what its PREDICATE sees — v0.12
 
@@ -1071,9 +1169,9 @@ C4 fails if one is missing.
 | `FD-V18` | an edge's `on` is present and is not a non-empty array of distinct values drawn from `"done"` and `"failed"`. **`"user_action"` is refused** — it suspends rather than routes (ADR 0004 rule 3, [Q30](../doc/open-questions.md)) |
 | `FD-V19` | a node whose kind is not `end` belongs to `branchOf(F, bᵢ)` for **two distinct** branch entries of the same `fanout`. Convergent branches make `branchPath` a property of the traversal rather than of the node, and P1 refuses them ([Q27](../doc/open-questions.md)) |
 | `FD-V20` | a node outside `region(F)` has an edge to `F`'s join |
-| `FD-V21` | a declared key holds a value of the wrong type **or outside its declared range** — `optional` not a boolean, `edges` not an array, `outcome` not a string, `version` not an integer or below 1, and so on |
+| `FD-V21` | a declared key holds a value of the wrong type **or outside its declared range** — `optional` not a boolean, `edges` not an array, `outcome` not a string, `version` not an integer or below 1, `workerType` or **`type`** not a string (v0.17), and so on |
 | `FD-V22` | a node in `region(F)` whose kind is not `end` has an incoming edge from a node that is neither in `region(F)` nor `F` itself. **The only way into a region is through the node that OPENED it** — its `fanout` or, since v0.8, its `map`. Section 4's *"where a rule says a fanout `F` it means whichever kind opened the region"* is scoped to that section, so this rider says it in the section where the rule lives |
-| `FD-V23` | a **required key is absent** — a node without `id` or `kind`; a `task` without `workerType` or `edges`; a `fanout` without `branches`; **a `map` without `over` or `branch`**; a `join` without `of` or `edges`; an `end` without `outcome`; an edge without `to`; or the document without `flowId`, `version`, `entry` or `nodes`. **`version` is required**, matching section 1 — an omitted version is one that silently means nothing |
+| `FD-V23` | a **required key is absent** — a node without `id` or `kind`; a `task` without `edges`, **or with neither `workerType` nor `type`** (v0.17: a task names its pool one of two ways, and a key table cannot say *exactly one of*); a `fanout` without `branches`; **a `map` without `over` or `branch`**; a `join` without `of` or `edges`; an `end` without `outcome`; an edge without `to`; or the document without `flowId`, `version`, `entry` or `nodes`. **`version` is required**, matching section 1 — an omitted version is one that silently means nothing |
 | `FD-V24` | a node's `kind` is not one of `task`, `fanout`, **`map`**, `join`, `end`. **`kind: "decision"` is the case this exists for** — section 2 warns the author away from that word, and until v0.4 nothing rejected it |
 | `FD-V25` | a `map` has `edges`; its `branch` names a node whose kind is not `task`; or its `over` is not a string matching `^[A-Za-z0-9_-]{1,64}$`. **The map's own rule, and `FD-V9` is unchanged** — each is about one node kind, because a rule about two kinds is the confusion [ADR 0036](../doc/decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md) exists to remove. A map declares ONE branch, so `FD-V9`'s arity floor and repeated-entry clause have nothing to say about it and are not restated here |
 | `FD-V26` | a `needs` — **on a node OR on an edge** — is not an object, is an empty one, has a key outside `^[A-Za-z0-9_-]{1,64}$`, or has a value that is not `"."`, a node id **with an optional `?` suffix**, or a one-element array holding one; **or is on an EDGE and uses `"."`**, which a predicate has no use for because `ctx.outcome` already carries what it would otherwise name (v0.12). **Section 3's grammar and nothing else** — where the reference POINTS is `FD-V27`'s and `FD-V28`'s. *"Only a `task` or a `map` may carry `needs`"* is **deliberately not a clause here**: `needs` is absent from the other three kinds' key lists, so `FD-V17` already refuses it and names the kind, and a second rule saying the same thing is one `FD-V17` could never disagree with |
@@ -1082,6 +1180,9 @@ C4 fails if one is missing.
 | `FD-V29` | a `needs` reference in an **unconditional** form names a node that a run can reach the declaring node **without having run** — v0.13, [ADR 0042](../doc/decisions/0042-a-reference-says-whether-it-is-conditional-and-the-bare-form-means-the-target-certainly-ran.md). **It is not dominance**, and that is the whole of the rule: the graph has two kinds of branching and dominance treats them the same — a `task`'s `edges` are **disjunctive**, exactly one being taken (section 3's routing rule 2), while a `fanout`'s `branches` and a `map`'s `branch` are **conjunctive**, all being entered before any dispatch (`JP-R5`). So a node is *certain* for a reader when it is on every path from `entry` to it **with a region's branch entries counted as certain for that region's join**, and a branch entry never dominates its own join. **Measured: over both corpora as they stood when this rule was decided (26 flows), of the 127 references `FD-V26`/`FD-V27`/`FD-V28` admit, dominance refuses 30 and this rule refuses 8** — a strict subset, over 7 distinct shapes, and **0 of the 6 references the corpora actually write**. **Its own id rather than a clause of `FD-V27`, on `FD-V28`'s own stated precedent**: `FD-V27` is *that node cannot have produced anything for you* and the fix is to re-point the reference; this is *it MIGHT not have* and the fix is to write `?`. **Its LIMIT is written into it, and it is the POLICY rather than any particular road**: *the join fired, therefore every branch entry settled* is a property of the policy, and `validateDefinition` is not given one (`FD-V15`'s note, [Q97](../doc/open-questions.md)) — so a policy that fires a join while a branch entry has **not settled**, for any reason at all, falsifies the credit. *(This clause said *"parked at `user_action`"*, and W45's conformity reader measured that parking is inessential: a policy satisfied on the first arrival, with the other branch entry simply **never settling**, dispatches the reader and `FD-R3` fires with no `user_action` anywhere. **The rule text was right and every enumeration of its limit named one road.**)* So this rule removes cases from `FD-R3`'s reach and does not replace it. Case: `spec/examples/invalid/FD-V29--reference-across-a-decision.flow.json` |
 | `FD-V30` | a `task`'s `retryPolicy` is not **exactly** the scheduler's shape — v0.16, section 2: not an object; missing `maxRetries` or `backoffMs`; **carrying any key beside those two**; `maxRetries` not an integer >= 0; or `backoffMs` not a finite number >= 0. **Every clause is a measurement of what the scheduler does with the shape in silence** — `{}` means *no retries*, a string `maxRetries` retries by coercion, an extra key is dropped — and a definition may not mean something quietly. **Its own id rather than a clause of `FD-V21`, on `FD-V26`'s precedent**: the rule owns the key's whole shape because the fix is one row whichever clause fired. Case: `spec/examples/invalid/FD-V30--retry-policy-max-retries-is-a-string.flow.json`, the coercion case, because it is the one the scheduler gets *wrong* rather than merely quiet about |
 | `FD-V31` | a `task`'s `workerGroups` is not a **non-empty array of distinct strings every one of which the registry's `groups` set declares** — v0.16, section 2. **The registry set is EMPTY when absent**, so a document declaring any group is refused against a registry that says nothing about groups; the alternative reading was priced and refused. The rule exists because the scheduler runs a task whose group id it does not know **as if the group were not there** — no throw, no `resource.blocked`, `done` — so the name is caught nowhere downstream (ADR 0002 rule 3, `FD-V5`'s shape). An empty array is refused for `FD-V26`'s empty-`needs` reason, and a repeat because the scheduler's own source unions a task's groups with its pool's through a `Set`, so a repeat is dropped in silence — **read from the published build, not measured**, which is the one clause here whose provenance is the source rather than a run (W58's conformity reader). Case: `spec/examples/invalid/FD-V31--worker-group-not-in-registry.flow.json`, against `spec/examples/registry.json`, which deliberately omits the id it names |
+| `FD-V32` | a `task`'s `type` names **no registered node type**, or names one **the scheduler has no pool of that name for** — v0.17, section 2. The registry's `nodeTypes` set is **EMPTY when absent**, on `FD-V31`'s reading. **Two clauses under one id** because both mean *this node cannot run* and the fix is the registry either way; the second is reported only when the first passed, because a type's pool is keyed by its name and the bootstrap helper is what builds it. Case: `spec/examples/invalid/FD-V32--type-not-in-registry.flow.json`, against `spec/examples/registry.json`, which deliberately omits the name |
+| `FD-V33` | a typed `task`'s `settings` is **not a plain object**, or the type's **validator refuses** the effective settings — `{}` when the node declares none — by returning a string, by **throwing**, or by returning anything that is neither `null` nor a string. v0.17, section 2. **Its own id rather than a clause of `FD-V21`, on `FD-V30`'s precedent**: the rule owns the key's whole shape because an author fixes both clauses in the same place. Case: `spec/examples/invalid/FD-V33--settings-the-type-refuses.flow.json`, against the corpus's `Scorer` validator in `test/definition/corpus-types.ts` — a function, which `registry.json` names and cannot carry |
+| `FD-V34` | the typed and untyped halves are **mixed** on one `task`: `type` declared **beside** `workerType`; a `workerType` that **names a node type** (its pool is keyed by its name, so `FD-V5` is silent — and a bare node would hand the type's worker the raw payload where it reads the envelope, a run-time task failure measured at W59); or `settings` on a node with **no `type`**, which would be carried nowhere. v0.17, section 2. **One id for three clauses** because an author fixes all three by deciding which half the node is in. Case: `spec/examples/invalid/FD-V34--type-beside-worker-type.flow.json` |
 
 **`FD-V19`'s second clause is derived rather than stated.** *"One branch entry is reachable from
 another"* needs no rule of its own: `FD-V9` requires every branch entry to be a `task`, and a branch
@@ -1181,6 +1282,7 @@ instantiation, and instantiation is a driver action. Hand-written, never generat
 | `reference-past-a-map-arity.flow.json` | **the document that KEPT `FD-R3` reachable with no custom policy, until v0.15** — two **sibling** `map` regions over different keys, and `publish`'s `needs: {"scored": ["score"]}` names a node `FD-V29` correctly calls certain. Every instance of `rank` beyond `split`'s arity HAD a branch path comparable with **none** of `score`'s outputs, which is the half `FD-V29` cannot see: *did it run* and *is it on your path* are two questions. **And within the arity it exposes the other half of the same fact** — the array holds the ONE index-matched output rather than all N, which is the note under section 3's reference table and [Q206](../doc/open-questions.md), not something this flow introduces. **BOTH halves are what v0.15 removes, and the opening sentence of this cell is what it costs**: [ADR 0044](../doc/decisions/0044-a-reference-is-visible-when-two-paths-agree-on-the-regions-that-contain-both-of-them.md) makes `publish` see all N at every arity pair, so **this document no longer keeps `FD-R3` reachable** and what it demonstrates instead is the fix — every instance receives all N at every arity pair, asserted at L2. *(The opening sentence is the record of what it was FOR, and it is what its removal cost: `FD-R3` now has one road and it needs a join policy `validateDefinition` is not given ([Q218](../doc/open-questions.md)). This cell asserted both halves in the present tense at once, which W49's conformity reader caught, and W50 is where the second became true.)* v0.13 |
 | `sibling-fanouts.flow.json` | **the case neither corpus contained, and the one that shows the defect was never about a `map`** — two sequential `fanout` regions, with **both** branches of the second declaring `needs: {"own": ".", "first": "scoreA1"}` against branch 0 of the first — and the two branch entries of the FIRST region declare different worker types. **This document is validated at L4 and never RUN**, so nothing here observes a result; the two roles are here so that its L6 counterpart, `examples/flows/sibling-fanouts.flow.json`, can tell which branch a reader received. **The two are separate documents against separate registries and they DIVERGE at that node** — `ReviewWorker` here, `TallyWorker` there, because the corpus registry has no worker whose result differs from `ScoreWorker`'s and is not a failing role. W51's rule 8 set graded *both branches return the same thing* a SURVIVOR at zero, and W51's conformity reader found this sentence claiming the fix where nothing runs. Under the prefix rule `publishB1` at path `0` resolved and `publishB2` at path `1` **stopped the run** at `FD-R3`, on a document validating with **zero findings** whose target `FD-V29` correctly calls certain — no arity, no `map`, and the branch the author wrote the reference in deciding whether the run completed. **The two branches are a discriminating PAIR and their difference is asserted rather than left to a literal** (`doc/workflow.md` section 5 rule 8's fourth requirement on the set). Built by [W49](../doc/work-items/w49-what-a-reference-across-sibling-regions-means.md), which could not add it — a corpus flow is validated at L4 AND RUN, and until the resolver followed it was a valid document whose run stopped. v0.15 |
 | `task-config.flow.json` | **what a node says about its own task, in all three shapes** — v0.16, [W58](../doc/work-items/w58-what-a-node-says-about-its-own-task.md). `retryPolicy` and `workerGroups` on a top-level task (`ingest`), on a task inside a `fanout` branch (`scoreA`, with `scoreB` declaring neither so the two branches differ), and on the **branch task of a `map`** (`rank`), where both are per INSTANCE — the shape the feature was not built for, and `doc/workflow.md` section 5 rule 8 obligation (a)'s v0.16 clause is why it is here rather than only in a unit test. Names both of `registry.json`'s groups, `gpu` and `api`, one node naming both. **Validated at L4 and never RUN**: its `MergeWorker` is the corpus's, and what a real run of a retry looks like is `examples/flows/retry.flow.json` and `group.flow.json` at ladder L6 |
+| `typed.flow.json` | **a node TYPE, in all FOUR shapes `FD-C5` enumerates** — v0.17, [W59](../doc/work-items/w59-what-a-node-type-is.md). `type: "Scorer"` on the top-level entry (`ingest`, declaring **no** `settings`, so the `{}` default the validator sees is in the corpus), on the **branch task of a `map`** (`rank`, `settings: { factor: 100 }` — per INSTANCE, the envelope wrapping each instance's own item under `JP-R11`), on a task inside a `fanout` branch (`scoreA`, `settings: { factor: 10 }`, beside `scoreB` naming a bare `workerType` so the two halves sit in one region), and on a **join's successor** (`publish`, `settings: { factor: 1 }`, whose `input` is `JP-R12`'s collection — the fourth kind, which no suite instantiated until W59's adequacy reader found a driver handing it `{}` cost zero). `Scorer` is in `registry.json` under `nodeTypes` **and** under `workerTypes`, because a type's pool is keyed by its name (`FD-V32`), and its validator is `test/definition/corpus-types.ts`'s. **Validated at L4 and never RUN**: what two typed nodes of one type with different settings do on real workers is `examples/flows/typed.flow.json` and `typed-regions.flow.json` at ladder L6 |
 
 **This table and the directory are compared BOTH WAYS, and that is v0.8's addition rather than a
 restatement.** `test/definition/l4-corpus.test.ts` asserts the set of `.flow.json` files in
@@ -1197,8 +1299,12 @@ nothing at all, because the only bound was *"the corpus is not empty"*
 **`spec/examples/registry.json` is the registry L4 validates against**, and it is part of the
 corpus rather than a fixture W3 invents: `FD-V4` and `FD-V5` are refusals *about a registry*, so
 without one written down the two cases cannot be evaluated and every other example's `when` name is
-unchecked. It lists the predicate names, worker types **and, since v0.16, the resource-group ids**
-the valid corpus uses, and deliberately **omits** the ones the `FD-V4`, `FD-V5` and `FD-V31` cases
-name.
+unchecked. It lists the predicate names, worker types, **since v0.16 the resource-group ids and
+since v0.17 the node TYPE names** the valid corpus uses, and deliberately **omits** the ones the
+`FD-V4`, `FD-V5`, `FD-V31` and `FD-V32` cases name. **A node type's validator is a function, which a
+JSON document cannot carry**, so `registry.json` names the types and `test/definition/corpus-types.ts`
+is where the names resolve — the split the corpus's predicates have always had — and ladder L4
+compares the two lists both ways. *(`check-spec`'s `C7` reads predicates and worker types from this
+file and neither `groups` nor `nodeTypes`; the L4 suite is where those two are bound.)*
 
 `spec/examples/invalid/` — one per `FD-V*` rule, filename `<rule-id>--<slug>.flow.json`.

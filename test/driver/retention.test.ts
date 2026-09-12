@@ -126,7 +126,10 @@ const heldArrivals = (d: Driver): number => {
  * which is the whole of *a sixth structure holding a result is a second copy and this
  * is what would say so*.
  */
-const NOT_RUN_STATE = ['def', 'graph', 'opts'];
+// `nodeTypes` since W59: the registry's node types, normalised once at construction — a map
+// of consumer-supplied entries whose `settings` are FUNCTIONS, so it is configuration exactly
+// as `opts` is, holds no result, and a serialising walk would refuse it.
+const NOT_RUN_STATE = ['def', 'graph', 'nodeTypes', 'opts'];
 
 /** The driver's own growing structures — every own property that is not in the list above. */
 const walkableKeys = (d: Driver): string[] =>
@@ -207,8 +210,11 @@ const THREE = { items: ['a', 'b', 'c'], rows: ['x', 'y'] };
  */
 const DRIVER_FIELDS = [
   'arrivals', 'def', 'dispatched', 'failed', 'firedJoins', 'graph', 'inputs', 'joinState',
-  'log', 'now', 'opts', 'outputsCache', 'regions', 'runId', 'started',
+  'log', 'nodeTypes', 'now', 'opts', 'outputsCache', 'regions', 'runId', 'started',
 ].sort();
+// `nodeTypes` since W59 — the ratchet firing as designed: the field was added and this list went
+// red naming it. It holds the registry's node types (consumer functions, no result) and joins
+// `NOT_RUN_STATE` above rather than the walk, for the reason stated there.
 // *(This list read THIRTEEN on its first run and the assertion below caught it
 // immediately: it was derived from `dev-dist/p15/facts.ts`, whose enumeration skips
 // anything that is not an object, so the two booleans `failed` and `started` were

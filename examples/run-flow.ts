@@ -50,19 +50,60 @@ import {
   type UnsatisfiableJoin,
 } from '../index.ts';
 import { ConcurrentLimitGroup, FyflowScheduler, FyflowTask, WorkerManager } from 'fyflow-scheduler';
+// **The SUB-PATH, by its published entry — W59.** `fyflow-orchestration/scheduler` is the one
+// module of this package that constructs scheduler objects, and this file reaches it exactly as
+// a consumer does: through the sub-path's entry and never a file under it. The reaches-past-index
+// clause in `l6.ts` exempts this one path by name, because it IS a consumer surface.
+import { bootstrap } from '../src/scheduler/index.ts';
+import type { NodeType } from '../index.ts';
 // **The worker file`s own role list, imported rather than repeated** — W43. See
 // `ROLES` there: three lists said the same seven things and nothing compared them.
 import type { Role } from './workers/flow-worker.ts';
 
 /**
- * The **eleven** pools `buildScheduler` registers, all served by one worker file.
+ * The **twelve** pools `buildScheduler` registers, all served by one worker file — eleven by
+ * `pool()` and one, the `Scorer` type's, by the bootstrap helper (W59).
  *
  * *(This read "the three pools `spec/examples/registry.json` names" from the day it
- * was written. There are eleven since W58 — ten until then — naming ten distinct roles, and `SplitWorker`,
+ * was written. There are twelve since W59 — eleven since W58, ten until then — naming eleven distinct roles, and `SplitWorker`,
  * `TallyWorker` and `WeighWorker` are in no registry at all — the registry is the
  * corpus`s and these pools are this file`s. W43`s conformity reader.)*
  */
 const WORKER_URL = new URL('./workers/flow-worker.ts', import.meta.url).href;
+
+/**
+ * **The node TYPES this rung registers — W59, ADR 0049 — and the ONE object both the helper and
+ * every driver read.** `buildScheduler` hands it to `bootstrap`, which builds one pool per type
+ * keyed by the type's name and running the package's envelope worker around this file's own
+ * worker with `config: { role: 'typed' }`; `runFlow` hands the same object to the `Driver`, so the
+ * type a document names, the pool the scheduler holds and the validator the driver runs cannot
+ * be three copies. Exported so `l6.ts` can compare its keys to the types the flows NAME and to the
+ * pools the scheduler REPORTS, both ways (rule 8 obligation (e)).
+ *
+ * One type, deliberately: the exit artifact is *two nodes of ONE type with DIFFERENT settings*,
+ * and a second type would let a row pass on the type rather than on the settings. **Inline**, for
+ * `retry`'s reason — the `typed` role's first-attempt memo is per process. `groups: ['scorer']`
+ * is the group every task of the type holds, registered through the helper and read back off
+ * `scheduler.groups` like `gate`. `retryPolicy` is the TYPE's, and it is what `typed.flow.json`'s
+ * `high` node retries under — the node declares none.
+ */
+export const NODE_TYPES: Readonly<Record<string, NodeType>> = {
+  Scorer: {
+    worker: WORKER_URL,
+    config: { role: 'typed' },
+    pool: { maxThreads: 2, inline: true, idleTimeout: 0 },
+    groups: ['scorer'],
+    retryPolicy: { maxRetries: 1, backoffMs: 0 },
+    // `factor` a positive finite number, `failFirst` a boolean when present, nothing else — the
+    // two keys the `typed` role reads, and a typo in either is refused at construction (FD-V33).
+    settings: (s) => {
+      for (const k of Object.keys(s)) if (k !== 'factor' && k !== 'failFirst') return `settings carries undeclared key "${k}"; Scorer declares "factor" and "failFirst"`;
+      if (typeof s.factor !== 'number' || !Number.isFinite(s.factor) || s.factor <= 0) return `settings.factor must be a positive finite number, got ${JSON.stringify(s.factor)}`;
+      if (s.failFirst !== undefined && typeof s.failFirst !== 'boolean') return `settings.failFirst must be a boolean, got ${JSON.stringify(s.failFirst)}`;
+      return null;
+    },
+  },
+};
 
 /**
  * **What the driver was still holding, observed at the two ends of `JP-R12`'s
@@ -250,11 +291,26 @@ export interface RunReport {
    */
   resourceEvents: Readonly<Record<string, readonly string[]>>;
   /**
+   * **WHICH groups a task acquired, in order, per task id — W59.** `resourceEvents` above records
+   * event NAMES; this records the `groupId` of every `resource.acquired` the scheduler emitted on
+   * the task's behalf, so a row can assert that a typed task held the group its TYPE declares —
+   * by id, not merely that some resource event happened. Empty for every task whose pool and
+   * node declare no group, which is every task outside W58's and W59's rows.
+   */
+  heldGroups: Readonly<Record<string, readonly string[]>>;
+  /**
    * The ids of the resource groups the scheduler holds, read from `scheduler.groups` at
    * construction — the same reading the driver's `groups` option is derived from, so a
    * cross-row clause can compare what the L6 flows NAME to what the scheduler DECLARES.
    */
   schedulerGroups: readonly string[];
+  /**
+   * The keys of `scheduler.workerPools`, read at construction — the reading the driver's
+   * `workerTypes` option IS, reported so a cross-row clause can compare the pools the helper built
+   * for `NODE_TYPES` to the types the flows name, both ways, from the scheduler rather than from a
+   * list beside it (W59).
+   */
+  schedulerPools: readonly string[];
   /** How many times `holdGroup`'s slot was released by this harness. `0` when nothing was held. */
   heldGroupReleases: number;
   /**
@@ -715,7 +771,9 @@ const loggedResults = (d: Driver): unknown[] =>
  * can re-take — and it is the same universe `dev-dist/p15/scale.ts` used, so this
  * rung's number and P15 fact 5's table are the same measurement at two scales.
  */
-const NOT_RUN_STATE = ['def', 'graph', 'opts'];
+// `nodeTypes` since W59: the registry's node types — consumer configuration holding validator
+// FUNCTIONS, which `v8.serialize` refuses and which hold no result. The same reading as `opts`.
+const NOT_RUN_STATE = ['def', 'graph', 'nodeTypes', 'opts'];
 
 /** The two halves of `NOT_RUN_STATE`'s claim, for the clause in `examples/l6.ts` that binds it. */
 const walkOf = (d: Driver): { walked: string[]; skipped: string[] } => {
@@ -908,6 +966,18 @@ export function buildScheduler(delayMs: number, threaded: boolean): FyflowSchedu
       idleTimeout: 0,
     });
 
+  // **The typed half, through the helper** — the ONE call in this repository that a consumer
+  // copies. Its group objects are the TYPES' groups and only theirs (the helper refuses one no
+  // type names), so `gate`, which a bare node names, is registered below beside its result.
+  // **The KEY is `scorer` and the object calls itself something else, on purpose** — the adequacy
+  // reader (q13): ADR 0049 fact 2 says the scheduler resolves a group by the map key and the
+  // object's own name is inert, and every fixture in the tree had the two equal, so a helper
+  // checking the inert name survived every rung. `heldGroups` records the scheduler's `groupId`,
+  // which is the KEY; a row reading `scorer` is now a claim about which of the two it is.
+  const typed = bootstrap(NODE_TYPES, {
+    scorer: new ConcurrentLimitGroup(8, 'scorer-by-object-name'),
+  });
+
   return new FyflowScheduler({
     IngestWorker: pool('ingest', false),
     // The fan-out pool, and the only one that may run on real threads: it is the
@@ -966,12 +1036,22 @@ export function buildScheduler(delayMs: number, threaded: boolean): FyflowSchedu
     // and one that declares nothing ends `user_action` — one worker, two outcomes, chosen by
     // the NODE, which is `fail`'s own lesson with a retry in it.
     RetryWorker: pool('retry', false),
+    // **W59's TYPED pool, and it is not a `pool()` line**: the bootstrap helper builds it from
+    // `NODE_TYPES`, keyed `Scorer`, running the package's ENVELOPE worker around this file's
+    // worker. Spread in beside the bare pools exactly as `AGENTS.md`'s wiring section shows a
+    // consumer doing it — the helper's pools and groups sit beside the consumer's own.
+    ...typed.workerPools,
   }, {
-    // **The one resource group this scheduler declares — W58's group row.** A limit of ONE so
+    // **The resource group the hand-built half declares — W58's group row.** A limit of ONE so
     // the harness can hold its whole capacity with a single `onStart()`, and any task naming
     // it is blocked until the harness lets go. It is the value `runFlow` derives the driver's
     // `groups` option from, read back off `scheduler.groups` rather than named twice.
     gate: new ConcurrentLimitGroup(1, 'gate'),
+    // And the group the TYPE declares, built through the helper (`typed` above): a limit of
+    // EIGHT, so the three map instances of `typed-regions.flow.json` never block on it and every
+    // typed task reports the same three-event sequence — the row is about which group was HELD,
+    // not about contention, which is `gate`'s row.
+    ...typed.resourceGroups,
   });
 }
 
@@ -1099,10 +1179,13 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
   // listeners are what make the group row observable at all; on every other row they record
   // nothing, because no task names a group and no pool declares one.
   const resourceEvents: Record<string, string[]> = {};
+  const heldGroups: Record<string, string[]> = {};
   const noteResource = (name: string) => (e: { detail: unknown }) => {
     const d = e.detail as { holderKind?: string; holderId?: string; groupId?: string };
     if (d?.holderKind !== 'task' || typeof d.holderId !== 'string') return;
     (resourceEvents[d.holderId] ??= []).push(name);
+    // W59: the group's ID on every acquisition, so a row can name the group a TYPE declared.
+    if (name === 'resource.acquired' && typeof d.groupId === 'string') (heldGroups[d.holderId] ??= []).push(d.groupId);
     if (name === 'resource.blocked' && d.groupId === opts.holdGroup && heldGroupReleases === 0) {
       // The task the row exists for is now parked behind the slot this harness holds. Give the
       // slot back — on a microtask, after the scheduler's own turn, and exactly once.
@@ -1118,6 +1201,7 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
     if (typeof id === 'string' && id in resourceEvents) resourceEvents[id]!.push('task.running');
   });
   const schedulerGroups = Object.keys(scheduler.groups as Record<string, unknown>).sort();
+  const schedulerPools = Object.keys(scheduler.workerPools as Record<string, unknown>).sort();
   let heldGroupReleases = 0;
   const heldGroup = opts.holdGroup === undefined
     ? null
@@ -1168,6 +1252,11 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
     // and the other — every group the scheduler declares is one some L6 flow names — is a
     // cross-row clause in `l6.ts` over `RunReport.schedulerGroups`.
     groups: schedulerGroups,
+    // **The fourth set — W59 — and it is the OBJECT the helper built the pools from**, not a
+    // list beside it: `FD-V32` checks a type's name against this and against `workerTypes`
+    // (read off the scheduler above, where the helper's pools now are), and `FD-V33` runs this
+    // object's own validators. One object, three readers.
+    nodeTypes: NODE_TYPES,
     joinPolicy: policy,
     onFoldInput: (input) => {
       inputs.push(input);
@@ -1400,7 +1489,9 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
     numericAttemptsSeen,
     attemptsSeen,
     resourceEvents,
+    heldGroups,
     schedulerGroups,
+    schedulerPools,
     heldGroupReleases,
     wallMs,
     outcomesSeen,

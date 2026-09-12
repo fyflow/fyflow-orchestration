@@ -1,0 +1,10 @@
+{
+  "flowId": "type-beside-worker-type",
+  "version": 1,
+  "entry": "score",
+  "nodes": [
+    { "id": "score", "kind": "task", "type": "Scorer", "workerType": "ScoreWorker",
+      "edges": [ { "to": "done" } ] },
+    { "id": "done",  "kind": "end",  "outcome": "completed" }
+  ]
+}

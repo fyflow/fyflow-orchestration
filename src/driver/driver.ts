@@ -12,12 +12,12 @@
  * driver turns out to need a second copy of run truth, that is a finding about the
  * spec rather than a thing to build.
  */
-import type { Edge, FlowDefinition, FlowNode, Registry, TerminalState } from '../definition/types.ts';
+import type { Edge, FlowDefinition, FlowNode, NodeType, NodeTypes, Registry, TerminalState } from '../definition/types.ts';
 import {
   allRegions, branchPathOf, buildGraph, innermostRegionOf, outputIsVisible, toRegion,
   type Graph, type RegionSets,
 } from '../definition/regions.ts';
-import { referenceTarget, retryPolicyProblem, validateDefinition, violatedRules } from '../definition/validate.ts';
+import { effectiveSettings, nodeTypesOf, referenceTarget, retryPolicyProblem, validateDefinition, violatedRules } from '../definition/validate.ts';
 import {
   assertRunId, branchIndices, buildTaskId, InvalidTaskId, parseTaskId, type TaskIdParts,
 } from './ids.ts';
@@ -544,6 +544,20 @@ export interface DriverOptions {
    */
   defaultRetryPolicy?: RetryPolicy;
   /**
+   * **The node TYPES a `task`'s `type` may name** — the fourth set, W59,
+   * [ADR 0049](../../doc/decisions/0049-a-node-type-is-a-registry-entry-and-its-worker-receives-an-envelope.md).
+   * Pass the same object the bootstrap helper built the pools from. **Omitted means EMPTY**, as
+   * `groups` is: a definition naming any type is then refused at construction (`FD-V32`).
+   *
+   * What the driver reads of an entry, and when: `settings` at construction, through the
+   * validator (`FD-V33`); `retryPolicy` at dispatch, as the middle level of the merge (node, then
+   * type, then `defaultRetryPolicy`, whole each time) — **held to `FD-V30` at construction**, as
+   * the default is; and `groups` at construction only, each held to this driver's `groups` under
+   * `FD-V31`, because a pool naming a group the scheduler lacks is ignored in silence exactly as a
+   * task is (measured at W59). `worker`, `pool` and `config` are the helper's and are not read.
+   */
+  nodeTypes?: NodeTypes;
+  /**
    * Required when the definition contains a fan-out. **W3 ships none** — both
    * policies are W2's and which is right is W4's question (`JP-R7`, `JP-R8`), so
    * a driver that decided satisfaction itself would answer Q4 from inside W3.
@@ -690,6 +704,9 @@ export class Driver {
   /** The run has been stopped by a refusal. Nothing dispatches for it again. */
   private failed = false;
 
+  /** The registry's node types, normalised once (W59). Read at dispatch for the type's retry default and to decide whether the envelope applies. */
+  private readonly nodeTypes: ReadonlyMap<string, NodeType>;
+
   /**
    * Validates the definition IN FULL before anything is queued (ADR 0002 rule 3),
    * mirroring `addTasks` rejecting a whole batch up front. A typo must not become
@@ -713,12 +730,43 @@ export class Driver {
         throw new InvalidDefinition(['FD-V30'], `defaultRetryPolicy is not a RetryPolicy — FD-V30: ${problem}`);
       }
     }
+    // **The node types are held at construction too, before the definition is validated** — W59.
+    // A type's `retryPolicy` is the policy every node of it would otherwise have declared, so
+    // `FD-V30` refuses the shape here as it refuses `defaultRetryPolicy`'s; a type's `groups` are
+    // the POOL's, and a pool naming a group this scheduler lacks acquires nothing and says
+    // nothing (measured at W59, both runtimes — P16 fact 2 one level up), so `FD-V31` refuses
+    // it here, naming the type. `nodeTypesOf` is the validator's own normaliser, so the two
+    // read the option identically.
+    this.nodeTypes = nodeTypesOf(opts.nodeTypes);
+    const declaredGroups = new Set(opts.groups ?? []);
+    for (const [name, t] of this.nodeTypes) {
+      // A `settings` entry that is not a function — the schema an author reaches for (ADR 0049's
+      // *what a reader is likely to try*) — is the REGISTRY's mistake, and is refused here naming
+      // the type rather than on every node of it as *the validator THREW* (the adequacy reader).
+      if (t.settings !== undefined && typeof t.settings !== 'function') {
+        throw new InvalidDefinition(['FD-V33'], `node type "${name}" declares a settings entry that is not a function — FD-V33: ` +
+          'a type`s settings is a VALIDATOR, registered as a predicate is; a declared schema is P18`s subject');
+      }
+      if (t.retryPolicy !== undefined) {
+        const problem = retryPolicyProblem(t.retryPolicy);
+        if (problem !== null) {
+          throw new InvalidDefinition(['FD-V30'], `node type "${name}" declares a retryPolicy that is not a RetryPolicy — FD-V30: ${problem}`);
+        }
+      }
+      for (const g of t.groups ?? []) {
+        if (!declaredGroups.has(g)) {
+          throw new InvalidDefinition(['FD-V31'], `node type "${name}" declares group "${g}", which the registry does not declare — FD-V31: ` +
+            'a pool naming a group the scheduler lacks acquires nothing, in silence, exactly as a task does');
+        }
+      }
+    }
     const registry: Registry = {
       predicates: new Set(opts.predicates.keys()),
       workerTypes: new Set(opts.workerTypes),
       // `FD-V31` — absent means empty (W58). `new Set(undefined)` would also be empty, and
       // the `?? []` is here so the reading is stated rather than an accident of the constructor.
       groups: new Set(opts.groups ?? []),
+      nodeTypes: this.nodeTypes,
     };
     const findings = validateDefinition(definition, registry);
     if (findings.length) {
@@ -1954,12 +2002,32 @@ export class Driver {
     // declares nothing hands the factory the exact four-field object it did before this item:
     // `new FyflowTask` reads `undefined` and an absent key identically, and every L2-L5 fake
     // deep-compares the object it received.
-    const retryPolicy = node.retryPolicy ?? this.opts.defaultRetryPolicy;
+    //
+    // **W59 — a TYPED node, and `FD-C5`.** `!` rather than a guard, and the assertion is the point:
+    // `FD-V32` refused every `type` the registry does not hold before a run existed, so the lookup
+    // cannot miss for a definition a `Driver` accepted — `compose`'s own argument for
+    // `referenceTarget(ref)!`. Three things change for a typed node and nothing changes for an
+    // untyped one, to the byte:
+    //   - the POOL is the type's, keyed by its name (`FD-V32`'s second clause);
+    //   - the PAYLOAD is the envelope `{ settings, input }`: `settings` the node's effective
+    //     settings as its OWN copy — `JP-R11`'s invariant one field over, since a map's N instances
+    //     share one declaration — and `input` exactly the value an untyped node in this position
+    //     would have been handed whole, which is `payload` as it arrives here from `compose`, a
+    //     branch's copy, or a map instance's own item. **`input` is defined as the value received
+    //     and never as what `needs` composed** (spec section 3, `FD-C5`), which is what leaves
+    //     [Q251](../../doc/open-questions.md)'s transform a place to sit;
+    //   - the retry MERGE gains a middle level: the node's own policy, whole; else the type's; else
+    //     the driver's default. `workerGroups` merges nothing — a type's groups are the pool's, and
+    //     the scheduler unions those with the task's own (W58's measurement).
+    const type = node.type !== undefined ? this.nodeTypes.get(node.type)! : undefined;
+    const retryPolicy = node.retryPolicy ?? type?.retryPolicy ?? this.opts.defaultRetryPolicy;
     this.opts.scheduler.addTask(
       (this.opts.createTask ?? defaultCreateTask)({
         id: taskId,
-        workerType: node.workerType,
-        payload,
+        // `FD-V23` refused a task with neither key and `FD-V34` one with both, so exactly one is
+        // set here — the `!` is the same assertion as the lookup above.
+        workerType: type === undefined ? node.workerType! : node.type!,
+        payload: type === undefined ? payload : { settings: cloneValue(effectiveSettings(node)), input: payload },
         optional: node.optional === true,
         ...(retryPolicy !== undefined ? { retryPolicy } : {}),
         ...(node.workerGroups !== undefined ? { workerGroups: node.workerGroups } : {}),

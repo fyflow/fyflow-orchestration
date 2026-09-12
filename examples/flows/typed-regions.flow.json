@@ -1,0 +1,19 @@
+{
+  "flowId": "l6-typed-regions",
+  "version": 1,
+  "entry": "ingest",
+  "nodes": [
+    { "id": "ingest",  "kind": "task", "workerType": "SplitWorker",   "edges": [ { "to": "fan" } ] },
+    { "id": "fan",     "kind": "fanout", "branches": [ "inB", "relay" ] },
+    { "id": "inB",     "kind": "task", "workerType": "ScoreWorker",   "edges": [ { "to": "joinF" } ] },
+    { "id": "relay",   "kind": "task", "type": "Scorer", "settings": { "factor": 20 },
+      "edges": [ { "to": "each" } ] },
+    { "id": "each",    "kind": "map",  "over": "items", "branch": "rank" },
+    { "id": "rank",    "kind": "task", "type": "Scorer", "settings": { "factor": 1000 },
+      "edges": [ { "to": "collect" } ] },
+    { "id": "collect", "kind": "join", "of": "each", "edges": [ { "to": "joinF" } ] },
+    { "id": "joinF",   "kind": "join", "of": "fan",  "edges": [ { "to": "publish" } ] },
+    { "id": "publish", "kind": "task", "workerType": "PublishWorker", "edges": [ { "to": "done" } ] },
+    { "id": "done",    "kind": "end",  "outcome": "completed" }
+  ]
+}

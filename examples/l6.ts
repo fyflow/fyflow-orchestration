@@ -62,6 +62,8 @@
  * | **W19 - the second pair row** | **P6's exit artifact**: the same topology as the row above with **one variable changed** - the scheduler also carries a task this library did not mint. Its settlement lands FIRST, while both runs are live, and both runs still complete. [ADR 0027](../doc/decisions/0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md) and `ID-R5`, on real workers; under the ADR 0023 rule 2 it supersedes, one such settlement stopped **every** driver on the scheduler. The control row beside it is what makes `onUnmintedTask`'s empty array an assertion rather than a decoration |
  * | **W58 — `retry`** | **P16's first observable, and the first non-zero `attempts` a scheduler has ever set at any rung**: a `map` of three whose branch task declares `retryPolicy: { maxRetries: 1, backoffMs: 0 }` on a pool whose role fails every task id's FIRST attempt. Each instance is retried inside its own id and settles `done` with `attempts: 1` on two observers — the outcome record and the live task — and the per-instance policy is what a single-task row could not show (`doc/workflow.md` rule 8 obligation (a), v0.16) |
  * | **W58 — `group`** | **`workerGroups` on real workers, and P16 fact 2 answered where it shows**: a linear flow whose middle node names a `ConcurrentLimitGroup(1)` this harness holds when the run starts. The task is `resource.blocked` on dispatch, the harness lets go on that very event, and the task runs — the scheduler's own four resource events in order with `task.running` after the acquisition. Its pool declares no group, so nothing but the node's key put it there |
+ * | **W59 — `typed`** | **P16's EXIT ARTIFACT, half one**: two nodes of ONE type (`Scorer`) with DIFFERENT settings — `factor` 10 against 100 — each receiving the envelope `{ settings, input }` (`FD-C5`) and computing a different answer from it (9 against 90 from one input); `high` retries ONCE under the TYPE's `retryPolicy` (the node declares none) and reports `attempts: 1` on both observers; both hold `scorer`, the group the type declares, registered through the bootstrap helper and read back by id. The pool is the helper's, keyed by the type's name |
+ * | **W59 — `typed-regions`** | **half two, and obligation (a)'s shapes**: a typed task at path `1` inside a fanout branch feeding a typed `map` branch at `1.0`, `1.1`, `1.2` — arity three from a worker's return, each instance's envelope wrapping its OWN item (`JP-R11`) so three confidences give three scores from one settings object; branch 0 is a bare `ScoreWorker`, and the outer join carries the bare result beside the typed region's collection. Every typed id held `scorer`; no bare id did |
  */
 import {
   InvalidTaskId,
@@ -96,6 +98,9 @@ import {
 } from '../index.ts';
 import {
   runFlow, runPair, violations,
+  // W59: the ONE node-type registry the helper built pools from and every driver was handed —
+  // compared here to the types the flows name and to the pools the scheduler reports.
+  NODE_TYPES,
   type ForeignTask, type PairFacts, type Retention, type RunReport,
 } from './run-flow.ts';
 import fanoutJoin from '../spec/examples/valid/fanout-join.flow.json' with { type: 'json' };
@@ -204,6 +209,12 @@ import siblingMapFanout from './flows/sibling-map-fanout.flow.json' with { type:
 // these two — one node each, on the pools `buildScheduler` registers for exactly that.
 import retryFlow from './flows/retry.flow.json' with { type: 'json' };
 import groupFlow from './flows/group.flow.json' with { type: 'json' };
+// **W59 — P16's exit artifact: two nodes of ONE type with DIFFERENT settings**, and the typed
+// shapes obligation (a) asks for: `typed` is the plain pair (one retrying under the TYPE's
+// policy), `typed-regions` a typed task inside a fanout branch feeding a typed `map` branch at
+// arity three.
+import typedFlow from './flows/typed.flow.json' with { type: 'json' };
+import typedRegions from './flows/typed-regions.flow.json' with { type: 'json' };
 import failureEdge from '../spec/examples/valid/failure-edge.flow.json' with { type: 'json' };
 
 /**
@@ -574,6 +585,15 @@ interface Expectation {
    */
   resourceEvents?: Record<string, string[]>;
   /**
+   * **WHICH groups a task acquired, by id, per task id — W59.** `resourceEvents` says a resource
+   * event happened; this says the group was the one the node's TYPE declares. Read from
+   * `RunReport.heldGroups`, the `groupId` of every `resource.acquired` on the task's behalf, so a
+   * pool that quietly lost its `groups` — or gained a second one — fails on the value. One
+   * assertion per declared id, and the cross-row clause beside the resource-event one requires
+   * every task that reported a resource event to be declared under this OR `resourceEvents`.
+   */
+  heldGroups?: Record<string, string[]>;
+  /**
    * A group `buildScheduler` registers whose one slot the HARNESS holds when the run starts
    * and releases once a task is reported blocked behind it — `RunOptions.holdGroup`.
    */
@@ -623,6 +643,8 @@ const MPD = mapPastADecision as unknown as FlowDefinition;
  * why nothing had seen it* — P14 decision 3.
  */
 const SFO = siblingFanouts as unknown as FlowDefinition;
+const TY = typedFlow as unknown as FlowDefinition;
+const TR = typedRegions as unknown as FlowDefinition;
 /**
  * **A `map` region and a `fanout` region as SIBLINGS, at arities neither derives
  * from the other** — W51, and it is P14's question in one document.
@@ -2340,6 +2362,124 @@ const EXPECTED: Expectation[] = [
       'declares none. With the passthrough reverted the task runs unblocked and reports no ' +
       'resource event, which is exactly what the scheduler does with an UNKNOWN group id too',
   },
+  // **W59 — P16's EXIT ARTIFACT, and it is two rows.** `typed.flow.json` is linear: ingest, then
+  // `low` and `high`, two nodes of the ONE type `Scorer` with DIFFERENT settings — `factor` 10
+  // against 100, `failFirst` false against true — then publish. Each typed worker receives the
+  // envelope `{ settings, input }` (`FD-C5`) and returns a score computed from BOTH keys, so the
+  // two answers differ because the settings do and for no other reason; `high` fails its first
+  // attempt on purpose and is retried under the TYPE's `retryPolicy` — the node declares none —
+  // so `attempts` reads 1 on both observers. Both hold `scorer`, the group the type declares
+  // and the helper registered, read back by id. The pool is the helper's, keyed `Scorer`.
+  //
+  // **The negative controls are the item's own `Tests:` line**: delete the envelope and every
+  // typed worker reads its settings as `undefined` — `factor` 0, both scores 0, the pair
+  // collapses to one value and `keys` is no longer the two; make the two settings EQUAL and
+  // the cross-row pair clause goes red before any worker runs, because whatever makes a
+  // discriminating pair differ is itself a claim.
+  {
+    key: 'typed / two nodes of ONE type with DIFFERENT settings — the envelope, the type`s retry, the type`s group',
+    definition: TY, policyId: 'live-token', payload: HIGH, threaded: false,
+    regionId: null,
+    outcome: 'completed',
+    dispatched: ['r41:ingest:-:0', 'r41:low:-:0', 'r41:high:-:0', 'r41:publish:-:0'],
+    pathEnds: [{ reason: 'end', at: 'done' }],
+    // Derived from the `typed` role's return shape and each node's own settings: `keys` is the
+    // envelope's key set, `score` is `round(confidence * factor)`, and `high`'s `retried` is the
+    // second attempt's marker. Key order is the worker's return order, because `check` compares
+    // JSON text.
+    nodeResults: {
+      'r41:ingest:-:0': { confidence: 0.9 },
+      'r41:low:-:0': { keys: ['input', 'settings'], settingsKeys: ['factor', 'failFirst'], confidence: 0.9, factor: 10, score: 9, retried: false },
+      'r41:high:-:0': { keys: ['input', 'settings'], settingsKeys: ['factor', 'failFirst'], confidence: 0.9, factor: 100, score: 90, retried: true },
+      'r41:publish:-:0': { published: true, joinPayload: { keys: ['input', 'settings'], settingsKeys: ['factor', 'failFirst'], confidence: 0.9, factor: 100, score: 90, retried: true } },
+    },
+    // The TYPE's policy — `maxRetries: 1` — spent once, on the node whose settings say so.
+    attempts: { 'r41:high:-:0': 1 },
+    // Both typed tasks acquired the type's group, by id — the scheduler's map KEY, which is not the
+    // object's own name (`buildScheduler` registers it under a different one on purpose). **And a
+    // task acquires its pool's group once per ADMISSION**: `high` is admitted twice, once per
+    // attempt, so it reads two — measured on the first run of this row, which expected one. The
+    // adequacy reader then measured the same doubling with NO retry, on a threaded pool at
+    // `maxThreads: 2` whose third instance was admitted, found no free worker, and was admitted
+    // again — so the mechanism is admission and not retry (Q262), and these literals are a
+    // property of an INLINE pool with no contention, which the type's `pool` declares.
+    heldGroups: { 'r41:low:-:0': ['scorer'], 'r41:high:-:0': ['scorer', 'scorer'] },
+    why: 'W59 — P16`s exit artifact, half one: two typed nodes of ONE type receive `{ settings, input }` ' +
+      'and compute DIFFERENT answers from their settings (9 against 90 from one input); `high` ' +
+      'retries once under a policy the TYPE declares and the node does not; both hold the group the ' +
+      'type declares, registered through the bootstrap helper. With the envelope deleted both ' +
+      'scores are 0 and `keys` is wrong; with the two settings made equal the pair clause is red',
+  },
+  // **`typed-regions.flow.json` — the two shapes the feature was NOT built for, on real workers**
+  // (obligation (a), v0.16): branch 1 of a fanout is a typed task (`relay`, at path `1`), and it
+  // feeds a `map` whose branch is a typed task (`rank`, at `1.0`, `1.1`, `1.2` — arity three from
+  // the `split` role's items, written in no definition field). Each map instance's envelope
+  // wraps its OWN item under `JP-R11` — three different confidences, three different scores —
+  // and never the map node's value. Branch 0 is a bare `ScoreWorker`, so the two halves sit in
+  // one region and the outer join carries a bare result beside a typed region's collection.
+  {
+    key: 'typed-regions / a typed task inside a fanout branch feeding a typed map branch at arity three',
+    definition: TR, policyId: 'live-token', payload: THREE_WORDS, threaded: false,
+    regionId: 'fan',
+    outcome: 'completed',
+    // Both branches opened in one turn in declaration order (JP-R5); the three instances when
+    // `relay` settles, in index order; publish when the outer join fires.
+    dispatched: ['r42:ingest:-:0', 'r42:inB:0:0', 'r42:relay:1:0', 'r42:rank:1.0:0', 'r42:rank:1.1:0', 'r42:rank:1.2:0', 'r42:publish:-:0'],
+    joined: true,
+    settled: { '0': 'arrived', '1': 'arrived' },
+    otherRegions: {
+      each: { joined: true, settled: { '1.0': 'arrived', '1.1': 'arrived', '1.2': 'arrived' } },
+    },
+    branchEvents: {
+      '0': ['branch.opened', 'branch.arrived'],
+      '1': ['branch.opened', 'branch.arrived'],
+      '1.0': ['branch.opened', 'branch.arrived'],
+      '1.1': ['branch.opened', 'branch.arrived'],
+      '1.2': ['branch.opened', 'branch.arrived'],
+    },
+    pathEnds: [{ reason: 'end', at: 'done' }],
+    nodeResults: {
+      'r42:ingest:-:0': {
+        confidence: 0.9,
+        items: [{ word: 'a', confidence: 0.1 }, { word: 'bb', confidence: 0.2 }, { word: 'ccc', confidence: 0.3 }],
+      },
+      'r42:inB:0:0': { confidence: 0.9, score: 90 },
+      // `relay` received ingest's whole result as `input` (the ordinary edge inside the envelope),
+      // scored it by its own factor, and echoed the items the map then iterates.
+      'r42:relay:1:0': {
+        keys: ['input', 'settings'], settingsKeys: ['factor'], confidence: 0.9, factor: 20, score: 18, retried: false,
+        items: [{ word: 'a', confidence: 0.1 }, { word: 'bb', confidence: 0.2 }, { word: 'ccc', confidence: 0.3 }],
+      },
+      // Each instance's `input` is ITS OWN item — `JP-R11` inside `FD-C5` — so the three scores
+      // are three different numbers from one declared settings object.
+      'r42:rank:1.0:0': { keys: ['input', 'settings'], settingsKeys: ['factor'], confidence: 0.1, factor: 1000, score: 100, retried: false },
+      'r42:rank:1.1:0': { keys: ['input', 'settings'], settingsKeys: ['factor'], confidence: 0.2, factor: 1000, score: 200, retried: false },
+      'r42:rank:1.2:0': { keys: ['input', 'settings'], settingsKeys: ['factor'], confidence: 0.3, factor: 1000, score: 300, retried: false },
+      // The outer join's collection: branch 0's bare result, and at key `1` the inner join's
+      // collection keyed by the whole dotted path — `nested-map`'s shape with typed instances.
+      'r42:publish:-:0': {
+        published: true,
+        joinPayload: {
+          '0': { confidence: 0.9, score: 90 },
+          '1': {
+            '1.0': { keys: ['input', 'settings'], settingsKeys: ['factor'], confidence: 0.1, factor: 1000, score: 100, retried: false },
+            '1.1': { keys: ['input', 'settings'], settingsKeys: ['factor'], confidence: 0.2, factor: 1000, score: 200, retried: false },
+            '1.2': { keys: ['input', 'settings'], settingsKeys: ['factor'], confidence: 0.3, factor: 1000, score: 300, retried: false },
+          },
+        },
+      },
+    },
+    // Every typed task — the branch entry and all three instances — held the type's group; the
+    // bare branch and the bare ends held none.
+    heldGroups: {
+      'r42:relay:1:0': ['scorer'],
+      'r42:rank:1.0:0': ['scorer'], 'r42:rank:1.1:0': ['scorer'], 'r42:rank:1.2:0': ['scorer'],
+    },
+    why: 'W59 — P16`s exit artifact, half two, and obligation (a)`s shapes: a typed task at path 1 ' +
+      'inside a fanout and a typed map branch at 1.0, 1.1, 1.2, each instance`s envelope wrapping its ' +
+      'OWN item (three confidences, three scores from one settings object). The outer join carries ' +
+      'a bare branch beside the typed region`s collection. Every typed id held `scorer`; no bare id did',
+  },
 ];
 
 // --- assertions ---------------------------------------------------------------
@@ -2532,22 +2672,38 @@ const reports: RunReport[] = [];
 const rowCosts: [string, string, number, number][] = [];
 
 for (const [i, e] of EXPECTED.entries()) {
-  const report = await runFlow({
-    definition: e.definition,
-    policy: POLICIES[e.policyId],
-    runId: `r${i + 1}`,
-    payload: e.payload,
-    predicates,
-    threaded: e.threaded,
-    delayMs: 5,
-    resolveOnSuspend: e.resolveOnSuspend,
-    // Short only for the row whose result IS the backstop. Nothing can change
-    // after the branch suspends, so a longer wait would measure the same thing
-    // more slowly — and if it were ever too short the row fails loudly, with the
-    // outcome reading `running` rather than `awaiting_action`.
-    backstopMs: e.backstopMs,
-    holdGroup: e.holdGroup,
-  });
+  let report: Awaited<ReturnType<typeof runFlow>>;
+  try {
+    report = await runFlow({
+      definition: e.definition,
+      policy: POLICIES[e.policyId],
+      runId: `r${i + 1}`,
+      payload: e.payload,
+      predicates,
+      threaded: e.threaded,
+      delayMs: 5,
+      resolveOnSuspend: e.resolveOnSuspend,
+      // Short only for the row whose result IS the backstop. Nothing can change
+      // after the branch suspends, so a longer wait would measure the same thing
+      // more slowly — and if it were ever too short the row fails loudly, with the
+      // outcome reading `running` rather than `awaiting_action`.
+      backstopMs: e.backstopMs,
+      holdGroup: e.holdGroup,
+    });
+  } catch (err) {
+    // **A row whose run THROWS is a FAIL line naming the row, never a process crash with zero
+    // FAIL lines** — W59, closing the shape W58 recorded (`groups` misspelled on the harness's
+    // `DriverOptions` took the process down before any assertion) and W23 recorded before it.
+    // Measured on this item's own wiring probe: with `nodeTypes` dropped from the driver's
+    // options, `new Driver` threw `FD-V32` inside `runFlow` and ladder L6 exited 1 with no
+    // failure line at all — `doc/workflow.md` section 4's *a crash is not a detection*, in the
+    // rung's own output. The remaining rows are not run: the cross-row layer indexes `reports`
+    // by row, so a missing report would be a second crash further down rather than a verdict.
+    failures.push(`${e.key}\n      the run THREW before any assertion could run — a crash is not a detection: ` +
+      `${err instanceof Error ? err.message.slice(0, 240) : String(err)}`);
+    for (const f of failures) console.log(`  FAIL  ${f}`);
+    exit(1);
+  }
   reports.push(report);
   const before = passed + failures.length;
 
@@ -2644,6 +2800,14 @@ for (const [i, e] of EXPECTED.entries()) {
     assertThat(e.key, 'and it was resource.blocked BEFORE it ran — the group the node declared held it',
       got.includes('resource.blocked') && got.indexOf('resource.blocked') < got.indexOf('task.running'),
       `sequence: ${got.join(', ') || '(none)'}`);
+  }
+  // **W59 — WHICH group a task held, by id.** The `groupId` of every `resource.acquired` on the
+  // task's behalf, so a typed task is shown holding the group its TYPE declares — and only that:
+  // a pool that gained or lost a group is red on the value, where the event-name sequence above
+  // could not tell one group from another.
+  for (const [id, want] of Object.entries(e.heldGroups ?? {})) {
+    check(e.key, `the groups ${id.split(':')[1]}@${id.split(':')[2]} ACQUIRED, by id — the type's declared groups and no other`,
+      report.heldGroups[id] ?? [], want);
   }
   for (const never of e.outcomesNotSeen ?? []) {
     assertThat(e.key, `the run was never quiescently \`${never}\``,
@@ -3003,6 +3167,8 @@ for (const [i, e] of EXPECTED.entries()) {
     // declared `resourceEvents` — derived from the expectation like every other extra here.
     + Object.keys(e.attempts ?? {}).length * 2
     + Object.keys(e.resourceEvents ?? {}).length * 2
+    // W59: one per declared `heldGroups` id — derived from the expectation like the two above.
+    + Object.keys(e.heldGroups ?? {}).length
     // **`JP-R12`'s SECOND-COPY claim, and only where there is something to be a copy
     // of.** A row that records no arrival would assert `0 === 0`, which is the
     // vacuity `doc/workflow.md` section 5 rule 3 refuses — so it is an extra derived
@@ -3348,6 +3514,8 @@ const ROW_KEYS: readonly string[] = [
   'sibling-map-fanout / ADR 0044 — three items, two branches, all three seen',
   'retry / a task fails ONCE and the scheduler retries it — attempts is 1, per instance',
   'group / a task blocked behind a ConcurrentLimitGroup(1) the harness holds, then released',
+  'typed / two nodes of ONE type with DIFFERENT settings — the envelope, the type`s retry, the type`s group',
+  'typed-regions / a typed task inside a fanout branch feeding a typed map branch at arity three',
 ];
 
 /**
@@ -3453,6 +3621,16 @@ const CROSS_ROW_SUBJECTS = [
   'the groups the scheduler was BUILT with, read as source text',
   'a resource event was reported for exactly the task ids some row declares',
   'the scheduler`s own declaration of retryPolicy',
+  // W59
+  'the node TYPES the L6 flows name are the types the registry holds',
+  'the types the registry holds, read as source text',
+  'the pools the scheduler REPORTS are the bare pools plus one per type',
+  'the two settings of the typed pair DIFFER',
+  'under a policy the NODE does not declare',
+  'the typed map instances received three DIFFERENT inputs',
+  'deno.json exports the sub-path',
+  'package.json exports `./scheduler`',
+  'under a `scheduler/` directory of its own build',
 ];
 
 /**
@@ -3589,13 +3767,22 @@ const REFERENCE_SPELLINGS_IN_SPEC = await referenceSpellingsInSpecAsync();
  * extraction **throws** when it finds nothing, because a regex that silently returns
  * `[]` makes a set equality pass on two empty sides.
  */
+/** A manifest's text, relative to this file, in either runtime — W59's (2c) clause reads both. */
+async function readManifest(rel: string): Promise<string> {
+  const u = new URL(rel, import.meta.url);
+  const deno = (globalThis as Record<string, unknown>).Deno as { readTextFile?: (x: URL) => Promise<string> } | undefined;
+  return deno?.readTextFile ? await deno.readTextFile(u) : await (await import('node:fs/promises')).readFile(u, 'utf8');
+}
+
 async function workerListsAsync(): Promise<{
   poolTypes: string[];
   poolRoles: string[];
   declaredRoles: string[];
   switchArms: string[];
-  /** The resource-group ids `buildScheduler` REGISTERS, read from the source — W58's second observer of `scheduler.groups`. */
+  /** The resource-group ids `buildScheduler` REGISTERS, read from the source — W58's second observer of `scheduler.groups`; since W59 the helper's `bootstrap(NODE_TYPES, {…})` groups too. */
   groupIds: string[];
+  /** The keys of the `NODE_TYPES` literal, read from the source — W59's second observer of the registry the driver was handed. */
+  typedPoolTypes: string[];
 }> {
   const deno = (globalThis as Record<string, unknown>).Deno as
     { readTextFile?: (x: URL) => Promise<string> } | undefined;
@@ -3621,7 +3808,24 @@ async function workerListsAsync(): Promise<{
   // and the driver's `groups` option is derived from that same variable, so a literal in its
   // place hid a second registered group for zero. This is the other observer: the literal the
   // scheduler is BUILT from, which the runtime reading must agree with. ----
-  const groupIds = nonEmpty([...rf.slice(at).matchAll(/^ {4}(\w+): new ConcurrentLimitGroup\(/gm)].map((m) => m[1]!), 'the resource-group registry');
+  // **Read over the whole of `buildScheduler` since W59, not the constructor call alone**: the
+  // TYPES' group is registered through `bootstrap(NODE_TYPES, { … })` BEFORE the `return`, at the
+  // same indentation, and the constructor call spreads the helper's result in. Anchored on the
+  // function rather than the file so a group literal elsewhere would not be read as registered.
+  const fnAt = rf.indexOf('export function buildScheduler(');
+  if (fnAt < 0) throw new Error('examples/run-flow.ts no longer declares buildScheduler');
+  const groupIds = nonEmpty([...rf.slice(fnAt).matchAll(/^ {4}(\w+): new ConcurrentLimitGroup\(/gm)].map((m) => m[1]!), 'the resource-group registry');
+  // ---- and the NODE_TYPES literal: one key per type at two-space indentation inside it — W59.
+  //      `bootstrap` keys a pool by each of these names, which is what `schedulerPools` must
+  //      show beside the `pool()` lines. ----
+  const ntAt = rf.indexOf('export const NODE_TYPES');
+  if (ntAt < 0) throw new Error('examples/run-flow.ts no longer declares NODE_TYPES');
+  const ntBlock = rf.slice(ntAt, rf.indexOf('\n};', ntAt));
+  const typedPoolTypes = nonEmpty([...ntBlock.matchAll(/^ {2}(\w+): \{$/gm)].map((m) => m[1]!), 'the NODE_TYPES literal');
+  // ---- and the ROLES those types run, from their `config: { role: '…' }` — the typed pool is
+  //      not a `pool()` line, so without this the roles clause below read `typed` as a role
+  //      `ROLES` declares and nothing uses (measured on this file's first run with the type). ----
+  const typedRoles = nonEmpty([...ntBlock.matchAll(/config: \{ role: '(\w+)'/g)].map((m) => m[1]!), "the NODE_TYPES literal's roles");
 
   // ---- ROLES: comment lines dropped, because the block carries prose ----
   const wf = await read('./workers/flow-worker.ts');
@@ -3635,8 +3839,9 @@ async function workerListsAsync(): Promise<{
 
   return {
     groupIds: [...new Set(groupIds)].sort(),
+    typedPoolTypes: [...new Set(typedPoolTypes)].sort(),
     poolTypes: [...new Set(registry.map((m) => m[1]!))].sort(),
-    poolRoles: [...new Set(registry.map((m) => m[2]!))].sort(),
+    poolRoles: [...new Set([...registry.map((m) => m[2]!), ...typedRoles])].sort(),
     declaredRoles: [...new Set(declaredRoles)].sort(),
     switchArms: [...new Set(switchArms)].sort(),
   };
@@ -3685,7 +3890,13 @@ const WORKER_LISTS = await workerListsAsync();
  * inside the thing it checks is deletable with it, and what stands against that here
  * is `D6` (both rungs run THIS file) plus `DECLARED_TOTAL`.
  */
-const REACHES_PAST_INDEX = /from\s+'(?:\.\.\/)+src\//;
+// **One path is EXEMPT since W59, by its full spelling: the sub-path's entry.** `fyflow-orchestration/scheduler`
+// is a published export (both manifests carry it — P16 decision 5, ADR 0049 rule 5), so
+// `../src/scheduler/index.ts` is what a consumer resolves the sub-path TO, and `run-flow.ts`
+// imports the bootstrap helper through it exactly as `l6.ts` imports the driver through
+// `../index.ts`. A file UNDER the sub-path — `bootstrap.ts`, `envelope-worker.ts` — is still an
+// offender, and `REACH_CASES` carries one of each.
+const REACHES_PAST_INDEX = /from\s+'(?:\.\.\/)+src\/(?!scheduler\/index\.ts')/;
 /**
  * **The detector's POSITIVE case, checked in** — W47's adequacy reader, finding 4.
  *
@@ -3709,6 +3920,9 @@ const REACH_CASES: [string, boolean][] = [
   [`import { validateDefinition } from '${UP}src/definition/validate.ts';`, true],
   [`import { Driver } from '${UP}${UP}src/driver/driver.ts';`, true],
   [`import { POLICIES } from '${UP}index.ts';`, false],
+  // W59: the sub-path's ENTRY is a consumer surface and is exempt; a file under it is not.
+  [`import { bootstrap } from '${UP}src/scheduler/index.ts';`, false],
+  [`import { bootstrap } from '${UP}src/scheduler/bootstrap.ts';`, true],
 ];
 async function examplesReachingPastIndexAsync(): Promise<
   { files: string[]; read: string[]; offenders: string[] }
@@ -4513,8 +4727,18 @@ const PER_PLAIN_ROW = 19;
  * declared and against the groups the scheduler was BUILT with (the adequacy reader's second
  * observer), the resource-event ids against the declaring rows, and `RETRY_POLICY_KEYS` against
  * the scheduler's own `.d.ts`. *(86 at the author pass.)*
+ *
+ * **92 at W59, from 87**: five cross-row assertions in one block (2b) — the node TYPES the flows
+ * name against the registry both ways, the registry against its own source text, the pools the
+ * scheduler REPORTS against the bare `pool()` lines plus one per type, the typed pair's two
+ * settings DIFFERING in both keys (read from the definition), and every typed retry having run
+ * under a policy the NODE does not declare. The two W58 clauses beside them are widened, not
+ * added to: groups NAMED now includes the types', and the resource-event ids declared include
+ * `heldGroups`. **95 the same day**: three more in block (2c), binding the two manifests' sub-path
+ * exports — the one declaration of this item nothing else read. **96 after the readers**: the three
+ * map instances' inputs pairwise distinct, read from the run (the adequacy reader).
  */
-const CROSS_ROW = 87;
+const CROSS_ROW = 96;
 const base = (shape: string) => (shape === 'region' ? PER_REGION_ROW : PER_PLAIN_ROW);
 for (const [key, shape, cost, extras] of rowCosts) {
   if (cost !== base(shape) + extras) {
@@ -4945,6 +5169,10 @@ if (rowCosts.length !== EXPECTED.length) {
     //     construction: every group a flow document NAMES is one the scheduler declares, and
     //     every group the scheduler declares is named by some flow this file runs — so a group
     //     registered and used by nothing is red here, as a pool no document names is above.
+    //     **Since W59 a group is also named by a TYPE**: `NODE_TYPES[*].groups` are the pool's,
+    //     registered through the helper, so they join the flows' `workerGroups` on the NAMED
+    //     side — and a type's group the scheduler lacks, or a scheduler group no type and no
+    //     flow names, is red here either way.
     {
       const named = new Set<string>();
       for (const e of EXPECTED) {
@@ -4952,8 +5180,9 @@ if (rowCosts.length !== EXPECTED.length) {
           for (const g of ((n as unknown as { workerGroups?: string[] }).workerGroups ?? [])) named.add(g);
         }
       }
+      for (const t of Object.values(NODE_TYPES)) for (const g of t.groups ?? []) named.add(g);
       const declaredBySchedulers = [...new Set(reports.flatMap((r) => r.schedulerGroups))].sort();
-      check('cross-row', 'the groups the L6 flows NAME are the groups the scheduler DECLARES, both ways — ' +
+      check('cross-row', 'the groups the L6 flows NAME are the groups the scheduler DECLARES, both ways, with the groups the TYPES declare on the named side — ' +
         'FD-V31`s registry set is read off the scheduler, and this is the other direction',
         [...named].sort(), declaredBySchedulers);
       // **A SECOND observer of what the scheduler declares, read from the constructor call's
@@ -4965,15 +5194,95 @@ if (rowCosts.length !== EXPECTED.length) {
         'two readings of one fact, so neither can be a literal standing in for the other',
         WORKER_LISTS.groupIds, declaredBySchedulers);
     }
+    // (2b) **Obligation (e) on `Registry.nodeTypes`, both ways, read from the SCHEDULER — W59.**
+    //     Three readings of one registry, none a literal beside another: the types the L6 flows
+    //     NAME (the documents), the types the driver was HANDED (`NODE_TYPES`, the object the
+    //     helper built pools from), the `NODE_TYPES` literal as SOURCE TEXT (the second observer,
+    //     W58's `groupIds` shape), and the pools the scheduler REPORTS holding (`schedulerPools`,
+    //     read off `scheduler.workerPools` at construction) — which must be exactly the bare
+    //     `pool()` lines plus one pool per type. A type the helper did not build a pool for, a
+    //     pool no type and no `pool()` line accounts for, or a document naming a type the registry
+    //     lacks, is red here; `FD-V32` refuses the last at construction and this is the rung
+    //     that says the registry the driver checked is the scheduler the run used.
+    {
+      const namedTypes = new Set<string>();
+      for (const e of EXPECTED) {
+        for (const n of e.definition.nodes) {
+          const t = (n as unknown as { type?: string }).type;
+          if (t !== undefined) namedTypes.add(t);
+        }
+      }
+      const registryTypes = Object.keys(NODE_TYPES).sort();
+      check('cross-row', 'the node TYPES the L6 flows name are the types the registry holds, both ways — a type registered and used by nothing, or named and unregistered, is red',
+        [...namedTypes].sort(), registryTypes);
+      check('cross-row', 'and the types the registry holds, read as source text, are the ones the driver was handed — two readings of one literal',
+        WORKER_LISTS.typedPoolTypes, registryTypes);
+      const reported = [...new Set(reports.flatMap((r) => r.schedulerPools))].sort();
+      check('cross-row', 'and the pools the scheduler REPORTS are the bare pools plus one per type, both ways — the helper built exactly one pool per registry entry, keyed by its name, and nothing else',
+        reported, [...new Set([...WORKER_LISTS.poolTypes, ...WORKER_LISTS.typedPoolTypes])].sort());
+      // **The discriminating PAIR is a claim** (rule 8's fourth requirement on the set): the two
+      // typed nodes of `typed.flow.json` differ in BOTH settings keys, read from the DEFINITION
+      // rather than from two literals in a row. Made equal, this is red before any worker runs.
+      const pair = TY.nodes.filter((n) => (n as unknown as { type?: string }).type !== undefined)
+        .map((n) => (n as unknown as { settings: { factor: number; failFirst: boolean } }).settings);
+      assertThat('cross-row', 'the two settings of the typed pair DIFFER in both keys — whatever makes a discriminating pair differ is itself a claim',
+        pair.length === 2 && pair[0]!.factor !== pair[1]!.factor && pair[0]!.failFirst !== pair[1]!.failFirst,
+        `settings: ${JSON.stringify(pair)}`);
+      // **The retry ran under the TYPE's policy and not the node's**: every row declaring a
+      // non-zero `attempts` on a TYPED task names a node that declares NO `retryPolicy` of its own
+      // — so the budget it spent came from `NODE_TYPES`, which is what the row is for, and a node
+      // that quietly gained its own policy would pass the per-row number and fail here.
+      const typedRetries = EXPECTED.flatMap((e) => Object.keys(e.attempts ?? {}).map((id) => {
+        const node = e.definition.nodes.find((n) => n.id === id.split(':')[1]) as unknown as { type?: string; retryPolicy?: unknown } | undefined;
+        return { id, typed: node?.type !== undefined, ownPolicy: node?.retryPolicy !== undefined };
+      })).filter((x) => x.typed);
+      assertThat('cross-row', 'every typed task that retried did so under a policy the NODE does not declare — the type`s — and there is at least one',
+        typedRetries.length > 0 && typedRetries.every((x) => !x.ownPolicy),
+        `typed retries: ${JSON.stringify(typedRetries)}`);
+      // **The three map instances' inputs DIFFER, read from the run** — the adequacy reader: the
+      // typed-regions row's *its own item, three confidences, three scores* rested on `THREE_WORDS`
+      // and three literals nothing compared. Read off the settled results rather than the row.
+      const rankInputs = reports.flatMap((r) => Object.entries(r.state.nodes)
+        .filter(([id]) => /:rank:1\.\d+:0$/.test(id))
+        .map(([, n]) => (n.result as { confidence?: number } | undefined)?.confidence));
+      assertThat('cross-row', 'the typed map instances received three DIFFERENT inputs — their confidences pairwise distinct, read from the run, so "its own item" is not three copies of one',
+        rankInputs.length === 3 && new Set(rankInputs).size === 3, `rank inputs: ${JSON.stringify(rankInputs)}`);
+    }
+    // (2c) **The sub-path is EXPORTED, in both manifests, and nothing else reads that** — obligation
+    //     (e)'s second question asked of the DECLARATION a consumer resolves `fyflow-orchestration/
+    //     scheduler` through. `check-docs` REWRITES the specifier to the source entry before it
+    //     typechecks `AGENTS.md`'s snippet, `S6` reads the allowlist and not `exports`, and the JSR
+    //     dry run is not in the gate (Q252) — so an `exports` entry deleted from either manifest
+    //     was green everywhere until this clause (measured at W59's rule 8 pass). Read from the two
+    //     files rather than restated: the Deno entry must name the sub-path's source entry and that
+    //     entry must be in the publish allowlist (the dry run refuses an exported-but-excluded
+    //     module, measured); the npm entry must carry the same four conditions `.` carries.
+    {
+      const denoJson = JSON.parse(await readManifest('../deno.json')) as { exports: Record<string, string>; publish: { exclude: string[] } };
+      const pkgJson = JSON.parse(await readManifest('../package.json')) as { exports: Record<string, Record<string, unknown>> };
+      check('cross-row', 'deno.json exports the sub-path `./scheduler` at the source entry `l6.ts` reaches it by, and that entry is in the publish allowlist',
+        { target: denoJson.exports['./scheduler'], allowed: denoJson.publish.exclude.includes('!src/scheduler/index.ts') },
+        { target: './src/scheduler/index.ts', allowed: true });
+      check('cross-row', 'and package.json exports `./scheduler` under exactly the conditions `.` carries, both ways',
+        Object.keys(pkgJson.exports['./scheduler'] ?? {}).sort(), Object.keys(pkgJson.exports['.'] ?? {}).sort());
+      assertThat('cross-row', 'and every npm condition of the sub-path points under a `scheduler/` directory of its own build — a copy of `.`\'s paths is red',
+        Object.entries(pkgJson.exports['./scheduler'] ?? {}).every(([, v]) =>
+          (typeof v === 'string' ? [v] : Object.values(v as Record<string, string>)).every((p) => /\/scheduler\/index\.(js|d\.ts)$/.test(p))),
+        JSON.stringify(pkgJson.exports['./scheduler']));
+    }
     // (3) The resource-event observer is bound the way `attempts` is: a resource event was
     //     reported for exactly the task ids some row declares `resourceEvents` for. Every other
     //     task of every other row produced none, because no other node names a group and no
     //     pool declares one — so the group row's sequence is the ONLY place the scheduler said
     //     anything about a resource, and a pool that quietly gained `groups` would show here.
+    //     **Since W59 a row may declare a task's resources under `heldGroups` instead** — the
+    //     typed rows, whose tasks hold a POOL group and are never blocked — so the declared side
+    //     is the union of both fields, and a typed task that reported no acquisition, or a bare
+    //     one that reported any, is red here.
     {
       const seen = reports.flatMap((r) => Object.keys(r.resourceEvents)).sort();
-      const declared = EXPECTED.flatMap((e) => Object.keys(e.resourceEvents ?? {})).sort();
-      check('cross-row', 'a resource event was reported for exactly the task ids some row declares, both ways',
+      const declared = [...new Set(EXPECTED.flatMap((e) => [...Object.keys(e.resourceEvents ?? {}), ...Object.keys(e.heldGroups ?? {})]))].sort();
+      check('cross-row', 'a resource event was reported for exactly the task ids some row declares, under resourceEvents or heldGroups, both ways',
         seen, declared);
     }
     // (4) Obligation (e)'s third shape on the SCHEDULER's side: `RETRY_POLICY_KEYS` — the two
@@ -5297,7 +5606,8 @@ if (rowCosts.length !== EXPECTED.length) {
   // observer with one of them.
   const DRIVER_FIELDS = [
     'arrivals', 'def', 'dispatched', 'failed', 'firedJoins', 'graph', 'inputs', 'joinState',
-    'log', 'now', 'opts', 'outputsCache', 'regions', 'runId', 'started',
+    // `nodeTypes` since W59: the registry's node types, skipped by the walk as `opts` is.
+    'log', 'nodeTypes', 'now', 'opts', 'outputsCache', 'regions', 'runId', 'started',
   ].sort();
   const anyRun = reports[0]!;
   check('cross-row', 'the byte measurement WALKS every growing structure the driver has and skips ' +
@@ -5307,7 +5617,7 @@ if (rowCosts.length !== EXPECTED.length) {
   check('cross-row', 'and `arrivals` is on the WALKED side of that split, which is the one structure ' +
     'ADR 0046 rule 3 is about',
     { walked: anyRun.retention.walked.includes('arrivals'), skipped: anyRun.retention.skipped },
-    { walked: true, skipped: ['def', 'graph', 'opts'] });
+    { walked: true, skipped: ['def', 'graph', 'nodeTypes', 'opts'] });
   // **The two release moments this rung cannot reach, recorded rather than argued** —
   // `doc/workflow.md` section 5 rule 8: *construct the case that makes each guard
   // fire, and where the corpus cannot express one, RECORD that.*
@@ -5489,7 +5799,14 @@ check('cross-row', 'and no per-row assertion about ADR 0046 or JP-R12 is left un
 check('cross-row', 'every cross-row SUBJECT this file declares was asserted about — a block ' +
   'deleted with the counts is a block that fails naming what it was about',
   CROSS_ROW_SUBJECTS.filter((t) => crossRowLabels.some((l) => l.includes(t))), CROSS_ROW_SUBJECTS);
-const DECLARED_TOTAL = 1203;
+// **1277 at W59, from 1203** — +74: the typed pair row (plain, 19 + 9 extras: four `nodeResults`,
+// `pathEnds`, one `attempts` on two observers, two `heldGroups`), the typed-regions row (region,
+// 21 + 20: seven `nodeResults`, `pathEnds`, one `otherRegions` at two, five `branchEvents`, four
+// `heldGroups`, one arrival held), and five cross-row assertions in block (2b). The count matched
+// this arithmetic on the file's second run, after the first taught the pair row that a retried
+// task acquires its group once per attempt. **1280 the same day**: block (2c)'s three manifest
+// assertions. **1281 after the readers**: the map instances' inputs distinct.
+const DECLARED_TOTAL = 1281;
 if (passed + failures.length !== DECLARED_TOTAL) {
   failures.push(
     'gate\n      the assertion count is not the number this file declares outright\n' +

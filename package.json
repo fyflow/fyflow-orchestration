@@ -18,6 +18,18 @@
       },
       "types": "./dist/types/index.d.ts",
       "default": "./dist/node/index.js"
+    },
+    "./scheduler": {
+      "node": {
+        "types": "./dist/types/scheduler/index.d.ts",
+        "default": "./dist/node/scheduler/index.js"
+      },
+      "browser": {
+        "types": "./dist/types/scheduler/index.d.ts",
+        "default": "./dist/browser/scheduler/index.js"
+      },
+      "types": "./dist/types/scheduler/index.d.ts",
+      "default": "./dist/node/scheduler/index.js"
     }
   },
   "files": [

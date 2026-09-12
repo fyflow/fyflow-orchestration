@@ -32,6 +32,9 @@ import type { JoinPolicy } from '../../src/driver/policy.ts';
 const EX = `${ROOT}spec/examples`;
 const load = async (rel: string) => JSON.parse(await readText(`${EX}/${rel}`)) as FlowDefinition;
 const reg = JSON.parse(await readText(`${EX}/registry.json`)) as { workerTypes: string[]; groups?: string[] };
+// W59: the corpus's node types, for the census over the region-bearing corpus — `typed.flow.json`
+// names one, and a driver given no `nodeTypes` reads that as NONE registered (`FD-V32`).
+import { CORPUS_NODE_TYPES } from '../definition/corpus-types.ts';
 
 /** The whole scheduler, for level 2. It queues nothing and runs nothing. */
 class FakeScheduler {
@@ -83,6 +86,7 @@ function harness(
     // driver given no `groups` reads that as NONE declared (`FD-V31`), so the census over the
     // region-bearing corpus refused it at construction the moment the flow existed.
     groups: reg.groups ?? [],
+    nodeTypes: CORPUS_NODE_TYPES,
     // **A caller may bring its own** — W50. `FD-R3`'s one remaining road is a join
     // policy firing before a branch entry has settled, and until this parameter
     // existed the fixtures that reach it had to build a `Driver` by hand, which is
@@ -288,6 +292,11 @@ suite('L2 — FD-C2: what NAMES an output', (test) => {
       // shapes, and this census does not care about either key — which is the point:
       // a flow that gains a region is red here until it is censused.
       ['task-config', { ids: 8, nodes: 6, lost: 2, map: true }],
+      // **W59's document — a `map` region followed by a `fanout` region, three typed nodes.**
+      // Derived by reading its nodes: ingest, rank x3, scoreA, scoreB, publish = **7 ids /
+      // 5 node ids / 2 lost**, the two lost being the map's one collapsing id twice. A `type`
+      // changes no id and no region, which is what this census says of it.
+      ['typed', { ids: 7, nodes: 5, lost: 2, map: true }],
     ]);
     const entries: [string, unknown, (id: string) => unknown][] = [
       ['fanout-join', { from: 'ingest' }, (id) => ({ by: id })],
@@ -309,6 +318,9 @@ suite('L2 — FD-C2: what NAMES an output', (test) => {
       // W58: `regroup` feeds the map, so it is the one task whose result carries `items`.
       ['task-config', { from: 'ingest' },
         (id) => (id.includes(':regroup:') ? { items: ['a', 'b', 'c'] } : { by: id })],
+      // W59: the typed entry feeds the map, so it is the one task whose result carries `items`.
+      ['typed', { from: 'ingest' },
+        (id) => (id.includes(':ingest:') ? { items: ['a', 'b', 'c'] } : { by: id })],
     ];
     // **The list is bound to a source this file does not own** — W41's adequacy
     // reader, whose sharpest measurement is that every bound in these two files was
@@ -393,12 +405,13 @@ suite('L2 — FD-C2: what NAMES an output', (test) => {
     }
     equal(ran, entries.map((e) => e[0]), 'every flow was ASSERTED — pushed after the assertions, not before');
     equal([...ran].sort(), onDisk, 'and the SET it ran is the disk`s, not a literal beside it');
-    // **SIX since W58, from five**: `task-config` carries a map region beside its fanout, and
-    // this literal is a COUNT beside a membership — the `expected` table above is the
-    // membership, and `onDisk` binds it to the directory both ways, so this line is the
-    // count a human writes and the two above are what stop it being the only bound.
-    equal([...expected.values()].filter((v) => v.lost > 0).length, 6,
-      'and exactly the SIX flows with a map region lose an output');
+    // **SEVEN since W59, from six**: `typed` carries a map region beside its fanout, as
+    // `task-config` (W58's, six from five) does, and this literal is a COUNT beside a
+    // membership — the `expected` table above is the membership, and `onDisk` binds it to the
+    // directory both ways, so this line is the count a human writes and the two above are what
+    // stop it being the only bound.
+    equal([...expected.values()].filter((v) => v.lost > 0).length, 7,
+      'and exactly the SEVEN flows with a map region lose an output');
     equal([...expected.values()].filter((v) => !v.map).length, 5,
       'while FIVE carry only `fanout` regions and lose NOTHING — at depth 1, at depth 2, with an ' +
       'optional branch that can fail, with a branch routed away from its join, and — since W50 — ' +

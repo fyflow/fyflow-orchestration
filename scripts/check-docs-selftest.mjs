@@ -148,6 +148,17 @@ const PROBES = [
     check: 'X2',
     mutate: (t) => t.replace('```ts run', '```ts'),
   },
+  {
+    // W59: the sub-path import is REWRITTEN to its published entry before typechecking; a
+    // specifier the rewrite does not recognise reaches `tsc` as written and fails to resolve —
+    // under both lib sets, so `X5` cascades exactly as it does for the compile probe above. This
+    // is what would notice the rewrite being dropped: with it gone the CLEAN reference fails the
+    // same way, and no probe is needed to say so.
+    name: 'a snippet importing the sub-path by a name the rewrite does not recognise',
+    check: 'X3',
+    also: ['X5'],
+    mutate: (t) => t.replace("from 'fyflow-orchestration/scheduler'", "from 'fyflow-orchestration/schedulerr'"),
+  },
   // --- X6: AGENTS.md's cost figures against spec/flow-definition.md's, both ways ---
   //
   // **Three of `X6`'s four clauses are reachable from this side**, which is what the
@@ -301,7 +312,8 @@ const RAN = (out) => /^(All checks passed|\d+ failure\(s\)\.)/m.test(out);
  * it — would report `0/0 probes caught` and exit 0. W16's adequacy reader's finding,
  * inherited rather than rediscovered; **this file had no floor at all until W29.**
  */
-const MIN_PROBES = 18;
+// 18 until W59, which added the sub-path probe and raised the floor to the count it ships (Q102).
+const MIN_PROBES = 19;
 
 /** The same floor for `META`, and for the same reason. */
 const MIN_META = 10;

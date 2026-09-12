@@ -19,6 +19,7 @@
 import { equal, listDir, ok, readText, ROOT, suite } from '../harness.ts';
 import { EDGE_KEYS_DECLARED, referenceTarget, validateDefinition } from '../../src/definition/validate.ts';
 import type { FlowDefinition } from '../../src/definition/types.ts';
+import { CORPUS_NODE_TYPES } from './corpus-types.ts';
 
 const EX = `${ROOT}spec/examples`;
 const reg = JSON.parse(await readText(`${EX}/registry.json`)) as {
@@ -28,7 +29,9 @@ const reg = JSON.parse(await readText(`${EX}/registry.json`)) as {
 };
 // `groups` since W58: `task-config.flow.json` declares `workerGroups`, and a registry that omits
 // the set declares NO groups (`FD-V31`), so the corpus-wide loop below needs the corpus's own.
-const REGISTRY = { predicates: reg.predicates ?? [], workerTypes: reg.workerTypes, groups: reg.groups ?? [] };
+// `nodeTypes` since W59, for the same reason one set over: `typed.flow.json` names a type, and a
+// registry that omits the set declares none (`FD-V32`).
+const REGISTRY = { predicates: reg.predicates ?? [], workerTypes: reg.workerTypes, groups: reg.groups ?? [], nodeTypes: CORPUS_NODE_TYPES };
 
 /** Rules for a definition. `nodes` is spread in so each case names only what it changes. */
 const doc = (nodes: unknown[]): FlowDefinition =>

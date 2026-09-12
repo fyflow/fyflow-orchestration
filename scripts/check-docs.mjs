@@ -182,7 +182,14 @@ const written = [];
 for (const [i, b] of all.entries()) {
   if (b.tag !== 'run' && b.tag !== 'check') continue;
   const rel = relative(OUT, join(ROOT, 'index.ts')).replace(/\\/g, '/');
-  const code = b.body.replaceAll(`'${PKG}'`, `'${rel}'`).replaceAll(`"${PKG}"`, `'${rel}'`);
+  // **The SUB-PATH, rewritten to its published entry — W59.** `fyflow-orchestration/scheduler` is
+  // what a consumer writes for the bootstrap helper (both manifests export it), and it resolves to
+  // `src/scheduler/index.ts`. Neither pattern can match the other's text — the root form ends in a
+  // quote where the sub-path form continues with a slash — so the order here is not load-bearing.
+  const relSub = relative(OUT, join(ROOT, 'src', 'scheduler', 'index.ts')).replace(/\\/g, '/');
+  const code = b.body
+    .replaceAll(`'${PKG}/scheduler'`, `'${relSub}'`).replaceAll(`"${PKG}/scheduler"`, `'${relSub}'`)
+    .replaceAll(`'${PKG}'`, `'${rel}'`).replaceAll(`"${PKG}"`, `'${rel}'`);
   const name = `${String(i).padStart(2, '0')}-line${b.line}.${b.tag}.ts`;
   writeFileSync(join(OUT, name), code + '\n');
   written.push({ ...b, name });
@@ -317,7 +324,11 @@ if (written.length) {
 // DECLARED exception rather than a late one**: W57's `Owns` was written from P16's index
 // row, that row names four `scripts/**` files and not this one, and the item declared this
 // file at its start because `X5`'s Q71 allowance was already in its path.
-const RUN_FLOOR = 19;
+// **Raised 19 -> 20 by [W59](../doc/work-items/w59-what-a-node-type-is.md)**, which added section
+// 13's `run` snippet — a node type as a registry entry, a typed flow validated, and the three
+// refusals `FD-V32`-`FD-V34` each thrown on. Declared at the item's start, on W57's precedent: the
+// section's `check` snippet imports the sub-path and the rewrite above was already in its path.
+const RUN_FLOOR = 20;
 {
   // **Only when the document parsed.** A count over a reference whose fences are
   // malformed or untagged is true of the parse and says nothing about coverage —

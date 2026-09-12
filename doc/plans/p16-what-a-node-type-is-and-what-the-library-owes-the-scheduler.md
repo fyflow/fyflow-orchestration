@@ -3,7 +3,7 @@
 **Status:** IN PROGRESS — **[W57](../work-items/w57-the-scheduler-is-a-dependency.md) is DONE**
 (2026-09-11, [ADR 0048](../decisions/0048-the-scheduler-is-a-declared-dependency-reached-by-one-bare-specifier.md);
 its three stop-and-ask items were answered *exact pin*, *`deno.json` gains the `jsr:` import and the
-L6 map stays — W60 not issued*, and *`S7` narrowed*; Q71 resolved, Q252-Q253 raised), **[W58](../work-items/w58-what-a-node-says-about-its-own-task.md) is DONE** (2026-09-12, **no ADR** — decision 3 is the decision; its three stop-and-ask items were answered *exact shape*, *no `defaultWorkerGroups` — W60's second condition does not fire*, and *strict: an absent registry set is empty*; Q256-Q258 raised, Q253 extended, Q16's task half landed; prediction 2 CONFIRMED — the first non-zero `attempts` a scheduler set at any rung, on a `map` of three) and **[W59](../work-items/w59-what-a-node-type-is.md) is next**. Declared 2026-09-11 on
+L6 map stays — W60 not issued*, and *`S7` narrowed*; Q71 resolved, Q252-Q253 raised), **[W58](../work-items/w58-what-a-node-says-about-its-own-task.md) is DONE** (2026-09-12, **no ADR** — decision 3 is the decision; its three stop-and-ask items were answered *exact shape*, *no `defaultWorkerGroups` — W60's second condition does not fire*, and *strict: an absent registry set is empty*; Q256-Q258 raised, Q253 extended, Q16's task half landed; prediction 2 CONFIRMED — the first non-zero `attempts` a scheduler set at any rung, on a `map` of three) and **[W59](../work-items/w59-what-a-node-type-is.md) is DONE** (2026-09-12, [ADR 0049](../decisions/0049-a-node-type-is-a-registry-entry-and-its-worker-receives-an-envelope.md); its four stop-and-ask items were answered *`settings`/`input`*, *an `exports` map with `./scheduler`*, *node > type > driver default, whole* and *record the by-reference road, Q259*; Q259-Q262 raised, Q239 extended; prediction 3 CONFIRMED — every refusal an `FD-V`, the envelope an `FD-C`, no `FD-R`; W60 not issued, ADR 0050 skipped) — **all three items are done and the plan's RETRO is next**. Declared 2026-09-11 on
 `8550978`, the commit that carried this file as a draft, after
 [P15](p15-what-a-run-retains-and-what-a-result-may-be.md) completed and its retro moved
 `doc/workflow.md` to [v0.16](../workflow.md). *(This read "No item has started" until W57 closed.)*
@@ -472,8 +472,23 @@ whole diff is this plan, four work-item files, the register, and the three index
 
 *Filled in at the join, after the work items are merged.*
 
-**Exit artifact.** —
+**Exit artifact.** EXISTS — [W59](../work-items/w59-what-a-node-type-is.md)'s two L6 rows on a
+real `FyflowScheduler` in both runtimes: two nodes of ONE type (`Scorer`) with DIFFERENT settings,
+each receiving the envelope `{ settings, input }` and computing a different answer from it (9 and
+90 from one input), `high` retrying once under the TYPE's `retryPolicy` with `attempts: 1` on both
+observers, both holding the group the type declares, read back by the scheduler's key; and a typed
+task inside a fanout branch feeding a typed `map` branch at arity three. **What reverting each
+decision costs in L6 failures, on the tree the plan ships: ADR 0048 (W57) 88, W58's passthrough 11,
+ADR 0049 (W59) 11.** L6 is **1281 assertions over 46 real runs**, from 1061 / 42 at this
+declaration.
 
-**What the plan answered.** —
+**What the plan answered.** *(Written by W59 at its close; the retro's is the reading that
+counts.)* A node type is a REGISTRY entry — worker, pool, groups, config, a settings VALIDATOR and
+a retry default — named by `type` in a definition that stays data; its pool is keyed by its name;
+its worker receives `{ settings, input }`; and what the library owes the scheduler to have one is
+the declared dependency ADR 0048 made and the ONE sub-path that constructs scheduler objects.
+Three of four predictions confirmed as written (1, 2 narrowed at the declaration, 3); prediction 4
+confirmed with `S7` narrowed. Facts 1-5 all held; fact 3's mechanism was false (W57). Q71 resolved;
+Q248-Q262 used but Q254, Q255 — check the register before reusing either.
 
 **Retro.** —

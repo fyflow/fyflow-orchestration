@@ -5,6 +5,11 @@
  * survives `JSON.parse(JSON.stringify(x))`, which is what lets a definition be
  * validated, rendered and persisted by things that never ran it.
  */
+// **The scheduler's pool-options TYPE, by the bare specifier ADR 0048 rule 4 allows** — W59. A
+// node type's `pool` is exactly what the bootstrap helper hands `WorkerManager`, so it is typed
+// as that rather than as a second copy of it. Type-only: erased in every build, so the pure
+// entry still loads no scheduler value.
+import type { WorkerManagerOptions } from 'fyflow-scheduler';
 
 /** The terminal states an edge may opt into. `user_action` is refused: it suspends (FD-V18). */
 export type RoutableState = 'done' | 'failed';
@@ -88,10 +93,79 @@ export interface RetryPolicy {
   backoffMs: number;
 }
 
+/**
+ * **A node type's per-node settings VALIDATOR** — `spec/flow-definition.md` section 2 (v0.17),
+ * [ADR 0049](../../doc/decisions/0049-a-node-type-is-a-registry-entry-and-its-worker-receives-an-envelope.md)
+ * rule 2. A function in the registry exactly as a predicate is (ADR 0002 rule 3): `null` ACCEPTS,
+ * a string is WHY the settings are refused and becomes `FD-V33`'s detail. It receives the node's
+ * EFFECTIVE settings — `{}` when the node declares none — so a type that requires a key refuses
+ * an absent object by name. **The schema LANGUAGE is deliberately not here**: a declared, portable
+ * schema is P18's subject, and a function is what keeps `FD-V33` decidable at instantiation
+ * without inventing one ([W59](../../doc/work-items/w59-what-a-node-type-is.md)).
+ */
+export type SettingsValidator = (settings: Readonly<Record<string, unknown>>) => string | null;
+
+/**
+ * **What a node type IS: a REGISTRY entry** — ADR 0049 rule 1, P16 decision 4. The definition
+ * names it by `type` and stays data; the worker, the pool, the groups and the config live here,
+ * in the registry the consumer passes to the driver, exactly as predicates and worker types do.
+ * **A type's pool is keyed by the type's NAME**, which is what `FD-V32` checks and what the
+ * bootstrap helper (`fyflow-orchestration/scheduler`) builds.
+ */
+export interface NodeType {
+  /**
+   * Module URL of the worker class the type runs — what the bootstrap helper hands
+   * `WorkerManager` as the INNER script; its default export is the class. Never a path in the
+   * definition, which names the type and nothing else (P16 decision 4).
+   */
+  worker: string;
+  /** Pool options the helper passes to `WorkerManager`, minus the two the type states separately below. */
+  pool?: Readonly<Omit<WorkerManagerOptions, 'config' | 'groups'>>;
+  /**
+   * Resource-group ids the type's POOL declares: every task of the type acquires them, and the
+   * scheduler unions them with a node's own `workerGroups` (W58's measurement). Each must be one
+   * `Registry.groups` declares — held under `FD-V31` at construction, naming the type — because
+   * a pool naming an unknown group is ignored in silence exactly as a task is (measured at W59,
+   * both runtimes).
+   */
+  groups?: readonly string[];
+  /** The pool's global config: the first constructor argument of every worker instance of the type. */
+  config?: unknown;
+  /** The per-node `settings` validator — see `SettingsValidator`. Absent, any plain object is accepted. */
+  settings?: SettingsValidator;
+  /**
+   * The retry policy for every node of the type that declares none — held to `FD-V30` at
+   * construction, naming the type. **A node's own wins, whole**, then this, then the driver's
+   * `defaultRetryPolicy` (section 2's merge rule, one level longer).
+   */
+  retryPolicy?: RetryPolicy;
+}
+
+/** The registry's node types, keyed by the name a `task`'s `type` gives. A `Map` or a plain object, as the consumer prefers. */
+export type NodeTypes = ReadonlyMap<string, NodeType> | Readonly<Record<string, NodeType>>;
+
 export interface TaskNode {
   id: string;
   kind: 'task';
-  workerType: string;
+  /**
+   * The scheduler pool this node's task runs in. **Exactly one of `workerType` and `type`**:
+   * neither is `FD-V23`, both is `FD-V34`. Optional in SHAPE since v0.17 and required in MEANING,
+   * exactly as it was — every corpus flow that declares it is unchanged.
+   */
+  workerType?: string;
+  /**
+   * **A registered node TYPE, named instead of a `workerType`** — v0.17, ADR 0049. Its pool is
+   * keyed by the type's name (`FD-V32`), and its worker receives the envelope
+   * `{ settings, input }` rather than the bare payload (`FD-C5`).
+   */
+  type?: string;
+  /**
+   * **Per-node settings for a typed node** — a plain JSON object the type's validator accepts
+   * (`FD-V33`); `{}` when absent. Reaches the worker as `settings` in the envelope, as its own
+   * copy per dispatch (`JP-R11`'s invariant, one field over). Meaningless on a node with no
+   * `type`, and refused there (`FD-V34`).
+   */
+  settings?: Readonly<Record<string, unknown>>;
   edges: Edge[];
   /**
    * `true` means the flow handles this node's failure; the default means a human
@@ -212,6 +286,14 @@ export interface Registry {
    * `Object.keys(scheduler.groups)`, the scheduler's own map, rather than a second list.
    */
   groups?: ReadonlySet<string> | readonly string[];
+  /**
+   * **The node types a `task`'s `type` may name** — the fourth set, v0.17
+   * ([W59](../../doc/work-items/w59-what-a-node-type-is.md), ADR 0049). **Absent means EMPTY**,
+   * as `groups` is: a definition naming any type against a registry that declares none is
+   * refused (`FD-V32`). The validator reads one field of each entry, `settings`, and reads it at
+   * instantiation only; the driver reads `retryPolicy`; the bootstrap helper reads the rest.
+   */
+  nodeTypes?: NodeTypes;
 }
 
 /**
@@ -221,7 +303,7 @@ export interface Registry {
  * legitimately violate more than one rule.
  */
 export interface Finding {
-  /** `FD-V1` … `FD-V31`. Never renumbered, so it is safe to assert on. */
+  /** `FD-V1` … `FD-V34`. Never renumbered, so it is safe to assert on. */
   rule: string;
   /** Node id, edge index, or document-level `null`. */
   at: string | null;

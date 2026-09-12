@@ -214,7 +214,7 @@ if (!noGroups.some((f) => f.rule === 'FD-V31' && f.at === 'score')) {
 
 | kind | | refused if |
 |---|---|---|
-| `task` | runs a worker of `workerType`. Has `edges`, and optionally **`needs`**, **`retryPolicy`** and **`workerGroups`** — what it says about its own task, below | it has no `edges`, or **no edge of it is eligible for `done`** (`FD-V7`); its `retryPolicy` is not exactly `{ maxRetries, backoffMs }` — an integer >= 0 and a finite number >= 0, no other key (`FD-V30`); its `workerGroups` is not a non-empty array of distinct ids the registry's `groups` declares (`FD-V31`) |
+| `task` | runs a worker — of `workerType`, a pool, **or of a node `type`** with per-node **`settings`** (section 13). Has `edges`, and optionally **`needs`**, **`retryPolicy`** and **`workerGroups`** — what it says about its own task, below | it has no `edges`, or **no edge of it is eligible for `done`** (`FD-V7`); it names neither `workerType` nor `type` (`FD-V23`) or both (`FD-V34`); its `retryPolicy` is not exactly `{ maxRetries, backoffMs }` — an integer >= 0 and a finite number >= 0, no other key (`FD-V30`); its `workerGroups` is not a non-empty array of distinct ids the registry's `groups` declares (`FD-V31`); its `type` is not a registered node type with a pool of its name (`FD-V32`); its `settings` is not a plain object the type's validator accepts (`FD-V33`) |
 | `fanout` | `branches: string[]` — the node each branch starts at. Dispatches nothing itself | fewer than two branches, a repeated entry, any `edges` at all, or a branch entry that is not a `task` (`FD-V9`) |
 | `map` | `over: '<key>'` and `branch: '<node id>'` — **one** branch, opened once per item at run time. Dispatches nothing itself; the RUN opens N instances of its one branch. Optionally **`needs`**, which is what `over` is then a key on | any `edges` at all, a `branch` that is not a `task`, or an `over` outside `^[A-Za-z0-9_-]{1,64}$` (`FD-V25`); a missing `over` or `branch` (`FD-V23`) |
 | `join` | `of: '<fanout id>'`. Fires when its policy says so | it does not have **exactly one** edge, or that edge carries `when` or `on` (`FD-V7`) |
@@ -421,7 +421,7 @@ if (!rules.includes('FD-V2') || !rules.includes('FD-V5')) {
 }
 ```
 
-There are **29 refusals** over the id range `FD-V1` … `FD-V31`, each with a failing example in
+There are **32 refusals** over the id range `FD-V1` … `FD-V34` *(29 over `FD-V1` … `FD-V31` until W59 added the three node-type rules — and this sentence stood at 29 twelve lines below the table W59 rewrote, until its conformity reader read the two together)*, each with a failing example in
 `spec/examples/invalid/`. Two ids in that range are **deliberately absent** and have no rule behind
 them: `FD-V14`, which never existed, and **`FD-V15`, retired when nested fan-out became
 expressible**. The ids are never renumbered, so it is safe to assert on them. The full
@@ -1452,3 +1452,122 @@ second having been superseded on 2026-08-31. W36's conformity reader.)*
 
 Thirteen worked flows, on a real scheduler, are in [`examples/`](examples/README.md) — including a
 routed-away branch, a lost branch, a human resolving a suspension, and a refusal that stops a run.
+
+---
+
+## 13. Node types — a registry entry, a settings validator, and the envelope
+
+A `task` can name a **node type** instead of a `workerType`, and carry per-node **`settings`** —
+`spec/flow-definition.md` v0.17, [ADR 0049](doc/decisions/0049-a-node-type-is-a-registry-entry-and-its-worker-receives-an-envelope.md),
+[W59](doc/work-items/w59-what-a-node-type-is.md). **A node type is a REGISTRY entry and the
+definition stays data**: the type's worker, its pool, the resource groups the pool holds, the
+pool's global config, a per-node settings VALIDATOR and a retry default all live in
+`Registry.nodeTypes`, the fourth set beside `predicates`, `workerTypes` and `groups`; the flow names
+the type and nothing else — never a file, never a URL. **A bare `workerType` node is unchanged**:
+nothing you have already written moves.
+
+| | | |
+|---|---|---|
+| `type` | instead of `workerType`, exactly one of the two | the name of an entry in `nodeTypes` — **and of a pool in `workerTypes`, because a type's pool is keyed by its name** (`FD-V32`). Both keys on one node, a `workerType` that names a type, or `settings` on a node with no `type`, is `FD-V34` |
+| `settings` | optional, typed nodes only | a plain JSON object the type's validator accepts (`FD-V33`); **absent means `{}`**, and the validator sees `{}` |
+
+**What the type's worker receives is the ENVELOPE `{ settings, input }`** — `FD-C5`. `settings` is
+the node's declared object, as its own copy; **`input` is what an untyped node in the same position
+would have received as its whole payload** — the previous node's result, the object `needs`
+describes, its own item as a map instance, the collection after a join. Write the type's worker to
+read `payload.settings` and `payload.input`, and nothing else changes about it.
+
+```ts run
+import { validateDefinition, type FlowDefinition, type NodeType, type Registry } from 'fyflow-orchestration';
+
+// A node type. `settings` is a VALIDATOR — a function, registered as a predicate is: `null`
+// accepts, a string is why it is refused (and becomes FD-V33's detail). It sees `{}` when a node
+// declares no settings, so a type that requires a key refuses absence by name.
+const Scorer: NodeType = {
+  worker: new URL('../../examples/workers/flow-worker.ts', import.meta.url).href,
+  config: { role: 'typed' },                          // every worker instance's constructor argument
+  pool: { maxThreads: 2, inline: true },              // WorkerManager options, minus config and groups
+  groups: ['scorer'],                                 // the POOL's groups — every task of the type holds them
+  retryPolicy: { maxRetries: 1, backoffMs: 0 },       // for every node of the type that declares none
+  settings: (s) => (typeof s.factor === 'number' && s.factor > 0 ? null : `factor must be a positive number, got ${JSON.stringify(s.factor)}`),
+};
+
+// Two nodes of ONE type with DIFFERENT settings — the whole point.
+const typed: FlowDefinition = {
+  flowId: 'typed', version: 1, entry: 'ingest',
+  nodes: [
+    { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'low' }] },
+    { id: 'low',    kind: 'task', type: 'Scorer', settings: { factor: 10 },  edges: [{ to: 'high' }] },
+    { id: 'high',   kind: 'task', type: 'Scorer', settings: { factor: 100 }, edges: [{ to: 'done' }] },
+    { id: 'done',   kind: 'end',  outcome: 'completed' },
+  ],
+};
+
+// The registry. `Scorer` is in `workerTypes` TOO, because its pool is keyed by its name — pass
+// `Object.keys(scheduler.workerPools)` and that is true by construction (the bootstrap below).
+const registry: Registry = { predicates: [], workerTypes: ['IngestWorker', 'Scorer'], groups: ['scorer'], nodeTypes: { Scorer } };
+const bad = validateDefinition(typed, registry);
+if (bad.length) throw new Error(`the typed flow is invalid: ${bad.map((f) => `${f.rule}@${f.at}`).join()}`);
+
+// The three refusals, each at construction and never on the one workload that hits it.
+const rules = (def: FlowDefinition, reg = registry) => validateDefinition(def, reg).map((f) => f.rule);
+const low = (node: object): FlowDefinition => ({ ...typed, nodes: [typed.nodes[0]!, node as never, typed.nodes[3]!] });
+// FD-V32 — a type the registry does not hold; and `nodeTypes` OMITTED means NONE registered.
+if (!rules(low({ id: 'low', kind: 'task', type: 'Nope', edges: [{ to: 'done' }] })).includes('FD-V32')) throw new Error('FD-V32');
+if (!rules(typed, { ...registry, nodeTypes: undefined }).includes('FD-V32')) throw new Error('FD-V32 with nodeTypes omitted');
+// FD-V33 — settings the validator refuses; and absent settings reach it as {}, which this one refuses.
+if (!rules(low({ id: 'low', kind: 'task', type: 'Scorer', settings: { factor: 'ten' }, edges: [{ to: 'done' }] })).includes('FD-V33')) throw new Error('FD-V33');
+if (!rules(low({ id: 'low', kind: 'task', type: 'Scorer', edges: [{ to: 'done' }] })).includes('FD-V33')) throw new Error('FD-V33 on absent settings');
+// FD-V34 — the two halves mixed: `type` beside `workerType`, or a bare `workerType` naming a type.
+if (!rules(low({ id: 'low', kind: 'task', type: 'Scorer', workerType: 'Scorer', edges: [{ to: 'done' }] })).includes('FD-V34')) throw new Error('FD-V34');
+if (!rules(low({ id: 'low', kind: 'task', workerType: 'Scorer', edges: [{ to: 'done' }] })).includes('FD-V34')) throw new Error('FD-V34 on a bare node naming a type');
+```
+
+**Wiring it: the bootstrap helper.** `fyflow-orchestration/scheduler` is a sub-path — the one
+module of this package that constructs scheduler objects, kept out of the root so the validator,
+the driver and the fold load no `WorkerManager`. `bootstrap(nodeTypes, groups)` builds **one pool
+per type, keyed by the type's name**, running the package's envelope worker around your worker, and
+refuses **both ways** a type naming a group you gave no object for and an object no type names
+(the scheduler ignores an unknown group id in silence, at the pool level too — measured). Spread
+its result beside your own pools and groups, and read the driver's sets off the scheduler:
+
+```ts check
+import { Driver, liveToken, type FlowDefinition, type NodeType } from 'fyflow-orchestration';
+import { bootstrap } from 'fyflow-orchestration/scheduler';
+import { ConcurrentLimitGroup, FyflowScheduler, WorkerManager } from 'fyflow-scheduler';
+
+declare const Scorer: NodeType;
+declare const typed: FlowDefinition;
+declare const workerUrl: string;
+
+// The types' groups are given as OBJECTS here and only here; the helper returns them keyed as given.
+const types = bootstrap({ Scorer }, { scorer: new ConcurrentLimitGroup(4, 'scorer') });
+const scheduler = new FyflowScheduler(
+  { IngestWorker: new WorkerManager(workerUrl, { inline: true, config: { role: 'ingest' } }), ...types.workerPools },
+  { ...types.resourceGroups },
+);
+const driver = new Driver(typed, {
+  runId: 'run-1', scheduler, predicates: new Map(), joinPolicy: liveToken,
+  workerTypes: Object.keys(scheduler.workerPools),   // the helper's pools are in here, keyed by type name
+  groups: Object.keys(scheduler.groups),             // and its groups
+  nodeTypes: { Scorer },                             // the SAME object the helper built from
+});
+driver.start({ confidence: 0.9 });
+```
+
+**What a type declares for its nodes, and how it merges.** A node's own `retryPolicy` wins, whole;
+then the type's; then the driver's `defaultRetryPolicy`. A type's `groups` are the pool's and the
+scheduler unions them with a node's own `workerGroups`, so nothing merges — and a task acquires its
+pool's group **once per ADMISSION**: a retry is admitted again, and so is a task that was admitted
+to a threaded pool and found no free worker (both measured at ladder L6), so a group's budget is
+spent per admission and not per task. Both are held at
+construction: a type's policy to `FD-V30` and a type's groups to the registry's `groups` under
+`FD-V31`, naming the type.
+
+**What this is not.** A per-node TRANSFORM on the envelope is
+[P16](doc/plans/p16-what-a-node-type-is-and-what-the-library-owes-the-scheduler.md)'s next plan
+(P17), and what a type says about what its worker EXPECTS and RETURNS — input and output schemas —
+is the one after (P18); a type says nothing about either yet. The validator runs at construction and
+nowhere else: the driver holds your definition by reference, so a document you mutate after
+`new Driver` is dispatched as mutated, for every key ([Q259](doc/open-questions.md)). Two worked
+typed flows run on a real scheduler in [`examples/`](examples/README.md).

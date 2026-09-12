@@ -265,10 +265,17 @@ if (!existsSync(REG)) {
 } else if (existsSync(VALID_DIR)) {
   const reg = parsed.get(REG) ?? {};
   const preds = new Set(reg.predicates ?? []), wts = new Set(reg.workerTypes ?? []);
+  // `nodeTypes` since W59 (spec/flow-definition.md v0.17): a typed task names its pool by `type`,
+  // a name in registry.json's `nodeTypes`, and carries no `workerType` — so a task is checked
+  // against whichever set the key it has names. `groups` is deliberately not read here (W58):
+  // it needs `FD-V31`'s per-entry logic, which is ladder L4's.
+  const nts = new Set(reg.nodeTypes ?? []);
   for (const name of readdirSync(VALID_DIR)) {
     const doc = parsed.get(join(VALID_DIR, name));
     for (const n of doc?.nodes ?? []) {
-      if (n.kind === 'task' && !wts.has(n.workerType))
+      if (n.kind === 'task' && n.type !== undefined && !nts.has(n.type))
+        fail('C7', `valid/${name}: type "${n.type}" is not in registry.json`);
+      if (n.kind === 'task' && n.type === undefined && !wts.has(n.workerType))
         fail('C7', `valid/${name}: workerType "${n.workerType}" is not in registry.json`);
       for (const e of n.edges ?? [])
         if (e.when !== undefined && !preds.has(e.when))
@@ -286,6 +293,12 @@ if (!existsSync(REG)) {
     if (name.startsWith('FD-V5--')) {
       const wt = (doc?.nodes ?? []).filter(n => n.kind === 'task').map(n => n.workerType);
       if (!wt.some(w => !wts.has(w))) fail('C7', `invalid/${name} names no workerType absent from registry.json`);
+    }
+    // W59: `FD-V32` is the refusal about the fourth set, and its case must name a type the
+    // registry lacks — `FD-V5`'s clause one set over.
+    if (name.startsWith('FD-V32--')) {
+      const ty = (doc?.nodes ?? []).filter(n => n.kind === 'task' && n.type !== undefined).map(n => n.type);
+      if (!ty.some(t => !nts.has(t))) fail('C7', `invalid/${name} names no node type absent from registry.json`);
     }
   }
 }

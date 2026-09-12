@@ -17,7 +17,9 @@
 // clauses at **ID** granularity and calls `check-spec` *seven clauses*. This file
 // works at **`fail()`-SITE** granularity, and the two reconcile exactly:
 //
-//   25  `fail()` sites in `check-spec.mjs`  — C1×1 C2×4 C3×3 C4×6 C5×2 C6×1 C7×5 C8×3
+//   27  `fail()` sites in `check-spec.mjs`  — C1×1 C2×4 C3×3 C4×6 C5×2 C6×1 C7×7 C8×3
+//        (C7 gained TWO at W59: a typed task's `type` against `nodeTypes`, and FD-V32's case
+//         naming a type the registry lacks — `FD-V5`'s two clauses one registry set over.)
 //        (C4 gained FOUR at W45: two comparing spec/README.md's own refusal count to
 //         what C4 counted, and two reporting that the count is not stated at all)
 //       (C2 gained TWO at W41: the `RULE_PREFIXES` binding, both directions.)
@@ -424,6 +426,20 @@ const PROBES = [
     apply: (spec) => edit(join(spec, 'examples', 'invalid', 'FD-V5--unknown-worker-type.flow.json'),
       (t) => t.replace('"workerType": "NoSuchWorker"', '"workerType": "ScoreWorker"')),
   },
+  // W59: the fourth registry set. A typed task names its pool by `type`, and `C7` reads it
+  // against `nodeTypes` — one probe per new `fail()` site, as for `workerType`.
+  {
+    name: 'a valid flow naming a node TYPE the registry does not have',
+    check: 'C7',
+    apply: (spec) => edit(join(spec, 'examples', 'valid', 'typed.flow.json'),
+      (t) => t.replace('"type": "Scorer", "settings": { "factor": 100 }', '"type": "NoSuchType", "settings": { "factor": 100 }')),
+  },
+  {
+    name: 'FD-V32`s case naming only node types the registry DOES have',
+    check: 'C7',
+    apply: (spec) => edit(join(spec, 'examples', 'invalid', 'FD-V32--type-not-in-registry.flow.json'),
+      (t) => t.replace('"type": "Nope"', '"type": "Scorer"')),
+  },
 
   // --- C8: spec/README's version column matches each document --------------------
   {
@@ -520,8 +536,10 @@ const trippedIn = (out) => [...new Set([...out.matchAll(/^ {2}(C\d+): /gm)].map(
 const RAN = (out) => /^(All checks passed|\d+ failure\(s\)\.)/m.test(out);
 
 /** Floors, because `caught === PROBES.length` is vacuously true at zero. */
-const MIN_PROBES = 22;
-const MIN_META = 23;
+// 22 / 23 until W59, which added two of each and raised both to the counts it ships — Q102's
+// ratchet, the obligation on the item that adds a probe.
+const MIN_PROBES = 26;
+const MIN_META = 25;
 
 /**
  * **How many gradings may be backed by the CORPUS rather than by the probe they
@@ -633,6 +651,12 @@ const META = [
   ['C7`s FD-V5 refusal-case clause disabled', 'FD-V5`s case naming only workerTypes the registry DOES have',
     (t) => t.replace("      if (!wt.some(w => !wts.has(w))) fail('C7',",
       "      if (!wt.some(w => !wts.has(w))) [].push('C7',")],
+  // W59: the two `nodeTypes` clauses, graded by their own probes.
+  ['C7`s unknown-type clause disabled', 'a valid flow naming a node TYPE the registry does not have',
+    (t) => t.replace("        fail('C7', `valid/${name}: type", "        [].push('C7', `valid/${name}: type")],
+  ['C7`s FD-V32 refusal-case clause disabled', 'FD-V32`s case naming only node types the registry DOES have',
+    (t) => t.replace("      if (!ty.some(t => !nts.has(t))) fail('C7',",
+      "      if (!ty.some(t => !nts.has(t))) [].push('C7',")],
 
   ['C8`s missing-Status clause disabled', 'a spec document with no "**Status:** vN.N" header',
     (t) => t.replace("    if (!own) { fail('C8',", "    if (!own) { [].push('C8',")],

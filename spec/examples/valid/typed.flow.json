@@ -1,0 +1,22 @@
+{
+  "flowId": "typed",
+  "version": 1,
+  "entry": "ingest",
+  "nodes": [
+    { "id": "ingest",  "kind": "task", "type": "Scorer",
+      "edges": [ { "to": "each" } ] },
+    { "id": "each",    "kind": "map",  "over": "items", "branch": "rank" },
+    { "id": "rank",    "kind": "task", "type": "Scorer", "settings": { "factor": 100 },
+      "edges": [ { "to": "gather" } ] },
+    { "id": "gather",  "kind": "join", "of": "each", "edges": [ { "to": "split" } ] },
+    { "id": "split",   "kind": "fanout", "branches": [ "scoreA", "scoreB" ] },
+    { "id": "scoreA",  "kind": "task", "type": "Scorer", "settings": { "factor": 10 },
+      "edges": [ { "to": "collect" } ] },
+    { "id": "scoreB",  "kind": "task", "workerType": "ScoreWorker",
+      "edges": [ { "to": "collect" } ] },
+    { "id": "collect", "kind": "join", "of": "split", "edges": [ { "to": "publish" } ] },
+    { "id": "publish", "kind": "task", "type": "Scorer", "settings": { "factor": 1 },
+      "edges": [ { "to": "done" } ] },
+    { "id": "done",    "kind": "end",  "outcome": "completed" }
+  ]
+}

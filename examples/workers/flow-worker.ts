@@ -9,9 +9,11 @@
  * [Q33](../../doc/open-questions.md)'s answer *Node and Deno* rather than
  * *Node only* — the leaning's whole argument was one worker file per runtime.
  *
- * **One class, TEN roles**, selected by the pool's `config` — which is how
- * `examples/run-flow.ts`'s ELEVEN pools are satisfied without eleven near-identical
- * files. *(NINE and TEN until W58 added `retry` and `RetryWorker`.)* *(These read "EIGHT" and "nine" of the state before W45 added `attest` and
+ * **One class, ELEVEN roles**, selected by the pool's `config` — which is how
+ * `examples/run-flow.ts`'s TWELVE pools are satisfied without twelve near-identical
+ * files. *(TEN and ELEVEN until W59 added `typed` and the `Scorer` type's pool, which the
+ * bootstrap helper builds rather than `pool()`; NINE and TEN until W58 added `retry` and
+ * `RetryWorker`.)* *(These read "EIGHT" and "nine" of the state before W45 added `attest` and
  * `AttestWorker`; corrected by [W47](../../doc/work-items/w47-the-blocked-flow-on-real-workers.md),
  * whose conformity reader found five such counts in this file and one next door —
  * and whose own new clauses in `examples/l6.ts` compute all three lists, so the day
@@ -90,6 +92,13 @@ export const ROLES = [
   // attempt of a task id and returns on the second, which is the only way a real
   // scheduler ever sets a non-zero `attempts` on a task that settles `done`.
   'retry',
+  // **W59's role, and it exists because no shipped one reads an ENVELOPE.** Every other role
+  // reads its payload whole; this one reads `settings` and `input` by name (`FD-C5`), computes
+  // a score from BOTH — so two nodes of one type with different settings return different
+  // answers from the same input — and fails its first attempt when `settings.failFirst` says
+  // so, which is how one of the two retries under the TYPE's policy. It echoes the envelope's
+  // key set, so a driver that wrapped more (or less) than the two keys is red on the value.
+  'typed',
 ] as const;
 export type Role = typeof ROLES[number];
 
@@ -145,6 +154,42 @@ export default class FlowWorker extends BaseWorker {
             throw new Error(`retry worker: first attempt of ${id} fails on purpose`);
           }
           return { confidence: confidenceOf(payload), score: Math.round(confidenceOf(payload) * 100), retried: true };
+        }
+      case 'typed':
+        // **The role a node TYPE runs — W59, `FD-C5`.** The payload is the ENVELOPE, and this
+        // arm reads its two keys by name: `settings` is the node's own declaration (its own
+        // copy — a write here reaches no sibling), `input` is what an untyped node in the same
+        // position would have received whole. Four things are observable and each is a claim:
+        //   - `keys` is the envelope's key set — exactly `['input', 'settings']`, or the driver
+        //     wrapped more or less than the rule says (W43's `weigh` reasoning, one rule over);
+        //   - `score` is `confidence * settings.factor`, so two nodes of ONE type with DIFFERENT
+        //     settings return DIFFERENT answers from the same input — the exit artifact's pair;
+        //   - `retried` is true only on a SECOND attempt, and the first is thrown away when
+        //     `settings.failFirst` is true — the retry that runs under the TYPE's policy, with
+        //     `thrownOnce`'s per-process memo, so the pool must be inline (see `retry`);
+        //   - `items` is echoed when the input carries an array of them, so a typed node can feed
+        //     a `map` inside a fanout branch — the nested shape obligation (a) asks for.
+        {
+          const env = (payload ?? {}) as { settings?: Record<string, unknown>; input?: unknown };
+          const settings = (env.settings ?? {}) as { factor?: unknown; failFirst?: unknown };
+          const id = context?.taskId ?? '';
+          const failFirst = settings.failFirst === true;
+          if (failFirst && !thrownOnce.has(id)) {
+            thrownOnce.add(id);
+            throw new Error(`typed worker: first attempt of ${id} fails on purpose (settings.failFirst)`);
+          }
+          const c = confidenceOf(env.input);
+          const factor = typeof settings.factor === 'number' ? settings.factor : 0;
+          const inputItems = (env.input as { items?: unknown } | null | undefined)?.items;
+          return {
+            keys: Object.keys((payload ?? {}) as Record<string, unknown>).sort(),
+            settingsKeys: Object.keys(settings).sort(),
+            confidence: c,
+            factor,
+            score: Math.round(c * factor),
+            retried: failFirst && thrownOnce.has(id),
+            ...(Array.isArray(inputItems) ? { items: inputItems } : {}),
+          };
         }
       case 'ingest':
         return { confidence: confidenceOf(payload) };

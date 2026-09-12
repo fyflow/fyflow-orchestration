@@ -1,18 +1,18 @@
 /**
  * The definition validator — `spec/flow-definition.md` section 5.
  *
- * Twenty-nine refusals, `FD-V14` and `FD-V15` deliberately absent — the number `check-spec`
- * prints as *C4 covered 29 definition refusals*, derived from the ids in this file. *(This read
+ * Thirty-two refusals, `FD-V14` and `FD-V15` deliberately absent — the number `check-spec`
+ * prints as *C4 covered 32 definition refusals*, derived from the ids in this file. *(This read
  * 23 before W45 and 24 after it: the increment was applied to a number nothing was tracking, and
  * it had been wrong by three for several plans. W45's conformity reader. **27 until W58 added
- * `FD-V30` and `FD-V31`.**)* Reports EVERY violation
+ * `FD-V30` and `FD-V31`, 29 until W59 added `FD-V32`-`FD-V34`.**)* Reports EVERY violation
  * rather than the first, because section 5 requires an invalid definition to be
  * rejected *and* the named rule to appear among the findings, and several cases
  * legitimately violate more than one rule.
  *
  * ADR 0002 rule 3: this runs in full, at instantiation, before any task is queued.
  */
-import type { Edge, Finding, FlowDefinition, FlowNode, Registry } from './types.ts';
+import type { Edge, Finding, FlowDefinition, FlowNode, NodeType, NodeTypes, Registry, SettingsValidator } from './types.ts';
 import { allRegions, buildGraph, certainlySettled } from './regions.ts';
 
 const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
@@ -24,7 +24,11 @@ const NODE_KEYS: Record<string, { req: string[]; opt: string[] }> = {
   // `retryPolicy` and `workerGroups` since v0.16 (W58): what a node says about its OWN task,
   // as declared keys rather than an opaque bag — P16 decision 3, because `FD-V17`'s whole job
   // is refusing a key the kind does not declare, and a bag is where a typo lives until run time.
-  task: { req: ['id', 'kind', 'workerType', 'edges'], opt: ['optional', 'needs', 'retryPolicy', 'workerGroups'] },
+  // **`workerType` is OPTIONAL in shape since v0.17 (W59) and required in meaning**: a task names
+  // its pool by `workerType` OR by `type`, and the neither/both cases are `FD-V23`/`FD-V34` below
+  // rather than this table's, because a key table cannot say "exactly one of". `settings` rides
+  // on `type` (`FD-V34`).
+  task: { req: ['id', 'kind', 'edges'], opt: ['workerType', 'type', 'settings', 'optional', 'needs', 'retryPolicy', 'workerGroups'] },
   fanout: { req: ['id', 'kind', 'branches'], opt: [] },
   // `spec/flow-definition.md` section 2, v0.8. `over` and `branch` are both
   // required: a map that does not say where its arity comes from is one that
@@ -101,6 +105,55 @@ export function retryPolicyProblem(v: unknown): string | null {
 
 const asSet = (x: ReadonlySet<string> | readonly string[]): ReadonlySet<string> =>
   x instanceof Set ? x : new Set(x as readonly string[]);
+
+/**
+ * **The registry's node types as ONE shape** — a `Map` or a plain object in, a `Map` out, and
+ * `undefined` is EMPTY (`Registry.nodeTypes`' own doc comment; the same reading `groups` has).
+ * Shared by the validator and the driver so the two cannot read the option differently.
+ */
+export function nodeTypesOf(x: NodeTypes | undefined): ReadonlyMap<string, NodeType> {
+  if (x === undefined) return new Map();
+  if (x instanceof Map) return x as ReadonlyMap<string, NodeType>;
+  return new Map(Object.entries(x as Readonly<Record<string, NodeType>>));
+}
+
+/**
+ * **A typed node's EFFECTIVE settings: what it declares, or `{}`** — `spec/flow-definition.md`
+ * section 2 (v0.17). One definition, read by the validator (what the type's validator sees) and
+ * by the driver (what the envelope carries), so the object refused at construction and the
+ * object dispatched are the same object.
+ */
+export function effectiveSettings(node: { settings?: Readonly<Record<string, unknown>> }): Readonly<Record<string, unknown>> {
+  return node.settings ?? {};
+}
+
+/**
+ * **Why a typed node's `settings` is refused, or `null`** — `FD-V33`'s whole predicate, in one
+ * place as `retryPolicyProblem` is for `FD-V30`. Two clauses: the SHAPE — a plain JSON object,
+ * because a definition is data (ADR 0002 rule 1) and an array or a scalar is a value the
+ * envelope would carry without a word — and the type's VALIDATOR, run on the effective settings.
+ * **A validator that THROWS refuses**, with its message: a registry function that cannot run on
+ * a document is not an acceptance. **And a verdict that is neither `null` nor a string refuses
+ * too** — a validator returning `false` (a predicate's contract, not this one) is not read as
+ * *accept*, because a boolean has two readings and this contract has one.
+ */
+export function settingsProblem(validate: SettingsValidator | undefined, settings: unknown): string | null {
+  if (settings !== undefined && (typeof settings !== 'object' || settings === null || Array.isArray(settings))) {
+    return `settings must be a plain object, got ${JSON.stringify(settings)}`;
+  }
+  if (validate === undefined) return null;
+  const effective = (settings ?? {}) as Readonly<Record<string, unknown>>;
+  let verdict: unknown;
+  try {
+    verdict = validate(effective);
+  } catch (e) {
+    return `the type's settings validator THREW on ${JSON.stringify(effective)}: ${e instanceof Error ? e.message : String(e)}`;
+  }
+  if (verdict === null) return null;
+  if (typeof verdict === 'string') return verdict;
+  return `the type's settings validator returned ${JSON.stringify(verdict)} for ${JSON.stringify(effective)}, ` +
+    'which is neither null (accepted) nor a string (why it is refused)';
+}
 
 /**
  * @returns every violated rule. Empty means the definition is valid.
@@ -188,6 +241,8 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
   // **Absent means EMPTY, not unchecked** — `Registry.groups`' own doc comment, and the
   // maintainer's call at W58's stop-and-ask with both directions priced.
   const groups = asSet(registry.groups ?? []);
+  // The fourth set, read the same way (W59): absent means no node type is registered.
+  const nodeTypes = nodeTypesOf(registry.nodeTypes);
   const d = doc as unknown as Record<string, unknown>;
 
   // ---- document shape: FD-V23, FD-V17, FD-V21, FD-V16 ----
@@ -255,6 +310,49 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
         add('FD-V21', where, 'workerType must be a string');
       } else if (typeof nd.workerType === 'string' && !wts.has(nd.workerType)) {
         add('FD-V5', where, `workerType "${nd.workerType}" is not a registered worker pool`);
+      }
+      // ---- a node TYPE: FD-V23's typed half, FD-V32, FD-V33, FD-V34 ----
+      // `spec/flow-definition.md` section 2, v0.17 (W59), and ADR 0049. A task names the thing
+      // that runs it ONE way — `workerType`, a pool, or `type`, a registry entry whose pool is
+      // keyed by its name — and `settings` rides on `type`. The key table above cannot say
+      // "exactly one of", so the neither and both cases are stated here.
+      if (nd.workerType === undefined && nd.type === undefined) {
+        add('FD-V23', where, 'task node is missing required key "workerType" (or "type", for a typed node)');
+      }
+      if (nd.type !== undefined && typeof nd.type !== 'string') {
+        add('FD-V21', where, 'type must be a string');
+      }
+      // **`FD-V34` — the typed and untyped halves MIXED**, three ways, one id, because an author
+      // fixes all three by deciding which half the node is in. The second clause is the one a
+      // consumer reaches by accident: a type's pool is keyed by its name and is therefore a
+      // legal `workerType`, and a bare node naming it would hand the type's worker the RAW
+      // payload where it expects the envelope — a run-time task failure (measured at W59) that
+      // ADR 0002 rule 3 says to catch here instead.
+      if (nd.workerType !== undefined && nd.type !== undefined) {
+        add('FD-V34', where, `task declares both "workerType" (${JSON.stringify(nd.workerType)}) and "type" (${JSON.stringify(nd.type)}); a node names its pool one way`);
+      }
+      if (typeof nd.workerType === 'string' && nodeTypes.has(nd.workerType)) {
+        add('FD-V34', where, `workerType "${nd.workerType}" names a node TYPE; write type: "${nd.workerType}" — a typed pool's worker expects the envelope, and a bare workerType would hand it the raw payload`);
+      }
+      if (nd.settings !== undefined && nd.type === undefined) {
+        add('FD-V34', where, 'settings declared on a node with no type; only a typed node carries settings, and a bare node would carry them nowhere');
+      }
+      if (typeof nd.type === 'string') {
+        // **`FD-V32` — the type must exist AND have a pool.** Two clauses under one id because
+        // both mean *this node cannot run* and the fix is the registry either way; the second is
+        // reported only when the first passed, so an unregistered type reads one message.
+        const type = nodeTypes.get(nd.type);
+        if (type === undefined) {
+          add('FD-V32', where, `type "${nd.type}" is not a registered node type` +
+            (nodeTypes.size ? ` (the registry declares ${[...nodeTypes.keys()].sort().map((x) => `"${x}"`).join(', ')})` : ' (the registry declares no node types)'));
+        } else if (!wts.has(nd.type)) {
+          add('FD-V32', where, `type "${nd.type}" is registered but the scheduler has no pool of that name — a type's pool is keyed by its name, and the bootstrap helper builds one`);
+        }
+        // **`FD-V33` — the SHAPE, then the type's VALIDATOR on the effective settings** — see
+        // `settingsProblem`. Run against an unregistered type too, so a malformed `settings`
+        // beside an unknown `type` reports both things wrong rather than one at a time.
+        const problem = settingsProblem(type?.settings, nd.settings);
+        if (problem !== null) add('FD-V33', where, problem);
       }
       // ---- FD-V30: what a node says about its task's RETRIES ----
       // `spec/flow-definition.md` section 2, v0.16 (W58). Its own id rather than a clause of

@@ -19,6 +19,7 @@
 import { collected, equal, listDir, ok, readText, ROOT, suite } from '../harness.ts';
 import { validateDefinition, violatedRules } from '../../src/definition/validate.ts';
 import type { FlowDefinition, Registry } from '../../src/definition/types.ts';
+import { CORPUS_NODE_TYPES } from './corpus-types.ts';
 
 const EX = `${ROOT}spec/examples`;
 
@@ -26,6 +27,7 @@ const registryDoc = JSON.parse(await readText(`${EX}/registry.json`)) as {
   predicates: string[];
   workerTypes: string[];
   groups: string[];
+  nodeTypes: string[];
 };
 const registry: Registry = {
   predicates: new Set(registryDoc.predicates),
@@ -34,6 +36,11 @@ const registry: Registry = {
   // are: `FD-V31` is a refusal ABOUT a registry, so `task-config.flow.json` validates only
   // against one that declares `gpu` and `api`, and the `FD-V31` case names an id it omits.
   groups: new Set(registryDoc.groups),
+  // **The fourth set, v0.17 (W59), and the one the JSON document cannot carry whole**: a node
+  // type's settings validator is a FUNCTION, so `registry.json` names the types and
+  // `corpus-types.ts` is where the names resolve — the same split the corpus's predicates have.
+  // The two are compared both ways below.
+  nodeTypes: CORPUS_NODE_TYPES,
 };
 
 const specText = await readText(`${ROOT}spec/flow-definition.md`);
@@ -197,6 +204,19 @@ suite('L4 — the corpus IS what spec/flow-definition.md section 7 says it is', 
 
 suite('L4 — every valid example validates clean', (test) => {
   ok(validNames.length > 0, 'spec/examples/valid/ has no flows — the corpus is missing');
+
+  test('registry.json`s nodeTypes are exactly the types corpus-types.ts resolves, both ways — and each is a workerTypes entry (FD-V32)', () => {
+    // A list is a claim about another list (rule 8 obligation (e), third shape): the JSON names
+    // and the function map must agree in both directions, or a type would be named and never
+    // resolvable, or resolvable and never named.
+    equal([...registryDoc.nodeTypes].sort(), Object.keys(CORPUS_NODE_TYPES).sort(),
+      'the names registry.json declares under nodeTypes are the keys corpus-types.ts defines');
+    ok(registryDoc.nodeTypes.length > 0, 'and the set is not empty, which would make the comparison vacuous');
+    // A type's pool is keyed by its name (spec section 2, v0.17), so the corpus registry lists it
+    // under workerTypes too — `FD-V32`'s second clause fires on every typed corpus node otherwise.
+    equal(registryDoc.nodeTypes.filter((t) => !registryDoc.workerTypes.includes(t)), [],
+      'every node type has a pool of its own name in workerTypes');
+  });
 
   for (const name of validNames) {
     test(name, async () => {
@@ -367,6 +387,17 @@ const LATE_SUITES = [
   'FD-V31 — workerGroups names only groups the registry declares, every clause, on every shape',
   'the task key table — section 2 and FD-V17 agree on what a task declares, both ways',
   'W58 — retryPolicy and workerGroups reach createTask exactly as the node declares them',
+  // W59 — `FD-V32`-`FD-V34`, the envelope and the bootstrap helper, in
+  // `test/definition/node-type.test.ts`, `test/driver/node-type.test.ts` and
+  // `test/scheduler/bootstrap.test.ts`.
+  'FD-V32 — type names a registered node type whose pool is keyed by its name, every clause, on every shape',
+  'FD-V33 — settings is a plain object the type`s validator accepts, every clause, on every shape',
+  'FD-V34 — a node names its pool ONE way: the typed and untyped halves are not mixed, on every shape',
+  'the typed corpus flow — section 7`s row, the three shapes, and the registry both ways',
+  'W59 — a typed node is dispatched to its type`s pool with the envelope { settings, input } — FD-C5, on every shape',
+  'W59 — what a type declares for its nodes: the retry merge and the groups, at construction and at dispatch',
+  'W59 — bootstrap: one pool per type keyed by its name, the groups both ways, and the default pool is a real WorkerManager',
+  'W59 — the envelope worker: unpacks the two keys, refuses everything else, and drives the inner worker`s lifecycle',
   'ADR 0046 / RN-R13 — a region releases its collection when its join becomes terminal',
   'OR-R11 — a result is a VALUE, and each shape asserts what does NOT cross',
   'OR-R11 — the corpus half of what bounding a result would cost',

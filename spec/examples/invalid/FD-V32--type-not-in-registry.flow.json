@@ -1,0 +1,10 @@
+{
+  "flowId": "type-not-in-registry",
+  "version": 1,
+  "entry": "score",
+  "nodes": [
+    { "id": "score", "kind": "task", "type": "Nope", "settings": { "factor": 10 },
+      "edges": [ { "to": "done" } ] },
+    { "id": "done",  "kind": "end",  "outcome": "completed" }
+  ]
+}
