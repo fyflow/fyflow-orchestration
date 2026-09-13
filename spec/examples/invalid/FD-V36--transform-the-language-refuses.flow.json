@@ -1,0 +1,11 @@
+{
+  "flowId": "transform-the-language-refuses",
+  "version": 1,
+  "entry": "score",
+  "nodes": [
+    { "id": "score", "kind": "task", "type": "Scorer",
+      "transform": { "lang": "path", "expr": "$sum(*.score" },
+      "edges": [ { "to": "done" } ] },
+    { "id": "done",  "kind": "end",  "outcome": "completed" }
+  ]
+}

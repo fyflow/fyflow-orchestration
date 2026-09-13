@@ -1,6 +1,6 @@
 # spec/flow-definition — the flow definition format
 
-**Status:** v0.17 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.18 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2** acted on the first spec-conformity pass
 (ADR 0004, and `region(F)` made computable). **v0.3** acted on the second, which found that `FD-V19`
 had reintroduced the v0.1 defect class under a new id — a refusal rule rejecting the valid corpus.
@@ -208,9 +208,21 @@ names none of those; its pool is keyed by the type's name; and its worker receiv
 receives* and nothing narrower. Section 5 gains **`FD-V32`**, **`FD-V33`** and **`FD-V34`**, and
 `FD-V23` learns that a task names its pool one of two ways. **A bare `workerType` node is a
 degenerate type and is unchanged to the byte** — every corpus flow validates as it did and every
-untyped dispatch is the object it was. So this document now holds **32 refusals** — `FD-V1` …
-`FD-V34` less `FD-V14` and `FD-V15` — and it is the number `check-spec` prints as *C4 covered 32
+untyped dispatch is the object it was. So this document held **32 refusals** at that version — `FD-V1` …
+`FD-V34` less `FD-V14` and `FD-V15` — and it was the number `check-spec` printed as *C4 covered 32
 definition refusals*.
+**v0.18 answers [P17](../doc/plans/p17-what-a-node-may-do-to-its-input-before-its-worker-sees-it.md)'s question — what a node may DO
+to its input before its worker sees it** ([ADR 0051](../doc/decisions/0051-a-transform-is-a-declared-expression-in-a-registered-language-applied-in-the-types-worker-wrapper.md), [W61](../doc/work-items/w61-what-a-transform-is.md)): a typed `task` may declare a
+**`transform`**, `{ lang, expr }` — a language named in a **fifth registry set, `languages`**, and an
+expression in it — evaluated in the TYPE's worker wrapper and never in the driver, with the value the
+node receives as `$` and its effective settings as `$settings`; the envelope gains the declared object
+as a THIRD key, only when declared — **`FD-C6`** in section 3, with `FD-C5` unchanged. A language
+adapter has TWO halves, because a function cannot cross to a thread and a URL can. Section 5 gains
+**`FD-V35`**, **`FD-V36`** and **`FD-V37`**; a transform that cannot be evaluated is a TASK's failure
+and never a run refusal, so **no `FD-R` is added**; a typed node declaring no transform, and every
+untyped node, is dispatched to the byte as at v0.17. So this document now holds **35 refusals** —
+`FD-V1` … `FD-V37` less `FD-V14` and `FD-V15` — and it is the number `check-spec` prints as *C4
+covered 35 definition refusals*.
 
 **Binds:** [ADR 0002](../doc/decisions/0002-a-flow-definition-is-data-and-a-predicate-is-registered-by-name.md)
 (the graph is data; a predicate is a name; an unknown name fails at instantiation) and
@@ -248,7 +260,7 @@ ADR 0002 rule 2 taken literally (`when: "isLowConfidence"`).
 
 | kind | keys | |
 |---|---|---|
-| `task` | `id`, `kind`, `edges`, **exactly one of `workerType` and `type`**, **`settings?`**, **`optional?`**, **`needs?`**, **`retryPolicy?`**, **`workerGroups?`** | binds to a scheduler worker pool — by its key, or through a node TYPE whose pool is keyed by the type's name (v0.17, below). Dispatched as one scheduler task. `retryPolicy` and `workerGroups` are what it says about that task — v0.16, below |
+| `task` | `id`, `kind`, `edges`, **exactly one of `workerType` and `type`**, **`settings?`**, **`transform?`**, **`optional?`**, **`needs?`**, **`retryPolicy?`**, **`workerGroups?`** | binds to a scheduler worker pool — by its key, or through a node TYPE whose pool is keyed by the type's name (v0.17, below). Dispatched as one scheduler task. `retryPolicy` and `workerGroups` are what it says about that task — v0.16, below; `transform` is what it may DO to its input before its worker sees it — v0.18, below, typed nodes only |
 | `fanout` | `id`, `kind`, `branches` | opens a region with **N branches declared here**. Dispatches nothing itself |
 | `map` | `id`, `kind`, `over`, `branch`, **`needs?`** | opens a region with **one branch, opened N times at run time**. Dispatches nothing itself. v0.8 |
 | `join` | `id`, `kind`, `of`, `edges` | closes the region opened by the `fanout` **or `map`** named in `of`. Dispatches nothing itself |
@@ -445,10 +457,108 @@ envelope worker's refusal of a non-envelope payload — a task failure naming th
 is the backstop ([Q260](../doc/open-questions.md)).
 
 **What this is NOT.** A type says nothing about what its worker EXPECTS or RETURNS — input and
-output schemas are P18's. A transform on the envelope is P17's ([Q251](../doc/open-questions.md)),
-and `FD-C5`'s wording is what leaves it a place to sit. A node type has no VERSION
-([Q249](../doc/open-questions.md)). Cases: `spec/examples/valid/typed.flow.json` carries a typed
-task on all three shapes; `spec/examples/invalid/` carries one document per rule.
+output schemas are P18's. A transform on the envelope is the `transform` subsection below (v0.18,
+[Q251](../doc/open-questions.md)'s answer), and `FD-C5`'s wording is what left it a place to sit. A
+node type has no VERSION ([Q249](../doc/open-questions.md)). Cases: `spec/examples/valid/typed.flow.json`
+carries a typed task on all four shapes `FD-C5` enumerates *(this said **three** until W61's
+conformity reader read it beside section 7's row, which has said four since W59's adequacy reader
+added the join successor)*; `spec/examples/invalid/` carries one document per rule.
+
+### `transform` — what a node may DO to its input before its worker sees it — v0.18
+
+```json
+{ "id": "publish", "kind": "task", "type": "Scorer", "settings": { "factor": 1 },
+  "transform": { "lang": "jsonata", "expr": "$sum([*.score])" },
+  "edges": [ { "to": "done" } ] }
+```
+
+A **typed** `task` may declare a **transform**: an expression, in a language the registry names,
+applied to the value the node receives BEFORE its worker sees it — [ADR 0051](../doc/decisions/0051-a-transform-is-a-declared-expression-in-a-registered-language-applied-in-the-types-worker-wrapper.md),
+[P17](../doc/plans/p17-what-a-node-may-do-to-its-input-before-its-worker-sees-it.md) decisions 1-10, [W61](../doc/work-items/w61-what-a-transform-is.md). Until this version the only remedy for a worker
+whose input was not the shape it reads was a RESHAPING `task` node — a worker whose whole job is to
+rename keys, which [ADR 0040](../doc/decisions/0040-what-a-node-can-reach-is-the-runs-own-outputs-and-a-node-id-names-them-relative-to-a-branch-path.md)
+exists to remove and whose absence is a silent zero rather than a refusal
+([W43](../doc/work-items/w43-the-two-blocked-flows-on-real-workers.md)'s flow). **The definition
+says WHAT is done to the input and stays data**: the language is a NAME, never a file and never a
+function, exactly as a predicate and a node type are (ADR 0002 rule 3, P16 decision 4).
+
+| key | | |
+|---|---|---|
+| `transform` | optional, typed nodes only | `{ lang, expr }`, both strings and no other key (`FD-V37`). `lang` names an entry in `Registry.languages`, the fifth set beside `predicates`, `workerTypes`, `groups` and `nodeTypes`, **EMPTY when absent** (`FD-V35`, on `FD-V31`'s reading); `expr` is text that language's `compile` accepts, and the compiler is RUN at instantiation (`FD-V36`). On a node with **no `type`** it is `FD-V37`: the transform is evaluated in the TYPE's worker wrapper and a bare `workerType` node has none — the road where the driver would evaluate, which the maintainer refused. On a `map` node, a `join`, an `end` or an EDGE it is `FD-V17`'s undeclared key, stated once here rather than as three more clauses |
+
+**Where it is evaluated, and why it is not the driver** — P17 decision 1, the maintainer's placement
+of 2026-09-11, and two measured facts under it. `src/driver/driver.ts` dispatches inside a scheduler
+listener in ONE synchronous turn (it contains no `await`; `AGENTS.md` section 8's quiescent-point
+contract rests on that), and a language's evaluator is asynchronous (JSONata's `evaluate()` returns
+a Promise) — so the driver's whole part is one key in one object literal: the envelope becomes
+`{ settings, input, transform }` exactly when the node declares one, and `input` is STILL the value
+received (`FD-C6`). The TYPE's envelope worker evaluates the expression in its async `run()` and
+hands the inner worker `{ settings, input }` with `input` REPLACED by the result. **So ladder L2,
+which asserts on what `createTask` received, cannot see a transformed value** — P17 prediction 3,
+asserted as a pair at L2 and as the wrapper's own behaviour at L1.
+
+**A language is a registry entry with TWO HALVES, because a function cannot cross to a thread and a
+URL can** — P17 fact 7, measured in both runtimes: a threaded pool whose config carries a function
+fails its task with *could not be cloned*, and a URL string crosses. `Registry.languages` maps a
+name to `{ compile, worker, check? }`: **`compile(expr)`**, the registry half, is synchronous, returns
+nothing and THROWS on an expression the language refuses, with the language's own message — what
+`FD-V36` reports, with the error's `position` and `code` as detail when the language sets them;
+**`worker`**, the worker half, is the URL of a module whose default export is
+`compile(expr) → { evaluate(input, settings) → Promise<unknown> }`, which the bootstrap helper writes
+into a typed pool's config ONLY for a type some node of which declares a transform, and only for the
+languages those nodes name, and which the envelope worker loads in `setup()` once per worker instance,
+compiling each distinct expression once per instance rather than per task; **`check`** is RESERVED
+for P18's pre-flight and implemented by nothing — optional, not absent. **The two halves can
+DISAGREE**: one module read twice is one language and two modules, or two versions on the two sides
+of a thread, are two ([Q264](../doc/open-questions.md)); the worker half refusing what the registry
+half accepted is a task failure, and the adapter conformance suite (`test/scheduler/adapter-conformance.ts`)
+asserts, for the adapter it is handed, that the two halves refuse the same expressions.
+
+**What the expression sees** — P17 decision 7, the maintainer's of 2026-09-12. `$` is `input`: the
+value this node receives, in every one of the four kinds `FD-C5` names — the ordinary edge's value,
+what `needs` composed, a map instance's own item, a join's collection — so `*.score` over a
+collection and `$.confidence` over an item read as an author expects. The node's effective
+`settings` are bound as **`$settings`**, so one expression is parameterised per node without a second
+key. Both names are spelled once; the first is JSONata's own convention and the second this
+document's.
+
+**A transform that cannot be evaluated is the TASK's failure, and the consequence is stated** — P17
+decision 5. The wrapper throws a `TransformFailed` naming the language, the expression and the
+language's own error code (`T0412`, `T2002`), so the task fails and takes the two roads any worker
+throw takes: routed through an `on: ["failed"]` edge on an `optional` node, **parked as
+`user_action`** on a non-optional one — measured at W61 on a real scheduler, inline and threaded,
+both runtimes — and a person who `resolve()`s the task supplies the value the transform did not.
+**A transform that evaluates to `undefined` is NOT a failure**: the worker receives `undefined` as
+its `input`, because an adapter cannot tell a typo from an intended absence (P17 fact 4: a path typo
+is silent where a type error is loud), and saying otherwise here would decide P19. **And a language
+module that does not LOAD is the task's failure too, by the maintainer's choice at W61's
+stop-and-ask**: measured, a throw in the wrapper's `setup()` is a WORKER error — the task stays
+`pending` with `attempts: 0`, the pool restarts its worker, and the scheduler emits nothing a driver
+could record — so the wrapper remembers the load failure and throws it from `run()` on exactly the
+tasks whose transform names that language, while a task with no transform, or in a language that did
+load, still runs. No `FD-R` is added: `RunState.outcome` never says `stopped` for a transform.
+
+**`$now`, `$millis` and `$random` are UNBOUND, by name, in every adapter** — P17 decision 6, a rule
+about ANY language: *a transform is a function of what the run produced*, because a run's state is a
+fold of its log (`doc/concept.md` section 5) and a transform that read the clock would make two
+folds of one log disagree. JSONata's three can be shadowed per compiled expression and the shadow
+reaches `$eval` (P17 fact 3); the conformance suite asserts the three by name as expressions that
+never yield a value. **Evaluating twice and comparing is a NECESSARY check and never a sufficient
+one** — `$millis()` returned the same value twice on one machine — which is why the rule is a list
+of names and not a detector.
+
+**What this is NOT.** Not a transform on an untyped node, on a `map`'s `over`, on an edge or on a
+decision: a decision predicate is already a registered function and `doc/concept.md` section 7 names
+an expression language for decisions a non-goal — a consumer who wants one registers a predicate by
+name through the same adapter, with no library change. Not a second language: CEL was refused by the
+maintainer on the maturity of its JavaScript ports, and the adapter interface is what keeps that
+reversible. Not a statement about what a worker EXPECTS or RETURNS — input and output schemas and the
+sample-based pre-flight over a transformed edge are P18's, and the `check` hook is the door left for
+it. **A transform's result changes TYPE with the region's arity** — `*.score` is an array at two
+matches, a scalar at one, absent at zero — and that is [Q263](../doc/open-questions.md), shown by
+W63's exit artifact at all three arities. Cases: `spec/examples/valid/transformed.flow.json` carries
+a transform on all four shapes `FD-C5` enumerates, in the FAKE language `path` the test fixture
+supplies; `spec/examples/invalid/` carries one document per rule.
 
 ### `map` — a region whose arity is not in the document — v0.8
 
@@ -804,6 +914,7 @@ resolving to `undefined`.
 | `FD-C4` | **What a CONDITIONAL reference carries when its target produced nothing on this path** — v0.13, [ADR 0042](../doc/decisions/0042-a-reference-says-whether-it-is-conditional-and-the-bare-form-means-the-target-certainly-ran.md) rule 4. For `"n?"` the key is **absent** from the composed object — not present holding `null`, and not present holding `undefined`, because `null` is what a reference to a task that ran and FAILED already resolves to. For `["n?"]` the key is present holding **`[]`**. Everything else is `FD-C1`'s row for the unsuffixed form, unchanged: the visibility predicate, the order, and the per-key copy. **At both declaration sites**, by the same expression — an edge's conditional reference that resolves to nothing leaves `ctx.needs` without that key, so a predicate reads `'f' in ctx.needs` (`FD-C3`). Test: at ladder L2, over `reference-if-it-ran.flow.json` — one flow, **two runs**, the key present on one and absent on the other, and the run completing on both; and the array form over a SIBLING map region past the first's arity, giving `[]`. *(This cell said *"a nested map region"*; `reference-past-a-map-arity`'s two regions are sequential siblings — `rank` is in `after(split)`, not in `region(split)` — and the nested-map flows are `map-in-fanout` and `nested-map`, neither of which is used. Third occurrence in this document of a rule cell naming a test other than the one that exists. W45's conformity reader.)* | **[W45](../doc/work-items/w45-what-a-reference-must-be-able-to-say.md)** |
 | `FD-C2` | **What names an output is the pair `(node id, branchPath)`.** A node id alone names one output outside a `map` region and **N** inside one, so a projection keyed by node id collapses a map's instances — which is what a reference must not do. A `needs` reference names a node **id**, because a branch path inside a map region is a property of the **dispatch** (section 4, `ID-R6`) and no author can write one. Test: at ladder L2, the pairs are distinct over **every region-bearing corpus flow** — the census derives that set from the directory rather than from a list beside itself, and it is **ten** flows since W50 added `sibling-fanouts` — while the node ids collapse in exactly the map-bearing ones. *(This cell read *"all four … and the two this item adds"*, which was W41's count and went stale twice. W50's conformity reader.)* | **[W41](../doc/work-items/w41-what-a-node-can-reach-and-what-names-it.md)** |
 | `FD-C5` | **What a TYPED node's worker receives: the envelope `{ settings, input }`** — v0.17, [ADR 0049](../doc/decisions/0049-a-node-type-is-a-registry-entry-and-its-worker-receives-an-envelope.md) rule 3, section 2's `type` subsection. `settings` is the node's effective `settings` (`{}` when it declares none), as its **own copy** per dispatch; **`input` is THE VALUE THIS NODE RECEIVES** — exactly what an untyped node in the same position would have been handed as its whole payload: the ordinary edge's value (section 3), the object its `needs` describes (`FD-C1`), its own item as a map instance (`JP-R11`), or the collection as a join's successor (`JP-R12`). No more and no less: an untyped node receives no envelope and no reserved key (ADR 0040 rule 6 untouched), and a typed node's worker reads its two keys by name. **Defined as the value RECEIVED and never as "what `needs` composed"**, deliberately, so a later per-node transform ([Q251](../doc/open-questions.md)) sits between composition and this envelope without rewording the rule. Two typed nodes of one type with different `settings` receive different envelopes and the same `input` rule, which is what the exit artifact shows on real workers | **[W59](../doc/work-items/w59-what-a-node-type-is.md)** — `test/driver/node-type.test.ts` at L2 on all three shapes, as a PAIR against the untyped node's whole payload; `examples/l6.ts` at L6 |
+| `FD-C6` | **What a typed node's POOL receives when the node declares a `transform`, and what its WORKER receives then** — v0.18, [ADR 0051](../doc/decisions/0051-a-transform-is-a-declared-expression-in-a-registered-language-applied-in-the-types-worker-wrapper.md) rule 3, section 2's `transform` subsection. The envelope the driver dispatches is `{ settings, input, transform }`: `settings` and `input` exactly as `FD-C5` states them — **`input` is STILL the value this node receives, untransformed**, because the driver evaluates nothing (P17 decision 1) — and `transform` is the declared `{ lang, expr }`, as its own copy, **present exactly when the node declares one**. The type's envelope worker evaluates the expression over `input` with `settings` bound as `$settings` and hands the inner worker `{ settings, input }` with `input` REPLACED by the result — `undefined` included — and no third key; a transform it cannot evaluate, or a language whose module did not load, is the TASK's failure (section 2). A typed node declaring no transform receives `FD-C5`'s two-key envelope to the byte, and an untyped node receives no envelope at all — ADR 0040 rule 6 untouched. Test: at ladder L2, `test/driver/transform.test.ts` on all four shapes `FD-C5` enumerates — the third key present exactly when declared, and `input` untransformed as a PAIR against the bare node's whole payload; at L1, `test/scheduler/transform.test.ts` — the wrapper over the four kinds of input, and on a real inline and threaded pool where one can load its script | **[W61](../doc/work-items/w61-what-a-transform-is.md)** |
 
 ### An EDGE may declare `needs` too, and what it gives is what its PREDICATE sees — v0.12
 
@@ -1183,6 +1294,9 @@ C4 fails if one is missing.
 | `FD-V32` | a `task`'s `type` names **no registered node type**, or names one **the scheduler has no pool of that name for** — v0.17, section 2. The registry's `nodeTypes` set is **EMPTY when absent**, on `FD-V31`'s reading. **Two clauses under one id** because both mean *this node cannot run* and the fix is the registry either way; the second is reported only when the first passed, because a type's pool is keyed by its name and the bootstrap helper is what builds it. Case: `spec/examples/invalid/FD-V32--type-not-in-registry.flow.json`, against `spec/examples/registry.json`, which deliberately omits the name |
 | `FD-V33` | a typed `task`'s `settings` is **not a plain object**, or the type's **validator refuses** the effective settings — `{}` when the node declares none — by returning a string, by **throwing**, or by returning anything that is neither `null` nor a string. v0.17, section 2. **Its own id rather than a clause of `FD-V21`, on `FD-V30`'s precedent**: the rule owns the key's whole shape because an author fixes both clauses in the same place. Case: `spec/examples/invalid/FD-V33--settings-the-type-refuses.flow.json`, against the corpus's `Scorer` validator in `test/definition/corpus-types.ts` — a function, which `registry.json` names and cannot carry |
 | `FD-V34` | the typed and untyped halves are **mixed** on one `task`: `type` declared **beside** `workerType`; a `workerType` that **names a node type** (its pool is keyed by its name, so `FD-V5` is silent — and a bare node would hand the type's worker the raw payload where it reads the envelope, a run-time task failure measured at W59); or `settings` on a node with **no `type`**, which would be carried nowhere. v0.17, section 2. **One id for three clauses** because an author fixes all three by deciding which half the node is in. Case: `spec/examples/invalid/FD-V34--type-beside-worker-type.flow.json` |
+| `FD-V35` | a typed `task`'s `transform.lang` names **no registered language** — v0.18, section 2's `transform` subsection. The registry's `languages` set is **EMPTY when absent**, on `FD-V31`'s reading: a definition declaring any transform against a registry that says nothing about languages is refused, because the alternative — absent means *unchecked* — would carry the name to a wrapper that meets it with nothing to evaluate it and fails every task of the node. Reported alone; `FD-V36` is not asked of a language that does not exist. Case: `spec/examples/invalid/FD-V35--transform-language-not-in-registry.flow.json`, against `spec/examples/registry.json`, which deliberately omits `jsonata` |
+| `FD-V36` | a typed `task`'s `transform.expr` is **refused by the named language's `compile`** — v0.18, section 2. The registry half of an adapter is a synchronous compiler that THROWS on an expression it refuses (P17 fact 2: JSONata throws `S0203` at position 12 for `$sum(*.score`), so the refusal is decided at `new Driver` rather than on the one workload that reaches the node — ADR 0002 rule 3's whole argument, and the reason the adapter's compile is required to be synchronous. The detail is the language's own message, with its `position` and `code` where it sets them. A `compile` that is not a function is the REGISTRY's mistake and is refused at construction naming the LANGUAGE, as a non-function settings validator is under `FD-V33`. **What this cannot see**: `$eval` re-compiles at run time, so a syntax error inside it lands as a task failure ([Q265](../doc/open-questions.md)). Case: `spec/examples/invalid/FD-V36--transform-the-language-refuses.flow.json`, against the fake language `path`, whose grammar refuses `$sum(*.score` |
+| `FD-V37` | a `transform` is declared on a `task` with **no `type`**, or is **not exactly `{ lang, expr }`** — not an object, missing either key, either not a string, or carrying any other key. v0.18, section 2. **`FD-V34`'s family**: a transform is evaluated in the TYPE's worker wrapper, so on a bare `workerType` node the key would be carried nowhere — and evaluating it in the driver instead is the placement the maintainer refused; a key beside the two would be read by nothing (`FD-V30`'s reason). On an untyped node the untyped clause is reported alone — the shape is not asked of a key that cannot be carried, as `FD-V34` does not also report `FD-V33`. Case: `spec/examples/invalid/FD-V37--transform-on-a-node-with-no-type.flow.json` |
 
 **`FD-V19`'s second clause is derived rather than stated.** *"One branch entry is reachable from
 another"* needs no rule of its own: `FD-V9` requires every branch entry to be a `task`, and a branch
@@ -1283,6 +1397,7 @@ instantiation, and instantiation is a driver action. Hand-written, never generat
 | `sibling-fanouts.flow.json` | **the case neither corpus contained, and the one that shows the defect was never about a `map`** — two sequential `fanout` regions, with **both** branches of the second declaring `needs: {"own": ".", "first": "scoreA1"}` against branch 0 of the first — and the two branch entries of the FIRST region declare different worker types. **This document is validated at L4 and never RUN**, so nothing here observes a result; the two roles are here so that its L6 counterpart, `examples/flows/sibling-fanouts.flow.json`, can tell which branch a reader received. **The two are separate documents against separate registries and they DIVERGE at that node** — `ReviewWorker` here, `TallyWorker` there, because the corpus registry has no worker whose result differs from `ScoreWorker`'s and is not a failing role. W51's rule 8 set graded *both branches return the same thing* a SURVIVOR at zero, and W51's conformity reader found this sentence claiming the fix where nothing runs. Under the prefix rule `publishB1` at path `0` resolved and `publishB2` at path `1` **stopped the run** at `FD-R3`, on a document validating with **zero findings** whose target `FD-V29` correctly calls certain — no arity, no `map`, and the branch the author wrote the reference in deciding whether the run completed. **The two branches are a discriminating PAIR and their difference is asserted rather than left to a literal** (`doc/workflow.md` section 5 rule 8's fourth requirement on the set). Built by [W49](../doc/work-items/w49-what-a-reference-across-sibling-regions-means.md), which could not add it — a corpus flow is validated at L4 AND RUN, and until the resolver followed it was a valid document whose run stopped. v0.15 |
 | `task-config.flow.json` | **what a node says about its own task, in all three shapes** — v0.16, [W58](../doc/work-items/w58-what-a-node-says-about-its-own-task.md). `retryPolicy` and `workerGroups` on a top-level task (`ingest`), on a task inside a `fanout` branch (`scoreA`, with `scoreB` declaring neither so the two branches differ), and on the **branch task of a `map`** (`rank`), where both are per INSTANCE — the shape the feature was not built for, and `doc/workflow.md` section 5 rule 8 obligation (a)'s v0.16 clause is why it is here rather than only in a unit test. Names both of `registry.json`'s groups, `gpu` and `api`, one node naming both. **Validated at L4 and never RUN**: its `MergeWorker` is the corpus's, and what a real run of a retry looks like is `examples/flows/retry.flow.json` and `group.flow.json` at ladder L6 |
 | `typed.flow.json` | **a node TYPE, in all FOUR shapes `FD-C5` enumerates** — v0.17, [W59](../doc/work-items/w59-what-a-node-type-is.md). `type: "Scorer"` on the top-level entry (`ingest`, declaring **no** `settings`, so the `{}` default the validator sees is in the corpus), on the **branch task of a `map`** (`rank`, `settings: { factor: 100 }` — per INSTANCE, the envelope wrapping each instance's own item under `JP-R11`), on a task inside a `fanout` branch (`scoreA`, `settings: { factor: 10 }`, beside `scoreB` naming a bare `workerType` so the two halves sit in one region), and on a **join's successor** (`publish`, `settings: { factor: 1 }`, whose `input` is `JP-R12`'s collection — the fourth kind, which no suite instantiated until W59's adequacy reader found a driver handing it `{}` cost zero). `Scorer` is in `registry.json` under `nodeTypes` **and** under `workerTypes`, because a type's pool is keyed by its name (`FD-V32`), and its validator is `test/definition/corpus-types.ts`'s. **Validated at L4 and never RUN**: what two typed nodes of one type with different settings do on real workers is `examples/flows/typed.flow.json` and `typed-regions.flow.json` at ladder L6 |
+| `transformed.flow.json` | **a TRANSFORM, on all FOUR shapes `FD-C5` enumerates** — v0.18, [W61](../doc/work-items/w61-what-a-transform-is.md). `transform` in the fake language `path` on the top-level entry (`ingest`, `document`), on the **branch task of a `map`** (`rank`, `confidence` — its own item under `JP-R11`), on a task inside a `fanout` branch that declares `needs` (`scoreA`, `run.config` — what `needs` composed, the kind `typed.flow.json` does not carry), and on a **join's successor** (`publish`, `$settings.factor` — reading the binding rather than the collection, so the corpus shows `$settings`). `path` is in `registry.json` under `languages` and resolves to the test fixture's adapter in `test/definition/corpus-types.ts`, as `Scorer`'s validator does. **Validated at L4 and never RUN**: what a transform does on real workers is W63's exit artifact |
 
 **This table and the directory are compared BOTH WAYS, and that is v0.8's addition rather than a
 restatement.** `test/definition/l4-corpus.test.ts` asserts the set of `.flow.json` files in

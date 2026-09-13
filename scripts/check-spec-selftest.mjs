@@ -17,7 +17,10 @@
 // clauses at **ID** granularity and calls `check-spec` *seven clauses*. This file
 // works at **`fail()`-SITE** granularity, and the two reconcile exactly:
 //
-//   27  `fail()` sites in `check-spec.mjs`  — C1×1 C2×4 C3×3 C4×6 C5×2 C6×1 C7×7 C8×3
+//   30  `fail()` sites in `check-spec.mjs`  — C1×1 C2×4 C3×3 C4×7 C5×2 C6×1 C7×9 C8×3
+//        (C4 gained ONE at W61: the README row's HEADLINE count beside the tail count it read.)
+//        (C7 gained TWO at W61: a transform's `lang` against `languages`, and FD-V35's case
+//         naming a language the registry lacks — the fifth set, W59's pair one set over.)
 //        (C7 gained TWO at W59: a typed task's `type` against `nodeTypes`, and FD-V32's case
 //         naming a type the registry lacks — `FD-V5`'s two clauses one registry set over.)
 //        (C4 gained FOUR at W45: two comparing spec/README.md's own refusal count to
@@ -440,6 +443,28 @@ const PROBES = [
     apply: (spec) => edit(join(spec, 'examples', 'invalid', 'FD-V32--type-not-in-registry.flow.json'),
       (t) => t.replace('"type": "Nope"', '"type": "Scorer"')),
   },
+  // W61: the README row's HEADLINE count reverted while its tail is right — `C4` read the last
+  // occurrence alone, and the author's rule 8 set (`e7`) reverted the first for zero.
+  {
+    name: 'spec/README.md`s headline refusal count reverted while the version paragraph`s is right',
+    check: 'C4',
+    apply: (spec) => edit(join(spec, 'README.md'),
+      (t) => t.replace('how fan-out and join are paired, and **35 refusals**.', 'how fan-out and join are paired, and **32 refusals**.')),
+  },
+  // W61: the fifth registry set. A transform's `lang` is read against `languages` — one probe per
+  // new `fail()` site, as for `type`.
+  {
+    name: 'a valid flow naming a transform LANGUAGE the registry does not have',
+    check: 'C7',
+    apply: (spec) => edit(join(spec, 'examples', 'valid', 'transformed.flow.json'),
+      (t) => t.replace('"transform": { "lang": "path", "expr": "document" }', '"transform": { "lang": "nosuch", "expr": "document" }')),
+  },
+  {
+    name: 'FD-V35`s case naming only languages the registry DOES have',
+    check: 'C7',
+    apply: (spec) => edit(join(spec, 'examples', 'invalid', 'FD-V35--transform-language-not-in-registry.flow.json'),
+      (t) => t.replace('"lang": "jsonata"', '"lang": "path"')),
+  },
 
   // --- C8: spec/README's version column matches each document --------------------
   {
@@ -538,8 +563,8 @@ const RAN = (out) => /^(All checks passed|\d+ failure\(s\)\.)/m.test(out);
 /** Floors, because `caught === PROBES.length` is vacuously true at zero. */
 // 22 / 23 until W59, which added two of each and raised both to the counts it ships — Q102's
 // ratchet, the obligation on the item that adds a probe.
-const MIN_PROBES = 26;
-const MIN_META = 25;
+const MIN_PROBES = 29;
+const MIN_META = 28;
 
 /**
  * **How many gradings may be backed by the CORPUS rather than by the probe they
@@ -626,6 +651,8 @@ const META = [
     (t) => t.replace("  if (!covered.has(id)) fail('C4',", "  if (!covered.has(id)) [].push('C4',")],
   ['C4`s case-for-an-absent-rule clause disabled', 'a case for a rule declared DELIBERATELY ABSENT',
     (t) => t.replace("  if (absent.has(id)) fail('C4',", "  if (absent.has(id)) [].push('C4',")],
+  ['C4`s README-headline clause disabled', 'spec/README.md`s headline refusal count reverted while the version paragraph`s is right',
+    (t) => t.replace("      fail('C4', `spec/README.md's headline says", "      [].push('C4', `spec/README.md's headline says")],
 
   ['C6 disabled', 'a non-FD-V rule whose declaring row has no "Test owed by" cell',
     (t) => t.replace("  if (!owner) fail('C6',", "  if (!owner) [].push('C6',")],
@@ -657,6 +684,11 @@ const META = [
   ['C7`s FD-V32 refusal-case clause disabled', 'FD-V32`s case naming only node types the registry DOES have',
     (t) => t.replace("      if (!ty.some(t => !nts.has(t))) fail('C7',",
       "      if (!ty.some(t => !nts.has(t))) [].push('C7',")],
+  ['C7`s unknown-language clause disabled', 'a valid flow naming a transform LANGUAGE the registry does not have',
+    (t) => t.replace("        fail('C7', `valid/${name}: transform.lang", "        [].push('C7', `valid/${name}: transform.lang")],
+  ['C7`s FD-V35 refusal-case clause disabled', 'FD-V35`s case naming only languages the registry DOES have',
+    (t) => t.replace("      if (!ls.some(l => !langs.has(l))) fail('C7',",
+      "      if (!ls.some(l => !langs.has(l))) [].push('C7',")],
 
   ['C8`s missing-Status clause disabled', 'a spec document with no "**Status:** vN.N" header',
     (t) => t.replace("    if (!own) { fail('C8',", "    if (!own) { [].push('C8',")],

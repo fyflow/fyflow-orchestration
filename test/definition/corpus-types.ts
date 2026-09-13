@@ -9,8 +9,14 @@
  * `worker` is a placeholder URL: the spec corpus is validated and never RUN (section 7), and the
  * validator reads no field of a type but `settings`. What a real type looks like on real workers
  * is `examples/run-flow.ts`'s `NODE_TYPES`.
+ *
+ * **And the corpus's LANGUAGES, the same way** — v0.18 (W61, ADR 0051). `registry.json` names
+ * `path` under `languages` and this file resolves it to the fake language's adapter, whose
+ * registry half is a function (`compile`) and whose worker half is a `data:` URL the validator
+ * never loads. Compared to `registry.json`'s `languages` both ways in the same suite.
  */
-import type { NodeType } from '../../src/definition/types.ts';
+import type { LanguageAdapter, NodeType } from '../../src/definition/types.ts';
+import { PATH_LANGUAGE } from '../scheduler/fake-language.ts';
 
 export const CORPUS_NODE_TYPES: Readonly<Record<string, NodeType>> = {
   Scorer: {
@@ -26,4 +32,8 @@ export const CORPUS_NODE_TYPES: Readonly<Record<string, NodeType>> = {
       return null;
     },
   },
+};
+
+export const CORPUS_LANGUAGES: Readonly<Record<string, LanguageAdapter>> = {
+  path: PATH_LANGUAGE,
 };

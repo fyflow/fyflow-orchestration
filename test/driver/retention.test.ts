@@ -129,7 +129,9 @@ const heldArrivals = (d: Driver): number => {
 // `nodeTypes` since W59: the registry's node types, normalised once at construction — a map
 // of consumer-supplied entries whose `settings` are FUNCTIONS, so it is configuration exactly
 // as `opts` is, holds no result, and a serialising walk would refuse it.
-const NOT_RUN_STATE = ['def', 'graph', 'nodeTypes', 'opts'];
+// `languages` since W61, for the same reason one set over: the registry's languages, whose `compile` is a
+// FUNCTION and whose `worker` is a URL string — configuration, holding no result.
+const NOT_RUN_STATE = ['def', 'graph', 'languages', 'nodeTypes', 'opts'];
 
 /** The driver's own growing structures — every own property that is not in the list above. */
 const walkableKeys = (d: Driver): string[] =>
@@ -210,7 +212,7 @@ const THREE = { items: ['a', 'b', 'c'], rows: ['x', 'y'] };
  */
 const DRIVER_FIELDS = [
   'arrivals', 'def', 'dispatched', 'failed', 'firedJoins', 'graph', 'inputs', 'joinState',
-  'log', 'nodeTypes', 'now', 'opts', 'outputsCache', 'regions', 'runId', 'started',
+  'languages', 'log', 'nodeTypes', 'now', 'opts', 'outputsCache', 'regions', 'runId', 'started',
 ].sort();
 // `nodeTypes` since W59 — the ratchet firing as designed: the field was added and this list went
 // red naming it. It holds the registry's node types (consumer functions, no result) and joins

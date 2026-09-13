@@ -1,0 +1,11 @@
+{
+  "flowId": "transform-language-not-in-registry",
+  "version": 1,
+  "entry": "score",
+  "nodes": [
+    { "id": "score", "kind": "task", "type": "Scorer",
+      "transform": { "lang": "jsonata", "expr": "confidence" },
+      "edges": [ { "to": "done" } ] },
+    { "id": "done",  "kind": "end",  "outcome": "completed" }
+  ]
+}

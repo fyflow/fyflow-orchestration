@@ -1,18 +1,19 @@
 /**
  * The definition validator — `spec/flow-definition.md` section 5.
  *
- * Thirty-two refusals, `FD-V14` and `FD-V15` deliberately absent — the number `check-spec`
- * prints as *C4 covered 32 definition refusals*, derived from the ids in this file. *(This read
+ * Thirty-five refusals, `FD-V14` and `FD-V15` deliberately absent — the number `check-spec`
+ * prints as *C4 covered 35 definition refusals*, derived from the ids in this file. *(This read
  * 23 before W45 and 24 after it: the increment was applied to a number nothing was tracking, and
  * it had been wrong by three for several plans. W45's conformity reader. **27 until W58 added
- * `FD-V30` and `FD-V31`, 29 until W59 added `FD-V32`-`FD-V34`.**)* Reports EVERY violation
+ * `FD-V30` and `FD-V31`, 29 until W59 added `FD-V32`-`FD-V34`, 32 until W61 added
+ * `FD-V35`-`FD-V37`.**)* Reports EVERY violation
  * rather than the first, because section 5 requires an invalid definition to be
  * rejected *and* the named rule to appear among the findings, and several cases
  * legitimately violate more than one rule.
  *
  * ADR 0002 rule 3: this runs in full, at instantiation, before any task is queued.
  */
-import type { Edge, Finding, FlowDefinition, FlowNode, NodeType, NodeTypes, Registry, SettingsValidator } from './types.ts';
+import type { Edge, Finding, FlowDefinition, FlowNode, LanguageAdapter, Languages, NodeType, NodeTypes, Registry, SettingsValidator, Transform } from './types.ts';
 import { allRegions, buildGraph, certainlySettled } from './regions.ts';
 
 const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
@@ -27,8 +28,10 @@ const NODE_KEYS: Record<string, { req: string[]; opt: string[] }> = {
   // **`workerType` is OPTIONAL in shape since v0.17 (W59) and required in meaning**: a task names
   // its pool by `workerType` OR by `type`, and the neither/both cases are `FD-V23`/`FD-V34` below
   // rather than this table's, because a key table cannot say "exactly one of". `settings` rides
-  // on `type` (`FD-V34`).
-  task: { req: ['id', 'kind', 'edges'], opt: ['workerType', 'type', 'settings', 'optional', 'needs', 'retryPolicy', 'workerGroups'] },
+  // on `type` (`FD-V34`), and so does `transform` (v0.18, W61: `FD-V37`) — a `task`'s key and no
+  // other kind's, so a `transform` on a `map` node, a `join` or an edge is `FD-V17`'s undeclared
+  // key, which is what P17 wants said once rather than as three more clauses.
+  task: { req: ['id', 'kind', 'edges'], opt: ['workerType', 'type', 'settings', 'transform', 'optional', 'needs', 'retryPolicy', 'workerGroups'] },
   fanout: { req: ['id', 'kind', 'branches'], opt: [] },
   // `spec/flow-definition.md` section 2, v0.8. `over` and `branch` are both
   // required: a map that does not say where its arity comes from is one that
@@ -115,6 +118,70 @@ export function nodeTypesOf(x: NodeTypes | undefined): ReadonlyMap<string, NodeT
   if (x === undefined) return new Map();
   if (x instanceof Map) return x as ReadonlyMap<string, NodeType>;
   return new Map(Object.entries(x as Readonly<Record<string, NodeType>>));
+}
+
+/**
+ * **The registry's languages as ONE shape** — `Registry.languages`' own reading: a `Map` or a plain
+ * object in, a `Map` out, and `undefined` is EMPTY (v0.18, W61 — `nodeTypesOf` one set over).
+ * Shared by the validator, the driver and the bootstrap helper so the three cannot read the
+ * option differently.
+ */
+export function languagesOf(x: Languages | undefined): ReadonlyMap<string, LanguageAdapter> {
+  if (x === undefined) return new Map();
+  if (x instanceof Map) return x as ReadonlyMap<string, LanguageAdapter>;
+  return new Map(Object.entries(x as Readonly<Record<string, LanguageAdapter>>));
+}
+
+/**
+ * **The two keys a `transform` carries, and no others** — `FD-V37`'s shape half, on `FD-V30`'s
+ * precedent (`RETRY_POLICY_KEYS`): the wrapper reads exactly these two, so a key beside them
+ * would be carried and read by nothing — a typo that means something quietly.
+ */
+export const TRANSFORM_KEYS: readonly string[] = ['lang', 'expr'];
+
+/**
+ * **Why a `transform` value is not `{ lang, expr }`, or `null`** — `FD-V37`'s shape clause in one
+ * place, as `retryPolicyProblem` is `FD-V30`'s. An object, not `null`, not an array, carrying
+ * BOTH keys as strings and NO other key. Whether the node is TYPED is `FD-V37`'s other clause and
+ * is decided beside the node, not here.
+ */
+export function transformShapeProblem(v: unknown): string | null {
+  if (typeof v !== 'object' || v === null || Array.isArray(v)) {
+    return `transform must be an object { lang, expr }, got ${JSON.stringify(v)}`;
+  }
+  const o = v as Record<string, unknown>;
+  for (const k of TRANSFORM_KEYS) {
+    if (o[k] === undefined) return `transform is missing "${k}"; it is { lang, expr }, both strings`;
+    if (typeof o[k] !== 'string') return `transform.${k} must be a string, got ${JSON.stringify(o[k])}`;
+  }
+  const extra = Object.keys(o).filter((k) => !TRANSFORM_KEYS.includes(k));
+  if (extra.length) return `transform carries ${extra.map((k) => `"${k}"`).join(', ')}, which the wrapper would read as nothing; it is { lang, expr } and no other key`;
+  return null;
+}
+
+/**
+ * **What the language says about an expression, or `null`** — `FD-V36`'s whole predicate. The
+ * REGISTRY half of an adapter is a synchronous `compile` that returns nothing and THROWS on an
+ * expression the language refuses (ADR 0051 rule 2); the throw's message is the detail, and the
+ * error's `position` and `code` ride along when the language sets them (JSONata's `S0203` at
+ * position 12 — P17 fact 2). A `compile` that is not a function is the REGISTRY's mistake and is
+ * refused at `new Driver` naming the language (as a non-function settings validator is under
+ * `FD-V33`); reached here directly, it is reported the same way on the node.
+ */
+export function compileProblem(adapter: LanguageAdapter, expr: string): string | null {
+  if (typeof adapter.compile !== 'function') {
+    return 'the language`s compile is not a function; a registry half of an adapter is a synchronous compile(expr) that throws on a syntax error';
+  }
+  try {
+    adapter.compile(expr);
+  } catch (e) {
+    const err = e as { position?: unknown; code?: unknown };
+    const message = e instanceof Error ? e.message : String(e);
+    const position = typeof err.position === 'number' ? ` at position ${err.position}` : '';
+    const code = typeof err.code === 'string' && err.code.length ? ` [${err.code}]` : '';
+    return `${message}${position}${code}`;
+  }
+  return null;
 }
 
 /**
@@ -243,6 +310,8 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
   const groups = asSet(registry.groups ?? []);
   // The fourth set, read the same way (W59): absent means no node type is registered.
   const nodeTypes = nodeTypesOf(registry.nodeTypes);
+  // The fifth set, read the same way (W61): absent means no language is registered.
+  const languages = languagesOf(registry.languages);
   const d = doc as unknown as Record<string, unknown>;
 
   // ---- document shape: FD-V23, FD-V17, FD-V21, FD-V16 ----
@@ -353,6 +422,38 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
         // beside an unknown `type` reports both things wrong rather than one at a time.
         const problem = settingsProblem(type?.settings, nd.settings);
         if (problem !== null) add('FD-V33', where, problem);
+      }
+      // ---- FD-V35, FD-V36, FD-V37: what a node may DO to its input before its worker sees it ----
+      // `spec/flow-definition.md` section 2's `transform` subsection, v0.18 (W61), ADR 0051, P17
+      // decisions 1, 3 and 4. The transform is evaluated in the TYPE's worker wrapper and never in
+      // the driver, so a node with no type has nowhere to evaluate one (`FD-V37`, alone — the
+      // language clauses are moot on a node that cannot carry the key); its shape is exactly
+      // `{ lang, expr }` (`FD-V37`'s other clause, `FD-V34`'s family: a key that would be carried
+      // nowhere); `lang` names a registered language, the set EMPTY when absent (`FD-V35`,
+      // `FD-V31`'s reading); and `expr` is text that language's `compile` accepts, run HERE at
+      // instantiation because compilation is synchronous (`FD-V36`, ADR 0002 rule 3's whole
+      // argument: a syntax error is refused at `new Driver`, not on the one workload that reaches
+      // the node). `FD-V36` is reported only when `FD-V35` passed — an unknown language has no
+      // compiler to ask.
+      if (nd.transform !== undefined) {
+        if (nd.type === undefined) {
+          add('FD-V37', where, 'transform declared on a node with no type; a transform is evaluated in the TYPE`s worker wrapper and a bare workerType node has no wrapper — give the node a type, or reshape in a task node');
+        } else {
+          const shape = transformShapeProblem(nd.transform);
+          if (shape !== null) {
+            add('FD-V37', where, shape);
+          } else {
+            const t = nd.transform as Transform;
+            const adapter = languages.get(t.lang);
+            if (adapter === undefined) {
+              add('FD-V35', where, `transform.lang "${t.lang}" is not a registered language` +
+                (languages.size ? ` (the registry declares ${[...languages.keys()].sort().map((x) => `"${x}"`).join(', ')})` : ' (the registry declares no languages)'));
+            } else {
+              const problem = compileProblem(adapter, t.expr);
+              if (problem !== null) add('FD-V36', where, `transform.expr ${JSON.stringify(t.expr)} is refused by "${t.lang}": ${problem}`);
+            }
+          }
+        }
       }
       // ---- FD-V30: what a node says about its task's RETRIES ----
       // `spec/flow-definition.md` section 2, v0.16 (W58). Its own id rather than a clause of

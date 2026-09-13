@@ -144,6 +144,49 @@ export interface NodeType {
 /** The registry's node types, keyed by the name a `task`'s `type` gives. A `Map` or a plain object, as the consumer prefers. */
 export type NodeTypes = ReadonlyMap<string, NodeType> | Readonly<Record<string, NodeType>>;
 
+/**
+ * **A declared transform: a language NAME and an expression in it** — `spec/flow-definition.md`
+ * section 2's `transform` subsection (v0.18). Data, as everything in a definition is (ADR 0002
+ * rule 1): the language is named, never a file and never a function, and the definition says
+ * WHAT it does to its input without carrying the thing that does it.
+ */
+export interface Transform {
+  /** A key in `Registry.languages`. */
+  lang: string;
+  /** Text the named language's `compile` accepts; `$` is the value this node receives and `$settings` its effective settings. */
+  expr: string;
+}
+
+/**
+ * **A language adapter has TWO HALVES, because a function cannot cross to a thread and a URL
+ * can** — P17 fact 7 (a threaded pool whose config carries a function fails its task with *could
+ * not be cloned*; a URL string crosses). ADR 0051 rule 2.
+ *
+ * - `compile`, the REGISTRY half: synchronous, on the main thread, returns nothing and THROWS on
+ *   an expression the language refuses, with the language's own message — what `FD-V36` reports,
+ *   at `new Driver`, with the error's `position` and `code` as detail when the language sets them.
+ * - `worker`, the WORKER half: the URL of a module whose default export is
+ *   `compile(expr) => { evaluate(input, settings) => Promise<unknown> }` — the wrapper `await`s the
+ *   result, so a plain value is tolerated and never required. The bootstrap
+ *   helper writes it into a typed pool's config and the envelope worker loads it in `setup()`.
+ * - `check`, RESERVED for P18 and implemented by nothing: a statically typed language may offer
+ *   `check(expr, inputShape) => outputShape` for the pre-flight that plan builds. Optional, not
+ *   absent — the conformance suite asserts the field may be present and never that it is.
+ *
+ * **The two halves can disagree** — one module compiled twice is the same language; two modules,
+ * or two versions on the two sides of a thread, are two ([Q264](../../doc/open-questions.md)).
+ * The conformance suite in `test/scheduler/adapter-conformance.ts` asserts, for an adapter it is
+ * handed, that the worker half refuses exactly what the registry half refuses.
+ */
+export interface LanguageAdapter {
+  compile(expr: string): void;
+  worker: string;
+  check?(expr: string, inputShape: unknown): unknown;
+}
+
+/** The registry's languages, keyed by the name a `transform`'s `lang` gives. A `Map` or a plain object, as `nodeTypes` is. */
+export type Languages = ReadonlyMap<string, LanguageAdapter> | Readonly<Record<string, LanguageAdapter>>;
+
 export interface TaskNode {
   id: string;
   kind: 'task';
@@ -166,6 +209,18 @@ export interface TaskNode {
    * `type`, and refused there (`FD-V34`).
    */
   settings?: Readonly<Record<string, unknown>>;
+  /**
+   * **What this node may DO to its input before its worker sees it** — v0.18,
+   * [ADR 0051](../../doc/decisions/0051-a-transform-is-a-declared-expression-in-a-registered-language-applied-in-the-types-worker-wrapper.md),
+   * [P17](../../doc/plans/p17-what-a-node-may-do-to-its-input-before-its-worker-sees-it.md)
+   * decisions 1, 3, 4 and 7. `{ lang, expr }`, both strings: `lang` names an entry in
+   * `Registry.languages` (`FD-V35`), `expr` is text that language's `compile` accepts (`FD-V36`).
+   * **Typed nodes only** (`FD-V37`): the transform is evaluated in the TYPE's worker wrapper,
+   * never in the driver, so a node with no type has nowhere to evaluate it. Reaches the wrapper
+   * as the envelope's third key, present only when declared (`FD-C6`); the expression sees the
+   * value this node receives as `$` and the node's effective settings as `$settings`.
+   */
+  transform?: Transform;
   edges: Edge[];
   /**
    * `true` means the flow handles this node's failure; the default means a human
@@ -294,6 +349,14 @@ export interface Registry {
    * instantiation only; the driver reads `retryPolicy`; the bootstrap helper reads the rest.
    */
   nodeTypes?: NodeTypes;
+  /**
+   * **The languages a `transform`'s `lang` may name** — the fifth set, v0.18
+   * ([W61](../../doc/work-items/w61-what-a-transform-is.md), ADR 0051). **Absent means EMPTY**,
+   * as `groups` and `nodeTypes` are: a definition declaring any transform against a registry
+   * that declares no language is refused (`FD-V35`). The validator reads one field of each
+   * entry, `compile`, at instantiation only; the bootstrap helper reads `worker`.
+   */
+  languages?: Languages;
 }
 
 /**
@@ -303,7 +366,7 @@ export interface Registry {
  * legitimately violate more than one rule.
  */
 export interface Finding {
-  /** `FD-V1` … `FD-V34`. Never renumbered, so it is safe to assert on. */
+  /** `FD-V1` … `FD-V37`. Never renumbered, so it is safe to assert on. */
   rule: string;
   /** Node id, edge index, or document-level `null`. */
   at: string | null;

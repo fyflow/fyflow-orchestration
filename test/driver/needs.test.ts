@@ -34,7 +34,7 @@ const load = async (rel: string) => JSON.parse(await readText(`${EX}/${rel}`)) a
 const reg = JSON.parse(await readText(`${EX}/registry.json`)) as { workerTypes: string[]; groups?: string[] };
 // W59: the corpus's node types, for the census over the region-bearing corpus — `typed.flow.json`
 // names one, and a driver given no `nodeTypes` reads that as NONE registered (`FD-V32`).
-import { CORPUS_NODE_TYPES } from '../definition/corpus-types.ts';
+import { CORPUS_LANGUAGES, CORPUS_NODE_TYPES } from '../definition/corpus-types.ts';
 
 /** The whole scheduler, for level 2. It queues nothing and runs nothing. */
 class FakeScheduler {
@@ -87,6 +87,8 @@ function harness(
     // region-bearing corpus refused it at construction the moment the flow existed.
     groups: reg.groups ?? [],
     nodeTypes: CORPUS_NODE_TYPES,
+    // And the fifth set since W61: `transformed.flow.json` is region-bearing and names `path`.
+    languages: CORPUS_LANGUAGES,
     // **A caller may bring its own** — W50. `FD-R3`'s one remaining road is a join
     // policy firing before a branch entry has settled, and until this parameter
     // existed the fixtures that reach it had to build a `Driver` by hand, which is
@@ -297,6 +299,11 @@ suite('L2 — FD-C2: what NAMES an output', (test) => {
       // 5 node ids / 2 lost**, the two lost being the map's one collapsing id twice. A `type`
       // changes no id and no region, which is what this census says of it.
       ['typed', { ids: 7, nodes: 5, lost: 2, map: true }],
+      // **W61's document — `typed.flow.json`'s shape with a `transform` on every typed node.**
+      // Derived by reading its nodes: ingest, rank x3, scoreA, scoreB, publish = **7 ids /
+      // 5 node ids / 2 lost**. A `transform` changes no id and no region, and the driver
+      // evaluates none of them, which is what this census says of it.
+      ['transformed', { ids: 7, nodes: 5, lost: 2, map: true }],
     ]);
     const entries: [string, unknown, (id: string) => unknown][] = [
       ['fanout-join', { from: 'ingest' }, (id) => ({ by: id })],
@@ -320,6 +327,9 @@ suite('L2 — FD-C2: what NAMES an output', (test) => {
         (id) => (id.includes(':regroup:') ? { items: ['a', 'b', 'c'] } : { by: id })],
       // W59: the typed entry feeds the map, so it is the one task whose result carries `items`.
       ['typed', { from: 'ingest' },
+        (id) => (id.includes(':ingest:') ? { items: ['a', 'b', 'c'] } : { by: id })],
+      // W61: the same shape, the transformed entry feeding the map.
+      ['transformed', { from: 'ingest' },
         (id) => (id.includes(':ingest:') ? { items: ['a', 'b', 'c'] } : { by: id })],
     ];
     // **The list is bound to a source this file does not own** — W41's adequacy
@@ -405,13 +415,14 @@ suite('L2 — FD-C2: what NAMES an output', (test) => {
     }
     equal(ran, entries.map((e) => e[0]), 'every flow was ASSERTED — pushed after the assertions, not before');
     equal([...ran].sort(), onDisk, 'and the SET it ran is the disk`s, not a literal beside it');
+    // **EIGHT since W61, from seven**: `transformed` is `typed`'s shape with a transform on every typed node.
     // **SEVEN since W59, from six**: `typed` carries a map region beside its fanout, as
     // `task-config` (W58's, six from five) does, and this literal is a COUNT beside a
     // membership — the `expected` table above is the membership, and `onDisk` binds it to the
     // directory both ways, so this line is the count a human writes and the two above are what
     // stop it being the only bound.
-    equal([...expected.values()].filter((v) => v.lost > 0).length, 7,
-      'and exactly the SEVEN flows with a map region lose an output');
+    equal([...expected.values()].filter((v) => v.lost > 0).length, 8,
+      'and exactly the EIGHT flows with a map region lose an output');
     equal([...expected.values()].filter((v) => !v.map).length, 5,
       'while FIVE carry only `fanout` regions and lose NOTHING — at depth 1, at depth 2, with an ' +
       'optional branch that can fail, with a branch routed away from its join, and — since W50 — ' +

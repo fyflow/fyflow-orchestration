@@ -351,8 +351,8 @@ above is that shape applied here.
   [Q240](../doc/open-questions.md), found by both of that item's readers. Corrected here as a
   declared late exception, because this document is
   [W53](../doc/work-items/w53-what-a-run-retains-that-nothing-reads.md)'s and the number moved after
-  it shipped)* — and changes `RunState`. Over both corpora **136 of
-  150 task nodes (91%)** *(110 of 124 and 89% when W54 measured it; 122 of 136 and 90% after [W58](../doc/work-items/w58-what-a-node-says-about-its-own-task.md)
+  it shipped)* — and changes `RunState`. Over both corpora **140 of
+  155 task nodes (90%)** *(110 of 124 and 89% when W54 measured it; 136 of 150 and 91% until [W61](../doc/work-items/w61-what-a-transform-is.md) added `transformed.flow.json` — five task nodes and one `needs`, the count's third move since W54 measured it and the first to move the number `needs` NAMES, 14 to 15; 122 of 136 and 90% after [W58](../doc/work-items/w58-what-a-node-says-about-its-own-task.md)
   added three flows with twelve task nodes and no `needs`, whose conformity reader found this
   third copy of the count standing in the present tense after the other two had moved — a second
   late exception on this document for the same number; [W59](../doc/work-items/w59-what-a-node-type-is.md)

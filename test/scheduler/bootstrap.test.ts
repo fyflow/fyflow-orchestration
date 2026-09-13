@@ -14,8 +14,9 @@
 import { equal, ok, suite, throws } from '../harness.ts';
 import { WorkerManager } from 'fyflow-scheduler';
 import type { ResourceGroup, WorkerManagerOptions } from 'fyflow-scheduler';
-import { bootstrap, BootstrapError, ENVELOPE_WORKER_URL, EnvelopeWorker, NotAnEnvelope, unpackEnvelope } from '../../src/scheduler/index.ts';
-import type { NodeType } from '../../src/definition/types.ts';
+import { bootstrap, BootstrapError, ENVELOPE_WORKER_URL, EnvelopeWorker, NotAnEnvelope, transformLanguagesByType, unpackEnvelope } from '../../src/scheduler/index.ts';
+import type { FlowDefinition, LanguageAdapter, NodeType } from '../../src/definition/types.ts';
+import { PATH_LANGUAGE } from './fake-language.ts';
 
 /** A group object as the scheduler duck-types it — what the helper is handed and hands back. */
 const group = (id: string): ResourceGroup => ({ id } as unknown as ResourceGroup);
@@ -154,7 +155,10 @@ const ARROW_DEFAULT_URL = `data:text/javascript,${encodeURIComponent('export def
 
 suite('W59 — the envelope worker: unpacks the two keys, refuses everything else, and drives the inner worker`s lifecycle', (test) => {
   test('unpackEnvelope: exactly the two keys come out, a third is dropped, and input may hold undefined', () => {
-    equal(unpackEnvelope({ settings: { a: 1 }, input: { b: 2 }, transform: 'later' }), { settings: { a: 1 }, input: { b: 2 } }, 'two keys out, the third dropped — the wrapper`s to consume');
+    // *(This key read `transform: 'later'` until W61, when `transform` became the third key the
+    // wrapper CONSUMES and a malformed one a refusal; a key the wrapper has no reading for is what
+    // this case is about, and it is still dropped.)*
+    equal(unpackEnvelope({ settings: { a: 1 }, input: { b: 2 }, extra: 'later' }), { settings: { a: 1 }, input: { b: 2 } }, 'two keys out, the third dropped — the wrapper`s to consume');
     equal(unpackEnvelope({ settings: {}, input: undefined }), { settings: {}, input: undefined }, 'presence by `in`: an input holding undefined is an envelope');
     equal(Object.keys(unpackEnvelope({ settings: {}, input: 1 })).sort(), ['input', 'settings'], 'and nothing beside them');
   });
@@ -224,5 +228,92 @@ suite('W59 — the envelope worker: unpacks the two keys, refuses everything els
     err = undefined;
     try { await noUrl.setup(); } catch (e) { err = e; }
     ok(err instanceof Error && err.message.includes('no worker URL'), `no worker URL: ${(err as Error)?.message}`);
+  });
+});
+
+/**
+ * **W61 — the helper's part in a transform: a language's WORKER half reaches a typed pool's config,
+ * only where a node of the type transforms** — ADR 0051 rule 4, P17 decision 3 and fact 7.
+ */
+const PATH_URL = PATH_LANGUAGE.worker;
+const OTHER: LanguageAdapter = { compile: () => {}, worker: 'test://other-language.js' };
+const LANGS = { path: PATH_LANGUAGE, other: OTHER };
+/** Scorer transforms in `path`; Ranker is typed and transforms in nothing; Plain has no node at all. */
+const FLOW: FlowDefinition = {
+  flowId: 'f', version: 1, entry: 'a',
+  nodes: [
+    { id: 'a', kind: 'task', type: 'Scorer', transform: { lang: 'path', expr: 'x' }, edges: [{ to: 'b' }] },
+    { id: 'b', kind: 'task', type: 'Ranker', edges: [{ to: 'c' }] },
+    { id: 'c', kind: 'task', type: 'Scorer', transform: { lang: 'path', expr: 'y' }, edges: [{ to: 'done' }] },
+    { id: 'done', kind: 'end', outcome: 'completed' },
+  ],
+};
+/** A second flow in which Ranker transforms in `other`, so the union across flows has a case. */
+const FLOW2: FlowDefinition = {
+  flowId: 'g', version: 1, entry: 'r',
+  nodes: [
+    { id: 'r', kind: 'task', type: 'Ranker', transform: { lang: 'other', expr: 'q' }, edges: [{ to: 'done' }] },
+    { id: 'done', kind: 'end', outcome: 'completed' },
+  ],
+};
+
+suite('W61 — bootstrap writes a language`s worker URL into a typed pool`s config only where a node of the type transforms, both ways', (test) => {
+  test('a type some node of which transforms gets `languages: { lang: worker URL }` beside worker and config; a type with no transforming node gets NO languages key', () => {
+    const { built, createPool } = recorder();
+    bootstrap(TYPES, GROUPS, { createPool, languages: LANGS, flows: [FLOW] });
+    const cfg = (w: string) => built.find((b) => (b.options.config as { worker: string }).worker === w)!.options.config as Record<string, unknown>;
+    equal(cfg('test://scorer.ts'), { worker: 'test://scorer.ts', config: { role: 'typed' }, languages: { path: PATH_URL } }, 'Scorer: the adapter`s WORKER half, a URL, under the language`s name');
+    equal(Object.keys(cfg('test://scorer.ts')), ['worker', 'config', 'languages'], 'beside worker and config');
+    ok(!('languages' in cfg('test://ranker.ts')), 'Ranker (typed, transforms in nothing): no languages key — no engine loaded for a pool that never transforms');
+    ok(!('languages' in cfg('test://plain.ts')), 'Plain (no node in the flow): none either');
+  });
+
+  test('with NO flows, or flows declaring no transform, every pool config is byte-identical to a call with no options at all — P17 decision 8 at the helper', () => {
+    const a = recorder(); bootstrap(TYPES, GROUPS, { createPool: a.createPool });
+    const b = recorder(); bootstrap(TYPES, GROUPS, { createPool: b.createPool, languages: LANGS });
+    const c = recorder(); bootstrap(TYPES, GROUPS, { createPool: c.createPool, languages: LANGS, flows: [] });
+    const noTransform: FlowDefinition = { ...FLOW, nodes: FLOW.nodes.map((n) => { const { transform: _t, ...rest } = n as { transform?: unknown }; return rest as typeof n; }) };
+    const d = recorder(); bootstrap(TYPES, GROUPS, { createPool: d.createPool, languages: LANGS, flows: [noTransform] });
+    equal(b.built, a.built, 'languages given and no flow: identical');
+    equal(c.built, a.built, 'an empty flow list: identical');
+    equal(d.built, a.built, 'a flow with no transform: identical');
+    ok(a.built.every((x) => !('languages' in (x.options.config as object))), 'and none carries a languages key');
+  });
+
+  test('direction one: a node naming a language with NO adapter given is refused, naming the type, the language and what was given, before any pool is built', () => {
+    const { built, createPool } = recorder();
+    let err: unknown;
+    try { bootstrap(TYPES, GROUPS, { createPool, languages: { other: OTHER }, flows: [FLOW] }); } catch (e) { err = e; }
+    ok(err instanceof BootstrapError, 'a BootstrapError');
+    const msg = (err as Error).message;
+    ok(msg.includes('"Scorer"') && msg.includes('"path"') && msg.includes('"other"'), `names the type, the language and what was given: ${msg}`);
+    equal(built, [], 'and NO pool was built');
+    throws(() => bootstrap(TYPES, GROUPS, { createPool, flows: [FLOW] }), '"path"', 'languages omitted entirely: refused the same way');
+    throws(() => bootstrap(TYPES, GROUPS, { createPool, languages: { path: { compile: () => {}, worker: '' } }, flows: [FLOW] }), 'no worker module URL', 'an adapter with no worker URL is refused naming it');
+  });
+
+  test('direction two is NOT a refusal, and says so: an adapter given that no node names is an inert registry entry, unlike a group', () => {
+    const { built, createPool } = recorder();
+    const out = bootstrap(TYPES, GROUPS, { createPool, languages: LANGS, flows: [FLOW] });
+    equal(Object.keys(out.workerPools).sort(), Object.keys(TYPES).sort(), 'built, with `other` given and named by nothing');
+    ok(built.every((b) => !JSON.stringify(b.options.config).includes('other-language')), 'and the unnamed adapter reaches no pool');
+  });
+
+  test('obligation (e), both ways: what the helper WROTE equals what the flows DECLARE, per type, and every URL is the named adapter`s worker — over two flows, so the union has a case', () => {
+    const { built, createPool } = recorder();
+    bootstrap(TYPES, GROUPS, { createPool, languages: LANGS, flows: [FLOW, FLOW2] });
+    const declared = transformLanguagesByType([FLOW, FLOW2]);
+    equal([...declared.keys()].sort(), ['Ranker', 'Scorer'], 'two types transform across the two flows');
+    equal([...declared.get('Ranker')!], ['other'], 'Ranker in `other`, from the second flow');
+    for (const [name, t] of Object.entries(TYPES)) {
+      const cfg = built.find((b) => (b.options.config as { worker: string }).worker === t.worker)!.options.config as { languages?: Record<string, string> };
+      const written = Object.keys(cfg.languages ?? {}).sort();
+      const wanted = [...(declared.get(name) ?? [])].sort();
+      equal(written, wanted, `${name}: the languages written are exactly the languages its nodes declare`);
+      for (const lang of written) equal(cfg.languages![lang], (LANGS as Record<string, LanguageAdapter>)[lang]!.worker, `${name}/${lang}: the URL is the adapter's worker half`);
+    }
+    equal(transformLanguagesByType([]).size, 0, 'no flows, no languages');
+    const map = bootstrap(TYPES, GROUPS, { createPool: recorder().createPool, languages: new Map(Object.entries(LANGS)), flows: [FLOW] });
+    equal(Object.keys(map.workerPools).sort(), Object.keys(TYPES).sort(), 'a Map-shaped languages registry bootstraps as an object does');
   });
 });

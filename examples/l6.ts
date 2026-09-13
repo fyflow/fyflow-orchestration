@@ -5607,7 +5607,7 @@ if (rowCosts.length !== EXPECTED.length) {
   const DRIVER_FIELDS = [
     'arrivals', 'def', 'dispatched', 'failed', 'firedJoins', 'graph', 'inputs', 'joinState',
     // `nodeTypes` since W59: the registry's node types, skipped by the walk as `opts` is.
-    'log', 'nodeTypes', 'now', 'opts', 'outputsCache', 'regions', 'runId', 'started',
+    'languages', 'log', 'nodeTypes', 'now', 'opts', 'outputsCache', 'regions', 'runId', 'started',
   ].sort();
   const anyRun = reports[0]!;
   check('cross-row', 'the byte measurement WALKS every growing structure the driver has and skips ' +
@@ -5617,7 +5617,7 @@ if (rowCosts.length !== EXPECTED.length) {
   check('cross-row', 'and `arrivals` is on the WALKED side of that split, which is the one structure ' +
     'ADR 0046 rule 3 is about',
     { walked: anyRun.retention.walked.includes('arrivals'), skipped: anyRun.retention.skipped },
-    { walked: true, skipped: ['def', 'graph', 'nodeTypes', 'opts'] });
+    { walked: true, skipped: ['def', 'graph', 'languages', 'nodeTypes', 'opts'] });
   // **The two release moments this rung cannot reach, recorded rather than argued** —
   // `doc/workflow.md` section 5 rule 8: *construct the case that makes each guard
   // fire, and where the corpus cannot express one, RECORD that.*

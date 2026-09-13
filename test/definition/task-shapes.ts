@@ -26,6 +26,10 @@ export const configuredNode = (n: FlowNode): boolean =>
 export const typedNode = (n: FlowNode): boolean =>
   n.kind === 'task' && (n as { type?: unknown }).type !== undefined;
 
+/** W61's carrying node: a task declaring a `transform` — typed by `FD-V37`, so a subset of `typedNode`'s. */
+export const transformingNode = (n: FlowNode): boolean =>
+  n.kind === 'task' && (n as { transform?: unknown }).transform !== undefined;
+
 export function shapesOf(flow: FlowDefinition, carries: (n: FlowNode) => boolean = configuredNode): string[] {
   const fanoutEntries = new Set(flow.nodes.filter((n) => n.kind === 'fanout').flatMap((n) => (n as { branches: string[] }).branches));
   const mapBranches = new Set(flow.nodes.filter((n) => n.kind === 'map').map((n) => (n as { branch: string }).branch));

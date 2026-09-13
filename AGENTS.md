@@ -214,7 +214,7 @@ if (!noGroups.some((f) => f.rule === 'FD-V31' && f.at === 'score')) {
 
 | kind | | refused if |
 |---|---|---|
-| `task` | runs a worker — of `workerType`, a pool, **or of a node `type`** with per-node **`settings`** (section 13). Has `edges`, and optionally **`needs`**, **`retryPolicy`** and **`workerGroups`** — what it says about its own task, below | it has no `edges`, or **no edge of it is eligible for `done`** (`FD-V7`); it names neither `workerType` nor `type` (`FD-V23`) or both (`FD-V34`); its `retryPolicy` is not exactly `{ maxRetries, backoffMs }` — an integer >= 0 and a finite number >= 0, no other key (`FD-V30`); its `workerGroups` is not a non-empty array of distinct ids the registry's `groups` declares (`FD-V31`); its `type` is not a registered node type with a pool of its name (`FD-V32`); its `settings` is not a plain object the type's validator accepts (`FD-V33`) |
+| `task` | runs a worker — of `workerType`, a pool, **or of a node `type`** with per-node **`settings`** and, on a typed node, a **`transform`** applied to its input before the worker sees it (section 13). Has `edges`, and optionally **`needs`**, **`retryPolicy`** and **`workerGroups`** — what it says about its own task, below | it has no `edges`, or **no edge of it is eligible for `done`** (`FD-V7`); it names neither `workerType` nor `type` (`FD-V23`) or both (`FD-V34`); its `retryPolicy` is not exactly `{ maxRetries, backoffMs }` — an integer >= 0 and a finite number >= 0, no other key (`FD-V30`); its `workerGroups` is not a non-empty array of distinct ids the registry's `groups` declares (`FD-V31`); its `type` is not a registered node type with a pool of its name (`FD-V32`); its `settings` is not a plain object the type's validator accepts (`FD-V33`); its `transform` names a language the registry does not (`FD-V35`), an expression that language's compiler refuses (`FD-V36`), or sits on a node with no `type` or is not `{ lang, expr }` (`FD-V37`) |
 | `fanout` | `branches: string[]` — the node each branch starts at. Dispatches nothing itself | fewer than two branches, a repeated entry, any `edges` at all, or a branch entry that is not a `task` (`FD-V9`) |
 | `map` | `over: '<key>'` and `branch: '<node id>'` — **one** branch, opened once per item at run time. Dispatches nothing itself; the RUN opens N instances of its one branch. Optionally **`needs`**, which is what `over` is then a key on | any `edges` at all, a `branch` that is not a `task`, or an `over` outside `^[A-Za-z0-9_-]{1,64}$` (`FD-V25`); a missing `over` or `branch` (`FD-V23`) |
 | `join` | `of: '<fanout id>'`. Fires when its policy says so | it does not have **exactly one** edge, or that edge carries `when` or `on` (`FD-V7`) |
@@ -421,7 +421,7 @@ if (!rules.includes('FD-V2') || !rules.includes('FD-V5')) {
 }
 ```
 
-There are **32 refusals** over the id range `FD-V1` … `FD-V34` *(29 over `FD-V1` … `FD-V31` until W59 added the three node-type rules — and this sentence stood at 29 twelve lines below the table W59 rewrote, until its conformity reader read the two together)*, each with a failing example in
+There are **35 refusals** over the id range `FD-V1` … `FD-V37` *(32 over `FD-V1` … `FD-V34` until W61 added the three transform rules; 29 over `FD-V1` … `FD-V31` until W59 added the three node-type rules — and this sentence stood at 29 twelve lines below the table W59 rewrote, until its conformity reader read the two together)*, each with a failing example in
 `spec/examples/invalid/`. Two ids in that range are **deliberately absent** and have no rule behind
 them: `FD-V14`, which never existed, and **`FD-V15`, retired when nested fan-out became
 expressible**. The ids are never renumbered, so it is safe to assert on them. The full
@@ -1470,6 +1470,7 @@ nothing you have already written moves.
 |---|---|---|
 | `type` | instead of `workerType`, exactly one of the two | the name of an entry in `nodeTypes` — **and of a pool in `workerTypes`, because a type's pool is keyed by its name** (`FD-V32`). Both keys on one node, a `workerType` that names a type, or `settings` on a node with no `type`, is `FD-V34` |
 | `settings` | optional, typed nodes only | a plain JSON object the type's validator accepts (`FD-V33`); **absent means `{}`**, and the validator sees `{}` |
+| `transform` | optional, typed nodes only | `{ lang, expr }`: an expression, in a language the registry's **`languages`** set names, applied to the node's input BEFORE its worker sees it — below. `lang` unregistered is `FD-V35`, `expr` the language refuses is `FD-V36`, on a node with no `type` or not `{ lang, expr }` is `FD-V37` |
 
 **What the type's worker receives is the ENVELOPE `{ settings, input }`** — `FD-C5`. `settings` is
 the node's declared object, as its own copy; **`input` is what an untyped node in the same position
@@ -1532,16 +1533,19 @@ refuses **both ways** a type naming a group you gave no object for and an object
 its result beside your own pools and groups, and read the driver's sets off the scheduler:
 
 ```ts check
-import { Driver, liveToken, type FlowDefinition, type NodeType } from 'fyflow-orchestration';
+import { Driver, liveToken, type FlowDefinition, type Languages, type NodeType } from 'fyflow-orchestration';
 import { bootstrap } from 'fyflow-orchestration/scheduler';
 import { ConcurrentLimitGroup, FyflowScheduler, WorkerManager } from 'fyflow-scheduler';
 
 declare const Scorer: NodeType;
 declare const typed: FlowDefinition;
 declare const workerUrl: string;
+declare const languages: Languages;
 
 // The types' groups are given as OBJECTS here and only here; the helper returns them keyed as given.
-const types = bootstrap({ Scorer }, { scorer: new ConcurrentLimitGroup(4, 'scorer') });
+// The languages and the flows are what tells the helper WHICH typed pools need which adapter's
+// worker module — written into a pool's config only where a node of that type transforms (W61).
+const types = bootstrap({ Scorer }, { scorer: new ConcurrentLimitGroup(4, 'scorer') }, { languages, flows: [typed] });
 const scheduler = new FyflowScheduler(
   { IngestWorker: new WorkerManager(workerUrl, { inline: true, config: { role: 'ingest' } }), ...types.workerPools },
   { ...types.resourceGroups },
@@ -1551,6 +1555,7 @@ const driver = new Driver(typed, {
   workerTypes: Object.keys(scheduler.workerPools),   // the helper's pools are in here, keyed by type name
   groups: Object.keys(scheduler.groups),             // and its groups
   nodeTypes: { Scorer },                             // the SAME object the helper built from
+  languages,                                         // and the same languages
 });
 driver.start({ confidence: 0.9 });
 ```
@@ -1564,10 +1569,99 @@ spent per admission and not per task. Both are held at
 construction: a type's policy to `FD-V30` and a type's groups to the registry's `groups` under
 `FD-V31`, naming the type.
 
-**What this is not.** A per-node TRANSFORM on the envelope is
-[P16](doc/plans/p16-what-a-node-type-is-and-what-the-library-owes-the-scheduler.md)'s next plan
-(P17), and what a type says about what its worker EXPECTS and RETURNS — input and output schemas —
-is the one after (P18); a type says nothing about either yet. The validator runs at construction and
+**A transform — what a node may DO to its input before its worker sees it** — `spec/flow-definition.md`
+v0.18, [ADR 0051](doc/decisions/0051-a-transform-is-a-declared-expression-in-a-registered-language-applied-in-the-types-worker-wrapper.md),
+[W61](doc/work-items/w61-what-a-transform-is.md). When the value a typed node receives is not the
+shape its worker reads — a join's collection where the worker wants a total, an item where it wants
+one field — the node declares `transform: { lang, expr }` instead of a reshaping task. **The language
+is a registry entry**, `Registry.languages`, the fifth set: `{ compile, worker }`, where `compile`
+runs on the main thread at construction and THROWS on an expression it refuses (so a SYNTAX error in
+the expression is `FD-V36` at `new Driver`, never a failure on the one workload that reaches the
+node — a misspelt KEY is not: it compiles and evaluates to `undefined`, which is P18's and P19's
+to catch),
+and `worker` is the URL of a module the envelope worker loads in `setup()` and evaluates with in
+`run()` — two halves, because a function cannot cross to a thread and a URL can. The expression sees
+the node's input as `$` and its settings as `$settings`; the worker receives `{ settings, input }`
+with `input` REPLACED by the result. **Evaluation happens in the type's worker wrapper, never in the
+driver**, so a transform is invisible to anything that reads what the driver dispatched. **A transform
+that cannot be evaluated FAILS THE TASK** — `TransformFailed`, naming the language, the expression and
+the language's own error code — and takes the two roads any worker throw takes: an `on: ["failed"]`
+edge on an `optional` node, `user_action` on a non-optional one. A result of `undefined` is not a
+failure. And a language module that failed to LOAD is not a worker error either: the wrapper
+remembers the failure and fails, at `run()`, exactly the tasks that name that language. `$now`,
+`$millis` and `$random` are unbound in every adapter: a transform is a function of what the run
+produced. The language this package ships is JSONata, as the sub-path `fyflow-orchestration/jsonata`
+— W62's, not yet on this tree; the snippet below uses a toy one so it runs with nothing installed,
+and it is the same interface.
+
+```ts run
+import { validateDefinition, type FlowDefinition, type LanguageAdapter, type NodeType, type Registry } from 'fyflow-orchestration';
+import { EnvelopeWorker, TransformFailed } from 'fyflow-orchestration/scheduler';
+
+// A toy language: an expression is a dotted key path into the input, or `$settings.<path>`.
+// The REGISTRY half compiles synchronously and throws on anything else — what FD-V36 reports.
+// The WORKER half is a module URL (here a data: URL) whose default export compiles the same text
+// and evaluates it; `evaluate` may return a Promise, as JSONata's does.
+const GRAMMAR = /^(\$settings\.)?[A-Za-z0-9_]+(\.[A-Za-z0-9_]+)*$/;
+const workerSrc = `export default function compile(expr) {
+  const segs = expr.split('.'); const fromSettings = segs[0] === '$settings'; const walk = fromSettings ? segs.slice(1) : segs;
+  return { evaluate(input, settings) {
+    let v = fromSettings ? settings : input;
+    for (const k of walk) { if (v == null) return undefined; if (typeof v !== 'object') { const e = new Error('cannot read "' + k + '" of ' + typeof v); e.code = 'P0002'; throw e; } v = v[k]; }
+    return v;
+  } };
+}`;
+const path: LanguageAdapter = {
+  compile: (expr) => { if (!GRAMMAR.test(expr)) throw new SyntaxError(`not a dotted key path: ${expr}`); },
+  worker: `data:text/javascript,${encodeURIComponent(workerSrc)}`,
+};
+
+const Scorer: NodeType = { worker: 'data:text/javascript,export default class W { run(p) { return p.input; } }' };
+const flow: FlowDefinition = {
+  flowId: 'transformed', version: 1, entry: 'ingest',
+  nodes: [
+    { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'score' }] },
+    // The worker wants the confidence alone; the transform picks it out of the previous result.
+    { id: 'score', kind: 'task', type: 'Scorer', settings: { factor: 10 }, transform: { lang: 'path', expr: 'confidence' }, edges: [{ to: 'done' }] },
+    { id: 'done', kind: 'end', outcome: 'completed' },
+  ],
+};
+const registry: Registry = { predicates: [], workerTypes: ['IngestWorker', 'Scorer'], nodeTypes: { Scorer }, languages: { path } };
+const bad = validateDefinition(flow, registry);
+if (bad.length) throw new Error(`the transformed flow is invalid: ${bad.map((f) => `${f.rule}@${f.at}`).join()}`);
+
+// The three refusals, each at construction.
+const rules = (node: object, reg = registry) => validateDefinition({ ...flow, nodes: [flow.nodes[0]!, node as never, flow.nodes[2]!] }, reg).map((f) => f.rule);
+const score = (transform: unknown, rest: object = { type: 'Scorer' }) => ({ id: 'score', kind: 'task', transform, edges: [{ to: 'done' }], ...rest });
+if (!rules(score({ lang: 'jsonata', expr: 'confidence' })).includes('FD-V35')) throw new Error('FD-V35: a language the registry does not name');
+if (!rules(score({ lang: 'path', expr: 'confidence' }), { ...registry, languages: undefined }).includes('FD-V35')) throw new Error('FD-V35 with languages omitted — absent means EMPTY');
+if (!rules(score({ lang: 'path', expr: '$sum(*.score' })).includes('FD-V36')) throw new Error('FD-V36: an expression the language`s compile refuses');
+if (!rules(score({ lang: 'path', expr: 'confidence' }, { workerType: 'IngestWorker' })).includes('FD-V37')) throw new Error('FD-V37: a transform on a node with no type');
+if (!rules(score({ lang: 'path' })).includes('FD-V37')) throw new Error('FD-V37: not { lang, expr }');
+
+// And what the wrapper does with it — the class the bootstrap helper puts around your worker,
+// driven here directly. The helper writes `languages` into a typed pool's config for you when you
+// pass it the flows and the languages: `bootstrap({ Scorer }, groups, { languages: { path }, flows: [flow] })`.
+const w = new EnvelopeWorker({ worker: Scorer.worker, languages: { path: path.worker } });
+await w.setup();
+const seen = await w.run({ settings: { factor: 10 }, input: { confidence: 0.9, text: 'a bb ccc' }, transform: { lang: 'path', expr: 'confidence' } });
+if (seen !== 0.9) throw new Error(`the worker received ${JSON.stringify(seen)} — not the transformed input`);
+const bound = await w.run({ settings: { factor: 10 }, input: { confidence: 0.9 }, transform: { lang: 'path', expr: '$settings.factor' } });
+if (bound !== 10) throw new Error('the node`s settings are bound as $settings');
+const plain = await w.run({ settings: { factor: 10 }, input: { confidence: 0.9 } });
+if (JSON.stringify(plain) !== JSON.stringify({ confidence: 0.9 })) throw new Error('no transform, the value received, untouched');
+let failed: unknown;
+try { await w.run({ settings: {}, input: { a: 5 }, transform: { lang: 'path', expr: 'a.b' } }); } catch (e) { failed = e; }
+if (!(failed instanceof TransformFailed) || failed.code !== 'P0002') throw new Error('a loud evaluation failure is a TransformFailed carrying the language`s own code — the TASK fails');
+await w.teardown();
+```
+
+**What this is not.** What a type says about what its worker EXPECTS and RETURNS — input and
+output schemas, and a sample-based check across a transformed edge — is
+[P16](doc/plans/p16-what-a-node-type-is-and-what-the-library-owes-the-scheduler.md)'s plan after
+this one (P18); a type says nothing about either yet, and the adapter's optional `check` hook is the
+door left for it. A transform on an UNTYPED node, on a `map`'s `over`, on an edge or on a decision
+is refused, with the reasons in ADR 0051. The validator runs at construction and
 nowhere else: the driver holds your definition by reference, so a document you mutate after
 `new Driver` is dispatched as mutated, for every key ([Q259](doc/open-questions.md)). Two worked
 typed flows run on a real scheduler in [`examples/`](examples/README.md).

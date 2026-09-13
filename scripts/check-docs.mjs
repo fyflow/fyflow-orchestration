@@ -328,7 +328,12 @@ if (written.length) {
 // 13's `run` snippet — a node type as a registry entry, a typed flow validated, and the three
 // refusals `FD-V32`-`FD-V34` each thrown on. Declared at the item's start, on W57's precedent: the
 // section's `check` snippet imports the sub-path and the rewrite above was already in its path.
-const RUN_FLOOR = 20;
+// **Raised 20 -> 21 by [W61](../doc/work-items/w61-what-a-transform-is.md)**, which added section
+// 13's second `run` snippet — a language adapter's two halves, a transformed flow validated, the
+// three refusals `FD-V35`-`FD-V37` each thrown on, and the envelope worker evaluating the transform
+// and failing a task with `TransformFailed`. Declared in the item's exceptions table before the
+// snippet was written, on Q102's ratchet.
+const RUN_FLOOR = 21;
 {
   // **Only when the document parsed.** A count over a reference whose fences are
   // malformed or untagged is true of the parse and says nothing about coverage —

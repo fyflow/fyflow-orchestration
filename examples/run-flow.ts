@@ -771,9 +771,12 @@ const loggedResults = (d: Driver): unknown[] =>
  * can re-take — and it is the same universe `dev-dist/p15/scale.ts` used, so this
  * rung's number and P15 fact 5's table are the same measurement at two scales.
  */
+// `languages` since W61: the registry's languages — consumer configuration holding a compile FUNCTION
+// and a worker URL, no result; the same reading as `nodeTypes` (a late exception: the driver gained a
+// field and this walk enumerates every driver field both ways).
 // `nodeTypes` since W59: the registry's node types — consumer configuration holding validator
 // FUNCTIONS, which `v8.serialize` refuses and which hold no result. The same reading as `opts`.
-const NOT_RUN_STATE = ['def', 'graph', 'nodeTypes', 'opts'];
+const NOT_RUN_STATE = ['def', 'graph', 'languages', 'nodeTypes', 'opts'];
 
 /** The two halves of `NOT_RUN_STATE`'s claim, for the clause in `examples/l6.ts` that binds it. */
 const walkOf = (d: Driver): { walked: string[]; skipped: string[] } => {

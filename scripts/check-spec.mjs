@@ -226,6 +226,15 @@ for (const id of covered) {
     else if (Number(bold[1]) !== n) {
       fail('C4', `spec/README.md says **${bold[1]} refusals** and C4 counts ${n}`);
     }
+    // **And the FIRST one, which is the row's HEADLINE** — W61's rule 8 set (`e7`): the row opens
+    // *"…and **N refusals**"* as a summary and closes with the version paragraph's *"now holds
+    // **N refusals**"*; reading the last occurrence alone let the headline be reverted to 32 with
+    // this check green. The sentences between the two are historical and past tense; the two ends
+    // are both present tense and both must be the count.
+    const first = all(/\*\*(\d+) refusals\*\*/g)[0];
+    if (first && bold && first.index !== bold.index && Number(first[1]) !== n) {
+      fail('C4', `spec/README.md's headline says **${first[1]} refusals** and C4 counts ${n} — the row's first count is a copy the last one does not cover`);
+    }
     if (!cited) fail('C4', 'spec/README.md does not quote "C4 covered N definition refusals"');
     else if (Number(cited[1]) !== n) {
       fail('C4', `spec/README.md quotes "C4 covered ${cited[1]}" and C4 counts ${n}`);
@@ -270,11 +279,17 @@ if (!existsSync(REG)) {
   // against whichever set the key it has names. `groups` is deliberately not read here (W58):
   // it needs `FD-V31`'s per-entry logic, which is ladder L4's.
   const nts = new Set(reg.nodeTypes ?? []);
+  // `languages` since W61 (v0.18): a typed task may declare `transform: { lang, expr }`, and `lang`
+  // names an entry in registry.json's `languages` — the fifth set, read as the others are. What
+  // the expression SAYS is `FD-V36`'s and needs the language's compiler, which is ladder L4's.
+  const langs = new Set(reg.languages ?? []);
   for (const name of readdirSync(VALID_DIR)) {
     const doc = parsed.get(join(VALID_DIR, name));
     for (const n of doc?.nodes ?? []) {
       if (n.kind === 'task' && n.type !== undefined && !nts.has(n.type))
         fail('C7', `valid/${name}: type "${n.type}" is not in registry.json`);
+      if (n.kind === 'task' && n.transform !== undefined && !langs.has(n.transform?.lang))
+        fail('C7', `valid/${name}: transform.lang ${JSON.stringify(n.transform?.lang)} is not in registry.json`);
       if (n.kind === 'task' && n.type === undefined && !wts.has(n.workerType))
         fail('C7', `valid/${name}: workerType "${n.workerType}" is not in registry.json`);
       for (const e of n.edges ?? [])
@@ -299,6 +314,12 @@ if (!existsSync(REG)) {
     if (name.startsWith('FD-V32--')) {
       const ty = (doc?.nodes ?? []).filter(n => n.kind === 'task' && n.type !== undefined).map(n => n.type);
       if (!ty.some(t => !nts.has(t))) fail('C7', `invalid/${name} names no node type absent from registry.json`);
+    }
+    // W61: `FD-V35` is the refusal about the fifth set, and its case must name a language the
+    // registry lacks — `FD-V32`'s clause one set over.
+    if (name.startsWith('FD-V35--')) {
+      const ls = (doc?.nodes ?? []).filter(n => n.kind === 'task' && n.transform !== undefined).map(n => n.transform?.lang);
+      if (!ls.some(l => !langs.has(l))) fail('C7', `invalid/${name} names no language absent from registry.json`);
     }
   }
 }

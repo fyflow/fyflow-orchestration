@@ -19,7 +19,7 @@
 import { collected, equal, listDir, ok, readText, ROOT, suite } from '../harness.ts';
 import { validateDefinition, violatedRules } from '../../src/definition/validate.ts';
 import type { FlowDefinition, Registry } from '../../src/definition/types.ts';
-import { CORPUS_NODE_TYPES } from './corpus-types.ts';
+import { CORPUS_LANGUAGES, CORPUS_NODE_TYPES } from './corpus-types.ts';
 
 const EX = `${ROOT}spec/examples`;
 
@@ -28,6 +28,7 @@ const registryDoc = JSON.parse(await readText(`${EX}/registry.json`)) as {
   workerTypes: string[];
   groups: string[];
   nodeTypes: string[];
+  languages: string[];
 };
 const registry: Registry = {
   predicates: new Set(registryDoc.predicates),
@@ -41,6 +42,9 @@ const registry: Registry = {
   // `corpus-types.ts` is where the names resolve — the same split the corpus's predicates have.
   // The two are compared both ways below.
   nodeTypes: CORPUS_NODE_TYPES,
+  // **The fifth set, v0.18 (W61), read the same way**: `registry.json` names the languages and
+  // `corpus-types.ts` resolves each to an adapter whose registry half is a function. Both ways below.
+  languages: CORPUS_LANGUAGES,
 };
 
 const specText = await readText(`${ROOT}spec/flow-definition.md`);
@@ -216,6 +220,13 @@ suite('L4 — every valid example validates clean', (test) => {
     // under workerTypes too — `FD-V32`'s second clause fires on every typed corpus node otherwise.
     equal(registryDoc.nodeTypes.filter((t) => !registryDoc.workerTypes.includes(t)), [],
       'every node type has a pool of its own name in workerTypes');
+  });
+
+  test('registry.json`s languages are exactly the adapters corpus-types.ts resolves, both ways — and each has a compile function (W61)', () => {
+    equal([...registryDoc.languages].sort(), Object.keys(CORPUS_LANGUAGES).sort(),
+      'the names registry.json declares under languages are the keys corpus-types.ts defines');
+    ok(registryDoc.languages.length > 0, 'and the set is not empty, which would make the comparison vacuous');
+    for (const [name, a] of Object.entries(CORPUS_LANGUAGES)) ok(typeof a.compile === 'function' && typeof a.worker === 'string', `${name} has both halves`);
   });
 
   for (const name of validNames) {
@@ -398,6 +409,19 @@ const LATE_SUITES = [
   'W59 — what a type declares for its nodes: the retry merge and the groups, at construction and at dispatch',
   'W59 — bootstrap: one pool per type keyed by its name, the groups both ways, and the default pool is a real WorkerManager',
   'W59 — the envelope worker: unpacks the two keys, refuses everything else, and drives the inner worker`s lifecycle',
+  // W61 — `FD-V35`-`FD-V37`, `FD-C6`, the wrapper evaluating and the adapter conformance suite, in
+  // `test/definition/transform.test.ts`, `test/driver/transform.test.ts`,
+  // `test/scheduler/transform.test.ts`, `test/scheduler/fake-language.test.ts` and
+  // `test/scheduler/bootstrap.test.ts`.
+  'FD-V35, FD-V36 and FD-V37 — what a node may DO to its input, every clause, on every shape',
+  'the transformed corpus flow — section 7`s row, the four shapes, and the registry`s languages both ways',
+  'W61 — a typed node`s envelope carries its declared transform as a THIRD key, only when declared — FD-C6 at L2, on every shape',
+  'W61 — the untransformed envelope is byte-identical with and without languages registered — P17 decision 8',
+  'W61 — the envelope worker evaluates a declared transform in run(), on all four kinds of input FD-C5 names',
+  'W61 — a transform on a REAL pool, inline and threaded: the transformed input arrives, and a failure takes a task`s two roads',
+  'W61 — bootstrap writes a language`s worker URL into a typed pool`s config only where a node of the type transforms, both ways',
+  'adapter conformance — path (the fake language, a test fixture)',
+  'the fake language — what the fixture itself claims',
   'ADR 0046 / RN-R13 — a region releases its collection when its join becomes terminal',
   'OR-R11 — a result is a VALUE, and each shape asserts what does NOT cross',
   'OR-R11 — the corpus half of what bounding a result would cost',

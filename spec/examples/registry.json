@@ -1,7 +1,8 @@
 {
-  "note": "The predicate, worker, resource-group and node-type names the valid corpus resolves against. FD-V4, FD-V5, FD-V31 and FD-V32 are refusals ABOUT a registry, so their cases name entries this file deliberately omits. A node type's pool is keyed by its name, so every nodeTypes entry is a workerTypes entry too (FD-V32); the type's validator is a function and lives beside the predicates' in test/definition/corpus-types.ts, registered under the name here.",
+  "note": "The predicate, worker, resource-group, node-type and language names the valid corpus resolves against. FD-V4, FD-V5, FD-V31, FD-V32 and FD-V35 are refusals ABOUT a registry, so their cases name entries this file deliberately omits. A node type's pool is keyed by its name, so every nodeTypes entry is a workerTypes entry too (FD-V32); the type's validator is a function and lives beside the predicates' in test/definition/corpus-types.ts, registered under the name here — and so is a language's adapter (its compile is a function, its worker a module URL), under the name in `languages`.",
   "predicates": [ "isLowConfidence", "isHighConfidence" ],
   "workerTypes": [ "IngestWorker", "ScoreWorker", "ReviewWorker", "PublishWorker", "ExtractWorker", "MergeWorker", "Scorer" ],
   "groups": [ "gpu", "api" ],
-  "nodeTypes": [ "Scorer" ]
+  "nodeTypes": [ "Scorer" ],
+  "languages": [ "path" ]
 }

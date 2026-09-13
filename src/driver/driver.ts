@@ -12,12 +12,12 @@
  * driver turns out to need a second copy of run truth, that is a finding about the
  * spec rather than a thing to build.
  */
-import type { Edge, FlowDefinition, FlowNode, NodeType, NodeTypes, Registry, TerminalState } from '../definition/types.ts';
+import type { Edge, FlowDefinition, FlowNode, LanguageAdapter, Languages, NodeType, NodeTypes, Registry, TerminalState } from '../definition/types.ts';
 import {
   allRegions, branchPathOf, buildGraph, innermostRegionOf, outputIsVisible, toRegion,
   type Graph, type RegionSets,
 } from '../definition/regions.ts';
-import { effectiveSettings, nodeTypesOf, referenceTarget, retryPolicyProblem, validateDefinition, violatedRules } from '../definition/validate.ts';
+import { effectiveSettings, languagesOf, nodeTypesOf, referenceTarget, retryPolicyProblem, validateDefinition, violatedRules } from '../definition/validate.ts';
 import {
   assertRunId, branchIndices, buildTaskId, InvalidTaskId, parseTaskId, type TaskIdParts,
 } from './ids.ts';
@@ -558,6 +558,16 @@ export interface DriverOptions {
    */
   nodeTypes?: NodeTypes;
   /**
+   * **The registry's LANGUAGES — the fifth set, v0.18** ([W61](../../doc/work-items/w61-what-a-transform-is.md),
+   * ADR 0051). Absent means EMPTY, as `nodeTypes` is: a definition declaring any `transform` is
+   * then refused at construction (`FD-V35`). The driver reads ONE field of each entry, `compile`,
+   * and reads it at construction only — `FD-V36` runs the language's synchronous compiler on
+   * every declared expression before anything is queued — and never evaluates anything: the
+   * envelope gains the declared `transform` as a third key and the TYPE's worker wrapper
+   * evaluates it (P17 decision 1). The bootstrap helper reads the other field, `worker`.
+   */
+  languages?: Languages;
+  /**
    * Required when the definition contains a fan-out. **W3 ships none** — both
    * policies are W2's and which is right is W4's question (`JP-R7`, `JP-R8`), so
    * a driver that decided satisfaction itself would answer Q4 from inside W3.
@@ -706,6 +716,8 @@ export class Driver {
 
   /** The registry's node types, normalised once (W59). Read at dispatch for the type's retry default and to decide whether the envelope applies. */
   private readonly nodeTypes: ReadonlyMap<string, NodeType>;
+  /** The registry's languages, normalised once (W61). Read at construction only; the driver evaluates nothing. */
+  private readonly languages: ReadonlyMap<string, LanguageAdapter>;
 
   /**
    * Validates the definition IN FULL before anything is queued (ADR 0002 rule 3),
@@ -760,6 +772,18 @@ export class Driver {
         }
       }
     }
+    // **The languages are held at construction too, and read for ONE thing** — W61. A `compile`
+    // that is not a function is the REGISTRY's mistake (the schema-object shape a reader is likely
+    // to try, one set over from `FD-V33`'s), refused here naming the language rather than on every
+    // node that names it; `worker`, the other half, is the bootstrap helper's to check, because
+    // the driver never loads it. `languagesOf` is the validator's own normaliser.
+    this.languages = languagesOf(opts.languages);
+    for (const [name, l] of this.languages) {
+      if (typeof l?.compile !== 'function') {
+        throw new InvalidDefinition(['FD-V36'], `language "${name}" declares no compile function — FD-V36: ` +
+          'the registry half of a language adapter is a synchronous compile(expr) that throws on a syntax error');
+      }
+    }
     const registry: Registry = {
       predicates: new Set(opts.predicates.keys()),
       workerTypes: new Set(opts.workerTypes),
@@ -767,6 +791,7 @@ export class Driver {
       // the `?? []` is here so the reading is stated rather than an accident of the constructor.
       groups: new Set(opts.groups ?? []),
       nodeTypes: this.nodeTypes,
+      languages: this.languages,
     };
     const findings = validateDefinition(definition, registry);
     if (findings.length) {
@@ -2019,6 +2044,15 @@ export class Driver {
     //   - the retry MERGE gains a middle level: the node's own policy, whole; else the type's; else
     //     the driver's default. `workerGroups` merges nothing — a type's groups are the pool's, and
     //     the scheduler unions those with the task's own (W58's measurement).
+    //
+    // **W61 — the envelope's THIRD key, present only when the node declares one, and the driver's
+    // whole part in a transform.** `transform: { lang, expr }` rides on the envelope exactly as
+    // declared, as its own copy (a definition is held by reference — Q259), `FD-C6`; `input` is
+    // still the value RECEIVED, untransformed, because the driver dispatches inside a listener
+    // with no `await` and a language's evaluator is async (P17 fact 1 and decision 1) — the TYPE's
+    // worker wrapper is what evaluates it, and ladder L2 therefore cannot see a transformed value
+    // (P17 prediction 3). A typed node declaring none is dispatched with the two-key envelope it
+    // had at v0.17, to the byte (decision 8; W58's *a key is added only when present*).
     const type = node.type !== undefined ? this.nodeTypes.get(node.type)! : undefined;
     const retryPolicy = node.retryPolicy ?? type?.retryPolicy ?? this.opts.defaultRetryPolicy;
     this.opts.scheduler.addTask(
@@ -2027,7 +2061,7 @@ export class Driver {
         // `FD-V23` refused a task with neither key and `FD-V34` one with both, so exactly one is
         // set here — the `!` is the same assertion as the lookup above.
         workerType: type === undefined ? node.workerType! : node.type!,
-        payload: type === undefined ? payload : { settings: cloneValue(effectiveSettings(node)), input: payload },
+        payload: type === undefined ? payload : { settings: cloneValue(effectiveSettings(node)), input: payload, ...(node.transform !== undefined ? { transform: cloneValue(node.transform) } : {}) },
         optional: node.optional === true,
         ...(retryPolicy !== undefined ? { retryPolicy } : {}),
         ...(node.workerGroups !== undefined ? { workerGroups: node.workerGroups } : {}),

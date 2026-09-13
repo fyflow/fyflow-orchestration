@@ -1,8 +1,9 @@
 # P17 — What may a node DO to its input before its worker sees it?
 
-**Status:** DECLARED — 2026-09-12, on `4c269d4`, the commit that carried P16's retro and moved
-`doc/workflow.md` to [v0.17](../workflow.md). **No item has started.** *Read every status from the
-item's own file, never from this line.*
+**Status:** RUNNING — declared 2026-09-12 on `4c269d4`, the commit that carried P16's retro and moved
+`doc/workflow.md` to [v0.17](../workflow.md). **[W61](../work-items/w61-what-a-transform-is.md) is
+DONE** (2026-09-12, [ADR 0051](../decisions/0051-a-transform-is-a-declared-expression-in-a-registered-language-applied-in-the-types-worker-wrapper.md));
+W62 and W63 have not started. *Read every status from the item's own file, never from this line.*
 
 **Baseline:** `4c269d4` — `doc/workflow.md` [v0.17](../workflow.md), **P1-P16 complete and retro'd,
 no plan running**, tree clean — see *The baseline this plan starts from*.
@@ -402,4 +403,19 @@ plan, four work-item files, the register and the three indexes.
 
 ## Record
 
-*Filled in at the join, after the work items are merged.*
+*Filled in at the join, after the work items are merged. Per-item rows as each lands.*
+
+**W61 — done 2026-09-12, ADR 0051 taken.** `spec/flow-definition.md` v0.18 with `FD-V35`-`FD-V37`
+and `FD-C6`, `FD-C5` byte-identical; `Registry.languages` and the two-halved `LanguageAdapter`;
+the driver adding `transform` only when declared; the envelope worker evaluating in `run()`; the
+helper writing a language's worker URL only where a node of the type transforms; the adapter
+conformance suite over a FAKE language. **Predictions 1 and 3 CONFIRMED** (0 on every existing
+test, byte-identical dispatch; the evaluation reverted costs 14 at L1, 0 at L2-L5, 0 at L6).
+**Prediction 2's reversal condition measured REAL** — a `setup()` throw leaves the task `pending`
+forever and the run never hears of it — and avoided by the maintainer's stop-and-ask choice (a load
+failure remembered in `setup()`, thrown from `run()` as the task's), so no `FD-R` and no node kind;
+the inner worker's own `setup()` throw is [Q266](../open-questions.md). L1-L5 **36 / 958** in five
+runtimes, L6 **1281 / 46 unmoved**, spec **7 / 55 / 103**, census **209 / 156 / 2 / 51**. Readers
+10 / 1 and 66 / 10 / 3, overlap 1. Rule 8 93 probes: 1 control green, 81 caught, 10 declared ceilings each RUN against its rung, 1 revert measurement, 0 undeclared survivors, 0 crashes, 0 against declaration on the final pass — 1 abort re-anchored and then caught (a13, an anchor the adequacy fix moved) and 1 author probe rewritten (r7, first aimed at the wrong branch). Late exceptions **two** (the L6 byte walk's
+field lists in `examples/`, one cause). Q266-Q267 raised; Q184, Q253 extended; Q268-Q269 spent.
+`W61` outside `doc/` grepped and recorded in the item's file.
