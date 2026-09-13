@@ -1591,8 +1591,7 @@ failure. And a language module that failed to LOAD is not a worker error either:
 remembers the failure and fails, at `run()`, exactly the tasks that name that language. `$now`,
 `$millis` and `$random` are unbound in every adapter: a transform is a function of what the run
 produced. The language this package ships is JSONata, as the sub-path `fyflow-orchestration/jsonata`
-— W62's, not yet on this tree; the snippet below uses a toy one so it runs with nothing installed,
-and it is the same interface.
+— section 14; the snippet below uses a toy one so it loads no engine, and it is the same interface.
 
 ```ts run
 import { validateDefinition, type FlowDefinition, type LanguageAdapter, type NodeType, type Registry } from 'fyflow-orchestration';
@@ -1665,3 +1664,118 @@ is refused, with the reasons in ADR 0051. The validator runs at construction and
 nowhere else: the driver holds your definition by reference, so a document you mutate after
 `new Driver` is dispatched as mutated, for every key ([Q259](doc/open-questions.md)). Two worked
 typed flows run on a real scheduler in [`examples/`](examples/README.md).
+
+## 14. The JSONata adapter — `fyflow-orchestration/jsonata`
+
+The language this package ships for a `transform` is **JSONata**, at the one exact version
+`package.json` names, as the sub-path
+`fyflow-orchestration/jsonata` — [ADR 0052](doc/decisions/0052-a-second-dependency-is-declared-where-its-one-sub-path-is-reached.md),
+[W62](doc/work-items/w62-the-jsonata-adapter.md). **The engine is a dependency of this package and
+is loaded by that sub-path alone**: the root and `fyflow-orchestration/scheduler` import none of it,
+so a consumer who never transforms pays the install and never the load, and a browser bundle carries
+the engine only where the sub-path is imported (237 KiB). Import it, put it in the registry's
+`languages` under the name a flow's `transform.lang` uses, and hand the same object to the
+bootstrap helper:
+
+```ts check
+import { Driver, liveToken, type FlowDefinition, type NodeType } from 'fyflow-orchestration';
+import { bootstrap } from 'fyflow-orchestration/scheduler';
+import { jsonata } from 'fyflow-orchestration/jsonata';
+import { ConcurrentLimitGroup, FyflowScheduler } from 'fyflow-scheduler';
+
+declare const Scorer: NodeType;
+declare const flow: FlowDefinition;
+
+// The adapter is `{ compile, worker }`: `compile` runs on the main thread at `new Driver` and
+// `worker` is the URL of the SAME module, which the envelope worker imports inside the pool.
+const languages = { jsonata };
+const types = bootstrap({ Scorer }, { scorer: new ConcurrentLimitGroup(4, 'scorer') }, { languages, flows: [flow] });
+const scheduler = new FyflowScheduler({ ...types.workerPools }, { ...types.resourceGroups });
+const driver = new Driver(flow, {
+  runId: 'run-1', scheduler, predicates: new Map(), joinPolicy: liveToken,
+  workerTypes: Object.keys(scheduler.workerPools), groups: Object.keys(scheduler.groups),
+  nodeTypes: { Scorer }, languages,
+});
+driver.start({ items: [1, 2, 3] });
+```
+
+**What an expression sees, and what it may not.** `$` is the node's input — the previous node's
+result, the object `needs` described, a map instance's own item, or a join's collection keyed by
+branch path — and the node's effective `settings` are bound as `$settings`, so one expression is
+parameterised per node. **Five names are unbound, by name, on every compiled expression**: `$now`,
+`$millis`, `$random` — the three every adapter must refuse, because a transform is a function of what
+the run produced and run state is a fold of the log — **`$shuffle`**, JSONata's own fourth, which
+draws from `Math.random()` (found by walking the engine's function table: of the 61 of its 63
+built-ins the walk can observe, nothing else differs between two evaluations of one input) — **and
+`$eval`**, for a different reason: it re-compiles its
+argument at RUN time, so a syntax error inside it would be a task failure carrying the engine's
+`D3120` that `FD-V36` never saw, and a transform is declared text refused at construction
+([Q265](doc/open-questions.md)). Each throws naming itself and the task fails with
+`TransformFailed [UNBOUND]`; a computed key is read with `$lookup`, which recompiles nothing. **And the worker receives plain JSON values**: JSONata marks the
+arrays it builds with an own `sequence` property that survives `structuredClone` across a thread and
+that a deep-equal sees; the adapter strips it at every depth.
+
+**Two things about JSONata itself that decide how you write a reduction.** A path over a join's
+record changes TYPE with the region's arity — `*.score` is an array at two matching branches, the
+scalar at one, absent at zero ([Q263](doc/open-questions.md)) — so a reduction is written over the
+array form, `$sum([*.score])`, which is `0` for a join nothing reached. And a misspelt key is silent:
+`input.scroe` evaluates to `undefined` with no error, and the worker receives `undefined`, where
+`$sum("a")` is loud (`T0412`). Only a syntax error is refused at construction.
+
+```ts run
+import { validateDefinition, type FlowDefinition, type NodeType, type Registry } from 'fyflow-orchestration';
+import { EnvelopeWorker, TransformFailed } from 'fyflow-orchestration/scheduler';
+import { jsonata } from 'fyflow-orchestration/jsonata';
+
+const Scorer: NodeType = { worker: 'data:text/javascript,export default class W { run(p) { return p.input; } }' };
+const flow: FlowDefinition = {
+  flowId: 'reduced', version: 1, entry: 'ingest',
+  nodes: [
+    { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'split' }] },
+    { id: 'split', kind: 'fanout', branches: ['scoreA', 'scoreB'] },
+    { id: 'scoreA', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'collect' }] },
+    { id: 'scoreB', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'collect' }] },
+    { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'publish' }] },
+    // The join's successor wants the total, not the record: the transform reduces it, no reshaping node.
+    { id: 'publish', kind: 'task', type: 'Scorer', settings: { factor: 2 }, transform: { lang: 'jsonata', expr: '$sum([*.score]) * $settings.factor' }, edges: [{ to: 'done' }] },
+    { id: 'done', kind: 'end', outcome: 'completed' },
+  ],
+};
+const registry: Registry = { predicates: [], workerTypes: ['IngestWorker', 'Scorer'], nodeTypes: { Scorer }, languages: { jsonata } };
+const bad = validateDefinition(flow, registry);
+if (bad.length) throw new Error(`the reduced flow is invalid: ${bad.map((f) => `${f.rule}@${f.at}`).join()}`);
+
+// FD-V36 carries JSONata's own refusal — its code and the position of the missing token — at `new Driver`, never on a workload.
+const publish = (expr: string, reg = registry) => validateDefinition({ ...flow, nodes: flow.nodes.map((n) => (n.id === 'publish' ? { ...n, transform: { lang: 'jsonata', expr } } : n)) }, reg);
+const syntax = publish('$sum(*.score');
+if (syntax.map((f) => f.rule).join() !== 'FD-V36' || !syntax[0]!.detail.includes('S0203') || !syntax[0]!.detail.includes('position 12')) throw new Error(`FD-V36 with the engine's code and position: ${JSON.stringify(syntax)}`);
+// FD-V35 — the language is a registry entry: a registry without it refuses the flow, and an absent set means none.
+if (!publish('$sum([*.score])', { ...registry, languages: {} }).some((f) => f.rule === 'FD-V35')) throw new Error('FD-V35: jsonata not registered');
+
+// The envelope worker — the class the bootstrap helper puts around your worker — with the adapter's worker half by URL.
+const w = new EnvelopeWorker({ worker: Scorer.worker, languages: { jsonata: jsonata.worker } });
+await w.setup();
+const record = { '0': { score: 40 }, '1': { score: 20 } };                                    // JP-R12's collection, two branches
+const total = await w.run({ settings: { factor: 2 }, input: record, transform: { lang: 'jsonata', expr: '$sum([*.score]) * $settings.factor' } });
+if (total !== 120) throw new Error(`the worker received ${JSON.stringify(total)} — expected the reduction, 120`);
+const one = await w.run({ settings: {}, input: { '0': { score: 7 } }, transform: { lang: 'jsonata', expr: '$sum([*.score])' } });
+if (one !== 7) throw new Error('arity one, the same expression: 7');
+const none = await w.run({ settings: {}, input: {}, transform: { lang: 'jsonata', expr: '$sum([*.score])' } });
+if (none !== 0) throw new Error('a join nothing reached: 0, because the reduction is over the ARRAY form');
+let unbound: unknown;
+try { await w.run({ settings: {}, input: record, transform: { lang: 'jsonata', expr: '$now()' } }); } catch (e) { unbound = e; }
+if (!(unbound instanceof TransformFailed) || unbound.code !== 'UNBOUND') throw new Error('$now() is unbound: the TASK fails, naming it');
+await w.teardown();
+```
+
+**How it is declared, and what that costs a consumer.** `package.json` names `jsonata` in
+`dependencies` at one EXACT version and `deno.json` maps it to `npm:jsonata@` that same version
+(there is no JSR package for it) — one pin, written twice, and `check:source` `S15` holds the two
+together and refuses a second field naming the engine;
+`S14` refuses any published file but `src/jsonata/**` importing the engine, and any form of the
+specifier there but the bare `jsonata`. An npm consumer installs one 834 KiB package with no
+dependencies of its own, whether or not they ever import the sub-path; a Deno consumer's
+`deno.json` resolves the mapping; a bundler includes the engine only in a bundle that imports the
+sub-path. **A bundled worker is your asset**: inside a bundle `import.meta.url` is the bundle's own
+URL ([Q261](doc/open-questions.md)), so `jsonata.worker` — like the envelope worker itself — has to be
+served beside your bundle as a module of its own for a pool's thread to load it.

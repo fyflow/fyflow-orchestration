@@ -159,6 +159,14 @@ const PROBES = [
     also: ['X5'],
     mutate: (t) => t.replace("from 'fyflow-orchestration/scheduler'", "from 'fyflow-orchestration/schedulerr'"),
   },
+  {
+    // W62: the jsonata sub-path's rewrite, the same shape one sub-path over — a specifier the
+    // rewrite does not recognise reaches `tsc` as written and fails to resolve under both lib sets.
+    name: 'a snippet importing the jsonata sub-path by a name the rewrite does not recognise',
+    check: 'X3',
+    also: ['X5'],
+    mutate: (t) => t.replace("from 'fyflow-orchestration/jsonata'", "from 'fyflow-orchestration/jsonataa'"),
+  },
   // --- X6: AGENTS.md's cost figures against spec/flow-definition.md's, both ways ---
   //
   // **Three of `X6`'s four clauses are reachable from this side**, which is what the
@@ -313,7 +321,7 @@ const RAN = (out) => /^(All checks passed|\d+ failure\(s\)\.)/m.test(out);
  * inherited rather than rediscovered; **this file had no floor at all until W29.**
  */
 // 18 until W59, which added the sub-path probe and raised the floor to the count it ships (Q102).
-const MIN_PROBES = 19;
+const MIN_PROBES = 20;
 
 /** The same floor for `META`, and for the same reason. */
 const MIN_META = 10;

@@ -162,6 +162,15 @@ names, and holds the tree still by a content digest over every tracked and untra
 | re-run, tree held still | **93 probes: 1 control green, 81 caught, 10 declared ceilings each RUN against its rung, 1 revert measurement, 0 undeclared survivors, 0 crashes, 0 against declaration on the final pass — 1 abort re-anchored and then caught (a13, an anchor the adequacy fix moved) and 1 author probe rewritten (r7, first aimed at the wrong branch)** | the author's 83 plus the two conformity edits (`r1`, `r2`) and the eight adequacy edits (`r3`-`r10`) — every reader edit CAUGHT by the test it forced, except `r9` (one fixture entry out), DECLARED as the reader prescribed. Digest identical before and after every probe |
 | `npm run gate` | **GATE EXIT=0, zero lines beginning FAIL, 15 chain entries — on the SECOND run over the final tree** (the first was red at one line, *What broke* 12); digest `b28afc80c26516cc` over 290 files before and after, identical; selftests 7/7 completed, 7 ok, 442.5 s wall. This row and the markdown count beside it are the edits after the gate's digest | 36 / 958 in node, deno and chromium (firefox and webkit at 958 by `test:browser:all`, same directory); L6 **1281 / 0 in both runtimes**; spec 7 / 55 / 103; docs 26 / 21; markdown 115 documents, 5029 relative links, 253 anchored; every self-test at its full count. **`W61` outside `doc/`: 74 hits in 24 tracked files, 88 in 30 with the 11 files this item created**, every one this item's own annotation or a record-step index line (62 hits in 24 tracked files before the record step). **[Q142](../open-questions.md) predicted NOT to fire and did not**: the two-directory fixture is **3694 against 3960** (whole tree 115 documents, 5029 relative links, 253 anchored) on a scratch copy of the tree this item ships |
 
+*(**Corrected by W62 under section 6 pass 3 rule 6, 2026-09-13**: row 8 below and this Record's
+Outputs claim the conformance suite passes unchanged on the JSONata adapter, and it does in Node
+and Deno; in the BROWSER bundle it could not, because `import.meta.url` is the bundle's own URL
+(Q261) and `import(adapter.worker)` yields no default export for any adapter that imports an engine
+— six clauses red in three browsers, measured at W62. The suite gained an optional `workerHalf`
+handle in its probes, taken only where the URL cannot be imported, with Node and Deno still
+asserting the URL's default export IS that function; the fake language passes no handle and is
+unchanged. The maintainer chose this over skipping the suite in the browser. ADR 0052 rule 8.)*
+
 **Outputs — what was actually built.**
 
 | Declared output | Exists | What would fail without it |

@@ -218,6 +218,38 @@ for (const p of files) {
   }
 }
 
+// S14 — `RT-R12`, ADR 0052: a SECOND dependency, `jsonata`, reached from ONE sub-path and by
+// ONE form. The engine is loaded by `src/jsonata/**` and by nothing else in the published set —
+// not the pure entry, not the scheduler sub-path (ADR 0049 rule 5's shape, one sub-path over: a
+// root or a helper re-exporting the adapter carries the engine to every consumer, and nothing but
+// this clause sees a re-export). Inside `src/jsonata/` the specifier is the bare `jsonata`: an
+// `npm:` prefix resolves in one runtime only, a path into `node_modules` is a layout, and a path or
+// URL to the engine's own file is a copy beside the one the manifests declare. The specifier's
+// resolution is configuration — `node_modules` for Node and the browser, `deno.json`'s `imports`
+// for Deno — exactly as `S7` holds for the scheduler, and the same regex limit applies: a specifier
+// built at run time survives.
+const JSONATA_NAMES = /(^|[\/:])jsonata(?=$|[\/@.?#])/;
+const JSONATA_DIR = 'src/jsonata/';
+for (const p of files) {
+  const r = rel(p);
+  const imports = withoutComments(readFileSync(p, 'utf8'));
+  // `form`, not `re`: the loop head is a self-test anchor for `S7`'s copy of this loop, and an
+  // identical second line made that anchor ambiguous (W62's first self-test run, W29's guard).
+  for (const form of SPECIFIER_FORMS) {
+    for (const m of imports.matchAll(form)) {
+      const spec = m[1];
+      if (!JSONATA_NAMES.test(spec)) continue;
+      if (!r.startsWith(JSONATA_DIR)) {
+        fail('S14', `${r} reaches jsonata as "${spec}" — RT-R12 / ADR 0052. Only src/jsonata/** loads the engine; ` +
+          'the pure entry and the scheduler sub-path carry none of it, so a consumer who never transforms never pays for it');
+      } else if (spec !== 'jsonata') {
+        fail('S14', `${r} reaches jsonata as "${spec}" — RT-R12 / ADR 0052. The bare specifier "jsonata" and nothing else: ` +
+          'an npm: prefix, a path or a URL resolves in one runtime and not the others, or beside the copy the manifests declare');
+      }
+    }
+  }
+}
+
 // S6's converse. `published()` walks `src/` plus `index.ts`, so a `.ts` added to
 // the allowlist ANYWHERE ELSE — `lib/`, `runtime/` — is shipped to JSR and is
 // invisible to S1-S4 and S7. S6 compares the two lists in one direction only; this
@@ -292,6 +324,55 @@ function testSources() {
   };
   walk(join(ROOT, 'test'));
   return out;
+}
+
+// S15 — `RT-R12`, ADR 0052: the second dependency is DECLARED where each installer reads it, at
+// ONE pin, and its sub-path is EXPORTED by both manifests. `S14` binds the form of the reach in
+// source; this binds the declaration — the maintainer's shape (W62): `dependencies` at exactly the
+// pin (a pure-function engine has no class identity to keep single, so a private copy beside a
+// consumer's is harmless, and the exact pin is earned by the internals the adapter relies on — its
+// plain-object errors, its sequence markers, its `$eval` codes), and `deno.json`'s `imports` at
+// `npm:jsonata@<pin>` because no JSR package exists. A SECOND field naming the engine —
+// `peerDependencies`, `optionalDependencies`, `peerDependenciesMeta`, or `devDependencies` beside
+// `dependencies` — is refused: W57's adequacy reader found the hole in the field ADJACENT to the one
+// a check reads. The two export maps must carry `./jsonata` with the scheduler sub-path's shape,
+// because ladder L6's clause (2c) names the scheduler sub-path by literal and nothing else reads
+// the maps. `check-scheduler.mjs`'s `D8` is the scheduler's pin; this is jsonata's, and the pin is
+// written ONCE here and in no consumer document (ADR 0052 names the value it decides; AGENTS.md
+// points at package.json — W62's conformity reader found the number in section 14 and it was removed).
+const JSONATA_PIN = '2.2.2';
+{
+  const deps = pkg.dependencies ?? {};
+  if (deps.jsonata !== JSONATA_PIN) {
+    fail('S15', `${PKG_PATH} dependencies.jsonata is ${JSON.stringify(deps.jsonata)} — RT-R12 / ADR 0052 rule 1: exactly "${JSONATA_PIN}"`);
+  }
+  // The two ARRAY-valued fields are in the list since W62's adequacy reader (m11) shipped the
+  // engine's eight files in the tarball through `bundledDependencies: ["jsonata"]` with every check
+  // green — an array's keys are its indices, so the object read below saw nothing.
+  for (const field of ['peerDependencies', 'optionalDependencies', 'peerDependenciesMeta', 'devDependencies', 'bundledDependencies', 'bundleDependencies']) {
+    const names = Array.isArray(pkg[field]) ? pkg[field].map(String) : Object.keys(pkg[field] ?? {});
+    if (names.some((n) => JSONATA_NAMES.test(n))) {
+      fail('S15', `${PKG_PATH} ${field} names jsonata — RT-R12 / ADR 0052 rule 1: ONE declaration, in dependencies, and no field beside it`);
+    }
+  }
+  const mapped = denoJson.imports?.jsonata;
+  if (mapped !== `npm:jsonata@${JSONATA_PIN}`) {
+    fail('S15', `${DENO_PATH} imports.jsonata is ${JSON.stringify(mapped)} — RT-R12 / ADR 0052 rule 2: exactly "npm:jsonata@${JSONATA_PIN}", the one registry that carries it`);
+  }
+  for (const [where, map] of denoMaps) for (const [spec, target] of Object.entries(map)) {
+    if (where !== 'imports' && (JSONATA_NAMES.test(spec) || JSONATA_NAMES.test(String(target)))) {
+      fail('S15', `${DENO_PATH} ${where} maps "${spec}" — RT-R12 / ADR 0052 rule 2: jsonata is mapped in imports and nowhere else`);
+    }
+  }
+  const sched = pkg.exports?.['./scheduler'];
+  const js = pkg.exports?.['./jsonata'];
+  const expectedNpm = JSON.stringify(sched, (k, v) => (typeof v === 'string' ? v.replaceAll('/scheduler/', '/jsonata/') : v));
+  if (sched === undefined || JSON.stringify(js) !== expectedNpm) {
+    fail('S15', `${PKG_PATH} exports["./jsonata"] is ${JSON.stringify(js)} — RT-R12 / ADR 0052 rule 3: the scheduler sub-path's shape with jsonata's paths (${expectedNpm})`);
+  }
+  if (denoJson.exports?.['./jsonata'] !== './src/jsonata/index.ts') {
+    fail('S15', `${DENO_PATH} exports["./jsonata"] is ${JSON.stringify(denoJson.exports?.['./jsonata'])} — RT-R12 / ADR 0052 rule 3: "./src/jsonata/index.ts"`);
+  }
 }
 
 // S10 — ADR 0013 rule 4: the specifier is bare in source and the resolution is
@@ -655,6 +736,8 @@ const checks = [
   'S11 every check:* script is reachable from `npm run gate`',
   'S12 `npm run gate` runs exactly the entries GATE_CHAIN declares',
   'S13 the chains and the argument lists the gate composes',
+  'S14 jsonata is reached only from src/jsonata/**, and only by its bare specifier',
+  'S15 jsonata is declared once, at one pin, in both manifests, and its sub-path is exported by both',
 ];
 console.log(`source check — ${files.length} published files, ${GATE_CHAIN.length} gate entries\n`);
 for (const c of checks) {

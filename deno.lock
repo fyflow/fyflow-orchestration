@@ -10,13 +10,15 @@
   },
   "workspace": {
     "dependencies": [
-      "jsr:@fyflow/scheduler@0.5.2"
+      "jsr:@fyflow/scheduler@0.5.2",
+      "npm:jsonata@2.2.2"
     ],
     "packageJson": {
       "dependencies": [
         "npm:@types/node@^24.13.3",
         "npm:esbuild@~0.25.12",
         "npm:fyflow-scheduler@0.5.2",
+        "npm:jsonata@2.2.2",
         "npm:playwright@^1.62.1",
         "npm:typescript@^5.9.2"
       ]

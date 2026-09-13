@@ -3,7 +3,9 @@
 **Status:** RUNNING — declared 2026-09-12 on `4c269d4`, the commit that carried P16's retro and moved
 `doc/workflow.md` to [v0.17](../workflow.md). **[W61](../work-items/w61-what-a-transform-is.md) is
 DONE** (2026-09-12, [ADR 0051](../decisions/0051-a-transform-is-a-declared-expression-in-a-registered-language-applied-in-the-types-worker-wrapper.md));
-W62 and W63 have not started. *Read every status from the item's own file, never from this line.*
+**[W62](../work-items/w62-the-jsonata-adapter.md) is DONE** (2026-09-13,
+[ADR 0052](../decisions/0052-a-second-dependency-is-declared-where-its-one-sub-path-is-reached.md));
+W63 has not started. *Read every status from the item's own file, never from this line.*
 
 **Baseline:** `4c269d4` — `doc/workflow.md` [v0.17](../workflow.md), **P1-P16 complete and retro'd,
 no plan running**, tree clean — see *The baseline this plan starts from*.
@@ -419,3 +421,29 @@ runtimes, L6 **1281 / 46 unmoved**, spec **7 / 55 / 103**, census **209 / 156 / 
 10 / 1 and 66 / 10 / 3, overlap 1. Rule 8 93 probes: 1 control green, 81 caught, 10 declared ceilings each RUN against its rung, 1 revert measurement, 0 undeclared survivors, 0 crashes, 0 against declaration on the final pass — 1 abort re-anchored and then caught (a13, an anchor the adequacy fix moved) and 1 author probe rewritten (r7, first aimed at the wrong branch). Late exceptions **two** (the L6 byte walk's
 field lists in `examples/`, one cause). Q266-Q267 raised; Q184, Q253 extended; Q268-Q269 spent.
 `W61` outside `doc/` grepped and recorded in the item's file.
+
+**W62 — done 2026-09-13, ADR 0052 taken.** `fyflow-orchestration/jsonata` in both manifests,
+`jsonata` 2.2.2 declared in `dependencies` at the exact pin (the maintainer's choice with the
+optional peer and `optionalDependencies` priced by consumer installs — the tarball ships no code in
+any shape, so `npm pack` prices only the manifest) and `npm:jsonata@2.2.2` in `deno.json`, because
+no JSR package carries it; `RT-R12` in `spec/runtime-targets.md` v0.11, `S14` (the reach) and `S15`
+(the declaration, both exports, the adjacent fields — `bundledDependencies` included, after the
+adequacy reader shipped the engine's files in the tarball through it); the conformance suite passed
+on the real adapter with ONE change, an optional `workerHalf` handle, because a browser bundle's
+`import.meta.url` is the bundle itself and six clauses were red in three browsers (Q261, the
+maintainer's choice). **Prediction 4 REVERSED**: `$shuffle` draws from `Math.random()`, found in the
+engine's own bind list and confirmed by the walk over all 63 built-ins (61 observed with a defined
+value; only the four differ); **Q265 decided UNBOUND** — five names by name. JSONata throws plain
+objects and marks the arrays it builds; both halves re-throw as `Error`s and the worker half hands
+out plain values at every depth. Fact 6 re-taken inside the wrapper: threaded, a thousand-branch
+reduction adds a third to a half of the thread's own clone, a filter-and-reshape two to three; inline
+the transform is the whole cost. L1-L5 **38 / 979** in five runtimes, L6 **1281 / 46 unmoved** (the
+revert costs 0 — W63's number to move from), spec **7 / 55 / 104**, census **212 / 159 / 2 / 51**.
+Readers 13 / 3 and 21 / 17 / 7, overlap 1. Rule 8 97 probes: 1 control green, 71 caught, 23 declared
+ceilings each RUN against its rung, 2 measured, 0 undeclared, 0 crashes, 0 against declaration on
+the final pass — 6 aborts across the passes and 2 ceilings that were catches on the shipping tree,
+every one the instrument or a value this item moved. Late exceptions **five** (the conformance suite
+file, both locks, `AGENTS.md` section 13, and check-scheduler's self-test — its `D8` probe anchored on
+a two-line `imports` block the `jsonata` mapping made three, found by the first gate over the final
+tree), zero undeclared. Q270-Q272 raised; Q252, Q261 extended;
+Q273 spent. `W62` outside `doc/` grepped and recorded in the item's file.

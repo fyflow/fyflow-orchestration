@@ -4,10 +4,12 @@
   "license": "MIT",
   "exports": {
     ".": "./index.ts",
-    "./scheduler": "./src/scheduler/index.ts"
+    "./scheduler": "./src/scheduler/index.ts",
+    "./jsonata": "./src/jsonata/index.ts"
   },
   "imports": {
-    "fyflow-scheduler": "jsr:@fyflow/scheduler@0.5.2"
+    "fyflow-scheduler": "jsr:@fyflow/scheduler@0.5.2",
+    "jsonata": "npm:jsonata@2.2.2"
   },
   "publish": {
     "exclude": [
@@ -28,6 +30,7 @@
       "!src/scheduler/index.ts",
       "!src/scheduler/bootstrap.ts",
       "!src/scheduler/envelope-worker.ts",
+      "!src/jsonata/index.ts",
       "!README.md"
     ]
   },

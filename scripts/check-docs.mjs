@@ -187,8 +187,13 @@ for (const [i, b] of all.entries()) {
   // `src/scheduler/index.ts`. Neither pattern can match the other's text — the root form ends in a
   // quote where the sub-path form continues with a slash — so the order here is not load-bearing.
   const relSub = relative(OUT, join(ROOT, 'src', 'scheduler', 'index.ts')).replace(/\\/g, '/');
+  // **The THIRD rewrite — W62.** `fyflow-orchestration/jsonata` is the adapter's sub-path (ADR 0052)
+  // and resolves to `src/jsonata/index.ts`; W59's exceptions table predicted this edit for the item
+  // that adds a sub-path. The three patterns are disjoint by their endings, so order is not load-bearing.
+  const relJsonata = relative(OUT, join(ROOT, 'src', 'jsonata', 'index.ts')).replace(/\\/g, '/');
   const code = b.body
     .replaceAll(`'${PKG}/scheduler'`, `'${relSub}'`).replaceAll(`"${PKG}/scheduler"`, `'${relSub}'`)
+    .replaceAll(`'${PKG}/jsonata'`, `'${relJsonata}'`).replaceAll(`"${PKG}/jsonata"`, `'${relJsonata}'`)
     .replaceAll(`'${PKG}'`, `'${rel}'`).replaceAll(`"${PKG}"`, `'${rel}'`);
   const name = `${String(i).padStart(2, '0')}-line${b.line}.${b.tag}.ts`;
   writeFileSync(join(OUT, name), code + '\n');
@@ -333,7 +338,13 @@ if (written.length) {
 // three refusals `FD-V35`-`FD-V37` each thrown on, and the envelope worker evaluating the transform
 // and failing a task with `TransformFailed`. Declared in the item's exceptions table before the
 // snippet was written, on Q102's ratchet.
-const RUN_FLOOR = 21;
+// **Raised 21 -> 22 by [W62](../doc/work-items/w62-the-jsonata-adapter.md)**, which added section
+// 14's `run` snippet — the REAL JSONata adapter registered by name, a transformed flow validated,
+// `FD-V35` and `FD-V36` thrown on with the engine's own `S0203` and position, and the envelope
+// worker reducing a join's collection, binding `$settings`, and failing a task on an unbound name.
+// Declared in the item's exceptions table before the snippet was written, from W59's and W61's
+// tables (Q102's ratchet, the ninth recorded raise).
+const RUN_FLOOR = 22;
 {
   // **Only when the document parsed.** A count over a reference whose fences are
   // malformed or untagged is true of the parse and says nothing about coverage —

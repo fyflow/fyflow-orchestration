@@ -575,13 +575,114 @@ const PROBES = [
     // `package.json`; nothing but `S7` sees it in a `.ts` file.
     mutate: (t) => `${t}\nimport type { Probe } from 'file:../fyflow-scheduler/index.ts';\n`,
   },
+  // --- S14: the SECOND dependency, `jsonata` — reached from src/jsonata/** alone, by one form (W62, RT-R12) ---
+  {
+    name: 'a published file outside src/jsonata/ importing jsonata — the pure entry`s half would carry the engine',
+    half: 'src', file: 'src/definition/types.ts', check: 'S14',
+    mutate: (t) => `${t}\nimport engine from 'jsonata';\nvoid engine;\n`,
+  },
+  {
+    name: 'the ROOT re-exporting the jsonata sub-path — ADR 0049 rule 5`s shape one sub-path over, which W59`s reader found unobserved for the helper',
+    half: 'src', file: 'index.ts', check: 'S14',
+    mutate: (t) => `${t}export * from './src/jsonata/index.ts';\n`,
+  },
+  {
+    name: 'the scheduler sub-path re-exporting the adapter — the sub-path that must stay free of an engine',
+    half: 'src', file: 'src/scheduler/index.ts', check: 'S14',
+    mutate: (t) => `${t}export { jsonata } from '../jsonata/index.ts';\n`,
+  },
+  {
+    name: 'src/jsonata reaching the engine by npm:jsonata — the form Node and the browser cannot resolve',
+    half: 'src', file: 'src/jsonata/index.ts', check: 'S14',
+    mutate: (t) => t.replace("from 'jsonata';", "from 'npm:jsonata@2.2.2';"),
+  },
+  {
+    name: 'src/jsonata reaching a package SUB-PATH, jsonata/jsonata.js — a form a prefix test would pass (the adequacy reader, m09)',
+    half: 'src', file: 'src/jsonata/index.ts', check: 'S14',
+    mutate: (t) => `${t}\nconst probe2 = () => import('jsonata/jsonata.js');\nvoid probe2;\n`,
+  },
+  {
+    name: 'src/jsonata reaching the engine`s own file by a path, in a template-literal dynamic import',
+    half: 'src', file: 'src/jsonata/index.ts', check: 'S14',
+    mutate: (t) => `${t}\nconst probe = () => import(\`../../node_modules/jsonata/jsonata.js\`);\nvoid probe;\n`,
+  },
   {
     name: 'the scheduler declared as a runtime dependency',
     half: 'pkg', check: 'S8',
     // `S8` has been in this file since W5 with no checked-in probe. One is cheap
     // here because the manifest half already has a harness.
-    mutate: (t) => t.replace('  "devDependencies": {',
-      '  "dependencies": {\n    "fyflow-scheduler": "0.3.0"\n  },\n  "devDependencies": {'),
+    // **Re-anchored by W62**: the manifest now HAS a `dependencies` block (jsonata, ADR 0052), and
+    // this probe used to INSERT one before `devDependencies` — a second `dependencies` key, of which
+    // `JSON.parse` keeps the LAST, so the inserted scheduler entry vanished and the probe went
+    // silent (`wanted [S8], got []`, measured in W62's isolated copy). It writes INTO the block now.
+    mutate: (t) => t.replace('  "dependencies": {', '  "dependencies": {\n    "fyflow-scheduler": "0.3.0",'),
+  },
+  // --- S15: jsonata declared ONCE, at ONE pin, in both manifests, its sub-path exported by both (W62, RT-R12) ---
+  {
+    name: 'jsonata missing from dependencies — the declaration gone with the module still shipped',
+    half: 'pkg', check: 'S15',
+    mutate: (t) => t.replace('    "jsonata": "2.2.2"\n', ''),
+  },
+  {
+    name: 'jsonata at a different pin in package.json than deno.json — two engines',
+    half: 'pkg', check: 'S15',
+    mutate: (t) => t.replace('"jsonata": "2.2.2"', '"jsonata": "2.1.0"'),
+  },
+  {
+    name: 'jsonata declared as an optional PEER beside dependencies — the adjacent fields W57`s reader found',
+    half: 'pkg', check: 'S15',
+    mutate: (t) => t.replace('  "peerDependencies": {\n    "fyflow-scheduler": "0.5.2"\n  },',
+      '  "peerDependencies": {\n    "fyflow-scheduler": "0.5.2",\n    "jsonata": "2.2.2"\n  },\n  "peerDependenciesMeta": { "jsonata": { "optional": true } },'),
+  },
+  {
+    name: 'jsonata declared in optionalDependencies alone beside dependencies — its own probe (the adequacy reader, m13)',
+    half: 'pkg', check: 'S15',
+    mutate: (t) => t.replace('  "peerDependencies": {', '  "optionalDependencies": { "jsonata": "2.2.2" },\n  "peerDependencies": {'),
+  },
+  {
+    name: 'jsonata named in peerDependenciesMeta ALONE — the adjacent field without its peer (the adequacy reader, m13)',
+    half: 'pkg', check: 'S15',
+    mutate: (t) => t.replace('  "peerDependencies": {', '  "peerDependenciesMeta": { "jsonata": { "optional": true } },\n  "peerDependencies": {'),
+  },
+  {
+    name: 'jsonata in bundledDependencies — the tarball ships the engine`s files past every check (the adequacy reader, m11)',
+    half: 'pkg', check: 'S15',
+    mutate: (t) => t.replace('  "peerDependencies": {', '  "bundledDependencies": ["jsonata"],\n  "peerDependencies": {'),
+  },
+  {
+    name: 'jsonata declared in devDependencies as well — a second declaration',
+    half: 'pkg', check: 'S15',
+    mutate: (t) => t.replace('    "fyflow-scheduler": "0.5.2",\n    "playwright"', '    "fyflow-scheduler": "0.5.2",\n    "jsonata": "2.2.2",\n    "playwright"'),
+  },
+  {
+    name: 'package.json`s ./jsonata export removed — nothing but S15 reads the map for it',
+    half: 'pkg', check: 'S15',
+    mutate: (t) => t.replace('    "./jsonata": {', '    "./jsonataa": {'),
+  },
+  {
+    name: 'package.json`s ./jsonata export pointing at the scheduler`s bundle paths',
+    half: 'pkg', check: 'S15',
+    mutate: (t) => t.replace('"default": "./dist/node/jsonata/index.js"\n      },', '"default": "./dist/node/scheduler/index.js"\n      },'),
+  },
+  {
+    name: 'deno.json`s jsonata mapping REMOVED — Deno then resolves through package.json (Q252`s shape), and only S15 sees it',
+    half: 'deno', check: 'S15',
+    mutate: (t) => t.replace(',\n    "jsonata": "npm:jsonata@2.2.2"', ''),
+  },
+  {
+    name: 'deno.json`s jsonata mapping at a different pin',
+    half: 'deno', check: 'S15',
+    mutate: (t) => t.replace('"jsonata": "npm:jsonata@2.2.2"', '"jsonata": "npm:jsonata@2.1.0"'),
+  },
+  {
+    name: 'deno.json re-maps jsonata in a scopes block — beside the field the check reads',
+    half: 'deno', check: 'S15',
+    mutate: (t) => t.replace('  "publish": {', '  "scopes": {\n    "./src/": { "jsonata": "../jsonata/jsonata.js" }\n  },\n  "publish": {'),
+  },
+  {
+    name: 'deno.json`s ./jsonata export removed',
+    half: 'deno', check: 'S15',
+    mutate: (t) => t.replace('    "./jsonata": "./src/jsonata/index.ts"', '    "./jsonataa": "./src/jsonata/index.ts"'),
   },
   {
     name: 'the scheduler declared as an optionalDependency — a second copy, optionally',
@@ -659,10 +760,10 @@ const RAN = (out) => /^(All checks passed|\d+ failure\(s\)\.)/m.test(out);
  */
 const SELF_RAN = (out) => /self-test — /.test(out);
 
-const MIN_PROBES = 41;
+const MIN_PROBES = 60;
 
 /** The same floor for `META`, and for the same reason. */
-const MIN_META = 27;
+const MIN_META = 40;
 
 /** And for `SELF`. */
 const MIN_SELF = 10;
@@ -841,6 +942,38 @@ const META = [
     // the bare name and the clause fires on nothing while the loop runs over everything.
     (t) => t.replace("const reachesSchedulerWrongly = (spec) => SCHEDULER_NAMES.test(spec) && spec !== CANONICAL_SPECIFIER;",
       "const reachesSchedulerWrongly = (spec) => SCHEDULER_NAMES.test(spec) && spec !== CANONICAL_SPECIFIER && false;")],
+  // --- S14 (W62): the outside clause, the form clause, the name regex and the directory bound ---
+  ['S14`s outside clause disabled', 'a published file outside src/jsonata/ importing jsonata — the pure entry`s half would carry the engine',
+    (t) => t.replace("      if (!r.startsWith(JSONATA_DIR)) {\n        fail('S14',", "      if (!r.startsWith(JSONATA_DIR)) {\n        [].push('S14',")],
+  ['S14`s form clause disabled', 'src/jsonata reaching the engine by npm:jsonata — the form Node and the browser cannot resolve',
+    (t) => t.replace("      } else if (spec !== 'jsonata') {\n        fail('S14',", "      } else if (spec !== 'jsonata') {\n        [].push('S14',")],
+  ['JSONATA_NAMES made to match nothing', 'the ROOT re-exporting the jsonata sub-path — ADR 0049 rule 5`s shape one sub-path over, which W59`s reader found unobserved for the helper',
+    (t) => t.replace("const JSONATA_NAMES = /(^|[\\/:])jsonata(?=$|[\\/@.?#])/;", "const JSONATA_NAMES = /(?!)/;")],
+  // Names the BARE import from `src/definition/`: widened, that file is "inside" and the bare form
+  // passes the form clause. The sub-path re-export probe stays caught with the directory widened,
+  // because `../jsonata/index.ts` is not the bare specifier — the form clause fires (measured on
+  // this file's first run: STILL CAUGHT against a check that does not check).
+  ['JSONATA_DIR widened to src/ — every published file is "inside"', 'a published file outside src/jsonata/ importing jsonata — the pure entry`s half would carry the engine',
+    (t) => t.replace("const JSONATA_DIR = 'src/jsonata/';", "const JSONATA_DIR = 'src/';")],
+  // --- S15 (W62): the pin clause, the second-field clause, the mapping clause and the exports clause ---
+  ['S15`s pin clause disabled', 'jsonata at a different pin in package.json than deno.json — two engines',
+    (t) => t.replace("  if (deps.jsonata !== JSONATA_PIN) {\n    fail('S15',", "  if (deps.jsonata !== JSONATA_PIN) {\n    [].push('S15',")],
+  ['S15`s second-field clause disabled', 'jsonata declared as an optional PEER beside dependencies — the adjacent fields W57`s reader found',
+    (t) => t.replace("      fail('S15', `${PKG_PATH} ${field} names jsonata", "      [].push('S15', `${PKG_PATH} ${field} names jsonata")],
+  ['S15`s second-field list shortened to peerDependencies alone', 'jsonata declared in devDependencies as well — a second declaration',
+    (t) => t.replace("  for (const field of ['peerDependencies', 'optionalDependencies', 'peerDependenciesMeta', 'devDependencies', 'bundledDependencies', 'bundleDependencies']) {", "  for (const field of ['peerDependencies']) {")],
+  ['S15`s array fields read as OBJECTS (bundledDependencies invisible again)', 'jsonata in bundledDependencies — the tarball ships the engine`s files past every check (the adequacy reader, m11)',
+    (t) => t.replace("    const names = Array.isArray(pkg[field]) ? pkg[field].map(String) : Object.keys(pkg[field] ?? {});", "    const names = Object.keys(pkg[field] ?? {});")],
+  ['S14`s form clause weakened to a PREFIX test', 'src/jsonata reaching a package SUB-PATH, jsonata/jsonata.js — a form a prefix test would pass (the adequacy reader, m09)',
+    (t) => t.replace("      } else if (spec !== 'jsonata') {", "      } else if (!spec.startsWith('jsonata')) {")],
+  ['S15`s deno mapping clause disabled', 'deno.json`s jsonata mapping REMOVED — Deno then resolves through package.json (Q252`s shape), and only S15 sees it',
+    (t) => t.replace("  if (mapped !== `npm:jsonata@${JSONATA_PIN}`) {\n    fail('S15',", "  if (mapped !== `npm:jsonata@${JSONATA_PIN}`) {\n    [].push('S15',")],
+  ['S15`s scopes clause disabled', 'deno.json re-maps jsonata in a scopes block — beside the field the check reads',
+    (t) => t.replace("    if (where !== 'imports' && (JSONATA_NAMES.test(spec) || JSONATA_NAMES.test(String(target)))) {\n      fail('S15',", "    if (where !== 'imports' && (JSONATA_NAMES.test(spec) || JSONATA_NAMES.test(String(target)))) {\n      [].push('S15',")],
+  ['S15`s npm exports clause disabled', 'package.json`s ./jsonata export removed — nothing but S15 reads the map for it',
+    (t) => t.replace("  if (sched === undefined || JSON.stringify(js) !== expectedNpm) {\n    fail('S15',", "  if (sched === undefined || JSON.stringify(js) !== expectedNpm) {\n    [].push('S15',")],
+  ['S15`s deno exports clause disabled', 'deno.json`s ./jsonata export removed',
+    (t) => t.replace("  if (denoJson.exports?.['./jsonata'] !== './src/jsonata/index.ts') {\n    fail('S15',", "  if (denoJson.exports?.['./jsonata'] !== './src/jsonata/index.ts') {\n    [].push('S15',")],
   ['S8`s second-declaration clause disabled',
     'the scheduler declared as an optionalDependency — a second copy, optionally',
     (t) => t.replace("      fail('S8', `${PKG_PATH} ${field} declares", "      [].push(`${PKG_PATH} ${field} declares")],

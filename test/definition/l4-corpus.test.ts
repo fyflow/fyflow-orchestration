@@ -422,6 +422,11 @@ const LATE_SUITES = [
   'W61 — bootstrap writes a language`s worker URL into a typed pool`s config only where a node of the type transforms, both ways',
   'adapter conformance — path (the fake language, a test fixture)',
   'the fake language — what the fixture itself claims',
+  // W62 — the JSONata adapter, in `test/jsonata/jsonata.test.ts` and `test/jsonata/function-table.test.ts`.
+  'adapter conformance — jsonata (fyflow-orchestration/jsonata)',
+  'W62 — the JSONata adapter: one module, five names unbound, JSONata`s errors as Errors',
+  'W62 — the JSONata adapter through the envelope worker and on real pools, inline and threaded',
+  'W62 — prediction 4: JSONata`s function table walked, every built-in evaluated twice on one input',
   'ADR 0046 / RN-R13 — a region releases its collection when its join becomes terminal',
   'OR-R11 — a result is a VALUE, and each shape asserts what does NOT cross',
   'OR-R11 — the corpus half of what bounding a result would cost',

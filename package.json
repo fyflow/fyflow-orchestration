@@ -30,6 +30,18 @@
       },
       "types": "./dist/types/scheduler/index.d.ts",
       "default": "./dist/node/scheduler/index.js"
+    },
+    "./jsonata": {
+      "node": {
+        "types": "./dist/types/jsonata/index.d.ts",
+        "default": "./dist/node/jsonata/index.js"
+      },
+      "browser": {
+        "types": "./dist/types/jsonata/index.d.ts",
+        "default": "./dist/browser/jsonata/index.js"
+      },
+      "types": "./dist/types/jsonata/index.d.ts",
+      "default": "./dist/node/jsonata/index.js"
     }
   },
   "files": [
@@ -81,5 +93,8 @@
   },
   "peerDependencies": {
     "fyflow-scheduler": "0.5.2"
+  },
+  "dependencies": {
+    "jsonata": "2.2.2"
   }
 }

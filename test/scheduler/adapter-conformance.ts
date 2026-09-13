@@ -44,15 +44,32 @@ export interface AdapterProbes {
   undefinedCase: { expr: string; input: unknown; settings: Readonly<Record<string, unknown>> };
   /** A refused expression's code and position, as `FD-V36` reports them. */
   compileError?: { expr: string; code: string; position: number };
+  /**
+   * **The worker half, handed directly — for a runtime that cannot `import()` the adapter's URL.**
+   * W62, the maintainer's answer: inside a browser BUNDLE `import.meta.url` is the bundle's own
+   * URL ([Q261](../../doc/open-questions.md)), so an adapter whose worker half is its own module
+   * — the JSONata adapter, and any adapter that imports an engine — names a module with no
+   * default export there, and every clause below that reaches the worker half failed in all three
+   * browsers. Where the URL CAN be imported (Node, Deno) the suite still imports it and asserts its
+   * default export IS this function — so the URL is bound wherever it is loadable, and only a
+   * runtime that cannot load it takes the handle. An adapter that needs no handle (the fake
+   * language, a `data:` URL) leaves it out and the suite is unchanged for it.
+   */
+  workerHalf?: WorkerCompile;
 }
 
 /** The worker half's default export, structurally. */
-type WorkerCompile = (expr: string) => { evaluate(input: unknown, settings: Readonly<Record<string, unknown>>): unknown };
+export type WorkerCompile = (expr: string) => { evaluate(input: unknown, settings: Readonly<Record<string, unknown>>): unknown };
 
-async function workerHalf(adapter: LanguageAdapter): Promise<WorkerCompile> {
-  const mod = (await import(adapter.worker)) as { default?: unknown };
-  ok(typeof mod.default === 'function', `the worker module's default export is the compile function (got ${typeof mod.default})`);
-  return mod.default as WorkerCompile;
+async function workerHalf(adapter: LanguageAdapter, probes: AdapterProbes): Promise<WorkerCompile> {
+  let mod: { default?: unknown } | undefined;
+  try { mod = (await import(adapter.worker)) as { default?: unknown }; } catch (e) { if (probes.workerHalf === undefined) throw e; }
+  if (typeof mod?.default === 'function') {
+    if (probes.workerHalf !== undefined) ok(mod.default === probes.workerHalf, 'the URL`s default export IS the handed worker half — the same function, so the URL is bound wherever it can be imported');
+    return mod.default as WorkerCompile;
+  }
+  ok(probes.workerHalf !== undefined, `the worker module's default export is the compile function (got ${typeof mod?.default}), and no worker half was handed for a runtime that cannot import the URL`);
+  return probes.workerHalf as WorkerCompile;
 }
 
 function refuses(fn: () => unknown): { threw: boolean; error?: unknown } {
@@ -93,7 +110,7 @@ export function adapterConformance(name: string, adapter: LanguageAdapter, probe
     });
 
     test('the worker half loads, and it refuses EXACTLY what the registry half refuses — the two halves agree (Q264)', async () => {
-      const compile = await workerHalf(adapter);
+      const compile = await workerHalf(adapter, probes);
       for (const expr of probes.refused) ok(refuses(() => compile(expr)).threw, `worker compile(${JSON.stringify(expr)}) throws, as the registry half did`);
       for (const expr of probes.accepted) {
         const r = refuses(() => compile(expr));
@@ -108,7 +125,7 @@ export function adapterConformance(name: string, adapter: LanguageAdapter, probe
     });
 
     test('every case evaluates to its expected value through the worker half — and to the SAME value twice (necessary, never sufficient)', async () => {
-      const compile = await workerHalf(adapter);
+      const compile = await workerHalf(adapter, probes);
       for (const c of probes.cases) {
         const compiled = compile(c.expr);
         ok(typeof compiled?.evaluate === 'function', `compile(${JSON.stringify(c.expr)}) has evaluate()`);
@@ -121,7 +138,7 @@ export function adapterConformance(name: string, adapter: LanguageAdapter, probe
     });
 
     test('the settings binding: ONE expression over TWO settings gives TWO different answers — P17 decision 7 as a discriminating pair', async () => {
-      const compile = await workerHalf(adapter);
+      const compile = await workerHalf(adapter, probes);
       const p = probes.settingsPair;
       ok(!deepEqual(p.a, p.b), 'the two settings differ — the pair is a claim (rule 8, fourth requirement on the set)');
       ok(!deepEqual(p.expectedA, p.expectedB), 'and so do the two expected values');
@@ -131,13 +148,13 @@ export function adapterConformance(name: string, adapter: LanguageAdapter, probe
     });
 
     test('a missing path is `undefined` and NOT a rejection — P17 fact 4`s silent half, required of every adapter', async () => {
-      const compile = await workerHalf(adapter);
+      const compile = await workerHalf(adapter, probes);
       const u = probes.undefinedCase;
       equal(await compile(u.expr).evaluate(u.input, u.settings), undefined, `${u.expr} over ${JSON.stringify(u.input)} is undefined, not a throw`);
     });
 
     test('the three nondeterministic names NEVER yield a value: refused at compile, or a rejection at evaluate — P17 decision 6', async () => {
-      const compile = await workerHalf(adapter);
+      const compile = await workerHalf(adapter, probes);
       let asked = 0;
       for (const expr of probes.nondeterministic) {
         asked++;
@@ -155,7 +172,7 @@ export function adapterConformance(name: string, adapter: LanguageAdapter, probe
 
     test('a LOUD failure at evaluation rejects with the language`s own code — the half of P17 fact 4 an adapter CAN report', async () => {
       if (!probes.typeError) { throws(() => { throw new Error('no typeError probe'); }, 'no typeError probe', 'an adapter declaring no loud failure says so here'); return; }
-      const compile = await workerHalf(adapter);
+      const compile = await workerHalf(adapter, probes);
       const t = probes.typeError;
       let err: unknown;
       try { await compile(t.expr).evaluate(t.input, t.settings); } catch (e) { err = e; }

@@ -385,7 +385,11 @@ const PROBES = [
     half: 'deno.json', check: 'D8',
     // Measured at W57: `deno publish --dry-run` then passes in this repository — resolving the
     // bare specifier through package.json to the npm build — and refuses in a clean copy.
-    mutate: (t) => t.replace(/[ \t]*"imports": \{\r?\n[ \t]*"fyflow-scheduler": "jsr:@fyflow\/scheduler@\d+\.\d+\.\d+"\r?\n[ \t]*\},\r?\n/, ''),
+    // **Re-anchored AGNOSTICALLY by W62**: this removed the whole `imports` block by its literal
+    // two-line text, and the block gained a second entry (`jsonata`, ADR 0052) — `the mutation
+    // matched nothing` in W62's first gate over its final tree, rule 7 (b) firing on a file in
+    // nobody's `Owns`. It removes the scheduler's own LINE now, whatever else the block maps.
+    mutate: (t) => t.replace(/[ \t]*"fyflow-scheduler": "jsr:@fyflow\/scheduler@\d+\.\d+\.\d+",?\r?\n/, ''),
   },
   {
     name: 'deno.json maps the scheduler to a DIFFERENT version',
