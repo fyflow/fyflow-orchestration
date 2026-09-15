@@ -1,0 +1,23 @@
+{
+  "flowId": "l6-transform-fails",
+  "version": 1,
+  "entry": "ingest",
+  "nodes": [
+    { "id": "ingest",  "kind": "task", "workerType": "IngestWorker", "edges": [ { "to": "split" } ] },
+    { "id": "split",   "kind": "fanout", "branches": [ "scoreA", "review", "stamp", "note" ] },
+    { "id": "scoreA",  "kind": "task", "type": "Scorer", "settings": { "factor": 10 },
+      "edges": [ { "to": "collect" } ] },
+    { "id": "review",  "kind": "task", "type": "Echo",
+      "transform": { "lang": "jsonata", "expr": "$.confidence + \" points\"" },
+      "edges": [ { "to": "collect" } ] },
+    { "id": "stamp",   "kind": "task", "type": "Echo",
+      "transform": { "lang": "jsonata", "expr": "{ \"confidence\": $.confidence, \"at\": $now() }" },
+      "edges": [ { "to": "collect" } ] },
+    { "id": "note",    "kind": "task", "type": "Echo",
+      "transform": { "lang": "jsonata", "expr": "{ \"confidence\": $.confidence, \"doubled\": $.confidence * 2 }" },
+      "edges": [ { "to": "collect" } ] },
+    { "id": "collect", "kind": "join", "of": "split", "edges": [ { "to": "publish" } ] },
+    { "id": "publish", "kind": "task", "workerType": "PublishWorker", "edges": [ { "to": "done" } ] },
+    { "id": "done",    "kind": "end",  "outcome": "completed" }
+  ]
+}

@@ -1,11 +1,14 @@
 # P17 — What may a node DO to its input before its worker sees it?
 
-**Status:** RUNNING — declared 2026-09-12 on `4c269d4`, the commit that carried P16's retro and moved
-`doc/workflow.md` to [v0.17](../workflow.md). **[W61](../work-items/w61-what-a-transform-is.md) is
+**Status:** COMPLETE and RETRO'D — declared 2026-09-12 on `4c269d4`, the commit that carried P16's
+retro and moved `doc/workflow.md` to [v0.17](../workflow.md); its three items done by 2026-09-13; its
+retro run 2026-09-15, taking that document to [v0.18](../workflow.md). **[W61](../work-items/w61-what-a-transform-is.md) is
 DONE** (2026-09-12, [ADR 0051](../decisions/0051-a-transform-is-a-declared-expression-in-a-registered-language-applied-in-the-types-worker-wrapper.md));
 **[W62](../work-items/w62-the-jsonata-adapter.md) is DONE** (2026-09-13,
 [ADR 0052](../decisions/0052-a-second-dependency-is-declared-where-its-one-sub-path-is-reached.md));
-W63 has not started. *Read every status from the item's own file, never from this line.*
+**[W63](../work-items/w63-a-transformed-join-on-real-workers.md) is DONE** (2026-09-13, no ADR) —
+**all three items are done and the retro is RUN** (below). *Read every status from the item's own
+file, never from this line.*
 
 **Baseline:** `4c269d4` — `doc/workflow.md` [v0.17](../workflow.md), **P1-P16 complete and retro'd,
 no plan running**, tree clean — see *The baseline this plan starts from*.
@@ -447,3 +450,251 @@ file, both locks, `AGENTS.md` section 13, and check-scheduler's self-test — it
 a two-line `imports` block the `jsonata` mapping made three, found by the first gate over the final
 tree), zero undeclared. Q270-Q272 raised; Q252, Q261 extended;
 Q273 spent. `W62` outside `doc/` grepped and recorded in the item's file.
+
+**W63 — done 2026-09-13, no ADR: THE EXIT ARTIFACT EXISTS.** `examples/flows/transformed.flow.json`
+runs on a real `FyflowScheduler` in **both** L6 runtimes: a typed `map` branch RESHAPES its own item
+through a declared transform reading the map's settings as `$settings`, two typed scorers arrive at a
+join, and the join's typed successor declares `transform: { lang: "jsonata", expr: "$sum([*.score])" }`
+with **no reshaping node** — its worker receiving **990** as `input` at arity two, **400** when a
+decision routes one branch away (P1's own case under `live-token`), and **0** — the NUMBER, not
+`undefined` — when both are routed away and `live-token` fires the join over `{}`: **[Q263](../open-questions.md)
+as three rows**, every value what the worker RECEIVED, read off the outcome record and never a literal
+the row alone carries, with the arity pair asserted as a difference. The `Echo` pool that evaluates
+the expression is a real THREAD in both runtimes, loading `fyflow-orchestration/jsonata` by its module
+URL, and every result it returns reports the fresh realm it ran in; every reshaped item's engine-built
+array arrives PLAIN (`markedKeys: []`, the walk's reach beside it). **Decision 5 end to end** in
+`transform-fails.flow.json`: two non-optional typed nodes whose transforms fail at run time (`T2002`,
+an author who meant `&`; `$now()`, `UNBOUND`) are retried once under the type's policy, parked
+`user_action` with `TransformFailed`'s message on two observers, resolved by a person, and the run
+completes — beside a typed node with no transform receiving `FD-C5`'s two keys to the byte and one
+transforming an ordinary edge's value successfully, the fourth of `FD-C5`'s kinds. **What reverting
+each item costs at L6, on the tree that ships, every existing row unmoved: W61 52, W62 19 (from
+W62's 0), W63 52.** L6 **1501 / 50** in both runtimes from 1281 / 46; L1-L5 **38 / 979 in five
+runtimes, unmoved**; spec unmoved; the corpus split 16 / 166 / 150 (two declared spec exceptions).
+Readers 7 / 1 and 18 / 8 / 2, overlap 1 — the conformity reader a README count stale within the hour;
+the adequacy reader the two CONTROLS of a cross-row block absent from its membership list (a validator
+accepting everything green in both runtimes), the thread claim with no observer, and `FD-C5`'s first
+kind uninstantiated with a successful transform. Rule 8 82 probes: 1 control green, 62 caught, 13
+declared ceilings each RUN against its rung, 6 measured, 0 undeclared, 0 crashes, 0 aborts, 0 against
+declaration on the final pass — the author pass read two real survivors (a zero-retry declaration
+inert against the scheduler's zero default; the marker walk's depth with one observer), two crashes
+and an abort that were the instrument, and one ceiling caught against its declaration. Late
+exceptions two (`AGENTS.md`; the split's second move), zero undeclared. Q274-Q276 raised, Q263
+shown and not resolved, Q277 spent; `W63` outside `doc/` grepped and recorded in the item's file.
+**The plan's predictions table is the retro's to judge.**
+
+**Exit artifact.** EXISTS — [W63](../work-items/w63-a-transformed-join-on-real-workers.md)'s four
+L6 rows on a real `FyflowScheduler` in both runtimes: a typed join successor declaring
+`$sum([*.score])` with no reshaping node, receiving 990, 400 and 0 at arities two, one and zero; a
+typed map branch reshaping its own item through `$settings`; and two transforms failing at run time
+on non-optional nodes, retried once under the type's policy, parked, resolved, the run completing.
+**What reverting each item costs in L6 failures, on the tree the plan ships: W61 52, W62 19, W63 52.**
+L6 is **1501 assertions over 50 real runs**, from 1281 / 46 at this declaration.
+
+**What the plan answered.** *(Written at W63's close; the retro's is the reading that counts.)* A
+node may declare a TRANSFORM — `{ lang, expr }`, in a language the registry names — applied in the
+TYPE's worker wrapper and never in the driver, so the worker receives the expression's result as its
+`input` and the driver's whole part is one key; the language is JSONata, as a sub-path, five names
+unbound; a transform that fails is the task's failure. Three of four predictions confirmed; the one
+reach prediction reversed from the engine's own source before its probe ran. Facts 1-9 held, fact 8
+superseded by W61's own design (the wrapper KEEPS the third key and consumes it). Q263-Q276 used,
+Q277 spent, W64 unissued, ADR 0051 and 0052 taken.
+
+## Retro
+
+**Run 2026-09-15, after W61, W62 and W63 were done. `doc/workflow.md` section 6 pass 3, and it
+takes that document to [v0.18](../workflow.md) — TWO changes adopted, SIX refused.**
+
+P17 asked *what may a node DO to its input before its worker sees it?* Three items, six reader
+passes, two ADRs, and an exit artifact on real workers in both L6 runtimes. At declaration:
+`spec/` **7 / 51 / 99**, L1-L5 **32 files / 858 cases**, L6 **1281 / 46**, register
+**207 / 154 / 2 / 51**. It closes at **7 / 55 / 104**, **38 / 979**, **1501 / 50** and
+**215 / 162 / 2 / 51**. What a node may do is declare a transform in a registered language, evaluated
+in its type's wrapper (ADR 0051); the first language is JSONata as a sub-path, its engine a declared
+dependency at an exact pin (ADR 0052); and what the exit artifact shows is [Q263](../open-questions.md)
+as three rows — the same expression a different type at each arity, a number at all three because
+the plan chose the array form.
+
+### Name the rung, and it is this retro's shape
+
+| | defect | rung |
+|---|---|---|
+| W61 | a wrapper whose `setup()` throws leaves the task `pending` forever and the run never hears of it | **none** — measured at the declaration step, before the stop-and-ask; the road W59 built still hangs ([Q266](../open-questions.md)) |
+| W61 | the wrapper's memo keyed by expression TEXT alone — one language silently receiving another's compiled expression | **none** — adequacy reader; the author's own probe had keyed it by LANGUAGE and been caught (the hole in the direction the probe did not take) |
+| W61 | the real-pool `BACKENDS` narrowed to `inline` with 953 unmoved, because the browser's parity check forced the loop INSIDE a case | **none** — adequacy reader; a case count cannot see a loop inside a case |
+| W61 | `FD-V37`'s *reported alone* with no COUNT observer | **none** — adequacy reader |
+| W61 | the conformance suite asserted a COUNT of three where the spec and ADR said BY NAME | **none** — conformity reader |
+| W61 | a probe's `'$'` mangled by `String.replace` — a harness copied from W59's | **none** — reading the failure lines ([Q184](../open-questions.md)'s shape) |
+| W61 | an anchor that could not match because the file carried a NUL byte the author's tool had written, green at every rung | **none** — `grep` calling the file binary ([Q267](../open-questions.md)) |
+| W61 | `spec/README.md`'s HEADLINE refusal count reverted to 32 at `check:spec` exit 0, because `C4` read the LAST count in the row | **none** — the author's own set (`e7`), closed by a `C4` clause |
+| W61 | the plan's facts harness went vacuous at exit 0 on the item's first edit to the envelope line | **none** — untracked ([Q253](../open-questions.md)) |
+| W62 | in a browser bundle `import.meta.url` is the bundle itself, so `import(adapter.worker)` yielded no default export | **L1 in three browsers — it FIRED**, six clauses red, read correctly ([Q261](../open-questions.md), the maintainer's choice) |
+| W62 | JSONata throws PLAIN OBJECTS, not `Error`s | **L1 — the conformance suite's `instanceof Error` clause FIRED** on the real adapter |
+| W62 | JSONata MARKS the arrays it builds with own keys that survive a thread | **none** — measured at the declaration step; the array-element depth found by the adequacy reader |
+| W62 | `$shuffle` draws from `Math.random()` — prediction 4 | **none** — the engine's own bind list, read before the probe ran |
+| W62 | `deno publish --dry-run` proves the presence of `node_modules` and nothing about the declaration | **none**, and none can be built ([Q252](../open-questions.md)) |
+| W62 | a probe's `deno check` rewrote `deno.lock` outside the probe's restore set | **the harness's DIGEST — it FIRED** (v0.17 change 1), and the lock joined the restore set by a no-op edit |
+| W62 | six anchors moved under the item's own edits; two ceilings became catches inside the item | **rule 7 (b) and v0.17's dated-ceiling clause — both FIRED as designed** |
+| W62 | `bundledDependencies: ["jsonata"]` shipped the engine's eight files in the tarball with every check green | **none** — adequacy reader; W57's adjacent-field shape one field over |
+| W62 | two of four carried error fields with no observer; `S14`'s form clause weakened to a prefix with its self-test green; two `S15` fields unprobed; the threaded half bound by one expression | **none** — adequacy reader, every one a direction the author's 79 never took |
+| W62 | section 13's *not yet on this tree*; the pin literal in prose; `package-lock.json` undeclared | **none** — conformity reader |
+| W62 | the first gate over the final tree RED on ONE line — `check-scheduler`'s `D8` probe anchored on a two-line `imports` block the `jsonata` mapping made three | **the gate's self-test — it FIRED and was READ correctly**, rule 7 (b) on a file in nobody's `Owns` |
+| W62 | `make-copy.sh`'s `git add -A` failed silently on Windows (`core.longpaths`); the Bash tool collapsed `\n` inside a heredoc twice | **none** — instruments |
+| W63 | the `Echo` type's `maxRetries: 0` was INERT — the scheduler's default is zero retries, stated nowhere | **none** — the author's own set (`a12`), a survivor read as real ([Q275](../open-questions.md)) |
+| W63 | the marker walk's DEPTH had one observer — a walk stopping at the top level reported the same empty list | **none** — the author's own set (`d4`), closed by the walk's reach |
+| W63 | a comment-line prefix anchor; the browser runner's `FAIL` at two spaces read with the Node runner's four; W61's revert anchor for an envelope line that is one expression now | **none** — three instrument defects, each read against its log ([Q276](../open-questions.md)) |
+| W63 | a ceiling declared with a wrong mechanism — the reach clause refuses a query-string spelling of the entry | **none** — the author's own set, CAUGHT against declaration and kept as the catch |
+| W63 | a deleted MIDDLE row renumbers every run after it — 15 of a deletion's 17 failures were the next row's ids | **none** — a measurement read against what it claimed ([Q274](../open-questions.md)) |
+| W63 | the two CONTROLS of the new cross-row block absent from `CROSS_ROW_SUBJECTS`: a validator accepting everything green in both runtimes at 1498 | **none** — adequacy reader; **and this retro found the same shape live in W58's block** |
+| W63 | the thread claim with no observer, declared a ceiling with a reason about the observer | **none** — adequacy reader; obligation (c)'s LIMIT's closing sentence, again |
+| W63 | `FD-C5`'s first kind carried by no SUCCESSFUL transform; the Scope sentence *one flow carries the four kinds* false | **none** — adequacy reader; the enumeration clause's third short instance |
+| W63 | `examples/README.md` at 1497 while `l6.ts` declared 1499, within the hour; a stated reason about JSON text that was false | **none** — conformity reader (the reason: both readers) |
+| W63 | the corpus split moved in two spec sentences, twice | **L1 — it FIRED as predicted, both times**, read correctly |
+| W63 | the register's headline stale by W62's own three rows (209 / 156 against the parser's 212 / 159) | **none** — the record step reading the count against the line above it; the parser prints the sum and compares it to nothing |
+
+**Thirty-two defects; SEVEN had a rung; all seven FIRED and all seven were READ correctly** — three
+of them the instruments this document requires (the digest, rule 7 (b), the dated-ceiling clause)
+doing exactly what they were adopted for, two a check's self-test, two the L1 suites. **Twenty-five
+have no rung, and eleven of those are in the INSTRUMENTS** — harness anchors, runner patterns, an
+untracked facts harness, a copy script, a shell tool — which is the largest share of any plan since
+P11's seven of seven.
+
+### The two changes
+
+1. **Obligation (d)'s membership clause gains: the CONTROLS beside the claims are members.** v0.14
+   wrote *a count is not a membership* and W47's `CROSS_ROW_SUBJECTS` answered it — one subject per
+   block, so a deleted block fails naming what it was about. **W63 extended that list with eight
+   subjects for its ten assertions and left out exactly the two that make the other eight
+   non-vacuous**: the `FD-V37` positive fixture and *that set is not empty*. Its adequacy reader
+   deleted the fixture, made the validator accept everything, lowered `CROSS_ROW` and
+   `DECLARED_TOTAL` by one, and ladder L6 was green in BOTH runtimes at 1498, the surviving clause
+   comparing `[]` to `[]`. **This retro then measured W58's block the same way — its retry control
+   deleted with the two counts lowered — and it was green too**: two occurrences in two items, two
+   plans apart, and the second was live for a whole plan under the clause that was written to
+   prevent it. *A membership over claims binds the vacuity of nothing.* So: where a block pairs a
+   claim with the assertion that makes it non-vacuous, the list names both; both are named now.
+2. **Obligation (a)'s enumeration clause gains: every member is instantiated under the SAME claim.**
+   v0.17 wrote *where a rule enumerates its values, the set is that enumeration*, and W63 followed
+   it: `FD-C5`'s four kinds of `input` each carried a transform somewhere in its two flows. **But
+   the exit-artifact flow's entry must return an array for the map, so it is an untyped
+   `SplitWorker`, and the ordinary-edge kind carried a transform only on the two nodes whose
+   transforms FAIL** — the claim the enumeration was cited for (*the worker receives the REPLACED
+   input*) was never true of that member, and the item's Scope said *one flow carries the four
+   kinds* of a flow that carries three. One occurrence, and the argument for why it generalises is
+   in the clause's own words: an enumeration is of the values a CLAIM ranges over, and a member
+   instantiated under a different claim is a value of the kind and not an instance of the claim.
+   It is the third time in two plans the enumeration clause was followed and short (W58 bound by
+   count, W59 one member missing, W63 one member under another claim), and each time the reader
+   found the member by asking what the CLAIM said of it. The fourth branch of the failure flow is
+   the instance.
+
+### Six refused, each with a measurement
+
+- **A `doc/` check, the SIXTEENTH time.** Six stale counts or expiry-dated claims this plan:
+  section 13's *not yet on this tree* and the pin literal (W62), `examples/README.md`'s 1497 within
+  the hour and *thirteen worked flows* over a directory of twenty-two (W63), README's *twenty-one*
+  real runs from P6, and the register's headline at 209 / 156. **Exactly ONE of the six is a number a
+  check could compare without reading English** — the register's headline against the census
+  parser's own sum, which that parser prints and compares to nothing — and the parser is untracked
+  in `dev-dist/` ([Q253](../open-questions.md)'s shape, recorded there). The other five are the
+  standing ground: a sentence, not a number.
+- **An `Owns` pre-declaration rule, the SIXTH plan running — with P16's proposed procedure TRIED.**
+  Late exceptions ran **2, 5, 2** — nine, zero undeclared. W63's table was SEEDED from W61's and
+  W62's late tables (the brief did it, exactly as P16's retro recorded as *worth trying*): the two
+  spec split sentences fired as predicted, `AGENTS.md` fired as predicted, and nothing unpredicted
+  fired. **One occurrence of the procedure working, and it is again a claim about a plan's later
+  items** — a first item has no previous table. Recorded as the second datum, not adopted
+  ([Q157](../open-questions.md)).
+- **A harness requirement that a CRASH verdict is read against every FAIL pattern the runners
+  print.** W63's `e6` was a catch read as a crash because the browser runner indents `FAIL` two
+  spaces and the harness read four. One occurrence, closed in the harness; [Q276](../open-questions.md)
+  records that the patterns live in every harness as literals and nowhere the runners declare them.
+  A rule would restate *read the failure lines*, which the harness did — against the wrong pattern.
+- **A rule that a declared value must be one the default cannot supply.** W63's `maxRetries: 0`
+  was inert against the scheduler's zero default and the first probe to delete it said so. One
+  occurrence; rule 8 obligation (a) already deletes the declaration, which is how it was found.
+  [Q275](../open-questions.md) records the fact the scheduler's reference does not state.
+- **A check that an item's Scope-Out is consistent with its Outputs.** W63's Out sentence bound
+  out the second document its Output (3) could not do without. One occurrence, a sentence corrected
+  under pass 3 rule 6; both readers read it the same way.
+- **A restore set that covers files a RUNG rewrites.** W62's `deno check` rewrote `deno.lock` outside
+  a probe's restore set and the DIGEST caught it — v0.17 change 1 working — and W62 closed it with a
+  no-op edit on the lock. One occurrence; the clause's LIMIT is recorded in the judgment table
+  below rather than as a fourth requirement.
+
+### The predictions: three of four CONFIRMED, the reach prediction REVERSED
+
+| # | kind | verdict |
+|---|---|---|
+| 1 | derived | **CONFIRMED** — W61 cost 0 on every existing test at L1-L6 and the two P12 flows and `typed.flow.json` dispatch byte-identically with and without `languages`; W63 then added one clause to every existing row without moving any row's own numbers |
+| 2 | derived | **CONFIRMED, and its reversal condition was MEASURED REAL and DESIGNED AROUND** — a wrapper whose `setup()` throws IS a worker error the run never hears of (the row's own reversal clause, verbatim), so the maintainer chose to remember a load failure in `setup()` and throw it from `run()`; no `FD-R`, no node kind, and the road W59 built still hangs ([Q266](../open-questions.md)). A new shape: a prediction held because the item steered around the condition that would have reversed it |
+| 3 | derived | **CONFIRMED and measured to the row's own wording** — the evaluation deleted cost 14 at L1, 0 in every L2-L5 suite, 0 at L6 at W61, and **52 at L6 after W63** |
+| 4 | **reach** | **REVERSED — from the SOURCE, before the probe ran.** `$shuffle` draws from `Math.random()`, found in the engine's own bind list; the walk over all 63 built-ins confirmed exactly four differ. The rule was stated as a property and the list grew, which is what the row said would happen |
+
+**Three of four, and P10's retro's reading holds again**: three are derived from the declaration's
+facts and test the inference, and 4 is the one reach prediction and the only one that could have
+reversed. What is new is prediction 2's shape — its reversal condition was measured TRUE and the
+prediction held anyway, because the item's stop-and-ask chose the road that avoids it.
+
+### v0.17's three changes, and the ceiling re-run
+
+| v0.17 change | What would show it was wrong | **P17's verdict** |
+|---|---|---|
+| **Rule 8's harness: per-edit anchors, an abort that undoes, a content DIGEST** | a half-applied probe measures nothing again, or the tree moves unseen | **Right, EXERCISED eight times, and with a LIMIT found.** Eight aborts across the plan (1, 6, 1), every one undone with the digest identical and every one re-anchored; **and the digest caught a tree that MOVED with no probe reporting it** — a rung's `deno check` rewriting `deno.lock` outside the probe's restore set. The limit: the restore set is the probe's EDITS, and a rung may write a file the probe never touched. W62 closed it with a no-op edit on the lock; recorded, not adopted |
+| **Obligation (a): where a rule enumerates, the set is the enumeration** | an author is one member short again | **Right, FOLLOWED, and short a THIRD time — extended (change 2).** W61 instantiated all four of `FD-C5`'s kinds and W62 all five unbound names, both under the claim; W63 instantiated Q263's three arities under the claim and `FD-C5`'s first kind under a different one |
+| **The dated-ceiling clause: the item that moves the value re-runs it** | a ceiling is found expired at the retro again | **Right, and it fired INSIDE the items, which is what it was written to do.** W62 found two of its own ceilings become catches before it shipped (`p4` once `eval` joined the list; `r18` once *observed* required a defined value); W63 re-ran W62's `rev62` from **0 to 19**, the one number its rows existed to move, and the three `RUN_FLOOR` ceilings unmoved. **This retro re-ran all forty-six ceilings the three items declared** — ten, twenty-three and thirteen, through each item's own harness — and **every one holds**: forty-three as declared, three on re-anchored text (W61's two `RUN_FLOOR` probes, moved by W62 and already re-run by W62 and W63; W59's `c5`, whose key-expression anchor W63's `echo` arm made ambiguous). **Zero catches, against P16's two of twenty-three and P13's two of eleven**, and the reason is the clause: the catches were found in the items |
+
+### The measurements
+
+**Readers: six passes, none empty — 10 / 1, 13 / 3, 7 / 1 blocking, against mutation counts of
+66 / 21 / 18 with 10 / 17 / 8 survivors and 3 / 7 / 2 blocking.** Overlaps **1, 1, 1** — the
+**thirty-fifth, thirty-sixth and thirty-seventh** measurements, inside the 0-4 band, none primed.
+The split held in all three: the conformity reader found claims that were false (a count where the
+spec said by name, a sentence with an expiry date, a pin in prose, an undeclared lock, a count stale
+within the hour, a reason that was false, a scope word); the adequacy reader found bounds that were
+not there (a memo key, a loop inside a case, a count observer, two error fields, a depth, a prefix,
+two fields, an array-valued field, one expression carrying a threaded half, two controls, a realm,
+a kind, four L1-owned clauses green at L6).
+
+**Rule 8 across the plan: 272 provocations, 214 caught, 46 declared ceilings all RUN in the items
+and all RE-RUN here, 9 measurements, 0 undeclared survivors, 0 crashes and 0 against declaration on
+every final pass; 8 aborts, every one re-anchored.** The author passes read **four REAL survivors**
+between them — `spec/README.md`'s headline count (W61), the by-name loop sliced to one name (W62),
+the inert zero-retry declaration and the marker walk's depth (W63) — and every one was closed
+before a reader saw the tree; three crashes and three wrong declarations on those passes were the
+instruments and were read as such. **Late exceptions 2, 5, 2 — nine, zero undeclared.**
+[Q142](../open-questions.md) did not fire: the two-directory fixture was **3694** at W61's end,
+**3741** at W62's, **3766** on the tree W63 ships and **3781** after this retro (`doc/workflow.md`'s new links are in both fixtures' universe; the plan file's are cut), against 3960;
+`M3`'s one-directory fixture 88 against 90 throughout. **Census CONFIRMED for the SEVENTEENTH plan
+running — 215 / 162 / 2 / 51**, 0 aborts, 215 of 215 in one cluster cell; this retro raises no
+question and extends [Q253](../open-questions.md). **The confirming `npm run gate` over the tree
+this retro ships: EXIT 0, zero lines beginning FAIL, digest `621b4e7c2cb49927` over 296 files before
+and after** (`dev-dist/w63/retro-gate.log`; markdown 116 / 5151 / 261, L6 1501 / 50 in both
+runtimes) — run after the last document edit, with this sentence the one edit after it.
+
+### What the plan taught, beyond its own question
+
+- **Three facts about the engine nobody had measured decided the adapter's shape**, and none was in
+  the declaration's nine: JSONata throws plain objects, marks the arrays it builds, and its
+  `$shuffle` draws from the clock's neighbour. The plan's facts were about the DRIVER and the
+  engine's API; the adapter's shape came from the engine's VALUES.
+- **The scheduler's reference is silent on one more fact this plan needed**: the default retry
+  budget is zero, learned by deleting a declaration and watching nothing change
+  ([Q275](../open-questions.md)). P16 found five such silences; this is the sixth.
+- **A ceiling with a reason about the observer is a hole, in the item's own author's hand** — the
+  thread claim (W63 `e10`), obligation (c)'s LIMIT's closing sentence one plan after it was
+  written, found by the reader that sentence describes.
+- **The instruments were a third of the defects** and every one was legible only by reading a log
+  against what the probe claimed: an anchor matching a prefix, a runner's indentation, a previous
+  item's anchor, a heredoc, a copy script, a NUL byte, an untracked harness. No rung covers an
+  instrument and the plan's own reading did.
+
+### Ids
+
+W61-W63 used, **W64 CLOSED as reserved and never issued** — its three conditions did not fire, and
+the third is answered by name: Q263's singleton rule needs no adapter-side normalisation, because the
+array form `$sum([*.score])` is a number at every arity and the exit artifact shows it. Q263-Q276
+used, **Q277 spent and not reused**; ADR 0051 and 0052 both taken. **The next plan starts at W65,
+Q278 and ADR 0053.** Its subject is written down: P18, *what a node type SAYS about its input and
+output* — schemas, and a sample-based pre-flight over a transformed edge, with the adapter's `check`
+hook and Q263's three arities as its inputs.

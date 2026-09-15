@@ -1,7 +1,7 @@
 /**
  * **Ladder L6 — the gate.** Every real run this repository makes: P1's exit
- * artifact, P2's, P4's, P5's, P6's, **P7's**, **P10's**, **P12's**, **P13's** and
- * **P14's**. *(This list stopped at P12 while W47's two rows and W51's two were in
+ * artifact, P2's, P4's, P5's, P6's, **P7's**, **P10's**, **P12's**, **P13's**,
+ * **P14's**, **P16's** and **P17's**. *(This list stopped at P12 while W47's two rows and W51's two were in
  * the file — a count carried as prose in the paragraph above this file's own
  * monument to that. W51's conformity reader.)*
  *
@@ -64,6 +64,8 @@
  * | **W58 — `group`** | **`workerGroups` on real workers, and P16 fact 2 answered where it shows**: a linear flow whose middle node names a `ConcurrentLimitGroup(1)` this harness holds when the run starts. The task is `resource.blocked` on dispatch, the harness lets go on that very event, and the task runs — the scheduler's own four resource events in order with `task.running` after the acquisition. Its pool declares no group, so nothing but the node's key put it there |
  * | **W59 — `typed`** | **P16's EXIT ARTIFACT, half one**: two nodes of ONE type (`Scorer`) with DIFFERENT settings — `factor` 10 against 100 — each receiving the envelope `{ settings, input }` (`FD-C5`) and computing a different answer from it (9 against 90 from one input); `high` retries ONCE under the TYPE's `retryPolicy` (the node declares none) and reports `attempts: 1` on both observers; both hold `scorer`, the group the type declares, registered through the bootstrap helper and read back by id. The pool is the helper's, keyed by the type's name |
  * | **W59 — `typed-regions`** | **half two, and obligation (a)'s shapes**: a typed task at path `1` inside a fanout branch feeding a typed `map` branch at `1.0`, `1.1`, `1.2` — arity three from a worker's return, each instance's envelope wrapping its OWN item (`JP-R11`) so three confidences give three scores from one settings object; branch 0 is a bare `ScoreWorker`, and the outer join carries the bare result beside the typed region's collection. Every typed id held `scorer`; no bare id did |
+ * | **W63 — `transformed` at arity TWO, ONE and ZERO** | **P17's EXIT ARTIFACT, and it is [Q263](../doc/open-questions.md) as three rows.** One flow: a typed `map` branch whose declared `transform` RESHAPES its own item with the map's settings read through `$settings`, then a fanout of two typed scorers into a join whose typed successor declares `transform: { lang: "jsonata", expr: "$sum([*.score])" }` and NO reshaping node — its worker receiving the reduced value as `input` (`FD-C6`), echoed from the run: **990** when both branches arrive, **400** when one is routed away (P1's own case under `live-token`), **0** — the NUMBER, not `undefined` — when the join is reached by nothing and `live-token` fires it. Every value is what the worker RECEIVED, read off the outcome record and never a literal the row alone carries; the `Echo` pool that evaluates the expression is a real THREAD in both runtimes, loading the adapter by its module URL, and every result it returns reports the fresh realm it ran in. **What these rows observe is the VALUE the successor received and not the record's shape**: JP-R12's key set is observed by `transform-fails`' untyped `publish`, and its `{}` by W17's `all-exit` row — the reduction is key-blind and sums `null` to 0 as it sums `{}` (the adequacy reader, M2 and M6) |
+ * | **W63 — `transform-fails`** | **P17 decision 5 end to end.** Two non-optional typed nodes whose transforms fail at run time — `$.confidence + " points"` (`T2002`, an author who meant `&`) and `$now()` (`UNBOUND`, ADR 0052 rule 7) — are retried ONCE under the type's policy, fail again, and are parked `user_action` with `TransformFailed`'s message as the task's error on two observers (`attempts: 1`); a person `resolve()`s each with the value the transform did not supply, the join fires over all four branches and the run completes. Beside them a typed node with NO transform receives `FD-C5`'s two-key envelope to the byte, in the flow whose `Scorer` pool carries no engine — and `note`, a typed node whose transform SUCCEEDS over an ordinary edge's value, `FD-C5`'s first kind, which the exit-artifact flow cannot carry |
  */
 import {
   InvalidTaskId,
@@ -101,8 +103,16 @@ import {
   // W59: the ONE node-type registry the helper built pools from and every driver was handed —
   // compared here to the types the flows name and to the pools the scheduler reports.
   NODE_TYPES,
+  // W63: the ONE languages object the helper wrote pool configs from and every driver was handed —
+  // compared here to the languages the flows NAME, both ways.
+  LANGUAGES,
   type ForeignTask, type PairFacts, type Retention, type RunReport,
 } from './run-flow.ts';
+// **W63, through the sub-path's ENTRY — the one path the reaches-past-index clause below exempts by
+// name.** The helper's own reading of which types transform in which languages, compared on every
+// L6 definition to a derivation this file makes without it, so the function the pools were built
+// from cannot quietly read a different document than the row runs.
+import { transformLanguagesByType } from '../src/scheduler/index.ts';
 import fanoutJoin from '../spec/examples/valid/fanout-join.flow.json' with { type: 'json' };
 import routedAway from '../spec/examples/valid/p1-routed-away.flow.json' with { type: 'json' };
 // **Local to `examples/`, and that is [Q44](../doc/open-questions.md) again.** The
@@ -215,6 +225,13 @@ import groupFlow from './flows/group.flow.json' with { type: 'json' };
 // arity three.
 import typedFlow from './flows/typed.flow.json' with { type: 'json' };
 import typedRegions from './flows/typed-regions.flow.json' with { type: 'json' };
+// **W63 — P17's exit artifact: a declared TRANSFORM on a join's typed successor, run at three
+// arities**, and the failure road beside it. `transformed` is a typed map branch reshaping its own
+// item, then two typed scorers into a join whose typed successor reduces `JP-R12`'s record through
+// `$sum([*.score])` with no reshaping node; `transform-fails` is two typed nodes whose transforms
+// fail at run time — parked `user_action`, resolved by the harness — beside one that has none.
+import transformed from './flows/transformed.flow.json' with { type: 'json' };
+import transformFails from './flows/transform-fails.flow.json' with { type: 'json' };
 import failureEdge from '../spec/examples/valid/failure-edge.flow.json' with { type: 'json' };
 
 /**
@@ -310,9 +327,24 @@ const earlierWasLowConfidence: Predicate = (ctx) => {
   const e = (ctx.needs as { earlier?: { confidence?: number } }).earlier;
   return typeof e?.confidence === 'number' && e.confidence < 0.5;
 };
+/**
+ * **W63's predicate, and it reads `score` where `isLowConfidence` reads `confidence`** — because
+ * `transformed.flow.json`'s two scorers return the SAME confidence and DIFFERENT scores (factors
+ * 100 and 1000 over one input), so a threshold on the score is what lets ONE payload route one
+ * branch away and keep the other: at 0.9 both arrive (90, 900), at 0.4 one is routed away (40 is
+ * below 50, 400 is not), at 0.04 both are (4, 40). Three payloads, three arities, one predicate —
+ * [Q263](../doc/open-questions.md)'s three shapes reached from the definition's own decision edges
+ * rather than from three flow documents. Guarded like `isLowConfidence`: a result with no numeric
+ * `score` takes the default edge.
+ */
+const isLowScore: Predicate = (ctx) => {
+  const r = ctx.outcome.result as { score?: number } | null;
+  return typeof r?.score === 'number' && r.score < 50;
+};
 const predicates = new Map<string, Predicate>([
   ['isLowConfidence', isLowConfidence],
   ['earlierWasLowConfidence', earlierWasLowConfidence],
+  ['isLowScore', isLowScore],
 ]);
 
 interface Expectation {
@@ -598,6 +630,16 @@ interface Expectation {
    * and releases once a task is reported blocked behind it — `RunOptions.holdGroup`.
    */
   holdGroup?: string;
+  /**
+   * **W63 — the ERROR a task settled with, by id: substrings its outcome record's `error` must
+   * carry, asserted on two observers.** A declared `transform` that fails at run time is the TASK's
+   * failure (ADR 0051 rule 5) and `TransformFailed`'s message — the language, the expression, the
+   * engine's own code in brackets — is what the scheduler records as the task's error; the record
+   * (`OR-R2`) and the live task at the harness's own listener (`RunReport.errorsSeen`) must both
+   * carry it. Declared on the failing-transform row alone; the cross-row clause requires that a
+   * `transform failed` error occurs in exactly the rows that declare one.
+   */
+  taskErrors?: Record<string, string[]>;
 }
 
 const FJ = fanoutJoin as unknown as FlowDefinition;
@@ -645,6 +687,8 @@ const MPD = mapPastADecision as unknown as FlowDefinition;
 const SFO = siblingFanouts as unknown as FlowDefinition;
 const TY = typedFlow as unknown as FlowDefinition;
 const TR = typedRegions as unknown as FlowDefinition;
+const TX = transformed as unknown as FlowDefinition;
+const TF = transformFails as unknown as FlowDefinition;
 /**
  * **A `map` region and a `fanout` region as SIBLINGS, at arities neither derives
  * from the other** — W51, and it is P14's question in one document.
@@ -746,6 +790,49 @@ const CONTEXTED = { confidence: 0.4, text: 'a bb ccc' };
  * reached for every time a value needed to be shown to come from where it claims.
  */
 const CONTEXTED_AGAIN = { confidence: 0.6, text: 'a bb ccc' };
+/**
+ * **W63's third payload: the one at which BOTH of `transformed.flow.json`'s scorers score below
+ * `isLowScore`'s threshold** (4 and 40 against 50), so both branches are routed away and the join is
+ * reached by NOTHING — `live-token` fires it over `{}` (ADR 0025's live-token column) and the
+ * successor's transform is evaluated over an empty record. `THREE_WORDS` (0.9 → 90 and 900) is the
+ * arity-two payload and `CONTEXTED` (0.4 → 40 and 400) the arity-one one; the three items and their
+ * per-word confidences are the same in all three, because a word's confidence is its length.
+ */
+const FAINT = { confidence: 0.04, text: 'a bb ccc' };
+/** `SplitWorker`'s three items for `'a bb ccc'`, spelled once for the three `transformed` rows. */
+const ITEMS_ABC = [{ word: 'a', confidence: 0.1 }, { word: 'bb', confidence: 0.2 }, { word: 'ccc', confidence: 0.3 }];
+/**
+ * **What `Echo` returns for each RESHAPED map item, derived from the transform's text and the
+ * item** — `{ "word": word, "score": $round(confidence * $settings.scale), "fields": $keys($) }`
+ * at `scale: 100`: `a` → 10, `bb` → 20, `ccc` → 30 (rounded, because 0.1 × 100 is not 10 in a
+ * double), and `fields` is the item's own key list, which JSONata builds as a MARKED sequence and the
+ * adapter hands out plain — `markedKeys: []` is that claim, `arrays: 1` says the walk REACHED the one
+ * array it is a claim about (rule 8 measured a walk stopping at the top level surviving without it),
+ * and `inputType: 'object'` is the reshape's.
+ */
+const RESHAPED = (word: string, score: number) => ({
+  keys: ['input', 'settings'], settingsKeys: ['scale'], inputType: 'object', markedKeys: [], arrays: 1, realm: 'thread',
+  input: { word, score, fields: ['word', 'confidence'] },
+});
+/** What `Echo` returns for the join's successor: the REDUCED value as `input`, a number at every arity — and no array for the walk to reach. */
+const REDUCED = (total: number) => ({
+  keys: ['input', 'settings'], settingsKeys: [], inputType: 'number', markedKeys: [], arrays: 0, realm: 'thread', input: total,
+});
+/**
+ * What `Echo` returns for the ONE node whose transform succeeds on an ORDINARY EDGE's value —
+ * `FD-C5`'s first kind, which `transformed.flow.json` cannot carry (its entry is an untyped
+ * `SplitWorker`) and which the adequacy reader found absent with a successful transform: `note`, in
+ * `transform-fails.flow.json`, reshaping ingest's result. `realm: 'thread'` on all three helpers is
+ * W62's realm observer one rung up: the `Echo` pool is a real thread, or this is red.
+ */
+const NOTED = {
+  keys: ['input', 'settings'], settingsKeys: [], inputType: 'object', markedKeys: [], arrays: 0, realm: 'thread',
+  input: { confidence: 0.9, doubled: 1.8 },
+};
+/** What a `Scorer` returns when its `needs` composed `{ run }` and its transform selected `run` — ingest's whole result, items echoed. */
+const SCORED = (confidence: number, factor: number) => ({
+  keys: ['input', 'settings'], settingsKeys: ['factor'], confidence, factor, score: Math.round(confidence * factor), retried: false, items: ITEMS_ABC,
+});
 
 const EXPECTED: Expectation[] = [
   {
@@ -2480,6 +2567,226 @@ const EXPECTED: Expectation[] = [
       'OWN item (three confidences, three scores from one settings object). The outer join carries ' +
       'a bare branch beside the typed region`s collection. Every typed id held `scorer`; no bare id did',
   },
+  // **W63 — P17's EXIT ARTIFACT, and it is [Q263](../doc/open-questions.md) as THREE rows on ONE
+  // flow.** `transformed.flow.json`: `ingest` (a `SplitWorker`, three items from `'a bb ccc'`), a
+  // `map` whose typed branch `reshape` (`Echo`, `settings: { scale: 100 }`) declares a transform
+  // that RESHAPES its own item — `{ word, score: $round(confidence * $settings.scale), fields:
+  // $keys($) }` — into `gather`; then a fanout of two `Scorer`s with factors 100 and 1000, each
+  // reading ingest's whole result through `needs: { run: "ingest" }` and the transform `run`, each
+  // routed to `abandoned` when `isLowScore` (score below 50) says so; then `collect`, whose typed
+  // successor `total` (`Echo`) declares `transform: { lang: "jsonata", expr: "$sum([*.score])" }`
+  // and NO reshaping node — its worker receiving the REDUCED value as `input` (`FD-C6`).
+  //
+  // **The payload decides the arity, and every expected value is derived from the flow's text and
+  // the spec, never from output**: `JP-R12` says the join carries `{ [branchPath]: result }` for the
+  // branches that ARRIVED and `{}` for none; ADR 0051 rule 3 says the wrapper hands the inner
+  // worker `{ settings, input }` with `input` REPLACED; JSONata's documented semantics say
+  // `$sum([*.score])` over that record is the sum of the arrived scores and `0` over `{}`, where
+  // `$sum(*.score)` would be `undefined` — so `inputType: 'number'` on the arity-zero row is the
+  // whole of Q263's third arity, and the two scorers' factors make the three totals 990, 400 and 0.
+  // The `Echo` pool is a real THREAD (see `NODE_TYPES`), so the adapter's worker half crossed to it
+  // by URL; `markedKeys: []` on every reshaped item is ADR 0052 rule 6 observed on an array the
+  // engine built (`$keys($)` is a marked sequence, measured), which no JSON comparison could see.
+  //
+  // **Branch paths `0` and `1` belong to TWO sibling regions here** — the map's instances and the
+  // fanout's branches — so a path's event list is both regions' in causal order: the map region
+  // completes before `gather` fires and `split` opens. Path `2` is the map's alone.
+  //
+  // **The negative controls are the item's own `Tests:` line**: swap the arity-one and arity-two
+  // rows' expected totals and both are red on the value; delete `total`'s transform and it receives
+  // the raw record (`inputType: 'object'`, `input` a keyed record); put the reshaping node back —
+  // a task between `collect` and `total` — and the DOCUMENT still validates with zero findings,
+  // because that road is removed rather than forbidden (the cross-row block asks the validator; at
+  // RUN time a relay whose worker returns `{ published, joinPayload }` changes what `total` receives,
+  // so the sentence is a validator-level one — the adequacy reader, M26).
+  {
+    key: 'transformed / arity TWO — the join`s typed successor receives $sum([*.score]) over both branches, and NO reshaping node',
+    definition: TX, policyId: 'live-token', payload: THREE_WORDS, threaded: false,
+    regionId: 'split',
+    outcome: 'completed',
+    // The three map instances when `ingest` settles, in index order (JP-R5); both scorers in one
+    // turn when `gather` fires, in declaration order; `total` when `collect` fires.
+    dispatched: ['r43:ingest:-:0', 'r43:reshape:0:0', 'r43:reshape:1:0', 'r43:reshape:2:0', 'r43:scoreA:0:0', 'r43:scoreB:1:0', 'r43:total:-:0'],
+    joined: true,
+    settled: { '0': 'arrived', '1': 'arrived' },
+    otherRegions: { each: { joined: true, settled: { '0': 'arrived', '1': 'arrived', '2': 'arrived' } } },
+    branchEvents: {
+      '0': ['branch.opened', 'branch.arrived', 'branch.opened', 'branch.arrived'],
+      '1': ['branch.opened', 'branch.arrived', 'branch.opened', 'branch.arrived'],
+      '2': ['branch.opened', 'branch.arrived'],
+    },
+    pathEnds: [{ reason: 'end', at: 'done' }],
+    nodeResults: {
+      'r43:ingest:-:0': { confidence: 0.9, items: ITEMS_ABC },
+      // Each instance's `input` is its OWN item RESHAPED by the transform (`JP-R11` inside `FD-C6`).
+      'r43:reshape:0:0': RESHAPED('a', 10),
+      'r43:reshape:1:0': RESHAPED('bb', 20),
+      'r43:reshape:2:0': RESHAPED('ccc', 30),
+      // Each scorer's `input` is ingest's whole result — `needs` composed `{ run }` and the
+      // transform selected `run` — so the score is `confidence * factor` and the items are echoed.
+      'r43:scoreA:0:0': SCORED(0.9, 100),
+      'r43:scoreB:1:0': SCORED(0.9, 1000),
+      // **The exit artifact's value**: `$sum([*.score])` over `{ "0": {…score: 90}, "1": {…score: 900} }`.
+      'r43:total:-:0': REDUCED(990),
+    },
+    heldGroups: { 'r43:scoreA:0:0': ['scorer'], 'r43:scoreB:1:0': ['scorer'] },
+    why: 'W63 — P17`s exit artifact at arity two: a typed map branch reshapes its own item through a ' +
+      'declared transform reading $settings, two typed scorers arrive at the join, and the join`s ' +
+      'typed successor receives $sum([*.score]) over JP-R12`s record — 990 — as its input, with no ' +
+      'reshaping node between the join and it (FD-C6). Every value is what the worker RECEIVED',
+  },
+  {
+    key: 'transformed / arity ONE — a branch routed away (P1`s case), the successor receives the one score and not an array',
+    definition: TX, policyId: 'live-token', payload: CONTEXTED, threaded: false,
+    regionId: 'split',
+    outcome: 'completed',
+    dispatched: ['r44:ingest:-:0', 'r44:reshape:0:0', 'r44:reshape:1:0', 'r44:reshape:2:0', 'r44:scoreA:0:0', 'r44:scoreB:1:0', 'r44:total:-:0'],
+    joined: true,
+    // `scoreA` scores 40 and `isLowScore` routes it to `abandoned`; `scoreB` scores 400 and arrives.
+    settled: { '0': 'exited', '1': 'arrived' },
+    otherRegions: { each: { joined: true, settled: { '0': 'arrived', '1': 'arrived', '2': 'arrived' } } },
+    branchEvents: {
+      '0': ['branch.opened', 'branch.arrived', 'branch.opened', 'branch.exited'],
+      '1': ['branch.opened', 'branch.arrived', 'branch.opened', 'branch.arrived'],
+      '2': ['branch.opened', 'branch.arrived'],
+    },
+    pathEnds: [{ reason: 'end', at: 'abandoned' }, { reason: 'end', at: 'done' }],
+    nodeResults: {
+      'r44:ingest:-:0': { confidence: 0.4, items: ITEMS_ABC },
+      // The reshaped items do not depend on the payload's confidence — a word's is its length.
+      'r44:reshape:0:0': RESHAPED('a', 10),
+      'r44:reshape:1:0': RESHAPED('bb', 20),
+      'r44:reshape:2:0': RESHAPED('ccc', 30),
+      'r44:scoreA:0:0': SCORED(0.4, 100),
+      'r44:scoreB:1:0': SCORED(0.4, 1000),
+      // **Q263's second arity**: the record holds ONE entry, `*.score` would be the SCALAR 400
+      // (JSONata's singleton rule), `[*.score]` is `[400]`, and the sum is 400 — a number, like the
+      // row above and unlike it in value, which is the pair the cross-row block asserts.
+      'r44:total:-:0': REDUCED(400),
+    },
+    heldGroups: { 'r44:scoreA:0:0': ['scorer'], 'r44:scoreB:1:0': ['scorer'] },
+    why: 'W63 — Q263 at arity one, P1`s own case under live-token: scoreA is routed away by a decision ' +
+      'and the join fires when scoreB arrives, so the successor`s transform runs over a one-entry ' +
+      'record and receives 400 — the array form makes it a number rather than the scalar the path ' +
+      'alone would give. Swapped with the arity-two row`s expected total, both rows are red',
+  },
+  {
+    key: 'transformed / arity ZERO — a join nothing reached fires with {} under live-token, and the successor receives 0 rather than undefined',
+    definition: TX, policyId: 'live-token', payload: FAINT, threaded: false,
+    regionId: 'split',
+    outcome: 'completed',
+    dispatched: ['r45:ingest:-:0', 'r45:reshape:0:0', 'r45:reshape:1:0', 'r45:reshape:2:0', 'r45:scoreA:0:0', 'r45:scoreB:1:0', 'r45:total:-:0'],
+    joined: true,
+    // 4 and 40 are both below 50: both branches exit at `abandoned`, `live-token` fires the join
+    // having been reached by nothing (ADR 0025's live-token column, `all-exit`'s shape), and
+    // `total` is still dispatched — over `{}`.
+    settled: { '0': 'exited', '1': 'exited' },
+    otherRegions: { each: { joined: true, settled: { '0': 'arrived', '1': 'arrived', '2': 'arrived' } } },
+    branchEvents: {
+      '0': ['branch.opened', 'branch.arrived', 'branch.opened', 'branch.exited'],
+      '1': ['branch.opened', 'branch.arrived', 'branch.opened', 'branch.exited'],
+      '2': ['branch.opened', 'branch.arrived'],
+    },
+    // Both branches end at `abandoned`, then `total` reaches `done`; the first two entries are
+    // identical, so this array does not encode which branch exited first.
+    pathEnds: [{ reason: 'end', at: 'abandoned' }, { reason: 'end', at: 'abandoned' }, { reason: 'end', at: 'done' }],
+    nodeResults: {
+      'r45:ingest:-:0': { confidence: 0.04, items: ITEMS_ABC },
+      'r45:reshape:0:0': RESHAPED('a', 10),
+      'r45:reshape:1:0': RESHAPED('bb', 20),
+      'r45:reshape:2:0': RESHAPED('ccc', 30),
+      'r45:scoreA:0:0': SCORED(0.04, 100),
+      'r45:scoreB:1:0': SCORED(0.04, 1000),
+      // **Q263's third arity, and the reason the plan's expression is the ARRAY form**: over `{}`
+      // `$sum(*.score)` is `undefined` and `$sum([*.score])` is `0` (P17 fact 5, re-run at this
+      // item's start in both runtimes). The worker received the NUMBER 0, and `inputType` is a
+      // SECOND expression over that value (obligation (c)'s LIMIT): the value already discriminates,
+      // because an `undefined` input drops its key from the JSON text `check` compares — this read
+      // *"because JSON text cannot tell the two apart"*, which both readers found false.
+      'r45:total:-:0': REDUCED(0),
+    },
+    heldGroups: { 'r45:scoreA:0:0': ['scorer'], 'r45:scoreB:1:0': ['scorer'] },
+    why: 'W63 — Q263 at arity zero: both scorers are routed away, live-token fires the join over {} ' +
+      '(ADR 0025), and the successor`s transform is evaluated over an empty record — $sum([*.score]) ' +
+      'is 0 where $sum(*.score) would be undefined, so the worker receives a NUMBER and the run ' +
+      'completes with every path at an end; inputType is the second expression over that value',
+  },
+  // **W63 — P17 decision 5 measured end to end, with a person in the loop.** `transform-fails.flow.json`
+  // is `suspend-resume`'s shape with two failing transforms instead of a failing worker: `review`
+  // (`Echo`) declares `$.confidence + " points"`, an author who meant `&` — `T2002`, `1 + "a"`'s
+  // shape — and `stamp` declares `{ confidence: $.confidence, at: $now() }`, the clock ADR 0052
+  // rule 7 unbinds — `UNBOUND`. Neither node is `optional`, so each is parked `user_action` with
+  // `TransformFailed`'s message as the task's error (read on two observers), run state is
+  // `awaiting_action`, and a person `resolve()`s each `done` with the value the transform did not
+  // supply; RN-R9 makes the resumed branch arrive, the join fires over all three branches and the
+  // run completes. `scoreA` beside them is a typed node with NO transform — `FD-C5`'s two-key
+  // envelope to the byte, `keys: ['input', 'settings']`, in a run whose `Scorer` pool carries no
+  // engine (the cross-row pair with the three rows above, same type, decided by the flow). And
+  // `note` is the fourth branch: a typed node whose transform SUCCEEDS over the ordinary edge's
+  // value — `FD-C5`'s FIRST kind, which `transformed.flow.json` cannot carry because its entry is an
+  // untyped `SplitWorker`, so before this branch the two flows carried a successful transform on
+  // three of the four kinds the rule enumerates (the adequacy reader; v0.17's enumeration clause).
+  //
+  // **The `Echo` type declares ONE retry**, so each failing transform is evaluated AGAIN under the
+  // TYPE's policy — a transform failure is a task failure and takes the retry road any worker throw
+  // takes — fails again, and parks the task on its second attempt: `attempts: 1` on both observers.
+  // *(The type declared ZERO retries first and rule 8 measured that INERT — the scheduler's default
+  // is zero, so the row read 0 with the declaration deleted; one retry is what the default cannot
+  // supply.)* With W62's shadows reverted `$now()` returns a timestamp, `stamp` never parks, its
+  // resolve step never fires and the row is red — the L6 observer of ADR 0052 rule 7 W62 had none of.
+  {
+    key: 'transform-fails / a transform FAILS at run time on two non-optional nodes (T2002, UNBOUND) — parked as user_action, resolved by a person, the run completes',
+    definition: TF, policyId: 'live-token', payload: HIGH, threaded: false,
+    outcome: 'completed',
+    dispatched: ['r46:ingest:-:0', 'r46:scoreA:0:0', 'r46:review:1:0', 'r46:stamp:2:0', 'r46:note:3:0', 'r46:publish:-:0'],
+    joined: true,
+    settled: { '0': 'arrived', '1': 'arrived', '2': 'arrived', '3': 'arrived' },
+    resolveOnSuspend: {
+      '1': { at: 'review', as: 'done', result: { points: 'nine, supplied by a person' }, actor: 'a-person' },
+      '2': { at: 'stamp', as: 'done', result: { confidence: 0.9, at: 'a clock a person read' }, actor: 'a-person' },
+    },
+    outcomesSeen: ['awaiting_action'],
+    outcomesNotSeen: ['stuck', 'failed'],
+    branchEvents: {
+      '0': ['branch.opened', 'branch.arrived'],
+      '1': ['branch.opened', 'branch.suspended', 'branch.resumed', 'branch.arrived'],
+      '2': ['branch.opened', 'branch.suspended', 'branch.resumed', 'branch.arrived'],
+      '3': ['branch.opened', 'branch.arrived'],
+    },
+    pathEnds: [{ reason: 'end', at: 'done' }],
+    regionSuspended: [],
+    nodeResults: {
+      'r46:ingest:-:0': { confidence: 0.9 },
+      // A typed node with NO transform: the two-key envelope, byte for byte (`FD-C5`).
+      'r46:scoreA:0:0': { keys: ['input', 'settings'], settingsKeys: ['factor'], confidence: 0.9, factor: 10, score: 9, retried: false },
+      // RN-R9: a resolved task's result is the person's, and that is what the branch carries in.
+      'r46:review:1:0': { points: 'nine, supplied by a person' },
+      'r46:stamp:2:0': { confidence: 0.9, at: 'a clock a person read' },
+      // A transform that SUCCEEDS over the ordinary edge's value — kind 1 of `FD-C5`'s four.
+      'r46:note:3:0': NOTED,
+      'r46:publish:-:0': { published: true, joinPayload: {
+        '0': { keys: ['input', 'settings'], settingsKeys: ['factor'], confidence: 0.9, factor: 10, score: 9, retried: false },
+        '1': { points: 'nine, supplied by a person' },
+        '2': { confidence: 0.9, at: 'a clock a person read' },
+        '3': NOTED,
+      } },
+    },
+    // ONE retry under the TYPE's policy (the nodes declare none): each transform evaluated twice,
+    // failing twice, the task parked on its second attempt — on both observers.
+    attempts: { 'r46:review:1:0': 1, 'r46:stamp:2:0': 1 },
+    // `TransformFailed`'s message: the language, the expression, the engine's code in brackets, why.
+    taskErrors: {
+      'r46:review:1:0': ['transform failed — jsonata', '[T2002]', 'must evaluate to a number'],
+      'r46:stamp:2:0': ['transform failed — jsonata', '[UNBOUND]', '$now() is unbound'],
+    },
+    heldGroups: { 'r46:scoreA:0:0': ['scorer'] },
+    why: 'W63 — P17 decision 5 end to end: two declared transforms fail at run time (a type error, and ' +
+      'a clock the adapter unbinds), each task is retried once under the type`s policy and parked ' +
+      'user_action with TransformFailed`s message as its error, a person resolves each with the value ' +
+      'the transform did not supply, the join fires and the run completes. Beside them one typed node ' +
+      'declares no transform and receives FD-C5`s two keys to the byte, and one transforms an ' +
+      'ordinary edge`s value successfully — the fourth of FD-C5`s kinds',
+  },
 ];
 
 // --- assertions ---------------------------------------------------------------
@@ -2667,6 +2974,25 @@ const heldWhenOver = (e: Expectation): number =>
     ? 0
     : regionsDeclaredBy(e).reduce((n, [joined, settled]) => n + (joined === null ? arrivedIn(settled) : 0), 0);
 
+/**
+ * **Which types a definition transforms on, in which languages — derived from the DOCUMENT, with no
+ * help from the helper** — W63. One `{ type: [lang, …] }` entry per node type some `task` of which
+ * declares a `transform`, keys and languages sorted, so it compares as JSON text to
+ * `RunReport.poolLanguages` filtered to the pools that carry one. Deliberately not
+ * `transformLanguagesByType` from the package: that function is what the helper READ to build the
+ * pools, and a clause that compared the pools to their own source would be a sensor corroborating
+ * itself (rule 8 obligation (c)'s LIMIT). The cross-row block holds the two derivations to each other.
+ */
+const transformingTypesOf = (d: FlowDefinition): Record<string, string[]> => {
+  const by = new Map<string, Set<string>>();
+  for (const n of d.nodes) {
+    const node = n as unknown as { type?: string; transform?: { lang?: string } };
+    if (node.type === undefined || typeof node.transform?.lang !== 'string') continue;
+    (by.get(node.type) ?? by.set(node.type, new Set()).get(node.type)!).add(node.transform.lang);
+  }
+  return Object.fromEntries([...by].sort(([a], [b]) => a.localeCompare(b)).map(([t, ls]) => [t, [...ls].sort()]));
+};
+
 const reports: RunReport[] = [];
 /** Per row: key, shape, assertions actually run, and how many are row-specific extras. */
 const rowCosts: [string, string, number, number][] = [];
@@ -2814,6 +3140,32 @@ for (const [i, e] of EXPECTED.entries()) {
       !report.outcomesSeen.includes(never as RunOutcome),
       `saw: ${report.outcomesSeen.join(', ')}`);
   }
+  // **W63 — the ERROR a failed transform's task settled with, on two observers that reach the
+  // string by different roads**: the outcome record (the driver's listener copying the live task's
+  // `error`, `OR-R2`) and `errorsSeen` (the harness's own listener reading the same live object).
+  // The substrings are the row's declaration of `TransformFailed`'s message — the language, the
+  // engine's code in brackets, the reason — so a wrapper that reported the failure under a bare
+  // message, or a scheduler that recorded none, is red on the first; a driver that normalised the
+  // message away is red on the second and not the first.
+  for (const [id, wants] of Object.entries(e.taskErrors ?? {})) {
+    const record = report.log.find((r) => r.kind === 'outcome' && r.taskId === id);
+    const err = record?.kind === 'outcome' ? record.error : undefined;
+    assertThat(e.key, `ADR 0051 rule 5: the outcome record's error for ${id.split(':')[1]} names the failed transform — ${wants.join(' · ')}`,
+      typeof err === 'string' && wants.every((w) => err.includes(w)), `error: ${String(err)}`);
+    check(e.key, `and the LIVE task the scheduler settled carried the same error string — the second observer`,
+      report.errorsSeen[id], err);
+  }
+  // **W63 — ADR 0051 rule 4 on EVERY row: the pools whose config carries a language are exactly the
+  // types some node of THIS row's flow transforms on, in exactly the languages those nodes name,
+  // both ways.** `poolLanguages` is read off the built pools; the other side is derived here from
+  // the definition WITHOUT the helper's own `transformLanguagesByType` (which the cross-row block
+  // holds to this derivation separately), so a helper that wrote the engine into every typed pool —
+  // or into none — is red on the value, and on the forty-two rows that declare no transform the
+  // assertion is that no pool carries one: `Scorer`'s pool loads the engine on a `transformed` run
+  // and not on a `typed` one, which is the discriminating pair the cross-row block names.
+  check(e.key, 'ADR 0051 rule 4: the pools carrying a language are exactly the types this flow transforms on, in the languages it names, both ways',
+    Object.fromEntries(Object.entries(report.poolLanguages).filter(([, ls]) => ls.length > 0).sort(([a], [b]) => a.localeCompare(b))),
+    transformingTypesOf(e.definition));
 
   if (e.regionId === null) {
     // A flow with no fan-out enters no region, and `RN-R10` must therefore not
@@ -3169,6 +3521,8 @@ for (const [i, e] of EXPECTED.entries()) {
     + Object.keys(e.resourceEvents ?? {}).length * 2
     // W59: one per declared `heldGroups` id — derived from the expectation like the two above.
     + Object.keys(e.heldGroups ?? {}).length
+    // W63: two observers per declared `taskErrors` id — the record's error and the live task's.
+    + Object.keys(e.taskErrors ?? {}).length * 2
     // **`JP-R12`'s SECOND-COPY claim, and only where there is something to be a copy
     // of.** A row that records no arrival would assert `0 === 0`, which is the
     // vacuity `doc/workflow.md` section 5 rule 3 refuses — so it is an extra derived
@@ -3516,6 +3870,10 @@ const ROW_KEYS: readonly string[] = [
   'group / a task blocked behind a ConcurrentLimitGroup(1) the harness holds, then released',
   'typed / two nodes of ONE type with DIFFERENT settings — the envelope, the type`s retry, the type`s group',
   'typed-regions / a typed task inside a fanout branch feeding a typed map branch at arity three',
+  'transformed / arity TWO — the join`s typed successor receives $sum([*.score]) over both branches, and NO reshaping node',
+  'transformed / arity ONE — a branch routed away (P1`s case), the successor receives the one score and not an array',
+  'transformed / arity ZERO — a join nothing reached fires with {} under live-token, and the successor receives 0 rather than undefined',
+  'transform-fails / a transform FAILS at run time on two non-optional nodes (T2002, UNBOUND) — parked as user_action, resolved by a person, the run completes',
 ];
 
 /**
@@ -3631,6 +3989,27 @@ const CROSS_ROW_SUBJECTS = [
   'deno.json exports the sub-path',
   'package.json exports `./scheduler`',
   'under a `scheduler/` directory of its own build',
+  // W63
+  'Q263 as three rows',
+  'the arity-one and arity-two rows are a PAIR',
+  'the SAME type carries the engine',
+  'the languages the L6 flows NAME are the languages the harness registered',
+  'the helper`s reading of every L6 definition agrees',
+  'asked of at least one array the ENGINE built',
+  'a `transform failed` error occurs in exactly the rows',
+  'the reshaping road is removed and not FORBIDDEN',
+  // **The two CONTROLS of block (2d), named as subjects because the adequacy reader deleted them
+  // with two counts lowered and a validator accepting everything was green in both runtimes**
+  // (G3b): the list named the claims and not their controls — v0.14's *a count is not a membership*
+  // one layer inside the membership list.
+  'the validator SAW that document',
+  'a transform really failed somewhere',
+  // **P17's retro measured the same shape in W58's block**: its retry control — *and that set is
+  // not empty — a real retry happened somewhere* — deleted with `CROSS_ROW` and `DECLARED_TOTAL`
+  // lowered by one was green in both runtimes (`retro-w58ctl`, 0 failures). Second occurrence, in a
+  // block two plans older, so `doc/workflow.md` v0.18 makes the controls members by rule; this is
+  // the member.
+  'a real retry happened somewhere',
 ];
 
 /**
@@ -3896,7 +4275,11 @@ const WORKER_LISTS = await workerListsAsync();
 // imports the bootstrap helper through it exactly as `l6.ts` imports the driver through
 // `../index.ts`. A file UNDER the sub-path — `bootstrap.ts`, `envelope-worker.ts` — is still an
 // offender, and `REACH_CASES` carries one of each.
-const REACHES_PAST_INDEX = /from\s+'(?:\.\.\/)+src\/(?!scheduler\/index\.ts')/;
+// **And a SECOND path since W63, by the same argument**: `fyflow-orchestration/jsonata` is a published
+// export (ADR 0052 rule 3), `../src/jsonata/index.ts` is what a consumer resolves it to, and
+// `run-flow.ts` imports the adapter through it. A file under `src/jsonata/` other than the entry
+// would be an offender, and `REACH_CASES` carries one.
+const REACHES_PAST_INDEX = /from\s+'(?:\.\.\/)+src\/(?!(?:scheduler|jsonata)\/index\.ts')/;
 /**
  * **The detector's POSITIVE case, checked in** — W47's adequacy reader, finding 4.
  *
@@ -3923,6 +4306,9 @@ const REACH_CASES: [string, boolean][] = [
   // W59: the sub-path's ENTRY is a consumer surface and is exempt; a file under it is not.
   [`import { bootstrap } from '${UP}src/scheduler/index.ts';`, false],
   [`import { bootstrap } from '${UP}src/scheduler/bootstrap.ts';`, true],
+  // W63: the second sub-path's entry, and a file beside it that no manifest exports.
+  [`import { jsonata } from '${UP}src/jsonata/index.ts';`, false],
+  [`import { compile } from '${UP}src/jsonata/engine.ts';`, true],
 ];
 async function examplesReachingPastIndexAsync(): Promise<
   { files: string[]; read: string[]; offenders: string[] }
@@ -4694,8 +5080,13 @@ for (const row of PAIR_ROWS) console.log(`    ${w(row.key, KEY_W)}${row.why}`);
  * every row pays them — they are vacuous only for a row that dispatched nothing, and the
  * cross-row clause beside `CROSS_ROW_SUBJECTS` refuses that being every row.
  */
-const PER_REGION_ROW = 21;
-const PER_PLAIN_ROW = 19;
+/**
+ * **22 and 20 since W63, from 21 and 19**: every row now asserts ADR 0051 rule 4 — the pools
+ * carrying a language are exactly the types its flow transforms on — in the base because every
+ * row pays it, and on the forty-two rows declaring no transform it says that NO pool carries one.
+ */
+const PER_REGION_ROW = 22;
+const PER_PLAIN_ROW = 20;
 /**
  * **A number a human writes, and its NAME over-reads** — 13 at W23, 18 at W35, 32
  * at W43, 39 at W45, **61 at W47** and **68 at W51**.
@@ -4737,8 +5128,19 @@ const PER_PLAIN_ROW = 19;
  * `heldGroups`. **95 the same day**: three more in block (2c), binding the two manifests' sub-path
  * exports — the one declaration of this item nothing else read. **96 after the readers**: the three
  * map instances' inputs pairwise distinct, read from the run (the adequacy reader).
+ *
+ * **109 at W63, from 96**: ten cross-row assertions in block (2d) — Q263's three totals distinct
+ * and numeric, the arity pair differing in arrivals and totals, `Scorer`'s pool carrying the engine
+ * in exactly the transforming runs, the languages the flows name against the harness's registry
+ * both ways, the helper's reading of every definition against this file's, the plain-values clause
+ * asked of an engine-built array, a `transform failed` error in exactly the declaring rows plus
+ * that set non-empty, and the reshaping road validating with zero findings plus its positive
+ * fixture — **and three more from W43's per-row clause below**, which asserts a `nodeResults`
+ * entry for every dispatched id on every row whose NODE declares a `needs`, and the three
+ * `transformed` rows do. *(Written as 104 before the first run, which reported three assertions
+ * the rows' extras did not account for; the clause is labelled per row and counted here.)*
  */
-const CROSS_ROW = 96;
+const CROSS_ROW = 109;
 const base = (shape: string) => (shape === 'region' ? PER_REGION_ROW : PER_PLAIN_ROW);
 for (const [key, shape, cost, extras] of rowCosts) {
   if (cost !== base(shape) + extras) {
@@ -5269,6 +5671,105 @@ if (rowCosts.length !== EXPECTED.length) {
         Object.entries(pkgJson.exports['./scheduler'] ?? {}).every(([, v]) =>
           (typeof v === 'string' ? [v] : Object.values(v as Record<string, string>)).every((p) => /\/scheduler\/index\.(js|d\.ts)$/.test(p))),
         JSON.stringify(pkgJson.exports['./scheduler']));
+    }
+    // (2d) **W63 — P17's exit artifact stated ACROSS its rows, which is where Q263 lives.** A single
+    //     row can say what its successor received; only the three together can say the value
+    //     CHANGED with the arity and stayed a number — and only a pair of runs can say a pool
+    //     loads an engine because the FLOW says so.
+    {
+      // **Q263 as three rows, read from the RUN**: the value `total`'s worker received on every
+      // `transformed` row, off the settled results rather than off the rows' literals — three
+      // arities, three DIFFERENT values, every one a number (the array form; `$sum(*.score)` over
+      // `{}` would have been `undefined`, and the arity-one row's a scalar the sum would still add).
+      const totals = reports.flatMap((r) => Object.entries(r.state.nodes)
+        .filter(([id]) => /:total:-:0$/.test(id))
+        .map(([, n]) => (n.result as { input?: unknown; inputType?: string } | undefined)));
+      assertThat('cross-row', 'Q263 as three rows: the join`s successor received three DIFFERENT values at three arities, every one a NUMBER, read from the run',
+        totals.length === 3 && new Set(totals.map((t) => JSON.stringify(t?.input))).size === 3 && totals.every((t) => t?.inputType === 'number' && typeof t?.input === 'number'),
+        `totals: ${JSON.stringify(totals.map((t) => t?.input))}`);
+      // **The arity-one and arity-two rows are a PAIR, and whatever makes them differ is asserted**
+      // (rule 8's fourth requirement on the set): the two runs differ in how many branches ARRIVED
+      // at `collect`, read from the folded run — two against one — and their totals differ. Both
+      // halves, so making the two payloads equal is red here before any literal is compared.
+      const byTotal = (n: number) => reports.find((r) => Object.entries(r.state.nodes).some(([id, x]) => /:total:-:0$/.test(id) && (x.result as { input?: unknown })?.input === n));
+      const two = byTotal(990); const one = byTotal(400);
+      const arrivedAt = (r: RunReport | undefined) => Object.values(r?.state.regions['split']?.settled ?? {}).filter((s) => s === 'arrived').length;
+      assertThat('cross-row', 'the arity-one and arity-two rows are a PAIR: two arrivals against one at the join, read from the run, and two different totals',
+        two !== undefined && one !== undefined && two !== one && arrivedAt(two) === 2 && arrivedAt(one) === 1,
+        `arrived: ${arrivedAt(two)} / ${arrivedAt(one)}`);
+      // **A pool loads an engine because the FLOW says so** (ADR 0051 rule 4): the SAME type,
+      // `Scorer`, carries `jsonata` in every run of the flow whose scorers transform and in NO other
+      // run — including `transform-fails`, where a `Scorer` node runs without a transform beside
+      // two `Echo` nodes that do. The per-row clause says each run's pools match its flow; this says
+      // the two answers for one type were both observed, so the clause was not vacuous everywhere.
+      const scorerPools = reports.map((r) => [r.flowId, r.poolLanguages['Scorer'] ?? []] as const);
+      const loaded = scorerPools.filter(([, ls]) => ls.includes('jsonata')).map(([f]) => f);
+      const bare = scorerPools.filter(([, ls]) => ls.length === 0).map(([f]) => f);
+      assertThat('cross-row', 'the SAME type carries the engine in exactly the runs whose flow transforms on it — Scorer`s pool loads jsonata on every `transformed` run and on no other, `transform-fails` included',
+        loaded.length === 3 && loaded.every((f) => f === TX.flowId) && bare.includes(TF.flowId) && bare.includes(TY.flowId) && loaded.length + bare.length === reports.length,
+        `loaded in: ${JSON.stringify([...new Set(loaded)])}; bare in ${bare.length} runs`);
+      // **Obligation (e) on `Registry.languages`, both ways**: every language a flow document NAMES in
+      // a `transform.lang` is one the harness registered, and every registered language is named by
+      // some flow this file runs — a language registered and used by nothing is red here, as a type
+      // or a group is above. `FD-V35` refuses the first direction at construction; this is the rung
+      // that says the registry the driver checked is the one the helper wrote the pools from.
+      const namedLangs = [...new Set(EXPECTED.flatMap((e) => e.definition.nodes.flatMap((n) => {
+        const l = (n as unknown as { transform?: { lang?: string } }).transform?.lang;
+        return typeof l === 'string' ? [l] : [];
+      })))].sort();
+      check('cross-row', 'the languages the L6 flows NAME are the languages the harness registered, both ways — FD-V35`s registry set, and the other direction',
+        namedLangs, Object.keys(LANGUAGES).sort());
+      // **The helper's own reading of a definition agrees with this file's, on every L6 definition** —
+      // two derivations of one document, so the function the pools were BUILT from cannot read a
+      // different set of transforming types than the per-row clause derives without it.
+      const disagreeing = EXPECTED.filter((e) => JSON.stringify(
+        Object.fromEntries([...transformLanguagesByType([e.definition])].sort(([a], [b]) => a.localeCompare(b)).map(([t, ls]) => [t, [...ls].sort()])),
+      ) !== JSON.stringify(transformingTypesOf(e.definition))).map((e) => e.key);
+      check('cross-row', 'the helper`s reading of every L6 definition agrees with this file`s own derivation of which types transform in which languages',
+        disagreeing, []);
+      // **The plain-values clause was asked of an ARRAY the engine built, at least once** — otherwise
+      // `markedKeys: []` on every `Echo` result is a claim about inputs that carry no array. Read from
+      // the settled results: some echoed `input` holds an array at some depth.
+      const holdsArray = (v: unknown): boolean => Array.isArray(v) || (typeof v === 'object' && v !== null && Object.values(v).some(holdsArray));
+      const echoedArrays = reports.flatMap((r) => Object.values(r.state.nodes))
+        .filter((n) => (n.result as { markedKeys?: unknown } | undefined)?.markedKeys !== undefined)
+        .filter((n) => holdsArray((n.result as { input?: unknown }).input)).length;
+      assertThat('cross-row', 'ADR 0052 rule 6 was asked of at least one array the ENGINE built — an echoed input holding an array at some depth, so `markedKeys: []` is not vacuous',
+        echoedArrays > 0, `echo results whose input holds an array: ${echoedArrays}`);
+      // **The failure road is bound the way `attempts` is**: an outcome record whose error says
+      // `transform failed` occurs in exactly the rows that declare `taskErrors`, both ways — a
+      // transform that failed on a row that did not expect it is red here, and the set is not empty.
+      const rowsFailing = EXPECTED
+        .filter((_, i) => reports[i]!.log.some((r) => r.kind === 'outcome' && typeof r.error === 'string' && r.error.includes('transform failed')))
+        .map((e) => e.key).sort();
+      const rowsDeclaringErrors = EXPECTED.filter((e) => e.taskErrors !== undefined).map((e) => e.key).sort();
+      check('cross-row', 'a `transform failed` error occurs in exactly the rows that declare taskErrors, both ways',
+        rowsFailing, rowsDeclaringErrors);
+      assertThat('cross-row', 'and that set is not empty — a transform really failed somewhere', rowsDeclaringErrors.length > 0, 'no row declares taskErrors');
+      // **The reshaping road is REMOVED, not forbidden** — the item's own `Tests:` line, asked of the
+      // package's own validator rather than stated: `transformed` with a reshaping `task` node put
+      // back between its join and the transformed successor still validates with ZERO findings
+      // against the registry every row runs under. And the detector's positive fixture beside it, so
+      // a validator that accepted everything could not satisfy the first: the SAME document with the
+      // transform moved onto the bare relay node is refused, by exactly `FD-V37` at that node.
+      {
+        const relay = { id: 'relay', kind: 'task', workerType: 'PublishWorker', edges: [{ to: 'total' }] };
+        const withRelay = (transformOnRelay: boolean) => ({
+          ...TX,
+          nodes: (TX.nodes as unknown as Record<string, unknown>[]).flatMap((n) => n.id === 'collect'
+            ? [{ ...n, edges: [{ to: 'relay' }] }, transformOnRelay ? { ...relay, transform: { lang: 'jsonata', expr: '$' } } : relay]
+            : [n]),
+        }) as unknown as FlowDefinition;
+        const registry = {
+          predicates: [...predicates.keys()], workerTypes: reports[0]!.schedulerPools, groups: reports[0]!.schedulerGroups,
+          nodeTypes: NODE_TYPES, languages: LANGUAGES,
+        };
+        const findings = (d: FlowDefinition) => validateDefinition(d, registry).map((f) => `${f.rule}@${f.at}`).sort();
+        check('cross-row', 'the reshaping road is removed and not FORBIDDEN: `transformed` with a reshaping task node put back between its join and the transformed successor validates with zero findings',
+          findings(withRelay(false)), []);
+        check('cross-row', 'and the validator SAW that document: the same one with the transform moved onto the bare relay node is refused by FD-V37 at that node, and by nothing else',
+          findings(withRelay(true)), ['FD-V37@relay']);
+      }
     }
     // (3) The resource-event observer is bound the way `attempts` is: a resource event was
     //     reported for exactly the task ids some row declares `resourceEvents` for. Every other
@@ -5806,7 +6307,18 @@ check('cross-row', 'every cross-row SUBJECT this file declares was asserted abou
 // this arithmetic on the file's second run, after the first taught the pair row that a retried
 // task acquires its group once per attempt. **1280 the same day**: block (2c)'s three manifest
 // assertions. **1281 after the readers**: the map instances' inputs distinct.
-const DECLARED_TOTAL = 1281;
+// **1499 at W63, from 1281** — +218: +42 for the pool-languages clause on every existing row; three
+// `transformed` rows (region, 22 + 16 extras: seven `nodeResults`, `pathEnds`, one `otherRegions`
+// at two, three `branchEvents`, two `heldGroups`, one arrival held) at 38 each; the
+// `transform-fails` row (region, 22 + 27: five `nodeResults`, `pathEnds`, three `branchEvents`, two
+// `resolveOnSuspend` at two, one `outcomesSeen`, two `outcomesNotSeen`, `regionSuspended`, two
+// `attempts` at two, two `taskErrors` at two, one `heldGroups`, one arrival held) at 49; ten
+// cross-row assertions in block (2d); and three from W43's per-row node-`needs` clause, which the
+// three `transformed` rows reach. *(Written as 1494 from the arithmetic before the file was run;
+// the first run reported 1497 and the three are that clause, missed in the arithmetic; 1499 once
+// the reshaping-road pair joined block (2d).)* **1501 after the readers**: the `transform-fails`
+// row's fourth branch, `note` — one `nodeResults`, one `branchEvents` — at 51.
+const DECLARED_TOTAL = 1501;
 if (passed + failures.length !== DECLARED_TOTAL) {
   failures.push(
     'gate\n      the assertion count is not the number this file declares outright\n' +

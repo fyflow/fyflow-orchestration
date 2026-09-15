@@ -1450,8 +1450,12 @@ the pin the same way `D7` holds this sentence. *(This read **"pin at 0.3.0 … n
 a working tree"** — a live instruction to a consumer, wrong in the version AND in the mechanism, the
 second having been superseded on 2026-08-31. W36's conformity reader.)*
 
-Thirteen worked flows, on a real scheduler, are in [`examples/`](examples/README.md) — including a
-routed-away branch, a lost branch, a human resolving a suspension, and a refusal that stops a run.
+The worked flows on a real scheduler are in [`examples/`](examples/README.md), which counts them —
+including a routed-away branch, a lost branch, a human resolving a suspension, a refusal that stops
+a run, and a join's successor reducing the region's record through a declared transform. *(This
+sentence read **"Thirteen worked flows"** from the day it was written until W63, over a directory
+that had held twenty-two for two plans — a count in prose that no check reads, so it carries none
+now.)*
 
 ---
 
@@ -1662,8 +1666,9 @@ this one (P18); a type says nothing about either yet, and the adapter's optional
 door left for it. A transform on an UNTYPED node, on a `map`'s `over`, on an edge or on a decision
 is refused, with the reasons in ADR 0051. The validator runs at construction and
 nowhere else: the driver holds your definition by reference, so a document you mutate after
-`new Driver` is dispatched as mutated, for every key ([Q259](doc/open-questions.md)). Two worked
-typed flows run on a real scheduler in [`examples/`](examples/README.md).
+`new Driver` is dispatched as mutated, for every key ([Q259](doc/open-questions.md)). Four worked
+typed flows run on a real scheduler in [`examples/`](examples/README.md) — two of them with a
+declared `transform` (section 14), one at three arities and one whose transforms fail.
 
 ## 14. The JSONata adapter — `fyflow-orchestration/jsonata`
 

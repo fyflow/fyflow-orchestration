@@ -9,9 +9,9 @@
  * [Q33](../../doc/open-questions.md)'s answer *Node and Deno* rather than
  * *Node only* — the leaning's whole argument was one worker file per runtime.
  *
- * **One class, ELEVEN roles**, selected by the pool's `config` — which is how
- * `examples/run-flow.ts`'s TWELVE pools are satisfied without twelve near-identical
- * files. *(TEN and ELEVEN until W59 added `typed` and the `Scorer` type's pool, which the
+ * **One class, TWELVE roles**, selected by the pool's `config` — which is how
+ * `examples/run-flow.ts`'s THIRTEEN pools are satisfied without thirteen near-identical
+ * files. *(ELEVEN and TWELVE until W63 added `echo` and the `Echo` type's pool; TEN and ELEVEN until W59 added `typed` and the `Scorer` type's pool, which the
  * bootstrap helper builds rather than `pool()`; NINE and TEN until W58 added `retry` and
  * `RetryWorker`.)* *(These read "EIGHT" and "nine" of the state before W45 added `attest` and
  * `AttestWorker`; corrected by [W47](../../doc/work-items/w47-the-blocked-flow-on-real-workers.md),
@@ -99,6 +99,14 @@ export const ROLES = [
   // so, which is how one of the two retries under the TYPE's policy. It echoes the envelope's
   // key set, so a driver that wrapped more (or less) than the two keys is red on the value.
   'typed',
+  // **W63's role, and it exists because no shipped one ECHOES ITS INPUT.** The exit artifact's
+  // claim is *what the worker RECEIVED* after a declared `transform` ran in the type's wrapper
+  // (`FD-C6`): `typed` reads two fields of its input by name, so a reduction to a NUMBER or a
+  // reshaped item would reach it as `confidence: 0`. This one returns its `input` whole, with
+  // its type and — at every depth — the own keys of any array that are not indices, which is
+  // the one observer of ADR 0052 rule 6's *plain values* a worker can be: JSONata marks the arrays
+  // it builds, the adapter strips the markers, and `JSON.stringify` cannot see either.
+  'echo',
 ] as const;
 export type Role = typeof ROLES[number];
 
@@ -189,6 +197,47 @@ export default class FlowWorker extends BaseWorker {
             score: Math.round(c * factor),
             retried: failFirst && thrownOnce.has(id),
             ...(Array.isArray(inputItems) ? { items: inputItems } : {}),
+          };
+        }
+      case 'echo':
+        // **The role a node TYPE runs when the claim is WHAT ARRIVED — W63, `FD-C6`.** The payload
+        // is the envelope the wrapper hands its inner worker AFTER evaluating a declared
+        // `transform`: `{ settings, input }` with `input` REPLACED by the expression's result
+        // (ADR 0051 rule 3) — a number for `$sum([*.score])` over a join's record, a reshaped
+        // object for a map instance's item — and no third key. Four things are observable and
+        // each is a separate claim, so a row reads the value and never a projection of it:
+        //   - `keys` is the envelope's key set, exactly `['input', 'settings']` — the wrapper hands
+        //     the inner worker two keys and consumes `transform` (W59's `keys` reasoning);
+        //   - `inputType` is a second, independent expression over the same value (obligation (c)'s
+        //     LIMIT): `$sum([*.score])` over `{}` is the NUMBER 0 where `$sum(*.score)` would be
+        //     `undefined` — Q263's third arity, told apart by type rather than by `0 == undefined`;
+        //   - `markedKeys` walks the input and lists, at every depth, any own key on an ARRAY that
+        //     is not an index (`fields:sequence`). JSONata marks the arrays it builds and the
+        //     adapter hands out plain values (ADR 0052 rule 6); a deep-equal over JSON text cannot
+        //     see a marker, so this is the L6 observer that makes reverting W62 cost something —
+        //     and `arrays` is how many arrays that walk REACHED, the second expression over the
+        //     same walk (obligation (c)'s LIMIT): rule 8 measured a walk that stopped at the top
+        //     level surviving with the markers kept, because the one marked array sits one level
+        //     down inside the reshaped object and an empty list is what a blind walk reports too.
+        //     A reshaped item owes exactly one array; a reduced number owes none;
+        //   - `realm` is whether this worker shares the harness's global object — W62's second
+        //     observer of a backend, one rung up: `run-flow.ts` marks its own realm, an inline
+        //     worker sees the mark and a thread does not. The `Echo` pool is declared threaded so
+        //     the adapter's worker half is loaded by URL in a fresh realm (ADR 0051 rule 2's ground),
+        //     and W63's adequacy reader found that sentence stated with no observer at L6;
+        //   - `input` is the value itself, so the row says WHAT the worker received — 990, 400, 0
+        //     at three arities, `{ word, score, fields }` for a reshaped item — from the run.
+        {
+          const env = (payload ?? {}) as { settings?: Record<string, unknown>; input?: unknown };
+          const walk = markedKeysOf(env.input);
+          return {
+            keys: Object.keys((payload ?? {}) as Record<string, unknown>).sort(),
+            settingsKeys: Object.keys(env.settings ?? {}).sort(),
+            inputType: Array.isArray(env.input) ? 'array' : env.input === null ? 'null' : typeof env.input,
+            markedKeys: walk.marked,
+            arrays: walk.arrays,
+            realm: typeof (globalThis as { __L6_HARNESS_REALM__?: unknown }).__L6_HARNESS_REALM__ !== 'undefined' ? 'harness' : 'thread',
+            input: env.input,
           };
         }
       case 'ingest':
@@ -411,6 +460,31 @@ function memoisedItems(words: readonly string[]): { word: string; confidence: nu
     seen.set(word, made);
     return made;
   });
+}
+
+/**
+ * **Every own key on every ARRAY reachable from `v` that is not an index, as `path:key` — and how
+ * many arrays the walk reached** — W63's observer of ADR 0052 rule 6. JSONata marks a sequence it
+ * builds with own `sequence` / `keepSingleton` keys; `structuredClone` keeps them across a thread
+ * and `JSON.stringify` drops them, so a row comparing JSON text is blind to a marker that reached
+ * the worker. `arrays` is the walk's own reach stated beside its finding, so a walk that stops
+ * short reports fewer arrays rather than a clean list. Total and cycle-safe, like `confidenceOf`:
+ * an observer that throws on a shape hides the defect it watches.
+ */
+function markedKeysOf(v: unknown, path = '', seen = new Set<unknown>()): { marked: string[]; arrays: number } {
+  if (typeof v !== 'object' || v === null || seen.has(v)) return { marked: [], arrays: 0 };
+  seen.add(v);
+  const marked: string[] = [];
+  let arrays = 0;
+  const into = (x: unknown, p: string) => { const r = markedKeysOf(x, p, seen); marked.push(...r.marked); arrays += r.arrays; };
+  if (Array.isArray(v)) {
+    arrays++;
+    for (const k of Object.keys(v)) if (!/^\d+$/.test(k)) marked.push(`${path}:${k}`);
+    v.forEach((x, i) => into(x, `${path}[${i}]`));
+  } else {
+    for (const [k, x] of Object.entries(v)) into(x, path ? `${path}.${k}` : k);
+  }
+  return { marked: marked.sort(), arrays };
 }
 
 function wordsOf(payload: unknown): string[] {

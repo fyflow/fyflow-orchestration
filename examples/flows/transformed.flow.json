@@ -1,0 +1,28 @@
+{
+  "flowId": "l6-transformed",
+  "version": 1,
+  "entry": "ingest",
+  "nodes": [
+    { "id": "ingest",  "kind": "task", "workerType": "SplitWorker", "edges": [ { "to": "each" } ] },
+    { "id": "each",    "kind": "map",  "over": "items", "branch": "reshape" },
+    { "id": "reshape", "kind": "task", "type": "Echo", "settings": { "scale": 100 },
+      "transform": { "lang": "jsonata", "expr": "{ \"word\": word, \"score\": $round(confidence * $settings.scale), \"fields\": $keys($) }" },
+      "edges": [ { "to": "gather" } ] },
+    { "id": "gather",  "kind": "join", "of": "each", "edges": [ { "to": "split" } ] },
+    { "id": "split",   "kind": "fanout", "branches": [ "scoreA", "scoreB" ] },
+    { "id": "scoreA",  "kind": "task", "type": "Scorer", "settings": { "factor": 100 },
+      "needs": { "run": "ingest" },
+      "transform": { "lang": "jsonata", "expr": "run" },
+      "edges": [ { "when": "isLowScore", "to": "abandoned" }, { "to": "collect" } ] },
+    { "id": "scoreB",  "kind": "task", "type": "Scorer", "settings": { "factor": 1000 },
+      "needs": { "run": "ingest" },
+      "transform": { "lang": "jsonata", "expr": "run" },
+      "edges": [ { "when": "isLowScore", "to": "abandoned" }, { "to": "collect" } ] },
+    { "id": "abandoned", "kind": "end", "outcome": "branch-abandoned" },
+    { "id": "collect", "kind": "join", "of": "split", "edges": [ { "to": "total" } ] },
+    { "id": "total",   "kind": "task", "type": "Echo",
+      "transform": { "lang": "jsonata", "expr": "$sum([*.score])" },
+      "edges": [ { "to": "done" } ] },
+    { "id": "done",    "kind": "end",  "outcome": "completed" }
+  ]
+}

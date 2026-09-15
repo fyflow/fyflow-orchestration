@@ -286,7 +286,9 @@ async function scale(runs: number, arity: number, sizeKib: number, shared: boole
   // delivered to **every** driver's listener and `ID-R4` tier 1 drops the ones that
   // are not that run's, so the second reading is the one that is linear in N. Run
   // both; the difference is the topology's, not the driver's.
-  const scheduler = shared ? buildScheduler(0, false) : null;
+  // The flow handed to the helper is inert here — no node of `map-alias` transforms, so no pool
+  // loads an engine — but `buildScheduler` requires the flows rather than defaulting them (W63).
+  const scheduler = shared ? buildScheduler(0, false, [MAL]) : null;
   const heap0 = heapUsed();
   const started = Date.now();
   const reports = await Promise.all(

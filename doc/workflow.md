@@ -1,6 +1,6 @@
 # Workflow
 
-**Status:** v0.17 - **run to completion SIXTEEN times**, by [P1](plans/p1-what-satisfies-a-join.md),
+**Status:** v0.18 - **run to completion SEVENTEEN times**, by [P1](plans/p1-what-satisfies-a-join.md),
 [P2](plans/p2-the-non-success-half-on-a-real-scheduler.md),
 [P3](plans/p3-a-consumer-reference-the-gate-keeps-true.md),
 [P4](plans/p4-the-drivers-lifetime-and-the-handles-it-gives-out.md),
@@ -14,8 +14,9 @@
 [P12](plans/p12-what-a-node-receives-and-what-a-decision-sees.md) and
 [P13](plans/p13-when-is-a-declared-reference-refused.md) and
 [P14](plans/p14-what-a-reference-means-when-two-regions-arities-are-independent.md),
-[P15](plans/p15-what-a-run-retains-and-what-a-result-may-be.md) and
-[P16](plans/p16-what-a-node-type-is-and-what-the-library-owes-the-scheduler.md)
+[P15](plans/p15-what-a-run-retains-and-what-a-result-may-be.md),
+[P16](plans/p16-what-a-node-type-is-and-what-the-library-owes-the-scheduler.md) and
+[P17](plans/p17-what-a-node-may-do-to-its-input-before-its-worker-sees-it.md)
 **Read this before starting any work item.** *(The status line read "seven times" and listed P1-P7
 until P9's retro: **P8 ran this document to completion and adopted none of its proposals**, which is
 section 6 pass 3 rule 1's expected verdict and is not the same as not having run it.)* Paths are relative to the repo root unless they are
@@ -98,6 +99,49 @@ prediction about rule 8 is answered and is **false**.
    ([ADR 0029](decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)).
    The dependency edge that made the junction seem necessary is gone; **the rule still said nothing
    about the removal**, which is the part that did the damage.
+
+**v0.18 is [P17](plans/p17-what-a-node-may-do-to-its-input-before-its-worker-sees-it.md)'s retro,
+and its central finding is that v0.14's membership clause, FOLLOWED by the item that extended the
+list, named the claims and not their CONTROLS — a validator accepting every document was green in
+both L6 runtimes with two counts lowered, and the same hole had been live in W58's block for a whole
+plan.** P17 asked *what may a node DO to its input before its worker sees it?* — answered by
+[ADR 0051](decisions/0051-a-transform-is-a-declared-expression-in-a-registered-language-applied-in-the-types-worker-wrapper.md)
+and [ADR 0052](decisions/0052-a-second-dependency-is-declared-where-its-one-sub-path-is-reached.md),
+three items, six reader passes, an exit artifact at three arities on real workers in both L6
+runtimes. It adopts **two** changes and refuses **six**, all in
+[P17's Record](plans/p17-what-a-node-may-do-to-its-input-before-its-worker-sees-it.md).
+
+**Name the rung.** Thirty-two defects; SEVEN had a rung; **all seven fired and all seven were READ
+correctly** — three of them this document's own instruments doing what they were adopted for: the
+content digest catching a rung rewriting `deno.lock` outside a probe's restore set, rule 7 (b) on
+eight moved anchors, and the dated-ceiling clause catching two of W62's ceilings inside W62.
+Twenty-five have no rung, and eleven of those are in the INSTRUMENTS — harness anchors, a runner's
+`FAIL` indentation, a copy script, a shell tool's escapes, a NUL byte, an untracked harness.
+
+1. **Obligation (d)'s membership clause gains: a membership names the CONTROLS beside its claims.**
+   Every cross-row block since W47 pairs a claim with the assertion that makes it non-vacuous, and
+   `CROSS_ROW_SUBJECTS` named the claims. [W63](work-items/w63-a-transformed-join-on-real-workers.md)
+   added eight subjects for its ten assertions and left out its two controls; deleting the positive
+   fixture, neutering the validator and lowering `CROSS_ROW` and `DECLARED_TOTAL` by one was green at
+   1498 in both runtimes. **The retro measured W58's block the same way and it was green too.** Two
+   occurrences, two plans apart.
+2. **Obligation (a)'s enumeration clause gains: every member is instantiated under the SAME claim.**
+   W63 carried `FD-C5`'s four kinds of `input`, the first only under a FAILING transform, while the
+   claim the enumeration was cited for is what a worker receives after a transform SUCCEEDS; its
+   Scope said *one flow carries the four kinds* of a flow that carries three. The third time in two
+   plans the enumeration clause was followed and short; one occurrence with the argument that an
+   enumeration is of the values a claim ranges over.
+
+**Refused, six**: a `doc/` check for the sixteenth time (six stale counts this plan, exactly one a
+check could compare — the register's headline against the census parser's own sum, and the parser
+is untracked, [Q253](open-questions.md)); an `Owns` pre-declaration rule for the sixth plan running,
+with P16's *seed the table from the previous item's* procedure tried once and working; a
+crash-verdict pattern rule ([Q276](open-questions.md)); a declared-value-not-the-default rule
+([Q275](open-questions.md)); a Scope-against-Outputs check; and a restore set covering files a RUNG
+rewrites, recorded as v0.17 change 1's limit. **v0.17's three changes all CONFIRMED**, and the
+dated-ceiling clause fired inside the items — so the retro's re-run of all **forty-six** declared
+ceilings found ZERO catches, against P16's two and P13's two. Three of four predictions confirmed,
+the reach prediction reversed from the engine's own source.
 
 **v0.17 is [P16](plans/p16-what-a-node-type-is-and-what-the-library-owes-the-scheduler.md)'s retro,
 and its central finding is that a harness satisfying EVERY requirement this document had written
@@ -1397,10 +1441,10 @@ Rules:
 
    | | obligation | added by |
    |---|---|---|
-   | **(a)** | break the rule's own CLAUSES — **and the SHAPES those clauses quantify over, every value the rule ENUMERATES** | v0.6, P4's retro; **the shapes clause v0.16, P15's retro; the enumeration clause v0.17, P16's retro** |
+   | **(a)** | break the rule's own CLAUSES — **and the SHAPES those clauses quantify over, every value the rule ENUMERATES, each under the SAME claim** | v0.6, P4's retro; **the shapes clause v0.16, P15's retro; the enumeration clause v0.17, P16's retro; the same-claim clause v0.18, P17's retro** |
    | **(b)** | break every row of the `Outputs` table | v0.7, P5's retro |
    | **(c)** | break the PROVENANCE of every value an assertion reads — change the source expression and nothing else | v0.8, P6's retro; procedure added v0.9; **its LIMIT v0.13, P12's retro; and what *independent* excludes, v0.16, P15's retro** |
-   | **(d)** | break the LOOP BOUNDS — one entry out, the whole list out, and does anything COUNT it from elsewhere — **a count is not a membership** | v0.9, P7's retro; **the membership clause v0.14, P13's retro** |
+   | **(d)** | break the LOOP BOUNDS — one entry out, the whole list out, and does anything COUNT it from elsewhere — **a count is not a membership, and a membership names the CONTROLS beside its claims** | v0.9, P7's retro; **the membership clause v0.14, P13's retro; the controls clause v0.18, P17's retro** |
    | **(e)** | break the WIRING — what happens when the check is NOT RUN, and **is what it ran what SHIPS** | v0.10, P9's retro; second question **v0.12, P11's retro**; **third shape v0.13, P12's retro** |
    | | **and on the set as a whole:** | |
    | | a survivor is one only once a **second independent route** confirms the clause was reachable | v0.7, P5's retro |
@@ -1471,6 +1515,18 @@ Rules:
    values the list is the rule's, every one of them (W59).** Both items enumerated shapes because this
    clause says to, and both enumerations were the author's rather than the rule's — v0.13's
    correction a third time, on this clause specifically.
+
+   **AND EVERY MEMBER IS INSTANTIATED UNDER THE SAME CLAIM — P17's retro, and the clause above was
+   FOLLOWED and short a THIRD time.** [W63](work-items/w63-a-transformed-join-on-real-workers.md)
+   instantiated `FD-C5`'s four kinds of `input`, each carrying a transform somewhere in its two
+   flows — and the ordinary-edge kind carried one only on the two nodes whose transforms FAIL, so
+   the claim the enumeration was cited for (*the worker receives the REPLACED input*) was never true
+   of that member; the exit-artifact flow's entry must return an array for the map, so it is untyped,
+   and the item's Scope said *one flow carries the four kinds* of a flow that carries three. Its
+   adequacy reader found the member by asking what the CLAIM said of it, which is how W58's and W59's
+   were found too. **An enumeration is of the values a claim ranges over; a member instantiated under
+   a different claim is a value of the kind and not an instance of the claim.** One occurrence, with
+   that argument; the fourth branch of the failure flow is the instance.
 
    **AND enumerate the `Outputs` table's rows and break each of those — P5's retro, and the amendment
    above is right but not sufficient.** Its prediction was fewer reader survivors; measured over
@@ -1583,6 +1639,20 @@ Rules:
    absent from `ROW_KEYS` would be. *Three iterations, each closed one layer further out, is an
    argument that the answer is not a fourth list*, and P13's retro records that and declines to act on
    it.
+
+   **AND A MEMBERSHIP NAMES THE CONTROLS BESIDE ITS CLAIMS — P17's retro, and the clause above was
+   FOLLOWED by the item that extended the list.** Every cross-row block since W47 pairs a claim with
+   the assertion that makes it non-vacuous — *and that set is not empty*, a detector's positive
+   fixture — and `CROSS_ROW_SUBJECTS` named the claims. [W63](work-items/w63-a-transformed-join-on-real-workers.md)
+   added eight subjects for its ten assertions and left out exactly its two controls; its adequacy
+   reader deleted the positive fixture, made the validator accept every document, lowered
+   `CROSS_ROW` and `DECLARED_TOTAL` by one, and ladder L6 was **green in both runtimes at 1498**,
+   the surviving clause comparing `[]` to `[]`. **P17's retro then measured W58's block the same
+   way** — its retry control deleted with the two counts lowered — **and it was green too**, live for
+   a whole plan under the clause written to prevent it. Two occurrences, two items, two plans apart.
+   *A membership over claims binds the vacuity of nothing.* So: where a block pairs a claim with its
+   control, the list names both — and a count lowered by two is what a membership of claims cannot
+   see.
 
    **The sharpest half is that W23 already knew.** It ran five bounds probes deliberately — a row, a
    region, a foreign task, a branch, the cost model — **and all five were caught**, and its reader
@@ -1951,10 +2021,10 @@ and there is obvious work to do meanwhile — and **the thing that makes it a de
 habit is that the verdict is reported as though it were about the tree that ships.**)*
 
 **Why two readers rather than one asking both questions**, which is what earlier versions said.
-Measured **thirty-four** times now: W4 1 of 13, W5 3 of ~35, W6 3 of ~25, W9 3 of ~30, W12 3 of 18,
+Measured **thirty-seven** times now: W4 1 of 13, W5 3 of ~35, W6 3 of ~25, W9 3 of ~30, W12 3 of 18,
 W13 4 of 24, W14 4 of ~26, W17 3 of ~31, W18 2, W19 4 of 18, W28 4, W29 1, W30 2, W31 0, W32 2,
 W33 2, W34 2, W36 1, W39 4, W41 1 of 116, W42 2 of 61, W43 2 of 39, W45 2, W46 2, W47 2,
-W49 2, W50 2, W51 1, W53 2, W54 4, W55 2, **W57 0, W58 1, W59 1**.
+W49 2, W50 2, W51 1, W53 2, W54 4, W55 2, W57 0, W58 1, W59 1, **W61 1, W62 1, W63 1**.
 **The ORDINAL is derived by counting this list, and P12's three items each got it wrong by two** —
 W41 wrote *eighteenth*, which is W36's, and W42 and W43 incremented from it, so three consecutive
 Records were internally consistent with each other and wrong against the only list there is. All
@@ -1969,10 +2039,10 @@ yet** - the same three facts reached by six different routes, and in each case t
 routes had nothing in common.
 
 **The number to carry is the ABSOLUTE one: two readers produce 0-4 shared findings, whatever the
-item's size** - **thirty-four** measurements, and P6's retro declares the question **settled and closed
-to re-litigation**. **The twenty since — 2, 2, 2, 1, 4, 1, 2, 2, 2, 2, 2, 2, 2, 1, 2, 4, 2, 0, 1 and 1 —
+item's size** - **thirty-seven** measurements, and P6's retro declares the question **settled and closed
+to re-litigation**. **The twenty-three since — 2, 2, 2, 1, 4, 1, 2, 2, 2, 2, 2, 2, 2, 1, 2, 4, 2, 0, 1, 1, 1, 1 and 1 —
 are all inside the band and the band has not moved.** **P13's three are 2, 2, 2, P14's are 2, 2, 1,
-P15's are 2, 4, 2 and P16's are 0, 1, 1**, and its readers' SPLIT held in all three:
+P15's are 2, 4, 2, P16's are 0, 1, 1 and P17's are 1, 1, 1**, and its readers' SPLIT held in all three:
 the conformity reader found claims that were false — twelve of its twenty-four blocking findings
 across the plan were numbers — and the adequacy reader found bounds that were not there. **W41's 1 of 116 is the largest denominator ever recorded here and it did not
 move the numerator**, which is the clearest single datum against reading the fraction. **The band read 1-4 over ten measurements until W31 came in at ZERO**, and P9's
@@ -2205,3 +2275,16 @@ does not read. **The form discriminated**: probe 4 tripped the *empty set*, whic
 exercised, and the sample is one.** The set has since grown to thirteen with a `MIN_PROBES` floor,
 after W16's adequacy reader found `caught === PROBES.length` vacuously true at zero — which is rule
 7 (a) and this document's *"a probe that ran once is a claim about the past"*, one level in.
+
+**And what P17 did to v0.17's three**, judged by the plan that ran three items and six reader
+passes, and re-ran every ceiling those items declared:
+
+| v0.17 change | What would show it was wrong | **P17's verdict** |
+|---|---|---|
+| **Rule 8's harness: per-edit anchors, an abort that undoes, a content DIGEST** | a half-applied probe measures nothing again, or the tree moves unseen | **Right, EXERCISED eight times, with a LIMIT found.** Eight aborts across three items, every one undone with the digest identical and re-anchored; and the digest caught the tree MOVING with no probe reporting it — a rung's `deno check` rewriting `deno.lock` outside the probe's restore set. The restore set is the probe's EDITS; a rung may write a file the probe never touched. Closed in the harness by a no-op edit on the lock; recorded, not adopted |
+| **Obligation (a): where a rule enumerates, the set is the enumeration** | an author is one member short again | **Right, FOLLOWED, and short a THIRD time — extended (v0.18 change 2).** W63 instantiated `FD-C5`'s four kinds, the first only under a claim the enumeration was not cited for |
+| **The dated-ceiling clause: the item that moves the value re-runs it** | a ceiling is found expired at the retro again | **Right, and it fired INSIDE the items.** W62 found two of its own ceilings become catches before it shipped; W63 re-ran W62's `rev62` from 0 to 19. P17's retro re-ran all forty-six declared ceilings through each item's own harness and every one holds — three on re-anchored text — with ZERO catches, against P16's two of twenty-three and P13's two of eleven |
+
+**And v0.14's membership clause, followed by the item that extended the list, was one layer short
+— the CONTROLS (v0.18 change 1).** Two occurrences measured, one of them live in W58's block for a
+whole plan.
