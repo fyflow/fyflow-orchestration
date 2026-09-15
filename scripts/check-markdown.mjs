@@ -396,7 +396,19 @@ for (const d of r.deadAnchors) fail('M2', d);
 // both removed **62 / 3109 / 211**. So `M3`'s window is `(78, 101]` and 90 is near its
 // middle. [Q142](../doc/open-questions.md), and the retune was **PREDICTED from the
 // pre-edit counts** for the second time, which is the mitigation that row has.
-if (r.files < 90) fail('M3', `only ${r.files} markdown file(s) were scanned, so M1 and M2 are ` +
+// **90 -> 107 at [P18](../doc/plans/p18-a-flow-and-its-runtime-from-documents-alone.md)'s
+// declaration, and it is the first retune PREDICTED from the count BEFORE the
+// documents existed and then CONFIRMED by measuring after.** P18's fact 9 read the
+// one-directory fixture at **89** with the draft plan alone, one below the floor, and
+// named the four item files as what would cross it; with them in it reads **93** and
+// probe 1 reports `wanted [M1,M3], got [M1]`. Measured on a scratch copy outside the
+// repository after the declaration's documents landed: whole tree **121 / 5199 / 263**,
+// `doc/decisions` removed **93 / 4758 / 263**, both removed **74 / 3808 / 263**. So
+// `M3`'s window is `(93, 121]` and 107 is near its middle; `M4` at 3960 is inside
+// `(3808, 4758]` and is untouched, and `M5` at 60 against 263. [Q142](../doc/open-questions.md)
+// for the third plan running, and this is what a declared exception looks like: the
+// item's table names the file before the edit rather than after the gate goes red.
+if (r.files < 107) fail('M3', `only ${r.files} markdown file(s) were scanned, so M1 and M2 are ` +
   'true of the walk rather than of the tree');
 // **1200 -> 1350 at P9's declaration, 1350 -> 1530 by W30, and both times because
 // ordinary work closed the window from below.** [Q142](../doc/open-questions.md).
