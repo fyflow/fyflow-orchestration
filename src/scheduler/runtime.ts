@@ -39,6 +39,17 @@
  * because the interface requires them and a consumer's viewer reads them. **`EventTarget` is NOT
  * required**: a plain object with the six members holds a real task and the task completes, measured.
  *
+ * **Why a group the document declares that NO POOL names is still built — W67.** `bootstrap` refuses
+ * a group OBJECT no pool's derivation names, because a consumer calling the helper passes the objects
+ * in and one nothing names is registered and used by nothing. A DOCUMENT's `groups` is not that: it
+ * is the SET a node's `workerGroups` may name, which is what `FD-V31` validates against and what
+ * `runtime.registry.groups` carries to the driver, so a group named by a NODE and by no pool is the
+ * ordinary case. Measured at W67's declaration step: a document declaring one was refused with a
+ * message telling the caller to register it *beside this helper's return value*, which a consumer
+ * holding only a runtime cannot do. So this module splits the two sets — the pool-named ones go to
+ * `bootstrap`, every declared one goes to the scheduler — and direction ONE (a pool naming a group
+ * the document lacks) is untouched, refused by the resolver before anything is built.
+ *
  * **Why `flows` is an argument here.** A language adapter's worker half reaches a typed pool through
  * that pool's config, and W61 measured that it is written ONLY where a node of that type declares a
  * transform — so the same type carries the engine on one flow and not on another. Pools are built
@@ -48,7 +59,7 @@
  */
 import { ConcurrentLimitGroup, FyflowScheduler, KeyedRateLimitGroup, RateLimitGroup } from 'fyflow-scheduler';
 import type { ResourceGroup, WorkerManager } from 'fyflow-scheduler';
-import { resolveRegistry } from '../definition/registry.ts';
+import { groupsNamedBy, resolveRegistry } from '../definition/registry.ts';
 import { Driver } from '../driver/driver.ts';
 import type { DriverOptions } from '../driver/driver.ts';
 import { liveToken } from '../fold/policies.ts';
@@ -274,13 +285,35 @@ export function createRuntime(
   const languages: Record<string, unknown> = {};
   for (const [name, adapter] of resolved.languages) languages[name] = adapter;
 
-  const built = bootstrap({ workers, nodeTypes, pools }, groups, {
+  // **Only the groups some POOL's derivation names go to `bootstrap`; every group the DOCUMENT
+  // declares goes to the scheduler** — W67's declaration step, stop-and-ask 1.
+  //
+  // `bootstrap` refuses a group object no pool names, and it is right to: a consumer calling the
+  // helper passes group OBJECTS in, so one nothing names is registered and used by nothing — the
+  // silent kind. **A DOCUMENT's `groups` is not that.** It is the SET a node's `workerGroups` may
+  // name, which is what `FD-V31` validates against and what the driver is handed below as
+  // `registry.groups`; a group named by a NODE and by no pool is the ordinary case, and W58's group
+  // row is it. Measured at W67's declaration step: a document declaring one was REFUSED by
+  // `BootstrapError` with a message telling the caller to register it *beside this helper's return
+  // value* — which a consumer holding only a runtime has no way to do.
+  //
+  // So the split: `namedByPools` is what direction two of the helper's check is about, and the rest
+  // are the node-named ones. Direction ONE is untouched — a pool naming a group the document does
+  // not declare is still refused inside `derivePool`, because the set below is derived FROM the
+  // document's groups rather than from the pools' demands.
+  const namedByPools: Record<string, ResourceGroup> = {};
+  for (const [, p] of resolved.pools) {
+    for (const g of groupsNamedBy(p.spec)) if (groups[g] !== undefined) namedByPools[g] = groups[g];
+  }
+
+  const built = bootstrap({ workers, nodeTypes, pools }, namedByPools, {
     ...(options.createPool !== undefined ? { createPool: options.createPool } : {}),
     languages: languages as Languages,
     flows: options.flows ?? [],
   });
 
-  const scheduler = (options.createScheduler ?? ((p, g) => new FyflowScheduler(p, g)))(built.workerPools, built.resourceGroups);
+  // The scheduler holds every group the document declared, pool-named and node-named alike.
+  const scheduler = (options.createScheduler ?? ((p, g) => new FyflowScheduler(p, g)))(built.workerPools, groups);
 
   // (5) The driver's registry, derived ONCE and handed to every driver this runtime starts
   //     (decision 14) — and exposed, so a consumer who builds a `Driver` by hand passes this.
@@ -319,7 +352,7 @@ export function createRuntime(
     resolved,
     scheduler,
     pools: built.derived,
-    groups: built.resourceGroups,
+    groups,
     start(flow, payload, startOptions = {}) {
       // **A transform this runtime built no pool for is refused HERE, not met by the wrapper.** The
       // languages a pool carries were decided at construction from `options.flows` (W61), so a flow

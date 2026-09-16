@@ -1,7 +1,7 @@
 /**
  * **Ladder L6 — the gate.** Every real run this repository makes: P1's exit
  * artifact, P2's, P4's, P5's, P6's, **P7's**, **P10's**, **P12's**, **P13's**,
- * **P14's**, **P16's** and **P17's**. *(This list stopped at P12 while W47's two rows and W51's two were in
+ * **P14's**, **P16's**, **P17's** and **P18's**. *(This list stopped at P12 while W47's two rows and W51's two were in
  * the file — a count carried as prose in the paragraph above this file's own
  * monument to that. W51's conformity reader.)*
  *
@@ -66,6 +66,8 @@
  * | **W59 — `typed-regions`** | **half two, and obligation (a)'s shapes**: a typed task at path `1` inside a fanout branch feeding a typed `map` branch at `1.0`, `1.1`, `1.2` — arity three from a worker's return, each instance's envelope wrapping its OWN item (`JP-R11`) so three confidences give three scores from one settings object; branch 0 is a bare `ScoreWorker`, and the outer join carries the bare result beside the typed region's collection. Every typed id held `scorer`; no bare id did |
  * | **W63 — `transformed` at arity TWO, ONE and ZERO** | **P17's EXIT ARTIFACT, and it is [Q263](../doc/open-questions.md) as three rows.** One flow: a typed `map` branch whose declared `transform` RESHAPES its own item with the map's settings read through `$settings`, then a fanout of two typed scorers into a join whose typed successor declares `transform: { lang: "jsonata", expr: "$sum([*.score])" }` and NO reshaping node — its worker receiving the reduced value as `input` (`FD-C6`), echoed from the run: **990** when both branches arrive, **400** when one is routed away (P1's own case under `live-token`), **0** — the NUMBER, not `undefined` — when the join is reached by nothing and `live-token` fires it. Every value is what the worker RECEIVED, read off the outcome record and never a literal the row alone carries; the `Echo` pool that evaluates the expression is a real THREAD in both runtimes, loading the adapter by its module URL, and every result it returns reports the fresh realm it ran in. **What these rows observe is the VALUE the successor received and not the record's shape**: JP-R12's key set is observed by `transform-fails`' untyped `publish`, and its `{}` by W17's `all-exit` row — the reduction is key-blind and sums `null` to 0 as it sums `{}` (the adequacy reader, M2 and M6) |
  * | **W63 — `transform-fails`** | **P17 decision 5 end to end.** Two non-optional typed nodes whose transforms fail at run time — `$.confidence + " points"` (`T2002`, an author who meant `&`) and `$now()` (`UNBOUND`, ADR 0052 rule 7) — are retried ONCE under the type's policy, fail again, and are parked `user_action` with `TransformFailed`'s message as the task's error on two observers (`attempts: 1`); a person `resolve()`s each with the value the transform did not supply, the join fires over all four branches and the run completes. Beside them a typed node with NO transform receives `FD-C5`'s two-key envelope to the byte, in the flow whose `Scorer` pool carries no engine — and `note`, a typed node whose transform SUCCEEDS over an ordinary edge's value, `FD-C5`'s first kind, which the exit-artifact flow cannot carry |
+ * | **W67 — `triage LOW` and `triage HIGH`** | **P18's EXIT ARTIFACT: a flow and the runtime it needs from TWO JSON DOCUMENTS and a shim.** `examples/registry.json` says what exists — fourteen worker modules, five resource groups, fifteen node types, one NAMED pool instance — and `examples/flows/triage.flow.json` names registry keys and nothing else; `run-flow.ts` supplies only what P18 decision 7 keeps as code (a predicate, a custom group TYPE, a custom node-type CLASS, a language adapter) and calls `createRuntime` once. The two rows carry, from the run: a DOCUMENT-declared type (`Prompt`) and a CLASS registered in code (`GpuModel`) over the SAME worker, so the pools they built differ in their derivation alone; a node on its type's DEFAULT instance (`audit`) against one on a NAMED instance of that type (`review` on `prompt-big`), told apart by the pool the scheduler says each ran on AND by what the worker returned — four words against two, because the class derives the model from the instance's config; a BUILT-IN group and a CUSTOM one acquired by real tasks, the custom one naming its object something other than its key; the TYPE's `settings` default reaching a `Prompt` node and not a `GpuModel` one; and a declared `transform` reducing `JP-R12`'s record for the node after the join, with no reshaping node. The HIGH row is the control: one payload field different, `review` never dispatched, and the reduced report six words instead of eight |
+ * | **W67 — the shim run** | **P18's sample shim's own call, and no row could make it**: `runtime.start(flow, payload)` with NO options. The runtime MINTS the run id and defaults the join policy (decision 10), and both defaults were replaceable by a `throw` for ZERO until this run existed — every row names the ids it expects and the policy it is about. The flow is `p1-routed-away` at LOW, where the two candidate policies DISAGREE: `live-token` satisfies the join and the run completes, `arrival-count` waits for an arrival that cannot come. So *the run completed* IS *the default is `live-token`*, observed rather than named |
  */
 import {
   InvalidTaskId,
@@ -93,16 +95,16 @@ import {
   validateDefinition,
   type FlowDefinition,
   type PolicyId,
-  type Predicate,
   type RunOutcome,
   type UnmintedTask,
   type UnsatisfiableJoin,
 } from '../index.ts';
 import {
-  runFlow, runPair, violations,
-  // W59: the ONE node-type registry the helper built pools from and every driver was handed —
-  // compared here to the types the flows name and to the pools the scheduler reports.
-  NODE_TYPES, WORKERS,
+  runFlow, runPair, violations, registryDocumentFor, THREADABLE_TYPES, codeFor,
+  // W67: the registry DOCUMENT this rung runs, and the predicates the shim registers. Compared
+  // here to the types the flows name, to the pools the scheduler reports, and to the document's
+  // own bytes read back off disk.
+  REGISTRY_DOCUMENT, PREDICATES,
   // W63: the ONE languages object the helper wrote pool configs from and every driver was handed —
   // compared here to the languages the flows NAME, both ways.
   LANGUAGES,
@@ -232,6 +234,7 @@ import typedRegions from './flows/typed-regions.flow.json' with { type: 'json' }
 // fail at run time — parked `user_action`, resolved by the harness — beside one that has none.
 import transformed from './flows/transformed.flow.json' with { type: 'json' };
 import transformFails from './flows/transform-fails.flow.json' with { type: 'json' };
+import triageFlow from './flows/triage.flow.json' with { type: 'json' };
 import failureEdge from '../spec/examples/valid/failure-edge.flow.json' with { type: 'json' };
 
 /**
@@ -291,61 +294,15 @@ const SCHEDULER_VERSION: string = await (async () => {
 })();
 
 /**
- * The corpus's `isLowConfidence`, registered for real. It reads the **effective
- * outcome** (`OR-R9`), so it sees one shape whether the node settled or a human
- * resolved it.
- */
-const isLowConfidence: Predicate = (ctx) => {
-  const r = ctx.outcome.result as { confidence?: number } | null;
-  return typeof r?.confidence === 'number' && r.confidence < 0.5;
-};
-/**
- * **W43's predicate, and it reads `ctx.needs` where the one above reads
- * `ctx.outcome`** — [ADR 0041](../doc/decisions/0041-a-decision-sees-its-nodes-outcome-and-whatever-its-own-edge-declares.md)
- * and `FD-C3`: a decision sees its node's effective outcome **and whatever its own
- * edge declares**.
+ * **The predicates this rung registers, and since W67 they live in the SHIM rather than here** —
+ * P18 decision 7's *what stays code, exactly*, and P18's own sample puts the predicate beside
+ * `createRuntime`. `examples/run-flow.ts` declares all three with their reasoning; the document's
+ * `predicates` names them, and `createRuntime` compares the two halves BOTH ways.
  *
- * **It is deliberately NOT total in the way `isLowConfidence` is.** That one guards
- * its read so a node with no `confidence` routes down the default edge; this one
- * does the same, and the guard is what carries the claim: on
- * `decision-on-an-earlier-step` the node it sits on is a `TallyWorker`, whose
- * result has **no `confidence` field**, so `isLowConfidence` applied to
- * `ctx.outcome` there is `false` on **both** payloads. The two predicates therefore
- * disagree on that flow at every input, which is what makes the row able to fail:
- * a driver that left `ctx.needs` empty routes the LOW run to `publish` and the row
- * says so by name.
- *
- * **`ctx.needs` is frozen, and that is a DRIVER-level decision rather than an ADR
- * rule.** This cited *"ADR 0041 rule 4"*, which is the grammar rule; `grep -i frozen`
- * over that ADR returns nothing, and neither it nor `FD-C3` says so. The freeze is
- * W42's adequacy reader's, and it lives in `src/driver/driver.ts` beside
- * `EMPTY_NEEDS` — W43's conformity reader. This predicate reads and does not write,
- * which is what a predicate is for; [Q9](../doc/open-questions.md) is untouched and
- * still declined.
+ * Aliased here so the rows below, and the cross-row clause that compares the map's keys to the
+ * document's list, read one object.
  */
-const earlierWasLowConfidence: Predicate = (ctx) => {
-  const e = (ctx.needs as { earlier?: { confidence?: number } }).earlier;
-  return typeof e?.confidence === 'number' && e.confidence < 0.5;
-};
-/**
- * **W63's predicate, and it reads `score` where `isLowConfidence` reads `confidence`** — because
- * `transformed.flow.json`'s two scorers return the SAME confidence and DIFFERENT scores (factors
- * 100 and 1000 over one input), so a threshold on the score is what lets ONE payload route one
- * branch away and keep the other: at 0.9 both arrive (90, 900), at 0.4 one is routed away (40 is
- * below 50, 400 is not), at 0.04 both are (4, 40). Three payloads, three arities, one predicate —
- * [Q263](../doc/open-questions.md)'s three shapes reached from the definition's own decision edges
- * rather than from three flow documents. Guarded like `isLowConfidence`: a result with no numeric
- * `score` takes the default edge.
- */
-const isLowScore: Predicate = (ctx) => {
-  const r = ctx.outcome.result as { score?: number } | null;
-  return typeof r?.score === 'number' && r.score < 50;
-};
-const predicates = new Map<string, Predicate>([
-  ['isLowConfidence', isLowConfidence],
-  ['earlierWasLowConfidence', earlierWasLowConfidence],
-  ['isLowScore', isLowScore],
-]);
+const predicates = PREDICATES;
 
 interface Expectation {
   key: string;
@@ -374,8 +331,21 @@ interface Expectation {
    * the one thing `FD-V9` makes impossible for a `fanout`. An empty string is a
    * lawful map of zero items (`FD-R2`).
    */
-  payload: { confidence: number; text?: string };
+  payload: { confidence: number; text?: string; url?: string };
   threaded: boolean;
+  /**
+   * **Which POOL each named task actually ran on, read off `scheduler.tasks` — W67.**
+   *
+   * The driver dispatches a task whose `workerType` is `node.pool ?? node.type` (v0.19), so this is
+   * the run's own record of which INSTANCE of a type a node was sent to — the one observer that can
+   * tell a node on its type's DEFAULT pool from one on a NAMED instance of the same type WITHOUT
+   * re-reading the definition — which is the whole of its provenance, and the reason the cross-row
+   * clause below pins its key set to the SCHEDULER's own task map rather than to this row's ids.
+   * Swapping two entries here is red. *(This said the two differ *and nowhere else in a `RunReport`*,
+   * which is false: `nodeResults` differ too, because the sample's worker answers differently per
+   * MODEL — W67's adequacy reader, a4.)*
+   */
+  poolOfTask?: Record<string, string>;
   /** From `spec/run-state.md` section 3. */
   outcome: RunOutcome;
   /** From `spec/task-id.md`, in dispatch order. */
@@ -690,6 +660,19 @@ const TR = typedRegions as unknown as FlowDefinition;
 const TX = transformed as unknown as FlowDefinition;
 const TF = transformFails as unknown as FlowDefinition;
 /**
+ * **P18's SAMPLE, and it is W67's exit artifact** — `examples/flows/triage.flow.json` beside
+ * `examples/registry.json`: two JSON documents, one shim, and a run.
+ *
+ * It carries, in one flow, every shape P18's exit-artifact paragraph names: a DOCUMENT-declared
+ * type (`Fetch`, `Prompt`) and a CLASS registered in code (`GpuModel`); a node on its type's DEFAULT
+ * pool instance (`audit`) and one on a NAMED instance of the SAME type (`review`, on `prompt-big`);
+ * a BUILT-IN resource group (`vendor`, a `RateLimitGroup`; `gpu`, a `ConcurrentLimitGroup` held as
+ * RESIDENT) and a CUSTOM one (`budget`, a `DailyBudgetGroup` the shim registers as a group TYPE); a
+ * predicate on a decision edge inside a fanout branch; and a declared `transform` reducing the
+ * join's record (`JP-R12`) for the node after it, with no reshaping node.
+ */
+const TRI = triageFlow as unknown as FlowDefinition;
+/**
  * **A `map` region and a `fanout` region as SIBLINGS, at arities neither derives
  * from the other** — W51, and it is P14's question in one document.
  *
@@ -708,6 +691,18 @@ const TF = transformFails as unknown as FlowDefinition;
 const SMF = siblingMapFanout as unknown as FlowDefinition;
 const RT = retryFlow as unknown as FlowDefinition;
 const GR = groupFlow as unknown as FlowDefinition;
+
+/**
+ * **P18's sample's payload, and the ONE field the two rows differ in** — W67. `text` and `url` are
+ * shared so that everything downstream is a function of the model and the settings; `confidence` is
+ * what `isLowConfidence` reads off `classify`'s result, so it is the whole of what decides whether
+ * the NAMED pool instance runs. Four words, because that is what makes the small model's two and
+ * the large model's four distinguishable — at one or two words they would be equal.
+ */
+const TRIAGE_TEXT = 'alpha bb ccc dddd';
+const TRIAGE_URL = 'https://example.invalid/doc';
+const TRIAGE_LOW = { confidence: 0.4, text: TRIAGE_TEXT, url: TRIAGE_URL };
+const TRIAGE_HIGH = { confidence: 0.9, text: TRIAGE_TEXT, url: TRIAGE_URL };
 
 const HIGH = { confidence: 0.9 };
 const LOW = { confidence: 0.1 };
@@ -811,12 +806,12 @@ const ITEMS_ABC = [{ word: 'a', confidence: 0.1 }, { word: 'bb', confidence: 0.2
  * and `inputType: 'object'` is the reshape's.
  */
 const RESHAPED = (word: string, score: number) => ({
-  keys: ['input', 'settings'], settingsKeys: ['scale'], inputType: 'object', markedKeys: [], arrays: 1, realm: 'thread',
+  keys: ['input', 'settings'], extraKeys: [], settingsKeys: ['scale'], inputType: 'object', markedKeys: [], arrays: 1, realm: 'thread',
   input: { word, score, fields: ['word', 'confidence'] },
 });
 /** What `Echo` returns for the join's successor: the REDUCED value as `input`, a number at every arity — and no array for the walk to reach. */
 const REDUCED = (total: number) => ({
-  keys: ['input', 'settings'], settingsKeys: [], inputType: 'number', markedKeys: [], arrays: 0, realm: 'thread', input: total,
+  keys: ['input', 'settings'], extraKeys: [], settingsKeys: [], inputType: 'number', markedKeys: [], arrays: 0, realm: 'thread', input: total,
 });
 /**
  * What `Echo` returns for the ONE node whose transform succeeds on an ORDINARY EDGE's value —
@@ -826,12 +821,12 @@ const REDUCED = (total: number) => ({
  * W62's realm observer one rung up: the `Echo` pool is a real thread, or this is red.
  */
 const NOTED = {
-  keys: ['input', 'settings'], settingsKeys: [], inputType: 'object', markedKeys: [], arrays: 0, realm: 'thread',
+  keys: ['input', 'settings'], extraKeys: [], settingsKeys: [], inputType: 'object', markedKeys: [], arrays: 0, realm: 'thread',
   input: { confidence: 0.9, doubled: 1.8 },
 };
 /** What a `Scorer` returns when its `needs` composed `{ run }` and its transform selected `run` — ingest's whole result, items echoed. */
 const SCORED = (confidence: number, factor: number) => ({
-  keys: ['input', 'settings'], settingsKeys: ['factor'], confidence, factor, score: Math.round(confidence * factor), retried: false, items: ITEMS_ABC,
+  keys: ['input', 'settings'], extraKeys: [], settingsKeys: ['factor'], confidence, factor, score: Math.round(confidence * factor), retried: false, items: ITEMS_ABC,
 });
 
 const EXPECTED: Expectation[] = [
@@ -2476,9 +2471,9 @@ const EXPECTED: Expectation[] = [
     // JSON text.
     nodeResults: {
       'r41:ingest:-:0': { confidence: 0.9 },
-      'r41:low:-:0': { keys: ['input', 'settings'], settingsKeys: ['factor', 'failFirst'], confidence: 0.9, factor: 10, score: 9, retried: false },
-      'r41:high:-:0': { keys: ['input', 'settings'], settingsKeys: ['factor', 'failFirst'], confidence: 0.9, factor: 100, score: 90, retried: true },
-      'r41:publish:-:0': { published: true, joinPayload: { keys: ['input', 'settings'], settingsKeys: ['factor', 'failFirst'], confidence: 0.9, factor: 100, score: 90, retried: true } },
+      'r41:low:-:0': { keys: ['input', 'settings'], extraKeys: [], settingsKeys: ['factor', 'failFirst'], confidence: 0.9, factor: 10, score: 9, retried: false },
+      'r41:high:-:0': { keys: ['input', 'settings'], extraKeys: [], settingsKeys: ['factor', 'failFirst'], confidence: 0.9, factor: 100, score: 90, retried: true },
+      'r41:publish:-:0': { published: true, joinPayload: { keys: ['input', 'settings'], extraKeys: [], settingsKeys: ['factor', 'failFirst'], confidence: 0.9, factor: 100, score: 90, retried: true } },
     },
     // The TYPE's policy — `maxRetries: 1` — spent once, on the node whose settings say so.
     attempts: { 'r41:high:-:0': 1 },
@@ -2534,14 +2529,14 @@ const EXPECTED: Expectation[] = [
       // `relay` received ingest's whole result as `input` (the ordinary edge inside the envelope),
       // scored it by its own factor, and echoed the items the map then iterates.
       'r42:relay:1:0': {
-        keys: ['input', 'settings'], settingsKeys: ['factor'], confidence: 0.9, factor: 20, score: 18, retried: false,
+        keys: ['input', 'settings'], extraKeys: [], settingsKeys: ['factor'], confidence: 0.9, factor: 20, score: 18, retried: false,
         items: [{ word: 'a', confidence: 0.1 }, { word: 'bb', confidence: 0.2 }, { word: 'ccc', confidence: 0.3 }],
       },
       // Each instance's `input` is ITS OWN item — `JP-R11` inside `FD-C5` — so the three scores
       // are three different numbers from one declared settings object.
-      'r42:rank:1.0:0': { keys: ['input', 'settings'], settingsKeys: ['factor'], confidence: 0.1, factor: 1000, score: 100, retried: false },
-      'r42:rank:1.1:0': { keys: ['input', 'settings'], settingsKeys: ['factor'], confidence: 0.2, factor: 1000, score: 200, retried: false },
-      'r42:rank:1.2:0': { keys: ['input', 'settings'], settingsKeys: ['factor'], confidence: 0.3, factor: 1000, score: 300, retried: false },
+      'r42:rank:1.0:0': { keys: ['input', 'settings'], extraKeys: [], settingsKeys: ['factor'], confidence: 0.1, factor: 1000, score: 100, retried: false },
+      'r42:rank:1.1:0': { keys: ['input', 'settings'], extraKeys: [], settingsKeys: ['factor'], confidence: 0.2, factor: 1000, score: 200, retried: false },
+      'r42:rank:1.2:0': { keys: ['input', 'settings'], extraKeys: [], settingsKeys: ['factor'], confidence: 0.3, factor: 1000, score: 300, retried: false },
       // The outer join's collection: branch 0's bare result, and at key `1` the inner join's
       // collection keyed by the whole dotted path — `nested-map`'s shape with typed instances.
       'r42:publish:-:0': {
@@ -2549,9 +2544,9 @@ const EXPECTED: Expectation[] = [
         joinPayload: {
           '0': { confidence: 0.9, score: 90 },
           '1': {
-            '1.0': { keys: ['input', 'settings'], settingsKeys: ['factor'], confidence: 0.1, factor: 1000, score: 100, retried: false },
-            '1.1': { keys: ['input', 'settings'], settingsKeys: ['factor'], confidence: 0.2, factor: 1000, score: 200, retried: false },
-            '1.2': { keys: ['input', 'settings'], settingsKeys: ['factor'], confidence: 0.3, factor: 1000, score: 300, retried: false },
+            '1.0': { keys: ['input', 'settings'], extraKeys: [], settingsKeys: ['factor'], confidence: 0.1, factor: 1000, score: 100, retried: false },
+            '1.1': { keys: ['input', 'settings'], extraKeys: [], settingsKeys: ['factor'], confidence: 0.2, factor: 1000, score: 200, retried: false },
+            '1.2': { keys: ['input', 'settings'], extraKeys: [], settingsKeys: ['factor'], confidence: 0.3, factor: 1000, score: 300, retried: false },
           },
         },
       },
@@ -2758,14 +2753,14 @@ const EXPECTED: Expectation[] = [
     nodeResults: {
       'r46:ingest:-:0': { confidence: 0.9 },
       // A typed node with NO transform: the two-key envelope, byte for byte (`FD-C5`).
-      'r46:scoreA:0:0': { keys: ['input', 'settings'], settingsKeys: ['factor'], confidence: 0.9, factor: 10, score: 9, retried: false },
+      'r46:scoreA:0:0': { keys: ['input', 'settings'], extraKeys: [], settingsKeys: ['factor'], confidence: 0.9, factor: 10, score: 9, retried: false },
       // RN-R9: a resolved task's result is the person's, and that is what the branch carries in.
       'r46:review:1:0': { points: 'nine, supplied by a person' },
       'r46:stamp:2:0': { confidence: 0.9, at: 'a clock a person read' },
       // A transform that SUCCEEDS over the ordinary edge's value — kind 1 of `FD-C5`'s four.
       'r46:note:3:0': NOTED,
       'r46:publish:-:0': { published: true, joinPayload: {
-        '0': { keys: ['input', 'settings'], settingsKeys: ['factor'], confidence: 0.9, factor: 10, score: 9, retried: false },
+        '0': { keys: ['input', 'settings'], extraKeys: [], settingsKeys: ['factor'], confidence: 0.9, factor: 10, score: 9, retried: false },
         '1': { points: 'nine, supplied by a person' },
         '2': { confidence: 0.9, at: 'a clock a person read' },
         '3': NOTED,
@@ -2786,6 +2781,189 @@ const EXPECTED: Expectation[] = [
       'the transform did not supply, the join fires and the run completes. Beside them one typed node ' +
       'declares no transform and receives FD-C5`s two keys to the byte, and one transforms an ' +
       'ordinary edge`s value successfully — the fourth of FD-C5`s kinds',
+  },
+  // **P18's SAMPLE, on real workers, in both L6 runtimes — W67, and it is the plan's exit
+  // artifact.** Two JSON documents and a shim: `examples/registry.json` says what exists,
+  // `examples/flows/triage.flow.json` says what runs, and `run-flow.ts` supplies the four things
+  // P18 decision 7 keeps as code — a predicate, a custom group TYPE, a custom node-type CLASS and a
+  // language adapter. Nothing below builds a pool, a group, a scheduler or a `Driver`.
+  //
+  // **Two rows, because the pair the artifact turns on needs both GpuModel instances in ONE run.**
+  // `classify`'s decision edge reads `isLowConfidence` off its own result, so the LOW row visits
+  // `review` on the NAMED instance `prompt-big` (the large model, one thread, two units of resident
+  // VRAM) while `audit` runs on the type's DEFAULT instance (the small model, four threads, one
+  // unit) — the same TYPE, two instances, told apart by the pool the scheduler says each task ran
+  // on AND by what the worker returned. The HIGH row is the control: the same flow, the same
+  // documents, one payload field different, and `review` never dispatched.
+  //
+  // **Every expected value below is derived from the two documents and from `spec/`, on paper,
+  // before the row was run.** `words` is the four words of the payload's `text`; `answer` is the
+  // first two of them for `model: "small"` and all four for `"large"`, which is the whole of what
+  // `DETAIL` in `examples/workers/prompt.ts` says a bigger model buys; `temperature` is `0` on a
+  // `Prompt` node because the TYPE declares `settings: { temperature: 0 }` (decision 12) and `null`
+  // on a `GpuModel` node because that class declares none; `report`'s input is the join's record
+  // reduced by the declared transform, so its `text` is the three answers joined by a space and its
+  // `words` is their total — 8 on the LOW row and 6 on the HIGH one, which is the arity of the
+  // region and the two models' detail levels, together, in one number.
+  {
+    key: 'triage LOW / P18`s sample from two documents — a class type on a NAMED instance, a document type on its DEFAULT',
+    definition: TRI, policyId: 'live-token', payload: TRIAGE_LOW, threaded: false,
+    regionId: 'split',
+    outcome: 'completed',
+    // `fetch` first; the three branch entries in declaration order when it settles (`JP-R5`);
+    // `review` when `classify` settles down the `isLowConfidence` edge; `report` when the join fires.
+    dispatched: [
+      'r47:fetch:-:0',
+      'r47:summarise:0:0', 'r47:classify:1:0', 'r47:audit:2:0',
+      'r47:review:1:0',
+      'r47:report:-:0',
+    ],
+    joined: true,
+    settled: { '0': 'arrived', '1': 'arrived', '2': 'arrived' },
+    branchEvents: {
+      '0': ['branch.opened', 'branch.arrived'],
+      // Branch 1 arrives through `review` rather than through `classify` — the decision edge is
+      // INSIDE the branch, so the branch is not routed away and its terminal event is unchanged.
+      '1': ['branch.opened', 'branch.arrived'],
+      '2': ['branch.opened', 'branch.arrived'],
+    },
+    pathEnds: [{ reason: 'end', at: 'done' }],
+    nodeResults: {
+      'r47:fetch:-:0': { url: TRIAGE_URL, text: TRIAGE_TEXT, confidence: 0.4 },
+      'r47:summarise:0:0': {
+        model: 'small', prompt: 'Summarise the text.', temperature: 0,
+        text: TRIAGE_TEXT, answer: 'alpha bb', words: 4, confidence: 0.4,
+      },
+      'r47:classify:1:0': {
+        model: 'small', prompt: 'Classify the text; report confidence.', temperature: 0,
+        text: TRIAGE_TEXT, answer: 'alpha bb', words: 4, confidence: 0.4,
+      },
+      // **The NAMED instance.** `prompt-big` is `GpuModel` with `config: { model: "large" }`, so the
+      // CLASS derivation gave it the large model — and the large model keeps every word. Its
+      // `temperature` is `null` because `GpuModel` declares no `settings` defaults where the
+      // document-declared `Prompt` declares `{ temperature: 0 }`.
+      'r47:review:1:0': {
+        model: 'large', prompt: 'Classify carefully.', temperature: null,
+        text: TRIAGE_TEXT, answer: TRIAGE_TEXT, words: 4, confidence: 0.4,
+      },
+      // **The DEFAULT instance of the same type**, whose config is the class's own `config` member —
+      // `{ model: "small" }` — so two words where `review` gets four. Same worker, same type, same
+      // settings shape; the instance is the whole of the difference.
+      'r47:audit:2:0': {
+        model: 'small', prompt: 'Audit the text.', temperature: null,
+        text: TRIAGE_TEXT, answer: 'alpha bb', words: 4, confidence: 0.4,
+      },
+      // **`FD-C6` over `JP-R12`'s record, with no reshaping node**: the transform builds
+      // `{ "text": $join([*.answer], " ") }` from the three branches' answers in ascending branch
+      // order — `'alpha bb'`, the large model's four words, `'alpha bb'` — so eight words reach the
+      // worker and the small model answers with the first two. `confidence` is 0 because the
+      // transform's result carries none, which is what a total `confidenceOf` reports.
+      'r47:report:-:0': {
+        model: 'small', prompt: 'Write the report.', temperature: 0,
+        text: `alpha bb ${TRIAGE_TEXT} alpha bb`, answer: 'alpha bb', words: 8, confidence: 0,
+      },
+    },
+    // **Which POOL each task ran on, off the scheduler** — the pair, and swapping these two entries
+    // is red. `node.pool ?? node.type` (v0.19): `review` names `prompt-big` and `audit` names none.
+    poolOfTask: {
+      'r47:fetch:-:0': 'Fetch',
+      'r47:summarise:0:0': 'Prompt',
+      'r47:classify:1:0': 'Prompt',
+      'r47:review:1:0': 'prompt-big',
+      'r47:audit:2:0': 'GpuModel',
+      'r47:report:-:0': 'Prompt',
+    },
+    // **A BUILT-IN group and a CUSTOM one, acquired by real tasks.** The `Prompt` type declares
+    // `groups: ["vendor", "budget"]` in the document — a `RateLimitGroup` the library builds and a
+    // `DailyBudgetGroup` the shim registers as a group TYPE — and the CLASS derivation returns
+    // `groups: ["vendor"]`, so a `GpuModel` task holds one where a `Prompt` task holds two.
+    //
+    // **Declared for EVERY task that acquires anything, and the count is one per group per
+    // ADMISSION.** A group is acquired once per admission and not once per task (Q262, W59's
+    // adequacy reader), so a task re-admitted because its pool had no free worker holds its groups
+    // TWICE — which `typed.flow.json`'s `high` shows at `['scorer', 'scorer']`. Nothing here is
+    // re-admitted: `Prompt` is an INLINE pool, so `summarise` and `classify` run on the event loop
+    // with no worker to wait for, and the two `GpuModel` pools are threaded at four threads and one
+    // for one task each. *(The first draft of this comment said the map was "declared only for the
+    // three tasks whose pools cannot re-admit" and then declared five — the two it argued to leave
+    // out were the inline pair, which cannot re-admit either. W67's conformity reader, finding 4:
+    // the literal was right and the sentence beside it was not, and only a run says which.)*
+    heldGroups: {
+      'r47:summarise:0:0': ['vendor', 'budget'],
+      'r47:classify:1:0': ['vendor', 'budget'],
+      'r47:audit:2:0': ['vendor'],
+      'r47:review:1:0': ['vendor'],
+      'r47:report:-:0': ['vendor', 'budget'],
+    },
+    why: 'W67 — P18`s exit artifact: a flow and the runtime it needs from two JSON documents, on a ' +
+      'real FyflowScheduler. A document type (`Prompt`, `Fetch`) and a class type (`GpuModel`) over ' +
+      'ONE worker; a node on its type`s DEFAULT instance (`audit`) and one on a NAMED instance of ' +
+      'the same type (`review` on `prompt-big`), told apart by the pool the scheduler says each ran ' +
+      'on and by what the worker returned; a built-in group and a custom one acquired; the type`s ' +
+      '`settings` default reaching a Prompt node and not a GpuModel one; and a declared transform ' +
+      'reducing the join`s record with no reshaping node',
+  },
+  {
+    key: 'triage HIGH / the control — one payload field different, and the NAMED instance is never dispatched',
+    definition: TRI, policyId: 'live-token', payload: TRIAGE_HIGH, threaded: false,
+    regionId: 'split',
+    outcome: 'completed',
+    dispatched: [
+      'r48:fetch:-:0',
+      'r48:summarise:0:0', 'r48:classify:1:0', 'r48:audit:2:0',
+      'r48:report:-:0',
+    ],
+    joined: true,
+    settled: { '0': 'arrived', '1': 'arrived', '2': 'arrived' },
+    branchEvents: {
+      '0': ['branch.opened', 'branch.arrived'],
+      '1': ['branch.opened', 'branch.arrived'],
+      '2': ['branch.opened', 'branch.arrived'],
+    },
+    pathEnds: [{ reason: 'end', at: 'done' }],
+    nodeResults: {
+      'r48:fetch:-:0': { url: TRIAGE_URL, text: TRIAGE_TEXT, confidence: 0.9 },
+      'r48:summarise:0:0': {
+        model: 'small', prompt: 'Summarise the text.', temperature: 0,
+        text: TRIAGE_TEXT, answer: 'alpha bb', words: 4, confidence: 0.9,
+      },
+      // The same node, the same settings, the same model — and `isLowConfidence` is FALSE at 0.9, so
+      // branch 1 arrives from here instead of from `review`.
+      'r48:classify:1:0': {
+        model: 'small', prompt: 'Classify the text; report confidence.', temperature: 0,
+        text: TRIAGE_TEXT, answer: 'alpha bb', words: 4, confidence: 0.9,
+      },
+      'r48:audit:2:0': {
+        model: 'small', prompt: 'Audit the text.', temperature: null,
+        text: TRIAGE_TEXT, answer: 'alpha bb', words: 4, confidence: 0.9,
+      },
+      // Three small-model answers of two words each — SIX where the LOW row's is eight, and the
+      // difference is exactly the large model's two extra words. The number is what makes the pair
+      // a claim about the instance rather than about which nodes ran.
+      'r48:report:-:0': {
+        model: 'small', prompt: 'Write the report.', temperature: 0,
+        text: 'alpha bb alpha bb alpha bb', answer: 'alpha bb', words: 6, confidence: 0,
+      },
+    },
+    poolOfTask: {
+      // The entry node too, so the PAIR makes the same claim on both halves — the control declared
+      // one id fewer than the row it controls (W67's conformity reader, finding 10).
+      'r48:fetch:-:0': 'Fetch',
+      'r48:summarise:0:0': 'Prompt',
+      'r48:classify:1:0': 'Prompt',
+      'r48:audit:2:0': 'GpuModel',
+      'r48:report:-:0': 'Prompt',
+    },
+    heldGroups: {
+      'r48:summarise:0:0': ['vendor', 'budget'],
+      'r48:classify:1:0': ['vendor', 'budget'],
+      'r48:audit:2:0': ['vendor'],
+      'r48:report:-:0': ['vendor', 'budget'],
+    },
+    why: 'W67 — the control for the row above. Same flow, same registry document, same predicates, ' +
+      'same workers; only the entry payload`s `confidence` differs, so `isLowConfidence` is false, ' +
+      '`review` is never dispatched, the NAMED pool instance runs nothing, and the reduced report is ' +
+      'six words instead of eight. Whatever makes a discriminating pair differ is itself a claim',
   },
 ];
 
@@ -3007,7 +3185,6 @@ for (const [i, e] of EXPECTED.entries()) {
       payload: e.payload,
       predicates,
       threaded: e.threaded,
-      delayMs: 5,
       resolveOnSuspend: e.resolveOnSuspend,
       // Short only for the row whose result IS the backstop. Nothing can change
       // after the branch suspends, so a longer wait would measure the same thing
@@ -3134,6 +3311,14 @@ for (const [i, e] of EXPECTED.entries()) {
   for (const [id, want] of Object.entries(e.heldGroups ?? {})) {
     check(e.key, `the groups ${id.split(':')[1]}@${id.split(':')[2]} ACQUIRED, by id — the type's declared groups and no other`,
       report.heldGroups[id] ?? [], want);
+  }
+  // **W67 — WHICH pool a task ran on, off the scheduler.** `poolOfTask` is built from
+  // `scheduler.tasks` after the run, so it is the scheduler's own record and not the harness's:
+  // a node on its type's default instance and one on a named instance of the SAME type differ here
+  // and nowhere else in a `RunReport`.
+  for (const [id, want] of Object.entries(e.poolOfTask ?? {})) {
+    check(e.key, `the POOL ${id.split(':')[1]}@${id.split(':')[2]} ran on, read off scheduler.tasks — node.pool ?? node.type`,
+      report.poolOfTask[id] ?? '(not held)', want);
   }
   for (const never of e.outcomesNotSeen ?? []) {
     assertThat(e.key, `the run was never quiescently \`${never}\``,
@@ -3521,6 +3706,8 @@ for (const [i, e] of EXPECTED.entries()) {
     + Object.keys(e.resourceEvents ?? {}).length * 2
     // W59: one per declared `heldGroups` id — derived from the expectation like the two above.
     + Object.keys(e.heldGroups ?? {}).length
+    // W67: one per declared `poolOfTask` id — the same shape.
+    + Object.keys(e.poolOfTask ?? {}).length
     // W63: two observers per declared `taskErrors` id — the record's error and the live task's.
     + Object.keys(e.taskErrors ?? {}).length * 2
     // **`JP-R12`'s SECOND-COPY claim, and only where there is something to be a copy
@@ -3874,6 +4061,8 @@ const ROW_KEYS: readonly string[] = [
   'transformed / arity ONE — a branch routed away (P1`s case), the successor receives the one score and not an array',
   'transformed / arity ZERO — a join nothing reached fires with {} under live-token, and the successor receives 0 rather than undefined',
   'transform-fails / a transform FAILS at run time on two non-optional nodes (T2002, UNBOUND) — parked as user_action, resolved by a person, the run completes',
+  'triage LOW / P18`s sample from two documents — a class type on a NAMED instance, a document type on its DEFAULT',
+  'triage HIGH / the control — one payload field different, and the NAMED instance is never dispatched',
 ];
 
 /**
@@ -3923,6 +4112,11 @@ const PER_ROW_SUBJECTS: readonly [string, (rows: readonly Expectation[]) => numb
   ['it had recorded one entry per branch that arrived', (rows) => rows.length],
   ['what it collected is a SECOND COPY', (rows) => rows.filter((e) => arrivedInRun(e) > 0).length],
   ['it names WHICH region is still holding', (rows) => rows.filter((e) => heldWhenOver(e) > 0).length],
+  // **W67, and its adequacy reader (a12) is why it is here**: the whole per-row half of Outputs (2)
+  // — ten assertions naming which POOL each task ran on — left for three edits and an integer, with
+  // nothing but `DECLARED_TOTAL` counting it. v0.14's *a count is not a membership*, in the file
+  // that records the clause.
+  ['ran on, read off scheduler.tasks', (rows) => rows.filter((e) => Object.keys(e.poolOfTask ?? {}).length > 0).length],
 ];
 
 // **The two W57 observers above are vacuous on a row that dispatched nothing, so this says they
@@ -3952,7 +4146,9 @@ const CROSS_ROW_SUBJECTS = [
   'one more SPELLING than it has rows',
   'the conditional ARRAY form included',
   'is a registry type',
-  '`ROLES` declares, both ways',
+  // W67 — what replaced `ROLES` against the switch when one worker file became fourteen modules.
+  'is one the document declares, both ways — what replaced `ROLES` against the switch',
+  'every worker some node TYPE names',
   'reaches past index.ts into src/',
   'at least one DOTTED branch path',
   'the printed table names region',
@@ -3968,7 +4164,7 @@ const CROSS_ROW_SUBJECTS = [
   'the other two release moments have NO case at this rung',
   'the reporter`s predicate is SILENT on a real released run',
   'every run this file makes is in the retention claim',
-  'FOUR more runs than the row loop produces',
+  'FIVE more runs than the row loop produces',
   'the byte measurement WALKS every growing structure',
   'is on the WALKED side of that split',
   'every PER-ROW subject this file declares was asked',
@@ -3981,7 +4177,7 @@ const CROSS_ROW_SUBJECTS = [
   'the scheduler`s own declaration of retryPolicy',
   // W59
   'the node TYPES the L6 flows name are the types the registry holds',
-  'the types the registry holds, read as source text',
+  'are the ones the driver was handed — two readings of one registry',
   'the pools the scheduler REPORTS are exactly one per type',
   'the two settings of the typed pair DIFFER',
   'under a policy the NODE does not declare',
@@ -4012,6 +4208,37 @@ const CROSS_ROW_SUBJECTS = [
   'a real retry happened somewhere',
   // W65
   'retried under a policy of its OWN',
+  // W67
+  'one per named instance, both ways',
+  'at least one NAMED instance exists',
+  'differs from the document ON DISK in exactly `inline`',
+  'the sample flow runs from two DOCUMENTS',
+  'a DOCUMENT type and a CLASS type over ONE worker',
+  'the DEFAULT instance and the NAMED instance of one type',
+  'resolved a group by its KEY and not by the object`s own name',
+  // **The CONTROLS of the W67 block, named beside their claims** — v0.18's clause: a membership over
+  // claims binds the vacuity of nothing, and these are the assertions that make the three above
+  // non-vacuous (the pair actually ran; the two derivations actually differ; the custom group was
+  // actually acquired).
+  'both GpuModel instances RAN in one row',
+  'and the two derivations DIFFER',
+  'and the custom group was ACQUIRED',
+  'and a node whose settings drop the key the WORKER`s settingsSchema requires',
+  // The CONTROL of (vi), named beside its claim — v0.18's clause: without it the refusal above is
+  // satisfied by a document the validator refuses for some other reason, or for all of them.
+  'the sample flow validates against the registry the run was BUILT from, with zero findings',
+  // W67, after its adequacy reader
+  'the pools those readings came from are the SCHEDULER`s own WorkerManagers',
+  'the custom group`s object NAMES ITSELF something other than its key',
+  'a run started with NO options completes',
+  'the runtime MINTED the run id',
+  'it is the id this RUN dispatched under',
+  'the types whose `inline` the document leaves UNSAID are exactly the two this file expects',
+  'a node whose worker entry declares NO settingsSchema takes any settings at all',
+  'the runtime CARRIES all FOUR of the schemas decision 3 enumerates',
+  'the pool map is read off the SCHEDULER`s own task map',
+  'no file under examples/ CONSTRUCTS a pool, a scheduler, a Driver or a built-in resource group',
+  'that detector fires on each of the four',
 ];
 
 /**
@@ -4106,48 +4333,40 @@ async function referenceSpellingsInSpecAsync(): Promise<string[]> {
 const REFERENCE_SPELLINGS_IN_SPEC = await referenceSpellingsInSpecAsync();
 
 /**
- * **The pool registry, `ROLES` and `run()`'s arms are THREE lists saying the same
- * ten things *(nine until W58)*, and one of the three comparisons is recorded as costing zero** —
- * [W47](../doc/work-items/w47-the-blocked-flow-on-real-workers.md), and it is this
- * item's deliberate instantiation of `doc/workflow.md` section 5 rule 8 obligation
- * (e)'s **THIRD SHAPE** at v0.13: *a LIST is a claim about another list; find the
- * other list and compare BOTH WAYS.*
+ * **The registry DOCUMENT and the worker MODULES on disk are two lists saying the same fourteen
+ * things, and the flows are a third** — W67, and it is this file's instantiation of
+ * `doc/workflow.md` section 5 rule 8 obligation (e)'s **THIRD SHAPE** at v0.13: *a LIST is a claim
+ * about another list; find the other list and compare BOTH WAYS.*
  *
- * `examples/workers/flow-worker.ts`'s own header says it: *"What is still bound to
- * nothing is `ROLES` -> the switch: adding `'zzz'` to `ROLES` with no arm and no pool
- * costs **zero**, at L6 and at typecheck."* W43 closed the other direction with a
- * **TYPE** — `pool`'s parameter is `Role`, so `pool('weighh', …)` is `TS2345` at
- * ladder L0 — and [Q196](../doc/open-questions.md) is the finding that **a type closes
- * one direction only.** This is the direction it cannot: a role declared and used by
- * nothing. **The THIRD pair is nobody's**: neither W43's Record nor Q196 says anything
- * about the registry against the documents' workerTypes, and this item is the first to
- * compare them. *(This paragraph read *"W43 recorded that two of the three comparisons
- * cost zero"* and *"nothing would have said so had W45 added only one"* — both false,
- * and both v0.7 change 4's case, a claim about another item read from somewhere other
- * than that item's own file. W47's conformity reader.)*
+ * **What this replaces, and why the replacement is stronger.** Until W67 the three lists were the
+ * pool registry inside `buildScheduler`, the one worker file's `ROLES`, and the twelve arms of that
+ * file's `switch` — three copies of one fact in two files, and the measurement W47 recorded was that
+ * *all three pairs agree in both directions and no defect is live*. W43 had closed one direction
+ * with a TYPE (`pool`'s parameter was `Role`, so an invented role was `TS2345` at ladder L0) and
+ * [Q196](../doc/open-questions.md) is the finding that **a type closes one direction only** — a role
+ * declared and used by nothing cost zero.
  *
- * **Measured before the clauses were written, and the measurement is the result:**
- * the pool registry declares **10** workerTypes and the 18 flow documents L6 runs
- * name exactly those **10**; the registry uses **9** distinct roles, `ROLES` declares
- * **9** and `run()` has **9** arms *(11 / 20 / 10 / 10 / 10 since W58 added `RetryWorker`, its
- * `retry` role and two flows — appended rather than rewritten, because the sentence is the
- * measurement W47 took; since W65 there is no `pool()` line and the registry is **13** TYPES over
- * one worker, the 24 flows name exactly those 13, and the roles are **12** on all three sides)*; **all three pairs agree in both directions and no
- * defect is live.** So this is a bound with no live case, which is
- * [W25](../doc/work-items/w25-a-link-is-a-link-and-an-anchor-is-an-anchor.md)'s own
- * situation stated rather than dressed up: *a check written for a defect you just
- * fixed has no live case, so its probes are the whole of its evidence.* It is taken
- * because W45 added BOTH a role and a pool, and of the two ways that could have gone
- * wrong the pool-only one is `TS2345` at L0 and **the role-only one is silent** —
- * which is the asymmetry Q196 names.
+ * **A registry document removes the copies rather than binding them.** A node type names a worker
+ * KEY, which `resolveRegistry` refuses by name at construction (`WorkerMissing`); a worker entry
+ * names a URL, which `createRuntime` resolves against the consumer's base and a real thread then
+ * loads. So the only pair left is *the workers the document declares* against *the modules that
+ * exist*, and it is compared here both ways: a key whose module is missing is red before a task
+ * runs, and a module no entry names is red in the same clause. The `role` switch, the `Role` union
+ * and both directions of Q196's asymmetry are GONE — there is nothing left for a type to half-close.
  *
- * **Read as SOURCE TEXT rather than imported**, deliberately and for two reasons: the
- * pool registry is an object literal inside `buildScheduler` and is not a value any
- * module exports, and importing `flow-worker.ts` for `ROLES` would load a worker
- * module into the harness process. This is v0.12's own procedure for obligation (e)'s
- * second question — *read the default DECLARATION rather than running it* — and every
- * extraction **throws** when it finds nothing, because a regex that silently returns
- * `[]` makes a set equality pass on two empty sides.
+ * **Measured on the tree this item ships**: the document declares **14** workers and
+ * `examples/workers/` holds fourteen modules beside `shared.ts`; it declares **15** node types (the
+ * eleven pre-W65 ones, `Echo`, `Scorer`, and W67's `Fetch` and `Prompt`) and the 25 flow documents
+ * name exactly those the rows run — **16** with the `GpuModel` CLASS the shim registers; it declares **5** groups and the scheduler
+ * reports exactly those five. Both sides of each pair are read from somewhere other than the object
+ * the runtime was built from — the document from its own BYTES, the modules from the DIRECTORY —
+ * which is what keeps a re-sourced export from making the comparison vacuous.
+ *
+ * **Read from the FILE rather than from the export**, deliberately: `run-flow.ts` exports
+ * `REGISTRY_DOCUMENT`, and comparing that to itself would be a sensor corroborating itself. This is
+ * v0.12's own procedure for obligation (e)'s second question — *read the default DECLARATION rather
+ * than running it* — and every extraction **throws** when it finds nothing, because a read that
+ * silently returns `[]` makes a set equality pass on two empty sides.
  */
 /** A manifest's text, relative to this file, in either runtime — W59's (2c) clause reads both. */
 async function readManifest(rel: string): Promise<string> {
@@ -4157,19 +4376,23 @@ async function readManifest(rel: string): Promise<string> {
 }
 
 async function workerListsAsync(): Promise<{
-  /** The keys of the `NODE_TYPES` literal, read from the source — since W65 every pool is one of these (W59's second observer of the registry the driver was handed). */
+  /** The `nodeTypes` keys of the registry DOCUMENT, read from the file rather than from the export — every pool is one of these (W59's second observer of the registry the driver was handed). */
   types: string[];
-  /** The roles those types run, from their `config: { role: '…' }` — since W65 the whole of what the worker file's `ROLES` must be used by. */
-  roles: string[];
-  /** The resource-group ids `buildScheduler` REGISTERS, read from the source — W58's second observer of `scheduler.groups`; since W59 the helper's `bootstrap(NODE_TYPES, {…})` groups too. */
+  /** The `workers` keys of the same document — since W67 one module per worker, so this is the whole of what `examples/workers/` must hold. */
+  workers: string[];
+  /** The `groups` keys of the same document — W58's second observer of `scheduler.groups`, which since W67 is exactly what the document declares. */
   groupIds: string[];
-  /** What `flow-worker.ts`'s `ROLES` declares. */
-  declaredRoles: string[];
-  /** The arms of `run()`'s switch in that file. */
-  switchArms: string[];
+  /** The module URLs those worker entries name, as declared (relative, as a portable document writes them). */
+  workerUrls: string[];
+  /** The worker modules actually on disk under `examples/workers/`, as the same relative URLs — `shared.ts` excluded, because it is not a worker. */
+  modulesOnDisk: string[];
+  /** The `pools` keys — the NAMED instances, which since W67 is `prompt-big` and nothing else. */
+  namedPools: string[];
+  /** The node-type CLASSES the shim registers in `code.nodeTypes`, read from its source — the half of the registry no document holds. */
+  classTypes: string[];
 }> {
   const deno = (globalThis as Record<string, unknown>).Deno as
-    { readTextFile?: (x: URL) => Promise<string> } | undefined;
+    { readTextFile?: (x: URL) => Promise<string>; readDir?: (x: URL) => AsyncIterable<{ name: string; isFile: boolean }> } | undefined;
   const read = async (rel: string): Promise<string> => {
     const u = new URL(rel, import.meta.url);
     return deno?.readTextFile
@@ -4181,49 +4404,56 @@ async function workerListsAsync(): Promise<{
     return xs;
   };
 
-  // ---- the registry: the `NODE_TYPES` literal, since W65 the whole of what `buildScheduler` builds ----
-  // *(This read the `pool()` lines of the object literal `buildScheduler` returned, until W65 turned
-  // every one of them into a document-declared type; the extraction below is W59's, over all thirteen.)*
-  const rf = await read('./run-flow.ts');
-  // ---- and the RESOURCE GROUPS the same constructor call registers, as source text — W58's
-  // adequacy reader (c04b): `RunReport.schedulerGroups` is ONE reading of `scheduler.groups`
-  // and the driver's `groups` option is derived from that same variable, so a literal in its
-  // place hid a second registered group for zero. This is the other observer: the literal the
-  // scheduler is BUILT from, which the runtime reading must agree with. ----
-  // **Read over the whole of `buildScheduler` since W59, not the constructor call alone**: the
-  // TYPES' group is registered through `bootstrap(NODE_TYPES, { … })` BEFORE the `return`, at the
-  // same indentation, and the constructor call spreads the helper's result in. Anchored on the
-  // function rather than the file so a group literal elsewhere would not be read as registered.
-  const fnAt = rf.indexOf('export function buildScheduler(');
-  if (fnAt < 0) throw new Error('examples/run-flow.ts no longer declares buildScheduler');
-  const groupIds = nonEmpty([...rf.slice(fnAt).matchAll(/^ {4}(\w+): new ConcurrentLimitGroup\(/gm)].map((m) => m[1]!), 'the resource-group registry');
-  // ---- the NODE_TYPES literal: one key per type at two-space indentation inside it — W59.
-  //      `bootstrap` keys a pool by each of these names, which is what `schedulerPools` must
-  //      show — and nothing else, since W65. ----
-  const ntAt = rf.indexOf('export const NODE_TYPES');
-  if (ntAt < 0) throw new Error('examples/run-flow.ts no longer declares NODE_TYPES');
-  const ntBlock = rf.slice(ntAt, rf.indexOf('\n};', ntAt));
-  const typedPoolTypes = nonEmpty([...ntBlock.matchAll(/^ {2}(\w+): \{/gm)].map((m) => m[1]!), 'the NODE_TYPES literal');
-  // ---- and the ROLES those types run, from their `config: { role: '…' }` — since W65 every role a
-  //      pool runs is declared here, so this is the whole of the roles-in-use side. ----
-  const typedRoles = nonEmpty([...ntBlock.matchAll(/config: \{ role: '(\w+)'/g)].map((m) => m[1]!), "the NODE_TYPES literal's roles");
+  // ---- the DOCUMENT, read from the FILE rather than from `REGISTRY_DOCUMENT` — W67, and it is the
+  //      second observer W59's source-text extraction was. The runtime imports the JSON module; this
+  //      reads the bytes and parses them, so a `REGISTRY_DOCUMENT` re-sourced to a literal in
+  //      `run-flow.ts` is red here rather than invisible. ----
+  const doc = JSON.parse(await read('./registry.json')) as {
+    workers?: Record<string, { url: string }>;
+    groups?: Record<string, unknown>;
+    nodeTypes?: Record<string, unknown>;
+    pools?: Record<string, unknown>;
+  };
+  const types = nonEmpty(Object.keys(doc.nodeTypes ?? {}), 'the document`s nodeTypes');
+  const workers = nonEmpty(Object.keys(doc.workers ?? {}), 'the document`s workers');
+  const groupIds = nonEmpty(Object.keys(doc.groups ?? {}), 'the document`s groups');
+  const workerUrls = nonEmpty(Object.values(doc.workers ?? {}).map((w) => w.url), 'the document`s worker urls');
 
-  // ---- ROLES: comment lines dropped, because the block carries prose ----
-  const wf = await read('./workers/flow-worker.ts');
-  const rolesAt = wf.indexOf('export const ROLES = [');
-  if (rolesAt < 0) throw new Error('examples/workers/flow-worker.ts no longer declares ROLES');
-  const rolesBlock = wf.slice(rolesAt, wf.indexOf('] as const;', rolesAt))
-    .split('\n').filter((l) => !l.trimStart().startsWith('//')).join('\n');
-  const declaredRoles = nonEmpty([...rolesBlock.matchAll(/'(\w+)'/g)].map((m) => m[1]!), 'ROLES');
-  // ---- and `run()`'s arms. One switch in that file, over `this.role`. ----
-  const switchArms = nonEmpty([...wf.matchAll(/^ {6}case '(\w+)':/gm)].map((m) => m[1]!), "run()`s arms");
+  // ---- and the MODULES on disk, which is the other half of that list — W67, rule 8 obligation (e)'s
+  //      third shape. Until this item the binding was `ROLES` against a twelve-arm switch against a
+  //      pool registry, three lists in two files; a worker entry names a URL now, so the list the
+  //      document must agree with is the DIRECTORY. `shared.ts` is excluded by name because it is
+  //      what the modules import rather than a worker anything loads. ----
+  let names: string[];
+  if (deno?.readDir) {
+    names = [];
+    for await (const e of deno.readDir(new URL('./workers/', import.meta.url))) if (e.isFile) names.push(e.name);
+  } else {
+    names = await (await import('node:fs/promises')).readdir(new URL('./workers/', import.meta.url));
+  }
+  const modulesOnDisk = nonEmpty(
+    names.filter((n) => n.endsWith('.ts') && n !== 'shared.ts').map((n) => `./workers/${n}`),
+    'the worker modules on disk',
+  );
+
+  // ---- and the node-type CLASSES, read from the SHIM's source — W67. A class is code by decision
+  //      2 and lives in no document, so the registry a driver is handed is the union of the two.
+  //      Read as text rather than imported for the same reason the document is read as bytes: the
+  //      thing this is a second observer OF is `runtime.registry.nodeTypes`. ----
+  const rf = await read('./run-flow.ts');
+  const classTypes = nonEmpty(
+    [...rf.matchAll(/^ {4}nodeTypes: \{ (\w+): new \w+\(\) \},$/gm)].map((m) => m[1]!),
+    'the shim`s code.nodeTypes',
+  );
 
   return {
+    types: [...new Set(types)].sort(),
+    classTypes: [...new Set(classTypes)].sort(),
+    workers: [...new Set(workers)].sort(),
     groupIds: [...new Set(groupIds)].sort(),
-    types: [...new Set(typedPoolTypes)].sort(),
-    roles: [...new Set(typedRoles)].sort(),
-    declaredRoles: [...new Set(declaredRoles)].sort(),
-    switchArms: [...new Set(switchArms)].sort(),
+    workerUrls: [...new Set(workerUrls)].sort(),
+    modulesOnDisk: [...new Set(modulesOnDisk)].sort(),
+    namedPools: Object.keys(doc.pools ?? {}).sort(),
   };
 }
 const WORKER_LISTS = await workerListsAsync();
@@ -4323,8 +4553,43 @@ const REACH_CASES: [string, boolean][] = [
   [`import { jsonata } from '${UP}src/jsonata/index.ts';`, false],
   [`import { compile } from '${UP}src/jsonata/engine.ts';`, true],
 ];
+/**
+ * **What a file under `examples/` may not CONSTRUCT — W67's adequacy reader (a8), BLOCKING.**
+ *
+ * `S16` binds `RT-R13` over the PUBLISHED set (`src/` and `index.ts`) and `examples/**` is outside
+ * its scope, by design: an example may legitimately hold a scheduler. What changed at W67 is that
+ * P18's exit-artifact sentence — *`examples/**` holding no role switch and no `pool()` call* — and
+ * this item's own Outputs (1) — *no hand-built group, no `Driver` constructed by hand* — became
+ * CLAIMS about this directory, and the reader measured them held by nothing: a
+ * `new ConcurrentLimitGroup(99)` added to `run-flow.ts` cost ZERO at every rung.
+ *
+ * So the sweep below reports both. The list is the scheduler objects a RUNTIME is now responsible
+ * for — a pool, a scheduler, a driver, and each of the three built-in group classes — and it is the
+ * same list `S16` enumerates plus `Driver`, because the point here is that the harness builds none
+ * of them rather than that the pure entry loads none.
+ */
+const CONSTRUCTS_A_SCHEDULER_OBJECT =
+  /\bnew\s+(WorkerManager|FyflowScheduler|Driver|ConcurrentLimitGroup|RateLimitGroup|KeyedRateLimitGroup)\s*\(/;
+
+/**
+ * **The positive fixture, assembled from parts** — as `REACH_CASES` is, and for the same reason: the
+ * tree is clean, so an empty offender list is what a broken matcher returns too. The second element
+ * is what the detector must say.
+ */
+const CONSTRUCT_CASES: readonly [string, boolean][] = [
+  [`const g = new${' '}ConcurrentLimitGroup(1, 'gate');`, true],
+  [`const s = new${' '}FyflowScheduler(pools, groups);`, true],
+  [`const d = new${' '}Driver(flow, opts);`, true],
+  [`const p = new${' '}WorkerManager(url, options);`, true],
+  // What the shim DOES hold, and must keep holding: a custom group class of the consumer's own,
+  // constructed inside the factory the runtime calls (P18 decision 4), and a node-type class.
+  [`create: (config, key) => new${' '}DailyBudgetGroup(key, config.tokensPerDay),`, false],
+  [`nodeTypes: { GpuModel: new${' '}GpuModel() },`, false],
+  ['const runtime = createRuntime(doc, code, { base });', false],
+];
+
 async function examplesReachingPastIndexAsync(): Promise<
-  { files: string[]; read: string[]; offenders: string[] }
+  { files: string[]; read: string[]; offenders: string[]; constructors: string[] }
 > {
   const deno = (globalThis as Record<string, unknown>).Deno as {
     readTextFile?: (x: URL) => Promise<string>;
@@ -4356,6 +4621,7 @@ async function examplesReachingPastIndexAsync(): Promise<
     throw new Error('the examples/ sweep listed no TypeScript at all, so the bound would be vacuous');
   }
   const offenders: string[] = [];
+  const constructors: string[] = [];
   // **`read` is what was actually OPENED, and it is a different list from `files`** —
   // the adequacy reader's finding 4b: narrowing this loop to `files.slice(1)` skipped
   // `l6.ts`, the one file the clause was written against, and the companion clause
@@ -4365,9 +4631,20 @@ async function examplesReachingPastIndexAsync(): Promise<
     read.push(f);
     // `from '<any number of ../>src/...'` — the shape a shortcut takes whichever
     // directory it is written from.
-    if (REACHES_PAST_INDEX.test(await readText(f))) offenders.push(f);
+    const text = await readText(f);
+    if (REACHES_PAST_INDEX.test(text)) offenders.push(f);
+    // **Comments stripped first, and the limit is stated rather than hidden.** Both files here
+    // DISCUSS the constructors they must not call — this clause's own header quotes
+    // `new ConcurrentLimitGroup(99)` and `run-flow.ts` records what its `Driver` line used to be —
+    // so a scan over raw text reports the files that explain the rule as the files that break it.
+    // A line comment is cut at `//`, which also cuts anything after a `https://` on the same line:
+    // a constructor written after a URL on one line would be missed, and that is the bound. The
+    // positive fixture below is tested against RAW strings for exactly this reason — it is what the
+    // stripper must not be allowed to make vacuous.
+    const code = text.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/.*$/gm, ' ');
+    if (CONSTRUCTS_A_SCHEDULER_OBJECT.test(code)) constructors.push(f);
   }
-  return { files, read, offenders };
+  return { files, read, offenders, constructors };
 }
 const EXAMPLES_REACH = await examplesReachingPastIndexAsync();
 
@@ -4764,8 +5041,8 @@ const pairResults: { row: PairRow; runs: [string, RunReport][]; facts: PairFacts
 for (const row of PAIR_ROWS) {
   const [idA, idB] = row.runIds;
   const { a: ra, b: rb, facts } = await runPair(
-    { definition: FJ, policy: POLICIES['live-token'], runId: idA, payload: row.payloads[0], predicates, delayMs: 5 },
-    { definition: FJ, policy: POLICIES['live-token'], runId: idB, payload: row.payloads[1], predicates, delayMs: 5 },
+    { definition: FJ, policy: POLICIES['live-token'], runId: idA, payload: row.payloads[0], predicates },
+    { definition: FJ, policy: POLICIES['live-token'], runId: idB, payload: row.payloads[1], predicates },
     row.foreign,
   );
   const runs: [string, RunReport][] = [[idA, ra], [idB, rb]];
@@ -4986,7 +5263,52 @@ const KEY_W = Math.max(
 // it was true, which is the smallest possible version of the thing this whole
 // review pass was about. **It counts RUNS, not row labels** - a pair row is
 // one label producing two runs, so the two numbers differ and always have.
-const pairRunCount = pairResults.reduce((n, { runs }) => n + runs.length, 0);
+/**
+ * **P18's SAMPLE SHIM's own call, run — `runtime.start(flow, payload)` with NO options at all** —
+ * W67's adequacy reader (a15), BLOCKING.
+ *
+ * P18 decision 10 says two things about a run nobody configures: the runtime MINTS a run id (`r<n>`
+ * from its own counter), and the join policy defaults to `live-token` (ADR 0003 rule 1). **Both were
+ * reachable by no row**, because every row names the ids it expects and therefore must name the run,
+ * and every row names the policy it is about — so replacing either default with a `throw` cost
+ * ZERO, on the item that was the last chance to observe them. The plan's shim is exactly this call
+ * and it was the one call this rung did not make.
+ *
+ * **The flow is `p1-routed-away` at LOW, and the choice is the assertion.** A policy NAME proves
+ * nothing — it would be a literal standing in for the default. This flow's two candidate policies
+ * DISAGREE on this payload: a branch is routed away from its join, so `live-token` satisfies the
+ * join and the run completes, while `arrival-count` waits for an arrival that can never come and the
+ * run folds to `stuck` (P1's own case, and the four `p1-routed-away` rows above are where both
+ * halves are asserted). So *the run completed* IS *the default is `live-token`*, observed rather
+ * than named. The minted id is read off the driver (`Driver.runId`, readable since W66 for exactly
+ * this) and matched against `r<n>` — inside `ID-R2`'s charset — and every task the run dispatched
+ * must begin with it, which is what makes the id the RUN's rather than a string this file printed.
+ */
+let shimReport: RunReport | null = null;
+try {
+  shimReport = await runFlow({ definition: RA, payload: LOW });
+} catch (err) {
+  // **A crash is not a detection** — `doc/workflow.md` section 4, and the row loop above has carried
+  // this guard since W59. The shim run sits OUTSIDE that loop, so a throw here took the whole file
+  // down with exit 1 and ZERO failure lines — measured by this item's own rule 8 re-run, where the
+  // probes that replace decision 10's two defaults with a `throw` (the reader's `a15`) crashed
+  // rather than being caught. W59's closed shape, reappearing in the block added after it.
+  failures.push(`shim run\n      the run THREW before any assertion could run — a crash is not a detection: ` +
+    `${err instanceof Error ? err.message.slice(0, 240) : String(err)}`);
+}
+if (shimReport !== null) {
+  const key = 'cross-row';
+  check(key, 'P18 decision 10: a run started with NO options completes — which on `p1-routed-away` at LOW is what `live-token` does ' +
+    'and `arrival-count` does not, so the runtime`s DEFAULT policy is observed rather than named',
+    shimReport.state.outcome, 'completed');
+  assertThat(key, 'P18 decision 10: the runtime MINTED the run id — `r<n>` from its own counter, inside ID-R2`s charset',
+    /^r[0-9]+$/.test(shimReport.runId), `runId: ${JSON.stringify(shimReport.runId)}`);
+  assertThat(key, 'and it is the id this RUN dispatched under: every task id begins with it — the minted id is the run`s, not a string this file read back',
+    shimReport.dispatched.length > 0 && shimReport.dispatched.every((id) => id.startsWith(`${shimReport.runId}:`)),
+    `runId ${shimReport.runId}, dispatched ${shimReport.dispatched.join(', ')}`);
+}
+
+const pairRunCount = pairResults.reduce((n, { runs }) => n + runs.length, 0) + 1;
 console.log(`\n  ladder L6 — ${reports.length + pairRunCount} real runs on fyflow-scheduler ${SCHEDULER_VERSION}, on ${runtime}\n`);
 /**
  * **Every region of the run, in the row's declared order** — W23's conformity
@@ -5155,7 +5477,21 @@ const PER_PLAIN_ROW = 20;
  * **110 since W65**: block (2b)'s retry clause split into a pair — the type's-budget half and the
  * own-policy half — because every task node is typed now and *typed* stopped discriminating.
  */
-const CROSS_ROW = 110;
+// **+16 since W65 — W67.** Nine for block (2e)'s four claims and their four controls plus the
+// document DIFF; two for the `FD-V33` fixture and its control that W67's own rule 8 pass forced
+// (`a10`: a schema requiring a key, with every node declaring it, is a guard with no live case); and
+// five its adequacy reader forced — the scheduler's own `scriptUrl` behind the pool readings (a10),
+// the custom group's object NAME as a claim rather than a factory string (a1), and the three of the
+// SHIM RUN, which is P18's sample's own call and which no row could make (a15); and two for
+// Outputs (1) as an ASSERTION — nothing under `examples/` constructs a pool, a scheduler, a driver
+// or a built-in group, with the positive fixture that keeps the detector honest (a8); and four more
+// its reader forced — `THREADABLE_TYPES` as a MEMBERSHIP (a2), the ABSENT-schema case (a13), the
+// four schemas CARRIED (a6), and the pool map anchored to the scheduler's own task map (a4).
+// *(110 at W65, 119 at this item's first run, 121 after its author pass. The convention this file
+// keeps is that the next item APPENDS; W67's conformity reader, finding 9, found the chain stopping
+// at W65 with the +11 unaccounted for — which is how the assertion count then shipped stale by two
+// in two documents.)*
+const CROSS_ROW = 133;
 const base = (shape: string) => (shape === 'region' ? PER_REGION_ROW : PER_PLAIN_ROW);
 for (const [key, shape, cost, extras] of rowCosts) {
   if (cost !== base(shape) + extras) {
@@ -5553,13 +5889,21 @@ if (rowCosts.length !== EXPECTED.length) {
     // and from the object the driver was handed in (2b) below.
     check('cross-row', 'every type the flows L6 runs name is a registry type, and every registry type is named ' +
       'by one of them — the registry is not a list bound to nothing',
-      [...documentTypes].sort(), WORKER_LISTS.types);
-    check('cross-row', 'and every role the registry uses is one `ROLES` declares, both ways — ' +
-      'the direction W43`s TYPE cannot close (Q196)',
-      WORKER_LISTS.roles, WORKER_LISTS.declaredRoles);
-    check('cross-row', 'and `run()` has an arm for every role `ROLES` declares, both ways — the ' +
-      'comparison flow-worker.ts`s own header records as costing ZERO',
-      WORKER_LISTS.switchArms, WORKER_LISTS.declaredRoles);
+      [...documentTypes].sort(), [...WORKER_LISTS.types, ...WORKER_LISTS.classTypes].sort());
+    // **W67: the pair that replaced `ROLES` against the switch.** A worker entry names a URL and a
+    // module has to be at it — so the document's worker urls and the modules on disk are the two
+    // halves, compared both ways. A key with no module is a task that fails to load; a module no
+    // entry names is dead code the tree still typechecks and lints. Neither was observable before
+    // this item, because there was ONE worker file and a `role` string chose an arm inside it.
+    check('cross-row', 'every worker url the registry document declares has a module on disk, and every ' +
+      'module under examples/workers/ is one the document declares, both ways — what replaced `ROLES` against the switch',
+      WORKER_LISTS.workerUrls, WORKER_LISTS.modulesOnDisk);
+    // And the WORKERS the types name are the workers the document declares — the third list, and the
+    // one `resolveRegistry` refuses by name at construction, so this says the corpus reaches all of it.
+    check('cross-row', 'and every worker some node TYPE names is one the document declares, both ways — ' +
+      'a worker entry no type reaches is a registry entry nothing can run',
+      [...new Set(Object.values(REGISTRY_DOCUMENT.nodeTypes ?? {}).map((t) => t.worker))].sort(),
+      WORKER_LISTS.workers);
 
     // **W58 — four cross-row clauses, each a membership rather than a count.**
     //
@@ -5593,7 +5937,18 @@ if (rowCosts.length !== EXPECTED.length) {
           for (const g of ((n as unknown as { workerGroups?: string[] }).workerGroups ?? [])) named.add(g);
         }
       }
-      for (const t of Object.values(NODE_TYPES)) for (const g of t.groups ?? []) named.add(g);
+      for (const t of Object.values(REGISTRY_DOCUMENT.nodeTypes ?? {})) for (const g of t.groups ?? []) named.add(g);
+      // **W67: a group a POOL's derivation names, where the derivation is a CLASS.** `GpuModel`'s
+      // `pool()` computes `groups: ['vendor']` and `residentGroups: { gpu: … }`, and neither appears
+      // in any document `nodeTypes` entry — so a clause reading the document alone would call them
+      // groups nothing names. Read off the DERIVED pools the runtime built, which is where a class's
+      // output is visible at all.
+      for (const p of Object.values(reports[0]!.derivedPools)) {
+        for (const g of p.groups) named.add(g);
+        // `residentGroups` carries `key:cost` where the derivation gives a cost (see `derivedPools`),
+        // and this clause is about the KEY — which is the name the scheduler resolves by.
+        for (const g of p.residentGroups) named.add(g.split(':')[0]!);
+      }
       const declaredBySchedulers = [...new Set(reports.flatMap((r) => r.schedulerGroups))].sort();
       check('cross-row', 'the groups the L6 flows NAME are the groups the scheduler DECLARES, both ways, with the groups the TYPES declare on the named side — ' +
         'FD-V31`s registry set is read off the scheduler, and this is the other direction',
@@ -5625,14 +5980,26 @@ if (rowCosts.length !== EXPECTED.length) {
           if (t !== undefined) namedTypes.add(t);
         }
       }
-      const registryTypes = Object.keys(NODE_TYPES).sort();
+      // **The registry the DRIVER was handed, which is the document's types UNION the classes the
+      // `code` argument supplied — W67.** `GpuModel` is a class in no document, and `FD-V32` is
+      // applied against the union, so a clause written over `REGISTRY_DOCUMENT.nodeTypes` alone
+      // would call the sample's own class type unregistered.
+      const registryTypes = [...new Set(reports.flatMap((r) => r.registryTypes))].sort();
       check('cross-row', 'the node TYPES the L6 flows name are the types the registry holds, both ways — a type registered and used by nothing, or named and unregistered, is red',
         [...namedTypes].sort(), registryTypes);
-      check('cross-row', 'and the types the registry holds, read as source text, are the ones the driver was handed — two readings of one literal',
-        WORKER_LISTS.types, registryTypes);
+      check('cross-row', 'and the types the registry holds, read from the DOCUMENT`s own bytes plus the classes the code supplies, are the ones the driver was handed — two readings of one registry',
+        [...WORKER_LISTS.types, ...WORKER_LISTS.classTypes].sort(), registryTypes);
       const reported = [...new Set(reports.flatMap((r) => r.schedulerPools))].sort();
-      check('cross-row', 'and the pools the scheduler REPORTS are exactly one per type, both ways — since W65 the helper built every pool, keyed by its type`s name, and nothing else',
-        reported, WORKER_LISTS.types);
+      // **One per TYPE plus one per NAMED instance, both ways — W67.** Until this item every pool
+      // was a type's DEFAULT instance and the two lists were the same list; `prompt-big` is the
+      // first named instance this rung has ever built, so the expected set is the types UNION the
+      // document's `pools` keys, and a named instance nobody declared — or a declared one no pool
+      // was built for — is red here. Both halves are read from the document's own bytes.
+      check('cross-row', 'and the pools the scheduler REPORTS are exactly one per type PLUS one per named instance, both ways — ' +
+        'the runtime builds every type`s default under the type`s name and every `pools` entry under its own',
+        reported, [...WORKER_LISTS.types, ...WORKER_LISTS.classTypes, ...WORKER_LISTS.namedPools].sort());
+      assertThat('cross-row', 'and at least one NAMED instance exists — the control, because a document with no `pools` section makes the clause above a restatement of the one before it',
+        WORKER_LISTS.namedPools.length > 0, 'the document declares no named pool instance');
       // **The discriminating PAIR is a claim** (rule 8's fourth requirement on the set): the two
       // typed nodes of `typed.flow.json` differ in BOTH settings keys, read from the DEFINITION
       // rather than from two literals in a row. Made equal, this is red before any worker runs.
@@ -5652,7 +6019,7 @@ if (rowCosts.length !== EXPECTED.length) {
       // whether the NODE declares a policy, and both kinds must occur or the clause is vacuous.)*
       const retries = EXPECTED.flatMap((e) => Object.keys(e.attempts ?? {}).map((id) => {
         const node = e.definition.nodes.find((n) => n.id === id.split(':')[1]) as unknown as { type: string; retryPolicy?: unknown } | undefined;
-        return { id, type: node?.type ?? null, ownPolicy: node?.retryPolicy !== undefined, typePolicy: node !== undefined && NODE_TYPES[node.type]?.retryPolicy !== undefined };
+        return { id, type: node?.type ?? null, ownPolicy: node?.retryPolicy !== undefined, typePolicy: node !== undefined && (REGISTRY_DOCUMENT.nodeTypes ?? {})[node.type]?.retryPolicy !== undefined };
       }));
       assertThat('cross-row', 'every task that retried under a policy the NODE does not declare names a TYPE that declares one — the type`s budget — and there is at least one',
         retries.some((x) => !x.ownPolicy) && retries.filter((x) => !x.ownPolicy).every((x) => x.typePolicy),
@@ -5780,7 +6147,7 @@ if (rowCosts.length !== EXPECTED.length) {
         }) as unknown as FlowDefinition;
         const registry = {
           predicates: [...predicates.keys()], groups: reports[0]!.schedulerGroups,
-          workers: WORKERS, nodeTypes: NODE_TYPES, languages: LANGUAGES,
+          workers: REGISTRY_DOCUMENT.workers, nodeTypes: REGISTRY_DOCUMENT.nodeTypes, languages: LANGUAGES,
         };
         const findings = (d: FlowDefinition) => validateDefinition(d, registry).map((f) => `${f.rule}@${f.at}`).sort();
         check('cross-row', 'the reshaping road is removed and not FORBIDDEN: `transformed` with a reshaping task node put back between its join and the transformed successor validates with zero findings',
@@ -5789,6 +6156,242 @@ if (rowCosts.length !== EXPECTED.length) {
         // untyped clause. Every node is typed now and may transform, so the fixture is a MALFORMED one.)*
         check('cross-row', 'and the validator SAW that document: the same one with a malformed transform on the relay node is refused by FD-V37 at that node, and by nothing else',
           findings(withRelay(true)), ['FD-V37@relay']);
+      }
+    }
+    // (2e) **W67 — P18's exit artifact, as four claims about the whole rung rather than about a row.**
+    //
+    //     A row says what one run did; these say what the DOCUMENTS are. Each is paired with the
+    //     control that makes it non-vacuous, because a membership over claims binds the vacuity of
+    //     nothing (`doc/workflow.md` v0.18, obligation (d)) — and the controls are members of
+    //     `CROSS_ROW_SUBJECTS` beside the claims, which is what that clause asks for.
+    {
+      // **(i) Every row runs the DOCUMENT.** `registryDocumentFor` is the one thing this harness
+      // does to `examples/registry.json`, and what it may change is bounded here rather than
+      // described: the two variants differ from the file in `inline` on exactly `THREADABLE_TYPES`
+      // and in nothing else — not a worker, not a group, not a pool, not a predicate, not a
+      // language, and not another field of another type. Computed as a DIFF, so a derivation that
+      // quietly rewrote a config or dropped a group is red naming the key.
+      const onDisk = JSON.parse(JSON.stringify(REGISTRY_DOCUMENT)) as Record<string, unknown>;
+      const diffKeys = (v: boolean): string[] => {
+        const got = JSON.parse(JSON.stringify(registryDocumentFor(v))) as Record<string, unknown>;
+        const out: string[] = [];
+        for (const k of new Set([...Object.keys(onDisk), ...Object.keys(got)])) {
+          if (k !== 'nodeTypes') {
+            if (JSON.stringify(got[k]) !== JSON.stringify(onDisk[k])) out.push(k);
+            continue;
+          }
+          const a = (onDisk.nodeTypes ?? {}) as Record<string, Record<string, unknown>>;
+          const b = (got.nodeTypes ?? {}) as Record<string, Record<string, unknown>>;
+          for (const t of new Set([...Object.keys(a), ...Object.keys(b)])) {
+            for (const f of new Set([...Object.keys(a[t] ?? {}), ...Object.keys(b[t] ?? {})])) {
+              if (JSON.stringify(a[t]?.[f]) !== JSON.stringify(b[t]?.[f])) out.push(`nodeTypes.${t}.${f}`);
+            }
+          }
+        }
+        return out.sort();
+      };
+      // **`THREADABLE_TYPES` is compared to a literal, both ways** — W67's adequacy reader (a2),
+      // BLOCKING: the diff clause computed its expected side FROM `THREADABLE_TYPES` and its actual
+      // side from a derivation that also reads it, so both moved together and dropping a member cost
+      // ZERO. `run-flow.ts`'s own header claimed this comparison existed; it did not. The literal is
+      // the two types `examples/registry.json` deliberately leaves `inline` unsaid on.
+      check('cross-row', 'the types whose `inline` the document leaves UNSAID are exactly the two this file expects, both ways — ' +
+        'the knob`s membership, where the diff clause below computes both of its sides from it',
+        [...THREADABLE_TYPES].sort(), ['ScoreWorker', 'WeighWorker']);
+      const wantThreaded = THREADABLE_TYPES.map((t) => `nodeTypes.${t}.inline`).sort();
+      // **The VALUE as well as the key set** — rule 8's `p4`: a derivation that wrote `inline: true`
+      // whatever the row asked passed the diff clause, because the key it differs in is the same key
+      // either way. So the knob's SETTING is asserted beside its BOUND, and a `registryDocumentFor`
+      // that stopped reading `threaded` is red here where L6 is otherwise blind to it (Q99).
+      const inlineAt = (v: boolean): boolean[] =>
+        THREADABLE_TYPES.map((t) => (registryDocumentFor(v).nodeTypes ?? {})[t]?.inline === true);
+      check('cross-row', 'the document a row RUNS differs from the document ON DISK in exactly `inline`, on exactly the types that declare none — ' +
+        'at both settings of the one knob that has no document spelling, in no other key of no other section, and in the DIRECTION the row asked for',
+        { inline: diffKeys(false), threaded: diffKeys(true), inlineValues: inlineAt(false), threadedValues: inlineAt(true) },
+        { inline: wantThreaded, threaded: wantThreaded,
+          inlineValues: THREADABLE_TYPES.map(() => true), threadedValues: THREADABLE_TYPES.map(() => false) });
+
+      // **(ii) The sample runs from two DOCUMENTS and a shim.** The flow's every task node names a
+      // type the registry document or the shim's classes declare, and every pool it names is a
+      // named instance the document declares — so nothing about `triage` is wired in TypeScript.
+      const triageTypes = [...new Set(TRI.nodes.filter((n) => n.kind === 'task')
+        .map((n) => (n as unknown as { type: string }).type))].sort();
+      const triagePools = [...new Set(TRI.nodes.filter((n) => (n as unknown as { pool?: string }).pool !== undefined)
+        .map((n) => (n as unknown as { pool: string }).pool))].sort();
+      check('cross-row', 'the sample flow runs from two DOCUMENTS: every type it names is one the registry declares, ' +
+        'and every pool it names is a named instance the registry declares',
+        { unknownTypes: triageTypes.filter((t) => !reports[0]!.registryTypes.includes(t)), pools: triagePools },
+        { unknownTypes: [], pools: WORKER_LISTS.namedPools });
+
+      // **(iii) A DOCUMENT type and a CLASS type over ONE worker, and their derivations DIFFER.**
+      // `Prompt` is declared in `examples/registry.json` and `GpuModel` is a class the shim
+      // registers; both name the `prompt` worker, so the pools they built differ in nothing but the
+      // DERIVATION. The control is the second half: made to return the same options, this is red.
+      // **Guarded, because an unguarded lookup CRASHES where it should FAIL.** With a `triage` row
+      // repointed at another document the index is -1, `reports[-1]` is `undefined`, and the block
+      // took the file down with exit 1 and no failure line — this item's own rule 8 re-run (`e3`),
+      // and W59's *a crash is not a detection* in the block added after it.
+      const lowIndex = EXPECTED.findIndex((e) => e.definition === TRI && e.payload === TRIAGE_LOW);
+      assertThat('cross-row', 'a row runs the SAMPLE flow at the LOW payload, so this block has something to read — ' +
+        'a row repointed at another document is a failure naming itself rather than an undefined dereference',
+        lowIndex >= 0 && reports[lowIndex] !== undefined,
+        `EXPECTED holds no row with definition=triage and payload=TRIAGE_LOW (findIndex ${lowIndex})`);
+      const low = reports[lowIndex] ?? reports[0]!;
+      const promptPool = low.derivedPools.Prompt!;
+      const gpuDefault = low.derivedPools.GpuModel!;
+      const gpuNamed = low.derivedPools['prompt-big']!;
+      // **Read off the CLASS's own `worker` member, not a ternary on its name** — W67's adequacy
+      // reader (a14b): with `GpuModel.worker` repointed at a schema-less worker the clause stayed
+      // green, because the literal `'prompt'` said what the class no longer did.
+      const CODE_TYPES = codeFor(PREDICATES).nodeTypes ?? {};
+      const workerOf = (t: string): string | undefined =>
+        (REGISTRY_DOCUMENT.nodeTypes ?? {})[t]?.worker ?? CODE_TYPES[t]?.worker;
+      check('cross-row', 'a DOCUMENT type and a CLASS type over ONE worker: `Prompt` and `GpuModel` name the same worker entry, ' +
+        'so the pools they built differ in their DERIVATION and in nothing else — and one is INLINE where the other is a real thread, ' +
+        'which a derived PoolSpec cannot say and only the built pool can',
+        { workers: [workerOf('Prompt'), workerOf('GpuModel')], inline: [promptPool.inline, gpuDefault.inline] },
+        { workers: ['prompt', 'prompt'], inline: [true, false] });
+      // **And the pools these were read off are the SCHEDULER's**, which is what `scriptUrl` says and
+      // a derived `PoolSpec` cannot: every pool a runtime builds is fronted by the package's envelope
+      // worker (ADR 0054), so the script a `WorkerManager` loads is never the type's own worker url.
+      // W67's adequacy reader (a10): re-sourcing this whole map from the document and the class cost
+      // ZERO, because the identity derivation COPIES `inline` and the class DECLARES it.
+      check('cross-row', 'and the pools those readings came from are the SCHEDULER`s own WorkerManagers — every one loads the ' +
+        'package`s envelope worker, which is the one field a derived PoolSpec cannot carry',
+        Object.values(low.derivedPools).map((d) => d.scriptUrl.endsWith('/envelope-worker.ts')),
+        Object.values(low.derivedPools).map(() => true));
+      assertThat('cross-row', 'and the two derivations DIFFER — the identity derivation copies the declared fields where the class COMPUTES them, ' +
+        'so a class made to return the document type`s options is red here',
+        promptPool.maxThreads !== gpuDefault.maxThreads
+          && JSON.stringify(promptPool.groups) !== JSON.stringify(gpuDefault.groups)
+          && promptPool.residentGroups.length === 0 && gpuDefault.residentGroups.length > 0,
+        `Prompt: ${JSON.stringify(promptPool)} / GpuModel: ${JSON.stringify(gpuDefault)}`);
+
+      // **(iv) The DEFAULT instance and the NAMED instance of ONE type.** `GpuModel`'s default is
+      // built from the class's own `config` member and `prompt-big` from the document's `pools`
+      // entry, and the CLASS computes both pools from `config.model` — so the two differ in the
+      // thread count and in the resident cost. The control is that both actually RAN in one row:
+      // without it the clause is a claim about two objects nothing dispatched to.
+      check('cross-row', 'the DEFAULT instance and the NAMED instance of one type were derived DIFFERENTLY, ' +
+        'by the class, from their own configs — four threads against one, one unit of resident VRAM against two',
+        { def: gpuDefault.maxThreads, named: gpuNamed.maxThreads, defRes: gpuDefault.residentGroups, namedRes: gpuNamed.residentGroups },
+        { def: 4, named: 1, defRes: ['gpu:1'], namedRes: ['gpu:2'] });
+      assertThat('cross-row', 'and both GpuModel instances RAN in one row — a task on the default and a task on the named one, ' +
+        'read off the scheduler, so the pair is about a run rather than about two objects',
+        Object.values(low.poolOfTask).includes('GpuModel') && Object.values(low.poolOfTask).includes('prompt-big'),
+        `poolOfTask: ${JSON.stringify(low.poolOfTask)}`);
+
+      // **(iv-b) `poolOfTask` is the SCHEDULER's map and not a re-reading of the definition** —
+      // W67's adequacy reader (a4), BLOCKING: re-deriving it as `node.pool ?? node.type` over the
+      // flow's own nodes — the expression the field's note NAMES — cost ZERO, so Outputs (2)'s
+      // stated provenance was falsifiable for nothing, and the control that makes the pair about a
+      // RUN was satisfied by re-reading the document. The discriminator is already in this file and
+      // could not be derived from any definition: W19's pair rows put FIVE task ids on the shared
+      // scheduler that no flow declares, and the scheduler's task map holds them.
+      {
+        const foreign = UNMINTED.map((u) => u.id).sort();
+        const pairPools = pairResults[1]!.runs[0]![1].poolOfTask;
+        // **The POOL each foreign id ran on, not merely that the key is there** — this item's own rule
+        // 8 re-run (`ra4`): the reader's edit still ITERATES `scheduler.tasks`, so every key was
+        // present and mapped to `'(none)'`, and a membership test passed. The value is what only the
+        // scheduler holds: a task this library did not mint has no node in any document.
+        check('cross-row', 'the pool map is read off the SCHEDULER`s own task map: on the pair row that injects them it holds the five ' +
+          'task ids this library did not mint AND the pool each ran on, which no reading of a flow document could produce',
+          Object.fromEntries(foreign.map((id) => [id, pairPools[id] ?? '(absent)'])),
+          Object.fromEntries(UNMINTED.map((u) => [u.id, u.worker ?? 'IngestWorker']).sort(([a], [b]) => a.localeCompare(b))));
+      }
+
+      // **(v) A group is resolved by its KEY and the object's own name is inert** — ADR 0049 fact 2,
+      // and W59's adequacy reader found every fixture in the tree had the two equal. The built-in
+      // factories pass the document's key as the id, correctly, so the only place a consumer can
+      // still get this wrong is a CUSTOM factory — and the shim's names its object
+      // `budget-by-object-name` on purpose. The control is that the group was actually ACQUIRED.
+      const budgetHolders = Object.entries(low.heldGroups).filter(([, gs]) => gs.includes('budget')).map(([id]) => id).sort();
+      // **And the object really IS named something else** — W67's adequacy reader (a1), BLOCKING:
+      // the clause below rested entirely on a string inside the shim's factory, and making the two
+      // equal cost ZERO. That is W59's own finding (*every fixture in the tree had the two equal*)
+      // reproduced inside the fixture built to correct it, and v0.13's *whatever makes a
+      // discriminating pair differ is itself a claim*. The two BUILT-IN groups are the other half of
+      // the pair: `createRuntime`'s own factories pass the document's key as the id, correctly, so
+      // they must agree where the custom one must not.
+      check('cross-row', 'the custom group`s object NAMES ITSELF something other than its key, and every built-in one does not — ' +
+        'the pair the clause below turns on, read off the objects the runtime created',
+        { custom: low.groupObjectIds.budget, builtIn: [low.groupObjectIds.gate, low.groupObjectIds.scorer, low.groupObjectIds.vendor] },
+        { custom: 'budget-by-object-name', builtIn: ['gate', 'scorer', 'vendor'] });
+      check('cross-row', 'the scheduler resolved a group by its KEY and not by the object`s own name: the custom group type names its object ' +
+        '`budget-by-object-name` and every acquisition reports `budget`',
+        [...new Set(Object.values(low.heldGroups).flat())].sort(), ['budget', 'vendor']);
+      assertThat('cross-row', 'and the custom group was ACQUIRED by real tasks — a group type registered in code, created by its own factory, ' +
+        'holding tasks on a real scheduler',
+        budgetHolders.length > 0, 'no task acquired the custom group');
+
+      // **(vi) A worker`s `settingsSchema` REFUSES, and the case had to be constructed** — P18
+      // decision 3's *a schema that requires a key refuses absence*, and rule 8's requirement that a
+      // provocation is evidence only when it FIRES. The `prompt` worker requires `prompt`, and every
+      // node of every Prompt-worker type in the sample declares one — so widening the schema cost
+      // ZERO (`a10`, an undeclared survivor of this item's author pass): a guard with no live case,
+      // exactly what `doc/workflow.md` v0.10 says to construct rather than argue. The fixture is the
+      // sample flow with ONE node's `settings` emptied, validated against the registry the RUN was
+      // built from, and its control is the same document unedited.
+      {
+        const registryForSample = {
+          predicates: [...predicates.keys()],
+          groups: reports[0]!.schedulerGroups,
+          workers: REGISTRY_DOCUMENT.workers,
+          // The CLASS type is in no document, so the validator is handed the union the driver got —
+          // a document-form stand-in for it whose worker is the one the class names.
+          nodeTypes: { ...REGISTRY_DOCUMENT.nodeTypes, GpuModel: { worker: 'prompt' } },
+          pools: REGISTRY_DOCUMENT.pools,
+          languages: LANGUAGES,
+        };
+        const sampleFindings = (d: FlowDefinition) =>
+          validateDefinition(d, registryForSample as never).map((f) => `${f.rule}@${f.at}`).sort();
+        const withoutPrompt = {
+          ...TRI,
+          nodes: (TRI.nodes as unknown as Record<string, unknown>[])
+            .map((n) => (n.id === 'review' ? { ...n, settings: {} } : n)),
+        } as unknown as FlowDefinition;
+        check('cross-row', 'the sample flow validates against the registry the run was BUILT from, with zero findings — ' +
+          'the control, without which the refusal below could be a document nothing accepts',
+          sampleFindings(TRI), []);
+        check('cross-row', 'and a node whose settings drop the key the WORKER`s settingsSchema requires is refused by FD-V33 at that node, and by nothing else — ' +
+          'decision 3`s `a schema that requires a key refuses absence`, on a case the corpus cannot supply',
+          sampleFindings(withoutPrompt), ['FD-V33@review']);
+        // **And the ABSENT case is a case** — W67's adequacy reader (a13). `fetch` declares no
+        // `settingsSchema`, which decision 3 says means UNCHECKED; nothing distinguished that from a
+        // permissive one, so ADDING a schema to that entry cost zero. A node of that type carrying
+        // settings nothing declares must validate, which is what *absent means unchecked* IS.
+        const fetchWithSettings = {
+          ...TRI,
+          nodes: (TRI.nodes as unknown as Record<string, unknown>[])
+            .map((n) => (n.id === 'fetch' ? { ...n, settings: { anything: 1, atAll: 'yes' } } : n)),
+        } as unknown as FlowDefinition;
+        check('cross-row', 'and a node whose worker entry declares NO settingsSchema takes any settings at all — ' +
+          'decision 3`s `an absent schema means UNCHECKED`, which nothing told apart from a permissive one',
+          sampleFindings(fetchWithSettings), []);
+        // **All four of a worker entry's schemas are CARRIED**, which is the other half of decision
+        // 3's enumeration: this plan enforces two and P19 enforces the rest, so *carried* is the
+        // whole claim the other two have — and it had no observer (a6).
+        // **Compared to a DECLARED list and not to the document** — this item's own rule 8 re-run
+        // (`ra6`): sourcing the expected side from `REGISTRY_DOCUMENT` made both halves move with the
+        // probe, so deleting the two schemas this plan does not enforce was green again. Decision 3
+        // enumerates FOUR and the sample's `prompt` entry is the one place all four occur, so the
+        // list is the rule's rather than the document's — v0.17's *where a rule enumerates its own
+        // values, the set is that enumeration*.
+        check('cross-row', 'the runtime CARRIES all FOUR of the schemas decision 3 enumerates, on the entry that declares them, and exactly the ' +
+          'two the `typed` and `echo` entries declare — this plan enforces two and the other two are declared, carried, and enforced by nothing',
+          {
+            prompt: reports[0]!.workerSchemas.prompt,
+            fetch: reports[0]!.workerSchemas.fetch,
+            typed: reports[0]!.workerSchemas.typed,
+            ingest: reports[0]!.workerSchemas.ingest,
+          },
+          {
+            prompt: ['configSchema', 'inputSchema', 'outputSchema', 'settingsSchema'],
+            fetch: ['outputSchema'],
+            typed: ['settingsSchema'],
+            ingest: [],
+          });
       }
     }
     // (3) The resource-event observer is bound the way `attempts` is: a resource event was
@@ -5846,11 +6449,19 @@ if (rowCosts.length !== EXPECTED.length) {
     // **What was READ, both ways against what was LISTED** — obligation (e)'s third
     // shape, and the half the first version got wrong: it read the LISTING, so a
     // narrowed read loop skipped `l6.ts` and this clause passed.
+    // **Outputs (1), as an assertion** — W67's adequacy reader (a8). Nothing under `examples/` builds
+    // a pool, a scheduler, a driver or a built-in group any more: the runtime does, from a document.
+    check('cross-row', 'no file under examples/ CONSTRUCTS a pool, a scheduler, a Driver or a built-in resource group — ' +
+      'P18`s exit artifact is that the library does every instantiation, and this is the half `S16` does not reach',
+      EXAMPLES_REACH.constructors, []);
+    check('cross-row', 'and that detector fires on each of the four, and NOT on the consumer`s own classes the shim still builds — ' +
+      'a custom group inside the factory the runtime calls, and a node-type class',
+      CONSTRUCT_CASES.map(([text]) => CONSTRUCTS_A_SCHEDULER_OBJECT.test(text)), CONSTRUCT_CASES.map(([, want]) => want));
     check('cross-row', 'and the sweep OPENED exactly the files it listed, both ways',
       [...EXAMPLES_REACH.read].sort(), [...EXAMPLES_REACH.files].sort());
     assertThat('cross-row', 'and the listing reached both directories, naming the three files this ' +
       'block`s own extractions read',
-      ['./l6.ts', './run-flow.ts', './workers/flow-worker.ts']
+      ['./l6.ts', './run-flow.ts', './workers/shared.ts', './workers/prompt.ts']
         .every((f) => EXAMPLES_REACH.files.includes(f)),
       `swept ${EXAMPLES_REACH.files.length}: ${EXAMPLES_REACH.files.join(', ')}`);
   }
@@ -6107,9 +6718,9 @@ if (rowCosts.length !== EXPECTED.length) {
       'two drivers on ONE scheduler each collected their own region and released it',
       pairRuns.map(([who, rep]) => `${who} ${rep.retention.peakEntries}/${rep.retention.endEntries}`),
       pairRuns.map(([who]) => `${who} ${pairArity}/0`));
-    check('cross-row', 'and that is FOUR more runs than the row loop produces, so the claim covers ' +
-      'every run rather than most of them',
-      reports.length + pairRuns.length, EXPECTED.length + pairResults.reduce((n, { runs }) => n + runs.length, 0));
+    check('cross-row', 'and that is FIVE more runs than the row loop produces — four from the two pair rows and ONE from the ' +
+      'shim run, so the claim covers every run rather than most of them',
+      reports.length + pairRuns.length + 1, EXPECTED.length + pairResults.reduce((n, { runs }) => n + runs.length, 0) + 1);
   }
 
   // **The byte measurement's own UNIVERSE, bound both ways** — obligation (e)'s third
@@ -6339,7 +6950,14 @@ check('cross-row', 'every cross-row SUBJECT this file declares was asserted abou
 // the reshaping-road pair joined block (2d).)* **1501 after the readers**: the `transform-fails`
 // row's fourth branch, `note` — one `nodeResults`, one `branchEvents` — at 51. **1502 since W65**:
 // one more cross-row assertion, the own-policy half of block (2b)'s retry pair; no row moved.
-const DECLARED_TOTAL = 1502;
+// **+96 since W65 — W67.** Two rows of P18's sample (`triage LOW` and `triage HIGH`,
+// each carrying `poolOfTask` and `heldGroups` extras the floor derives from the row) plus the 11
+// cross-row assertions above. *(1502 at W65; 1595 at this item's first green run; 1597 after the
+// `FD-V33` fixture its author pass forced; 1598 after its conformity reader's finding 10 gave the
+// control row the entry node's pool; 1609 after its adequacy reader's eleven cross-row assertions
+// and the per-row subject its a12 forced. W67's conformity reader, finding 9 — the arithmetic belongs
+// here, and its absence is why two documents shipped 1595.)*
+const DECLARED_TOTAL = 1610;
 if (passed + failures.length !== DECLARED_TOTAL) {
   failures.push(
     'gate\n      the assertion count is not the number this file declares outright\n' +

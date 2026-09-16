@@ -319,10 +319,36 @@ suite('W66 — decision 4: the group factories, and what a created group is held
     ok(err instanceof GroupUnusable && err.at === 'gpu' && (err as Error).message.includes('boom'), `GroupUnusable carrying the cause: ${(err as Error)?.message}`);
   });
 
-  test('a group the document declares that no pool names is still CREATED — direction two is the helper`s refusal, and it fires', () => {
+  /**
+   * **A group the DOCUMENT declares that no pool names is CREATED and registered — W67's
+   * declaration step, stop-and-ask 1, and it REPLACES a case that asserted the opposite.**
+   *
+   * `bootstrap`'s direction two refuses a group OBJECT no pool names, and it is right to: a consumer
+   * calling the helper passes the objects in, so one nothing names is registered and used by nothing.
+   * **A document's `groups` is a different thing**: it is the SET a node's `workerGroups` may name,
+   * which is what `FD-V31` validates against and what `runtime.registry.groups` carries to the
+   * driver. A group named by a NODE and by no pool is the ordinary case — W58's group row IS it,
+   * and it is why `examples/run-flow.ts` registered `gate` beside the helper's result for two plans.
+   * A consumer holding only a runtime has no "beside", so the runtime splits the two sets and the
+   * helper's own refusal stays exactly as it is (`test/scheduler/bootstrap.test.ts`, direction two).
+   */
+  test('a group the DOCUMENT declares that no pool names is CREATED, registered and reachable — the node-named case, which is FD-V31`s whole set', () => {
     const s = seams();
-    throws(() => createRuntime(edited((d) => { d.groups.spare = { type: 'ConcurrentLimitGroup', config: { limit: 1 } }; }), {},
-      { createPool: s.createPool, createScheduler: s.createScheduler }), 'spare', 'a group registered and used by nothing is refused, naming it');
+    const r = createRuntime(edited((d) => { d.groups.spare = { type: 'ConcurrentLimitGroup', config: { limit: 1 } }; }), {},
+      { createPool: s.createPool, createScheduler: s.createScheduler });
+    equal(Object.keys(r.groups).sort(), ['gpu', 'spare'], 'both groups were created');
+    equal(r.registry.groups, ['gpu', 'spare'], 'and both reach the driver, which is what FD-V31 reads');
+    equal(Object.keys(s.built[0]!.groups).sort(), ['gpu', 'spare'], 'and the SCHEDULER holds both — a task naming `spare` in workerGroups resolves');
+    // The KEY is the group's identity (ADR 0049 fact 2), so the object carries the document's key.
+    equal((r.groups.spare as unknown as { id: string }).id, 'spare', 'built with the document`s key as its id');
+  });
+
+  test('and direction ONE is untouched: a POOL naming a group the document does not declare is still refused', () => {
+    const s = seams();
+    let err: unknown;
+    try { createRuntime(edited((d) => { d.nodeTypes.Scorer.groups = ['ghost']; }), {}, { createPool: s.createPool, createScheduler: s.createScheduler }); } catch (e) { err = e; }
+    ok(err instanceof NameMissing, `refused by the resolver before anything is built: ${(err as Error)?.constructor?.name}`);
+    equal(s.pools, [], 'and nothing was built');
   });
 
   test('a type naming a group the document does not declare is refused by NAME, before anything is created', () => {
@@ -668,7 +694,10 @@ suite('W66 — the sub-path re-exports what this module exports, both ways', (te
 });
 
 const IN_BROWSER = typeof (globalThis as { document?: unknown }).document !== 'undefined';
-const WORKER_URL = '../../examples/workers/flow-worker.ts';
+// **One module per worker since W67** — `examples/workers/` holds a module per worker entry and no
+// `role` switch, so this names the two it needs rather than one file twice with two configs.
+const INGEST_URL = '../../examples/workers/ingest.ts';
+const PUBLISH_URL = '../../examples/workers/publish.ts';
 
 suite('W66 — a runtime on REAL pools: a document in, a completed run out', (test) => {
   test(`a flow built entirely from a document runs to completed on a real FyflowScheduler — ${IN_BROWSER ? 'SKIPPED in the browser (RT-R10)' : 'inline pools, no seam'}`, async () => {
@@ -677,11 +706,11 @@ suite('W66 — a runtime on REAL pools: a document in, a completed run out', (te
       return;
     }
     const runtime = createRuntime({
-      workers: { flow: { url: WORKER_URL } },
+      workers: { ingest: { url: INGEST_URL }, publish: { url: PUBLISH_URL } },
       groups: { gate: { type: 'ConcurrentLimitGroup', config: { limit: 1 } } },
       nodeTypes: {
-        Ingest: { worker: 'flow', inline: true, config: { role: 'ingest' }, pool: { maxThreads: 1, idleTimeout: 0 } },
-        Publish: { worker: 'flow', inline: true, config: { role: 'publish' }, pool: { maxThreads: 1, idleTimeout: 0 }, groups: ['gate'] },
+        Ingest: { worker: 'ingest', inline: true, config: {}, pool: { maxThreads: 1, idleTimeout: 0 } },
+        Publish: { worker: 'publish', inline: true, config: {}, pool: { maxThreads: 1, idleTimeout: 0 }, groups: ['gate'] },
       },
     }, {}, { base: import.meta.url });
 

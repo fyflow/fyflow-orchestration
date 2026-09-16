@@ -1,0 +1,106 @@
+{
+  "workers": {
+    "ingest": { "url": "./workers/ingest.ts" },
+    "score": { "url": "./workers/score.ts" },
+    "publish": { "url": "./workers/publish.ts" },
+    "split": { "url": "./workers/split.ts" },
+    "tally": { "url": "./workers/tally.ts" },
+    "weigh": { "url": "./workers/weigh.ts" },
+    "attest": { "url": "./workers/attest.ts" },
+    "fail": { "url": "./workers/fail.ts" },
+    "uncloneable": { "url": "./workers/uncloneable.ts" },
+    "retry": { "url": "./workers/retry.ts" },
+    "typed": {
+      "url": "./workers/typed.ts",
+      "settingsSchema": {
+        "type": "object",
+        "properties": { "factor": { "type": "number" }, "failFirst": { "type": "boolean" } },
+        "additionalProperties": false
+      }
+    },
+    "echo": {
+      "url": "./workers/echo.ts",
+      "settingsSchema": {
+        "type": "object",
+        "properties": { "scale": { "type": "number", "minimum": 0 } },
+        "additionalProperties": false
+      }
+    },
+    "prompt": {
+      "url": "./workers/prompt.ts",
+      "configSchema": {
+        "type": "object",
+        "required": ["model"],
+        "properties": { "model": { "enum": ["small", "large"] }, "delayMs": { "type": "number", "minimum": 0 } },
+        "additionalProperties": false
+      },
+      "settingsSchema": {
+        "type": "object",
+        "required": ["prompt"],
+        "properties": { "prompt": { "type": "string" }, "temperature": { "type": "number" } },
+        "additionalProperties": false
+      },
+      "inputSchema": { "type": "object", "required": ["text"] },
+      "outputSchema": { "type": "object", "required": ["answer", "confidence"] }
+    },
+    "fetch": {
+      "url": "./workers/fetch.ts",
+      "outputSchema": { "type": "object", "required": ["text"] }
+    }
+  },
+
+  "groups": {
+    "scorer": { "type": "ConcurrentLimitGroup", "config": { "limit": 8 } },
+    "gate": { "type": "ConcurrentLimitGroup", "config": { "limit": 1 } },
+    "vendor": { "type": "RateLimitGroup", "config": { "windows": [{ "limit": 60, "windowMs": 60000 }] } },
+    "gpu": { "type": "ConcurrentLimitGroup", "config": { "limit": 4 } },
+    "budget": { "type": "DailyBudgetGroup", "config": { "tokensPerDay": 2000000 } }
+  },
+
+  "nodeTypes": {
+    "IngestWorker": { "worker": "ingest", "inline": true, "config": { "delayMs": 5 }, "pool": { "maxThreads": 1, "idleTimeout": 0 } },
+    "ScoreWorker": { "worker": "score", "config": { "delayMs": 5 }, "pool": { "maxThreads": 2, "idleTimeout": 0 } },
+    "PublishWorker": { "worker": "publish", "inline": true, "config": { "delayMs": 5 }, "pool": { "maxThreads": 1, "idleTimeout": 0 } },
+    "SplitWorker": { "worker": "split", "inline": true, "config": { "delayMs": 5 }, "pool": { "maxThreads": 1, "idleTimeout": 0 } },
+    "WeighWorker": { "worker": "weigh", "config": { "delayMs": 5 }, "pool": { "maxThreads": 2, "idleTimeout": 0 } },
+    "TallyWorker": { "worker": "tally", "inline": true, "config": { "delayMs": 5 }, "pool": { "maxThreads": 1, "idleTimeout": 0 } },
+    "AttestWorker": { "worker": "attest", "inline": true, "config": { "delayMs": 5 }, "pool": { "maxThreads": 1, "idleTimeout": 0 } },
+    "ReviewWorker": { "worker": "fail", "inline": true, "config": { "delayMs": 20 }, "pool": { "maxThreads": 1, "idleTimeout": 0 } },
+    "ExtractWorker": { "worker": "fail", "inline": true, "config": { "delayMs": 20 }, "pool": { "maxThreads": 1, "idleTimeout": 0 } },
+    "MergeWorker": { "worker": "uncloneable", "inline": true, "config": { "delayMs": 20 }, "pool": { "maxThreads": 1, "idleTimeout": 0 } },
+    "RetryWorker": { "worker": "retry", "inline": true, "config": { "delayMs": 5 }, "pool": { "maxThreads": 1, "idleTimeout": 0 } },
+    "Echo": {
+      "worker": "echo",
+      "inline": false,
+      "config": {},
+      "pool": { "maxThreads": 2, "idleTimeout": 0 },
+      "retryPolicy": { "maxRetries": 1, "backoffMs": 0 }
+    },
+    "Scorer": {
+      "worker": "typed",
+      "inline": true,
+      "config": {},
+      "pool": { "maxThreads": 2, "idleTimeout": 0 },
+      "groups": ["scorer"],
+      "retryPolicy": { "maxRetries": 1, "backoffMs": 0 }
+    },
+
+    "Fetch": { "worker": "fetch", "inline": true, "config": { "delayMs": 5 }, "pool": { "maxThreads": 1, "idleTimeout": 0 } },
+    "Prompt": {
+      "worker": "prompt",
+      "inline": true,
+      "config": { "model": "small", "delayMs": 5 },
+      "pool": { "maxThreads": 2, "idleTimeout": 30000 },
+      "groups": ["vendor", "budget"],
+      "retryPolicy": { "maxRetries": 1, "backoffMs": 0 },
+      "settings": { "temperature": 0 }
+    }
+  },
+
+  "pools": {
+    "prompt-big": { "type": "GpuModel", "config": { "model": "large" } }
+  },
+
+  "predicates": ["isLowConfidence", "earlierWasLowConfidence", "isLowScore"],
+  "languages": ["jsonata"]
+}

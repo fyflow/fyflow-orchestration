@@ -1,13 +1,15 @@
 # P18 — A flow and its runtime from documents alone
 
-**Status:** DECLARED — drafted 2026-09-15 on `e6ea29a` (tagged `basic-functionality-ready`, P1-P17
-complete and retro'd, `doc/workflow.md` [v0.18](../workflow.md)) from a design conversation with the
-maintainer, its nine facts measured the same day in both runtimes, its three stop-and-ask decisions
-taken by the maintainer at the draft, and **declared 2026-09-15** with
-[W65](../work-items/w65-the-registry-document-and-a-node-type-is-a-derivation.md),
-[W66](../work-items/w66-the-runtime-entry.md) and
-[W67](../work-items/w67-a-flow-from-documents-on-real-workers.md) declared and not started, W68
-reserved. *Read every status from the item's own file, never from this line.*
+**Status:** ALL THREE ITEMS DONE, RETRO NOT RUN — drafted 2026-09-15 on `e6ea29a` (tagged
+`basic-functionality-ready`, P1-P17 complete and retro'd, `doc/workflow.md` [v0.18](../workflow.md))
+from a design conversation with the maintainer, its nine facts measured the same day in both
+runtimes, and declared 2026-09-15.
+[W65](../work-items/w65-the-registry-document-and-a-node-type-is-a-derivation.md) done 2026-09-15,
+[W66](../work-items/w66-the-runtime-entry.md) done 2026-09-16 and
+[W67](../work-items/w67-a-flow-from-documents-on-real-workers.md) done 2026-09-16; W68 reserved and
+never issued. **The exit artifact exists**: P18's sample runs from two JSON documents and a shim on a
+real `FyflowScheduler` in both L6 runtimes. *Read every status from the item's own file, never from
+this line.*
 
 **The question in one sentence.** Today a consumer who wants a flow to RUN writes code around the
 library: a `WorkerManager` per worker with a role in its config, resource groups constructed by
@@ -577,6 +579,64 @@ documents, forty-eight links, two anchors, two questions.*
 
 *Filled in at the join, after the work items are merged. Empty while this is a draft. Each item's
 paragraph is written when the item closes; the join reads them together.*
+
+### W67 — done 2026-09-16
+
+**The exit artifact: a flow and the runtime it needs, from TWO JSON DOCUMENTS and a shim, on a real
+`FyflowScheduler` in both L6 runtimes.** `examples/registry.json` says what exists — fourteen worker
+modules, five groups, fifteen node types, one NAMED pool instance, three predicate names, one
+language — `examples/flows/triage.flow.json` names registry keys and nothing else, and
+`examples/run-flow.ts` is a SHIM: `createRuntime` once, the four things decision 7 keeps as code, and
+observers. **No `pool()` call, no group built by hand, no `Driver` built by hand, and no role switch**
+— one worker file with a twelve-arm `switch` became **fourteen modules, one per worker entry**, and
+the binding that replaced `ROLES` is the document's worker keys against the modules ON DISK, both
+ways. L6 is **1610 assertions over 53 real runs** in both runtimes, from 1502 / 50; L1-L5 **41 / 1112
+in five runtimes**; `spec/` unmoved at **7 / 55 / 106 with `C4` at 34**, which is what an exit
+artifact's must be.
+
+**Its declaration step found four things wrong with this plan's own SAMPLE and one blocker the plan
+did not have.** W66 recorded three; the fourth was measured here and is new — the sample's
+`DailyBudgetGroup` uses a constructor PARAMETER PROPERTY, which Node 24 refuses at load, so **the
+sample does not run** (`RT-R9`, the rule `S4` enforces over `src/` and which reaches no plan
+document; [Q292](../open-questions.md)). **The blocker**: a registry document could not declare a
+group that only NODES name, because `createRuntime` handed every declared group to `bootstrap`, whose
+direction-two refusal is right for a helper taking OBJECTS and wrong for a document declaring the SET
+`FD-V31` reads — measured, put to the maintainer, and fixed in `createRuntime` with direction one
+untouched ([Q291](../open-questions.md)). **[Q279](../open-questions.md) is RESOLVED** here by the
+maintainer's answer: both manifests read `0.2.0` and `README.md` names the breaking change.
+
+**The two `triage` rows carry every shape the exit artifact names, each read from the run**: a
+DOCUMENT type and a CLASS type over ONE worker, so the pools differ in their DERIVATION alone; a node
+on its type's DEFAULT instance and one on a NAMED instance of that type, told apart by the pool the
+scheduler says each ran on AND by what the worker returned; a built-in group and a custom one; the
+type's `settings` default reaching one and not the other; and a declared transform reducing `JP-R12`'s
+record with no reshaping node. **Reverting each item at L6 on the tree that ships: W65 309, W66 1,
+W67 1** — and W66's group-member check removed costs **0**, a refusal with no live case, recorded.
+
+**Readers 14 / 7 blocking and 16 mutations / 9 survivors / 7 blocking, overlap 1 — the fortieth
+measurement**, and their split held. The conformity reader re-derived every expected value of both
+rows on paper and found **zero disagreements**; what it found were claims — a count stale by two in
+the two documents a reader opens first, *thirteen node types* where the document declares fifteen,
+and **`run-flow.ts` claiming every non-threaded row runs the document AS IT IS ON DISK when it does
+not**, the assertion being right and the three sentences citing it wrong. The adequacy reader found
+bounds that were not there, every one in a direction the author's 45 probes never took: the custom
+group's name/key pair carried by a string in a factory (W59's own finding inside the fixture built to
+correct it); `poolOfTask`'s *read off the scheduler* falsifiable at zero by the expression its own
+note names; clause (iii)'s stated reason false of every field it read; **Outputs (1) held by nothing
+anywhere**, since `S16`'s scope is the published set; the whole per-row layer out for three edits and
+an integer; and **decision 10's two defaults reached by nothing** — this plan's own shim is
+`runtime.start(flow, payload)` with NO options, the one call this rung never made. It makes it now,
+on `p1-routed-away` at LOW, where *the run completed* IS *the default is `live-token`*.
+
+**Rule 8: author pass 45 probes / 30 caught / TEN undeclared survivors; final pass with the readers'
+sixteen edits in, 64 probes, 51 caught, 7 declared ceilings each RUN, 0 undeclared, 0 crashes,
+0 aborts, 0 against declaration, 6 measured**, the tree held still by a content digest. Two aborts on
+the way were rule 7 (b) on anchors this item's own edits had moved; one probe came back CAUGHT
+AGAINST ITS DECLARATION, the declaration having been written before the membership that now catches
+it. **And a crash is not a detection, in the two blocks added AFTER the guard that says so** — the
+shim run sits outside the row loop and block (2e) dereferenced `reports[-1]`; both now fail naming
+themselves. **Late exceptions ONE, zero undeclared** (`spec/flow-definition.md` §3, one sentence this
+item made false). Census **230 / 176 / 2 / 52**, 0 aborts on a parser written from scratch — which was wrong ONCE, adding its three exempt rows to the three counts and not to the total, and said so rather than reporting a plausible sum. `npm run gate` **EXIT 0, zero FAIL lines**, digest `37a8669ded4dcdb8` over 328 files before and after. Q289-Q292 raised, Q99 extended, Q279 resolved.
 
 ### W66 — done 2026-09-16
 

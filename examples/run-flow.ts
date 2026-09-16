@@ -49,166 +49,340 @@ import {
   type Predicate, type RunOutcome, type RunState, type UnmintedTask,
   type UnsatisfiableJoin,
 } from '../index.ts';
-import { ConcurrentLimitGroup, FyflowScheduler, FyflowTask } from 'fyflow-scheduler';
-// **The SUB-PATH, by its published entry — W59.** `fyflow-orchestration/scheduler` is the one
-// module of this package that constructs scheduler objects, and this file reaches it exactly as
-// a consumer does: through the sub-path's entry and never a file under it. The reaches-past-index
-// clause in `l6.ts` exempts this one path by name, because it IS a consumer surface.
-import { bootstrap } from '../src/scheduler/index.ts';
+import { FyflowTask } from 'fyflow-scheduler';
+import type { ConcurrentLimitGroup, ResourceGroup } from 'fyflow-scheduler';
+// **The SUB-PATH, by its published entry — W59, and since W67 it is the whole of how this harness
+// builds anything.** `fyflow-orchestration/scheduler` is the one module of this package that
+// constructs scheduler objects, and this file reaches it exactly as a consumer does: through the
+// sub-path's entry and never a file under it. The reaches-past-index clause in `l6.ts` exempts this
+// one path by name, because it IS a consumer surface. *(This imported `bootstrap` until W67; a
+// registry DOCUMENT and `createRuntime` replace every call this file used to make.)*
+import { createRuntime, type Runtime, type StartOptions } from '../src/scheduler/index.ts';
 // **The SECOND sub-path, by its published entry — W63.** `fyflow-orchestration/jsonata` is the
 // language a `transform` names, reached here exactly as a consumer reaches it (ADR 0052 rule 3);
 // the reaches-past-index clause in `l6.ts` exempts this entry by name as it does the one above.
 import { jsonata } from '../src/jsonata/index.ts';
-import type { NodeTypeDeclaration, WorkerEntry } from '../index.ts';
+import type {
+  NodeTypeDeclaration, NodeTypeDefinition, PoolSpec, RegistryCode, RegistryDocument,
+} from '../index.ts';
+// **The registry DOCUMENT, read from disk as JSON — W67, and it is half of P18's exit artifact.**
+// Everything this harness used to write in TypeScript — thirteen node types, their pools, their
+// groups, their retry policies, the languages, the predicate names — is data now, in a file a
+// consumer could copy. What is left in this module is the code that is genuinely theirs: the
+// predicates (`l6.ts`'s), a custom group type and a custom node-type class.
+import registryDocument from './registry.json' with { type: 'json' };
 
 /**
- * **The languages a `transform.lang` may name at this rung, and the ONE object both the helper
- * and every driver read — W63, ADR 0051 rules 2 and 4.** `buildScheduler` hands it to `bootstrap`
- * beside the flows a scheduler will run, so the adapter's WORKER half (its module URL) is written
- * into a typed pool's config only for a type some node of those flows transforms on; `runFlow`
- * hands the same object to the `Driver`, whose registry half (`compile`) refuses an expression at
- * construction (`FD-V36`). One object, two readers, as `NODE_TYPES` is. Exported so `l6.ts` can
- * compare its keys to the languages the flows NAME, both ways (rule 8 obligation (e)).
+ * **The registry DOCUMENT this rung runs, and the ONE thing this harness does to it** — W67, and it
+ * is P18's exit artifact seen from the harness's side.
+ *
+ * Until W67 this file held the registry as a TypeScript literal — thirteen `NodeTypeDeclaration`s
+ * with a `role` in each config, a `WORKERS` map over one worker file, a `registryFor(delayMs,
+ * threaded)` that rewrote them per run, and a `buildScheduler` that called `bootstrap` and
+ * registered one group beside its result. **All of it is `examples/registry.json` now**, and what is
+ * left in this module is exactly what P18 decision 7 says stays code: the predicates, a custom group
+ * TYPE, and a custom node-type CLASS.
+ *
+ * **Every row runs the document with ONE key written into it and nothing else, and `l6.ts` asserts
+ * that as a DIFF.** The one derivation below exists because a per-run knob has NO DOCUMENT SPELLING:
+ * `inline` is fixed per TYPE (P18 decision 2 — an instance's config merges into `config` and never
+ * reaches it), while `Expectation.threaded` is a property of a ROW. So `registryDocumentFor` writes
+ * `inline: !threaded` into the two types that declare none, and does nothing else.
+ *
+ * *(These sentences said **"every row but a threaded one runs the document AS IT IS ON DISK"** and
+ * **"at `threaded: false` it returns the document object itself, unchanged"**. Both are FALSE and
+ * were false as written: the document leaves `inline` unsaid on `ScoreWorker` and `WeighWorker`
+ * precisely so the knob can set it, so the non-threaded variant writes `inline: true` into two types
+ * the file does not mention — which is what the clause below expects, at BOTH settings. The first
+ * draft DID return the object itself, and that made the `threaded: false` rows run those two pools
+ * on threads, which moved two rows' join-settling order and was caught by L6 on its first run; the
+ * prose was not corrected with the code. W67's conformity reader, finding 3, and it is the sharper
+ * half of section 1 rule 5: the ASSERTION was right and the sentence that cites it was not.)*
+ *
+ * **Measured at W67's declaration step, because a knob with no assertion deserves a number**:
+ * forcing every such type inline — which is what dropping the knob would do — costs **ZERO** L6
+ * failures. That is [Q99](../doc/open-questions.md)'s *a knob held down by no assertion* with a
+ * figure. It is kept because what it buys is that the fan-out pool is a real THREAD on the rows that
+ * ask for one, which is the one place two tasks are in flight at once and therefore where a dispatch
+ * race or an id collision would show — and W51 measured that it changes dispatch order 12/12.
+ */
+export const REGISTRY_DOCUMENT: RegistryDocument = registryDocument as unknown as RegistryDocument;
+
+/**
+ * **The types whose `inline` the document deliberately leaves unsaid** — derived from the document
+ * rather than listed, so a type that gains or loses an `inline` moves this set with it. `l6.ts`
+ * compares it to the types it expects to be threadable, both ways.
+ */
+export const THREADABLE_TYPES: readonly string[] = Object.entries(REGISTRY_DOCUMENT.nodeTypes ?? {})
+  .filter(([, t]) => (t as NodeTypeDeclaration).inline === undefined)
+  .map(([name]) => name)
+  .sort();
+
+/**
+ * **The document a row runs**, which is the document on disk with `inline` written into the
+ * threadable types when the row asks for threads, and the document ITSELF when it does not.
+ *
+ * **What it may change is bounded and asserted rather than described**: `examples/l6.ts` compares
+ * the document a row runs to the document ON DISK key by key, both ways, and the only difference it
+ * admits is `inline` on exactly the types `THREADABLE_TYPES` names. Every other section — the
+ * workers, the groups, the pools, the predicates, the languages, and every other field of every
+ * type — is the file's, byte for byte. That is what makes *this rung runs the document* a fact
+ * rather than a sentence, and it is stronger than object identity would be, because identity holds
+ * on one path and this holds on both.
+ *
+ * **`delayMs` is the SECOND override and no L6 row uses it.** `examples/retention.ts`'s scale mode
+ * makes hundreds of runs and wants none of the per-task delay the document declares for the sake of
+ * a causal settling order; it passes `0`, which is written into every type that declares one — so
+ * the four-times relation flattens exactly where nothing depends on it. A row that overrode it would
+ * flatten that relation too, which is why the L6 path does not have the option.
+ */
+export function registryDocumentFor(threaded: boolean, delayMs?: number): RegistryDocument {
+  const nodeTypes: Record<string, NodeTypeDeclaration> = {};
+  for (const [name, t] of Object.entries(REGISTRY_DOCUMENT.nodeTypes ?? {})) {
+    const inline = THREADABLE_TYPES.includes(name) ? { inline: !threaded } : {};
+    const config = delayMs === undefined || (t.config as { delayMs?: unknown } | undefined)?.delayMs === undefined
+      ? {}
+      : { config: { ...(t.config as Record<string, unknown>), delayMs } };
+    nodeTypes[name] = { ...t, ...inline, ...config };
+  }
+  return { ...REGISTRY_DOCUMENT, nodeTypes };
+}
+
+/**
+ * **This module's realm, marked so a worker can say whether it shares it — W63, W62's mechanism one
+ * rung up.** The `echo` worker reports `realm: 'harness'` when it sees this mark and `'thread'` when
+ * it does not; an inline pool runs its worker here and a threaded pool in a fresh realm, so a row
+ * expecting `'thread'` is red the moment the `Echo` type is made inline.
+ */
+(globalThis as Record<string, unknown>).__L6_HARNESS_REALM__ = 1;
+
+/**
+ * **The language adapters the document NAMES — decision 13, and the runtime imports no engine.**
+ * `examples/registry.json` says `"languages": ["jsonata"]`; this supplies it, and `createRuntime`
+ * compares the two sets BOTH ways — a language named and not supplied is refused by the resolver, one
+ * supplied and not named by the runtime. Exported so `l6.ts` can compare its keys to the languages
+ * the flows themselves name (rule 8 obligation (e)).
  */
 export const LANGUAGES = { jsonata } as const;
 
 /**
- * **This module's realm, marked so a worker can say whether it shares it — W63, W62's mechanism one
- * rung up.** The `echo` role reports `realm: 'harness'` when it sees this mark and `'thread'` when it
- * does not; an inline pool runs its worker here and a threaded pool in a fresh realm, so a row
- * expecting `'thread'` is red the moment the `Echo` pool is made inline. Before this the header's
- * *"a real THREAD in both runtimes"* was a configuration nothing read (the adequacy reader, M5).
+ * **The three predicates this rung registers, and since W67 they live in the SHIM** — P18 decision 7's
+ * *what stays code, exactly*, and P18's own sample puts the predicate beside `createRuntime`.
+ *
+ * The document's `predicates` names these three; `createRuntime` refuses a name it does not supply
+ * and a supplied name the document does not carry, so the two halves cannot drift. Each reads what
+ * `FD-C3` gives it and nothing else, and each is **total**: a result with no field of the right type
+ * takes the default edge, which is what lets one flow's rows disagree while another's do not.
+ *
+ * *(They were `l6.ts`'s until W67, passed in per row. The map is the default now and a row may still
+ * override it — `RunOptions.predicates` — which is the seam a row that wants a different predicate
+ * set would use; nothing does today, and the set is compared to the document's names in `l6.ts`.)*
  */
-(globalThis as Record<string, unknown>).__L6_HARNESS_REALM__ = 1;
-// **The worker file`s own role list, imported rather than repeated** — W43. See
-// `ROLES` there: three lists said the same seven things and nothing compared them.
-import type { Role } from './workers/flow-worker.ts';
 
 /**
- * **The ONE worker entry every pool here runs, and the THIRTEEN node types this rung registers over
- * it — W65 (ADR 0054), where W59's two types and W43's eleven `pool()` lines became one registry.**
- * Every task node names a type since v0.19 and every pool is fronted by the package's envelope
- * worker, so the eleven pools `buildScheduler` used to construct by hand are document-declared types
- * now — one per former pool key, each with its role in its `config` — and `bootstrap` builds every
- * pool through the identity derivation. *(This read "thirteen pools … eleven by `pool()` and two by
- * the bootstrap helper" from W63; there is no `pool()` call left in this file.)*
- *
- * **One object, two readers, as before**: `buildScheduler` hands `registryFor(delayMs, threaded)` —
- * this literal with the run's delay and threading written into the eleven role types' config and
- * `inline` — to `bootstrap`, and `runFlow` hands the SAME sections to the `Driver`, so the type a
- * document names, the pool the scheduler holds and the schema the driver applies cannot be three
- * copies. Exported so `l6.ts` can compare the keys to the types the flows NAME and to the pools the
- * scheduler REPORTS, both ways (rule 8 obligation (e)).
- *
- * **What `registryFor` changes and what it does not.** A role type whose `config` carries `delayMs`
- * gets the run's delay — four times over for the roles that must settle LAST (see `SETTLES_LAST`
- * below) — and `inline: !threaded` where the type declares no `inline`. `Echo` and `Scorer` carry no
- * `delayMs` and declare `inline`, so they are handed to the helper byte-identical to their
- * declaration here, which is what keeps P18 fact 5's capture — and the typed rows of P16 and P17 —
- * unmoved (prediction 2).
- *
- * `Scorer` is one type, deliberately: P16's exit artifact is *two nodes of ONE type with DIFFERENT
- * settings*, and a second type would let a row pass on the type rather than on the settings.
- * **Inline**, for `retry`'s reason — the `typed` role's first-attempt memo is per process.
- * `groups: ['scorer']` is the group every task of the type holds, registered through the helper
- * and read back off `scheduler.groups` like `gate`. `retryPolicy` is the TYPE's, and it is what
- * `typed.flow.json`'s `high` node retries under — the node declares none. **Its settings are what
- * the `flow` worker's `settingsSchema` admits**: `factor` a number, `failFirst` a boolean, `scale`
- * a number (the `Echo` type's one key), and no other key — a typo in any is refused at construction
- * (`FD-V33`), where W59 had a function per type.
- *
- * **`Echo` is W63's, and it is THREADED on purpose**: P17's exit artifact is a declared `transform`
- * evaluated in the type's wrapper, and the adapter's worker half reaches a pool as a MODULE URL
- * because a function cannot cross to a thread (P17 fact 7) — so the pool that evaluates it here is a
- * real thread in both L6 runtimes, loading `fyflow-orchestration/jsonata` by that URL, **and every
- * result the role returns says so** (`realm: 'thread'`, the mark above unseen). Its role echoes what
- * it received. No groups, and `retryPolicy` of ONE retry, so a transform that fails at run time is
- * evaluated AGAIN under the type's policy and parks the task on its second attempt, `attempts: 1`
- * on both observers.
+ * The corpus's `isLowConfidence`. It reads the **effective outcome** (`OR-R9`), so it sees one shape
+ * whether the node settled or a human resolved it — and it is what the sample flow's `classify` edge
+ * turns on: at `confidence: 0.4` the run visits `review` on the LARGE model, at `0.9` it does not.
  */
-const WORKER_URL = new URL('./workers/flow-worker.ts', import.meta.url).href;
-
-/** The one worker: every pool loads it; its `settingsSchema` is what `FD-V33` applies to every typed node's settings. */
-export const WORKERS: Readonly<Record<string, WorkerEntry>> = {
-  flow: {
-    url: WORKER_URL,
-    settingsSchema: { type: 'object', properties: { factor: { type: 'number' }, failFirst: { type: 'boolean' }, scale: { type: 'number', minimum: 0 } }, additionalProperties: false },
-  },
+export const isLowConfidence: Predicate = (ctx) => {
+  const r = ctx.outcome.result as { confidence?: number } | null;
+  return typeof r?.confidence === 'number' && r.confidence < 0.5;
 };
 
 /**
- * **A role that must settle LAST is given a longer delay**, so the branch that arrives is not the
- * branch that finishes. Without it, `settleJoin` on the `lost` and `exited` paths is unreachable at
- * L6 — the arriving branch always settled last and the join was always fired by the arrival, so
- * deleting either of the other two calls was invisible across twelve rows. Found by W6's adequacy
- * reader. This ARRANGES an order rather than depending on one (`doc/workflow.md` section 5 rule 5).
- * **The 4x is INERT today and W17's adequacy reader measured it** — the settling order those rows
- * depend on is produced by inline dispatch order — and it is kept because the moment a pool becomes
- * threaded, dispatch order stops implying settle order. [Q99](../doc/open-questions.md).
+ * **W43's predicate, and it reads `ctx.needs` where the one above reads `ctx.outcome`** —
+ * [ADR 0041](../doc/decisions/0041-a-decision-sees-its-nodes-outcome-and-whatever-its-own-edge-declares.md)
+ * and `FD-C3`: a decision sees its node's effective outcome **and whatever its own edge declares**.
+ *
+ * **It is deliberately NOT total in the way `isLowConfidence` is.** That one guards its read so a
+ * node with no `confidence` routes down the default edge; this one does the same, and the guard is
+ * what carries the claim: on `decision-on-an-earlier-step` the node it sits on is a `TallyWorker`,
+ * whose result has **no `confidence` field**, so `isLowConfidence` applied to `ctx.outcome` there is
+ * `false` on **both** payloads. The two predicates therefore disagree on that flow at every input,
+ * which is what makes the row able to fail: a driver that left `ctx.needs` empty routes the LOW run
+ * to `publish` and the row says so by name.
+ *
+ * **`ctx.needs` is frozen, and that is a DRIVER-level decision rather than an ADR rule** — the freeze
+ * is W42's adequacy reader's and lives in `src/driver/driver.ts` beside `EMPTY_NEEDS`. This predicate
+ * reads and does not write, which is what a predicate is for; [Q9](../doc/open-questions.md) is
+ * untouched and still declined.
  */
-const SETTLES_LAST = new Set<Role>(['fail', 'uncloneable']);
-
-export const NODE_TYPES: Readonly<Record<string, NodeTypeDeclaration>> = {
-  // ---- the eleven former pool() lines, one type each; `delayMs` and (where absent) `inline` are the run's — see registryFor ----
-  IngestWorker: { worker: 'flow', inline: true, config: { role: 'ingest', delayMs: 5 }, pool: { maxThreads: 1, idleTimeout: 0 } },
-  // The fan-out pool, and the only one that may run on real threads: it is the one place two tasks
-  // are in flight at once, so it is where a dispatch race or an id collision would show.
-  ScoreWorker: { worker: 'flow', config: { role: 'score', delayMs: 5 }, pool: { maxThreads: 2, idleTimeout: 0 } },
-  PublishWorker: { worker: 'flow', inline: true, config: { role: 'publish', delayMs: 5 }, pool: { maxThreads: 1, idleTimeout: 0 } },
-  // **Where a map's arity comes from — W35.** Its worker returns an array and the run dispatches one
-  // task per element. Inline: it runs once per run and a thread would only add a hop.
-  SplitWorker: { worker: 'flow', inline: true, config: { role: 'split', delayMs: 5 }, pool: { maxThreads: 1, idleTimeout: 0 } },
-  // **W43's pool, THREADED for the same reason `ScoreWorker` is** — `maxThreads: 2` at an arity of
-  // three makes the overlap real. Not held down by an assertion (W43's adequacy reader; Q99).
-  WeighWorker: { worker: 'flow', config: { role: 'weigh', delayMs: 5 }, pool: { maxThreads: 2, idleTimeout: 0 } },
-  // **The one worker here that MUTATES its payload — W35's adequacy reader.** Inline, and it must be:
-  // two map instances handed one object would see each other's write, and a thread would hide it.
-  TallyWorker: { worker: 'flow', inline: true, config: { role: 'tally', delayMs: 5 }, pool: { maxThreads: 1, idleTimeout: 0 } },
-  // **W45's pool.** Inline; its role reports whether a conditional reference's key ARRIVED (`FD-C4`).
-  AttestWorker: { worker: 'flow', inline: true, config: { role: 'attest', delayMs: 5 }, pool: { maxThreads: 1, idleTimeout: 0 } },
-  // Reached only by a flow that names them. Their worker always throws — and what that produces is
-  // decided by the NODE: `optional: true` settles `failed`, `optional: false` ends in `user_action`.
-  ReviewWorker: { worker: 'flow', inline: true, config: { role: 'fail', delayMs: 5 }, pool: { maxThreads: 1, idleTimeout: 0 } },
-  ExtractWorker: { worker: 'flow', inline: true, config: { role: 'fail', delayMs: 5 }, pool: { maxThreads: 1, idleTimeout: 0 } },
-  // **Inline, and it must be.** A result `structuredClone` refuses reaches the driver intact from an
-  // inline pool, which is what makes `OR-R6` reachable at all ([Q61](../doc/open-questions.md)).
-  MergeWorker: { worker: 'flow', inline: true, config: { role: 'uncloneable', delayMs: 5 }, pool: { maxThreads: 1, idleTimeout: 0 } },
-  // **W58's pool, inline because its memo is per process** — see `thrownOnce` in the worker.
-  RetryWorker: { worker: 'flow', inline: true, config: { role: 'retry', delayMs: 5 }, pool: { maxThreads: 1, idleTimeout: 0 } },
-  // ---- W63's and W59's types, byte-identical to their v0.18 declarations (P18 fact 5) ----
-  Echo: {
-    worker: 'flow',
-    inline: false,
-    config: { role: 'echo' },
-    pool: { maxThreads: 2, idleTimeout: 0 },
-    retryPolicy: { maxRetries: 1, backoffMs: 0 },
-  },
-  Scorer: {
-    worker: 'flow',
-    inline: true,
-    config: { role: 'typed' },
-    pool: { maxThreads: 2, idleTimeout: 0 },
-    groups: ['scorer'],
-    retryPolicy: { maxRetries: 1, backoffMs: 0 },
-  },
+export const earlierWasLowConfidence: Predicate = (ctx) => {
+  const e = (ctx.needs as { earlier?: { confidence?: number } }).earlier;
+  return typeof e?.confidence === 'number' && e.confidence < 0.5;
 };
 
-/** No named pool instance at this rung yet — W67's sample flow brings the first. Declared so the driver and the helper read one shape. */
-export const POOLS: Readonly<Record<string, { type: string; config?: unknown }>> = {};
+/**
+ * **W63's predicate, and it reads `score` where `isLowConfidence` reads `confidence`** — because
+ * `transformed.flow.json`'s two scorers return the SAME confidence and DIFFERENT scores (factors 100
+ * and 1000 over one input), so a threshold on the score is what lets ONE payload route one branch
+ * away and keep the other: at 0.9 both arrive (90, 900), at 0.4 one is routed away (40 is below 50,
+ * 400 is not), at 0.04 both are (4, 40). Three payloads, three arities, one predicate —
+ * [Q263](../doc/open-questions.md)'s three shapes reached from the definition's own decision edges
+ * rather than from three flow documents.
+ */
+export const isLowScore: Predicate = (ctx) => {
+  const r = ctx.outcome.result as { score?: number } | null;
+  return typeof r?.score === 'number' && r.score < 50;
+};
 
-/** `NODE_TYPES` with the run's delay and threading written into the role types' config and `inline` — the object `bootstrap` builds from. */
-export function registryFor(delayMs: number, threaded: boolean): { workers: typeof WORKERS; nodeTypes: Record<string, NodeTypeDeclaration>; pools: typeof POOLS } {
-  const nodeTypes: Record<string, NodeTypeDeclaration> = {};
-  for (const [name, t] of Object.entries(NODE_TYPES)) {
-    const cfg = t.config as { role: Role; delayMs?: number };
-    if (cfg.delayMs === undefined) { nodeTypes[name] = t; continue; }
-    nodeTypes[name] = {
-      ...t,
-      inline: t.inline ?? !threaded,
-      config: { ...cfg, delayMs: SETTLES_LAST.has(cfg.role) ? delayMs * 4 : delayMs },
+/** The three, keyed by the names `examples/registry.json` declares. Compared to that list both ways. */
+export const PREDICATES: ReadonlyMap<string, Predicate> = new Map<string, Predicate>([
+  ['isLowConfidence', isLowConfidence],
+  ['earlierWasLowConfidence', earlierWasLowConfidence],
+  ['isLowScore', isLowScore],
+]);
+
+/**
+ * **A CUSTOM resource group type — P18 decision 4, and the sample's `budget`.**
+ *
+ * A group type is `{ configSchema?, create(config, key) }` and the three the scheduler ships are
+ * pre-registered ones with three different constructors; this is a consumer's, registered the same
+ * way. The class is the scheduler's own `ResourceGroup` interface, and it implements the SIX members
+ * [ADR 0055](../doc/decisions/0055-a-group-factorys-output-is-held-to-what-the-scheduler-calls.md)
+ * holds a factory's output to — `canRun`, `onStart` and `onFinish` because the scheduler CALLS them,
+ * `getMetrics`, `id` and `type` because the interface requires them.
+ *
+ * **Written long-hand rather than with constructor parameter properties**, because Node runs
+ * TypeScript by ERASING types and a parameter property fails at load (`RT-R9`). **P18's own sample
+ * shim writes it the other way and does not load** — measured at this item's declaration step,
+ * `ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX`, and it is the fourth thing wrong with that sample after the
+ * three W66 recorded.
+ *
+ * **It names itself something other than its key, ON PURPOSE.** ADR 0049 fact 2 says the scheduler
+ * resolves a group by the map KEY and the object's own `id` is inert, and W59's adequacy reader
+ * found every fixture in the tree had the two equal, so a check reading the inert name survived every
+ * rung. The two BUILT-IN groups here cannot carry that any more — `createRuntime`'s factories pass
+ * the document's key as the id, correctly — so the claim moves to the one place a consumer can still
+ * get it wrong, which is a custom factory. `resource.acquired` reports `groupId: "budget"`, the KEY.
+ */
+class DailyBudgetGroup extends EventTarget implements ResourceGroup {
+  readonly type = 'DailyBudgetGroup';
+  readonly id: string;
+  private readonly tokensPerDay: number;
+  private spent = 0;
+
+  constructor(id: string, tokensPerDay: number) {
+    super();
+    this.id = id;
+    this.tokensPerDay = tokensPerDay;
+  }
+
+  canRun(_key?: string, cost = 0): boolean {
+    return this.spent + cost <= this.tokensPerDay;
+  }
+
+  onStart(_key?: string, cost = 0): void {
+    this.spent += cost;
+  }
+
+  onFinish(): void {}
+
+  getMetrics(): { limit: number; running: number; available: number; utilization: number } {
+    return {
+      limit: this.tokensPerDay,
+      running: this.spent,
+      available: this.tokensPerDay - this.spent,
+      utilization: this.tokensPerDay === 0 ? 0 : this.spent / this.tokensPerDay,
     };
   }
-  return { workers: WORKERS, nodeTypes, pools: POOLS };
+}
+
+/**
+ * **A node type CLASS — P18 decision 2, and it is the half of the exit artifact a document cannot
+ * express.** A document-declared type is the IDENTITY derivation (merge the instance's config over
+ * the declared fields); this one COMPUTES: `model: "large"` becomes one thread and two units of
+ * resident VRAM, `model: "small"` four threads and one.
+ *
+ * **It names the SAME worker as the document-declared `Prompt` type**, on purpose: the two differ in
+ * nothing but their derivation, so a clause comparing the pools they built is comparing DERIVATIONS
+ * rather than workers. That is the exit artifact's second discriminating pair, and making this
+ * `pool()` return `Prompt`'s options collapses it.
+ *
+ * **Its output passes through exactly the checks a document type's does** (decision 2's *a class
+ * cannot compute around a check*): the derived `config` against the `prompt` worker's
+ * `configSchema`, the spec's shape against `PoolSpec`, every group it names against the document's,
+ * and decision 9's refusal of a resident group beside `idleTimeout: 0` — which is why the timeout
+ * below is 30 000 and not the 0 every other type here declares.
+ */
+class GpuModel implements NodeTypeDefinition {
+  readonly worker = 'prompt';
+  readonly inline = false;
+  readonly configSchema = {
+    type: 'object' as const,
+    required: ['model'],
+    properties: { model: { enum: ['small', 'large'] } },
+    additionalProperties: false,
+  };
+  /** The DEFAULT instance's config — validated against the schema above at `createRuntime`. */
+  readonly config = { model: 'small' };
+  readonly retryPolicy = { maxRetries: 1, backoffMs: 0 };
+
+  pool(config: unknown, _key: string): PoolSpec {
+    const model = (config as { model?: unknown }).model === 'large' ? 'large' : 'small';
+    const large = model === 'large';
+    return {
+      config: { model, delayMs: 5 },
+      maxThreads: large ? 1 : 4,
+      // Never 0 beside a resident group: the runtime refuses it, on P18 fact 6's measured deadlock.
+      idleTimeout: 30_000,
+      groups: ['vendor'],
+      residentGroups: { gpu: large ? 2 : 1 },
+    };
+  }
+}
+
+/**
+ * **What stays CODE, exactly** — P18 decision 7, and this object is the whole of it: the predicates,
+ * one custom group type, one custom node-type class, one language adapter. Everything else a runtime
+ * needs is in `examples/registry.json`.
+ */
+export function codeFor(predicates: ReadonlyMap<string, Predicate>): RegistryCode {
+  return {
+    predicates,
+    groupTypes: {
+      DailyBudgetGroup: {
+        configSchema: {
+          type: 'object',
+          required: ['tokensPerDay'],
+          properties: { tokensPerDay: { type: 'number', minimum: 0 } },
+          additionalProperties: false,
+        },
+        // The object's own name is NOT the key — see `DailyBudgetGroup` for why that is deliberate.
+        create: (config, key) => new DailyBudgetGroup(`${key}-by-object-name`, (config as { tokensPerDay: number }).tokensPerDay),
+      },
+    },
+    nodeTypes: { GpuModel: new GpuModel() },
+    languages: LANGUAGES,
+  };
+}
+
+/**
+ * **A registry document and the consumer's code become a running scheduler — ONE call, and it is
+ * P18's question answered at ladder L6.**
+ *
+ * This replaces `buildScheduler`, which was fifty lines of `bootstrap`, a hand-built
+ * `ConcurrentLimitGroup` registered beside its result, and a `new FyflowScheduler`. **There is no
+ * `pool()` call, no group constructed by hand and no `Driver` built by hand left in this file.**
+ *
+ * `base` is this module's own URL, so the document's relative worker urls (`./workers/ingest.ts`)
+ * resolve beside it — decision 7, and the reason the runtime cannot guess it is that inside a bundle
+ * `import.meta.url` is the bundle ([Q261](../doc/open-questions.md)).
+ *
+ * `flows` is every definition this runtime will run, because pools are built ONCE and a language
+ * adapter's worker half reaches a typed pool through that pool's config (W61): the same type carries
+ * the engine on a run of `transformed.flow.json` and not on a run of `typed.flow.json`.
+ */
+export function buildRuntime(
+  threaded: boolean,
+  flows: readonly FlowDefinition[],
+  predicates: ReadonlyMap<string, Predicate> = PREDICATES,
+  delayMs?: number,
+): Runtime {
+  return createRuntime(registryDocumentFor(threaded, delayMs), codeFor(predicates), {
+    base: import.meta.url,
+    flows,
+  });
 }
 
 /**
@@ -426,6 +600,81 @@ export interface RunReport {
    */
   schedulerPools: readonly string[];
   /**
+   * **Which of a worker entry's four schemas the RUNTIME carries, per worker** — W67's adequacy
+   * reader (a6). P18 decision 3 enumerates four (`configSchema`, `settingsSchema`, `inputSchema`,
+   * `outputSchema`) and this plan ENFORCES two; the other two are *declared, carried and enforced by
+   * nothing here* (P19). *Carried* was a claim with no observer — deleting both from the sample's two
+   * worker entries cost ZERO — so a runtime that silently dropped what it does not enforce would
+   * have looked exactly like one that carries it. Read off `runtime.registry.workers`, which is the
+   * object the driver was handed.
+   */
+  workerSchemas: Readonly<Record<string, readonly string[]>>;
+  /**
+   * **What each created group object calls ITSELF, keyed as the document declared it** — W67's
+   * adequacy reader (a1), BLOCKING.
+   *
+   * ADR 0049 fact 2: the scheduler resolves a group by the map KEY and the object's own `id` is
+   * inert, and W59's reader found every fixture in the tree had the two EQUAL. The shim's custom
+   * group type names its object `budget-by-object-name` on purpose — and nothing asserted that it
+   * does, so the clause built to carry the claim rested on a string in a factory, and making the
+   * two equal cost ZERO. *Whatever makes a discriminating pair differ is itself a claim* (v0.13),
+   * in the fixture written to correct the item that found it.
+   */
+  groupObjectIds: Readonly<Record<string, string>>;
+  /**
+   * **The node types the DRIVER was handed, read off `runtime.registry` — W67.**
+   *
+   * `runtime.registry` is *exactly the object this runtime hands its own drivers* (P18 decision 14),
+   * so this is the registry `FD-V32` was applied against. It is the document's `nodeTypes` UNION the
+   * classes the `code` argument supplied — `GpuModel` is in the second half and in no document — and
+   * that union is the thing a flow's `type` is checked against, which is why no clause here can be
+   * written over the document alone.
+   */
+  registryTypes: readonly string[];
+  /**
+   * **What every pool the runtime BUILT was built with, read off the scheduler — W67, P18 fact 7.**
+   *
+   * A `WorkerManager` exposes `inline`, `maxThreads`, `idleTimeout`, `groups`, `residentGroups` and
+   * `config` as own enumerable fields, in both runtimes, so an exit artifact can assert a pool was
+   * built as DECLARED without reaching into anything private. It is what makes the sample's two
+   * discriminating pairs assertable from the run rather than from a literal:
+   *
+   *   - **a node on its type's DEFAULT instance against one on a NAMED instance of the same type** —
+   *     `GpuModel` against `prompt-big`, one thread against four and `{gpu:2}` against `{gpu:1}`,
+   *     because the CLASS derivation computes both from `config.model`;
+   *   - **a DOCUMENT type against a CLASS type over one worker** — `Prompt` against `GpuModel`,
+   *     which name the same `prompt` worker and differ in nothing but their derivation.
+   *
+   * Read at construction, before any task runs, as `schedulerGroups` and `schedulerPools` are.
+   */
+  derivedPools: Readonly<Record<string, {
+    /**
+     * **The script the `WorkerManager` actually loads**, which is the package's ENVELOPE WORKER for
+     * every pool since W65 — and it is here because it is the one field a derived `PoolSpec` cannot
+     * carry. W67's adequacy reader (a10) re-sourced this whole map from the document declarations
+     * and the `GpuModel` class for **0** failures: the identity derivation copies `inline` and the
+     * class DECLARES it, so a harness-side recomputation said everything the built pool said, and
+     * clause (iii)'s own stated reason — *which a derived PoolSpec cannot say and only the built
+     * pool can* — was false of every field it read. This is the anchor.
+     */
+    scriptUrl: string;
+    inline: boolean;
+    maxThreads: number;
+    idleTimeout: number;
+    groups: readonly string[];
+    /** `key` where the declaration gives no cost, `key:cost` where it does — see the field's note. */
+    residentGroups: readonly string[];
+    config: unknown;
+  }>>;
+  /**
+   * **Which POOL each task the scheduler held actually ran on** — W67, and it is the other half of
+   * the pair above. The driver dispatches a task whose `workerType` is `node.pool ?? node.type`
+   * (v0.19), and the scheduler keeps it on the task, so this is the run's own account of which of
+   * the two `GpuModel` instances a node was sent to. Read off `scheduler.tasks`, never off the
+   * driver — `doc/workflow.md` section 5 rule 4.
+   */
+  poolOfTask: Readonly<Record<string, string>>;
+  /**
    * **The languages each pool's config carries, by pool name, read off the built pools — W63,
    * ADR 0051 rule 4.** `[]` for every bare pool and for a typed pool none of whose nodes transform
    * in this run's flow; the adapter names for a typed pool some node does. `examples/l6.ts` compares
@@ -550,13 +799,35 @@ export interface RunReport {
 
 export interface RunOptions {
   definition: FlowDefinition;
-  policy: JoinPolicy;
-  runId: string;
+  /**
+   * **Omitted, the RUNTIME's default — `live-token`, P18 decision 10.** Every row names one, because
+   * a row is about a policy; the one caller that omits both this and `runId` is the shim run, which
+   * makes P18's sample's own call — `runtime.start(flow, payload)` with no options at all.
+   */
+  policy?: JoinPolicy;
+  /**
+   * **Omitted, the RUNTIME MINTS one** — `r<n>` from its own counter (decision 10), which is the
+   * half of that decision no row could observe: every row names the ids it expects, so it must name
+   * the run. W67's adequacy reader (a15), BLOCKING — both defaults could be replaced by a throw for
+   * **0** failures, on the item that was the last chance to observe them.
+   */
+  runId?: string;
   payload: unknown;
   predicates?: ReadonlyMap<string, Predicate>;
-  /** Per-task delay in the workers, so the two branches genuinely overlap. */
+  /**
+   * **Every type's `delayMs` OVERRIDDEN, and only `examples/retention.ts` passes it.** Omitted — which
+   * is what every L6 row does — each type's delay is the DOCUMENT's, including the four-times one a
+   * settling-last worker is given. See `registryDocumentFor`.
+   */
   delayMs?: number;
-  /** Threads rather than the main event loop for the fan-out pool. */
+  /**
+   * **Threads rather than the main event loop for the threadable pools.**
+   *
+   * *(`delayMs` used to be the value every caller passed as `5` and this file turned into a
+   * `SETTLES_LAST` four-times rule; both are the DOCUMENT's now — W67 — and the option above is a
+   * bare override one off-gate measurement uses. `threaded` survives as a row knob because `inline`
+   * is fixed per TYPE and has no per-run document spelling — see `registryDocumentFor`.)*
+   */
   threaded?: boolean;
   /** Backstop only. Reaching it fails the run; it never decides that a run finished. */
   backstopMs?: number;
@@ -585,7 +856,7 @@ export interface RunOptions {
    */
   resolveOnSuspend?: Record<string, { as: 'done' | 'failed'; result?: unknown; actor: string }>;
   /**
-   * **A scheduler to share, rather than one of this run's own — W14.**
+   * **A RUNTIME to share, rather than one of this run's own — W14, and a runtime since W67.**
    *
    * [ADR 0023](../doc/decisions/0023-an-inbound-settlement-is-this-runs-only-if-this-driver-dispatched-it.md)
    * makes *two drivers on one scheduler* a supported topology, and P4's exit
@@ -593,9 +864,12 @@ export interface RunOptions {
    * whole of what W14 needed from this file: two runs then differ from two
    * sequential runs in exactly one respect, which is the respect under test.
    *
-   * **The caller that supplies it owns its lifetime** — `runFlow` will not
-   * `shutdown()` a scheduler it did not build, because the other run is still
-   * using it. `runPair` below is that caller.
+   * **The caller that supplies it owns its lifetime** — `runFlow` will not `shutdown()` a runtime
+   * it did not build, because the other run is still using it. `runPair` below is that caller.
+   *
+   * *(It was a `FyflowScheduler` until W67. A runtime owns its pools, its groups and its scheduler,
+   * so sharing the scheduler alone shares half of what a run needs — and `runtime.start` is what
+   * makes a driver now, so a shared scheduler with no runtime could not start a second run at all.)*
    *
    * What this shares, and it is worth knowing before reading a report: the
    * `task.running`/`completed`/`failed` listeners this function registers see
@@ -603,7 +877,7 @@ export interface RunOptions {
    * scheduler-wide rather than run-wide when a scheduler is shared. Everything
    * else in a `RunReport` comes from that run's own driver.
    */
-  scheduler?: FyflowScheduler;
+  runtime?: Runtime;
   /**
    * **Hand the `Driver` back in the report — W55, and only the scale measurement
    * asks for it.** See `RunReport.driver`: an observer that reads `heapUsed` after a
@@ -684,10 +958,11 @@ export async function runPair(
   // One scheduler means one set of pools, so the two runs cannot ask for
   // different worker timings. Refused rather than silently taking `a`'s, which is
   // what this did until W14's conformity reader pointed out that `b`'s were dead.
-  if ((a.delayMs ?? 5) !== (b.delayMs ?? 5) || (a.threaded === true) !== (b.threaded === true)) {
-    throw new Error('runPair: both runs share one scheduler, so delayMs and threaded must match');
+  if ((a.threaded === true) !== (b.threaded === true)) {
+    throw new Error('runPair: both runs share one runtime, so `threaded` must match');
   }
-  const scheduler = buildScheduler(a.delayMs ?? 5, a.threaded === true, [a.definition, b.definition]);
+  const runtime = buildRuntime(a.threaded === true, [a.definition, b.definition], a.predicates ?? PREDICATES);
+  const scheduler = runtime.scheduler;
 
   // **Everything below is read from the SCHEDULER, before either driver exists.**
   // `doc/workflow.md` section 5 rule 4 — a fixture must not come from the code
@@ -794,8 +1069,8 @@ export async function runPair(
 
   try {
     const [ra, rb] = await Promise.all([
-      runFlow({ ...a, scheduler }),
-      runFlow({ ...b, scheduler }),
+      runFlow({ ...a, runtime }),
+      runFlow({ ...b, runtime }),
     ]);
     return {
       a: ra,
@@ -1044,83 +1319,16 @@ export function violations(r: RunReport, arity: number): string[] {
   return bad;
 }
 
-/**
- * **Exported since W55, and only so that a batch can SHARE one.**
- *
- * `runFlow` builds its own unless one is passed, and `runPair` is the other caller
- * that passes one. `examples/retention.ts`'s scale mode is the third: N runs on ONE
- * real scheduler is what makes *at scale* a real-worker measurement rather than an
- * extrapolation from one run.
- */
-/**
- * `flows` — **the definitions this scheduler will run, handed to the bootstrap helper so it can
- * write a language's worker URL into exactly the typed pools whose nodes transform** (W63,
- * ADR 0051 rule 4). Required rather than defaulted: a scheduler built without its flows would
- * carry no engine, and every transforming task on it would fail at `run()` with *language not
- * loaded* — a silence this file should not be able to produce by omission.
- */
-export function buildScheduler(delayMs: number, threaded: boolean, flows: readonly FlowDefinition[]): FyflowScheduler {
-  // **A role that must settle LAST is given a longer delay**, so the branch that
-  // arrives is not the branch that finishes. Without it, `settleJoin` on the
-  // `lost` and `exited` paths is unreachable at L6 — the arriving branch always
-  // settled last and the join was always fired by the arrival, so deleting either
-  // of the other two calls was invisible across twelve rows. Found by W6's
-  // adequacy reader.
-  //
-  // This ARRANGES an order rather than depending on one: nothing asserts which
-  // branch finishes first, the flow's own definition decides which branch
-  // arrives, and a 4x delay difference is not a race. `doc/workflow.md` section 5
-  // rule 5 forbids depending on an order the spec does not fix; it does not
-  // forbid choosing inputs that make a causal path reachable.
-  //
-  // **The 4x is currently INERT, and W17's adequacy reader measured it.** Emptying
-  // this set, or reducing the multiplier to 1x, leaves all 342 assertions green —
-  // the settling order those two rows depend on is produced by **inline dispatch
-  // order**, not by the delay. Reversing the set is caught, because that reverses
-  // dispatch order's effect too. So the delay is belt-and-braces over a property
-  // the pools already have, and `Expectation.joinSettledBy` pins the **effect**
-  // rather than this mechanism — correctly, since which mechanism produces the
-  // order is not something `spec/` fixes. It is kept because the moment a pool
-  // becomes threaded or gains a second thread, dispatch order stops implying
-  // settle order and this is what remains. [Q99](../doc/open-questions.md).
-  // **Every pool through the helper since W65** — the ONE constructing call a consumer copies. The
-  // group objects are keyed by the id a TYPE or a NODE names: `scorer` is the `Scorer` type's, given
-  // to the helper because a pool's derivation names it and the helper refuses both ways; `gate` is
-  // named by NODES' `workerGroups` and by no pool, so it is registered beside the helper's result —
-  // the helper's direction-two refusal is what keeps it out of that call.
-  // **The KEY is `scorer` and the object calls itself something else, on purpose** — the adequacy
-  // reader (q13): ADR 0049 fact 2 says the scheduler resolves a group by the map key and the object's
-  // own name is inert, and every fixture in the tree had the two equal, so a helper checking the
-  // inert name survived every rung. `heldGroups` records the scheduler's `groupId`, which is the KEY.
-  // **And the languages, with the flows — W63**: the helper reads WHICH types transform in WHICH
-  // languages from the definitions and writes only those adapters' worker URLs into only those
-  // pools, so `Scorer`'s pool carries the engine on a run of `transformed.flow.json` and NOT on a
-  // run of `typed.flow.json` — same type, decided by the flow. `RunReport.poolLanguages` is what
-  // `l6.ts` reads that from, off the built pools rather than off this call.
-  const built = bootstrap(registryFor(delayMs, threaded), {
-    scorer: new ConcurrentLimitGroup(8, 'scorer-by-object-name'),
-  }, { languages: LANGUAGES, flows });
-
-  return new FyflowScheduler(built.workerPools, {
-    // **The resource group the NODES declare — W58's group row.** A limit of ONE so the harness can
-    // hold its whole capacity with a single `onStart()`, and any task naming it is blocked until the
-    // harness lets go. It is the value `runFlow` derives the driver's `groups` option from, read back
-    // off `scheduler.groups` rather than named twice. Beside the helper's groups, not through them.
-    gate: new ConcurrentLimitGroup(1, 'gate'),
-    // And the group the `Scorer` TYPE declares, built through the helper: a limit of EIGHT, so the
-    // three map instances of `typed-regions.flow.json` never block on it and every typed task reports
-    // the same three-event sequence — the row is about which group was HELD, not about contention.
-    ...built.resourceGroups,
-  });
-}
 
 export async function runFlow(opts: RunOptions): Promise<RunReport> {
-  const { definition, policy, runId, payload } = opts;
-  const delayMs = opts.delayMs ?? 5;
+  const { definition, policy, payload } = opts;
   const backstopMs = opts.backstopMs ?? 10_000;
 
-  const scheduler = opts.scheduler ?? buildScheduler(delayMs, opts.threaded === true, [definition]);
-  const ownsScheduler = opts.scheduler === undefined;
+  // **ONE call, from a DOCUMENT — W67.** Everything below reads the runtime's scheduler exactly as
+  // it read a hand-built one; what changed is that nothing here builds a pool, a group or a driver.
+  const runtime = opts.runtime ?? buildRuntime(opts.threaded === true, [definition], opts.predicates ?? PREDICATES, opts.delayMs);
+  const scheduler = runtime.scheduler;
+  const ownsScheduler = opts.runtime === undefined;
 
   const inputs: FoldInput[] = [];
   const failures: string[] = [];
@@ -1182,8 +1390,18 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
   // it — and what makes `peakAliasingLog` answerable at all.
   const peakByRegion: Record<string, number> = {};
   const peakSnapshot = new Map<string, Map<string, unknown>>();
+  //
+  // **`runtime.start` starts the run INSIDE the call, so there is a window in which fold inputs
+  // arrive and this closure does not yet hold the driver — W67.** Before this item the driver was
+  // constructed and started on two separate lines and the window did not exist. It is counted
+  // rather than ignored, and the assertion that it is harmless is taken at the moment the driver
+  // becomes available: nothing can have ARRIVED at a join before the entry node's first dispatch
+  // returned, so a non-empty `arrivals` at that instant is a harness failure and says so.
+  let sampledBeforeDriver = 0;
+  const driverRef: { current: Driver | null } = { current: null };
   const samplePeak = (): void => {
-    for (const [region, held] of arrivalsOf(driver)) {
+    if (driverRef.current === null) { sampledBeforeDriver++; return; }
+    for (const [region, held] of arrivalsOf(driverRef.current)) {
       if (held.size > (peakByRegion[region] ?? 0)) {
         peakByRegion[region] = held.size;
         peakSnapshot.set(region, new Map(held));
@@ -1269,13 +1487,44 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
   const schedulerPools = Object.keys(scheduler.workerPools as Record<string, unknown>).sort();
   // **W63: which languages each POOL's config carries, read off the built pools** — ADR 0051 rule 4's
   // only observable at this rung. The helper writes an adapter's worker URL into a typed pool's
-  // `config.languages` for a type some node of the run's flow transforms on and nowhere else; a bare
-  // `pool()` carries `{ role, delayMs }` and so reports none. Read at construction, as the two
-  // lists above are, so it is a fact about the scheduler this run was BUILT with.
+  // `config.languages` for a type some node of the run's flow transforms on and nowhere else; a pool
+  // whose type no node of this run transforms on carries no `languages` key and so reports none.
+  // Read at construction, as the two lists above are, so it is a fact about the scheduler this run
+  // was BUILT with. *(This read "a bare `pool()` carries `{ role, delayMs }`" — there has been no
+  // bare pool since W65 and no `role` since W67. W67's conformity reader, finding 11.)*
   const poolLanguages: Record<string, readonly string[]> = Object.fromEntries(
     Object.entries(scheduler.workerPools as Record<string, { config?: { languages?: Record<string, unknown> } }>)
       .map(([name, pool]) => [name, Object.keys(pool.config?.languages ?? {}).sort()]),
   );
+  // **What every pool was BUILT with, read off the scheduler's own `WorkerManager`s — W67, fact 7.**
+  // `residentGroups` is normalised to a sorted list of the group KEYS it names, because the
+  // scheduler accepts both an array and a `{ key: cost }` map and the claim is about which groups a
+  // pool holds; the COSTS are visible in `config` terms nowhere, so the pair's other observers are
+  // `maxThreads` and what the worker returned.
+  const derivedPools: Record<string, {
+    scriptUrl: string; inline: boolean; maxThreads: number; idleTimeout: number;
+    groups: readonly string[]; residentGroups: readonly string[]; config: unknown;
+  }> = {};
+  for (const [name, pool] of Object.entries(scheduler.workerPools as Record<string, Record<string, unknown>>)) {
+    const rg = pool.residentGroups;
+    derivedPools[name] = {
+      scriptUrl: typeof pool.scriptUrl === 'string' ? pool.scriptUrl : '(no scriptUrl — not a WorkerManager)',
+      inline: pool.inline === true,
+      maxThreads: typeof pool.maxThreads === 'number' ? pool.maxThreads : -1,
+      idleTimeout: typeof pool.idleTimeout === 'number' ? pool.idleTimeout : -1,
+      groups: [...((pool.groups ?? []) as string[])].sort(),
+      // **The COST as well as the key, and the author's first version dropped it** — rule 8's `a5`,
+      // an undeclared survivor: `GpuModel`'s derivation computes `{ gpu: 2 }` for the large model
+      // and `{ gpu: 1 }` for the small one, and with only the KEYS recorded a class that stopped
+      // computing the cost was green. The scheduler accepts an array (keys, no cost) and a map
+      // (key to cost), so the two shapes are spelled apart rather than flattened into one.
+      residentGroups: (Array.isArray(rg)
+        ? [...rg as string[]]
+        : Object.entries((rg ?? {}) as Record<string, unknown>).map(([k, v]) => `${k}:${String(v)}`)).sort(),
+      config: pool.config,
+    };
+  }
+
   let heldGroupReleases = 0;
   const heldGroup = opts.holdGroup === undefined
     ? null
@@ -1286,43 +1535,34 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
   // Taken BEFORE `driver.start`, so the gated task finds the slot gone at its first dispatch.
   heldGroup?.onStart();
 
-  const driver = new Driver(definition, {
-    runId,
-    scheduler,
-    // **No `createTask` — deliberately, since W57.** The driver's default is
-    // `(config) => new FyflowTask(config)` (ADR 0048), and this is the ONE place a real
-    // scheduler is driven, so omitting the option here is what makes ladder L6 run the
-    // factory that SHIPS rather than a copy of it written in a harness — `doc/workflow.md`
-    // rule 8 obligation (e), *was what it RAN what SHIPS*. Restoring the explicit line is
-    // the control: it must cost nothing, because it builds the same object.
-    predicates: opts.predicates ?? new Map<string, Predicate>(),
-    // **The registry's three sections — W65 (ADR 0054) — the literal `registryFor` derives the
-    // helper's per-run object from: one literal, two readings, the helper's carrying the run's delay
-    // and threading, which the driver never reads.** Until W65 this was `workerTypes: Object.keys(scheduler.workerPools)`, read off the
-    // scheduler rather than written out again (W35's obligation (c) finding: a hand-written list of
-    // pool names drifted on the first pool anyone added). A type's default pool exists by
-    // construction now, so the pool-key set is the type-key set and `FD-V32` reads `nodeTypes`; what
-    // is still read off the scheduler is `schedulerPools`, which `l6.ts` compares to these keys both
-    // ways, so a pool the helper did not build, or one no type accounts for, is red there.
-    workers: WORKERS,
-    nodeTypes: NODE_TYPES,
-    pools: POOLS,
-    // **The third set, read from the SCHEDULER for the same reason `workerTypes` is — W58,
-    // `FD-V31`.** `scheduler.groups` is the map the scheduler resolves a task's `workerGroups`
-    // against, so it is the authority the rule names; a hand-written list beside it is what
-    // `workerTypes` was before W35 and would drift the same way. Obligation (e), both ways:
-    // this direction is closed by construction (the validator's set IS the scheduler's keys),
-    // and the other — every group the scheduler declares is one some L6 flow names — is a
-    // cross-row clause in `l6.ts` over `RunReport.schedulerGroups`.
-    groups: schedulerGroups,
-    // **The fifth set — W63 — and it is the OBJECT the helper wrote the pools' worker URLs from**:
-    // `FD-V35` checks a transform's `lang` against its keys and `FD-V36` runs each adapter's
-    // `compile` at construction; the helper read the same object's `worker` field. One object,
-    // two readers, as `nodeTypes` is. Passed on every row — a flow declaring no transform is
-    // dispatched byte-identically with it (P17 decision 8, asserted at L2 by W61).
-    languages: LANGUAGES,
-    joinPolicy: policy,
-    onFoldInput: (input) => {
+  // **The `Driver` is the RUNTIME's now, and nothing here builds one — W67, P18 decision 10.**
+  //
+  // `runtime.start(flow, payload, options)` constructs a driver with `runtime.registry` spread into
+  // it — the predicates, the workers, the node types, the named pool instances, the groups and the
+  // languages, all derived ONCE from the document — and then starts it. The six sections this call
+  // used to pass by hand are gone with the helper that built them; what a row can still say about a
+  // single run is `StartOptions`, and that is what is passed below.
+  //
+  // **No `createTask` — deliberately, since W57**, and the runtime does not pass one either. The
+  // driver's default is `(config) => new FyflowTask(config)` (ADR 0048), and this is the ONE place a
+  // real scheduler is driven, so omitting the option is what makes ladder L6 run the factory that
+  // SHIPS rather than a copy of it written in a harness — rule 8 obligation (e), *was what it RAN
+  // what SHIPS*. Restoring the explicit line is the control: it must cost nothing.
+  //
+  // **The run id is still the ROW's**, because a row names the ids it expects to be dispatched and a
+  // minted `r<n>` would be a property of how many runs this process had made. That the runtime CAN
+  // mint one is decision 10 and is asserted at L1; here the caller gives it.
+  //
+  // **`driver` is read inside `onFoldInput` and assigned after `start` RETURNS**, which is why the
+  // closure reads a holder rather than the binding: `runtime.start` starts the run inside the call,
+  // so there is no `driver` while the first elements arrive. This was `const driver = new Driver(…)`
+  // followed by a separate `driver.start(payload)`, and the window did not exist.
+  const startOptions: StartOptions = {
+    // Present only when the caller named one — otherwise the runtime mints it, and `report.runId`
+    // below is read back off the driver rather than from anything this file wrote.
+    ...(opts.runId !== undefined ? { runId: opts.runId } : {}),
+    ...(policy !== undefined ? { joinPolicy: policy } : {}),
+    onFoldInput: (input: FoldInput) => {
       inputs.push(input);
       state = step(state, input);
       samplePeak();
@@ -1368,7 +1608,7 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
             let taskId = `<unminted ${at}:${branchPath}>`;
             try {
               taskId = buildTaskId(runId, at, branchIndices(branchPath), 0);
-              if (driver.resolve(taskId, how.as, { result: how.result, actor: how.actor })) {
+              if (driverRef.current!.resolve(taskId, how.as, { result: how.result, actor: how.actor })) {
                 resolved.push(taskId);
               } else {
                 failures.push(`resolve() refused ${taskId} — RS-R1 says it was not suspended`);
@@ -1444,10 +1684,27 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
     onUnmintedTask: (u) => {
       unmintedTasks.push({ runId: u.runId, event: u.event, taskId: u.taskId, reason: u.reason });
     },
-  });
+  };
 
   const startedAt = Date.now();
-  driver.start(payload);
+  // **`start` dispatches inside this call**, so there is no separate `driver.start(payload)` line
+  // any more: the run is running when it returns.
+  const driver = runtime.start(definition, payload, startOptions);
+  driverRef.current = driver;
+  // **Read OFF THE DRIVER, not from the option** — `Driver.runId` is readable since W66 precisely so
+  // a caller can learn a minted one, and this is the only thing that makes the shim run's id a fact
+  // about the runtime rather than about this file.
+  const runId = driver.runId;
+  // The window above, closed and checked. If anything had arrived while this harness did not hold
+  // the driver, the peak below would be a measurement of the wrong graph — so it is asserted rather
+  // than assumed, and then the sample the window missed is taken.
+  for (const [region, held] of arrivalsOf(driver)) {
+    if (held.size > 0) {
+      failures.push(`the peak sampler missed ${held.size} arrival(s) in region ${region}: ` +
+        `${sampledBeforeDriver} fold input(s) reached onFoldInput before runtime.start returned`);
+    }
+  }
+  samplePeak();
 
   let timer: ReturnType<typeof setTimeout> | undefined;
   const backstop = new Promise<'backstop'>((resolve) => {
@@ -1492,6 +1749,13 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
   // non-vacuity clause in `l6.ts` caught on its first run.
   const tasksHeld = scheduler.tasks.size;
   const fyflowTasksHeld = [...scheduler.tasks.values()].filter((t) => t instanceof FyflowTask).length;
+  // **W67, and read HERE for the same reason as the two lines above: `shutdown()` empties
+  // `scheduler.tasks`.** The first version of this read it in the return object, after the drain, and
+  // every entry came back `(not held)` — the exact shape the comment above records for `tasksHeld`,
+  // reproduced one field along on its first run.
+  const poolOfTask: Record<string, string> = Object.fromEntries(
+    [...scheduler.tasks.entries()].map(([id, t]) => [id, (t as unknown as { workerType?: string }).workerType ?? '(none)']),
+  );
 
   // **What the driver is still holding, read in the same place and for the same
   // reason `dispatched` is: BEFORE `shutdown()`** — W55. A drain settles what was in
@@ -1540,7 +1804,11 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
   return {
     runId,
     flowId: definition.flowId,
-    policyId: policy.id,
+    // A LABEL where the caller named no policy. What the runtime's default IS, is not asserted by
+    // this string — it is asserted by the shim run's OUTCOME, on a flow whose two candidate policies
+    // disagree: `p1-routed-away` at LOW completes under `live-token` and is `stuck` under
+    // `arrival-count`, so a run that completes with no `joinPolicy` given is the default, observed.
+    policyId: policy?.id ?? '(the runtime default)',
     state: finalState,
     inputs,
     dispatched,
@@ -1557,6 +1825,15 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
     heldGroups,
     schedulerGroups,
     schedulerPools,
+    workerSchemas: Object.fromEntries(
+      Object.entries(runtime.registry.workers ?? {}).map(([k, w]) => [k, Object.keys(w).filter((f) => f.endsWith('Schema')).sort()]),
+    ),
+    groupObjectIds: Object.fromEntries(
+      Object.entries(runtime.groups).map(([key, g]) => [key, (g as unknown as { id?: unknown }).id as string]),
+    ),
+    registryTypes: Object.keys(runtime.registry.nodeTypes ?? {}).sort(),
+    derivedPools,
+    poolOfTask,
     poolLanguages,
     heldGroupReleases,
     wallMs,

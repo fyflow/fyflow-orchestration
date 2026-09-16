@@ -1,0 +1,35 @@
+{
+  "flowId": "triage",
+  "version": 1,
+  "entry": "fetch",
+  "nodes": [
+    { "id": "fetch", "kind": "task", "type": "Fetch", "edges": [{ "to": "split" }] },
+
+    { "id": "split", "kind": "fanout", "branches": ["summarise", "classify", "audit"] },
+
+    { "id": "summarise", "kind": "task", "type": "Prompt",
+      "settings": { "prompt": "Summarise the text." },
+      "edges": [{ "to": "collect" }] },
+
+    { "id": "classify", "kind": "task", "type": "Prompt",
+      "settings": { "prompt": "Classify the text; report confidence." },
+      "edges": [{ "when": "isLowConfidence", "to": "review" }, { "to": "collect" }] },
+
+    { "id": "review", "kind": "task", "type": "GpuModel", "pool": "prompt-big",
+      "settings": { "prompt": "Classify carefully." },
+      "edges": [{ "to": "collect" }] },
+
+    { "id": "audit", "kind": "task", "type": "GpuModel",
+      "settings": { "prompt": "Audit the text." },
+      "edges": [{ "to": "collect" }] },
+
+    { "id": "collect", "kind": "join", "of": "split", "edges": [{ "to": "report" }] },
+
+    { "id": "report", "kind": "task", "type": "Prompt",
+      "transform": { "lang": "jsonata", "expr": "{ \"text\": $join([*.answer], \" \") }" },
+      "settings": { "prompt": "Write the report." },
+      "edges": [{ "to": "done" }] },
+
+    { "id": "done", "kind": "end", "outcome": "completed" }
+  ]
+}

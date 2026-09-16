@@ -472,8 +472,15 @@ Since v0.19 `bootstrap({ workers, nodeTypes, pools }, groups, options)` builds *
 per pool INSTANCE through the derivation** — every type's default instance keyed by the type's name,
 every named instance keyed as declared — running the package's envelope worker with the worker
 entry's URL and the DERIVED config in its pool config, and refuses, **both ways**, a pool naming a
-group with no object and an object no pool names. The runtime entry (W66) folds this into
-`createRuntime`. The consumer passes the driver the same `workers`, `nodeTypes` and `pools` and
+group with no object and an object no pool names. `createRuntime` calls it with **only the groups
+some pool's derivation names**, so a group the DOCUMENT declares that only a NODE names — `FD-V31`'s
+ordinary case — is created and registered rather than refused; the helper's own refusal is unchanged
+for a consumer who calls it directly with group OBJECTS. *(This read* **"the runtime entry (W66)
+folds this into `createRuntime`"** *, which was true when W66 wrote it and false the moment
+[W67](../doc/work-items/w67-a-flow-from-documents-on-real-workers.md) shipped: a registry document
+could not declare a group only nodes name, measured at that item's declaration step, and a reader
+implementing a runtime from this paragraph alone would have built the over-refusal it removed. No
+rule moved and none was added — section 1 rule 5's third direction, on a factual sentence.)* The consumer passes the driver the same `workers`, `nodeTypes` and `pools` and
 `Object.keys(scheduler.groups)` — read from the scheduler, never written out again. *(v0.17's
 `workerTypes` set — the pool keys read off the scheduler — is retired with `workerType`: a type's
 default pool exists by construction, and a named instance is the registry's `pools`. And the

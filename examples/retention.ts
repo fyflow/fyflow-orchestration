@@ -82,7 +82,7 @@
  * and re-taking every row, rather than trusting it.
  */
 import { POLICIES } from '../index.ts';
-import { buildScheduler, retainedBytes, runFlow, violations, type RunReport } from './run-flow.ts';
+import { buildRuntime, retainedBytes, runFlow, violations, type RunReport } from './run-flow.ts';
 import mapAlias from './flows/map-alias.flow.json' with { type: 'json' };
 import type { FlowDefinition } from '../index.ts';
 
@@ -286,9 +286,12 @@ async function scale(runs: number, arity: number, sizeKib: number, shared: boole
   // delivered to **every** driver's listener and `ID-R4` tier 1 drops the ones that
   // are not that run's, so the second reading is the one that is linear in N. Run
   // both; the difference is the topology's, not the driver's.
-  // The flow handed to the helper is inert here — no node of `map-alias` transforms, so no pool
-  // loads an engine — but `buildScheduler` requires the flows rather than defaulting them (W63).
-  const scheduler = shared ? buildScheduler(0, false, [MAL]) : null;
+  // The flow handed to the runtime is inert here — no node of `map-alias` transforms, so no pool
+  // loads an engine — but `createRuntime` requires the flows rather than defaulting them (W63).
+  // **`delayMs: 0`** is the document override this mode exists to use: hundreds of runs want none of
+  // the per-task delay the document declares for the sake of a causal settling order (W67).
+  const runtime = shared ? buildRuntime(false, [MAL], undefined, 0) : null;
+  const scheduler = runtime?.scheduler ?? null;
   const heap0 = heapUsed();
   const started = Date.now();
   const reports = await Promise.all(
@@ -300,7 +303,7 @@ async function scale(runs: number, arity: number, sizeKib: number, shared: boole
         payload: payloadFor(arity, sizeKib),
         delayMs: 0,
         threaded: false,
-        ...(scheduler ? { scheduler } : {}),
+        ...(runtime ? { runtime } : {}),
         keepDriver: true,
       })),
   );

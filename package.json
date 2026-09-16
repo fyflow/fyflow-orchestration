@@ -1,6 +1,6 @@
 {
   "name": "fyflow-orchestration",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Flow orchestration over fyflow-scheduler: sequence, decision, fan-out and join",
   "type": "module",
   "main": "./dist/node/index.js",

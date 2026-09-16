@@ -1394,11 +1394,14 @@ import { fold, isTerminal, type FlowDefinition, type FoldInput, type RegistryDoc
 // snippet is self-contained. A worker url may be RELATIVE, and then `base` is what it resolves
 // against — pass `import.meta.url`, because inside a bundle the library cannot guess it.
 const registry: RegistryDocument = {
-  workers: { flow: { url: '../../examples/workers/flow-worker.ts' } },
+  workers: {
+    ingest:  { url: '../../examples/workers/ingest.ts' },
+    publish: { url: '../../examples/workers/publish.ts' },
+  },
   groups: { gate: { type: 'ConcurrentLimitGroup', config: { limit: 1 } } },
   nodeTypes: {
-    Ingest:  { worker: 'flow', inline: true, config: { role: 'ingest' } },
-    Publish: { worker: 'flow', inline: true, config: { role: 'publish' }, groups: ['gate'] },
+    Ingest:  { worker: 'ingest',  inline: true },
+    Publish: { worker: 'publish', inline: true, groups: ['gate'] },
   },
 };
 
@@ -1469,9 +1472,11 @@ this library **depends on `fyflow-scheduler`** and says so where your installer 
 import { Driver, fold, isTerminal, liveToken, type FlowDefinition, type FoldInput, type RunState } from 'fyflow-orchestration';
 import { FyflowScheduler, FyflowTask, WorkerManager } from 'fyflow-scheduler';
 
-// Your worker module — here the one this repository's own L6 rung runs, so this snippet is
-// a real run on a real scheduler rather than a sketch. One class, a role per pool.
-const workerUrl = new URL('../../examples/workers/flow-worker.ts', import.meta.url).href;
+// Your worker modules — here two this repository's own L6 rung runs, so this snippet is a real run
+// on a real scheduler rather than a sketch. **One module per worker**: a module's default export is
+// the class a `WorkerManager` instantiates, which is the scheduler's own contract.
+const ingestUrl = new URL('../../examples/workers/ingest.ts', import.meta.url).href;
+const publishUrl = new URL('../../examples/workers/publish.ts', import.meta.url).href;
 
 const definition: FlowDefinition = {
   flowId: 'wired', version: 1, entry: 'ingest',
@@ -1488,12 +1493,12 @@ const definition: FlowDefinition = {
 // under `config.config` — where these two load the worker directly with `{ role }`; the helper's
 // call is the one a consumer copies, and this snippet keeps the raw scheduler in view.
 const registry = {
-  workers: { flow: { url: workerUrl } },
-  nodeTypes: { IngestWorker: { worker: 'flow' }, PublishWorker: { worker: 'flow' } },
+  workers: { ingest: { url: ingestUrl }, publish: { url: publishUrl } },
+  nodeTypes: { IngestWorker: { worker: 'ingest' }, PublishWorker: { worker: 'publish' } },
 };
 const scheduler = new FyflowScheduler({
-  IngestWorker:  new WorkerManager(workerUrl, { maxThreads: 1, inline: true, config: { role: 'ingest' } }),
-  PublishWorker: new WorkerManager(workerUrl, { maxThreads: 1, inline: true, config: { role: 'publish' } }),
+  IngestWorker:  new WorkerManager(ingestUrl, { maxThreads: 1, inline: true }),
+  PublishWorker: new WorkerManager(publishUrl, { maxThreads: 1, inline: true }),
 });
 
 // A run is over when its OWN fold says so — never `scheduler.completed`, which fires every
@@ -1620,24 +1625,24 @@ import { validateDefinition, type FlowDefinition, type NodeTypeDeclaration, type
 // FD-V33 applies to every node of EVERY type running that entry — over the node's settings with
 // the type's defaults merged under, `{}` when neither says anything — so a schema that REQUIRES a
 // key refuses absence by name, and a type whose nodes carry no settings is written over an entry
-// that declares none (two entries here, one module). `configSchema` is held against every pool's
+// that declares none (two entries here, one module each — since W67 a worker is a module). `configSchema` is held against every pool's
 // derived config at construction; `inputSchema` and `outputSchema` are declared and carried, and
 // enforced by nothing yet (P19).
-const workerUrl = new URL('../../examples/workers/flow-worker.ts', import.meta.url).href;
-const ingest: WorkerEntry = { url: workerUrl };
+const ingestUrl = new URL('../../examples/workers/ingest.ts', import.meta.url).href;
+const typedUrl = new URL('../../examples/workers/typed.ts', import.meta.url).href;
+const ingest: WorkerEntry = { url: ingestUrl };
 const scorer: WorkerEntry = {
-  url: workerUrl,
+  url: typedUrl,
   settingsSchema: { type: 'object', required: ['factor'], properties: { factor: { type: 'number', minimum: 0 } }, additionalProperties: false },
 };
 // Two node types, in the DOCUMENT form — the identity derivation: what each declares is what its
 // default pool is built from. `config` is every worker instance's constructor argument, `pool` the
 // WorkerManager options minus what the type states beside it, `groups` the POOL's groups (every
 // task of the type holds them), `retryPolicy` for every node of the type that declares none.
-const IngestWorker: NodeTypeDeclaration = { worker: 'ingest', inline: true, config: { role: 'ingest' } };
+const IngestWorker: NodeTypeDeclaration = { worker: 'ingest', inline: true };
 const Scorer: NodeTypeDeclaration = {
   worker: 'scorer',
   inline: true,
-  config: { role: 'typed' },
   pool: { maxThreads: 2 },
   groups: ['scorer'],
   retryPolicy: { maxRetries: 1, backoffMs: 0 },
@@ -1827,9 +1832,12 @@ them yet (P19), and the adapter's optional `check` hook is the door left for it.
 `map`'s `over`, on an edge or on a decision is refused, with the reasons in ADR 0051. The validator runs at construction and
 nowhere else: the driver holds your definition by reference, so a document you mutate after
 `new Driver` is dispatched as mutated, for every key ([Q259](doc/open-questions.md)). Every one of
-the twenty-four worked flows in [`examples/`](examples/README.md) runs typed on a real scheduler
-since v0.19 — two of them with a declared `transform` (section 14), one at three arities and one
-whose transforms fail.
+the twenty-five worked flows in [`examples/`](examples/README.md) runs typed on a real scheduler
+since v0.19 — three of them with a declared `transform` (section 14), one at three arities, one
+whose transforms fail, and P18's own sample reducing a join's record for the node after it.
+*(Twenty-four until [W67](doc/work-items/w67-a-flow-from-documents-on-real-workers.md) added
+`triage.flow.json`, which is that plan's exit artifact: a flow and the runtime it needs from two
+JSON documents and a shim.)*
 
 ## 14. The JSONata adapter — `fyflow-orchestration/jsonata`
 
