@@ -1,6 +1,8 @@
 # P18 — A flow and its runtime from documents alone
 
-**Status:** ALL THREE ITEMS DONE, RETRO NOT RUN — drafted 2026-09-15 on `e6ea29a` (tagged
+**Status:** COMPLETE AND RETRO'D — the retro is at the foot of this file, run 2026-09-16 on `b44b1d2`,
+and it takes `doc/workflow.md` to [v0.19](../workflow.md) with ONE change adopted and SIX refused.
+Drafted 2026-09-15 on `e6ea29a` (tagged
 `basic-functionality-ready`, P1-P17 complete and retro'd, `doc/workflow.md` [v0.18](../workflow.md))
 from a design conversation with the maintainer, its nine facts measured the same day in both
 runtimes, and declared 2026-09-15.
@@ -347,7 +349,16 @@ with `type` required and `pool?` added, nothing else changed:
 }
 ```
 
-**The shim** — the only code the consumer writes, and every line of it is theirs:
+**The shim** — the only code the consumer writes, and every line of it is theirs.
+
+> **This sample was wrong in FOUR ways and three of them are in the block below** — [Q292](../open-questions.md),
+> and the retro corrected only the fourth (the class above), because correcting the rest would rewrite
+> what the plan DECIDED rather than what it mis-spelled. **What the items measured**: the sub-path is
+> `fyflow-orchestration/scheduler` and there is no `/runtime` (W66 decision 3); `createRuntime` takes
+> **three** arguments, `(document, code, options)`, where the call below folds `base` into `code`
+> (W66's finding 7); and a runtime needs `flows` beside `base`, because pools are built ONCE and a
+> language's worker url reaches a pool through its config (W66's finding 8). `examples/run-flow.ts`
+> is the shim that actually runs.
 
 ```ts
 import { createRuntime, type NodeTypeDefinition, type PoolSpec } from 'fyflow-orchestration/runtime';
@@ -361,10 +372,16 @@ const isLowConfidence = (ctx) => (ctx.outcome.result as { confidence?: number })
 
 // A custom resource group is the scheduler's own interface on an EventTarget: `canRun` and `getMetrics`
 // are required, `onStart`/`onFinish` optional and given `(key?, cost?)` — fact 2, read off the .d.ts.
+// The constructor is written LONG-HAND on purpose: a TypeScript *parameter property*
+// (`constructor(readonly id: string, …)`) is what this sample carried until P18's retro, and
+// Node 24 refuses it at load in strip-only mode — `RT-R9`, `ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX`.
+// `tsc` accepts it, so nothing here caught it; W67 did, by trying to LOAD it ([Q292](../open-questions.md)).
 class DailyBudgetGroup extends EventTarget implements ResourceGroup {
   readonly type = 'DailyBudgetGroup';
   private spent = 0;
-  constructor(readonly id: string, private readonly tokensPerDay: number) { super(); }
+  readonly id: string;
+  private readonly tokensPerDay: number;
+  constructor(id: string, tokensPerDay: number) { super(); this.id = id; this.tokensPerDay = tokensPerDay; }
   canRun(_key?: string, cost = 0) { return this.spent + cost <= this.tokensPerDay; }
   onStart(_key?: string, cost = 0) { this.spent += cost; }
   onFinish() {}
@@ -682,3 +699,348 @@ until the readers read them; and `in` walked `Object.prototype` in the subset's 
 **40 / 1065 in five runtimes**, L6 **1502 / 50**, spec **7 / 55 / 105 / 34**, readers 26 / 12 and
 21 / 16 / 12 at overlap 2, rule 8 103 probes, 91 caught, 6 declared ceilings each RUN, 5 measured, 0 undeclared, 0 crashes, 0 against declaration on the final pass, 1 abort re-anchored and caught, ten late exceptions and zero undeclared, census
 **222 / 169 / 2 / 51**, 0 aborts.
+
+## Retro
+
+**Run 2026-09-16, after W65, W66 and W67 were done. `doc/workflow.md` section 6 pass 3, and it takes
+that document to [v0.19](../workflow.md) — ONE change adopted, SIX refused.**
+
+P18 asked *can a flow and the runtime it needs be defined as two DOCUMENTS and a registry of names,
+with the library doing every instantiation?* Three items, six reader passes, three ADRs, and an exit
+artifact that is two JSON files and a shim on a real `FyflowScheduler` in both L6 runtimes. At the
+declaration: `spec/` **7 / 55 / 104**, L1-L5 **38 / 979**, L6 **1501 / 50**, register
+**217 / 164 / 2 / 51**, both manifests `0.1.0`. It closes at **7 / 55 / 106 with `C4` at 34**,
+**41 / 1112**, **1610 / 53**, **230 / 176 / 2 / 52**, and **`0.2.0` with the change named as
+BREAKING** — the first version bump this repository has made for a reason rather than for a pin.
+Every figure re-taken here on `b44b1d2` with the tree held still by a content digest, each rung RUN
+and never PIPED, redirected to `dev-dist/p18-retro/` and read by `$?`.
+
+**Its central finding is that v0.17's dated-ceiling clause was followed in the WRITING and not in the
+RUNNING, and that the retro is still the thing that catches it.** [W65](../work-items/w65-the-registry-document-and-a-node-type-is-a-derivation.md)
+declared two ceilings that name the item which would expire them. W67 re-ran one of them — `b15`, as
+its own `a11`, saying so in the probe's `why` — and it holds. It did not re-run the other, `e7`,
+**whose stated reason is the words *a ceiling with a date* and whose sentence names W67**; W67 shipped
+the named pool instance that expires it, and re-anchored onto the tree that ships the probe is
+**exit 1 on the `triage LOW` row**. One hit and one miss, in one plan, on the same clause, by the same
+item. *A clause that tells an author to re-run something tells the author who WROTE the ceiling, not
+the author who EXPIRES it.*
+
+### Name the rung, and it is this retro's shape
+
+| | defect | rung |
+|---|---|---|
+| W65 | the item's own ORDERING did not exist — 24 of 24 L6 flows carried `workerType` and the harness read the old type shape, so staging the grammar behind W67 was impossible | **none** — the declaration step, measured before anything was built |
+| W65 | W19's foreign tasks landed on envelope-fronted pools with a raw payload, six settling `user_action` under `NotAnEnvelope` | **L6 — it FIRED**, two of the first run's five failures, read correctly |
+| W65 | two cross-row clauses discriminated on *typed*, which every node now is, and their subjects named the old strings | **L6 — it FIRED**, three of the five |
+| W65 | the spec's own refusal-count paragraph bound by nothing (`d1`) | **none** — the author's own set, its one UNDECLARED survivor; closed by a `C4` clause |
+| W65 | `AGENTS.md`'s refusal sentence compared to nothing (`d4`); the validator's header count (`d3`) | **none** — the author's own set, both measured 0; the first closed by **`X7`**, a new `check:docs` clause |
+| W65 | `in` walked `Object.prototype` at three object-keyword sites: `required: ['constructor']` satisfied by `{}` | **none** — conformity reader, re-deriving the keywords on paper |
+| W65 | `checkRegistry` had no undeclared-key check on a worker or a pool, so a typo'd `settingSchema` silenced the schema and every settings value passed | **none** — adequacy reader, and it was a PROBE rather than a mutation: the code as it stood accepted it |
+| W65 | a hand-written list of eleven error classes bound by a literal `11` — a twelfth would have passed | **none** — the author's own set, via a rule 7 (b) ABORT (`d6`) whose reading found it |
+| W65 | `C4`'s headline probe pinned to 35; two META entries refused by one mutation | **`check:spec`'s self-test — it FIRED**, rule 7 (b), re-anchored |
+| W65 | `S3` read a parameter named `document` as the DOM global; `S6` wanted the two new modules in the JSR allowlist | **`check:source` — it FIRED twice**, read correctly |
+| W65 | a worker's `settingsSchema` is the WORKER's, so §13's snippet needed two entries over one url | **`check:docs` `X4` — it FIRED** on the rewritten snippet |
+| W65 | a one-off migration script read the ORIGINAL bytes for two edits on one file — W37's and W58's defect verbatim, outside the rule-8 harness whose clause forbids it | **none** — an instrument |
+| W65 | a range edit cut two fields of a return type; four backtick apostrophes inside template literals | **L0 and L1 — they FIRED**, two each |
+| W65 | the Gate line named L0-L5 and `check:spec` and not L6, and L6 is the only rung that sees the cross-row layer | **none** — adequacy reader (`M11`, caught by `DECLARED_TOTAL` alone — [Q217](../open-questions.md)'s shape) |
+| W65 | **no class-form node type reached `new Driver` in any suite**, so a driver blind to a class's policy and defaults was green everywhere — the Gate line's own *both shapes* | **none** — adequacy reader |
+| W65 | the subset's size stated as the PROTOTYPE's (1.5 KB where the shipped module is 4 259); `FD-C5`'s row not moved to v0.19; `checkRegistry`'s reach overclaimed in three documents; `spec/` **104** where `check:spec` says 105 | **none** — conformity reader, four claims that were false |
+| W66 | **P18 decision 4's refusal list wrong in BOTH directions** — it refuses a group that works (no `getMetrics`) and accepts one that leaves every task naming it running for ever in silence (no `onFinish`) | **none** — the declaration step, one omission at a time on a real scheduler; [ADR 0055](../decisions/0055-a-group-factorys-output-is-held-to-what-the-scheduler-calls.md) and [S10](../scheduler-upstream.md) |
+| W66 | the item's own `Spec`, `Gate` and `Out` lines rested on a premise ADR 0053 had struck — *the root loads no validator* — so the `RT-R` rule it was declared to write had no subject | **none** — the declaration step, reading its own file against a decision three commits old |
+| W66 | `runtime.registry` was not what the runtime hands its drivers: `predicates` held the document's NAMES, so **a `Driver` built by hand from it refused a VALID flow under `FD-V4`** | **none** — conformity reader, with a probe; the test asserting the claim had the claim in its TITLE and no driver in its body |
+| W66 | *both ways* was ONE way for predicates and languages — an adapter supplied and named by no document dropped in silence | **none** — conformity reader |
+| W66 | the Gate line promised *L1 on real pools* and every call went through a seam | **none** — the readers; the runtime was never built with a real `WorkerManager` in any suite |
+| W66 | `check-source`'s `scan()` — the fix for an apostrophe in a template literal — had the same blind spot one construct over, in a REGEX literal, and could make `S16` FALSELY fire | **none** — adequacy reader, in the instrument this item had just fixed |
+| W66 | a constructor PARAMETER PROPERTY took ladder L1 down with **zero FAIL lines** ([Q272](../open-questions.md)'s shape) | **`check:source` `S4` — it FIRED and named it in one line**, which is why the crash was legible |
+| W66 | the first `npm run gate` over the final tree RED on one line: `check:docs`' self-test *wanted [X3,X5], got [X3,X4,X5]*, because §12's snippet now EXECUTES | **the gate's own self-test — it FIRED and was READ correctly**, rule 7 (c) working |
+| W66 | `d3` declared a catch by the author and re-declared a ceiling; `a5`'s member list declared a KIND with no fixture of the wrong kind; `a12`'s `live-token` default inert because every flow was LINEAR | **none** — the author's own set, three undeclared survivors it read itself |
+| W66 | the house style's backtick apostrophe broke a patch script four times; the tree moved under the conformity reader | **none** — instruments, and section 6's hold-still rule, which that reader paid for by pinning every measurement to a digest |
+| W67 | **the plan's own SAMPLE does not LOAD** — `DailyBudgetGroup`'s constructor is a parameter property, `RT-R9`, which `tsc` accepts and Node 24 refuses | **none** — the declaration step, by trying to load it; `S4`'s rule reaches no plan document ([Q292](../open-questions.md)) |
+| W67 | a registry DOCUMENT could not declare a group only NODES name, because `createRuntime` handed every declared group to `bootstrap`, whose direction-two refusal is right for a helper and wrong for a document | **none** — the declaration step, measured and put to the maintainer ([Q291](../open-questions.md)) |
+| W67 | this item's own `Verification` row carried **1501**, W63's number, where L6 has been 1502 since W65 | **none** — the declaration step re-taking a handed number, section 1 rule 5's provenance clause |
+| W67 | the L6 count stale by two in the two documents a reader opens first; *thirteen node types* where the document declares fifteen; a `heldGroups` comment arguing to exclude the two tasks the literal below it declares | **none** — conformity reader |
+| W67 | `spec/flow-definition.md` §3 still said the runtime FOLDS the helper's both-ways refusal in — true when W66 wrote it, false the moment stop-and-ask 1 shipped | **none** — conformity reader, section 1 rule 5's third direction |
+| W67 | **`run-flow.ts` said every non-threaded row runs the document AS IT IS ON DISK, and it does not** — the ASSERTION was right and the three sentences citing it were not | **none** — conformity reader; the one subject both readers shared |
+| W67 | the custom group's *name differs from its key* rested on a string inside the factory — making the two equal cost ZERO | **none** — adequacy reader; **W59's own finding inside the fixture built to correct it**, and v0.13's discriminating-pair requirement |
+| W67 | `poolOfTask`'s *read off the scheduler* falsifiable at ZERO by the expression its own note NAMES; clause (iii)'s stated reason false of every field it read | **none** — adequacy reader, obligation (c) |
+| W67 | **Outputs (1) held by nothing anywhere** — a hand-built `ConcurrentLimitGroup(99)` in the shim cost 0, because `S16`'s scope is the published set and `examples/**` is outside it | **none** — adequacy reader, obligation (b) |
+| W67 | the whole per-row `poolOfTask` layer out for three edits and an integer | **none** — adequacy reader; v0.14's *a count is not a membership*, in the file that records the clause |
+| W67 | **P18 decision 10's two defaults reached by nothing** — the plan's own shim is `runtime.start(flow, payload)` with NO options, the one call this rung never made | **none** — adequacy reader; both defaults replaceable by a `throw` for zero, on the item that was the last chance to observe them |
+| W67 | **a crash is not a detection, in the two blocks added AFTER the guard that says so** — the shim run sits outside the row loop, and block (2e) dereferenced `reports[-1]` | **none** — the item's own rule 8 re-run, reading the failure lines; W59's shape twice over |
+| W67 | **a harness that does not pin the runtime it MEASURES reports the environment as the product** — four probes CRASH on a correct tree and a correct edit, because the shell had no `fnm use 24` and `node` resolved to 16 | **none, and none can**: v0.11's control sees what a probe ADDS and is blind by construction to what every probe shares |
+| W67 | one probe came back CAUGHT AGAINST ITS DECLARATION — declared a ceiling on reasoning written before the membership that now catches it | **none** — the author's own set, read correctly and kept as the catch |
+| W67 | two aborts on anchors this item's own edits had moved | **rule 7 (b) — it FIRED**, both re-anchored agnostically |
+| W67 | the census parser wrong once — its three exempt rows added to the three counts and not to the TOTAL | **none, and it is the parser working**: it said so and exited 1 rather than printing a plausible sum |
+| the retro | **W65's `e7` ceiling is a CATCH on the tree the plan ships**, dated to W67 by name and not re-run there | **v0.17's dated-ceiling clause — it did NOT fire in the item; this retro's re-run found it** |
+| the retro | **Q289-Q292 in NO cluster cell** — W65's five and W66's four all reached one, W67's four reached none — and **Q206 resolved with no Resolved-table row**, alone among 47, since W49 in P14 | **none** — this retro's own census; P18's three item parsers carry no cluster check |
+| the retro | the register's headline stale by THIRTEEN through the whole plan — 217 / 164 / 2 / 51 while the items recorded 222, 226 and 230 in their own files | **none** — P17's retro's finding one plan later, on the one count here a machine can compare ([Q253](../open-questions.md)) |
+| the retro | **W65's `c5` ceiling's SITE was DELETED** by W67's migration — `registryFor`, `NODE_TYPES`, `POOLS` and `WORKERS` are gone as code, so the two readings of one literal it named collapsed into the document | **none, and no clause says what to do**: a ceiling whose subject is deleted is neither confirmed nor falsified |
+
+**Forty-six defects. NINE rows name a rung that FIRED and those nine name ELEVEN firings** — two
+the L6 rung on the migration's own first run, four the source and docs checks (`S3`, `S6`, `S4`, `X4`),
+two a check's self-test, two L0 and L1, one rule 7 (b) — **and every one of the eleven was READ
+correctly.** **A TENTH row names a rung that did NOT fire where it should have**, and it is this retro's
+central finding: v0.17's dated-ceiling clause, on W65's `e7`. **Thirty-six have no rung, and SEVEN of
+those are in the INSTRUMENTS** — a migration script's two edits on one file, a patch script's backtick
+apostrophes, `scan()`'s missing regex branch, an l6 block with no catch of its own, a census parser's
+first sum, a probe declared against a membership that did not yet exist, and a shell without
+`fnm use 24`. **And SIX were
+found at a DECLARATION STEP, which is the highest of any plan**: an item re-running the facts it was
+handed found its own ordering impossible, the plan's refusal list wrong in both directions, the plan's
+sample unable to load, its own `Spec` line's premise struck, a blocker the plan did not have, and a
+number in its own file stale by one item.
+
+### The one change
+
+**Rule 8's requirement on the HARNESS gains: it asserts the ENVIRONMENT its rungs need.** A control
+answers *does a probe that changes nothing come back clean*, and it is blind **by construction** to
+anything the clean run and every probe share. [W67](../work-items/w67-a-flow-from-documents-on-real-workers.md)'s
+re-run produced four CRASH verdicts on a correct tree and correct edits, because the shell it ran in
+had no `fnm use 24`: `npm run test:l6` resolved `node` to 16, every `.ts` entry point failed at
+`ERR_UNKNOWN_FILE_EXTENSION`, and a rung that cannot START is indistinguishable in the report from a
+rung a probe took DOWN. The harness refuses to start below Node 24 now, in four lines, naming the
+command to run.
+
+**One occurrence, and the argument for why it generalises is the mechanism rather than a second
+instance** — which is how obligation (c)'s LIMIT and P15's *independent* clause were both taken. Every
+existing requirement on the harness is about a probe that RAN: the control sees what a probe ADDS, the
+byte-asserted restore sees what it LEFT, the per-edit anchor sees what it MATCHED, the digest sees what
+MOVED. **None of them can see a constant.** It composes with P15's clause — *the second observer must
+not be downstream of the first's apparatus* — as its outer case: there the instrument was inside the
+measured graph, here it is underneath every measurement at once. And this repository has the hazard
+written down in `CLAUDE.md` in as many words — *Node 16 is what a bare `node` resolves to here*, there
+since W5, measured by `git log -S` over that file — and it still cost four probes in a harness written
+115 commits later, which is v0.15's own finding about a sentence sitting in the wrong document.
+
+### Six refused, each with a measurement
+
+- **A `doc/` check, the SEVENTEENTH time — and this plan is the first to SATISFY the standing
+  refusal's own criterion.** The refusal has always been *a number in prose is checkable and a sentence
+  is not*. Of the eight stale counts and expiry-dated claims this plan produced, exactly **one** was a
+  number a check could derive from another file — `AGENTS.md`'s refusal count against
+  `spec/flow-definition.md` section 5's rows — and **W65 BUILT that check**, as `X7`, with a probe and a
+  grading, in the item that produced the staleness. Three more are machine-comparable and all three are
+  the REGISTER's: its headline against the census parser's own sum (stale by thirteen through the whole
+  plan), a question in no cluster cell, and a resolved row with no Resolved-table row. **The one thing
+  that can compare all three is the census parser, and it is untracked in `dev-dist/`** —
+  [Q253](../open-questions.md)'s shape for the third plan running, and the third plan to write a parser
+  from scratch rather than keep one. The rest are sentences — *the runtime FOLDS this in*, *the root
+  loads no validator*, *every non-threaded row runs the document as it is on disk* — and a check would
+  have to read English.
+- **A check over a plan's SAMPLE — [Q292](../open-questions.md), four defects across three items.** The
+  sharpest single instance in the plan, and the check does not exist. **A sample cannot be EXECUTED**:
+  P18's calls `callModel`, which is not a thing this repository has and could not be, since L6 runs
+  offline and deterministically in two runtimes. **And a typecheck would not have caught the one that
+  mattered** — a constructor parameter property is valid TypeScript that `tsc` accepts and Node 24
+  refuses at load, which is exactly why `RT-R9` is a SOURCE rule (`S4`) and not a type. What DID find
+  three of the four is an item trying to BUILD from the sample, and the fourth an item trying to LOAD
+  it, which costs nothing and already happens three times a plan. Recorded; this retro corrected the one
+  defect that made the sample unloadable and named the other three beside it, rather than building a
+  check.
+- **A per-case catch in a looping rung, and it is the SECOND refusal of this proposal.** Three instances
+  now: W59 closed it for `examples/l6.ts`'s ROW loop, and W67 found it TWICE in blocks it added AFTER
+  that guard — the shim run sits outside the loop, so replacing a default with a `throw` took the file
+  down with zero failure lines, and block (2e) dereferenced `reports[-1]` when a row was repointed at
+  another document. W67's own lesson names the mechanism: *the guard is per-block, and a new block
+  starts without it.* **P16's retro refused it at one occurrence; put to the maintainer here at three,
+  and not taken** — the fix is one `try` per block, both were made inside the item that found them, and
+  section 4's *a rung reported GREEN means its command EXITED 0* already tells a reader what a red with
+  zero FAIL lines means. Recorded so a fourth occurrence has the count.
+- **A rule that a Gate line's claims are INSTANTIATED.** Three instances, two items, every one
+  reader-found and blocking, and **nothing in rule 8 reaches a Gate line** — obligation (b) names the
+  `Outputs` table and nothing names the gate. W65's Gate promised obligation (a) over BOTH shapes of a
+  node type and no class-form type reached any driver suite; W65's Gate named L0-L5 and `check:spec` and
+  **not L6**, the only rung that sees the cross-row layer; W66's Gate promised *L1 on real pools* and
+  every call went through a seam. Each is a claim about WHERE something is proved that was false.
+  **Put to the maintainer and not taken**: all three were found by the pass that exists to find them,
+  which is the two readers, and each was closed in its own item. Recorded with the count.
+- **A dated ceiling naming the item that expires it as a HAND-OFF.** The clause's yield is the best it
+  has been — **one catch in fourteen**, against P16's two of twenty-three and P13's two of eleven — and
+  the one miss is precisely the case where the ceiling's own sentence names its expiring item and that
+  item did not read it, while the SIBLING ceiling naming the same item WAS re-run there. The
+  counter-measure would be section 1 rule 5's grep-your-own-id one mechanism over: an item greps the
+  previous items' declared ceilings for its own id, which is the one case where the string is exact.
+  **Put to the maintainer at one miss against one hit, and not taken** — the retro caught it in one
+  command, and the clause is doing its work inside the items.
+- **An `Owns` pre-declaration rule, the SEVENTH plan running — and the seeded table is now measured
+  three times.** P18 is the first plan to write the seed **at the DECLARATION** rather than leaving each
+  item to seed from the previous one's late table. **The plan seeded EIGHT rows and all eight behaved
+  as predicted**; each item then extended its own table from the same reading, and **five of those
+  additions were declared *predicted NOT to fire* and none of them fired** — `scripts/check-markdown.mjs`
+  at W65 and again at W67, `scripts/build-browser-tests.mjs` at W67, and `scripts/check-scheduler.mjs`
+  and L6 block (2c) at W66, the last of which W66's own decision 3 made unreachable. **A prediction that
+  something will NOT fire is the half a file set cannot make**, and thirteen of thirteen held.
+  **And the seed missed twenty-one**:
+  late exceptions ran **10, 10, 1**, zero undeclared, and **not one of the twenty-one was predictable
+  from a file SET** — each was created by the CONTENT of the change (a comment naming a type that no
+  longer exists, an amended ADR's pointer, a suite census that is an equality, a `private readonly` a
+  minting runtime leaves unreadable, one clause in `doc/concept.md`). That is P10's retro's finding for
+  the fourth plan running. **Kept as a PROCEDURE, refused as a rule** ([Q157](../open-questions.md)); the
+  declaration-time seed is its third datum and its first taken at a plan's own declaration.
+
+### The predictions: FOUR of FOUR CONFIRMED
+
+| # | kind | verdict |
+|---|---|---|
+| 1 | derived | **CONFIRMED, and measured in both halves.** No routing or fold assertion moved at L1-L5 — only payload reads did, 50 lines in 11 files — and what a bare node's worker receives changed on every corpus flow: **reverting W65 at L6 cost 114 when W65 measured it and 309 on the tree that ships** — two different edits on two different corpora, W65 putting the bare road back and W67 deleting the unwrap every worker now depends on |
+| 2 | derived | **CONFIRMED, and NARROWED by its own item rather than claimed.** The identity derivation reproduces fact 5's captured `WorkerManagerOptions` with `groups` ABSENT where none is declared, and the typed rows of P16 and P17 are unmoved at 1502 / 50. *Byte for byte* is met as **CANONICAL JSON**, because the key order fact 5 captured is today's object literal's and not a rule's — an options bag has no order the scheduler reads, so *reordered* in the prediction's own reversal column is **not an observable** ([Q284](../open-questions.md)). A prediction whose wording was stronger than anything that could be measured, narrowed in the item instead of being reported as met |
+| 3 | derived | **CONFIRMED.** Every refusal this plan adds is an `FD-V` or a construction error naming a registry key: `FD-V38`, eleven `RegistryError` classes, three `RuntimeError` classes and `RT-R13` — **no `FD-R`, no new node kind** — and `FD-V5` and `FD-V34` retire with their ids held |
+| 4 | **reach** | **CONFIRMED WITHIN ITS STATED SCOPE, which is the whole of what it claims.** The subset validates fact 1's fourteen cases as fixtures and the corpus registry resolves with nothing refused; `@cfworker/json-schema` at 42 KB was never reached for. **And the row is honest about what that does not say**: its scope column reads *over the sample's and the corpus's schemas, NOT over what a consumer might write*, and fact 1 had already confirmed it on the sample **before the plan was declared** |
+
+**Four of four — the second plan to record it, after P16, with P17 at three of four in between — and P10's reading needs a qualification this plan
+supplies.** That reading is *three derived predictions test the inference and the one reach prediction
+tests the mechanism*. Prediction 4's measurement was **taken at the declaration**, on the very corpus
+its own scope names — so there was nothing left for an item to find, and confirming it tested the
+corpus rather than the reach. **That is v0.14's scope column working exactly as adopted**: it made a
+pre-confirmed reach prediction legible as one instead of letting it be counted as a test, and the reach
+itself — what a consumer's worker will write — stays open with its reversal condition written down.
+What is genuinely new is prediction 2: **a derived prediction whose WORDING was stronger than any
+observable**, narrowed by the item that met it rather than by a reader.
+
+### v0.18's two changes, and the ceiling re-run
+
+| v0.18 change | What would show it was wrong | **P18's verdict** |
+|---|---|---|
+| **Obligation (d): a membership names the CONTROLS beside its claims** | a new cross-row block ships with its claims named and its controls not, and a validator accepting everything is green with the counts lowered | **CONFIRMED, FOLLOWED at the first opportunity, and MEASURED — the cleanest confirmation of any change this document has adopted.** W67's block in `examples/l6.ts` names FIVE controls beside its claims, citing the clause in the code twice, and its `d3` probe is the measurement of what that buys: deleting a control now takes **four edits, one of them a NAME a reader sees in the diff**, where before the clause it took two integers and left nothing behind. **The limit is the one the clause already states**: `CROSS_ROW_SUBJECTS` is a literal, so a member and its name are two edits in one diff ([Q217](../open-questions.md)), and a layer with NO membership is invisible — W67's adequacy reader took the whole per-row `poolOfTask` layer out for three edits and an integer, which is v0.14's *a count is not a membership* at a THIRD layer, closed by adding to W55's `PER_ROW_SUBJECTS` |
+| **Obligation (a): every member is instantiated under the SAME claim** | an author enumerates a rule's values and one of them is a value of the kind rather than an instance of the claim | **CONFIRMED, and FOLLOWED-AND-SHORT a FOURTH time, in the direction the clause predicts.** W65's Gate line enumerated **both shapes of a node type**, document and class, which is the enumeration — and the class shape was instantiated in the RESOLVER's suite and in NO driver suite, so *the driver handles both shapes* was never an instance of the claim, and a driver blind to a class's policy and defaults was green everywhere. Its adequacy reader found the member by asking what the CLAIM said of it, which is how W58's, W59's and W63's were found. **No extension taken**: the clause as written says exactly what would have caught it, and this is v0.13's recorded asymmetry — an obligation run as a step in a set passes, and the same obligation asked as a question of one artefact fires |
+
+**The ceiling re-run: all FOURTEEN declared ceilings re-run on the tree the plan ships, through each
+item's own harness, each against the rung its own reason names.** W67's seven and W66's one hold as
+declared. **Every one of W65's six ABORTED on its original anchor** — rule 7 (b) firing correctly,
+because W66 raised `RUN_FLOOR` 22 to 23 and W67 rewrote `examples/run-flow.ts` whole — and they were
+re-anchored here with a control of their own (`dev-dist/p18-retro/ceilings-w65.mjs`, control green).
+**ELEVEN distinct claims HOLD**, four of them on re-anchored text; **ONE is a CATCH** (W65's `e7`,
+above, corrected in that item's file under pass 3 rule 6); **and one's SITE no longer exists** — W65's
+`c5` named two readings of one literal, and `registryFor`, `NODE_TYPES`, `POOLS` and `WORKERS` are gone
+from `examples/**` as code, so the two readings have collapsed into the document and the claim is
+neither confirmed nor falsified. *Nothing in the clause says what to do with that*, and it is recorded
+rather than ruled on. The tree digest was identical at the start and end of every run.
+
+### The measurements
+
+**Readers: six passes, none empty — 26 / 12, 22 / 10 and 14 / 7 blocking, against mutation counts of
+21 / 46 / 16 with 16 / 22 / 9 survivors and 12 / 13 / 7 blocking.** Overlaps **2, 2, 1** — the
+**thirty-eighth, thirty-ninth and fortieth** measurements, inside the 0-4 band, none primed.
+**Sixty-one blocking findings, twenty-nine conformity and thirty-two adequacy**, and the split held in
+all three: the conformity reader found claims that were false (a size that was the prototype's, a reach
+stated in three documents, a count stale within the hour, a sub-path that does not exist, a sentence
+with an expiry date, a reason false of every field it read); the adequacy reader found bounds that were
+not there (a schema walk observed at depth 1, a class shape at no driver, every option `start`
+forwards, the run's own payload, a name/key pair carried by a string, a per-row layer, two defaults
+reached by nothing). **Its sharpest single pass is W67's conformity reader, whose central obligation
+came back EMPTY**: it re-derived every expected value of both `triage` rows on paper — the dispatched
+ids, what each of six workers receives and returns field by field, the join's record, the transform's
+reduction, the pool each task ran on, the groups each acquired — and found **zero disagreements**.
+Everything it found was a sentence.
+
+**Rule 8 across the plan: 219 provocations on the final passes, 192 caught, 14 declared ceilings all
+RUN in the items and all RE-RUN here, 12 measurements, 0 undeclared survivors, 0 crashes, 0 against
+declaration, 1 abort re-anchored and then caught.** The author passes ran **159 probes and read
+FOURTEEN undeclared survivors themselves** — one at W65, three at W66, ten at W67 — every one closed
+before a reader saw the tree, and seven of W67's closed in the product rather than declared.
+**Late exceptions 10, 10, 1 — twenty-one, zero undeclared** — and **TWENTY-TWO**, because
+[Q142](../open-questions.md) **FIRED, in this retro's own confirming gate, on a tree to which the retro
+had added NO DOCUMENT AT ALL.** That is the window from its other side, and it is the ninth retune of
+`scripts/check-markdown.mjs` and the second consecutive one found by the GATE rather than predicted.
+**The plan paid the FILE half and left the LINK half alone**: fact 9 predicted `M3` from a count taken
+before a document was written and retuned it 90 -> 107, and all three items then checked `M3` against
+their own fixtures and reported no trip — correctly, since their documents land under
+`doc/decisions/` and `doc/work-items/` and the one-directory probe cuts the first. **`M4` had a
+margin of 31 links at W67's close** — the two-directory fixture measured **3929** against a floor of
+3960 — and this retro's record step wrote **35** more into `doc/README.md`, `CLAUDE.md`, `README.md`,
+`doc/workflow.md`, `doc/open-questions.md` and `doc/work-items/w65`, **none of which either
+`removes` probe cuts**. The fixture read **3964**, four past the floor, `M4` did not fire, and the
+probe declaring `[M1,M3,M4]` reported `got [M1,M3]` — **`GATE EXIT=1` with ZERO lines beginning
+FAIL, in the LAST of twenty-nine chain entries, after every other rung was green**, which is section
+4's own two directions in one log. Measured on a scratch copy outside the repository, on the tree this
+retro ships: whole tree **124 / 5414 / 271**, one directory removed **93 / 4948 / 271**, both removed
+**74 / 3966 / 271**; `M4` retuned to **4450**, near the middle of `(3966, 4948]`, `M3` untouched at
+107 inside `(93, 124]`, `M5` untouched at 60 against 271 for the eleventh plan running. *An index
+paragraph is the densest link source this repository has and the record step writes six of them, so a
+retro moves this floor without adding a file* — which is why the declaration's prediction was right
+about `M3` and silent about `M4`. **Census CONFIRMED for the EIGHTEENTH plan
+running — 230 / 176 / 2 / 52, 230 of 230 in exactly one cluster cell, 52 ids in the Resolved table** —
+by a parser written from scratch that was wrong in three directions before it was right and whose two
+clean findings are corrected above. This retro raises **no question** and extends
+[Q253](../open-questions.md).
+
+**The retro's one declared exception is `scripts/check-markdown.mjs`**, for the `M4` retune above —
+the record step's six files are section 1 rule 5's and are not exceptions, and nothing else outside
+them was touched.
+
+**And v0.15's *a whole-tree measurement is taken with the tree HELD STILL* fired against this retro
+TWICE, which is its fourth and fifth occurrences and both are recorded rather than tidied away.** The
+confirming `npm run gate` was started three times: the first two were **STOPPED UNFINISHED** because a
+final read-through of this retro's own prose found a claim to correct while they ran — a duplicated
+clause and a sentence dated *for the whole of this repository's history* that `git log -S` puts at W5,
+115 commits back — and a gate that finishes over a tree an edit has since moved is *a claim about no
+tree*. P14's retro broke this rule within the hour of adopting it and said so; **this one broke it
+twice and stopped both times rather than reporting the verdict**, which is the behaviour the clause
+asks for and the cost it names. *The pull is exactly what section 6 says it is: a gate costs ten
+minutes and there is always one more sentence to check.*
+
+**Every figure above was re-taken here rather than inherited, with the tree held still by a content
+digest and each rung RUN and never PIPED** (`dev-dist/p18-retro/`, read by `$?`): L6 **1610 / 53 in
+node AND deno**, L1-L5 **41 / 1112 in all FIVE runtimes** — node 24.20.0, deno 2.9.6, chromium,
+firefox and webkit, the last two outside `npm run gate`, which runs three — `check:spec`
+**7 / 55 / 106 with `C4` at 34**, `check:docs` **29 snippets / 23 run**, `check:markdown`
+**124 documents**, and all seven checks at exit 0. **The confirming `npm run gate` over the tree this
+retro ships: EXIT 0, zero lines beginning FAIL at any indent, 29 chain entries, `selftests` 7/7
+completed and 7 ok** (`dev-dist/p18-retro/gate.log`; L6 **1610 / 53** in node 24.20.0 AND deno 2.9.6,
+markdown **124 / 5414 / 271**), with the digest **`e7e76f2ad14abed6` over 327 files identical before
+and after it** — and this sentence is the ONE edit made after it, which is P17's retro's own
+precedent for the only claim a gate cannot be run before.
+
+*It took THREE gates, and the first two are in the paragraph above: one stopped for a duplicated
+clause, one stopped for a date `git log -S` refuted. **The third went RED** — `GATE EXIT=1` with zero
+FAIL lines, at `Q142`, which is the paragraph two above this one. So the confirming gate confirmed
+something: that this retro's own record step moves a floor nobody predicted, and that the rung which
+says so is the last of twenty-nine.*
+
+### What the plan taught, beyond its own question
+
+- **A plan's SAMPLE is code, is read as a specification, and is executed by nothing.** Three items were
+  built against P18's and it was wrong in four ways — a sub-path that does not exist, a signature short
+  by an argument, a missing `flows`, and a constructor Node refuses to load. `check-docs` executes every
+  snippet in `AGENTS.md` and nothing executes a plan's; what found three of the four is an item trying
+  to build from it, and the fourth an item trying to load it. [Q292](../open-questions.md).
+- **An interface's REQUIRED set is not the set its implementation CALLS**, and only one omission at a
+  time on a real scheduler tells you which. The plan read the `.d.ts` faithfully and its refusal list
+  was wrong in both directions — refusing a group that works and accepting one that hangs every task
+  naming it in silence, which is W33's *N too small completes and is silent* one interface over. That is
+  the **seventh** fact the scheduler's reference is silent on and the FIRST that CONTRADICTS it rather
+  than omitting it; [S10](../scheduler-upstream.md) is the first item that register has raised since W37.
+- **A refusal that is right for one caller is wrong for another, and the argument for it reads the
+  same.** `bootstrap`'s *a group registered and used by nothing is the silent kind* is correct when a
+  consumer passes group OBJECTS in and wrong when a DOCUMENT declares the SET a node's `workerGroups`
+  may name — and its message told a runtime consumer to do a thing only a helper consumer can do.
+  [Q291](../open-questions.md).
+- **Retiring a distinction moves every clause that discriminated on it.** *Typed* against *bare* was the
+  discriminator of three L6 clauses and a membership list, and all four went wrong at once on the
+  migration's first run. *A migration is not done when the corpus validates.*
+- **A list DISCOVERED beats a list DECLARED**, three times in one item: the section-9 snippet that
+  enumerates the package's own error classes caught twelve new ones for free, while the registry test's
+  literal `11` would have passed a twelfth. The class list, the keyword list and the checked-schema list
+  are all read from a source now.
+- **A fix for a blind spot is a new instrument and needs its own probes.** `check-source`'s `scan()`
+  closed an apostrophe in a template literal that had blinded `S2`, `S3` and `S4` over 16 137 characters
+  of `driver.ts`, and left the same hole open one construct over in a regex literal — with its own
+  header claiming the class ([Q288](../open-questions.md)).
+
+### Ids
+
+W65, W66 and W67 used; **W68 CLOSED as reserved and never issued** — the plan's three items answered its
+question and the fourth was never needed. **Q278-Q292 all USED, none spent** — two at the declaration,
+five at W65, four at W66 and four at W67 — which is the first block since P13's to be used to its last
+id, four plans having spent between one and ten each; [Q279](../open-questions.md) RESOLVED by the
+version bump, and it is the only one of the fifteen that closed.
+**ADR 0053, 0054 and 0055 all taken** — every ADR this plan reserved, as P12's two and P17's two were,
+and it is the first plan to reserve THREE and take three. **0055 was taken for neither of the two
+things the plan predicted it might be needed for** (the sub-path's placement and the run-id minting are
+decisions recorded in W66's own file); it exists because a measurement corrected P18 decision 4 in both
+directions. Ids are never reused
+(`doc/workflow.md` section 3), so **the next plan starts at W69, Q293 and ADR 0056.** Its subject is
+written down: **P19, strict mode** — `inputSchema` and `outputSchema` enforced at run time, a
+transform's declared output against what it produced, and the sample-based pre-flight over a
+transformed edge, with this plan's declarations and [Q263](../open-questions.md)'s three arities as its
+inputs.

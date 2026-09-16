@@ -502,7 +502,28 @@ if (r.files < 107) fail('M3', `only ${r.files} markdown file(s) were scanned, so
 // **66 / 3532 / 247**. `M4`'s window is `(3532, 4386]` and 3960 is near its middle; `M3` at 90 is
 // inside `(83, 108]` and untouched; `M5` at 60 against 247, untouched for the ninth plan running.
 // A late exception on `scripts/**` for the item, on W42's and P15's precedent.
-if (r.links < 3960) fail('M4', `only ${r.links} relative link(s) were found; M1 is vacuous below that`);
+// **3960 -> 4450 at [P18](../doc/plans/p18-a-flow-and-its-runtime-from-documents-alone.md)'s
+// RETRO**, the NINTH retune and the SECOND consecutive one found by the GATE rather than
+// predicted — and the first found by a RETRO's own confirming gate, on a tree to which that
+// retro had added **no document at all**. That is [Q142](../doc/open-questions.md)'s window from
+// its OTHER side: P18's declaration predicted and paid the FILE half (`M3` 90 -> 107, from a count
+// taken before a document was written) and left the LINK half alone, where the margin was
+// **31 links** — measured at W67's close, two-directory fixture **3929** against this floor of
+// 3960. The retro's own record step writes its paragraphs into `doc/README.md`, `CLAUDE.md`,
+// `README.md`, `doc/workflow.md`, `doc/open-questions.md` and `doc/work-items/`, **none of which
+// either `removes` probe cuts**, and that was **35** more links — so the fixture read **3964**,
+// four past the floor, `M4` did not fire, and the probe declaring `[M1,M3,M4]` reported
+// `got [M1,M3]` in the LAST entry of the gate after every other rung was green.
+// Measured on a scratch copy outside the repository, on the tree this retro ships: whole tree
+// **124 / 5414 / 271**, `doc/decisions` removed **93 / 4948 / 271**, both removed
+// **74 / 3966 / 271** — re-taken AFTER the retro's own correction of its Q142 sentence, which moved
+// all three by two, because a number is re-taken on the tree the item ships and this one moved
+// while being written down. `M4`'s window is `(3966, 4948]` and 4450 is near its middle; `M3` at 107 is
+// inside `(93, 124]` and untouched, as the declaration left it; `M5` at 60 against 271, untouched
+// for the eleventh plan running. A declared exception on `scripts/**` for the retro, on W42's,
+// P15's and W58's precedent. *An index paragraph is the densest link source this repository has,
+// and the record step writes six of them — so a retro moves this floor without adding a file.*
+if (r.links < 4450) fail('M4', `only ${r.links} relative link(s) were found; M1 is vacuous below that`);
 if (r.anchored < 60) fail('M5', `only ${r.anchored} link(s) carry an anchor; M2 is vacuous below that`);
 
 const checks = [

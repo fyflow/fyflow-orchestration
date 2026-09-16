@@ -1,6 +1,6 @@
 # Workflow
 
-**Status:** v0.18 - **run to completion SEVENTEEN times**, by [P1](plans/p1-what-satisfies-a-join.md),
+**Status:** v0.19 - **run to completion EIGHTEEN times**, by [P1](plans/p1-what-satisfies-a-join.md),
 [P2](plans/p2-the-non-success-half-on-a-real-scheduler.md),
 [P3](plans/p3-a-consumer-reference-the-gate-keeps-true.md),
 [P4](plans/p4-the-drivers-lifetime-and-the-handles-it-gives-out.md),
@@ -16,7 +16,8 @@
 [P14](plans/p14-what-a-reference-means-when-two-regions-arities-are-independent.md),
 [P15](plans/p15-what-a-run-retains-and-what-a-result-may-be.md),
 [P16](plans/p16-what-a-node-type-is-and-what-the-library-owes-the-scheduler.md) and
-[P17](plans/p17-what-a-node-may-do-to-its-input-before-its-worker-sees-it.md)
+[P17](plans/p17-what-a-node-may-do-to-its-input-before-its-worker-sees-it.md) and
+[P18](plans/p18-a-flow-and-its-runtime-from-documents-alone.md)
 **Read this before starting any work item.** *(The status line read "seven times" and listed P1-P7
 until P9's retro: **P8 ran this document to completion and adopted none of its proposals**, which is
 section 6 pass 3 rule 1's expected verdict and is not the same as not having run it.)* Paths are relative to the repo root unless they are
@@ -99,6 +100,30 @@ prediction about rule 8 is answered and is **false**.
    ([ADR 0029](decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)).
    The dependency edge that made the junction seem necessary is gone; **the rule still said nothing
    about the removal**, which is the part that did the damage.
+
+**v0.19 is [P18](plans/p18-a-flow-and-its-runtime-from-documents-alone.md)'s retro, and its central
+finding is that v0.17's dated-ceiling clause was followed in the WRITING and not in the RUNNING — by
+the same item, on the same clause, in the same plan.** [W65](work-items/w65-the-registry-document-and-a-node-type-is-a-derivation.md)
+declared two ceilings whose stated reasons NAME the item that would expire them; W67 re-ran one of
+them, saying so in its own probe's `why`, and it holds — and did not re-run the other, whose reason is
+the words *a ceiling with a date*. Re-anchored at this retro it is **exit 1 on the `triage LOW` row**.
+*A clause that tells an author to re-run something tells the author who WROTE the ceiling, not the
+author who EXPIRES it.* P18 asked *can a flow and the runtime it needs be defined as two DOCUMENTS and
+a registry of names, with the library doing every instantiation?* — answered by
+[ADR 0053](decisions/0053-the-schema-validator-is-a-built-in-subset-and-a-keyword-outside-it-is-refused.md),
+[ADR 0054](decisions/0054-every-task-node-names-a-type-and-a-type-is-a-derivation-to-pool-options.md) and
+[ADR 0055](decisions/0055-a-group-factorys-output-is-held-to-what-the-scheduler-calls.md), three items,
+six reader passes, and an exit artifact that is two JSON files and a shim on real workers in both L6
+runtimes. It adopts **one** change and refuses **six**, all in
+[P18's Record](plans/p18-a-flow-and-its-runtime-from-documents-alone.md).
+
+**Name the rung.** Forty-six defects; **NINE rows name a rung that FIRED, naming ELEVEN firings between
+them, and every one was READ correctly** — two the L6 rung on the migration's own first run, four the
+source and docs checks, two a check's self-test, two L0 and L1, one rule 7 (b). **A tenth row names a
+rung that did NOT fire**, which is the finding above. Thirty-six have no rung and **seven of those are
+in the INSTRUMENTS**; **six were found at a DECLARATION STEP**, which is the highest of any plan — an item
+re-running the facts it was handed found its own ordering impossible, the plan's refusal list wrong in
+both directions, and the plan's own SAMPLE unable to LOAD.
 
 **v0.18 is [P17](plans/p17-what-a-node-may-do-to-its-input-before-its-worker-sees-it.md)'s retro,
 and its central finding is that v0.14's membership clause, FOLLOWED by the item that extended the
@@ -1452,7 +1477,7 @@ Rules:
    | | a provocation is evidence only when it **fires**, and only when it fires **for the reason it names** | v0.10, P9's retro |
    | | whatever makes a **discriminating PAIR differ** is itself a claim, and the set breaks it | **v0.13, P12's retro** |
    | | **and on the HARNESS that applies the break:** | |
-   | | it carries a **control** — a probe that changes nothing comes back clean — and the **restore is asserted**, bytes compared back rather than assumed; **and every declared survivor is RUN, against the rung its own reason names**; **and every EDIT's anchor is checked against the CURRENT text, an abort undoes what it applied, and the tree is held still by a content DIGEST**; **and a set-equal-literal ceiling is DATED — the item that moves the value re-runs it** | v0.11, P10's retro; **the ceiling clause v0.14, P13's retro; the per-edit and dated-ceiling clauses v0.17, P16's retro** |
+   | | it carries a **control** — a probe that changes nothing comes back clean — and the **restore is asserted**, bytes compared back rather than assumed; **and every declared survivor is RUN, against the rung its own reason names**; **and every EDIT's anchor is checked against the CURRENT text, an abort undoes what it applied, and the tree is held still by a content DIGEST**; **and a set-equal-literal ceiling is DATED — the item that moves the value re-runs it**; **and it asserts the ENVIRONMENT its rungs need** | v0.11, P10's retro; **the ceiling clause v0.14, P13's retro; the per-edit and dated-ceiling clauses v0.17, P16's retro; the environment clause v0.19, P18's retro** |
 
    The three founding cases:
    - W4 - the join's `null` payload could become `{}` and survive 251 assertions.
@@ -1946,6 +1971,27 @@ Rules:
    a sha over every tracked and untracked-unignored file — is what a reader's copy and a gate are
    compared against.
 
+   **AND THE HARNESS ASSERTS THE ENVIRONMENT ITS RUNGS NEED — P18's retro, and every requirement
+   above is blind to it BY CONSTRUCTION.** A control answers *does a probe that changes nothing come
+   back clean*, and the clean run shares the environment with every probe, so a constant underneath all
+   of them is invisible to it. [W67](work-items/w67-a-flow-from-documents-on-real-workers.md)'s re-run
+   produced **four CRASH verdicts on a correct tree and correct edits**: the shell it ran in had no
+   `fnm use 24`, `npm run test:l6` resolved `node` to 16, every `.ts` entry point failed at
+   `ERR_UNKNOWN_FILE_EXTENSION` — and **a rung that cannot START is indistinguishable in the report
+   from a rung a probe took DOWN**. The harness refuses to start below Node 24 now, in four lines,
+   naming the command to run.
+
+   **Why it is a requirement rather than a note.** Every other requirement on the harness is about a
+   probe that RAN: the control sees what a probe ADDS, the byte-asserted restore sees what it LEFT, the
+   per-edit anchor sees what it MATCHED, the digest sees what MOVED. **None of them can see a
+   constant.** It is P15's clause one case out — there the instrument was inside the measured graph,
+   here it is underneath every measurement at once — and *a harness that does not pin the runtime it
+   MEASURES reports the environment as the product.* **One occurrence, and the argument is the
+   mechanism**, which is how obligation (c)'s LIMIT and P15's *independent* clause were both taken; the
+   evidence that an author does not reach it from the axis alone is that `CLAUDE.md` has carried
+   *Node 16 is what a bare `node` resolves to here* since W5 — measured, `git log -S` over that file —
+   and it still cost four probes, in a harness written 115 commits later.
+
    **AND A SET-EQUAL-LITERAL CEILING IS DATED: the item that moves the value re-runs it — P16's
    retro, the second plan to find one.** Re-running every ceiling at the retro found two of W58's
    eight are CATCHES on the tree the plan ships — `schedulerGroups` sourced to `['gate']` and the task
@@ -1954,6 +2000,17 @@ Rules:
    are equal today is a claim with an expiry date, and the retro is the wrong place to find it expired*:
    W59 edited both values and could have run W58's set in a minute. So: where an item's edit touches
    a value the previous item's ceiling names, the ceiling is re-run in that item, not at the retro.
+
+   *(**P18's retro is the clause's best yield and its clearest limit** — **one catch in fourteen**,
+   against P16's two of twenty-three and P13's two of eleven. And the one catch is the case the clause
+   cannot reach: [W65](work-items/w65-the-registry-document-and-a-node-type-is-a-derivation.md)'s `e7`
+   states its own expiry in the words *a ceiling with a date* and NAMES W67 in the sentence, and W67 —
+   which re-ran W65's OTHER dated ceiling, saying so in its own probe's `why` — did not read it. The
+   counter-measure, a hand-off where an item greps the previous items' ceilings for its own id, was put
+   to the maintainer at one miss against one hit and **not taken**: the retro catches it in one command.
+   **And a ceiling whose SITE is deleted is neither confirmed nor falsified** — W65's `c5` named two
+   readings of one literal and W67's migration collapsed them into a document — which no clause here
+   covers, recorded rather than ruled on.)*
 
 ## 6. Verify: the three passes
 
@@ -2021,10 +2078,11 @@ and there is obvious work to do meanwhile — and **the thing that makes it a de
 habit is that the verdict is reported as though it were about the tree that ships.**)*
 
 **Why two readers rather than one asking both questions**, which is what earlier versions said.
-Measured **thirty-seven** times now: W4 1 of 13, W5 3 of ~35, W6 3 of ~25, W9 3 of ~30, W12 3 of 18,
+Measured **forty** times now: W4 1 of 13, W5 3 of ~35, W6 3 of ~25, W9 3 of ~30, W12 3 of 18,
 W13 4 of 24, W14 4 of ~26, W17 3 of ~31, W18 2, W19 4 of 18, W28 4, W29 1, W30 2, W31 0, W32 2,
 W33 2, W34 2, W36 1, W39 4, W41 1 of 116, W42 2 of 61, W43 2 of 39, W45 2, W46 2, W47 2,
-W49 2, W50 2, W51 1, W53 2, W54 4, W55 2, W57 0, W58 1, W59 1, **W61 1, W62 1, W63 1**.
+W49 2, W50 2, W51 1, W53 2, W54 4, W55 2, W57 0, W58 1, W59 1, W61 1, W62 1, W63 1,
+**W65 2, W66 2, W67 1**.
 **The ORDINAL is derived by counting this list, and P12's three items each got it wrong by two** —
 W41 wrote *eighteenth*, which is W36's, and W42 and W43 incremented from it, so three consecutive
 Records were internally consistent with each other and wrong against the only list there is. All
@@ -2039,12 +2097,17 @@ yet** - the same three facts reached by six different routes, and in each case t
 routes had nothing in common.
 
 **The number to carry is the ABSOLUTE one: two readers produce 0-4 shared findings, whatever the
-item's size** - **thirty-seven** measurements, and P6's retro declares the question **settled and closed
-to re-litigation**. **The twenty-three since — 2, 2, 2, 1, 4, 1, 2, 2, 2, 2, 2, 2, 2, 1, 2, 4, 2, 0, 1, 1, 1, 1 and 1 —
+item's size** - **forty** measurements, and P6's retro declares the question **settled and closed
+to re-litigation**. **The twenty-six since — 2, 2, 2, 1, 4, 1, 2, 2, 2, 2, 2, 2, 2, 1, 2, 4, 2, 0, 1, 1, 1, 1, 1, 2, 2 and 1 —
 are all inside the band and the band has not moved.** **P13's three are 2, 2, 2, P14's are 2, 2, 1,
-P15's are 2, 4, 2, P16's are 0, 1, 1 and P17's are 1, 1, 1**, and its readers' SPLIT held in all three:
-the conformity reader found claims that were false — twelve of its twenty-four blocking findings
-across the plan were numbers — and the adequacy reader found bounds that were not there. **W41's 1 of 116 is the largest denominator ever recorded here and it did not
+P15's are 2, 4, 2, P16's are 0, 1, 1, P17's are 1, 1, 1 and P18's are 2, 2, 1**, and the SPLIT held in
+all three of P17's: the conformity reader found claims that were false — twelve of its twenty-four
+blocking findings across that plan were numbers — and the adequacy reader found bounds that were not
+there. **P18's sixty-one blocking findings split 29 conformity / 32 adequacy the same way**, and its
+sharpest single pass is the one that came back EMPTY on its central obligation: W67's conformity reader
+re-derived every expected value of both exit-artifact rows on paper — the dispatched ids, what six
+workers each receive and return field by field, the join's record, the transform's reduction, the pool
+each task ran on — and found **zero disagreements**. Everything it found was a sentence. **W41's 1 of 116 is the largest denominator ever recorded here and it did not
 move the numerator**, which is the clearest single datum against reading the fraction. **The band read 1-4 over ten measurements until W31 came in at ZERO**, and P9's
 retro corrected the number rather than the conclusion: a zero is what *"the second reader finds what
 the first was not looking for"* predicts at its limit, and W31's pair produced **5 and 10 findings
@@ -2288,3 +2351,15 @@ passes, and re-ran every ceiling those items declared:
 **And v0.14's membership clause, followed by the item that extended the list, was one layer short
 — the CONTROLS (v0.18 change 1).** Two occurrences measured, one of them live in W58's block for a
 whole plan.
+
+**And what P18 did to v0.18's two**, judged by the plan that ran three items, six reader passes, and
+re-ran all fourteen ceilings those items declared:
+
+| v0.18 change | What would show it was wrong | **P18's verdict** |
+|---|---|---|
+| **Obligation (d): a membership names the CONTROLS beside its claims** | a new cross-row block names its claims and not its controls, and a validator accepting everything is green with the counts lowered | **Right, FOLLOWED at the first opportunity, and MEASURED — the cleanest confirmation of any change in this table.** W67's block in `examples/l6.ts` names FIVE controls beside its claims, citing the clause in the code twice, and its `d3` probe is the measurement of what that buys: deleting a control now takes **four edits, one of them a NAME a reader sees in the diff**, where before it took two integers and left nothing behind. **Its limit is the one the clause states**: the list is a literal, so member and name are two edits in one diff, and a layer with NO membership is invisible — W67's adequacy reader took the whole per-row `poolOfTask` layer out for three edits and an integer, at a THIRD layer, closed by adding to W55's `PER_ROW_SUBJECTS` |
+| **Obligation (a): every member is instantiated under the SAME claim** | an author enumerates a rule's values and one is a value of the kind rather than an instance of the claim | **Right, and FOLLOWED-AND-SHORT a FOURTH time, in the direction the clause predicts.** W65's Gate line enumerated BOTH shapes of a node type, and the class shape was instantiated in the RESOLVER's suite and in NO driver suite — so *the driver handles both shapes* was never an instance of the claim, and a driver blind to a class's policy and defaults was green everywhere. Its adequacy reader found the member by asking what the CLAIM said of it, which is how W58's, W59's and W63's were found. **No extension taken**: the clause as written is what would have caught it, and this is v0.13's asymmetry — an obligation run as a step in a set passes, and the same obligation asked as a question of one artefact fires |
+
+**And v0.11's requirement on the harness had a hole underneath all of it — the ENVIRONMENT (v0.19).**
+Four of W67's probes came back CRASH on a correct tree and correct edits, because a control can only
+see what a probe ADDS and is blind by construction to what every probe SHARES.
