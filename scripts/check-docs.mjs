@@ -344,7 +344,9 @@ if (written.length) {
 // worker reducing a join's collection, binding `$settings`, and failing a task on an unbound name.
 // Declared in the item's exceptions table before the snippet was written, from W59's and W61's
 // tables (Q102's ratchet, the ninth recorded raise).
-const RUN_FLOOR = 22;
+// **Raised 22 -> 23 by [W66](../doc/work-items/w66-the-runtime-entry.md)**, whose section 12 leads
+// with a `createRuntime` run snippet — Q102's ratchet, the tenth recorded raise.
+const RUN_FLOOR = 23;
 {
   // **Only when the document parsed.** A count over a reference whose fences are
   // malformed or untagged is true of the parse and says nothing about coverage —

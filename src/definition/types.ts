@@ -268,8 +268,10 @@ export interface GroupInstance {
  * **A resource group is a FACTORY** — decision 4 and P18 fact 2: the scheduler's three group classes
  * have three different constructors, so each is a `create(config, key)` behind one shape, and a
  * consumer registers a custom class the same way. `create` returns the scheduler's own `ResourceGroup`
- * interface, whose two REQUIRED members are `canRun` and `getMetrics`; the runtime (W66) checks the
- * returned object for both, naming the key. The key is the group's identity and the object's own
+ * interface. **The runtime holds what it returns to SIX members** — `canRun`, `onStart` and
+ * `onFinish` because the scheduler calls them, `getMetrics`, `id` and `type` because the interface
+ * requires them — each refused by name (ADR 0055, W66; the `.d.ts` marks the middle two optional and
+ * the scheduler calls them unguarded, measured). The key is the group's identity and the object's own
  * `id` is inert (ADR 0049 fact 2).
  */
 export interface GroupType {

@@ -445,6 +445,17 @@ const LATE_SUITES = [
   // W65's conformity reader: four refusal clauses without a fixture, and the schema's `in` walking Object.prototype.
   'the refusal table`s remaining clauses — the conformity reader`s four',
   'the object keywords read OWN keys, never inherited ones',
+  // W66 — the runtime entry, in `test/scheduler/runtime.test.ts`.
+  'W66 — createRuntime builds from a document: pools, groups and the driver`s registry',
+  'W66 — decision 7: a relative worker url resolves against the consumer`s BASE, and without one is refused',
+  'W66 — decision 4: the group factories, and what a created group is held to',
+  'W66 — decision 9 at the runtime: a resident group beside idleTimeout 0 is refused (P18 fact 6, re-run at W66)',
+  'W66 — decision 10: start() mints a run id, defaults the policy, and hands the driver this runtime`s registry',
+  'W66 — decision 13: the languages a pool carries come from the FLOWS, and start refuses one it was not built for',
+  'W66 — every option start forwards, and every member the runtime exposes, observed',
+  'W66 — the sub-path re-exports what this module exports, both ways',
+  'W66 — a runtime on REAL pools: a document in, a completed run out',
+  'W66 — what the runtime refuses that the document alone could not say',
   // W62 — the JSONata adapter, in `test/jsonata/jsonata.test.ts` and `test/jsonata/function-table.test.ts`.
   'adapter conformance — jsonata (fyflow-orchestration/jsonata)',
   'W62 — the JSONata adapter: one module, five names unbound, JSONata`s errors as Errors',

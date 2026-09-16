@@ -7,5 +7,7 @@
  */
 export { bootstrap, BootstrapError, ENVELOPE_WORKER_URL, transformLanguagesByType } from './bootstrap.ts';
 export type { BootstrapOptions, BootstrapResult, PoolFactory } from './bootstrap.ts';
+export { BUILT_IN_GROUP_FACTORIES, createRuntime, GROUP_MEMBERS, GroupNotBuildable, GroupUnusable, LanguageNotBuilt, RuntimeError } from './runtime.ts';
+export type { Runtime, RuntimeOptions, StartOptions } from './runtime.ts';
 export { default as EnvelopeWorker, NotAnEnvelope, TransformFailed, unpackEnvelope } from './envelope-worker.ts';
 export type { Envelope, EnvelopePoolConfig } from './envelope-worker.ts';

@@ -156,7 +156,11 @@ const PROBES = [
     // same way, and no probe is needed to say so.
     name: 'a snippet importing the sub-path by a name the rewrite does not recognise',
     check: 'X3',
-    also: ['X5'],
+    // **`X4` joined the set at W66**, whose section 12 leads with a `run` snippet importing this
+    // sub-path: a name the rewrite cannot resolve now breaks a snippet that EXECUTES as well as the
+    // ones that only typecheck. Rule 7 (c) — the set is declared, so the item that widens it says so,
+    // and the gate's own self-test is what said the set had moved.
+    also: ['X4', 'X5'],
     mutate: (t) => t.replace("from 'fyflow-orchestration/scheduler'", "from 'fyflow-orchestration/schedulerr'"),
   },
   {

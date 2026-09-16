@@ -103,16 +103,121 @@ const UNSTRIPPABLE = [
 ];
 
 /** Comments removed. String literals KEPT — an import specifier lives inside one. */
-function withoutComments(text) {
-  return text.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/.*$/gm, '$1 ');
+/**
+ * **One left-to-right scan, because a regex cannot tell a quote from an apostrophe.** Returns the
+ * text with comments blanked; `stringsToo` blanks the CONTENTS of every string and template literal
+ * as well, keeping a template's `\${ … }` holes, where real code lives.
+ *
+ * **What this replaces, and why** — [W66](../doc/work-items/w66-the-runtime-entry.md), found while
+ * building `S16`, which could not see a constructor appended to `src/definition/registry.ts`. The
+ * previous `code()` was three `replace` passes, one per quote character, and a template literal
+ * carrying an APOSTROPHE — `\`the type's own name\`` — opened a single-quoted string that ran to the
+ * next apostrophe anywhere in the file. Measured on the published set: **nine of twenty files**
+ * carry one, and the span it blanked was **16 137 characters of `src/driver/driver.ts`** and 10 028
+ * of `src/definition/validate.ts`. Everything inside those spans was invisible to `S2` (Node
+ * globals), `S3` (DOM globals), `S4` (syntax Node cannot strip) and `S16` — and whether a given
+ * line was visible depended on the PARITY of the apostrophes before it, which is why no check ever
+ * went red. A comment-only `//` inside a string (`'https://…'`) is the same defect in the other
+  * direction and is closed by the same scan.
+ *
+ * **And a REGEX LITERAL is the same hazard once more** — W66's adequacy reader (F15, F16), on the
+ * rewrite above: `/['x]/` opened a single-quoted string that blanked the rest of the line, and
+ * `` /[`]/ `` opened a template that blanked everything to the next backtick or to EOF, so a
+ * violation planted behind either was invisible to `S2`, `S3` and `S16` in a published file. The
+ * same stray backtick could make `S16` FALSELY fire, by turning a `\${ … }` inside a plain
+ * double-quoted string into a hole this scan emits as code. A regex is recognised where one can
+ * legally START — after an operator, a keyword, `(`, `,`, `=`, `:`, `[`, `!`, `&`, `|`, `?`, `{`,
+ * `}`, `;` or the beginning — which is what tells `/` as a divisor from `/` as a delimiter without
+ * parsing the language.
+ */
+/** Where a `/` may begin a regex rather than divide — everything a value cannot end with. */
+const REGEX_MAY_START = /[=(,:[!&|?{};+\-*%~^<>]$|^$|\b(?:return|typeof|instanceof|in|of|new|delete|void|case|do|else|yield|await)$/;
+/** The last non-whitespace character of what has been emitted, or the trailing keyword, for the test above. */
+function lastMeaningful(out) {
+  const trimmed = out.replace(/\s+$/, '');
+  const word = /[A-Za-z_$][\w$]*$/.exec(trimmed);
+  return word ? word[0] : trimmed.slice(-1);
 }
 
-/** Comments AND strings removed, so a rule name quoted in prose is not a violation. */
+function scan(text, stringsToo) {
+  let out = '';
+  let i = 0;
+  const n = text.length;
+  while (i < n) {
+    const c = text[i];
+    const d = text[i + 1];
+    // A line comment, but not the `//` inside a `https://` — the scan knows it is not in a string,
+    // so no lookbehind is needed; this is the clause the old regex spelled as `(^|[^:])`.
+    if (c === '/' && d === '/') { while (i < n && text[i] !== '\n') i++; out += ' '; continue; }
+    if (c === '/' && d === '*') { i += 2; while (i < n && !(text[i] === '*' && text[i + 1] === '/')) i++; i += 2; out += ' '; continue; }
+    if (c === "'" || c === '"') {
+      const quote = c;
+      const start = i;
+      i++;
+      while (i < n && text[i] !== quote && text[i] !== '\n') { if (text[i] === '\\') i++; i++; }
+      i++;
+      out += stringsToo ? quote + quote : text.slice(start, i);
+      continue;
+    }
+    // A REGEX LITERAL, only where one may begin: its body is not code, and a quote or a backtick
+    // inside it is not a delimiter. `prev` is the last non-space character emitted.
+    if (c === '/' && REGEX_MAY_START.test(lastMeaningful(out))) {
+      const start = i;
+      i++;
+      let inClass = false;
+      while (i < n && text[i] !== '\n') {
+        const r = text[i];
+        if (r === '\\') { i += 2; continue; }
+        if (r === '[') inClass = true;
+        else if (r === ']') inClass = false;
+        else if (r === '/' && !inClass) { i++; break; }
+        i++;
+      }
+      out += stringsToo ? '/./' : text.slice(start, i);
+      continue;
+    }
+    if (c === '`') {
+      const start = i;
+      i++;
+      let holes = '';
+      while (i < n && text[i] !== '`') {
+        if (text[i] === '\\') { i += 2; continue; }
+        if (text[i] === '$' && text[i + 1] === '{') {
+          // A hole is CODE and is kept: `\${new WorkerManager(…)}` must still be seen.
+          i += 2;
+          let depth = 1;
+          const holeStart = i;
+          while (i < n && depth > 0) {
+            const h = text[i];
+            if (h === '{') depth++;
+            else if (h === '}') { depth--; if (depth === 0) break; }
+            else if (h === "'" || h === '"' || h === '`') { const q = h; i++; while (i < n && text[i] !== q) { if (text[i] === '\\') i++; i++; } }
+            i++;
+          }
+          holes += ` ${text.slice(holeStart, i)} `;
+          i++;
+          continue;
+        }
+        i++;
+      }
+      i++;
+      out += stringsToo ? `\`\`${holes}` : text.slice(start, i);
+      continue;
+    }
+    out += c;
+    i++;
+  }
+  return out;
+}
+
+/** Comments blanked, strings kept — what the import scans read. */
+function withoutComments(text) {
+  return scan(text, false);
+}
+
+/** Comments AND string contents blanked, so a rule name quoted in prose is not a violation. */
 function code(text) {
-  return withoutComments(text)
-    .replace(/'(?:[^'\\]|\\.)*'/g, "''")
-    .replace(/"(?:[^"\\]|\\.)*"/g, '""')
-    .replace(/`(?:[^`\\]|\\.)*`/g, '``');
+  return scan(text, true);
 }
 
 const files = published();
@@ -246,6 +351,34 @@ for (const p of files) {
         fail('S14', `${r} reaches jsonata as "${spec}" — RT-R12 / ADR 0052. The bare specifier "jsonata" and nothing else: ` +
           'an npm: prefix, a path or a URL resolves in one runtime and not the others, or beside the copy the manifests declare');
       }
+    }
+  }
+}
+
+// S16 — `RT-R13`, W66: only the sub-path that CONSTRUCTS scheduler objects may construct them.
+//
+// `S7` binds the FORM of the reach and `RT-R11` allows it from anywhere published; this binds what
+// a file may DO with it. A `new WorkerManager`, a `new FyflowScheduler` or a resource-group
+// constructor outside `src/scheduler/**` puts a pool, a scheduler or a budget into the pure entry,
+// which a consumer who wanted none of them still pays to load. The three built-in group types are
+// the case: their SCHEMAS are in `src/definition/registry.ts` and their FACTORIES in
+// `src/scheduler/runtime.ts`, two halves of one list.
+//
+// **Constructors, not imports** — `import type { ResourceGroup }` is what `src/definition/types.ts`
+// does and is fine, and `src/driver/driver.ts` imports `FyflowTask` for its default `createTask`
+// (ADR 0048 rule 5) and constructs one, which is a TASK and not a pool, a scheduler or a group. The
+// list is enumerated rather than matched by shape, because `new <capitalised>` would catch every
+// class this repository writes.
+const CONSTRUCTS = ['WorkerManager', 'FyflowScheduler', 'ConcurrentLimitGroup', 'RateLimitGroup', 'KeyedRateLimitGroup'];
+const CONSTRUCTOR_DIR = 'src/scheduler/';
+for (const p of files) {
+  const r = rel(p);
+  if (r.startsWith(CONSTRUCTOR_DIR)) continue;
+  const src = code(readFileSync(p, 'utf8'));
+  for (const name of CONSTRUCTS) {
+    if (new RegExp(`\\bnew\\s+${name}\\s*\\(`).test(src)) {
+      fail('S16', `${r} constructs a ${name} — RT-R13 / W66. Only ${CONSTRUCTOR_DIR}** may: a pool, a scheduler or a group ` +
+        'holds a worker, a thread or a budget, and the pure entry must load without one. Importing the type is fine; constructing it here is not');
     }
   }
 }
@@ -738,6 +871,7 @@ const checks = [
   'S13 the chains and the argument lists the gate composes',
   'S14 jsonata is reached only from src/jsonata/**, and only by its bare specifier',
   'S15 jsonata is declared once, at one pin, in both manifests, and its sub-path is exported by both',
+  'S16 only the scheduler sub-path constructs a pool, a scheduler or a resource group',
 ];
 console.log(`source check — ${files.length} published files, ${GATE_CHAIN.length} gate entries\n`);
 for (const c of checks) {

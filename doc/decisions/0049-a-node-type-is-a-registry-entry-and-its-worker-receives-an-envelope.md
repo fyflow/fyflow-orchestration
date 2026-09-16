@@ -69,7 +69,7 @@ at 0.5.2 under Node 24.20.0 AND Deno 2.9.6, re-taken by `dev-dist/w59/facts.mjs`
    does not hold, or one the scheduler has no pool of that name for. No new node kind (P16
    decision 6): a typed node is `kind: "task"`, and a `map`'s branch may be one.
 5. **The bootstrap helper is a sub-path of this package — `fyflow-orchestration/scheduler` — and it
-   is the one place the published package constructs scheduler objects.** `bootstrap(nodeTypes,
+   is the one place the published package constructs scheduler objects.** *(At MODULE granularity until W66, which put `createRuntime` beside it in the same sub-path and stated the rule at DIRECTORY granularity as `RT-R13`.)* `bootstrap(nodeTypes,
    groups)` returns `{ workerPools, resourceGroups }`: one `WorkerManager` per type keyed by the
    type's name, loading the package's ENVELOPE WORKER with the type's `worker` and `config` in its
    pool config, spreading the type's `pool` options and `groups`; and it refuses, BOTH WAYS, a type

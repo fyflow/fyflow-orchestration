@@ -10,7 +10,9 @@
  * [ADR 0051](../../doc/decisions/0051-a-transform-is-a-declared-expression-in-a-registered-language-applied-in-the-types-worker-wrapper.md)
  * rule 4, [W61](../../doc/work-items/w61-what-a-transform-is.md).
  *
- * **This is the one place the published package CONSTRUCTS a scheduler object**, and it is a
+ * **This sub-path is the one place the published package CONSTRUCTS a scheduler object** (`RT-R13`;
+ * `createRuntime` in `./runtime.ts` is the other module in it, and it constructs the groups and the
+ * scheduler), and it is a
  * sub-path (`fyflow-orchestration/scheduler`) so the pure entry — the validator, the driver, the
  * fold — still loads no `WorkerManager`. Legal since
  * [ADR 0048](../../doc/decisions/0048-the-scheduler-is-a-declared-dependency-reached-by-one-bare-specifier.md);

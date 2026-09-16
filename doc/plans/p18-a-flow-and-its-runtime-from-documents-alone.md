@@ -578,6 +578,29 @@ documents, forty-eight links, two anchors, two questions.*
 *Filled in at the join, after the work items are merged. Empty while this is a draft. Each item's
 paragraph is written when the item closes; the join reads them together.*
 
+### W66 — done 2026-09-16
+
+**The runtime entry — `createRuntime` in `fyflow-orchestration/scheduler`, and there is no
+`/runtime` sub-path** ([ADR 0055](../decisions/0055-a-group-factorys-output-is-held-to-what-the-scheduler-calls.md),
+`RT-R13`, `S16`). Its declaration step re-ran facts 2, 3, 6, 7 and 8 — byte-identical in both
+runtimes — and **found decision 4 wrong in BOTH directions**: measured one omission at a time on a
+real scheduler, a group with no `getMetrics` (which this plan says to refuse) runs to `done`, and one
+with no `onStart` THROWS while one with no `onFinish` leaves every task naming it running for ever
+with the scheduler reporting idle — both of which this plan calls optional. The maintainer took the
+UNION of the two lists; the mismatch is raised upstream as [S10](../scheduler-upstream.md), the first
+item that register has raised since W37. **Three more of this item's own lines rested on premises that
+had expired**: the third `RT-R` rule it was declared to write (ADR 0053 had already put the validator
+in the root, and said so), the sub-path's name (P18's own open stop-and-ask, answered here), and the
+signature and `flows` argument the plan's sample shim implies. **Decision 14 was false as first
+built** — `runtime.registry` carried the document's predicate NAMES where a driver wants the
+functions, so a `Driver` built by hand from it refused a VALID flow — found by the conformity reader
+with a probe. **And the item's own instrument had the defect it was fixing**: `check-source`'s
+source scan blinded `S2`, `S3` and `S4` over 16 137 characters of `driver.ts` through an apostrophe in
+a template literal, and the replacement had the same hole one construct over, found by the adequacy
+reader. L1-L5 **41 / 1111 in five runtimes**, L6 **1502 / 50 unmoved** (this item adds no row),
+`spec/` **7 / 55 / 106**, readers 22 / 10 and 46 mutations / 22 / 13 at overlap 2, rule 8 52 probes /
+50 caught / 0 undeclared, census **226 / 173 / 2 / 51**. Q285-Q288 raised.
+
 ### W65 — done 2026-09-15
 
 **The registry document and its types, the subset validator, the grammar, the corpus migrated —

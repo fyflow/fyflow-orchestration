@@ -1042,9 +1042,19 @@ key, and a message naming the entry. `new Driver` runs the shape half only, six 
 five — `ConfigRefused`, `TypeDefaultRefused`, `GroupTypeMissing`, `GroupConfigRefused`,
 `NameMissing` — need a derivation run or a group built, and are thrown by
 `resolveRegistry(document, code)` when a registry DOCUMENT is resolved against the code that
-supplies its predicates, languages, group types and node-type classes, and by the bootstrap helper
-before it builds a pool. None is `InvalidDefinition`, on purpose: a registry defect is fixed in the
-registry and a flow defect in the flow, and the class says which document to open.
+supplies its predicates, languages, group types and node-type classes, by `createRuntime` (which
+calls that resolver first — section 12), and by the bootstrap helper before it builds a pool. None is
+`InvalidDefinition`, on purpose: a registry defect is fixed in the registry and a flow defect in the
+flow, and the class says which document to open.
+
+**And three the RUNTIME adds, all `RuntimeError` subclasses from `fyflow-orchestration/scheduler`**
+(W66): `GroupUnusable` — a group factory returned something the scheduler cannot use, naming the
+member and the group's key; `GroupNotBuildable` — a group type with no `create`; `LanguageNotBuilt` —
+`start` was given a flow that transforms on a type no pool was built for. A bare `RuntimeError` is
+the fourth road: a relative worker url with no `base`, and a predicate or adapter supplied that the
+document names nowhere. **They are not exported from the package ROOT**, so the enumeration below —
+which walks the root's own exports — does not see them, and `BootstrapError` has never been there
+either.
 
 **Two more that throw, because you called them.** They are the same classes the next paragraph calls
 reported, which is why the rule is about the stack:
@@ -1369,7 +1379,86 @@ on. What is missing is an agreed envelope shape between the two repositories, no
 
 ## 12. Wiring it to a real scheduler
 
-You supply the scheduler, and that is all you have to supply. Since
+**The short way is a registry DOCUMENT and one call** — `createRuntime` in
+`fyflow-orchestration/scheduler`, [W66](doc/work-items/w66-the-runtime-entry.md). It resolves every
+name the document uses against the code you supply, refuses every defect at construction by a named
+error, builds one pool per type instance and one object per group, holds a `FyflowScheduler` over
+them, and hands you a `Driver` per run. **What stays yours is exactly what is code**: predicates,
+language adapters, custom group types and custom node-type classes, in one `code` argument.
+
+```ts run
+import { createRuntime } from 'fyflow-orchestration/scheduler';
+import { fold, isTerminal, type FlowDefinition, type FoldInput, type RegistryDocument, type RunState } from 'fyflow-orchestration';
+
+// The registry, as data. In your program this is a JSON file you import; here it is a literal so the
+// snippet is self-contained. A worker url may be RELATIVE, and then `base` is what it resolves
+// against — pass `import.meta.url`, because inside a bundle the library cannot guess it.
+const registry: RegistryDocument = {
+  workers: { flow: { url: '../../examples/workers/flow-worker.ts' } },
+  groups: { gate: { type: 'ConcurrentLimitGroup', config: { limit: 1 } } },
+  nodeTypes: {
+    Ingest:  { worker: 'flow', inline: true, config: { role: 'ingest' } },
+    Publish: { worker: 'flow', inline: true, config: { role: 'publish' }, groups: ['gate'] },
+  },
+};
+
+// The flow, as data. It names registry KEYS and nothing else — no file, no URL, no class.
+const flow: FlowDefinition = {
+  flowId: 'wired', version: 1, entry: 'ingest',
+  nodes: [
+    { id: 'ingest',  kind: 'task', type: 'Ingest',  edges: [{ to: 'publish' }] },
+    { id: 'publish', kind: 'task', type: 'Publish', edges: [{ to: 'done' }] },
+    { id: 'done',    kind: 'end',  outcome: 'completed' },
+  ],
+};
+
+const runtime = createRuntime(registry, {}, { base: import.meta.url });
+
+// A run is over when its OWN fold says so — never `scheduler.completed`, which fires every time the
+// scheduler drains (section 8). `start` returns a `Driver`, already started.
+const inputs: FoldInput[] = [];
+const state = await new Promise<RunState>((resolve, reject) => {
+  const driver = runtime.start(flow, { confidence: 0.9 }, {
+    onFoldInput: (input) => {
+      inputs.push(input);
+      queueMicrotask(() => { const s = fold(inputs); if (isTerminal(s)) resolve(s); });
+    },
+    onRunFailure: (f) => reject(new Error(`${f.kind}: ${f.message}`)),
+  });
+  // **`driver.runId` is readable** (W66): the runtime minted this run's id, and every task id of the
+  // run begins with it. Pass your own as `start`'s `runId` when you need to choose it.
+  if (!/^r\d+$/.test(driver.runId)) throw new Error(`expected a minted run id, got ${driver.runId}`);
+});
+const pools = Object.keys(runtime.pools).sort();
+await runtime.shutdown();
+
+if (state.outcome !== 'completed') throw new Error(`expected completed, got ${state.outcome}`);
+// One pool per type instance, keyed by the name the document uses — that is what a node's `type` names.
+if (pools.join() !== 'Ingest,Publish') throw new Error(`pools: ${pools.join()}`);
+// And the group the document declared was built and is the scheduler's, keyed as declared.
+if (Object.keys(runtime.groups).join() !== 'gate') throw new Error(`groups: ${Object.keys(runtime.groups).join()}`);
+```
+
+**Every refusal is at construction and named.** A worker a type names and the document does not
+declare, a pool whose type does not exist, a config that fails its schema, a schema keyword outside
+the built-in subset, a name declared twice — each is a `RegistryError` subclass naming the entry
+(section 9, section 13). Three more are the runtime's own: a **relative worker url with no `base`**,
+a group type with no factory, and a group factory returning an object the scheduler cannot use —
+`canRun`, `onStart`, `onFinish`, `getMetrics`, `id` and `type`, each refused by name. *(That list is
+wider than the scheduler's own interface marks required, and deliberately: measured at 0.5.2, a group
+with no `onStart` throws on its first task and one with no `onFinish` leaves every task naming it
+running for ever, while one with no `getMetrics` runs fine —
+[ADR 0055](doc/decisions/0055-a-group-factorys-output-is-held-to-what-the-scheduler-calls.md).)*
+
+**If a flow transforms, tell the runtime about it.** A language adapter's worker half is written
+into a pool's config at construction, and only for the types whose nodes transform (section 13), so
+pass every flow the runtime will run: `createRuntime(registry, code, { base, flows: [flow] })`. A
+flow handed to `start` that transforms on a type no pool was built for is refused there, naming the
+type and the language, rather than failing every task of that node one run in.
+
+**The long way, and it is the same objects.** You can build the scheduler yourself and hand the
+`Driver` the registry sets — which is what the runtime does, and what ladder L2-L5 here do with a
+double. You supply the scheduler, and that is all you have to supply. Since
 [ADR 0048](doc/decisions/0048-the-scheduler-is-a-declared-dependency-reached-by-one-bare-specifier.md)
 this library **depends on `fyflow-scheduler`** and says so where your installer reads it — a
 `peerDependencies` entry, at the pin stated at the end of this section — and `createTask` is
@@ -1592,9 +1681,12 @@ if (rules(low({ id: 'low', kind: 'task', type: 'Scorer', settings: { factor: 1 }
 if (!rules(low({ id: 'low', kind: 'task', edges: [{ to: 'done' }] })).includes('FD-V23')) throw new Error('FD-V23: a task with no type');
 ```
 
-**Wiring it: the bootstrap helper.** `fyflow-orchestration/scheduler` is a sub-path — the one
-module of this package that constructs scheduler objects, kept out of the root so the validator,
-the driver and the fold load no `WorkerManager`. `bootstrap(registry, groups, options)` builds
+**Wiring it: `createRuntime`, or the bootstrap helper underneath it.** `fyflow-orchestration/scheduler`
+is a sub-path — the one module of this package that constructs scheduler objects, kept out of the
+root so the validator, the driver and the fold load no `WorkerManager` (`RT-R13`). **`createRuntime`
+is the call a consumer copies** (section 12): it does everything below from a registry DOCUMENT,
+including creating the group objects. `bootstrap` is what it uses for the pools, and it is exported
+for a consumer who builds their groups and their scheduler themselves. `bootstrap(registry, groups, options)` builds
 **one pool per type, keyed by the type's name, and one per named instance in `pools`**, each
 through the type's derivation and each running the package's envelope worker around your worker,
 and refuses **both ways** a type naming a group you gave no object for and an object no type names
@@ -1602,9 +1694,10 @@ and refuses **both ways** a type naming a group you gave no object for and an ob
 scheduler its result, and the driver the SAME registry sections:
 
 ```ts check
-import { Driver, liveToken, type FlowDefinition, type Languages, type NodeTypeDeclaration, type WorkerEntry } from 'fyflow-orchestration';
+import { type FlowDefinition, type Languages, type NodeTypeDeclaration, type WorkerEntry } from 'fyflow-orchestration';
 import { bootstrap } from 'fyflow-orchestration/scheduler';
 import { ConcurrentLimitGroup, FyflowScheduler } from 'fyflow-scheduler';
+import { Driver, liveToken } from 'fyflow-orchestration';
 
 declare const ingest: WorkerEntry;
 declare const scorer: WorkerEntry;

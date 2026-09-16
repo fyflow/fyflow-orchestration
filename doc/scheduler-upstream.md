@@ -56,6 +56,7 @@ the last section.
 | [S7](#s7---exit-c-drops-a-blocked-task-silently) | Fix the blocked-queue task drop | no longer - **the confounder is gone** | ✅ **fixed in 0.3.0** |
 | [S8](#s8---freeze-or-copy-event-details) | Freeze or copy event details | no | **declined, and now documented** |
 | [S9](#s9---the-published-typescript-source-does-not-load-under-node-and-agentsmd-3-says-a-ts-worker-cannot-either) | `import type` in `core/threadWrapper.ts`, and correct `AGENTS.md` §3 on `.ts` workers | no - and the reason CHANGED: Node reads npm's `dist/` because that is what an npm consumer gets, no longer because it *cannot* read the source | **RAISED 2026-09-07 and FIXED in 0.5.2 the same day** - the only item this register has ever raised, closed by [W37](work-items/w37-the-scheduler-pin-moves-to-0-5-2.md). *(The rest of this cell is the record as it stood when it was raised.)* Its *publication* half is closed: 0.3.0 is on npm and JSR since 2026-08-31 ([ADR 0029](decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)), so the cost is no longer a build step in a sibling checkout - it is that **neither one-line fix can be tried locally without unpinning**, which is that ADR's stated cost |
+| [S10](#s10---resourcegroup-declares-onstart-and-onfinish-optional-and-the-scheduler-calls-them-unguarded) | Mark `ResourceGroup.onStart`/`onFinish` required, or guard the calls | no — we refuse such a group at construction | **not raised yet** |
 
 ---
 
@@ -418,6 +419,53 @@ on the documentation.
 saying there was nothing left to raise was true when it was written and is no longer.
 
 ---
+
+## S10 - `ResourceGroup` declares `onStart` and `onFinish` OPTIONAL and the scheduler calls them unguarded
+
+> **NOT RAISED YET.** Found by [W66](work-items/w66-the-runtime-entry.md)'s declaration step on
+> 2026-09-16, building the runtime's group factories. It does not block us: `createRuntime` refuses
+> such a group at construction ([ADR 0055](decisions/0055-a-group-factorys-output-is-held-to-what-the-scheduler-calls.md)),
+> which is the workaround this register requires an item to state.
+
+**The interface says one thing and the implementation does another**, at 0.5.2.
+`dist/types/groups/resourceGroup.d.ts` declares:
+
+| member | declared |
+|---|---|
+| `canRun(key?, cost?)` | **required** |
+| `getMetrics()` | **required** |
+| `onStart?(key?, cost?)` | optional |
+| `onFinish?(key?, cost?)` | optional |
+
+**Measured, one omission at a time, each group holding a real task on a real `FyflowScheduler` —
+identical under Node 24.20.0 and Deno 2.9.6** (`dev-dist/w66/facts-{node,deno}.log`):
+
+| omitted | the task |
+|---|---|
+| `onStart` | **throws** `group.onStart is not a function` |
+| `onFinish` | **never finishes** — `running` at 2.5 s, and `shutdown()` warns *"1 task(s) still marked running … dispatched to a pool that could not complete them"* |
+| `getMetrics` | runs to `done` |
+| `canRun` | throws |
+| `type` | runs to `done` |
+
+So a consumer who writes the interface's required half and omits its optional half gets a scheduler
+that throws on the first task, or one that hangs every task naming the group **in silence, with
+`stats` reporting idle** — which is the worse of the two and the reason to raise this.
+
+**What we do without it.** `createRuntime` holds a group factory's output to the UNION of the two
+lists — `canRun`, `onStart`, `onFinish`, `getMetrics`, `id`, `type` — and refuses by name at
+construction (ADR 0055). A consumer who builds their own groups and passes them to `bootstrap` is
+not protected, and nothing can protect them but this fix or a documented note.
+
+**The ask, either way round.** Mark `onStart` and `onFinish` required in the interface, **or** guard
+the two call sites (`group.onStart?.(…)`) so the optionality the type declares is real. The first is
+a breaking type change and the second is not; we have no preference, and either makes the type tell
+the truth. **A note in `AGENTS.md` §6 would also close it for us**, on S8's precedent, since our own
+refusal already covers our consumers.
+
+**One more thing measured beside it, not part of the ask.** `ResourceGroup extends EventTarget`, and
+a PLAIN object carrying the six members holds a real task and completes it — so `EventTarget` is not
+a run-time requirement, and our refusal does not test for it.
 
 ## Raise order, and the joint items
 

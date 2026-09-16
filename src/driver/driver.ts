@@ -723,7 +723,12 @@ export class Driver {
    * redundant rather than wrong, and [Q53](../../doc/open-questions.md) recorded
    * that a redundant surface is read as a permissive one.
    */
-  private readonly runId: string;
+  /**
+   * **The run this driver serves** — `ID-R3`'s one run, fixed at construction and never reassigned.
+   * READABLE since W66: a runtime MINTS one when the caller gives none (P18 decision 10), so the
+   * caller must be able to learn it — every task id this run dispatches begins with it.
+   */
+  readonly runId: string;
   /** `ID-R3` — `start()` at most once, whatever id the caller had in mind. */
   private started = false;
   /** The run has been stopped by a refusal. Nothing dispatches for it again. */

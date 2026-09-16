@@ -1163,9 +1163,18 @@ name and its config schema — P18 fact 2, read off the scheduler's `.d.ts` at t
 | `RateLimitGroup` | `{ windows: [{ limit, windowMs }, …] }`, at least one, integers >= 1 | `new RateLimitGroup(windows, key)` — `RateWindow` verbatim |
 | `KeyedRateLimitGroup` | `{ windows }`, as above | `new KeyedRateLimitGroup(windows, { id: key })` |
 
-The object a factory returns must implement the scheduler's `ResourceGroup` interface, whose two
-REQUIRED members are `canRun` and `getMetrics` (`onStart` and `onFinish` are optional and receive
-`(key?, cost?)` — fact 2); the runtime checks the returned object for both, naming the key.
+The object a factory returns must implement the scheduler's `ResourceGroup` interface, and **the
+runtime holds it to SIX members, which is wider than that interface marks required**:
+`canRun`, `onStart` and `onFinish` because the scheduler CALLS them, `getMetrics`, `id` and `type`
+because the interface requires them and a viewer reads them — each refused by name, against the
+group's key ([ADR 0055](../doc/decisions/0055-a-group-factorys-output-is-held-to-what-the-scheduler-calls.md),
+[W66](../doc/work-items/w66-the-runtime-entry.md)). *(This said the two required members were
+`canRun` and `getMetrics` and that the runtime checked for both — a faithful reading of the `.d.ts`
+(fact 2) and false of the implementation: measured at 0.5.2, a group with no `onStart` THROWS on its
+first task, one with no `onFinish` leaves every task naming it running for ever with the scheduler
+reporting idle, and one with no `getMetrics` runs to `done`. W66's conformity reader.)* **`EventTarget`
+is not required**, though the interface extends it: a plain object carrying the six holds a task and
+completes it.
 
 #### The schema subset
 

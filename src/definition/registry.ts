@@ -12,7 +12,7 @@
  * argument (what is genuinely theirs: predicates, language adapters, custom group types, custom
  * node-type classes) — and returns a RESOLVED registry: every name looked up, every schema checked to
  * be in the subset, every config checked against its schema, every derivation RUN and its output
- * checked, every collision refused. `createRuntime` (`fyflow-orchestration/runtime`, W66) calls this
+ * checked, every collision refused. `createRuntime` (`fyflow-orchestration/scheduler`, W66) calls this
  * and then constructs groups and pools from what it returns; `new Driver` runs the same checks over
  * the registry it is handed. So a registry defect is reported where the registry is built, once,
  * naming the entry — the maintainer's *must be present in the registry* (decision 1).
@@ -89,7 +89,7 @@ export class DerivationRefused extends RegistryError {}
  * **The three group types the runtime ships, by name and by config schema** — P18 decision 4 and
  * fact 2. Their constructors differ (`ConcurrentLimitGroup(limit, id?)`, `RateLimitGroup(windows, id?)`,
  * `KeyedRateLimitGroup(windows, options?)`), so each has a factory; the FACTORIES construct scheduler
- * objects and live in the runtime sub-path (W66). What this module needs of them is the NAME — a
+ * objects and live in the scheduler sub-path, beside `bootstrap` (W66; there is no `/runtime` sub-path — P16 decision 5's *one sub-path that constructs scheduler objects*). What this module needs of them is the NAME — a
  * custom group type colliding with one is refused — and the SCHEMA its config is checked against, and
  * both are data. `RateWindow` is `{ limit, windowMs }` verbatim from the scheduler's `.d.ts`.
  */

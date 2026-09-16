@@ -576,6 +576,42 @@ const PROBES = [
     mutate: (t) => `${t}\nimport type { Probe } from 'file:../fyflow-scheduler/index.ts';\n`,
   },
   // --- S14: the SECOND dependency, `jsonata` — reached from src/jsonata/** alone, by one form (W62, RT-R12) ---
+  // --- S16 (RT-R13, W66): only src/scheduler/** constructs a pool, a scheduler or a group ---
+  //
+  // **The last two plant the violation BEHIND a regex literal**, which is W66's adequacy reader's
+  // F15: a quote or a backtick inside a regex opened a string or a template and blanked what
+  // followed, so `S2`, `S3` and `S16` went blind over the rest of the line or the file.
+  {
+    name: 'a violation behind a regex literal containing an APOSTROPHE — the scan`s blind spot (the adequacy reader, F15)',
+    half: 'src', file: 'src/fold/policies.ts', check: 'S16',
+    mutate: (t) => `${t}\nimport { WorkerManager } from 'fyflow-scheduler';\nexport const re = /['x]/;\nexport const p = () => new WorkerManager('u', {});\n`,
+  },
+  {
+    name: 'a violation behind a regex literal containing a BACKTICK — the same blind spot, to end of file',
+    half: 'src', file: 'src/fold/policies.ts', check: 'S16',
+    // The backtick is built from its code point: a literal one inside this template would end it,
+    // and an escaped one would emit a BACKSLASH-backtick, which is a different regex.
+    mutate: (t) => `${t}
+import { WorkerManager } from 'fyflow-scheduler';
+export const re2 = /[${String.fromCharCode(96)}]/;
+export const p2 = () => new WorkerManager('u', {});
+`,
+  },
+  {
+    name: 'the PURE ENTRY constructing a WorkerManager — a consumer who wanted no pool would load one',
+    half: 'src', file: 'index.ts', check: 'S16',
+    mutate: (t) => `${t}\nimport { WorkerManager } from 'fyflow-scheduler';\nexport const p = () => new WorkerManager('u', {});\n`,
+  },
+  {
+    name: 'the DRIVER constructing a FyflowScheduler — ADR 0001 rule 1`s shape, one constructor over',
+    half: 'src', file: 'src/driver/driver.ts', check: 'S16',
+    mutate: (t) => `${t}\nimport { FyflowScheduler } from 'fyflow-scheduler';\nexport const s = () => new FyflowScheduler({});\n`,
+  },
+  {
+    name: 'the definition half constructing a resource GROUP — the built-ins` schemas live there and their factories must not',
+    half: 'src', file: 'src/definition/registry.ts', check: 'S16',
+    mutate: (t) => `${t}\nimport { ConcurrentLimitGroup } from 'fyflow-scheduler';\nexport const g = () => new ConcurrentLimitGroup(1, 'x');\n`,
+  },
   {
     name: 'a published file outside src/jsonata/ importing jsonata — the pure entry`s half would carry the engine',
     half: 'src', file: 'src/definition/types.ts', check: 'S14',
@@ -943,6 +979,17 @@ const META = [
     (t) => t.replace("const reachesSchedulerWrongly = (spec) => SCHEDULER_NAMES.test(spec) && spec !== CANONICAL_SPECIFIER;",
       "const reachesSchedulerWrongly = (spec) => SCHEDULER_NAMES.test(spec) && spec !== CANONICAL_SPECIFIER && false;")],
   // --- S14 (W62): the outside clause, the form clause, the name regex and the directory bound ---
+  // W66: `S16`'s one clause, and its LIST — a name dropped from `CONSTRUCTS` is the way this check
+  // goes quiet without its `fail()` moving, which is obligation (e)'s third shape (a list is a claim).
+  // W66's adequacy reader (F15): the regex branch itself, graded by the probe that only it catches.
+  ['the scan`s REGEX branch removed', 'a violation behind a regex literal containing a BACKTICK — the same blind spot, to end of file',
+    (t) => t.replace("    if (c === '/' && REGEX_MAY_START.test(lastMeaningful(out))) {", "    if (false && c === '/') {")],
+  ['S16`s clause disabled', 'the PURE ENTRY constructing a WorkerManager — a consumer who wanted no pool would load one',
+    (t) => t.replace("      fail('S16',", "      [].push('S16',")],
+  ['S16`s CONSTRUCTS list emptied', 'the DRIVER constructing a FyflowScheduler — ADR 0001 rule 1`s shape, one constructor over',
+    (t) => t.replace("const CONSTRUCTS = ['WorkerManager', 'FyflowScheduler',", "const CONSTRUCTS = [].concat([]) && ['NothingAtAll'] || ['WorkerManager', 'FyflowScheduler',")],
+  ['S16`s directory exemption widened to all of src/', 'the definition half constructing a resource GROUP — the built-ins` schemas live there and their factories must not',
+    (t) => t.replace("const CONSTRUCTOR_DIR = 'src/scheduler/';", "const CONSTRUCTOR_DIR = 'src/';")],
   ['S14`s outside clause disabled', 'a published file outside src/jsonata/ importing jsonata — the pure entry`s half would carry the engine',
     (t) => t.replace("      if (!r.startsWith(JSONATA_DIR)) {\n        fail('S14',", "      if (!r.startsWith(JSONATA_DIR)) {\n        [].push('S14',")],
   ['S14`s form clause disabled', 'src/jsonata reaching the engine by npm:jsonata — the form Node and the browser cannot resolve',
