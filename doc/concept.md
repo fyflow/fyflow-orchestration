@@ -132,7 +132,7 @@ And these constraints, which are design inputs rather than annoyances:
             per workload
 ```
 
-1. **Flow definition** - the template. Nodes bind to a `workerType`; edges carry decisions; fan-out
+1. **Flow definition** - the template. Nodes name a node `type` (a `workerType` until v0.19); edges carry decisions; fan-out
    and join are node kinds. Written once, instantiated thousands of times.
 2. **Run** - one workload's journey through the template. Holds where it is, what each node
    returned, and how many branches a join is still waiting on.

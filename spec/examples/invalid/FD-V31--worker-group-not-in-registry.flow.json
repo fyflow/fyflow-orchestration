@@ -3,7 +3,7 @@
   "version": 1,
   "entry": "score",
   "nodes": [
-    { "id": "score", "kind": "task", "workerType": "ScoreWorker", "workerGroups": [ "nope" ],
+    { "id": "score", "kind": "task", "type": "ScoreWorker", "workerGroups": [ "nope" ],
       "edges": [ { "to": "done" } ] },
     { "id": "done",  "kind": "end",  "outcome": "completed" }
   ]

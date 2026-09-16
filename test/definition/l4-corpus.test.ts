@@ -18,34 +18,19 @@
  */
 import { collected, equal, listDir, ok, readText, ROOT, suite } from '../harness.ts';
 import { validateDefinition, violatedRules } from '../../src/definition/validate.ts';
+import { resolveRegistry } from '../../src/definition/registry.ts';
 import type { FlowDefinition, Registry } from '../../src/definition/types.ts';
-import { CORPUS_LANGUAGES, CORPUS_NODE_TYPES } from './corpus-types.ts';
+import { CORPUS_LANGUAGES, corpusRegistry, type CorpusRegistryDocument } from './corpus-types.ts';
 
 const EX = `${ROOT}spec/examples`;
 
-const registryDoc = JSON.parse(await readText(`${EX}/registry.json`)) as {
-  predicates: string[];
-  workerTypes: string[];
-  groups: string[];
-  nodeTypes: string[];
-  languages: string[];
-};
-const registry: Registry = {
-  predicates: new Set(registryDoc.predicates),
-  workerTypes: new Set(registryDoc.workerTypes),
-  // The third set, v0.16 (W58). Read from the corpus's own registry document, as the other two
-  // are: `FD-V31` is a refusal ABOUT a registry, so `task-config.flow.json` validates only
-  // against one that declares `gpu` and `api`, and the `FD-V31` case names an id it omits.
-  groups: new Set(registryDoc.groups),
-  // **The fourth set, v0.17 (W59), and the one the JSON document cannot carry whole**: a node
-  // type's settings validator is a FUNCTION, so `registry.json` names the types and
-  // `corpus-types.ts` is where the names resolve — the same split the corpus's predicates have.
-  // The two are compared both ways below.
-  nodeTypes: CORPUS_NODE_TYPES,
-  // **The fifth set, v0.18 (W61), read the same way**: `registry.json` names the languages and
-  // `corpus-types.ts` resolves each to an adapter whose registry half is a function. Both ways below.
-  languages: CORPUS_LANGUAGES,
-};
+// **The registry is a DOCUMENT since v0.19 (W65, ADR 0054)**: its `workers`, `nodeTypes` and `pools`
+// are read as the validator's own sets, its `groups` are instances whose KEYS are the ids a node may
+// name (`FD-V31` is a refusal ABOUT a registry, so `task-config.flow.json` validates only against one
+// that declares `gpu` and `api`), and the one thing the document cannot carry — a language adapter's
+// `compile`, a function — is what `corpus-types.ts` resolves. Compared both ways below.
+const registryDoc = JSON.parse(await readText(`${EX}/registry.json`)) as CorpusRegistryDocument;
+const registry: Registry = corpusRegistry(registryDoc);
 
 const specText = await readText(`${ROOT}spec/flow-definition.md`);
 const validNames = (await listDir(`${EX}/valid`)).filter((n) => n.endsWith('.flow.json'));
@@ -201,25 +186,50 @@ suite('L4 — the corpus IS what spec/flow-definition.md section 7 says it is', 
     );
     // and the parse this rests on is not vacuous, in both directions
     ok(declaredRules.all.length > 20, `section 5's rule table did not parse — got ${declaredRules.all.length}`);
-    equal([...declaredRules.absent].sort(), ['FD-V14', 'FD-V15'],
-      'the two deliberately-absent ids, read from the spec text rather than declared here');
+    // Four since v0.19: FD-V5 and FD-V34 retired with workerType (W65, ADR 0054), their ids held.
+    equal([...declaredRules.absent].sort(), ['FD-V14', 'FD-V15', 'FD-V34', 'FD-V5'],
+      'the four deliberately-absent ids, read from the spec text rather than declared here');
   });
 });
 
 suite('L4 — every valid example validates clean', (test) => {
   ok(validNames.length > 0, 'spec/examples/valid/ has no flows — the corpus is missing');
 
-  test('registry.json`s nodeTypes are exactly the types corpus-types.ts resolves, both ways — and each is a workerTypes entry (FD-V32)', () => {
-    // A list is a claim about another list (rule 8 obligation (e), third shape): the JSON names
-    // and the function map must agree in both directions, or a type would be named and never
-    // resolvable, or resolvable and never named.
-    equal([...registryDoc.nodeTypes].sort(), Object.keys(CORPUS_NODE_TYPES).sort(),
-      'the names registry.json declares under nodeTypes are the keys corpus-types.ts defines');
-    ok(registryDoc.nodeTypes.length > 0, 'and the set is not empty, which would make the comparison vacuous');
-    // A type's pool is keyed by its name (spec section 2, v0.17), so the corpus registry lists it
-    // under workerTypes too — `FD-V32`'s second clause fires on every typed corpus node otherwise.
-    equal(registryDoc.nodeTypes.filter((t) => !registryDoc.workerTypes.includes(t)), [],
-      'every node type has a pool of its own name in workerTypes');
+  test('registry.json IS a registry document: it resolves against the corpus`s code with nothing refused, one default pool per type plus the named ones', () => {
+    // The corpus registry is held to the same construction-time refusals a consumer's is (W65):
+    // every schema in the subset, every type's worker present, every pool's type present, every
+    // group an instance of a built-in, every named predicate and language supplied.
+    const r = resolveRegistry(registryDoc, { predicates: registryDoc.predicates, languages: CORPUS_LANGUAGES });
+    equal([...r.nodeTypes.keys()].sort(), Object.keys(registryDoc.nodeTypes).sort(), 'every declared type resolves');
+    equal([...r.pools.keys()].sort(), [...Object.keys(registryDoc.nodeTypes), ...Object.keys(registryDoc.pools)].sort(), 'a default instance per type, plus the named instances');
+    equal([...r.groups.keys()].sort(), Object.keys(registryDoc.groups).sort(), 'every group resolves to a built-in factory');
+    ok(Object.keys(registryDoc.pools).length > 0, 'and the corpus declares at least one named instance, so the pools half is not vacuous');
+  });
+
+  test('the corpus names exactly the registry document`s types, pools and workers — both ways, each (rule 8 obligation (e), third shape)', async () => {
+    const namedTypes = new Set<string>();
+    const namedPools = new Set<string>();
+    for (const name of validNames) {
+      for (const n of (await load(`valid/${name}`)).nodes) {
+        if (n.kind !== 'task') continue;
+        namedTypes.add((n as { type: string }).type);
+        const pool = (n as { pool?: string }).pool;
+        if (pool !== undefined && pool !== (n as { type: string }).type) namedPools.add(pool);
+      }
+    }
+    // Types: every type a valid flow names is declared, and every declared type is named by some valid flow.
+    equal([...namedTypes].filter((t) => !(t in registryDoc.nodeTypes)), [], 'a valid flow names a type the document does not declare');
+    equal(Object.keys(registryDoc.nodeTypes).filter((t) => !namedTypes.has(t)), [], 'the document declares a type no valid flow names');
+    // Named pools, the same, and each named where the node's type is the pool's.
+    equal([...namedPools].filter((p) => !(p in registryDoc.pools)), [], 'a valid flow names a pool the document does not declare');
+    equal(Object.keys(registryDoc.pools).filter((p) => !namedPools.has(p)), [], 'the document declares a named instance no valid flow uses');
+    // Workers: every type's worker exists, and every worker is some type's.
+    const workersNamed = new Set(Object.values(registryDoc.nodeTypes).map((t) => t.worker));
+    equal([...workersNamed].filter((w) => !(w in registryDoc.workers)), [], 'a type names a worker the document does not declare');
+    equal(Object.keys(registryDoc.workers).filter((w) => !workersNamed.has(w)), [], 'the document declares a worker no type names');
+    ok(namedTypes.size > 0 && namedPools.size > 0 && workersNamed.size > 0, 'none of the three sets is empty');
+    // And the retired key is nowhere in the valid corpus.
+    for (const name of validNames) for (const n of (await load(`valid/${name}`)).nodes) ok(!('workerType' in n), `${name}: no node carries the retired workerType key`);
   });
 
   test('registry.json`s languages are exactly the adapters corpus-types.ts resolves, both ways — and each has a compile function (W61)', () => {
@@ -401,10 +411,10 @@ const LATE_SUITES = [
   // W59 — `FD-V32`-`FD-V34`, the envelope and the bootstrap helper, in
   // `test/definition/node-type.test.ts`, `test/driver/node-type.test.ts` and
   // `test/scheduler/bootstrap.test.ts`.
-  'FD-V32 — type names a registered node type whose pool is keyed by its name, every clause, on every shape',
-  'FD-V33 — settings is a plain object the type`s validator accepts, every clause, on every shape',
-  'FD-V34 — a node names its pool ONE way: the typed and untyped halves are not mixed, on every shape',
-  'the typed corpus flow — section 7`s row, the three shapes, and the registry both ways',
+  'FD-V32 — type is REQUIRED and names a registered node type whose worker the registry declares, every clause, on every shape',
+  'FD-V33 — settings is a plain object the worker`s settingsSchema accepts, with the type`s defaults merged under, every clause, on every shape',
+  'FD-V38 — pool names a registered instance of THIS node`s type, every clause, on every shape',
+  'the typed corpus flow — section 7`s rows, the four shapes, the pooled flow, and the registry document both ways',
   'W59 — a typed node is dispatched to its type`s pool with the envelope { settings, input } — FD-C5, on every shape',
   'W59 — what a type declares for its nodes: the retry merge and the groups, at construction and at dispatch',
   'W59 — bootstrap: one pool per type keyed by its name, the groups both ways, and the default pool is a real WorkerManager',
@@ -422,6 +432,19 @@ const LATE_SUITES = [
   'W61 — bootstrap writes a language`s worker URL into a typed pool`s config only where a node of the type transforms, both ways',
   'adapter conformance — path (the fake language, a test fixture)',
   'the fake language — what the fixture itself claims',
+  // W65 — the registry document, the subset validator and the derivation, in
+  // `test/definition/schema.test.ts` and `test/definition/registry.test.ts`.
+  'ADR 0053 — the subset validates P18 fact 1`s fourteen cases exactly as the measurement said',
+  'ADR 0053 — every keyword of the subset, a positive and a negative case each, and the list bound to the spec both ways',
+  'Q278 — a keyword outside the subset is REFUSED at construction naming it, and so is a malformed keyword value',
+  'the minimum sample resolves — the document, the class, the custom group and the four pools, with NOTHING constructed',
+  'the identity derivation reproduces what bootstrap hands WorkerManager today — P18 fact 5, prediction 2',
+  'both SHAPES of a node type, every field of both interfaces, under one claim: what the derived spec and the definition carry',
+  'every construction-time refusal, by name — a document that trips it and the sample that does not',
+  'the key sets are claims about the spec`s tables — compared both ways',
+  // W65's conformity reader: four refusal clauses without a fixture, and the schema's `in` walking Object.prototype.
+  'the refusal table`s remaining clauses — the conformity reader`s four',
+  'the object keywords read OWN keys, never inherited ones',
   // W62 — the JSONata adapter, in `test/jsonata/jsonata.test.ts` and `test/jsonata/function-table.test.ts`.
   'adapter conformance — jsonata (fyflow-orchestration/jsonata)',
   'W62 — the JSONata adapter: one module, five names unbound, JSONata`s errors as Errors',

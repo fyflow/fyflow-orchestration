@@ -3,6 +3,6 @@
   "version": 1,
   "entry": "score",
   "nodes": [
-    { "id": "score", "kind": "task", "workerType": "ScoreWorker", "edges": [ { "to": "publsh" } ] }
+    { "id": "score", "kind": "task", "type": "ScoreWorker", "edges": [ { "to": "publsh" } ] }
   ]
 }

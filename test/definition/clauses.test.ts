@@ -21,19 +21,20 @@
  * Every expected value is the rule id from `spec/flow-definition.md` section 5.
  */
 import { ok, suite } from '../harness.ts';
+import { typesFor } from '../registry-fixture.ts';
 import { validateDefinition, violatedRules } from '../../src/definition/validate.ts';
 import type { FlowDefinition, FlowNode, Registry } from '../../src/definition/types.ts';
 
 const registry: Registry = {
   predicates: new Set(['isLowConfidence', 'isHighConfidence']),
-  workerTypes: new Set(['ScoreWorker', 'PublishWorker']),
+  ...typesFor(['ScoreWorker', 'PublishWorker']),
 };
 
 const doc = (nodes: unknown[], over: Record<string, unknown> = {}): FlowDefinition =>
   ({ flowId: 'clause', version: 1, entry: 'a', nodes, ...over }) as unknown as FlowDefinition;
 
 const task = (id: string, edges: unknown[], over: Record<string, unknown> = {}) =>
-  ({ id, kind: 'task', workerType: 'ScoreWorker', edges, ...over }) as unknown as FlowNode;
+  ({ id, kind: 'task', type: 'ScoreWorker', edges, ...over }) as unknown as FlowNode;
 
 const end = (id: string) => ({ id, kind: 'end', outcome: 'done' }) as unknown as FlowNode;
 
@@ -150,7 +151,7 @@ suite('FD-V8, FD-V16, FD-V17, FD-V21, FD-V23 — every clause', (test) => {
     fires('FD-V23', 'no version key', d as unknown as FlowDefinition);
   });
   test('FD-V23 — a node missing a kind-specific required key', () => {
-    fires('FD-V23', 'task without workerType', doc([
+    fires('FD-V23', 'task without type', doc([
       { id: 'a', kind: 'task', edges: [{ to: 'z' }] }, end('z'),
     ]));
   });

@@ -3,7 +3,7 @@
   "version": 1,
   "entry": "merge",
   "nodes": [
-    { "id": "merge", "kind": "task", "workerType": "MergeWorker", "edges": [ { "to": "done" } ] },
+    { "id": "merge", "kind": "task", "type": "MergeWorker", "edges": [ { "to": "done" } ] },
     { "id": "done",  "kind": "end",  "outcome": "completed" }
   ]
 }

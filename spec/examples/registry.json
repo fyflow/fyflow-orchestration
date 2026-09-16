@@ -1,8 +1,30 @@
 {
-  "note": "The predicate, worker, resource-group, node-type and language names the valid corpus resolves against. FD-V4, FD-V5, FD-V31, FD-V32 and FD-V35 are refusals ABOUT a registry, so their cases name entries this file deliberately omits. A node type's pool is keyed by its name, so every nodeTypes entry is a workerTypes entry too (FD-V32); the type's validator is a function and lives beside the predicates' in test/definition/corpus-types.ts, registered under the name here — and so is a language's adapter (its compile is a function, its worker a module URL), under the name in `languages`.",
+  "workers": {
+    "ingest":  { "url": "corpus://ingest" },
+    "score":   { "url": "corpus://score" },
+    "review":  { "url": "corpus://review" },
+    "publish": { "url": "corpus://publish" },
+    "extract": { "url": "corpus://extract" },
+    "merge":   { "url": "corpus://merge" },
+    "scorer":  { "url": "corpus://scorer",
+                 "settingsSchema": { "type": "object", "properties": { "factor": { "type": "number", "minimum": 0 } }, "additionalProperties": false } }
+  },
+  "groups": {
+    "gpu": { "type": "ConcurrentLimitGroup", "config": { "limit": 1 } },
+    "api": { "type": "RateLimitGroup", "config": { "windows": [ { "limit": 60, "windowMs": 60000 } ] } }
+  },
+  "nodeTypes": {
+    "IngestWorker":  { "worker": "ingest" },
+    "ScoreWorker":   { "worker": "score" },
+    "ReviewWorker":  { "worker": "review" },
+    "PublishWorker": { "worker": "publish" },
+    "ExtractWorker": { "worker": "extract" },
+    "MergeWorker":   { "worker": "merge" },
+    "Scorer":        { "worker": "scorer", "config": { "role": "typed" }, "settings": { "factor": 1 } }
+  },
+  "pools": {
+    "scorer-fast": { "type": "Scorer", "config": { "role": "typed", "fast": true } }
+  },
   "predicates": [ "isLowConfidence", "isHighConfidence" ],
-  "workerTypes": [ "IngestWorker", "ScoreWorker", "ReviewWorker", "PublishWorker", "ExtractWorker", "MergeWorker", "Scorer" ],
-  "groups": [ "gpu", "api" ],
-  "nodeTypes": [ "Scorer" ],
   "languages": [ "path" ]
 }

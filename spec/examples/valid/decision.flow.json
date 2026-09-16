@@ -3,12 +3,12 @@
   "version": 1,
   "entry": "score",
   "nodes": [
-    { "id": "score", "kind": "task", "workerType": "ScoreWorker", "edges": [
+    { "id": "score", "kind": "task", "type": "ScoreWorker", "edges": [
         { "when": "isLowConfidence", "to": "review" },
         { "to": "publish" }
     ] },
-    { "id": "review",   "kind": "task", "workerType": "ReviewWorker",  "edges": [ { "to": "reviewed" } ] },
-    { "id": "publish",  "kind": "task", "workerType": "PublishWorker", "edges": [ { "to": "done" } ] },
+    { "id": "review",   "kind": "task", "type": "ReviewWorker",  "edges": [ { "to": "reviewed" } ] },
+    { "id": "publish",  "kind": "task", "type": "PublishWorker", "edges": [ { "to": "done" } ] },
     { "id": "reviewed", "kind": "end",  "outcome": "needs-review" },
     { "id": "done",     "kind": "end",  "outcome": "completed" }
   ]

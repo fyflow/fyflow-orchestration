@@ -65,8 +65,8 @@ const definition: FlowDefinition = {
   version: 1,
   entry: 'ingest',
   nodes: [
-    { id: 'ingest',  kind: 'task', workerType: 'IngestWorker',  edges: [{ to: 'publish' }] },
-    { id: 'publish', kind: 'task', workerType: 'PublishWorker', edges: [{ to: 'done' }] },
+    { id: 'ingest',  kind: 'task', type: 'IngestWorker',  edges: [{ to: 'publish' }] },
+    { id: 'publish', kind: 'task', type: 'PublishWorker', edges: [{ to: 'done' }] },
     { id: 'done',    kind: 'end',  outcome: 'completed' },
   ],
 };
@@ -97,7 +97,11 @@ const driver = new Driver(definition, {
   scheduler,
   createTask: (config) => config,          // your `new FyflowTask(config)`
   predicates: new Map<string, Predicate>(),
-  workerTypes: ['IngestWorker', 'PublishWorker'],
+  // Since v0.19 a task names a node TYPE and a type names a WORKER entry — section 13. The
+  // validator and the driver require the entries to be DECLARED and load nothing; the URL is what
+  // the bootstrap helper hands a real pool, so a fake scheduler's registry can carry any string.
+  workers: { flow: { url: 'worker.js' } },
+  nodeTypes: { IngestWorker: { worker: 'flow' }, PublishWorker: { worker: 'flow' } },
   joinPolicy: liveToken,
   // Section 9: a refusal raised inside a listener is REPORTED, never thrown.
   // Without this the run stops silently.
@@ -175,7 +179,7 @@ const shapes: FlowDefinition = {
   nodes: [
     // A task runs a worker. `optional` decides what a failure MEANS — section 6.
     // `retryPolicy` and `workerGroups` say what the node wants of its OWN task — below.
-    { id: 'score', kind: 'task', workerType: 'ScoreWorker', optional: false,
+    { id: 'score', kind: 'task', type: 'ScoreWorker', optional: false,
       retryPolicy: { maxRetries: 1, backoffMs: 250 },   // exactly the scheduler's shape
       workerGroups: ['gpu'],                             // must be a group the registry declares
       edges: [
@@ -183,8 +187,8 @@ const shapes: FlowDefinition = {
       { when: 'isLowConfidence', to: 'review' }, // guarded by a registered predicate
       { to: 'publish' },                      // the default: no `on`, no `when`
     ] },
-    { id: 'review',  kind: 'task', workerType: 'ReviewWorker', edges: [{ to: 'publish' }] },
-    { id: 'publish', kind: 'task', workerType: 'PublishWorker', edges: [{ to: 'done' }] },
+    { id: 'review',  kind: 'task', type: 'ReviewWorker', edges: [{ to: 'publish' }] },
+    { id: 'publish', kind: 'task', type: 'PublishWorker', edges: [{ to: 'done' }] },
     { id: 'quarantine', kind: 'end', outcome: 'quarantined' },
     { id: 'done',       kind: 'end', outcome: 'completed' },
   ],
@@ -195,7 +199,7 @@ const shapes: FlowDefinition = {
 // terminal state, not to the array. See section 4.
 const bad = validateDefinition(shapes, {
   predicates: ['isLowConfidence'],
-  workerTypes: ['ScoreWorker', 'ReviewWorker', 'PublishWorker'],
+  workers: { flow: { url: 'worker.js' } }, nodeTypes: { ScoreWorker: { worker: 'flow' }, ReviewWorker: { worker: 'flow' }, PublishWorker: { worker: 'flow' } },
   groups: ['gpu'],                                   // the third set — pass Object.keys(scheduler.groups)
 });
 if (bad.length) throw new Error(`section 3's own example is invalid: ${bad.map((f) => f.rule).join()}`);
@@ -205,7 +209,7 @@ if (bad.length) throw new Error(`section 3's own example is invalid: ${bad.map((
 // would have run the task with the unknown group silently ignored — no throw, no
 // `resource.blocked` — so construction is the only place a typo in a group id is caught.
 const noGroups = validateDefinition(shapes, {
-  predicates: ['isLowConfidence'], workerTypes: ['ScoreWorker', 'ReviewWorker', 'PublishWorker'],
+  predicates: ['isLowConfidence'], workers: { flow: { url: 'worker.js' } }, nodeTypes: { ScoreWorker: { worker: 'flow' }, ReviewWorker: { worker: 'flow' }, PublishWorker: { worker: 'flow' } },
 });
 if (!noGroups.some((f) => f.rule === 'FD-V31' && f.at === 'score')) {
   throw new Error(`expected FD-V31 at score, got ${noGroups.map((f) => `${f.rule}@${f.at}`).join() || 'nothing'}`);
@@ -214,7 +218,7 @@ if (!noGroups.some((f) => f.rule === 'FD-V31' && f.at === 'score')) {
 
 | kind | | refused if |
 |---|---|---|
-| `task` | runs a worker — of `workerType`, a pool, **or of a node `type`** with per-node **`settings`** and, on a typed node, a **`transform`** applied to its input before the worker sees it (section 13). Has `edges`, and optionally **`needs`**, **`retryPolicy`** and **`workerGroups`** — what it says about its own task, below | it has no `edges`, or **no edge of it is eligible for `done`** (`FD-V7`); it names neither `workerType` nor `type` (`FD-V23`) or both (`FD-V34`); its `retryPolicy` is not exactly `{ maxRetries, backoffMs }` — an integer >= 0 and a finite number >= 0, no other key (`FD-V30`); its `workerGroups` is not a non-empty array of distinct ids the registry's `groups` declares (`FD-V31`); its `type` is not a registered node type with a pool of its name (`FD-V32`); its `settings` is not a plain object the type's validator accepts (`FD-V33`); its `transform` names a language the registry does not (`FD-V35`), an expression that language's compiler refuses (`FD-V36`), or sits on a node with no `type` or is not `{ lang, expr }` (`FD-V37`) |
+| `task` | runs a worker — of its node **`type`**, REQUIRED since v0.19, on the type's default pool or a named **`pool`** instance of it, with per-node **`settings`** and optionally a **`transform`** applied to its input before the worker sees it (section 13). Has `edges`, and optionally **`needs`**, **`retryPolicy`** and **`workerGroups`** — what it says about its own task, below | it has no `edges`, or **no edge of it is eligible for `done`** (`FD-V7`); it has no `type` (`FD-V23`) — `workerType` is retired and is an undeclared key like any other (`FD-V17`); its `retryPolicy` is not exactly `{ maxRetries, backoffMs }` — an integer >= 0 and a finite number >= 0, no other key (`FD-V30`); its `workerGroups` is not a non-empty array of distinct ids the registry's `groups` declares (`FD-V31`); its `type` is not a registered node type whose worker the registry declares (`FD-V32`); its `settings` is not a plain object the type's worker `settingsSchema` accepts (`FD-V33`); its `transform` names a language the registry does not (`FD-V35`), an expression that language's compiler refuses (`FD-V36`), or is not `{ lang, expr }` (`FD-V37`); its `pool` is not a registered instance of its type (`FD-V38`) |
 | `fanout` | `branches: string[]` — the node each branch starts at. Dispatches nothing itself | fewer than two branches, a repeated entry, any `edges` at all, or a branch entry that is not a `task` (`FD-V9`) |
 | `map` | `over: '<key>'` and `branch: '<node id>'` — **one** branch, opened once per item at run time. Dispatches nothing itself; the RUN opens N instances of its one branch. Optionally **`needs`**, which is what `over` is then a key on | any `edges` at all, a `branch` that is not a `task`, or an `over` outside `^[A-Za-z0-9_-]{1,64}$` (`FD-V25`); a missing `over` or `branch` (`FD-V23`) |
 | `join` | `of: '<fanout id>'`. Fires when its policy says so | it does not have **exactly one** edge, or that edge carries `when` or `on` (`FD-V7`) |
@@ -238,7 +242,7 @@ reaching the scheduler, which would drop it in silence.
 | key | | |
 |---|---|---|
 | `retryPolicy` | `{ maxRetries, backoffMs }` — **exactly** the scheduler's shape, an integer >= 0 and a finite number >= 0, no other key (`FD-V30`) | the scheduler retries a failed attempt **inside the same task id**, and the outcome record's `attempts` says how many retries were used. `{}` and a string count are refused because the scheduler would accept them and mean something else |
-| `workerGroups` | a non-empty array of distinct group ids, every one in the registry's **`groups`** set (`FD-V31`) | the task acquires these **in addition to** its pool's `groups`. Pass `groups: Object.keys(scheduler.groups)` to the `Driver`, as you pass `workerTypes` — **omitting it means the registry declares NO groups**, and any node naming one is refused, because a group id the scheduler does not know is silently ignored at run time |
+| `workerGroups` | a non-empty array of distinct group ids, every one in the registry's **`groups`** set (`FD-V31`) | the task acquires these **in addition to** its pool's `groups`. Pass `groups: Object.keys(scheduler.groups)` to the `Driver`, as you pass `nodeTypes` — **omitting it means the registry declares NO groups**, and any node naming one is refused, because a group id the scheduler does not know is silently ignored at run time |
 
 **A driver may carry a `defaultRetryPolicy`**, applied to every task node that declares none — held
 to `FD-V30` at construction like a node's own — and
@@ -289,13 +293,13 @@ import { Driver, validateDefinition, type FlowDefinition } from 'fyflow-orchestr
 const withContext: FlowDefinition = {
   flowId: 'score-against-config', version: 1, entry: 'ingest',
   nodes: [
-    { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'split' }] },
+    { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'split' }] },
     { id: 'split', kind: 'map', over: 'items', branch: 'score' },
-    { id: 'score', kind: 'task', workerType: 'ScoreWorker',
+    { id: 'score', kind: 'task', type: 'ScoreWorker',
       needs: { item: '.', run: 'ingest' },          // its own item, and ingest's whole result
       edges: [{ to: 'collect' }] },
     { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'publish' }] },
-    { id: 'publish', kind: 'task', workerType: 'PublishWorker', edges: [{ to: 'done' }] },
+    { id: 'publish', kind: 'task', type: 'PublishWorker', edges: [{ to: 'done' }] },
     { id: 'done', kind: 'end', outcome: 'completed' },
   ],
 };
@@ -306,13 +310,13 @@ const withContext: FlowDefinition = {
 const overRegion: FlowDefinition = {
   flowId: 'fan-out-over-the-scores', version: 1, entry: 'ingest',
   nodes: [
-    { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'split' }] },
+    { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'split' }] },
     { id: 'split', kind: 'map', over: 'items', branch: 'score' },
-    { id: 'score', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'collect' }] },
+    { id: 'score', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'collect' }] },
     { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'rank' }] },
     { id: 'rank', kind: 'map', over: 'scores', branch: 'publish',
       needs: { scores: ['score'] } },             // every score, in item order
-    { id: 'publish', kind: 'task', workerType: 'PublishWorker', edges: [{ to: 'gather' }] },
+    { id: 'publish', kind: 'task', type: 'PublishWorker', edges: [{ to: 'gather' }] },
     { id: 'gather', kind: 'join', of: 'rank', edges: [{ to: 'done' }] },
     { id: 'done', kind: 'end', outcome: 'completed' },
   ],
@@ -320,7 +324,7 @@ const overRegion: FlowDefinition = {
 
 const registry = {
   predicates: [],
-  workerTypes: ['IngestWorker', 'ScoreWorker', 'PublishWorker'],
+  workers: { flow: { url: 'worker.js' } }, nodeTypes: { IngestWorker: { worker: 'flow' }, ScoreWorker: { worker: 'flow' }, PublishWorker: { worker: 'flow' } },
 };
 for (const def of [withContext, overRegion]) {
   const bad = validateDefinition(def, registry);
@@ -344,18 +348,18 @@ if (!findings.some((f) => f.rule === 'FD-V28' && f.detail.includes('write ["scor
 const ifItRan = (ref: string): FlowDefinition => ({
   flowId: 'publish-either-way', version: 1, entry: 'decide',
   nodes: [
-    { id: 'decide', kind: 'task', workerType: 'ScoreWorker', edges: [
+    { id: 'decide', kind: 'task', type: 'ScoreWorker', edges: [
       { when: 'isLowConfidence', to: 'review' },
       { to: 'publish' },
     ] },
-    { id: 'review', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'publish' }] },
-    { id: 'publish', kind: 'task', workerType: 'PublishWorker',
+    { id: 'review', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'publish' }] },
+    { id: 'publish', kind: 'task', type: 'PublishWorker',
       needs: { own: '.', verdict: ref },
       edges: [{ to: 'done' }] },
     { id: 'done', kind: 'end', outcome: 'completed' },
   ],
 });
-const guarded = { predicates: ['isLowConfidence'], workerTypes: registry.workerTypes };
+const guarded = { predicates: ['isLowConfidence'], workers: registry.workers, nodeTypes: registry.nodeTypes };
 const bare = validateDefinition(ifItRan('review'), guarded);
 if (!bare.some((f) => f.rule === 'FD-V29' && f.detail.includes('"review?"'))) {
   throw new Error('FD-V29 did not refuse the bare form, or did not name the fix');
@@ -409,22 +413,22 @@ import { validateDefinition, type FlowDefinition } from 'fyflow-orchestration';
 
 const broken = {
   flowId: 'broken', version: 1, entry: 'a',
-  nodes: [{ id: 'a', kind: 'task', workerType: 'NoSuchWorker', edges: [{ to: 'ghost' }] }],
+  nodes: [{ id: 'a', kind: 'task', type: 'NoSuchType', edges: [{ to: 'ghost' }] }],
 } as unknown as FlowDefinition;
 
-const findings = validateDefinition(broken, { predicates: [], workerTypes: ['RealWorker'] });
+const findings = validateDefinition(broken, { predicates: [], workers: { flow: { url: 'worker.js' } }, nodeTypes: { RealType: { worker: 'flow' } } });
 console.log(findings.map((f) => `${f.rule} at ${f.at}`).sort());
-// FD-V2 (edge to a missing node) and FD-V5 (unknown workerType)
+// FD-V2 (edge to a missing node) and FD-V32 (a node type the registry does not hold)
 const rules = findings.map((f) => f.rule).sort();
-if (!rules.includes('FD-V2') || !rules.includes('FD-V5')) {
-  throw new Error(`expected FD-V2 and FD-V5, got ${rules.join(',')}`);
+if (!rules.includes('FD-V2') || !rules.includes('FD-V32')) {
+  throw new Error(`expected FD-V2 and FD-V32, got ${rules.join(',')}`);
 }
 ```
 
-There are **35 refusals** over the id range `FD-V1` … `FD-V37` *(32 over `FD-V1` … `FD-V34` until W61 added the three transform rules; 29 over `FD-V1` … `FD-V31` until W59 added the three node-type rules — and this sentence stood at 29 twelve lines below the table W59 rewrote, until its conformity reader read the two together)*, each with a failing example in
-`spec/examples/invalid/`. Two ids in that range are **deliberately absent** and have no rule behind
-them: `FD-V14`, which never existed, and **`FD-V15`, retired when nested fan-out became
-expressible**. The ids are never renumbered, so it is safe to assert on them. The full
+There are **34 refusals** over the id range `FD-V1` … `FD-V38` *(35 over `FD-V1` … `FD-V37` until W65 retired `workerType` and with it `FD-V5` and `FD-V34`, adding `FD-V38`; 32 over `FD-V1` … `FD-V34` until W61 added the three transform rules; 29 over `FD-V1` … `FD-V31` until W59 added the three node-type rules — and this sentence stood at 29 twelve lines below the table W59 rewrote, until its conformity reader read the two together)*, each with a failing example in
+`spec/examples/invalid/`. Four ids in that range are **deliberately absent** and have no rule behind
+them: `FD-V14`, which never existed; **`FD-V15`, retired when nested fan-out became
+expressible**; and **`FD-V5` and `FD-V34`, retired with `workerType`** at v0.19 (section 13). The ids are never renumbered, so it is safe to assert on them. The full
 list is `spec/flow-definition.md`.
 
 **`FD-V14` is deliberately absent, and its id is held open so the gap is not read as a lost rule.**
@@ -443,7 +447,7 @@ fails at construction rather than mid-run.
 import { eligibleEdges, selectEdge, type FlowNode, type Predicate } from 'fyflow-orchestration';
 
 const node: FlowNode = {
-  id: 'score', kind: 'task', workerType: 'ScoreWorker',
+  id: 'score', kind: 'task', type: 'ScoreWorker',
   edges: [{ when: 'isLowConfidence', to: 'review' }, { to: 'publish' }],
 };
 
@@ -497,20 +501,20 @@ import { validateDefinition, type FlowDefinition, type Predicate } from 'fyflow-
 
 const registry = {
   predicates: ['flaggedEarlier'],
-  workerTypes: ['IngestWorker', 'ScoreWorker', 'ReviewWorker', 'PublishWorker'],
+  workers: { flow: { url: 'worker.js' } }, nodeTypes: { IngestWorker: { worker: 'flow' }, ScoreWorker: { worker: 'flow' }, ReviewWorker: { worker: 'flow' }, PublishWorker: { worker: 'flow' } },
 };
 
 const flow: FlowDefinition = {
   flowId: 'route-on-an-earlier-step', version: 1, entry: 'ingest',
   nodes: [
-    { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'score' }] },
-    { id: 'score', kind: 'task', workerType: 'ScoreWorker', edges: [
+    { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'score' }] },
+    { id: 'score', kind: 'task', type: 'ScoreWorker', edges: [
       // this edge's predicate can see `ingest`; the default edge below sees `{}`
       { when: 'flaggedEarlier', to: 'review', needs: { earlier: 'ingest' } },
       { to: 'publish' },
     ] },
-    { id: 'review', kind: 'task', workerType: 'ReviewWorker', edges: [{ to: 'publish' }] },
-    { id: 'publish', kind: 'task', workerType: 'PublishWorker', edges: [{ to: 'done' }] },
+    { id: 'review', kind: 'task', type: 'ReviewWorker', edges: [{ to: 'publish' }] },
+    { id: 'publish', kind: 'task', type: 'PublishWorker', edges: [{ to: 'done' }] },
     { id: 'done', kind: 'end', outcome: 'completed' },
   ],
 };
@@ -569,19 +573,19 @@ import { validateDefinition, type FlowDefinition } from 'fyflow-orchestration';
 const fanout: FlowDefinition = {
   flowId: 'score-both', version: 1, entry: 'ingest',
   nodes: [
-    { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'split' }] },
+    { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'split' }] },
     { id: 'split',  kind: 'fanout', branches: ['scoreA', 'scoreB'] },
-    { id: 'scoreA', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'collect' }] },
-    { id: 'scoreB', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'collect' }] },
+    { id: 'scoreA', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'collect' }] },
+    { id: 'scoreB', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'collect' }] },
     { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'publish' }] },
-    { id: 'publish', kind: 'task', workerType: 'PublishWorker', edges: [{ to: 'done' }] },
+    { id: 'publish', kind: 'task', type: 'PublishWorker', edges: [{ to: 'done' }] },
     { id: 'done', kind: 'end', outcome: 'completed' },
   ],
 };
 
 const bad = validateDefinition(fanout, {
   predicates: [],
-  workerTypes: ['IngestWorker', 'ScoreWorker', 'PublishWorker'],
+  workers: { flow: { url: 'worker.js' } }, nodeTypes: { IngestWorker: { worker: 'flow' }, ScoreWorker: { worker: 'flow' }, PublishWorker: { worker: 'flow' } },
 });
 if (bad.length) throw new Error(`section 5's own example is invalid: ${bad.map((f) => f.rule).join()}`);
 ```
@@ -699,10 +703,10 @@ const definition: FlowDefinition = {
   flowId: 'collect', version: 1, entry: 'split',
   nodes: [
     { id: 'split',   kind: 'fanout', branches: ['scoreA', 'scoreB'] },
-    { id: 'scoreA',  kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'collect' }] },
-    { id: 'scoreB',  kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'collect' }] },
+    { id: 'scoreA',  kind: 'task', type: 'ScoreWorker', edges: [{ to: 'collect' }] },
+    { id: 'scoreB',  kind: 'task', type: 'ScoreWorker', edges: [{ to: 'collect' }] },
     { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'publish' }] },
-    { id: 'publish', kind: 'task', workerType: 'PublishWorker', edges: [{ to: 'done' }] },
+    { id: 'publish', kind: 'task', type: 'PublishWorker', edges: [{ to: 'done' }] },
     { id: 'done',    kind: 'end', outcome: 'completed' },
   ],
 };
@@ -718,7 +722,7 @@ const driver = new Driver(definition, {
   },
   createTask: (c) => { dispatched.push({ id: c.id, payload: c.payload }); return c; },
   predicates: new Map<string, Predicate>(),
-  workerTypes: ['ScoreWorker', 'PublishWorker'],
+  workers: { flow: { url: 'worker.js' } }, nodeTypes: { ScoreWorker: { worker: 'flow' }, PublishWorker: { worker: 'flow' } },
   joinPolicy: liveToken,
 });
 const settle = (id: string, result: unknown) => {
@@ -731,9 +735,11 @@ settle('r:scoreB:1:0', { score: 0.4 });        // note the order: B settles FIRS
 settle('r:scoreA:0:0', { score: 0.9 });
 
 const publish = dispatched.find((t) => t.id === 'r:publish:-:0');
-console.log(JSON.stringify(publish?.payload));  // {"0":{"score":0.9},"1":{"score":0.4}}
-if (JSON.stringify(publish?.payload) !== '{"0":{"score":0.9},"1":{"score":0.4}}') {
-  throw new Error(`the join carried ${JSON.stringify(publish?.payload)}`);
+// Every task's payload is the envelope `{ settings, input }` (section 13); the collection is its `input`.
+const received = (publish?.payload as { input?: unknown } | undefined)?.input;
+console.log(JSON.stringify(received));  // {"0":{"score":0.9},"1":{"score":0.4}}
+if (JSON.stringify(received) !== '{"0":{"score":0.9},"1":{"score":0.4}}') {
+  throw new Error(`the join carried ${JSON.stringify(received)}`);
 }
 // B settled first and is still under key "1". The collection is keyed by BRANCH,
 // not by arrival order, which is the whole point.
@@ -774,7 +780,7 @@ wrong.
 import { eligibleEdges, type FlowNode } from 'fyflow-orchestration';
 
 const node: FlowNode = {
-  id: 'extract', kind: 'task', workerType: 'ExtractWorker', optional: true,
+  id: 'extract', kind: 'task', type: 'ExtractWorker', optional: true,
   edges: [{ on: ['failed'], to: 'quarantine' }, { to: 'publish' }],
 };
 
@@ -825,7 +831,7 @@ import { Driver, fold, liveToken, type FlowDefinition, type Predicate } from 'fy
 const definition: FlowDefinition = {
   flowId: 'review', version: 1, entry: 'score',
   nodes: [
-    { id: 'score', kind: 'task', workerType: 'ScoreWorker', edges: [
+    { id: 'score', kind: 'task', type: 'ScoreWorker', edges: [
       { on: ['failed'], to: 'quarantine' },
       { to: 'done' },
     ] },
@@ -845,7 +851,7 @@ const driver = new Driver(definition, {
   },
   createTask: (c) => c,
   predicates: new Map<string, Predicate>(),
-  workerTypes: ['ScoreWorker'],
+  workers: { flow: { url: 'worker.js' } }, nodeTypes: { ScoreWorker: { worker: 'flow' } },
   joinPolicy: liveToken,
 });
 driver.start({});
@@ -1000,10 +1006,10 @@ const scheduler = { addTask() {}, addEventListener() {} };
 const noPolicy = {
   flowId: 'f', version: 1, entry: 'a',
   nodes: [
-    { id: 'a', kind: 'task', workerType: 'W', edges: [{ to: 'split' }] },
+    { id: 'a', kind: 'task', type: 'W', edges: [{ to: 'split' }] },
     { id: 'split', kind: 'fanout', branches: ['b', 'c'] },
-    { id: 'b', kind: 'task', workerType: 'W', edges: [{ to: 'j' }] },
-    { id: 'c', kind: 'task', workerType: 'W', edges: [{ to: 'j' }] },
+    { id: 'b', kind: 'task', type: 'W', edges: [{ to: 'j' }] },
+    { id: 'c', kind: 'task', type: 'W', edges: [{ to: 'j' }] },
     { id: 'j', kind: 'join', of: 'split', edges: [{ to: 'e' }] },
     { id: 'e', kind: 'end', outcome: 'completed' },
   ],
@@ -1012,7 +1018,7 @@ const noPolicy = {
 let refused = '';
 try {
   new Driver(noPolicy, {
-    runId: 'run-1', scheduler, createTask: (c) => c, predicates: new Map(), workerTypes: ['W'],
+    runId: 'run-1', scheduler, createTask: (c) => c, predicates: new Map(), workers: { flow: { url: 'worker.js' } }, nodeTypes: { W: { worker: 'flow' } },
   });
 } catch (e) {
   refused = (e as Error).constructor.name;
@@ -1026,6 +1032,19 @@ void InvalidDefinition;
 parse a string. `InvalidRunId` is thrown by the **constructor** for a `runId` outside `[A-Za-z0-9_-]{1,64}`
 (`ID-R2`) — `:` is excluded because it is the task-id delimiter, and excluding it is what makes the
 task-id parse total.
+
+**A defect in the REGISTRY's SHAPE is thrown at `new Driver` too, as a NAMED class extending
+`RegistryError`** — `spec/flow-definition.md` v0.19, section 13 here — each carrying `at`, the entry's
+key, and a message naming the entry. `new Driver` runs the shape half only, six classes:
+`WorkerMissing` (a type naming no worker entry, an entry with no `url`), `PoolTypeMissing`,
+`NameCollision` (a pool named as a type), `SchemaRefused` (a keyword outside the subset), and
+`UndeclaredKey` and `DerivationRefused` for a type's or a pool's field of the wrong shape. The other
+five — `ConfigRefused`, `TypeDefaultRefused`, `GroupTypeMissing`, `GroupConfigRefused`,
+`NameMissing` — need a derivation run or a group built, and are thrown by
+`resolveRegistry(document, code)` when a registry DOCUMENT is resolved against the code that
+supplies its predicates, languages, group types and node-type classes, and by the bootstrap helper
+before it builds a pool. None is `InvalidDefinition`, on purpose: a registry defect is fixed in the
+registry and a flow defect in the flow, and the class says which document to open.
 
 **Two more that throw, because you called them.** They are the same classes the next paragraph calls
 reported, which is why the rule is about the stack:
@@ -1121,7 +1140,7 @@ void withReporting;
 quoted in prose, so renaming one in `src/` fails this gate instead of silently falsifying the
 paragraphs above.
 
-**Two of the twelve belong to `map`, and they fail for different people.**
+**Two of the classes belong to `map`, and they fail for different people.**
 
 `UnresolvedBranchPath` is `ID-R6` — `branchPathOf` was asked for the path of a node inside a **`map`**
 region without the item index that region's branch is indexed by, and refused rather than guessing,
@@ -1167,14 +1186,17 @@ mentioning it here a **failure** rather than an omission nobody can observe:
 ```ts run
 import * as lib from 'fyflow-orchestration';
 import {
-  DuplicateTaskId, InvalidDefinition, InvalidRunId, InvalidTaskId, MissingJoinPolicy,
-  MultipleRuns, NoMatchingEdge, UncloneableResult, UndispatchedTask, UnresolvedBranchPath,
-  UnresolvedMapArity, UnresolvedReference,
+  ConfigRefused, DerivationRefused, DuplicateTaskId, GroupConfigRefused, GroupTypeMissing, InvalidDefinition,
+  InvalidRunId, InvalidTaskId, MissingJoinPolicy, MultipleRuns, NameCollision, NameMissing, NoMatchingEdge,
+  PoolTypeMissing, RegistryError, SchemaRefused, TypeDefaultRefused, UncloneableResult, UndeclaredKey,
+  UndispatchedTask, UnresolvedBranchPath, UnresolvedMapArity, UnresolvedReference, WorkerMissing,
 } from 'fyflow-orchestration';
 
 const documented = [
   DuplicateTaskId, UncloneableResult, NoMatchingEdge, UndispatchedTask,  // reported inside a listener
   MultipleRuns, InvalidRunId, InvalidDefinition, MissingJoinPolicy,      // thrown at you
+  RegistryError, WorkerMissing, PoolTypeMissing, ConfigRefused, TypeDefaultRefused, GroupTypeMissing,   // thrown at you — a REGISTRY defect,
+  GroupConfigRefused, NameCollision, SchemaRefused, UndeclaredKey, NameMissing, DerivationRefused,       // the base class and its eleven (section 13)
   UnresolvedMapArity, UnresolvedReference,   // reported in a listener; reported AND thrown from start()/resolve()
   InvalidTaskId, UnresolvedBranchPath,                                   // neither — see above
 ].map((c) => c.name);
@@ -1238,10 +1260,10 @@ const scheduler = {
 const flow = {
   flowId: 'f', version: 1, entry: 'a',
   nodes: [
-    { id: 'a', kind: 'task', workerType: 'W', edges: [{ to: 'split' }] },
+    { id: 'a', kind: 'task', type: 'W', edges: [{ to: 'split' }] },
     { id: 'split', kind: 'fanout', branches: ['b', 'c'] },
-    { id: 'b', kind: 'task', workerType: 'W', edges: [{ to: 'j' }] },
-    { id: 'c', kind: 'task', workerType: 'W', edges: [{ to: 'j' }] },
+    { id: 'b', kind: 'task', type: 'W', edges: [{ to: 'j' }] },
+    { id: 'c', kind: 'task', type: 'W', edges: [{ to: 'j' }] },
     { id: 'j', kind: 'join', of: 'split', edges: [{ to: 'e' }] },
     { id: 'e', kind: 'end', outcome: 'completed' },
   ],
@@ -1250,7 +1272,7 @@ const flow = {
 const frozen: Record<string, boolean> = {};
 const driver = new Driver(flow, {
   runId: 'run-1',
-  scheduler, createTask: (c) => c, predicates: new Map(), workerTypes: ['W'],
+  scheduler, createTask: (c) => c, predicates: new Map(), workers: { flow: { url: 'worker.js' } }, nodeTypes: { W: { worker: 'flow' } },
   joinPolicy: { id: 'p', open: () => 0, step: (s: number) => s, status: () => 'waiting', describe: () => ({}) },
   onRegionEvent: (e) => { frozen.onRegionEvent = Object.isFrozen(e); },
   onFoldInput: (i) => { frozen.onFoldInput = Object.isFrozen(i); },
@@ -1299,13 +1321,13 @@ const scheduler = {
 const flow: FlowDefinition = {
   flowId: 'or-r11', version: 1, entry: 'a',
   nodes: [
-    { id: 'a', kind: 'task', workerType: 'W', edges: [{ to: 'done' }] },
+    { id: 'a', kind: 'task', type: 'W', edges: [{ to: 'done' }] },
     { id: 'done', kind: 'end', outcome: 'completed' },
   ],
 };
 const failures: string[] = [];
 const driver = new Driver(flow, {
-  runId: 'r1', scheduler, createTask: (c) => c, predicates: new Map(), workerTypes: ['W'],
+  runId: 'r1', scheduler, createTask: (c) => c, predicates: new Map(), workers: { flow: { url: 'worker.js' } }, nodeTypes: { W: { worker: 'flow' } },
   onRunFailure: (f) => failures.push(f.kind),
 });
 driver.start({});
@@ -1365,12 +1387,21 @@ const workerUrl = new URL('../../examples/workers/flow-worker.ts', import.meta.u
 const definition: FlowDefinition = {
   flowId: 'wired', version: 1, entry: 'ingest',
   nodes: [
-    { id: 'ingest',  kind: 'task', workerType: 'IngestWorker',  edges: [{ to: 'publish' }] },
-    { id: 'publish', kind: 'task', workerType: 'PublishWorker', edges: [{ to: 'done' }] },
+    { id: 'ingest',  kind: 'task', type: 'IngestWorker',  edges: [{ to: 'publish' }] },
+    { id: 'publish', kind: 'task', type: 'PublishWorker', edges: [{ to: 'done' }] },
     { id: 'done',    kind: 'end',  outcome: 'completed' },
   ],
 };
 
+// The registry: one worker entry, and one node type per pool — the pools are built BY HAND here,
+// keyed by the type's name, which is what `addTask` routes on. The bootstrap helper builds pools
+// FROM entries like these (section 13) — envelope-fronted, the worker loaded by URL with its config
+// under `config.config` — where these two load the worker directly with `{ role }`; the helper's
+// call is the one a consumer copies, and this snippet keeps the raw scheduler in view.
+const registry = {
+  workers: { flow: { url: workerUrl } },
+  nodeTypes: { IngestWorker: { worker: 'flow' }, PublishWorker: { worker: 'flow' } },
+};
 const scheduler = new FyflowScheduler({
   IngestWorker:  new WorkerManager(workerUrl, { maxThreads: 1, inline: true, config: { role: 'ingest' } }),
   PublishWorker: new WorkerManager(workerUrl, { maxThreads: 1, inline: true, config: { role: 'publish' } }),
@@ -1386,7 +1417,7 @@ const state = await new Promise<RunState>((resolve, reject) => {
     runId: 'run-1',
     scheduler,                                    // the real class, as it is — no cast (Q71)
     predicates: new Map(),
-    workerTypes: Object.keys(scheduler.workerPools),
+    ...registry,                                  // the types the flow names, and their workers (section 13)
     groups: Object.keys(scheduler.groups),        // the resource groups a node may name (section 3)
     joinPolicy: liveToken,
     onFoldInput: (input) => {
@@ -1410,8 +1441,11 @@ if (publish?.state !== 'done') throw new Error(`publish never settled: ${publish
 if (tasks.length !== 2 || !tasks.every((t) => t instanceof FyflowTask)) throw new Error('the default createTask did not build FyflowTasks');
 ```
 
-`workerTypes` is the set the validator checks a definition against — pass the keys of your
-`workerPools`, as above, rather than a second list. Pass `createTask` only to run against a
+`nodeTypes` and `workers` are the sets the validator checks a definition against, and **a type's
+pool is keyed by the type's name** — so the object you hand the driver is the object you build the
+pools from, as above, rather than a second list; every task the driver dispatches carries the
+envelope `{ settings, input }` (section 13), which is what this repository's worker reads `input`
+from. Pass `createTask` only to run against a
 double — ladder L2-L5 here hand the driver `(c) => c` and read the plain object back — or to build
 something other than a plain `FyflowTask`.
 
@@ -1459,106 +1493,136 @@ now.)*
 
 ---
 
-## 13. Node types — a registry entry, a settings validator, and the envelope
+## 13. Node types — a registry DOCUMENT entry, a derivation to a pool, and the envelope
 
-A `task` can name a **node type** instead of a `workerType`, and carry per-node **`settings`** —
-`spec/flow-definition.md` v0.17, [ADR 0049](doc/decisions/0049-a-node-type-is-a-registry-entry-and-its-worker-receives-an-envelope.md),
-[W59](doc/work-items/w59-what-a-node-type-is.md). **A node type is a REGISTRY entry and the
-definition stays data**: the type's worker, its pool, the resource groups the pool holds, the
-pool's global config, a per-node settings VALIDATOR and a retry default all live in
-`Registry.nodeTypes`, the fourth set beside `predicates`, `workerTypes` and `groups`; the flow names
-the type and nothing else — never a file, never a URL. **A bare `workerType` node is unchanged**:
-nothing you have already written moves.
+**Every `task` names a node type**, and may carry per-node **`settings`** and a **`pool`** —
+`spec/flow-definition.md` v0.19, [ADR 0049](doc/decisions/0049-a-node-type-is-a-registry-entry-and-its-worker-receives-an-envelope.md),
+[ADR 0054](doc/decisions/0054-every-task-node-names-a-type-and-a-type-is-a-derivation-to-pool-options.md),
+[W59](doc/work-items/w59-what-a-node-type-is.md), [W65](doc/work-items/w65-the-registry-document-and-a-node-type-is-a-derivation.md).
+**A node type is a REGISTRY entry and the definition stays data**: the registry is a DOCUMENT —
+`workers` (a module URL and the four JSON schemas that worker owns), `nodeTypes` (each naming a
+worker, with its pool's options, its groups, a config, a retry default and `settings` DEFAULTS),
+`pools` (named instances of a type), `groups` (built through group-type factories), plus the
+`predicates` and `languages` it names and your code supplies. **A type is a DERIVATION from an
+instance's config to pool options**; the document form is the identity derivation — what it
+declares is what its default pool is built from — and a class registered in code is any other, both
+passing the same checks. **Every type has a default pool, keyed by its name**; the flow names the
+type and nothing else — never a file, never a URL. *(Until v0.19 a task could name a `workerType`
+instead — a pool key, its worker handed the raw payload. That road is retired: `workerType` is an
+undeclared key, and a worker written for it reads under `input` what it read as its whole payload.)*
 
 | | | |
 |---|---|---|
-| `type` | instead of `workerType`, exactly one of the two | the name of an entry in `nodeTypes` — **and of a pool in `workerTypes`, because a type's pool is keyed by its name** (`FD-V32`). Both keys on one node, a `workerType` that names a type, or `settings` on a node with no `type`, is `FD-V34` |
-| `settings` | optional, typed nodes only | a plain JSON object the type's validator accepts (`FD-V33`); **absent means `{}`**, and the validator sees `{}` |
-| `transform` | optional, typed nodes only | `{ lang, expr }`: an expression, in a language the registry's **`languages`** set names, applied to the node's input BEFORE its worker sees it — below. `lang` unregistered is `FD-V35`, `expr` the language refuses is `FD-V36`, on a node with no `type` or not `{ lang, expr }` is `FD-V37` |
+| `type` | **required** | the name of an entry in `nodeTypes` whose `worker` the registry's `workers` declares (`FD-V32`, both clauses). A task with no `type` is `FD-V23` |
+| `pool` | optional | the name of an instance in the registry's `pools` whose `type` is this node's (`FD-V38`); absent, the type's DEFAULT instance. The type's own name is that default, stated explicitly |
+| `settings` | optional | a plain JSON object which — with the type's `settings` defaults merged UNDER it — the worker's **`settingsSchema`** accepts (`FD-V33`); **absent means the defaults alone**, `{}` when the type declares none, and the schema sees that. A schema is JSON Schema in the built-in subset (ADR 0053): a keyword outside it is refused at construction, never ignored |
+| `transform` | optional | `{ lang, expr }`: an expression, in a language the registry's **`languages`** set names, applied to the node's input BEFORE its worker sees it — below. `lang` unregistered is `FD-V35`, `expr` the language refuses is `FD-V36`, not `{ lang, expr }` is `FD-V37` |
 
-**What the type's worker receives is the ENVELOPE `{ settings, input }`** — `FD-C5`. `settings` is
-the node's declared object, as its own copy; **`input` is what an untyped node in the same position
-would have received as its whole payload** — the previous node's result, the object `needs`
-describes, its own item as a map instance, the collection after a join. Write the type's worker to
-read `payload.settings` and `payload.input`, and nothing else changes about it.
+**What EVERY task's worker receives is the ENVELOPE `{ settings, input }`** — `FD-C5`. `settings`
+is the node's effective settings — the merged object — as its own copy; **`input` is the value this
+node receives** — the previous node's result, the object `needs` describes, its own item as a map
+instance, the collection after a join. Write a worker to read `payload.settings` and
+`payload.input`, and nothing else changes about it.
 
 ```ts run
-import { validateDefinition, type FlowDefinition, type NodeType, type Registry } from 'fyflow-orchestration';
+import { validateDefinition, type FlowDefinition, type NodeTypeDeclaration, type Registry, type WorkerEntry } from 'fyflow-orchestration';
 
-// A node type. `settings` is a VALIDATOR — a function, registered as a predicate is: `null`
-// accepts, a string is why it is refused (and becomes FD-V33's detail). It sees `{}` when a node
-// declares no settings, so a type that requires a key refuses absence by name.
-const Scorer: NodeType = {
-  worker: new URL('../../examples/workers/flow-worker.ts', import.meta.url).href,
-  config: { role: 'typed' },                          // every worker instance's constructor argument
-  pool: { maxThreads: 2, inline: true },              // WorkerManager options, minus config and groups
-  groups: ['scorer'],                                 // the POOL's groups — every task of the type holds them
-  retryPolicy: { maxRetries: 1, backoffMs: 0 },       // for every node of the type that declares none
-  settings: (s) => (typeof s.factor === 'number' && s.factor > 0 ? null : `factor must be a positive number, got ${JSON.stringify(s.factor)}`),
+// The WORKER entries: a module URL, and the schemas the worker owns. `settingsSchema` is what
+// FD-V33 applies to every node of EVERY type running that entry — over the node's settings with
+// the type's defaults merged under, `{}` when neither says anything — so a schema that REQUIRES a
+// key refuses absence by name, and a type whose nodes carry no settings is written over an entry
+// that declares none (two entries here, one module). `configSchema` is held against every pool's
+// derived config at construction; `inputSchema` and `outputSchema` are declared and carried, and
+// enforced by nothing yet (P19).
+const workerUrl = new URL('../../examples/workers/flow-worker.ts', import.meta.url).href;
+const ingest: WorkerEntry = { url: workerUrl };
+const scorer: WorkerEntry = {
+  url: workerUrl,
+  settingsSchema: { type: 'object', required: ['factor'], properties: { factor: { type: 'number', minimum: 0 } }, additionalProperties: false },
+};
+// Two node types, in the DOCUMENT form — the identity derivation: what each declares is what its
+// default pool is built from. `config` is every worker instance's constructor argument, `pool` the
+// WorkerManager options minus what the type states beside it, `groups` the POOL's groups (every
+// task of the type holds them), `retryPolicy` for every node of the type that declares none.
+const IngestWorker: NodeTypeDeclaration = { worker: 'ingest', inline: true, config: { role: 'ingest' } };
+const Scorer: NodeTypeDeclaration = {
+  worker: 'scorer',
+  inline: true,
+  config: { role: 'typed' },
+  pool: { maxThreads: 2 },
+  groups: ['scorer'],
+  retryPolicy: { maxRetries: 1, backoffMs: 0 },
 };
 
 // Two nodes of ONE type with DIFFERENT settings — the whole point.
 const typed: FlowDefinition = {
   flowId: 'typed', version: 1, entry: 'ingest',
   nodes: [
-    { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'low' }] },
+    { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'low' }] },
     { id: 'low',    kind: 'task', type: 'Scorer', settings: { factor: 10 },  edges: [{ to: 'high' }] },
     { id: 'high',   kind: 'task', type: 'Scorer', settings: { factor: 100 }, edges: [{ to: 'done' }] },
     { id: 'done',   kind: 'end',  outcome: 'completed' },
   ],
 };
 
-// The registry. `Scorer` is in `workerTypes` TOO, because its pool is keyed by its name — pass
-// `Object.keys(scheduler.workerPools)` and that is true by construction (the bootstrap below).
-const registry: Registry = { predicates: [], workerTypes: ['IngestWorker', 'Scorer'], groups: ['scorer'], nodeTypes: { Scorer } };
+// The registry the driver reads — the same sections the bootstrap helper builds pools from (below),
+// so a type the flow names, the pool the scheduler holds and the schema the driver applies are one
+// object and not three copies. `groups` is the set of group KEYS a node or a type may name.
+const registry: Registry = { predicates: [], workers: { ingest, scorer }, nodeTypes: { IngestWorker, Scorer }, groups: ['scorer'] };
 const bad = validateDefinition(typed, registry);
 if (bad.length) throw new Error(`the typed flow is invalid: ${bad.map((f) => `${f.rule}@${f.at}`).join()}`);
 
-// The three refusals, each at construction and never on the one workload that hits it.
+// The refusals, each at construction and never on the one workload that hits it.
 const rules = (def: FlowDefinition, reg = registry) => validateDefinition(def, reg).map((f) => f.rule);
 const low = (node: object): FlowDefinition => ({ ...typed, nodes: [typed.nodes[0]!, node as never, typed.nodes[3]!] });
-// FD-V32 — a type the registry does not hold; and `nodeTypes` OMITTED means NONE registered.
+// FD-V32 — a type the registry does not hold; `nodeTypes` OMITTED means NONE registered; and a
+// registered type whose WORKER the registry's `workers` does not declare.
 if (!rules(low({ id: 'low', kind: 'task', type: 'Nope', edges: [{ to: 'done' }] })).includes('FD-V32')) throw new Error('FD-V32');
 if (!rules(typed, { ...registry, nodeTypes: undefined }).includes('FD-V32')) throw new Error('FD-V32 with nodeTypes omitted');
-// FD-V33 — settings the validator refuses; and absent settings reach it as {}, which this one refuses.
+if (!rules(typed, { ...registry, workers: {} }).includes('FD-V32')) throw new Error('FD-V32: the type names a worker the registry lacks');
+// FD-V33 — settings the worker's schema refuses; and absent settings are the type's defaults — none
+// here, so `{}` — which this schema refuses because it requires `factor`.
 if (!rules(low({ id: 'low', kind: 'task', type: 'Scorer', settings: { factor: 'ten' }, edges: [{ to: 'done' }] })).includes('FD-V33')) throw new Error('FD-V33');
 if (!rules(low({ id: 'low', kind: 'task', type: 'Scorer', edges: [{ to: 'done' }] })).includes('FD-V33')) throw new Error('FD-V33 on absent settings');
-// FD-V34 — the two halves mixed: `type` beside `workerType`, or a bare `workerType` naming a type.
-if (!rules(low({ id: 'low', kind: 'task', type: 'Scorer', workerType: 'Scorer', edges: [{ to: 'done' }] })).includes('FD-V34')) throw new Error('FD-V34');
-if (!rules(low({ id: 'low', kind: 'task', workerType: 'Scorer', edges: [{ to: 'done' }] })).includes('FD-V34')) throw new Error('FD-V34 on a bare node naming a type');
+// FD-V38 — a `pool` that is not a registered instance of the node's type; the type's own name is
+// its default instance and is accepted.
+if (!rules(low({ id: 'low', kind: 'task', type: 'Scorer', settings: { factor: 1 }, pool: 'nope', edges: [{ to: 'done' }] })).includes('FD-V38')) throw new Error('FD-V38');
+if (rules(low({ id: 'low', kind: 'task', type: 'Scorer', settings: { factor: 1 }, pool: 'Scorer', edges: [{ to: 'done' }] })).length) throw new Error('the type`s own name is its default instance');
+// FD-V23 — there is no untyped road: a task without `type` is a task missing a required key.
+if (!rules(low({ id: 'low', kind: 'task', edges: [{ to: 'done' }] })).includes('FD-V23')) throw new Error('FD-V23: a task with no type');
 ```
 
 **Wiring it: the bootstrap helper.** `fyflow-orchestration/scheduler` is a sub-path — the one
 module of this package that constructs scheduler objects, kept out of the root so the validator,
-the driver and the fold load no `WorkerManager`. `bootstrap(nodeTypes, groups)` builds **one pool
-per type, keyed by the type's name**, running the package's envelope worker around your worker, and
-refuses **both ways** a type naming a group you gave no object for and an object no type names
-(the scheduler ignores an unknown group id in silence, at the pool level too — measured). Spread
-its result beside your own pools and groups, and read the driver's sets off the scheduler:
+the driver and the fold load no `WorkerManager`. `bootstrap(registry, groups, options)` builds
+**one pool per type, keyed by the type's name, and one per named instance in `pools`**, each
+through the type's derivation and each running the package's envelope worker around your worker,
+and refuses **both ways** a type naming a group you gave no object for and an object no type names
+(the scheduler ignores an unknown group id in silence, at the pool level too — measured). Hand the
+scheduler its result, and the driver the SAME registry sections:
 
 ```ts check
-import { Driver, liveToken, type FlowDefinition, type Languages, type NodeType } from 'fyflow-orchestration';
+import { Driver, liveToken, type FlowDefinition, type Languages, type NodeTypeDeclaration, type WorkerEntry } from 'fyflow-orchestration';
 import { bootstrap } from 'fyflow-orchestration/scheduler';
-import { ConcurrentLimitGroup, FyflowScheduler, WorkerManager } from 'fyflow-scheduler';
+import { ConcurrentLimitGroup, FyflowScheduler } from 'fyflow-scheduler';
 
-declare const Scorer: NodeType;
+declare const ingest: WorkerEntry;
+declare const scorer: WorkerEntry;
+declare const IngestWorker: NodeTypeDeclaration;
+declare const Scorer: NodeTypeDeclaration;
 declare const typed: FlowDefinition;
-declare const workerUrl: string;
 declare const languages: Languages;
 
 // The types' groups are given as OBJECTS here and only here; the helper returns them keyed as given.
 // The languages and the flows are what tells the helper WHICH typed pools need which adapter's
 // worker module — written into a pool's config only where a node of that type transforms (W61).
-const types = bootstrap({ Scorer }, { scorer: new ConcurrentLimitGroup(4, 'scorer') }, { languages, flows: [typed] });
-const scheduler = new FyflowScheduler(
-  { IngestWorker: new WorkerManager(workerUrl, { inline: true, config: { role: 'ingest' } }), ...types.workerPools },
-  { ...types.resourceGroups },
-);
+const registry = { workers: { ingest, scorer }, nodeTypes: { IngestWorker, Scorer } };
+const built = bootstrap(registry, { scorer: new ConcurrentLimitGroup(4, 'scorer') }, { languages, flows: [typed] });
+const scheduler = new FyflowScheduler(built.workerPools, built.resourceGroups);
 const driver = new Driver(typed, {
   runId: 'run-1', scheduler, predicates: new Map(), joinPolicy: liveToken,
-  workerTypes: Object.keys(scheduler.workerPools),   // the helper's pools are in here, keyed by type name
-  groups: Object.keys(scheduler.groups),             // and its groups
-  nodeTypes: { Scorer },                             // the SAME object the helper built from
+  ...registry,                                       // the SAME object the helper built every pool from
+  groups: Object.keys(scheduler.groups),             // and its groups, read back off the scheduler
   languages,                                         // and the same languages
 });
 driver.start({ confidence: 0.9 });
@@ -1598,7 +1662,7 @@ produced. The language this package ships is JSONata, as the sub-path `fyflow-or
 — section 14; the snippet below uses a toy one so it loads no engine, and it is the same interface.
 
 ```ts run
-import { validateDefinition, type FlowDefinition, type LanguageAdapter, type NodeType, type Registry } from 'fyflow-orchestration';
+import { validateDefinition, type FlowDefinition, type LanguageAdapter, type NodeTypeDeclaration, type Registry, type WorkerEntry } from 'fyflow-orchestration';
 import { EnvelopeWorker, TransformFailed } from 'fyflow-orchestration/scheduler';
 
 // A toy language: an expression is a dotted key path into the input, or `$settings.<path>`.
@@ -1619,17 +1683,19 @@ const path: LanguageAdapter = {
   worker: `data:text/javascript,${encodeURIComponent(workerSrc)}`,
 };
 
-const Scorer: NodeType = { worker: 'data:text/javascript,export default class W { run(p) { return p.input; } }' };
+// A worker that echoes its input, as a data: URL, and two types over it.
+const echo: WorkerEntry = { url: 'data:text/javascript,export default class W { run(p) { return p.input; } }' };
+const Scorer: NodeTypeDeclaration = { worker: 'echo' };
 const flow: FlowDefinition = {
   flowId: 'transformed', version: 1, entry: 'ingest',
   nodes: [
-    { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'score' }] },
+    { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'score' }] },
     // The worker wants the confidence alone; the transform picks it out of the previous result.
     { id: 'score', kind: 'task', type: 'Scorer', settings: { factor: 10 }, transform: { lang: 'path', expr: 'confidence' }, edges: [{ to: 'done' }] },
     { id: 'done', kind: 'end', outcome: 'completed' },
   ],
 };
-const registry: Registry = { predicates: [], workerTypes: ['IngestWorker', 'Scorer'], nodeTypes: { Scorer }, languages: { path } };
+const registry: Registry = { predicates: [], workers: { echo }, nodeTypes: { IngestWorker: { worker: 'echo' }, Scorer }, languages: { path } };
 const bad = validateDefinition(flow, registry);
 if (bad.length) throw new Error(`the transformed flow is invalid: ${bad.map((f) => `${f.rule}@${f.at}`).join()}`);
 
@@ -1639,13 +1705,14 @@ const score = (transform: unknown, rest: object = { type: 'Scorer' }) => ({ id: 
 if (!rules(score({ lang: 'jsonata', expr: 'confidence' })).includes('FD-V35')) throw new Error('FD-V35: a language the registry does not name');
 if (!rules(score({ lang: 'path', expr: 'confidence' }), { ...registry, languages: undefined }).includes('FD-V35')) throw new Error('FD-V35 with languages omitted — absent means EMPTY');
 if (!rules(score({ lang: 'path', expr: '$sum(*.score' })).includes('FD-V36')) throw new Error('FD-V36: an expression the language`s compile refuses');
-if (!rules(score({ lang: 'path', expr: 'confidence' }, { workerType: 'IngestWorker' })).includes('FD-V37')) throw new Error('FD-V37: a transform on a node with no type');
 if (!rules(score({ lang: 'path' })).includes('FD-V37')) throw new Error('FD-V37: not { lang, expr }');
+// And there is no untyped road for a transform to sit on: a node with no `type` is FD-V23, with the transform's own clauses applied beside it.
+if (!rules(score({ lang: 'path', expr: 'confidence' }, {})).includes('FD-V23')) throw new Error('FD-V23: a transform on a node with no type is a node with no type');
 
 // And what the wrapper does with it — the class the bootstrap helper puts around your worker,
 // driven here directly. The helper writes `languages` into a typed pool's config for you when you
-// pass it the flows and the languages: `bootstrap({ Scorer }, groups, { languages: { path }, flows: [flow] })`.
-const w = new EnvelopeWorker({ worker: Scorer.worker, languages: { path: path.worker } });
+// pass it the flows and the languages: `bootstrap(registry, groups, { languages: { path }, flows: [flow] })`.
+const w = new EnvelopeWorker({ worker: echo.url, languages: { path: path.worker } });
 await w.setup();
 const seen = await w.run({ settings: { factor: 10 }, input: { confidence: 0.9, text: 'a bb ccc' }, transform: { lang: 'path', expr: 'confidence' } });
 if (seen !== 0.9) throw new Error(`the worker received ${JSON.stringify(seen)} — not the transformed input`);
@@ -1662,13 +1729,14 @@ await w.teardown();
 **What this is not.** What a type says about what its worker EXPECTS and RETURNS — input and
 output schemas, and a sample-based check across a transformed edge — is
 [P16](doc/plans/p16-what-a-node-type-is-and-what-the-library-owes-the-scheduler.md)'s plan after
-this one (P18); a type says nothing about either yet, and the adapter's optional `check` hook is the
-door left for it. A transform on an UNTYPED node, on a `map`'s `over`, on an edge or on a decision
-is refused, with the reasons in ADR 0051. The validator runs at construction and
+this one (P18); since v0.19 a worker DECLARES `inputSchema` and `outputSchema` and nothing enforces
+them yet (P19), and the adapter's optional `check` hook is the door left for it. A transform on a
+`map`'s `over`, on an edge or on a decision is refused, with the reasons in ADR 0051. The validator runs at construction and
 nowhere else: the driver holds your definition by reference, so a document you mutate after
-`new Driver` is dispatched as mutated, for every key ([Q259](doc/open-questions.md)). Four worked
-typed flows run on a real scheduler in [`examples/`](examples/README.md) — two of them with a
-declared `transform` (section 14), one at three arities and one whose transforms fail.
+`new Driver` is dispatched as mutated, for every key ([Q259](doc/open-questions.md)). Every one of
+the twenty-four worked flows in [`examples/`](examples/README.md) runs typed on a real scheduler
+since v0.19 — two of them with a declared `transform` (section 14), one at three arities and one
+whose transforms fail.
 
 ## 14. The JSONata adapter — `fyflow-orchestration/jsonata`
 
@@ -1683,23 +1751,22 @@ the engine only where the sub-path is imported (237 KiB). Import it, put it in t
 bootstrap helper:
 
 ```ts check
-import { Driver, liveToken, type FlowDefinition, type NodeType } from 'fyflow-orchestration';
+import { Driver, liveToken, type FlowDefinition, type RegistryDocument } from 'fyflow-orchestration';
 import { bootstrap } from 'fyflow-orchestration/scheduler';
 import { jsonata } from 'fyflow-orchestration/jsonata';
 import { ConcurrentLimitGroup, FyflowScheduler } from 'fyflow-scheduler';
 
-declare const Scorer: NodeType;
+declare const registry: Pick<RegistryDocument, 'workers' | 'nodeTypes'>;
 declare const flow: FlowDefinition;
 
 // The adapter is `{ compile, worker }`: `compile` runs on the main thread at `new Driver` and
 // `worker` is the URL of the SAME module, which the envelope worker imports inside the pool.
 const languages = { jsonata };
-const types = bootstrap({ Scorer }, { scorer: new ConcurrentLimitGroup(4, 'scorer') }, { languages, flows: [flow] });
-const scheduler = new FyflowScheduler({ ...types.workerPools }, { ...types.resourceGroups });
+const built = bootstrap(registry, { scorer: new ConcurrentLimitGroup(4, 'scorer') }, { languages, flows: [flow] });
+const scheduler = new FyflowScheduler(built.workerPools, built.resourceGroups);
 const driver = new Driver(flow, {
   runId: 'run-1', scheduler, predicates: new Map(), joinPolicy: liveToken,
-  workerTypes: Object.keys(scheduler.workerPools), groups: Object.keys(scheduler.groups),
-  nodeTypes: { Scorer }, languages,
+  ...registry, groups: Object.keys(scheduler.groups), languages,
 });
 driver.start({ items: [1, 2, 3] });
 ```
@@ -1728,25 +1795,26 @@ array form, `$sum([*.score])`, which is `0` for a join nothing reached. And a mi
 `$sum("a")` is loud (`T0412`). Only a syntax error is refused at construction.
 
 ```ts run
-import { validateDefinition, type FlowDefinition, type NodeType, type Registry } from 'fyflow-orchestration';
+import { validateDefinition, type FlowDefinition, type NodeTypeDeclaration, type Registry, type WorkerEntry } from 'fyflow-orchestration';
 import { EnvelopeWorker, TransformFailed } from 'fyflow-orchestration/scheduler';
 import { jsonata } from 'fyflow-orchestration/jsonata';
 
-const Scorer: NodeType = { worker: 'data:text/javascript,export default class W { run(p) { return p.input; } }' };
+const echo: WorkerEntry = { url: 'data:text/javascript,export default class W { run(p) { return p.input; } }' };
+const Scorer: NodeTypeDeclaration = { worker: 'echo' };
 const flow: FlowDefinition = {
   flowId: 'reduced', version: 1, entry: 'ingest',
   nodes: [
-    { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'split' }] },
+    { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'split' }] },
     { id: 'split', kind: 'fanout', branches: ['scoreA', 'scoreB'] },
-    { id: 'scoreA', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'collect' }] },
-    { id: 'scoreB', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'collect' }] },
+    { id: 'scoreA', kind: 'task', type: 'IngestWorker', edges: [{ to: 'collect' }] },
+    { id: 'scoreB', kind: 'task', type: 'IngestWorker', edges: [{ to: 'collect' }] },
     { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'publish' }] },
     // The join's successor wants the total, not the record: the transform reduces it, no reshaping node.
     { id: 'publish', kind: 'task', type: 'Scorer', settings: { factor: 2 }, transform: { lang: 'jsonata', expr: '$sum([*.score]) * $settings.factor' }, edges: [{ to: 'done' }] },
     { id: 'done', kind: 'end', outcome: 'completed' },
   ],
 };
-const registry: Registry = { predicates: [], workerTypes: ['IngestWorker', 'Scorer'], nodeTypes: { Scorer }, languages: { jsonata } };
+const registry: Registry = { predicates: [], workers: { echo }, nodeTypes: { IngestWorker: { worker: 'echo' }, Scorer }, languages: { jsonata } };
 const bad = validateDefinition(flow, registry);
 if (bad.length) throw new Error(`the reduced flow is invalid: ${bad.map((f) => `${f.rule}@${f.at}`).join()}`);
 
@@ -1758,7 +1826,7 @@ if (syntax.map((f) => f.rule).join() !== 'FD-V36' || !syntax[0]!.detail.includes
 if (!publish('$sum([*.score])', { ...registry, languages: {} }).some((f) => f.rule === 'FD-V35')) throw new Error('FD-V35: jsonata not registered');
 
 // The envelope worker — the class the bootstrap helper puts around your worker — with the adapter's worker half by URL.
-const w = new EnvelopeWorker({ worker: Scorer.worker, languages: { jsonata: jsonata.worker } });
+const w = new EnvelopeWorker({ worker: echo.url, languages: { jsonata: jsonata.worker } });
 await w.setup();
 const record = { '0': { score: 40 }, '1': { score: 20 } };                                    // JP-R12's collection, two branches
 const total = await w.run({ settings: { factor: 2 }, input: record, transform: { lang: 'jsonata', expr: '$sum([*.score]) * $settings.factor' } });

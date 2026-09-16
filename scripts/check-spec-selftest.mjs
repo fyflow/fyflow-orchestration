@@ -380,15 +380,15 @@ const PROBES = [
 
   // --- C7: the valid corpus resolves against the declared registry ---------------
   {
-    name: 'registry.json removed, so FD-V4 and FD-V5 cannot be evaluated at all',
+    name: 'registry.json removed, so FD-V4 and FD-V32 cannot be evaluated at all',
     check: 'C7',
     apply: (spec) => rmSync(join(spec, 'examples', 'registry.json')),
   },
   {
-    name: 'a valid flow naming a workerType the registry does not have',
+    name: 'a valid flow naming a type the registry does not have',
     check: 'C7',
     apply: (spec) => edit(join(spec, 'examples', 'valid', 'linear.flow.json'),
-      (t) => t.replace('"workerType": "IngestWorker"', '"workerType": "NoSuchWorker"')),
+      (t) => t.replace('"type": "IngestWorker"', '"type": "NoSuchType"')),
   },
   {
     name: 'a valid flow naming a predicate the registry does not have',
@@ -397,7 +397,7 @@ const PROBES = [
       (t) => t.replace('"when": "isLowConfidence"', '"when": "noSuchPredicate"')),
   },
   {
-    name: 'a valid flow naming an unknown workerType AND an unknown predicate — TWO C7 clauses under ONE id',
+    name: 'a valid flow naming an unknown type AND an unknown predicate — TWO C7 clauses under ONE id',
     check: 'C7',
     // **The eighteenth probe, and the only one that is not one-per-`fail()`-site.**
     // It exists to make the failure-COUNT discriminator reachable, and W30 measured
@@ -411,7 +411,7 @@ const PROBES = [
     // this was always most likely, having five `fail()` sites under one id against
     // `C1`'s one.
     apply: (spec) => edit(join(spec, 'examples', 'valid', 'fanout-join.flow.json'),
-      (t) => t.replace('"workerType": "IngestWorker"', '"workerType": "NoSuchWorker"')
+      (t) => t.replace('"type": "IngestWorker"', '"type": "NoSuchType"')
         .replace('{ "to": "split" }', '{ "when": "noSuchPredicate", "to": "split" }')),
   },
   {
@@ -423,11 +423,18 @@ const PROBES = [
     apply: (spec) => edit(join(spec, 'examples', 'invalid', 'FD-V4--unknown-predicate-name.flow.json'),
       (t) => t.replace('"isLowConfidenc"', '"isLowConfidence"')),
   },
+  // W65: a POOL is an instance of the node's type (`FD-V38`) — one probe per new `fail()` site.
   {
-    name: 'FD-V5`s case naming only workerTypes the registry DOES have',
+    name: 'a valid flow naming a POOL that is not an instance of its type',
     check: 'C7',
-    apply: (spec) => edit(join(spec, 'examples', 'invalid', 'FD-V5--unknown-worker-type.flow.json'),
-      (t) => t.replace('"workerType": "NoSuchWorker"', '"workerType": "ScoreWorker"')),
+    apply: (spec) => edit(join(spec, 'examples', 'valid', 'pooled.flow.json'),
+      (t) => t.replace('"pool": "scorer-fast"', '"pool": "nope"')),
+  },
+  {
+    name: 'FD-V38`s case naming a pool that IS an instance of its type',
+    check: 'C7',
+    apply: (spec) => edit(join(spec, 'examples', 'invalid', 'FD-V38--pool-not-an-instance-of-the-type.flow.json'),
+      (t) => t.replace('"type": "ScoreWorker", "pool": "scorer-fast"', '"type": "Scorer", "pool": "scorer-fast"')),
   },
   // W59: the fourth registry set. A typed task names its pool by `type`, and `C7` reads it
   // against `nodeTypes` — one probe per new `fail()` site, as for `workerType`.
@@ -446,10 +453,17 @@ const PROBES = [
   // W61: the README row's HEADLINE count reverted while its tail is right — `C4` read the last
   // occurrence alone, and the author's rule 8 set (`e7`) reverted the first for zero.
   {
+    name: 'spec/flow-definition.md`s OWN version paragraph says a count the rows do not give',
+    check: 'C4',
+    apply: (spec) => edit(join(spec, 'flow-definition.md'),
+      (t) => t.replace('So this document now holds **34 refusals**', 'So this document now holds **35 refusals**')),
+  },
+  {
     name: 'spec/README.md`s headline refusal count reverted while the version paragraph`s is right',
     check: 'C4',
     apply: (spec) => edit(join(spec, 'README.md'),
-      (t) => t.replace('how fan-out and join are paired, and **35 refusals**.', 'how fan-out and join are paired, and **32 refusals**.')),
+      // W65: 34 since v0.19 (35 until then) — rule 7 (b): a probe pinned to a count is re-anchored by the item that moves it.
+      (t) => t.replace('how fan-out and join are paired, and **34 refusals**.', 'how fan-out and join are paired, and **32 refusals**.')),
   },
   // W61: the fifth registry set. A transform's `lang` is read against `languages` — one probe per
   // new `fail()` site, as for `type`.
@@ -651,36 +665,44 @@ const META = [
     (t) => t.replace("  if (!covered.has(id)) fail('C4',", "  if (!covered.has(id)) [].push('C4',")],
   ['C4`s case-for-an-absent-rule clause disabled', 'a case for a rule declared DELIBERATELY ABSENT',
     (t) => t.replace("  if (absent.has(id)) fail('C4',", "  if (absent.has(id)) [].push('C4',")],
+  // W65 (`d1`): the spec's own paragraph, the same reading one file over.
+  ['C4`s spec-paragraph clause disabled', 'spec/flow-definition.md`s OWN version paragraph says a count the rows do not give',
+    (t) => t.replace("      fail('C4', `spec/flow-definition.md's own version paragraph says", "      [].push('C4', `spec/flow-definition.md's own version paragraph says")],
   ['C4`s README-headline clause disabled', 'spec/README.md`s headline refusal count reverted while the version paragraph`s is right',
     (t) => t.replace("      fail('C4', `spec/README.md's headline says", "      [].push('C4', `spec/README.md's headline says")],
 
   ['C6 disabled', 'a non-FD-V rule whose declaring row has no "Test owed by" cell',
     (t) => t.replace("  if (!owner) fail('C6',", "  if (!owner) [].push('C6',")],
 
-  ['C7`s missing-registry clause disabled', 'registry.json removed, so FD-V4 and FD-V5 cannot be evaluated at all',
+  ['C7`s missing-registry clause disabled', 'registry.json removed, so FD-V4 and FD-V32 cannot be evaluated at all',
     (t) => t.replace("  fail('C7', 'spec/examples/registry.json does not exist');",
       "  [].push('C7', 'spec/examples/registry.json does not exist');")],
   // **This entry names the CO-FIRING probe on purpose, and it is the only entry in
-  // this file the id set cannot grade.** Against the single-fault workerType probe
+  // this file the id set cannot grade.** Against the single-fault type probe
   // it would report `disappeared` like the other sixteen; against a flow that trips
-  // the workerType clause AND the predicate clause, disabling one leaves `C7`
+  // the type clause AND the predicate clause, disabling one leaves `C7`
   // reporting from the other, so the set is unchanged and the run is STILL CAUGHT.
+  // *(W65: this disabled the `workerType` clause until v0.19 retired it; the unknown-TYPE
+  // clause is the one the co-firing probe trips now, and this is that clause's ONE entry —
+  // W59's entry for it against the typed flow was the same mutation, which this file refuses.)*
   // The failure COUNT is what moves — 2 -> 1 — and that is
   // [Q146](../doc/open-questions.md)'s discriminator doing the whole of the work.
-  ['C7`s unknown-workerType clause disabled',
-    'a valid flow naming an unknown workerType AND an unknown predicate — TWO C7 clauses under ONE id',
-    (t) => t.replace("        fail('C7', `valid/${name}: workerType", "        [].push('C7', `valid/${name}: workerType")],
+  ['C7`s unknown-type clause disabled, against the co-firing probe',
+    'a valid flow naming an unknown type AND an unknown predicate — TWO C7 clauses under ONE id',
+    (t) => t.replace("        fail('C7', `valid/${name}: type", "        [].push('C7', `valid/${name}: type")],
   ['C7`s unknown-predicate clause disabled', 'a valid flow naming a predicate the registry does not have',
     (t) => t.replace("          fail('C7', `valid/${name}: predicate", "          [].push('C7', `valid/${name}: predicate")],
   ['C7`s FD-V4 refusal-case clause disabled', 'FD-V4`s case naming only predicates the registry DOES have',
     (t) => t.replace("      if (!names.some(w => !preds.has(w))) fail('C7',",
       "      if (!names.some(w => !preds.has(w))) [].push('C7',")],
-  ['C7`s FD-V5 refusal-case clause disabled', 'FD-V5`s case naming only workerTypes the registry DOES have',
-    (t) => t.replace("      if (!wt.some(w => !wts.has(w))) fail('C7',",
-      "      if (!wt.some(w => !wts.has(w))) [].push('C7',")],
-  // W59: the two `nodeTypes` clauses, graded by their own probes.
-  ['C7`s unknown-type clause disabled', 'a valid flow naming a node TYPE the registry does not have',
-    (t) => t.replace("        fail('C7', `valid/${name}: type", "        [].push('C7', `valid/${name}: type")],
+  // W65: the pool clauses, graded by their own probes; the unknown-type clause is graded above against
+  // the co-firing probe (the workerType clause it replaced was).
+  ['C7`s pool-instance clause disabled', 'a valid flow naming a POOL that is not an instance of its type',
+    (t) => t.replace("      if (n.kind === 'task' && !poolOk(n))", "      if (false && n.kind === 'task' && !poolOk(n))")],
+  ['C7`s FD-V38 refusal-case clause disabled', 'FD-V38`s case naming a pool that IS an instance of its type',
+    (t) => t.replace("      if (!tasks.some(n => n.pool !== undefined && !poolOk(n))) fail('C7',",
+      "      if (!tasks.some(n => n.pool !== undefined && !poolOk(n))) [].push('C7',")],
+  // W59: the `FD-V32` case clause, graded by its own probe (its unknown-type entry is the co-firing one above since W65).
   ['C7`s FD-V32 refusal-case clause disabled', 'FD-V32`s case naming only node types the registry DOES have',
     (t) => t.replace("      if (!ty.some(t => !nts.has(t))) fail('C7',",
       "      if (!ty.some(t => !nts.has(t))) [].push('C7',")],
@@ -713,7 +735,7 @@ const META = [
     'a rule id declared TWICE, in two documents',
     (t) => t.replace(/const checks = \['C1[\s\S]*?\];/, 'const checks = [];')],
   ['the C7 row deleted from the report`s checks array',
-    'a valid flow naming a workerType the registry does not have',
+    'a valid flow naming a type the registry does not have',
     (t) => t.replace("                'C7 valid corpus resolves against registry.json',\n", '')],
 
   // --- the exit path and the collector ------------------------------------------

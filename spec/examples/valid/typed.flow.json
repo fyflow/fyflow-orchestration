@@ -12,7 +12,7 @@
     { "id": "split",   "kind": "fanout", "branches": [ "scoreA", "scoreB" ] },
     { "id": "scoreA",  "kind": "task", "type": "Scorer", "settings": { "factor": 10 },
       "edges": [ { "to": "collect" } ] },
-    { "id": "scoreB",  "kind": "task", "workerType": "ScoreWorker",
+    { "id": "scoreB",  "kind": "task", "type": "ScoreWorker",
       "edges": [ { "to": "collect" } ] },
     { "id": "collect", "kind": "join", "of": "split", "edges": [ { "to": "publish" } ] },
     { "id": "publish", "kind": "task", "type": "Scorer", "settings": { "factor": 1 },

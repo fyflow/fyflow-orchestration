@@ -16,10 +16,11 @@
  * dotted path. Every expected value is the rule id from section 5.
  */
 import { equal, ok, readText, ROOT, suite } from '../harness.ts';
+import { typesFor } from '../registry-fixture.ts';
 import { compileProblem, NODE_KEYS_DECLARED, TRANSFORM_KEYS, transformShapeProblem, validateDefinition, violatedRules } from '../../src/definition/validate.ts';
 import type { FlowDefinition, LanguageAdapter, Registry } from '../../src/definition/types.ts';
 import { shapesOf, transformingNode } from './task-shapes.ts';
-import { CORPUS_LANGUAGES, CORPUS_NODE_TYPES } from './corpus-types.ts';
+import { CORPUS_LANGUAGES, corpusRegistry, type CorpusRegistryDocument } from './corpus-types.ts';
 import { PATH_LANGUAGE, PATH_PROBES } from '../scheduler/fake-language.ts';
 
 /** A second language whose compile refuses EVERYTHING, so `FD-V36` has a case that is not the grammar's. */
@@ -27,9 +28,10 @@ const STRICT: LanguageAdapter = { compile: () => { throw new Error('strict refus
 
 const registry: Registry = {
   predicates: new Set<string>(),
-  workerTypes: new Set(['IngestWorker', 'ScoreWorker', 'PublishWorker', 'Scorer', 'Ranker']),
+  // `Scorer`'s worker carries the corpus's settingsSchema, so a refused settings value beside a refused language has a case.
+  ...typesFor(['IngestWorker', 'ScoreWorker', 'PublishWorker'], { Scorer: { worker: 'scorer' }, Ranker: { worker: 'ranker' } },
+    { scorer: { url: 'test://scorer', settingsSchema: { type: 'object', properties: { factor: { type: 'number', minimum: 0 } }, additionalProperties: false } } }),
   groups: new Set(['gpu']),
-  nodeTypes: { Scorer: CORPUS_NODE_TYPES.Scorer!, Ranker: { worker: 'test://Ranker' } },
   languages: { path: PATH_LANGUAGE, strict: STRICT },
 };
 const T = { lang: 'path', expr: 'confidence' };
@@ -46,10 +48,10 @@ const SHAPES: readonly [string, string, (extra: Record<string, unknown>) => Flow
   ['task inside a fanout branch', 'scoreA', (extra) => ({
     flowId: 'shape-fanout', version: 1, entry: 'ingest',
     nodes: [
-      { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'split' }] },
+      { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'split' }] },
       { id: 'split', kind: 'fanout', branches: ['scoreA', 'scoreB'] },
       { id: 'scoreA', kind: 'task', edges: [{ to: 'collect' }], ...extra },
-      { id: 'scoreB', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'collect' }] },
+      { id: 'scoreB', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'collect' }] },
       { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'done' }] },
       { id: 'done', kind: 'end', outcome: 'completed' },
     ],
@@ -57,7 +59,7 @@ const SHAPES: readonly [string, string, (extra: Record<string, unknown>) => Flow
   ['branch task of a map', 'rank', (extra) => ({
     flowId: 'shape-map', version: 1, entry: 'ingest',
     nodes: [
-      { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'each' }] },
+      { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'each' }] },
       { id: 'each', kind: 'map', over: 'items', branch: 'rank' },
       { id: 'rank', kind: 'task', edges: [{ to: 'gather' }], ...extra },
       { id: 'gather', kind: 'join', of: 'each', edges: [{ to: 'done' }] },
@@ -67,10 +69,10 @@ const SHAPES: readonly [string, string, (extra: Record<string, unknown>) => Flow
   ['successor of a join', 'publish', (extra) => ({
     flowId: 'shape-after', version: 1, entry: 'ingest',
     nodes: [
-      { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'split' }] },
+      { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'split' }] },
       { id: 'split', kind: 'fanout', branches: ['scoreA', 'scoreB'] },
-      { id: 'scoreA', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'collect' }] },
-      { id: 'scoreB', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'collect' }] },
+      { id: 'scoreA', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'collect' }] },
+      { id: 'scoreB', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'collect' }] },
       { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'publish' }] },
       { id: 'publish', kind: 'task', edges: [{ to: 'done' }], ...extra },
       { id: 'done', kind: 'end', outcome: 'completed' },
@@ -104,7 +106,7 @@ suite('FD-V35, FD-V36 and FD-V37 — what a node may DO to its input, every clau
       ok(detail.includes('"jsonata"') && detail.includes('"path"') && detail.includes('"strict"'), `names the typo and the declared languages: ${detail}`);
     });
     test(`${shape}: FD-V35 — ABSENT registry languages means EMPTY, and so does an empty object or Map`, () => {
-      const omitted: Registry = { predicates: registry.predicates, workerTypes: registry.workerTypes, groups: registry.groups, nodeTypes: registry.nodeTypes };
+      const omitted: Registry = { predicates: registry.predicates, workers: registry.workers, nodeTypes: registry.nodeTypes, groups: registry.groups };
       const detail = refused('FD-V35', at, build({ type: 'Scorer', transform: T }), omitted, 'lang = "path" against a registry with no languages key');
       ok(detail.includes('no languages'), `says the registry declares none: ${detail}`);
       refused('FD-V35', at, build({ type: 'Scorer', transform: T }), { ...omitted, languages: {} }, 'against an EMPTY languages object');
@@ -134,12 +136,15 @@ suite('FD-V35, FD-V36 and FD-V37 — what a node may DO to its input, every clau
       accepted(build({ type: 'Scorer', transform: { lang: 'path', expr: 'confidence' } }), registry, 'while path accepts the same text');
     });
     // ---- FD-V37: typed nodes only, and exactly { lang, expr } ----
-    test(`${shape}: FD-V37 — a transform on a node with NO type is refused alone at ${at}, and the message says why`, () => {
-      const detail = refused('FD-V37', at, build({ workerType: 'ScoreWorker', transform: T }), registry, 'transform on a bare node');
-      ok(detail.includes('no type') && detail.includes('wrapper'), `says a bare node has no wrapper to evaluate it: ${detail}`);
-      // Malformed AND untyped is ONE finding, the untyped one: the language clauses are moot on a
-      // node that cannot carry the key, as `FD-V34` does not also report `FD-V33` on a bare node.
-      refused('FD-V37', at, build({ workerType: 'ScoreWorker', transform: 5 }), registry, 'a malformed transform on a bare node is FD-V37 once');
+    test(`${shape}: a transform on a node with NO type is FD-V23 — every task node is typed since v0.19 — and the transform's own clauses still apply beside it`, () => {
+      // v0.18's untyped clause of FD-V37 has no instance any more: a task with no type is FD-V23's
+      // generic clause, and a well-formed transform beside it is accepted on its own terms.
+      const rules = violatedRules(validateDefinition(build({ transform: T }), registry));
+      equal(rules, ['FD-V23'], `no type, a valid transform: FD-V23 alone — ${rules.join(', ')}`);
+      const both = violatedRules(validateDefinition(build({ transform: 5 }), registry));
+      equal(both, ['FD-V23', 'FD-V37'], `no type AND a malformed transform: both are reported — ${both.join(', ')}`);
+      // And a bare node of ANY type may transform: the wrapper fronts every pool (ADR 0054).
+      accepted(build({ type: 'ScoreWorker', transform: T }), registry, 'a transform on a former bare type is accepted — every pool has the wrapper');
     });
     test(`${shape}: FD-V37 — every value that is not { lang, expr } is refused alone at ${at}`, () => {
       const MALFORMED: readonly [string, unknown][] = [
@@ -220,8 +225,8 @@ suite('the transformed corpus flow — section 7`s row, the four shapes, and the
     ok(scoreA.needs !== undefined && scoreA.transform.expr.startsWith('run.'), 'scoreA transforms what its needs composed');
     const publish = flow.nodes.find((n) => n.id === 'publish') as { transform: { expr: string } };
     ok(publish.transform.expr.startsWith('$settings.'), 'and publish reads $settings, so the binding is in the corpus');
-    const doc = JSON.parse(await readText(`${ROOT}spec/examples/registry.json`)) as { predicates: string[]; workerTypes: string[]; groups: string[]; nodeTypes: string[]; languages: string[] };
-    accepted(flow, { predicates: new Set(doc.predicates), workerTypes: new Set(doc.workerTypes), groups: new Set(doc.groups), nodeTypes: CORPUS_NODE_TYPES, languages: CORPUS_LANGUAGES }, 'transformed.flow.json against registry.json + corpus-types.ts');
+    const doc = JSON.parse(await readText(`${ROOT}spec/examples/registry.json`)) as CorpusRegistryDocument;
+    accepted(flow, corpusRegistry(doc), 'transformed.flow.json against registry.json + corpus-types.ts');
     // Obligation (e), third shape: registry.json's languages and corpus-types.ts's map, both ways.
     equal([...doc.languages].sort(), Object.keys(CORPUS_LANGUAGES).sort(), 'the names registry.json declares under languages are the keys corpus-types.ts defines');
     ok(doc.languages.length > 0, 'and the set is not empty');
@@ -235,9 +240,9 @@ suite('the transformed corpus flow — section 7`s row, the four shapes, and the
     ok(spec.split('\n').some((l) => l.startsWith('| `transform` |')), 'section 2`s transform subsection has a `transform` row');
   });
   test('the three invalid cases are the three refusals, each named for its rule and refusing for it against the corpus registry', async () => {
-    const doc = JSON.parse(await readText(`${ROOT}spec/examples/registry.json`)) as { predicates: string[]; workerTypes: string[]; groups: string[]; nodeTypes: string[]; languages: string[] };
-    const reg: Registry = { predicates: new Set(doc.predicates), workerTypes: new Set(doc.workerTypes), groups: new Set(doc.groups), nodeTypes: CORPUS_NODE_TYPES, languages: CORPUS_LANGUAGES };
-    for (const [rule, file] of [['FD-V35', 'FD-V35--transform-language-not-in-registry'], ['FD-V36', 'FD-V36--transform-the-language-refuses'], ['FD-V37', 'FD-V37--transform-on-a-node-with-no-type']] as const) {
+    const doc = JSON.parse(await readText(`${ROOT}spec/examples/registry.json`)) as CorpusRegistryDocument;
+    const reg: Registry = corpusRegistry(doc);
+    for (const [rule, file] of [['FD-V35', 'FD-V35--transform-language-not-in-registry'], ['FD-V36', 'FD-V36--transform-the-language-refuses'], ['FD-V37', 'FD-V37--transform-not-lang-and-expr']] as const) {
       const flow = JSON.parse(await readText(`${ROOT}spec/examples/invalid/${file}.flow.json`)) as FlowDefinition;
       equal(violatedRules(validateDefinition(flow, reg)), [rule], `${file} is refused for ${rule} and nothing else`);
     }

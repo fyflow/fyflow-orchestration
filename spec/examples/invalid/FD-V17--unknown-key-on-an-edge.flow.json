@@ -3,7 +3,7 @@
   "version": 1,
   "entry": "score",
   "nodes": [
-    { "id": "score", "kind": "task", "workerType": "ScoreWorker", "edges": [
+    { "id": "score", "kind": "task", "type": "ScoreWorker", "edges": [
         { "whn": "isLowConfidence", "to": "review" },
         { "to": "done" }
     ] },

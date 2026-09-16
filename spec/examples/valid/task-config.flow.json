@@ -3,22 +3,22 @@
   "version": 1,
   "entry": "ingest",
   "nodes": [
-    { "id": "ingest",  "kind": "task", "workerType": "IngestWorker",
+    { "id": "ingest",  "kind": "task", "type": "IngestWorker",
       "retryPolicy": { "maxRetries": 2, "backoffMs": 250 }, "workerGroups": [ "api" ],
       "edges": [ { "to": "split" } ] },
     { "id": "split",   "kind": "fanout", "branches": [ "scoreA", "scoreB" ] },
-    { "id": "scoreA",  "kind": "task", "workerType": "ScoreWorker",
+    { "id": "scoreA",  "kind": "task", "type": "ScoreWorker",
       "retryPolicy": { "maxRetries": 1, "backoffMs": 0 }, "workerGroups": [ "gpu" ],
       "edges": [ { "to": "collect" } ] },
-    { "id": "scoreB",  "kind": "task", "workerType": "ScoreWorker", "edges": [ { "to": "collect" } ] },
+    { "id": "scoreB",  "kind": "task", "type": "ScoreWorker", "edges": [ { "to": "collect" } ] },
     { "id": "collect", "kind": "join", "of": "split", "edges": [ { "to": "regroup" } ] },
-    { "id": "regroup", "kind": "task", "workerType": "MergeWorker", "edges": [ { "to": "each" } ] },
+    { "id": "regroup", "kind": "task", "type": "MergeWorker", "edges": [ { "to": "each" } ] },
     { "id": "each",    "kind": "map",  "over": "items", "branch": "rank" },
-    { "id": "rank",    "kind": "task", "workerType": "ScoreWorker",
+    { "id": "rank",    "kind": "task", "type": "ScoreWorker",
       "retryPolicy": { "maxRetries": 1, "backoffMs": 0 }, "workerGroups": [ "gpu", "api" ],
       "edges": [ { "to": "gather" } ] },
     { "id": "gather",  "kind": "join", "of": "each", "edges": [ { "to": "publish" } ] },
-    { "id": "publish", "kind": "task", "workerType": "PublishWorker", "edges": [ { "to": "done" } ] },
+    { "id": "publish", "kind": "task", "type": "PublishWorker", "edges": [ { "to": "done" } ] },
     { "id": "done",    "kind": "end",  "outcome": "completed" }
   ]
 }

@@ -3,19 +3,19 @@
   "version": 1,
   "entry": "ingest",
   "nodes": [
-    { "id": "ingest",  "kind": "task",   "workerType": "IngestWorker", "edges": [ { "to": "split" } ] },
+    { "id": "ingest",  "kind": "task",   "type": "IngestWorker", "edges": [ { "to": "split" } ] },
     { "id": "split",   "kind": "fanout", "branches": [ "scoreA", "flaky" ] },
-    { "id": "scoreA",  "kind": "task",   "workerType": "ScoreWorker",  "edges": [
+    { "id": "scoreA",  "kind": "task",   "type": "ScoreWorker",  "edges": [
         { "when": "isLowConfidence", "to": "abandoned" },
         { "to": "collect" }
     ] },
-    { "id": "flaky",   "kind": "task",   "workerType": "ReviewWorker", "optional": true, "edges": [
+    { "id": "flaky",   "kind": "task",   "type": "ReviewWorker", "optional": true, "edges": [
         { "on": [ "failed" ], "to": "abandoned" },
         { "to": "collect" }
     ] },
     { "id": "abandoned", "kind": "end",  "outcome": "branch-abandoned" },
     { "id": "collect", "kind": "join",   "of": "split",                 "edges": [ { "to": "publish" } ] },
-    { "id": "publish", "kind": "task",   "workerType": "PublishWorker", "edges": [ { "to": "done" } ] },
+    { "id": "publish", "kind": "task",   "type": "PublishWorker", "edges": [ { "to": "done" } ] },
     { "id": "done",    "kind": "end",    "outcome": "completed" }
   ]
 }

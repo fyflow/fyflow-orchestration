@@ -3,7 +3,7 @@
   "version": 1,
   "entry": "review",
   "nodes": [
-    { "id": "review", "kind": "task", "workerType": "ReviewWorker", "edges": [
+    { "id": "review", "kind": "task", "type": "ReviewWorker", "edges": [
         { "on": [ "user_action" ], "to": "manual" },
         { "to": "done" }
     ] },

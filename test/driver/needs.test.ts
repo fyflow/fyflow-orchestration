@@ -31,10 +31,10 @@ import type { JoinPolicy } from '../../src/driver/policy.ts';
 
 const EX = `${ROOT}spec/examples`;
 const load = async (rel: string) => JSON.parse(await readText(`${EX}/${rel}`)) as FlowDefinition;
-const reg = JSON.parse(await readText(`${EX}/registry.json`)) as { workerTypes: string[]; groups?: string[] };
+const reg = JSON.parse(await readText(`${EX}/registry.json`)) as { workers: Record<string, { url: string }>; nodeTypes: Record<string, { worker: string }>; groups: Record<string, unknown>; pools: Record<string, { type: string }>; predicates: string[]; languages: string[] };
 // W59: the corpus's node types, for the census over the region-bearing corpus — `typed.flow.json`
 // names one, and a driver given no `nodeTypes` reads that as NONE registered (`FD-V32`).
-import { CORPUS_LANGUAGES, CORPUS_NODE_TYPES } from '../definition/corpus-types.ts';
+import { CORPUS_LANGUAGES } from '../definition/corpus-types.ts';
 
 /** The whole scheduler, for level 2. It queues nothing and runs nothing. */
 class FakeScheduler {
@@ -81,12 +81,11 @@ function harness(
     // document run with the predicate true and false.
     predicates: predicates ??
       new Map([['isHighConfidence', () => false], ['isLowConfidence', () => false]]),
-    workerTypes: reg.workerTypes,
+    workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools,
     // The corpus's own group ids — W58. `task-config.flow.json` declares `workerGroups`, and a
     // driver given no `groups` reads that as NONE declared (`FD-V31`), so the census over the
     // region-bearing corpus refused it at construction the moment the flow existed.
-    groups: reg.groups ?? [],
-    nodeTypes: CORPUS_NODE_TYPES,
+    groups: Object.keys(reg.groups ?? {}),
     // And the fifth set since W61: `transformed.flow.json` is region-bearing and names `path`.
     languages: CORPUS_LANGUAGES,
     // **A caller may bring its own** — W50. `FD-R3`'s one remaining road is a join
@@ -100,7 +99,8 @@ function harness(
   return {
     scheduler, driver, failures,
     ids: () => scheduler.added.map((t) => t.id),
-    payloadOf: (id: string) => scheduler.added.find((t) => t.id === id)?.payload,
+    // What the node RECEIVED: the envelope's `input` — every task node is typed since v0.19 (ADR 0054).
+    payloadOf: (id: string) => (scheduler.added.find((t) => t.id === id)?.payload as { input?: unknown } | undefined)?.input,
   };
 }
 type H = ReturnType<typeof harness>;
@@ -179,15 +179,15 @@ suite('L2 — FD-C1: what a node receives', (test) => {
     const def = {
       flowId: 'two-self-keys', version: 1, entry: 'ingest',
       nodes: [
-        { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'sink' }] },
+        { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'sink' }] },
         {
-          id: 'sink', kind: 'task', workerType: 'PublishWorker',
+          id: 'sink', kind: 'task', type: 'PublishWorker',
           needs: { a: '.', b: '.' }, edges: [{ to: 'done' }],
         },
         { id: 'done', kind: 'end', outcome: 'completed' },
       ],
     } as unknown as FlowDefinition;
-    equal(validateDefinition(def, { predicates: [], workerTypes: reg.workerTypes }), [],
+    equal(validateDefinition(def, { predicates: [], workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools }), [],
       'two `"."` keys are a valid document — the case has to be constructed, and it validates');
     const h = harness(def);
     h.driver.start({});
@@ -503,20 +503,20 @@ suite('L2 — ADR 0044: what a run carries across SIBLING regions', (test) => {
     const readerBesideTheMap = {
       flowId: 'reader-beside-the-map', version: 1, entry: 'ingest',
       nodes: [
-        { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'outer' }] },
+        { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'outer' }] },
         { id: 'outer', kind: 'fanout', branches: ['reader', 'gate'] },
-        { id: 'reader', kind: 'task', workerType: 'MergeWorker', needs: { got: ['item'] },
+        { id: 'reader', kind: 'task', type: 'MergeWorker', needs: { got: ['item'] },
           edges: [{ to: 'outerJoin' }] },
-        { id: 'gate', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'm' }] },
+        { id: 'gate', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'm' }] },
         { id: 'm', kind: 'map', over: 'xs', branch: 'item' },
-        { id: 'item', kind: 'task', workerType: 'ExtractWorker', edges: [{ to: 'mj' }] },
+        { id: 'item', kind: 'task', type: 'ExtractWorker', edges: [{ to: 'mj' }] },
         { id: 'mj', kind: 'join', of: 'm', edges: [{ to: 'outerJoin' }] },
         { id: 'outerJoin', kind: 'join', of: 'outer', edges: [{ to: 'done' }] },
         { id: 'done', kind: 'end', outcome: 'completed' },
       ],
     } as unknown as FlowDefinition;
     equal(
-      violatedRules(validateDefinition(readerBesideTheMap, { predicates: [], workerTypes: reg.workerTypes })),
+      violatedRules(validateDefinition(readerBesideTheMap, { predicates: [], workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools })),
       ['FD-V27'],
       'ONE: a reader in a SIBLING BRANCH of the fanout that holds the map — refused, because ' +
       'the reader is not reachable FROM the target. So the shared `outer` segment can never ' +
@@ -526,19 +526,19 @@ suite('L2 — ADR 0044: what a run carries across SIBLING regions', (test) => {
     const regionInsideAMap = {
       flowId: 'region-inside-a-map', version: 1, entry: 'ingest',
       nodes: [
-        { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'outer' }] },
+        { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'outer' }] },
         { id: 'outer', kind: 'map', over: 'items', branch: 'gate' },
-        { id: 'gate', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'innerA' }] },
+        { id: 'gate', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'innerA' }] },
         { id: 'innerA', kind: 'fanout', branches: ['x1', 'x2'] },
-        { id: 'x1', kind: 'task', workerType: 'ExtractWorker', edges: [{ to: 'joinA' }] },
-        { id: 'x2', kind: 'task', workerType: 'ExtractWorker', edges: [{ to: 'joinA' }] },
+        { id: 'x1', kind: 'task', type: 'ExtractWorker', edges: [{ to: 'joinA' }] },
+        { id: 'x2', kind: 'task', type: 'ExtractWorker', edges: [{ to: 'joinA' }] },
         { id: 'joinA', kind: 'join', of: 'innerA', edges: [{ to: 'outerJoin' }] },
         { id: 'outerJoin', kind: 'join', of: 'outer', edges: [{ to: 'done' }] },
         { id: 'done', kind: 'end', outcome: 'completed' },
       ],
     } as unknown as FlowDefinition;
     equal(
-      validateDefinition(regionInsideAMap, { predicates: [], workerTypes: reg.workerTypes }), [],
+      validateDefinition(regionInsideAMap, { predicates: [], workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools }), [],
       'TWO: a region nested inside a MAP region — which a VALIDATOR accepts',
     );
     throws(
@@ -568,24 +568,24 @@ suite('L2 — ADR 0044: what a run carries across SIBLING regions', (test) => {
     const def = {
       flowId: 'nested-siblings-at-run-time', version: 1, entry: 'ingest',
       nodes: [
-        { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'outer' }] },
+        { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'outer' }] },
         { id: 'outer', kind: 'fanout', branches: ['plain', 'gate'] },
-        { id: 'plain', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'outerJoin' }] },
-        { id: 'gate', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'innerA' }] },
+        { id: 'plain', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'outerJoin' }] },
+        { id: 'gate', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'innerA' }] },
         { id: 'innerA', kind: 'fanout', branches: ['x1', 'x2'] },
-        { id: 'x1', kind: 'task', workerType: 'ExtractWorker', edges: [{ to: 'joinA' }] },
-        { id: 'x2', kind: 'task', workerType: 'ExtractWorker', edges: [{ to: 'joinA' }] },
+        { id: 'x1', kind: 'task', type: 'ExtractWorker', edges: [{ to: 'joinA' }] },
+        { id: 'x2', kind: 'task', type: 'ExtractWorker', edges: [{ to: 'joinA' }] },
         { id: 'joinA', kind: 'join', of: 'innerA', edges: [{ to: 'innerB' }] },
         { id: 'innerB', kind: 'fanout', branches: ['y1', 'y2'] },
-        { id: 'y1', kind: 'task', workerType: 'MergeWorker', edges: [{ to: 'joinB' }] },
-        { id: 'y2', kind: 'task', workerType: 'MergeWorker', needs: { got: 'x1' },
+        { id: 'y1', kind: 'task', type: 'MergeWorker', edges: [{ to: 'joinB' }] },
+        { id: 'y2', kind: 'task', type: 'MergeWorker', needs: { got: 'x1' },
           edges: [{ to: 'joinB' }] },
         { id: 'joinB', kind: 'join', of: 'innerB', edges: [{ to: 'outerJoin' }] },
         { id: 'outerJoin', kind: 'join', of: 'outer', edges: [{ to: 'done' }] },
         { id: 'done', kind: 'end', outcome: 'completed' },
       ],
     } as unknown as FlowDefinition;
-    equal(validateDefinition(def, { predicates: [], workerTypes: reg.workerTypes }), [],
+    equal(validateDefinition(def, { predicates: [], workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools }), [],
       'a legal document — FD-V27 accepts it and FD-V29 calls x1 certain');
 
     const h = harness(def);
@@ -768,7 +768,7 @@ suite('L2 — FD-R3: a reference the run did not produce', (test) => {
     // at all rather than about whose path its outputs are on.
     const def = await pastDecision();
     equal(
-      validateDefinition(def, { predicates: ['isLowConfidence'], workerTypes: reg.workerTypes }),
+      validateDefinition(def, { predicates: ['isLowConfidence'], workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools }),
       [],
       'the conditional document is valid — and the UNCONDITIONAL form of it is FD-V29, ' +
       'which is what makes the suffix load-bearing rather than decoration',
@@ -778,7 +778,7 @@ suite('L2 — FD-R3: a reference the run did not produce', (test) => {
       { needs: Record<string, unknown> }).needs = { scores: ['score'] };
     equal(
       violatedRules(validateDefinition(unconditional, {
-        predicates: ['isLowConfidence'], workerTypes: reg.workerTypes,
+        predicates: ['isLowConfidence'], workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools,
       })),
       ['FD-V29'],
       'the control: drop the `?` and the document is refused at instantiation',
@@ -821,7 +821,7 @@ suite('L2 — FD-R3: a reference the run did not produce', (test) => {
     // never settles. No `user_action` anywhere.
     const def = await load('valid/fanout-join.flow.json');
     (def.nodes.find((n) => n.id === 'publish') as unknown as { needs: unknown }).needs = { x: 'scoreA' };
-    equal(validateDefinition(def, { predicates: [], workerTypes: reg.workerTypes }), [],
+    equal(validateDefinition(def, { predicates: [], workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools }), [],
       'FD-V29 ACCEPTS it — `scoreA` is a branch entry and JP-R5 dispatches it when the region opens');
 
     /** Satisfied on the first arrival, whatever else is live — [Q97](../../doc/open-questions.md)'s shape. */
@@ -904,7 +904,7 @@ suite('L2 — FD-R3: a reference the run did not produce', (test) => {
     const f2: string[] = [];
     const d2 = new Driver(def, {
       runId: 'r1', scheduler: s2, createTask: (c) => c, predicates: new Map(),
-      workerTypes: reg.workerTypes, joinPolicy: liveToken as JoinPolicy,
+      workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools, joinPolicy: liveToken as JoinPolicy,
       onRunFailure: (f) => f2.push(f.kind),
     });
     d2.start({});
@@ -930,7 +930,7 @@ suite('L2 — FD-R3: a reference the run did not produce', (test) => {
     ] as const) {
       const d = JSON.parse(JSON.stringify(def)) as FlowDefinition;
       (d.nodes.find((n) => n.id === 'publish') as unknown as { needs: unknown }).needs = { got: target };
-      equal(validateDefinition(d, { predicates: ['isLowConfidence'], workerTypes: reg.workerTypes }), [],
+      equal(validateDefinition(d, { predicates: ['isLowConfidence'], workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools }), [],
         `${label}: FD-V29 accepts it — a fanout branch entry is dispatched whatever the run does`);
       const scheduler = new FakeScheduler();
       const failures: string[] = [];
@@ -938,7 +938,7 @@ suite('L2 — FD-R3: a reference the run did not produce', (test) => {
         runId: 'r1', scheduler, createTask: (c) => c,
         // TRUE, so `scoreB` takes its `when` edge to the `end` and never arrives.
         predicates: new Map([['isLowConfidence', () => true]]),
-        workerTypes: reg.workerTypes, joinPolicy: liveToken as JoinPolicy,
+        workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools, joinPolicy: liveToken as JoinPolicy,
         onRunFailure: (f) => failures.push(f.kind),
       });
       driver.start({});
@@ -946,7 +946,7 @@ suite('L2 — FD-R3: a reference the run did not produce', (test) => {
       scheduler.settle('r1:scoreA:0:0', 'done', { result: { A: 1 } });
       scheduler.settle('r1:scoreB:1:0', 'done', { result: { B: 2 } });
       equal(failures, [], `${label}: no FD-R3`);
-      equal(scheduler.added.find((t) => t.id === 'r1:publish:-:0')?.payload, { got: expected },
+      equal((scheduler.added.find((t) => t.id === 'r1:publish:-:0')?.payload as { input?: unknown } | undefined)?.input, { got: expected },
         `${label}: and the reference resolves to that branch`);
     }
   });
@@ -965,8 +965,8 @@ suite('L2 — FD-R3: a reference the run did not produce', (test) => {
     const def = {
       flowId: 'reference-at-entry', version: 1, entry: 'ingest',
       nodes: [
-        { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'mid' }] },
-        { id: 'mid', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'done' }] },
+        { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'mid' }] },
+        { id: 'mid', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'done' }] },
         { id: 'done', kind: 'end', outcome: 'completed' },
       ],
     } as unknown as FlowDefinition;
@@ -1017,7 +1017,7 @@ suite('L2 — FD-R3: a reference the run did not produce', (test) => {
     const f3: { kind: string }[] = [];
     const d3 = new Driver(def3, {
       runId: 'r1', scheduler: s3, createTask: (c) => c, predicates: new Map(),
-      workerTypes: reg.workerTypes, joinPolicy: eagerR as unknown as JoinPolicy,
+      workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools, joinPolicy: eagerR as unknown as JoinPolicy,
       onRunFailure: (f) => f3.push({ kind: f.kind }),
     });
     d3.start({});
@@ -1041,7 +1041,7 @@ suite('L2 — FD-R3: a reference the run did not produce', (test) => {
     const f4: string[] = [];
     const d4 = new Driver(def3, {
       runId: 'r1', scheduler: s4, createTask: (c) => c, predicates: new Map(),
-      workerTypes: reg.workerTypes, joinPolicy: liveToken as JoinPolicy,
+      workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools, joinPolicy: liveToken as JoinPolicy,
       onRunFailure: (f) => f4.push(f.kind),
     });
     d4.start({});
@@ -1061,10 +1061,10 @@ suite('L2 — FD-R3: a reference the run did not produce', (test) => {
     const def = {
       flowId: 'reference-to-a-suspended-node', version: 1, entry: 'ingest',
       nodes: [
-        { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'sub' }] },
-        { id: 'sub', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'publish' }] },
+        { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'sub' }] },
+        { id: 'sub', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'publish' }] },
         {
-          id: 'publish', kind: 'task', workerType: 'PublishWorker',
+          id: 'publish', kind: 'task', type: 'PublishWorker',
           needs: { s: 'sub' }, edges: [{ to: 'done' }],
         },
         { id: 'done', kind: 'end', outcome: 'completed' },
@@ -1096,12 +1096,12 @@ suite('L2 — FD-R3: a reference the run did not produce', (test) => {
     const def = {
       flowId: 'resumed-then-collected', version: 1, entry: 'ingest',
       nodes: [
-        { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'split' }] },
+        { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'split' }] },
         { id: 'split', kind: 'map', over: 'items', branch: 'score' },
-        { id: 'score', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'collect' }] },
+        { id: 'score', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'collect' }] },
         { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'publish' }] },
         {
-          id: 'publish', kind: 'task', workerType: 'PublishWorker',
+          id: 'publish', kind: 'task', type: 'PublishWorker',
           needs: { all: ['score'] }, edges: [{ to: 'done' }],
         },
         { id: 'done', kind: 'end', outcome: 'completed' },
@@ -1147,18 +1147,18 @@ const WIDE: FlowDefinition = {
   version: 1,
   entry: 'ingest',
   nodes: [
-    { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'split' }] },
+    { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'split' }] },
     { id: 'split', kind: 'map', over: 'items', branch: 'score' },
-    { id: 'score', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'refine' }] },
+    { id: 'score', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'refine' }] },
     // **Inside the same region as what it names**, which is the shape `FD-V28`'s
     // `many` must not answer from the target's membership alone.
     {
-      id: 'refine', kind: 'task', workerType: 'MergeWorker',
+      id: 'refine', kind: 'task', type: 'MergeWorker',
       needs: { own: 'score' }, edges: [{ to: 'collect' }],
     },
     { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'rank' }] },
     { id: 'rank', kind: 'map', over: 'all', branch: 'publish', needs: { all: ['refine'] } },
-    { id: 'publish', kind: 'task', workerType: 'PublishWorker', edges: [{ to: 'gather' }] },
+    { id: 'publish', kind: 'task', type: 'PublishWorker', edges: [{ to: 'gather' }] },
     { id: 'gather', kind: 'join', of: 'rank', edges: [{ to: 'done' }] },
     { id: 'done', kind: 'end', outcome: 'completed' },
   ],
@@ -1172,7 +1172,7 @@ suite('L2 — the two-digit arity, where three orderings stop agreeing', (test) 
     // exactly one output on `refine`'s path and the bare form is what is legal.
     // A `many` computed from the TARGET's region membership alone would refuse
     // this valid document, and nothing else in this file would notice.
-    equal(validateDefinition(WIDE, { predicates: [], workerTypes: reg.workerTypes }), [],
+    equal(validateDefinition(WIDE, { predicates: [], workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools }), [],
       'zero findings — a reference within one region is the ONE form');
   });
 
@@ -1279,7 +1279,7 @@ suite('L2 — FD-C4: a conditional reference, when the target produced nothing',
       const driver = new Driver(def, {
         runId: 'r1', scheduler, createTask: (c) => c,
         predicates: new Map([['isLowConfidence', () => low], ['isHighConfidence', () => !low]]),
-        workerTypes: reg.workerTypes, joinPolicy: liveToken as JoinPolicy,
+        workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools, joinPolicy: liveToken as JoinPolicy,
         onRunFailure: (f) => failures.push({ kind: f.kind }),
       });
       driver.start({ doc: 1 });
@@ -1288,7 +1288,7 @@ suite('L2 — FD-C4: a conditional reference, when the target produced nothing',
       if (low) scheduler.settle('r1:review:-:0', 'done', { result: { verdict: 'keep' } });
       equal(failures, [], `low=${low}: the run did NOT stop — FD-R3 is what the suffix removes`);
       took[String(low)] = scheduler.added.map((t) => t.id.split(':')[1]!);
-      payloads[String(low)] = scheduler.added.find((t) => t.id === 'r1:publish:-:0')?.payload;
+      payloads[String(low)] = (scheduler.added.find((t) => t.id === 'r1:publish:-:0')?.payload as { input?: unknown } | undefined)?.input;
     }
 
     // The two runs took different roads, which is what makes the two payloads
@@ -1333,7 +1333,7 @@ suite('L2 — FD-C4: a conditional reference, when the target produced nothing',
     publish.needs = { own: '.', scored: ['score?'] };
     equal(
       violatedRules(validateDefinition(base, {
-        predicates: ['isLowConfidence'], workerTypes: reg.workerTypes,
+        predicates: ['isLowConfidence'], workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools,
       })),
       [],
       'the conditional document is valid',
@@ -1502,7 +1502,7 @@ suite('L2 — Q186: what a reference costs, as a product and as a decision', (te
     // predicate fires on is **accepted with zero findings** — so if a warning channel
     // is ever added, this goes red and whoever adds it has to come here.
     const def = await load(MWC);
-    equal(validateDefinition(def, { predicates: [], workerTypes: reg.workerTypes }), [],
+    equal(validateDefinition(def, { predicates: [], workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools }), [],
       'map-with-context validates with ZERO findings — the reference the candidate predicate ' +
       'fires on is accepted, and nothing warns. That is Q186`s decision, and it is what a ' +
       'warning channel would have to break');
@@ -1512,7 +1512,7 @@ suite('L2 — Q186: what a reference costs, as a product and as a decision', (te
     const bad = JSON.parse(JSON.stringify(def)) as FlowDefinition;
     (bad.nodes.find((n) => n.id === 'score') as unknown as { needs: Record<string, unknown> })
       .needs.run = 'publish';
-    ok(validateDefinition(bad, { predicates: [], workerTypes: reg.workerTypes }).length > 0,
+    ok(validateDefinition(bad, { predicates: [], workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools }).length > 0,
       'the control: the same flow with the reference pointed DOWNSTREAM is refused, so the ' +
       'assertion above is about this document and not about the validator being silent');
   });

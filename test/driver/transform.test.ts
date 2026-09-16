@@ -16,11 +16,12 @@
  * Every expected value is copied from the definition under test, never from the run.
  */
 import { equal, ok, readText, ROOT, suite, throws } from '../harness.ts';
+import { typesFor } from '../registry-fixture.ts';
 import { Driver, InvalidDefinition } from '../../src/driver/driver.ts';
 import { POLICIES } from '../../src/fold/policies.ts';
 import { shapesOf, transformingNode } from '../definition/task-shapes.ts';
 import { PATH_LANGUAGE } from '../scheduler/fake-language.ts';
-import type { FlowDefinition, LanguageAdapter, Languages, NodeType } from '../../src/definition/types.ts';
+import type { FlowDefinition, LanguageAdapter, Languages, NodeTypeEntry, WorkerEntry } from '../../src/definition/types.ts';
 
 class Fake {
   added: Record<string, unknown>[] = [];
@@ -38,13 +39,17 @@ class Fake {
   }
 }
 
-const TYPES: Readonly<Record<string, NodeType>> = {
-  Scorer: { worker: 'test://Scorer', settings: (s) => (s.factor === undefined || typeof s.factor === 'number' ? null : 'factor must be a number') },
-  Ranker: { worker: 'test://Ranker' },
+const WORKERS: Readonly<Record<string, WorkerEntry>> = { scorer: { url: 'test://scorer', settingsSchema: { type: 'object', properties: { factor: { type: 'number' } } } } };
+const TYPES: Readonly<Record<string, NodeTypeEntry>> = {
+  Scorer: { worker: 'scorer' },
+  Ranker: { worker: 'ranker' },
+  // The adequacy reader (M10): no transforming node of a type with DEFAULTS existed anywhere, so a driver
+  // dropping the defaults on the transforming road (FD-C6's `settings … exactly as FD-C5 states them`) was green.
+  Defaulted: { worker: 'scorer', settings: { factor: 3, mode: 'fast' } },
 };
 const LANGS: Readonly<Record<string, LanguageAdapter>> = { path: PATH_LANGUAGE };
-const WORKER_TYPES = ['IngestWorker', 'ScoreWorker', 'Scorer', 'Ranker'];
-const BASE = { predicates: new Map(), workerTypes: WORKER_TYPES, groups: ['gpu', 'api'], nodeTypes: TYPES, languages: LANGS, now: () => 1 } as const;
+const WORKER_TYPES = ['IngestWorker', 'ScoreWorker'];
+const BASE = { predicates: new Map(), ...typesFor(WORKER_TYPES, TYPES, WORKERS), groups: ['gpu', 'api'], languages: LANGS, now: () => 1 } as const;
 type Opts = Partial<ConstructorParameters<typeof Driver>[1]>;
 const SETTINGS: { factor: number } = { factor: 10 };
 /** The declared transform, as the definition literal — its `expr` is a path INTO the input, so a driver that evaluated would hand a different value. */
@@ -55,7 +60,7 @@ const SHAPES: readonly [string, (extra: Record<string, unknown>, s: Fake, opts: 
     const def = {
       flowId: 'top', version: 1, entry: 'ingest',
       nodes: [
-        { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'score' }] },
+        { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'score' }] },
         { id: 'score', kind: 'task', edges: [{ to: 'done' }], ...extra },
         { id: 'done', kind: 'end', outcome: 'completed' },
       ],
@@ -69,10 +74,10 @@ const SHAPES: readonly [string, (extra: Record<string, unknown>, s: Fake, opts: 
     const def = {
       flowId: 'fan', version: 1, entry: 'ingest',
       nodes: [
-        { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'split' }] },
+        { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'split' }] },
         { id: 'split', kind: 'fanout', branches: ['scoreA', 'scoreB'] },
         { id: 'scoreA', kind: 'task', edges: [{ to: 'collect' }], ...extra },
-        { id: 'scoreB', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'collect' }] },
+        { id: 'scoreB', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'collect' }] },
         { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'done' }] },
         { id: 'done', kind: 'end', outcome: 'completed' },
       ],
@@ -86,7 +91,7 @@ const SHAPES: readonly [string, (extra: Record<string, unknown>, s: Fake, opts: 
     const def = {
       flowId: 'map', version: 1, entry: 'ingest',
       nodes: [
-        { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'each' }] },
+        { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'each' }] },
         { id: 'each', kind: 'map', over: 'items', branch: 'rank' },
         { id: 'rank', kind: 'task', edges: [{ to: 'gather' }], ...extra },
         { id: 'gather', kind: 'join', of: 'each', edges: [{ to: 'done' }] },
@@ -102,10 +107,10 @@ const SHAPES: readonly [string, (extra: Record<string, unknown>, s: Fake, opts: 
     const def = {
       flowId: 'after', version: 1, entry: 'ingest',
       nodes: [
-        { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'split' }] },
+        { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'split' }] },
         { id: 'split', kind: 'fanout', branches: ['scoreA', 'scoreB'] },
-        { id: 'scoreA', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'collect' }] },
-        { id: 'scoreB', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'collect' }] },
+        { id: 'scoreA', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'collect' }] },
+        { id: 'scoreB', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'collect' }] },
         { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'publish' }] },
         { id: 'publish', kind: 'task', edges: [{ to: 'done' }], ...extra },
         { id: 'done', kind: 'end', outcome: 'completed' },
@@ -122,12 +127,21 @@ const SHAPES: readonly [string, (extra: Record<string, unknown>, s: Fake, opts: 
 
 suite('W61 — a typed node`s envelope carries its declared transform as a THIRD key, only when declared — FD-C6 at L2, on every shape', (test) => {
   for (const [shape, drive] of SHAPES) {
+    test(`${shape}: a transforming node of a type with settings DEFAULTS carries the MERGED settings — FD-C6's settings are FD-C5's (M10)`, () => {
+      const s = new Fake();
+      const { subject } = drive({ type: 'Defaulted', settings: { factor: 10 }, transform: { ...T } }, s, {});
+      for (const id of subject) {
+        const env = s.byId(id).payload as Record<string, unknown>;
+        equal(Object.keys(env).sort(), ['input', 'settings', 'transform'], `${id}: three keys`);
+        equal(env.settings, { factor: 10, mode: 'fast' }, `${id}: the node's factor over the default, the default's mode beside it — on the transforming road too`);
+      }
+    });
     test(`${shape}: the envelope is exactly { settings, input, transform }, transform is the declaration's own copy, and input is UNTRANSFORMED — the pair against the bare node`, () => {
       const typed = new Fake();
       const bare = new Fake();
       const declared = { ...T };
       const t = drive({ type: 'Scorer', settings: SETTINGS, transform: declared }, typed, {});
-      const b = drive({ workerType: 'ScoreWorker' }, bare, {});
+      const b = drive({ type: 'ScoreWorker' }, bare, {});
       equal(t.subject, b.subject, 'the same task ids are minted either way — a transform changes no id');
       for (const id of t.subject) {
         const c = typed.byId(id);
@@ -139,7 +153,7 @@ suite('W61 — a typed node`s envelope carries its declared transform as a THIRD
         // **P17 prediction 3, asserted**: what `createTask` receives as `input` is the value the
         // untyped node received, WHOLE — the path `confidence` has not been read. A driver that
         // evaluated would hand 0.9 (or an item's confidence) here and fail this line.
-        equal(env.input, bare.byId(id).payload, `${id}: input is what the untyped node received — untransformed at L2`);
+        equal(env.input, (bare.byId(id).payload as { input: unknown }).input, `${id}: input is what a node declaring NO transform receives in this position — untransformed at L2`);
         ok(typeof env.input === 'object' && env.input !== null, `${id}: and it is the whole object, not the path's value`);
         equal(Object.keys(c).sort(), ['id', 'optional', 'payload', 'workerType'], `${id}: nothing else rode along`);
       }
@@ -173,7 +187,8 @@ suite('W61 — a typed node`s envelope carries its declared transform as a THIRD
       throws(() => drive({ type: 'Scorer', transform: { lang: 'jsonata', expr: 'confidence' } }, new Fake(), {}), 'FD-V35', 'an unregistered language');
       throws(() => drive({ type: 'Scorer', transform: T }, new Fake(), { languages: undefined }), 'FD-V35', 'languages omitted: every language is unknown');
       throws(() => drive({ type: 'Scorer', transform: { lang: 'path', expr: '$sum(' } }, new Fake(), {}), 'FD-V36', 'an expression the language refuses');
-      throws(() => drive({ workerType: 'ScoreWorker', transform: T }, new Fake(), {}), 'FD-V37', 'a transform on an untyped node');
+      // v0.18's untyped clause has no instance since v0.19: a node with no type is FD-V23, and every typed node may transform.
+      throws(() => drive({ transform: T }, new Fake(), {}), 'FD-V23', 'a transform on a node with no type — the type is what is missing');
       throws(() => drive({ type: 'Scorer', transform: { lang: 'path' } }, new Fake(), {}), 'FD-V37', 'a transform that is not { lang, expr }');
     });
   }
@@ -205,7 +220,7 @@ suite('W61 — a typed node`s envelope carries its declared transform as a THIRD
 suite('W61 — the untransformed envelope is byte-identical with and without languages registered — P17 decision 8', (test) => {
   const drive = (flow: FlowDefinition, extra: Opts, items: unknown, then: string[] = []) => {
     const s = new Fake();
-    const d = new Driver(flow, { runId: 'r1', scheduler: s, createTask: (c) => c, predicates: new Map(), workerTypes: [...WORKER_TYPES, 'SplitWorker', 'WeighWorker', 'PublishWorker', 'ReviewWorker'], groups: ['gpu', 'api'], nodeTypes: TYPES, joinPolicy: POLICIES['live-token'], now: () => 1, ...extra });
+    const d = new Driver(flow, { runId: 'r1', scheduler: s, createTask: (c) => c, predicates: new Map(), ...typesFor([...WORKER_TYPES, 'SplitWorker', 'WeighWorker', 'PublishWorker', 'ReviewWorker'], TYPES, WORKERS), groups: ['gpu', 'api'], joinPolicy: POLICIES['live-token'], now: () => 1, ...extra });
     d.start({ confidence: 0.9, text: 'a bb ccc' });
     s.settle('r1:ingest:-:0', { confidence: 0.9, items, document: { id: 1 } });
     for (const id of then) s.settle(id, { score: 1 });

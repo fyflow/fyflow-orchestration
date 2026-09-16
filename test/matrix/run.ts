@@ -217,7 +217,7 @@ export function driveScenario(scenario: Scenario, policy: JoinPolicy): Driven {
     scheduler,
     createTask: (c) => c,
     predicates: new Map(Object.entries(scenario.predicates ?? {})),
-    workerTypes: registry.workerTypes,
+    workers: registry.workers, nodeTypes: registry.nodeTypes, pools: registry.pools,
     now: () => 1,
     joinPolicy: policy,
     onRegionEvent: (e) => events.push(e),
@@ -252,7 +252,8 @@ export function runCell(scenario: Scenario, policy: JoinPolicy): Cell {
     status: reported?.status ?? '<no report>',
     describe: (reported?.describe ?? null) as JsonValue,
     joinFired,
-    payloads: Object.fromEntries(scheduler.added.map((t) => [t.id, t.payload])),
+    // What each task RECEIVED — the envelope's `input`, since every task node is typed (v0.19, ADR 0054).
+    payloads: Object.fromEntries(scheduler.added.map((t) => [t.id, (t.payload as { input?: unknown } | undefined)?.input])),
     // Narrowed on purpose: a cell reports THAT a join was declared unsatisfiable
     // and by whom. The `describe` the driver carried out is W15's chain
     // assertion's business and it reads `driveScenario` for it.

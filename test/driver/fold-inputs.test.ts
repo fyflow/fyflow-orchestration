@@ -35,7 +35,7 @@ import { optionalLost } from '../matrix/flows.ts';
 
 const EX = `${ROOT}spec/examples`;
 const load = async (rel: string) => JSON.parse(await readText(`${EX}/${rel}`)) as FlowDefinition;
-const reg = JSON.parse(await readText(`${EX}/registry.json`)) as { workerTypes: string[] };
+const reg = JSON.parse(await readText(`${EX}/registry.json`)) as { workers: Record<string, { url: string }>; nodeTypes: Record<string, { worker: string }>; groups: Record<string, unknown>; pools: Record<string, { type: string }>; predicates: string[]; languages: string[] };
 
 class FakeScheduler {
   readonly added: { id: string }[] = [];
@@ -80,7 +80,7 @@ function harness(
     scheduler,
     createTask: (c) => c,
     predicates: new Map(Object.entries(predicates)),
-    workerTypes: reg.workerTypes,
+    workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools,
     now: () => ++clock,
     joinPolicy: policy,
     onFoldInput: (i) => pushed.push(i),
@@ -277,7 +277,7 @@ suite('ADR 0014 — the ordering clauses no test reached', (test) => {
       scheduler,
       createTask: (c) => c,
       predicates: new Map(),
-      workerTypes: reg.workerTypes,
+      workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools,
       joinPolicy: liveToken as unknown as JoinPolicy,
       onFoldInput: (i) => {
         if (i.kind !== 'region') return;

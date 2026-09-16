@@ -3,9 +3,9 @@
   "version": 1,
   "entry": "ingest",
   "nodes": [
-    { "id": "ingest",  "kind": "task", "workerType": "SplitWorker",   "edges": [ { "to": "fan" } ] },
+    { "id": "ingest",  "kind": "task", "type": "SplitWorker",   "edges": [ { "to": "fan" } ] },
     { "id": "fan",     "kind": "fanout", "branches": [ "inB", "relay" ] },
-    { "id": "inB",     "kind": "task", "workerType": "ScoreWorker",   "edges": [ { "to": "joinF" } ] },
+    { "id": "inB",     "kind": "task", "type": "ScoreWorker",   "edges": [ { "to": "joinF" } ] },
     { "id": "relay",   "kind": "task", "type": "Scorer", "settings": { "factor": 20 },
       "edges": [ { "to": "each" } ] },
     { "id": "each",    "kind": "map",  "over": "items", "branch": "rank" },
@@ -13,7 +13,7 @@
       "edges": [ { "to": "collect" } ] },
     { "id": "collect", "kind": "join", "of": "each", "edges": [ { "to": "joinF" } ] },
     { "id": "joinF",   "kind": "join", "of": "fan",  "edges": [ { "to": "publish" } ] },
-    { "id": "publish", "kind": "task", "workerType": "PublishWorker", "edges": [ { "to": "done" } ] },
+    { "id": "publish", "kind": "task", "type": "PublishWorker", "edges": [ { "to": "done" } ] },
     { "id": "done",    "kind": "end",  "outcome": "completed" }
   ]
 }

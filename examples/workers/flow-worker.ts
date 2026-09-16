@@ -143,11 +143,20 @@ export default class FlowWorker extends BaseWorker {
   async setup(): Promise<void> {}
   async teardown(): Promise<void> {}
 
-  async run(payload: unknown, context?: TaskWorkerContext): Promise<unknown> {
+  async run(envelope: unknown, context?: TaskWorkerContext): Promise<unknown> {
     // A real await, so the two fan-out branches genuinely overlap and their
     // completion order is the scheduler's rather than this file's. Nothing may
     // depend on that order (`doc/concept.md` section 5).
     if (this.delayMs > 0) await new Promise((r) => setTimeout(r, this.delayMs));
+
+    // **Every pool is fronted by the package's envelope worker since W65 (ADR 0054)**, so what
+    // arrives here is `{ settings, input }` for EVERY role. The `typed` and `echo` roles read the
+    // envelope by name, as they did at v0.17; the eleven roles that read their payload whole read
+    // `input`, which is exactly the object they read as their whole payload before — P18 fact 4's
+    // 146 nodes, one unwrap. Written as one expression so the roles below are otherwise untouched.
+    const payload: unknown = this.role === 'typed' || this.role === 'echo'
+      ? envelope
+      : (envelope as { input?: unknown } | null | undefined)?.input;
 
     switch (this.role) {
       case 'retry':

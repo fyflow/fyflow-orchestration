@@ -49,7 +49,7 @@ import {
   type Predicate, type RunOutcome, type RunState, type UnmintedTask,
   type UnsatisfiableJoin,
 } from '../index.ts';
-import { ConcurrentLimitGroup, FyflowScheduler, FyflowTask, WorkerManager } from 'fyflow-scheduler';
+import { ConcurrentLimitGroup, FyflowScheduler, FyflowTask } from 'fyflow-scheduler';
 // **The SUB-PATH, by its published entry — W59.** `fyflow-orchestration/scheduler` is the one
 // module of this package that constructs scheduler objects, and this file reaches it exactly as
 // a consumer does: through the sub-path's entry and never a file under it. The reaches-past-index
@@ -59,7 +59,7 @@ import { bootstrap } from '../src/scheduler/index.ts';
 // language a `transform` names, reached here exactly as a consumer reaches it (ADR 0052 rule 3);
 // the reaches-past-index clause in `l6.ts` exempts this entry by name as it does the one above.
 import { jsonata } from '../src/jsonata/index.ts';
-import type { NodeType } from '../index.ts';
+import type { NodeTypeDeclaration, WorkerEntry } from '../index.ts';
 
 /**
  * **The languages a `transform.lang` may name at this rung, and the ONE object both the helper
@@ -85,75 +85,131 @@ export const LANGUAGES = { jsonata } as const;
 import type { Role } from './workers/flow-worker.ts';
 
 /**
- * The **thirteen** pools `buildScheduler` registers, all served by one worker file — eleven by
- * `pool()` and two, the `Scorer` and `Echo` types', by the bootstrap helper (W59, W63).
+ * **The ONE worker entry every pool here runs, and the THIRTEEN node types this rung registers over
+ * it — W65 (ADR 0054), where W59's two types and W43's eleven `pool()` lines became one registry.**
+ * Every task node names a type since v0.19 and every pool is fronted by the package's envelope
+ * worker, so the eleven pools `buildScheduler` used to construct by hand are document-declared types
+ * now — one per former pool key, each with its role in its `config` — and `bootstrap` builds every
+ * pool through the identity derivation. *(This read "thirteen pools … eleven by `pool()` and two by
+ * the bootstrap helper" from W63; there is no `pool()` call left in this file.)*
  *
- * *(This read "the three pools `spec/examples/registry.json` names" from the day it
- * was written. There are thirteen since W63 — twelve since W59, eleven since W58, ten until then — naming twelve distinct roles, and `SplitWorker`,
- * `TallyWorker` and `WeighWorker` are in no registry at all — the registry is the
- * corpus`s and these pools are this file`s. W43`s conformity reader.)*
- */
-const WORKER_URL = new URL('./workers/flow-worker.ts', import.meta.url).href;
-
-/**
- * **The node TYPES this rung registers — W59, ADR 0049 — and the ONE object both the helper and
- * every driver read.** `buildScheduler` hands it to `bootstrap`, which builds one pool per type
- * keyed by the type's name and running the package's envelope worker around this file's own
- * worker with `config: { role: 'typed' }`; `runFlow` hands the same object to the `Driver`, so the
- * type a document names, the pool the scheduler holds and the validator the driver runs cannot
- * be three copies. Exported so `l6.ts` can compare its keys to the types the flows NAME and to the
- * pools the scheduler REPORTS, both ways (rule 8 obligation (e)).
+ * **One object, two readers, as before**: `buildScheduler` hands `registryFor(delayMs, threaded)` —
+ * this literal with the run's delay and threading written into the eleven role types' config and
+ * `inline` — to `bootstrap`, and `runFlow` hands the SAME sections to the `Driver`, so the type a
+ * document names, the pool the scheduler holds and the schema the driver applies cannot be three
+ * copies. Exported so `l6.ts` can compare the keys to the types the flows NAME and to the pools the
+ * scheduler REPORTS, both ways (rule 8 obligation (e)).
+ *
+ * **What `registryFor` changes and what it does not.** A role type whose `config` carries `delayMs`
+ * gets the run's delay — four times over for the roles that must settle LAST (see `SETTLES_LAST`
+ * below) — and `inline: !threaded` where the type declares no `inline`. `Echo` and `Scorer` carry no
+ * `delayMs` and declare `inline`, so they are handed to the helper byte-identical to their
+ * declaration here, which is what keeps P18 fact 5's capture — and the typed rows of P16 and P17 —
+ * unmoved (prediction 2).
  *
  * `Scorer` is one type, deliberately: P16's exit artifact is *two nodes of ONE type with DIFFERENT
  * settings*, and a second type would let a row pass on the type rather than on the settings.
  * **Inline**, for `retry`'s reason — the `typed` role's first-attempt memo is per process.
  * `groups: ['scorer']` is the group every task of the type holds, registered through the helper
  * and read back off `scheduler.groups` like `gate`. `retryPolicy` is the TYPE's, and it is what
- * `typed.flow.json`'s `high` node retries under — the node declares none.
+ * `typed.flow.json`'s `high` node retries under — the node declares none. **Its settings are what
+ * the `flow` worker's `settingsSchema` admits**: `factor` a number, `failFirst` a boolean, `scale`
+ * a number (the `Echo` type's one key), and no other key — a typo in any is refused at construction
+ * (`FD-V33`), where W59 had a function per type.
  *
  * **`Echo` is W63's, and it is THREADED on purpose**: P17's exit artifact is a declared `transform`
  * evaluated in the type's wrapper, and the adapter's worker half reaches a pool as a MODULE URL
  * because a function cannot cross to a thread (P17 fact 7) — so the pool that evaluates it here is a
  * real thread in both L6 runtimes, loading `fyflow-orchestration/jsonata` by that URL, **and every
- * result the role returns says so** (`realm: 'thread'`, the mark above unseen), so this is an
- * observed fact rather than a configuration. Its role echoes what it received (see `echo` in the
- * worker). No groups, and `retryPolicy` of ONE retry, so
- * a transform that fails at run time is evaluated AGAIN under the type's policy — the failure is a
- * task failure and takes the road any worker throw takes, retry included — and parks the task on
- * its second attempt, `attempts: 1` on both observers. *(It declared ZERO retries first, and rule 8
- * measured that declaration INERT: with it removed the task still parked at `attempts: 0`, because
- * the scheduler's own default is zero retries. One retry is a declaration the row can tell from the
- * default.)* `settings` admits one optional key, `scale`, which the map branch of
- * `transformed.flow.json` reads through `$settings`.
+ * result the role returns says so** (`realm: 'thread'`, the mark above unseen). Its role echoes what
+ * it received. No groups, and `retryPolicy` of ONE retry, so a transform that fails at run time is
+ * evaluated AGAIN under the type's policy and parks the task on its second attempt, `attempts: 1`
+ * on both observers.
  */
-export const NODE_TYPES: Readonly<Record<string, NodeType>> = {
-  Echo: {
-    worker: WORKER_URL,
-    config: { role: 'echo' },
-    pool: { maxThreads: 2, inline: false, idleTimeout: 0 },
-    retryPolicy: { maxRetries: 1, backoffMs: 0 },
-    settings: (s) => {
-      for (const k of Object.keys(s)) if (k !== 'scale') return `settings carries undeclared key "${k}"; Echo declares "scale"`;
-      if (s.scale !== undefined && (typeof s.scale !== 'number' || !Number.isFinite(s.scale) || s.scale <= 0)) return `settings.scale must be a positive finite number, got ${JSON.stringify(s.scale)}`;
-      return null;
-    },
-  },
-  Scorer: {
-    worker: WORKER_URL,
-    config: { role: 'typed' },
-    pool: { maxThreads: 2, inline: true, idleTimeout: 0 },
-    groups: ['scorer'],
-    retryPolicy: { maxRetries: 1, backoffMs: 0 },
-    // `factor` a positive finite number, `failFirst` a boolean when present, nothing else — the
-    // two keys the `typed` role reads, and a typo in either is refused at construction (FD-V33).
-    settings: (s) => {
-      for (const k of Object.keys(s)) if (k !== 'factor' && k !== 'failFirst') return `settings carries undeclared key "${k}"; Scorer declares "factor" and "failFirst"`;
-      if (typeof s.factor !== 'number' || !Number.isFinite(s.factor) || s.factor <= 0) return `settings.factor must be a positive finite number, got ${JSON.stringify(s.factor)}`;
-      if (s.failFirst !== undefined && typeof s.failFirst !== 'boolean') return `settings.failFirst must be a boolean, got ${JSON.stringify(s.failFirst)}`;
-      return null;
-    },
+const WORKER_URL = new URL('./workers/flow-worker.ts', import.meta.url).href;
+
+/** The one worker: every pool loads it; its `settingsSchema` is what `FD-V33` applies to every typed node's settings. */
+export const WORKERS: Readonly<Record<string, WorkerEntry>> = {
+  flow: {
+    url: WORKER_URL,
+    settingsSchema: { type: 'object', properties: { factor: { type: 'number' }, failFirst: { type: 'boolean' }, scale: { type: 'number', minimum: 0 } }, additionalProperties: false },
   },
 };
+
+/**
+ * **A role that must settle LAST is given a longer delay**, so the branch that arrives is not the
+ * branch that finishes. Without it, `settleJoin` on the `lost` and `exited` paths is unreachable at
+ * L6 — the arriving branch always settled last and the join was always fired by the arrival, so
+ * deleting either of the other two calls was invisible across twelve rows. Found by W6's adequacy
+ * reader. This ARRANGES an order rather than depending on one (`doc/workflow.md` section 5 rule 5).
+ * **The 4x is INERT today and W17's adequacy reader measured it** — the settling order those rows
+ * depend on is produced by inline dispatch order — and it is kept because the moment a pool becomes
+ * threaded, dispatch order stops implying settle order. [Q99](../doc/open-questions.md).
+ */
+const SETTLES_LAST = new Set<Role>(['fail', 'uncloneable']);
+
+export const NODE_TYPES: Readonly<Record<string, NodeTypeDeclaration>> = {
+  // ---- the eleven former pool() lines, one type each; `delayMs` and (where absent) `inline` are the run's — see registryFor ----
+  IngestWorker: { worker: 'flow', inline: true, config: { role: 'ingest', delayMs: 5 }, pool: { maxThreads: 1, idleTimeout: 0 } },
+  // The fan-out pool, and the only one that may run on real threads: it is the one place two tasks
+  // are in flight at once, so it is where a dispatch race or an id collision would show.
+  ScoreWorker: { worker: 'flow', config: { role: 'score', delayMs: 5 }, pool: { maxThreads: 2, idleTimeout: 0 } },
+  PublishWorker: { worker: 'flow', inline: true, config: { role: 'publish', delayMs: 5 }, pool: { maxThreads: 1, idleTimeout: 0 } },
+  // **Where a map's arity comes from — W35.** Its worker returns an array and the run dispatches one
+  // task per element. Inline: it runs once per run and a thread would only add a hop.
+  SplitWorker: { worker: 'flow', inline: true, config: { role: 'split', delayMs: 5 }, pool: { maxThreads: 1, idleTimeout: 0 } },
+  // **W43's pool, THREADED for the same reason `ScoreWorker` is** — `maxThreads: 2` at an arity of
+  // three makes the overlap real. Not held down by an assertion (W43's adequacy reader; Q99).
+  WeighWorker: { worker: 'flow', config: { role: 'weigh', delayMs: 5 }, pool: { maxThreads: 2, idleTimeout: 0 } },
+  // **The one worker here that MUTATES its payload — W35's adequacy reader.** Inline, and it must be:
+  // two map instances handed one object would see each other's write, and a thread would hide it.
+  TallyWorker: { worker: 'flow', inline: true, config: { role: 'tally', delayMs: 5 }, pool: { maxThreads: 1, idleTimeout: 0 } },
+  // **W45's pool.** Inline; its role reports whether a conditional reference's key ARRIVED (`FD-C4`).
+  AttestWorker: { worker: 'flow', inline: true, config: { role: 'attest', delayMs: 5 }, pool: { maxThreads: 1, idleTimeout: 0 } },
+  // Reached only by a flow that names them. Their worker always throws — and what that produces is
+  // decided by the NODE: `optional: true` settles `failed`, `optional: false` ends in `user_action`.
+  ReviewWorker: { worker: 'flow', inline: true, config: { role: 'fail', delayMs: 5 }, pool: { maxThreads: 1, idleTimeout: 0 } },
+  ExtractWorker: { worker: 'flow', inline: true, config: { role: 'fail', delayMs: 5 }, pool: { maxThreads: 1, idleTimeout: 0 } },
+  // **Inline, and it must be.** A result `structuredClone` refuses reaches the driver intact from an
+  // inline pool, which is what makes `OR-R6` reachable at all ([Q61](../doc/open-questions.md)).
+  MergeWorker: { worker: 'flow', inline: true, config: { role: 'uncloneable', delayMs: 5 }, pool: { maxThreads: 1, idleTimeout: 0 } },
+  // **W58's pool, inline because its memo is per process** — see `thrownOnce` in the worker.
+  RetryWorker: { worker: 'flow', inline: true, config: { role: 'retry', delayMs: 5 }, pool: { maxThreads: 1, idleTimeout: 0 } },
+  // ---- W63's and W59's types, byte-identical to their v0.18 declarations (P18 fact 5) ----
+  Echo: {
+    worker: 'flow',
+    inline: false,
+    config: { role: 'echo' },
+    pool: { maxThreads: 2, idleTimeout: 0 },
+    retryPolicy: { maxRetries: 1, backoffMs: 0 },
+  },
+  Scorer: {
+    worker: 'flow',
+    inline: true,
+    config: { role: 'typed' },
+    pool: { maxThreads: 2, idleTimeout: 0 },
+    groups: ['scorer'],
+    retryPolicy: { maxRetries: 1, backoffMs: 0 },
+  },
+};
+
+/** No named pool instance at this rung yet — W67's sample flow brings the first. Declared so the driver and the helper read one shape. */
+export const POOLS: Readonly<Record<string, { type: string; config?: unknown }>> = {};
+
+/** `NODE_TYPES` with the run's delay and threading written into the role types' config and `inline` — the object `bootstrap` builds from. */
+export function registryFor(delayMs: number, threaded: boolean): { workers: typeof WORKERS; nodeTypes: Record<string, NodeTypeDeclaration>; pools: typeof POOLS } {
+  const nodeTypes: Record<string, NodeTypeDeclaration> = {};
+  for (const [name, t] of Object.entries(NODE_TYPES)) {
+    const cfg = t.config as { role: Role; delayMs?: number };
+    if (cfg.delayMs === undefined) { nodeTypes[name] = t; continue; }
+    nodeTypes[name] = {
+      ...t,
+      inline: t.inline ?? !threaded,
+      config: { ...cfg, delayMs: SETTLES_LAST.has(cfg.role) ? delayMs * 4 : delayMs },
+    };
+  }
+  return { workers: WORKERS, nodeTypes, pools: POOLS };
+}
 
 /**
  * **What the driver was still holding, observed at the two ends of `JP-R12`'s
@@ -363,10 +419,10 @@ export interface RunReport {
    */
   schedulerGroups: readonly string[];
   /**
-   * The keys of `scheduler.workerPools`, read at construction — the reading the driver's
-   * `workerTypes` option IS, reported so a cross-row clause can compare the pools the helper built
-   * for `NODE_TYPES` to the types the flows name, both ways, from the scheduler rather than from a
-   * list beside it (W59).
+   * The keys of `scheduler.workerPools`, read at construction — reported so a cross-row clause can
+   * compare the pools the helper built for `NODE_TYPES` to the types the flows name, both ways, from
+   * the scheduler rather than from a list beside it (W59; since W65 every pool is a type's, so the
+   * two sets are equal).
    */
   schedulerPools: readonly string[];
   /**
@@ -587,8 +643,9 @@ export interface ForeignTask {
    * would be `ID-R4`'s question, not `ID-R5`'s.
    */
   id: string;
-  /** A key in `buildScheduler`'s pools. */
+  /** A key in `buildScheduler`'s pools — since W65 the name of a TYPE, because every pool is one type's default instance. The field keeps the scheduler's own name for it. */
   workerType: string;
+  /** What the task's worker receives as its `input`. Since W65 every pool is fronted by the envelope worker, so `runPair` wraps this as `{ settings: {}, input }` — a raw payload on a typed pool is refused by the wrapper (`NotAnEnvelope`) and would settle `user_action` instead of `done`. */
   payload?: unknown;
   /**
    * **Passed through to the scheduler, and it is what `task.failed` needs** —
@@ -724,7 +781,9 @@ export async function runPair(
     scheduler.addTask(new FyflowTask({
       id: f.id,
       workerType: f.workerType,
-      payload: f.payload ?? null,
+      // Wrapped since W65 (ADR 0054): the pool is a TYPE's and its worker receives the envelope
+      // (`FD-C5`); the id is what this row is about and the payload shape is not.
+      payload: { settings: {}, input: f.payload ?? null },
       // Q107: `optional` is what decides whether a throwing worker settles
       // `failed` or ends `user_action`, and the driver keys on terminal state
       // rather than on event name (ADR 0007 rule 2) — so this is how a foreign
@@ -1024,115 +1083,34 @@ export function buildScheduler(delayMs: number, threaded: boolean, flows: readon
   // order is not something `spec/` fixes. It is kept because the moment a pool
   // becomes threaded or gains a second thread, dispatch order stops implying
   // settle order and this is what remains. [Q99](../doc/open-questions.md).
-  const SETTLES_LAST = new Set(['fail', 'uncloneable']);
-  // **`Role`, not `string` — W43.** This parameter was `string`, so the TEN
-  // `config: { role }` literals below were bound to nothing and a typo reached a
-  // worker that has no arm for it. It is the same fix `Expectation.policyId` got at
-  // W17 for the same reason, and unlike that one it DOES bite: `Role` is derived
-  // from `ROLES` in the worker file rather than repeating half of it, so a name this
-  // file invents fails `npm run typecheck` at ladder L0.
-  const pool = (role: Role, threaded: boolean, maxThreads = 1) =>
-    new WorkerManager(WORKER_URL, {
-      maxThreads,
-      inline: !threaded,
-      config: { role, delayMs: SETTLES_LAST.has(role) ? delayMs * 4 : delayMs },
-      // The pools are torn down by `shutdown()` at the end of the run, so an idle
-      // sweep would only race it. Nothing here shares a resident group, which is
-      // the one case `AGENTS.md` says `idleTimeout: 0` deadlocks.
-      idleTimeout: 0,
-    });
-
-  // **The typed half, through the helper** — the ONE call in this repository that a consumer
-  // copies. Its group objects are the TYPES' groups and only theirs (the helper refuses one no
-  // type names), so `gate`, which a bare node names, is registered below beside its result.
+  // **Every pool through the helper since W65** — the ONE constructing call a consumer copies. The
+  // group objects are keyed by the id a TYPE or a NODE names: `scorer` is the `Scorer` type's, given
+  // to the helper because a pool's derivation names it and the helper refuses both ways; `gate` is
+  // named by NODES' `workerGroups` and by no pool, so it is registered beside the helper's result —
+  // the helper's direction-two refusal is what keeps it out of that call.
   // **The KEY is `scorer` and the object calls itself something else, on purpose** — the adequacy
-  // reader (q13): ADR 0049 fact 2 says the scheduler resolves a group by the map key and the
-  // object's own name is inert, and every fixture in the tree had the two equal, so a helper
-  // checking the inert name survived every rung. `heldGroups` records the scheduler's `groupId`,
-  // which is the KEY; a row reading `scorer` is now a claim about which of the two it is.
+  // reader (q13): ADR 0049 fact 2 says the scheduler resolves a group by the map key and the object's
+  // own name is inert, and every fixture in the tree had the two equal, so a helper checking the
+  // inert name survived every rung. `heldGroups` records the scheduler's `groupId`, which is the KEY.
   // **And the languages, with the flows — W63**: the helper reads WHICH types transform in WHICH
   // languages from the definitions and writes only those adapters' worker URLs into only those
   // pools, so `Scorer`'s pool carries the engine on a run of `transformed.flow.json` and NOT on a
   // run of `typed.flow.json` — same type, decided by the flow. `RunReport.poolLanguages` is what
   // `l6.ts` reads that from, off the built pools rather than off this call.
-  const typed = bootstrap(NODE_TYPES, {
+  const built = bootstrap(registryFor(delayMs, threaded), {
     scorer: new ConcurrentLimitGroup(8, 'scorer-by-object-name'),
   }, { languages: LANGUAGES, flows });
 
-  return new FyflowScheduler({
-    IngestWorker: pool('ingest', false),
-    // The fan-out pool, and the only one that may run on real threads: it is the
-    // one place two tasks are in flight at once, so it is where a dispatch race
-    // or an id collision would show.
-    ScoreWorker: pool('score', threaded, 2),
-    PublishWorker: pool('publish', false),
-    // **Where a map's arity comes from — W35.** Its worker returns an array and
-    // the run dispatches one task per element, so this pool is the only reason
-    // `examples/flows/map.flow.json` dispatches a number of tasks that is written
-    // down nowhere in the definition.
-    //
-    // **Inline, and unlike `MergeWorker` that is a convenience rather than a
-    // constraint**: nothing it returns resists `structuredClone`. It is inline
-    // because it runs once per run and a thread would only add a hop.
-    SplitWorker: pool('split', false),
-    // **W43's pool, and it is THREADED for the same reason `ScoreWorker` is: so
-    // that two tasks are genuinely in flight at once and their settle order is the
-    // scheduler's rather than this file's.** `maxThreads: 2` at an arity of three is
-    // what makes the overlap real.
-    //
-    // **It is NOT held down by an assertion, and the first version of this comment
-    // argued that it was** — W43's adequacy reader. That version said the thread
-    // boundary is *"where a shared reference between two instances would show"*;
-    // measured, `pool('weigh', false, 1)` costs **zero**, because no
-    // `map-with-context` row runs the aliasing payload — `SAME_WORD_TWICE` is
-    // `TallyWorker`'s, on `map.flow.json`, which is where W35 put the one shape that
-    // can falsify ADR 0037 rule 1. *An argument for a configuration is not a test of
-    // it*, and this is the `threaded`/`delayMs` gap [Q99](../doc/open-questions.md)
-    // already names, in a third pool.
-    WeighWorker: pool('weigh', threaded, 2),
-    // **The one worker here that MUTATES its payload — W35's adequacy reader.**
-    // Inline, and it must be: the whole point is that two map instances handed one
-    // object would see each other's write, and a thread boundary would clone it
-    // away and hide exactly the case the row exists for.
-    TallyWorker: pool('tally', false),
-    // **W45's pool.** Inline: it runs once at the end of a linear flow, so a thread
-    // would add a hop and observe nothing. Its role reports whether a conditional
-    // reference's key ARRIVED, which is `FD-C4`'s only observable.
-    AttestWorker: pool('attest', false),
-    // Reached only by a flow that names it. Its worker always throws — and what
-    // that produces is decided by the NODE, not by the pool: `optional: true`
-    // settles `failed` (a branch LOST), `optional: false` ends in `user_action`
-    // (a branch SUSPENDED). One worker, two outcomes, chosen by the definition.
-    // Measured before W6 was declared; ADR 0007 rule 2.
-    ReviewWorker: pool('fail', false),
-    ExtractWorker: pool('fail', false),
-    // **Inline, and it must be.** A result `structuredClone` refuses reaches the
-    // driver intact from an inline pool, which is what makes `OR-R6` reachable at
-    // all; from a thread pool the scheduler refuses it first and the task ends
-    // `user_action` with no result ever reaching us. [Q61](../doc/open-questions.md).
-    MergeWorker: pool('uncloneable', false),
-    // **W58's pool, and inline because its memo is per process** — see `thrownOnce` in the
-    // worker. Its role fails the first attempt of every task id and succeeds the second, so a
-    // node that declares `retryPolicy: { maxRetries: 1, … }` settles `done` with `attempts: 1`,
-    // and one that declares nothing ends `user_action` — one worker, two outcomes, chosen by
-    // the NODE, which is `fail`'s own lesson with a retry in it.
-    RetryWorker: pool('retry', false),
-    // **W59's TYPED pool, and it is not a `pool()` line**: the bootstrap helper builds it from
-    // `NODE_TYPES`, keyed `Scorer`, running the package's ENVELOPE worker around this file's
-    // worker. Spread in beside the bare pools exactly as `AGENTS.md`'s wiring section shows a
-    // consumer doing it — the helper's pools and groups sit beside the consumer's own.
-    ...typed.workerPools,
-  }, {
-    // **The resource group the hand-built half declares — W58's group row.** A limit of ONE so
-    // the harness can hold its whole capacity with a single `onStart()`, and any task naming
-    // it is blocked until the harness lets go. It is the value `runFlow` derives the driver's
-    // `groups` option from, read back off `scheduler.groups` rather than named twice.
+  return new FyflowScheduler(built.workerPools, {
+    // **The resource group the NODES declare — W58's group row.** A limit of ONE so the harness can
+    // hold its whole capacity with a single `onStart()`, and any task naming it is blocked until the
+    // harness lets go. It is the value `runFlow` derives the driver's `groups` option from, read back
+    // off `scheduler.groups` rather than named twice. Beside the helper's groups, not through them.
     gate: new ConcurrentLimitGroup(1, 'gate'),
-    // And the group the TYPE declares, built through the helper (`typed` above): a limit of
-    // EIGHT, so the three map instances of `typed-regions.flow.json` never block on it and every
-    // typed task reports the same three-event sequence — the row is about which group was HELD,
-    // not about contention, which is `gate`'s row.
-    ...typed.resourceGroups,
+    // And the group the `Scorer` TYPE declares, built through the helper: a limit of EIGHT, so the
+    // three map instances of `typed-regions.flow.json` never block on it and every typed task reports
+    // the same three-event sequence — the row is about which group was HELD, not about contention.
+    ...built.resourceGroups,
   });
 }
 
@@ -1318,28 +1296,17 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
     // rule 8 obligation (e), *was what it RAN what SHIPS*. Restoring the explicit line is
     // the control: it must cost nothing, because it builds the same object.
     predicates: opts.predicates ?? new Map<string, Predicate>(),
-    // **Read from the SCHEDULER, not written out again — W35, and it is
-    // `doc/workflow.md` rule 8's obligation (c) caught by walking into it.**
-    //
-    // This was a hand-written array of six pool names, a second copy of
-    // `buildScheduler`'s keys with nothing comparing them. `FD-V5` is *"a task's
-    // `workerType` is not a key in the scheduler's `workerPools`"* — the
-    // scheduler's map is the authority the rule names, and the copy could only
-    // ever agree with it by hand.
-    //
-    // **It drifted on the first pool anyone added.** W35 added `SplitWorker` to
-    // `buildScheduler` and the copy still said six, so every map row died at
-    // construction with `FD-V5 at ingest` — a valid flow refused by a validator
-    // reading a stale list. The other direction is the one that matters and is
-    // silent: delete a pool from `buildScheduler` and the copy still names it, so
-    // `FD-V5` passes and the run dies later inside `addTask`, which throws on an
-    // unknown pool. **The rule would have been checking a list rather than the
-    // scheduler**, which is the whole of what obligation (c) is about.
-    //
-    // `FD-V5`'s negative case does not live here in either form — no L6 flow can
-    // name a pool this scheduler lacks, by construction — it lives in
-    // `spec/examples/invalid/` at L1. What lives here is the derivation.
-    workerTypes: Object.keys(scheduler.workerPools as Record<string, unknown>),
+    // **The registry's three sections — W65 (ADR 0054) — the literal `registryFor` derives the
+    // helper's per-run object from: one literal, two readings, the helper's carrying the run's delay
+    // and threading, which the driver never reads.** Until W65 this was `workerTypes: Object.keys(scheduler.workerPools)`, read off the
+    // scheduler rather than written out again (W35's obligation (c) finding: a hand-written list of
+    // pool names drifted on the first pool anyone added). A type's default pool exists by
+    // construction now, so the pool-key set is the type-key set and `FD-V32` reads `nodeTypes`; what
+    // is still read off the scheduler is `schedulerPools`, which `l6.ts` compares to these keys both
+    // ways, so a pool the helper did not build, or one no type accounts for, is red there.
+    workers: WORKERS,
+    nodeTypes: NODE_TYPES,
+    pools: POOLS,
     // **The third set, read from the SCHEDULER for the same reason `workerTypes` is — W58,
     // `FD-V31`.** `scheduler.groups` is the map the scheduler resolves a task's `workerGroups`
     // against, so it is the authority the rule names; a hand-written list beside it is what
@@ -1348,11 +1315,6 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
     // and the other — every group the scheduler declares is one some L6 flow names — is a
     // cross-row clause in `l6.ts` over `RunReport.schedulerGroups`.
     groups: schedulerGroups,
-    // **The fourth set — W59 — and it is the OBJECT the helper built the pools from**, not a
-    // list beside it: `FD-V32` checks a type's name against this and against `workerTypes`
-    // (read off the scheduler above, where the helper's pools now are), and `FD-V33` runs this
-    // object's own validators. One object, three readers.
-    nodeTypes: NODE_TYPES,
     // **The fifth set — W63 — and it is the OBJECT the helper wrote the pools' worker URLs from**:
     // `FD-V35` checks a transform's `lang` against its keys and `FD-V36` runs each adapter's
     // `compile` at construction; the helper read the same object's `worker` field. One object,

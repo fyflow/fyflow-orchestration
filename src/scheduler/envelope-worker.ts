@@ -46,9 +46,9 @@ import type { Transform } from '../definition/types.ts';
 
 /** The pool config the bootstrap helper writes for a typed pool: the inner worker, ITS config, and the languages its nodes transform in. */
 export interface EnvelopePoolConfig {
-  /** Module URL of the type's real worker; its default export is the class. `NodeType.worker`. */
+  /** Module URL of the type's real worker; its default export is the class. `WorkerEntry.url`, resolved through the type's `worker` name (W65). */
   worker: string;
-  /** The inner worker's own constructor argument. `NodeType.config`. */
+  /** The inner worker's own constructor argument — the instance's derived `config` (`NodeTypeDeclaration.config` for the default instance). */
   config?: unknown;
   /**
    * **Language name → worker-side module URL** (`LanguageAdapter.worker`), written by the bootstrap

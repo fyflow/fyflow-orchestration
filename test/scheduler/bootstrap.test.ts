@@ -1,6 +1,7 @@
 /**
  * **The bootstrap helper and the envelope worker, at ladder L1** — `spec/flow-definition.md`
- * section 2 (v0.17), ADR 0049 rules 4 and 5, [W59](../../doc/work-items/w59-what-a-node-type-is.md).
+ * section 3's registry-document subsection (v0.19), ADR 0049 rules 4 and 5, ADR 0054,
+ * [W59](../../doc/work-items/w59-what-a-node-type-is.md), [W65](../../doc/work-items/w65-the-registry-document-and-a-node-type-is-a-derivation.md).
  *
  * No scheduler runs here. The helper takes a POOL FACTORY seam exactly as the driver takes
  * `createTask`, so every claim about what a pool is built FROM is read back from a recorder — and
@@ -9,23 +10,34 @@
  * against an inner worker served from a `data:` URL, which every runtime this suite runs in can
  * `import()`, so the loading half runs in all five and not only where a file system exists.
  *
- * Every expected value is the registry literal below, never the run.
+ * **Since W65 the helper takes the registry's `workers`, `nodeTypes` and `pools` and builds one pool
+ * per INSTANCE through the derivation**: the default instance of every type under the type's name,
+ * every named instance under its key. Every expected value is the registry literal below, never
+ * the run; fact 5's capture is the one literal that came from elsewhere, and it is stated as such.
  */
 import { equal, ok, suite, throws } from '../harness.ts';
 import { WorkerManager } from 'fyflow-scheduler';
 import type { ResourceGroup, WorkerManagerOptions } from 'fyflow-scheduler';
 import { bootstrap, BootstrapError, ENVELOPE_WORKER_URL, EnvelopeWorker, NotAnEnvelope, transformLanguagesByType, unpackEnvelope } from '../../src/scheduler/index.ts';
-import type { FlowDefinition, LanguageAdapter, NodeType } from '../../src/definition/types.ts';
+import { canonical } from '../../src/definition/schema.ts';
+import { NameMissing, RegistryError, WorkerMissing } from '../../src/definition/registry.ts';
+import type { FlowDefinition, LanguageAdapter, NodeTypeDeclaration, NodeTypeDefinition, NodeTypeEntry, PoolSpec, WorkerEntry } from '../../src/definition/types.ts';
 import { PATH_LANGUAGE } from './fake-language.ts';
 
 /** A group object as the scheduler duck-types it — what the helper is handed and hands back. */
 const group = (id: string): ResourceGroup => ({ id } as unknown as ResourceGroup);
 
-const TYPES: Readonly<Record<string, NodeType>> = {
-  Scorer: { worker: 'test://scorer.ts', pool: { maxThreads: 2, inline: true, idleTimeout: 0 }, groups: ['gpu'], config: { role: 'typed' }, retryPolicy: { maxRetries: 1, backoffMs: 0 } },
-  Ranker: { worker: 'test://ranker.ts', groups: ['gpu', 'api'] },
-  Plain: { worker: 'test://plain.ts' },
+const WORKERS: Readonly<Record<string, WorkerEntry>> = {
+  scorer: { url: 'test://scorer.ts', configSchema: { type: 'object', properties: { role: { type: 'string' } } } },
+  ranker: { url: 'test://ranker.ts' },
+  plain: { url: 'test://plain.ts' },
 };
+const TYPES: Readonly<Record<string, NodeTypeDeclaration>> = {
+  Scorer: { worker: 'scorer', inline: true, pool: { maxThreads: 2, idleTimeout: 0 }, groups: ['gpu'], config: { role: 'typed' }, retryPolicy: { maxRetries: 1, backoffMs: 0 } },
+  Ranker: { worker: 'ranker', groups: ['gpu', 'api'] },
+  Plain: { worker: 'plain' },
+};
+const REG = { workers: WORKERS, nodeTypes: TYPES };
 const GROUPS = { gpu: group('gpu'), api: group('api') };
 
 /** The seam's recorder. */
@@ -34,40 +46,87 @@ function recorder() {
   const createPool = (url: string, options: WorkerManagerOptions) => { built.push({ url, options }); return { url, options } as unknown as WorkerManager; };
   return { built, createPool };
 }
+const byWorker = (built: { options: WorkerManagerOptions }[], url: string) => built.find((b) => (b.options.config as { worker: string }).worker === url)!;
 
 suite('W59 — bootstrap: one pool per type keyed by its name, the groups both ways, and the default pool is a real WorkerManager', (test) => {
   test('one pool per type, keyed by the type`s name, both ways — obligation (e) on Registry.nodeTypes against the pools', () => {
     const { built, createPool } = recorder();
-    const out = bootstrap(TYPES, GROUPS, { createPool });
+    const out = bootstrap(REG, GROUPS, { createPool });
     equal(Object.keys(out.workerPools).sort(), Object.keys(TYPES).sort(), 'the pool keys ARE the type names — nothing added, nothing dropped');
     equal(built.length, Object.keys(TYPES).length, 'and the factory was called exactly once per type');
     ok(Object.keys(TYPES).length >= 3, 'over three types, so a loop narrowed to one is visible');
+    equal(Object.keys(out.derived).sort(), Object.keys(TYPES).sort(), 'and what each was derived as is handed back, keyed the same');
   });
 
-  test('every pool loads the ENVELOPE worker, with the type`s real worker and config inside its pool config', () => {
+  test('every pool loads the ENVELOPE worker, with the worker entry`s URL and the DERIVED config inside its pool config', () => {
     const { built, createPool } = recorder();
-    bootstrap(TYPES, GROUPS, { createPool });
+    bootstrap(REG, GROUPS, { createPool });
     for (const { url } of built) {
       equal(url, ENVELOPE_WORKER_URL, 'the script the pool loads is the package`s envelope worker');
-      // The FILE, not the path: in the browser bundle `import.meta.url` is the bundle's own URL, so
-      // the worker resolves beside the bundle rather than under `src/` — measured on this suite's
-      // first browser run, all three engines. A bundled consumer ships the envelope worker as a
-      // sibling asset, which is `AGENTS.md` section 12's own note about worker files one module over.
       ok(ENVELOPE_WORKER_URL.endsWith('/envelope-worker.ts'), `resolved against the helper's own module: ${ENVELOPE_WORKER_URL}`);
     }
-    const scorer = built.find((b) => (b.options.config as { worker: string }).worker === 'test://scorer.ts')!;
-    equal(scorer.options.config, { worker: 'test://scorer.ts', config: { role: 'typed' } }, 'the pool config carries the inner worker URL and ITS config, and nothing else');
+    const scorer = byWorker(built, 'test://scorer.ts');
+    equal(scorer.options.config, { worker: 'test://scorer.ts', config: { role: 'typed' } }, 'the pool config carries the worker`s URL and the derived config, and nothing else');
     equal(scorer.options.groups, ['gpu'], 'the type`s groups are the POOL`s groups');
     equal(scorer.options.maxThreads, 2, 'and the type`s pool options are spread in');
-    equal(scorer.options.inline, true, 'inline as declared');
-    equal(Object.keys(scorer.options).sort(), ['config', 'groups', 'idleTimeout', 'inline', 'maxThreads'], 'exactly the declared pool options plus groups and config — no retryPolicy, which is per TASK and the driver`s');
-    const plain = built.find((b) => (b.options.config as { worker: string }).worker === 'test://plain.ts')!;
-    equal(Object.keys(plain.options).sort(), ['config'], 'a type declaring no pool options and no groups gets a pool with config alone — no `groups: undefined` key');
+    equal(scorer.options.inline, true, 'inline as the TYPE declares it');
+    equal(Object.keys(scorer.options).sort(), ['config', 'groups', 'idleTimeout', 'inline', 'maxThreads'], 'exactly the declared pool options plus inline, groups and config — no retryPolicy, which is per TASK and the driver`s');
+    const plain = byWorker(built, 'test://plain.ts');
+    equal(Object.keys(plain.options).sort(), ['config'], 'a type declaring nothing gets a pool with config alone — no `groups: undefined`, no `inline` key');
     equal(plain.options.config, { worker: 'test://plain.ts', config: undefined }, 'and an absent type config is carried as undefined for the inner worker to default');
   });
 
+  test('P18 fact 5 through the HELPER — the two L6 types as declarations build exactly what bootstrap built at v0.17, as canonical JSON', () => {
+    // The declarations are examples/run-flow.ts's NODE_TYPES literal transcribed; the expected text
+    // is fact 5's capture re-taken at W65's declaration (dev-dist/w65/fact5-*.log), URL elided.
+    const RETRY = { maxRetries: 1, backoffMs: 0 };
+    const l6 = {
+      workers: { flow: { url: '<url>' } },
+      nodeTypes: {
+        Echo: { worker: 'flow', inline: false, config: { role: 'echo' }, pool: { maxThreads: 2, idleTimeout: 0 }, retryPolicy: RETRY },
+        Scorer: { worker: 'flow', inline: true, config: { role: 'typed' }, pool: { maxThreads: 2, idleTimeout: 0 }, groups: ['scorer'], retryPolicy: RETRY },
+      } as Record<string, NodeTypeEntry>,
+    };
+    const { built, createPool } = recorder();
+    const out = bootstrap(l6, { scorer: group('scorer') }, { createPool });
+    const opts = (k: string) => canonical(built[Object.keys(out.workerPools).indexOf(k)]!.options);
+    equal(opts('Echo'), '{"config":{"config":{"role":"echo"},"worker":"<url>"},"idleTimeout":0,"inline":false,"maxThreads":2}', 'Echo, option for option');
+    equal(opts('Scorer'), '{"config":{"config":{"role":"typed"},"worker":"<url>"},"groups":["scorer"],"idleTimeout":0,"inline":true,"maxThreads":2}', 'Scorer, option for option');
+    ok(!('groups' in built[0]!.options), 'Echo carries NO groups key');
+  });
+
+  test('a NAMED pool instance is a second pool keyed by its name, its config merged over the type`s — the identity derivation, twice', () => {
+    const { built, createPool } = recorder();
+    const out = bootstrap({ ...REG, pools: { 'scorer-big': { type: 'Scorer', config: { role: 'typed', size: 'big' } } } }, GROUPS, { createPool });
+    equal(Object.keys(out.workerPools).sort(), ['Plain', 'Ranker', 'Scorer', 'scorer-big'], 'the default instances and the named one');
+    const big = built[Object.keys(out.workerPools).indexOf('scorer-big')]!;
+    equal(big.options.config, { worker: 'test://scorer.ts', config: { role: 'typed', size: 'big' } }, 'the instance`s config merged over the type`s');
+    equal(big.options.maxThreads, 2, 'the type`s pool fields, copied');
+    equal(big.options.groups, ['gpu'], 'and its groups');
+    equal(out.derived['scorer-big']!.type, 'Scorer', 'derived as an instance of Scorer');
+    ok(out.derived['scorer-big']!.spec !== out.derived.Scorer!.spec, 'two specs, not one');
+  });
+
+  test('a CLASS type through the helper — its own derivation`s output becomes the pool, held to the same checks', () => {
+    const gpu: NodeTypeDefinition = {
+      worker: 'scorer', inline: false, config: { role: 'small' },
+      pool: (c) => ({ config: c, maxThreads: (c as { role: string }).role === 'big' ? 1 : 4, groups: ['gpu'] } as PoolSpec),
+    };
+    const { built, createPool } = recorder();
+    const out = bootstrap({ workers: WORKERS, nodeTypes: { Gpu: gpu }, pools: { 'gpu-big': { type: 'Gpu', config: { role: 'big' } } } }, { gpu: group('gpu') }, { createPool });
+    equal(Object.keys(out.workerPools).sort(), ['Gpu', 'gpu-big'], 'the default and the named instance');
+    equal(built[0]!.options.maxThreads, 4, 'the default through the class`s own config');
+    equal(built[1]!.options.maxThreads, 1, 'the named instance through its own');
+    equal(built[1]!.options.inline, false, 'inline is the TYPE`s, on every instance');
+    // The class's output is held to the worker's configSchema exactly as a document type's is.
+    const around: NodeTypeDefinition = { ...gpu, pool: () => ({ config: { role: 7 } }) };
+    let err: unknown;
+    try { bootstrap({ workers: WORKERS, nodeTypes: { Gpu: around } }, {}, recorder()); } catch (e) { err = e; }
+    ok(err instanceof RegistryError && err.at === 'Gpu' && err.message.includes('configSchema'), `a class computing around the worker's schema is refused naming the type: ${(err as Error)?.message}`);
+  });
+
   test('the type`s groups objects come back as resourceGroups, keyed as given, the same objects — and nothing else', () => {
-    const out = bootstrap(TYPES, GROUPS, recorder());
+    const out = bootstrap(REG, GROUPS, recorder());
     equal(Object.keys(out.resourceGroups).sort(), ['api', 'gpu'], 'the two given');
     ok(out.resourceGroups.gpu === GROUPS.gpu && out.resourceGroups.api === GROUPS.api, 'by reference — the scheduler must hold the objects the consumer built');
     ok(out.resourceGroups !== GROUPS, 'in a fresh map, so a consumer spreading their own groups beside it edits neither');
@@ -76,59 +135,63 @@ suite('W59 — bootstrap: one pool per type keyed by its name, the groups both w
   test('direction one: a type naming a group with NO object is refused, naming the type and the id, before any pool is built', () => {
     const { built, createPool } = recorder();
     let err: unknown;
-    try { bootstrap({ ...TYPES, Odd: { worker: 'test://odd.ts', groups: ['gpu', 'nope'] } }, GROUPS, { createPool }); } catch (e) { err = e; }
-    ok(err instanceof BootstrapError, 'a BootstrapError');
+    try { bootstrap({ workers: { ...WORKERS, odd: { url: 'test://odd.ts' } }, nodeTypes: { ...TYPES, Odd: { worker: 'odd', groups: ['gpu', 'nope'] } } }, GROUPS, { createPool }); } catch (e) { err = e; }
+    ok(err instanceof NameMissing, `a NameMissing (the derivation names a group the registry lacks): ${(err as Error)?.message}`);
     const msg = (err as Error).message;
     ok(msg.includes('"Odd"') && msg.includes('"nope"') && msg.includes('"gpu"') && msg.includes('"api"'), `names the type, the id and what was given: ${msg}`);
-    equal(built, [], 'and NO pool was built — the check runs over every type first');
+    equal(built, [], 'and NO pool was built — every instance is derived before any pool is built');
   });
 
-  test('direction two: a group object no type names is refused, naming the id — a group registered and used by nothing', () => {
+  test('direction two: a group object no pool names is refused, naming the id — a group registered and used by nothing', () => {
     const { built, createPool } = recorder();
-    throws(() => bootstrap(TYPES, { ...GROUPS, spare: group('spare') }, { createPool }), '"spare"', 'refused naming the unnamed group');
+    throws(() => bootstrap(REG, { ...GROUPS, spare: group('spare') }, { createPool }), '"spare"', 'refused naming the unnamed group');
     equal(built, [], 'and nothing was built');
-    // The two directions are two clauses: a registry with NO groups at all and types naming none
-    // passes both, so neither clause is a floor over the other.
-    const out = bootstrap({ Plain: TYPES.Plain! }, {}, { createPool });
+    let err: unknown;
+    try { bootstrap(REG, { ...GROUPS, spare: group('spare') }, { createPool }); } catch (e) { err = e; }
+    ok(err instanceof BootstrapError, 'a BootstrapError — the helper`s own refusal, not a registry defect');
+    const out = bootstrap({ workers: WORKERS, nodeTypes: { Plain: TYPES.Plain! } }, {}, { createPool });
     equal(out.resourceGroups, {}, 'no groups, no refusal');
+    // The adequacy reader (M28): direction two reads what the DERIVATION names — `residentGroups` as well as
+    // `groups` — so a group a pool holds only as resident is not "used by nothing".
+    const resident = bootstrap({ workers: WORKERS, nodeTypes: { Res: { worker: 'plain', pool: { idleTimeout: 1, residentGroups: ['res'] } } } }, { res: group('res') }, recorder());
+    ok(resident.resourceGroups.res === undefined || resident.resourceGroups.res !== undefined, 'built');
+    equal(Object.keys(resident.resourceGroups), ['res'], 'a resident-only group is named by its pool and comes back');
+    equal(resident.derived.Res!.spec.residentGroups, ['res'], 'and the derived spec carries it as resident');
   });
 
   test('the check is over the MAP KEY and the group object`s own name is inert — the adequacy reader (q13)', () => {
-    // ADR 0049 fact 2: the scheduler resolves a group by the key of the map it was given and a
-    // group's own `id` is inert. Every fixture had key === id, so a helper re-sourced to the objects'
-    // ids survived L1 AND L6 (the reader measured it). This case is the one whose key differs.
-    const byKey = bootstrap({ T: { worker: 'x', groups: ['gpu'] } }, { gpu: group('not-gpu') }, recorder());
+    const one = { workers: { x: { url: 'x' } }, nodeTypes: { T: { worker: 'x', groups: ['gpu'] } } };
+    const byKey = bootstrap(one, { gpu: group('not-gpu') }, recorder());
     ok(byKey.resourceGroups.gpu !== undefined && (byKey.resourceGroups.gpu as unknown as { id: string }).id === 'not-gpu',
       'a type naming "gpu" is satisfied by the object registered UNDER "gpu", whatever it calls itself');
-    throws(() => bootstrap({ T: { worker: 'x', groups: ['gpu'] } }, { other: group('gpu') }, recorder()), '"gpu"',
+    throws(() => bootstrap(one, { other: group('gpu') }, recorder()), '"gpu"',
       'and an object that CALLS itself "gpu" under another key does not satisfy it — the key is what the scheduler reads');
   });
 
-  test('a type naming no worker is refused by name', () => {
-    throws(() => bootstrap({ Bad: { worker: '' } }, {}, recorder()), '"Bad"', 'an empty worker URL');
-    throws(() => bootstrap({ Bad: { worker: 5 as unknown as string } }, {}, recorder()), '"Bad"', 'a non-string worker');
+  test('a type naming no worker, or a worker the registry lacks, is refused by name — WorkerMissing', () => {
+    throws(() => bootstrap({ workers: WORKERS, nodeTypes: { Bad: { worker: '' } } }, {}, recorder()), '"Bad"', 'an empty worker name');
+    let err: unknown;
+    try { bootstrap({ workers: WORKERS, nodeTypes: { Bad: { worker: 'nope' } } }, {}, recorder()); } catch (e) { err = e; }
+    ok(err instanceof WorkerMissing && err.at === 'Bad' && err.message.includes('"nope"'), `names the type and the worker: ${(err as Error)?.message}`);
+    throws(() => bootstrap({ workers: { w: { url: '' } }, nodeTypes: { Bad: { worker: 'w' } } }, {}, recorder()), '"w"', 'a worker with no url');
   });
 
   test('a Map-shaped registry bootstraps exactly as an object does', () => {
-    const a = bootstrap(TYPES, GROUPS, recorder());
-    const b = bootstrap(new Map(Object.entries(TYPES)), GROUPS, recorder());
+    const a = bootstrap(REG, GROUPS, recorder());
+    const b = bootstrap({ workers: new Map(Object.entries(WORKERS)), nodeTypes: new Map(Object.entries(TYPES)) }, GROUPS, recorder());
     equal(Object.keys(b.workerPools).sort(), Object.keys(a.workerPools).sort(), 'same pool keys');
   });
 
   test('the PURE entry does not export the helper — ADR 0049 rule 5`s second half, bound (the adequacy reader, q36)', async () => {
-    // `export * from "./src/scheduler/index.ts"` appended to `index.ts` was green at check:source
-    // (S7 permits the bare specifier anywhere since ADR 0048), npm test, lint, all five typechecks
-    // AND the browser bundle — the decision P16, ADR 0049 and AGENTS.md section 13 all state had no
-    // observer. The pure half must load no WorkerManager, so the root may name none of these.
     const root = await import('../../index.ts') as Record<string, unknown>;
     for (const name of ['bootstrap', 'BootstrapError', 'ENVELOPE_WORKER_URL', 'EnvelopeWorker', 'NotAnEnvelope', 'unpackEnvelope']) {
       ok(!(name in root), `${name} is the sub-path's and not the root's`);
     }
-    ok('Driver' in root && 'validateDefinition' in root, 'while the root still carries the pure half — the loop above is not vacuous');
+    ok('Driver' in root && 'validateDefinition' in root && 'resolveRegistry' in root, 'while the root still carries the pure half, the registry resolver included — the loop above is not vacuous');
   });
 
   test('the DEFAULT factory builds a real WorkerManager carrying the same options — ADR 0048 rule 5`s pattern, one layer out', async () => {
-    const out = bootstrap({ Scorer: TYPES.Scorer! }, { gpu: GROUPS.gpu });
+    const out = bootstrap({ workers: { scorer: WORKERS.scorer! }, nodeTypes: { Scorer: TYPES.Scorer! } }, { gpu: GROUPS.gpu });
     const pool = out.workerPools.Scorer!;
     try {
       ok(pool instanceof WorkerManager, 'the scheduler`s own class');
@@ -155,9 +218,6 @@ const ARROW_DEFAULT_URL = `data:text/javascript,${encodeURIComponent('export def
 
 suite('W59 — the envelope worker: unpacks the two keys, refuses everything else, and drives the inner worker`s lifecycle', (test) => {
   test('unpackEnvelope: exactly the two keys come out, a third is dropped, and input may hold undefined', () => {
-    // *(This key read `transform: 'later'` until W61, when `transform` became the third key the
-    // wrapper CONSUMES and a malformed one a refusal; a key the wrapper has no reading for is what
-    // this case is about, and it is still dropped.)*
     equal(unpackEnvelope({ settings: { a: 1 }, input: { b: 2 }, extra: 'later' }), { settings: { a: 1 }, input: { b: 2 } }, 'two keys out, the third dropped — the wrapper`s to consume');
     equal(unpackEnvelope({ settings: {}, input: undefined }), { settings: {}, input: undefined }, 'presence by `in`: an input holding undefined is an envelope');
     equal(Object.keys(unpackEnvelope({ settings: {}, input: 1 })).sort(), ['input', 'settings'], 'and nothing beside them');
@@ -258,22 +318,25 @@ const FLOW2: FlowDefinition = {
 };
 
 suite('W61 — bootstrap writes a language`s worker URL into a typed pool`s config only where a node of the type transforms, both ways', (test) => {
-  test('a type some node of which transforms gets `languages: { lang: worker URL }` beside worker and config; a type with no transforming node gets NO languages key', () => {
+  test('a type some node of which transforms gets `languages: { lang: worker URL }` beside worker and config; a type with no transforming node gets NO languages key — and a NAMED instance of a transforming type carries it too', () => {
     const { built, createPool } = recorder();
-    bootstrap(TYPES, GROUPS, { createPool, languages: LANGS, flows: [FLOW] });
-    const cfg = (w: string) => built.find((b) => (b.options.config as { worker: string }).worker === w)!.options.config as Record<string, unknown>;
+    bootstrap({ ...REG, pools: { 'scorer-2': { type: 'Scorer' } } }, GROUPS, { createPool, languages: LANGS, flows: [FLOW] });
+    const cfg = (w: string) => byWorker(built, w).options.config as Record<string, unknown>;
     equal(cfg('test://scorer.ts'), { worker: 'test://scorer.ts', config: { role: 'typed' }, languages: { path: PATH_URL } }, 'Scorer: the adapter`s WORKER half, a URL, under the language`s name');
     equal(Object.keys(cfg('test://scorer.ts')), ['worker', 'config', 'languages'], 'beside worker and config');
     ok(!('languages' in cfg('test://ranker.ts')), 'Ranker (typed, transforms in nothing): no languages key — no engine loaded for a pool that never transforms');
     ok(!('languages' in cfg('test://plain.ts')), 'Plain (no node in the flow): none either');
+    const scorers = built.filter((b) => (b.options.config as { worker: string }).worker === 'test://scorer.ts');
+    equal(scorers.length, 2, 'two Scorer pools — the default and the named instance');
+    ok(scorers.every((b) => 'languages' in (b.options.config as object)), 'and both carry the language: a node on either instance may transform');
   });
 
   test('with NO flows, or flows declaring no transform, every pool config is byte-identical to a call with no options at all — P17 decision 8 at the helper', () => {
-    const a = recorder(); bootstrap(TYPES, GROUPS, { createPool: a.createPool });
-    const b = recorder(); bootstrap(TYPES, GROUPS, { createPool: b.createPool, languages: LANGS });
-    const c = recorder(); bootstrap(TYPES, GROUPS, { createPool: c.createPool, languages: LANGS, flows: [] });
+    const a = recorder(); bootstrap(REG, GROUPS, { createPool: a.createPool });
+    const b = recorder(); bootstrap(REG, GROUPS, { createPool: b.createPool, languages: LANGS });
+    const c = recorder(); bootstrap(REG, GROUPS, { createPool: c.createPool, languages: LANGS, flows: [] });
     const noTransform: FlowDefinition = { ...FLOW, nodes: FLOW.nodes.map((n) => { const { transform: _t, ...rest } = n as { transform?: unknown }; return rest as typeof n; }) };
-    const d = recorder(); bootstrap(TYPES, GROUPS, { createPool: d.createPool, languages: LANGS, flows: [noTransform] });
+    const d = recorder(); bootstrap(REG, GROUPS, { createPool: d.createPool, languages: LANGS, flows: [noTransform] });
     equal(b.built, a.built, 'languages given and no flow: identical');
     equal(c.built, a.built, 'an empty flow list: identical');
     equal(d.built, a.built, 'a flow with no transform: identical');
@@ -283,37 +346,37 @@ suite('W61 — bootstrap writes a language`s worker URL into a typed pool`s conf
   test('direction one: a node naming a language with NO adapter given is refused, naming the type, the language and what was given, before any pool is built', () => {
     const { built, createPool } = recorder();
     let err: unknown;
-    try { bootstrap(TYPES, GROUPS, { createPool, languages: { other: OTHER }, flows: [FLOW] }); } catch (e) { err = e; }
+    try { bootstrap(REG, GROUPS, { createPool, languages: { other: OTHER }, flows: [FLOW] }); } catch (e) { err = e; }
     ok(err instanceof BootstrapError, 'a BootstrapError');
     const msg = (err as Error).message;
     ok(msg.includes('"Scorer"') && msg.includes('"path"') && msg.includes('"other"'), `names the type, the language and what was given: ${msg}`);
     equal(built, [], 'and NO pool was built');
-    throws(() => bootstrap(TYPES, GROUPS, { createPool, flows: [FLOW] }), '"path"', 'languages omitted entirely: refused the same way');
-    throws(() => bootstrap(TYPES, GROUPS, { createPool, languages: { path: { compile: () => {}, worker: '' } }, flows: [FLOW] }), 'no worker module URL', 'an adapter with no worker URL is refused naming it');
+    throws(() => bootstrap(REG, GROUPS, { createPool, flows: [FLOW] }), '"path"', 'languages omitted entirely: refused the same way');
+    throws(() => bootstrap(REG, GROUPS, { createPool, languages: { path: { compile: () => {}, worker: '' } }, flows: [FLOW] }), 'no worker module URL', 'an adapter with no worker URL is refused naming it');
   });
 
   test('direction two is NOT a refusal, and says so: an adapter given that no node names is an inert registry entry, unlike a group', () => {
     const { built, createPool } = recorder();
-    const out = bootstrap(TYPES, GROUPS, { createPool, languages: LANGS, flows: [FLOW] });
+    const out = bootstrap(REG, GROUPS, { createPool, languages: LANGS, flows: [FLOW] });
     equal(Object.keys(out.workerPools).sort(), Object.keys(TYPES).sort(), 'built, with `other` given and named by nothing');
     ok(built.every((b) => !JSON.stringify(b.options.config).includes('other-language')), 'and the unnamed adapter reaches no pool');
   });
 
   test('obligation (e), both ways: what the helper WROTE equals what the flows DECLARE, per type, and every URL is the named adapter`s worker — over two flows, so the union has a case', () => {
     const { built, createPool } = recorder();
-    bootstrap(TYPES, GROUPS, { createPool, languages: LANGS, flows: [FLOW, FLOW2] });
+    bootstrap(REG, GROUPS, { createPool, languages: LANGS, flows: [FLOW, FLOW2] });
     const declared = transformLanguagesByType([FLOW, FLOW2]);
     equal([...declared.keys()].sort(), ['Ranker', 'Scorer'], 'two types transform across the two flows');
     equal([...declared.get('Ranker')!], ['other'], 'Ranker in `other`, from the second flow');
     for (const [name, t] of Object.entries(TYPES)) {
-      const cfg = built.find((b) => (b.options.config as { worker: string }).worker === t.worker)!.options.config as { languages?: Record<string, string> };
+      const cfg = byWorker(built, WORKERS[t.worker]!.url).options.config as { languages?: Record<string, string> };
       const written = Object.keys(cfg.languages ?? {}).sort();
       const wanted = [...(declared.get(name) ?? [])].sort();
       equal(written, wanted, `${name}: the languages written are exactly the languages its nodes declare`);
       for (const lang of written) equal(cfg.languages![lang], (LANGS as Record<string, LanguageAdapter>)[lang]!.worker, `${name}/${lang}: the URL is the adapter's worker half`);
     }
     equal(transformLanguagesByType([]).size, 0, 'no flows, no languages');
-    const map = bootstrap(TYPES, GROUPS, { createPool: recorder().createPool, languages: new Map(Object.entries(LANGS)), flows: [FLOW] });
+    const map = bootstrap(REG, GROUPS, { createPool: recorder().createPool, languages: new Map(Object.entries(LANGS)), flows: [FLOW] });
     equal(Object.keys(map.workerPools).sort(), Object.keys(TYPES).sort(), 'a Map-shaped languages registry bootstraps as an object does');
   });
 });

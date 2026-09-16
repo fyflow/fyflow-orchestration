@@ -453,6 +453,41 @@ const RUN_FLOOR = 22;
   }
 }
 
+// X7 — the refusal count AGENTS.md states is `spec/flow-definition.md` section 5's row count
+//
+// **Obligation (e)'s third shape, one count** — W59's conformity reader found this sentence
+// stale twelve lines below the table W59 rewrote, and W65's rule 8 set (`d4`) measured that
+// moving it to 35 with the spec at 34 cost zero across every check: the consumer reference's
+// one number about the validator was compared to nothing. Derived the way `check-spec`'s `C4`
+// derives it — the declaring rows whose first cell is a backticked `FD-V` id, less the ones
+// declared *deliberately absent* — and compared to the sentence's count AND its range end,
+// because both are literals a consumer asserts on ("the ids are never renumbered, so it is safe
+// to assert on them"). `X6`'s shape: the normative document against the consumer reference.
+{
+  const SPEC = join(ROOT, 'spec', 'flow-definition.md');
+  const AG = join(ROOT, DOCS[0]);
+  if (!existsSync(SPEC) || !existsSync(AG)) {
+    fail('X7', 'spec/flow-definition.md or AGENTS.md is missing, so the refusal count cannot be compared');
+  } else {
+    const spec = readFileSync(SPEC, 'utf8');
+    const ag = readFileSync(AG, 'utf8');
+    const rows = [];
+    for (const line of spec.split(/\r?\n/)) {
+      const m = /^\|\s*`(FD-V(\d+))`\s*\|(.*)$/.exec(line);
+      if (m) rows.push({ id: m[1], n: Number(m[2]), absent: /deliberately absent/i.test(m[3]) });
+    }
+    const live = rows.filter((r) => !r.absent).length;
+    const top = rows.reduce((h, r) => Math.max(h, r.n), 0);
+    const said = /There are \*\*(\d+) refusals\*\* over the id range `FD-V1` … `FD-V(\d+)`/.exec(ag);
+    if (rows.length === 0) fail('X7', 'spec/flow-definition.md section 5 declares no FD-V rows where X7 looks for them');
+    else if (!said) fail('X7', 'AGENTS.md`s refusal-count sentence is not where X7 looks for it');
+    else {
+      if (Number(said[1]) !== live) fail('X7', `AGENTS.md says **${said[1]} refusals** and spec/flow-definition.md section 5 declares ${live} (${rows.length} rows, ${rows.length - live} absent)`);
+      if (Number(said[2]) !== top) fail('X7', `AGENTS.md says the id range ends at FD-V${said[2]} and section 5's highest row is FD-V${top}`);
+    }
+  }
+}
+
 const checks = [
   'X1 the reference exists and its fences parse',
   'X2 every ```ts block is tagged run or check, or opts out explicitly',
@@ -460,6 +495,7 @@ const checks = [
   'X4 every `run` snippet executes, and asserts something',
   'X5 no snippet fails under the DOM lib a browser consumer compiles with (zero since W57 closed Q71)',
   'X6 AGENTS.md`s cost figures ARE spec/flow-definition.md section 3`s, both ways',
+  'X7 AGENTS.md`s refusal count IS spec/flow-definition.md section 5`s row count, and its range end the highest row',
 ];
 const runCount = written.filter((x) => x.tag === 'run').length;
 console.log(`docs check — ${all.length} snippet(s): ${runCount} run, ` +

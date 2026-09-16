@@ -59,7 +59,7 @@ import { sixEvents, twoRegions } from '../matrix/flows.ts';
 
 const EX = `${ROOT}spec/examples`;
 const load = async (rel: string) => JSON.parse(await readText(`${EX}/${rel}`)) as FlowDefinition;
-const reg = JSON.parse(await readText(`${EX}/registry.json`)) as { workerTypes: string[] };
+const reg = JSON.parse(await readText(`${EX}/registry.json`)) as { workers: Record<string, { url: string }>; nodeTypes: Record<string, { worker: string }>; groups: Record<string, unknown>; pools: Record<string, { type: string }>; predicates: string[]; languages: string[] };
 
 /**
  * A stub, as `test/driver/driver.test.ts` uses: this suite is about what leaves
@@ -125,7 +125,7 @@ function rigOf(def: FlowDefinition, predicates: Record<string, () => boolean> = 
     scheduler,
     createTask: (c) => c,
     predicates: new Map(Object.entries(predicates)) as never,
-    workerTypes: reg.workerTypes,
+    workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools,
     now: () => 1000,
     joinPolicy: stubPolicy as unknown as JoinPolicy,
     onRegionEvent: (e) => events.push(e),

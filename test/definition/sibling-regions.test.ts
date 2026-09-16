@@ -39,11 +39,12 @@ import {
 } from '../../src/definition/regions.ts';
 import { validateDefinition } from '../../src/definition/validate.ts';
 import type { FlowDefinition } from '../../src/definition/types.ts';
+import { corpusRegistry } from './corpus-types.ts';
 
 const EX = `${ROOT}spec/examples`;
 const load = async (rel: string) => JSON.parse(await readText(`${EX}/valid/${rel}`)) as FlowDefinition;
-const reg = JSON.parse(await readText(`${EX}/registry.json`)) as
-  { workerTypes: string[]; predicates: string[] };
+// The corpus registry is a DOCUMENT since v0.19 (W65); `corpusRegistry` turns it into the validator's `Registry`.
+const reg = corpusRegistry(JSON.parse(await readText(`${EX}/registry.json`)));
 
 /**
  * **The sibling `fanout` pair, built here because neither corpus contains one** —
@@ -65,15 +66,15 @@ const SIBLING_FANOUTS = {
   version: 1,
   entry: 'ingest',
   nodes: [
-    { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'splitA' }] },
+    { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'splitA' }] },
     { id: 'splitA', kind: 'fanout', branches: ['scoreA1', 'scoreA2'] },
-    { id: 'scoreA1', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'joinA' }] },
-    { id: 'scoreA2', kind: 'task', workerType: 'ReviewWorker', edges: [{ to: 'joinA' }] },
+    { id: 'scoreA1', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'joinA' }] },
+    { id: 'scoreA2', kind: 'task', type: 'ReviewWorker', edges: [{ to: 'joinA' }] },
     { id: 'joinA', kind: 'join', of: 'splitA', edges: [{ to: 'splitB' }] },
     { id: 'splitB', kind: 'fanout', branches: ['publishB1', 'publishB2'] },
-    { id: 'publishB1', kind: 'task', workerType: 'PublishWorker',
+    { id: 'publishB1', kind: 'task', type: 'PublishWorker',
       needs: { own: '.', first: 'scoreA1' }, edges: [{ to: 'joinB' }] },
-    { id: 'publishB2', kind: 'task', workerType: 'PublishWorker',
+    { id: 'publishB2', kind: 'task', type: 'PublishWorker',
       needs: { own: '.', first: 'scoreA1' }, edges: [{ to: 'joinB' }] },
     { id: 'joinB', kind: 'join', of: 'splitB', edges: [{ to: 'done' }] },
     { id: 'done', kind: 'end', outcome: 'completed' },
@@ -106,17 +107,17 @@ const NESTED_SIBLINGS = {
   version: 1,
   entry: 'ingest',
   nodes: [
-    { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'outer' }] },
+    { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'outer' }] },
     { id: 'outer', kind: 'fanout', branches: ['plain', 'gate'] },
-    { id: 'plain', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'outerJoin' }] },
-    { id: 'gate', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'innerA' }] },
+    { id: 'plain', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'outerJoin' }] },
+    { id: 'gate', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'innerA' }] },
     { id: 'innerA', kind: 'fanout', branches: ['x1', 'x2'] },
-    { id: 'x1', kind: 'task', workerType: 'ExtractWorker', edges: [{ to: 'joinA' }] },
-    { id: 'x2', kind: 'task', workerType: 'ExtractWorker', edges: [{ to: 'joinA' }] },
+    { id: 'x1', kind: 'task', type: 'ExtractWorker', edges: [{ to: 'joinA' }] },
+    { id: 'x2', kind: 'task', type: 'ExtractWorker', edges: [{ to: 'joinA' }] },
     { id: 'joinA', kind: 'join', of: 'innerA', edges: [{ to: 'innerB' }] },
     { id: 'innerB', kind: 'fanout', branches: ['y1', 'y2'] },
-    { id: 'y1', kind: 'task', workerType: 'MergeWorker', edges: [{ to: 'joinB' }] },
-    { id: 'y2', kind: 'task', workerType: 'MergeWorker', edges: [{ to: 'joinB' }] },
+    { id: 'y1', kind: 'task', type: 'MergeWorker', edges: [{ to: 'joinB' }] },
+    { id: 'y2', kind: 'task', type: 'MergeWorker', edges: [{ to: 'joinB' }] },
     { id: 'joinB', kind: 'join', of: 'innerB', edges: [{ to: 'outerJoin' }] },
     { id: 'outerJoin', kind: 'join', of: 'outer', edges: [{ to: 'done' }] },
     { id: 'done', kind: 'end', outcome: 'completed' },
@@ -145,15 +146,15 @@ const NESTED_SIBLINGS = {
 const INTERLEAVED = {
   flowId: 'interleaved', version: 1, entry: 'ingest',
   nodes: [
-    { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'outer' }] },
+    { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'outer' }] },
     { id: 'outer', kind: 'fanout', branches: ['a', 'b'] },
-    { id: 'a', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'endA' }] },
-    { id: 'b', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'F3' }] },
+    { id: 'a', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'endA' }] },
+    { id: 'b', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'F3' }] },
     { id: 'F3', kind: 'fanout', branches: ['c', 'd'] },
-    { id: 'c', kind: 'task', workerType: 'ExtractWorker', edges: [{ to: 'collect' }] },
-    { id: 'd', kind: 'task', workerType: 'ExtractWorker', edges: [{ to: 'innerJoin' }] },
+    { id: 'c', kind: 'task', type: 'ExtractWorker', edges: [{ to: 'collect' }] },
+    { id: 'd', kind: 'task', type: 'ExtractWorker', edges: [{ to: 'innerJoin' }] },
     { id: 'collect', kind: 'join', of: 'outer', edges: [{ to: 'x' }] },
-    { id: 'x', kind: 'task', workerType: 'MergeWorker', edges: [{ to: 'endX' }] },
+    { id: 'x', kind: 'task', type: 'MergeWorker', edges: [{ to: 'endX' }] },
     { id: 'innerJoin', kind: 'join', of: 'F3', edges: [{ to: 'endI' }] },
     { id: 'endA', kind: 'end', outcome: 'completed' },
     { id: 'endX', kind: 'end', outcome: 'completed' },

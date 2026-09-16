@@ -3,7 +3,7 @@
   "version": 1,
   "entry": "ingest",
   "nodes": [
-    { "id": "ingest",  "kind": "task", "workerType": "SplitWorker", "edges": [ { "to": "each" } ] },
+    { "id": "ingest",  "kind": "task", "type": "SplitWorker", "edges": [ { "to": "each" } ] },
     { "id": "each",    "kind": "map",  "over": "items", "branch": "reshape" },
     { "id": "reshape", "kind": "task", "type": "Echo", "settings": { "scale": 100 },
       "transform": { "lang": "jsonata", "expr": "{ \"word\": word, \"score\": $round(confidence * $settings.scale), \"fields\": $keys($) }" },

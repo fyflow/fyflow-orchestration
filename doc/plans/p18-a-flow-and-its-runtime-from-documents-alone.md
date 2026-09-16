@@ -575,4 +575,27 @@ documents, forty-eight links, two anchors, two questions.*
 
 ## Record
 
-*Filled in at the join, after the work items are merged. Empty while this is a draft.*
+*Filled in at the join, after the work items are merged. Empty while this is a draft. Each item's
+paragraph is written when the item closes; the join reads them together.*
+
+### W65 — done 2026-09-15
+
+**The registry document and its types, the subset validator, the grammar, the corpus migrated —
+[ADR 0053](../decisions/0053-the-schema-validator-is-a-built-in-subset-and-a-keyword-outside-it-is-refused.md)
+and [ADR 0054](../decisions/0054-every-task-node-names-a-type-and-a-type-is-a-derivation-to-pool-options.md),
+`spec/flow-definition.md` v0.19.** Its declaration step found this plan's own ordering impossible —
+24 of 24 L6 flows carried `workerType` and the harness read the old type shape — and the maintainer
+chose to migrate `examples/**` in W65 rather than W67, so `examples/` already has no `pool()` call
+(the role switch is W67's). **Predictions**: 1 CONFIRMED at L1-L5 — no routing or fold assertion moved,
+only payload reads, and reverting the envelope on the bare road costs **114** at L6; 2 CONFIRMED as
+CANONICAL JSON — the typed rows of P16 and P17 unmoved at 1502 / 50, key order being today's literal's
+and not a rule's (Q284); 3 CONFIRMED — `FD-V38` and eleven `RegistryError` classes, no `FD-R`, no node
+kind; 4 held on the sample and the corpus (fact 1's 14 of 14 as fixtures, the corpus registry resolving
+with nothing refused) and stays a reach over what a consumer writes. **What the item found that this plan
+did not say**: a task that is not a flow's on a shared scheduler must carry the envelope now that every
+pool is a type's (Q280); a worker's `settingsSchema` is shared by every type over that worker (Q282);
+`new Driver` runs the registry's SHAPE half and never a derivation, which three documents overclaimed
+until the readers read them; and `in` walked `Object.prototype` in the subset's object keywords. L1-L5
+**40 / 1065 in five runtimes**, L6 **1502 / 50**, spec **7 / 55 / 105 / 34**, readers 26 / 12 and
+21 / 16 / 12 at overlap 2, rule 8 103 probes, 91 caught, 6 declared ceilings each RUN, 5 measured, 0 undeclared, 0 crashes, 0 against declaration on the final pass, 1 abort re-anchored and caught, ten late exceptions and zero undeclared, census
+**222 / 169 / 2 / 51**, 0 aborts.

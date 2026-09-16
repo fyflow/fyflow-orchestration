@@ -4,7 +4,7 @@
   "entry": "split",
   "nodes": [
     { "id": "split",   "kind": "fanout", "branches": [ "scoreA", "collect" ] },
-    { "id": "scoreA",  "kind": "task",   "workerType": "ScoreWorker", "edges": [ { "to": "collect" } ] },
+    { "id": "scoreA",  "kind": "task",   "type": "ScoreWorker", "edges": [ { "to": "collect" } ] },
     { "id": "collect", "kind": "join",   "of": "split",               "edges": [ { "to": "done" } ] },
     { "id": "done",    "kind": "end",    "outcome": "completed" }
   ]

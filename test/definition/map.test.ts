@@ -22,6 +22,7 @@
  * Nothing here needs a driver, which is the test that W32's decomposition was right.
  */
 import { equal, ok, readText, ROOT, suite, throws } from '../harness.ts';
+import { typesFor } from '../registry-fixture.ts';
 import { validateDefinition, violatedRules } from '../../src/definition/validate.ts';
 import {
   allRegions,
@@ -38,14 +39,14 @@ import type { FlowDefinition, FlowNode, Registry } from '../../src/definition/ty
 
 const registry: Registry = {
   predicates: new Set(['isLowConfidence']),
-  workerTypes: new Set(['IngestWorker', 'ScoreWorker', 'PublishWorker', 'ExtractWorker', 'MergeWorker']),
+  ...typesFor(['IngestWorker', 'ScoreWorker', 'PublishWorker', 'ExtractWorker', 'MergeWorker']),
 };
 
 const doc = (nodes: unknown[], over: Record<string, unknown> = {}): FlowDefinition =>
   ({ flowId: 'map-test', version: 1, entry: 'ingest', nodes, ...over }) as unknown as FlowDefinition;
 
 const task = (id: string, to: string, over: Record<string, unknown> = {}) =>
-  ({ id, kind: 'task', workerType: 'ScoreWorker', edges: [{ to }], ...over }) as unknown as FlowNode;
+  ({ id, kind: 'task', type: 'ScoreWorker', edges: [{ to }], ...over }) as unknown as FlowNode;
 
 const end = (id: string) => ({ id, kind: 'end', outcome: 'completed' }) as unknown as FlowNode;
 
@@ -64,26 +65,26 @@ const mapNode = (id: string, over: string, branch: string, extra: Record<string,
  */
 const MAP_FLOW = () =>
   doc([
-    task('ingest', 'split', { workerType: 'IngestWorker' }),
+    task('ingest', 'split', { type: 'IngestWorker' }),
     mapNode('split', 'items', 'score'),
     task('score', 'collect'),
     join('collect', 'split', 'publish'),
-    task('publish', 'done', { workerType: 'PublishWorker' }),
+    task('publish', 'done', { type: 'PublishWorker' }),
     end('done'),
   ]);
 
 /** A map region nested inside a static one — `spec/examples/valid/map-in-fanout.flow.json`. */
 const MAP_IN_FANOUT = () =>
   doc([
-    task('ingest', 'outer', { workerType: 'IngestWorker' }),
+    task('ingest', 'outer', { type: 'IngestWorker' }),
     { id: 'outer', kind: 'fanout', branches: ['scoreA', 'extract'] } as unknown as FlowNode,
     task('scoreA', 'collect'),
-    task('extract', 'perItem', { workerType: 'ExtractWorker' }),
+    task('extract', 'perItem', { type: 'ExtractWorker' }),
     mapNode('perItem', 'rows', 'merge'),
-    task('merge', 'gather', { workerType: 'MergeWorker' }),
+    task('merge', 'gather', { type: 'MergeWorker' }),
     join('gather', 'perItem', 'collect'),
     join('collect', 'outer', 'publish'),
-    task('publish', 'done', { workerType: 'PublishWorker' }),
+    task('publish', 'done', { type: 'PublishWorker' }),
     end('done'),
   ]);
 
@@ -116,7 +117,7 @@ suite('map — the definition shape (spec/flow-definition.md v0.8 sections 2 and
 
   t('FD-V25 clause 1 — a map with `edges`', () => {
     const d = doc([
-      task('ingest', 'split', { workerType: 'IngestWorker' }),
+      task('ingest', 'split', { type: 'IngestWorker' }),
       mapNode('split', 'items', 'score', { edges: [{ to: 'score' }] }),
       task('score', 'collect'),
       join('collect', 'split', 'done'),
@@ -137,7 +138,7 @@ suite('map — the definition shape (spec/flow-definition.md v0.8 sections 2 and
       ]],
     ] as [string, string, FlowNode[]][]) {
       const d = doc([
-        task('ingest', 'split', { workerType: 'IngestWorker' }),
+        task('ingest', 'split', { type: 'IngestWorker' }),
         mapNode('split', 'items', branch),
         join('collect', 'split', 'done'),
         end('done'),
@@ -154,7 +155,7 @@ suite('map — the definition shape (spec/flow-definition.md v0.8 sections 2 and
     const withOver = (over: unknown) =>
       violatedRules(validateDefinition(
         doc([
-          task('ingest', 'split', { workerType: 'IngestWorker' }),
+          task('ingest', 'split', { type: 'IngestWorker' }),
           mapNode('split', over as string, 'score'),
           task('score', 'collect'),
           join('collect', 'split', 'done'),
@@ -206,7 +207,7 @@ suite('map — the definition shape (spec/flow-definition.md v0.8 sections 2 and
       const node = { id: 'split', kind: 'map', over: 'items', branch: 'score' } as Record<string, unknown>;
       delete node[missing];
       const d = doc([
-        task('ingest', 'split', { workerType: 'IngestWorker' }),
+        task('ingest', 'split', { type: 'IngestWorker' }),
         node as unknown as FlowNode,
         task('score', 'collect'),
         join('collect', 'split', 'done'),
@@ -222,7 +223,7 @@ suite('map — the definition shape (spec/flow-definition.md v0.8 sections 2 and
     // refused rather than silently ignored, which is FD-V17's own argument about a
     // misspelled `when`.
     const d = doc([
-      task('ingest', 'split', { workerType: 'IngestWorker' }),
+      task('ingest', 'split', { type: 'IngestWorker' }),
       mapNode('split', 'items', 'score', { branches: ['score'] }),
       task('score', 'collect'),
       join('collect', 'split', 'done'),
@@ -238,7 +239,7 @@ suite('map — the definition shape (spec/flow-definition.md v0.8 sections 2 and
     );
     // zero joins naming it
     const orphan = doc([
-      task('ingest', 'split', { workerType: 'IngestWorker' }),
+      task('ingest', 'split', { type: 'IngestWorker' }),
       mapNode('split', 'items', 'score'),
       task('score', 'done'),
       end('done'),
@@ -246,7 +247,7 @@ suite('map — the definition shape (spec/flow-definition.md v0.8 sections 2 and
     ok(violatedRules(validateDefinition(orphan, registry)).includes('FD-V6'), 'a map with no join is refused');
     // two joins naming it
     const two = doc([
-      task('ingest', 'split', { workerType: 'IngestWorker' }),
+      task('ingest', 'split', { type: 'IngestWorker' }),
       mapNode('split', 'items', 'score'),
       task('score', 'collect'),
       join('collect', 'split', 'done'),
@@ -258,7 +259,7 @@ suite('map — the definition shape (spec/flow-definition.md v0.8 sections 2 and
 
   t('FD-V2 — a map whose `branch` names nothing', () => {
     const d = doc([
-      task('ingest', 'split', { workerType: 'IngestWorker' }),
+      task('ingest', 'split', { type: 'IngestWorker' }),
       mapNode('split', 'items', 'nowhere'),
       join('collect', 'split', 'done'),
       end('done'),
@@ -268,7 +269,7 @@ suite('map — the definition shape (spec/flow-definition.md v0.8 sections 2 and
 
   t('FD-V12 — a map whose `branch` is its own join, which is the corpus case', () => {
     const d = doc([
-      task('ingest', 'split', { workerType: 'IngestWorker' }),
+      task('ingest', 'split', { type: 'IngestWorker' }),
       mapNode('split', 'items', 'collect'),
       join('collect', 'split', 'done'),
       end('done'),
@@ -308,7 +309,7 @@ suite('map — the region maths is UNCHANGED (spec/flow-definition.md section 4)
 
   t('a `fanout` region still reports `opensWith: "fanout"` — the control', () => {
     const d = doc([
-      task('ingest', 'split', { workerType: 'IngestWorker' }),
+      task('ingest', 'split', { type: 'IngestWorker' }),
       { id: 'split', kind: 'fanout', branches: ['a', 'b'] } as unknown as FlowNode,
       task('a', 'collect'), task('b', 'collect'),
       join('collect', 'split', 'done'),
@@ -348,7 +349,7 @@ suite('map — the region maths is UNCHANGED (spec/flow-definition.md section 4)
     equal((r.branches.length * (r.branches.length - 1)) / 2, 0, 'one branch is zero pairs');
     // and a bigger branch subgraph still cannot reach it
     const d = doc([
-      task('ingest', 'split', { workerType: 'IngestWorker' }),
+      task('ingest', 'split', { type: 'IngestWorker' }),
       mapNode('split', 'items', 'score'),
       task('score', 'refine'),
       task('refine', 'collect'),
@@ -373,14 +374,14 @@ suite('map — the region maths is UNCHANGED (spec/flow-definition.md section 4)
     // family is guarded on `!cyclic`, so the test passed for the wrong reason
     // until it was read.
     const v13 = doc([
-      task('ingest', 'split', { workerType: 'IngestWorker' }),
+      task('ingest', 'split', { type: 'IngestWorker' }),
       mapNode('split', 'items', 'score'),
-      { id: 'score', kind: 'task', workerType: 'ScoreWorker', edges: [
+      { id: 'score', kind: 'task', type: 'ScoreWorker', edges: [
         { when: 'isLowConfidence', to: 'publish' },
         { to: 'collect' },
       ] } as unknown as FlowNode,
       join('collect', 'split', 'publish'),
-      task('publish', 'done', { workerType: 'PublishWorker' }),
+      task('publish', 'done', { type: 'PublishWorker' }),
       end('done'),
     ]);
     const r13 = violatedRules(validateDefinition(v13, registry));
@@ -389,7 +390,7 @@ suite('map — the region maths is UNCHANGED (spec/flow-definition.md section 4)
 
     // FD-V20: a node outside the region with an arc to its join.
     const v20 = doc([
-      task('ingest', 'side', { workerType: 'IngestWorker' }),
+      task('ingest', 'side', { type: 'IngestWorker' }),
       task('side', 'split'),
       mapNode('split', 'items', 'score'),
       task('score', 'collect'),
@@ -397,10 +398,10 @@ suite('map — the region maths is UNCHANGED (spec/flow-definition.md section 4)
       end('done'),
     ], { entry: 'ingest' });
     const outside = doc([
-      task('ingest', 'split', { workerType: 'IngestWorker' }),
+      task('ingest', 'split', { type: 'IngestWorker' }),
       mapNode('split', 'items', 'score'),
       task('score', 'collect'),
-      { id: 'stray', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'collect' }] } as unknown as FlowNode,
+      { id: 'stray', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'collect' }] } as unknown as FlowNode,
       join('collect', 'split', 'done'),
       end('done'),
     ]);
@@ -410,7 +411,7 @@ suite('map — the region maths is UNCHANGED (spec/flow-definition.md section 4)
     // FD-V22: an edge into a region node from outside it — the corpus's
     // `region-entered-from-outside` shape. Acyclic for the same reason as above.
     const v22 = doc([
-      { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [
+      { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [
         { when: 'isLowConfidence', to: 'score' },
         { to: 'split' },
       ] } as unknown as FlowNode,
@@ -436,7 +437,7 @@ suite('map — the region maths is UNCHANGED (spec/flow-definition.md section 4)
     // given, and reports FD-V9 alongside the region findings rather than instead
     // of them.
     const oneBranchFanout = doc([
-      task('ingest', 'split', { workerType: 'IngestWorker' }),
+      task('ingest', 'split', { type: 'IngestWorker' }),
       { id: 'split', kind: 'fanout', branches: ['score'] } as unknown as FlowNode,
       task('score', 'collect'),
       join('collect', 'split', 'done'),
@@ -564,7 +565,7 @@ suite('map — branchPath is a property of the DISPATCH (spec/task-id.md v0.8, I
     // guard from the attribution side). Without it the graph builder filters the
     // non-string out before `FD-V2` can see it.
     const d = doc([
-      task('ingest', 'split', { workerType: 'IngestWorker' }),
+      task('ingest', 'split', { type: 'IngestWorker' }),
       { id: 'split', kind: 'map', over: 'items', branch: 5 } as unknown as FlowNode,
       task('score', 'collect'),
       join('collect', 'split', 'done'),
@@ -586,7 +587,7 @@ suite('map — branchPath is a property of the DISPATCH (spec/task-id.md v0.8, I
     // `"nowhere"` into `members`, which FD-V13/FD-V19/FD-V20/FD-V22 and
     // innermostRegionOf all read.
     const d = doc([
-      task('ingest', 'split', { workerType: 'IngestWorker' }),
+      task('ingest', 'split', { type: 'IngestWorker' }),
       mapNode('split', 'items', 'nowhere'),
       join('collect', 'split', 'done'),
       end('done'),
@@ -683,7 +684,7 @@ suite('map — branchPath is a property of the DISPATCH (spec/task-id.md v0.8, I
 
   t('a `fanout`-only walk ignores the new parameter entirely — the v0.7 behaviour, unmoved', () => {
     const d = doc([
-      task('ingest', 'split', { workerType: 'IngestWorker' }),
+      task('ingest', 'split', { type: 'IngestWorker' }),
       { id: 'split', kind: 'fanout', branches: ['a', 'b'] } as unknown as FlowNode,
       task('a', 'collect'), task('b', 'collect'),
       join('collect', 'split', 'done'),

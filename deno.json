@@ -18,6 +18,8 @@
       "!src/definition/types.ts",
       "!src/definition/regions.ts",
       "!src/definition/validate.ts",
+      "!src/definition/schema.ts",
+      "!src/definition/registry.ts",
       "!src/driver/ids.ts",
       "!src/driver/log.ts",
       "!src/driver/listener.ts",

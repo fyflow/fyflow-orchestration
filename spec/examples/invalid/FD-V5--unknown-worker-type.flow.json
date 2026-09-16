@@ -1,9 +1,0 @@
-{
-  "flowId": "unknown-worker",
-  "version": 1,
-  "entry": "score",
-  "nodes": [
-    { "id": "score", "kind": "task", "workerType": "NoSuchWorker", "edges": [ { "to": "done" } ] },
-    { "id": "done",  "kind": "end",  "outcome": "completed" }
-  ]
-}

@@ -20,6 +20,7 @@
  * Every expected value is copied from the definition under test, never from the run.
  */
 import { equal, ok, readText, ROOT, suite, throws } from '../harness.ts';
+import { typesFor } from '../registry-fixture.ts';
 import { Driver, InvalidDefinition } from '../../src/driver/driver.ts';
 import { POLICIES } from '../../src/fold/policies.ts';
 import { shapesOf } from '../definition/task-shapes.ts';
@@ -55,12 +56,12 @@ const SHAPES: readonly [string, (extra: Record<string, unknown>, s: Fake, opts: 
     const def = {
       flowId: 'top', version: 1, entry: 'ingest',
       nodes: [
-        { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'score' }] },
-        { id: 'score', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'done' }], ...extra },
+        { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'score' }] },
+        { id: 'score', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'done' }], ...extra },
         { id: 'done', kind: 'end', outcome: 'completed' },
       ],
     } as unknown as FlowDefinition;
-    const d = new Driver(def, { runId: 'r1', scheduler: s, createTask: (c) => c, predicates: new Map(), workerTypes: WORKER_TYPES, now: () => 1, ...opts });
+    const d = new Driver(def, { runId: 'r1', scheduler: s, createTask: (c) => c, predicates: new Map(), ...typesFor(WORKER_TYPES), now: () => 1, ...opts });
     d.start({});
     s.settle('r1:ingest:-:0', {});
     return { subject: ['r1:score:-:0'], control: 'r1:ingest:-:0' };
@@ -69,15 +70,15 @@ const SHAPES: readonly [string, (extra: Record<string, unknown>, s: Fake, opts: 
     const def = {
       flowId: 'fan', version: 1, entry: 'ingest',
       nodes: [
-        { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'split' }] },
+        { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'split' }] },
         { id: 'split', kind: 'fanout', branches: ['scoreA', 'scoreB'] },
-        { id: 'scoreA', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'collect' }], ...extra },
-        { id: 'scoreB', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'collect' }] },
+        { id: 'scoreA', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'collect' }], ...extra },
+        { id: 'scoreB', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'collect' }] },
         { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'done' }] },
         { id: 'done', kind: 'end', outcome: 'completed' },
       ],
     } as unknown as FlowDefinition;
-    const d = new Driver(def, { runId: 'r1', scheduler: s, createTask: (c) => c, predicates: new Map(), workerTypes: WORKER_TYPES, now: () => 1, joinPolicy: POLICIES['live-token'], ...opts });
+    const d = new Driver(def, { runId: 'r1', scheduler: s, createTask: (c) => c, predicates: new Map(), ...typesFor(WORKER_TYPES), now: () => 1, joinPolicy: POLICIES['live-token'], ...opts });
     d.start({});
     s.settle('r1:ingest:-:0', {});
     // The SIBLING branch is the control here: same region, same kind, declares nothing.
@@ -87,14 +88,14 @@ const SHAPES: readonly [string, (extra: Record<string, unknown>, s: Fake, opts: 
     const def = {
       flowId: 'map', version: 1, entry: 'ingest',
       nodes: [
-        { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'each' }] },
+        { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'each' }] },
         { id: 'each', kind: 'map', over: 'items', branch: 'rank' },
-        { id: 'rank', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'gather' }], ...extra },
+        { id: 'rank', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'gather' }], ...extra },
         { id: 'gather', kind: 'join', of: 'each', edges: [{ to: 'done' }] },
         { id: 'done', kind: 'end', outcome: 'completed' },
       ],
     } as unknown as FlowDefinition;
-    const d = new Driver(def, { runId: 'r1', scheduler: s, createTask: (c) => c, predicates: new Map(), workerTypes: WORKER_TYPES, now: () => 1, joinPolicy: POLICIES['live-token'], ...opts });
+    const d = new Driver(def, { runId: 'r1', scheduler: s, createTask: (c) => c, predicates: new Map(), ...typesFor(WORKER_TYPES), now: () => 1, joinPolicy: POLICIES['live-token'], ...opts });
     d.start({});
     s.settle('r1:ingest:-:0', { items: ['a', 'b', 'c'] });
     return { subject: ['r1:rank:0:0', 'r1:rank:1:0', 'r1:rank:2:0'], control: 'r1:ingest:-:0' };

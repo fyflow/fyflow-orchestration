@@ -54,7 +54,7 @@ import type { FlowDefinition } from '../../src/definition/types.ts';
 
 const EX = `${ROOT}spec/examples`;
 const load = async (rel: string) => JSON.parse(await readText(`${EX}/${rel}`)) as FlowDefinition;
-const reg = JSON.parse(await readText(`${EX}/registry.json`)) as { workerTypes: string[] };
+const reg = JSON.parse(await readText(`${EX}/registry.json`)) as { workers: Record<string, { url: string }>; nodeTypes: Record<string, { worker: string }>; groups: Record<string, unknown>; pools: Record<string, { type: string }>; predicates: string[]; languages: string[] };
 
 /** The whole scheduler, for level 2. It queues nothing and runs nothing. */
 class FakeScheduler {
@@ -89,7 +89,7 @@ function harness(def: FlowDefinition, policy: JoinPolicy, predicates = new Map<s
     scheduler,
     createTask: (c) => c,
     predicates: predicates as never,
-    workerTypes: reg.workerTypes,
+    workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools,
     joinPolicy: policy,
     onRegionEvent: (e) => events.push(e),
     onUnsatisfiableJoin: (i) => unsatisfiable.push(i),
@@ -98,7 +98,8 @@ function harness(def: FlowDefinition, policy: JoinPolicy, predicates = new Map<s
   return {
     scheduler, driver, events, failures, unsatisfiable,
     ids: () => scheduler.added.map((t) => t.id),
-    payloadOf: (id: string) => scheduler.added.find((t) => t.id === id)?.payload,
+    // What the node RECEIVED: the envelope's `input` — every task node is typed since v0.19 (ADR 0054).
+    payloadOf: (id: string) => (scheduler.added.find((t) => t.id === id)?.payload as { input?: unknown } | undefined)?.input,
   };
 }
 type H = ReturnType<typeof harness>;
@@ -789,7 +790,7 @@ suite(SUITE, (test) => {
       scheduler,
       createTask: (c) => c,
       predicates: new Map() as never,
-      workerTypes: reg.workerTypes,
+      workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools,
       joinPolicy: liveToken as JoinPolicy,
       onRunFailure: (f) => failures.push({ kind: f.kind, message: f.message }),
       // A listener that stops the run at the moment the join settles. `OR-R10` says

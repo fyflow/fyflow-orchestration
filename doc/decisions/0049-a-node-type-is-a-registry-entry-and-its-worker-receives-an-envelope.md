@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-12
 **Status:** accepted — answers [P16](../plans/p16-what-a-node-type-is-and-what-the-library-owes-the-scheduler.md)'s
-question, *what is a node type?*, on that plan's decisions 2, 4, 5 and 6. Amends nothing:
+question, *what is a node type?*, on that plan's decisions 2, 4, 5 and 6. **Amended by [ADR 0054](0054-every-task-node-names-a-type-and-a-type-is-a-derivation-to-pool-options.md) at v0.19 (W65)**: rule 1's *instead of a `workerType`* is *names a `type`*, the settings VALIDATOR is the worker's `settingsSchema` (ADR 0053), and the *bare node unchanged to the byte* clause expired with the bare node; the envelope, the pool keyed by the type's name and *the definition stays data* stand and are universal. Amends nothing itself:
 [ADR 0040](0040-what-a-node-can-reach-is-the-runs-own-outputs-and-a-node-id-names-them-relative-to-a-branch-path.md)
 rule 6 stands for every untyped node, [ADR 0048](0048-the-scheduler-is-a-declared-dependency-reached-by-one-bare-specifier.md)
 is what makes rule 5 legal, and W58's two keys are what rule 6 rides on.
@@ -41,7 +41,7 @@ at 0.5.2 under Node 24.20.0 AND Deno 2.9.6, re-taken by `dev-dist/w59/facts.mjs`
 ## Decision
 
 1. **A node type is a REGISTRY entry, and the definition stays data.** `Registry.nodeTypes` is a
-   fourth set beside `predicates`, `workerTypes` and `groups`, keyed by the name a `task`'s `type`
+   fourth set beside `predicates`, `workerTypes` and `groups` *(\`workerTypes\` retired at v0.19, ADR 0054)*, keyed by the name a `task`'s `type`
    gives, each entry `{ worker, pool?, groups?, config?, settings?, retryPolicy? }`: the module URL
    of the worker class, the pool's `WorkerManager` options, the resource groups the pool declares,
    the pool's global config, a per-node settings validator, and a retry default. **The definition
@@ -62,7 +62,7 @@ at 0.5.2 under Node 24.20.0 AND Deno 2.9.6, re-taken by `dev-dist/w59/facts.mjs`
    the rule. **An untyped node receives no envelope and no reserved key** — ADR 0040 rule 6 is
    untouched, and every untyped dispatch is the object it was, to the byte.
 4. **A `task` names its pool ONE way.** `type` names a registry entry whose POOL IS KEYED BY THE
-   TYPE'S NAME; `workerType` names a pool as it always has. Neither is `FD-V23`; both is `FD-V34`;
+   TYPE'S NAME; `workerType` names a pool as it always has *(until v0.19 retired it — ADR 0054)*. Neither is `FD-V23`; both is `FD-V34`;
    a `workerType` that names a node type is `FD-V34` (a bare node would hand the type's worker the
    raw payload where it reads the envelope — fact 3's task failure, caught at instantiation
    instead); `settings` on a node with no `type` is `FD-V34`. `FD-V32` refuses a `type` the registry
@@ -118,7 +118,7 @@ validator checks are read off the scheduler the helper built.
 5. **A type name colliding with a consumer's own bare pool key is seen by nothing before the
    wrapper refuses the raw payload at run time.** A constructor-argument spread overwrites one
    pool with the other in silence; the driver cannot tell the two apart because a type's pool IS
-   a `workerTypes` entry. [Q260](../open-questions.md).
+   a `workerTypes` entry *(a set retired at v0.19, ADR 0054)*. [Q260](../open-questions.md).
 
 **What a future reader is likely to try that this forbids.** Putting `worker: "./my-worker.ts"`
 in the DEFINITION *"so the flow is self-contained"* — rule 1, and `FD-V17` refuses the key.

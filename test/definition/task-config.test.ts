@@ -15,6 +15,7 @@
  * means *no retries*, a string `maxRetries` retries by coercion, an unknown group id is ignored.
  */
 import { equal, ok, readText, ROOT, suite } from '../harness.ts';
+import { typesFor } from '../registry-fixture.ts';
 import {
   NODE_KEYS_DECLARED, RETRY_POLICY_KEYS, retryPolicyProblem, TASK_KEYS_DECLARED, validateDefinition, violatedRules,
 } from '../../src/definition/validate.ts';
@@ -23,7 +24,7 @@ import { shapesOf } from './task-shapes.ts';
 
 const registry: Registry = {
   predicates: new Set<string>(),
-  workerTypes: new Set(['IngestWorker', 'ScoreWorker', 'PublishWorker', 'MergeWorker']),
+  ...typesFor(['IngestWorker', 'ScoreWorker', 'PublishWorker', 'MergeWorker']),
   groups: new Set(['gpu', 'api']),
 };
 
@@ -35,17 +36,17 @@ const SHAPES: readonly [string, string, (extra: Record<string, unknown>) => Flow
   ['top-level task', 'score', (extra) => ({
     flowId: 'shape-top', version: 1, entry: 'score',
     nodes: [
-      { id: 'score', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'done' }], ...extra },
+      { id: 'score', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'done' }], ...extra },
       { id: 'done', kind: 'end', outcome: 'completed' },
     ],
   }) as unknown as FlowDefinition],
   ['task inside a fanout branch', 'scoreA', (extra) => ({
     flowId: 'shape-fanout', version: 1, entry: 'ingest',
     nodes: [
-      { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'split' }] },
+      { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'split' }] },
       { id: 'split', kind: 'fanout', branches: ['scoreA', 'scoreB'] },
-      { id: 'scoreA', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'collect' }], ...extra },
-      { id: 'scoreB', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'collect' }] },
+      { id: 'scoreA', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'collect' }], ...extra },
+      { id: 'scoreB', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'collect' }] },
       { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'done' }] },
       { id: 'done', kind: 'end', outcome: 'completed' },
     ],
@@ -53,9 +54,9 @@ const SHAPES: readonly [string, string, (extra: Record<string, unknown>) => Flow
   ['branch task of a map', 'rank', (extra) => ({
     flowId: 'shape-map', version: 1, entry: 'ingest',
     nodes: [
-      { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'each' }] },
+      { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'each' }] },
       { id: 'each', kind: 'map', over: 'items', branch: 'rank' },
-      { id: 'rank', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'gather' }], ...extra },
+      { id: 'rank', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'gather' }], ...extra },
       { id: 'gather', kind: 'join', of: 'each', edges: [{ to: 'done' }] },
       { id: 'done', kind: 'end', outcome: 'completed' },
     ],
@@ -172,7 +173,7 @@ suite('FD-V31 — workerGroups names only groups the registry declares, every cl
       // The item's declared negative control, and the maintainer's call at W58's stop-and-ask:
       // *absent means unchecked* would hand the scheduler's silence back to exactly the consumer
       // who forgot the set.
-      const omitted: Registry = { predicates: registry.predicates, workerTypes: registry.workerTypes };
+      const omitted: Registry = { predicates: registry.predicates, workers: registry.workers, nodeTypes: registry.nodeTypes, pools: registry.pools };
       refused('FD-V31', at, build({ workerGroups: ['gpu'] }), omitted, 'workerGroups = ["gpu"] against a registry with NO groups key');
       refused('FD-V31', at, build({ workerGroups: ['gpu'] }), { ...omitted, groups: [] }, 'and against an EMPTY groups set');
       const f = validateDefinition(build({ workerGroups: ['gpu'] }), omitted).find((x) => x.rule === 'FD-V31');

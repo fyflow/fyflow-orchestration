@@ -1,0 +1,11 @@
+{
+  "flowId": "transform-not-lang-and-expr",
+  "version": 1,
+  "entry": "score",
+  "nodes": [
+    { "id": "score", "kind": "task", "type": "Scorer",
+      "transform": { "lang": "path" },
+      "edges": [ { "to": "done" } ] },
+    { "id": "done",  "kind": "end",  "outcome": "completed" }
+  ]
+}

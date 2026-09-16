@@ -102,7 +102,7 @@ import {
   runFlow, runPair, violations,
   // W59: the ONE node-type registry the helper built pools from and every driver was handed —
   // compared here to the types the flows name and to the pools the scheduler reports.
-  NODE_TYPES,
+  NODE_TYPES, WORKERS,
   // W63: the ONE languages object the helper wrote pool configs from and every driver was handed —
   // compared here to the languages the flows NAME, both ways.
   LANGUAGES,
@@ -3951,7 +3951,7 @@ const CROSS_ROW_SUBJECTS = [
   'L6 runs the flow P13 exists for',
   'one more SPELLING than it has rows',
   'the conditional ARRAY form included',
-  'has a POOL',
+  'is a registry type',
   '`ROLES` declares, both ways',
   'reaches past index.ts into src/',
   'at least one DOTTED branch path',
@@ -3982,7 +3982,7 @@ const CROSS_ROW_SUBJECTS = [
   // W59
   'the node TYPES the L6 flows name are the types the registry holds',
   'the types the registry holds, read as source text',
-  'the pools the scheduler REPORTS are the bare pools plus one per type',
+  'the pools the scheduler REPORTS are exactly one per type',
   'the two settings of the typed pair DIFFER',
   'under a policy the NODE does not declare',
   'the typed map instances received three DIFFERENT inputs',
@@ -4010,6 +4010,8 @@ const CROSS_ROW_SUBJECTS = [
   // block two plans older, so `doc/workflow.md` v0.18 makes the controls members by rule; this is
   // the member.
   'a real retry happened somewhere',
+  // W65
+  'retried under a policy of its OWN',
 ];
 
 /**
@@ -4129,7 +4131,8 @@ const REFERENCE_SPELLINGS_IN_SPEC = await referenceSpellingsInSpecAsync();
  * name exactly those **10**; the registry uses **9** distinct roles, `ROLES` declares
  * **9** and `run()` has **9** arms *(11 / 20 / 10 / 10 / 10 since W58 added `RetryWorker`, its
  * `retry` role and two flows — appended rather than rewritten, because the sentence is the
- * measurement W47 took)*; **all three pairs agree in both directions and no
+ * measurement W47 took; since W65 there is no `pool()` line and the registry is **13** TYPES over
+ * one worker, the 24 flows name exactly those 13, and the roles are **12** on all three sides)*; **all three pairs agree in both directions and no
  * defect is live.** So this is a bound with no live case, which is
  * [W25](../doc/work-items/w25-a-link-is-a-link-and-an-anchor-is-an-anchor.md)'s own
  * situation stated rather than dressed up: *a check written for a defect you just
@@ -4154,14 +4157,16 @@ async function readManifest(rel: string): Promise<string> {
 }
 
 async function workerListsAsync(): Promise<{
-  poolTypes: string[];
-  poolRoles: string[];
-  declaredRoles: string[];
-  switchArms: string[];
+  /** The keys of the `NODE_TYPES` literal, read from the source — since W65 every pool is one of these (W59's second observer of the registry the driver was handed). */
+  types: string[];
+  /** The roles those types run, from their `config: { role: '…' }` — since W65 the whole of what the worker file's `ROLES` must be used by. */
+  roles: string[];
   /** The resource-group ids `buildScheduler` REGISTERS, read from the source — W58's second observer of `scheduler.groups`; since W59 the helper's `bootstrap(NODE_TYPES, {…})` groups too. */
   groupIds: string[];
-  /** The keys of the `NODE_TYPES` literal, read from the source — W59's second observer of the registry the driver was handed. */
-  typedPoolTypes: string[];
+  /** What `flow-worker.ts`'s `ROLES` declares. */
+  declaredRoles: string[];
+  /** The arms of `run()`'s switch in that file. */
+  switchArms: string[];
 }> {
   const deno = (globalThis as Record<string, unknown>).Deno as
     { readTextFile?: (x: URL) => Promise<string> } | undefined;
@@ -4176,12 +4181,10 @@ async function workerListsAsync(): Promise<{
     return xs;
   };
 
-  // ---- the pool registry: the object literal `buildScheduler` returns ----
+  // ---- the registry: the `NODE_TYPES` literal, since W65 the whole of what `buildScheduler` builds ----
+  // *(This read the `pool()` lines of the object literal `buildScheduler` returned, until W65 turned
+  // every one of them into a document-declared type; the extraction below is W59's, over all thirteen.)*
   const rf = await read('./run-flow.ts');
-  const at = rf.indexOf('return new FyflowScheduler({');
-  if (at < 0) throw new Error('examples/run-flow.ts no longer returns a pool registry literal');
-  const registry = [...rf.slice(at).matchAll(/^ {4}(\w+): pool\('(\w+)'/gm)];
-  nonEmpty(registry, 'the pool registry');
   // ---- and the RESOURCE GROUPS the same constructor call registers, as source text — W58's
   // adequacy reader (c04b): `RunReport.schedulerGroups` is ONE reading of `scheduler.groups`
   // and the driver's `groups` option is derived from that same variable, so a literal in its
@@ -4194,16 +4197,15 @@ async function workerListsAsync(): Promise<{
   const fnAt = rf.indexOf('export function buildScheduler(');
   if (fnAt < 0) throw new Error('examples/run-flow.ts no longer declares buildScheduler');
   const groupIds = nonEmpty([...rf.slice(fnAt).matchAll(/^ {4}(\w+): new ConcurrentLimitGroup\(/gm)].map((m) => m[1]!), 'the resource-group registry');
-  // ---- and the NODE_TYPES literal: one key per type at two-space indentation inside it — W59.
+  // ---- the NODE_TYPES literal: one key per type at two-space indentation inside it — W59.
   //      `bootstrap` keys a pool by each of these names, which is what `schedulerPools` must
-  //      show beside the `pool()` lines. ----
+  //      show — and nothing else, since W65. ----
   const ntAt = rf.indexOf('export const NODE_TYPES');
   if (ntAt < 0) throw new Error('examples/run-flow.ts no longer declares NODE_TYPES');
   const ntBlock = rf.slice(ntAt, rf.indexOf('\n};', ntAt));
-  const typedPoolTypes = nonEmpty([...ntBlock.matchAll(/^ {2}(\w+): \{$/gm)].map((m) => m[1]!), 'the NODE_TYPES literal');
-  // ---- and the ROLES those types run, from their `config: { role: '…' }` — the typed pool is
-  //      not a `pool()` line, so without this the roles clause below read `typed` as a role
-  //      `ROLES` declares and nothing uses (measured on this file's first run with the type). ----
+  const typedPoolTypes = nonEmpty([...ntBlock.matchAll(/^ {2}(\w+): \{/gm)].map((m) => m[1]!), 'the NODE_TYPES literal');
+  // ---- and the ROLES those types run, from their `config: { role: '…' }` — since W65 every role a
+  //      pool runs is declared here, so this is the whole of the roles-in-use side. ----
   const typedRoles = nonEmpty([...ntBlock.matchAll(/config: \{ role: '(\w+)'/g)].map((m) => m[1]!), "the NODE_TYPES literal's roles");
 
   // ---- ROLES: comment lines dropped, because the block carries prose ----
@@ -4218,14 +4220,25 @@ async function workerListsAsync(): Promise<{
 
   return {
     groupIds: [...new Set(groupIds)].sort(),
-    typedPoolTypes: [...new Set(typedPoolTypes)].sort(),
-    poolTypes: [...new Set(registry.map((m) => m[1]!))].sort(),
-    poolRoles: [...new Set([...registry.map((m) => m[2]!), ...typedRoles])].sort(),
+    types: [...new Set(typedPoolTypes)].sort(),
+    roles: [...new Set(typedRoles)].sort(),
     declaredRoles: [...new Set(declaredRoles)].sort(),
     switchArms: [...new Set(switchArms)].sort(),
   };
 }
 const WORKER_LISTS = await workerListsAsync();
+
+/**
+ * A registry derived from a document's OWN task nodes — one document-form type per name it uses,
+ * over a placeholder worker — for the cross-row clauses that validate a document against a registry
+ * that must not be a second variable (W47's conformity reader). Since W65 (ADR 0054) a task node
+ * names a TYPE, so the derivation is over `type` where it was over `workerType`; the validator reads a
+ * type's WORKER for its schema and nothing else, so this is the smallest registry that says nothing.
+ */
+function registryOf(d: FlowDefinition) {
+  const names = [...new Set(d.nodes.filter((n) => n.kind === 'task').map((n) => (n as unknown as { type: string }).type))];
+  return { predicates: [...predicates.keys()], workers: { flow: { url: 'l6://flow' } }, nodeTypes: Object.fromEntries(names.map((t) => [t, { worker: 'flow' }])) };
+}
 
 /**
  * **Does ladder L6 exercise the surface a CONSUMER has?** — W47, and it is this
@@ -5139,8 +5152,10 @@ const PER_PLAIN_ROW = 20;
  * entry for every dispatched id on every row whose NODE declares a `needs`, and the three
  * `transformed` rows do. *(Written as 104 before the first run, which reported three assertions
  * the rows' extras did not account for; the clause is labelled per row and counted here.)*
+ * **110 since W65**: block (2b)'s retry clause split into a pair — the type's-budget half and the
+ * own-policy half — because every task node is typed now and *typed* stopped discriminating.
  */
-const CROSS_ROW = 109;
+const CROSS_ROW = 110;
 const base = (shape: string) => (shape === 'region' ? PER_REGION_ROW : PER_PLAIN_ROW);
 for (const [key, shape, cost, extras] of rowCosts) {
   if (cost !== base(shape) + extras) {
@@ -5384,10 +5399,11 @@ if (rowCosts.length !== EXPECTED.length) {
    * W47's conformity reader measured that a registry missing `AttestWorker` takes the
    * refusal set to `["FD-V29","FD-V5"]` and the control from 0 to 1 — so the probe
    * for it is a PROVENANCE probe rather than a ceiling, and the literal it substitutes
-   * has to differ from the derived value or it changes nothing. **`FD-V5` is the
+   * has to differ from the derived value or it changes nothing. **`FD-V5` WAS the
    * workerType rule** — *a `task`'s `workerType` is not a key in the scheduler's
    * `workerPools`* — and this block's first version cited `FD-V16`, which is the id
-   * charset.
+   * charset. *(Since W65 the registry is derived as TYPES and the missing-type refusal is
+   * `FD-V32`; `FD-V5` is retired with `workerType`.)*
    */
   {
     const ran = EXPECTED.filter((e) => e.definition === RIR);
@@ -5412,11 +5428,7 @@ if (rowCosts.length !== EXPECTED.length) {
     check('cross-row', 'and the two documents differ in exactly that one character — the pair`s own claim',
       JSON.stringify(restored), JSON.stringify(RIR));
 
-    const registry = {
-      predicates: [...predicates.keys()],
-      workerTypes: RIR.nodes.filter((n) => n.kind === 'task')
-        .map((n) => (n as unknown as { workerType: string }).workerType),
-    };
+    const registry = registryOf(RIR);
     const refused = validateDefinition(bare, registry);
     check('cross-row', 'and WITHOUT the suffix the same document is REFUSED, under FD-V29 and nothing else',
       [...new Set(refused.map((f) => f.rule))].sort(), ['FD-V29']);
@@ -5497,11 +5509,7 @@ if (rowCosts.length !== EXPECTED.length) {
       const bareNmPublish = bareNm.nodes.find((n) => n.id === 'publish') as unknown as
         { needs?: Record<string, unknown> };
       bareNmPublish.needs = { ...(bareNmPublish.needs ?? {}), scores: ['item'] };
-      const reg = {
-        predicates: [...predicates.keys()],
-        workerTypes: NM.nodes.filter((n) => n.kind === 'task')
-          .map((n) => (n as unknown as { workerType: string }).workerType),
-      };
+      const reg = registryOf(NM);
       check('cross-row', 'and WITHOUT its suffix that document is REFUSED under FD-V29 — the `?` ' +
         'is load-bearing at the ARRAY form too, which the `RIR` pair cannot say',
         [...new Set(validateDefinition(bareNm, reg).map((f) => f.rule))].sort(), ['FD-V29']);
@@ -5536,16 +5544,19 @@ if (rowCosts.length !== EXPECTED.length) {
     const documentTypes = new Set<string>();
     for (const e of EXPECTED) {
       for (const n of e.definition.nodes) {
-        const wt = (n as unknown as { workerType?: string }).workerType;
-        if (wt !== undefined) documentTypes.add(wt);
+        const t = (n as unknown as { type?: string }).type;
+        if (t !== undefined) documentTypes.add(t);
       }
     }
-    check('cross-row', 'every workerType the flows L6 runs name has a POOL, and every pool is named ' +
+    // Since W65 every task node names a TYPE and every pool is one of the registry's types, so the
+    // three-way agreement W47 wrote for `workerType` is over `type` — read from the source text here
+    // and from the object the driver was handed in (2b) below.
+    check('cross-row', 'every type the flows L6 runs name is a registry type, and every registry type is named ' +
       'by one of them — the registry is not a list bound to nothing',
-      [...documentTypes].sort(), WORKER_LISTS.poolTypes);
+      [...documentTypes].sort(), WORKER_LISTS.types);
     check('cross-row', 'and every role the registry uses is one `ROLES` declares, both ways — ' +
       'the direction W43`s TYPE cannot close (Q196)',
-      WORKER_LISTS.poolRoles, WORKER_LISTS.declaredRoles);
+      WORKER_LISTS.roles, WORKER_LISTS.declaredRoles);
     check('cross-row', 'and `run()` has an arm for every role `ROLES` declares, both ways — the ' +
       'comparison flow-worker.ts`s own header records as costing ZERO',
       WORKER_LISTS.switchArms, WORKER_LISTS.declaredRoles);
@@ -5601,9 +5612,9 @@ if (rowCosts.length !== EXPECTED.length) {
     //     NAME (the documents), the types the driver was HANDED (`NODE_TYPES`, the object the
     //     helper built pools from), the `NODE_TYPES` literal as SOURCE TEXT (the second observer,
     //     W58's `groupIds` shape), and the pools the scheduler REPORTS holding (`schedulerPools`,
-    //     read off `scheduler.workerPools` at construction) — which must be exactly the bare
-    //     `pool()` lines plus one pool per type. A type the helper did not build a pool for, a
-    //     pool no type and no `pool()` line accounts for, or a document naming a type the registry
+    //     read off `scheduler.workerPools` at construction) — which must be exactly one pool per
+    //     type, since W65 turned the last `pool()` line into a type. A type the helper did not build
+    //     a pool for, a pool no type accounts for, or a document naming a type the registry
     //     lacks, is red here; `FD-V32` refuses the last at construction and this is the rung
     //     that says the registry the driver checked is the scheduler the run used.
     {
@@ -5618,29 +5629,36 @@ if (rowCosts.length !== EXPECTED.length) {
       check('cross-row', 'the node TYPES the L6 flows name are the types the registry holds, both ways — a type registered and used by nothing, or named and unregistered, is red',
         [...namedTypes].sort(), registryTypes);
       check('cross-row', 'and the types the registry holds, read as source text, are the ones the driver was handed — two readings of one literal',
-        WORKER_LISTS.typedPoolTypes, registryTypes);
+        WORKER_LISTS.types, registryTypes);
       const reported = [...new Set(reports.flatMap((r) => r.schedulerPools))].sort();
-      check('cross-row', 'and the pools the scheduler REPORTS are the bare pools plus one per type, both ways — the helper built exactly one pool per registry entry, keyed by its name, and nothing else',
-        reported, [...new Set([...WORKER_LISTS.poolTypes, ...WORKER_LISTS.typedPoolTypes])].sort());
+      check('cross-row', 'and the pools the scheduler REPORTS are exactly one per type, both ways — since W65 the helper built every pool, keyed by its type`s name, and nothing else',
+        reported, WORKER_LISTS.types);
       // **The discriminating PAIR is a claim** (rule 8's fourth requirement on the set): the two
       // typed nodes of `typed.flow.json` differ in BOTH settings keys, read from the DEFINITION
       // rather than from two literals in a row. Made equal, this is red before any worker runs.
-      const pair = TY.nodes.filter((n) => (n as unknown as { type?: string }).type !== undefined)
+      // *(Selected by `type !== undefined` until W65; every task node is typed now, so the pair is
+      // the two nodes that carry `settings` — still the two `Scorer` nodes, and the length is asserted.)*
+      const pair = TY.nodes.filter((n) => (n as unknown as { settings?: unknown }).settings !== undefined)
         .map((n) => (n as unknown as { settings: { factor: number; failFirst: boolean } }).settings);
       assertThat('cross-row', 'the two settings of the typed pair DIFFER in both keys — whatever makes a discriminating pair differ is itself a claim',
         pair.length === 2 && pair[0]!.factor !== pair[1]!.factor && pair[0]!.failFirst !== pair[1]!.failFirst,
         `settings: ${JSON.stringify(pair)}`);
       // **The retry ran under the TYPE's policy and not the node's**: every row declaring a
-      // non-zero `attempts` on a TYPED task names a node that declares NO `retryPolicy` of its own
-      // — so the budget it spent came from `NODE_TYPES`, which is what the row is for, and a node
-      // that quietly gained its own policy would pass the per-row number and fail here.
-      const typedRetries = EXPECTED.flatMap((e) => Object.keys(e.attempts ?? {}).map((id) => {
-        const node = e.definition.nodes.find((n) => n.id === id.split(':')[1]) as unknown as { type?: string; retryPolicy?: unknown } | undefined;
-        return { id, typed: node?.type !== undefined, ownPolicy: node?.retryPolicy !== undefined };
-      })).filter((x) => x.typed);
-      assertThat('cross-row', 'every typed task that retried did so under a policy the NODE does not declare — the type`s — and there is at least one',
-        typedRetries.length > 0 && typedRetries.every((x) => !x.ownPolicy),
-        `typed retries: ${JSON.stringify(typedRetries)}`);
+      // non-zero `attempts` names a node that either declares its OWN `retryPolicy` (W58's `flaky`)
+      // or declares none and names a TYPE that does (W59's `high`, W63's two) — so the budget the
+      // second kind spent came from `NODE_TYPES`, which is what those rows are for, and a node that
+      // quietly gained its own policy would pass the per-row number and fail here. *(Until W65 this
+      // filtered on `type !== undefined`; every task node is typed now, so the discriminator is
+      // whether the NODE declares a policy, and both kinds must occur or the clause is vacuous.)*
+      const retries = EXPECTED.flatMap((e) => Object.keys(e.attempts ?? {}).map((id) => {
+        const node = e.definition.nodes.find((n) => n.id === id.split(':')[1]) as unknown as { type: string; retryPolicy?: unknown } | undefined;
+        return { id, type: node?.type ?? null, ownPolicy: node?.retryPolicy !== undefined, typePolicy: node !== undefined && NODE_TYPES[node.type]?.retryPolicy !== undefined };
+      }));
+      assertThat('cross-row', 'every task that retried under a policy the NODE does not declare names a TYPE that declares one — the type`s budget — and there is at least one',
+        retries.some((x) => !x.ownPolicy) && retries.filter((x) => !x.ownPolicy).every((x) => x.typePolicy),
+        `retries: ${JSON.stringify(retries)}`);
+      assertThat('cross-row', 'and at least one task retried under a policy of its OWN — the other half of the pair, so the clause above is not every retry there is',
+        retries.some((x) => x.ownPolicy), `retries: ${JSON.stringify(retries)}`);
       // **The three map instances' inputs DIFFER, read from the run** — the adequacy reader: the
       // typed-regions row's *its own item, three confidences, three scores* rested on `THREE_WORDS`
       // and three literals nothing compared. Read off the settled results rather than the row.
@@ -5750,24 +5768,26 @@ if (rowCosts.length !== EXPECTED.length) {
       // package's own validator rather than stated: `transformed` with a reshaping `task` node put
       // back between its join and the transformed successor still validates with ZERO findings
       // against the registry every row runs under. And the detector's positive fixture beside it, so
-      // a validator that accepted everything could not satisfy the first: the SAME document with the
-      // transform moved onto the bare relay node is refused, by exactly `FD-V37` at that node.
+      // a validator that accepted everything could not satisfy the first: the SAME document with a
+      // malformed transform on the relay node is refused, by exactly `FD-V37` at that node.
       {
-        const relay = { id: 'relay', kind: 'task', workerType: 'PublishWorker', edges: [{ to: 'total' }] };
+        const relay = { id: 'relay', kind: 'task', type: 'PublishWorker', edges: [{ to: 'total' }] };
         const withRelay = (transformOnRelay: boolean) => ({
           ...TX,
           nodes: (TX.nodes as unknown as Record<string, unknown>[]).flatMap((n) => n.id === 'collect'
-            ? [{ ...n, edges: [{ to: 'relay' }] }, transformOnRelay ? { ...relay, transform: { lang: 'jsonata', expr: '$' } } : relay]
+            ? [{ ...n, edges: [{ to: 'relay' }] }, transformOnRelay ? { ...relay, transform: { lang: 'jsonata' } } : relay]
             : [n]),
         }) as unknown as FlowDefinition;
         const registry = {
-          predicates: [...predicates.keys()], workerTypes: reports[0]!.schedulerPools, groups: reports[0]!.schedulerGroups,
-          nodeTypes: NODE_TYPES, languages: LANGUAGES,
+          predicates: [...predicates.keys()], groups: reports[0]!.schedulerGroups,
+          workers: WORKERS, nodeTypes: NODE_TYPES, languages: LANGUAGES,
         };
         const findings = (d: FlowDefinition) => validateDefinition(d, registry).map((f) => `${f.rule}@${f.at}`).sort();
         check('cross-row', 'the reshaping road is removed and not FORBIDDEN: `transformed` with a reshaping task node put back between its join and the transformed successor validates with zero findings',
           findings(withRelay(false)), []);
-        check('cross-row', 'and the validator SAW that document: the same one with the transform moved onto the bare relay node is refused by FD-V37 at that node, and by nothing else',
+        // *(Until W65 the positive fixture was a well-formed transform on a BARE relay — v0.18's `FD-V37`
+        // untyped clause. Every node is typed now and may transform, so the fixture is a MALFORMED one.)*
+        check('cross-row', 'and the validator SAW that document: the same one with a malformed transform on the relay node is refused by FD-V37 at that node, and by nothing else',
           findings(withRelay(true)), ['FD-V37@relay']);
       }
     }
@@ -6317,8 +6337,9 @@ check('cross-row', 'every cross-row SUBJECT this file declares was asserted abou
 // three `transformed` rows reach. *(Written as 1494 from the arithmetic before the file was run;
 // the first run reported 1497 and the three are that clause, missed in the arithmetic; 1499 once
 // the reshaping-road pair joined block (2d).)* **1501 after the readers**: the `transform-fails`
-// row's fourth branch, `note` — one `nodeResults`, one `branchEvents` — at 51.
-const DECLARED_TOTAL = 1501;
+// row's fourth branch, `note` — one `nodeResults`, one `branchEvents` — at 51. **1502 since W65**:
+// one more cross-row assertion, the own-policy half of block (2b)'s retry pair; no row moved.
+const DECLARED_TOTAL = 1502;
 if (passed + failures.length !== DECLARED_TOTAL) {
   failures.push(
     'gate\n      the assertion count is not the number this file declares outright\n' +

@@ -28,7 +28,7 @@ import type { FlowDefinition } from '../../src/definition/types.ts';
 
 const EX = `${ROOT}spec/examples`;
 const load = async (rel: string) => JSON.parse(await readText(`${EX}/${rel}`)) as FlowDefinition;
-const reg = JSON.parse(await readText(`${EX}/registry.json`)) as { workerTypes: string[] };
+const reg = JSON.parse(await readText(`${EX}/registry.json`)) as { workers: Record<string, { url: string }>; nodeTypes: Record<string, { worker: string }>; groups: Record<string, unknown>; pools: Record<string, { type: string }>; predicates: string[]; languages: string[] };
 
 /** `outer` fans to `scoreA` and `scoreB`; `scoreB` reaches `inner`, which fans to `scoreC`/`scoreD`. */
 const NESTED = 'valid/nested-fanout.flow.json';
@@ -164,18 +164,18 @@ suite('nested fan-out — which region a node is in when it is in two (FD-V15 re
     // express ([Q44](../../doc/open-questions.md)).
     const nodes = [
       { id: 'f1', kind: 'fanout', branches: ['a1', 'a2'] },
-      { id: 'a1', kind: 'task', workerType: reg.workerTypes[0], edges: [{ to: 'j1' }] },
-      { id: 'a2', kind: 'task', workerType: reg.workerTypes[0], edges: [{ to: 'shared' }] },
+      { id: 'a1', kind: 'task', type: Object.keys(reg.nodeTypes)[0]!, edges: [{ to: 'j1' }] },
+      { id: 'a2', kind: 'task', type: Object.keys(reg.nodeTypes)[0]!, edges: [{ to: 'shared' }] },
       { id: 'j1', kind: 'join', of: 'f1', edges: [{ to: 'f2' }] },
       { id: 'f2', kind: 'fanout', branches: ['b1', 'b2'] },
-      { id: 'b1', kind: 'task', workerType: reg.workerTypes[0], edges: [{ to: 'j2' }] },
-      { id: 'b2', kind: 'task', workerType: reg.workerTypes[0], edges: [{ to: 'shared' }] },
+      { id: 'b1', kind: 'task', type: Object.keys(reg.nodeTypes)[0]!, edges: [{ to: 'j2' }] },
+      { id: 'b2', kind: 'task', type: Object.keys(reg.nodeTypes)[0]!, edges: [{ to: 'shared' }] },
       { id: 'j2', kind: 'join', of: 'f2', edges: [{ to: 'done' }] },
       { id: 'shared', kind: 'end', outcome: 'completed' },
       { id: 'done', kind: 'end', outcome: 'completed' },
     ];
     const def = { flowId: 'q45', version: 1, entry: 'f1', nodes } as unknown as FlowDefinition;
-    equal(validateDefinition(def, { workerTypes: reg.workerTypes, predicates: [] }), [],
+    equal(validateDefinition(def, { workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools, predicates: [] }), [],
       'the shape is VALID — `end` nodes are exempt from FD-V19 and FD-V22, so nothing refuses it');
 
     // Both orders, and the answer is the same because there ISN'T one.
@@ -207,21 +207,21 @@ suite('nested fan-out — which region a node is in when it is in two (FD-V15 re
     // says the implementation is too.
     const nodes = [
       { id: 'f1', kind: 'fanout', branches: ['a1', 'a2'] },
-      { id: 'a1', kind: 'task', workerType: reg.workerTypes[0], edges: [{ to: 'j1' }] },
-      { id: 'a2', kind: 'task', workerType: reg.workerTypes[0], edges: [{ to: 'f2' }] },
+      { id: 'a1', kind: 'task', type: Object.keys(reg.nodeTypes)[0]!, edges: [{ to: 'j1' }] },
+      { id: 'a2', kind: 'task', type: Object.keys(reg.nodeTypes)[0]!, edges: [{ to: 'f2' }] },
       { id: 'f2', kind: 'fanout', branches: ['b1', 'b2'] },
-      { id: 'b1', kind: 'task', workerType: reg.workerTypes[0], edges: [{ to: 'j2' }] },
-      { id: 'b2', kind: 'task', workerType: reg.workerTypes[0], edges: [{ to: 'f3' }] },
+      { id: 'b1', kind: 'task', type: Object.keys(reg.nodeTypes)[0]!, edges: [{ to: 'j2' }] },
+      { id: 'b2', kind: 'task', type: Object.keys(reg.nodeTypes)[0]!, edges: [{ to: 'f3' }] },
       { id: 'f3', kind: 'fanout', branches: ['c1', 'c2'] },
-      { id: 'c1', kind: 'task', workerType: reg.workerTypes[0], edges: [{ to: 'j3' }] },
-      { id: 'c2', kind: 'task', workerType: reg.workerTypes[0], edges: [{ to: 'j3' }] },
+      { id: 'c1', kind: 'task', type: Object.keys(reg.nodeTypes)[0]!, edges: [{ to: 'j3' }] },
+      { id: 'c2', kind: 'task', type: Object.keys(reg.nodeTypes)[0]!, edges: [{ to: 'j3' }] },
       { id: 'j3', kind: 'join', of: 'f3', edges: [{ to: 'j2' }] },
       { id: 'j2', kind: 'join', of: 'f2', edges: [{ to: 'j1' }] },
       { id: 'j1', kind: 'join', of: 'f1', edges: [{ to: 'done' }] },
       { id: 'done', kind: 'end', outcome: 'completed' },
     ];
     const def = { flowId: 'depth3', version: 1, entry: 'f1', nodes } as unknown as FlowDefinition;
-    equal(validateDefinition(def, { workerTypes: reg.workerTypes, predicates: [] }), [],
+    equal(validateDefinition(def, { workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools, predicates: [] }), [],
       'a three-deep nesting is a valid definition');
 
     // Read from section 4: `region` is transitive, so f1 contains everything short
@@ -284,7 +284,7 @@ suite('nested fan-out — which region a node is in when it is in two (FD-V15 re
     // region rule reintroducing the refusal under a new id, which section 4
     // records happening twice already.
     const def = await load(NESTED);
-    equal(validateDefinition(def, { workerTypes: reg.workerTypes, predicates: [] }), [],
+    equal(validateDefinition(def, { workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools, predicates: [] }), [],
       'a nested fan-out is a valid definition');
   });
 });

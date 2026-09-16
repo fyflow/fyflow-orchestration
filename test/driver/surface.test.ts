@@ -8,6 +8,7 @@
  * at, rather than meeting at each other's code.
  */
 import { deepEqual, equal, ok, suite } from '../harness.ts';
+import { typesFor } from '../registry-fixture.ts';
 // The scheduler's task class, by name — ADR 0048 rule 5 is a statement about it and this file is
 // where that statement is falsifiable without a scheduler running. Permitted in `test/**` since `S9`
 // was retired with the same decision.
@@ -26,7 +27,7 @@ import type { JoinPolicy } from '../../src/driver/policy.ts';
 
 const EX = `${ROOT}spec/examples`;
 const load = async (rel: string) => JSON.parse(await readText(`${EX}/${rel}`)) as FlowDefinition;
-const reg = JSON.parse(await readText(`${EX}/registry.json`)) as { workerTypes: string[] };
+const reg = JSON.parse(await readText(`${EX}/registry.json`)) as { workers: Record<string, { url: string }>; nodeTypes: Record<string, { worker: string }>; groups: Record<string, unknown>; pools: Record<string, { type: string }>; predicates: string[]; languages: string[] };
 
 const waiting = {
   id: 'waiting', open: () => null, step: (s: null) => s,
@@ -102,7 +103,7 @@ suite('the region guards — no region event escapes a non-region path', (test) 
       runId: 'r1',
       scheduler, createTask: (c) => c,
       predicates: new Map([['isLowConfidence', () => false]]),
-      workerTypes: reg.workerTypes, now: () => 1, onRegionEvent: (e) => events.push(e),
+      workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools, now: () => 1, onRegionEvent: (e) => events.push(e),
     });
     d.start({});
     scheduler.settle('r1:extract:-:0', 'failed', { error: 'boom' });
@@ -118,12 +119,12 @@ suite('the region guards — no region event escapes a non-region path', (test) 
     const def = {
       flowId: 'outside-end', version: 1, entry: 'ingest',
       nodes: [
-        { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [
+        { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [
           { when: 'isLowConfidence', to: 'dropped' }, { to: 'split' }] },
         { id: 'split', kind: 'fanout', branches: ['a', 'b'] },
-        { id: 'a', kind: 'task', workerType: 'ScoreWorker', edges: [
+        { id: 'a', kind: 'task', type: 'ScoreWorker', edges: [
           { when: 'isLowConfidence', to: 'dropped' }, { to: 'j' }] },
-        { id: 'b', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'j' }] },
+        { id: 'b', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'j' }] },
         { id: 'dropped', kind: 'end', outcome: 'dropped' },
         { id: 'j', kind: 'join', of: 'split', edges: [{ to: 'done' }] },
         { id: 'done', kind: 'end', outcome: 'completed' },
@@ -133,7 +134,7 @@ suite('the region guards — no region event escapes a non-region path', (test) 
       runId: 'r1',
       scheduler, createTask: (c) => c,
       predicates: new Map([['isLowConfidence', () => true]]),
-      workerTypes: reg.workerTypes, now: () => 1,
+      workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools, now: () => 1,
       onRegionEvent: (e) => events.push(e), joinPolicy: waiting,
     });
     d.start({});
@@ -148,7 +149,7 @@ suite('the log is not reachable from outside, including through result', (test) 
     const d = new Driver(await load('valid/linear.flow.json'), {
       runId: 'r1',
       scheduler, createTask: (c) => c, predicates: new Map(),
-      workerTypes: reg.workerTypes, now: () => 1,
+      workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools, now: () => 1,
     });
     d.start({});
     scheduler.settle('r1:ingest:-:0', 'done', { result: { deep: { n: 1 } } });
@@ -165,7 +166,7 @@ suite('the log is not reachable from outside, including through result', (test) 
     const d = new Driver(await load('valid/linear.flow.json'), {
       runId: 'r1',
       scheduler, createTask: (c) => c, predicates: new Map(),
-      workerTypes: reg.workerTypes, now: () => 1,
+      workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools, now: () => 1,
     });
     d.start({});
     scheduler.settle('r1:ingest:-:0', 'done', { result: { deep: { n: 1 } } });
@@ -180,7 +181,7 @@ suite('the log is not reachable from outside, including through result', (test) 
     const d = new Driver(await load('valid/linear.flow.json'), {
       runId: 'r1',
       scheduler, createTask: (c) => c, predicates: new Map(),
-      workerTypes: reg.workerTypes, now: () => 1,
+      workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools, now: () => 1,
     });
     d.start({});
     equal(d.dispatchedIds(), ['r1:ingest:-:0'], 'ID-R1 keeps this set; it is the refusal it asserts against');
@@ -219,7 +220,7 @@ suite('regionOf on a nested flow — the driver reads the INNERMOST region', (te
     const events: RegionEvent[] = [];
     const d = new Driver(def, {
       runId: 'r1', scheduler, createTask: (c) => c, predicates: new Map(),
-      workerTypes: reg.workerTypes, now: () => 1, joinPolicy: waiting,
+      workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools, now: () => 1, joinPolicy: waiting,
       onRegionEvent: (e) => events.push(e),
     });
     d.start({});
@@ -285,7 +286,7 @@ suite('regionOf on a nested flow — the driver reads the INNERMOST region', (te
       const events: RegionEvent[] = [];
       const d = new Driver(def, {
         runId: 'r1', scheduler, createTask: (c) => c, predicates: new Map(),
-        workerTypes: reg.workerTypes, now: () => 1, joinPolicy: waiting,
+        workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools, now: () => 1, joinPolicy: waiting,
         onRegionEvent: (e) => events.push(e),
       });
       d.start({});
@@ -314,7 +315,7 @@ suite('regionOf on a nested flow — the driver reads the INNERMOST region', (te
     const events: RegionEvent[] = [];
     const d = new Driver(def, {
       runId: 'r1', scheduler, createTask: (c) => c, predicates: new Map(),
-      workerTypes: reg.workerTypes, now: () => 1, joinPolicy: waiting,
+      workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools, now: () => 1, joinPolicy: waiting,
       onRegionEvent: (e) => events.push(e),
     });
     d.start({});
@@ -356,7 +357,7 @@ suite('regionOf on a nested flow — the driver reads the INNERMOST region', (te
     const events: RegionEvent[] = [];
     const d = new Driver(def, {
       runId: 'r1', scheduler, createTask: (c) => c, predicates: new Map(),
-      workerTypes: reg.workerTypes, now: () => 1, joinPolicy: POLICIES['live-token'],
+      workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools, now: () => 1, joinPolicy: POLICIES['live-token'],
       onRegionEvent: (e) => events.push(e),
     });
     d.start({});
@@ -383,7 +384,7 @@ suite('regionOf on a nested flow — the driver reads the INNERMOST region', (te
     // Values from `spec/flow-definition.md` section 4 and `spec/task-id.md`
     // section 1: `g1` and `g2` are branches 0 and 1 of `mid`, which is branch 1 of
     // `outer`, so their joins exit at `1.0` and `1.1`.
-    const t = (id: string, to: string) => ({ id, kind: 'task', workerType: reg.workerTypes[0], edges: [{ to }] });
+    const t = (id: string, to: string) => ({ id, kind: 'task', type: Object.keys(reg.nodeTypes)[0]!, edges: [{ to }] });
     // `FD-V9` requires a branch entry to be a TASK, so each of `mid`'s branches
     // is a task that then fans out — which is also the only shape a nested
     // fan-out can take at all, and is worth knowing.
@@ -403,13 +404,13 @@ suite('regionOf on a nested flow — the driver reads the INNERMOST region', (te
       { id: 'done', kind: 'end', outcome: 'completed' },
     ];
     const def = { flowId: 'siblings-depth3', version: 1, entry: 'outer', nodes } as unknown as FlowDefinition;
-    equal(validateDefinition(def, { workerTypes: reg.workerTypes, predicates: [] }), [],
+    equal(validateDefinition(def, { workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools, predicates: [] }), [],
       'a legal definition — which is what makes a hang here a defect');
     const scheduler = new Fake();
     const events: RegionEvent[] = [];
     const d = new Driver(def, {
       runId: 'r1', scheduler, createTask: (c) => c, predicates: new Map(),
-      workerTypes: reg.workerTypes, now: () => 1, joinPolicy: POLICIES['arrival-count'],
+      workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools, now: () => 1, joinPolicy: POLICIES['arrival-count'],
       onRegionEvent: (e) => events.push(e),
     });
     d.start({});
@@ -446,24 +447,24 @@ suite('regionOf on a nested flow — the driver reads the INNERMOST region', (te
     // already worked.
     const nodes = [
       { id: 'outer', kind: 'fanout', branches: ['scoreA', 'scoreB'] },
-      { id: 'scoreA', kind: 'task', workerType: reg.workerTypes[0], edges: [{ to: 'outerJoin' }] },
-      { id: 'scoreB', kind: 'task', workerType: reg.workerTypes[0], edges: [{ to: 'inner' }] },
+      { id: 'scoreA', kind: 'task', type: Object.keys(reg.nodeTypes)[0]!, edges: [{ to: 'outerJoin' }] },
+      { id: 'scoreB', kind: 'task', type: Object.keys(reg.nodeTypes)[0]!, edges: [{ to: 'inner' }] },
       { id: 'inner', kind: 'fanout', branches: ['scoreC', 'scoreD'] },
-      { id: 'scoreC', kind: 'task', workerType: reg.workerTypes[0], edges: [{ to: 'innerJoin' }] },
-      { id: 'scoreD', kind: 'task', workerType: reg.workerTypes[0], edges: [{ to: 'innerJoin' }] },
+      { id: 'scoreC', kind: 'task', type: Object.keys(reg.nodeTypes)[0]!, edges: [{ to: 'innerJoin' }] },
+      { id: 'scoreD', kind: 'task', type: Object.keys(reg.nodeTypes)[0]!, edges: [{ to: 'innerJoin' }] },
       { id: 'innerJoin', kind: 'join', of: 'inner', edges: [{ to: 'stopHere' }] },
       { id: 'stopHere', kind: 'end', outcome: 'completed' },
       { id: 'outerJoin', kind: 'join', of: 'outer', edges: [{ to: 'done' }] },
       { id: 'done', kind: 'end', outcome: 'completed' },
     ];
     const def = { flowId: 'inner-join-exits', version: 1, entry: 'outer', nodes } as unknown as FlowDefinition;
-    equal(validateDefinition(def, { workerTypes: reg.workerTypes, predicates: [] }), [],
+    equal(validateDefinition(def, { workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools, predicates: [] }), [],
       'the shape is VALID — which is what makes the hang a defect rather than a refusal');
     const scheduler = new Fake();
     const events: RegionEvent[] = [];
     const d = new Driver(def, {
       runId: 'r1', scheduler, createTask: (c) => c, predicates: new Map(),
-      workerTypes: reg.workerTypes, now: () => 1, joinPolicy: POLICIES['live-token'],
+      workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools, now: () => 1, joinPolicy: POLICIES['live-token'],
       onRegionEvent: (e) => events.push(e),
     });
     d.start({});
@@ -492,13 +493,13 @@ suite('regionOf on a nested flow — the driver reads the INNERMOST region', (te
     // would add a corpus entry to reach one driver path.
     const nodes = [
       { id: 'outer', kind: 'fanout', branches: ['scoreA', 'scoreB'] },
-      { id: 'scoreA', kind: 'task', workerType: reg.workerTypes[0], edges: [{ to: 'outerJoin' }] },
-      { id: 'scoreB', kind: 'task', workerType: reg.workerTypes[0], edges: [{ to: 'inner' }] },
+      { id: 'scoreA', kind: 'task', type: Object.keys(reg.nodeTypes)[0]!, edges: [{ to: 'outerJoin' }] },
+      { id: 'scoreB', kind: 'task', type: Object.keys(reg.nodeTypes)[0]!, edges: [{ to: 'inner' }] },
       { id: 'inner', kind: 'fanout', branches: ['scoreC', 'scoreD'] },
       // The exit: a decision edge out of the inner region to an `end` inside it.
-      { id: 'scoreC', kind: 'task', workerType: reg.workerTypes[0],
+      { id: 'scoreC', kind: 'task', type: Object.keys(reg.nodeTypes)[0]!,
         edges: [{ to: 'bail', when: 'always' }, { to: 'innerJoin' }] },
-      { id: 'scoreD', kind: 'task', workerType: reg.workerTypes[0], edges: [{ to: 'innerJoin' }] },
+      { id: 'scoreD', kind: 'task', type: Object.keys(reg.nodeTypes)[0]!, edges: [{ to: 'innerJoin' }] },
       { id: 'bail', kind: 'end', outcome: 'completed' },
       { id: 'innerJoin', kind: 'join', of: 'inner', edges: [{ to: 'outerJoin' }] },
       { id: 'outerJoin', kind: 'join', of: 'outer', edges: [{ to: 'done' }] },
@@ -510,7 +511,7 @@ suite('regionOf on a nested flow — the driver reads the INNERMOST region', (te
     const d = new Driver(def, {
       runId: 'r1', scheduler, createTask: (c) => c,
       predicates: new Map([['always', () => true]]),
-      workerTypes: reg.workerTypes, now: () => 1, joinPolicy: waiting,
+      workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools, now: () => 1, joinPolicy: waiting,
       onRegionEvent: (e) => events.push(e),
     });
     d.start({});
@@ -552,14 +553,14 @@ suite('a dead inner join, and what it does to the branch it sits in', (test) => 
   const deadInner = (innerFirst: boolean) => {
     const outerNodes = [
       { id: 'outer', kind: 'fanout', branches: ['scoreA', 'scoreB'] },
-      { id: 'scoreA', kind: 'task', workerType: reg.workerTypes[0], edges: [{ to: 'outerJoin' }] },
-      { id: 'scoreB', kind: 'task', workerType: reg.workerTypes[0], edges: [{ to: 'inner' }] },
+      { id: 'scoreA', kind: 'task', type: Object.keys(reg.nodeTypes)[0]!, edges: [{ to: 'outerJoin' }] },
+      { id: 'scoreB', kind: 'task', type: Object.keys(reg.nodeTypes)[0]!, edges: [{ to: 'inner' }] },
     ];
     const innerNodes = [
       { id: 'inner', kind: 'fanout', branches: ['scoreC', 'scoreD'] },
-      { id: 'scoreC', kind: 'task', workerType: reg.workerTypes[0],
+      { id: 'scoreC', kind: 'task', type: Object.keys(reg.nodeTypes)[0]!,
         edges: [{ when: 'always', to: 'bail' }, { to: 'innerJoin' }] },
-      { id: 'scoreD', kind: 'task', workerType: reg.workerTypes[0],
+      { id: 'scoreD', kind: 'task', type: Object.keys(reg.nodeTypes)[0]!,
         edges: [{ when: 'always', to: 'bail' }, { to: 'innerJoin' }] },
     ];
     const nodes = [
@@ -579,7 +580,7 @@ suite('a dead inner join, and what it does to the branch it sits in', (test) => 
     const dead: string[] = [];
     const d = new Driver(def, {
       runId: 'r1', scheduler, createTask: (c) => c, predicates: new Map([['always', () => true]]),
-      workerTypes: reg.workerTypes, now: () => 1,
+      workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools, now: () => 1,
       joinPolicy: POLICIES['live-token-requiring-arrival'],
       onRegionEvent: (e) => events.push(e),
       onUnsatisfiableJoin: (u) => dead.push(u.fanoutId),
@@ -596,7 +597,7 @@ suite('a dead inner join, and what it does to the branch it sits in', (test) => 
 
     test(`${order}: the dead inner join ends the outer branch, and JP-R5 holds`, () => {
       const def = deadInner(innerFirst);
-      equal(validateDefinition(def, { workerTypes: reg.workerTypes, predicates: ['always'] }), [],
+      equal(validateDefinition(def, { workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools, predicates: ['always'] }), [],
         'the shape is VALID — which is what makes a branch with no terminal event a defect');
       const { d, events, dead } = drive(def);
 
@@ -641,16 +642,16 @@ suite('a dead inner join, and what it does to the branch it sits in', (test) => 
     // the driver's.
     const nodes = [
       { id: 'outer', kind: 'fanout', branches: ['a', 'b'] },
-      { id: 'a', kind: 'task', workerType: reg.workerTypes[0], edges: [{ to: 'outerJoin' }] },
-      { id: 'b', kind: 'task', workerType: reg.workerTypes[0], edges: [{ to: 'mid' }] },
+      { id: 'a', kind: 'task', type: Object.keys(reg.nodeTypes)[0]!, edges: [{ to: 'outerJoin' }] },
+      { id: 'b', kind: 'task', type: Object.keys(reg.nodeTypes)[0]!, edges: [{ to: 'mid' }] },
       { id: 'mid', kind: 'fanout', branches: ['c', 'd'] },
-      { id: 'c', kind: 'task', workerType: reg.workerTypes[0],
+      { id: 'c', kind: 'task', type: Object.keys(reg.nodeTypes)[0]!,
         edges: [{ when: 'always', to: 'gone' }, { to: 'midJoin' }] },
-      { id: 'd', kind: 'task', workerType: reg.workerTypes[0], edges: [{ to: 'inner' }] },
+      { id: 'd', kind: 'task', type: Object.keys(reg.nodeTypes)[0]!, edges: [{ to: 'inner' }] },
       { id: 'inner', kind: 'fanout', branches: ['e', 'f'] },
-      { id: 'e', kind: 'task', workerType: reg.workerTypes[0],
+      { id: 'e', kind: 'task', type: Object.keys(reg.nodeTypes)[0]!,
         edges: [{ when: 'always', to: 'gone' }, { to: 'innerJoin' }] },
-      { id: 'f', kind: 'task', workerType: reg.workerTypes[0],
+      { id: 'f', kind: 'task', type: Object.keys(reg.nodeTypes)[0]!,
         edges: [{ when: 'always', to: 'gone' }, { to: 'innerJoin' }] },
       { id: 'gone', kind: 'end', outcome: 'branch-abandoned' },
       { id: 'innerJoin', kind: 'join', of: 'inner', edges: [{ to: 'midJoin' }] },
@@ -659,13 +660,13 @@ suite('a dead inner join, and what it does to the branch it sits in', (test) => 
       { id: 'done', kind: 'end', outcome: 'completed' },
     ];
     const def = { flowId: 'dead-inner-depth3', version: 1, entry: 'outer', nodes } as unknown as FlowDefinition;
-    equal(validateDefinition(def, { workerTypes: reg.workerTypes, predicates: ['always'] }), [], 'valid');
+    equal(validateDefinition(def, { workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools, predicates: ['always'] }), [], 'valid');
     const scheduler = new Fake();
     const events: RegionEvent[] = [];
     const dead: string[] = [];
     const d = new Driver(def, {
       runId: 'r1', scheduler, createTask: (c) => c, predicates: new Map([['always', () => true]]),
-      workerTypes: reg.workerTypes, now: () => 1,
+      workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools, now: () => 1,
       joinPolicy: POLICIES['live-token-requiring-arrival'],
       onRegionEvent: (e) => events.push(e),
       onUnsatisfiableJoin: (u) => dead.push(u.fanoutId),
@@ -691,9 +692,9 @@ suite('a dead inner join, and what it does to the branch it sits in', (test) => 
     // and the reason it did not is that `regionOf(fanoutId)` is `undefined` there.
     const nodes = [
       { id: 'split', kind: 'fanout', branches: ['x', 'y'] },
-      { id: 'x', kind: 'task', workerType: reg.workerTypes[0],
+      { id: 'x', kind: 'task', type: Object.keys(reg.nodeTypes)[0]!,
         edges: [{ when: 'always', to: 'bail' }, { to: 'collect' }] },
-      { id: 'y', kind: 'task', workerType: reg.workerTypes[0],
+      { id: 'y', kind: 'task', type: Object.keys(reg.nodeTypes)[0]!,
         edges: [{ when: 'always', to: 'bail' }, { to: 'collect' }] },
       { id: 'bail', kind: 'end', outcome: 'branch-abandoned' },
       { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'done' }] },
@@ -705,7 +706,7 @@ suite('a dead inner join, and what it does to the branch it sits in', (test) => 
     const dead: string[] = [];
     const d = new Driver(def, {
       runId: 'r1', scheduler, createTask: (c) => c, predicates: new Map([['always', () => true]]),
-      workerTypes: reg.workerTypes, now: () => 1,
+      workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools, now: () => 1,
       joinPolicy: POLICIES['live-token-requiring-arrival'],
       onRegionEvent: (e) => events.push(e),
       onUnsatisfiableJoin: (u) => dead.push(u.fanoutId),
@@ -731,14 +732,14 @@ suite('ADR 0048 rule 5 — createTask: the option is honoured, and the default i
   const def: FlowDefinition = {
     flowId: 'ct', version: 1, entry: 'a',
     nodes: [
-      { id: 'a', kind: 'task', workerType: 'W', edges: [{ to: 'done' }] },
+      { id: 'a', kind: 'task', type: 'W', edges: [{ to: 'done' }] },
       { id: 'done', kind: 'end', outcome: 'completed' },
     ],
   };
   test('the object the scheduler receives is the one the FACTORY returned — not a FyflowTask built beside it', () => {
     const s = new Fake();
     new Driver(def, {
-      runId: 'r1', scheduler: s, predicates: new Map(), workerTypes: ['W'],
+      runId: 'r1', scheduler: s, predicates: new Map(), ...typesFor(['W']),
       createTask: (c) => ({ marker: 'from-my-factory', ...c }),
     }).start({ x: 1 });
     equal(s.added.length, 1, 'one dispatch');
@@ -749,14 +750,15 @@ suite('ADR 0048 rule 5 — createTask: the option is honoured, and the default i
   });
   test('omitted, the driver builds EXACTLY new FyflowTask(config) — the four fields and nothing added', () => {
     const s = new Fake();
-    new Driver(def, { runId: 'r1', scheduler: s, predicates: new Map(), workerTypes: ['W'] }).start({ x: 1 });
+    new Driver(def, { runId: 'r1', scheduler: s, predicates: new Map(), ...typesFor(['W']) }).start({ x: 1 });
     equal(s.added.length, 1, 'one dispatch');
     const built = s.added[0] as unknown;
     ok(built instanceof FyflowTask, 'the default builds the scheduler`s own class (ADR 0048 rule 5)');
     // Field for field against a task built from the same four fields, private bookkeeping aside:
     // a default that injected `retryPolicy`, `workerGroups`, `handleRejection` or `limitKey`
     // beyond what the config carries differs here and nowhere else at L1-L6.
-    const expected = new FyflowTask({ id: 'r1:a:-:0', workerType: 'W', payload: { x: 1 }, optional: false });
+    // The payload is the envelope every task node carries since v0.19 (ADR 0054).
+    const expected = new FyflowTask({ id: 'r1:a:-:0', workerType: 'W', payload: { settings: {}, input: { x: 1 } }, optional: false });
     const own = (t: object) => Object.fromEntries(Object.entries(t).filter(([k]) => !k.startsWith('_')));
     ok(deepEqual(own(built as object), own(expected)),
       `the default task equals new FyflowTask(config) field for field — got ${JSON.stringify(own(built as object))}`);
@@ -773,15 +775,15 @@ suite('ADR 0048 rule 5 — createTask: the option is honoured, and the default i
     const declared: FlowDefinition = {
       flowId: 'ct2', version: 1, entry: 'a',
       nodes: [
-        { id: 'a', kind: 'task', workerType: 'W', retryPolicy: { maxRetries: 2, backoffMs: 50 }, workerGroups: ['gpu'], edges: [{ to: 'done' }] },
+        { id: 'a', kind: 'task', type: 'W', retryPolicy: { maxRetries: 2, backoffMs: 50 }, workerGroups: ['gpu'], edges: [{ to: 'done' }] },
         { id: 'done', kind: 'end', outcome: 'completed' },
       ],
     };
-    new Driver(declared, { runId: 'r1', scheduler: s, predicates: new Map(), workerTypes: ['W'], groups: ['gpu'] }).start({ x: 1 });
+    new Driver(declared, { runId: 'r1', scheduler: s, predicates: new Map(), ...typesFor(['W']), groups: ['gpu'] }).start({ x: 1 });
     const built = s.added[0] as unknown;
     ok(built instanceof FyflowTask, 'still the scheduler`s own class');
     const expected = new FyflowTask({
-      id: 'r1:a:-:0', workerType: 'W', payload: { x: 1 }, optional: false,
+      id: 'r1:a:-:0', workerType: 'W', payload: { settings: {}, input: { x: 1 } }, optional: false,
       retryPolicy: { maxRetries: 2, backoffMs: 50 }, workerGroups: ['gpu'],
     });
     const own = (t: object) => Object.fromEntries(Object.entries(t).filter(([k]) => !k.startsWith('_')));

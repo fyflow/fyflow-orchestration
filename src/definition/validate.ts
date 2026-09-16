@@ -1,19 +1,21 @@
 /**
  * The definition validator — `spec/flow-definition.md` section 5.
  *
- * Thirty-five refusals, `FD-V14` and `FD-V15` deliberately absent — the number `check-spec`
- * prints as *C4 covered 35 definition refusals*, derived from the ids in this file. *(This read
+ * Thirty-four refusals — `FD-V14`, `FD-V15` and, since v0.19 (W65, ADR 0054), `FD-V5` and `FD-V34`
+ * deliberately absent — the number `check-spec` prints as *C4 covered 34 definition refusals*, derived
+ * from the ids in this file. *(This read
  * 23 before W45 and 24 after it: the increment was applied to a number nothing was tracking, and
  * it had been wrong by three for several plans. W45's conformity reader. **27 until W58 added
  * `FD-V30` and `FD-V31`, 29 until W59 added `FD-V32`-`FD-V34`, 32 until W61 added
- * `FD-V35`-`FD-V37`.**)* Reports EVERY violation
+ * `FD-V35`-`FD-V37`; 35 until W65 retired `FD-V5` and `FD-V34` with `workerType` and added `FD-V38`.**)* Reports EVERY violation
  * rather than the first, because section 5 requires an invalid definition to be
  * rejected *and* the named rule to appear among the findings, and several cases
  * legitimately violate more than one rule.
  *
  * ADR 0002 rule 3: this runs in full, at instantiation, before any task is queued.
  */
-import type { Edge, Finding, FlowDefinition, FlowNode, LanguageAdapter, Languages, NodeType, NodeTypes, Registry, SettingsValidator, Transform } from './types.ts';
+import type { Edge, Finding, FlowDefinition, FlowNode, JsonSchema, LanguageAdapter, Languages, NodeTypeEntry, NodeTypes, Pools, Registry, Transform, WorkerEntry, Workers } from './types.ts';
+import { describeFindings, findings, schemaProblem } from './schema.ts';
 import { allRegions, buildGraph, certainlySettled } from './regions.ts';
 
 const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
@@ -25,13 +27,12 @@ const NODE_KEYS: Record<string, { req: string[]; opt: string[] }> = {
   // `retryPolicy` and `workerGroups` since v0.16 (W58): what a node says about its OWN task,
   // as declared keys rather than an opaque bag — P16 decision 3, because `FD-V17`'s whole job
   // is refusing a key the kind does not declare, and a bag is where a typo lives until run time.
-  // **`workerType` is OPTIONAL in shape since v0.17 (W59) and required in meaning**: a task names
-  // its pool by `workerType` OR by `type`, and the neither/both cases are `FD-V23`/`FD-V34` below
-  // rather than this table's, because a key table cannot say "exactly one of". `settings` rides
-  // on `type` (`FD-V34`), and so does `transform` (v0.18, W61: `FD-V37`) — a `task`'s key and no
-  // other kind's, so a `transform` on a `map` node, a `join` or an edge is `FD-V17`'s undeclared
-  // key, which is what P17 wants said once rather than as three more clauses.
-  task: { req: ['id', 'kind', 'edges'], opt: ['workerType', 'type', 'settings', 'transform', 'optional', 'needs', 'retryPolicy', 'workerGroups'] },
+  // **`type` is REQUIRED since v0.19 (W65, ADR 0054) and `workerType` is retired**: every task
+  // names a node type, and a `workerType` key is `FD-V17`'s undeclared key like any other. `pool`
+  // names a named instance of the type (`FD-V38`); `settings` and `transform` are a `task`'s keys
+  // and no other kind's, so a `transform` on a `map` node, a `join` or an edge is `FD-V17`'s
+  // undeclared key, which is what P17 wants said once rather than as three more clauses.
+  task: { req: ['id', 'kind', 'type', 'edges'], opt: ['pool', 'settings', 'transform', 'optional', 'needs', 'retryPolicy', 'workerGroups'] },
   fanout: { req: ['id', 'kind', 'branches'], opt: [] },
   // `spec/flow-definition.md` section 2, v0.8. `over` and `branch` are both
   // required: a map that does not say where its arity comes from is one that
@@ -114,10 +115,24 @@ const asSet = (x: ReadonlySet<string> | readonly string[]): ReadonlySet<string> 
  * `undefined` is EMPTY (`Registry.nodeTypes`' own doc comment; the same reading `groups` has).
  * Shared by the validator and the driver so the two cannot read the option differently.
  */
-export function nodeTypesOf(x: NodeTypes | undefined): ReadonlyMap<string, NodeType> {
+export function nodeTypesOf(x: NodeTypes | undefined): ReadonlyMap<string, NodeTypeEntry> {
   if (x === undefined) return new Map();
-  if (x instanceof Map) return x as ReadonlyMap<string, NodeType>;
-  return new Map(Object.entries(x as Readonly<Record<string, NodeType>>));
+  if (x instanceof Map) return x as ReadonlyMap<string, NodeTypeEntry>;
+  return new Map(Object.entries(x as Readonly<Record<string, NodeTypeEntry>>));
+}
+
+/** **The registry's workers as ONE shape** — v0.19, `nodeTypesOf`'s reading: `undefined` is EMPTY. */
+export function workersOf(x: Workers | undefined): ReadonlyMap<string, WorkerEntry> {
+  if (x === undefined) return new Map();
+  if (x instanceof Map) return x as ReadonlyMap<string, WorkerEntry>;
+  return new Map(Object.entries(x as Readonly<Record<string, WorkerEntry>>));
+}
+
+/** **The registry's named pool instances as ONE shape** — v0.19: `undefined` is EMPTY, and a type's default instance is never here. */
+export function poolsOf(x: Pools | undefined): ReadonlyMap<string, { readonly type: string; readonly config?: unknown }> {
+  if (x === undefined) return new Map();
+  if (x instanceof Map) return x as ReadonlyMap<string, { readonly type: string; readonly config?: unknown }>;
+  return new Map(Object.entries(x as Readonly<Record<string, { readonly type: string; readonly config?: unknown }>>));
 }
 
 /**
@@ -185,46 +200,49 @@ export function compileProblem(adapter: LanguageAdapter, expr: string): string |
 }
 
 /**
- * **A typed node's EFFECTIVE settings: what it declares, or `{}`** — `spec/flow-definition.md`
- * section 2 (v0.17). One definition, read by the validator (what the type's validator sees) and
- * by the driver (what the envelope carries), so the object refused at construction and the
- * object dispatched are the same object.
+ * **A node's EFFECTIVE settings: the type's defaults merged UNDER what the node declares** —
+ * `spec/flow-definition.md` section 2 (v0.19, P18 decision 12). One definition, read by the
+ * validator (what the worker's `settingsSchema` sees) and by the driver (what the envelope carries),
+ * so the object refused at construction and the object dispatched are the same object. A shallow
+ * merge, the node's keys winning; `{}` when neither declares anything.
  */
-export function effectiveSettings(node: { settings?: Readonly<Record<string, unknown>> }): Readonly<Record<string, unknown>> {
-  return node.settings ?? {};
+export function effectiveSettings(
+  node: { settings?: Readonly<Record<string, unknown>> },
+  type?: { settings?: Readonly<Record<string, unknown>> },
+): Readonly<Record<string, unknown>> {
+  return { ...(type?.settings ?? {}), ...(node.settings ?? {}) };
 }
 
 /**
  * **Why a typed node's `settings` is refused, or `null`** — `FD-V33`'s whole predicate, in one
  * place as `retryPolicyProblem` is for `FD-V30`. Two clauses: the SHAPE — a plain JSON object,
- * because a definition is data (ADR 0002 rule 1) and an array or a scalar is a value the
- * envelope would carry without a word — and the type's VALIDATOR, run on the effective settings.
- * **A validator that THROWS refuses**, with its message: a registry function that cannot run on
- * a document is not an acceptance. **And a verdict that is neither `null` nor a string refuses
- * too** — a validator returning `false` (a predicate's contract, not this one) is not read as
- * *accept*, because a boolean has two readings and this contract has one.
+ * because a definition is data (ADR 0002 rule 1) and an array or a scalar is a value the envelope
+ * would carry without a word — and the worker's `settingsSchema` over the EFFECTIVE settings (the
+ * type's defaults merged under the node's). **An absent schema means UNCHECKED** (P18 decision 3),
+ * which is what v0.17's absent validator meant. A schema outside the built-in subset is the
+ * REGISTRY's mistake and is refused at construction by name (ADR 0053, Q278); reached here anyway,
+ * it is reported rather than applied, because a keyword ignored is a constraint dropped in silence.
  */
-export function settingsProblem(validate: SettingsValidator | undefined, settings: unknown): string | null {
+export function settingsProblem(
+  schema: JsonSchema | undefined,
+  defaults: Readonly<Record<string, unknown>> | undefined,
+  settings: unknown,
+): string | null {
   if (settings !== undefined && (typeof settings !== 'object' || settings === null || Array.isArray(settings))) {
     return `settings must be a plain object, got ${JSON.stringify(settings)}`;
   }
-  if (validate === undefined) return null;
-  const effective = (settings ?? {}) as Readonly<Record<string, unknown>>;
-  let verdict: unknown;
-  try {
-    verdict = validate(effective);
-  } catch (e) {
-    return `the type's settings validator THREW on ${JSON.stringify(effective)}: ${e instanceof Error ? e.message : String(e)}`;
-  }
-  if (verdict === null) return null;
-  if (typeof verdict === 'string') return verdict;
-  return `the type's settings validator returned ${JSON.stringify(verdict)} for ${JSON.stringify(effective)}, ` +
-    'which is neither null (accepted) nor a string (why it is refused)';
+  if (schema === undefined) return null;
+  const malformed = schemaProblem(schema);
+  if (malformed !== null) return `the worker's settingsSchema is not in the built-in subset and cannot be applied — ${malformed}`;
+  const effective = effectiveSettings({ settings: settings as Readonly<Record<string, unknown>> | undefined }, { settings: defaults });
+  const fs = findings(schema, effective);
+  if (fs.length === 0) return null;
+  return `settings ${JSON.stringify(effective)} fail the worker's settingsSchema: ${describeFindings(fs)}`;
 }
 
 /**
  * @returns every violated rule. Empty means the definition is valid.
- *   A definition is valid **against a registry**: FD-V4 and FD-V5 are refusals
+ *   A definition is valid **against a registry**: FD-V4 and FD-V32 are refusals
  *   about one, so there is no such thing as validating without it.
  */
 /**
@@ -304,7 +322,6 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
   const f: Finding[] = [];
   const add = (rule: string, at: string | null, detail: string) => f.push({ rule, at, detail });
   const preds = asSet(registry.predicates);
-  const wts = asSet(registry.workerTypes);
   // **Absent means EMPTY, not unchecked** — `Registry.groups`' own doc comment, and the
   // maintainer's call at W58's stop-and-ask with both directions priced.
   const groups = asSet(registry.groups ?? []);
@@ -312,6 +329,9 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
   const nodeTypes = nodeTypesOf(registry.nodeTypes);
   // The fifth set, read the same way (W61): absent means no language is registered.
   const languages = languagesOf(registry.languages);
+  // The workers and the named pool instances, read the same way (W65, v0.19): absent means none.
+  const workers = workersOf(registry.workers);
+  const pools = poolsOf(registry.pools);
   const d = doc as unknown as Record<string, unknown>;
 
   // ---- document shape: FD-V23, FD-V17, FD-V21, FD-V16 ----
@@ -375,83 +395,77 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
       if (nd.optional !== undefined && typeof nd.optional !== 'boolean') {
         add('FD-V21', where, 'optional must be a boolean');
       }
-      if (nd.workerType !== undefined && typeof nd.workerType !== 'string') {
-        add('FD-V21', where, 'workerType must be a string');
-      } else if (typeof nd.workerType === 'string' && !wts.has(nd.workerType)) {
-        add('FD-V5', where, `workerType "${nd.workerType}" is not a registered worker pool`);
-      }
-      // ---- a node TYPE: FD-V23's typed half, FD-V32, FD-V33, FD-V34 ----
-      // `spec/flow-definition.md` section 2, v0.17 (W59), and ADR 0049. A task names the thing
-      // that runs it ONE way — `workerType`, a pool, or `type`, a registry entry whose pool is
-      // keyed by its name — and `settings` rides on `type`. The key table above cannot say
-      // "exactly one of", so the neither and both cases are stated here.
-      if (nd.workerType === undefined && nd.type === undefined) {
-        add('FD-V23', where, 'task node is missing required key "workerType" (or "type", for a typed node)');
-      }
+      // ---- a node TYPE and its POOL: FD-V32, FD-V33, FD-V38 ----
+      // `spec/flow-definition.md` section 2 (v0.19, W65) and ADR 0054. A task names the thing that
+      // runs it ONE way — `type`, REQUIRED, a registry node type whose DEFAULT pool instance is keyed
+      // by its name — and may name a NAMED instance of that type in `pool`. A task with no `type` is
+      // `FD-V23`'s generic clause (the key loop above); a `workerType` is `FD-V17`'s undeclared key.
+      // `FD-V5` and `FD-V34` are retired with it — with one road there are no halves to mix.
       if (nd.type !== undefined && typeof nd.type !== 'string') {
         add('FD-V21', where, 'type must be a string');
       }
-      // **`FD-V34` — the typed and untyped halves MIXED**, three ways, one id, because an author
-      // fixes all three by deciding which half the node is in. The second clause is the one a
-      // consumer reaches by accident: a type's pool is keyed by its name and is therefore a
-      // legal `workerType`, and a bare node naming it would hand the type's worker the RAW
-      // payload where it expects the envelope — a run-time task failure (measured at W59) that
-      // ADR 0002 rule 3 says to catch here instead.
-      if (nd.workerType !== undefined && nd.type !== undefined) {
-        add('FD-V34', where, `task declares both "workerType" (${JSON.stringify(nd.workerType)}) and "type" (${JSON.stringify(nd.type)}); a node names its pool one way`);
-      }
-      if (typeof nd.workerType === 'string' && nodeTypes.has(nd.workerType)) {
-        add('FD-V34', where, `workerType "${nd.workerType}" names a node TYPE; write type: "${nd.workerType}" — a typed pool's worker expects the envelope, and a bare workerType would hand it the raw payload`);
-      }
-      if (nd.settings !== undefined && nd.type === undefined) {
-        add('FD-V34', where, 'settings declared on a node with no type; only a typed node carries settings, and a bare node would carry them nowhere');
+      if (nd.pool !== undefined && typeof nd.pool !== 'string') {
+        add('FD-V21', where, 'pool must be a string');
       }
       if (typeof nd.type === 'string') {
-        // **`FD-V32` — the type must exist AND have a pool.** Two clauses under one id because
-        // both mean *this node cannot run* and the fix is the registry either way; the second is
-        // reported only when the first passed, so an unregistered type reads one message.
+        // **`FD-V32` — the type must exist AND name a worker the registry declares.** Two clauses
+        // under one id because both mean *this node cannot run* and the fix is the registry either
+        // way; the second is reported only when the first passed, so an unregistered type reads one
+        // message. *(v0.17's second clause — a registered type with no POOL of its name — has no
+        // instance since v0.19: every type has a default instance, built from its own config.)*
         const type = nodeTypes.get(nd.type);
         if (type === undefined) {
           add('FD-V32', where, `type "${nd.type}" is not a registered node type` +
             (nodeTypes.size ? ` (the registry declares ${[...nodeTypes.keys()].sort().map((x) => `"${x}"`).join(', ')})` : ' (the registry declares no node types)'));
-        } else if (!wts.has(nd.type)) {
-          add('FD-V32', where, `type "${nd.type}" is registered but the scheduler has no pool of that name — a type's pool is keyed by its name, and the bootstrap helper builds one`);
+        } else if (typeof type.worker !== 'string' || !workers.has(type.worker)) {
+          add('FD-V32', where, `type "${nd.type}" is registered but names worker ${JSON.stringify(type.worker)}, which the registry's workers does not declare` +
+            (workers.size ? ` (it declares ${[...workers.keys()].sort().map((x) => `"${x}"`).join(', ')})` : ' (it declares none)') + ' — a type with no worker cannot run');
         }
-        // **`FD-V33` — the SHAPE, then the type's VALIDATOR on the effective settings** — see
-        // `settingsProblem`. Run against an unregistered type too, so a malformed `settings`
-        // beside an unknown `type` reports both things wrong rather than one at a time.
-        const problem = settingsProblem(type?.settings, nd.settings);
+        // **`FD-V33` — the SHAPE, then the worker's `settingsSchema` over the EFFECTIVE settings**
+        // (the type's defaults merged under the node's) — see `settingsProblem`. Run against an
+        // unregistered type too (shape alone), so a malformed `settings` beside an unknown `type`
+        // reports both things wrong rather than one at a time.
+        const worker = type === undefined || typeof type.worker !== 'string' ? undefined : workers.get(type.worker);
+        const problem = settingsProblem(worker?.settingsSchema, type?.settings, nd.settings);
         if (problem !== null) add('FD-V33', where, problem);
+        // **`FD-V38` — a `pool` names an instance of THIS node's type.** The type's own name is its
+        // default instance, stated explicitly, and is accepted; any other name is a key in the
+        // registry's `pools` whose `type` is this node's. Reported only once the type is registered.
+        if (typeof nd.pool === 'string' && type !== undefined && nd.pool !== nd.type) {
+          const inst = pools.get(nd.pool);
+          if (inst === undefined) {
+            add('FD-V38', where, `pool "${nd.pool}" is not a registered pool instance` +
+              (pools.size ? ` (the registry declares ${[...pools.keys()].sort().map((x) => `"${x}"`).join(', ')})` : ' (the registry declares no named instances)') +
+              `; a node with no pool runs on its type's default instance, keyed "${nd.type}"`);
+          } else if (inst.type !== nd.type) {
+            add('FD-V38', where, `pool "${nd.pool}" is an instance of type "${inst.type}", not of this node's type "${nd.type}"; a node runs on an instance of its own type`);
+          }
+        }
       }
       // ---- FD-V35, FD-V36, FD-V37: what a node may DO to its input before its worker sees it ----
       // `spec/flow-definition.md` section 2's `transform` subsection, v0.18 (W61), ADR 0051, P17
       // decisions 1, 3 and 4. The transform is evaluated in the TYPE's worker wrapper and never in
-      // the driver, so a node with no type has nowhere to evaluate one (`FD-V37`, alone — the
-      // language clauses are moot on a node that cannot carry the key); its shape is exactly
-      // `{ lang, expr }` (`FD-V37`'s other clause, `FD-V34`'s family: a key that would be carried
+      // the driver; its shape is exactly `{ lang, expr }` (`FD-V37`, a key that would be carried
       // nowhere); `lang` names a registered language, the set EMPTY when absent (`FD-V35`,
       // `FD-V31`'s reading); and `expr` is text that language's `compile` accepts, run HERE at
       // instantiation because compilation is synchronous (`FD-V36`, ADR 0002 rule 3's whole
       // argument: a syntax error is refused at `new Driver`, not on the one workload that reaches
       // the node). `FD-V36` is reported only when `FD-V35` passed — an unknown language has no
-      // compiler to ask.
+      // compiler to ask. *(v0.18's other `FD-V37` clause — a transform on a node with no `type` —
+      // has no instance since v0.19: every task node is typed, and one with no `type` is `FD-V23`.)*
       if (nd.transform !== undefined) {
-        if (nd.type === undefined) {
-          add('FD-V37', where, 'transform declared on a node with no type; a transform is evaluated in the TYPE`s worker wrapper and a bare workerType node has no wrapper — give the node a type, or reshape in a task node');
+        const shape = transformShapeProblem(nd.transform);
+        if (shape !== null) {
+          add('FD-V37', where, shape);
         } else {
-          const shape = transformShapeProblem(nd.transform);
-          if (shape !== null) {
-            add('FD-V37', where, shape);
+          const t = nd.transform as Transform;
+          const adapter = languages.get(t.lang);
+          if (adapter === undefined) {
+            add('FD-V35', where, `transform.lang "${t.lang}" is not a registered language` +
+              (languages.size ? ` (the registry declares ${[...languages.keys()].sort().map((x) => `"${x}"`).join(', ')})` : ' (the registry declares no languages)'));
           } else {
-            const t = nd.transform as Transform;
-            const adapter = languages.get(t.lang);
-            if (adapter === undefined) {
-              add('FD-V35', where, `transform.lang "${t.lang}" is not a registered language` +
-                (languages.size ? ` (the registry declares ${[...languages.keys()].sort().map((x) => `"${x}"`).join(', ')})` : ' (the registry declares no languages)'));
-            } else {
-              const problem = compileProblem(adapter, t.expr);
-              if (problem !== null) add('FD-V36', where, `transform.expr ${JSON.stringify(t.expr)} is refused by "${t.lang}": ${problem}`);
-            }
+            const problem = compileProblem(adapter, t.expr);
+            if (problem !== null) add('FD-V36', where, `transform.expr ${JSON.stringify(t.expr)} is refused by "${t.lang}": ${problem}`);
           }
         }
       }

@@ -5,11 +5,12 @@
  * survives `JSON.parse(JSON.stringify(x))`, which is what lets a definition be
  * validated, rendered and persisted by things that never ran it.
  */
-// **The scheduler's pool-options TYPE, by the bare specifier ADR 0048 rule 4 allows** — W59. A
-// node type's `pool` is exactly what the bootstrap helper hands `WorkerManager`, so it is typed
-// as that rather than as a second copy of it. Type-only: erased in every build, so the pure
-// entry still loads no scheduler value.
-import type { WorkerManagerOptions } from 'fyflow-scheduler';
+// **The scheduler's ResourceGroup TYPE, by the bare specifier ADR 0048 rule 4 allows** — W65: a group
+// type's factory returns one. Type-only: erased in every build, so the pure entry still loads no
+// scheduler value.
+import type { ResourceGroup } from 'fyflow-scheduler';
+import type { JsonSchema } from './schema.ts';
+export type { JsonSchema } from './schema.ts';
 
 /** The terminal states an edge may opt into. `user_action` is refused: it suspends (FD-V18). */
 export type RoutableState = 'done' | 'failed';
@@ -94,55 +95,24 @@ export interface RetryPolicy {
 }
 
 /**
- * **A node type's per-node settings VALIDATOR** — `spec/flow-definition.md` section 2 (v0.17),
- * [ADR 0049](../../doc/decisions/0049-a-node-type-is-a-registry-entry-and-its-worker-receives-an-envelope.md)
- * rule 2. A function in the registry exactly as a predicate is (ADR 0002 rule 3): `null` ACCEPTS,
- * a string is WHY the settings are refused and becomes `FD-V33`'s detail. It receives the node's
- * EFFECTIVE settings — `{}` when the node declares none — so a type that requires a key refuses
- * an absent object by name. **The schema LANGUAGE is deliberately not here**: a declared, portable
- * schema is P18's subject, and a function is what keeps `FD-V33` decidable at instantiation
- * without inventing one ([W59](../../doc/work-items/w59-what-a-node-type-is.md)).
+ * **The registry's node types, keyed by the name a `task`'s `type` gives** — v0.19 (W65, ADR 0054):
+ * each entry the DOCUMENT form (`NodeTypeDeclaration`, the identity derivation's input) or the CLASS
+ * form (`NodeTypeDefinition`, any other derivation), told apart by whether `pool` is a function. A
+ * `Map` or a plain object, as the consumer prefers. *(v0.17's `NodeType` — a worker URL and a
+ * settings VALIDATOR function — retired here: a JSON registry cannot carry a function, and the
+ * settings language is the worker's `settingsSchema`, ADR 0053.)*
  */
-export type SettingsValidator = (settings: Readonly<Record<string, unknown>>) => string | null;
+export type NodeTypes = ReadonlyMap<string, NodeTypeEntry> | Readonly<Record<string, NodeTypeEntry>>;
+
+/** The registry's workers, keyed by the name a node type's `worker` gives — v0.19. A `Map` or a plain object. */
+export type Workers = ReadonlyMap<string, WorkerEntry> | Readonly<Record<string, WorkerEntry>>;
 
 /**
- * **What a node type IS: a REGISTRY entry** — ADR 0049 rule 1, P16 decision 4. The definition
- * names it by `type` and stays data; the worker, the pool, the groups and the config live here,
- * in the registry the consumer passes to the driver, exactly as predicates and worker types do.
- * **A type's pool is keyed by the type's NAME**, which is what `FD-V32` checks and what the
- * bootstrap helper (`fyflow-orchestration/scheduler`) builds.
+ * The registry's NAMED pool instances, keyed by the name a `task`'s `pool` gives — v0.19. What the
+ * validator reads of one is its `type` (`FD-V38`); a `PoolInstance` and a resolved pool both fit.
+ * **Absent means EMPTY**; a type's DEFAULT instance is implicit and never listed here.
  */
-export interface NodeType {
-  /**
-   * Module URL of the worker class the type runs — what the bootstrap helper hands
-   * `WorkerManager` as the INNER script; its default export is the class. Never a path in the
-   * definition, which names the type and nothing else (P16 decision 4).
-   */
-  worker: string;
-  /** Pool options the helper passes to `WorkerManager`, minus the two the type states separately below. */
-  pool?: Readonly<Omit<WorkerManagerOptions, 'config' | 'groups'>>;
-  /**
-   * Resource-group ids the type's POOL declares: every task of the type acquires them, and the
-   * scheduler unions them with a node's own `workerGroups` (W58's measurement). Each must be one
-   * `Registry.groups` declares — held under `FD-V31` at construction, naming the type — because
-   * a pool naming an unknown group is ignored in silence exactly as a task is (measured at W59,
-   * both runtimes).
-   */
-  groups?: readonly string[];
-  /** The pool's global config: the first constructor argument of every worker instance of the type. */
-  config?: unknown;
-  /** The per-node `settings` validator — see `SettingsValidator`. Absent, any plain object is accepted. */
-  settings?: SettingsValidator;
-  /**
-   * The retry policy for every node of the type that declares none — held to `FD-V30` at
-   * construction, naming the type. **A node's own wins, whole**, then this, then the driver's
-   * `defaultRetryPolicy` (section 2's merge rule, one level longer).
-   */
-  retryPolicy?: RetryPolicy;
-}
-
-/** The registry's node types, keyed by the name a `task`'s `type` gives. A `Map` or a plain object, as the consumer prefers. */
-export type NodeTypes = ReadonlyMap<string, NodeType> | Readonly<Record<string, NodeType>>;
+export type Pools = ReadonlyMap<string, { readonly type: string; readonly config?: unknown }> | Readonly<Record<string, { readonly type: string; readonly config?: unknown }>>;
 
 /**
  * **A declared transform: a language NAME and an expression in it** — `spec/flow-definition.md`
@@ -187,26 +157,216 @@ export interface LanguageAdapter {
 /** The registry's languages, keyed by the name a `transform`'s `lang` gives. A `Map` or a plain object, as `nodeTypes` is. */
 export type Languages = ReadonlyMap<string, LanguageAdapter> | Readonly<Record<string, LanguageAdapter>>;
 
+// ---- the registry DOCUMENT — v0.19, P18, W65 ----------------------------------------------------
+//
+// **A flow and the runtime it needs are two DOCUMENTS and a registry of names** — P18's question,
+// [ADR 0054](../../doc/decisions/0054-every-task-node-names-a-type-and-a-type-is-a-derivation-to-pool-options.md).
+// Everything below is data (ADR 0002 rule 1) except the two things decision 2 and decision 4 make
+// FUNCTIONS on purpose — a node-type CLASS's `pool()` derivation and a group type's `create` — and
+// those live in the `code` argument a consumer passes, never in the document.
+
+/**
+ * **A worker entry: the module URL and what the worker SAYS about itself, as four JSON schemas** —
+ * decision 3. `url` is the only required field; an absent schema means UNCHECKED, stated. The first
+ * two are enforced by this plan (`configSchema` over a type's and an instance's derived config at
+ * construction; `settingsSchema` over a node's effective settings at `new Driver`, `FD-V33`); the
+ * last two are declared, carried and enforced by nothing here — P19's strict mode. All four are held
+ * to the built-in subset at construction (ADR 0053, Q278).
+ */
+export interface WorkerEntry {
+  /** The worker class's module URL — its default export is the class. Relative URLs resolve against the runtime's `base` (decision 7). */
+  url: string;
+  /** What the worker's CONSTRUCTOR argument must satisfy — a type's or an instance's DERIVED config. */
+  configSchema?: JsonSchema;
+  /** What a node's effective `settings` must satisfy — `FD-V33`, a schema in place of W59's function. */
+  settingsSchema?: JsonSchema;
+  /** What the worker's `run()` receives as `input`. Declared and carried; not enforced (P19). */
+  inputSchema?: JsonSchema;
+  /** What the worker's `run()` returns. Declared and carried; not enforced (P19). */
+  outputSchema?: JsonSchema;
+}
+
+/**
+ * **What a derivation RETURNS: what ONE `WorkerManager` needs, minus the two things the TYPE states
+ * beside it** (`worker`, `inline`) — decision 2. `config` is the worker's constructor argument and
+ * is checked against `workers[worker].configSchema`; the rest are the scheduler's own options, and a
+ * key is present only when the derivation has something to say (P18 fact 5: absent, not empty).
+ */
+export interface PoolSpec {
+  config?: unknown;
+  maxThreads?: number;
+  maxConcurrentTasks?: number;
+  idleTimeout?: number;
+  /** Group KEYS every task of the pool acquires; the scheduler unions them with a node's `workerGroups`. */
+  groups?: readonly string[];
+  /** Group keys held for the WORKER's lifetime rather than per task, at a cost each — never beside `idleTimeout: 0` (decision 9). */
+  residentGroups?: readonly string[] | Readonly<Record<string, number>>;
+}
+
+/**
+ * **A node type as a DERIVATION from an instance's config to pool options** — decision 2, the CLASS
+ * form. A document-declared type is this interface implemented by `nodeTypeFromDeclaration` (the
+ * identity derivation — merge the instance's config over the declared fields); a class registered in
+ * `code` is any other (`model: "large"` into a resident VRAM cost and a thread count). **Both
+ * outputs pass through the same checks**, so a class cannot compute around one. A class decides how
+ * a pool is BUILT and nothing about which node runs on it — that is routing, and ADR 0001 keeps
+ * routing in the driver.
+ */
+export interface NodeTypeDefinition {
+  /** A key into the registry document's `workers`. Fixed per type. */
+  readonly worker: string;
+  /** Fixed per type; an instance may not override it. Absent means the scheduler's default and the options bag omits the key (fact 5's rule applied to `inline`). */
+  readonly inline?: boolean;
+  /** The knobs an INSTANCE may set — the input to the derivation, checked before `pool()` is called. Absent means unchecked. */
+  readonly configSchema?: JsonSchema;
+  /** The DEFAULT instance's config (`undefined` reaches the derivation as-is; an object schema reads it as `{}`). Refused at construction when it fails `configSchema`, or when its derived config fails the worker's. */
+  readonly config?: unknown;
+  /** The type's retry default for its nodes (W59's merge: node, then type, then the driver's default, whole each time). */
+  readonly retryPolicy?: RetryPolicy;
+  /** Settings DEFAULTS, merged under a node's `settings` before the worker's `settingsSchema` is applied — decision 12, the one new field on a type. */
+  readonly settings?: Readonly<Record<string, unknown>>;
+  /** The derivation: a validated instance config and the instance's key, to what ONE `WorkerManager` needs. */
+  pool(config: unknown, key: string): PoolSpec;
+}
+
+/**
+ * **The DOCUMENT form of a node type — pure data, the identity derivation's input.** `worker` names
+ * a worker entry; `inline` is the type's; `config` is the default instance's constructor argument;
+ * `pool` carries the declared pool options (a `PoolSpec` minus `config` and `groups`); `groups` are
+ * the pool's group keys; `retryPolicy` and `settings` are what the type declares FOR its nodes. An
+ * instance's `config` merges shallowly over `config`; every other field is copied as declared.
+ */
+export interface NodeTypeDeclaration {
+  worker: string;
+  inline?: boolean;
+  config?: unknown;
+  pool?: Readonly<Omit<PoolSpec, 'config' | 'groups'>>;
+  groups?: readonly string[];
+  retryPolicy?: RetryPolicy;
+  settings?: Readonly<Record<string, unknown>>;
+}
+
+/** A node type as the registry holds it: the document form or the class form, told apart by whether `pool` is a function. */
+export type NodeTypeEntry = NodeTypeDeclaration | NodeTypeDefinition;
+
+/** A NAMED instance of a node type — decision 1. The default instance is implicit, keyed by the type's name, built from the type's own `config`. */
+export interface PoolInstance {
+  /** The node type this is an instance of. */
+  type: string;
+  /** The instance's config — the derivation's input, merged over the type's for a document type. */
+  config?: unknown;
+}
+
+/** A resource group the runtime constructs — an instance of a group TYPE, by name, with the config its factory's schema admits. */
+export interface GroupInstance {
+  /** One of the three built-ins (`ConcurrentLimitGroup`, `RateLimitGroup`, `KeyedRateLimitGroup`) or a group type registered in `code`. */
+  type: string;
+  config?: unknown;
+}
+
+/**
+ * **A resource group is a FACTORY** — decision 4 and P18 fact 2: the scheduler's three group classes
+ * have three different constructors, so each is a `create(config, key)` behind one shape, and a
+ * consumer registers a custom class the same way. `create` returns the scheduler's own `ResourceGroup`
+ * interface, whose two REQUIRED members are `canRun` and `getMetrics`; the runtime (W66) checks the
+ * returned object for both, naming the key. The key is the group's identity and the object's own
+ * `id` is inert (ADR 0049 fact 2).
+ */
+export interface GroupType {
+  configSchema?: JsonSchema;
+  create(config: unknown, key: string): ResourceGroup;
+}
+
+/**
+ * **The registry DOCUMENT** — the data half of P18's answer. Every section is optional and absent
+ * means EMPTY. `predicates` and `languages` are NAMES the flows may use; the `code` argument
+ * supplies each one (decision 13 — the runtime imports no engine). The DRIVER's registry is derived
+ * from this and exposed as `runtime.registry` (decision 14).
+ */
+export interface RegistryDocument {
+  workers?: Readonly<Record<string, WorkerEntry>>;
+  groups?: Readonly<Record<string, GroupInstance>>;
+  nodeTypes?: Readonly<Record<string, NodeTypeDeclaration>>;
+  pools?: Readonly<Record<string, PoolInstance>>;
+  predicates?: readonly string[];
+  languages?: readonly string[];
+}
+
+/**
+ * **What stays CODE, exactly** — decision 7: custom predicates, language adapters, custom group
+ * types, custom node-type classes. Nothing here is written into a document; everything the document
+ * NAMES from here is compared to it at construction, and a name that resolves to two definitions is
+ * refused (decision 2's one namespace).
+ */
+export interface RegistryCode {
+  /** The predicate functions the document's `predicates` name — a `Map`, a record, or the names alone where only the registry is being resolved. */
+  predicates?: ReadonlyMap<string, unknown> | Readonly<Record<string, unknown>> | ReadonlySet<string> | readonly string[];
+  /** Custom group types, by the name the document's `groups` use in `type`. A built-in's name is refused. */
+  groupTypes?: Readonly<Record<string, GroupType>>;
+  /** Custom node-type classes, by the name a flow's `type` uses. A name the document's `nodeTypes` also declares is refused. */
+  nodeTypes?: Readonly<Record<string, NodeTypeDefinition>>;
+  /** The adapters the document's `languages` name. */
+  languages?: Languages;
+}
+
+/** One pool instance, derived and checked — the default instance of a type (`key === type`) or a named one. Nothing is constructed. */
+export interface ResolvedPool {
+  key: string;
+  /** The node type's name. */
+  type: string;
+  definition: NodeTypeDefinition;
+  worker: WorkerEntry;
+  /** The instance config the derivation was given. */
+  config: unknown;
+  /** What the derivation returned, held to `PoolSpec`'s shape and the worker's `configSchema`. */
+  spec: PoolSpec;
+}
+
+/** One resource group, resolved: its factory and its checked config. `create` has NOT been called. */
+export interface ResolvedGroup {
+  key: string;
+  type: string;
+  groupType: GroupType;
+  config: unknown;
+}
+
+/**
+ * **A registry document resolved against its code — what `createRuntime` builds FROM, and what the
+ * driver's registry is DERIVED from.** Every map is keyed by the name a flow or the document uses;
+ * `pools` holds the default instance of every type under the type's name, plus the named ones.
+ */
+export interface ResolvedRegistry {
+  workers: ReadonlyMap<string, WorkerEntry>;
+  groups: ReadonlyMap<string, ResolvedGroup>;
+  nodeTypes: ReadonlyMap<string, NodeTypeDefinition>;
+  pools: ReadonlyMap<string, ResolvedPool>;
+  predicates: ReadonlySet<string>;
+  languages: ReadonlyMap<string, LanguageAdapter>;
+}
+
 export interface TaskNode {
   id: string;
   kind: 'task';
   /**
-   * The scheduler pool this node's task runs in. **Exactly one of `workerType` and `type`**:
-   * neither is `FD-V23`, both is `FD-V34`. Optional in SHAPE since v0.17 and required in MEANING,
-   * exactly as it was — every corpus flow that declares it is unchanged.
+   * **The node TYPE this task runs as — REQUIRED since v0.19** (W65,
+   * [ADR 0054](../../doc/decisions/0054-every-task-node-names-a-type-and-a-type-is-a-derivation-to-pool-options.md)).
+   * The name of a registry node type (`FD-V32`), whose DEFAULT pool instance is keyed by the type's
+   * name; its worker receives the envelope `{ settings, input }` (`FD-C5`) — every task node does,
+   * because there is no bare road left. *(`workerType`, v0.17's other way of naming a pool, is
+   * retired: an undeclared key, `FD-V17`.)*
    */
-  workerType?: string;
+  type: string;
   /**
-   * **A registered node TYPE, named instead of a `workerType`** — v0.17, ADR 0049. Its pool is
-   * keyed by the type's name (`FD-V32`), and its worker receives the envelope
-   * `{ settings, input }` rather than the bare payload (`FD-C5`).
+   * **A NAMED instance of this node's type to run on** — v0.19, optional. A key in the registry's
+   * `pools` whose `type` is this node's (`FD-V38`); absent, the type's default instance. The
+   * type's own name is accepted as the default instance stated explicitly.
    */
-  type?: string;
+  pool?: string;
   /**
-   * **Per-node settings for a typed node** — a plain JSON object the type's validator accepts
-   * (`FD-V33`); `{}` when absent. Reaches the worker as `settings` in the envelope, as its own
-   * copy per dispatch (`JP-R11`'s invariant, one field over). Meaningless on a node with no
-   * `type`, and refused there (`FD-V34`).
+   * **Per-node settings** — a plain JSON object the type's worker `settingsSchema` accepts, with
+   * the type's `settings` defaults merged UNDER it first (`FD-V33`, v0.19); `{}` when absent and
+   * the type declares none. Reaches the worker as `settings` in the envelope, the merged object,
+   * as its own copy per dispatch (`JP-R11`'s invariant, one field over).
    */
   settings?: Readonly<Record<string, unknown>>;
   /**
@@ -241,7 +401,7 @@ export interface TaskNode {
    * registry's `groups` declares (`FD-V31`), because the scheduler **silently ignores**
    * an unknown group id: the task runs and settles `done` with no `resource.blocked`
    * and no throw (P16 fact 2), so instantiation is the only place a typo is caught —
-   * ADR 0002 rule 3's shape, and `FD-V5`'s for a worker type.
+   * ADR 0002 rule 3's shape, and `FD-V32`'s for a node type (`FD-V5`'s for a worker type until v0.19).
    */
   workerGroups?: string[];
   /**
@@ -330,7 +490,6 @@ export interface FlowDefinition {
  */
 export interface Registry {
   predicates: ReadonlySet<string> | readonly string[];
-  workerTypes: ReadonlySet<string> | readonly string[];
   /**
    * **The resource-group ids a task node may name in `workerGroups`** — the third set,
    * added at v0.16 ([W58](../../doc/work-items/w58-what-a-node-says-about-its-own-task.md)).
@@ -342,13 +501,24 @@ export interface Registry {
    */
   groups?: ReadonlySet<string> | readonly string[];
   /**
+   * **The workers a node type's `worker` may name** — v0.19 (W65, ADR 0054). **Absent means
+   * EMPTY**: a type naming any worker is then `FD-V32`'s second clause. The validator reads one field
+   * of an entry, `settingsSchema` (`FD-V33`); the runtime reads `url` and `configSchema`.
+   */
+  workers?: Workers;
+  /**
    * **The node types a `task`'s `type` may name** — the fourth set, v0.17
-   * ([W59](../../doc/work-items/w59-what-a-node-type-is.md), ADR 0049). **Absent means EMPTY**,
-   * as `groups` is: a definition naming any type against a registry that declares none is
-   * refused (`FD-V32`). The validator reads one field of each entry, `settings`, and reads it at
-   * instantiation only; the driver reads `retryPolicy`; the bootstrap helper reads the rest.
+   * ([W59](../../doc/work-items/w59-what-a-node-type-is.md), ADR 0049), REQUIRED on every task node
+   * since v0.19. **Absent means EMPTY**, as `groups` is: a definition naming any type against a
+   * registry that declares none is refused (`FD-V32`). The validator reads `worker` and `settings`
+   * of an entry; the driver reads `retryPolicy`; the runtime reads the rest and runs the derivation.
    */
   nodeTypes?: NodeTypes;
+  /**
+   * **The named pool instances a `task`'s `pool` may name** — v0.19. **Absent means EMPTY**; the
+   * default instance of every type is implicit. The validator reads one field, `type` (`FD-V38`).
+   */
+  pools?: Pools;
   /**
    * **The languages a `transform`'s `lang` may name** — the fifth set, v0.18
    * ([W61](../../doc/work-items/w61-what-a-transform-is.md), ADR 0051). **Absent means EMPTY**,
@@ -366,7 +536,7 @@ export interface Registry {
  * legitimately violate more than one rule.
  */
 export interface Finding {
-  /** `FD-V1` … `FD-V37`. Never renumbered, so it is safe to assert on. */
+  /** `FD-V1` … `FD-V38`. Never renumbered, so it is safe to assert on. */
   rule: string;
   /** Node id, edge index, or document-level `null`. */
   at: string | null;

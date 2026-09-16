@@ -31,7 +31,9 @@ import type { JoinPolicy } from '../../src/driver/policy.ts';
 const EX = `${ROOT}spec/examples`;
 const load = async (rel: string) => JSON.parse(await readText(`${EX}/${rel}`)) as FlowDefinition;
 const reg = JSON.parse(await readText(`${EX}/registry.json`)) as {
-  workerTypes: string[];
+  workers: Record<string, { url: string }>;
+  nodeTypes: Record<string, { worker: string }>;
+  pools: Record<string, { type: string }>;
   predicates: string[];
 };
 
@@ -82,7 +84,7 @@ function harness(
     scheduler,
     createTask: (c) => c,
     predicates,
-    workerTypes: reg.workerTypes,
+    workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools,
     joinPolicy: policy,
     onRunFailure: (f) => failures.push({ kind: f.kind, message: f.message }),
   });
@@ -90,7 +92,8 @@ function harness(
     scheduler, driver, failures, seen,
     ids: () => scheduler.added.map((t) => t.id),
     nodes: () => scheduler.added.map((t) => t.id.split(':')[1]!),
-    payloadOf: (id: string) => scheduler.added.find((t) => t.id === id)?.payload,
+    // What the node RECEIVED: the envelope's `input` — every task node is typed since v0.19 (ADR 0054).
+    payloadOf: (id: string) => (scheduler.added.find((t) => t.id === id)?.payload as { input?: unknown } | undefined)?.input,
   };
 }
 
@@ -117,19 +120,19 @@ const pastArity = (publishEdges: unknown[]): FlowDefinition =>
   ({
     flowId: 'edge-reference-past-a-map-arity', version: 1, entry: 'ingest',
     nodes: [
-      { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'split' }] },
+      { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'split' }] },
       { id: 'split', kind: 'map', over: 'items', branch: 'score' },
-      { id: 'score', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'collect' }] },
+      { id: 'score', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'collect' }] },
       { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'regroup' }] },
-      { id: 'regroup', kind: 'task', workerType: 'MergeWorker', edges: [{ to: 'rank' }] },
+      { id: 'regroup', kind: 'task', type: 'MergeWorker', edges: [{ to: 'rank' }] },
       { id: 'rank', kind: 'map', over: 'slots', branch: 'publish' },
-      { id: 'publish', kind: 'task', workerType: 'PublishWorker', edges: publishEdges },
+      { id: 'publish', kind: 'task', type: 'PublishWorker', edges: publishEdges },
       // **`audit` is present only when an edge names it**, so a caller that routes
       // everything to `gather` does not carry an unreachable node — `FD-V11` and
       // `FD-V20` both fire on one, and a fixture that has to be valid must not need
       // the caller to remember.
       ...(publishEdges.some((e) => (e as { to?: string }).to === 'audit')
-        ? [{ id: 'audit', kind: 'task', workerType: 'ReviewWorker', edges: [{ to: 'gather' }] }]
+        ? [{ id: 'audit', kind: 'task', type: 'ReviewWorker', edges: [{ to: 'gather' }] }]
         : []),
       { id: 'gather', kind: 'join', of: 'rank', edges: [{ to: 'done' }] },
       { id: 'done', kind: 'end', outcome: 'completed' },
@@ -151,16 +154,16 @@ const skippedRegion = (publishEdges: unknown[]): FlowDefinition =>
   ({
     flowId: 'edge-reference-past-a-skipped-region', version: 1, entry: 'ingest',
     nodes: [
-      { id: 'ingest', kind: 'task', workerType: 'IngestWorker',
+      { id: 'ingest', kind: 'task', type: 'IngestWorker',
         edges: [{ when: 'isHighConfidence', to: 'split' }, { to: 'regroup' }] },
       { id: 'split', kind: 'map', over: 'items', branch: 'score' },
-      { id: 'score', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'collect' }] },
+      { id: 'score', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'collect' }] },
       { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'regroup' }] },
-      { id: 'regroup', kind: 'task', workerType: 'MergeWorker', edges: [{ to: 'rank' }] },
+      { id: 'regroup', kind: 'task', type: 'MergeWorker', edges: [{ to: 'rank' }] },
       { id: 'rank', kind: 'map', over: 'slots', branch: 'publish' },
-      { id: 'publish', kind: 'task', workerType: 'PublishWorker', edges: publishEdges },
+      { id: 'publish', kind: 'task', type: 'PublishWorker', edges: publishEdges },
       ...(publishEdges.some((e) => (e as { to?: string }).to === 'audit')
-        ? [{ id: 'audit', kind: 'task', workerType: 'ReviewWorker', edges: [{ to: 'gather' }] }]
+        ? [{ id: 'audit', kind: 'task', type: 'ReviewWorker', edges: [{ to: 'gather' }] }]
         : []),
       { id: 'gather', kind: 'join', of: 'rank', edges: [{ to: 'done' }] },
       { id: 'done', kind: 'end', outcome: 'completed' },
@@ -176,14 +179,14 @@ const fanoutJoinEdge = (publishEdges: unknown[]): FlowDefinition =>
   ({
     flowId: 'edge-reference-before-a-branch-settled', version: 1, entry: 'ingest',
     nodes: [
-      { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'split' }] },
+      { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'split' }] },
       { id: 'split', kind: 'fanout', branches: ['scoreA', 'scoreB'] },
-      { id: 'scoreA', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'collect' }] },
-      { id: 'scoreB', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'collect' }] },
+      { id: 'scoreA', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'collect' }] },
+      { id: 'scoreB', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'collect' }] },
       { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'publish' }] },
-      { id: 'publish', kind: 'task', workerType: 'PublishWorker', edges: publishEdges },
+      { id: 'publish', kind: 'task', type: 'PublishWorker', edges: publishEdges },
       ...(publishEdges.some((e) => (e as { to?: string }).to === 'audit')
-        ? [{ id: 'audit', kind: 'task', workerType: 'ReviewWorker', edges: [{ to: 'done' }] }]
+        ? [{ id: 'audit', kind: 'task', type: 'ReviewWorker', edges: [{ to: 'done' }] }]
         : []),
       { id: 'done', kind: 'end', outcome: 'completed' },
     ],
@@ -252,20 +255,20 @@ suite('L2 — FD-C3: what a decision sees', (test) => {
     const def = {
       flowId: 'one-declares-one-does-not', version: 1, entry: 'ingest',
       nodes: [
-        { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'score' }] },
+        { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'score' }] },
         {
-          id: 'score', kind: 'task', workerType: 'ScoreWorker', edges: [
+          id: 'score', kind: 'task', type: 'ScoreWorker', edges: [
             { when: 'isLowConfidence', to: 'review', needs: { earlier: 'ingest' } },
             { when: 'isHighConfidence', to: 'publish' },
             { to: 'done' },
           ],
         },
-        { id: 'review', kind: 'task', workerType: 'ReviewWorker', edges: [{ to: 'done' }] },
-        { id: 'publish', kind: 'task', workerType: 'PublishWorker', edges: [{ to: 'done' }] },
+        { id: 'review', kind: 'task', type: 'ReviewWorker', edges: [{ to: 'done' }] },
+        { id: 'publish', kind: 'task', type: 'PublishWorker', edges: [{ to: 'done' }] },
         { id: 'done', kind: 'end', outcome: 'completed' },
       ],
     } as unknown as FlowDefinition;
-    equal(validateDefinition(def, { predicates: reg.predicates, workerTypes: reg.workerTypes }), [],
+    equal(validateDefinition(def, { predicates: reg.predicates, workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools }), [],
       'two guarded edges and a default is a valid document — FD-V7 is satisfied by the last');
     const h = harness(def);
     h.driver.start({});
@@ -294,15 +297,15 @@ suite('L2 — FD-C3: what a decision sees', (test) => {
     const def = {
       flowId: 'resumed-decision', version: 1, entry: 'ingest',
       nodes: [
-        { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'score' }] },
+        { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'score' }] },
         {
-          id: 'score', kind: 'task', workerType: 'ScoreWorker', edges: [
+          id: 'score', kind: 'task', type: 'ScoreWorker', edges: [
             { when: 'isLowConfidence', to: 'review', needs: { earlier: 'ingest' } },
             { to: 'publish' },
           ],
         },
-        { id: 'review', kind: 'task', workerType: 'ReviewWorker', edges: [{ to: 'publish' }] },
-        { id: 'publish', kind: 'task', workerType: 'PublishWorker', edges: [{ to: 'done' }] },
+        { id: 'review', kind: 'task', type: 'ReviewWorker', edges: [{ to: 'publish' }] },
+        { id: 'publish', kind: 'task', type: 'PublishWorker', edges: [{ to: 'done' }] },
         { id: 'done', kind: 'end', outcome: 'completed' },
       ],
     } as unknown as FlowDefinition;
@@ -328,16 +331,16 @@ suite('L2 — FD-C3: what a decision sees', (test) => {
     const def = {
       flowId: 'two-guarded-edges', version: 1, entry: 'ingest',
       nodes: [
-        { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'score' }] },
+        { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'score' }] },
         {
-          id: 'score', kind: 'task', workerType: 'ScoreWorker', edges: [
+          id: 'score', kind: 'task', type: 'ScoreWorker', edges: [
             { when: 'isLowConfidence', to: 'review', needs: { earlier: 'ingest' } },
             { when: 'isHighConfidence', to: 'publish', needs: { earlier: 'ingest' } },
             { to: 'done' },
           ],
         },
-        { id: 'review', kind: 'task', workerType: 'ReviewWorker', edges: [{ to: 'done' }] },
-        { id: 'publish', kind: 'task', workerType: 'PublishWorker', edges: [{ to: 'done' }] },
+        { id: 'review', kind: 'task', type: 'ReviewWorker', edges: [{ to: 'done' }] },
+        { id: 'publish', kind: 'task', type: 'PublishWorker', edges: [{ to: 'done' }] },
         { id: 'done', kind: 'end', outcome: 'completed' },
       ],
     } as unknown as FlowDefinition;
@@ -371,21 +374,21 @@ suite('L2 — FD-C3: what a decision sees', (test) => {
     const def = {
       flowId: 'decision-inside-a-map', version: 1, entry: 'ingest',
       nodes: [
-        { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'split' }] },
+        { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'split' }] },
         { id: 'split', kind: 'map', over: 'items', branch: 'score' },
-        { id: 'score', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'check' }] },
+        { id: 'score', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'check' }] },
         {
-          id: 'check', kind: 'task', workerType: 'MergeWorker', edges: [
+          id: 'check', kind: 'task', type: 'MergeWorker', edges: [
             { when: 'isLowConfidence', to: 'review', needs: { mine: 'score' } },
             { to: 'collect' },
           ],
         },
-        { id: 'review', kind: 'task', workerType: 'ReviewWorker', edges: [{ to: 'collect' }] },
+        { id: 'review', kind: 'task', type: 'ReviewWorker', edges: [{ to: 'collect' }] },
         { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'done' }] },
         { id: 'done', kind: 'end', outcome: 'completed' },
       ],
     } as unknown as FlowDefinition;
-    equal(validateDefinition(def, { predicates: reg.predicates, workerTypes: reg.workerTypes }), [],
+    equal(validateDefinition(def, { predicates: reg.predicates, workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools }), [],
       'valid — and FD-V28 takes the BARE form because reader and target are in the same map region');
 
     // Only instance 1 is flagged, so the predicate must see a DIFFERENT value per
@@ -418,22 +421,22 @@ suite('L2 — FD-C3: what a decision sees', (test) => {
     const def = {
       flowId: 'many-keys-and-the-array-form', version: 1, entry: 'ingest',
       nodes: [
-        { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'split' }] },
+        { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'split' }] },
         { id: 'split', kind: 'map', over: 'items', branch: 'score' },
-        { id: 'score', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'collect' }] },
+        { id: 'score', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'collect' }] },
         { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'publish' }] },
         {
-          id: 'publish', kind: 'task', workerType: 'PublishWorker', edges: [
+          id: 'publish', kind: 'task', type: 'PublishWorker', edges: [
             { when: 'isLowConfidence', to: 'review', needs: { all: ['score'], up: 'ingest' } },
             { when: 'isHighConfidence', to: 'review', needs: { all: ['score'] } },
             { to: 'done' },
           ],
         },
-        { id: 'review', kind: 'task', workerType: 'ReviewWorker', edges: [{ to: 'done' }] },
+        { id: 'review', kind: 'task', type: 'ReviewWorker', edges: [{ to: 'done' }] },
         { id: 'done', kind: 'end', outcome: 'completed' },
       ],
     } as unknown as FlowDefinition;
-    equal(validateDefinition(def, { predicates: reg.predicates, workerTypes: reg.workerTypes }), [],
+    equal(validateDefinition(def, { predicates: reg.predicates, workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools }), [],
       'valid — the ARRAY form is what FD-V28 requires here, because `publish` is outside the map region');
 
     const h = harness(def);
@@ -472,7 +475,7 @@ suite('L2 — FD-C3: what a decision sees', (test) => {
     // **W45 replaced the fixture and the test is unchanged otherwise** — see
     // `pastArity` above for why the old one is now `FD-V29`.
     const def = pastArity([{ to: 'gather', needs: { f: ['score'] } }]);
-    equal(validateDefinition(def, { predicates: reg.predicates, workerTypes: reg.workerTypes }), [],
+    equal(validateDefinition(def, { predicates: reg.predicates, workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools }), [],
       'valid — a default edge may carry a `needs`, and section 3 records that it is INERT');
     const h = harness(def);
     toTheSecondRegion(h);
@@ -499,16 +502,16 @@ suite('L2 — FD-C3: what a decision sees', (test) => {
     const def = {
       flowId: 'frozen-both-ways', version: 1, entry: 'ingest',
       nodes: [
-        { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'score' }] },
+        { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'score' }] },
         {
-          id: 'score', kind: 'task', workerType: 'ScoreWorker', edges: [
+          id: 'score', kind: 'task', type: 'ScoreWorker', edges: [
             { when: 'isLowConfidence', to: 'review', needs: { earlier: 'ingest' } },
             { when: 'isHighConfidence', to: 'publish' },
             { to: 'done' },
           ],
         },
-        { id: 'review', kind: 'task', workerType: 'ReviewWorker', edges: [{ to: 'done' }] },
-        { id: 'publish', kind: 'task', workerType: 'PublishWorker', edges: [{ to: 'done' }] },
+        { id: 'review', kind: 'task', type: 'ReviewWorker', edges: [{ to: 'done' }] },
+        { id: 'publish', kind: 'task', type: 'PublishWorker', edges: [{ to: 'done' }] },
         { id: 'done', kind: 'end', outcome: 'completed' },
       ],
     } as unknown as FlowDefinition;
@@ -546,7 +549,7 @@ suite('L2 — FD-C3: what a decision sees', (test) => {
       { when: 'isHighConfidence', to: 'audit', needs: { f: ['score'] } },
       { to: 'gather' },
     ]);
-    equal(validateDefinition(def, { predicates: reg.predicates, workerTypes: reg.workerTypes }), [],
+    equal(validateDefinition(def, { predicates: reg.predicates, workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools }), [],
       'a valid document — FD-V29 accepts the reference because `score` certainly RAN; what it ' +
       'cannot see is that instance 2`s path is comparable with neither of its outputs');
     // `isLowConfidence` matches at the FIRST guarded edge; `isHighConfidence` never runs.
@@ -585,7 +588,7 @@ suite('L2 — FD-C3: what a decision sees', (test) => {
       { when: 'isLowConfidence', to: 'audit', needs: { f: ['score?'] } },
       { to: 'gather' },
     ]);
-    equal(validateDefinition(def, { predicates: reg.predicates, workerTypes: reg.workerTypes }), [],
+    equal(validateDefinition(def, { predicates: reg.predicates, workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools }), [],
       'valid, and it would be valid unconditionally too — FD-V29 accepts both here, so this pair ' +
       'is about FD-C4 and not about the validator');
     // Answer from `ctx.needs` alone, so what is DISPATCHED is also an assertion
@@ -614,7 +617,7 @@ suite('L2 — FD-C3: what a decision sees', (test) => {
       { to: 'gather' },
     ]);
     equal(
-      validateDefinition(skipped, { predicates: reg.predicates, workerTypes: reg.workerTypes }),
+      validateDefinition(skipped, { predicates: reg.predicates, workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools }),
       [],
       'valid — and unconditionally it is FD-V29, which is what makes the suffix load-bearing',
     );
@@ -634,7 +637,7 @@ suite('L2 — FD-C3: what a decision sees', (test) => {
       { when: 'isLowConfidence', to: 'audit', needs: { g: 'regroup?' } },
       { to: 'gather' },
     ]);
-    equal(validateDefinition(one, { predicates: reg.predicates, workerTypes: reg.workerTypes }), [],
+    equal(validateDefinition(one, { predicates: reg.predicates, workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools }), [],
       'the control: a conditional ONE-form reference on an edge is valid');
     const h2 = harness(one, () => false);
     toTheSecondRegion(h2);
@@ -657,22 +660,22 @@ suite('L2 — FD-C3: what a decision sees', (test) => {
       flowId: 'edge-conditional-across-a-decision', version: 1, entry: 'ingest',
       nodes: [
         {
-          id: 'ingest', kind: 'task', workerType: 'IngestWorker',
+          id: 'ingest', kind: 'task', type: 'IngestWorker',
           edges: [{ when: 'isHighConfidence', to: 'flag' }, { to: 'skip' }],
         },
-        { id: 'flag', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'publish' }] },
-        { id: 'skip', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'publish' }] },
+        { id: 'flag', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'publish' }] },
+        { id: 'skip', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'publish' }] },
         {
-          id: 'publish', kind: 'task', workerType: 'PublishWorker', edges: [
+          id: 'publish', kind: 'task', type: 'PublishWorker', edges: [
             { when: 'isLowConfidence', to: 'review', needs: { f: 'flag?' } },
             { to: 'done' },
           ],
         },
-        { id: 'review', kind: 'task', workerType: 'ReviewWorker', edges: [{ to: 'done' }] },
+        { id: 'review', kind: 'task', type: 'ReviewWorker', edges: [{ to: 'done' }] },
         { id: 'done', kind: 'end', outcome: 'completed' },
       ],
     } as unknown as FlowDefinition;
-    equal(validateDefinition(acrossADecision, { predicates: reg.predicates, workerTypes: reg.workerTypes }), [],
+    equal(validateDefinition(acrossADecision, { predicates: reg.predicates, workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools }), [],
       'valid — and the same document with `"flag"` is FD-V29, which is what the suffix is for');
     const h3 = harness(acrossADecision, () => false);
     h3.driver.start({});
@@ -702,7 +705,7 @@ suite('L2 — FD-C3: what a decision sees', (test) => {
       { when: 'isLowConfidence', to: 'audit', needs: { f: 'scoreA' } },
       { to: 'done' },
     ]);
-    equal(validateDefinition(def, { predicates: reg.predicates, workerTypes: reg.workerTypes }), [],
+    equal(validateDefinition(def, { predicates: reg.predicates, workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools }), [],
       'FD-V27 accepts it, and so does FD-V29: `scoreA` is a branch entry and JP-R5 dispatches ' +
       'it when the region opens. What neither can see is a policy that fires before it settles');
 
@@ -762,25 +765,25 @@ suite('L1 — FD-V26 on an EDGE: the grammar, minus one form', (test) => {
   const edge = (needs: unknown) => ({
     flowId: 'edge-needs', version: 1, entry: 'ingest',
     nodes: [
-      { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'score' }] },
+      { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'score' }] },
       {
-        id: 'score', kind: 'task', workerType: 'ScoreWorker', edges: [
+        id: 'score', kind: 'task', type: 'ScoreWorker', edges: [
           { when: 'isLowConfidence', to: 'review', needs },
           { to: 'publish' },
         ],
       },
-      { id: 'review', kind: 'task', workerType: 'ReviewWorker', edges: [{ to: 'publish' }] },
-      { id: 'publish', kind: 'task', workerType: 'PublishWorker', edges: [{ to: 'done' }] },
+      { id: 'review', kind: 'task', type: 'ReviewWorker', edges: [{ to: 'publish' }] },
+      { id: 'publish', kind: 'task', type: 'PublishWorker', edges: [{ to: 'done' }] },
       { id: 'done', kind: 'end', outcome: 'completed' },
     ],
   } as unknown as FlowDefinition);
   const rulesOf = (d: FlowDefinition) =>
-    [...new Set(validateDefinition(d, { predicates: reg.predicates, workerTypes: reg.workerTypes })
+    [...new Set(validateDefinition(d, { predicates: reg.predicates, workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools })
       .map((f) => f.rule))].sort();
 
   test('`"."` is REFUSED on an edge, and the message says why', () => {
     equal(rulesOf(edge({ self: '.' })), ['FD-V26'], 'the one form an edge does not have');
-    const f = validateDefinition(edge({ self: '.' }), { predicates: reg.predicates, workerTypes: reg.workerTypes })[0]!;
+    const f = validateDefinition(edge({ self: '.' }), { predicates: reg.predicates, workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools })[0]!;
     ok(f.detail.includes('ctx.outcome'),
       'and it names what the author already has, rather than only refusing');
     ok(f.at === 'score#edge0', 'reported at the EDGE, which is where the author has to look');
@@ -821,7 +824,7 @@ suite('L1 — FD-V26 on an EDGE: the grammar, minus one form', (test) => {
     // what makes the sentence true.
     const checked: [string, string[], string[]][] = [];
     for (const [label, needs, expected] of CASES) {
-      const found = validateDefinition(edge(needs), { predicates: reg.predicates, workerTypes: reg.workerTypes });
+      const found = validateDefinition(edge(needs), { predicates: reg.predicates, workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools });
       const got = [...new Set(found.map((f) => f.rule))].sort();
       equal(got, expected, `${label} -> ${expected.join(',') || 'accepted'}`);
       checked.push([label, got, found.map((f) => f.at ?? '<none>')]);
@@ -873,20 +876,20 @@ suite('L1 — FD-V26 on an EDGE: the grammar, minus one form', (test) => {
     const def = {
       flowId: 'a-later-edge-is-aimed-too', version: 1, entry: 'ingest',
       nodes: [
-        { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'score' }] },
+        { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'score' }] },
         {
-          id: 'score', kind: 'task', workerType: 'ScoreWorker', edges: [
+          id: 'score', kind: 'task', type: 'ScoreWorker', edges: [
             { when: 'isLowConfidence', to: 'review', needs: { ok: 'ingest' } },
             { when: 'isHighConfidence', to: 'publish', needs: { bad: 'nowhere-at-all' } },
             { to: 'done' },
           ],
         },
-        { id: 'review', kind: 'task', workerType: 'ReviewWorker', edges: [{ to: 'done' }] },
-        { id: 'publish', kind: 'task', workerType: 'PublishWorker', edges: [{ to: 'done' }] },
+        { id: 'review', kind: 'task', type: 'ReviewWorker', edges: [{ to: 'done' }] },
+        { id: 'publish', kind: 'task', type: 'PublishWorker', edges: [{ to: 'done' }] },
         { id: 'done', kind: 'end', outcome: 'completed' },
       ],
     } as unknown as FlowDefinition;
-    const found = validateDefinition(def, { predicates: reg.predicates, workerTypes: reg.workerTypes });
+    const found = validateDefinition(def, { predicates: reg.predicates, workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools });
     equal(found.map((f) => f.rule), ['FD-V27'],
       'edge ONE`s reference is aimed — an aiming loop that stops at edge 0 accepts this document, ' +
       'and FD-V27`s own argument is that a reference must not become FD-R3 on the one workload ' +
@@ -904,7 +907,7 @@ suite('L1 — FD-V26 on an EDGE: the grammar, minus one form', (test) => {
     // says `edge-needs-uses-the-self-token`, so the DETAIL is what binds it.
     const d = await load('invalid/FD-V26--edge-needs-uses-the-self-token.flow.json');
     equal(rulesOf(d), ['FD-V26'], 'FD-V26 alone — C3 names it and C4 counts it');
-    const f = validateDefinition(d, { predicates: reg.predicates, workerTypes: reg.workerTypes })[0]!;
+    const f = validateDefinition(d, { predicates: reg.predicates, workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools })[0]!;
     ok(f.detail.includes('is "."'), 'and it is the `"."` clause, which is the one clause an EDGE adds');
     ok(f.detail.includes('ctx.outcome'), 'reported with what the author already has');
     ok(f.at !== null && f.at.includes('#edge'), 'at the EDGE, which is where the author has to look');
@@ -918,12 +921,12 @@ suite('L1 — FD-V26 on an EDGE: the grammar, minus one form', (test) => {
     const noWhen = {
       flowId: 'needs-with-no-when', version: 1, entry: 'ingest',
       nodes: [
-        { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'score' }] },
+        { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'score' }] },
         {
-          id: 'score', kind: 'task', workerType: 'ScoreWorker',
+          id: 'score', kind: 'task', type: 'ScoreWorker',
           edges: [{ to: 'publish', needs: { up: 'ingest' } }],
         },
-        { id: 'publish', kind: 'task', workerType: 'PublishWorker', edges: [{ to: 'done' }] },
+        { id: 'publish', kind: 'task', type: 'PublishWorker', edges: [{ to: 'done' }] },
         { id: 'done', kind: 'end', outcome: 'completed' },
       ],
     } as unknown as FlowDefinition;
@@ -948,10 +951,10 @@ suite('L1 — FD-V26 on an EDGE: the grammar, minus one form', (test) => {
     const d = {
       flowId: 'join-edge-needs', version: 1, entry: 'ingest',
       nodes: [
-        { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'split' }] },
+        { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'split' }] },
         { id: 'split', kind: 'fanout', branches: ['a', 'b'] },
-        { id: 'a', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'collect' }] },
-        { id: 'b', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'collect' }] },
+        { id: 'a', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'collect' }] },
+        { id: 'b', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'collect' }] },
         { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'done', needs: { up: 'ingest' } }] },
         { id: 'done', kind: 'end', outcome: 'completed' },
       ],

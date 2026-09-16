@@ -12,12 +12,13 @@
  * driver turns out to need a second copy of run truth, that is a finding about the
  * spec rather than a thing to build.
  */
-import type { Edge, FlowDefinition, FlowNode, LanguageAdapter, Languages, NodeType, NodeTypes, Registry, TerminalState } from '../definition/types.ts';
+import type { Edge, FlowDefinition, FlowNode, LanguageAdapter, Languages, NodeTypeDeclaration, NodeTypeEntry, NodeTypes, Pools, Registry, TerminalState, Workers } from '../definition/types.ts';
+import { checkRegistry, isDerivation } from '../definition/registry.ts';
 import {
   allRegions, branchPathOf, buildGraph, innermostRegionOf, outputIsVisible, toRegion,
   type Graph, type RegionSets,
 } from '../definition/regions.ts';
-import { effectiveSettings, languagesOf, nodeTypesOf, referenceTarget, retryPolicyProblem, validateDefinition, violatedRules } from '../definition/validate.ts';
+import { effectiveSettings, languagesOf, nodeTypesOf, poolsOf, referenceTarget, retryPolicyProblem, validateDefinition, violatedRules, workersOf } from '../definition/validate.ts';
 import {
   assertRunId, branchIndices, buildTaskId, InvalidTaskId, parseTaskId, type TaskIdParts,
 } from './ids.ts';
@@ -520,7 +521,21 @@ export interface DriverOptions {
    */
   createTask?: TaskFactory;
   predicates: PredicateRegistry;
-  workerTypes: Iterable<string>;
+  /**
+   * **The registry's WORKERS, keyed by the name a node type's `worker` gives** — v0.19 (W65,
+   * ADR 0054). Pass the same object the runtime built pools from (`runtime.registry.workers`, or a
+   * registry document's `workers`). **Omitted means EMPTY**, so every type is refused as naming a
+   * worker the registry lacks (`FD-V32`). The driver reads ONE field of an entry, `settingsSchema`
+   * (`FD-V33`), and holds all four of its schemas to the built-in subset at construction, by name
+   * (ADR 0053, `SchemaRefused`).
+   */
+  workers?: Workers;
+  /**
+   * **The NAMED pool instances a `task`'s `pool` may name** — v0.19. **Omitted means EMPTY**; a
+   * type's default instance is implicit and keyed by the type's name. The driver reads one field of
+   * an entry, `type` (`FD-V38`), and dispatches a task to `node.pool ?? node.type`.
+   */
+  pools?: Pools;
   /**
    * **The resource-group ids a node may name in `workerGroups`** — `FD-V31`, W58. Pass
    * `Object.keys(scheduler.groups)`, the scheduler's own map, rather than a second list.
@@ -714,8 +729,8 @@ export class Driver {
   /** The run has been stopped by a refusal. Nothing dispatches for it again. */
   private failed = false;
 
-  /** The registry's node types, normalised once (W59). Read at dispatch for the type's retry default and to decide whether the envelope applies. */
-  private readonly nodeTypes: ReadonlyMap<string, NodeType>;
+  /** The registry's node types, normalised once (W59; entries the document or the class form since W65). Read at dispatch for the type's retry default and its settings defaults. */
+  private readonly nodeTypes: ReadonlyMap<string, NodeTypeEntry>;
   /** The registry's languages, normalised once (W61). Read at construction only; the driver evaluates nothing. */
   private readonly languages: ReadonlyMap<string, LanguageAdapter>;
 
@@ -752,26 +767,28 @@ export class Driver {
     this.nodeTypes = nodeTypesOf(opts.nodeTypes);
     const declaredGroups = new Set(opts.groups ?? []);
     for (const [name, t] of this.nodeTypes) {
-      // A `settings` entry that is not a function — the schema an author reaches for (ADR 0049's
-      // *what a reader is likely to try*) — is the REGISTRY's mistake, and is refused here naming
-      // the type rather than on every node of it as *the validator THREW* (the adequacy reader).
-      if (t.settings !== undefined && typeof t.settings !== 'function') {
-        throw new InvalidDefinition(['FD-V33'], `node type "${name}" declares a settings entry that is not a function — FD-V33: ` +
-          'a type`s settings is a VALIDATOR, registered as a predicate is; a declared schema is P18`s subject');
-      }
       if (t.retryPolicy !== undefined) {
         const problem = retryPolicyProblem(t.retryPolicy);
         if (problem !== null) {
           throw new InvalidDefinition(['FD-V30'], `node type "${name}" declares a retryPolicy that is not a RetryPolicy — FD-V30: ${problem}`);
         }
       }
-      for (const g of t.groups ?? []) {
+      // A DOCUMENT type's declared groups are checked here by name (a class's are inside its
+      // derivation, which the driver never runs — the runtime checks those at construction).
+      for (const g of (isDerivation(t) ? [] : (t as NodeTypeDeclaration).groups ?? [])) {
         if (!declaredGroups.has(g)) {
           throw new InvalidDefinition(['FD-V31'], `node type "${name}" declares group "${g}", which the registry does not declare — FD-V31: ` +
             'a pool naming a group the scheduler lacks acquires nothing, in silence, exactly as a task does');
         }
       }
     }
+    // **And the registry's SHAPE, by name — v0.19 (W65, ADR 0053 and 0054).** Every worker's four
+    // schemas in the built-in subset (`SchemaRefused` names the keyword — Q278), every type's shape and
+    // its worker present (`WorkerMissing`), every named pool's type present (`PoolTypeMissing`) and no
+    // pool named as a type (`NameCollision`). A registry defect is reported where the registry is built,
+    // as a `RegistryError` naming the entry, and never blamed on the document. The runtime ran the same
+    // checks when it built the pools; here they run for a driver built by hand.
+    checkRegistry({ workers: opts.workers, nodeTypes: opts.nodeTypes, pools: opts.pools });
     // **The languages are held at construction too, and read for ONE thing** — W61. A `compile`
     // that is not a function is the REGISTRY's mistake (the schema-object shape a reader is likely
     // to try, one set over from `FD-V33`'s), refused here naming the language rather than on every
@@ -786,12 +803,15 @@ export class Driver {
     }
     const registry: Registry = {
       predicates: new Set(opts.predicates.keys()),
-      workerTypes: new Set(opts.workerTypes),
       // `FD-V31` — absent means empty (W58). `new Set(undefined)` would also be empty, and
       // the `?? []` is here so the reading is stated rather than an accident of the constructor.
       groups: new Set(opts.groups ?? []),
       nodeTypes: this.nodeTypes,
       languages: this.languages,
+      // v0.19 (W65): the workers a type's `worker` names and the named pool instances a task's `pool`
+      // names, normalised as the sets above are — absent means EMPTY.
+      workers: workersOf(opts.workers),
+      pools: poolsOf(opts.pools),
     };
     const findings = validateDefinition(definition, registry);
     if (findings.length) {
@@ -2053,15 +2073,17 @@ export class Driver {
     // worker wrapper is what evaluates it, and ladder L2 therefore cannot see a transformed value
     // (P17 prediction 3). A typed node declaring none is dispatched with the two-key envelope it
     // had at v0.17, to the byte (decision 8; W58's *a key is added only when present*).
-    const type = node.type !== undefined ? this.nodeTypes.get(node.type)! : undefined;
-    const retryPolicy = node.retryPolicy ?? type?.retryPolicy ?? this.opts.defaultRetryPolicy;
+    // **W65 — every task node is typed and every dispatch carries the envelope** (ADR 0054): `FD-V32`
+    // refused a type the registry lacks, so the lookup cannot miss; the POOL KEY is the named instance
+    // the node asked for, else the type's default instance, which is keyed by the type's name; and
+    // `settings` is the type's defaults merged under the node's (decision 12, `effectiveSettings`).
+    const type = this.nodeTypes.get(node.type)!;
+    const retryPolicy = node.retryPolicy ?? type.retryPolicy ?? this.opts.defaultRetryPolicy;
     this.opts.scheduler.addTask(
       (this.opts.createTask ?? defaultCreateTask)({
         id: taskId,
-        // `FD-V23` refused a task with neither key and `FD-V34` one with both, so exactly one is
-        // set here — the `!` is the same assertion as the lookup above.
-        workerType: type === undefined ? node.workerType! : node.type!,
-        payload: type === undefined ? payload : { settings: cloneValue(effectiveSettings(node)), input: payload, ...(node.transform !== undefined ? { transform: cloneValue(node.transform) } : {}) },
+        workerType: node.pool ?? node.type,
+        payload: { settings: cloneValue(effectiveSettings(node, type)), input: payload, ...(node.transform !== undefined ? { transform: cloneValue(node.transform) } : {}) },
         optional: node.optional === true,
         ...(retryPolicy !== undefined ? { retryPolicy } : {}),
         ...(node.workerGroups !== undefined ? { workerGroups: node.workerGroups } : {}),

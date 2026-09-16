@@ -1,0 +1,14 @@
+{
+  "flowId": "pooled",
+  "version": 1,
+  "entry": "ingest",
+  "nodes": [
+    { "id": "ingest",  "kind": "task", "type": "IngestWorker",
+      "edges": [ { "to": "score" } ] },
+    { "id": "score",   "kind": "task", "type": "Scorer", "pool": "scorer-fast", "settings": { "factor": 2 },
+      "edges": [ { "to": "publish" } ] },
+    { "id": "publish", "kind": "task", "type": "Scorer", "pool": "Scorer",
+      "edges": [ { "to": "done" } ] },
+    { "id": "done",    "kind": "end",  "outcome": "completed" }
+  ]
+}

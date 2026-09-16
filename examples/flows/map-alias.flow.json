@@ -3,11 +3,11 @@
   "version": 1,
   "entry": "ingest",
   "nodes": [
-    { "id": "ingest",  "kind": "task",   "workerType": "SplitWorker",  "edges": [ { "to": "split" } ] },
+    { "id": "ingest",  "kind": "task",   "type": "SplitWorker",  "edges": [ { "to": "split" } ] },
     { "id": "split",   "kind": "map",    "over": "items",              "branch": "tally" },
-    { "id": "tally",   "kind": "task",   "workerType": "TallyWorker",  "edges": [ { "to": "collect" } ] },
+    { "id": "tally",   "kind": "task",   "type": "TallyWorker",  "edges": [ { "to": "collect" } ] },
     { "id": "collect", "kind": "join",   "of": "split",                "edges": [ { "to": "publish" } ] },
-    { "id": "publish", "kind": "task",   "workerType": "PublishWorker","edges": [ { "to": "done" } ] },
+    { "id": "publish", "kind": "task",   "type": "PublishWorker","edges": [ { "to": "done" } ] },
     { "id": "done",    "kind": "end",    "outcome": "completed" }
   ]
 }

@@ -25,7 +25,7 @@ import type { FlowDefinition } from '../../src/definition/types.ts';
 
 const EX = `${ROOT}spec/examples`;
 const load = async (rel: string) => JSON.parse(await readText(`${EX}/${rel}`)) as FlowDefinition;
-const reg = JSON.parse(await readText(`${EX}/registry.json`)) as { workerTypes: string[] };
+const reg = JSON.parse(await readText(`${EX}/registry.json`)) as { workers: Record<string, { url: string }>; nodeTypes: Record<string, { worker: string }>; groups: Record<string, unknown>; pools: Record<string, { type: string }>; predicates: string[]; languages: string[] };
 
 /** `arrival-count`, section 3, verbatim: N fixed at open, satisfied on N arrivals, never unsatisfiable. */
 const arrivalCount: JoinPolicy<{ need: number; seen: number }> = {
@@ -72,7 +72,7 @@ function run(def: FlowDefinition, policy: JoinPolicy<never>, preds: Record<strin
     runId: 'r1',
     scheduler, createTask: (c) => c,
     predicates: new Map(Object.entries(preds)),
-    workerTypes: reg.workerTypes, now: () => 1,
+    workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools, now: () => 1,
     onRegionEvent: (e) => events.push(e),
     joinPolicy: policy as unknown as JoinPolicy,
   });
@@ -198,7 +198,7 @@ suite('a policy that misbehaves does not take the run down silently', (test) => 
     const d = new Driver(await load('valid/fanout-join.flow.json'), {
       runId: 'r1',
       scheduler, createTask: (c) => c, predicates: new Map(),
-      workerTypes: reg.workerTypes, now: () => 1,
+      workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools, now: () => 1,
       joinPolicy: boom as never, onRunFailure: (f) => failures.push(f),
     });
     d.start({});
@@ -220,7 +220,7 @@ suite('a policy that misbehaves does not take the run down silently', (test) => 
     const d = new Driver(await load('valid/fanout-join.flow.json'), {
       runId: 'r1',
       scheduler, createTask: (c) => c, predicates: new Map(),
-      workerTypes: reg.workerTypes, now: () => 1,
+      workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools, now: () => 1,
       joinPolicy: badDescribe as never, onRunFailure: (f) => failures.push(f),
     });
     d.start({});
@@ -247,7 +247,7 @@ suite('three things the driver decides that spec/ does not state', (test) => {
     const h = run(await load('valid/linear.flow.json'), liveToken as never);
     h.driver.start({});
     h.scheduler.settle('r1:ingest:-:0', 'done', { result: { deep: { n: 1 } } });
-    const payload = h.scheduler.added[1]!.payload as { deep: { n: number } };
+    const payload = (h.scheduler.added[1]!.payload as { input: { deep: { n: number } } }).input;
     payload.deep.n = 999;
     equal((h.driver.snapshot()[0] as { result: { deep: { n: number } } }).result.deep.n, 1,
       'the log is unchanged: "copying the field copies the reference", on the one exit that ' +
@@ -291,7 +291,7 @@ suite('three things the driver decides that spec/ does not state', (test) => {
     const d = new Driver(await load('valid/fanout-join.flow.json'), {
       runId: 'r1',
       scheduler, createTask: (c) => c, predicates: new Map(),
-      workerTypes: reg.workerTypes, now: () => 1,
+      workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools, now: () => 1,
       joinPolicy: badDescribe as never, onRunFailure: (f) => failures.push(f),
     });
     d.start({});

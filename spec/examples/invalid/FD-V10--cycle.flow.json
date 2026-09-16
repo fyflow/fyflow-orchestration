@@ -3,11 +3,11 @@
   "version": 1,
   "entry": "score",
   "nodes": [
-    { "id": "score", "kind": "task", "workerType": "ScoreWorker", "edges": [
+    { "id": "score", "kind": "task", "type": "ScoreWorker", "edges": [
         { "when": "isLowConfidence", "to": "retry" },
         { "to": "done" }
     ] },
-    { "id": "retry", "kind": "task", "workerType": "ScoreWorker", "edges": [ { "to": "score" } ] },
+    { "id": "retry", "kind": "task", "type": "ScoreWorker", "edges": [ { "to": "score" } ] },
     { "id": "done",  "kind": "end",  "outcome": "completed" }
   ]
 }

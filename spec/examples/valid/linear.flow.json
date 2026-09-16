@@ -3,8 +3,8 @@
   "version": 1,
   "entry": "ingest",
   "nodes": [
-    { "id": "ingest",  "kind": "task", "workerType": "IngestWorker",  "edges": [ { "to": "publish" } ] },
-    { "id": "publish", "kind": "task", "workerType": "PublishWorker", "edges": [ { "to": "done" } ] },
+    { "id": "ingest",  "kind": "task", "type": "IngestWorker",  "edges": [ { "to": "publish" } ] },
+    { "id": "publish", "kind": "task", "type": "PublishWorker", "edges": [ { "to": "done" } ] },
     { "id": "done",    "kind": "end",  "outcome": "completed" }
   ]
 }

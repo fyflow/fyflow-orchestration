@@ -1,9 +1,9 @@
 {
-  "flowId": "type-beside-worker-type",
+  "flowId": "pool-not-an-instance-of-the-type",
   "version": 1,
   "entry": "score",
   "nodes": [
-    { "id": "score", "kind": "task", "type": "Scorer", "workerType": "ScoreWorker",
+    { "id": "score", "kind": "task", "type": "ScoreWorker", "pool": "scorer-fast",
       "edges": [ { "to": "done" } ] },
     { "id": "done",  "kind": "end",  "outcome": "completed" }
   ]

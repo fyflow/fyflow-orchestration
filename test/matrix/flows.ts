@@ -48,7 +48,9 @@ const EX = `${ROOT}spec/examples`;
 
 export const registry = JSON.parse(await readText(`${EX}/registry.json`)) as {
   predicates: string[];
-  workerTypes: string[];
+  workers: Record<string, { url: string }>;
+  nodeTypes: Record<string, { worker: string }>;
+  pools: Record<string, { type: string }>;
 };
 
 const corpus = async (name: string): Promise<FlowDefinition> =>
@@ -69,12 +71,12 @@ export const optionalLost: FlowDefinition = {
   version: 1,
   entry: 'ingest',
   nodes: [
-    { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'split' }] },
+    { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'split' }] },
     { id: 'split', kind: 'fanout', branches: ['scoreA', 'scoreB'] },
-    { id: 'scoreA', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'collect' }] },
-    { id: 'scoreB', kind: 'task', workerType: 'ScoreWorker', optional: true, edges: [{ to: 'collect' }] },
+    { id: 'scoreA', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'collect' }] },
+    { id: 'scoreB', kind: 'task', type: 'ScoreWorker', optional: true, edges: [{ to: 'collect' }] },
     { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'publish' }] },
-    { id: 'publish', kind: 'task', workerType: 'PublishWorker', edges: [{ to: 'done' }] },
+    { id: 'publish', kind: 'task', type: 'PublishWorker', edges: [{ to: 'done' }] },
     { id: 'done', kind: 'end', outcome: 'completed' },
   ],
 };
@@ -89,20 +91,20 @@ export const sixEvents: FlowDefinition = {
   version: 1,
   entry: 'ingest',
   nodes: [
-    { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'split' }] },
+    { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'split' }] },
     { id: 'split', kind: 'fanout', branches: ['lostA', 'exitB', 'arriveC'] },
     // optional + default-only edge: settles `failed`, nothing is eligible, lost.
-    { id: 'lostA', kind: 'task', workerType: 'ScoreWorker', optional: true, edges: [{ to: 'collect' }] },
+    { id: 'lostA', kind: 'task', type: 'ScoreWorker', optional: true, edges: [{ to: 'collect' }] },
     {
       id: 'exitB',
       kind: 'task',
-      workerType: 'ScoreWorker',
+      type: 'ScoreWorker',
       edges: [{ when: 'isLowConfidence', to: 'abandoned' }, { to: 'collect' }],
     },
-    { id: 'arriveC', kind: 'task', workerType: 'ReviewWorker', edges: [{ to: 'collect' }] },
+    { id: 'arriveC', kind: 'task', type: 'ReviewWorker', edges: [{ to: 'collect' }] },
     { id: 'abandoned', kind: 'end', outcome: 'branch-abandoned' },
     { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'publish' }] },
-    { id: 'publish', kind: 'task', workerType: 'PublishWorker', edges: [{ to: 'done' }] },
+    { id: 'publish', kind: 'task', type: 'PublishWorker', edges: [{ to: 'done' }] },
     { id: 'done', kind: 'end', outcome: 'completed' },
   ],
 };
@@ -138,28 +140,28 @@ export const twoRegions: FlowDefinition = {
   version: 1,
   entry: 'ingest',
   nodes: [
-    { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'split1' }] },
+    { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'split1' }] },
     { id: 'split1', kind: 'fanout', branches: ['a1', 'a2'] },
-    { id: 'a1', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'collect1' }] },
+    { id: 'a1', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'collect1' }] },
     {
       id: 'a2',
       kind: 'task',
-      workerType: 'ScoreWorker',
+      type: 'ScoreWorker',
       edges: [{ when: 'isHighConfidence', to: 'shared' }, { to: 'collect1' }],
     },
     { id: 'collect1', kind: 'join', of: 'split1', edges: [{ to: 'mid' }] },
-    { id: 'mid', kind: 'task', workerType: 'MergeWorker', edges: [{ to: 'split2' }] },
+    { id: 'mid', kind: 'task', type: 'MergeWorker', edges: [{ to: 'split2' }] },
     { id: 'split2', kind: 'fanout', branches: ['b1', 'b2'] },
-    { id: 'b1', kind: 'task', workerType: 'ReviewWorker', edges: [{ to: 'collect2' }] },
+    { id: 'b1', kind: 'task', type: 'ReviewWorker', edges: [{ to: 'collect2' }] },
     {
       id: 'b2',
       kind: 'task',
-      workerType: 'ReviewWorker',
+      type: 'ReviewWorker',
       edges: [{ when: 'isLowConfidence', to: 'shared' }, { to: 'collect2' }],
     },
     { id: 'shared', kind: 'end', outcome: 'branch-abandoned' },
     { id: 'collect2', kind: 'join', of: 'split2', edges: [{ to: 'publish' }] },
-    { id: 'publish', kind: 'task', workerType: 'PublishWorker', edges: [{ to: 'done' }] },
+    { id: 'publish', kind: 'task', type: 'PublishWorker', edges: [{ to: 'done' }] },
     { id: 'done', kind: 'end', outcome: 'completed' },
   ],
 };
@@ -192,15 +194,15 @@ const nestedNodes = (
   extra: FlowDefinition['nodes'] = [],
 ): FlowDefinition['nodes'] => [
   { id: 'outer', kind: 'fanout', branches: ['scoreA', 'scoreB'] },
-  { id: 'scoreA', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'outerJoin' }] },
-  { id: 'scoreB', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'inner' }] },
+  { id: 'scoreA', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'outerJoin' }] },
+  { id: 'scoreB', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'inner' }] },
   { id: 'inner', kind: 'fanout', branches: ['scoreC', 'scoreD'] },
   scoreC,
   scoreD,
   ...extra,
   { id: 'innerJoin', kind: 'join', of: 'inner', edges: [{ to: 'outerJoin' }] },
   { id: 'outerJoin', kind: 'join', of: 'outer', edges: [{ to: 'publish' }] },
-  { id: 'publish', kind: 'task', workerType: 'PublishWorker', edges: [{ to: 'done' }] },
+  { id: 'publish', kind: 'task', type: 'PublishWorker', edges: [{ to: 'done' }] },
   { id: 'done', kind: 'end', outcome: 'completed' },
 ];
 
@@ -210,8 +212,8 @@ export const nested: FlowDefinition = {
   version: 1,
   entry: 'outer',
   nodes: nestedNodes(
-    { id: 'scoreC', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'innerJoin' }] },
-    { id: 'scoreD', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'innerJoin' }] },
+    { id: 'scoreC', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'innerJoin' }] },
+    { id: 'scoreD', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'innerJoin' }] },
   ),
 };
 
@@ -226,8 +228,8 @@ export const nestedLost: FlowDefinition = {
   version: 1,
   entry: 'outer',
   nodes: nestedNodes(
-    { id: 'scoreC', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'innerJoin' }] },
-    { id: 'scoreD', kind: 'task', workerType: 'ScoreWorker', optional: true, edges: [{ to: 'innerJoin' }] },
+    { id: 'scoreC', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'innerJoin' }] },
+    { id: 'scoreD', kind: 'task', type: 'ScoreWorker', optional: true, edges: [{ to: 'innerJoin' }] },
   ),
 };
 
@@ -245,9 +247,9 @@ export const nestedExit: FlowDefinition = {
   version: 1,
   entry: 'outer',
   nodes: nestedNodes(
-    { id: 'scoreC', kind: 'task', workerType: 'ScoreWorker',
+    { id: 'scoreC', kind: 'task', type: 'ScoreWorker',
       edges: [{ when: 'isLowConfidence', to: 'abandoned' }, { to: 'innerJoin' }] },
-    { id: 'scoreD', kind: 'task', workerType: 'ScoreWorker',
+    { id: 'scoreD', kind: 'task', type: 'ScoreWorker',
       edges: [{ when: 'isLowConfidence', to: 'abandoned' }, { to: 'innerJoin' }] },
     [{ id: 'abandoned', kind: 'end', outcome: 'branch-abandoned' }],
   ),
@@ -282,11 +284,11 @@ export const mapRegion: FlowDefinition = {
   version: 1,
   entry: 'ingest',
   nodes: [
-    { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'per' }] },
+    { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'per' }] },
     { id: 'per', kind: 'map', over: 'items', branch: 'score' },
-    { id: 'score', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'collect' }] },
+    { id: 'score', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'collect' }] },
     { id: 'collect', kind: 'join', of: 'per', edges: [{ to: 'publish' }] },
-    { id: 'publish', kind: 'task', workerType: 'PublishWorker', edges: [{ to: 'done' }] },
+    { id: 'publish', kind: 'task', type: 'PublishWorker', edges: [{ to: 'done' }] },
     { id: 'done', kind: 'end', outcome: 'completed' },
   ] as unknown as FlowDefinition['nodes'],
 };
@@ -304,13 +306,13 @@ export const mapRoutedAway: FlowDefinition = {
   version: 1,
   entry: 'ingest',
   nodes: [
-    { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'per' }] },
+    { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'per' }] },
     { id: 'per', kind: 'map', over: 'items', branch: 'score' },
-    { id: 'score', kind: 'task', workerType: 'ScoreWorker',
+    { id: 'score', kind: 'task', type: 'ScoreWorker',
       edges: [{ when: 'isLowConfidence', to: 'abandoned' }, { to: 'collect' }] },
     { id: 'abandoned', kind: 'end', outcome: 'branch-abandoned' },
     { id: 'collect', kind: 'join', of: 'per', edges: [{ to: 'publish' }] },
-    { id: 'publish', kind: 'task', workerType: 'PublishWorker', edges: [{ to: 'done' }] },
+    { id: 'publish', kind: 'task', type: 'PublishWorker', edges: [{ to: 'done' }] },
     { id: 'done', kind: 'end', outcome: 'completed' },
   ] as unknown as FlowDefinition['nodes'],
 };
@@ -326,11 +328,11 @@ export const mapLost: FlowDefinition = {
   version: 1,
   entry: 'ingest',
   nodes: [
-    { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'per' }] },
+    { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'per' }] },
     { id: 'per', kind: 'map', over: 'items', branch: 'score' },
-    { id: 'score', kind: 'task', workerType: 'ScoreWorker', optional: true, edges: [{ to: 'collect' }] },
+    { id: 'score', kind: 'task', type: 'ScoreWorker', optional: true, edges: [{ to: 'collect' }] },
     { id: 'collect', kind: 'join', of: 'per', edges: [{ to: 'publish' }] },
-    { id: 'publish', kind: 'task', workerType: 'PublishWorker', edges: [{ to: 'done' }] },
+    { id: 'publish', kind: 'task', type: 'PublishWorker', edges: [{ to: 'done' }] },
     { id: 'done', kind: 'end', outcome: 'completed' },
   ] as unknown as FlowDefinition['nodes'],
 };

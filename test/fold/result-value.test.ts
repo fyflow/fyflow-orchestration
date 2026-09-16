@@ -62,7 +62,7 @@ import type { JoinPolicy } from '../../src/driver/policy.ts';
 import type { FlowDefinition } from '../../src/definition/types.ts';
 
 const EX = `${ROOT}spec/examples`;
-const reg = JSON.parse(await readText(`${EX}/registry.json`)) as { workerTypes: string[] };
+const reg = JSON.parse(await readText(`${EX}/registry.json`)) as { workers: Record<string, { url: string }>; nodeTypes: Record<string, { worker: string }>; groups: Record<string, unknown>; pools: Record<string, { type: string }>; predicates: string[]; languages: string[] };
 
 /** The whole scheduler, for level 2. It queues nothing and runs nothing. */
 class FakeScheduler {
@@ -90,8 +90,8 @@ class FakeScheduler {
 const CHAIN: FlowDefinition = {
   flowId: 'w54-chain', version: 1, entry: 't0',
   nodes: [
-    { id: 't0', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 't1' }] },
-    { id: 't1', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'done' }] },
+    { id: 't0', kind: 'task', type: 'IngestWorker', edges: [{ to: 't1' }] },
+    { id: 't1', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'done' }] },
     { id: 'done', kind: 'end', outcome: 'completed' },
   ],
 } as unknown as FlowDefinition;
@@ -101,7 +101,7 @@ function harness() {
   const failures: { kind: string; message: string }[] = [];
   const driver = new Driver(CHAIN, {
     runId: 'r1', scheduler, createTask: (c) => c,
-    predicates: new Map() as never, workerTypes: reg.workerTypes,
+    predicates: new Map() as never, workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools,
     joinPolicy: liveToken as JoinPolicy,
     onRunFailure: (f) => failures.push({ kind: f.kind, message: f.message }),
   });
@@ -456,7 +456,7 @@ suite('OR-R11 — a result is a VALUE, and each shape asserts what does NOT cros
     equal(h.scheduler.added.map((t) => t.id), ['r1:t0:-:0'], 'the entry task, and nothing else');
     h.scheduler.settle('r1:t0:-:0', 'done', { result: new Score(0.9) });
 
-    const received = h.scheduler.added.find((t) => t.id === 'r1:t1:-:0')?.payload as
+    const received = (h.scheduler.added.find((t) => t.id === 'r1:t1:-:0')?.payload as { input?: unknown } | undefined)?.input as
       { value?: number; isHigh?: unknown } | undefined;
     ok(received !== undefined, 'FD-C1 — t1 was dispatched and receives t0`s result unchanged');
     equal(received?.value, 0.9, 'the FIELDS crossed');

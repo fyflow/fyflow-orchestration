@@ -1,7 +1,7 @@
 # ADR 0051 — A transform is a declared expression in a registered language, applied in the type's worker wrapper
 
 **Date:** 2026-09-12
-**Status:** accepted — answers [P17](../plans/p17-what-a-node-may-do-to-its-input-before-its-worker-sees-it.md)'s
+**Status:** accepted — amended by [ADR 0054](0054-every-task-node-names-a-type-and-a-type-is-a-derivation-to-pool-options.md) at v0.19 (W65): `FD-V37`'s clause about a node with no `type` retired with the bare road, the rest standing; answers [P17](../plans/p17-what-a-node-may-do-to-its-input-before-its-worker-sees-it.md)'s
 question, *what may a node DO to its input before its worker sees it?*, on that plan's decisions
 1-10. Amends nothing: [ADR 0049](0049-a-node-type-is-a-registry-entry-and-its-worker-receives-an-envelope.md)
 rule 3's `input` — *the value this node receives* — is what leaves the transform a place to sit, and
@@ -50,7 +50,7 @@ after F1 was measured and before the wrapper's final form was written:**
 
 1. **A transform is a DECLARED key on a typed `task` node: `transform: { lang, expr }`, both
    strings, and the definition stays data.** `lang` names an entry in `Registry.languages`, the
-   fifth set beside `predicates`, `workerTypes`, `groups` and `nodeTypes`, **EMPTY when absent**;
+   fifth set beside `predicates`, `workerTypes` *(retired at v0.19, ADR 0054)*, `groups` and `nodeTypes`, **EMPTY when absent**;
    `expr` is text in that language. The definition names the language and never a file, a URL or a
    function — ADR 0002 rule 3, P16 decision 4's discipline one set over. Typed nodes only, on `map`
    branch tasks included, because only a typed node has a wrapper (rule 3).
@@ -142,7 +142,7 @@ once and hands it to the helper and to the driver, as they do a node type.
 
 **What a future reader is likely to try that this forbids.** Evaluating the transform in the DRIVER
 *"so ladder L2 can see it"* — rule 3: the driver has no `await` and the evaluator is async, and the
-maintainer refused the placement. Putting a transform on a bare `workerType` node *"for symmetry"* —
+maintainer refused the placement. Putting a transform on a bare `workerType` node *(a road v0.19 retired — ADR 0054)* *"for symmetry"* —
 rule 7's `FD-V37`: there is no wrapper there to evaluate it. Handing the wrapper a FUNCTION *"so the
 registry is one object"* — fact 7: it cannot cross to a thread. Throwing from `setup()` when a
 language does not load *"so the pool reports it"* — rule 5 and F1: the pool reports it and the run

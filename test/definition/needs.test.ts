@@ -19,11 +19,13 @@
 import { equal, listDir, ok, readText, ROOT, suite } from '../harness.ts';
 import { EDGE_KEYS_DECLARED, referenceTarget, validateDefinition } from '../../src/definition/validate.ts';
 import type { FlowDefinition } from '../../src/definition/types.ts';
-import { CORPUS_LANGUAGES, CORPUS_NODE_TYPES } from './corpus-types.ts';
+import { CORPUS_LANGUAGES } from './corpus-types.ts';
 
 const EX = `${ROOT}spec/examples`;
 const reg = JSON.parse(await readText(`${EX}/registry.json`)) as {
-  workerTypes: string[];
+  workers: Record<string, { url: string }>;
+  nodeTypes: Record<string, { worker: string }>;
+  pools: Record<string, { type: string }>;
   predicates?: string[];
   groups?: string[];
 };
@@ -32,7 +34,7 @@ const reg = JSON.parse(await readText(`${EX}/registry.json`)) as {
 // `nodeTypes` since W59, for the same reason one set over: `typed.flow.json` names a type, and a
 // registry that omits the set declares none (`FD-V32`).
 // `languages` since W61, one set further: `transformed.flow.json` names `path` (`FD-V35`).
-const REGISTRY = { predicates: reg.predicates ?? [], workerTypes: reg.workerTypes, groups: reg.groups ?? [], nodeTypes: CORPUS_NODE_TYPES, languages: CORPUS_LANGUAGES };
+const REGISTRY = { predicates: reg.predicates ?? [], workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools, groups: Object.keys(reg.groups ?? {}), languages: CORPUS_LANGUAGES };
 
 /** Rules for a definition. `nodes` is spread in so each case names only what it changes. */
 const doc = (nodes: unknown[]): FlowDefinition =>
@@ -82,8 +84,8 @@ function rowOf(v: unknown): string {
 /** `ingest -> subject -> done`, with `subject` carrying whatever `needs` is given. */
 const linear = (needs: unknown) =>
   doc([
-    { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'subject' }] },
-    { id: 'subject', kind: 'task', workerType: 'ScoreWorker', needs, edges: [{ to: 'done' }] },
+    { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'subject' }] },
+    { id: 'subject', kind: 'task', type: 'ScoreWorker', needs, edges: [{ to: 'done' }] },
     { id: 'done', kind: 'end', outcome: 'completed' },
   ]);
 
@@ -284,10 +286,10 @@ suite('L1 — FD-V26: the reference GRAMMAR', (test) => {
     // rather than leaving it to be rediscovered: `needs` is absent from the other
     // three kinds' key lists, so FD-V17 already refuses it AND names the kind.
     const d = doc([
-      { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'split' }] },
+      { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'split' }] },
       { id: 'split', kind: 'fanout', branches: ['a', 'b'], needs: { x: '.' } },
-      { id: 'a', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'collect' }] },
-      { id: 'b', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'collect' }] },
+      { id: 'a', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'collect' }] },
+      { id: 'b', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'collect' }] },
       { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'done' }] },
       { id: 'done', kind: 'end', outcome: 'completed' },
     ]);
@@ -318,12 +320,12 @@ suite('L1 — FD-V27: where a reference POINTS', (test) => {
     // produces an outcome record. A reference to any other kind names something
     // that has no result to give, at any branch path.
     const d = doc([
-      { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'split' }] },
+      { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'split' }] },
       { id: 'split', kind: 'fanout', branches: ['a', 'b'] },
-      { id: 'a', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'collect' }] },
-      { id: 'b', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'collect' }] },
+      { id: 'a', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'collect' }] },
+      { id: 'b', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'collect' }] },
       { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'after' }] },
-      { id: 'after', kind: 'task', workerType: 'PublishWorker', needs: { r: 'split' }, edges: [{ to: 'done' }] },
+      { id: 'after', kind: 'task', type: 'PublishWorker', needs: { r: 'split' }, edges: [{ to: 'done' }] },
       { id: 'done', kind: 'end', outcome: 'completed' },
     ]);
     equal(rulesOf(d), ['FD-V27'], 'a fanout is not a task');
@@ -334,16 +336,16 @@ suite('L1 — FD-V27: where a reference POINTS', (test) => {
   test('a reference this node is not reachable from — downstream, sideways, and itself', () => {
     const cases: [string, FlowDefinition][] = [
       ['downstream', doc([
-        { id: 'ingest', kind: 'task', workerType: 'IngestWorker', needs: { l: 'subject' }, edges: [{ to: 'subject' }] },
-        { id: 'subject', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'done' }] },
+        { id: 'ingest', kind: 'task', type: 'IngestWorker', needs: { l: 'subject' }, edges: [{ to: 'subject' }] },
+        { id: 'subject', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'done' }] },
         { id: 'done', kind: 'end', outcome: 'completed' },
       ])],
       ['itself', linear({ me: 'subject' })],
       ['sideways — the other branch of a fanout', doc([
-        { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'split' }] },
+        { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'split' }] },
         { id: 'split', kind: 'fanout', branches: ['a', 'b'] },
-        { id: 'a', kind: 'task', workerType: 'ScoreWorker', needs: { sib: 'b' }, edges: [{ to: 'collect' }] },
-        { id: 'b', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'collect' }] },
+        { id: 'a', kind: 'task', type: 'ScoreWorker', needs: { sib: 'b' }, edges: [{ to: 'collect' }] },
+        { id: 'b', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'collect' }] },
         { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'done' }] },
         { id: 'done', kind: 'end', outcome: 'completed' },
       ])],
@@ -365,16 +367,16 @@ suite('L1 — FD-V27: where a reference POINTS', (test) => {
 suite('L1 — FD-V28: the FORM must match the graph', (test) => {
   const region = (needsOn: 'inside' | 'outside', needs: unknown) =>
     doc([
-      { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'split' }] },
+      { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'split' }] },
       { id: 'split', kind: 'map', over: 'items', branch: 'score' },
       {
-        id: 'score', kind: 'task', workerType: 'ScoreWorker',
+        id: 'score', kind: 'task', type: 'ScoreWorker',
         ...(needsOn === 'inside' ? { needs } : {}),
         edges: [{ to: 'collect' }],
       },
       { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'publish' }] },
       {
-        id: 'publish', kind: 'task', workerType: 'PublishWorker',
+        id: 'publish', kind: 'task', type: 'PublishWorker',
         ...(needsOn === 'outside' ? { needs } : {}),
         edges: [{ to: 'done' }],
       },
@@ -415,12 +417,12 @@ suite('L1 — FD-V28: the FORM must match the graph', (test) => {
     // branch entries of one fanout, so a fanout region gives every node ONE output.
     // Nothing in this file noticed, because every case above uses a `map` region.
     const fanout = (needs: unknown) => doc([
-      { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'split' }] },
+      { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'split' }] },
       { id: 'split', kind: 'fanout', branches: ['scoreA', 'scoreB'] },
-      { id: 'scoreA', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'collect' }] },
-      { id: 'scoreB', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'collect' }] },
+      { id: 'scoreA', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'collect' }] },
+      { id: 'scoreB', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'collect' }] },
       { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'publish' }] },
-      { id: 'publish', kind: 'task', workerType: 'PublishWorker', needs, edges: [{ to: 'done' }] },
+      { id: 'publish', kind: 'task', type: 'PublishWorker', needs, edges: [{ to: 'done' }] },
       { id: 'done', kind: 'end', outcome: 'completed' },
     ]);
     equal(rulesOf(fanout({ a: 'scoreA' })), [],
@@ -436,16 +438,16 @@ suite('L1 — FD-V28: the FORM must match the graph', (test) => {
     // the legal form is DIFFERENT. A `many` that reads region membership without
     // the opener's kind gives the same answer to both and is wrong on one of them.
     const withOpener = (kind: 'fanout' | 'map', needs: unknown) => doc([
-      { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'split' }] },
+      { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'split' }] },
       kind === 'fanout'
         ? { id: 'split', kind: 'fanout', branches: ['score', 'other'] }
         : { id: 'split', kind: 'map', over: 'items', branch: 'score' },
-      { id: 'score', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'collect' }] },
+      { id: 'score', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'collect' }] },
       ...(kind === 'fanout'
-        ? [{ id: 'other', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'collect' }] }]
+        ? [{ id: 'other', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'collect' }] }]
         : []),
       { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'publish' }] },
-      { id: 'publish', kind: 'task', workerType: 'PublishWorker', needs, edges: [{ to: 'done' }] },
+      { id: 'publish', kind: 'task', type: 'PublishWorker', needs, edges: [{ to: 'done' }] },
       { id: 'done', kind: 'end', outcome: 'completed' },
     ]);
     equal(rulesOf(withOpener('fanout', { s: 'score' })), [], 'fanout: the bare form');
@@ -487,12 +489,12 @@ suite('L1 — FD-V29: an unconditional reference names a node that MUST have run
   const acrossADecision = (needs: unknown): FlowDefinition =>
     doc([
       {
-        id: 'ingest', kind: 'task', workerType: 'IngestWorker',
+        id: 'ingest', kind: 'task', type: 'IngestWorker',
         edges: [{ when: 'isLowConfidence', to: 'flag' }, { to: 'skip' }],
       },
-      { id: 'flag', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'publish' }] },
-      { id: 'skip', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'publish' }] },
-      { id: 'publish', kind: 'task', workerType: 'PublishWorker', needs, edges: [{ to: 'done' }] },
+      { id: 'flag', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'publish' }] },
+      { id: 'skip', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'publish' }] },
+      { id: 'publish', kind: 'task', type: 'PublishWorker', needs, edges: [{ to: 'done' }] },
       { id: 'done', kind: 'end', outcome: 'completed' },
     ]);
 
@@ -523,12 +525,12 @@ suite('L1 — FD-V29: an unconditional reference names a node that MUST have run
     // one document, nine lines apart.
     const afterAJoin = (needs: unknown): FlowDefinition =>
       doc([
-        { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'split' }] },
+        { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'split' }] },
         { id: 'split', kind: 'fanout', branches: ['scoreA', 'scoreB'] },
-        { id: 'scoreA', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'collect' }] },
-        { id: 'scoreB', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'collect' }] },
+        { id: 'scoreA', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'collect' }] },
+        { id: 'scoreB', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'collect' }] },
         { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'publish' }] },
-        { id: 'publish', kind: 'task', workerType: 'PublishWorker', needs, edges: [{ to: 'done' }] },
+        { id: 'publish', kind: 'task', type: 'PublishWorker', needs, edges: [{ to: 'done' }] },
         { id: 'done', kind: 'end', outcome: 'completed' },
       ]);
     equal(rulesOf(afterAJoin({ a: 'scoreA' })), [], 'branch entry A: accepted');
@@ -537,11 +539,11 @@ suite('L1 — FD-V29: an unconditional reference names a node that MUST have run
     // makes the run `stuck` with the join never firing (`spec/join-policy.md`
     // section 5), so a join that IS entered had at least one instance.
     const afterAMapJoin = doc([
-      { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'split' }] },
+      { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'split' }] },
       { id: 'split', kind: 'map', over: 'items', branch: 'score' },
-      { id: 'score', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'collect' }] },
+      { id: 'score', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'collect' }] },
       { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'publish' }] },
-      { id: 'publish', kind: 'task', workerType: 'PublishWorker', needs: { s: ['score'] }, edges: [{ to: 'done' }] },
+      { id: 'publish', kind: 'task', type: 'PublishWorker', needs: { s: ['score'] }, edges: [{ to: 'done' }] },
       { id: 'done', kind: 'end', outcome: 'completed' },
     ]);
     equal(rulesOf(afterAMapJoin), [], 'a map`s one branch entry: accepted, and it does not dominate either');
@@ -555,16 +557,16 @@ suite('L1 — FD-V29: an unconditional reference names a node that MUST have run
     // are four of the seven references FD-V29 refuses.
     const nested = (reader: string, needs: unknown): FlowDefinition =>
       doc([
-        { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'outer' }] },
+        { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'outer' }] },
         { id: 'outer', kind: 'fanout', branches: ['scoreA', 'scoreB'] },
-        { id: 'scoreA', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'outerJoin' }] },
-        { id: 'scoreB', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'inner' }] },
+        { id: 'scoreA', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'outerJoin' }] },
+        { id: 'scoreB', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'inner' }] },
         { id: 'inner', kind: 'fanout', branches: ['scoreC', 'scoreD'] },
-        { id: 'scoreC', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'innerJoin' }] },
-        { id: 'scoreD', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'innerJoin' }] },
+        { id: 'scoreC', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'innerJoin' }] },
+        { id: 'scoreD', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'innerJoin' }] },
         { id: 'innerJoin', kind: 'join', of: 'inner', edges: [{ to: 'outerJoin' }] },
         { id: 'outerJoin', kind: 'join', of: 'outer', edges: [{ to: reader }] },
-        { id: reader, kind: 'task', workerType: 'PublishWorker', needs, edges: [{ to: 'done' }] },
+        { id: reader, kind: 'task', type: 'PublishWorker', needs, edges: [{ to: 'done' }] },
         { id: 'done', kind: 'end', outcome: 'completed' },
       ]);
     equal(rulesOf(nested('publish', { c: 'scoreC' })), ['FD-V29'],
@@ -580,13 +582,13 @@ suite('L1 — FD-V29: an unconditional reference names a node that MUST have run
     const edge = (needs: unknown): FlowDefinition =>
       doc([
         {
-          id: 'ingest', kind: 'task', workerType: 'IngestWorker',
+          id: 'ingest', kind: 'task', type: 'IngestWorker',
           edges: [{ when: 'isLowConfidence', to: 'flag' }, { to: 'skip' }],
         },
-        { id: 'flag', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'publish' }] },
-        { id: 'skip', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'publish' }] },
+        { id: 'flag', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'publish' }] },
+        { id: 'skip', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'publish' }] },
         {
-          id: 'publish', kind: 'task', workerType: 'PublishWorker',
+          id: 'publish', kind: 'task', type: 'PublishWorker',
           edges: [{ when: 'isHighConfidence', to: 'done', needs }, { to: 'done' }],
         },
         { id: 'done', kind: 'end', outcome: 'completed' },
@@ -614,18 +616,18 @@ suite('L1 — FD-V29: an unconditional reference names a node that MUST have run
     const threeWay = (needs: unknown): FlowDefinition =>
       doc([
         {
-          id: 'ingest', kind: 'task', workerType: 'IngestWorker',
+          id: 'ingest', kind: 'task', type: 'IngestWorker',
           edges: [{ when: 'isLowConfidence', to: 'd' }, { to: 'a' }],
         },
-        { id: 'd', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'c' }] },
-        { id: 'c', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'publish' }] },
+        { id: 'd', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'c' }] },
+        { id: 'c', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'publish' }] },
         {
-          id: 'a', kind: 'task', workerType: 'ScoreWorker',
+          id: 'a', kind: 'task', type: 'ScoreWorker',
           edges: [{ when: 'isLowConfidence', to: 'm' }, { to: 'n' }],
         },
-        { id: 'm', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'publish' }] },
-        { id: 'n', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'publish' }] },
-        { id: 'publish', kind: 'task', workerType: 'PublishWorker', needs, edges: [{ to: 'done' }] },
+        { id: 'm', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'publish' }] },
+        { id: 'n', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'publish' }] },
+        { id: 'publish', kind: 'task', type: 'PublishWorker', needs, edges: [{ to: 'done' }] },
         { id: 'done', kind: 'end', outcome: 'completed' },
       ]);
     equal(rulesOf(threeWay({ k: 'a' })), ['FD-V29'],
@@ -654,8 +656,8 @@ suite('L1 — FD-V29: an unconditional reference names a node that MUST have run
     const noEntry = {
       flowId: 'no-entry-node', version: 1, entry: 'nope',
       nodes: [
-        { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'subject' }] },
-        { id: 'subject', kind: 'task', workerType: 'ScoreWorker', needs: { k: 'ingest' }, edges: [{ to: 'done' }] },
+        { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'subject' }] },
+        { id: 'subject', kind: 'task', type: 'ScoreWorker', needs: { k: 'ingest' }, edges: [{ to: 'done' }] },
         { id: 'done', kind: 'end', outcome: 'completed' },
       ],
     } as unknown as FlowDefinition;
@@ -671,15 +673,15 @@ suite('L1 — FD-V29: an unconditional reference names a node that MUST have run
     // is *the refusal names the fix*.
     const inAMapRegion = (needs: unknown): FlowDefinition =>
       doc([
-        { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'outer' }] },
+        { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'outer' }] },
         { id: 'outer', kind: 'fanout', branches: ['scoreA', 'scoreB'] },
-        { id: 'scoreA', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'outerJoin' }] },
-        { id: 'scoreB', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'inner' }] },
+        { id: 'scoreA', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'outerJoin' }] },
+        { id: 'scoreB', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'inner' }] },
         { id: 'inner', kind: 'map', over: 'items', branch: 'merge' },
-        { id: 'merge', kind: 'task', workerType: 'MergeWorker', edges: [{ to: 'innerJoin' }] },
+        { id: 'merge', kind: 'task', type: 'MergeWorker', edges: [{ to: 'innerJoin' }] },
         { id: 'innerJoin', kind: 'join', of: 'inner', edges: [{ to: 'outerJoin' }] },
         { id: 'outerJoin', kind: 'join', of: 'outer', edges: [{ to: 'publish' }] },
-        { id: 'publish', kind: 'task', workerType: 'PublishWorker', needs, edges: [{ to: 'done' }] },
+        { id: 'publish', kind: 'task', type: 'PublishWorker', needs, edges: [{ to: 'done' }] },
         { id: 'done', kind: 'end', outcome: 'completed' },
       ]);
     equal(rulesOf(inAMapRegion({ x: ['merge'] })), ['FD-V29'], 'the ARRAY form, refused');
@@ -701,17 +703,17 @@ suite('L1 — FD-V29: an unconditional reference names a node that MUST have run
     // would hide the other until the first was fixed. Section 5's *reports EVERY
     // violation* is the rule.
     const both = doc([
-      { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'outer' }] },
+      { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'outer' }] },
       { id: 'outer', kind: 'fanout', branches: ['scoreA', 'scoreB'] },
-      { id: 'scoreA', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'outerJoin' }] },
-      { id: 'scoreB', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'inner' }] },
+      { id: 'scoreA', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'outerJoin' }] },
+      { id: 'scoreB', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'inner' }] },
       { id: 'inner', kind: 'map', over: 'items', branch: 'scoreC' },
-      { id: 'scoreC', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'innerJoin' }] },
+      { id: 'scoreC', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'innerJoin' }] },
       { id: 'innerJoin', kind: 'join', of: 'inner', edges: [{ to: 'outerJoin' }] },
       { id: 'outerJoin', kind: 'join', of: 'outer', edges: [{ to: 'publish' }] },
       // `scoreC` is inside a MAP region this node is outside of, so FD-V28 wants
       // `["scoreC"]`; and it is an inner branch entry, so FD-V29 wants the suffix.
-      { id: 'publish', kind: 'task', workerType: 'PublishWorker', needs: { c: 'scoreC' }, edges: [{ to: 'done' }] },
+      { id: 'publish', kind: 'task', type: 'PublishWorker', needs: { c: 'scoreC' }, edges: [{ to: 'done' }] },
       { id: 'done', kind: 'end', outcome: 'completed' },
     ]);
     equal(rulesOf(both), ['FD-V28', 'FD-V29'], 'both, and neither hides the other');

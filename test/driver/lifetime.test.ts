@@ -34,7 +34,7 @@ import type { JoinPolicy, Region } from '../../src/driver/policy.ts';
 
 const EX = `${ROOT}spec/examples`;
 const load = async (rel: string) => JSON.parse(await readText(`${EX}/${rel}`)) as FlowDefinition;
-const reg = JSON.parse(await readText(`${EX}/registry.json`)) as { workerTypes: string[] };
+const reg = JSON.parse(await readText(`${EX}/registry.json`)) as { workers: Record<string, { url: string }>; nodeTypes: Record<string, { worker: string }>; groups: Record<string, unknown>; pools: Record<string, { type: string }>; predicates: string[]; languages: string[] };
 
 interface StubState { need: number; seen: number }
 const stubPolicy: JoinPolicy<StubState> = {
@@ -79,7 +79,7 @@ function attach(scheduler: Fake, def: FlowDefinition, runId: string): Rig {
     scheduler,
     createTask: (c) => c,
     predicates: new Map(),
-    workerTypes: reg.workerTypes,
+    workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools,
     now: () => 1,
     joinPolicy: stubPolicy as unknown as JoinPolicy,
     onRunFailure: (f) => { failures.push(f.kind); failureRunIds.push(f.runId); },
@@ -434,9 +434,9 @@ suite('ID-R5 — an inbound id no driver minted is reported and dropped, not ref
     for (const id of CANDIDATES) {
       const def = {
         flowId: 'f', version: 1, entry: id,
-        nodes: [{ id, kind: 'task', workerType: reg.workerTypes[0], edges: [] }],
+        nodes: [{ id, kind: 'task', type: Object.keys(reg.nodeTypes)[0]!, edges: [] }],
       } as unknown as FlowDefinition;
-      const validatorAccepts = !validateDefinition(def, { workerTypes: reg.workerTypes, predicates: [] })
+      const validatorAccepts = !validateDefinition(def, { workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools, predicates: [] })
         .some((v) => v.rule === 'FD-V16');
       let minterAccepts = true;
       try { buildTaskId('r1', id, null); } catch { minterAccepts = false; }
@@ -496,7 +496,7 @@ suite('ID-R5 — an inbound id no driver minted is reported and dropped, not ref
     const s = new Fake();
     const driver = new Driver(await load('valid/linear.flow.json'), {
       runId: 'r1', scheduler: s, createTask: (c) => c, predicates: new Map(),
-      workerTypes: reg.workerTypes, now: () => 1,
+      workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools, now: () => 1,
     });
     driver.start({});
     s.settle('nightly-cleanup', 'done', { result: null });
@@ -518,7 +518,7 @@ suite('ID-R5 — an inbound id no driver minted is reported and dropped, not ref
     const failures: string[] = [];
     const driver = new Driver(await load('valid/linear.flow.json'), {
       runId: 'r1', scheduler: s, createTask: (c) => c, predicates: new Map(),
-      workerTypes: reg.workerTypes, now: () => 1,
+      workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools, now: () => 1,
       onRunFailure: (f) => failures.push(f.kind),
       onUnmintedTask: () => { throw new TypeError('consumer bug'); },
     });
@@ -665,7 +665,7 @@ suite('ADR 0022 — the surface says what ID-R3 says', (test) => {
       scheduler: s,
       createTask: (c) => c,
       predicates: new Map(),
-      workerTypes: reg.workerTypes,
+      workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools,
       now: () => 1,
       onRunFailure: (f) => seen.push(f.runId),
     });
@@ -690,7 +690,7 @@ suite('ADR 0022 — the surface says what ID-R3 says', (test) => {
       },
       createTask: (c) => c,
       predicates: new Map(),
-      workerTypes: reg.workerTypes,
+      workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools,
       now: () => 1,
       onRunFailure: (f) => failures.push(f.kind),
     });
@@ -707,7 +707,7 @@ suite('ADR 0022 — the surface says what ID-R3 says', (test) => {
     const s = new Fake();
     const r = attach(s, await load('valid/linear.flow.json'), 'r1');
     r.driver.start({ seed: 7 });
-    equal((s.added[0] as unknown as { payload: unknown }).payload, { seed: 7 },
+    equal((s.added[0] as unknown as { payload: unknown }).payload, { settings: {}, input: { seed: 7 } },
       'the run id is no longer a per-call argument, and the payload is not shifted by its removal');
   });
 
@@ -727,7 +727,7 @@ suite('ADR 0022 — the surface says what ID-R3 says', (test) => {
     throws(
       () => new Driver(def, {
         runId: 'run:1', scheduler: counting, createTask: (c) => c,
-        predicates: new Map(), workerTypes: reg.workerTypes,
+        predicates: new Map(), workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools,
       }),
       'not [A-Za-z0-9_-]',
       'ID-R2, and ADR 0022 rule 3 moves it here from start()',
@@ -743,7 +743,7 @@ suite('ADR 0022 — the surface says what ID-R3 says', (test) => {
     throws(
       () => new Driver(bad, {
         runId: 'run:1', scheduler: new Fake(), createTask: (c) => c,
-        predicates: new Map(), workerTypes: reg.workerTypes,
+        predicates: new Map(), workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools,
       }),
       'not [A-Za-z0-9_-]',
       'the run id is refused first — InvalidDefinition would be the second answer, not the first',

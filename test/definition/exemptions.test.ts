@@ -14,12 +14,13 @@
  * normative fixture.
  */
 import { equal, ok, suite } from '../harness.ts';
+import { typesFor } from '../registry-fixture.ts';
 import { validateDefinition, violatedRules } from '../../src/definition/validate.ts';
 import type { FlowDefinition, Registry } from '../../src/definition/types.ts';
 
 const registry: Registry = {
   predicates: new Set(['isLowConfidence']),
-  workerTypes: new Set(['ScoreWorker', 'PublishWorker', 'IngestWorker']),
+  ...typesFor(['ScoreWorker', 'PublishWorker', 'IngestWorker']),
 };
 
 const accepts = (what: string, d: unknown) =>
@@ -36,9 +37,9 @@ suite('the end-node exemptions — three shapes the corpus does not hold', (test
       flowId: 'shared-end', version: 1, entry: 'split',
       nodes: [
         { id: 'split', kind: 'fanout', branches: ['a', 'b'] },
-        { id: 'a', kind: 'task', workerType: 'ScoreWorker', edges: [
+        { id: 'a', kind: 'task', type: 'ScoreWorker', edges: [
           { when: 'isLowConfidence', to: 'dropped' }, { to: 'j' }] },
-        { id: 'b', kind: 'task', workerType: 'ScoreWorker', edges: [
+        { id: 'b', kind: 'task', type: 'ScoreWorker', edges: [
           { when: 'isLowConfidence', to: 'dropped' }, { to: 'j' }] },
         { id: 'dropped', kind: 'end', outcome: 'dropped' },
         { id: 'j', kind: 'join', of: 'split', edges: [{ to: 'done' }] },
@@ -52,11 +53,11 @@ suite('the end-node exemptions — three shapes the corpus does not hold', (test
       flowId: 'shared-terminal', version: 1, entry: 'split',
       nodes: [
         { id: 'split', kind: 'fanout', branches: ['a', 'b'] },
-        { id: 'a', kind: 'task', workerType: 'ScoreWorker', edges: [
+        { id: 'a', kind: 'task', type: 'ScoreWorker', edges: [
           { when: 'isLowConfidence', to: 'done' }, { to: 'j' }] },
-        { id: 'b', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'j' }] },
+        { id: 'b', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'j' }] },
         { id: 'j', kind: 'join', of: 'split', edges: [{ to: 'publish' }] },
-        { id: 'publish', kind: 'task', workerType: 'PublishWorker', edges: [{ to: 'done' }] },
+        { id: 'publish', kind: 'task', type: 'PublishWorker', edges: [{ to: 'done' }] },
         { id: 'done', kind: 'end', outcome: 'completed' },
       ],
     });
@@ -66,12 +67,12 @@ suite('the end-node exemptions — three shapes the corpus does not hold', (test
     accepts('entering an `end` from outside a region opens no branch and reaches no join', {
       flowId: 'outside-end', version: 1, entry: 'ingest',
       nodes: [
-        { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [
+        { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [
           { when: 'isLowConfidence', to: 'dropped' }, { to: 'split' }] },
         { id: 'split', kind: 'fanout', branches: ['a', 'b'] },
-        { id: 'a', kind: 'task', workerType: 'ScoreWorker', edges: [
+        { id: 'a', kind: 'task', type: 'ScoreWorker', edges: [
           { when: 'isLowConfidence', to: 'dropped' }, { to: 'j' }] },
-        { id: 'b', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'j' }] },
+        { id: 'b', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'j' }] },
         { id: 'dropped', kind: 'end', outcome: 'dropped' },
         { id: 'j', kind: 'join', of: 'split', edges: [{ to: 'done' }] },
         { id: 'done', kind: 'end', outcome: 'completed' },
@@ -91,9 +92,9 @@ suite('the end-node exemptions — three shapes the corpus does not hold', (test
       flowId: 'shared-task', version: 1, entry: 'split',
       nodes: [
         { id: 'split', kind: 'fanout', branches: ['a', 'b'] },
-        { id: 'a', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'merge' }] },
-        { id: 'b', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'merge' }] },
-        { id: 'merge', kind: 'task', workerType: 'PublishWorker', edges: [{ to: 'j' }] },
+        { id: 'a', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'merge' }] },
+        { id: 'b', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'merge' }] },
+        { id: 'merge', kind: 'task', type: 'PublishWorker', edges: [{ to: 'j' }] },
         { id: 'j', kind: 'join', of: 'split', edges: [{ to: 'done' }] },
         { id: 'done', kind: 'end', outcome: 'completed' },
       ],
@@ -109,7 +110,7 @@ suite('FD-V3 — both clauses, not just the one the corpus holds', (test) => {
     // `{ "to": 5 }` fix closed, reached from the other end.
     const rules = violatedRules(validateDefinition({
       flowId: 'no-entry', version: 1, entry: 'nope',
-      nodes: [{ id: 'a', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'z' }] },
+      nodes: [{ id: 'a', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'z' }] },
         { id: 'z', kind: 'end', outcome: 'done' }],
     } as unknown as FlowDefinition, registry));
     ok(rules.includes('FD-V3'), `an unresolvable entry must be refused; got ${rules.join(', ') || 'nothing'}`);
@@ -126,9 +127,9 @@ suite('FD-V18 and FD-V21 — the sub-clauses the corpus case cannot separate', (
       ok(rules.includes(rule), `${what} must be ${rule}; got ${rules.join(', ') || 'nothing'}`);
     });
 
-  one('FD-V18', 'on: [] is empty', { id: 'a', kind: 'task', workerType: 'ScoreWorker', edges: [{ on: [], to: 'z' }] });
+  one('FD-V18', 'on: [] is empty', { id: 'a', kind: 'task', type: 'ScoreWorker', edges: [{ on: [], to: 'z' }] });
   one('FD-V18', 'on: ["done","done"] repeats', {
-    id: 'a', kind: 'task', workerType: 'ScoreWorker', edges: [{ on: ['done', 'done'], to: 'z' }] });
-  one('FD-V21', 'workerType is not a string', { id: 'a', kind: 'task', workerType: 5, edges: [{ to: 'z' }] });
-  one('FD-V21', 'edges is not an array', { id: 'a', kind: 'task', workerType: 'ScoreWorker', edges: 'oops' });
+    id: 'a', kind: 'task', type: 'ScoreWorker', edges: [{ on: ['done', 'done'], to: 'z' }] });
+  one('FD-V21', 'type is not a string', { id: 'a', kind: 'task', type: 5, edges: [{ to: 'z' }] });
+  one('FD-V21', 'edges is not an array', { id: 'a', kind: 'task', type: 'ScoreWorker', edges: 'oops' });
 });

@@ -240,6 +240,21 @@ for (const id of covered) {
       fail('C4', `spec/README.md quotes "C4 covered ${cited[1]}" and C4 counts ${n}`);
     }
   }
+  // **And the spec's OWN version paragraph** — W65's rule 8 set (`d1`): each version paragraph in
+  // `spec/flow-definition.md`'s header closes with *"this document now holds **N refusals**"*, and
+  // the LAST of those is the current claim; moving it to 35 with the rows at 34 cost zero across
+  // every check while this clause compared the README twice. The same shape, the same reading
+  // (the last occurrence, because the header is a version HISTORY), one file over.
+  const fdPath = join(SPEC, 'flow-definition.md');
+  const fdText = existsSync(fdPath) ? readFileSync(fdPath, 'utf8') : '';
+  if (fdText) {
+    const owns = [...fdText.matchAll(/\*\*(\d+) refusals\*\*/g)];
+    const own = owns.length ? owns[owns.length - 1] : null;
+    if (!own) fail('C4', 'spec/flow-definition.md states no "**N refusals**" count of its own');
+    else if (Number(own[1]) !== n) {
+      fail('C4', `spec/flow-definition.md's own version paragraph says **${own[1]} refusals** and C4 counts ${n}`);
+    }
+  }
 }
 
 const notExamplable = [...declared.keys()].filter(id => !id.startsWith('FD-V'));
@@ -263,8 +278,8 @@ for (const id of notExamplable.sort()) {
 }
 
 // --- C7: the valid corpus resolves against the declared registry --------------
-// The one SEMANTIC check L0 can honestly make. FD-V4 and FD-V5 are refusals about
-// a registry, so without one written down neither case can be evaluated and every
+// The one SEMANTIC check L0 can honestly make. FD-V4, FD-V32, FD-V35 and FD-V38 are refusals about
+// a registry, so without one written down none of their cases can be evaluated and every
 // other example's `when` name is unchecked. Full definition validation is W3's L4;
 // this is the slice that needs no graph logic.
 const REG = join(SPEC, 'examples', 'registry.json');
@@ -273,25 +288,30 @@ if (!existsSync(REG)) {
   fail('C7', 'spec/examples/registry.json does not exist');
 } else if (existsSync(VALID_DIR)) {
   const reg = parsed.get(REG) ?? {};
-  const preds = new Set(reg.predicates ?? []), wts = new Set(reg.workerTypes ?? []);
-  // `nodeTypes` since W59 (spec/flow-definition.md v0.17): a typed task names its pool by `type`,
-  // a name in registry.json's `nodeTypes`, and carries no `workerType` — so a task is checked
-  // against whichever set the key it has names. `groups` is deliberately not read here (W58):
-  // it needs `FD-V31`'s per-entry logic, which is ladder L4's.
-  const nts = new Set(reg.nodeTypes ?? []);
+  const preds = new Set(reg.predicates ?? []);
+  // **`registry.json` is a registry DOCUMENT since v0.19 (W65, ADR 0054)**: `nodeTypes` and `pools`
+  // are objects keyed by name, and every task node names a `type` — `workerType` is retired, so the
+  // clause that read it against `workerTypes` retired with it. A task's `type` must be a key of
+  // `nodeTypes`; a `pool`, when named and not the type's own name, must be a key of `pools` whose
+  // `type` is the node's (`FD-V38`). `groups` is deliberately not read here (W58): it needs
+  // `FD-V31`'s per-entry logic, which is ladder L4's; and what a type's WORKER or SCHEMA says is the
+  // registry resolver's, at L4 too.
+  const nts = new Set(Object.keys(reg.nodeTypes ?? {}));
+  const pools = reg.pools ?? {};
+  const poolOk = (n) => n.pool === undefined || n.pool === n.type || (pools[n.pool] !== undefined && pools[n.pool].type === n.type);
   // `languages` since W61 (v0.18): a typed task may declare `transform: { lang, expr }`, and `lang`
-  // names an entry in registry.json's `languages` — the fifth set, read as the others are. What
-  // the expression SAYS is `FD-V36`'s and needs the language's compiler, which is ladder L4's.
+  // names an entry in registry.json's `languages`. What the expression SAYS is `FD-V36`'s and needs
+  // the language's compiler, which is ladder L4's.
   const langs = new Set(reg.languages ?? []);
   for (const name of readdirSync(VALID_DIR)) {
     const doc = parsed.get(join(VALID_DIR, name));
     for (const n of doc?.nodes ?? []) {
-      if (n.kind === 'task' && n.type !== undefined && !nts.has(n.type))
-        fail('C7', `valid/${name}: type "${n.type}" is not in registry.json`);
+      if (n.kind === 'task' && !nts.has(n.type))
+        fail('C7', `valid/${name}: type ${JSON.stringify(n.type)} is not in registry.json`);
+      if (n.kind === 'task' && !poolOk(n))
+        fail('C7', `valid/${name}: pool ${JSON.stringify(n.pool)} is not an instance of type ${JSON.stringify(n.type)} in registry.json`);
       if (n.kind === 'task' && n.transform !== undefined && !langs.has(n.transform?.lang))
         fail('C7', `valid/${name}: transform.lang ${JSON.stringify(n.transform?.lang)} is not in registry.json`);
-      if (n.kind === 'task' && n.type === undefined && !wts.has(n.workerType))
-        fail('C7', `valid/${name}: workerType "${n.workerType}" is not in registry.json`);
       for (const e of n.edges ?? [])
         if (e.when !== undefined && !preds.has(e.when))
           fail('C7', `valid/${name}: predicate "${e.when}" is not in registry.json`);
@@ -305,15 +325,17 @@ if (!existsSync(REG)) {
       const names = (doc?.nodes ?? []).flatMap(n => (n.edges ?? []).map(e => e.when)).filter(Boolean);
       if (!names.some(w => !preds.has(w))) fail('C7', `invalid/${name} names no predicate absent from registry.json`);
     }
-    if (name.startsWith('FD-V5--')) {
-      const wt = (doc?.nodes ?? []).filter(n => n.kind === 'task').map(n => n.workerType);
-      if (!wt.some(w => !wts.has(w))) fail('C7', `invalid/${name} names no workerType absent from registry.json`);
-    }
     // W59: `FD-V32` is the refusal about the fourth set, and its case must name a type the
     // registry lacks — `FD-V5`'s clause one set over.
     if (name.startsWith('FD-V32--')) {
       const ty = (doc?.nodes ?? []).filter(n => n.kind === 'task' && n.type !== undefined).map(n => n.type);
       if (!ty.some(t => !nts.has(t))) fail('C7', `invalid/${name} names no node type absent from registry.json`);
+    }
+    // W65: `FD-V38` is the refusal about a POOL, and its case must name a pool that is absent from
+    // the registry's `pools` or an instance of another type than the node's.
+    if (name.startsWith('FD-V38--')) {
+      const tasks = (doc?.nodes ?? []).filter(n => n.kind === 'task');
+      if (!tasks.some(n => n.pool !== undefined && !poolOk(n))) fail('C7', `invalid/${name} names no pool that is absent from registry.json or of another type than the node's`);
     }
     // W61: `FD-V35` is the refusal about the fifth set, and its case must name a language the
     // registry lacks — `FD-V32`'s clause one set over.

@@ -3,14 +3,14 @@
   "version": 1,
   "entry": "ingest",
   "nodes": [
-    { "id": "ingest",   "kind": "task", "workerType": "SplitWorker",
+    { "id": "ingest",   "kind": "task", "type": "SplitWorker",
       "edges": [ { "when": "isLowConfidence", "to": "split" }, { "to": "rank" } ] },
     { "id": "split",    "kind": "map",  "over": "items",              "branch": "score" },
-    { "id": "score",    "kind": "task", "workerType": "ScoreWorker",  "edges": [ { "to": "collect" } ] },
+    { "id": "score",    "kind": "task", "type": "ScoreWorker",  "edges": [ { "to": "collect" } ] },
     { "id": "collect",  "kind": "join", "of": "split",                "edges": [ { "to": "rank" } ] },
     { "id": "rank",     "kind": "map",  "over": "scores",             "branch": "publish",
       "needs": { "scores": [ "score?" ] } },
-    { "id": "publish",  "kind": "task", "workerType": "PublishWorker", "edges": [ { "to": "gather" } ] },
+    { "id": "publish",  "kind": "task", "type": "PublishWorker", "edges": [ { "to": "gather" } ] },
     { "id": "gather",   "kind": "join", "of": "rank",                 "edges": [ { "to": "done" } ] },
     { "id": "done",     "kind": "end",  "outcome": "completed" }
   ]

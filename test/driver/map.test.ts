@@ -33,7 +33,9 @@ import type { FlowDefinition } from '../../src/definition/types.ts';
 
 const EX = `${ROOT}spec/examples`;
 const load = async (rel: string) => JSON.parse(await readText(`${EX}/${rel}`)) as FlowDefinition;
-const reg = JSON.parse(await readText(`${EX}/registry.json`)) as { workerTypes: string[] };
+/** What the node RECEIVED — the envelope's `input` (every task node is typed since v0.19, ADR 0054); `settings` is `{}` on a node that declares none. */
+const inputOf = (t: unknown): unknown => (t as { payload?: { input?: unknown } } | undefined)?.payload?.input;
+const reg = JSON.parse(await readText(`${EX}/registry.json`)) as { workers: Record<string, { url: string }>; nodeTypes: Record<string, { worker: string }>; groups: Record<string, unknown>; pools: Record<string, { type: string }>; predicates: string[]; languages: string[] };
 
 /** The whole scheduler, for level 2. It queues nothing and runs nothing. */
 class FakeScheduler {
@@ -68,7 +70,7 @@ function harness(def: FlowDefinition, policy: JoinPolicy = liveToken as JoinPoli
     scheduler,
     createTask: (c) => c,
     predicates: new Map(),
-    workerTypes: reg.workerTypes,
+    workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools,
     joinPolicy: policy,
     onRegionEvent: (e) => events.push(e),
     onUnsatisfiableJoin: (i) => unsatisfiable.push(i),
@@ -246,10 +248,10 @@ suite('L2 — a map dispatches one task per item, at an arity no document carrie
     const scored = h.scheduler.added.filter((t) => t.id.startsWith('r1:score:'));
     equal(scored.length, 3, 'three instances, one per item — the arity is unchanged by JP-R11');
     for (const [i, t] of scored.entries()) {
-      equal(t.payload, (THREE as { items: unknown[] }).items[i],
+      equal(inputOf(t), (THREE as { items: unknown[] }).items[i],
         `instance ${i} receives over[${i}] — its OWN item. What makes \`over\` mean something: ` +
         'handed the whole value, an instance can only find its item by an index nothing gives it');
-      ok(!deepEqual(t.payload, THREE),
+      ok(!deepEqual(inputOf(t), THREE),
         `instance ${i} does NOT receive the value the map node received. Asserting only the ` +
         'first half would pass a driver handing every instance the whole value if that value ' +
         'happened to equal its first item');
@@ -282,7 +284,7 @@ suite('L2 — a map dispatches one task per item, at an arity no document carrie
       for (let i = 0; i < scored.length; i++) {
         for (let j = i + 1; j < scored.length; j++) {
           pairs++;
-          ok(scored[i]!.payload !== scored[j]!.payload,
+          ok(inputOf(scored[i]!) !== inputOf(scored[j]!),
             `${label}: instances ${i} and ${j} hold the SAME object. JP-R11's invariant is that ` +
             'no two nodes ever receive the same object, and a shared one means either mutates ' +
             "the other's input");
@@ -303,7 +305,7 @@ suite('L2 — a map dispatches one task per item, at an arity no document carrie
   test('JP-R11 — a `fanout` branch gets its own copy of the same value', async () => {
     // The other half of `JP-R11`, and the half that is NOT a map: a `fanout` has
     // nothing to give a branch but the value it received, so what changes is only
-    // that each gets its own. **Measured before the rule: `a.payload === b.payload`
+    // that each gets its own. **Measured before the rule: `inputOf(a) === inputOf(b)`
     // was `true`**, and the payload IS cloned once at the edge hop — so the log was
     // protected and the siblings were not.
     const h = harness(await load('valid/fanout-join.flow.json'));
@@ -313,18 +315,18 @@ suite('L2 — a map dispatches one task per item, at an arity no document carrie
     const a = h.scheduler.added.find((t) => t.id === 'r1:scoreA:0:0')!;
     const b = h.scheduler.added.find((t) => t.id === 'r1:scoreB:1:0')!;
     ok(a !== undefined && b !== undefined, 'both branches dispatched');
-    equal(a.payload, RESULT, 'a fanout branch receives the value the fanout node received — ' +
+    equal(inputOf(a), RESULT, 'a fanout branch receives the value the fanout node received — ' +
       'UNCHANGED, which is the half JP-R11 does not move');
-    equal(b.payload, RESULT, 'and so does the other one');
-    ok(a.payload !== b.payload,
+    equal(inputOf(b), RESULT, 'and so does the other one');
+    ok(inputOf(a) !== inputOf(b),
       'and they are NOT the same object. Before JP-R11 this was `true` and a branch mutating ' +
       'what it was given mutated its sibling`s input (Q154)');
 
     // **The consequence asserted directly, because identity alone is a proxy for
     // it.** A reader can talk themselves into `===` being fine; a sibling seeing
     // the other's write is what Q154's row is actually about.
-    (a.payload as { items: string[] }).items.push('MUTATED-BY-A');
-    equal((b.payload as { items: string[] }).items, ['p', 'q'],
+    (inputOf(a) as { items: string[] }).items.push('MUTATED-BY-A');
+    equal((inputOf(b) as { items: string[] }).items, ['p', 'q'],
       'branch B`s input is untouched by branch A mutating its own');
     equal(RESULT.items, ['p', 'q'],
       'and so is the settled result object, which the edge-hop clone already protected — so ' +
@@ -364,7 +366,7 @@ suite('L2 — a map dispatches one task per item, at an arity no document carrie
     for (let i = 0; i < branches.length; i++) {
       for (let j = i + 1; j < branches.length; j++) {
         pairs++;
-        ok(branches[i]!.payload !== branches[j]!.payload,
+        ok(inputOf(branches[i]!) !== inputOf(branches[j]!),
           `branches ${i} and ${j} hold the SAME object. JP-R11's invariant is that no two nodes ` +
           'ever receive the same object, and a copy for the FIRST branch only satisfies a ' +
           'two-branch fixture while leaving every other pair sharing');
@@ -392,8 +394,8 @@ suite('L2 — a map dispatches one task per item, at an arity no document carrie
     h.scheduler.settle('r1:ingest:-:0', 'done', { result: { items: [ITEM] } });
     const scored = h.scheduler.added.filter((t) => t.id.startsWith('r1:score:'));
     equal(scored.length, 1, 'one item, one instance');
-    equal(scored[0]!.payload, ITEM, 'the instance receives `over[0]` — its own item');
-    ok(!deepEqual(scored[0]!.payload, { items: [ITEM] }),
+    equal(inputOf(scored[0]!), ITEM, 'the instance receives `over[0]` — its own item');
+    ok(!deepEqual(inputOf(scored[0]!), { items: [ITEM] }),
       'and NOT the value the map node received, which at N = 1 differs by one array wrapper');
   });
 
@@ -411,13 +413,13 @@ suite('L2 — a map dispatches one task per item, at an arity no document carrie
     for (let i = 0; i < 7; i++) {
       for (let j = i + 1; j < 7; j++) {
         pairs++;
-        ok(scored[i]!.payload !== scored[j]!.payload, `instances ${i} and ${j} do not share`);
+        ok(inputOf(scored[i]!) !== inputOf(scored[j]!), `instances ${i} and ${j} do not share`);
       }
     }
     equal(pairs, 21, 'twenty-one pairs — n(n-1)/2 at N = 7, and the number that were ALIASED ' +
       'before JP-R11. Counted from what the loop did');
     for (const [i, t] of scored.entries()) {
-      equal(t.payload, { n: i }, `instance ${i} receives over[${i}]`);
+      equal(inputOf(t), { n: i }, `instance ${i} receives over[${i}]`);
     }
   });
 
@@ -450,7 +452,7 @@ suite('L2 — a map dispatches one task per item, at an arity no document carrie
     h.scheduler.settle('r1:score:2:0', 'done', { result: { at: 2 } });
     const publish = h.scheduler.added.find((t) => t.id === 'r1:publish:-:0');
     ok(publish !== undefined, 'the join fired');
-    const payload = publish!.payload as Record<string, unknown>;
+    const payload = inputOf(publish!) as Record<string, unknown>;
     equal(Object.keys(payload), ['0', '1', '2'],
       'ALL THREE branches arrived, so all three have keys — including the two that carried ' +
       'nothing. A collector that skipped falsy values, or built the object with a ' +
@@ -494,13 +496,13 @@ suite('L2 — JP-R12: a map`s join carries its N results, and that is P10`s poin
 
     const publish = h.scheduler.added.find((t) => t.id === 'r1:publish:-:0');
     ok(publish !== undefined, 'the join fired and dispatched its successor');
-    equal(publish!.payload, {
+    equal(inputOf(publish!), {
       '0': { scored: 'a', at: 0 },
       '1': { scored: 'b', at: 1 },
       '2': { scored: 'c', at: 2 },
     }, 'JP-R12 — every item`s result reaches the join`s successor, keyed by the item index. ' +
        'This was `null` until ADR 0037, so a map`s whole deliverable was discarded');
-    equal(Object.keys(publish!.payload as object), ['0', '1', '2'],
+    equal(Object.keys(inputOf(publish!) as object), ['0', '1', '2'],
       'and the keys are the three item indices in ascending order');
   });
 
@@ -533,8 +535,8 @@ suite('L2 — JP-R12: a map`s join carries its N results, and that is P10`s poin
       }
       const publish = h.scheduler.added.find((t) => t.id === 'r1:publish:-:0');
       ok(publish !== undefined, `settlement order ${order.join('')}: the join fired`);
-      keyOrders.push(Object.keys(publish!.payload as object).join(','));
-      collections.push(JSON.stringify(publish!.payload));
+      keyOrders.push(Object.keys(inputOf(publish!) as object).join(','));
+      collections.push(JSON.stringify(inputOf(publish!)));
     }
     equal(keyOrders.length, 6, 'all six permutations ran — counted from what the loop DID, not from ' +
       'the list it was given (rule 8 (d), and W33`s adequacy reader`s finding)');
@@ -564,7 +566,7 @@ suite('L2 — JP-R12: a map`s join carries its N results, and that is P10`s poin
     h.scheduler.settle('r1:score:1:0', 'failed');
     const publish = h.scheduler.added.find((t) => t.id === 'r1:publish:-:0');
     ok(publish !== undefined, 'live-token fires: the region has no live branches, having had two');
-    equal(publish!.payload, { '0': { at: 0 } },
+    equal(inputOf(publish!), { '0': { at: 0 } },
       'item 1 never arrived, so it has NO key. `1: null` would say it arrived carrying nothing, ' +
       'and a consumer counting keys would count a result that does not exist');
 
@@ -634,7 +636,7 @@ suite('L2 — JP-R12: the KEY ORDER, on the only shape that can discriminate it'
     const publish = h.scheduler.added.find((t) => t.id === 'r1:publish:-:0');
     ok(publish !== undefined, 'the outer join fired, which it can only do once branch 1 arrived — ' +
       'and branch 1 arrives when the INNER join routes out of itself');
-    const outer = publish!.payload as Record<string, unknown>;
+    const outer = inputOf(publish!) as Record<string, unknown>;
     const inner = outer['1'] as Record<string, unknown>;
     ok(inner !== undefined && typeof inner === 'object',
       'branch 1 of `outer` carries the inner region`s collection');
@@ -747,13 +749,13 @@ suite('L2 — arrival-count at a run-time arity does not fire EARLY', (test) => 
     const def = {
       flowId: 'map-routed-away', version: 1, entry: 'ingest',
       nodes: [
-        { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'split' }] },
+        { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'split' }] },
         { id: 'split', kind: 'map', over: 'items', branch: 'score' },
-        { id: 'score', kind: 'task', workerType: 'ScoreWorker', optional: true,
+        { id: 'score', kind: 'task', type: 'ScoreWorker', optional: true,
           edges: [{ on: ['failed'], to: 'abandoned' }, { to: 'collect' }] },
         { id: 'abandoned', kind: 'end', outcome: 'abandoned' },
         { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'publish' }] },
-        { id: 'publish', kind: 'task', workerType: 'PublishWorker', edges: [{ to: 'done' }] },
+        { id: 'publish', kind: 'task', type: 'PublishWorker', edges: [{ to: 'done' }] },
         { id: 'done', kind: 'end', outcome: 'completed' },
       ],
     } as unknown as FlowDefinition;
@@ -964,7 +966,7 @@ suite('L2 — `over` must name an array, and that is a RUN-TIME refusal', (test)
       flowId: 'map-at-entry', version: 1, entry: 'split',
       nodes: [
         { id: 'split', kind: 'map', over: 'items', branch: 'score' },
-        { id: 'score', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'collect' }] },
+        { id: 'score', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'collect' }] },
         { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'done' }] },
         { id: 'done', kind: 'end', outcome: 'completed' },
       ],
@@ -1059,11 +1061,11 @@ suite('L2 — `over` must name an array, and that is a RUN-TIME refusal', (test)
     const def = {
       flowId: 'resolve-into-map', version: 1, entry: 'ingest',
       nodes: [
-        { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'split' }] },
+        { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'split' }] },
         { id: 'split', kind: 'map', over: 'items', branch: 'score' },
-        { id: 'score', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'collect' }] },
+        { id: 'score', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'collect' }] },
         { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'publish' }] },
-        { id: 'publish', kind: 'task', workerType: 'PublishWorker', edges: [{ to: 'done' }] },
+        { id: 'publish', kind: 'task', type: 'PublishWorker', edges: [{ to: 'done' }] },
         { id: 'done', kind: 'end', outcome: 'completed' },
       ],
     } as unknown as FlowDefinition;
@@ -1100,7 +1102,7 @@ suite('L2 — `over` must name an array, and that is a RUN-TIME refusal', (test)
       flowId: 'map-at-entry', version: 1, entry: 'split',
       nodes: [
         { id: 'split', kind: 'map', over: 'items', branch: 'score' },
-        { id: 'score', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'collect' }] },
+        { id: 'score', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'collect' }] },
         { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'done' }] },
         { id: 'done', kind: 'end', outcome: 'completed' },
       ],
@@ -1129,15 +1131,15 @@ suite('L2 — a region opener INSIDE a map region is refused at construction', (
   const nestedInMap = {
     flowId: 'fanout-in-map', version: 1, entry: 'ingest',
     nodes: [
-      { id: 'ingest', kind: 'task', workerType: 'IngestWorker', edges: [{ to: 'split' }] },
+      { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'split' }] },
       { id: 'split', kind: 'map', over: 'items', branch: 'lead' },
-      { id: 'lead', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'f2' }] },
+      { id: 'lead', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'f2' }] },
       { id: 'f2', kind: 'fanout', branches: ['p', 'q'] },
-      { id: 'p', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'j2' }] },
-      { id: 'q', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'j2' }] },
+      { id: 'p', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'j2' }] },
+      { id: 'q', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'j2' }] },
       { id: 'j2', kind: 'join', of: 'f2', edges: [{ to: 'collect' }] },
       { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'publish' }] },
-      { id: 'publish', kind: 'task', workerType: 'PublishWorker', edges: [{ to: 'done' }] },
+      { id: 'publish', kind: 'task', type: 'PublishWorker', edges: [{ to: 'done' }] },
       { id: 'done', kind: 'end', outcome: 'completed' },
     ],
   } as unknown as FlowDefinition;
@@ -1145,7 +1147,7 @@ suite('L2 — a region opener INSIDE a map region is refused at construction', (
   test('the VALIDATOR accepts it, which is why the driver has to refuse it', () => {
     // Stated first because it is the whole reason this is a driver refusal: the
     // definition is well-formed by every rule `spec/flow-definition.md` declares.
-    const registry = { predicates: [], workerTypes: reg.workerTypes };
+    const registry = { predicates: [], workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools };
     equal(validateDefinition(nestedInMap, registry), [],
       'zero findings — a map`s branch may be a task with edges, and FD-V25 says nothing ' +
       'about what those edges reach');

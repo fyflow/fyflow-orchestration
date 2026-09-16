@@ -194,6 +194,17 @@ const PROBES = [
     mutate: (t) => t.replace('the `?` suffix costs nothing (**617.4 ms**)',
       'the `?` suffix costs nothing (**617.4 ms**, and once **99.9 ms**)'),
   },
+  // --- X7: AGENTS.md's refusal count against spec/flow-definition.md section 5's rows — W65 (`d4`) ---
+  {
+    name: 'AGENTS.md`s refusal count moved to 35 while section 5 declares 34',
+    check: 'X7',
+    mutate: (t) => t.replace('There are **34 refusals** over the id range `FD-V1` … `FD-V38`', 'There are **35 refusals** over the id range `FD-V1` … `FD-V38`'),
+  },
+  {
+    name: 'AGENTS.md`s id range ends at FD-V37 while section 5`s highest row is FD-V38 — the range clause alone',
+    check: 'X7',
+    mutate: (t) => t.replace('There are **34 refusals** over the id range `FD-V1` … `FD-V38`', 'There are **34 refusals** over the id range `FD-V1` … `FD-V37`'),
+  },
   {
     name: 'AGENTS.md`s cost paragraph moved, so X6 cannot find its own subject',
     check: 'X6',
@@ -374,6 +385,11 @@ const META = [
   ['X6`s `AGENTS quotes what the spec does not` direction disabled',
     'AGENTS.md quotes an EXTRA figure the spec does not have — the `missing` direction alone',
     (t) => t.replace('      if (missing.length) {', '      if (false) {')],
+  // W65 (`d4`): X7's two clauses, one probe each.
+  ['X7`s count clause disabled', 'AGENTS.md`s refusal count moved to 35 while section 5 declares 34',
+    (t) => t.replace('      if (Number(said[1]) !== live) fail', '      if (false) fail')],
+  ['X7`s range-end clause disabled', 'AGENTS.md`s id range ends at FD-V37 while section 5`s highest row is FD-V38 — the range clause alone',
+    (t) => t.replace('      if (Number(said[2]) !== top) fail', '      if (false) fail')],
   ['X6`s `the spec states what AGENTS does not quote` direction disabled — the other way',
     'a cost figure spec/flow-definition.md states that AGENTS.md drops — the OTHER direction',
     (t) => t.replace('      if (extra.length) {', '      if (false) {')],

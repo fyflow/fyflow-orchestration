@@ -3,13 +3,13 @@
   "version": 1,
   "entry": "ingest",
   "nodes": [
-    { "id": "ingest",  "kind": "task", "workerType": "SplitWorker",   "edges": [ { "to": "split" } ] },
+    { "id": "ingest",  "kind": "task", "type": "SplitWorker",   "edges": [ { "to": "split" } ] },
     { "id": "split",   "kind": "map",  "over": "items",               "branch": "flaky" },
-    { "id": "flaky",   "kind": "task", "workerType": "RetryWorker",
+    { "id": "flaky",   "kind": "task", "type": "RetryWorker",
       "retryPolicy": { "maxRetries": 1, "backoffMs": 0 },
       "edges": [ { "to": "collect" } ] },
     { "id": "collect", "kind": "join", "of": "split",                 "edges": [ { "to": "publish" } ] },
-    { "id": "publish", "kind": "task", "workerType": "PublishWorker", "edges": [ { "to": "done" } ] },
+    { "id": "publish", "kind": "task", "type": "PublishWorker", "edges": [ { "to": "done" } ] },
     { "id": "done",    "kind": "end",  "outcome": "completed" }
   ]
 }

@@ -3,13 +3,13 @@
   "version": 1,
   "entry": "extract",
   "nodes": [
-    { "id": "extract", "kind": "task", "workerType": "ExtractWorker", "optional": true, "edges": [
+    { "id": "extract", "kind": "task", "type": "ExtractWorker", "optional": true, "edges": [
         { "on": [ "failed" ], "to": "quarantine" },
         { "when": "isLowConfidence", "to": "review" },
         { "to": "publish" }
     ] },
-    { "id": "review",     "kind": "task", "workerType": "ReviewWorker",  "edges": [ { "to": "reviewed" } ] },
-    { "id": "publish",    "kind": "task", "workerType": "PublishWorker", "edges": [ { "to": "done" } ] },
+    { "id": "review",     "kind": "task", "type": "ReviewWorker",  "edges": [ { "to": "reviewed" } ] },
+    { "id": "publish",    "kind": "task", "type": "PublishWorker", "edges": [ { "to": "done" } ] },
     { "id": "quarantine", "kind": "end",  "outcome": "quarantined" },
     { "id": "reviewed",   "kind": "end",  "outcome": "needs-review" },
     { "id": "done",       "kind": "end",  "outcome": "completed" }

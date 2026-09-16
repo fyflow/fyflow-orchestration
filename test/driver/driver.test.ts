@@ -22,7 +22,7 @@ import { fold } from '../../src/fold/run-state.ts';
 
 const EX = `${ROOT}spec/examples`;
 const load = async (rel: string) => JSON.parse(await readText(`${EX}/${rel}`)) as FlowDefinition;
-const reg = JSON.parse(await readText(`${EX}/registry.json`)) as { workerTypes: string[] };
+const reg = JSON.parse(await readText(`${EX}/registry.json`)) as { workers: Record<string, { url: string }>; nodeTypes: Record<string, { worker: string }>; groups: Record<string, unknown>; pools: Record<string, { type: string }>; predicates: string[]; languages: string[] };
 
 /** The whole scheduler, for level 2. It queues nothing and runs nothing. */
 class FakeScheduler {
@@ -78,7 +78,7 @@ function harness(
     scheduler,
     createTask: (c) => c,
     predicates: new Map(Object.entries(predicates)),
-    workerTypes: reg.workerTypes,
+    workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools,
     now: () => ++clock,
     onRegionEvent: (e) => events.push(e),
     joinPolicy: (over.joinPolicy ?? stubPolicy) as unknown as JoinPolicy,
@@ -97,7 +97,8 @@ suite('L2 — sequence routes from a fixture log, with no scheduler', (test) => 
     equal(h.ids(), ['r1:ingest:-:0'], 'start dispatches the entry node and nothing else');
     h.scheduler.settle('r1:ingest:-:0', 'done', { result: { a: 1 } });
     equal(h.ids(), ['r1:ingest:-:0', 'r1:publish:-:0'], 'the settlement routes to the next node');
-    equal(h.scheduler.added[1]!.payload, { a: 1 }, "the next node receives the previous node's output");
+    // Inside the envelope every task node carries since v0.19 (ADR 0054): the ordinary edge's value is `input`.
+    equal(h.scheduler.added[1]!.payload, { settings: {}, input: { a: 1 } }, "the next node receives the previous node's output, as the envelope's input");
     h.scheduler.settle('r1:publish:-:0', 'done', { result: null });
     equal(h.ids().length, 2, 'an `end` node dispatches nothing');
   });
@@ -139,7 +140,7 @@ suite('FD-R1 — eligible edges exist and none matches: the run fails loudly', (
     // is the rule working, so the assertion is made against the pure routing
     // function directly rather than by contorting a driver into an invalid state.
     const node = {
-      id: 'score', kind: 'task' as const, workerType: 'ScoreWorker',
+      id: 'score', kind: 'task' as const, type: 'ScoreWorker',
       edges: [{ when: 'isLowConfidence', to: 'review' }, { when: 'isHighConfidence', to: 'publish' }],
     };
     // **A context PER EDGE since W42** — `FD-C3`. `selectEdge` takes a builder, not
@@ -166,7 +167,7 @@ suite('FD-R1 — eligible edges exist and none matches: the run fails loudly', (
     // The two are different things and only the second is an error
     // (spec/flow-definition.md section 3).
     const node = {
-      id: 'score', kind: 'task' as const, workerType: 'ScoreWorker',
+      id: 'score', kind: 'task' as const, type: 'ScoreWorker',
       edges: [{ to: 'publish' }], // opts into "done" only, by default
     };
     const r = selectEdge(node, 'r1', 'failed', () => ({ outcome: {} as never, needs: {} }), new Map());
@@ -205,7 +206,7 @@ suite('ID-R1 — a duplicate dispatch is refused before addTask sees it', (test)
       scheduler,
       createTask: (c) => c,
       predicates: new Map(),
-      workerTypes: reg.workerTypes,
+      workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools,
       now: () => 1,
       onRunFailure: (f) => failures.push({ kind: f.kind, message: f.message }),
     });
@@ -528,7 +529,7 @@ suite('the join seam — the driver asks a policy and acts on the answer', (test
       () => new Driver(def, {
         runId: 'r1',
         scheduler: new FakeScheduler(), createTask: (c) => c,
-        predicates: new Map(), workerTypes: reg.workerTypes,
+        predicates: new Map(), workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools,
       }),
       'MissingJoinPolicy',
       'a driver with a fan-out and no policy produces a run that stops with no error — a SECOND ' +
@@ -542,7 +543,7 @@ suite('the join seam — the driver asks a policy and acts on the answer', (test
     const d = new Driver(def, {
       runId: 'r1',
       scheduler: new FakeScheduler(), createTask: (c) => c,
-      predicates: new Map(), workerTypes: reg.workerTypes,
+      predicates: new Map(), workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools,
     });
     ok(d instanceof Driver, 'the refusal is scoped to definitions that actually have a region');
   });
@@ -631,8 +632,8 @@ suite('ID-R2 — the charset is enforced at run creation, not just in the helper
       flowId: 'fanout-entry', version: 1, entry: 'split',
       nodes: [
         { id: 'split', kind: 'fanout', branches: ['scoreA', 'scoreB'] },
-        { id: 'scoreA', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'collect' }] },
-        { id: 'scoreB', kind: 'task', workerType: 'ScoreWorker', edges: [{ to: 'collect' }] },
+        { id: 'scoreA', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'collect' }] },
+        { id: 'scoreB', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'collect' }] },
         { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'done' }] },
         { id: 'done', kind: 'end', outcome: 'completed' },
       ],
@@ -657,7 +658,7 @@ suite('ID-R2 — the charset is enforced at run creation, not just in the helper
           scheduler: counting,
           createTask: (c) => c,
           predicates: new Map(),
-          workerTypes: reg.workerTypes,
+          workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools,
           joinPolicy: stubPolicy as unknown as JoinPolicy,
           onRegionEvent: (e) => events.push(e),
         }),
@@ -807,7 +808,7 @@ suite('every executable node kind has an arm — the default is not a narrowing'
       scheduler,
       createTask: (c) => c,
       predicates: new Map(),
-      workerTypes: reg.workerTypes,
+      workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools,
       joinPolicy: stubPolicy as unknown as JoinPolicy,
       onRunFailure: (f) => failures.push({ kind: f.kind, message: f.message }),
     });

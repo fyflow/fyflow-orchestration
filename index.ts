@@ -1,6 +1,10 @@
 export * from "./src/definition/types.ts";
 export * from "./src/definition/regions.ts";
 export * from "./src/definition/validate.ts";
+// W65 (ADR 0053, ADR 0054): the built-in schema subset and the registry-document resolver — pure
+// functions over data, no engine, no scheduler value; the runtime sub-path (W66) builds FROM them.
+export * from "./src/definition/schema.ts";
+export * from "./src/definition/registry.ts";
 export * from "./src/driver/ids.ts";
 export * from "./src/driver/log.ts";
 export * from "./src/driver/listener.ts";
