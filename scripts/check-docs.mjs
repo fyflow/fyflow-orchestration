@@ -462,72 +462,132 @@ const RUN_FLOOR = 26;
   }
 }
 
-// X8 — every ```ts fence in README.md IS an executed AGENTS.md `run` snippet, byte for byte
+// X8 — every ```ts fence in README.md IS the EXECUTED AGENTS.md snippet its section NAMES
 //
 // **Copies of EXECUTED programs, held equal** — W69 for one snippet, W70 for every one, on X6's
 // shape. `AGENTS.md`'s `run` snippets are extracted and executed by this check (X3, X4); `README.md`
 // is what a consumer reads on the registry page (`package.json` ships it) and NOTHING executes it —
-// P3's *rot is what the gate prevents*. So each README fence is compared to the AGENTS.md `run`
-// bodies BYTE FOR BYTE, and a fence that matches none is a failure naming the first line at which it
-// differs from the nearest.
+// P3's *rot is what the gate prevents*. So each README fence is compared BYTE FOR BYTE to a snippet
+// this check RAN, and a fence that differs is a failure naming the first line at which it differs.
 //
-// **The README's fences are located by a DECLARED heading list, both ways**: a listed heading with
-// no ```ts fence under it is a failure, and a ```ts fence under a heading NOT listed is a failure —
-// so a README snippet cannot appear that X8 does not hold, and one cannot vanish with its heading.
-// That list is a literal, which is [Q217](../doc/open-questions.md)'s shape (a member and its name
-// are two edits in one diff) and is declared rather than hidden: it is what lets *the heading is
-// gone* be a finding instead of a fence silently dropping out of the comparison. The README is read
-// through `CHECK_DOCS_README`, as AGENTS.md is through `CHECK_DOCS_DOC`, for the reason X6's own
-// header records.
-const README_SNIPPET_HEADINGS = ['Getting started', 'A flow that decides'];
+// **The pairing is DECLARED, and it is a PAIRING rather than a MEMBERSHIP** — W69's and W70's
+// adequacy readers independently, and W70's conformity reader from the other end. Until they read
+// it the comparison was `agBodies.includes(body)`, equality against ANY executed snippet: README's
+// two sections could carry the SAME program, or each other's, and this check printed `ok` beside a
+// sentence naming one. Each entry names the README heading AND the AGENTS.md heading whose snippet
+// it copies, and the AGENTS side must carry EXACTLY ONE `run` fence under that heading — a pairing
+// that picks silently once a second fence appears is the same defect one layer along.
+//
+// **Both ways, and EVERY fence.** A listed heading with no fence, a listed heading with MORE THAN
+// ONE, a fence under a heading the list does not name, and a fence ABOVE the first heading are each
+// a failure. The last is there because sections are cut AT headings, so the README's opening — the
+// first thing a registry-page visitor reads — sat in no section and was held by nothing. A NEAR
+// spelling is a failure too, for `X1`'s reason one document across: ```typescript would otherwise
+// skip in silence, and `X1`'s own pass reads `DOCS` and never the README.
+//
+// `README_SNIPPET_FLOOR` is [Q102](../doc/open-questions.md)'s shape, declared as `RUN_FLOOR` is.
+// The list is a literal — [Q217](../doc/open-questions.md) — so a README section and its entry here
+// are two edits in ONE diff, and W69's adequacy reader measured exactly that diff green at
+// `check:docs` AND `check:markdown`. The floor is what makes the third edit visible. The README is
+// read through `CHECK_DOCS_README`, as AGENTS.md is through `CHECK_DOCS_DOC`, for the reason X6's
+// own header records.
+const README_SNIPPETS = [
+  { readme: 'Getting started', agents: '2. Getting started — a flow and its runtime from two documents' },
+  { readme: 'A flow that decides', agents: 'The same on the RUNTIME — a decision, a fan-out and a join on real workers' },
+];
+const README_SNIPPET_FLOOR = 2;
+/** The README's text above its first `## ` heading, which is a section for X8's purposes. */
+const README_OPENING = '(the opening, above the first ## heading)';
 {
   let rmText = null;
   try { rmText = readFileSync(join(ROOT, README), 'utf8'); } catch { /* reported below */ }
+  // The floor first, because it is a claim about this list and holds whether or not the README reads.
+  if (README_SNIPPETS.length < README_SNIPPET_FLOOR) {
+    fail('X8', `X8 pairs ${README_SNIPPETS.length} README snippet(s) and README_SNIPPET_FLOOR is ${README_SNIPPET_FLOOR} — ` +
+      'a README section and its entry in README_SNIPPETS are two edits in one diff, and this floor is the third');
+  }
   if (rmText === null) {
     fail('X8', `${README} cannot be read, so its snippets have nothing to be compared to`);
   } else {
     const agText = readFileSync(join(ROOT, DOCS[0]), 'utf8');
-    const agBodies = [...agText.matchAll(/^```ts run\n([\s\S]*?)^```$/gm)].map((m) => m[1]);
-    // README sections: each `## ` heading and the text up to the next one.
+    // **AGENTS.md's `run` bodies, each under the heading NEAREST ABOVE IT** — at any level, because
+    // the snippet a README section names may sit under a `###` inside a numbered section, and that
+    // heading is what a human writing the pair above would name.
+    const agLines = agText.split('\n');
+    const agUnder = new Map();
+    let agHead = '(above the first heading)';
+    for (let i = 0; i < agLines.length; i++) {
+      const h = /^#{1,6} (.+)$/.exec(agLines[i]);
+      if (h) { agHead = h[1].trim(); continue; }
+      if (agLines[i] === '```ts run') {
+        let j = i + 1;
+        while (j < agLines.length && agLines[j] !== '```') j++;
+        if (!agUnder.has(agHead)) agUnder.set(agHead, []);
+        agUnder.get(agHead).push(agLines.slice(i + 1, j).join('\n') + '\n');
+        i = j;
+      }
+    }
+    const agCount = [...agUnder.values()].reduce((n, xs) => n + xs.length, 0);
+    // README sections: the opening, then each `## ` heading and the text up to the next one.
     const heads = [...rmText.matchAll(/^## (.+)$/gm)];
-    const sections = heads.map((h, i) => ({
+    const sections = [{ title: README_OPENING, text: rmText.slice(0, heads.length ? heads[0].index : rmText.length) }];
+    heads.forEach((h, i) => sections.push({
       title: h[1].trim(),
       text: rmText.slice(h.index, i + 1 < heads.length ? heads[i + 1].index : rmText.length),
     }));
-    const fenceIn = (text) => { const m = text.match(/^```ts\n([\s\S]*?)^```$/m); return m ? m[1] : null; };
-    const nearestDiff = (body) => {
-      let best = { line: 0, mine: '', theirs: '' };
-      for (const ag of agBodies) {
-        const a = body.split('\n'), b = ag.split('\n');
-        let i = 0;
-        while (i < a.length && i < b.length && a[i] === b[i]) i++;
-        if (i >= best.line) best = { line: i, mine: a[i] ?? '<end>', theirs: b[i] ?? '<end>' };
-      }
-      return best;
+    // EVERY fence, not the first: a second one under a listed heading was held by nothing.
+    const fencesIn = (text) => [...text.matchAll(/^```ts\n([\s\S]*?)^```$/gm)].map((m) => m[1]);
+    const firstDiff = (mine, theirs) => {
+      const a = mine.split('\n'), b = theirs.split('\n');
+      let i = 0;
+      while (i < a.length && i < b.length && a[i] === b[i]) i++;
+      return { line: i, mine: a[i] ?? '<end>', theirs: b[i] ?? '<end>' };
     };
+    const listed = new Set(README_SNIPPETS.map((p) => p.readme));
     let compared = 0;
-    // (i) every listed heading carries a fence, and the fence is an executed AGENTS.md snippet.
-    for (const title of README_SNIPPET_HEADINGS) {
-      const s = sections.find((x) => x.title === title);
-      if (!s) { fail('X8', `${README} has no "## ${title}" heading (X8's README_SNIPPET_HEADINGS names it)`); continue; }
-      const body = fenceIn(s.text);
-      if (body === null) { fail('X8', `${README} has no \`\`\`ts fence under its "## ${title}" heading`); continue; }
-      if (!agBodies.includes(body)) {
-        const d = nearestDiff(body);
-        fail('X8', `the snippet under "## ${title}" in ${README} is not, byte for byte, any \`\`\`ts run snippet in ${DOCS[0]} — ` +
-          `it first differs from the nearest at snippet line ${d.line + 1}: ${JSON.stringify(d.mine.slice(0, 70))} against ${JSON.stringify(d.theirs.slice(0, 70))}`);
+    // (i) every listed heading carries EXACTLY ONE fence, and it is the snippet the pair NAMES.
+    for (const pair of README_SNIPPETS) {
+      const s = sections.find((x) => x.title === pair.readme);
+      if (!s) { fail('X8', `${README} has no "## ${pair.readme}" heading (X8's README_SNIPPETS names it)`); continue; }
+      const bodies = fencesIn(s.text);
+      if (bodies.length === 0) { fail('X8', `${README} has no \`\`\`ts fence under its "## ${pair.readme}" heading`); continue; }
+      if (bodies.length > 1) {
+        fail('X8', `${README} carries ${bodies.length} \`\`\`ts fences under "## ${pair.readme}" and X8 pairs it with ONE — ` +
+          `every fence under a listed heading is compared, so give the second its own heading and its own entry`);
+        continue;
+      }
+      const theirs = agUnder.get(pair.agents);
+      if (!theirs || theirs.length !== 1) {
+        fail('X8', `X8 pairs "## ${pair.readme}" with ${DOCS[0]}'s "${pair.agents}", which carries ` +
+          `${theirs ? theirs.length : 0} \`\`\`ts run fences and must carry exactly one`);
+        continue;
+      }
+      if (bodies[0] !== theirs[0]) {
+        const d = firstDiff(bodies[0], theirs[0]);
+        fail('X8', `the snippet under "## ${pair.readme}" in ${README} is not, byte for byte, the \`\`\`ts run snippet under ` +
+          `"${pair.agents}" in ${DOCS[0]} — they first differ at snippet line ${d.line + 1}: ` +
+          `${JSON.stringify(d.mine.slice(0, 70))} against ${JSON.stringify(d.theirs.slice(0, 70))}`);
       } else compared++;
     }
-    // (ii) every ```ts fence in README sits under a listed heading — the other direction.
+    // (ii) no ```ts fence anywhere else in the README — including above its first heading.
     for (const s of sections) {
-      if (fenceIn(s.text) !== null && !README_SNIPPET_HEADINGS.includes(s.title)) {
-        fail('X8', `${README} carries a \`\`\`ts fence under "## ${s.title}", which X8's README_SNIPPET_HEADINGS does not name — ` +
+      if (listed.has(s.title)) continue;
+      for (const _ of fencesIn(s.text)) {
+        fail('X8', `${README} carries a \`\`\`ts fence under "${s.title}", which X8's README_SNIPPETS does not name — ` +
           'list it (it must then be an executed AGENTS.md snippet) rather than leaving a README example nothing holds');
       }
     }
-    if (compared === README_SNIPPET_HEADINGS.length) {
-      console.log(`note: X8 compared ${compared} README snippet(s) — under ${README_SNIPPET_HEADINGS.map((t) => `"${t}"`).join(', ')} — ` +
-        `to ${DOCS[0]}'s ${agBodies.length} \`\`\`ts run snippets, byte for byte, both ways.`);
+    // (iii) and no NEAR spelling anywhere, which (ii) cannot see because it compares ```ts exactly.
+    rmText.split('\n').forEach((line, i) => {
+      if (NEAR_FENCE.test(line) && line.trim() !== '```ts') {
+        fail('X8', `${README}:${i + 1} opens a fence as ${JSON.stringify(line.trim())}, which X8 does not compare — ` +
+          'spell it ```ts under a listed heading, or it is a README example nothing holds (X1\'s reason, one document across)');
+      }
+    });
+    if (compared === README_SNIPPETS.length) {
+      console.log(`note: X8 compared ${compared} README snippet(s) — ` +
+        `${README_SNIPPETS.map((p) => `"${p.readme}" to "${p.agents}"`).join(', ')} — ` +
+        `byte for byte, against ${DOCS[0]}'s ${agCount} \`\`\`ts run snippets, both ways.`);
     }
   }
 }
@@ -575,7 +635,7 @@ const checks = [
   'X5 no snippet fails under the DOM lib a browser consumer compiles with (zero since W57 closed Q71)',
   'X6 AGENTS.md`s cost figures ARE spec/flow-definition.md section 3`s, both ways',
   'X7 AGENTS.md`s refusal count IS spec/flow-definition.md section 5`s row count, and its range end the highest row',
-  'X8 README.md`s getting-started snippet IS AGENTS.md section 2`s first run snippet, byte for byte, both ways',
+  'X8 every ```ts fence in README.md IS the executed AGENTS.md snippet its section NAMES, byte for byte, both ways',
 ];
 const runCount = written.filter((x) => x.tag === 'run').length;
 console.log(`docs check — ${all.length} snippet(s): ${runCount} run, ` +

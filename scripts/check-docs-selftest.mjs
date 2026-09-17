@@ -324,18 +324,90 @@ const PROBES = [
     readme: (r) => r.replace('// THE REGISTRY — what exists.', '// THE REGISTRY — what exist.'),
   },
   {
-    name: 'README.md loses its "Getting started" heading, so X8 has no block to compare',
+    // **The heading AND its fence**, so this trips the missing-heading clause ALONE. Until W69 and W70 ran their readers it
+    // renamed the heading only, which left the fence under an unlisted one and tripped the OTHER
+    // direction too — both under id `X8`, so set equality could not tell them apart and EITHER
+    // clause was deletable in silence. W69's and W70's adequacy readers measured both halves at a
+    // full 26/26, 13/13, exit 0. That is `X6`'s co-firing shape, and its fix is the same: a probe
+    // per clause, each named for the one clause it trips.
+    name: 'README.md loses its "Getting started" heading AND the fence under it — the missing-heading clause alone',
     check: 'X8',
     mutate: (t) => t,
-    // Since W70 this trips X8 TWICE under one id — the listed heading is missing, and the fence now
-    // sits under a heading the list does not name — which is the both-ways clause read in one probe.
-    readme: (r) => r.replace('## Getting started\n', '## Getting going\n'),
+    readme: (r) => {
+      const renamed = r.replace('## Getting started\n', '## Getting going\n');
+      const i = renamed.indexOf('```ts\n');
+      const j = renamed.indexOf('\n```', i) + 4;
+      return renamed.slice(0, i) + renamed.slice(j);
+    },
   },
   {
     name: 'README.md`s SECOND snippet — the routing flow — differs from AGENTS.md`s by one character: X8 over every fence, not the first (W70)',
     check: 'X8',
     mutate: (t) => t,
     readme: (r) => r.replace('// THE FLOW — a DECISION, a FAN-OUT, a JOIN.', '// THE FLOW — a DECISION, a FAN-OUT, a JOI.'),
+  },
+  // ---- X8's remaining clauses, one probe each, from W69's and W70's ADEQUACY READERS ----
+  // Every one of these was measured as an UNDECLARED SURVIVOR: the clause could be disabled with
+  // this self-test at 26/26, 13/13, exit 0, because no probe reached it. Each edit below is the
+  // reader's own, checked back in as `doc/workflow.md` section 5 rule 8's re-run requires.
+  {
+    name: 'README.md keeps "A flow that decides" and loses the fence under it — the missing-FENCE clause alone',
+    check: 'X8',
+    mutate: (t) => t,
+    readme: (r) => {
+      const i = r.indexOf('```ts\n', r.indexOf('## A flow that decides'));
+      const j = r.indexOf('\n```', i) + 4;
+      return r.slice(0, i) + r.slice(j);
+    },
+  },
+  {
+    name: 'README.md gains a ```ts fence under a heading X8`s list does not name, both listed headings intact — the other direction alone',
+    check: 'X8',
+    mutate: (t) => t,
+    readme: (r) => r.replace('## The idea\n', '## A second example nothing holds\n\n```ts\nconsole.log(1);\n```\n\n## The idea\n'),
+  },
+  {
+    // Sections are cut AT `## ` headings, so the README's OPENING — its title, its status line, the
+    // first thing a registry-page visitor reads — was in no section and held by nothing.
+    name: 'README.md gains a ```ts fence ABOVE its first heading, where no section reached',
+    check: 'X8',
+    mutate: (t) => t,
+    readme: (r) => r.replace('## Getting started\n', '```ts\nconsole.log(2);\n```\n\n## Getting started\n'),
+  },
+  {
+    // `X1`'s reason, one document across: a near spelling skips in silence, and `X1` reads `DOCS`.
+    name: 'README.md gains a ```typescript fence, which X8`s ```ts comparison cannot see — the near-spelling clause alone',
+    check: 'X8',
+    mutate: (t) => t,
+    readme: (r) => r.replace('## The idea\n', '## A near spelling\n\n```typescript\nconsole.log(3);\n```\n\n## The idea\n'),
+  },
+  {
+    name: 'README.md carries a SECOND ```ts fence under "## Getting started", which X8 pairs with ONE snippet',
+    check: 'X8',
+    mutate: (t) => t,
+    readme: (r) => {
+      const i = r.indexOf('```ts\n');
+      const j = r.indexOf('\n```', i) + 4;
+      return r.slice(0, j) + '\n' + r.slice(i, j) + r.slice(j);
+    },
+  },
+  {
+    // The PAIRING's other end: if the AGENTS heading a pair names stops carrying exactly one `run`
+    // fence, the pair has nothing to compare against and must say so rather than pick.
+    name: 'AGENTS.md`s "The same on the RUNTIME" heading is renamed, so the pair X8 declares has no snippet',
+    check: 'X8',
+    mutate: (t) => t.replace('### The same on the RUNTIME — a decision, a fan-out and a join on real workers',
+      '### The same on the runtime, renamed'),
+  },
+  {
+    // **The TAIL.** Every other X8 probe edits a comment in the snippet's first lines, so an
+    // equality blind to the last 400 characters — where BOTH assertions live — was green. W69's
+    // adequacy reader measured exactly that: the README could show an expected value the executed
+    // copy does not have.
+    name: 'README.md`s copy of the getting-started snippet differs from AGENTS.md`s in its LAST lines — the expected value itself',
+    check: 'X8',
+    mutate: (t) => t,
+    readme: (r) => r.replace('\'{"text":"hello world !"}\'', '\'{"text":"hello world!"}\''),
   },
 ];
 
@@ -386,11 +458,12 @@ const RAN = (out) => /^(All checks passed|\d+ failure\(s\)\.)/m.test(out);
  */
 // 18 until W59, which added the sub-path probe and raised the floor to the count it ships (Q102);
 // 20 until W69, which added X8's three and raised it to the count it ships — 25; 26 since W70's
-// second-fence probe.
-const MIN_PROBES = 26;
+// second-fence probe; **33 since W69 and W70 ran their reader passes**, which gave each of `X8`'s clauses a probe that trips THAT
+// clause and no other, after both adequacy readers measured six of them deletable at 26/26, 13/13.
+const MIN_PROBES = 33;
 
 /** The same floor for `META`, and for the same reason. */
-const MIN_META = 10;
+const MIN_META = 20;
 
 /**
  * **The mutations `check-docs.mjs` itself is run against**, one per check id plus
@@ -411,9 +484,41 @@ const META = [
   // (a) the rule's clauses — one per id, chosen for blast radius.
   // Re-anchored at W70, which generalised the clause from one compared block to every README fence
   // (rule 7 (b): the W69 anchor `if (rm.body !== ag.body)` no longer exists).
-  ['X8`s equality clause disabled, so a README copy can drift from the executed one in silence — W69, re-anchored W70',
+  // **`X8`'s clauses, ONE ENTRY EACH, and each named for the probe that trips THAT clause alone**
+  // — and the reason is `X6`'s two paragraphs below, reached again from two directions. W69's
+  // and W70's adequacy readers each measured that three of X8's four clauses could be disabled with
+  // this self-test at a full 26/26 probes, 13/13 noticed, exit 0: the one probe that reached the
+  // *both ways* direction ALSO tripped the missing-heading clause, both under id `X8`, and grading
+  // is set equality over ids. Co-firing is invisible to a set. The probes were split first, and
+  // these entries follow them.
+  ['X8`s equality clause disabled, so a README copy can drift from the executed one in silence — W69, re-anchored W70 and again at the reader passes',
     'AGENTS.md`s copy of the getting-started snippet differs from README.md`s by one character — the AGENTS direction',
-    (t) => t.replace('      if (!agBodies.includes(body)) {', '      if (false) {')],
+    (t) => t.replace('      if (bodies[0] !== theirs[0]) {', '      if (false) {')],
+  ['X8`s missing-HEADING clause disabled, so a README section X8 names can vanish in silence',
+    'README.md loses its "Getting started" heading AND the fence under it — the missing-heading clause alone',
+    (t) => t.replace("      if (!s) { fail('X8',", "      if (!s) { if (0) fail('X8',")],
+  ['X8`s missing-FENCE clause disabled, so a README heading can promise an example and carry none',
+    'README.md keeps "A flow that decides" and loses the fence under it — the missing-FENCE clause alone',
+    (t) => t.replace("      if (bodies.length === 0) { fail('X8',", "      if (bodies.length === 0) { if (0) fail('X8',")],
+  ['X8`s one-fence-per-pair clause disabled, so a SECOND fence under a listed heading is held by nothing',
+    'README.md carries a SECOND ```ts fence under "## Getting started", which X8 pairs with ONE snippet',
+    (t) => t.replace('        fail(\'X8\', `${README} carries ${bodies.length}', '        if (0) fail(\'X8\', `${README} carries ${bodies.length}')],
+  ['X8`s PAIRING clause disabled, so a pair whose AGENTS.md snippet is gone compares nothing and says nothing',
+    'AGENTS.md`s "The same on the RUNTIME" heading is renamed, so the pair X8 declares has no snippet',
+    (t) => t.replace('        fail(\'X8\', `X8 pairs', '        if (0) fail(\'X8\', `X8 pairs')],
+  ['X8`s other direction disabled — a ```ts fence under an unlisted heading, which is half of `both ways`',
+    'README.md gains a ```ts fence under a heading X8`s list does not name, both listed headings intact — the other direction alone',
+    (t) => t.replace('      if (listed.has(s.title)) continue;', '      if (true) continue;')],
+  // The OPENING is its own mechanism, not its own clause: (ii) reaches it only because the section
+  // list begins with it. Deleting that one element puts the README's first screen back outside
+  // every section, which is where W69's adequacy reader found a fence living unheld.
+  ['X8 stops treating the README`s opening as a section, so a fence above the first heading is unreachable again',
+    'README.md gains a ```ts fence ABOVE its first heading, where no section reached',
+    (t) => t.replace('const sections = [{ title: README_OPENING, text: rmText.slice(0, heads.length ? heads[0].index : rmText.length) }];',
+      'const sections = [];')],
+  ['X8`s near-spelling clause disabled, so a ```typescript example in the README is held by nothing',
+    'README.md gains a ```typescript fence, which X8`s ```ts comparison cannot see — the near-spelling clause alone',
+    (t) => t.replace("      if (NEAR_FENCE.test(line) && line.trim() !== '```ts') {", '      if (false) {')],
   ['X1`s near-fence refusal disabled, so a variant spelling silently drops a snippet',
     'a fence spelled ```typescript, which the extractor would otherwise skip in silence',
     (t) => t.replace('      if (NEAR_FENCE.test(lines[i])) {', '      if (false) {')],

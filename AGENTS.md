@@ -94,13 +94,19 @@ const flow: FlowDefinition = {
   ],
 };
 
-// ONE call builds the pool, the scheduler and everything between, and refuses every defect in either
-// document at construction, by name. `base` is what relative worker urls resolve against —
-// `import.meta.url` when the registry sits beside this file.
+// ONE call builds the pool, the scheduler and everything between, and refuses every defect in the
+// REGISTRY at construction, by name. It never sees the flow: a defect THERE is refused where the
+// flow arrives, at `start`, which is what builds the `Driver` — so a `settings` value the worker's
+// schema rejects names its node from the call three lines below, not from this one. `base` is what
+// relative worker urls resolve against — `import.meta.url` when the registry sits beside this file.
 const runtime = createRuntime(registry, {}, { base: import.meta.url });
 
-// A run is over when its OWN fold says so. `start` hands back a `Driver`, already running; every
-// fold input it reports is appended, and the run state is a pure fold over that sequence.
+// A run is over when its own fold says so AT A QUIESCENT POINT — which is what the `queueMicrotask`
+// below buys, and it is load-bearing rather than decoration. The driver dispatches the next node
+// synchronously inside the same listener turn, so folding the instant an input arrives can report a
+// terminal state with the run still going; `RN-R12` claims its predicate at rest. `start` hands back
+// a `Driver`, already running; every fold input it reports is appended, and the run state is a pure
+// fold over that sequence.
 const inputs: FoldInput[] = [];
 const state = await new Promise<RunState>((resolve, reject) => {
   runtime.start(flow, { text: 'hello' }, {
@@ -769,9 +775,11 @@ picking one. `spec/join-policy.md` section 4, `JP-R12`.)*
 
 ### The same on the RUNTIME — a decision, a fan-out and a join on real workers
 
-*Everything above this line runs on a fake scheduler, which is the shape ladder L2 uses and the
-cheapest way to see routing. This is the same three node kinds on `createRuntime`, two runs on one
-runtime, every value read off the run — [W70](doc/work-items/w70-a-flow-that-decides-and-a-custom-group-on-the-runtime.md).
+*Every snippet above this line IN THIS SECTION runs on a fake scheduler, which is the shape ladder
+L2 uses and the cheapest way to see routing. (Not every snippet above it in this document: section 2
+builds a real one, and this sentence said so until W70's conformity reader read it beside the item
+that had just put `createRuntime` on the page above.) This is the same three node kinds on
+`createRuntime`, two runs on one runtime, every value read off the run — [W70](doc/work-items/w70-a-flow-that-decides-and-a-custom-group-on-the-runtime.md).
 It is also `README.md`'s second snippet, held byte-equal to this one by `check-docs`'s `X8`.*
 
 ```ts run
@@ -786,7 +794,13 @@ const registry: RegistryDocument = {
   nodeTypes: { Tag: { worker: 'tag', inline: true } },
   predicates: ['isLowConfidence'],
 };
-const isLowConfidence: Predicate = (ctx) => (ctx.outcome.result as { confidence: number }).confidence < 0.5;
+// A predicate reads the EFFECTIVE outcome, and `result` is `null` for an optional task that
+// failed (`OR-R9`) — so it is guarded, as section 4's is. Unreachable here, because `ingest` is
+// not optional; guarded anyway, because this is the form a consumer copies.
+const isLowConfidence: Predicate = (ctx) => {
+  const r = ctx.outcome.result as { confidence?: number } | null;
+  return typeof r?.confidence === 'number' && r.confidence < 0.5;
+};
 
 // THE FLOW — a DECISION, a FAN-OUT, a JOIN. `ingest`'s first edge is taken when its predicate says so,
 // otherwise the last, unconditional one. `split` opens two branches that run concurrently; `collect`
@@ -831,8 +845,10 @@ console.log(resultOf(high, 'publish'));    // { '0': { confidence: 0.9, ingest: 
 if (high.outcome !== 'completed' || low.outcome !== 'completed') throw new Error(`outcomes ${high.outcome} / ${low.outcome}`);
 if (ran(high).join() !== 'classify,enrich,ingest,publish') throw new Error(`high ran ${ran(high).join()}`);
 if (ran(low).join() !== 'ingest,review') throw new Error(`low ran ${ran(low).join()}`);
-// `publish` received BOTH branches' results, keyed by branch path in ascending order (JP-R12), and
-// each branch's value carries the whole road it came by.
+// `publish` received BOTH branches' results, keyed by branch path (JP-R12), and each branch's value
+// carries the whole road it came by. What this string pins is the branch-to-KEY MAPPING: the ASCENDING
+// order that rule also fixes is not observable at depth 1, because "0" and "1" are integer-like keys
+// and the language orders those ascending whatever the driver did. A nested region would show it.
 const want = '{"0":{"confidence":0.9,"ingest":true,"enrich":true},"1":{"confidence":0.9,"ingest":true,"classify":true},"publish":true}';
 if (JSON.stringify(resultOf(high, 'publish')) !== want) throw new Error(`publish received ${JSON.stringify(resultOf(high, 'publish'))}`);
 ```
@@ -1580,11 +1596,20 @@ const state = await new Promise<RunState>((resolve, reject) => {
 await runtime.shutdown();
 
 // The group the runtime built is the scheduler's, keyed as the document declared it — and it was
-// ACQUIRED and RELEASED once per task of the type that names it, read off the object itself.
+// acquired and released once per ADMISSION of a task of the type that names it. Twice here, because
+// these two tasks are admitted once each; a retry, or a threaded pool that finds no free worker,
+// re-admits, so a budget is spent per admission and NOT per task (section 13).
 const budget = runtime.groups['budget'] as CountingGroup;
-console.log(state.outcome, budget.started, budget.finished);   // 'completed' 2 2
+// THREE observers, because `runtime.groups['budget']` is the KEY the document filed it under and
+// says nothing about the object: the counters the group kept, the metrics IT reports — `running`
+// back at zero is `onFinish` having run, which is the member ADR 0055 exists for — and its own
+// `id` and `type`, which a factory ignoring the key it is handed would get wrong in silence.
+const metrics = budget.getMetrics();
+console.log(state.outcome, budget.started, budget.finished, metrics.running, budget.id);   // 'completed' 2 2 0 'budget'
 if (state.outcome !== 'completed') throw new Error(`expected completed, got ${state.outcome}`);
 if (budget.started !== 2 || budget.finished !== 2) throw new Error(`the group saw ${budget.started} starts and ${budget.finished} finishes`);
+if (metrics.running !== 0 || metrics.available !== 1) throw new Error(`the group reports ${metrics.running} running, ${metrics.available} available`);
+if (budget.id !== 'budget' || budget.type !== 'Counting') throw new Error(`the group calls itself ${budget.id} / ${budget.type}`);
 ```
 
 **Every refusal is at construction and named.** A worker a type names and the document does not

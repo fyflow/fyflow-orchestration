@@ -1,12 +1,16 @@
 # W69 — A getting-started example a consumer can copy, executed by the gate and held equal in the README
 
-**Status:** IN REVIEW — declared 2026-09-17 on `d04b075`, built and gated the same day, rule 8 run
-twice; **both reader passes NOT RUN**, and the item is not done until they are and rule 8 has been
-re-run with their edits (Record). *Read the Record's Gate table for what ran.*
+**Status:** DONE — declared 2026-09-17 on `d04b075`, built and gated the same day; **both reader
+passes RUN 2026-09-17** (10 / 2 blocking and 19 mutations / 11 undeclared survivors, overlap 1, the
+forty-first measurement), their findings acted on, and **rule 8 re-run with their six exact edits
+checked in as probes** — 30 probes, 0 undeclared survivors, 0 against declaration, the tree held
+still by a content digest. *Read the Record's Gate table for what ran.*
 **Plan:** none — a consumer-facing gap in the reference, belonging to no plan
 ([W36](w36-the-scheduler-pin-moves-to-0-5-1.md)'s and [W37](w37-the-scheduler-pin-moves-to-0-5-2.md)'s
 precedent: an item outside a plan takes the next id rather than a reserved one, so P19 starts at W70
-— ids are never renumbered, `doc/workflow.md` section 3). Raised by the maintainer on 2026-09-17:
+— ids are never renumbered, `doc/workflow.md` section 3). *(P19 starts at **W71**: W70 took the next
+id the following day, which is this sentence's own rule applied a second time. The claim had an
+expiry date and the item that expired it corrected it, here and in four index files.)*. Raised by the maintainer on 2026-09-17:
 *"we don't have a clean simple example one could use as a getting started; the minimum example does
 not need a custom resource group; maybe it should live in the README too."*
 
@@ -72,7 +76,11 @@ Gate:       L0 (lint, typecheck — tsconfig.examples.json covers examples/**/*.
             repointed, the snippet re-tagged, the worker renamed out); the
             discriminating pair (the two settings made equal); then the two reader
             passes and rule 8's re-run
-Reserves:   Q293-Q295
+Reserves:   Q293 (used). *Q294-Q295 were reserved here too and are W70's: that item
+            declared Q294-Q296 the next day and neither item spent any of the three.
+            Two declarations claiming two ids is what section 3's block reservation
+            exists to prevent, and nothing collided only because nothing was used.
+            Found by this item's own conformity reader; the block stays W70's.*
 ```
 
 ## Scope
@@ -98,9 +106,11 @@ Reserves:   Q293-Q295
 - **A completion promise on `Driver`.** There is none (measured: no such member on the class), so the
   fold-poll in the snippet IS the API. Whether it should be is [Q293](../open-questions.md).
 - **README.md's stale "What is here" cells** (23 refusals / `FD-V25`, 979 cases, 50 / 1502, 91
-  documents / 3822 links — four numbers stale by several plans). Not this item's subject; recorded
-  as [Q294](../open-questions.md) with the four values, because a getting-started section now sits
-  beside them.
+  documents / 3822 links — four numbers stale by several plans). *This bullet was NARROWED at the
+  record step and this text is what it said before: `README.md` is in this item's `Owns`, the fix was
+  four edits, every value is one a check prints, and **no `Q294` was raised** — see the Record's own
+  row. Kept as the declaration's record, and corrected here because it names an id this item did not
+  spend and its reader read the two as a contradiction.*
 
 ## Exceptions
 
@@ -160,15 +170,17 @@ is `spec/run-state.md`'s vocabulary.
 |---|---|---|
 | declaration | measured | Started on `d04b075`, tree clean; nine facts read from the tree before a line was written (the table above). The one that decided the SHAPE: `check-docs` executes ONE document, so a README example is P3's rot unless a check holds it. The one that sized the WORKER: the envelope worker's `InnerWorker` contract — a default-exported class with `run`, `setup`/`teardown` optional, no base class — read off `src/scheduler/envelope-worker.ts` rather than off the reference, which shows `extends BaseWorker` |
 | L0 | **GREEN on the first run** | `lint` 0, `typecheck` 0 across all five sub-typechecks — the worker typechecked under `strict` through `tsconfig.examples.json`'s `examples/**/*.ts` |
-| check:docs | **GREEN on the first run** | **30 snippets, 24 run** (from 29 / 23): the getting-started snippet EXECUTES and both its assertions hold; **`X8` compared 57 lines between `AGENTS.md` §2 and `README.md`, byte for byte, both ways**; `RUN_FLOOR` 23 -> 24 |
+| check:docs | **GREEN on the first run** | **30 snippets, 24 run** (from 29 / 23): the getting-started snippet EXECUTES and both its assertions hold; **`X8` compared **56** lines between `AGENTS.md` §2 and `README.md`, byte for byte, both ways**; `RUN_FLOOR` 23 -> 24. *(This row said **57** until this item's conformity reader re-took it, and `CLAUDE.md` and `doc/README.md` — written by the same record step — both said 56. The 57 is `split('\n').length` counting the empty element after the body's trailing newline. The reverse of the direction section 1 rule 5 warns about: the indexes were right and the item file was wrong.)* |
 | check:docs:selftest | RUN 1: **15 / 25, exit 1 — the measurement**; RUN 2: **25 / 25 probes caught, 13 / 13 noticed, exit 0** | The first run is what rule 7 (c) asks for and the declaration could only estimate: every probe that mutates the FIRST ```ts run fence by `String.replace` — untagged, `typescript`-spelled, `TS`-spelled, indented, re-tagged `check`, deleted whole, assertions deleted, the sub-path import, *no snippets at all*, and the second untagged-block probe — now also trips `X8`, because that fence is the getting-started snippet and the README's copy did not move. **TEN, where the declaration said about eight**; the two it did not name are *a reference with no snippets at all* (no `run` fence under §2 IS an X8 finding) and the "prose" untagged block. Each declares `X8` now, with the reason beside it. The three new probes — one per DIRECTION plus the missing heading — were `ok` on the first run, and the thirteenth META entry (X8's inequality clause disabled) is noticed by the AGENTS-direction probe |
 | check:markdown | GREEN | **125 documents, 5432 relative links, 272 anchored** before the Record; the fixtures re-counted on a scratch copy outside the repository after every edit — one directory removed **94** against `M3`'s 107, both removed **3984** against `M4`'s 4450 — *predicted NOT to fire* and did not, margins 13 files and 466 links |
 | L6 | **GREEN and UNMOVED at 1610 / 53 in node AND deno**, the declared result | `examples/getting-started/` is outside every L6 walk, as the declaration measured: `l6.ts` lists `workers/` on disk, the browser bundle globs `flows/`, the corpus split walks `spec/examples/valid` and `examples/flows` |
 | rule 8 | **24 probes: 1 control green, 16 caught, 4 declared ceilings each RUN against its rung, 3 measured, 0 undeclared survivors, 0 crashes, 0 against declaration** — after a first pass that read **1 undeclared survivor and 3 aborts** (`dev-dist/w69/rule8-run-1.log`, `rule8-run-2.log`), digest identical at start and end of both | **The survivor was VACUOUS and the misreading is the snippet's own trap**: `a2` set the end node's `outcome` to `failed` in both copies and the run's outcome did not move, because `spec/flow-definition.md` §3 says `end.outcome` is an AUTHOR-DEFINED label the driver does not interpret and the run-level vocabulary is run state's (Q25). W17's class, in the author's own set — and exactly what a consumer reading `outcome: 'completed'` beside `state.outcome === 'completed'` would assume, so the snippet now says so in a comment and `a2` is kept, declared, as the trap. **The three aborts were rule 7 (b) on the author's own anchors**: §2's and §12's snippets share their first two lines, so a two-line anchor matched twice (`b2`, `d2`), and the bare outcome assertion is in four snippets (`c2`); re-anchored on unique text and re-run. **`d2` was CAUGHT, and NOT for the reason this row first gave** — *corrected by [W70](w70-a-flow-that-decides-and-a-custom-group-on-the-runtime.md), same author, one day later*: it re-tagged the §2 fence to `check` with the floor lowered, and the failure lines read **`X2`** (*a `check` snippet containing `throw`*) with `X8` co-firing — so `X2` alone was sufficient and the probe never measured the Q102 shape, which is a fence DELETED WHOLE with the floor lowered, invisible to `X2`. W70 measured that shape properly: **deleted whole, the routing fence README carries is caught by `X8` ALONE, and the group fence README does not carry survives** — Q102 verbatim, for exactly the snippets `X8` does not hold. Rule 8's *a provocation is evidence only when it fires FOR THE REASON IT NAMES*, on this author's own probe, found by the next item's first pass being caught against its declaration for the same mistake; `d1`, the floor alone, stays the ceiling it always was. **`e2`** ran the SELF-TEST as its rung and it caught the clause disabled. Measured: **`a6`** — `inline: true` removed, the pool a real thread, green; **`c1c`** — the result assertion re-sourced to a literal AND the worker broken, GREEN, so the literal removed the only observer (`c1`'s reason, confirmed); **`c2`** — the outcome assertion re-sourced to a literal with the worker url broken, caught by the REJECT road and not by the assertion, which in a two-task linear flow has no terminal non-`completed` case to see |
 | census | **231 / 177 / 2 / 52**, 231 of 231 in one cluster cell, 0 unexplained | P18's retro's parser unchanged; this item raises Q293 |
 | own id | measured — **and it fired** | `W69` outside `doc/` and `dev-dist/`: 7 files, every hit this item's own annotation — **and the grep found P18's retro's own sentence, *the next plan starts at W69, Q293 and ADR 0056*, in FOUR files (`CLAUDE.md` twice, `doc/README.md`, `README.md`, the plan), falsified the day after it was written by the item that took both ids.** Section 1 rule 5's third direction, on the retro's closing sentence, found by the procedure that clause prescribes; corrected to **W70, Q294** with a note in each, the plan file as this item's one late exception |
-| readers | **NOT RUN** | the conformity reader's obligation: re-derive `hello world !` and the outcome from the two documents on paper before reading the snippet; the adequacy reader's: X8 both ways and the two assertions, in an isolated copy — after which rule 8's set is re-run with their edits. **This row is why the Status line says IN REVIEW** |
+| rule 8, RE-RUN with the readers' edits | **30 probes: 23 caught, 4 declared ceilings, 0 UNDECLARED survivors, 0 crashes, 0 against declaration, 3 measured, 6 aborts every one re-anchored and re-run** (`dev-dist/w71/rule8-w69.log`, `rule8-w69-reanchored.log`); digest `e75d752941f01b86` over 331 files identical at start and end of both passes | **Six of the readers' exact edits are checked in as probes `r1`-`r6`, and every one is CAUGHT BY `X8` ALONE** — a second fence in a listed section, a fence above the first heading, a ```typescript spelling, a heading that keeps its promise and loses its example, the section deleted together with its list entry in ONE diff, and a copy differing only in its LAST lines. **Every one of those six was green before this pass.** The six aborts are rule 7 (b) firing correctly and none is carelessness: three are the `RUN_FLOOR` literal, which W70 raised after these probes were written; two are anchors that became AMBIGUOUS the moment W70 added a second snippet with the same two-node shape, so a probe aimed at §2's flow began matching §12's and the harness refused to guess — re-anchored on the line carrying the node's TYPE, which is what tells the two flows apart, rather than re-pinned to a value that will move again; and one is `X8`'s equality clause, re-anchored twice now, by W70 and again by this rebuild |
+| readers | **BOTH RAN 2026-09-17 — 10 / 2 blocking and 19 mutations / 11 undeclared survivors in 7 findings / 4 blocking, OVERLAP 1, the FORTY-FIRST measurement** (the ordinal is derived by counting section 6's own list, which held 40 entries ending at W67 — three consecutive P12 Records inherited a wrong one) | The split held exactly: the conformity reader found CLAIMS THAT WERE FALSE and the adequacy reader found BOUNDS THAT WERE NOT THERE. **The conformity reader's central obligation came back EMPTY** — it derived the envelope, both workers' returns, the edge's carriage and the outcome on paper from `FD-C5` and `spec/run-state.md`, then executed an extracted copy OUTSIDE the repository, and every value matched, including both construction refusals the prose promises. Its blocking two were the README's `check:markdown` cell (stale in all three numbers, and matching neither this Record nor this item's own gate log — so the number in the file was never measured anywhere) and a contradiction this item CREATED, the *What is here* table still saying fifty runs where two other cells now say fifty-three. The adequacy reader's four are `X8`'s, and they are in the row below. **The overlap is the one subject both reached** — that `X8` held membership where every sentence claimed a pairing, one by reading the clause and one by swapping README's two fence bodies for each other and watching it print `ok` beside the sentence the edit falsifies |
 | `npm run gate` | **GATE EXIT=0, zero lines beginning FAIL at any indent, 29 chain entries, `selftests` 7/7 completed and 7 ok — on the FIRST run over the final tree** (`dev-dist/w69/gate.log`; L1-L5 41 / 1112 in node, deno and chromium, L6 1610 / 53, `check:docs` 30 / 24, `check:markdown` 125 / 5440 / 272) | digest **`8ba809e14bf89be1` over 329 files identical before and after** — this row is the ONE edit made after it, the precedent P17's and P18's retros set for the only claim a gate cannot be run before |
+| `npm run gate`, CONFIRMING (after the readers) | **GATE EXIT=0, zero lines beginning FAIL at any indent, 29 chain entries, `selftests` 7/7 completed and 7 ok in 787.0 s wall over 5 lanes** (`dev-dist/w71/gate.log`): `check:docs` **32 / 26** with `X8` comparing 2 README snippets to the AGENTS.md snippets their sections NAME, `check:docs:selftest` **33 probes / 20 gradings, all caught and all noticed**, `check:markdown` **126 / 5457 / 272**, L1-L5 **41 / 1112**, L6 **1610 assertions over 53 real runs in BOTH runtimes**, `check:source:selftest` 44/44, `check:spec:selftest` 31/31, `check:wiring:selftest` 34/34 | digest **`43341066a6dd893d` over 331 files identical before and after**, the tree held still throughout — this row is the ONE edit made after it |
 
 **Outputs — what was actually built.**
 
@@ -236,6 +248,40 @@ sets — more than predicted, measured rather than guessed), `examples/README.md
 - **An `end` node's `outcome` is the first thing a getting-started reader gets wrong**, and the author
   of the snippet got it wrong in his own probe set. Q25's answer, now one comment in the place it is
   first met.
+
+## What the readers changed — `X8` is a PAIRING now, and every clause has its own probe
+
+**Both adequacy readers, independently, and the conformity reader from the other end, found the same
+thing: `X8` enforced far less than every sentence describing it claimed.** The clause was
+`agBodies.includes(body)` — equality against ANY of the twenty-six executed snippets — while the line
+the check prints on every run said *README.md's getting-started snippet IS AGENTS.md section 2's
+first run snippet*. Measured by the reader: swap README's two fence bodies for each other and the
+check prints `ok` beside that sentence. **A membership wearing a pairing's name.**
+
+Six more holes, each measured at a full 26 / 26 probes and 13 / 13 gradings, exit 0:
+
+| hole | what stayed green |
+|---|---|
+| only the FIRST fence in a section was located | a second `` ```ts `` fence under a listed heading, calling a member that does not exist |
+| sections were cut AT headings | a fence ABOVE the first heading — the README's opening, the first screen a registry visitor reads |
+| the comparison is exactly `` ```ts `` | a `` ```typescript `` fence, which is `X1`'s own refusal one document across, and `X1` reads `DOCS` and never the README |
+| the two halves of *both ways* CO-FIRED under one id | either half deletable in silence, because grading is set equality over ids and the one probe that reached the second half also tripped the first |
+| the missing-fence clause had no probe | a listed heading promising an example and carrying none |
+| all four probes edit a comment in the snippet's FIRST lines | an equality blind to the last 400 characters — where BOTH assertions live, so the README could show an expected value the executed copy does not have |
+
+**What replaced it.** `README_SNIPPETS` names the README heading AND the AGENTS.md heading whose
+snippet it copies, and the AGENTS side must carry EXACTLY ONE `run` fence under that heading — a
+pairing that picks silently when a second fence appears is the same defect one layer along. Every
+fence in a section is located, the opening is a section, a listed heading must carry exactly one
+fence, and a NEAR spelling anywhere in the README is a failure. `README_SNIPPET_FLOOR` sits beside
+the list as [Q102](../open-questions.md)'s declared shape, because the list is a literal and a
+section plus its entry are two edits in one diff — W69's adequacy reader measured exactly that diff
+green at `check:docs` AND `check:markdown`, and the floor is the third edit it now needs.
+
+**Eleven probes where there were four, and eight gradings where there was one**, each grading named
+for the probe that trips THAT clause and no other — which is `X6`'s co-firing fix in the same file,
+applied to the clause that needed it next. `MIN_PROBES` 26 -> 33, `MIN_META` 10 -> 20. Measured
+after: **33 / 33 probes caught, 20 / 20 noticed, exit 0.**
 
 **Questions raised.** [Q293](../open-questions.md) — a `Driver` has no completion promise, so *the run
 is over* is eight lines a consumer copies from the README; sound by ADR 0014, and still the first
