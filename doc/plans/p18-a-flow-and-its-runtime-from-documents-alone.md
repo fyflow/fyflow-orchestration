@@ -1039,7 +1039,7 @@ and it is the first plan to reserve THREE and take three. **0055 was taken for n
 things the plan predicted it might be needed for** (the sub-path's placement and the run-id minting are
 decisions recorded in W66's own file); it exists because a measurement corrected P18 decision 4 in both
 directions. Ids are never reused
-(`doc/workflow.md` section 3), so **the next plan starts at W69, Q293 and ADR 0056.** Its subject is
+(`doc/workflow.md` section 3), so **the next plan starts at W71, Q297 and ADR 0056.** *(This read **W69, Q293** until 2026-09-17, when [W69](../work-items/w69-a-getting-started-example-a-consumer-can-copy.md) — an item belonging to no plan — took both ids: a claim with an expiry date, falsified by the item that expired it and corrected by that item, found by grepping the tree for its own id.)* *(And **W70, Q294** until 2026-09-17 too, when [W70](../work-items/w70-a-flow-that-decides-and-a-custom-group-on-the-runtime.md) took W70 and reserved Q294-Q296 without using them — the same sentence falsified on two consecutive days by two items outside any plan, corrected both times by the grep section 1 rule 5 prescribes.)* Its subject is
 written down: **P19, strict mode** — `inputSchema` and `outputSchema` enforced at run time, a
 transform's declared output against what it produced, and the sample-based pre-flight over a
 transformed edge, with this plan's declarations and [Q263](../open-questions.md)'s three arities as its

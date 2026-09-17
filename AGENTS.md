@@ -53,84 +53,82 @@ void shape;
 
 ---
 
-## 2. Minimal working program
+## 2. Getting started — a flow and its runtime from two documents
 
-A flow is **data**. You supply the predicates and the task factory; the driver does the rest.
+**Two documents, and one file of your own.** A REGISTRY says what exists — a worker module, and a
+node type that runs on it. A FLOW says what happens — nodes naming those types, and the edges between
+them. `createRuntime` builds every pool, group and scheduler the registry names and hands back a
+`Driver` per run. **The only code you write is the worker**:
+`examples/getting-started/worker.ts`, a class with a `run` method and nothing else — no base class,
+no import. Everything below is executed by the gate on every `npm run gate`, and the same snippet is
+in `README.md`, held byte-equal to this one by `check-docs`'s `X8`
+([W69](doc/work-items/w69-a-getting-started-example-a-consumer-can-copy.md)).
 
 ```ts run
-import { Driver, fold, liveToken, type FlowDefinition, type Predicate } from 'fyflow-orchestration';
+import { createRuntime } from 'fyflow-orchestration/scheduler';
+import { fold, isTerminal, type FlowDefinition, type FoldInput, type RegistryDocument, type RunState } from 'fyflow-orchestration';
 
-const definition: FlowDefinition = {
-  flowId: 'greet',
-  version: 1,
-  entry: 'ingest',
+// THE REGISTRY — what exists. One worker module, and one node type that runs on it. This is data:
+// in your program it is a JSON file you import. The worker url is relative, and `base` below says
+// to what; the file itself is `examples/getting-started/worker.ts` — a class with a `run` method.
+const registry: RegistryDocument = {
+  workers: {
+    greeter: {
+      url: '../../examples/getting-started/worker.ts',            // in your program: './worker.ts'
+      settingsSchema: { type: 'object', required: ['say'], properties: { say: { type: 'string' } } },
+    },
+  },
+  nodeTypes: { Greeter: { worker: 'greeter', inline: true } },
+};
+
+// THE FLOW — what happens. Two nodes of that type, each with its own `settings`, then an end. A flow
+// names registry KEYS and nothing else — no file, no url, no class — so it is portable across
+// runtimes that agree on the keys. The end node's `outcome` is a LABEL of yours that the driver does
+// not interpret; the run's own outcome is the fold's — `state.outcome` below.
+const flow: FlowDefinition = {
+  flowId: 'hello', version: 1, entry: 'greet',
   nodes: [
-    { id: 'ingest',  kind: 'task', type: 'IngestWorker',  edges: [{ to: 'publish' }] },
-    { id: 'publish', kind: 'task', type: 'PublishWorker', edges: [{ to: 'done' }] },
-    { id: 'done',    kind: 'end',  outcome: 'completed' },
+    { id: 'greet', kind: 'task', type: 'Greeter', settings: { say: 'world' }, edges: [{ to: 'shout' }] },
+    { id: 'shout', kind: 'task', type: 'Greeter', settings: { say: '!' },     edges: [{ to: 'done' }] },
+    { id: 'done',  kind: 'end',  outcome: 'completed' },
   ],
 };
 
-// A fake scheduler, so this snippet runs with no workers. In your program this is
-// `new FyflowScheduler({ ... })` — see section 12.
-//
-// **Key the listeners by event type.** The driver subscribes to three of them and
-// normalizes on the task's terminal STATE rather than the event name (`OR-R3`), so a
-// double that fans one settlement to every listener writes THREE records for it and
-// the run stops on a `DuplicateTaskId`. A real `EventTarget` does not do this; a
-// hand-written double is where it happens.
-const listeners = new Map<string, ((e: { detail: unknown }) => void)[]>();
-const added: { id: string }[] = [];
-const failures: string[] = [];
-const scheduler = {
-  addTask(task: unknown) { added.push(task as { id: string }); },
-  addEventListener(type: string, fn: (e: { detail: unknown }) => void) {
-    listeners.set(type, [...(listeners.get(type) ?? []), fn]);
-  },
-};
-const settle = (detail: unknown, type = 'task.completed') => {
-  for (const fn of listeners.get(type) ?? []) fn({ detail });
-};
+// ONE call builds the pool, the scheduler and everything between, and refuses every defect in either
+// document at construction, by name. `base` is what relative worker urls resolve against —
+// `import.meta.url` when the registry sits beside this file.
+const runtime = createRuntime(registry, {}, { base: import.meta.url });
 
-const driver = new Driver(definition, {
-  runId: 'run-1',
-  scheduler,
-  createTask: (config) => config,          // your `new FyflowTask(config)`
-  predicates: new Map<string, Predicate>(),
-  // Since v0.19 a task names a node TYPE and a type names a WORKER entry — section 13. The
-  // validator and the driver require the entries to be DECLARED and load nothing; the URL is what
-  // the bootstrap helper hands a real pool, so a fake scheduler's registry can carry any string.
-  workers: { flow: { url: 'worker.js' } },
-  nodeTypes: { IngestWorker: { worker: 'flow' }, PublishWorker: { worker: 'flow' } },
-  joinPolicy: liveToken,
-  // Section 9: a refusal raised inside a listener is REPORTED, never thrown.
-  // Without this the run stops silently.
-  onRunFailure: (f) => { failures.push(f.kind); },
+// A run is over when its OWN fold says so. `start` hands back a `Driver`, already running; every
+// fold input it reports is appended, and the run state is a pure fold over that sequence.
+const inputs: FoldInput[] = [];
+const state = await new Promise<RunState>((resolve, reject) => {
+  runtime.start(flow, { text: 'hello' }, {
+    onFoldInput: (input) => {
+      inputs.push(input);
+      queueMicrotask(() => { const s = fold(inputs); if (isTerminal(s)) resolve(s); });
+    },
+    onRunFailure: (f) => reject(new Error(`${f.kind}: ${f.message}`)),
+  });
 });
+await runtime.shutdown();
 
-driver.start({ name: 'world' });
-console.log(added.map((t) => t.id));       // [ 'run-1:ingest:-:0' ]
+// What the run did, read off its state: `greet` turned `hello` into `hello world`, and `shout` was
+// handed THAT as its input — the previous node's result is the next node's `input`.
+const shout = Object.values(state.nodes).find((n) => n.nodeId === 'shout');
+console.log(state.outcome);          // 'completed'
+console.log(shout?.result);          // { text: 'hello world !' }
 
-// The scheduler reports a settlement; the driver routes.
-settle({ id: 'run-1:ingest:-:0',  state: 'done', result: { greeting: 'hello world' } });
-settle({ id: 'run-1:publish:-:0', state: 'done', result: null });
-console.log(added.map((t) => t.id));       // [ 'run-1:ingest:-:0', 'run-1:publish:-:0' ]
-
-const state = fold(driver.foldInputs());
-console.log(state.outcome);                // 'completed'
-
-if (added.map((t) => t.id).join() !== 'run-1:ingest:-:0,run-1:publish:-:0') {
-  throw new Error(`wrong dispatches: ${added.map((t) => t.id).join()}`);
-}
-if (failures.length) throw new Error(`the run reported ${failures.join(', ')}`);
 if (state.outcome !== 'completed') throw new Error(`expected completed, got ${state.outcome}`);
+if (JSON.stringify(shout?.result) !== '{"text":"hello world !"}') throw new Error(`shout returned ${JSON.stringify(shout?.result)}`);
 ```
 
-**Three things bite everyone.** The **run id is a constructor option**, not a `start()` argument,
-and it must match `[A-Za-z0-9_-]{1,64}`. A definition with a fan-out and no `joinPolicy` is
-**refused at construction**. A driver serves **exactly one run**, so `start()` is called at most
-once — **and a second driver on the same scheduler is fine**, because a settlement only reaches the
-driver that dispatched it. See section 9.
+**What to read next.** Everything this snippet leaves out is `examples/flows/triage.flow.json` with
+`examples/run-flow.ts` — a custom resource group, a node-type CLASS with its own derivation, a node
+on a NAMED pool instance, a decision edge, a fan-out and its join, and a declared transform — which is
+[P18](doc/plans/p18-a-flow-and-its-runtime-from-documents-alone.md)'s exit artifact and runs on real
+workers in both L6 runtimes. Section 3 is the definition grammar; section 12 is the runtime in full,
+including the driver with **no scheduler at all**; section 13 is node types.
 
 ---
 
@@ -768,6 +766,76 @@ until [ADR 0037](doc/decisions/0037-what-a-branch-receives-is-a-property-of-the-
 The argument for the `null` was real and is unchanged — which branch finishes last is genuinely
 non-deterministic — and what answered it is that carrying **all** the arrivals keyed by branch is not
 picking one. `spec/join-policy.md` section 4, `JP-R12`.)*
+
+### The same on the RUNTIME — a decision, a fan-out and a join on real workers
+
+*Everything above this line runs on a fake scheduler, which is the shape ladder L2 uses and the
+cheapest way to see routing. This is the same three node kinds on `createRuntime`, two runs on one
+runtime, every value read off the run — [W70](doc/work-items/w70-a-flow-that-decides-and-a-custom-group-on-the-runtime.md).
+It is also `README.md`'s second snippet, held byte-equal to this one by `check-docs`'s `X8`.*
+
+```ts run
+import { createRuntime } from 'fyflow-orchestration/scheduler';
+import { fold, isTerminal, type FlowDefinition, type FoldInput, type Predicate, type RegistryDocument, type RunState } from 'fyflow-orchestration';
+
+// THE REGISTRY — one worker, one type, and the NAME of a predicate the flow may use. A predicate is
+// code (ADR 0002), supplied beside the document under that name; a flow using a name nobody supplied
+// is refused at construction, not at the decision. The worker tags its input with the node's label.
+const registry: RegistryDocument = {
+  workers: { tag: { url: '../../examples/getting-started/tag.ts' } },   // in your program: './tag.ts'
+  nodeTypes: { Tag: { worker: 'tag', inline: true } },
+  predicates: ['isLowConfidence'],
+};
+const isLowConfidence: Predicate = (ctx) => (ctx.outcome.result as { confidence: number }).confidence < 0.5;
+
+// THE FLOW — a DECISION, a FAN-OUT, a JOIN. `ingest`'s first edge is taken when its predicate says so,
+// otherwise the last, unconditional one. `split` opens two branches that run concurrently; `collect`
+// waits for both and hands `publish` every branch's result keyed by branch path (JP-R12). `review` is
+// the road the run takes when confidence is low — it never reaches the join, and the run completes.
+const flow: FlowDefinition = {
+  flowId: 'decide', version: 1, entry: 'ingest',
+  nodes: [
+    { id: 'ingest',   kind: 'task', type: 'Tag', settings: { label: 'ingest' },
+      edges: [{ when: 'isLowConfidence', to: 'review' }, { to: 'split' }] },
+    { id: 'review',   kind: 'task', type: 'Tag', settings: { label: 'review' },   edges: [{ to: 'done' }] },
+    { id: 'split',    kind: 'fanout', branches: ['enrich', 'classify'] },
+    { id: 'enrich',   kind: 'task', type: 'Tag', settings: { label: 'enrich' },   edges: [{ to: 'collect' }] },
+    { id: 'classify', kind: 'task', type: 'Tag', settings: { label: 'classify' }, edges: [{ to: 'collect' }] },
+    { id: 'collect',  kind: 'join', of: 'split', edges: [{ to: 'publish' }] },
+    { id: 'publish',  kind: 'task', type: 'Tag', settings: { label: 'publish' },  edges: [{ to: 'done' }] },
+    { id: 'done',     kind: 'end',  outcome: 'completed' },
+  ],
+};
+
+// ONE runtime, TWO runs. Pools belong to the runtime and are shared across runs; each run is its own
+// `Driver` with its own fold, and the join policy defaults to `live-token` (ADR 0003).
+const runtime = createRuntime(registry, { predicates: { isLowConfidence } }, { base: import.meta.url });
+const run = (payload: unknown) => new Promise<RunState>((resolve, reject) => {
+  const inputs: FoldInput[] = [];
+  runtime.start(flow, payload, {
+    onFoldInput: (input) => { inputs.push(input); queueMicrotask(() => { const s = fold(inputs); if (isTerminal(s)) resolve(s); }); },
+    onRunFailure: (f) => reject(new Error(`${f.kind}: ${f.message}`)),
+  });
+});
+const high = await run({ confidence: 0.9 });
+const low = await run({ confidence: 0.2 });
+await runtime.shutdown();
+
+// WHICH nodes ran, read off each run's own state — the decision took a different edge each time.
+const ran = (s: RunState) => Object.values(s.nodes).map((n) => n.nodeId).sort();
+const resultOf = (s: RunState, id: string) => Object.values(s.nodes).find((n) => n.nodeId === id)?.result;
+console.log(ran(high));                    // [ 'classify', 'enrich', 'ingest', 'publish' ]
+console.log(ran(low));                     // [ 'ingest', 'review' ]
+console.log(resultOf(high, 'publish'));    // { '0': { confidence: 0.9, ingest: true, enrich: true }, '1': { …, classify: true }, publish: true }
+
+if (high.outcome !== 'completed' || low.outcome !== 'completed') throw new Error(`outcomes ${high.outcome} / ${low.outcome}`);
+if (ran(high).join() !== 'classify,enrich,ingest,publish') throw new Error(`high ran ${ran(high).join()}`);
+if (ran(low).join() !== 'ingest,review') throw new Error(`low ran ${ran(low).join()}`);
+// `publish` received BOTH branches' results, keyed by branch path in ascending order (JP-R12), and
+// each branch's value carries the whole road it came by.
+const want = '{"0":{"confidence":0.9,"ingest":true,"enrich":true},"1":{"confidence":0.9,"ingest":true,"classify":true},"publish":true}';
+if (JSON.stringify(resultOf(high, 'publish')) !== want) throw new Error(`publish received ${JSON.stringify(resultOf(high, 'publish'))}`);
+```
 
 ---
 
@@ -1442,6 +1510,83 @@ if (pools.join() !== 'Ingest,Publish') throw new Error(`pools: ${pools.join()}`)
 if (Object.keys(runtime.groups).join() !== 'gate') throw new Error(`groups: ${Object.keys(runtime.groups).join()}`);
 ```
 
+**A custom group type is a FACTORY, and the runtime holds its output to what the scheduler CALLS.**
+The document names a group by KEY with a `type`; the code supplies `{ configSchema?, create(config,
+key) }` under that type name; the three built-ins are pre-registered in the same shape. What comes
+back is checked for ADR 0055's six members and refused by name otherwise. Read the counts off the
+object the runtime built — [W70](doc/work-items/w70-a-flow-that-decides-and-a-custom-group-on-the-runtime.md):
+
+```ts run
+import { createRuntime } from 'fyflow-orchestration/scheduler';
+import { fold, isTerminal, type FlowDefinition, type FoldInput, type RegistryDocument, type RunState } from 'fyflow-orchestration';
+import type { ResourceGroup } from 'fyflow-scheduler';
+
+// A CUSTOM GROUP is the scheduler's own `ResourceGroup`, and the runtime holds a factory's output to
+// the six members the scheduler CALLS or a viewer READS — `canRun`, `onStart`, `onFinish`,
+// `getMetrics`, `id`, `type` — refusing a missing one at construction, by name (ADR 0055: the
+// interface marks two of those optional and the scheduler calls them unguarded, which is S10
+// upstream). This one counts what it sees. The constructor is written long-hand on purpose: a
+// parameter property is TypeScript Node 24 refuses to LOAD (RT-R9).
+class CountingGroup extends EventTarget implements ResourceGroup {
+  readonly type = 'Counting';
+  readonly id: string;
+  private readonly limit: number;
+  private active = 0;
+  started = 0;
+  finished = 0;
+  constructor(id: string, limit: number) { super(); this.id = id; this.limit = limit; }
+  canRun(): boolean { return this.active < this.limit; }
+  onStart(): void { this.active += 1; this.started += 1; }
+  onFinish(): void { this.active -= 1; this.finished += 1; }
+  getMetrics(): { limit: number; running: number; available: number; utilization: number } {
+    return { limit: this.limit, running: this.active, available: this.limit - this.active, utilization: this.active / this.limit };
+  }
+}
+
+// THE REGISTRY declares the group by KEY, with its TYPE by name and its config; the CODE supplies the
+// factory for that type name — `{ configSchema?, create(config, key) }`. The three built-ins,
+// `ConcurrentLimitGroup`, `RateLimitGroup` and `KeyedRateLimitGroup`, are pre-registered in the same
+// shape, so `"type": "ConcurrentLimitGroup"` needs no code at all. A node type names the groups its
+// pool's tasks acquire.
+const registry: RegistryDocument = {
+  workers: { greeter: { url: '../../examples/getting-started/worker.ts' } },
+  groups: { budget: { type: 'Counting', config: { limit: 1 } } },
+  nodeTypes: { Metered: { worker: 'greeter', inline: true, groups: ['budget'] } },
+};
+const flow: FlowDefinition = {
+  flowId: 'metered', version: 1, entry: 'greet',
+  nodes: [
+    { id: 'greet', kind: 'task', type: 'Metered', settings: { say: 'world' }, edges: [{ to: 'shout' }] },
+    { id: 'shout', kind: 'task', type: 'Metered', settings: { say: '!' },     edges: [{ to: 'done' }] },
+    { id: 'done',  kind: 'end',  outcome: 'completed' },
+  ],
+};
+const runtime = createRuntime(registry, {
+  groupTypes: {
+    Counting: {
+      configSchema: { type: 'object', required: ['limit'], properties: { limit: { type: 'integer', minimum: 1 } } },
+      create: (config, key) => new CountingGroup(key, (config as { limit: number }).limit),
+    },
+  },
+}, { base: import.meta.url });
+
+const inputs: FoldInput[] = [];
+const state = await new Promise<RunState>((resolve, reject) => {
+  runtime.start(flow, { text: 'hello' }, {
+    onFoldInput: (input) => { inputs.push(input); queueMicrotask(() => { const s = fold(inputs); if (isTerminal(s)) resolve(s); }); },
+    onRunFailure: (f) => reject(new Error(`${f.kind}: ${f.message}`)),
+  });
+});
+await runtime.shutdown();
+
+// The group the runtime built is the scheduler's, keyed as the document declared it — and it was
+// ACQUIRED and RELEASED once per task of the type that names it, read off the object itself.
+const budget = runtime.groups['budget'] as CountingGroup;
+console.log(state.outcome, budget.started, budget.finished);   // 'completed' 2 2
+if (state.outcome !== 'completed') throw new Error(`expected completed, got ${state.outcome}`);
+if (budget.started !== 2 || budget.finished !== 2) throw new Error(`the group saw ${budget.started} starts and ${budget.finished} finishes`);
+```
+
 **Every refusal is at construction and named.** A worker a type names and the document does not
 declare, a pool whose type does not exist, a config that fails its schema, a schema keyword outside
 the built-in subset, a name declared twice — each is a `RegistryError` subclass naming the entry
@@ -1584,6 +1729,91 @@ a run, and a join's successor reducing the region's record through a declared tr
 sentence read **"Thirteen worked flows"** from the day it was written until W63, over a directory
 that had held twenty-two for two plans — a count in prose that no check reads, so it carries none
 now.)*
+
+### The driver with no scheduler at all — the shape ladder L2 uses
+
+*This was section 2, "Minimal working program", until
+[W69](doc/work-items/w69-a-getting-started-example-a-consumer-can-copy.md) — and since P18 it is the
+HARDER road, so it moved here byte for byte. It is still the one demonstration of a `Driver` with
+nothing underneath it: a fake scheduler in twelve lines, which is what ladder L2 runs against and
+what a unit test of your own routing wants.*
+
+A flow is **data**. You supply the predicates and the task factory; the driver does the rest.
+
+```ts run
+import { Driver, fold, liveToken, type FlowDefinition, type Predicate } from 'fyflow-orchestration';
+
+const definition: FlowDefinition = {
+  flowId: 'greet',
+  version: 1,
+  entry: 'ingest',
+  nodes: [
+    { id: 'ingest',  kind: 'task', type: 'IngestWorker',  edges: [{ to: 'publish' }] },
+    { id: 'publish', kind: 'task', type: 'PublishWorker', edges: [{ to: 'done' }] },
+    { id: 'done',    kind: 'end',  outcome: 'completed' },
+  ],
+};
+
+// A fake scheduler, so this snippet runs with no workers. In your program this is
+// `new FyflowScheduler({ ... })` — see section 12.
+//
+// **Key the listeners by event type.** The driver subscribes to three of them and
+// normalizes on the task's terminal STATE rather than the event name (`OR-R3`), so a
+// double that fans one settlement to every listener writes THREE records for it and
+// the run stops on a `DuplicateTaskId`. A real `EventTarget` does not do this; a
+// hand-written double is where it happens.
+const listeners = new Map<string, ((e: { detail: unknown }) => void)[]>();
+const added: { id: string }[] = [];
+const failures: string[] = [];
+const scheduler = {
+  addTask(task: unknown) { added.push(task as { id: string }); },
+  addEventListener(type: string, fn: (e: { detail: unknown }) => void) {
+    listeners.set(type, [...(listeners.get(type) ?? []), fn]);
+  },
+};
+const settle = (detail: unknown, type = 'task.completed') => {
+  for (const fn of listeners.get(type) ?? []) fn({ detail });
+};
+
+const driver = new Driver(definition, {
+  runId: 'run-1',
+  scheduler,
+  createTask: (config) => config,          // your `new FyflowTask(config)`
+  predicates: new Map<string, Predicate>(),
+  // Since v0.19 a task names a node TYPE and a type names a WORKER entry — section 13. The
+  // validator and the driver require the entries to be DECLARED and load nothing; the URL is what
+  // the bootstrap helper hands a real pool, so a fake scheduler's registry can carry any string.
+  workers: { flow: { url: 'worker.js' } },
+  nodeTypes: { IngestWorker: { worker: 'flow' }, PublishWorker: { worker: 'flow' } },
+  joinPolicy: liveToken,
+  // Section 9: a refusal raised inside a listener is REPORTED, never thrown.
+  // Without this the run stops silently.
+  onRunFailure: (f) => { failures.push(f.kind); },
+});
+
+driver.start({ name: 'world' });
+console.log(added.map((t) => t.id));       // [ 'run-1:ingest:-:0' ]
+
+// The scheduler reports a settlement; the driver routes.
+settle({ id: 'run-1:ingest:-:0',  state: 'done', result: { greeting: 'hello world' } });
+settle({ id: 'run-1:publish:-:0', state: 'done', result: null });
+console.log(added.map((t) => t.id));       // [ 'run-1:ingest:-:0', 'run-1:publish:-:0' ]
+
+const state = fold(driver.foldInputs());
+console.log(state.outcome);                // 'completed'
+
+if (added.map((t) => t.id).join() !== 'run-1:ingest:-:0,run-1:publish:-:0') {
+  throw new Error(`wrong dispatches: ${added.map((t) => t.id).join()}`);
+}
+if (failures.length) throw new Error(`the run reported ${failures.join(', ')}`);
+if (state.outcome !== 'completed') throw new Error(`expected completed, got ${state.outcome}`);
+```
+
+**Three things bite everyone.** The **run id is a constructor option**, not a `start()` argument,
+and it must match `[A-Za-z0-9_-]{1,64}`. A definition with a fan-out and no `joinPolicy` is
+**refused at construction**. A driver serves **exactly one run**, so `start()` is called at most
+once — **and a second driver on the same scheduler is fine**, because a settlement only reaches the
+driver that dispatched it. See section 9.
 
 ---
 

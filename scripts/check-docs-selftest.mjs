@@ -146,6 +146,8 @@ const PROBES = [
   {
     name: 'an untagged block',
     check: 'X2',
+    // + X8 since W69: this mutates the FIRST ```ts run fence, which is the getting-started snippet, and X8 sees AGENTS.md`s copy differ from README`s — measured, not assumed.
+    also: ['X8'],
     mutate: (t) => t.replace('```ts run', '```ts'),
   },
   {
@@ -160,7 +162,8 @@ const PROBES = [
     // sub-path: a name the rewrite cannot resolve now breaks a snippet that EXECUTES as well as the
     // ones that only typecheck. Rule 7 (c) — the set is declared, so the item that widens it says so,
     // and the gate's own self-test is what said the set had moved.
-    also: ['X4', 'X5'],
+    // + X8 since W69: this mutates the FIRST ```ts run fence, which is the getting-started snippet, and X8 sees AGENTS.md`s copy differ from README`s — measured, not assumed.
+    also: ['X4', 'X5', 'X8'],
     mutate: (t) => t.replace("from 'fyflow-orchestration/scheduler'", "from 'fyflow-orchestration/schedulerr'"),
   },
   {
@@ -218,6 +221,8 @@ const PROBES = [
   {
     name: 'an untagged block whose preceding line merely contains the word "prose"',
     check: 'X2',
+    // + X8 since W69: this mutates the FIRST ```ts run fence, which is the getting-started snippet, and X8 sees AGENTS.md`s copy differ from README`s — measured, not assumed.
+    also: ['X8'],
     mutate: (t) => t.replace(
       '```ts run',
       'The paragraphs below are prose.\n\n```ts',
@@ -226,16 +231,22 @@ const PROBES = [
   {
     name: 'a fence spelled ```typescript, which the extractor would otherwise skip in silence',
     check: 'X1',
+    // + X8 since W69: this mutates the FIRST ```ts run fence, which is the getting-started snippet, and X8 sees AGENTS.md`s copy differ from README`s — measured, not assumed.
+    also: ['X8'],
     mutate: (t) => t.replace('```ts run', '```typescript run'),
   },
   {
     name: 'a fence spelled ```TS, ditto',
     check: 'X1',
+    // + X8 since W69: this mutates the FIRST ```ts run fence, which is the getting-started snippet, and X8 sees AGENTS.md`s copy differ from README`s — measured, not assumed.
+    also: ['X8'],
     mutate: (t) => t.replace('```ts run', '```TS run'),
   },
   {
     name: 'an indented fence, ditto',
     check: 'X1',
+    // + X8 since W69: this mutates the FIRST ```ts run fence, which is the getting-started snippet, and X8 sees AGENTS.md`s copy differ from README`s — measured, not assumed.
+    also: ['X8'],
     mutate: (t) => t.replace('```ts run', '   ```ts run'),
   },
   {
@@ -247,11 +258,15 @@ const PROBES = [
   {
     name: 'a reference with no snippets at all',
     check: 'X1',
+    // + X8 since W69: this mutates the FIRST ```ts run fence, which is the getting-started snippet, and X8 sees AGENTS.md`s copy differ from README`s — measured, not assumed.
+    also: ['X8'],
     mutate: (t) => t.replace(/```ts[\s\S]*?```/g, ''),
   },
   {
     name: 'a `run` snippet whose assertions are deleted, so it only exits zero',
     check: 'X4',
+    // + X8 since W69: this mutates the FIRST ```ts run fence, which is the getting-started snippet, and X8 sees AGENTS.md`s copy differ from README`s — measured, not assumed.
+    also: ['X8'],
     mutate: (t) => t.replace(/^.*\bthrow new Error\(.*$/gm, ''),
   },
   {
@@ -267,6 +282,8 @@ const PROBES = [
   {
     name: 'a failing assertion smuggled past X4 by re-tagging the block `check`',
     check: 'X2',
+    // + X8 since W69: this mutates the FIRST ```ts run fence, which is the getting-started snippet, and X8 sees AGENTS.md`s copy differ from README`s — measured, not assumed.
+    also: ['X8'],
     mutate: (t) => t.replace('```ts run', '```ts check'),
   },
   {
@@ -282,11 +299,43 @@ const PROBES = [
   {
     name: 'a whole `run` snippet deleted, which every other check is blind to',
     check: 'X4',
+    // + X8 since W69: this mutates the FIRST ```ts run fence, which is the getting-started snippet, and X8 sees AGENTS.md`s copy differ from README`s — measured, not assumed.
+    also: ['X8'],
     mutate: (t) => {
       const i = t.indexOf('```ts run');
       const j = t.indexOf('```', t.indexOf(String.fromCharCode(10), i));
       return t.slice(0, i) + t.slice(j + 3);
     },
+  },
+  // ---- X8: the README's getting-started snippet IS AGENTS.md section 2's — W69 ----
+  // One probe per DIRECTION of a both-ways comparison (`doc/workflow.md` section 5 rule 8, obligation
+  // (e)'s third shape: *find the other list and compare BOTH WAYS*). Each edits a COMMENT inside the
+  // snippet, so the snippet still compiles and runs and only X8 sees the copies disagree — a probe
+  // that edited code would trip X4 as well and could not tell X8's clause from X4's.
+  {
+    name: 'AGENTS.md`s copy of the getting-started snippet differs from README.md`s by one character — the AGENTS direction',
+    check: 'X8',
+    mutate: (t) => t.replace('// THE REGISTRY — what exists.', '// THE REGISTRY — what exist.'),
+  },
+  {
+    name: 'README.md`s copy of the getting-started snippet differs from AGENTS.md`s by one character — the README direction',
+    check: 'X8',
+    mutate: (t) => t,
+    readme: (r) => r.replace('// THE REGISTRY — what exists.', '// THE REGISTRY — what exist.'),
+  },
+  {
+    name: 'README.md loses its "Getting started" heading, so X8 has no block to compare',
+    check: 'X8',
+    mutate: (t) => t,
+    // Since W70 this trips X8 TWICE under one id — the listed heading is missing, and the fence now
+    // sits under a heading the list does not name — which is the both-ways clause read in one probe.
+    readme: (r) => r.replace('## Getting started\n', '## Getting going\n'),
+  },
+  {
+    name: 'README.md`s SECOND snippet — the routing flow — differs from AGENTS.md`s by one character: X8 over every fence, not the first (W70)',
+    check: 'X8',
+    mutate: (t) => t,
+    readme: (r) => r.replace('// THE FLOW — a DECISION, a FAN-OUT, a JOIN.', '// THE FLOW — a DECISION, a FAN-OUT, a JOI.'),
   },
 ];
 
@@ -335,8 +384,10 @@ const RAN = (out) => /^(All checks passed|\d+ failure\(s\)\.)/m.test(out);
  * it — would report `0/0 probes caught` and exit 0. W16's adequacy reader's finding,
  * inherited rather than rediscovered; **this file had no floor at all until W29.**
  */
-// 18 until W59, which added the sub-path probe and raised the floor to the count it ships (Q102).
-const MIN_PROBES = 20;
+// 18 until W59, which added the sub-path probe and raised the floor to the count it ships (Q102);
+// 20 until W69, which added X8's three and raised it to the count it ships — 25; 26 since W70's
+// second-fence probe.
+const MIN_PROBES = 26;
 
 /** The same floor for `META`, and for the same reason. */
 const MIN_META = 10;
@@ -358,6 +409,11 @@ const MIN_META = 10;
  */
 const META = [
   // (a) the rule's clauses — one per id, chosen for blast radius.
+  // Re-anchored at W70, which generalised the clause from one compared block to every README fence
+  // (rule 7 (b): the W69 anchor `if (rm.body !== ag.body)` no longer exists).
+  ['X8`s equality clause disabled, so a README copy can drift from the executed one in silence — W69, re-anchored W70',
+    'AGENTS.md`s copy of the getting-started snippet differs from README.md`s by one character — the AGENTS direction',
+    (t) => t.replace('      if (!agBodies.includes(body)) {', '      if (false) {')],
   ['X1`s near-fence refusal disabled, so a variant spelling silently drops a snippet',
     'a fence spelled ```typescript, which the extractor would otherwise skip in silence',
     (t) => t.replace('      if (NEAR_FENCE.test(lines[i])) {', '      if (false) {')],
@@ -425,6 +481,10 @@ const META = [
 
 export async function selfTest(root) {
   const doc = readFileSync(join(root, 'AGENTS.md'), 'utf8');
+  // The README, for `X8`'s probes: a probe may carry `readme: (t) => t'` beside `mutate`, staged the
+  // same way and handed to the check as `CHECK_DOCS_README` — one direction of a both-ways
+  // comparison needs a mutation on each side (W69).
+  const readme = readFileSync(join(root, 'README.md'), 'utf8');
   const dir = join(root, 'dev-dist', 'docs-selftest');
   rmSync(dir, { recursive: true, force: true });
   mkdirSync(dir, { recursive: true });
@@ -491,16 +551,21 @@ export async function selfTest(root) {
     const declared = [probe.check, ...(probe.also ?? [])].sort();
     const rel = `dev-dist/docs-selftest/${String(i).padStart(2, '0')}.md`;
     const mutated = probe.mutate(doc);
-    if (mutated === doc) {
+    const readmeMutated = probe.readme ? probe.readme(readme) : null;
+    if (mutated === doc && (readmeMutated === null || readmeMutated === readme)) {
       // A probe that changes nothing passes for the wrong reason — the exact
-      // vacuity rule 7 (b) refuses.
+      // vacuity rule 7 (b) refuses. A README-side probe is vacuous on the same terms.
       return { vacuous: true, refused: false, ran: false, declared, tripped: [], agree: true,
         msg: 'the mutation matched nothing' };
     }
     writeFileSync(join(root, rel), mutated);
-    const r = spawnSync(process.execPath, [script], {
-      cwd: root, encoding: 'utf8', env: { ...process.env, CHECK_DOCS_DOC: rel }, timeout: 300_000,
-    });
+    const env = { ...process.env, CHECK_DOCS_DOC: rel };
+    if (readmeMutated !== null) {
+      const rrel = rel.replace(/\.md$/, '-readme.md');
+      writeFileSync(join(root, rrel), readmeMutated);
+      env.CHECK_DOCS_README = rrel;
+    }
+    const r = spawnSync(process.execPath, [script], { cwd: root, encoding: 'utf8', env, timeout: 300_000 });
     const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
     // The set of checks that actually reported a failure, compared against the
     // set this probe declared. Equality, not membership: a probe that trips a
@@ -534,6 +599,7 @@ export async function selfTest(root) {
   const inertOnCleanTree = () => {
     const env = { ...process.env };
     delete env.CHECK_DOCS_DOC;
+    delete env.CHECK_DOCS_README;
     return spawnSync(process.execPath, [script], { cwd: root, encoding: 'utf8', env, timeout: 300_000 }).status === 0;
   };
 

@@ -11,6 +11,16 @@ npm run test:l6         # Node 24
 npm run test:l6:deno    # Deno
 ```
 
+**`getting-started/` is the one thing here that is NOT an L6 row** —
+[W69](../doc/work-items/w69-a-getting-started-example-a-consumer-can-copy.md) and
+[W70](../doc/work-items/w70-a-flow-that-decides-and-a-custom-group-on-the-runtime.md). It holds the
+files a consumer writes as code — two workers, `worker.ts` and `tag.ts` — and what executes them is
+`npm run check:docs`: `AGENTS.md` sections 2, 5 and 12 carry the getting-started, routing and
+custom-group snippets, the gate extracts and runs each, and `README.md` carries the first two byte-equal
+under `check-docs`'s `X8`, which holds every README fence to an executed one. `l6.ts` lists `workers/` on disk and compares that listing to
+the L6 registry both ways, which is why the getting-started worker lives in its own directory rather
+than beside the fourteen: a module under `workers/` that no L6 entry names is red in that clause.
+
 Both print the same table and run the same **1610 assertions over 53 real runs** *(1502 / 50 until [W67](../doc/work-items/w67-a-flow-from-documents-on-real-workers.md), whose two rows are P18's exit artifact; 1501 until W65 split one cross-row retry clause into a pair)*. *(**1499** for the hour between the reshaping-road pair joining block (2d) and the readers' fourth branch, and this sentence read **1497** — the count from before that pair — while it did, which W63's conformity reader caught, the class this page records five times below; **1281 / 46** until [W63](../doc/work-items/w63-a-transformed-join-on-real-workers.md) — and this sentence read **1280** for that whole interval, W59's count from the hour before its readers' last assertion landed, so it was wrong by one from W59's record step to W63's; **1203 / 44** until [W59](../doc/work-items/w59-what-a-node-type-is.md); **1061 / 42** until [W58](../doc/work-items/w58-what-a-node-says-about-its-own-task.md) — 1138 / 42 when W57 shipped, and this sentence never carried it; **942 / 42**
 until [W55](../doc/work-items/w55-a-run-at-scale-on-real-workers.md), which moved the assertion
 count and not the run count: it adds no row and no flow, because P15's exit artifact is a MEASURED
