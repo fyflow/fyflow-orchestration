@@ -1,0 +1,10 @@
+{
+  "flowId": "wiring-unchecked",
+  "version": 1,
+  "entry": "mystery",
+  "nodes": [
+    { "id": "mystery", "kind": "task", "type": "Silent",  "edges": [ { "to": "weigh" } ] },
+    { "id": "weigh",   "kind": "task", "type": "Bounded", "edges": [ { "to": "done" } ] },
+    { "id": "done",    "kind": "end",  "outcome": "completed" }
+  ]
+}

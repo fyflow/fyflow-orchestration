@@ -1,0 +1,10 @@
+{
+  "flowId": "wiring-no",
+  "version": 1,
+  "entry": "score",
+  "nodes": [
+    { "id": "score",  "kind": "task", "type": "Scored", "edges": [ { "to": "write" } ] },
+    { "id": "write",  "kind": "task", "type": "Strict", "edges": [ { "to": "done" } ] },
+    { "id": "done",   "kind": "end",  "outcome": "completed" }
+  ]
+}

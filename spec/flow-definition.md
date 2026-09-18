@@ -1,6 +1,6 @@
 # spec/flow-definition — the flow definition format
 
-**Status:** v0.20 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.21 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2** acted on the first spec-conformity pass
 (ADR 0004, and `region(F)` made computable). **v0.3** acted on the second, which found that `FD-V19`
 had reintroduced the v0.1 defect class under a new id — a refusal rule rejecting the valid corpus.
@@ -254,6 +254,21 @@ wrote from the corpus workers' code, ONE was wrong and the example written besid
 wrong schema; only running the worker found it, which is why `scripts/check-workers.mjs` executes a
 worker on its example rather than reading its declaration.
 
+**v0.21 is what the schemas BUY an author, and one rule about the two values no static check can
+reach** ([P19](../doc/plans/p19-what-a-schema-buys-an-author.md) decisions 4, 5 and 8, [W73](../doc/work-items/w73-the-wiring-check-a-verdict-per-edge-and-two-boundaries-validated-once.md)): section 3 gains the WIRING CHECK —
+`checkWiring(registry, flow)` gives every arc of a flow one of five verdicts from the workers' declared
+schemas, static over the subset and sample-verified where a transform is declared — and section 6
+gains **`FD-R4`**: the run's payload is held to the first task(s) it reaches at `start()`, a
+person's resolution to the parked node's worker `outputSchema` at `resolve()`, once each, refused as a
+REJECTED COMMAND (`BoundaryRefused`) and never as a stopped run. **No `FD-V` is added or retired**, so this
+document still holds **34 refusals**. **Measured before the rule was written** (W73's declaration):
+P19 fact 3's fifteen task-to-task edges were ONE shape of six a node receives, and over every shape
+the shipped L6 corpus held NINE arcs that did not fit — seven on one bound, one on an undescribed
+item, one a transformed record the static reading refuses — which the check found and the item corrected ([Q302](../doc/open-questions.md)'s other
+resolution: the code made to keep the bound); the subset cannot say `additionalProperties: <schema>`, so
+a join record's shape is the check's own knowledge and not a keyword's; and the two boundaries cost
+under a microsecond per run on every corpus payload, 0.35 ms at the walking worst case.
+
 **Binds:** [ADR 0002](../doc/decisions/0002-a-flow-definition-is-data-and-a-predicate-is-registered-by-name.md)
 (the graph is data; a predicate is a name; an unknown name fails at instantiation) and
 [ADR 0004](../doc/decisions/0004-a-non-success-outcome-routes-only-where-an-edge-opts-in-and-user-action-suspends.md)
@@ -502,8 +517,8 @@ a pool a consumer builds by hand and spreads into the scheduler beside the helpe
 to compare, and Q260 stays open for it.)*
 
 **What this is NOT.** A type's worker SAYS what it expects and returns — `inputSchema` and
-`outputSchema` on the worker entry — and no RUN enforces either: declared and carried since
-v0.19, and since v0.20 confirmed on a run by an authoring-time check, `scripts/check-workers.mjs`, over each schema's declared `examples` ([ADR 0056](../doc/decisions/0056-an-example-is-an-annotation-validated-against-the-schema-it-sits-on.md), [W72](../doc/work-items/w72-the-contract-an-example-beside-every-schema-and-a-worker-run-on-it.md)) *(this said "nothing enforces either yet … P19's strict mode" — P19 was DECLARED 2026-09-18 under a different name, *what a schema buys an author*, per-settlement enforcement is OUT of it as a default, and what it enforces at run time is the entry payload and a person's resolution, once each, in W73)*. A transform on the envelope is the `transform` subsection below (v0.18).
+`outputSchema` on the worker entry — enforced on no SETTLEMENT: declared and carried since
+v0.19, held to one value per run each since v0.21 (`FD-R4`), and since v0.20 confirmed on a run by an authoring-time check, `scripts/check-workers.mjs`, over each schema's declared `examples` ([ADR 0056](../doc/decisions/0056-an-example-is-an-annotation-validated-against-the-schema-it-sits-on.md), [W72](../doc/work-items/w72-the-contract-an-example-beside-every-schema-and-a-worker-run-on-it.md)) *(this said "nothing enforces either yet … P19's strict mode" — P19 was DECLARED 2026-09-18 under a different name, *what a schema buys an author*, per-settlement enforcement is OUT of it as a default, and what it enforces at run time is the entry payload and a person's resolution, once each — `FD-R4`, W73)*. A transform on the envelope is the `transform` subsection below (v0.18).
 A node type has no VERSION ([Q249](../doc/open-questions.md)). Cases: `spec/examples/valid/typed.flow.json`
 carries a typed task with settings on all four shapes `FD-C5` enumerates, beside a task of a
 former bare type; `pooled.flow.json` runs one node on a NAMED instance and one on the default by
@@ -1092,8 +1107,8 @@ to the subset, configs held to their schemas, and every derivation RUN with its 
 | `url` | required | the worker class's module URL — its default export is the class, the scheduler's own contract. A relative URL resolves against the `base` the runtime is given (decision 7): inside a bundle `import.meta.url` is the bundle ([Q261](../doc/open-questions.md)) and the runtime cannot guess |
 | `configSchema` | optional, CHECKED | what the worker's CONSTRUCTOR argument must satisfy — a type's derived config (its default instance's) and every named instance's, at construction |
 | `settingsSchema` | optional, CHECKED | what a node's effective `settings` must satisfy — `FD-V33`, at `new Driver`, a schema where v0.17 had a function. The type's `settings` defaults are merged UNDER the node's before it is applied |
-| `inputSchema` | optional, CARRIED | what the worker's `run()` receives as `input`. Declared, held to the subset, enforced on no RUN by this plan — P19, which is declared under the name *what a schema buys an author* and enforces it at the ENTRY PAYLOAD once per run, not per settlement (W73). **Since v0.20 it may carry `examples`** — the subset's thirteenth keyword, an annotation held to the schema at construction ([ADR 0056](../doc/decisions/0056-an-example-is-an-annotation-validated-against-the-schema-it-sits-on.md)) — and the first example is what `scripts/check-workers.mjs` RUNS the worker on; with none, the generator's witness, and the verdict says which |
-| `outputSchema` | optional, CARRIED | what the worker's `run()` returns. As `inputSchema`; **since v0.20 the value the worker actually returned is validated against it by `check-workers`**, an authoring-time check and never a driver behaviour (P19 decision 3) |
+| `inputSchema` | optional, CARRIED | what the worker's `run()` receives as `input`. Declared, held to the subset, and enforced on ONE value per run — the entry payload at `start()`, `FD-R4` (v0.21, W73) — never per settlement; what it buys an author before any run is the wiring check (the subsection below). **Since v0.20 it may carry `examples`** — the subset's thirteenth keyword, an annotation held to the schema at construction ([ADR 0056](../doc/decisions/0056-an-example-is-an-annotation-validated-against-the-schema-it-sits-on.md)) — and the first example is what `scripts/check-workers.mjs` RUNS the worker on; with none, the generator's witness, and the verdict says which |
+| `outputSchema` | optional, CARRIED | what the worker's `run()` returns. As `inputSchema`; **since v0.20 the value the worker actually returned is validated against it by `check-workers`**, an authoring-time check and never a driver behaviour (P19 decision 3); **and since v0.21 a PERSON's resolution is held to it at `resolve()`** — `FD-R4`, once per human action, the one value at that boundary no worker produced |
 
 **An absent schema means UNCHECKED**, stated rather than left to guess (decision 3): a worker with no
 `settingsSchema` accepts any `settings` object, with no `configSchema` any config — which is what
@@ -1274,6 +1289,45 @@ builds a `Driver` by hand passes the same shape the runtime does. Of a node type
 pool it reads its `type` (`FD-V38`); it constructs nothing and never calls a derivation. **A flow
 references registry keys only, so a flow document is portable across runtimes that agree on keys**
 (decision 10).
+
+#### What the schemas buy an author — the wiring check — v0.21
+
+**A worker's `inputSchema` and `outputSchema` were never for the run; they were for the AUTHOR** — a person
+or an agent wiring a flow — so that a tool can say, before anything runs, whether what one node
+produces is what the next one reads ([P19](../doc/plans/p19-what-a-schema-buys-an-author.md), the maintainer's argument of 2026-09-18; [W73](../doc/work-items/w73-the-wiring-check-a-verdict-per-edge-and-two-boundaries-validated-once.md)).
+`checkWiring(registry, flow)` in `src/definition/wiring.ts` (exported from the root) reads the two schemas
+through each task's TYPE's worker and gives EVERY ARC one verdict. What arrives on the producer side
+of an arc is what `FD-C1`, `JP-R11` and `JP-R12` say the consumer receives, as a SCHEMA:
+
+| arc | what arrives |
+|---|---|
+| `edge` | the producer task's `outputSchema` — section 3's ordinary edge |
+| `branch` | what the fan-out received, the same value to every branch (`JP-R11`) |
+| `item` | one element of the array the map received under `over` — the `items` sub-schema of the producer's property; a CLOSED producer (`additionalProperties: false`) whose schema never emits `over`, or any producer that calls it something other than an array, is `no`, which is `FD-R2` predicted before a run; an OPEN producer that says nothing about `over` is `unchecked` (it may emit it — the leniency, one row down). The sample is the example's array, and a transform on the branch task runs once PER ELEMENT |
+| `record` | `JP-R12`'s record, at a join's successor — for a `fanout`, EXACT in its keys — every declared branch path a property of its arriving node's output, no other key — and REQUIRING none of them, because a branch that is lost has no entry and a branch is lost by three roads no document shows (an `optional` task failing, a person resolving a suspended task `failed` — `RS-R3`, `spec/join-policy.md` section 2 — or a policy firing before it settles), so a consumer REQUIRING a branch key is `no` (the safe direction: a `fits` the run can falsify is the unsafe kind); for a `map`, an object whose keys are branch paths minted at run time, each of the one branch's output shape. **The subset cannot write that** — measured at W73's declaration, `additionalProperties: <schema>` is refused by `schemaProblem` — so the check carries the record's shape itself and no author writes it; a declared input schema for a join successor is `{ type: object }` at best (P19 decision 8) |
+| `needs` | `FD-C1`'s table composed: `"."` the arc's value, an id that node's output, `[id]` an array of it, a `?` an optional key — one object schema, and the same object as a sample; over a map's `item`, one composed object PER ELEMENT, evaluated per element as the run does (W73's adequacy reader found the first cut composing the whole array under the key and reading a correct wiring `transform-fails`). An ENTRY task's `needs` composes the run's payload and is NO ARC — `FD-R4`'s, below |
+
+| verdict | means |
+|---|---|
+| `fits` | every value the producer's schema admits, the consumer's `inputSchema` accepts — P19 fact 3's relation over the twelve constraining keywords (`examples` is read by nothing, ADR 0056 rule 1), promoted from the declaration's harness verbatim, with its ONE stated leniency: a key the consumer describes and does not require, which an open producer does not name, is read as never emitted — because an author who leaves an output schema open means *there are keys I do not describe*, not *the keys you describe may hold anything* |
+| `no` | it does not, and no transform is declared; the reason names the path and the keyword, in the words the twelve controls print (`$.confidence: consumer bounds maximum 1, producer declares no maximum`) |
+| `transform-passes` | the consumer declares a `transform`; it is run by the language's WORKER half (imported by its URL, never an engine) on a SAMPLE of the producer side — the first declared `examples` entry, else the generator's witness (`src/definition/witness.ts`, P19 fact 5) — and every result satisfies the consumer's `inputSchema`. **The verdict names the sample's SOURCE and, where the producer is a region or a map, its ARITY** ([Q301](../doc/open-questions.md), [Q263](../doc/open-questions.md)): a transform's result changes type with the arity, and a witness is not a proof — a sample that passes is *the sample passed*, never *fits* (P19 prediction 2) |
+| `transform-fails` | the transform threw on that sample, or its result fails the consumer's `inputSchema` — the message or the finding in the reason |
+| `unchecked` | a side declares no schema (P18 decision 3, *absent means UNCHECKED*), a type, worker or language the registry lacks, or a transform with no sample to run on — named, never a throw, because a report is what an author reads |
+
+**The relation is TOTAL**: every arc gets exactly one of the five, and none is *cannot tell* (P19
+prediction 2) — including a region inside a `map` region, which the validator accepts and the driver refuses at
+construction ([Q160](../doc/open-questions.md)): the record's sample keys take item index 0 for every
+enclosing map, and a static check gives a verdict where a run would not start. **The ENTRY has no arc**: the run's payload reaches the entry task — or every branch task
+of an entry region, recursively — with no worker in between, and that is `FD-R4`'s boundary, held at
+`start()` (section 6). **What it costs to be wrong is what the check exists to find**: measured on the
+shipped L6 corpus at W73's declaration, fourteen of fifteen task-to-task edges fit (the fifteenth had no
+input schema to meet) and NINE arcs of the other shapes did not — seven of them one dropped bound
+flowing through six map items and one `needs` — which P19 fact 3 could not see because it counted one shape. Held by `test/definition/wiring.test.ts`:
+the twelve controls as fixtures, the wiring fixture corpus (section 7) with a positive case per
+verdict, the L6 corpus's census as an EQUALITY (62 fit, 1 `no` — `map-no-array`'s `FD-R2`, predicted — 5
+transform-passes, 2 transform-fails, 8 unchecked, every arc shape reached), and both enumerations
+above held to this document both ways.
 
 ## 4. Fan-out, join, and the region between them
 
@@ -1621,6 +1675,7 @@ owning item's gate, **not W1's L0**.
 |---|---|---|
 | `FD-R1` | routing reaches a node, eligible edges exist for the settled terminal state, and none evaluates true. The failure names the run id and the node id and is **reported** rather than thrown out of a listener (`OR-R10`). **Unreachable through a valid definition**, and that is `FD-V7` working rather than a gap — see below. Test: assert against the routing function directly, with a node whose eligible edges are all guarded and a registry whose predicates all return false; **and a companion test that the reachable neighbour is not this rule** — no eligible edge at all is a declared path end (section 3) | W3 |
 | `FD-R3` | **an UNCONDITIONAL** `needs` reference names a node and **no output of that node is on this node's branch path**. Reported as an `UnresolvedReference` naming the declaring node, its branch path, the key and the target. **Since v0.13 the decision-routed-around case is `FD-V29`'s and is refused at instantiation**, and what is left is the two things a validator provably cannot see, both measured rather than argued: (a) **a reader whose branch path is comparable with none of the target's**, which needs no policy at all — two `map` regions of different arity, `reference-past-a-map-arity.flow.json`, where `FD-V29` correctly says the target ran and the third instance of the second region can see neither output of the first; and (b) a join **policy** firing before a branch entry has SETTLED — for any reason, parking at `user_action` being one and a branch entry that has simply not settled yet being another — which `validateDefinition` cannot know about because it is not given the policy (`FD-V15`'s note, [Q97](../doc/open-questions.md)). *(This clause read *"parked at `user_action`"*, as did four other statements of the same limit, and W45's conformity reader measured that parking is inessential: a policy satisfied on the first arrival, with the other branch entry never settling, dispatches the reader and this rule fires with no `user_action` anywhere. `test/driver/needs.test.ts` asserts it under a constructed policy, with a shipped-policy control beside it.)* **A CONDITIONAL reference never reaches this rule** — `FD-C4` is what it does instead. **AND v0.15 REMOVES (a), which leaves (b) as the only road.** [ADR 0044](../doc/decisions/0044-a-reference-is-visible-when-two-paths-agree-on-the-regions-that-contain-both-of-them.md) makes a reader in a SIBLING region see **all** of the target's outputs, so *comparable with none of the target's* has no instance there — the case (a) names was the sibling road, and it was `FD-C1`'s defect rather than a fact about what a validator can see. **So this rule now has exactly one road that a shipped policy can reach, and it is the POLICY one** — which is `FD-V29`'s own history one version on: that rule removed the decision case and this removes the arity case, each leaving the backstop narrower. *(The removal landed with the DRIVER, in **W50**: `reference-past-a-map-arity` resolves at every arity pair now, and this rule's remaining road is the policy one — [Q218](../doc/open-questions.md).)* *(Before v0.13 this row read *"a decision routed around it, or it settled `user_action`"* and said *"no validator rule could have seen this"*. **The first clause was `FD-V29`'s all along and the sentence was the argument against looking**; the second half is (b), and (a) was in neither. W45.)* **`FD-V27` has already checked that this node is reachable FROM the named one** and `FD-V29` that it must have run, which together are everything the graph can say. **Why its own class and not `UnresolvedMapArity`**: that one says *the previous node did not return an array*, which is a WORKER's bug, and this says *the node you named did not run on your path*, which is the FLOW's shape, and the two send a reader to different places. Reported through `OR-R10` from a listener, and reported **and rethrown** from `resolve()`, which is caller-initiated. **Not from `start()`, and that is a property of `FD-V27` rather than of this rule**: `start()` composes only the entry node, and a reference from the entry node names a target the entry node must be reachable from — which with `FD-V11` makes the entry reachable from it, and that is an `FD-V10` cycle. So the `start()` road is refused at instantiation and has no case. *(This row said `start()` and `resolve()`, and the test named for it asserted neither. W41's conformity reader, and it is `FD-R1`'s own *test that cannot be built* one section up.)* Test: `test/driver/needs.test.ts` | **[W41](../doc/work-items/w41-what-a-node-can-reach-and-what-names-it.md)** |
+| `FD-R4` | **the run's PAYLOAD fails the `inputSchema` of a task it reaches with no worker in between, at `start()`; or a PERSON's `done` resolution fails the parked node's worker `outputSchema`, at `resolve()`** — v0.21, [P19](../doc/plans/p19-what-a-schema-buys-an-author.md) decision 5, [W73](../doc/work-items/w73-the-wiring-check-a-verdict-per-edge-and-two-boundaries-validated-once.md). Once per run and once per human action, NEVER per settlement (per-settlement validation of a worker's result is OUT of P19 as a default). **A REJECTED COMMAND and not a terminated run — the one row of this table whose heading clause does not hold, and it says so**: thrown at the caller as `BoundaryRefused` (naming the boundary, the node, the worker, the task where there is one, and every finding), NOTHING appended, nothing reported through `OR-R10`. At `start` it is thrown before the driver counts itself started, so a corrected payload starts the same driver (`ID-R3` sees nothing, because nothing ran); at `resolve` the task is still suspended and a corrected value resolves it — `RS-R1`'s own reading, *it came from outside and a caller can retry* — and the worker's declared example is a value a person can supply (ADR 0056 rule 3). A boundary that STOPPED the run would turn a typo in a human's value into a dead run, the opposite of what the schemas are for; the maintainer's choice at W73's stop-and-ask 2. **The targets at `start` are the wiring check's own walk** (`boundaryTargets`, one derivation, two callers): the entry task, or every branch task of an entry fan-out recursively over the same value, or a map's branch task once per element of the array under `over` (a non-array is `FD-R2`'s, as before) — each value composed through the node's `needs` as `enter` composes it (at an entry only `"."` can be named, `FD-V27`, and an entry `map`'s own `needs` is composed the same way before `over` is read). A `done` resolution with no `result` is held as `null`, which is what the record stores for it (`RS-R2`). A worker declaring no schema on that side is UNCHECKED (P18 decision 3); `DriverOptions.validateBoundaries: false`, forwarded by `createRuntime`'s `RuntimeOptions`, turns both off. **Measured before the rule was written** (W73's declaration, fact D): 0.47-1.28 µs per check on every corpus payload and resolution, 0.35 ms at the walking worst case (a 1000-item array under a schema that walks items), against ~100 ms per real run at L6. Test: `test/driver/boundary.test.ts` at L2 — a task entry, a fan-out entry naming the refusing branch, a map entry refusing one item, an entry composing `"."`, the resolve boundary with the task still suspended and then resolved on the declared example, both switches, and the runtime forwarding — and `examples/l6.ts` on real workers in both runtimes: an entry payload refused with NOTHING dispatched to the scheduler and the row's run then started beside it, and a person's resolution refused and then accepted on the SAME driver. **The same-driver half of the start boundary is L2's alone**: `createRuntime`'s `start` builds a driver and starts it in one call, so a refused driver is a value no caller of the runtime holds (W73's adequacy reader, f1 — [Q307](../doc/open-questions.md)) | **W73** |
 
 ### FD-R1's test, corrected
 
@@ -1697,3 +1752,22 @@ registry a registry a consumer could hand `createRuntime`. *(`check-spec`'s `C7`
 types, pools and languages from this file and not `groups`; the L4 suite is where those are bound.)*
 
 `spec/examples/invalid/` — one per `FD-V*` rule, filename `<rule-id>--<slug>.flow.json`.
+
+`spec/examples/wiring/` — **documents that are WRONG ON PURPOSE at the wiring check and RIGHT at every `FD-V`** —
+v0.21, [W73](../doc/work-items/w73-the-wiring-check-a-verdict-per-edge-and-two-boundaries-validated-once.md), on `invalid/`'s own precedent one rule family over: each is named by the VERDICT it
+earns, as `invalid/`'s are by the rule id, and validates clean — a miswire VALIDATES, which is why none
+can live in `valid/` (every document there is one an author would want) or in `invalid/`. They wire
+against their own registry document, `wiring/registry.json` — five workers with OPPOSED schemas and
+`path` as the language, resolved by `test/definition/corpus-types.ts` as the L4 registry's is — because the
+L4 corpus's `corpus://` workers declare no schemas ([Q300](../doc/open-questions.md); the maintainer's choice at
+W73's stop-and-ask 1 left them so, and the check's LIVE corpus is the L6 one, whose fourteen workers
+`check:workers` runs). `test/definition/wiring.test.ts` compares this table to the directory BOTH WAYS,
+holds each document's verdicts to its cell, and asserts that every verdict kind is reached.
+
+| file | verdicts |
+|---|---|
+| `fits--a-closed-producer-into-a-bounded-consumer.flow.json` | fits: score -> weigh |
+| `no--a-consumer-requiring-a-key-the-producer-never-emits.flow.json` | no: score -> write |
+| `transform-passes--a-path-picks-the-string-the-consumer-wants.flow.json` | transform-passes: score -> title |
+| `transform-fails--a-path-picks-a-number-for-a-string-consumer.flow.json` | transform-fails: score -> title |
+| `unchecked--a-producer-declaring-no-output-schema.flow.json` | unchecked: mystery -> weigh |

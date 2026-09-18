@@ -146,6 +146,8 @@ export interface RuntimeOptions {
   createScheduler?: (pools: Record<string, WorkerManager>, groups: Record<string, ResourceGroup>) => FyflowScheduler;
   /** Applied to every node of every flow this runtime starts that declares no `retryPolicy` and whose type declares none — the driver's option, held to `FD-V30` there. */
   defaultRetryPolicy?: RetryPolicy;
+  /** `FD-R4`'s switch, forwarded to every driver this runtime starts (W73): the payload at `start` and a person's resolution at `resolve`, each held to the worker's schema once. Default ON; `false` turns both off runtime-wide, since the schemas are the document's. */
+  validateBoundaries?: boolean;
 }
 
 /** What `start` may say about ONE run. Everything else about a run is the document's. */
@@ -382,6 +384,7 @@ export function createRuntime(
         ...registry,
         joinPolicy: startOptions.joinPolicy ?? liveToken,
         ...(options.defaultRetryPolicy !== undefined ? { defaultRetryPolicy: options.defaultRetryPolicy } : {}),
+        ...(options.validateBoundaries !== undefined ? { validateBoundaries: options.validateBoundaries } : {}),
         ...(startOptions.createTask !== undefined ? { createTask: startOptions.createTask } : {}),
         ...(startOptions.onFoldInput !== undefined ? { onFoldInput: startOptions.onFoldInput } : {}),
         ...(startOptions.onRunFailure !== undefined ? { onRunFailure: startOptions.onRunFailure } : {}),

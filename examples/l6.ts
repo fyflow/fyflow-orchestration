@@ -67,6 +67,7 @@
  * | **W63 — `transformed` at arity TWO, ONE and ZERO** | **P17's EXIT ARTIFACT, and it is [Q263](../doc/open-questions.md) as three rows.** One flow: a typed `map` branch whose declared `transform` RESHAPES its own item with the map's settings read through `$settings`, then a fanout of two typed scorers into a join whose typed successor declares `transform: { lang: "jsonata", expr: "$sum([*.score])" }` and NO reshaping node — its worker receiving the reduced value as `input` (`FD-C6`), echoed from the run: **990** when both branches arrive, **400** when one is routed away (P1's own case under `live-token`), **0** — the NUMBER, not `undefined` — when the join is reached by nothing and `live-token` fires it. Every value is what the worker RECEIVED, read off the outcome record and never a literal the row alone carries; the `Echo` pool that evaluates the expression is a real THREAD in both runtimes, loading the adapter by its module URL, and every result it returns reports the fresh realm it ran in. **What these rows observe is the VALUE the successor received and not the record's shape**: JP-R12's key set is observed by `transform-fails`' untyped `publish`, and its `{}` by W17's `all-exit` row — the reduction is key-blind and sums `null` to 0 as it sums `{}` (the adequacy reader, M2 and M6) |
  * | **W63 — `transform-fails`** | **P17 decision 5 end to end.** Two non-optional typed nodes whose transforms fail at run time — `$.confidence + " points"` (`T2002`, an author who meant `&`) and `$now()` (`UNBOUND`, ADR 0052 rule 7) — are retried ONCE under the type's policy, fail again, and are parked `user_action` with `TransformFailed`'s message as the task's error on two observers (`attempts: 1`); a person `resolve()`s each with the value the transform did not supply, the join fires over all four branches and the run completes. Beside them a typed node with NO transform receives `FD-C5`'s two-key envelope to the byte, in the flow whose `Scorer` pool carries no engine — and `note`, a typed node whose transform SUCCEEDS over an ordinary edge's value, `FD-C5`'s first kind, which the exit-artifact flow cannot carry |
  * | **W67 — `triage LOW` and `triage HIGH`** | **P18's EXIT ARTIFACT: a flow and the runtime it needs from TWO JSON DOCUMENTS and a shim.** `examples/registry.json` says what exists — fourteen worker modules, five resource groups, fifteen node types, one NAMED pool instance — and `examples/flows/triage.flow.json` names registry keys and nothing else; `run-flow.ts` supplies only what P18 decision 7 keeps as code (a predicate, a custom group TYPE, a custom node-type CLASS, a language adapter) and calls `createRuntime` once. The two rows carry, from the run: a DOCUMENT-declared type (`Prompt`) and a CLASS registered in code (`GpuModel`) over the SAME worker, so the pools they built differ in their derivation alone; a node on its type's DEFAULT instance (`audit`) against one on a NAMED instance of that type (`review` on `prompt-big`), told apart by the pool the scheduler says each ran on AND by what the worker returned — four words against two, because the class derives the model from the instance's config; a BUILT-IN group and a CUSTOM one acquired by real tasks, the custom one naming its object something other than its key; the TYPE's `settings` default reaching a `Prompt` node and not a `GpuModel` one; and a declared `transform` reducing `JP-R12`'s record for the node after the join, with no reshaping node. The HIGH row is the control: one payload field different, `review` never dispatched, and the reduced report six words instead of eight |
+ * | **W73 — `FD-R4` on three existing rows** | **P19 decision 5 on real workers, with no new run.** `map / live-token` and `nested-map / live-token` try a payload FIRST that the entry's worker `inputSchema` refuses — a TASK entry naming `ingest`, a FAN-OUT entry naming `scoreA` (every branch held to its own schema over the same value, the first named) — and assert a `BoundaryRefused` at the caller with the scheduler holding nothing, then run on the real payload; W63's `transform-fails` tries its two resolutions FIRST with the values the transforms did not supply, which `echo`'s `outputSchema` refuses with the task still suspended, and then resolves each with the worker's declared example. Both refusal sets are held to the rows that declare them both ways, with their controls as subjects |
  * | **W67 — the shim run** | **P18's sample shim's own call, and no row could make it**: `runtime.start(flow, payload)` with NO options. The runtime MINTS the run id and defaults the join policy (decision 10), and both defaults were replaceable by a `throw` for ZERO until this run existed — every row names the ids it expects and the policy it is about. The flow is `p1-routed-away` at LOW, where the two candidate policies DISAGREE: `live-token` satisfies the join and the run completes, `arrival-count` waits for an arrival that cannot come. So *the run completed* IS *the default is `live-token`*, observed rather than named |
  */
 import {
@@ -424,7 +425,15 @@ interface Expectation {
    * The id is still derived from `spec/task-id.md` — `buildTaskId` over
    * `branchIndices(path)` — but the NODE is the row's own claim.
    */
-  resolveOnSuspend?: Record<string, { at: string; as: 'done' | 'failed'; result?: unknown; actor: string }>;
+  resolveOnSuspend?: Record<string, { at: string; as: 'done' | 'failed'; result?: unknown; actor: string;
+    /** **A value tried FIRST that `FD-R4` must REFUSE** — W73; `result` is then the second attempt. See `RunOptions.resolveOnSuspend`. */
+    refusedFirst?: unknown }>;
+  /**
+   * **A payload tried FIRST that `FD-R4` must REFUSE at `start()`, and the task node the refusal must NAME** — W73.
+   * The node is the row's own claim about which of the payload's first targets refuses it (the entry
+   * task, or a branch task of an entry fan-out), read from the row's definition and the registry's schemas.
+   */
+  refuseAtStart?: { payload: { confidence: number; text?: string; url?: string }; node: string };
   /** Overrides the harness default. Set only where the backstop is the expected result. */
   backstopMs?: number;
   /** Outcomes the run must have passed through, even if it did not end in them. */
@@ -810,6 +819,14 @@ const RESHAPED = (word: string, score: number) => ({
   input: { word, score, fields: ['word', 'confidence'] },
 });
 /** What `Echo` returns for the join's successor: the REDUCED value as `input`, a number at every arity — and no array for the walk to reach. */
+/**
+ * **What a person resolves an `Echo` node with, once `FD-R4` holds the value to the worker's `outputSchema`** —
+ * W73. The value ADR 0056 rule 3 says a tool reaches for, and here a person does: the worker's own
+ * declared example, read from the DOCUMENT rather than typed. Its eight required keys are what made
+ * W63's `{ points: … }` a refused first attempt.
+ */
+const ECHO_EXAMPLE = ((REGISTRY_DOCUMENT.workers as unknown as Record<string, { outputSchema: { examples: unknown[] } }>).echo.outputSchema.examples[0]) as Record<string, unknown>;
+
 const REDUCED = (total: number) => ({
   keys: ['input', 'settings'], extraKeys: [], settingsKeys: [], inputType: 'number', markedKeys: [], arrays: 0, realm: 'thread', input: total,
 });
@@ -1435,6 +1452,10 @@ const EXPECTED: Expectation[] = [
   {
     key: 'map / live-token',
     definition: MP, policyId: 'live-token', payload: THREE_WORDS, threaded: false,
+    // **`FD-R4` at a TASK entry — W73.** `split`'s `inputSchema` bounds `confidence` at 1; a payload of 2 is
+    // refused naming `ingest` before anything reaches the scheduler, and the row's run then starts on the
+    // payload above. Read from `examples/registry.json` (the schema) and this row's definition (the entry).
+    refuseAtStart: { payload: { confidence: 2, text: 'a bb ccc' }, node: 'ingest' },
     outcome: 'completed',
     // `spec/task-id.md` section 1: `runId:nodeId:branchPath:attempt`, and a map
     // instance's `branchPath` is the **dispatch's** item index (`ID-R6`, ADR 0036).
@@ -1590,6 +1611,10 @@ const EXPECTED: Expectation[] = [
     // under nesting and is asserted in one literal below.
     key: 'nested-map / live-token',
     definition: NM, policyId: 'live-token', payload: TWO_WORDS, threaded: false,
+    // **`FD-R4` at a FAN-OUT entry — W73, the shape two of forty-four corpus entries have.** `outer` opens
+    // on the payload, so every branch task is held to its own schema over the SAME value (`JP-R11`):
+    // `scoreA` (`score`, confidence at most 1) is the first branch and is the one named.
+    refuseAtStart: { payload: { confidence: 2, text: 'a bb' }, node: 'scoreA' },
     outcome: 'completed',
     dispatched: ['r25:scoreA:0:0', 'r25:prep:1:0', 'r25:item:1.0:0', 'r25:item:1.1:0',
       'r25:publish:-:0'],
@@ -2737,8 +2762,12 @@ const EXPECTED: Expectation[] = [
     joined: true,
     settled: { '0': 'arrived', '1': 'arrived', '2': 'arrived', '3': 'arrived' },
     resolveOnSuspend: {
-      '1': { at: 'review', as: 'done', result: { points: 'nine, supplied by a person' }, actor: 'a-person' },
-      '2': { at: 'stamp', as: 'done', result: { confidence: 0.9, at: 'a clock a person read' }, actor: 'a-person' },
+      // **`FD-R4` at the resolve boundary — W73.** W63's values (`{ points: … }`, `{ confidence, at }`) are what the
+      // TRANSFORM did not supply and not what the WORKER returns, and `echo`'s `outputSchema` refuses both:
+      // each is tried first and REFUSED with the task still suspended, and the person then resolves
+      // with the worker's declared example — the value a schema tells a person to supply.
+      '1': { at: 'review', as: 'done', refusedFirst: { points: 'nine, supplied by a person' }, result: ECHO_EXAMPLE, actor: 'a-person' },
+      '2': { at: 'stamp', as: 'done', refusedFirst: { confidence: 0.9, at: 'a clock a person read' }, result: ECHO_EXAMPLE, actor: 'a-person' },
     },
     outcomesSeen: ['awaiting_action'],
     outcomesNotSeen: ['stuck', 'failed'],
@@ -2755,14 +2784,14 @@ const EXPECTED: Expectation[] = [
       // A typed node with NO transform: the two-key envelope, byte for byte (`FD-C5`).
       'r46:scoreA:0:0': { keys: ['input', 'settings'], extraKeys: [], settingsKeys: ['factor'], confidence: 0.9, factor: 10, score: 9, retried: false },
       // RN-R9: a resolved task's result is the person's, and that is what the branch carries in.
-      'r46:review:1:0': { points: 'nine, supplied by a person' },
-      'r46:stamp:2:0': { confidence: 0.9, at: 'a clock a person read' },
+      'r46:review:1:0': ECHO_EXAMPLE,
+      'r46:stamp:2:0': ECHO_EXAMPLE,
       // A transform that SUCCEEDS over the ordinary edge's value — kind 1 of `FD-C5`'s four.
       'r46:note:3:0': NOTED,
       'r46:publish:-:0': { published: true, joinPayload: {
         '0': { keys: ['input', 'settings'], extraKeys: [], settingsKeys: ['factor'], confidence: 0.9, factor: 10, score: 9, retried: false },
-        '1': { points: 'nine, supplied by a person' },
-        '2': { confidence: 0.9, at: 'a clock a person read' },
+        '1': ECHO_EXAMPLE,
+        '2': ECHO_EXAMPLE,
         '3': NOTED,
       } },
     },
@@ -2777,8 +2806,9 @@ const EXPECTED: Expectation[] = [
     heldGroups: { 'r46:scoreA:0:0': ['scorer'] },
     why: 'W63 — P17 decision 5 end to end: two declared transforms fail at run time (a type error, and ' +
       'a clock the adapter unbinds), each task is retried once under the type`s policy and parked ' +
-      'user_action with TransformFailed`s message as its error, a person resolves each with the value ' +
-      'the transform did not supply, the join fires and the run completes. Beside them one typed node ' +
+      'user_action with TransformFailed`s message as its error, a person resolves each — the value the ' +
+      'transform did not supply is REFUSED first by FD-R4 (W73), and the worker`s declared example is what goes through — ' +
+      'the join fires and the run completes. Beside them one typed node ' +
       'declares no transform and receives FD-C5`s two keys to the byte, and one transforms an ' +
       'ordinary edge`s value successfully — the fourth of FD-C5`s kinds',
   },
@@ -3147,6 +3177,10 @@ const regionsStillLive = (e: Expectation): string[] => {
   return out.sort();
 };
 
+/** How many of a row's resolutions declare a value `FD-R4` must refuse first — W73. */
+const refusedFirstCount = (e: Expectation): number =>
+  Object.values(e.resolveOnSuspend ?? {}).filter((h) => h.refusedFirst !== undefined).length;
+
 const heldWhenOver = (e: Expectation): number =>
   e.stoppedBy !== undefined
     ? 0
@@ -3186,6 +3220,7 @@ for (const [i, e] of EXPECTED.entries()) {
       predicates,
       threaded: e.threaded,
       resolveOnSuspend: e.resolveOnSuspend,
+      refuseAtStart: e.refuseAtStart?.payload,
       // Short only for the row whose result IS the backstop. Nothing can change
       // after the branch suspends, so a longer wait would measure the same thing
       // more slowly — and if it were ever too short the row fails loudly, with the
@@ -3648,6 +3683,33 @@ for (const [i, e] of EXPECTED.entries()) {
       `resolved ${id}; dispatched ${e.dispatched.join(' ')}`);
   }
 
+  // **`FD-R4` on real workers — W73, P19 decision 5.** A row declaring `refuseAtStart` asserts the refusal
+  // by CLASS, boundary and the node it names, that the scheduler held NOTHING at that moment, and that the
+  // message names the schema kind and the rule; a row declaring `refusedFirst` on a resolution asserts the
+  // set of refused task ids equals the set it declares (both ways) and each refusal's class and message.
+  if (e.refuseAtStart) {
+    check(e.key, 'FD-R4 at start: a BoundaryRefused naming the task node the row declares, at the start boundary',
+      [report.startRefusal?.name, report.startRefusal?.boundary, report.startRefusal?.nodeId], ['BoundaryRefused', 'start', e.refuseAtStart.node]);
+    assertThat(e.key, 'and the SCHEDULER held nothing when it was thrown — nothing was dispatched for the refused payload',
+      report.startRefusal?.dispatchedThen === 0, `tasks held: ${report.startRefusal?.dispatchedThen}`);
+    assertThat(e.key, 'and the message names the inputSchema and FD-R4, so the caller reads the VALUE and not the flow',
+      (report.startRefusal?.message ?? '').includes('inputSchema') && (report.startRefusal?.message ?? '').includes('FD-R4'),
+      report.startRefusal?.message ?? '(no refusal)');
+  }
+  if (refusedFirstCount(e) > 0) {
+    const declaredRefused = Object.entries(e.resolveOnSuspend ?? {})
+      .filter(([, how]) => how.refusedFirst !== undefined)
+      .map(([b, how]) => buildTaskId(`r${i + 1}`, how.at, branchIndices(b), 0)).sort();
+    check(e.key, 'FD-R4 at resolve: exactly the resolutions the row declares refused-first were REFUSED, both ways',
+      [...report.refusedResolutions].sort(), declaredRefused);
+    for (const id of declaredRefused) {
+      const err = report.refusedResolutionErrors[id];
+      assertThat(e.key, `and ${id}'s refusal is a BoundaryRefused naming the outputSchema, with the task still suspended for the second attempt`,
+        err?.name === 'BoundaryRefused' && err.message.includes('outputSchema') && err.message.includes('still suspended'),
+        err ? `${err.name}: ${err.message.slice(0, 160)}` : '(not refused)');
+    }
+  }
+
   // **`branchesOverlapped` is REPORTED and not asserted, deliberately.** Whether
   // two branches are in flight at the same instant is a timing property the spec
   // does not fix, and W5 measured it varying run to run on the same machine — so
@@ -3694,6 +3756,9 @@ for (const [i, e] of EXPECTED.entries()) {
     + (e.regionSuspended ? 1 : 0)
     + Object.keys(e.otherRegions ?? {}).length * 2
     + Object.keys(e.resolveOnSuspend ?? {}).length * 2
+    // W73: three per declared `refuseAtStart`; one set comparison plus one per resolution declaring `refusedFirst`.
+    + (e.refuseAtStart ? 3 : 0)
+    + (refusedFirstCount(e) > 0 ? 1 + refusedFirstCount(e) : 0)
     + (e.joinSettledBy ? 1 : 0)
     // **The set comparison a row buys by declaring `unorderedDispatch`** — one
     // assertion, and it is derived from the expectation like every other extra here
@@ -4206,6 +4271,14 @@ const CROSS_ROW_SUBJECTS = [
   // block two plans older, so `doc/workflow.md` v0.18 makes the controls members by rule; this is
   // the member.
   'a real retry happened somewhere',
+  // W73 — FD-R4's two claims and their two controls, as v0.18's membership clause asks.
+  'FD-R4 refused a START on exactly the rows that declare refuseAtStart',
+  'a payload really was refused somewhere',
+  'FD-R4 refused a RESOLUTION on exactly the rows that declare refusedFirst',
+  'a person`s value really was refused somewhere',
+  'the wiring check over the runtime`s registry reads `no` on exactly the FD-R2 row',
+  'no arc is unchecked over the runtime`s registry',
+  'the wiring reports are not empty',
   // W65
   'retried under a policy of its OWN',
   // W67
@@ -5494,7 +5567,7 @@ const PER_PLAIN_ROW = 20;
 // keeps is that the next item APPENDS; W67's conformity reader, finding 9, found the chain stopping
 // at W65 with the +11 unaccounted for — which is how the assertion count then shipped stale by two
 // in two documents.)*
-const CROSS_ROW = 134;
+const CROSS_ROW = 141;
 const base = (shape: string) => (shape === 'region' ? PER_REGION_ROW : PER_PLAIN_ROW);
 for (const [key, shape, cost, extras] of rowCosts) {
   if (cost !== base(shape) + extras) {
@@ -6134,6 +6207,26 @@ if (rowCosts.length !== EXPECTED.length) {
       check('cross-row', 'a `transform failed` error occurs in exactly the rows that declare taskErrors, both ways',
         rowsFailing, rowsDeclaringErrors);
       assertThat('cross-row', 'and that set is not empty — a transform really failed somewhere', rowsDeclaringErrors.length > 0, 'no row declares taskErrors');
+      // **`FD-R4` occurs in exactly the rows that declare it, both ways, and each set is not empty** — W73,
+      // v0.18's membership clause: the two claims AND their two controls, each a subject below.
+      const rowsRefusedAtStart = EXPECTED.filter((_, i) => reports[i]!.startRefusal !== undefined).map((e) => e.key).sort();
+      const rowsDeclaringStart = EXPECTED.filter((e) => e.refuseAtStart !== undefined).map((e) => e.key).sort();
+      check('cross-row', 'FD-R4 refused a START on exactly the rows that declare refuseAtStart, both ways', rowsRefusedAtStart, rowsDeclaringStart);
+      assertThat('cross-row', 'and at least one row declares a refused start — a payload really was refused somewhere', rowsDeclaringStart.length > 0, 'no row declares refuseAtStart');
+      const rowsRefusedResolve = EXPECTED.filter((_, i) => reports[i]!.refusedResolutions.length > 0).map((e) => e.key).sort();
+      const rowsDeclaringResolve = EXPECTED.filter((e) => refusedFirstCount(e) > 0).map((e) => e.key).sort();
+      check('cross-row', 'FD-R4 refused a RESOLUTION on exactly the rows that declare refusedFirst, both ways', rowsRefusedResolve, rowsDeclaringResolve);
+      assertThat('cross-row', 'and at least one row declares a refused resolution — a person`s value really was refused somewhere', rowsDeclaringResolve.length > 0, 'no row declares refusedFirst');
+      // **The wiring check over the RUNTIME's registry, on every row** — W73. Decision 14's object carries the
+      // class-form `GpuModel`, so triage's arcs get verdicts here that the document alone cannot give (the L1
+      // census reads three unchecked there); and the one `no` the corpus holds is `map-no-array`'s `FD-R2`,
+      // predicted before the run that this file then measures as `UnresolvedMapArity`.
+      const rowsWithNo = EXPECTED.filter((_, i) => reports[i]!.wiring.counts.no > 0).map((e) => e.key).sort();
+      check('cross-row', 'the wiring check over the runtime`s registry reads `no` on exactly the FD-R2 row, both ways — the static prediction of the refusal the row then runs', rowsWithNo, ['map / FD-R2 — over names no array']);
+      const triageUnchecked = EXPECTED.map((e, i) => [e.key, reports[i]!.wiring.counts.unchecked] as const).filter(([k]) => k.startsWith('triage')).map(([k, n]) => `${k}: ${n}`);
+      check('cross-row', 'and on the two triage rows the CLASS type is resolved — no arc is unchecked over the runtime`s registry, where the document alone leaves three', triageUnchecked,
+        EXPECTED.filter((e) => e.key.startsWith('triage')).map((e) => `${e.key}: 0`));
+      assertThat('cross-row', 'and every row`s flow has at least one arc — the wiring reports are not empty', reports.every((r) => r.wiring.verdicts.length > 0 || r.flowId === 'uncloneable'), 'a row with no verdicts');
       // **The reshaping road is REMOVED, not forbidden** — the item's own `Tests:` line, asked of the
       // package's own validator rather than stated: `transformed` with a reshaping `task` node put
       // back between its join and the transformed successor still validates with ZERO findings
@@ -6782,6 +6875,8 @@ if (rowCosts.length !== EXPECTED.length) {
     'arrivals', 'def', 'dispatched', 'failed', 'firedJoins', 'graph', 'inputs', 'joinState',
     // `nodeTypes` since W59: the registry's node types, skipped by the walk as `opts` is.
     'languages', 'log', 'nodeTypes', 'now', 'opts', 'outputsCache', 'regions', 'runId', 'started',
+    // `workers` since W73: the registry's worker entries, skipped by the walk as `nodeTypes` is.
+    'workers',
   ].sort();
   const anyRun = reports[0]!;
   check('cross-row', 'the byte measurement WALKS every growing structure the driver has and skips ' +
@@ -6791,7 +6886,7 @@ if (rowCosts.length !== EXPECTED.length) {
   check('cross-row', 'and `arrivals` is on the WALKED side of that split, which is the one structure ' +
     'ADR 0046 rule 3 is about',
     { walked: anyRun.retention.walked.includes('arrivals'), skipped: anyRun.retention.skipped },
-    { walked: true, skipped: ['def', 'graph', 'languages', 'nodeTypes', 'opts'] });
+    { walked: true, skipped: ['def', 'graph', 'languages', 'nodeTypes', 'opts', 'workers'] });
   // **The two release moments this rung cannot reach, recorded rather than argued** —
   // `doc/workflow.md` section 5 rule 8: *construct the case that makes each guard
   // fire, and where the corpus cannot express one, RECORD that.*
@@ -6999,7 +7094,7 @@ check('cross-row', 'every cross-row SUBJECT this file declares was asserted abou
 // control row the entry node's pool; 1609 after its adequacy reader's eleven cross-row assertions
 // and the per-row subject its a12 forced. W67's conformity reader, finding 9 — the arithmetic belongs
 // here, and its absence is why two documents shipped 1595.)*
-const DECLARED_TOTAL = 1611;
+const DECLARED_TOTAL = 1627;
 if (passed + failures.length !== DECLARED_TOTAL) {
   failures.push(
     'gate\n      the assertion count is not the number this file declares outright\n' +

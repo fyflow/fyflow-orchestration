@@ -731,7 +731,12 @@ suite('L1 — FD-V29: an unconditional reference names a node that MUST have run
     // loop over `names`. The count comes from the normative document, which this
     // file does not own, and `l4-corpus.test.ts` already compares that table to the
     // directory BOTH WAYS - so the two halves cannot drift.
-    const tableRows = specText.split(/\r?\n/)
+    // **The VALID table alone** — W73 added a third table to section 7 (`spec/examples/wiring/`, one
+    // document per wiring verdict), whose rows this regex also matches; the valid table ends where
+    // `spec/examples/invalid/` is named, which is the slice `l4-corpus.test.ts` already takes.
+    const section7 = specText.slice(specText.indexOf('## 7. Examples'));
+    const validTable = section7.slice(0, section7.indexOf('`spec/examples/invalid/`'));
+    const tableRows = validTable.split(/\r?\n/)
       .filter((l) => /^\| `[a-z0-9-]+\.flow\.json` \|/.test(l)).length;
     ok(tableRows > 0, 'section 7`s example table is where this count comes from, and it is not there');
     equal(names.length, tableRows,

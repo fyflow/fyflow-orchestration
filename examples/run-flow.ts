@@ -44,8 +44,8 @@
 // Everything from the package entry, never from `src/` — an example that reached
 // past `index.ts` would be exercising a surface no consumer has.
 import {
-  Driver, branchIndices, buildTaskId, emptyState, isTerminal, step,
-  type FlowDefinition, type FoldInput, type JoinPolicy, type LogRecord,
+  Driver, branchIndices, buildTaskId, checkWiring, emptyState, isTerminal, step,
+  type FlowDefinition, type WiringReport, type FoldInput, type JoinPolicy, type LogRecord,
   type Predicate, type RunOutcome, type RunState, type UnmintedTask,
   type UnsatisfiableJoin,
 } from '../index.ts';
@@ -549,6 +549,8 @@ export interface RunReport {
    * log (whose listener normalises `attempts`, so a record could not see this).
    */
   settlementsSeen: number;
+  /** **The wiring check over the RUNTIME's registry — decision 14's object, class types included — for this row's flow** (W73). Computed beside the run, never from it. */
+  wiring: WiringReport;
   numericAttemptsSeen: number;
   /**
    * **The `attempts` each settled task carried on the scheduler's LIVE object, per task id —
@@ -795,6 +797,12 @@ export interface RunReport {
    * this field existed.
    */
   driver?: Driver;
+  /** `FD-R4` at START, where the row declared `refuseAtStart`: what was thrown, and how many tasks the scheduler held at that moment (W73). */
+  startRefusal?: { name: string; boundary: string; nodeId: string; message: string; dispatchedThen: number };
+  /** `FD-R4` at RESOLVE: the task ids whose `refusedFirst` value was refused, in the order the inbound step tried them (W73). */
+  refusedResolutions: readonly string[];
+  /** And what each refusal threw, keyed by task id. */
+  refusedResolutionErrors: Readonly<Record<string, { name: string; message: string }>>;
 }
 
 export interface RunOptions {
@@ -854,7 +862,14 @@ export interface RunOptions {
    * human. W6's adequacy reader found the false claim; the row now fails without
    * the deferral.
    */
-  resolveOnSuspend?: Record<string, { as: 'done' | 'failed'; result?: unknown; actor: string }>;
+  resolveOnSuspend?: Record<string, { as: 'done' | 'failed'; result?: unknown; actor: string;
+    /**
+     * **A value the person tries FIRST, which `FD-R4` must REFUSE** — W73. The harness calls `resolve()` with
+     * it, expects a `BoundaryRefused` thrown at the caller with the task still suspended, records it in
+     * `RunReport.refusedResolutions`, and only then resolves with `result`. A row that declares it and is not
+     * refused is red: the refusal is the claim.
+     */
+    refusedFirst?: unknown }>;
   /**
    * **A RUNTIME to share, rather than one of this run's own — W14, and a runtime since W67.**
    *
@@ -895,6 +910,14 @@ export interface RunOptions {
    * is involved, so `onUnmintedTask` stays empty and the row is about the group alone.
    */
   holdGroup?: string;
+  /**
+   * **A payload tried FIRST, which `FD-R4` must REFUSE at `start()`** — W73. The harness starts a run with it
+   * through the runtime (the runtime MINTS that attempt's id, so the refused, unstarted driver and the
+   * row's real run never share one), expects a `BoundaryRefused` thrown at the caller, records it in
+   * `RunReport.startRefusal` with how many tasks the scheduler held at that moment, and then starts the row's
+   * run with `payload`. A row that declares it and is not refused is red.
+   */
+  refuseAtStart?: unknown;
 }
 
 /**
@@ -1176,7 +1199,8 @@ const loggedResults = (d: Driver): unknown[] =>
 // field and this walk enumerates every driver field both ways).
 // `nodeTypes` since W59: the registry's node types — consumer configuration holding validator
 // FUNCTIONS, which `v8.serialize` refuses and which hold no result. The same reading as `opts`.
-const NOT_RUN_STATE = ['def', 'graph', 'languages', 'nodeTypes', 'opts'];
+// `workers` since W73: the registry's worker entries, read at FD-R4's two boundaries — declarations, no result.
+const NOT_RUN_STATE = ['def', 'graph', 'languages', 'nodeTypes', 'opts', 'workers'];
 
 /** The two halves of `NOT_RUN_STATE`'s claim, for the clause in `examples/l6.ts` that binds it. */
 const walkOf = (d: Driver): { walked: string[]; skipped: string[] } => {
@@ -1338,6 +1362,9 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
   const outcomesSeen: RunOutcome[] = [];
   const resolved: string[] = [];
   const suspendedAt: Record<string, string> = {};
+  const refusedResolutions: string[] = [];
+  const refusedResolutionErrors: Record<string, { name: string; message: string }> = {};
+  let startRefusal: RunReport['startRefusal'];
   let state = emptyState();
   // **The race's two arms each RESOLVE WITH THEIR OWN NAME — W17.**
   //
@@ -1608,6 +1635,18 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
             let taskId = `<unminted ${at}:${branchPath}>`;
             try {
               taskId = buildTaskId(runId, at, branchIndices(branchPath), 0);
+              // **`FD-R4` at the resolve boundary — W73.** The row's `refusedFirst` value is tried first and
+              // must be REFUSED at the caller with the task still suspended; the declared `result` below is
+              // then the second attempt, which is what makes the refusal observable rather than assumed.
+              if (how.refusedFirst !== undefined) {
+                try {
+                  driverRef.current!.resolve(taskId, how.as, { result: how.refusedFirst, actor: how.actor });
+                  failures.push(`FD-R4 did not refuse ${taskId}'s refusedFirst value — the resolution went through`);
+                } catch (e) {
+                  refusedResolutions.push(taskId);
+                  refusedResolutionErrors[taskId] = { name: e instanceof Error ? e.name : 'not an Error', message: e instanceof Error ? e.message : String(e) };
+                }
+              }
               if (driverRef.current!.resolve(taskId, how.as, { result: how.result, actor: how.actor })) {
                 resolved.push(taskId);
               } else {
@@ -1686,7 +1725,30 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
     },
   };
 
+  // **`checkWiring` over the registry this runtime hands its drivers** (W73): the one road on which a
+  // CLASS-form node type (`GpuModel`, registered in code) gets a wiring verdict, since a document alone
+  // cannot carry it. Taken before the run starts, from the same object `start` spreads into the driver.
+  const wiring = await checkWiring(runtime.registry, definition);
   const startedAt = Date.now();
+  // **`FD-R4` at the start boundary — W73.** The row's `refuseAtStart` payload goes through the runtime's
+  // own `start` first, with the run id UNSET so the runtime mints one for the attempt: `runtime.start` builds
+  // a driver and starts it in ONE call, so the refused driver is a value this harness never holds — what L6
+  // observes is the refusal and the scheduler's task count, and the *same driver then started* half of
+  // `FD-R4` is L2's (`test/driver/boundary.test.ts`; W73's adequacy reader, f1). A second driver on the SAME
+  // id would be the topology ADR 0023 cannot see (two drivers minting one id set), so the attempt takes its own.
+  if (opts.refuseAtStart !== undefined) {
+    try {
+      runtime.start(definition, opts.refuseAtStart, { ...startOptions, runId: undefined });
+      failures.push('FD-R4 did not refuse the payload the row declares refused at start — the run began');
+    } catch (e) {
+      const err = e as { name?: unknown; boundary?: unknown; nodeId?: unknown; message?: unknown };
+      startRefusal = {
+        name: String(err.name), boundary: String(err.boundary), nodeId: String(err.nodeId), message: String(err.message),
+        // Read off the SCHEDULER's own map, not the driver: the claim is that nothing reached it.
+        dispatchedThen: scheduler.tasks.size,
+      };
+    }
+  }
   // **`start` dispatches inside this call**, so there is no separate `driver.start(payload)` line
   // any more: the run is running when it returns.
   const driver = runtime.start(definition, payload, startOptions);
@@ -1818,6 +1880,7 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
     tasksHeld,
     fyflowTasksHeld,
     settlementsSeen,
+    wiring,
     numericAttemptsSeen,
     attemptsSeen,
     errorsSeen,
@@ -1849,6 +1912,9 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
     lateInputs,
     branchesOverlapped,
     retention,
+    startRefusal,
+    refusedResolutions,
+    refusedResolutionErrors,
     driver: opts.keepDriver === true ? driver : undefined,
   };
 }

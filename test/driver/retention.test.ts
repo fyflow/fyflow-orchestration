@@ -214,6 +214,10 @@ const THREE = { items: ['a', 'b', 'c'], rows: ['x', 'y'] };
 const DRIVER_FIELDS = [
   'arrivals', 'def', 'dispatched', 'failed', 'firedJoins', 'graph', 'inputs', 'joinState',
   'languages', 'log', 'nodeTypes', 'now', 'opts', 'outputsCache', 'regions', 'runId', 'started',
+  // W73 — `workers`: the registry's worker entries, read at FD-R4's two boundaries for a task's input
+  // and output schema. Declarations the consumer wrote, holding no result, and it joins
+  // `NOT_RUN_STATE` beside `nodeTypes` and `languages` for the same reason. The ratchet fired as designed.
+  'workers',
 ].sort();
 // `nodeTypes` since W59 — the ratchet firing as designed: the field was added and this list went
 // red naming it. It holds the registry's node types (consumer functions, no result) and joins

@@ -439,6 +439,15 @@ const LATE_SUITES = [
   'Q278 — a keyword outside the subset is REFUSED at construction naming it, and so is a malformed keyword value',
   // W72 — `examples`, the subset's thirteenth keyword and an annotation (ADR 0056), in `schema.test.ts`.
   'ADR 0056 — examples is an annotation: held to its schema at construction, ignored by every value check',
+  // W73 — the wiring check and FD-R4, in `wiring.test.ts` and `test/driver/boundary.test.ts`.
+  'W73 — fits(P, C): P19 fact 3`s relation, its twelve controls as fixtures, its stated leniency and the map record',
+  'W73 — the two enumerations are the spec`s tables, both ways',
+  'W73 — the wiring fixture corpus IS what section 7 says it is, and every verdict kind is reached',
+  'W73 — the L6 corpus census, as an EQUALITY, and every arc shape reached',
+  'W73 — constructed shapes: needs, a fan-out`s record, a map`s arity, the witness road, provenance',
+  'FD-R4 at START — the payload is held to the first task(s) it reaches, once, and a refusal leaves the driver unstarted',
+  'FD-R4 at RESOLVE — a person`s value is held to the parked node`s worker outputSchema, once, and a refusal leaves the task suspended',
+  'FD-R4 through the runtime — createRuntime forwards the switch to every driver it starts',
   'the minimum sample resolves — the document, the class, the custom group and the four pools, with NOTHING constructed',
   'the identity derivation reproduces what bootstrap hands WorkerManager today — P18 fact 5, prediction 2',
   'both SHAPES of a node type, every field of both interfaces, under one claim: what the derived spec and the definition carry',

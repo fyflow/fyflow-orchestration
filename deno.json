@@ -20,6 +20,8 @@
       "!src/definition/validate.ts",
       "!src/definition/schema.ts",
       "!src/definition/registry.ts",
+      "!src/definition/witness.ts",
+      "!src/definition/wiring.ts",
       "!src/driver/ids.ts",
       "!src/driver/log.ts",
       "!src/driver/listener.ts",

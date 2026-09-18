@@ -135,7 +135,11 @@ export function memoisedItems(words: readonly string[]): { word: string; confide
   return words.map((word) => {
     const hit = seen.get(word);
     if (hit) return hit;
-    const made = { word, confidence: word.length / 10 };
+    // **Clamped at 1 — W73.** Every input schema in the corpus that names a confidence bounds it
+    // at 1, and the wiring check found this the one producer that did not keep it: an eleven-letter
+    // word made 1.1, which W72 recorded as Q302 by dropping the bound. The maintainer's choice at
+    // W73's stop-and-ask 4 is the other resolution — the code keeps the bound the corpus declares.
+    const made = { word, confidence: Math.min(1, word.length / 10) };
     seen.set(word, made);
     return made;
   });

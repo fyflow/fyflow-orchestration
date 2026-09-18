@@ -173,7 +173,8 @@
                 },
                 "confidence": {
                   "type": "number",
-                  "minimum": 0
+                  "minimum": 0,
+                  "maximum": 1
                 }
               }
             }
@@ -472,7 +473,10 @@
             "maximum": 1
           },
           "items": {
-            "type": "array"
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
           }
         },
         "examples": [
@@ -527,7 +531,10 @@
             "type": "boolean"
           },
           "items": {
-            "type": "array"
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
           }
         },
         "examples": [

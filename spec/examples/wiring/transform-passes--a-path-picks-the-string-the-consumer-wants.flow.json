@@ -1,0 +1,12 @@
+{
+  "flowId": "wiring-transform-passes",
+  "version": 1,
+  "entry": "score",
+  "nodes": [
+    { "id": "score",  "kind": "task", "type": "Scored", "edges": [ { "to": "title" } ] },
+    { "id": "title",  "kind": "task", "type": "Text",
+      "transform": { "lang": "path", "expr": "label" },
+      "edges": [ { "to": "done" } ] },
+    { "id": "done",   "kind": "end",  "outcome": "completed" }
+  ]
+}

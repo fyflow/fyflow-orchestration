@@ -12,8 +12,12 @@
  * driver turns out to need a second copy of run truth, that is a finding about the
  * spec rather than a thing to build.
  */
-import type { Edge, FlowDefinition, FlowNode, LanguageAdapter, Languages, NodeTypeDeclaration, NodeTypeEntry, NodeTypes, Pools, Registry, TerminalState, Workers } from '../definition/types.ts';
+import type { Edge, FlowDefinition, FlowNode, LanguageAdapter, Languages, NodeTypeDeclaration, NodeTypeEntry, NodeTypes, Pools, Registry, TerminalState, WorkerEntry, Workers } from '../definition/types.ts';
 import { checkRegistry, isDerivation } from '../definition/registry.ts';
+// W73 (P19 decision 5, `FD-R4`): the two boundaries no static check can reach are held to the
+// workers' declared schemas ONCE each, and the targets of the first are the wiring check's own walk.
+import { describeFindings, findings } from '../definition/schema.ts';
+import { boundaryTargets } from '../definition/wiring.ts';
 import {
   allRegions, branchPathOf, buildGraph, innermostRegionOf, outputIsVisible, toRegion,
   type Graph, type RegionSets,
@@ -120,6 +124,50 @@ export class UnresolvedMapArity extends Error {}
  * `UnresolvedMapArity` is.
  */
 export class UnresolvedReference extends Error {}
+
+/**
+ * **`FD-R4` — one of the two values no static check can reach fails the schema the worker's author
+ * wrote for it: the run's PAYLOAD at `start()`, held to the input schema of every task it reaches
+ * with no worker in between, or a PERSON's resolution at `resolve()`, held to the parked node's
+ * worker output schema** — [P19](../../doc/plans/p19-what-a-schema-buys-an-author.md) decision 5,
+ * [W73](../../doc/work-items/w73-the-wiring-check-a-verdict-per-edge-and-two-boundaries-validated-once.md).
+ * Once per run and once per human action, never per settlement (that is OUT of P19 as a default).
+ *
+ * **A REJECTED COMMAND and not a run failure**, on `RS-R1`'s own reading of `resolve` — *it came from
+ * outside and a caller can retry* — and it is the maintainer's choice at W73's stop-and-ask 2.
+ * Thrown at the caller with NOTHING appended, nothing reported through `onRunFailure` and the run
+ * unaffected: at `start()` it is thrown before `started` is set, so the driver is UNSTARTED and a
+ * corrected payload may start it (`ID-R3` sees nothing, because nothing ran); at `resolve()` the task
+ * is still suspended and a corrected value resolves it. A boundary that STOPPED the run would turn a
+ * typo in a human's value into a dead run, which is the opposite of what the schemas are for.
+ *
+ * **Its own class**, because the two it sits beside send a reader elsewhere: `UnresolvedMapArity` is
+ * a WORKER's bug and `UnresolvedReference` the FLOW's shape; this is the CALLER's value — the one
+ * thing at that boundary no document declared — and the message names the node, the worker, the
+ * schema kind and every finding, so the caller reads the value and not the flow.
+ *
+ * `DriverOptions.validateBoundaries: false` turns both off (the runtime forwards it); the default is
+ * ON, priced at W73's declaration: under a microsecond on every corpus payload, 0.35 ms at the
+ * walking worst case, against ~100 ms per real run.
+ */
+export class BoundaryRefused extends Error {
+  /** Which boundary refused: the run's payload at `start`, or a person's value at `resolve`. */
+  readonly boundary: 'start' | 'resolve';
+  /** The task node whose worker's schema refused the value. */
+  readonly nodeId: string;
+  /** The suspended task, at `resolve`; `start` has dispatched nothing yet. */
+  readonly taskId: string | null;
+  /** Every way the value failed the schema — `findings`' own list, one line each in `message`. */
+  readonly findings: readonly { path: string; says: string }[];
+  constructor(boundary: 'start' | 'resolve', nodeId: string, taskId: string | null, fs: readonly { path: string; says: string }[], message: string) {
+    super(message);
+    this.name = 'BoundaryRefused';
+    this.boundary = boundary;
+    this.nodeId = nodeId;
+    this.taskId = taskId;
+    this.findings = fs;
+  }
+}
 
 /**
  * A second `start()` on a driver that already ran one — `ID-R3`.
@@ -628,6 +676,15 @@ export interface DriverOptions {
    * "the run finished".
    */
   onFoldInput?: (input: FoldInput) => void;
+  /**
+   * **`FD-R4`'s switch — W73.** `true` (the default): the run's payload is held to the input schema of
+   * every task it reaches with no worker in between at `start()`, and a person's `done` resolution to
+   * the parked node's worker output schema at `resolve()`, each refused as a `BoundaryRefused`
+   * thrown at the caller with the run unaffected. `false` turns both off — the one road P19 leaves
+   * to a consumer who has priced the check and wants none of it. A worker declaring no schema on
+   * that side is unchecked either way (P18 decision 3).
+   */
+  validateBoundaries?: boolean;
 }
 
 const SETTLEMENT_EVENTS = ['task.completed', 'task.failed', 'task.user_action'] as const;
@@ -738,6 +795,8 @@ export class Driver {
   private readonly nodeTypes: ReadonlyMap<string, NodeTypeEntry>;
   /** The registry's languages, normalised once (W61). Read at construction only; the driver evaluates nothing. */
   private readonly languages: ReadonlyMap<string, LanguageAdapter>;
+  /** The registry's workers, normalised once (W73). Read at the two boundaries for a task's input and output schema, and nowhere else. */
+  private readonly workers: ReadonlyMap<string, WorkerEntry>;
 
   /**
    * Validates the definition IN FULL before anything is queued (ADR 0002 rule 3),
@@ -800,6 +859,7 @@ export class Driver {
     // node that names it; `worker`, the other half, is the bootstrap helper's to check, because
     // the driver never loads it. `languagesOf` is the validator's own normaliser.
     this.languages = languagesOf(opts.languages);
+    this.workers = workersOf(opts.workers);
     for (const [name, l] of this.languages) {
       if (typeof l?.compile !== 'function') {
         throw new InvalidDefinition(['FD-V36'], `language "${name}" declares no compile function — FD-V36: ` +
@@ -952,6 +1012,33 @@ export class Driver {
           'enforces that and nothing can see it violated.',
       );
     }
+    // **`FD-R4` at the START boundary — W73, before `started` is set, so a refused payload leaves the
+    // driver UNSTARTED and a corrected one may start it.** The targets are the wiring check's own walk
+    // (the entry task, or every branch task of an entry region, recursively — one derivation, two
+    // callers), each value composed through the node's `needs` exactly as `enter` will compose it,
+    // and held to the task's worker `inputSchema`; a task whose worker declares none is unchecked.
+    // The composition cannot throw here: at an entry `FD-V27` admits no reference but `"."`, and
+    // composing `"."` reads the value whole (W73's adequacy reader measured the guard dead on every
+    // valid definition — a `needs` naming anything else is refused at construction, `FD-V11`/`FD-V27`).
+    if (this.opts.validateBoundaries !== false) {
+      for (const { node, value } of boundaryTargets(this.def, payload)) {
+        const n = this.graph.byId.get(node);
+        if (!n || n.kind !== 'task') continue;
+        const type = this.nodeTypes.get(n.type);
+        const worker = type === undefined ? undefined : this.workers.get(type.worker);
+        const schema = worker?.inputSchema;
+        if (schema === undefined) continue;
+        const received = this.compose(n, value, new Map());
+        const fs = findings(schema, received);
+        if (fs.length) {
+          throw new BoundaryRefused('start', node, null, fs,
+            `BoundaryRefused: the payload handed to run "${runId}" does not satisfy the inputSchema of node "${node}"'s worker ` +
+              `"${type!.worker}" (type "${n.type}") — ${describeFindings(fs)}. FD-R4: the run's payload is held to the first ` +
+              'task(s) it reaches once, at start(); nothing was dispatched and this driver is unstarted, so a corrected payload may start it. ' +
+              '`validateBoundaries: false` turns the check off.');
+        }
+      }
+    }
     this.started = true;
     try {
       this.enter(runId, this.def.entry, payload);
@@ -987,6 +1074,26 @@ export class Driver {
     // the `stopped` element, while `withOutcome` pins the outcome to `stopped`,
     // so nothing reported the work. Refused like any other rejected command.
     if (this.failed) return false;
+    // **`FD-R4` at the RESOLVE boundary — W73.** A person's `done` value is held to the parked node's
+    // worker `outputSchema` before anything is appended: refused, the task is STILL suspended and a
+    // corrected value resolves it — a rejected command, as `RS-R1`'s other refusals are, and the
+    // value ADR 0056 rule 3 says a person reaches for is the worker's declared example. A `failed`
+    // resolution carries an error string and no result, so nothing holds it.
+    if (resolvedAs === 'done' && this.opts.validateBoundaries !== false) {
+      const n = this.graph.byId.get(nodeId);
+      const type = n?.kind === 'task' ? this.nodeTypes.get(n.type) : undefined;
+      const schema = type === undefined ? undefined : this.workers.get(type.worker)?.outputSchema;
+      if (schema !== undefined) {
+        const fs = findings(schema, value.result ?? null);
+        if (fs.length) {
+          throw new BoundaryRefused('resolve', nodeId, taskId, fs,
+            `BoundaryRefused: the resolution of "${taskId}" (node "${nodeId}", type "${(n as { type: string }).type}") does not satisfy its worker ` +
+              `"${type!.worker}"'s outputSchema — ${describeFindings(fs)}. FD-R4: a person's value stands in for what the worker ` +
+              'would have returned, and it is held to that schema once; nothing was appended and the task is still suspended, so resolve ' +
+              'it again with a conforming value (the worker`s declared example is one). `validateBoundaries: false` turns the check off.');
+        }
+      }
+    }
     this.append({
       kind: 'resolution',
       record: {

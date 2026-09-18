@@ -8,8 +8,9 @@
  * A worker entry in the registry document declares up to four schemas (`configSchema`,
  * `settingsSchema`, `inputSchema`, `outputSchema`); a group type declares one; a node-type class may
  * declare one. A worker's first two, a group type's and a class's are CHECKED — at `createRuntime`
- * and at `new Driver` — and a worker's last two are declared, carried, enforced on no RUN, and
- * since v0.20 confirmed on a run by `scripts/check-workers.mjs` (P19, whose name is *what a schema
+ * and at `new Driver` — and a worker's last two are declared, carried, enforced on ONE value per run
+ * each since v0.21 (the entry payload at `start()`, a person's resolution at `resolve()` — `FD-R4`, W73),
+ * never per settlement, and since v0.20 confirmed on a run by `scripts/check-workers.mjs` (P19, whose name is *what a schema
  * buys an author* and not *strict mode*). The maintainer priced three validators at the draft (`ajv` 262 KB,
  * `@cfworker/json-schema` 42 KB, this subset 1.5 KB bundled as its 32-line prototype — the shipped module
  * is 4.2 KB minified) and chose the subset, with the 42 KB

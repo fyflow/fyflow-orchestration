@@ -385,7 +385,8 @@ export function resolveRegistry(doc: RegistryDocument, code: RegistryCode = {}):
     noUndeclared('worker', name, raw, WORKER_KEYS);
     if (typeof raw.url !== 'string' || raw.url.length === 0) throw new WorkerMissing(name, `worker ${q(name)} has no url — the module URL of its worker class, resolved against the runtime's base when relative`);
     // ALL four schemas are held to the subset at construction — a malformed inputSchema is a registry
-    // defect today even though no RUN enforces it — and two are applied. Since v0.20 (ADR 0056, W72)
+    // defect the day it is written, and a run reads it once, at start() (FD-R4, W73) — and two are applied
+    // to every dispatch. Since v0.20 (ADR 0056, W72)
     // that check holds every declared `examples` to the schema it sits on, so an example that refutes
     // its schema is refused here, by name, and never trusted by the authoring-time tools that run on it.
     for (const f of WORKER_KEYS.slice(1)) checkSchema(name, f, raw[f]);

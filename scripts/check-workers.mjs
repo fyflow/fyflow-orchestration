@@ -83,33 +83,11 @@ const q = (s) => JSON.stringify(s);
 const short = (v, n = 120) => { const s = JSON.stringify(v) ?? String(v); return s.length > n ? `${s.slice(0, n)}…` : s; };
 
 /**
- * **A WITNESS that the schema is satisfiable** — P19 fact 5's generator, verbatim in shape: a
- * required property with no schema is `null`, an unbounded string is empty, a bounded-below number
- * sits ON its minimum, an object carries only what `required` names. Not a representative value,
- * which is why a declared example is primary and this is the fallback.
+ * **A WITNESS that the schema is satisfiable** — P19 fact 5's generator, which W72 kept here and W73
+ * moved into the library as `src/definition/witness.ts` so the wiring check and W74's assist run on
+ * the SAME generator this check does: one copy, imported by URL the way `schema.ts` is above.
  */
-function witness(s, path = '$') {
-  if (s.const !== undefined) return s.const;
-  if (s.enum) return s.enum[0];
-  const types = s.type === undefined ? ['object'] : Array.isArray(s.type) ? s.type : [s.type];
-  const t = types[0];
-  switch (t) {
-    case 'null': return null;
-    case 'boolean': return true;
-    case 'integer': case 'number': {
-      const lo = s.minimum ?? (s.maximum !== undefined ? s.maximum - 1 : 0);
-      return t === 'integer' ? Math.ceil(lo) : lo;
-    }
-    case 'string': return 'x'.repeat(s.minLength ?? 0);
-    case 'array': return Array.from({ length: s.minItems ?? 0 }, (_, i) => (s.items ? witness(s.items, `${path}[${i}]`) : null));
-    case 'object': {
-      const out = {};
-      for (const k of s.required ?? []) out[k] = s.properties?.[k] ? witness(s.properties[k], `${path}.${k}`) : null;
-      return out;
-    }
-    default: throw new Error(`${path}: no witness for type ${t}`);
-  }
-}
+const { witness } = await import(pathToFileURL(join(ROOT, 'src', 'definition', 'witness.ts')).href);
 
 /** The value to run a worker on for one schema kind: the declared example, else a witness, else `{}` — and which it was. */
 function valueFor(schema) {

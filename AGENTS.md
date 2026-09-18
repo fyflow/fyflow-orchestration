@@ -1335,6 +1335,18 @@ this run. **It is a different class from `UnresolvedMapArity` deliberately**: th
 previous node did not return an array*, which is a **worker's** bug, and this says *the node you
 named did not run on your path*, which is the **flow's** shape.
 
+`BoundaryRefused` is **W73's, and it is the one class here that STOPS NOTHING** — [P19](doc/plans/p19-what-a-schema-buys-an-author.md) decision 5's `FD-R4`. The two values no static check can reach are held to the workers' declared
+schemas ONCE each: the run's payload at `start()`, against the `inputSchema` of every task it reaches with no
+worker in between (the entry, or every branch task of an entry fan-out, or a map's branch once per item),
+and a person's `done` resolution at `resolve()`, against the parked node's worker `outputSchema`. Refused, it is
+**thrown at you as a REJECTED COMMAND**: nothing appended, nothing reported, the run unaffected — at `start`
+the driver is still UNSTARTED and a corrected payload starts it, at `resolve` the task is still suspended and
+a corrected value (the worker's declared example is one) resolves it. It carries `boundary`, `nodeId`,
+`taskId` and the schema's `findings`, and its message names the worker and every finding, so you read
+the VALUE and not the flow. A worker declaring no schema on that side is unchecked; `validateBoundaries: false`
+on `DriverOptions` or `RuntimeOptions` turns both off. Never per settlement: what a worker returns is
+checked at authoring time by `npm run check:workers` and by the wiring check (section 13), not by the run.
+
 *(This paragraph read *"`UnresolvedBranchPath` is the tenth class, and it belongs to a feature nothing
 dispatches yet … no `Driver` opens one"* until W33, which is the item that made it run.
 [Q157](doc/open-questions.md) is the gap behind both edits: no
@@ -1352,6 +1364,7 @@ mentioning it here a **failure** rather than an omission nobody can observe:
 ```ts run
 import * as lib from 'fyflow-orchestration';
 import {
+  BoundaryRefused,
   ConfigRefused, DerivationRefused, DuplicateTaskId, GroupConfigRefused, GroupTypeMissing, InvalidDefinition,
   InvalidRunId, InvalidTaskId, MissingJoinPolicy, MultipleRuns, NameCollision, NameMissing, NoMatchingEdge,
   PoolTypeMissing, RegistryError, SchemaRefused, TypeDefaultRefused, UncloneableResult, UndeclaredKey,
@@ -1364,6 +1377,7 @@ const documented = [
   RegistryError, WorkerMissing, PoolTypeMissing, ConfigRefused, TypeDefaultRefused, GroupTypeMissing,   // thrown at you — a REGISTRY defect,
   GroupConfigRefused, NameCollision, SchemaRefused, UndeclaredKey, NameMissing, DerivationRefused,       // the base class and its eleven (section 13)
   UnresolvedMapArity, UnresolvedReference,   // reported in a listener; reported AND thrown from start()/resolve()
+  BoundaryRefused,                           // thrown at you from start()/resolve() with the run UNTOUCHED — a rejected command (FD-R4)
   InvalidTaskId, UnresolvedBranchPath,                                   // neither — see above
 ].map((c) => c.name);
 
@@ -2008,9 +2022,11 @@ import { validateDefinition, type FlowDefinition, type NodeTypeDeclaration, type
 // the type's defaults merged under, `{}` when neither says anything — so a schema that REQUIRES a
 // key refuses absence by name, and a type whose nodes carry no settings is written over an entry
 // that declares none (two entries here, one module each — since W67 a worker is a module). `configSchema` is held against every pool's
-// derived config at construction; `inputSchema` and `outputSchema` are declared and carried, and
-// enforced on no RUN — since v0.20 (ADR 0056) any schema may carry `examples`, held to it at
-// construction, and `npm run check:workers` runs a worker on its input example (P19, W72).
+// derived config at construction; `inputSchema` and `outputSchema` are declared and carried, enforced on ONE
+// value per run each (the entry payload at start(), a person's resolution at resolve() — FD-R4, W73)
+// and never per settlement — since v0.20 (ADR 0056) any schema may carry `examples`, held to it at
+// construction, `npm run check:workers` runs a worker on its input example (P19, W72), and since v0.21
+// `checkWiring(registry, flow)` gives every arc of a flow a verdict from the two (W73).
 const ingestUrl = new URL('../../examples/workers/ingest.ts', import.meta.url).href;
 const typedUrl = new URL('../../examples/workers/typed.ts', import.meta.url).href;
 const ingest: WorkerEntry = { url: ingestUrl };
@@ -2211,7 +2227,10 @@ await w.teardown();
 output schemas, and a sample-based check across a transformed edge — is
 [P16](doc/plans/p16-what-a-node-type-is-and-what-the-library-owes-the-scheduler.md)'s plan after
 this one (P18); since v0.19 a worker DECLARES `inputSchema` and `outputSchema`, no RUN enforces
-them (per-settlement validation is OUT of P19 as a default), and since v0.20 any schema may carry
+them per settlement (that is OUT of P19 as a default) — since v0.21 the two values no static check
+can reach are held to them ONCE each, `FD-R4` (section 9's `BoundaryRefused`), and `checkWiring(registry, flow)`
+gives every arc of a flow one of five verdicts from them before any run (W73; the reference section
+is W74's) — and since v0.20 any schema may carry
 `examples` — an annotation held to its schema at construction ([ADR 0056](doc/decisions/0056-an-example-is-an-annotation-validated-against-the-schema-it-sits-on.md),
 [W72](doc/work-items/w72-the-contract-an-example-beside-every-schema-and-a-worker-run-on-it.md)) —
 so that `npm run check:workers` can RUN a worker on its input example and validate what it returned

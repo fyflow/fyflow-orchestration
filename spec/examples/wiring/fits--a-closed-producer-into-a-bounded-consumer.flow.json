@@ -1,0 +1,10 @@
+{
+  "flowId": "wiring-fits",
+  "version": 1,
+  "entry": "score",
+  "nodes": [
+    { "id": "score",  "kind": "task", "type": "Scored",  "edges": [ { "to": "weigh" } ] },
+    { "id": "weigh",  "kind": "task", "type": "Bounded", "edges": [ { "to": "done" } ] },
+    { "id": "done",   "kind": "end",  "outcome": "completed" }
+  ]
+}
