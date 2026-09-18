@@ -701,52 +701,61 @@ are what each of those branches carried in — so a fan-out's results are not th
 value is the same whatever order the branches finished in.
 
 ```ts run
-import { Driver, liveToken, type FlowDefinition, type Predicate } from 'fyflow-orchestration';
+import { createRuntime } from 'fyflow-orchestration/scheduler';
+import { fold, isTerminal, type FlowDefinition, type FoldInput, type RegistryDocument, type RunState } from 'fyflow-orchestration';
 
-const definition: FlowDefinition = {
+// Two workers of your own: one returns a score after a stated delay, the other tags whatever it was
+// handed so the collection is legible in what it returns.
+const registry: RegistryDocument = {
+  workers: {
+    scorer: { url: '../../examples/getting-started/scorer.ts' },
+    tag: { url: '../../examples/getting-started/tag.ts' },
+  },
+  nodeTypes: {
+    Scorer: { worker: 'scorer', inline: true },
+    Tag: { worker: 'tag', inline: true },
+  },
+};
+const flow: FlowDefinition = {
   flowId: 'collect', version: 1, entry: 'split',
   nodes: [
     { id: 'split',   kind: 'fanout', branches: ['scoreA', 'scoreB'] },
-    { id: 'scoreA',  kind: 'task', type: 'ScoreWorker', edges: [{ to: 'collect' }] },
-    { id: 'scoreB',  kind: 'task', type: 'ScoreWorker', edges: [{ to: 'collect' }] },
+    // `scoreA` is branch path "0" and is made SLOW on purpose, so "1" settles first.
+    { id: 'scoreA',  kind: 'task', type: 'Scorer', settings: { score: 0.9, ms: 40 }, edges: [{ to: 'collect' }] },
+    { id: 'scoreB',  kind: 'task', type: 'Scorer', settings: { score: 0.4 },         edges: [{ to: 'collect' }] },
     { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'publish' }] },
-    { id: 'publish', kind: 'task', type: 'PublishWorker', edges: [{ to: 'done' }] },
+    { id: 'publish', kind: 'task', type: 'Tag', settings: { label: 'publish' }, edges: [{ to: 'done' }] },
     { id: 'done',    kind: 'end', outcome: 'completed' },
   ],
 };
 
-const dispatched: { id: string; payload: unknown }[] = [];
-const listeners = new Map<string, ((e: { detail: unknown }) => void)[]>();
-const driver = new Driver(definition, {
-  runId: 'r', scheduler: {
-    addTask() {},
-    addEventListener(t: string, fn: (e: { detail: unknown }) => void) {
-      listeners.set(t, [...(listeners.get(t) ?? []), fn]);
-    },
-  },
-  createTask: (c) => { dispatched.push({ id: c.id, payload: c.payload }); return c; },
-  predicates: new Map<string, Predicate>(),
-  workers: { flow: { url: 'worker.js' } }, nodeTypes: { ScoreWorker: { worker: 'flow' }, PublishWorker: { worker: 'flow' } },
-  joinPolicy: liveToken,
+const runtime = createRuntime(registry, {}, { base: import.meta.url });
+const inputs: FoldInput[] = [];
+const state = await new Promise<RunState>((resolve, reject) => {
+  runtime.start(flow, {}, {
+    onFoldInput: (input) => { inputs.push(input); queueMicrotask(() => { const s = fold(inputs); if (isTerminal(s)) resolve(s); }); },
+    onRunFailure: (f) => reject(new Error(`${f.kind}: ${f.message}`)),
+  });
 });
-const settle = (id: string, result: unknown) => {
-  for (const fn of listeners.get('task.completed') ?? []) fn({ detail: { id, state: 'done', result } });
-};
+await runtime.shutdown();
 
-driver.start({});
-// `split` declares ["scoreA", "scoreB"], so their branch paths are "0" and "1".
-settle('r:scoreB:1:0', { score: 0.4 });        // note the order: B settles FIRST
-settle('r:scoreA:0:0', { score: 0.9 });
+// **The order is READ, not assumed.** The delay above ASKS for branch "1" to settle first; this is
+// what the run actually did, and the claim below is about the collection being independent of it.
+const settledOrder = inputs.flatMap((i) =>
+  (i.kind === 'outcome' && /:score[AB]:/.test(i.record.taskId) ? [i.record.taskId.split(':')[1]] : []));
+console.log(settledOrder.join(' then '));    // 'scoreB then scoreA'
 
-const publish = dispatched.find((t) => t.id === 'r:publish:-:0');
-// Every task's payload is the envelope `{ settings, input }` (section 13); the collection is its `input`.
-const received = (publish?.payload as { input?: unknown } | undefined)?.input;
-console.log(JSON.stringify(received));  // {"0":{"score":0.9},"1":{"score":0.4}}
-if (JSON.stringify(received) !== '{"0":{"score":0.9},"1":{"score":0.4}}') {
-  throw new Error(`the join carried ${JSON.stringify(received)}`);
-}
-// B settled first and is still under key "1". The collection is keyed by BRANCH,
-// not by arrival order, which is the whole point.
+// `publish` is the join's successor, so what it received IS the collection — and `tag` returns what
+// it was handed with its own label added, so the collection is readable in the result.
+const published = Object.values(state.nodes).find((n) => n.nodeId === 'publish')?.result;
+console.log(JSON.stringify(published));      // {"0":{"score":0.9},"1":{"score":0.4},"publish":true}
+
+const want = '{"0":{"score":0.9},"1":{"score":0.4},"publish":true}';
+if (JSON.stringify(published) !== want) throw new Error(`the join carried ${JSON.stringify(published)}`);
+// **B settled FIRST and is still under key "1".** The collection is keyed by BRANCH PATH, not by
+// arrival order, which is the whole point — and the two assertions are a pair: the first says which
+// order the run took, the second says the record did not follow it.
+if (settledOrder.join() !== 'scoreB,scoreA') throw new Error(`settled ${settledOrder.join()} — the arrangement did not hold, so the claim below is untested`);
 ```
 
 **Three things to know before you write code against it.**
@@ -910,12 +919,19 @@ keeps waiting, and the run is not stuck.
 > rule 2; the scheduler's own reference does not document it for the ordinary path.
 
 ```ts run
-import { Driver, fold, liveToken, type FlowDefinition, type Predicate } from 'fyflow-orchestration';
+import { createRuntime } from 'fyflow-orchestration/scheduler';
+import { fold, isTerminal, type FlowDefinition, type FoldInput, type RegistryDocument, type RunState } from 'fyflow-orchestration';
 
-const definition: FlowDefinition = {
+// A worker that FAILS — `examples/getting-started/flaky.ts`, a class with a `run` that throws. The
+// node is not `optional`, so when its retries are spent the scheduler parks it for a person.
+const registry: RegistryDocument = {
+  workers: { flaky: { url: '../../examples/getting-started/flaky.ts' } },
+  nodeTypes: { Flaky: { worker: 'flaky', inline: true } },
+};
+const flow: FlowDefinition = {
   flowId: 'review', version: 1, entry: 'score',
   nodes: [
-    { id: 'score', kind: 'task', type: 'ScoreWorker', edges: [
+    { id: 'score', kind: 'task', type: 'Flaky', settings: {}, edges: [
       { on: ['failed'], to: 'quarantine' },
       { to: 'done' },
     ] },
@@ -924,47 +940,52 @@ const definition: FlowDefinition = {
   ],
 };
 
-const listeners = new Map<string, ((e: { detail: unknown }) => void)[]>();
-const driver = new Driver(definition, {
-  runId: 'run-1',
-  scheduler: {
-    addTask() {},
-    addEventListener(type: string, fn: (e: { detail: unknown }) => void) {
-      listeners.set(type, [...(listeners.get(type) ?? []), fn]);
-    },
-  },
-  createTask: (c) => c,
-  predicates: new Map<string, Predicate>(),
-  workers: { flow: { url: 'worker.js' } }, nodeTypes: { ScoreWorker: { worker: 'flow' } },
-  joinPolicy: liveToken,
+const runtime = createRuntime(registry, {}, { base: import.meta.url });
+const inputs: FoldInput[] = [];
+let parked: string | null = null;
+
+// **The run does not end; it STOPS AND WAITS.** `awaiting_action` is the run's outcome and
+// `suspended` is the node's — and those are the words the FOLD uses. The scheduler's own event is
+// called `task.user_action`, which is not what you poll on, and is the mistake this snippet used to
+// invite by delivering that event to a hand-built stub.
+const driver = runtime.start(flow, { text: 'hello' }, { onFoldInput: (input) => { inputs.push(input); } });
+
+const state = await new Promise<RunState>((resolve, reject) => {
+  const poll = () => {
+    const s = fold(inputs);
+    if (s.outcome === 'awaiting_action' && parked === null) {
+      parked = Object.keys(s.nodes).find((id) => s.nodes[id].state === 'suspended') ?? null;
+      if (parked === null) { reject(new Error('awaiting_action with no suspended node')); return; }
+
+      // ONE pair of events, ONE record. The scheduler dispatches `task.failed` AND
+      // `task.user_action` carrying the same object; the driver drops the first, whose detail
+      // already reads `user_action`, and records on the second. Read off a REAL pair, not a
+      // hand-delivered one.
+      const records = driver.snapshot().filter((r) => r.taskId === parked && r.kind === 'outcome');
+      if (records.length !== 1) throw new Error(`the event pair produced ${records.length} records`);
+
+      // The only way anything outside this process changes a run — and it takes THREE arguments.
+      // `actor` is opaque: never interpreted, never authenticated (Q29).
+      const accepted = driver.resolve(parked, 'failed', { actor: 'a-person' });
+      const again    = driver.resolve(parked, 'failed', { actor: 'a-person' });
+      if (!accepted || again) throw new Error('a second resolution must be refused, not applied twice');
+    }
+    if (isTerminal(s)) { resolve(s); return; }
+    setTimeout(poll, 5);
+  };
+  poll();
 });
-driver.start({});
+await runtime.shutdown();
 
-// Out of retries: BOTH events, same object, `state: 'user_action'`.
-const detail = { id: 'run-1:score:-:0', state: 'user_action', result: null, error: 'out of retries' };
-for (const type of ['task.failed', 'task.user_action']) {
-  for (const fn of listeners.get(type) ?? []) fn({ detail });
-}
-
-// One pair of events, ONE record. The driver drops the `task.failed` whose detail
-// already reads `user_action` and records on the `task.user_action` that follows —
-// so the discriminator is the pair, and reading the event name alone is what
-// double-counts.
-const records = driver.snapshot();
-console.log(records.length, fold(driver.foldInputs()).outcome);   // 1 'awaiting_action'
-if (records.length !== 1) throw new Error(`the event pair produced ${records.length} records`);
-if (fold(driver.foldInputs()).outcome !== 'awaiting_action') throw new Error('expected awaiting_action');
-
-// The only way anything outside this process changes a run. `actor` is opaque:
-// never interpreted, never authenticated (Q29).
-const accepted = driver.resolve('run-1:score:-:0', 'failed', { actor: 'a-person' });
-const again    = driver.resolve('run-1:score:-:0', 'failed', { actor: 'a-person' });
-console.log(accepted, again);                                     // true false
-if (!accepted || again) throw new Error('a second resolution must be refused, not applied twice');
-
-// `resolvedAs: 'failed'` took the `on: ['failed']` edge — the only road there for a
-// non-optional node.
-console.log(fold(driver.foldInputs()).outcome);                   // 'completed'
+// `resolvedAs: 'failed'` took the `on: ['failed']` edge — the only road there for a non-optional
+// node — so the run ends at `quarantine`. The END node's `outcome` is a label of yours; the RUN's
+// outcome is the fold's, and it is `completed` because a path reached an end.
+const ended = Object.values(state.nodes).find((n) => n.nodeId === 'score');
+console.log(state.outcome, ended?.state, parked);   // 'completed' 'failed' 'r1:score:-:0'
+// The node's own state is `failed`, not `resolved`: `resolvedAs` is what a person DECIDED,
+// and the node records the terminal state that decision gave it.
+if (state.outcome !== 'completed') throw new Error(`expected completed, got ${state.outcome}`);
+if (parked !== 'r1:score:-:0') throw new Error(`parked at ${parked}`);
 ```
 
 `resolve()` returns `false` if the task is not suspended — a rejected command, not a run failure, so
@@ -1084,32 +1105,57 @@ do either: whether you are on the stack when it is raised is what decides. A ref
 **Thrown**, because you are on the stack and can act:
 
 ```ts run
-import { Driver, InvalidDefinition, MissingJoinPolicy, type FlowDefinition } from 'fyflow-orchestration';
+import { createRuntime } from 'fyflow-orchestration/scheduler';
+import { type FlowDefinition, type RegistryDocument } from 'fyflow-orchestration';
 
-const scheduler = { addTask() {}, addEventListener() {} };
-const noPolicy = {
-  flowId: 'f', version: 1, entry: 'a',
-  nodes: [
-    { id: 'a', kind: 'task', type: 'W', edges: [{ to: 'split' }] },
-    { id: 'split', kind: 'fanout', branches: ['b', 'c'] },
-    { id: 'b', kind: 'task', type: 'W', edges: [{ to: 'j' }] },
-    { id: 'c', kind: 'task', type: 'W', edges: [{ to: 'j' }] },
-    { id: 'j', kind: 'join', of: 'split', edges: [{ to: 'e' }] },
-    { id: 'e', kind: 'end', outcome: 'completed' },
-  ],
-} as unknown as FlowDefinition;
-
-let refused = '';
+// **THROWN — raised while YOUR call is running.** A registry defect is refused by `createRuntime`,
+// on your stack, so a `try` catches it and names the entry.
+let thrown = '';
 try {
-  new Driver(noPolicy, {
-    runId: 'run-1', scheduler, createTask: (c) => c, predicates: new Map(), workers: { flow: { url: 'worker.js' } }, nodeTypes: { W: { worker: 'flow' } },
-  });
+  createRuntime({
+    workers: { scorer: { url: '../../examples/getting-started/scorer.ts' } },
+    nodeTypes: { Scorer: { worker: 'typo' } },        // no such worker key
+  } as RegistryDocument, {}, { base: import.meta.url });
 } catch (e) {
-  refused = (e as Error).constructor.name;
+  thrown = (e as Error).constructor.name;
 }
-console.log(refused);                          // MissingJoinPolicy
-if (refused !== 'MissingJoinPolicy') throw new Error('a fan-out with no policy must be refused');
-void InvalidDefinition;
+console.log(thrown);                                   // 'WorkerMissing'
+if (thrown !== 'WorkerMissing') throw new Error(`construction refused with ${thrown}`);
+
+// **REPORTED — raised inside a scheduler event listener.** Nobody is on the stack to catch it:
+// `EventTarget.dispatchEvent` DISCARDS a listener throw, so the driver reports it instead and the
+// run stops. This is the half a `try` around your own call can never see.
+const registry: RegistryDocument = {
+  workers: { scorer: { url: '../../examples/getting-started/scorer.ts' } },
+  nodeTypes: { Scorer: { worker: 'scorer', inline: true } },
+};
+const flow: FlowDefinition = {
+  flowId: 'bad-arity', version: 1, entry: 'first',
+  nodes: [
+    { id: 'first', kind: 'task', type: 'Scorer', settings: { score: 0.9 }, edges: [{ to: 'each' }] },
+    // `over` names a key of what `first` returned — and `score` is a NUMBER, not a list.
+    { id: 'each',  kind: 'map', over: 'score', branch: 'one' },
+    { id: 'one',   kind: 'task', type: 'Scorer', settings: { score: 1 }, edges: [{ to: 'join' }] },
+    { id: 'join',  kind: 'join', of: 'each', edges: [{ to: 'done' }] },
+    { id: 'done',  kind: 'end', outcome: 'completed' },
+  ],
+};
+
+const runtime = createRuntime(registry, {}, { base: import.meta.url });
+const reported = await new Promise<{ kind: string; message: string }>((resolve) => {
+  runtime.start(flow, {}, { onRunFailure: (f) => resolve({ kind: f.kind, message: f.message }) });
+});
+await runtime.shutdown();
+
+console.log(reported.kind);                            // 'UnresolvedMapArity'
+if (reported.kind !== 'UnresolvedMapArity') throw new Error(`the run reported ${reported.kind}`);
+// Same library, same kind of mistake, two different roads out — and which road it takes is decided
+// by whether you were on the stack, not by the class (`OR-R10`).
+// **`MissingJoinPolicy` is NOT reachable on this road**, and it is in the table below: a fan-out
+// with no policy is refused when YOU build a `Driver`, and `createRuntime` always supplies one
+// (`live-token` by default), so the runtime cannot raise it. A refusal a road cannot reach is
+// still a refusal — it belongs to the road in section 12, which is where a caller passes its own
+// scheduler and its own policy.
 ```
 
 `InvalidDefinition` carries the violated rule ids on `.rules`, so you can act on them rather than
@@ -1344,47 +1390,53 @@ After a refusal the run is **stopped**: nothing routes for it again, and its sta
 The first half of that is executed rather than asserted:
 
 ```ts run
-import { Driver, type FlowDefinition } from 'fyflow-orchestration';
+import { createRuntime } from 'fyflow-orchestration/scheduler';
+import { fold, isTerminal, type FlowDefinition, type FoldInput, type RegistryDocument, type RunState } from 'fyflow-orchestration';
 
-const listeners: ((e: { detail: unknown }) => void)[] = [];
-const scheduler = {
-  addTask() {},
-  addEventListener(_t: string, f: (e: { detail: unknown }) => void) { listeners.push(f); },
+const registry: RegistryDocument = {
+  workers: { scorer: { url: '../../examples/getting-started/scorer.ts' } },
+  nodeTypes: { Scorer: { worker: 'scorer', inline: true } },
 };
-const flow = {
-  flowId: 'f', version: 1, entry: 'a',
+const flow: FlowDefinition = {
+  flowId: 'frozen', version: 1, entry: 'a',
   nodes: [
-    { id: 'a', kind: 'task', type: 'W', edges: [{ to: 'split' }] },
+    { id: 'a', kind: 'task', type: 'Scorer', settings: { score: 0.1 }, edges: [{ to: 'split' }] },
     { id: 'split', kind: 'fanout', branches: ['b', 'c'] },
-    { id: 'b', kind: 'task', type: 'W', edges: [{ to: 'j' }] },
-    { id: 'c', kind: 'task', type: 'W', edges: [{ to: 'j' }] },
+    { id: 'b', kind: 'task', type: 'Scorer', settings: { score: 0.2 }, edges: [{ to: 'j' }] },
+    { id: 'c', kind: 'task', type: 'Scorer', settings: { score: 0.3 }, edges: [{ to: 'j' }] },
     { id: 'j', kind: 'join', of: 'split', edges: [{ to: 'e' }] },
     { id: 'e', kind: 'end', outcome: 'completed' },
   ],
-} as unknown as FlowDefinition;
+};
 
+const runtime = createRuntime(registry, {}, { base: import.meta.url });
+const inputs: FoldInput[] = [];
 const frozen: Record<string, boolean> = {};
-const driver = new Driver(flow, {
-  runId: 'run-1',
-  scheduler, createTask: (c) => c, predicates: new Map(), workers: { flow: { url: 'worker.js' } }, nodeTypes: { W: { worker: 'flow' } },
-  joinPolicy: { id: 'p', open: () => 0, step: (s: number) => s, status: () => 'waiting', describe: () => ({}) },
-  onRegionEvent: (e) => { frozen.onRegionEvent = Object.isFrozen(e); },
-  onFoldInput: (i) => { frozen.onFoldInput = Object.isFrozen(i); },
-});
-driver.start({});
-// One settlement, delivered the way the scheduler delivers it, so the fan-out opens.
-const task = { id: 'run-1:a:-:0', state: 'done', result: null, attempts: 0,
-  timestamp: 1, startTime: 1, endTime: 2, executionTime: 1 };
-for (const f of listeners) f({ detail: task });
 
+// **`onRegionEvent` is NOT among the options `runtime.start` forwards** — measured, and it is
+// [Q297](doc/open-questions.md). A `Driver` you build yourself takes it (section 12); a runtime's
+// `StartOptions` names `createTask`, `joinPolicy`, `onFoldInput`, `onRunFailure`,
+// `onUnsatisfiableJoin`, `onUnmintedTask` and `now`, and nothing else. So the three handles below
+// are the three a consumer on this road HAS.
+const driver = runtime.start(flow, {}, {
+  onFoldInput: (i) => { frozen.onFoldInput = Object.isFrozen(i); inputs.push(i); },
+});
+await new Promise<RunState>((resolve) => {
+  const poll = () => { const s = fold(inputs); if (isTerminal(s)) { resolve(s); return; } setTimeout(poll, 5); };
+  poll();
+});
+await runtime.shutdown();
+
+// The two PULL handles, read after the run rather than during it — same rule, same answer.
 frozen.snapshot = Object.isFrozen(driver.snapshot()) && driver.snapshot().every(Object.isFrozen);
 frozen.foldInputs = Object.isFrozen(driver.foldInputs()) && driver.foldInputs().every(Object.isFrozen);
-console.log(frozen);   // all four true
+
+console.log(frozen);   // all three true
 for (const [name, isFrozen] of Object.entries(frozen)) {
   if (!isFrozen) throw new Error(`${name} handed out something you can write to`);
 }
-if (Object.keys(frozen).length !== 4) {
-  throw new Error(`expected all four paths to be exercised, saw ${Object.keys(frozen).join()}`);
+if (Object.keys(frozen).length !== 3) {
+  throw new Error(`expected all three reachable paths to be exercised, saw ${Object.keys(frozen).join()}`);
 }
 ```
 - **Subscribing to the scheduler yourself and counting `task.failed`.** A `user_action` task fires
@@ -1399,43 +1451,42 @@ if (Object.keys(frozen).length !== 4) {
 the driver logs is a plain object with the field and no method:
 
 ```ts run
-import { Driver, type FlowDefinition } from 'fyflow-orchestration';
+import { createRuntime } from 'fyflow-orchestration/scheduler';
+import { fold, isTerminal, type FlowDefinition, type FoldInput, type RegistryDocument, type RunState } from 'fyflow-orchestration';
 
-class Score {
-  readonly value: number;
-  constructor(value: number) { this.value = value; }
-  isHigh(): boolean { return this.value > 0.5; }
-}
-
-const listeners: ((e: { detail: unknown }) => void)[] = [];
-const scheduler = {
-  addTask() {},
-  addEventListener(_t: string, fn: (e: { detail: unknown }) => void) { listeners.push(fn); },
+// The worker returns `new Score(0.9)` — a class with a method. See
+// `examples/getting-started/classy.ts`; nothing about this is unusual to write, which is the point.
+const registry: RegistryDocument = {
+  workers: { classy: { url: '../../examples/getting-started/classy.ts' } },
+  nodeTypes: { Classy: { worker: 'classy', inline: true } },
 };
 const flow: FlowDefinition = {
   flowId: 'or-r11', version: 1, entry: 'a',
   nodes: [
-    { id: 'a', kind: 'task', type: 'W', edges: [{ to: 'done' }] },
+    { id: 'a', kind: 'task', type: 'Classy', settings: { value: 0.9 }, edges: [{ to: 'done' }] },
     { id: 'done', kind: 'end', outcome: 'completed' },
   ],
 };
-const failures: string[] = [];
-const driver = new Driver(flow, {
-  runId: 'r1', scheduler, createTask: (c) => c, predicates: new Map(), workers: { flow: { url: 'worker.js' } }, nodeTypes: { W: { worker: 'flow' } },
-  onRunFailure: (f) => failures.push(f.kind),
-});
-driver.start({});
-for (const fn of listeners) {
-  fn({ detail: { id: 'r1:a:-:0', state: 'done', attempts: 0, timestamp: 1, result: new Score(0.9) } });
-}
 
-const logged = driver.snapshot()[0]!.result as { value?: number; isHigh?: unknown };
-console.log(logged.value, typeof logged.isHigh, logged instanceof Score, failures.length);
-// 0.9 undefined false 0
+const runtime = createRuntime(registry, {}, { base: import.meta.url });
+const inputs: FoldInput[] = [];
+const failures: string[] = [];
+const state = await new Promise<RunState>((resolve) => {
+  runtime.start(flow, {}, {
+    onFoldInput: (input) => { inputs.push(input); queueMicrotask(() => { const s = fold(inputs); if (isTerminal(s)) resolve(s); }); },
+    onRunFailure: (f) => { failures.push(f.kind); },
+  });
+});
+await runtime.shutdown();
+
+const logged = Object.values(state.nodes).find((n) => n.nodeId === 'a')?.result as { value?: number; isHigh?: unknown };
+console.log(logged.value, typeof logged.isHigh, failures.length);   // 0.9 undefined 0
 if (logged.value !== 0.9) throw new Error('the FIELDS cross the boundary');
 if (typeof logged.isHigh !== 'undefined') throw new Error('the BEHAVIOUR does not');
-if (logged instanceof Score) throw new Error('the prototype is lost, so instanceof is false');
 if (failures.length !== 0) throw new Error('and nothing is reported: OR-R11 is silent by design');
+// The run COMPLETED. A worker handed back an object with behaviour, the behaviour was dropped on the
+// way out of the worker, and no rule anywhere says a word about it.
+if (state.outcome !== 'completed') throw new Error(`expected completed, got ${state.outcome}`);
 ```
 
 ## 11. What does NOT exist — do not write code using it
