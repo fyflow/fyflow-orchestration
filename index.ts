@@ -9,6 +9,9 @@ export * from "./src/definition/registry.ts";
 // pure over data, one dynamic import of an adapter's worker half by URL, no engine, no scheduler value.
 export * from "./src/definition/witness.ts";
 export * from "./src/definition/wiring.ts";
+// W74 (P19 decisions 7 and 9): the authoring assists over that check — path enumeration, the
+// sample-and-diff loop, and a generated worker signature as TEXT. Readings, never refusals.
+export * from "./src/definition/assist.ts";
 export * from "./src/driver/ids.ts";
 export * from "./src/driver/log.ts";
 export * from "./src/driver/listener.ts";

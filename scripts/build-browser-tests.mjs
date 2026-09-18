@@ -100,6 +100,14 @@ const fixtures = [
   // it is caught by an equality against the document rather than by a floor.
   // 18 files, ~69 KiB.
   ...walk(join(ROOT, 'examples', 'flows'), (n) => n.endsWith('.json')),
+  // **The GENERATED signature file, and it is the first `.ts` entry here** — W74. The recipe's
+  // whole claim is that `examples/getting-started/session-types.ts` IS what `signatureOf` emits
+  // from the session registry's schemas, and `test/definition/assist.test.ts` holds the two
+  // together BOTH WAYS by reading the file. Without this the browser rungs are red on that one
+  // test while node and deno stay green — the fourth time a suite reading a file outside
+  // `spec/examples/` has done that (W32's, W33's, W54's, this). It is read inside a `test()`, so
+  // the failure mode is W33's better one: one named test rather than the whole bundle.
+  join(ROOT, 'examples', 'getting-started', 'session-types.ts'),
 ].sort();
 const corpus = Object.fromEntries(fixtures.map((p) => [relPosix(p), readFileSync(p, 'utf8')]));
 

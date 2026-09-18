@@ -252,6 +252,12 @@ const PROBES = [
   {
     name: 'an unclosed fence',
     check: 'X1',
+    // + X8 since W74: the LAST closing fence in the reference is now section 15's, and that
+    // snippet is one X8 PAIRS — so removing it leaves the pairing with no `run` fence under the
+    // heading it names. MEASURED, not assumed: this probe read `[X1,X8]` against its declared
+    // `[X1]` on W74's first confirming run, which is rule 7 (c) discriminating exactly as it is
+    // meant to, in a GATE ENTRY. Before W74 the last fence was section 14's, which X8 does not pair.
+    also: ['X8'],
     // The LAST closing fence in the file, so the unclosed block runs to EOF.
     mutate: (t) => t.slice(0, t.lastIndexOf('```')) + t.slice(t.lastIndexOf('```') + 3),
   },

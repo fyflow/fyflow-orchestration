@@ -22,6 +22,15 @@ ordering — and its own reference lists them under *"Things that do NOT exist"*
 **This library decides which task runs next, and why.** It owns four things the scheduler does not
 have: **sequence**, **decision routing**, **fan-out** and **join**.
 
+**And it tells you whether the flow you wrote FITS the workers you named, before you run it.** Where
+a worker declares what it expects and what it returns — it need not, and `unchecked` is the verdict
+when it does not — `checkWiring` gives every arc of a flow one of five verdicts from those
+declarations, `tryTransform` runs a candidate expression on a producer's own
+declared example and holds the result to the consumer's schema, and `signatureOf` turns the same
+schemas into the TypeScript a worker's author writes against. **Section 15 is a session that does all
+three on a real miswire and then runs the flow it repaired** — it is executed by `npm run gate` like
+everything else here.
+
 | | belongs to |
 |---|---|
 | worker pools, threads, retry, resource limits, task execution | `fyflow-scheduler` |
@@ -134,7 +143,8 @@ if (JSON.stringify(shout?.result) !== '{"text":"hello world !"}') throw new Erro
 on a NAMED pool instance, a decision edge, a fan-out and its join, and a declared transform — which is
 [P18](doc/plans/p18-a-flow-and-its-runtime-from-documents-alone.md)'s exit artifact and runs on real
 workers in both L6 runtimes. Section 3 is the definition grammar; section 12 is the runtime in full,
-including the driver with **no scheduler at all**; section 13 is node types.
+including the driver with **no scheduler at all**; section 13 is node types; **section 15 is what
+their schemas buy you before a run**.
 
 ---
 
@@ -2224,13 +2234,14 @@ await w.teardown();
 ```
 
 **What this is not.** What a type says about what its worker EXPECTS and RETURNS — input and
-output schemas, and a sample-based check across a transformed edge — is
+output schemas, and a sample-based check across a transformed edge — was
 [P16](doc/plans/p16-what-a-node-type-is-and-what-the-library-owes-the-scheduler.md)'s plan after
-this one (P18); since v0.19 a worker DECLARES `inputSchema` and `outputSchema`, no RUN enforces
+this one (P18) and is now [P19](doc/plans/p19-what-a-schema-buys-an-author.md)'s, answered in
+**section 15**: since v0.19 a worker DECLARES `inputSchema` and `outputSchema`, no RUN enforces
 them per settlement (that is OUT of P19 as a default) — since v0.21 the two values no static check
 can reach are held to them ONCE each, `FD-R4` (section 9's `BoundaryRefused`), and `checkWiring(registry, flow)`
-gives every arc of a flow one of five verdicts from them before any run (W73; the reference section
-is W74's) — and since v0.20 any schema may carry
+gives every arc of a flow one of five verdicts from them before any run (W73), with `pathsOf`,
+`tryTransform` and `signatureOf` beside it as the authoring assists (W74) — and since v0.20 any schema may carry
 `examples` — an annotation held to its schema at construction ([ADR 0056](doc/decisions/0056-an-example-is-an-annotation-validated-against-the-schema-it-sits-on.md),
 [W72](doc/work-items/w72-the-contract-an-example-beside-every-schema-and-a-worker-run-on-it.md)) —
 so that `npm run check:workers` can RUN a worker on its input example and validate what it returned
@@ -2360,3 +2371,152 @@ dependencies of its own, whether or not they ever import the sub-path; a Deno co
 sub-path. **A bundled worker is your asset**: inside a bundle `import.meta.url` is the bundle's own
 URL ([Q261](doc/open-questions.md)), so `jsonata.worker` — like the envelope worker itself — has to be
 served beside your bundle as a module of its own for a pool's thread to load it.
+
+---
+
+## 15. What a schema buys an AUTHOR — an authoring session
+
+**The schemas in section 13 were never for the run.** A worker's `inputSchema` and `outputSchema`
+are held to the run's PAYLOAD once and to a person's RESOLUTION once each (`FD-R4`, section 9) and
+never per settlement — and neither of those is *two values per run*, because a fan-out or map entry
+validates one value per branch task it reaches and a run nobody parks validates no resolution at
+all. So what are they for? **They are for whoever is wiring the flow**, a person or an agent, and this section is
+the session that shows it: a flow written, a MISWIRE caught before anything runs, a transform
+written by a loop rather than guessed, and a worker typed against a signature generated from the
+declarations. Three functions do it, all exported from the package root, and none of them refuses
+anything or is reachable from a run. Two are pure over data; `tryTransform` is not, and the
+difference matters to a caller — it is `checkWiring`'s one dynamic `import()` of the language
+adapter's worker half, so it loads a module by URL and returns a promise:
+
+| | answers |
+|---|---|
+| `pathsOf(schema)` | *what is there to reach for* — every path a value may carry, and which are guaranteed |
+| `tryTransform(registry, flow, node, transform)` | *does THIS expression fit* — one candidate, one verdict, on a real sample |
+| `signatureOf(name, worker)` | *what do I write my worker against* — TypeScript, as text |
+
+The registry below is
+[`examples/getting-started/session-registry.ts`](examples/getting-started/session-registry.ts) — two
+workers whose schemas OPPOSE on purpose. `reader` returns `{ lines: string[], source }` and closes
+the object; `summarise` REQUIRES a `text` string and closes its own. Everything here runs on every
+`npm run gate`, and the same snippet is in `README.md`, held byte-equal by `check-docs`'s `X8`.
+
+```ts run
+import { checkWiring, describePaths, pathsOf, signatureOf, tryTransform, fold, isTerminal, type FlowDefinition, type FoldInput, type RunState } from 'fyflow-orchestration';
+import { createRuntime } from 'fyflow-orchestration/scheduler';
+import { jsonata } from 'fyflow-orchestration/jsonata';
+import { SESSION_BASE, SESSION_REGISTRY, SESSION_WORKERS } from '../../examples/getting-started/session-registry.ts';  // in your program: './registry.ts', a module or a JSON file of your own
+
+// The three things the check needs from a registry: the workers' schemas, the types that name them,
+// and the languages a transform may be written in. `createRuntime` takes the whole document below.
+const registry = { workers: SESSION_WORKERS, nodeTypes: SESSION_REGISTRY.nodeTypes, languages: { jsonata } };
+
+// THE FLOW, as an author first writes it: read a batch, summarise it. It is a VALID document —
+// `validateDefinition` has nothing to say about it, because nothing here is about the grammar.
+const flow: FlowDefinition = {
+  flowId: 'session', version: 1, entry: 'read',
+  nodes: [
+    { id: 'read', kind: 'task', type: 'Reader', edges: [{ to: 'sum' }] },
+    { id: 'sum', kind: 'task', type: 'Summarise', edges: [{ to: 'done' }] },
+    { id: 'done', kind: 'end', outcome: 'completed' },
+  ],
+};
+
+// STEP 1 — the wiring check, before a worker has run once. Every arc gets one of five verdicts.
+const first = await checkWiring(registry, flow);
+console.log(first.counts);                         // { fits: 0, no: 1, ... }
+const arc = first.verdicts.find((v) => v.consumer === 'sum')!;
+console.log(`${arc.kind}: ${arc.why}`);            // no: $: consumer requires "text", producer does not guarantee it
+if (arc.kind !== 'no') throw new Error(`the miswire is the point of this section: got ${arc.kind}`);
+
+// STEP 2 — so what IS there? The producer's own output schema, enumerated. A leading `?` marks a
+// path a value may not carry at all; the rest are guaranteed by `required`.
+console.log(describePaths(pathsOf(SESSION_WORKERS.reader.outputSchema)));
+//   $                            object
+//   $.lines                      array
+// ? $.lines[]                    string
+//   $.source                     string
+
+// STEP 3 — a first candidate. It is run on the producer's declared EXAMPLE, and the result is held
+// to the consumer's input schema, so the answer is about a value rather than about two declarations.
+const attempt = await tryTransform(registry, flow, 'sum', { lang: 'jsonata', expr: '{ "text": lines }' });
+console.log(`${attempt[0]!.kind}: ${attempt[0]!.why}`);
+// transform-fails: the transform's result on the example fails the consumer's inputSchema — $.text expected string, got array
+if (attempt[0]!.kind !== 'transform-fails') throw new Error('an array is not a string, and the loop says which');
+
+// STEP 4 — ONE expression edit, and the same loop. `transform-passes` is never `fits`: it is a fact
+// about the sample the verdict names, which is why `sample.source` is on it (a declared example
+// here; where a schema declares none, a generated WITNESS, and the verdict says so).
+const good = { lang: 'jsonata', expr: '{ "text": $join(lines, " ") }' };
+const passed = await tryTransform(registry, flow, 'sum', good);
+console.log(`${passed[0]!.kind} on the ${passed[0]!.sample!.source}: ${JSON.stringify(passed[0]!.sample!.result)}`);
+if (passed[0]!.kind !== 'transform-passes') throw new Error(`expected the sample to pass, got ${passed[0]!.kind}`);
+
+// STEP 5 — the signature the worker is written against, generated from the same three schemas.
+// `examples/getting-started/session-types.ts` is this text, checked in, and `summarise.ts` imports
+// it. A type holds the SHAPE: `words` is `number` here and its schema says `minimum: 0`.
+const signature = signatureOf('Summarise', SESSION_WORKERS.summarise);
+console.log(signature.split('\n').filter((l) => l.startsWith('export')).join('\n'));
+if (!signature.includes('"text": string;')) throw new Error('the required key is required in the type too');
+
+// STEP 6 — and only now the runtime. Pools are built ONCE, so a flow whose transform was decided
+// during the session has to reach `createRuntime` as `flows`, or `start` throws `LanguageNotBuilt`
+// naming the type. Check, then build.
+const wired: FlowDefinition = { ...flow, nodes: flow.nodes.map((n) => (n.id === 'sum' ? { ...n, transform: good } : n)) };
+const runtime = createRuntime(SESSION_REGISTRY, { languages: { jsonata } }, { base: SESSION_BASE, flows: [wired] });
+const inputs: FoldInput[] = [];
+const state = await new Promise<RunState>((resolve, reject) => {
+  runtime.start(wired, { source: 'inbox' }, {
+    onFoldInput: (i) => { inputs.push(i); queueMicrotask(() => { const s = fold(inputs); if (isTerminal(s)) resolve(s); }); },
+    onRunFailure: (f) => reject(new Error(`${f.kind}: ${f.message}`)),
+  });
+});
+await runtime.shutdown();
+console.log(state.outcome, Object.values(state.nodes).find((n) => n.nodeId === 'sum')?.result);  // completed { words: 3 }
+
+// The expected values are the DOCUMENT's, not literals beside the run: the consumer's own declared
+// output example, and the producer's declared line count. A registry whose examples stop describing
+// its workers is red here and in `test/definition/assist.test.ts`, which runs the same chain.
+if (state.outcome !== 'completed') throw new Error(`expected completed, got ${state.outcome}`);
+const got = Object.values(state.nodes).find((n) => n.nodeId === 'sum')?.result;
+if (JSON.stringify(got) !== JSON.stringify(SESSION_WORKERS.summarise.outputSchema.examples[0])) {
+  throw new Error(`the run returned ${JSON.stringify(got)}, not the consumer's declared output example`);
+}
+if ((got as { words: number }).words !== SESSION_WORKERS.reader.outputSchema.examples[0].lines.length) {
+  throw new Error(`the producer declares ${SESSION_WORKERS.reader.outputSchema.examples[0].lines.length} lines, joined into one text`);
+}
+const after = await checkWiring(registry, wired);
+if (after.counts.no !== 0) throw new Error('and the flow that ran has no unwired arc left');
+```
+
+**What a verdict is and is not.** `fits` is a statement about two DECLARATIONS and is checked
+statically over the twelve constraining keywords of the subset. `transform-passes` is a statement
+about ONE VALUE — the producer's first declared example, or a generated witness where it declares
+none — and the verdict carries which it ran on and, over a region, the ARITY the sample had, because
+a transform's result changes type with the arity ([Q263](doc/open-questions.md)). **A witness is not
+a proof**, and the reference says *the sample passed* rather than *fits* for exactly that reason.
+Two more the check knows and a document cannot say: an OPEN producer is read as never emitting a key
+it does not name, which is a stated leniency ([Q305](doc/open-questions.md)); and a join successor's
+record is the check's own knowledge, because the subset cannot spell *any key, each of shape S*
+([Q306](doc/open-questions.md)).
+
+**One document per verdict** lives in [`spec/examples/wiring/`](spec/examples/wiring/), each named
+by the verdict it earns — `fits`, `no`, `transform-passes`, `transform-fails` and `unchecked`, the
+fifth being what the check says when a side declares no schema at all. `spec/flow-definition.md`
+section 7 records their verdicts and the suite compares the directory and the table both ways.
+
+**And the generated signature is a RECIPE rather than enforcement.** `signatureOf` emits text from
+the subset with no dependency; `json-schema-to-typescript` is the richer consumer tool and reads the
+same schemas. **The two AGREE wherever a schema says something** — an open object with a property
+gets `[k: string]: unknown` from both — and they differ wherever it says LESS: an empty or
+annotation-only schema is `unknown` here and an OBJECT type there, and a closed object with no
+properties is `Record<string, never>` here and `{}` there, which in TypeScript means *any non-nullish
+value*. Both shapes are in the corpus. *A schema that names no `type` admits every type, and this
+emits the type that says so* — the same reading `pathsOf` gives it as `*`. *(This paragraph said the
+opposite — that the two differ on the OPEN object — in the reference, in the module header and in the
+item's own fact: two runs of one harness, one of which CONFIGURED the generator to close what the
+schema leaves open, and the later run's line count was kept beside the earlier run's conclusion.
+W74's conformity reader, from the author's own scratchpad output.)* Neither holds a
+`minimum`, a `maxLength` or a `minItems`: **a type catches the shape, and `npm run check:workers` —
+which RUNS each worker on its declared example and validates what came back — is what catches the
+rest.** Even that sees one value: a bound the code does not keep past the example is invisible to it
+and visible at every consumer the wiring check reads ([Q302](doc/open-questions.md)).

@@ -448,6 +448,11 @@ const LATE_SUITES = [
   'FD-R4 at START — the payload is held to the first task(s) it reaches, once, and a refusal leaves the driver unstarted',
   'FD-R4 at RESOLVE — a person`s value is held to the parked node`s worker outputSchema, once, and a refusal leaves the task suspended',
   'FD-R4 through the runtime — createRuntime forwards the switch to every driver it starts',
+  // W74 — the authoring assists over that check, in `assist.test.ts`.
+  'W74 — pathsOf: every path a value may carry, over the whole subset',
+  'W74 — tryTransform: the sample-and-diff loop, one candidate at a time',
+  'W74 — the session`s two workers, RUN on their own declared examples (ADR 0056 rule 3)',
+  'W74 — signatureOf: the SHAPE, as text, and the file it generated',
   'the minimum sample resolves — the document, the class, the custom group and the four pools, with NOTHING constructed',
   'the identity derivation reproduces what bootstrap hands WorkerManager today — P18 fact 5, prediction 2',
   'both SHAPES of a node type, every field of both interfaces, under one claim: what the derived spec and the definition carry',

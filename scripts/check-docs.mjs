@@ -353,7 +353,7 @@ if (written.length) {
 // 23 until W69, which added the getting-started snippet to section 2 and raised the floor to the
 // count it ships (Q102's ratchet: the item that adds a snippet raises it); 24 until W70, which added
 // the routing snippet to section 5 and the custom-group snippet to section 12 — 26.
-const RUN_FLOOR = 26;
+const RUN_FLOOR = 27;
 {
   // **Only when the document parsed.** A count over a reference whose fences are
   // malformed or untagged is true of the parse and says nothing about coverage —
@@ -494,8 +494,9 @@ const RUN_FLOOR = 26;
 const README_SNIPPETS = [
   { readme: 'Getting started', agents: '2. Getting started — a flow and its runtime from two documents' },
   { readme: 'A flow that decides', agents: 'The same on the RUNTIME — a decision, a fan-out and a join on real workers' },
+  { readme: 'Checking a flow before it runs', agents: '15. What a schema buys an AUTHOR — an authoring session' },
 ];
-const README_SNIPPET_FLOOR = 2;
+const README_SNIPPET_FLOOR = 3;
 /** The README's text above its first `## ` heading, which is a section for X8's purposes. */
 const README_OPENING = '(the opening, above the first ## heading)';
 {

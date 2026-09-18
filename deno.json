@@ -22,6 +22,7 @@
       "!src/definition/registry.ts",
       "!src/definition/witness.ts",
       "!src/definition/wiring.ts",
+      "!src/definition/assist.ts",
       "!src/driver/ids.ts",
       "!src/driver/log.ts",
       "!src/driver/listener.ts",

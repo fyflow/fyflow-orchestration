@@ -103,10 +103,13 @@ editor already read `examples`, so the annotation costs a consumer nothing to le
    bound dropped where the code does not keep it, the input bounded where the code assumes it), and
    the shape recorded as [Q302](../open-questions.md): the check sees the example and not the domain.
 2. **The witness generator ships inside the check script and not in `src/`** — W74's assist lifts it
-   *(W73 lifted it one item early — `src/definition/witness.ts`, because the wiring check's transformed
-   arc needs it in the library, and the check now imports the one copy; the sentence stands as the
-   record of where it was when this was decided.)*
    if the sample-and-diff loop wants it; until then it is fact 5's harness, in one file.
+   *(Both halves of that sentence are now false and are kept as the record of where the generator was
+   when this was decided. **W73 lifted it one item early** — `src/definition/witness.ts`, because the
+   wiring check's transformed arc needs it in the library, and the check imports the one copy. **And
+   W74's assist does NOT lift it**: `assist.ts` reaches the witness TRANSITIVELY, through
+   `checkWiring`, which is what keeps ONE sampling rule rather than two — W74's conformity reader,
+   finding 6, found by that item's grep of the tree for its own id.)*
 3. **A worker that throws twice under a declared `outputSchema` is red** (K3), and a worker that
    throws under none is a line of output. The retry is the one policy the check carries, stated in
    its header rather than inferred from a scheduler.
