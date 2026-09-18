@@ -491,7 +491,7 @@ to compare, and Q260 stays open for it.)*
 
 **What this is NOT.** A type's worker SAYS what it expects and returns — `inputSchema` and
 `outputSchema` on the worker entry — and nothing enforces either yet: declared and carried since
-v0.19, P19's strict mode. A transform on the envelope is the `transform` subsection below (v0.18).
+v0.19, P19's strict mode *(P19 is DECLARED 2026-09-18 under a different name — *what a schema buys an author* — and per-settlement enforcement is OUT of it as a default; what it enforces at run time is the entry payload and a person's resolution, once each. The sentence stands as v0.19's forward claim)*. A transform on the envelope is the `transform` subsection below (v0.18).
 A node type has no VERSION ([Q249](../doc/open-questions.md)). Cases: `spec/examples/valid/typed.flow.json`
 carries a typed task with settings on all four shapes `FD-C5` enumerates, beside a task of a
 former bare type; `pooled.flow.json` runs one node on a NAMED instance and one on the default by
@@ -1080,7 +1080,7 @@ to the subset, configs held to their schemas, and every derivation RUN with its 
 | `url` | required | the worker class's module URL — its default export is the class, the scheduler's own contract. A relative URL resolves against the `base` the runtime is given (decision 7): inside a bundle `import.meta.url` is the bundle ([Q261](../doc/open-questions.md)) and the runtime cannot guess |
 | `configSchema` | optional, CHECKED | what the worker's CONSTRUCTOR argument must satisfy — a type's derived config (its default instance's) and every named instance's, at construction |
 | `settingsSchema` | optional, CHECKED | what a node's effective `settings` must satisfy — `FD-V33`, at `new Driver`, a schema where v0.17 had a function. The type's `settings` defaults are merged UNDER the node's before it is applied |
-| `inputSchema` | optional, CARRIED | what the worker's `run()` receives as `input`. Declared, held to the subset, enforced by nothing in this plan — P19's strict mode |
+| `inputSchema` | optional, CARRIED | what the worker's `run()` receives as `input`. Declared, held to the subset, enforced by nothing in this plan — P19, which is declared under the name *what a schema buys an author* and enforces it at the ENTRY PAYLOAD once per run, not per settlement |
 | `outputSchema` | optional, CARRIED | what the worker's `run()` returns. As `inputSchema` |
 
 **An absent schema means UNCHECKED**, stated rather than left to guess (decision 3): a worker with no
