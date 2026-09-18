@@ -25,7 +25,7 @@ import {
   BUILT_IN_GROUP_TYPES, ConfigRefused, DECLARED_POOL_KEYS, DerivationRefused, DOCUMENT_KEYS, GroupConfigRefused, GroupTypeMissing,
   groupsNamedBy, INSTANCE_KEYS, isDerivation, mergeConfig, NameCollision, NameMissing, NODE_TYPE_DECLARATION_KEYS, nodeTypeFromDeclaration,
   POOL_SPEC_KEYS, poolOptionsOf, poolSpecProblem, PoolTypeMissing, RegistryError, resolveRegistry, SchemaRefused, TypeDefaultRefused,
-  UndeclaredKey, WORKER_KEYS, WorkerMissing, CHECKED_WORKER_SCHEMAS,
+  UndeclaredKey, WORKER_KEYS, WorkerMissing, CHECKED_WORKER_SCHEMAS, checkRegistry,
 } from '../../src/definition/registry.ts';
 import type { GroupType, NodeTypeDeclaration, NodeTypeDefinition, PoolSpec, RegistryCode, RegistryDocument } from '../../src/definition/types.ts';
 import { PATH_LANGUAGE } from '../scheduler/fake-language.ts';
@@ -290,6 +290,41 @@ suite('every construction-time refusal, by name — a document that trips it and
     const c = code(); (c.gpu as { configSchema: unknown }).configSchema = { oneOf: [] };
     refused(SAMPLE, SchemaRefused, ['"GpuModel"', '"oneOf"'], c, 'a class`s configSchema');
     refused(edited((d) => { d.workers!.fetch!.settingsSchema = { type: 'strong' }; }), SchemaRefused, ['"fetch"', '$.type'], code(), 'and a malformed keyword value');
+  });
+  // ADR 0056 (W72, v0.20): `examples` on a worker's schema is held to that schema at construction. The
+  // refusal is `SchemaRefused` — the SAME class, because an example that refutes its schema is a defect
+  // of the declaration — naming the entry, the field and the example's index; a conforming one resolves.
+  test('SchemaRefused (ADR 0056): an example that refutes the schema it sits on, on ANY of a worker`s four schemas, a group type`s, a class`s — and a conforming one resolves', () => {
+    for (const field of WORKER_KEYS.slice(1)) {
+      const e = refused(edited((d) => { d.workers!.prompt![field] = { type: 'object', required: ['k'], examples: [{ k: 1 }, {}] }; }),
+        SchemaRefused, ['"prompt"', field, 'examples[1]', '$.k required'], code(), `worker.${field} example`);
+      equal(e.at, 'prompt', `${field}: at names the worker`);
+    }
+    refused(SAMPLE, SchemaRefused, ['"DailyBudgetGroup"', 'examples[0]', 'below minimum'],
+      { ...code(), groupTypes: { DailyBudgetGroup: { ...DailyBudgetGroup, configSchema: { ...DailyBudgetGroup.configSchema!, examples: [{ tokensPerDay: -1 }] } } } }, 'a group type`s example');
+    const c = code(); (c.gpu as { configSchema: unknown }).configSchema = { type: 'object', required: ['model'], properties: { model: { enum: ['small', 'large'] } }, examples: [{ model: 'huge' }] };
+    refused(SAMPLE, SchemaRefused, ['"GpuModel"', 'examples[0]', 'not one of'], c, 'a class`s example');
+    refused(edited((d) => { (d.workers!.fetch!.outputSchema as Record<string, unknown>).examples = []; }), SchemaRefused, ['"fetch"', 'outputSchema', 'NON-EMPTY'], code(), 'an empty examples list');
+    // The control, both ways: conforming examples on all four resolve, and the registry carries them through untouched.
+    const withExamples = edited((d) => {
+      const p = d.workers!.prompt!;
+      p.configSchema = { ...(p.configSchema as object), examples: [{ model: 'small' }] };
+      p.settingsSchema = { ...(p.settingsSchema as object), examples: [{ prompt: 'summarise' }] };
+      p.inputSchema = { ...(p.inputSchema as object), examples: [{ text: 'hello' }] };
+      p.outputSchema = { ...(p.outputSchema as object), examples: [{ answer: 'hello', confidence: 0.5 }] };
+    });
+    const r = resolveRegistry(withExamples, code());
+    const carried = r.workers.get('prompt') as unknown as Record<string, { examples?: unknown[] }>;
+    equal(WORKER_KEYS.slice(1).map((f) => carried[f]?.examples?.length), [1, 1, 1, 1], 'one example on each of the four, carried as declared');
+    // The DRIVER's shape half too — `checkRegistry`, what `new Driver` runs — and not only the resolver: the
+    // adequacy reader (c1) stripped examples before that call and everything was green, because every
+    // fixture above goes through `resolveRegistry`. The same refusal from the other caller.
+    let shape: unknown;
+    // The workers section alone: the sample's `prompt-big` pool names the CLASS type, which lives in code and
+    // not in the document, and the shape check has no code to look it up in.
+    try { checkRegistry({ workers: edited((d) => { d.workers!.fetch!.outputSchema = { type: 'object', required: ['text'], examples: [{}] }; }).workers }); } catch (e) { shape = e; }
+    ok(shape instanceof SchemaRefused && (shape as RegistryError).message.includes('examples[0]') && (shape as RegistryError).at === 'fetch', `checkRegistry refuses a refuting example naming the worker — ${String(shape)}`);
+    equal(checkRegistry({ workers: withExamples.workers }), undefined, 'and passes the conforming ones');
   });
   test('UndeclaredKey: a key no kind declares — at the top level, on a worker, a type, a pool, a group — and a section that is not an object', () => {
     refused(edited((d) => { (d as Record<string, unknown>).note = 'x'; }), UndeclaredKey, ['"note"', DOCUMENT_KEYS.join(', ')]);

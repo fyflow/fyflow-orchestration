@@ -556,7 +556,7 @@ for (const p of exampleSources()) {
   if (!gate) fail('S11', `${PKG_PATH} has no \`gate\` script`);
   // **"Run by the gate" stopped being "named in `scripts.gate`" at
   // [ADR 0039](../doc/decisions/0039-the-gate-climbs-the-ladder-and-the-self-tests-run-concurrently.md).**
-  // The seven `:selftest` entries left the `&&` chain for one entry that derives them
+  // The `:selftest` entries (seven then, eight since W72) left the `&&` chain for one entry that derives them
   // from this same manifest and runs them concurrently, so a textual test over the
   // chain now reports every one of them missing. **Reachability is the property this
   // clause has always meant** — its own heading says *reachable from `npm run gate`* —
@@ -620,7 +620,7 @@ for (const p of exampleSources()) {
 // are of that moment and neither is of now: since
 // [ADR 0039](../doc/decisions/0039-the-gate-climbs-the-ladder-and-the-self-tests-run-concurrently.md)
 // the chain is **fifteen** entries, only **seven** of which are `check:*`, and the
-// seven `:selftest` entries `S11` also guards are not in the chain at all — they are
+// `:selftest` entries `S11` also guards (seven then, eight since W72) are not in the chain at all — they are
 // reached through `selftests`, which is what `G4` binds.
 // *(This read "twenty-one" and "fourteen" — W38's after-figures, stale one item later,
 // in the parenthesis about stale counts, for the second consecutive item. W39's
@@ -676,7 +676,7 @@ for (const p of exampleSources()) {
 // sixty-second rung while L0 is broken"* — and the chain it was written beside ran
 // **489 seconds of `:selftest` entries ahead of `lint`**, measured. A rule stated
 // correctly in a comment, in the file that enforces it, over a list that broke it:
-// `doc/workflow.md` section 6 pass 3 rule 3's sharpest shape. The seven `:selftest`
+// `doc/workflow.md` section 6 pass 3 rule 3's sharpest shape. The `:selftest`
 // entries are now one entry at the END, and `lint` and `typecheck` are first.
 const GATE_CHAIN = [
   'lint',
@@ -693,6 +693,9 @@ const GATE_CHAIN = [
   'check:source',
   'check:markdown',
   'check:wiring',
+  // W72: the worker conformance check RUNS fourteen workers on their declared examples — measured
+  // at ~1 s, ahead of `check:docs` (6.5 s, twenty-six executed snippets) and behind `check:wiring`.
+  'check:workers',
   'check:docs',
   'test',
   'test:deno',

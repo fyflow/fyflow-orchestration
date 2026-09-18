@@ -8,8 +8,9 @@
  * A worker entry in the registry document declares up to four schemas (`configSchema`,
  * `settingsSchema`, `inputSchema`, `outputSchema`); a group type declares one; a node-type class may
  * declare one. A worker's first two, a group type's and a class's are CHECKED — at `createRuntime`
- * and at `new Driver` — and a worker's last two are declared, carried and enforced by nothing in
- * this plan (P19's strict mode). The maintainer priced three validators at the draft (`ajv` 262 KB,
+ * and at `new Driver` — and a worker's last two are declared, carried, enforced on no RUN, and
+ * since v0.20 confirmed on a run by `scripts/check-workers.mjs` (P19, whose name is *what a schema
+ * buys an author* and not *strict mode*). The maintainer priced three validators at the draft (`ajv` 262 KB,
  * `@cfworker/json-schema` 42 KB, this subset 1.5 KB bundled as its 32-line prototype — the shipped module
  * is 4.2 KB minified) and chose the subset, with the 42 KB
  * dependency as prediction 4's reversal condition.
@@ -31,6 +32,9 @@
  * at construction, on every declared schema — the registry's mistake, named); `findings` decides
  * whether a VALUE satisfies a schema already known to be in it. A schema that fails the first must
  * never reach the second, and the callers in `registry.ts` and `validate.ts` enforce that order.
+ * **`examples` (v0.20, ADR 0056) is checked by the FIRST and read by neither afterwards**: the
+ * construction-time check holds each declared example to the schema it sits on, and a value check
+ * ignores the keyword — an annotation, not a constraint.
  * No dependency, no `node:` import, no `Date` — pure functions over data (`RT-R3`, `RT-R4`).
  */
 
@@ -39,13 +43,28 @@ export type JsonSchema = Readonly<Record<string, unknown>>;
 
 /**
  * **The subset, enumerated** — the twelve keywords P18 fact 1 measured as covering the sample's and
- * the corpus's schemas (14 of 14 cases). `spec/flow-definition.md` section 3's table names the same
- * twelve, and `test/definition/schema.test.ts` compares the two lists both ways (rule 8 obligation
- * (e)'s third shape — a list is a claim about another list).
+ * the corpus's schemas (14 of 14 cases), **and `examples`, the thirteenth, an ANNOTATION** —
+ * [ADR 0056](../../doc/decisions/0056-an-example-is-an-annotation-validated-against-the-schema-it-sits-on.md),
+ * [W72](../../doc/work-items/w72-the-contract-an-example-beside-every-schema-and-a-worker-run-on-it.md),
+ * the plan's first deliberate extension of the subset. `spec/flow-definition.md` section 3's table
+ * names the same thirteen, and `test/definition/schema.test.ts` compares the two lists both ways
+ * (rule 8 obligation (e)'s third shape — a list is a claim about another list).
+ *
+ * `examples` differs from the other twelve in ONE way, and the difference is the decision: it
+ * constrains NOTHING when a value is checked (`findings` never reads it) and is itself HELD to the
+ * schema it sits on at construction (`schemaProblem` runs `findings` over each declared example) —
+ * so a worker's declared example is a value the check-time tools may RUN the worker on, and an
+ * example that refutes its own schema is refused the day it is written rather than trusted the day
+ * a tool reads it. P19 fact 6 is why: an author's schema was wrong and the example written beside
+ * it conformed to the wrong schema, so the two agreeing proves only that the schema is
+ * self-consistent. The rule is optional — an absent `examples` refuses nothing (the maintainer's
+ * choice, W72's stop-and-ask 1) — and an EMPTY one is refused, because a declared-and-empty list
+ * is the silent kind (`enum`'s own reason).
  */
 export const SCHEMA_KEYWORDS: readonly string[] = [
   'type', 'required', 'properties', 'additionalProperties', 'enum', 'const',
   'minimum', 'maximum', 'minLength', 'maxLength', 'items', 'minItems',
+  'examples',
 ];
 
 /** The type names `type` may use — JSON Schema's seven, `integer` included. */
@@ -110,6 +129,26 @@ export function schemaProblem(schema: unknown, at = '$'): string | null {
     if (Array.isArray(s.items)) return `${at}.items: the subset admits one schema for every item, not a tuple`;
     const p = schemaProblem(s.items, `${at}.items`);
     if (p !== null) return p;
+  }
+  // **`examples` LAST, because it is the one keyword whose check runs `findings` — and `findings`
+  // requires the schema it walks to be in the subset already (ADR 0053 rule 5).** Every keyword of
+  // this schema, and of every schema under `properties` and `items`, has been checked above, so an
+  // example may be held to the whole schema here and nowhere earlier. An example that refutes the
+  // schema it sits on is refused naming its index and the finding (ADR 0056 rule 2); an empty list
+  // is refused as `enum`'s is; and `findings` itself reads none of this (rule 1 — by construction,
+  // since no clause of it names the keyword).
+  if (s.examples !== undefined) {
+    if (!Array.isArray(s.examples) || s.examples.length === 0) {
+      return `${at}.examples: must be a NON-EMPTY array of values this schema accepts, got ${JSON.stringify(s.examples)} — ` +
+        'a declared-and-empty list annotates nothing (ADR 0056)';
+    }
+    for (let i = 0; i < s.examples.length; i++) {
+      const fs = findings(schema as JsonSchema, s.examples[i]);
+      if (fs.length) {
+        return `${at}.examples[${i}]: does not conform to the schema it annotates — ${describeFindings(fs)} — ` +
+          'an example that refutes its own schema is a defect the day it is written (ADR 0056 rule 2)';
+      }
+    }
   }
   return null;
 }

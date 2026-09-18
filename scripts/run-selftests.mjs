@@ -6,7 +6,7 @@
  *
  * **Why this file exists.** [ADR 0039](../doc/decisions/0039-the-gate-climbs-the-ladder-and-the-self-tests-run-concurrently.md).
  * The gate was 21 entries in one `&&` chain, and 93% of its wall clock was the seven
- * `:selftest` entries proving the seven checks can still fail. Nothing decided that,
+ * `:selftest` entries proving the checks can still fail (seven then; eight since W72). Nothing decided that,
  * and two things about the arrangement were accidents rather than choices: the seven
  * ran BEFORE `lint` and `typecheck`, so a syntax error in `src/` was reported after
  * seven minutes; and they ran one at a time on a machine with twenty cores, because

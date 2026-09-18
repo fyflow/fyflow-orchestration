@@ -437,6 +437,8 @@ const LATE_SUITES = [
   'ADR 0053 — the subset validates P18 fact 1`s fourteen cases exactly as the measurement said',
   'ADR 0053 — every keyword of the subset, a positive and a negative case each, and the list bound to the spec both ways',
   'Q278 — a keyword outside the subset is REFUSED at construction naming it, and so is a malformed keyword value',
+  // W72 — `examples`, the subset's thirteenth keyword and an annotation (ADR 0056), in `schema.test.ts`.
+  'ADR 0056 — examples is an annotation: held to its schema at construction, ignored by every value check',
   'the minimum sample resolves — the document, the class, the custom group and the four pools, with NOTHING constructed',
   'the identity derivation reproduces what bootstrap hands WorkerManager today — P18 fact 5, prediction 2',
   'both SHAPES of a node type, every field of both interfaces, under one claim: what the derived spec and the definition carry',

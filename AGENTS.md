@@ -2009,7 +2009,8 @@ import { validateDefinition, type FlowDefinition, type NodeTypeDeclaration, type
 // key refuses absence by name, and a type whose nodes carry no settings is written over an entry
 // that declares none (two entries here, one module each — since W67 a worker is a module). `configSchema` is held against every pool's
 // derived config at construction; `inputSchema` and `outputSchema` are declared and carried, and
-// enforced by nothing yet (P19).
+// enforced on no RUN — since v0.20 (ADR 0056) any schema may carry `examples`, held to it at
+// construction, and `npm run check:workers` runs a worker on its input example (P19, W72).
 const ingestUrl = new URL('../../examples/workers/ingest.ts', import.meta.url).href;
 const typedUrl = new URL('../../examples/workers/typed.ts', import.meta.url).href;
 const ingest: WorkerEntry = { url: ingestUrl };
@@ -2209,8 +2210,13 @@ await w.teardown();
 **What this is not.** What a type says about what its worker EXPECTS and RETURNS — input and
 output schemas, and a sample-based check across a transformed edge — is
 [P16](doc/plans/p16-what-a-node-type-is-and-what-the-library-owes-the-scheduler.md)'s plan after
-this one (P18); since v0.19 a worker DECLARES `inputSchema` and `outputSchema` and nothing enforces
-them yet (P19), and the adapter's optional `check` hook is the door left for it. A transform on a
+this one (P18); since v0.19 a worker DECLARES `inputSchema` and `outputSchema`, no RUN enforces
+them (per-settlement validation is OUT of P19 as a default), and since v0.20 any schema may carry
+`examples` — an annotation held to its schema at construction ([ADR 0056](doc/decisions/0056-an-example-is-an-annotation-validated-against-the-schema-it-sits-on.md),
+[W72](doc/work-items/w72-the-contract-an-example-beside-every-schema-and-a-worker-run-on-it.md)) —
+so that `npm run check:workers` can RUN a worker on its input example and validate what it returned
+against its output schema, which is an authoring-time check and never a driver behaviour; the
+adapter's optional `check` hook is the door left for the rest. A transform on a
 `map`'s `over`, on an edge or on a decision is refused, with the reasons in ADR 0051. The validator runs at construction and
 nowhere else: the driver holds your definition by reference, so a document you mutate after
 `new Driver` is dispatched as mutated, for every key ([Q259](doc/open-questions.md)). Every one of

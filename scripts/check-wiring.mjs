@@ -355,7 +355,7 @@ if (pkg) {
 /**
  * **The gate's chain, and what "the gate runs it" means since
  * [ADR 0039](../doc/decisions/0039-the-gate-climbs-the-ladder-and-the-self-tests-run-concurrently.md).**
- * The seven `:selftest` entries are not in the `&&` chain any more — one entry runs
+ * The `:selftest` entries (seven then, eight since W72) are not in the `&&` chain any more — one entry runs
  * `scripts/run-selftests.mjs`, which derives them from this manifest and runs them
  * concurrently. `G3`'s membership clause and `S11`'s both mean *reached by the gate*
  * rather than *spelled in this string*, and **`G4` below is what makes the second
@@ -417,7 +417,7 @@ if (pkg) {
 // --- G4: the gate RUNS every `:selftest` entry, and the RUNNER is asked ---------
 //
 // **[ADR 0039](../doc/decisions/0039-the-gate-climbs-the-ladder-and-the-self-tests-run-concurrently.md)
-// took the seven `:selftest` entries out of the gate's `&&` chain**, because they
+// took the (then seven) `:selftest` entries out of the gate's `&&` chain**, because they
 // were 93% of its wall clock, they ran ahead of `lint` and `typecheck`, and they ran
 // one at a time on a machine with twenty cores. `scripts/run-selftests.mjs` derives
 // them from this manifest and runs them concurrently.
@@ -477,7 +477,7 @@ if (pkg) {
   // exposure through `CHECK_<NAME>_SELFTEST` and it is not this clause's to fix.
   if (process.env.CHECK_SELFTESTS_CMD !== undefined) {
     fail('G4', 'CHECK_SELFTESTS_CMD is set in this process`s environment. It replaces the command ' +
-      'every `:selftest` entry runs, so `npm run gate` would report seven green self-tests having ' +
+      'every `:selftest` entry runs, so `npm run gate` would report every self-test green having ' +
       'run none of them. It exists for this check`s own clauses and for nothing else');
   }
 

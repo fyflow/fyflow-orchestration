@@ -16,6 +16,9 @@
  */
 import { type Envelope, FlowWorker } from './shared.ts';
 
+// **No `outputSchema` in the registry, and this is why**: this worker never returns, so there is no
+// output to describe — P19 fact 1's first undescribable worker, and `check-workers` reports it NOT
+// CHECKED by name rather than running it against a schema it cannot have (W72).
 export default class FailWorker extends FlowWorker {
   protected compute(_envelope: Envelope): unknown {
     throw new Error('flaky worker: this task is meant to fail');

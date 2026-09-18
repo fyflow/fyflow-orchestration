@@ -66,7 +66,8 @@ suite('ADR 0053 — every keyword of the subset, a positive and a negative case 
     const table = body.slice(0, body.indexOf('\n##', 1));
     const inSpec = [...table.matchAll(/^\|\s*`([A-Za-z]+)`\s*\|/gm)].map((m) => m[1]!).sort();
     equal(inSpec, [...SCHEMA_KEYWORDS].sort(), 'the spec`s table names exactly the keywords the validator admits');
-    equal(SCHEMA_KEYWORDS.length, 12, 'twelve, as fact 1 enumerated them');
+    equal(SCHEMA_KEYWORDS.length, 13, 'thirteen — fact 1`s twelve and `examples`, the annotation ADR 0056 adds (v0.20)');
+    equal(SCHEMA_KEYWORDS.filter((k) => k === 'examples').length, 1, 'and examples is the one keyword beyond the twelve, once');
   });
   test('type — each of the seven names, as a string and as a list, with integer refusing a fraction and number refusing NaN and Infinity', () => {
     equal(SCHEMA_TYPES.length, 7, 'seven type names');
@@ -194,5 +195,97 @@ suite('the object keywords read OWN keys, never inherited ones', (test) => {
     equal(findings({ type: ['integer', 'null'] }, null), [], 'and so does null');
     equal(findings({ type: ['integer', 'null'] }, 2.5).length, 1, 'a fraction satisfies neither member');
     equal(findings({ type: ['integer', 'string'] }, 2.5).map((f) => f.says), ['expected integer|string, got number'], 'and the finding names the list');
+  });
+});
+
+// ADR 0056 — `examples` is an ANNOTATION: the thirteenth keyword, held to the schema it sits on at
+// construction and read by nothing when a value is validated. W72, P19 decision 2. The three rules
+// are each fixtured both ways here, on every shape the keyword can sit on — a top-level schema, a
+// property's, an item's — because a walk that checked it at depth 1 only would be green (W65's
+// adequacy reader's M01, one keyword later).
+suite('ADR 0056 — examples is an annotation: held to its schema at construction, ignored by every value check', (test) => {
+  test('rule 1: findings never reads it — the same verdicts with and without the keyword, and a value outside the list is not refused', () => {
+    const bare: JsonSchema = { type: 'object', required: ['n'], properties: { n: { type: 'integer', minimum: 1 } } };
+    const annotated: JsonSchema = { ...bare, examples: [{ n: 1 }, { n: 7 }], properties: { n: { type: 'integer', minimum: 1, examples: [3] } } };
+    equal(schemaProblem(annotated), null, 'the annotated schema is in the subset');
+    for (const v of [{ n: 1 }, { n: 99 }, { n: 0 }, {}, { n: 'x' }, 'not an object']) {
+      equal(findings(annotated, v), findings(bare, v), `${JSON.stringify(v)}: identical findings with the annotation and without`);
+    }
+    equal(findings(annotated, { n: 99 }), [], 'a conforming value that is in NO example is accepted — an example is not an enum');
+    equal(findings({ type: 'string', examples: ['a'] }, 'b'), [], 'and at a leaf');
+  });
+  test('rule 2: an example that refutes the schema it sits on is refused at construction, naming the index and the finding — every depth', () => {
+    const top = schemaProblem({ type: 'object', required: ['n'], examples: [{ n: 1 }, {}] });
+    ok(top !== null && top.startsWith('$.examples[1]:') && top.includes('$.n required'), `top level, the second example, the finding: ${top}`);
+    const prop = schemaProblem({ type: 'object', properties: { s: { type: 'string', minLength: 2, examples: ['ab', 'x'] } } });
+    ok(prop !== null && prop.startsWith('$.properties.s.examples[1]:') && prop.includes('shorter than 2'), `under properties: ${prop}`);
+    const item = schemaProblem({ type: 'array', items: { type: 'integer', examples: [2.5] } });
+    ok(item !== null && item.startsWith('$.items.examples[0]:') && item.includes('expected integer'), `under items: ${item}`);
+    const deep = schemaProblem({ type: 'object', properties: { a: { type: 'object', properties: { b: { enum: ['x'], examples: ['y'] } } } } });
+    ok(deep !== null && deep.startsWith('$.properties.a.properties.b.examples[0]:'), `three levels down: ${deep}`);
+    // The refusal is about the example, not about a value: the empty schema accepts everything, so no example can refute it.
+    equal(schemaProblem({ examples: [null, 1, 'x', [], {}] }), null, 'the empty schema is refuted by nothing');
+    // ORDER (ADR 0053 rule 5, ADR 0056 rule 2): an example is held to the schema only once every keyword of the
+    // schema is known to be in the subset — so a nested outside keyword is reported as ITSELF, never as the
+    // example that would have failed under it.
+    const order = schemaProblem({ type: 'object', properties: { a: { type: 'string', pattern: 'x' } }, examples: [{ a: 5 }] });
+    ok(order !== null && order.startsWith('$.properties.a:') && order.includes('"pattern"'), `the outside keyword is reported first: ${order}`);
+  });
+  test('rule 2, the keyword`s own shape: a non-array or an EMPTY list is refused before any example is read', () => {
+    for (const bad of [[], 'x', 5, null, { a: 1 }]) {
+      const p = schemaProblem({ type: 'string', examples: bad });
+      ok(p !== null && p.startsWith('$.examples:') && p.includes('NON-EMPTY'), `${JSON.stringify(bad)}: refused as the keyword's misuse — ${p}`);
+    }
+  });
+  test('rule 3 (the control): an example that conforms is accepted, on every one of the seven types and on a nested schema', () => {
+    const okCases: [JsonSchema, string][] = [
+      [{ type: 'object', examples: [{}] }, 'object'], [{ type: 'array', examples: [[1]] }, 'array'], [{ type: 'string', examples: ['s'] }, 'string'],
+      [{ type: 'number', examples: [1.5] }, 'number'], [{ type: 'integer', examples: [2] }, 'integer'], [{ type: 'boolean', examples: [true] }, 'boolean'],
+      [{ type: 'null', examples: [null] }, 'null'],
+      [{ type: 'object', required: ['w'], properties: { w: { type: 'array', minItems: 1, items: { type: 'string', examples: ['a'] } } }, examples: [{ w: ['a'] }] }, 'nested, with an example at both levels'],
+    ];
+    for (const [s, label] of okCases) equal(schemaProblem(s), null, `${label}: accepted`);
+    equal(okCases.length, 8, 'the seven types and one nested shape');
+  });
+  // The adequacy reader (R1): rule 2 was fixtured against five of the twelve constraining keywords, and a
+  // validator that held an example to the others' negation — or to a parent's `items`, or to the second
+  // shape of nesting — was green everywhere. The rule ENUMERATES its values (v0.17), so the set is all twelve.
+  test('rule 2 over EVERY constraining keyword: each can refute an example, at both nesting shapes, on a third example, and the ORDER against a malformed bound', () => {
+    const refuted: [string, JsonSchema][] = [
+      ['type (single)', { type: 'string', examples: [1] }],
+      ['type (a LIST)', { type: ['string', 'null'], examples: [1] }],
+      ['required', { type: 'object', required: ['a'], examples: [{}] }],
+      ['properties', { type: 'object', properties: { a: { type: 'string' } }, examples: [{ a: 1 }] }],
+      ['additionalProperties', { type: 'object', properties: { a: {} }, additionalProperties: false, examples: [{ b: 1 }] }],
+      ['enum', { enum: ['a'], examples: ['b'] }],
+      ['const', { const: 1, examples: [2] }],
+      ['minimum', { type: 'number', minimum: 1, examples: [0] }],
+      ['maximum', { type: 'number', maximum: 1, examples: [2] }],
+      ['minLength', { type: 'string', minLength: 2, examples: ['a'] }],
+      ['maxLength', { type: 'string', maxLength: 1, examples: ['ab'] }],
+      ['items', { type: 'array', items: { type: 'integer' }, examples: [['x']] }],
+      ['minItems', { type: 'array', minItems: 1, examples: [[]] }],
+      ['a third example, the first two conforming', { type: 'integer', examples: [1, 2, 2.5] }],
+      ['properties inside items', { type: 'array', items: { type: 'object', properties: { a: { type: 'string', examples: [5] } } } }],
+      ['items inside properties', { type: 'object', properties: { a: { type: 'array', items: { type: 'integer', examples: ['x'] } } } }],
+    ];
+    equal(refuted.length, 16, 'twelve constraining keywords, a third example, and both nesting shapes');
+    for (const [label, s] of refuted) {
+      const p = schemaProblem(s);
+      ok(p !== null && p.includes('.examples[') && p.includes('does not conform'), `${label}: the example is refused as refuting — ${p}`);
+    }
+    equal(schemaProblem({ type: 'integer', examples: [1, 2, 3] }), null, 'the control: three conforming examples');
+    // ORDER, the other two keywords a value check reads after the example would be held: a malformed
+    // `maxLength` and a malformed `items` are reported as THEMSELVES, never as the example that fails under them.
+    const bound = schemaProblem({ type: 'string', maxLength: -1, examples: ['xx'] });
+    ok(bound !== null && bound.startsWith('$.maxLength:'), `a malformed bound is reported before the example: ${bound}`);
+    const items = schemaProblem({ type: 'array', items: { type: 'integer', pattern: 'x' }, examples: [['a']] });
+    ok(items !== null && items.startsWith('$.items:') && items.includes('"pattern"'), `an outside keyword under items is reported before the example: ${items}`);
+  });
+  test('an ANNOTATION keyword outside the subset is still refused — examples is the one admitted, not a whitelist', () => {
+    for (const k of ['description', 'title', 'default', '$comment', 'example']) {
+      const p = schemaProblem({ type: 'string', [k]: 'x', examples: ['x'] });
+      ok(p !== null && p.includes(`"${k}"`), `${k}: refused beside a valid examples — ${p}`);
+    }
   });
 });

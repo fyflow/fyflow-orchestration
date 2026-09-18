@@ -74,14 +74,14 @@ import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
 /**
- * The seven checks whose dispatch `G1` and `G2` test — **declared here and compared
+ * The eight checks whose dispatch `G1` and `G2` test (seven until W72's `check-workers`) — **declared here and compared
  * to `package.json` inside the run, both ways and for distinctness.**
  *
  * W38's adequacy reader: with the list a bare literal, `['spec','source','spec',
  * 'source','spec','source']` costs **zero** — six entries, two distinct, `MIN_PROBES`
  * satisfied, four checks unprobed. `S12`'s shape, one file over.
  */
-const CHECKS = ['spec', 'source', 'wiring', 'markdown', 'scheduler', 'policies', 'docs'];
+const CHECKS = ['spec', 'source', 'wiring', 'markdown', 'scheduler', 'policies', 'docs', 'workers'];
 
 /** A literal newline, so the anchors below are not written as escapes in prose. */
 const NL = '\n';
@@ -555,11 +555,11 @@ const SELF = [
       .replace('    if (missing.length) {', '    if (false) {')],
   ['ALL_CHECKS is emptied, so no probe can trip anything',
     (t) => t.replace("const ALL_CHECKS = ['G1', 'G2', 'G3', 'G4', 'G5'];", 'const ALL_CHECKS = [];')],
-  ['CHECKS repeats one name instead of naming seven',
-    (t) => t.replace("const CHECKS = ['spec', 'source', 'wiring', 'markdown', 'scheduler', 'policies', 'docs'];",
-      "const CHECKS = ['spec', 'source', 'spec', 'source', 'spec', 'source', 'spec'];")],
+  ['CHECKS repeats one name instead of naming eight',
+    (t) => t.replace("const CHECKS = ['spec', 'source', 'wiring', 'markdown', 'scheduler', 'policies', 'docs', 'workers'];",
+      "const CHECKS = ['spec', 'source', 'spec', 'source', 'spec', 'source', 'spec', 'source'];")],
   ['CHECKS drops a check the manifest has an entry for',
-    (t) => t.replace("'policies', 'docs'];", "'policies'];")],
+    (t) => t.replace("'docs', 'workers'];", "'docs'];")],
 ];
 
 // **What a `SELF` list buys nothing against here, stated rather than padded around.**

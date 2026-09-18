@@ -1,6 +1,6 @@
 # spec/flow-definition — the flow definition format
 
-**Status:** v0.19 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.20 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2** acted on the first spec-conformity pass
 (ADR 0004, and `region(F)` made computable). **v0.3** acted on the second, which found that `FD-V19`
 had reintroduced the v0.1 defect class under a new id — a refusal rule rejecting the valid corpus.
@@ -241,6 +241,18 @@ that spoke of two ways to name a pool. So this document now holds **34 refusals*
 as *C4 covered 34 definition refusals*. **Measured before the grammar moved** (P18 fact 4): 146 of
 the 166 task nodes in both corpora carried `workerType`, every one of the eleven roles they named
 read its payload whole, and all 146 now name a type and receive the envelope.
+**v0.20 is the FIRST deliberate extension of the schema subset, and it is an annotation**
+([P19](../doc/plans/p19-what-a-schema-buys-an-author.md),
+[ADR 0056](../doc/decisions/0056-an-example-is-an-annotation-validated-against-the-schema-it-sits-on.md),
+[W72](../doc/work-items/w72-the-contract-an-example-beside-every-schema-and-a-worker-run-on-it.md)):
+any schema may carry **`examples`**, held to the schema it sits on at construction and read by no
+value check, so that a worker's declared example is a value an authoring-time tool may RUN the worker
+on. **No rule id is added or retired and no `FD-V` moves** — the refusal is the registry's
+`SchemaRefused`, where every other schema defect is — so this document still holds **34 refusals**.
+**Measured before the rule was written** (P19 fact 6): of twelve honest output schemas an author
+wrote from the corpus workers' code, ONE was wrong and the example written beside it CONFORMED to the
+wrong schema; only running the worker found it, which is why `scripts/check-workers.mjs` executes a
+worker on its example rather than reading its declaration.
 
 **Binds:** [ADR 0002](../doc/decisions/0002-a-flow-definition-is-data-and-a-predicate-is-registered-by-name.md)
 (the graph is data; a predicate is a name; an unknown name fails at instantiation) and
@@ -439,7 +451,7 @@ recorded in ADR 0049 as the road not taken, with its cost ([Q250](../doc/open-qu
 
 **Why a SCHEMA now, where v0.17 had a validator function.** A JSON registry cannot carry a
 function, and the settings language P16 left to P18 is the worker's `settingsSchema` — JSON Schema
-restricted to the twelve keywords of section 3's subset, [ADR 0053](../doc/decisions/0053-the-schema-validator-is-a-built-in-subset-and-a-keyword-outside-it-is-refused.md).
+restricted to the thirteen keywords of section 3's subset, [ADR 0053](../doc/decisions/0053-the-schema-validator-is-a-built-in-subset-and-a-keyword-outside-it-is-refused.md).
 A keyword outside the subset is REFUSED at construction naming it, never ignored
 ([Q278](../doc/open-questions.md)); reached by this rule anyway, it is reported under `FD-V33` and
 never applied, because a keyword ignored is a constraint dropped in silence. The type's defaults are
@@ -490,8 +502,8 @@ a pool a consumer builds by hand and spreads into the scheduler beside the helpe
 to compare, and Q260 stays open for it.)*
 
 **What this is NOT.** A type's worker SAYS what it expects and returns — `inputSchema` and
-`outputSchema` on the worker entry — and nothing enforces either yet: declared and carried since
-v0.19, P19's strict mode *(P19 is DECLARED 2026-09-18 under a different name — *what a schema buys an author* — and per-settlement enforcement is OUT of it as a default; what it enforces at run time is the entry payload and a person's resolution, once each. The sentence stands as v0.19's forward claim)*. A transform on the envelope is the `transform` subsection below (v0.18).
+`outputSchema` on the worker entry — and no RUN enforces either: declared and carried since
+v0.19, and since v0.20 confirmed on a run by an authoring-time check, `scripts/check-workers.mjs`, over each schema's declared `examples` ([ADR 0056](../doc/decisions/0056-an-example-is-an-annotation-validated-against-the-schema-it-sits-on.md), [W72](../doc/work-items/w72-the-contract-an-example-beside-every-schema-and-a-worker-run-on-it.md)) *(this said "nothing enforces either yet … P19's strict mode" — P19 was DECLARED 2026-09-18 under a different name, *what a schema buys an author*, per-settlement enforcement is OUT of it as a default, and what it enforces at run time is the entry payload and a person's resolution, once each, in W73)*. A transform on the envelope is the `transform` subsection below (v0.18).
 A node type has no VERSION ([Q249](../doc/open-questions.md)). Cases: `spec/examples/valid/typed.flow.json`
 carries a typed task with settings on all four shapes `FD-C5` enumerates, beside a task of a
 former bare type; `pooled.flow.json` runs one node on a NAMED instance and one on the default by
@@ -1080,14 +1092,23 @@ to the subset, configs held to their schemas, and every derivation RUN with its 
 | `url` | required | the worker class's module URL — its default export is the class, the scheduler's own contract. A relative URL resolves against the `base` the runtime is given (decision 7): inside a bundle `import.meta.url` is the bundle ([Q261](../doc/open-questions.md)) and the runtime cannot guess |
 | `configSchema` | optional, CHECKED | what the worker's CONSTRUCTOR argument must satisfy — a type's derived config (its default instance's) and every named instance's, at construction |
 | `settingsSchema` | optional, CHECKED | what a node's effective `settings` must satisfy — `FD-V33`, at `new Driver`, a schema where v0.17 had a function. The type's `settings` defaults are merged UNDER the node's before it is applied |
-| `inputSchema` | optional, CARRIED | what the worker's `run()` receives as `input`. Declared, held to the subset, enforced by nothing in this plan — P19, which is declared under the name *what a schema buys an author* and enforces it at the ENTRY PAYLOAD once per run, not per settlement |
-| `outputSchema` | optional, CARRIED | what the worker's `run()` returns. As `inputSchema` |
+| `inputSchema` | optional, CARRIED | what the worker's `run()` receives as `input`. Declared, held to the subset, enforced on no RUN by this plan — P19, which is declared under the name *what a schema buys an author* and enforces it at the ENTRY PAYLOAD once per run, not per settlement (W73). **Since v0.20 it may carry `examples`** — the subset's thirteenth keyword, an annotation held to the schema at construction ([ADR 0056](../doc/decisions/0056-an-example-is-an-annotation-validated-against-the-schema-it-sits-on.md)) — and the first example is what `scripts/check-workers.mjs` RUNS the worker on; with none, the generator's witness, and the verdict says which |
+| `outputSchema` | optional, CARRIED | what the worker's `run()` returns. As `inputSchema`; **since v0.20 the value the worker actually returned is validated against it by `check-workers`**, an authoring-time check and never a driver behaviour (P19 decision 3) |
 
 **An absent schema means UNCHECKED**, stated rather than left to guess (decision 3): a worker with no
 `settingsSchema` accepts any `settings` object, with no `configSchema` any config — which is what
 v0.17's absent validator meant. **All four schemas are held to the subset at construction** even
 though two are applied, because a malformed `inputSchema` is a registry defect the day it is written
-and not the day P19 reads it.
+and not the day P19 reads it — **and since v0.20 that includes every `examples` a schema declares**:
+an example that refutes the schema it sits on is refused at construction (`SchemaRefused`, naming the
+entry, the field and the example's index), on the same argument. **An absent `examples` means
+NOTHING is declared, and nothing is refused for it** — the maintainer's choice at
+[W72](../doc/work-items/w72-the-contract-an-example-beside-every-schema-and-a-worker-run-on-it.md)'s
+stop-and-ask 1, with the fallback priced: a tool that needs a value to run a worker on generates a
+WITNESS from the schema and says so, and a witness is the least value the schema admits — `{}` for
+thirteen of the fourteen corpus input schemas and `{"text":""}` for the one that requires a key —
+which exercises fewer output paths than the declared example in five of the twelve corpus workers
+whose output a schema describes (measured there, on the shipped document).
 
 #### A node type, in the document
 
@@ -1185,7 +1206,8 @@ completes it.
 
 #### The schema subset
 
-Every schema above is JSON Schema restricted to the twelve keywords below — the built-in subset
+Every schema above is JSON Schema restricted to the thirteen keywords below — twelve that CONSTRAIN
+and one ANNOTATION (`examples`, v0.20, [ADR 0056](../doc/decisions/0056-an-example-is-an-annotation-validated-against-the-schema-it-sits-on.md)) — the built-in subset
 [ADR 0053](../doc/decisions/0053-the-schema-validator-is-a-built-in-subset-and-a-keyword-outside-it-is-refused.md)
 chose over a 42 KB or a 262 KB dependency, at 1.5 KB bundled as fact 1's prototype and **4.2 KB as the
 shipped module** (`src/definition/schema.ts` minified by esbuild at W65 — the diagnostics and the
@@ -1211,13 +1233,16 @@ refusal, not a pass, and the day that happens ADR 0053 names the dependency to t
 | `maxLength` | an integer >= 0 | inclusive upper bound |
 | `items` | one schema | applied to every element; a tuple form is outside the subset |
 | `minItems` | an integer >= 0 | inclusive lower bound on an array's length |
+| `examples` | a NON-EMPTY list of values | **an ANNOTATION, v0.20** ([ADR 0056](../doc/decisions/0056-an-example-is-an-annotation-validated-against-the-schema-it-sits-on.md)): three rules. (1) It constrains NOTHING when a value is validated — a value in no example is not refused, and `findings` never reads the keyword. (2) Every example is held to the schema it sits on AT CONSTRUCTION, at any depth, and one that refutes it is refused as `SchemaRefused` naming the index and the finding — a schema and its example agreeing proves only that the schema is self-consistent (P19 fact 6), so the disagreement is caught where the schema is declared. (3) The first example is the SAMPLE every authoring-time check runs on: `check-workers` runs a worker on its input example; W73's wiring check runs a transform on the producer's; with no example, a tool generates a witness and says so. An empty list is refused as `enum`'s is: a declared-and-empty list annotates nothing |
 
 An EMPTY schema `{}` is in the subset and accepts every value. Every keyword's VALUE has the shape
 the table states, and a wrong one is refused as the keyword's misuse (`SchemaRefused`) before any
 value is checked. What is NOT in the subset, and is refused rather than ignored: `pattern`, `format`,
 `oneOf`/`anyOf`/`allOf`/`not`, `$ref`, exclusive bounds, `maxItems`, `uniqueItems`, and the
 annotation keywords `title` and `description` — a consequence of the rule rather than a judgement
-about annotations.
+about annotations. **`examples` is the one annotation admitted, and it is admitted because it is
+CHECKED**: an annotation the validator cannot hold to anything (`title`) would be the ignored kind
+Q278 refused, and an example is held to its schema.
 
 #### What the registry refuses at construction
 
@@ -1236,7 +1261,7 @@ carries, for each, a document that trips it and the plan's sample that does not.
 | `GroupTypeMissing` | a group's `type` is neither a built-in nor registered in `code.groupTypes`, or a registered group type is not `{ configSchema?, create }` |
 | `GroupConfigRefused` | a group's config fails its group type's `configSchema` |
 | `NameCollision` | a node type is declared in the document AND registered as a class; a pool is named as a node type; a custom group type is named as a built-in |
-| `SchemaRefused` | a declared schema — any of a worker's four, a group type's, a class's — carries a keyword outside the subset or a keyword with a malformed value ([Q278](../doc/open-questions.md)) |
+| `SchemaRefused` | a declared schema — any of a worker's four, a group type's, a class's — carries a keyword outside the subset or a keyword with a malformed value ([Q278](../doc/open-questions.md)); **or, since v0.20, carries an `examples` value the schema it sits on refuses** ([ADR 0056](../doc/decisions/0056-an-example-is-an-annotation-validated-against-the-schema-it-sits-on.md)) — the same class, because an example that refutes its schema is a defect of the DECLARATION, and the message says which kind |
 | `UndeclaredKey` | the document, a worker, a node type, its `pool`, a pool instance or a group carries a key its kind does not declare; a section is not an object keyed by name; or `predicates` / `languages` is not an array of names |
 | `NameMissing` | a predicate or language the document names and `code` does not supply (or a language whose adapter has no `compile`); a node type's declared group, or a group a derivation names, that `groups` lacks |
 | `DerivationRefused` | a derivation throws or returns something that is not a `PoolSpec`; a `pool`, `inline`, `groups`, `retryPolicy` or `settings` field of the wrong shape; a resident group beside `idleTimeout: 0` |
@@ -1657,7 +1682,8 @@ nothing at all, because the only bound was *"the corpus is not empty"*
 
 **`spec/examples/registry.json` is the registry L4 validates against, and since v0.19 it is a
 registry DOCUMENT** (section 3's registry subsection) rather than five lists: `workers` with their
-schemas (the `scorer` worker carries the `settingsSchema` `FD-V33` applies), `groups` as instances of
+schemas (the `scorer` worker carries the `settingsSchema` `FD-V33` applies, and since v0.20 an
+`examples` on it, so the corpus carries the annotation and L4 resolves it), `groups` as instances of
 the built-in group types, `nodeTypes` in the document form — one per former pool key, plus `Scorer`
 with its `settings` defaults — `pools` with one named instance, and the predicate and language
 NAMES. It is part of the corpus rather than a fixture W3 invents: `FD-V4`, `FD-V31`, `FD-V32`,

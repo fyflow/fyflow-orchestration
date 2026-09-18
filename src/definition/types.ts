@@ -170,7 +170,8 @@ export type Languages = ReadonlyMap<string, LanguageAdapter> | Readonly<Record<s
  * decision 3. `url` is the only required field; an absent schema means UNCHECKED, stated. The first
  * two are enforced by this plan (`configSchema` over a type's and an instance's derived config at
  * construction; `settingsSchema` over a node's effective settings at `new Driver`, `FD-V33`); the
- * last two are declared, carried and enforced by nothing here — P19's strict mode. All four are held
+ * last two are declared, carried and enforced on no run — P19 confirms them on a run by an
+ * authoring-time check (`check-workers`, W72) and validates a declared `examples` at construction (ADR 0056). All four are held
  * to the built-in subset at construction (ADR 0053, Q278).
  */
 export interface WorkerEntry {

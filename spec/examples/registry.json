@@ -7,7 +7,8 @@
     "extract": { "url": "corpus://extract" },
     "merge":   { "url": "corpus://merge" },
     "scorer":  { "url": "corpus://scorer",
-                 "settingsSchema": { "type": "object", "properties": { "factor": { "type": "number", "minimum": 0 } }, "additionalProperties": false } }
+                 "settingsSchema": { "type": "object", "properties": { "factor": { "type": "number", "minimum": 0 } }, "additionalProperties": false,
+                                     "examples": [ { "factor": 2 } ] } }
   },
   "groups": {
     "gpu": { "type": "ConcurrentLimitGroup", "config": { "limit": 1 } },

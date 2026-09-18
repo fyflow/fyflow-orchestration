@@ -4235,7 +4235,10 @@ const CROSS_ROW_SUBJECTS = [
   'it is the id this RUN dispatched under',
   'the types whose `inline` the document leaves UNSAID are exactly the two this file expects',
   'a node whose worker entry declares NO settingsSchema takes any settings at all',
-  'the runtime CARRIES all FOUR of the schemas decision 3 enumerates',
+  // W72 — the clause was rewritten from four entries to the rule's enumeration over fourteen, and the
+  // corpus's examples gained a subject of their own: a membership names its claims (v0.14).
+  'the runtime CARRIES every schema the fourteen worker entries declare, exactly',
+  'every schema every corpus worker entry declares carries an `examples`',
   'the pool map is read off the SCHEDULER`s own task map',
   'no file under examples/ CONSTRUCTS a pool, a scheduler, a Driver or a built-in resource group',
   'that detector fires on each of the four',
@@ -5491,7 +5494,7 @@ const PER_PLAIN_ROW = 20;
 // keeps is that the next item APPENDS; W67's conformity reader, finding 9, found the chain stopping
 // at W65 with the +11 unaccounted for — which is how the assertion count then shipped stale by two
 // in two documents.)*
-const CROSS_ROW = 133;
+const CROSS_ROW = 134;
 const base = (shape: string) => (shape === 'region' ? PER_REGION_ROW : PER_PLAIN_ROW);
 for (const [key, shape, cost, extras] of rowCosts) {
   if (cost !== base(shape) + extras) {
@@ -6378,19 +6381,58 @@ if (rowCosts.length !== EXPECTED.length) {
         // enumerates FOUR and the sample's `prompt` entry is the one place all four occur, so the
         // list is the rule's rather than the document's — v0.17's *where a rule enumerates its own
         // values, the set is that enumeration*.
-        check('cross-row', 'the runtime CARRIES all FOUR of the schemas decision 3 enumerates, on the entry that declares them, and exactly the ' +
-          'two the `typed` and `echo` entries declare — this plan enforces two and the other two are declared, carried, and enforced by nothing',
+        // **Since W72 (P19, ADR 0056) EVERY worker declares the two P19 schemas** — an `inputSchema` on all
+        // fourteen and an `outputSchema` on the twelve whose output a JSON Schema can describe (`fail` never
+        // returns and `uncloneable` returns a function) — beside the config and settings schemas the four
+        // entries that had them keep. The expected side is the RULE's enumeration over every entry rather
+        // than a literal for four, because the claim is now about the whole document and a four-entry
+        // literal would let ten entries drop a schema for zero; and it is still a LITERAL rather than a
+        // read of `REGISTRY_DOCUMENT` (`ra6`), so the probe that deletes a schema moves one side only.
+        check('cross-row', 'the runtime CARRIES every schema the fourteen worker entries declare, exactly: the two P19 schemas on every entry ' +
+          '(no outputSchema on the two undescribable workers), plus prompt`s configSchema and the three settingsSchemas — ' +
+          'two enforced by the runtime, the other two declared, carried, and checked by `check-workers` on a run',
+          Object.fromEntries(Object.entries(reports[0]!.workerSchemas).sort(([a], [b]) => a.localeCompare(b))),
           {
-            prompt: reports[0]!.workerSchemas.prompt,
-            fetch: reports[0]!.workerSchemas.fetch,
-            typed: reports[0]!.workerSchemas.typed,
-            ingest: reports[0]!.workerSchemas.ingest,
-          },
-          {
+            attest: ['inputSchema', 'outputSchema'],
+            echo: ['inputSchema', 'outputSchema', 'settingsSchema'],
+            fail: ['inputSchema'],
+            fetch: ['inputSchema', 'outputSchema'],
+            ingest: ['inputSchema', 'outputSchema'],
             prompt: ['configSchema', 'inputSchema', 'outputSchema', 'settingsSchema'],
-            fetch: ['outputSchema'],
-            typed: ['settingsSchema'],
-            ingest: [],
+            publish: ['inputSchema', 'outputSchema'],
+            retry: ['inputSchema', 'outputSchema'],
+            score: ['inputSchema', 'outputSchema'],
+            split: ['inputSchema', 'outputSchema'],
+            tally: ['inputSchema', 'outputSchema'],
+            typed: ['inputSchema', 'outputSchema', 'settingsSchema'],
+            uncloneable: ['inputSchema'],
+            weigh: ['inputSchema', 'outputSchema'],
+          });
+        // **And every schema the corpus declares carries an `examples`** — the library leaves it OPTIONAL
+        // (ADR 0056 rule 3, the maintainer's choice) and THIS corpus declares one everywhere, because a
+        // declared example is what `check-workers` runs a worker on and the witness exercises less (W72's
+        // declaration, fact 3). Read off the document this run was built from, against the enumeration
+        // above rather than against the document again: a corpus entry that dropped its example would run
+        // green on the witness in `check:workers` and be red here, by name.
+        check('cross-row', 'every schema every corpus worker entry declares carries an `examples` — the corpus declares what the library leaves optional, and nothing here runs on a witness',
+          Object.fromEntries(Object.entries(REGISTRY_DOCUMENT.workers as unknown as Record<string, Record<string, unknown>>)
+            .map(([k, w]) => [k, Object.keys(w).filter((f) => f.endsWith('Schema') && Array.isArray((w[f] as { examples?: unknown }).examples) && ((w[f] as { examples: unknown[] }).examples.length > 0)).sort()] as const)
+            .sort(([a], [b]) => a.localeCompare(b))),
+          {
+            attest: ['inputSchema', 'outputSchema'],
+            echo: ['inputSchema', 'outputSchema', 'settingsSchema'],
+            fail: ['inputSchema'],
+            fetch: ['inputSchema', 'outputSchema'],
+            ingest: ['inputSchema', 'outputSchema'],
+            prompt: ['configSchema', 'inputSchema', 'outputSchema', 'settingsSchema'],
+            publish: ['inputSchema', 'outputSchema'],
+            retry: ['inputSchema', 'outputSchema'],
+            score: ['inputSchema', 'outputSchema'],
+            split: ['inputSchema', 'outputSchema'],
+            tally: ['inputSchema', 'outputSchema'],
+            typed: ['inputSchema', 'outputSchema', 'settingsSchema'],
+            uncloneable: ['inputSchema'],
+            weigh: ['inputSchema', 'outputSchema'],
           });
       }
     }
@@ -6957,7 +6999,7 @@ check('cross-row', 'every cross-row SUBJECT this file declares was asserted abou
 // control row the entry node's pool; 1609 after its adequacy reader's eleven cross-row assertions
 // and the per-row subject its a12 forced. W67's conformity reader, finding 9 — the arithmetic belongs
 // here, and its absence is why two documents shipped 1595.)*
-const DECLARED_TOTAL = 1610;
+const DECLARED_TOTAL = 1611;
 if (passed + failures.length !== DECLARED_TOTAL) {
   failures.push(
     'gate\n      the assertion count is not the number this file declares outright\n' +

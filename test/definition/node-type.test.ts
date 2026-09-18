@@ -25,7 +25,10 @@ import { shapesOf, typedNode } from './task-shapes.ts';
 import { corpusRegistry } from './corpus-types.ts';
 
 /** The corpus scorer's `settingsSchema` — a literal here, asserted equal to `registry.json`'s below (a list is a claim about another list). */
-const SCORER_SCHEMA: JsonSchema = { type: 'object', properties: { factor: { type: 'number', minimum: 0 } }, additionalProperties: false };
+// Since W72 (ADR 0056) the corpus's schema carries an `examples` — an annotation the value check
+// ignores, so every FD-V33 case here reads exactly as it did; the literal carries it too, because the
+// test below is a claim about the document and the document moved.
+const SCORER_SCHEMA: JsonSchema = { type: 'object', properties: { factor: { type: 'number', minimum: 0 } }, additionalProperties: false, examples: [{ factor: 2 }] };
 /** Two named instances, so `FD-V38` has a pool of the node's type and one of another type to name. */
 const registry: Registry = {
   predicates: new Set<string>(),

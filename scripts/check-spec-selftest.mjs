@@ -455,8 +455,14 @@ const PROBES = [
   {
     name: 'spec/flow-definition.md`s OWN version paragraph says a count the rows do not give',
     check: 'C4',
+    // **Anchored on the LAST `**N refusals**` in the document, whatever sentence carries it** — the
+    // clause reads the last occurrence as the current claim (the header is a version history), and
+    // this probe was anchored on v0.19's sentence: when W72's v0.20 paragraph added a later
+    // occurrence, the probe edited history, the clause read the claim, and W72's confirming gate
+    // was RED on this one line — rule 7 (b)'s shape, a probe going vacuous on the next version's
+    // edit, which is exactly what an anchor pinned to a sentence does at the next bump (W32).
     apply: (spec) => edit(join(spec, 'flow-definition.md'),
-      (t) => t.replace('So this document now holds **34 refusals**', 'So this document now holds **35 refusals**')),
+      (t) => { const last = t.lastIndexOf('**34 refusals**'); if (last < 0) return t; return t.slice(0, last) + '**35 refusals**' + t.slice(last + '**34 refusals**'.length); }),
   },
   {
     name: 'spec/README.md`s headline refusal count reverted while the version paragraph`s is right',

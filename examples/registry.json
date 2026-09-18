@@ -1,54 +1,843 @@
 {
   "workers": {
-    "ingest": { "url": "./workers/ingest.ts" },
-    "score": { "url": "./workers/score.ts" },
-    "publish": { "url": "./workers/publish.ts" },
-    "split": { "url": "./workers/split.ts" },
-    "tally": { "url": "./workers/tally.ts" },
-    "weigh": { "url": "./workers/weigh.ts" },
-    "attest": { "url": "./workers/attest.ts" },
-    "fail": { "url": "./workers/fail.ts" },
-    "uncloneable": { "url": "./workers/uncloneable.ts" },
-    "retry": { "url": "./workers/retry.ts" },
+    "ingest": {
+      "url": "./workers/ingest.ts",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "examples": [
+          {
+            "confidence": 0.7
+          }
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "confidence"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "examples": [
+          {
+            "confidence": 0.7
+          }
+        ]
+      }
+    },
+    "score": {
+      "url": "./workers/score.ts",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "examples": [
+          {
+            "confidence": 0.7
+          }
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "confidence",
+          "score"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "score": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          }
+        },
+        "examples": [
+          {
+            "confidence": 0.7,
+            "score": 70
+          }
+        ]
+      }
+    },
+    "publish": {
+      "url": "./workers/publish.ts",
+      "inputSchema": {
+        "examples": [
+          {
+            "0": {
+              "score": 1
+            },
+            "1": {
+              "score": 2
+            }
+          }
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "published",
+          "joinPayload"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "published": {
+            "const": true
+          },
+          "joinPayload": {}
+        },
+        "examples": [
+          {
+            "published": true,
+            "joinPayload": {
+              "0": {
+                "score": 1
+              },
+              "1": {
+                "score": 2
+              }
+            }
+          }
+        ]
+      }
+    },
+    "split": {
+      "url": "./workers/split.ts",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "examples": [
+          {
+            "confidence": 0.7,
+            "text": "alpha beta"
+          }
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "confidence",
+          "items"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "word",
+                "confidence"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "word": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "confidence": {
+                  "type": "number",
+                  "minimum": 0
+                }
+              }
+            }
+          }
+        },
+        "examples": [
+          {
+            "confidence": 0.7,
+            "items": [
+              {
+                "word": "alpha",
+                "confidence": 0.5
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "tally": {
+      "url": "./workers/tally.ts",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "seen": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "word": {
+            "type": "string"
+          }
+        },
+        "examples": [
+          {
+            "seen": 1,
+            "word": "alpha"
+          }
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "seen",
+          "word"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "seen": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "word": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "examples": [
+          {
+            "seen": 2,
+            "word": "alpha"
+          }
+        ]
+      }
+    },
+    "weigh": {
+      "url": "./workers/weigh.ts",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": "object",
+            "properties": {
+              "word": {
+                "type": "string"
+              },
+              "confidence": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            }
+          },
+          "run": {
+            "type": "object",
+            "properties": {
+              "confidence": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            }
+          }
+        },
+        "examples": [
+          {
+            "item": {
+              "word": "alpha",
+              "confidence": 0.5
+            },
+            "run": {
+              "confidence": 0.8
+            }
+          }
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "keys",
+          "extraKeys",
+          "word",
+          "confidence",
+          "score"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "keys": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "extraKeys": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "word": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "score": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          }
+        },
+        "examples": [
+          {
+            "keys": [
+              "item",
+              "run"
+            ],
+            "extraKeys": [],
+            "word": "alpha",
+            "confidence": 0.5,
+            "score": 40
+          }
+        ]
+      }
+    },
+    "attest": {
+      "url": "./workers/attest.ts",
+      "inputSchema": {
+        "type": "object",
+        "examples": [
+          {
+            "verdict": "ok"
+          }
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "keys",
+          "sawVerdict",
+          "verdict"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "keys": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "sawVerdict": {
+            "type": "boolean"
+          },
+          "verdict": {}
+        },
+        "examples": [
+          {
+            "keys": [
+              "verdict"
+            ],
+            "sawVerdict": true,
+            "verdict": "ok"
+          }
+        ]
+      }
+    },
+    "fail": {
+      "url": "./workers/fail.ts",
+      "inputSchema": {
+        "examples": [
+          {
+            "confidence": 0.7
+          }
+        ]
+      }
+    },
+    "uncloneable": {
+      "url": "./workers/uncloneable.ts",
+      "inputSchema": {
+        "examples": [
+          {
+            "confidence": 0.7
+          }
+        ]
+      }
+    },
+    "retry": {
+      "url": "./workers/retry.ts",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "examples": [
+          {
+            "confidence": 0.7
+          }
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "confidence",
+          "score",
+          "retried"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "score": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "retried": {
+            "const": true
+          }
+        },
+        "examples": [
+          {
+            "confidence": 0.7,
+            "score": 70,
+            "retried": true
+          }
+        ]
+      }
+    },
     "typed": {
       "url": "./workers/typed.ts",
       "settingsSchema": {
         "type": "object",
-        "properties": { "factor": { "type": "number" }, "failFirst": { "type": "boolean" } },
-        "additionalProperties": false
+        "properties": {
+          "factor": {
+            "type": "number"
+          },
+          "failFirst": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false,
+        "examples": [
+          {
+            "factor": 10
+          }
+        ]
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "items": {
+            "type": "array"
+          }
+        },
+        "examples": [
+          {
+            "confidence": 0.9
+          }
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "keys",
+          "extraKeys",
+          "settingsKeys",
+          "confidence",
+          "factor",
+          "score",
+          "retried"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "keys": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "extraKeys": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "settingsKeys": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "factor": {
+            "type": "number"
+          },
+          "score": {
+            "type": "integer"
+          },
+          "retried": {
+            "type": "boolean"
+          },
+          "items": {
+            "type": "array"
+          }
+        },
+        "examples": [
+          {
+            "keys": [
+              "input",
+              "settings"
+            ],
+            "extraKeys": [],
+            "settingsKeys": [
+              "factor"
+            ],
+            "confidence": 0.9,
+            "factor": 10,
+            "score": 9,
+            "retried": false
+          }
+        ]
       }
     },
     "echo": {
       "url": "./workers/echo.ts",
       "settingsSchema": {
         "type": "object",
-        "properties": { "scale": { "type": "number", "minimum": 0 } },
-        "additionalProperties": false
+        "properties": {
+          "scale": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false,
+        "examples": [
+          {
+            "scale": 1
+          }
+        ]
+      },
+      "inputSchema": {
+        "examples": [
+          {
+            "a": 1
+          }
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "keys",
+          "extraKeys",
+          "settingsKeys",
+          "inputType",
+          "markedKeys",
+          "arrays",
+          "realm",
+          "input"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "keys": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "extraKeys": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "settingsKeys": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "inputType": {
+            "enum": [
+              "array",
+              "null",
+              "object",
+              "string",
+              "number",
+              "boolean",
+              "undefined"
+            ]
+          },
+          "markedKeys": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "arrays": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "realm": {
+            "enum": [
+              "harness",
+              "thread"
+            ]
+          },
+          "input": {}
+        },
+        "examples": [
+          {
+            "keys": [
+              "input",
+              "settings"
+            ],
+            "extraKeys": [],
+            "settingsKeys": [],
+            "inputType": "object",
+            "markedKeys": [],
+            "arrays": 0,
+            "realm": "thread",
+            "input": {
+              "a": 1
+            }
+          }
+        ]
       }
     },
     "prompt": {
       "url": "./workers/prompt.ts",
       "configSchema": {
         "type": "object",
-        "required": ["model"],
-        "properties": { "model": { "enum": ["small", "large"] }, "delayMs": { "type": "number", "minimum": 0 } },
-        "additionalProperties": false
+        "required": [
+          "model"
+        ],
+        "properties": {
+          "model": {
+            "enum": [
+              "small",
+              "large"
+            ]
+          },
+          "delayMs": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false,
+        "examples": [
+          {
+            "model": "small",
+            "delayMs": 0
+          }
+        ]
       },
       "settingsSchema": {
         "type": "object",
-        "required": ["prompt"],
-        "properties": { "prompt": { "type": "string" }, "temperature": { "type": "number" } },
-        "additionalProperties": false
+        "required": [
+          "prompt"
+        ],
+        "properties": {
+          "prompt": {
+            "type": "string"
+          },
+          "temperature": {
+            "type": "number"
+          }
+        },
+        "additionalProperties": false,
+        "examples": [
+          {
+            "prompt": "summarise",
+            "temperature": 0.2
+          }
+        ]
       },
-      "inputSchema": { "type": "object", "required": ["text"] },
-      "outputSchema": { "type": "object", "required": ["answer", "confidence"] }
+      "inputSchema": {
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "examples": [
+          {
+            "text": "hello world again",
+            "confidence": 0.5
+          }
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "model",
+          "prompt",
+          "temperature",
+          "text",
+          "answer",
+          "words",
+          "confidence"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "model": {
+            "type": "string"
+          },
+          "prompt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "temperature": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "text": {
+            "type": "string"
+          },
+          "answer": {
+            "type": "string"
+          },
+          "words": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "examples": [
+          {
+            "model": "small",
+            "prompt": "summarise",
+            "temperature": 0.2,
+            "text": "hello world again",
+            "answer": "hello world",
+            "words": 3,
+            "confidence": 0.5
+          }
+        ]
+      }
     },
     "fetch": {
       "url": "./workers/fetch.ts",
-      "outputSchema": { "type": "object", "required": ["text"] }
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "examples": [
+          {
+            "url": "https://example.test",
+            "text": "body",
+            "confidence": 0.3
+          }
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "url",
+          "text",
+          "confidence"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "text": {
+            "type": "string"
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "examples": [
+          {
+            "url": "https://example.test",
+            "text": "body",
+            "confidence": 0.3
+          }
+        ]
+      }
     }
   },
-
   "groups": {
     "scorer": { "type": "ConcurrentLimitGroup", "config": { "limit": 8 } },
     "gate": { "type": "ConcurrentLimitGroup", "config": { "limit": 1 } },
