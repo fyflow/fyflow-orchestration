@@ -784,10 +784,15 @@ picking one. `spec/join-policy.md` section 4, `JP-R12`.)*
 
 ### The same on the RUNTIME — a decision, a fan-out and a join on real workers
 
-*Every snippet above this line IN THIS SECTION runs on a fake scheduler, which is the shape ladder
-L2 uses and the cheapest way to see routing. (Not every snippet above it in this document: section 2
-builds a real one, and this sentence said so until W70's conformity reader read it beside the item
-that had just put `createRuntime` on the page above.) This is the same three node kinds on
+*Everything in this section runs on a REAL `FyflowScheduler`. The three snippets above this line
+touch no scheduler at all — they validate a document, list the policies, and call a policy
+directly — and the one that did build a fake, *What a join carries downstream*, now builds a
+runtime like everything else ([W71](doc/work-items/w71-the-reference-stops-teaching-a-fake-scheduler.md)).
+*(This sentence has been wrong twice in two days and in opposite directions. It read *everything
+above this line runs on a fake scheduler* while section 2 above it built a real one — W70's
+conformity reader — and then, scoped to this section, it read the same thing while ZERO snippets
+here did, because W71 converted the only one that had. Both times an item rewrote the code inside
+the fences and left every sentence around them untouched.)* This is the same three node kinds on
 `createRuntime`, two runs on one runtime, every value read off the run — [W70](doc/work-items/w70-a-flow-that-decides-and-a-custom-group-on-the-runtime.md).
 It is also `README.md`'s second snippet, held byte-equal to this one by `check-docs`'s `X8`.*
 
@@ -948,20 +953,24 @@ let parked: string | null = null;
 // `suspended` is the node's — and those are the words the FOLD uses. The scheduler's own event is
 // called `task.user_action`, which is not what you poll on, and is the mistake this snippet used to
 // invite by delivering that event to a hand-built stub.
-const driver = runtime.start(flow, { text: 'hello' }, { onFoldInput: (input) => { inputs.push(input); } });
+const driver = runtime.start(flow, {}, { onFoldInput: (input) => { inputs.push(input); } });
 
 const state = await new Promise<RunState>((resolve, reject) => {
+  // A DEADLINE, because this is the one snippet whose subject is a run that does not end by
+  // itself: without it a wrong guess about the vocabulary below hangs for ever and the failure
+  // names nothing. W71's adequacy reader broke `suspended` and got a 30-second timeout.
+  const deadline = setTimeout(() => reject(new Error('the run never reached a terminal state')), 10_000);
   const poll = () => {
     const s = fold(inputs);
     if (s.outcome === 'awaiting_action' && parked === null) {
       parked = Object.keys(s.nodes).find((id) => s.nodes[id].state === 'suspended') ?? null;
-      if (parked === null) { reject(new Error('awaiting_action with no suspended node')); return; }
+      if (parked === null) { clearTimeout(deadline); reject(new Error('awaiting_action with no suspended node')); return; }
 
       // ONE pair of events, ONE record. The scheduler dispatches `task.failed` AND
       // `task.user_action` carrying the same object; the driver drops the first, whose detail
       // already reads `user_action`, and records on the second. Read off a REAL pair, not a
       // hand-delivered one.
-      const records = driver.snapshot().filter((r) => r.taskId === parked && r.kind === 'outcome');
+      const records = driver.snapshot().filter((r) => r.taskId === parked);
       if (records.length !== 1) throw new Error(`the event pair produced ${records.length} records`);
 
       // The only way anything outside this process changes a run — and it takes THREE arguments.
@@ -970,7 +979,7 @@ const state = await new Promise<RunState>((resolve, reject) => {
       const again    = driver.resolve(parked, 'failed', { actor: 'a-person' });
       if (!accepted || again) throw new Error('a second resolution must be refused, not applied twice');
     }
-    if (isTerminal(s)) { resolve(s); return; }
+    if (isTerminal(s)) { clearTimeout(deadline); resolve(s); return; }
     setTimeout(poll, 5);
   };
   poll();
@@ -981,11 +990,20 @@ await runtime.shutdown();
 // node — so the run ends at `quarantine`. The END node's `outcome` is a label of yours; the RUN's
 // outcome is the fold's, and it is `completed` because a path reached an end.
 const ended = Object.values(state.nodes).find((n) => n.nodeId === 'score');
-console.log(state.outcome, ended?.state, parked);   // 'completed' 'failed' 'r1:score:-:0'
+console.log(state.outcome, ended?.state, state.pathEnds.map((p) => p.at).join());
+// 'completed' 'failed' 'quarantine'
 // The node's own state is `failed`, not `resolved`: `resolvedAs` is what a person DECIDED,
 // and the node records the terminal state that decision gave it.
 if (state.outcome !== 'completed') throw new Error(`expected completed, got ${state.outcome}`);
 if (parked !== 'r1:score:-:0') throw new Error(`parked at ${parked}`);
+if (ended?.state !== 'failed') throw new Error(`the node settled ${ended?.state}`);
+// **WHICH END the run reached is what `resolvedAs` decided**, and until W71's adequacy reader
+// read this snippet nothing observed it: both roads fold to `completed`, so resolving 'done'
+// instead of 'failed' changed the road and no assertion moved. `pathEnds` carries the end each
+// path reached, which is the whole of the paragraph below.
+if (state.pathEnds.map((p) => p.at).join() !== 'quarantine') {
+  throw new Error(`the run ended at ${state.pathEnds.map((p) => p.at).join()}, not at quarantine`);
+}
 ```
 
 `resolve()` returns `false` if the task is not suspended — a rejected command, not a run failure, so
@@ -1143,7 +1161,11 @@ const flow: FlowDefinition = {
 
 const runtime = createRuntime(registry, {}, { base: import.meta.url });
 const reported = await new Promise<{ kind: string; message: string }>((resolve) => {
-  runtime.start(flow, {}, { onRunFailure: (f) => resolve({ kind: f.kind, message: f.message }) });
+  // A DEADLINE resolving to a SENTINEL, so that *nothing was reported* is this snippet's own
+  // failure rather than a hang. W71's adequacy reader made the driver swallow the refusal and
+  // the snippet died as `Detected unsettled top-level await` — a crash is not a detection.
+  const deadline = setTimeout(() => resolve({ kind: 'NOTHING WAS REPORTED', message: '' }), 10_000);
+  runtime.start(flow, {}, { onRunFailure: (f) => { clearTimeout(deadline); resolve({ kind: f.kind, message: f.message }); } });
 });
 await runtime.shutdown();
 
@@ -1151,7 +1173,11 @@ console.log(reported.kind);                            // 'UnresolvedMapArity'
 if (reported.kind !== 'UnresolvedMapArity') throw new Error(`the run reported ${reported.kind}`);
 // Same library, same kind of mistake, two different roads out — and which road it takes is decided
 // by whether you were on the stack, not by the class (`OR-R10`).
-// **`MissingJoinPolicy` is NOT reachable on this road**, and it is in the table below: a fan-out
+// *(The OTHER way this leg can go wrong — the refusal ESCAPING the listener instead of being
+// reported — takes the whole process down through `EventTarget`'s own rethrow, so it cannot be
+// this snippet's assertion whatever the snippet does. The deadline above closes the half that
+// can be closed: a refusal SWALLOWED in silence.)*
+// **`MissingJoinPolicy` is NOT reachable on this road**, and it is in the error-class enumeration below: a fan-out
 // with no policy is refused when YOU build a `Driver`, and `createRuntime` always supplies one
 // (`live-token` by default), so the runtime cannot raise it. A refusal a road cannot reach is
 // still a refusal — it belongs to the road in section 12, which is where a caller passes its own
@@ -1412,32 +1438,51 @@ const flow: FlowDefinition = {
 const runtime = createRuntime(registry, {}, { base: import.meta.url });
 const inputs: FoldInput[] = [];
 const frozen: Record<string, boolean> = {};
+// **The handles this road HAS, named rather than counted** — a count is not a membership, and
+// re-sourcing one of these onto another left a count of three unmoved (W71's adequacy reader).
+const HANDLES = ['onFoldInput', 'snapshot', 'foldInputs'];
 
-// **`onRegionEvent` is NOT among the options `runtime.start` forwards** — measured, and it is
-// [Q297](doc/open-questions.md). A `Driver` you build yourself takes it (section 12); a runtime's
-// `StartOptions` names `createTask`, `joinPolicy`, `onFoldInput`, `onRunFailure`,
-// `onUnsatisfiableJoin`, `onUnmintedTask` and `now`, and nothing else. So the three handles below
-// are the three a consumer on this road HAS.
-const driver = runtime.start(flow, {}, {
-  onFoldInput: (i) => { frozen.onFoldInput = Object.isFrozen(i); inputs.push(i); },
-});
-await new Promise<RunState>((resolve) => {
-  const poll = () => { const s = fold(inputs); if (isTerminal(s)) { resolve(s); return; } setTimeout(poll, 5); };
+// **`onRegionEvent` is a `Driver` option the RUNTIME DOES NOT FORWARD**, so a consumer on this road
+// cannot watch a region open and close at all. That is asserted here rather than stated, because a
+// sentence listing what `StartOptions` carries is a claim about a list in the source that nothing
+// compares it to — and the first version of this comment got that list wrong ([Q297](doc/open-questions.md)).
+// The cast is what a consumer would have to write to try, and the count below is what they would get.
+let regionEvents = 0;
+const options = {
+  onFoldInput: (i: FoldInput) => { frozen.onFoldInput = Object.isFrozen(i); inputs.push(i); },
+  onRegionEvent: () => { regionEvents += 1; },
+};
+const driver = runtime.start(flow, {}, options as Parameters<typeof runtime.start>[2]);
+
+await new Promise<RunState>((resolve, reject) => {
+  // A poll needs a DEADLINE, and this one is a consumer's to copy: without it a run that never
+  // becomes terminal hangs for ever and the failure names nothing at all.
+  const deadline = setTimeout(() => reject(new Error('the run never reached a terminal state')), 10_000);
+  const poll = () => {
+    const s = fold(inputs);
+    if (isTerminal(s)) { clearTimeout(deadline); resolve(s); return; }
+    setTimeout(poll, 5);
+  };
   poll();
 });
 await runtime.shutdown();
 
-// The two PULL handles, read after the run rather than during it — same rule, same answer.
-frozen.snapshot = Object.isFrozen(driver.snapshot()) && driver.snapshot().every(Object.isFrozen);
-frozen.foldInputs = Object.isFrozen(driver.foldInputs()) && driver.foldInputs().every(Object.isFrozen);
+// The two PULL handles, read after the run — and each must have handed back something, because
+// `Object.isFrozen([])` is true for free and an empty answer would pass while asserting nothing.
+const snapshot = driver.snapshot();
+const foldInputs = driver.foldInputs();
+if (snapshot.length === 0 || foldInputs.length === 0) throw new Error('a pull handle returned nothing, so freezing it says nothing');
+frozen.snapshot = Object.isFrozen(snapshot) && snapshot.every(Object.isFrozen);
+frozen.foldInputs = Object.isFrozen(foldInputs) && foldInputs.every(Object.isFrozen);
 
-console.log(frozen);   // all three true
+console.log(frozen, regionEvents);   // all three true, and 0
 for (const [name, isFrozen] of Object.entries(frozen)) {
   if (!isFrozen) throw new Error(`${name} handed out something you can write to`);
 }
-if (Object.keys(frozen).length !== 3) {
-  throw new Error(`expected all three reachable paths to be exercised, saw ${Object.keys(frozen).join()}`);
+if (Object.keys(frozen).sort().join() !== HANDLES.slice().sort().join()) {
+  throw new Error(`expected exactly ${HANDLES.join()}, saw ${Object.keys(frozen).sort().join()}`);
 }
+if (regionEvents !== 0) throw new Error(`onRegionEvent fired ${regionEvents} times, so the runtime forwards it now and this comment is stale`);
 ```
 - **Subscribing to the scheduler yourself and counting `task.failed`.** A `user_action` task fires
   it *and* `task.user_action`. Key on the terminal state — section 7.
@@ -1454,39 +1499,70 @@ the driver logs is a plain object with the field and no method:
 import { createRuntime } from 'fyflow-orchestration/scheduler';
 import { fold, isTerminal, type FlowDefinition, type FoldInput, type RegistryDocument, type RunState } from 'fyflow-orchestration';
 
-// The worker returns `new Score(0.9)` — a class with a method. See
-// `examples/getting-started/classy.ts`; nothing about this is unusual to write, which is the point.
+// `classy` returns `new Score(0.9)` — a class with a method, and it CHECKS that it does before
+// handing it over, so the thing being lost below is known to have existed. `inspect` is the NEXT
+// NODE, and reports what arrived. `uncloneable` returns a function, which is the loud half.
 const registry: RegistryDocument = {
-  workers: { classy: { url: '../../examples/getting-started/classy.ts' } },
-  nodeTypes: { Classy: { worker: 'classy', inline: true } },
+  workers: {
+    classy: { url: '../../examples/getting-started/classy.ts' },
+    inspect: { url: '../../examples/getting-started/inspect.ts' },
+    uncloneable: { url: '../../examples/getting-started/uncloneable.ts' },
+  },
+  nodeTypes: {
+    Classy: { worker: 'classy', inline: true },
+    Inspect: { worker: 'inspect', inline: true },
+    Uncloneable: { worker: 'uncloneable', inline: true },
+  },
 };
-const flow: FlowDefinition = {
+const lossy: FlowDefinition = {
   flowId: 'or-r11', version: 1, entry: 'a',
   nodes: [
-    { id: 'a', kind: 'task', type: 'Classy', settings: { value: 0.9 }, edges: [{ to: 'done' }] },
+    { id: 'a',    kind: 'task', type: 'Classy',  settings: { value: 0.9 }, edges: [{ to: 'next' }] },
+    { id: 'next', kind: 'task', type: 'Inspect', settings: {},            edges: [{ to: 'done' }] },
+    { id: 'done', kind: 'end', outcome: 'completed' },
+  ],
+};
+const loud: FlowDefinition = {
+  flowId: 'uncloneable', version: 1, entry: 'a',
+  nodes: [
+    { id: 'a',    kind: 'task', type: 'Uncloneable', settings: {}, edges: [{ to: 'done' }] },
     { id: 'done', kind: 'end', outcome: 'completed' },
   ],
 };
 
 const runtime = createRuntime(registry, {}, { base: import.meta.url });
-const inputs: FoldInput[] = [];
 const failures: string[] = [];
-const state = await new Promise<RunState>((resolve) => {
+const run = (flow: FlowDefinition) => new Promise<RunState>((resolve, reject) => {
+  const inputs: FoldInput[] = [];
+  const deadline = setTimeout(() => reject(new Error(`${flow.flowId} never reached a terminal state`)), 10_000);
   runtime.start(flow, {}, {
-    onFoldInput: (input) => { inputs.push(input); queueMicrotask(() => { const s = fold(inputs); if (isTerminal(s)) resolve(s); }); },
+    onFoldInput: (input) => {
+      inputs.push(input);
+      queueMicrotask(() => { const s = fold(inputs); if (isTerminal(s)) { clearTimeout(deadline); resolve(s); } });
+    },
     onRunFailure: (f) => { failures.push(f.kind); },
   });
 });
-await runtime.shutdown();
 
-const logged = Object.values(state.nodes).find((n) => n.nodeId === 'a')?.result as { value?: number; isHigh?: unknown };
-console.log(logged.value, typeof logged.isHigh, failures.length);   // 0.9 undefined 0
-if (logged.value !== 0.9) throw new Error('the FIELDS cross the boundary');
-if (typeof logged.isHigh !== 'undefined') throw new Error('the BEHAVIOUR does not');
-if (failures.length !== 0) throw new Error('and nothing is reported: OR-R11 is silent by design');
-// The run COMPLETED. A worker handed back an object with behaviour, the behaviour was dropped on the
-// way out of the worker, and no rule anywhere says a word about it.
-if (state.outcome !== 'completed') throw new Error(`expected completed, got ${state.outcome}`);
+// **THE QUIET HALF.** The fields cross; the behaviour does not; nothing is reported.
+const quiet = await run(lossy);
+const arrived = Object.values(quiet.nodes).find((n) => n.nodeId === 'next')?.result as
+  { sawMethod?: string; prototypeIs?: string; keys?: string[] };
+console.log(arrived.sawMethod, arrived.prototypeIs, JSON.stringify(arrived.keys));
+// 'undefined' 'Object.prototype' ["value"]
+if (arrived.keys?.join() !== 'value') throw new Error(`the next node received ${JSON.stringify(arrived.keys)}`);
+if (arrived.sawMethod !== 'undefined') throw new Error('the BEHAVIOUR reached the next node, which OR-R11 says it cannot');
+if (arrived.prototypeIs !== 'Object.prototype') throw new Error('the PROTOTYPE survived the boundary');
+if (quiet.outcome !== 'completed') throw new Error(`the lossy run ${quiet.outcome}`);
+if (failures.length !== 0) throw new Error(`the quiet half reported ${failures.join()} — OR-R11 is silent by design`);
+
+// **THE LOUD HALF, and it is what makes the line above mean anything.** A result that cannot be
+// cloned at ALL stops the run and IS reported — so `failures` has a case that fills it, and
+// `failures.length === 0` above is a measurement rather than a sentence about an empty array.
+await run(loud).catch(() => undefined);
+await runtime.shutdown();
+console.log(failures.join());                            // 'UncloneableResult'
+if (failures.join() !== 'UncloneableResult') throw new Error(`the loud half reported ${failures.join() || 'nothing'}`);
 ```
 
 ## 11. What does NOT exist — do not write code using it

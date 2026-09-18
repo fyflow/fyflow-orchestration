@@ -13,11 +13,18 @@ npm run test:l6:deno    # Deno
 
 **`getting-started/` is the one thing here that is NOT an L6 row** —
 [W69](../doc/work-items/w69-a-getting-started-example-a-consumer-can-copy.md) and
-[W70](../doc/work-items/w70-a-flow-that-decides-and-a-custom-group-on-the-runtime.md). It holds the
-files a consumer writes as code — two workers, `worker.ts` and `tag.ts` — and what executes them is
-`npm run check:docs`: `AGENTS.md` sections 2, 5 and 12 carry the getting-started, routing and
-custom-group snippets, the gate extracts and runs each, and `README.md` carries the first two byte-equal
-under `check-docs`'s `X8`, which holds every README fence to an executed one. `l6.ts` lists `workers/` on disk and compares that listing to
+[W70](../doc/work-items/w70-a-flow-that-decides-and-a-custom-group-on-the-runtime.md) and
+[W71](../doc/work-items/w71-the-reference-stops-teaching-a-fake-scheduler.md). It holds the
+files a consumer writes as code — **seven workers**: `worker.ts` and `tag.ts`, then W71's
+`flaky.ts` (throws, so a task parks for a person), `scorer.ts` (a score after a stated delay, so
+an arrival order can be ARRANGED), `classy.ts` (returns a class instance), `inspect.ts` (reports
+what it RECEIVED) and `uncloneable.ts` (returns a function, which stops a run). What executes
+them is `npm run check:docs`: `AGENTS.md` sections **2, 5, 7, 9, 10 and 12** carry the
+getting-started, routing, human-in-the-loop, refusal, common-mistake and custom-group snippets,
+the gate extracts and runs each, and `README.md` carries two of them byte-equal under
+`check-docs`'s `X8`, which holds every README fence to an executed one. *(This said **two**
+workers and **three** sections until W71's conformity reader read it: W71 added three of the
+modules and named itself nowhere, in a file it did not own and took no exception for.)* `l6.ts` lists `workers/` on disk and compares that listing to
 the L6 registry both ways, which is why the getting-started worker lives in its own directory rather
 than beside the fourteen: a module under `workers/` that no L6 entry names is red in that clause.
 

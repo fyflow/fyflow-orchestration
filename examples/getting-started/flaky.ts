@@ -1,9 +1,11 @@
 /**
  * **A worker that FAILS, so the reference can show what a consumer does about it.** W71.
  *
- * The contract is `worker.ts`'s — a default-exported class with `run` — and this one throws unless
- * its input says otherwise, which is what parks a non-optional task at `user_action` once its retry
- * budget is spent. `AGENTS.md` section 7 runs it on a real scheduler so that the human-in-the-loop
+ * The contract is `worker.ts`'s — a default-exported class with `run` — and this one ALWAYS throws,
+ * which is what parks a non-optional task at `user_action` once its retry budget is spent. *(It had
+ * a settings-controlled success arm until W71's adequacy reader measured that nothing could reach
+ * it: its one consumer passes no settings, so the arm and the `input.text` it read were dead code
+ * in a module whose whole purpose is to be read as an example.)* `AGENTS.md` section 7 runs it on a real scheduler so that the human-in-the-loop
  * road is shown on the thing a consumer will actually have, rather than on a hand-built stub that
  * delivers its own events.
  *
@@ -12,8 +14,7 @@
  * ([W69](../../doc/work-items/w69-a-getting-started-example-a-consumer-can-copy.md)).
  */
 export default class Flaky {
-  run(envelope: { settings: { fail?: boolean }; input: { text?: string } }): { text: string } {
-    if (envelope.settings.fail !== false) throw new Error('the thing this worker talks to is down');
-    return { text: `${envelope.input.text ?? ''} recovered`.trim() };
+  run(): never {
+    throw new Error('the thing this worker talks to is down');
   }
 }
