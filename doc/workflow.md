@@ -1,6 +1,6 @@
 # Workflow
 
-**Status:** v0.19 - **run to completion EIGHTEEN times**, by [P1](plans/p1-what-satisfies-a-join.md),
+**Status:** v0.20 - **run to completion NINETEEN times**, by [P1](plans/p1-what-satisfies-a-join.md),
 [P2](plans/p2-the-non-success-half-on-a-real-scheduler.md),
 [P3](plans/p3-a-consumer-reference-the-gate-keeps-true.md),
 [P4](plans/p4-the-drivers-lifetime-and-the-handles-it-gives-out.md),
@@ -17,7 +17,8 @@
 [P15](plans/p15-what-a-run-retains-and-what-a-result-may-be.md),
 [P16](plans/p16-what-a-node-type-is-and-what-the-library-owes-the-scheduler.md) and
 [P17](plans/p17-what-a-node-may-do-to-its-input-before-its-worker-sees-it.md) and
-[P18](plans/p18-a-flow-and-its-runtime-from-documents-alone.md)
+[P18](plans/p18-a-flow-and-its-runtime-from-documents-alone.md) and
+[P19](plans/p19-what-a-schema-buys-an-author.md)
 **Read this before starting any work item.** *(The status line read "seven times" and listed P1-P7
 until P9's retro: **P8 ran this document to completion and adopted none of its proposals**, which is
 section 6 pass 3 rule 1's expected verdict and is not the same as not having run it.)* Paths are relative to the repo root unless they are
@@ -100,6 +101,167 @@ prediction about rule 8 is answered and is **false**.
    ([ADR 0029](decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)).
    The dependency edge that made the junction seem necessary is gone; **the rule still said nothing
    about the removal**, which is the part that did the damage.
+
+**v0.20 is [P19](plans/p19-what-a-schema-buys-an-author.md)'s retro, and its central finding is that
+the plan's EXIT ARTIFACT — an authoring session `npm run gate` executes — can have every one of its
+eight claims made a TAUTOLOGY at `check:docs` exit 0.** P19 asked *what does a schema buy an author?*
+— answered by [ADR 0056](decisions/0056-an-example-is-an-annotation-validated-against-the-schema-it-sits-on.md)
+and by two items that took none, three items, six reader passes, and an exit artifact a human can
+watch: a miswire the check names before anything runs, one expression edit that fixes it, a generated
+signature, and the run completing on a real `createRuntime`. It adopts **one** change and refuses
+**five**, all in [P19's Record](plans/p19-what-a-schema-buys-an-author.md).
+
+**Name the rung, and P19 splits cleanly into two populations that answer it opposite ways.**
+**THIRTY-TWO BLOCKING findings across the six reader passes — 12 conformity and 20 adequacy, one
+subject shared — and EXACTLY ONE of the thirty-two names a rung.** That rung **FIRED, on the shipped
+tree, and the item's author did not read it**: `check:docs:selftest`, a gate entry, exits 1 because the
+*unclosed fence* probe now deletes the LAST fence in the reference, which is section 15's — a snippet
+`X8` pairs — so it trips `[X1,X8]` against its declared `[X1]`. Rule 7 (c) discriminating exactly as
+designed, in a row W74's own exceptions table had predicted unmoved *"to be measured at the build"*
+**without taking the measurement**; its conformity reader took it. The other thirty-one have no rung,
+and **eight were found at a DECLARATION STEP** — including the plan's single largest finding, that the
+shipped corpus was miswired NINE ways on the five arc shapes the plan's own fact 3 never counted.
+**The items' own *What broke* lists are thirty-two more entries (10 / 13 / 9) and those are the
+healthy half: TWENTY-ONE name a rung that fired** — L0 on a parameter property (`S4`/`RT-R9`) and on a
+`deno lint` unused import, a new check's self-test catching a defect in its own check on its first
+run, `X4` refusing an undocumented error class, `S6` on the JSR allowlist, the suite census by name,
+L6 red exactly as predicted, three lists for one driver field firing in turn, the browser rungs alone
+for the fourth time, and two `GATE EXIT=1`s — **and twenty of the twenty-one were read correctly**, the
+twenty-first being the same `check:docs:selftest`. Eleven have no rung and **eight of those are in the
+INSTRUMENTS**: seven or eight shell manglings ([Q272](open-questions.md)), two ceiling anchors a later
+item moved, a census parser aborting on an unescaped pipe inside a code span ([Q215](open-questions.md)),
+and a digest taken one edit too early.
+
+1. **Rule 8 obligation (b) gains: where an `Outputs` row IS an assertion, the set makes each of its
+   claims a TAUTOLOGY — deleting the row is what the gate already catches.**
+   [W74](work-items/w74-the-assists-and-the-exit-artifact.md)'s adequacy reader replaced each of
+   section 15's guards with a condition that keeps its variables live and cannot fail, in both copies,
+   and `check:docs` was **EXIT 0 with all eight checks `ok`**; with the first candidate transform also
+   changed to the already-correct one, the section stops demonstrating the miswire-then-repair arc at
+   all and is still green. **This retro re-took it on the tree P19 ships and it reproduces: eight
+   guards, both copies, `check:docs` EXIT=0, 27 `run` snippets counted, every check green.** The
+   author's own set broke the SUBJECT and deleted the snippet — `X4` and `RUN_FLOOR` catch both — and
+   the direction it did not take is the one v0.6 named for (a): *every probe was a way to REMOVE the
+   thing and every survivor the readers found was a way to NARROW it.* **The argument for generality is
+   the mechanism, not a second item**: `X4`'s clause is *every `run` snippet executes, and asserts
+   something*, and *asserts something* is measured as **contains a `throw`** — a PRESENCE test, by
+   construction, over all **27** of the reference's `run` snippets. **This is section 5 rule 3 made
+   provocable**, which is exactly the argument v0.8 used for obligation (c) and rule 4: *assertions
+   must be able to fail* has been here since v0.3 with no procedure. And it is
+   [P3](plans/p3-a-consumer-reference-the-gate-keeps-true.md)'s own criterion running out — P3
+   measured that 84% of the reference is prose that can be inverted with the gate green and answered
+   *move the load-bearing claims into assertions*; **a claim moved into an executed assertion is still
+   bound by that assertion's presence.** W74 reached the right answer without the rule (a second
+   observer in `test/definition/assist.test.ts` for seven of the eight claims, and its own comment
+   records that the eighth — *the run reaches `completed` on a real `createRuntime`* — has none,
+   because the item's gate says L6 UNMOVED); **the rule is what makes an author ask before a reader
+   does.** [Q310](open-questions.md). The prior instance of the same shape, recorded elsewhere, is
+   W31's `if (caught !== PROBES.length)` — a check's own verdict over a list, deletable for **0**.
+
+**REFUSED, five, each with a measurement.** **(1) A `doc/` check for the EIGHTEENTH time — and P19
+supplies the first instance that is machine-comparable in PRINCIPLE and that a check would still have
+passed.** W74's fact D says `json-schema-to-typescript` types an open object as CLOSED where the
+package's own generator emits an index signature; it is the reverse of what both tools emit, and it
+stood in the reference, the module header, the fact, and **a priced reason inside a stop-and-ask**.
+Two programs' outputs are comparable without reading English — but the claim was wrong because the
+harness was **run twice**, once passing `{ additionalProperties: false }` to `compile()`, and the
+later run's LINE COUNT was kept beside the earlier run's CONCLUSION. **A check comparing the two
+outputs would have compared the two the harness produced on its last run and agreed with the item**;
+what it could not do is notice that the SENTENCE describing the difference is reversed, which is
+comparing English. *A number in prose is checkable and a direction is not.* It is also v0.12's second
+question — *was what it RAN what it CLAIMS* — on a MEASUREMENT rather than on a check, which that
+paragraph's scope does not name. **(2) The dated-ceiling HAND-OFF, refused a second time, and the
+numbers are now two plans deep.** P18 refused it at one miss; P19 supplies two more. W72 declared nine
+ceilings; **W73 moved the values two of them anchor on** — `CROSS_ROW` 134 → 141 and the `split`
+per-item bound W72's probe ADDS, which W73's stop-and-ask 4 restored in the shipped document — and did
+not re-run W72's set. **P18's priced counter-measure does not even reach this case**: there the ceiling
+NAMED the item by id and a grep would have found it; here W72 could not know which values W73 would
+touch. **What does reach it costs one command and the retro ran it**: `rule8.mjs --ids <the ceilings>`,
+where a moved anchor is an ABORT that names the file and the literal. Both aborted, both were
+re-anchored, and **both HOLD**. So over two plans the clause has **three misses, one catch and two
+holds**, and the retro is where all three were found in one command each. *v0.17's per-edit anchor
+clause is what makes that command sufficient, in a place it was not written for.* **(3) An `Owns`
+pre-declaration rule for the SEVENTH plan running, and P19 is the first plan on which naming the three
+files would have been wrong on EVERY item.** Over W72, W73 and W74: `AGENTS.md` is
+exception / exception / **owned by the plan's own row**; `spec/README.md` is **owned** / exception /
+**not touched at all**; `scripts/check-docs.mjs` is not reached / not reached / exception. Exceptions
+ran **10 / 12 / 7** — and **P4's forcing condition FIRED**: three edits shipped undeclared, W72's one
+(`check-wiring-selftest.mjs`) and W73's two (`src/definition/schema.ts` and `src/definition/registry.ts`,
+W72's files, whose sentences W73's own rule falsified). **All three were found the way section 7 rule 2
+already prescribes — a conformity reader running `git status --porcelain` by hand — and `check-owns.mjs`
+stays retired**, because the thing a script would have to parse is an exceptions TABLE whose rows carry
+globs, prose reasons and conditional entries, which is the `doc/`-check class one layer in. W73's two
+rows are added by this retro under pass 3 rule 6. **(4) `PAGE ERROR` named as a fourth secondary
+signal.** W74's first confirming gate was `GATE EXIT=1` with **zero lines beginning `FAIL`**, because a
+`file:///` worker URL a browser refuses is reported as `PAGE ERROR` / `1 FAILURE(S) in chromium`.
+Section 4's clause names **zero** signals on purpose and caught this one; enumerating the ones we have
+met is what a check would do, and the procedure — *a rung is RUN, never PIPED* — is already the whole
+of it. **(5) A rule for [Q272](open-questions.md), the shell mangling an escape.** Seven or eight
+instances in this plan alone — two inline `node -e`s whose backticks the shell ate, a backtick-quoted
+apostrophe inside a template literal twice, a python heredoc mangling `split('\n')` three times — every
+one a runner down at exit 1 with **zero FAIL lines**. **`CLAUDE.md` already carries the rule** (*write
+it as a FILE*), it is read before every item, and it was broken eight times; but the failure is a
+TOOLING one, every instance was caught by section 4's exit-code clause, none shipped, and the fix each
+author recorded was the rule they had just broken. *(This retro reproduced it twice in its own probes
+and was caught by rule 7 (b) both times.)*
+
+**FOUR predictions, THREE with a verdict and one UNTOUCHED, and the pattern is that a reversal
+CONDITION was measured REAL twice and routed around both times.** **Prediction 1** (the subset holds
+for every schema this plan writes) is **CONFIRMED** by all three items and no keyword joined the subset
+past `examples` — **and its own stated reversal condition was measured TRUE**: W73's fact B found the
+subset cannot say `additionalProperties: <schema>`, which is exactly what a join successor's record
+needs, and the answer taken was that **the check carries the record's shape** instead of extending the
+language ([Q306](open-questions.md)). That is P17's prediction 2 a second time — *a reversal condition
+measured real and avoided by the road the maintainer chose* — and it is now a shape rather than an
+incident. **Prediction 2** (the relation stays TOTAL) is **CONFIRMED on the tree that ships and was
+FALSE on the first cut**: W73's conformity reader found `checkWiring` THROWING `ID-R6` on two documents
+the validator accepts with zero findings (a fan-out inside a map branch, a map in a map), which is a
+direction the prediction's own reversal clause did not name — not a *cannot tell*, a crash. **v0.14's
+SCOPE column was stated and was correct and did not prevent it**: it named *no transform present in any
+of them* as the uncovered half, the item covered transforms exhaustively, and the half that broke
+totality was NESTING, which neither the scope nor either corpus names. *A scope column states what a
+measurement covered; it cannot state what nobody thought of.* Recorded as that clause's limit, not as a
+change. **Prediction 3** (REACH: `oneOf` first) is **UNTOUCHED** — no corpus schema needed it — and the
+nearest thing arrived from inside rather than from a consumer: [Q311](open-questions.md), an `enum` of
+object shapes, which W74 calls *one of these shapes by another name*. **Prediction 4** (the conformance
+check catches the NEXT wrong schema) is **CONFIRMED a third and fourth time, always in the sharper
+direction the plan named at its declaration**: the check found zero over the twelve schemas its own
+author wrote, and then a conformity reader found two by deriving from the workers' CODE
+([Q302](open-questions.md)); and W74's generator emitted a syntax error for eleven workers, found by
+compiling it and by nothing else. *The author's declaration is the likelier lie, and only execution or
+a reader deriving from the code sees it.*
+
+**v0.19's one change: CONFIRMED, and it fired on this retro's own shell.** All three harnesses assert
+Node >= 24 and name the command; the retro's first invocation of all three came back
+`needs Node >= 24, running 16.17.1` instead of twenty-four CRASH verdicts on a correct tree.
+**v0.18's two changes: both CONFIRMED and both FIRED.** The CONTROLS clause caught W73's adequacy
+reader's `d1` **by name** — the resolve control deleted with both counts lowered, red on the subject
+*a person's value really was refused somewhere*; and the SAME-CLAIM clause is what its reader cited to
+find `unchecked`'s *a side declares no schema* instantiated for a non-transformed arc and not for a
+transformed one, flippable to `transform-passes` for zero. **v0.17's enumeration clause fired in ALL
+THREE items and every single time it was a READER who instantiated it** — an example held to five of
+twelve keywords (W72), `fits` lenient for zero five ways under a bounds list of five (W73), `TS_NAMES`
+six of seven (W74) — which is v0.13's recorded correction for a third plan: *an obligation run as a
+step in a set passes; the same obligation asked as a question of one artefact fires.*
+
+**Rule 8 across the plan, read from the final passes' own logs: 243 provocations, 214 caught, 24
+declared ceilings ALL RE-RUN at this retro, 2 measured, ZERO undeclared survivors, ZERO crashes, ZERO
+against declaration, and 10 aborts — every one rule 7 (b) on an anchor the item's own later edits had
+moved, every one re-anchored and then caught.** Three controls, all green; the content digest identical
+at both ends of every pass. **The retro's re-run of all twenty-four found ZERO catches**, 22 on their
+original anchors and 2 re-anchored — against P18's one in fourteen, P16's two in twenty-three and P13's
+two in eleven. **Readers: six passes, none empty — 46 conformity findings with 12 blocking, and 134
+mutations plus 7 by-construction probes with 60 real survivors and 20 blocking. Overlap 1, 1, 1**, the
+forty-fourth to forty-sixth measurements, band unmoved, none primed — **and their SPLIT held in all
+three**, with one new road: **two of the plan's sharpest findings came from a reader with NO MUTATION
+AT ALL** (W73's per-item `needs`, where a correct wiring reads `transform-fails`, and W74's bare `in`),
+which neither role's description names and which is recorded rather than ruled on. **Census CONFIRMED
+for the NINETEENTH plan running — 241 / 185 / 2 / 54**, 241 of 241 in exactly one cluster cell, 0
+aborts. **[Q142](open-questions.md) did NOT fire and was measured BEFORE the record step**, as the
+plan's own seeded row asked — `M3` at 107 with 7 files of margin, `M4` at 4450 with 274 links.
+**W75 closed unissued; Q300-Q312 used, Q308-Q309 and Q313-Q314 spent and not reused; ADR 0056 taken and
+ADR 0057 SKIPPED. The next plan starts at W76, Q315 and ADR 0058 — derived by grep off the tree, never
+inherited from this sentence.**
 
 **v0.19 is [P18](plans/p18-a-flow-and-its-runtime-from-documents-alone.md)'s retro, and its central
 finding is that v0.17's dated-ceiling clause was followed in the WRITING and not in the RUNNING — by
@@ -1467,7 +1629,7 @@ Rules:
    | | obligation | added by |
    |---|---|---|
    | **(a)** | break the rule's own CLAUSES — **and the SHAPES those clauses quantify over, every value the rule ENUMERATES, each under the SAME claim** | v0.6, P4's retro; **the shapes clause v0.16, P15's retro; the enumeration clause v0.17, P16's retro; the same-claim clause v0.18, P17's retro** |
-   | **(b)** | break every row of the `Outputs` table | v0.7, P5's retro |
+   | **(b)** | break every row of the `Outputs` table — **and where a row IS an assertion, make each of its claims a TAUTOLOGY rather than deleting it** | v0.7, P5's retro; **the tautology clause v0.20, P19's retro** |
    | **(c)** | break the PROVENANCE of every value an assertion reads — change the source expression and nothing else | v0.8, P6's retro; procedure added v0.9; **its LIMIT v0.13, P12's retro; and what *independent* excludes, v0.16, P15's retro** |
    | **(d)** | break the LOOP BOUNDS — one entry out, the whole list out, and does anything COUNT it from elsewhere — **a count is not a membership, and a membership names the CONTROLS beside its claims** | v0.9, P7's retro; **the membership clause v0.14, P13's retro; the controls clause v0.18, P17's retro** |
    | **(e)** | break the WIRING — what happens when the check is NOT RUN, and **is what it ran what SHIPS** | v0.10, P9's retro; second question **v0.12, P11's retro**; **third shape v0.13, P12's retro** |
@@ -1569,6 +1731,37 @@ Rules:
    a deliverable asks whether the thing exists, not whether the rule behind it can fail. The
    `Outputs` table already asks the second question in prose — *"what would fail without it"* — and
    this makes the answer a measurement.
+
+   **AND WHERE AN `Outputs` ROW *IS* AN ASSERTION, MAKE EACH OF ITS CLAIMS A TAUTOLOGY — P19's retro,
+   and DELETING the row is the direction an author takes because the gate already catches it.** Some
+   deliverables here are not code a test reads; they are assertions that ARE the product — an executed
+   reference snippet, a check's own verdict, a rendered artifact that throws. For those, (b)'s question
+   *what would fail without it* has an answer the gate gives (`X4`, `RUN_FLOOR`, a floor over a probe
+   list), and the question it does not ask is **what would fail if it were still there and could not
+   fail**.
+
+   | | the deliverable | what it cost to make its claims vacuous |
+   |---|---|---|
+   | [W74](work-items/w74-the-assists-and-the-exit-artifact.md) | `AGENTS.md` section 15, **P19's exit artifact**, executed by `check:docs` | all **eight** guards replaced with conditions that keep every variable live and cannot fail, in `AGENTS.md` AND `README.md` (which `X8` holds byte-equal): **`check:docs` EXIT 0, all eight checks `ok`, 27 `run` snippets counted**. With the first candidate transform also changed to the already-correct one, the section stops demonstrating the miswire-then-repair arc at all and is still green. *Re-measured at P19's retro on the tree that ships; it reproduces* |
+   | [W31](work-items/w31-the-self-list-check-policies-never-had.md) | `check-policies-selftest.mjs`'s own verdict | `if (caught !== PROBES.length)` deleted — **0**, and no other `SELF` entry could reach it, because every other one breaks a LIST and this breaks the VERDICT OVER a list |
+
+   **The argument for generality is the mechanism rather than a third item.** `X4`'s clause is *every
+   `run` snippet executes, and asserts something*, and *asserts something* is measured as **contains a
+   `throw`** — a PRESENCE test, by construction, over every one of the reference's **27** `run`
+   snippets. **This is section 5 rule 3 made provocable**, exactly as v0.8 made rule 4 provocable as
+   obligation (c): *assertions must be able to fail* has been in this document since v0.3 with no
+   procedure, and an assertion that is itself a deliverable is where it has no other observer at all.
+   It is also [P3](plans/p3-a-consumer-reference-the-gate-keeps-true.md)'s criterion running out — P3
+   measured that 84% of the reference is prose invertible with the gate green and answered *move the
+   load-bearing claims into assertions*; **a claim moved into an executed assertion is bound by that
+   assertion's presence and by nothing else.**
+
+   **The answer is a second observer, not a better guard**, which is obligation (c)'s LIMIT reached
+   from the other end: W74 re-asserted seven of section 15's eight claims in
+   `test/definition/assist.test.ts`, and **recorded in that file's own comment that the eighth — *the
+   run reaches `completed` on a real `createRuntime`* — has none**, because the item's gate says L6
+   UNMOVED and it added no row. *Where the claim cannot get a second observer, record that rather than
+   arguing it* — v0.10's clause, one obligation over. [Q310](open-questions.md).
 
    **A survivor is only a survivor once a second, independent route confirms the mutated clause was
    reachable.** This replaces the weaker requirement W17 proposed about itself — that rule 8's set
@@ -1992,6 +2185,13 @@ Rules:
    *Node 16 is what a bare `node` resolves to here* since W5 — measured, `git log -S` over that file —
    and it still cost four probes, in a harness written 115 commits later.
 
+   *(**CONFIRMED on its first plan, and it fired on the RETRO's own shell** — P19's retro. All three of
+   P19's harnesses carry the assertion, and the retro's first invocation of all three, re-running the
+   plan's twenty-four declared ceilings, came back `rule8: needs Node >= 24, running 16.17.1 — run:
+   eval "$(fnm env --shell bash)" && fnm use 24` instead of twenty-four CRASH verdicts on a correct
+   tree. The clause is four lines and it has now paid for itself in a place its own item did not
+   anticipate: **the reader of a ceiling is not always the author who declared it.**)*
+
    **AND A SET-EQUAL-LITERAL CEILING IS DATED: the item that moves the value re-runs it — P16's
    retro, the second plan to find one.** Re-running every ceiling at the retro found two of W58's
    eight are CATCHES on the tree the plan ships — `schedulerGroups` sourced to `['gate']` and the task
@@ -2011,6 +2211,20 @@ Rules:
    **And a ceiling whose SITE is deleted is neither confirmed nor falsified** — W65's `c5` named two
    readings of one literal and W67's migration collapsed them into a document — which no clause here
    covers, recorded rather than ruled on.)*
+
+   *(**P19 refuses the hand-off a SECOND time, and shows that the counter-measure P18 priced could not
+   have worked here anyway** — P19's retro.
+   [W72](work-items/w72-the-contract-an-example-beside-every-schema-and-a-worker-run-on-it.md) declared
+   nine ceilings and **W73 moved the values two of them anchor on**: `const CROSS_ROW = 134;` became
+   141, and the `split` per-item bound `c1b` ADDS was restored in the shipped document by W73's own
+   stop-and-ask 4. W73 did not re-run W72's set. **P18's hand-off does not reach this case**: there the
+   ceiling NAMED the expiring item by id and a grep would have found it; here W72 could not know which
+   values W73 would touch. **What does reach it is one command** — `rule8.mjs --ids <the ceilings>`,
+   where a moved anchor comes back as an **ABORT naming the file and the literal**, which is the
+   per-edit anchor clause above paying for itself in a place it was not written for. Both aborted, both
+   were re-anchored at the retro, and **both HOLD**. So over two plans: **three misses, one catch and
+   two holds**, every one found by the retro in one command. **All twenty-four of P19's ceilings re-run
+   at its retro, ZERO catches** — against P18's 1 in 14, P16's 2 in 23 and P13's 2 in 11.)*
 
 ## 6. Verify: the three passes
 
@@ -2078,11 +2292,25 @@ and there is obvious work to do meanwhile — and **the thing that makes it a de
 habit is that the verdict is reported as though it were about the tree that ships.**)*
 
 **Why two readers rather than one asking both questions**, which is what earlier versions said.
-Measured **forty** times now: W4 1 of 13, W5 3 of ~35, W6 3 of ~25, W9 3 of ~30, W12 3 of 18,
+Measured **forty-six** times now: W4 1 of 13, W5 3 of ~35, W6 3 of ~25, W9 3 of ~30, W12 3 of 18,
 W13 4 of 24, W14 4 of ~26, W17 3 of ~31, W18 2, W19 4 of 18, W28 4, W29 1, W30 2, W31 0, W32 2,
 W33 2, W34 2, W36 1, W39 4, W41 1 of 116, W42 2 of 61, W43 2 of 39, W45 2, W46 2, W47 2,
 W49 2, W50 2, W51 1, W53 2, W54 4, W55 2, W57 0, W58 1, W59 1, W61 1, W62 1, W63 1,
-**W65 2, W66 2, W67 1**.
+W65 2, W66 2, W67 1, *W69 1, W70 0, W71 2*, **W72 1, W73 1, W74 1**.
+
+*(**This list was STALE BY THREE for a whole plan and the three italic entries are why** — P19's
+retro. [W69](work-items/w69-a-getting-started-example-a-consumer-can-copy.md),
+[W70](work-items/w70-a-flow-that-decides-and-a-custom-group-on-the-runtime.md) and
+[W71](work-items/w71-the-reference-stops-teaching-a-fake-scheduler.md) each ran both readers and
+recorded an overlap, and **none of the three appears anywhere in this document** (`grep`: 0 hits before
+this edit), because **only a RETRO appends here and an item outside any plan has no retro**. All three
+derived their ordinals correctly anyway — forty-first, forty-second, forty-third — from the item files
+rather than from the list the clause below names as the source, so P19's three are the forty-fourth to
+forty-sixth and every published ordinal in the tree is right. **No rule is taken at three occurrences
+with zero downstream defects**: this document is in nobody's `Owns`, so an item outside a plan would
+need a declared exception to append, and the retro closes it in one edit. If a FOURTH item outside a
+plan runs readers and this list is stale again, the sentence is adopted.)*
+
 **The ORDINAL is derived by counting this list, and P12's three items each got it wrong by two** —
 W41 wrote *eighteenth*, which is W36's, and W42 and W43 incremented from it, so three consecutive
 Records were internally consistent with each other and wrong against the only list there is. All
@@ -2097,17 +2325,31 @@ yet** - the same three facts reached by six different routes, and in each case t
 routes had nothing in common.
 
 **The number to carry is the ABSOLUTE one: two readers produce 0-4 shared findings, whatever the
-item's size** - **forty** measurements, and P6's retro declares the question **settled and closed
-to re-litigation**. **The twenty-six since — 2, 2, 2, 1, 4, 1, 2, 2, 2, 2, 2, 2, 2, 1, 2, 4, 2, 0, 1, 1, 1, 1, 1, 2, 2 and 1 —
+item's size** - **forty-six** measurements, and P6's retro declares the question **settled and closed
+to re-litigation**. **The thirty-two since — 2, 2, 2, 1, 4, 1, 2, 2, 2, 2, 2, 2, 2, 1, 2, 4, 2, 0, 1, 1, 1, 1, 1, 2, 2, 1, 1, 0, 2, 1, 1 and 1 —
 are all inside the band and the band has not moved.** **P13's three are 2, 2, 2, P14's are 2, 2, 1,
-P15's are 2, 4, 2, P16's are 0, 1, 1, P17's are 1, 1, 1 and P18's are 2, 2, 1**, and the SPLIT held in
+P15's are 2, 4, 2, P16's are 0, 1, 1, P17's are 1, 1, 1, P18's are 2, 2, 1 and P19's are 1, 1, 1**, and the SPLIT held in
 all three of P17's: the conformity reader found claims that were false — twelve of its twenty-four
 blocking findings across that plan were numbers — and the adequacy reader found bounds that were not
 there. **P18's sixty-one blocking findings split 29 conformity / 32 adequacy the same way**, and its
 sharpest single pass is the one that came back EMPTY on its central obligation: W67's conformity reader
 re-derived every expected value of both exit-artifact rows on paper — the dispatched ids, what six
 workers each receive and return field by field, the join's record, the transform's reduction, the pool
-each task ran on — and found **zero disagreements**. Everything it found was a sentence. **W41's 1 of 116 is the largest denominator ever recorded here and it did not
+each task ran on — and found **zero disagreements**. Everything it found was a sentence. **P19's did
+it twice more** — W74's conformity reader derived all ten enumerated paths with their types and
+guarantees, all three verdicts with their exact `why` strings, both generated signatures character for
+character and the run's `{ words: 3 }` from the schemas alone, before reading a line of output, and
+every one matched; what it found instead was a **RED GATE ENTRY** and a measurement stated backwards
+in four documents. **And P19 adds a THIRD ROAD that neither role's description names: a reader finding
+a defect with NO MUTATION AT ALL.** W73's adequacy reader constructed a map branch task composing
+`"."` and transforming it — a correct wiring the check reports `transform-fails`, the refusing
+direction on a flow an author would want — by building the document and reading the verdict, no probe;
+W74's found `pathsOf`'s bare `in` the same way, from `schema.ts`'s own `own()` helper thirty lines from
+the module it imports, and its conformity reader reached the identical defect from the other end, which
+is that pair's whole overlap. *Mutation is how an adequacy reader finds what a suite cannot see;
+constructing a value the corpus does not contain is how it finds what the CODE cannot see.* Recorded at
+two occurrences and not turned into a method line, because both readers already do it unprompted.
+**W41's 1 of 116 is the largest denominator ever recorded here and it did not
 move the numerator**, which is the clearest single datum against reading the fraction. **The band read 1-4 over ten measurements until W31 came in at ZERO**, and P9's
 retro corrected the number rather than the conclusion: a zero is what *"the second reader finds what
 the first was not looking for"* predicts at its limit, and W31's pair produced **5 and 10 findings

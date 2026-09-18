@@ -1,6 +1,6 @@
 # W74 — The assists, and the exit artifact: an authoring session a human can watch
 
-**Status:** **DONE** 2026-09-18 — built, gated, both reader passes run the same day, rule 8 re-run with their twenty-three exact edits as probes, the confirming gate green with the tree held still (the Record). Declared 2026-09-18 on `af7b1db`'s tree (digest `d70ada3c2a0e4d43` over 353 files,
+**Status:** **DONE** 2026-09-18, committed 2026-09-19 00:17 — built, gated, both reader passes run the same day, rule 8 re-run with their twenty-three exact edits as probes, the confirming gate green with the tree held still (the Record). *(The date read **2026-09-18** alone here, in this file's Record and in three index paragraphs, and the item's work WAS the 18th — but its second confirming gate finished at **00:10 on the 19th** (`dev-dist/w74/gate-final2.log`) and `cf6d821` is dated **00:17**. The only item of nineteen plans to cross midnight; corrected by P19's retro under `doc/workflow.md` section 6 pass 3 rule 6, because *a claim states the scope it was MEASURED at* and the day is one.)* Declared 2026-09-18 on `af7b1db`'s tree (digest `d70ada3c2a0e4d43` over 353 files,
 Node 24.20.0), its declaration-step facts measured before anything is built and the tree held still
 throughout — the digest is identical at both ends of the declaration step. **The three stop-and-asks
 below were put to the maintainer before a line was built and ANSWERED the same day, each as
