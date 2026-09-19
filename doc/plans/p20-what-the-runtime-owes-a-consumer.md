@@ -1,6 +1,6 @@
 # P20 — What the runtime owes a consumer that the driver does not
 
-**Status:** **COMPLETE, pending retro** — [W76](../work-items/w76-what-start-accepts.md), [W77](../work-items/w77-what-start-returns.md) and [W78](../work-items/w78-the-run-a-consumer-holds-in-one-line.md) are all DONE, the last on 2026-09-19. **W79 is CLOSED unissued, Q328-Q329 are spent and ADR 0059 is skipped.** Declared 2026-09-19 on `817fd73` (P1-P19 complete and
+**Status:** **COMPLETE and RETRO'D** — [W76](../work-items/w76-what-start-accepts.md), [W77](../work-items/w77-what-start-returns.md) and [W78](../work-items/w78-the-run-a-consumer-holds-in-one-line.md) are all DONE, and the retro is run: `doc/workflow.md` is [v0.21](../workflow.md), **ONE change adopted and FIVE refused**. **W79 CLOSED unissued, Q328-Q329 reserved-and-unused and therefore SPENT, ADR 0059 SKIPPED — the next plan starts at W80, Q330 and ADR 0060, by grep off the tree.** Declared 2026-09-19 on `817fd73` (P1-P19 complete and
 retro'd, `doc/workflow.md` [v0.20](../workflow.md)), its six facts measured the same day into
 `dev-dist/p20/`.
 **Question this plan answers:** *What does `createRuntime` owe a consumer that a `Driver` does not —
@@ -446,6 +446,128 @@ four the record step allows (`doc/README.md`, `CLAUDE.md`, `README.md`,
 declaration touches — is what the five UNMOVED rows check.*
 
 ---
+
+---
+
+## Retro
+
+*Pass 3, run 2026-09-19 on `a246a6e`'s tree. **ONE change adopted, FIVE refused**, and
+`doc/workflow.md` is [v0.21](../workflow.md), where the full reasoning lives. What follows is this
+plan's own evidence.*
+
+### The central finding: v0.18's CONTROLS clause reads the wrong side of the comparison it guards
+
+[W78](../work-items/w78-the-run-a-consumer-holds-in-one-line.md)'s adequacy reader asked *make each
+claim vacuous without tripping its control*, and all three of that block's controls fell. **This
+retro then asked it of the controls the clause had already produced elsewhere, and they fall the same
+way** — `dev-dist/p20-retro/controls.mjs`, tree held still at `2883516a31ee1d2e` at both ends:
+
+| | the claim | its control | one token |
+|---|---|---|---|
+| W78 | the region equality, the fold invariant, ADR 0058 rule 4 | two `length > 0` readings and one **entailed by its own claim** | **0**, three times |
+| [W58](../work-items/w58-what-a-node-says-about-its-own-task.md) | *non-zero `attempts` occurs in exactly the rows that declare it, both ways* | *and that set is not empty — a real retry happened somewhere* | **0** — `1639 assertions, 0 failed` |
+| W58 | *a resource event was reported for exactly the task ids some row declares, both ways* | none declared | **0** |
+
+Every claim of this shape is *OBSERVED equals DECLARED, both ways*; every control ever written for
+one reads *DECLARED is not empty*. Re-source OBSERVED to DECLARED and the claim compares a list with
+itself while the control stays **exactly as true as before**. **That is obligation (c)'s entire probe
+class, invisible by construction to the mechanism v0.18 added to see it.** W78's answer is IDENTITY,
+one expression, zero cost. *Three amendments to one obligation — v0.14, v0.18, v0.21 — each the
+previous one followed and short, and each named a thing to ADD where none named a property the added
+thing must have.*
+
+### Name the rung
+
+**THIRTY-FOUR defects across the three items' own *What broke* lists (9 / 12 / 13). SIXTEEN name a
+rung that FIRED**: an item's own new L1 binding on its first run, the definition validator refusing
+four fixtures by name, a source binding going red on its own prose, rule 7 (b) aborting three probes
+whose anchors a fix had moved, rule 8's *fires for the reason it names* on two of an author's own, a
+test file that stopped parsing when a heredoc ate a `\n`, `ERR_UNKNOWN_FILE_EXTENSION` on a shell
+that never ran `fnm use 24`, and **two `GATE EXIT=1`s**. **Fifteen of the sixteen were read correctly
+at the first opportunity**; the sixteenth is the browser rung, reported green from a `grep` whose
+pattern could not match a `FAIL` line, and **the gate caught it two steps later**.
+
+**Eighteen have no rung, and FIVE are in the INSTRUMENTS** — a harness reporting its own control as
+an undeclared survivor; a harness that ran 2.5 hours and produced **no verdict at all**; a harness
+killed between apply and restore that left the tree mutated; a killed harness that **kept running**
+and edited the tree under its author's later measurements; and a dated ceiling whose site the
+expiring item CONSUMED, so the anchor matched and rule 7 (b) could not abort
+([Q317](../open-questions.md)).
+
+### The predictions
+
+| # | verdict |
+|---|---|
+| 1 | **CONFIRMED.** W76 is two lines in `src/`, and `src/driver/driver.ts` was never opened by any item |
+| 2 | **CONFIRMED, with its MECHANISM narrowed by the item that met it.** A test can show `done` is the same expression moved — but W77's adequacy reader falsified the plan's own named sentence BEHAVIOURALLY for **zero** (`isTerminal` reimplemented in the runtime; `done` computed from `fold(driver.foldInputs())`), because what separates the mechanisms is RETENTION and TIME and no rung weighs either. The binding that holds it is a SOURCE binding |
+| 3 | **REVERSED** — six of nine reference snippets use `done` and never touch the driver — **and its own stated consequence refused on a measurement**: it said a reversal would argue for a `runtime.run()` beside `start`, and the BREAKING road already costs such a consumer one destructured name they omit. *A reach prediction reversed and STRENGTHENED the decision it was written against.* P10's reading — only a reach prediction can reverse — holds for the eighth plan |
+| 4 | **NEITHER, and it is a fourth shape.** *Deleting the copies removes more lines than the whole plan adds to `src/`* is TRUE at 4.6x against **26 CODE** lines and FALSE against **171 RAW** ones, and the prediction names neither count. Not narrower than its wording (P13's shape), not false underneath (P14's), not stronger than any observable (P18's) — **ambiguous between two observables that disagree** ([Q326](../open-questions.md)) |
+
+### v0.20's one change, and the clauses this plan exercised
+
+**v0.20's TAUTOLOGY clause: CONFIRMED on its first plan, and ALL THREE authors instantiated it** —
+W76's `b1` on §10's five guards, W77's on a pin and on two members of its six-outcome enumeration,
+W78's `b4` on §10's two new `done` guards. **Every author's instantiation came back a declared
+CEILING while a READER found the large ones**: W78's adequacy reader made all seven of the L6 block's
+claims tautologies with both counts, the subject list, the run count and all three controls unmoved,
+then put BOTH of P20's `src/` reverts on top and L6 was still green at 1639. **The productive form is
+the COMPOUND** — tautologise the claim AND break the mechanism, which is what W77's `d5`/`d6` do and
+why those two CAUGHT — recorded at two occurrences and **not adopted**, because v0.20 already says
+the answer is a second observer and the compound is how you prove one exists.
+
+**v0.16's *a rung is RUN, never PIPED* was FOLLOWED and failed anyway**, which section 6 pass 3
+rule 3 calls the sharpest kind: W77 redirected `test:browser:all` correctly and then read it with a
+`grep` that could not match a failure while `EXIT=1` sat two lines away. *Redirecting is what makes
+the exit code available; it does not make anyone read it.* The counter-measure the items converged
+on — print the FAIL count beside the exit code, so a green claim carries both numbers or neither —
+is **recorded and not ruled**: the clause is right and the reading failed. **v0.19's environment
+clause fired again**, in W77's author's own shell rather than in a harness.
+
+### The numbers
+
+**Rule 8 across the plan, all 92 probes RE-RUN at this retro on the shipped tree** (W76's 25, W77's
+34, W78's 33): **71 caught, 18 declared ceilings RUN, ZERO catches, ZERO undeclared survivors, ZERO
+crashes, ZERO timeouts, ZERO aborts, ZERO against declaration**, digest identical at both ends of all
+three. **Zero catches for the second plan running** — and the reason is visible: W77 re-ran W76's
+set inside W77, and W78 re-ran both inside W78, so every ceiling had already been re-run by the item
+that could have moved it. *The dated-ceiling clause is working and the hand-off P18 and P19 refused
+has nothing left to catch.*
+
+**Readers six passes, none empty, overlaps 2, 2, 2 — the forty-seventh to forty-ninth measurements**,
+band unmoved. **Forty-one blocking findings**, split 22 conformity / 19 adequacy. **And P20 adds a
+shape the overlap number cannot express**: W78's two readers shared a subject and **disagreed about
+it** — conformity called `await person` dangerous, adequacy called it inert, both measured what they
+said, and both were right about different halves of one line.
+
+**Late exceptions 2 / 3 / 1 — six, ZERO undeclared**, and no two items' late files overlap, which is
+the eighth plan running to refuse an `Owns` pre-declaration rule.
+
+**Census CONFIRMED for the TWENTY-FIRST plan running — 252 / 195 / 2 / 55, 252 of 252 in exactly
+one cluster cell, 0 aborts.** Q315-Q327 raised across the plan, Q297 RESOLVED, Q328-Q329 spent; the
+retro raises none and extends [Q171](../open-questions.md) and [Q217](../open-questions.md).
+
+**The retro's own confirming gate, over the tree it ships**, every rung RUN and never PIPED,
+redirected to `dev-dist/p20-retro/gate.log` and read by its exit code, the tree held STILL and the
+content digest identical at both ends:
+
+```
+GATE EXIT=0, zero lines beginning FAIL at any indent
+selftests 8/8 completed, 8 ok, 889.9 s wall over 6 lanes
+44 file(s), 1269 assertions in node 24.20.0, deno 2.9.6 and chromium
+1639 assertions at L6, 0 failed, 55 real runs on fyflow-scheduler 0.5.2, in node and deno
+spec      7 documents, 61 examples, 107 rules
+docs      33 snippets: 27 run, 6 check
+source    23 published files, 16 gate entries
+markdown  137 documents, 6006 relative links, 296 anchored
+register  252 / 195 / 2 / 55, 252 of 252 in one cluster cell, 0 aborts
+digest    62bf299672903144 over 365 files, IDENTICAL before and after
+```
+
+**And [Q142](../open-questions.md) is the tightest it has ever been here and does NOT fire.** Measured
+after this retro's own prose landed: `M3 = 107` against a fixture of **104**, margin **3**; `M4 = 4450`
+against **4419**, margin **31**. *That is the exact margin [P18](p18-a-flow-and-its-runtime-from-documents-alone.md)'s
+retro FIRED on*, and the difference is that this retro's index paragraphs carry almost no links — the
+number is quoted rather than predicted, and the final gate is what checks it.
 
 ## Record
 

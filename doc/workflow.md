@@ -1,6 +1,6 @@
 # Workflow
 
-**Status:** v0.20 - **run to completion NINETEEN times**, by [P1](plans/p1-what-satisfies-a-join.md),
+**Status:** v0.21 - **run to completion TWENTY times**, by [P1](plans/p1-what-satisfies-a-join.md),
 [P2](plans/p2-the-non-success-half-on-a-real-scheduler.md),
 [P3](plans/p3-a-consumer-reference-the-gate-keeps-true.md),
 [P4](plans/p4-the-drivers-lifetime-and-the-handles-it-gives-out.md),
@@ -18,7 +18,8 @@
 [P16](plans/p16-what-a-node-type-is-and-what-the-library-owes-the-scheduler.md) and
 [P17](plans/p17-what-a-node-may-do-to-its-input-before-its-worker-sees-it.md) and
 [P18](plans/p18-a-flow-and-its-runtime-from-documents-alone.md) and
-[P19](plans/p19-what-a-schema-buys-an-author.md)
+[P19](plans/p19-what-a-schema-buys-an-author.md) and
+[P20](plans/p20-what-the-runtime-owes-a-consumer.md)
 **Read this before starting any work item.** *(The status line read "seven times" and listed P1-P7
 until P9's retro: **P8 ran this document to completion and adopted none of its proposals**, which is
 section 6 pass 3 rule 1's expected verdict and is not the same as not having run it.)* Paths are relative to the repo root unless they are
@@ -101,6 +102,153 @@ prediction about rule 8 is answered and is **false**.
    ([ADR 0029](decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)).
    The dependency edge that made the junction seem necessary is gone; **the rule still said nothing
    about the removal**, which is the part that did the damage.
+
+**v0.21 is [P20](plans/p20-what-the-runtime-owes-a-consumer.md)'s retro, and its central finding is
+that v0.18's CONTROLS clause has been FOLLOWED by every item that ever added one, and every control
+it has produced reads the WRONG SIDE of the comparison it guards.** P20 asked *what does the runtime
+owe a consumer that the driver does not?* — answered by
+[ADR 0058](decisions/0058-runtime-start-returns-a-completion-handle-the-runtime-keeps.md) and by two
+items that took none, three items, six reader passes, and an exit artifact in which a consumer holds
+only what `start` returned. It adopts **one** change and refuses **five**, all in
+[P20's Record](plans/p20-what-the-runtime-owes-a-consumer.md).
+
+**Name the rung. THIRTY-FOUR defects across the three items' own *What broke* lists (9 / 12 / 13),
+and SIXTEEN name a rung that FIRED** — an item's own new L1 binding on its first run, the definition
+validator refusing four fixtures BY NAME, a source binding going red on its own prose, rule 7 (b)
+aborting three probes whose anchors a fix had moved, rule 8's *fires for the reason it names* on two
+of an author's own, a test file that stopped parsing when a heredoc ate a `\n`, `ERR_UNKNOWN_FILE_EXTENSION`
+on a shell that never ran `fnm use 24`, and **two `GATE EXIT=1`s**. **FIFTEEN of the sixteen were read
+correctly at the first opportunity**; the sixteenth is the browser rung, reported GREEN from a `grep`
+whose pattern could not match a `FAIL` line while `EXIT=1` sat two lines away in the same file — and
+**the GATE is what caught it two steps later**. Eighteen have no rung, and **five of those are in the
+INSTRUMENTS**: a harness that reported its own CONTROL as an undeclared survivor, a harness that ran
+for two and a half hours and produced **no verdict at all**, a harness KILLED between apply and
+restore that left the tree mutated, a KILLED harness that **kept running** and edited the tree under
+its author's later measurements, and a dated ceiling whose site the expiring item CONSUMED, so the
+anchor still matched and rule 7 (b) could not abort ([Q317](open-questions.md)).
+
+1. **Rule 8 obligation (d)'s CONTROLS clause gains: a control must fail where its claim is VACUOUS,
+   not only where its subject is ABSENT — and that means it is an expression over the OBSERVED side
+   or over the RELATION, never over the declared one.**
+   [W78](work-items/w78-the-run-a-consumer-holds-in-one-line.md)'s adequacy reader put the question
+   as *make each claim vacuous without tripping its control*, and all three of that block's controls
+   fell. **This retro then asked it of the controls the clause has ALREADY produced, and they fall
+   the same way** (`dev-dist/p20-retro/controls.mjs`, tree held still at one digest):
+
+   | | the claim | its control | one token |
+   |---|---|---|---|
+   | [W78](work-items/w78-the-run-a-consumer-holds-in-one-line.md) | the region equality, the fold invariant, ADR 0058 rule 4 | two `length > 0` readings, and a third **entailed by its own claim** | **0**, three times |
+   | [W58](work-items/w58-what-a-node-says-about-its-own-task.md) | *non-zero `attempts` occurs in exactly the rows that declare it, both ways* | *and that set is not empty — a real retry happened somewhere* | **0** — `1639 assertions, 0 failed` |
+   | [W58](work-items/w58-what-a-node-says-about-its-own-task.md) | *a resource event was reported for exactly the task ids some row declares, both ways* | none declared | **0** |
+
+   **The mechanism is why it generalises rather than a third item.** Every claim of this shape is
+   *OBSERVED equals DECLARED, both ways*, and every control written for one reads *DECLARED is not
+   empty* — so re-sourcing OBSERVED to DECLARED makes the claim compare a list with itself and leaves
+   the control **exactly as true as before**, because a re-sourced list is as non-empty as the list it
+   came from. That is obligation (c)'s entire probe class, invisible to the mechanism v0.18 added to
+   see it. **W78's answer is IDENTITY** — *the two sides are different values* — which refuses the
+   whole class in one expression and costs nothing. **And a control ENTAILED by its own claim is a
+   fourth claim**: W78's third asserted `stoppedBy` is a non-empty string, which the clause beside it
+   already required, so no tree could make it fire alone.
+
+   **It replaces nothing and it is the third amendment to this obligation.** v0.14 said a COUNT is
+   not a MEMBERSHIP; v0.18 said a membership names its CONTROLS; this says what a control has to be
+   able to do. *Each was the previous one FOLLOWED and short* — which is section 6 pass 3 rule 3 three
+   times on one clause, and the reason the sequence keeps running is that each amendment names a thing
+   to ADD and none named a property the thing must have. [Q217](open-questions.md).
+
+**REFUSED, five, each with a measurement.** **(1) A `doc/` check for the NINETEENTH time, and P20
+supplies the first `doc/` claim in twenty plans that a check could compare without reading English.**
+[ADR 0058](decisions/0058-runtime-start-returns-a-completion-handle-the-runtime-keeps.md)'s Context
+quoted *"load-bearing rather than decoration"* and attributed it to `AGENTS.md:112`; W78 deleted that
+sentence with the block around it, and the citation dangled through the whole item until its
+conformity reader grepped for it. **A quoted string attributed to a named file either occurs in that
+file or does not — no English needed.** What defeats the check is the corpus: `doc/` carries **109
+deliberate historical quotations across 52 files** (*"this read X until W78"*, *"it used to say"*,
+*"until W71 took the id"*), every one a quotation of text that is CORRECTLY absent, and telling a live
+citation from a deliberate historical one **is** reading English. *The refusal's own criterion is met
+for the first time and the corpus is what refuses it.* **(2) An `X7`-shaped clause over the L6 counts
+— NAMED for the next plan rather than refused, because it was never inside this refusal.** W78 found
+`README.md` carrying **1627 / 53** in two places while `examples/README.md` had been updated to
+1639 / 55; `examples/l6.ts` declares `DECLARED_TOTAL` as a literal and PRINTS the run count on every
+gate run, and `check-docs`' **`X7`** already compares a count `AGENTS.md` states to
+`spec/flow-definition.md`'s row count. The number has gone stale at least five times, recorded in
+`examples/README.md`'s own cell ([Q171](open-questions.md)) — **and neither of the two documents that
+must track it is under `doc/`**, so eighteen refusals of a `doc/` check never covered it. It is an
+item's work and not a retro's. **(3) The dated-ceiling HAND-OFF, refused a THIRD time and now with
+its best numbers.** All **92** probes the plan declared were re-run at this retro on the shipped tree
+— W76's 25, W77's 34, W78's 33 — and the result is **71 caught, 18 declared ceilings RUN, ZERO
+catches, ZERO undeclared survivors, ZERO crashes, ZERO timeouts, ZERO aborts**, with the digest
+identical at both ends of all three. **Zero catches for the second plan running**, against P18's 1 in
+14 and P16's 2 in 23, and the reason is visible: W77 re-ran W76's set inside W77 and W78 re-ran both
+inside W78, so every ceiling had already been re-run by the item that could have moved it. *The
+clause is working and the hand-off has nothing left to catch.* **(4) An `Owns` pre-declaration rule,
+for the EIGHTH plan running.** Late exceptions ran **2 / 3 / 1** with **zero undeclared** across the
+plan, and the three items' late files were `scripts/build-browser-tests.mjs` + `test/definition/l4-corpus.test.ts`,
+`AGENTS.md` + `README.md` + `src/scheduler/index.ts`, and `scripts/check-docs-selftest.mjs` — **no two
+of them overlap**, and W78 declared four seeded predictions UNNEEDED and was right about all four. A
+rule naming a file set would have been wrong on every item. **(5) A rule about a KILLED harness**,
+at one occurrence: W78 stopped a hung run by killing `node.exe`, the PYTHON PARENT survived and went
+on editing `src/scheduler/runtime.ts` under the author's own later measurements, and reported hours
+later with the killed rung printed as `EXIT=1  FAIL lines: 0` — **zero cost, in the column that
+carries a real 10**. Section 6's *a measurement over a moving tree is a claim about no tree* from a
+direction it does not name. Refused because the counter-measure is *kill a process TREE*, which is an
+environment fact rather than a method, and because the harness that misreported was a MEASUREMENT
+harness: every requirement v0.11-v0.19 puts on a harness is written for a PROVOCATION set, and
+widening that scope is one word with no second occurrence behind it. [Q327](open-questions.md).
+
+**FOUR predictions, and the plan's own scope column did its work twice.** **Prediction 1 CONFIRMED** —
+W76 is two lines in `src/` and `src/driver/driver.ts` was never opened. **Prediction 2 CONFIRMED with
+its mechanism NARROWED by the item that met it**: a test can show `done` is the same expression moved,
+and W77's adequacy reader falsified the plan's own named sentence BEHAVIOURALLY for **zero** —
+`isTerminal` reimplemented in the runtime, and `done` computed from `fold(driver.foldInputs())` —
+because what separates the mechanisms is RETENTION and TIME and no rung weighs either, so the binding
+that holds it is a SOURCE binding. **Prediction 3, the reach, REVERSED** — six of nine reference
+snippets use `done` and never touch the driver — **and its own stated consequence was refused on a
+measurement**: it said a reversal would argue for a `runtime.run(flow, payload)` beside `start`, and
+the BREAKING road already costs such a consumer **one destructured name they omit**. *A reach
+prediction reversed and STRENGTHENED the decision it was written against*, which is new; P10's retro's
+reading — that only a reach prediction can reverse — holds for the eighth plan. **Prediction 4 is
+NEITHER**, and that is the fourth shape this document has for a derived prediction: *deleting the
+copies removes more lines than the whole plan adds to `src/`* is **TRUE at 4.6x against the 26 CODE
+lines P20 adds and FALSE against its 171 RAW ones**, and the prediction names neither count. Not
+narrower than its wording (P13's shape), not false underneath (P14's), not stronger than any
+observable (P18's) — **ambiguous between two observables that disagree**, in a repository whose `src/`
+is majority comment by house style. [Q326](open-questions.md).
+
+**v0.20's ONE change: CONFIRMED on its first plan, and all three authors instantiated it.** Every item
+ran a tautology pass — W76's `b1` on §10's five guards, W77's on a PIN and on two members of its
+six-outcome enumeration, W78's `b4` on §10's two new `done` guards — **and every author's
+instantiation came back a declared CEILING while a READER found the large ones**: W78's adequacy
+reader made all SEVEN of the L6 block's claims tautologies with `CROSS_ROW`, `DECLARED_TOTAL`, the
+subject list, the run count and all three controls unmoved, then added BOTH of P20's `src/` reverts on
+top and L6 was still **green at 1639**. **The productive form is the COMPOUND** — W77's `d5`/`d6`
+tautologise a claim AND break the mechanism, and those CAUGHT — which is obligation (c)'s procedure
+applied to (b); recorded here at two occurrences and **not adopted**, because v0.20 already says the
+answer is a second observer and the compound is how you prove one exists rather than a new thing to
+break. **v0.19's environment clause fired again** (W77, in the author's own shell rather than in a
+harness). **v0.16's *a rung is RUN, never PIPED* was FOLLOWED and failed anyway, which is the sharpest
+kind**: W77 redirected `test:browser:all` correctly and then read it with a `grep` that could not match
+a failure — *redirecting is what makes the exit code available and it does not make anyone read it* —
+and the counter-measure the items converged on, printing the FAIL count beside the exit code so a green
+claim carries both numbers or neither, is **recorded and not ruled**, because the clause is right and
+it was the reading that failed.
+
+**Readers six passes, none empty, overlaps 2, 2, 2 — the FORTY-SEVENTH to FORTY-NINTH measurements**,
+band unmoved, and **P20 adds a shape the list has never carried: two readers who SHARED a subject and
+DISAGREED about it.** W78's conformity reader called `AGENTS.md`'s `await person` dangerous — unbounded
+when a run never parks, and its rejections fatal — and its adequacy reader called the same line inert,
+deletable for zero, with Node surfacing the rejection either way. **Both were right, about different
+halves**, and the fix is one expression that closes both. **Both of W76's shared subjects were ONE
+LITERAL reached from opposite ends**, and W78's other one was the `settledA ?? foldedA` fallback,
+reached by reading the clause and by mutating it. **Rule 8 across the plan: 92 probes on the final
+passes, 71 caught, 18 declared ceilings, 0 undeclared survivors, 0 crashes, 0 timeouts, 0 aborts, 0
+against declaration** — and the AUTHOR passes read **four** undeclared survivors themselves and closed
+them. **Late exceptions 2, 3, 1 — six, ZERO undeclared.** **Census CONFIRMED for the TWENTY-FIRST plan
+running**; the retro raises no question and extends [Q171](open-questions.md) and
+[Q217](open-questions.md). **W79 CLOSED unissued, Q328-Q329 reserved-and-unused and therefore SPENT, ADR 0059 SKIPPED — so on
+this document's own never-reissue rule the next plan starts at W80, Q330 and ADR 0060, derived by grep
+off the tree rather than from this sentence.**
 
 **v0.20 is [P19](plans/p19-what-a-schema-buys-an-author.md)'s retro, and its central finding is that
 the plan's EXIT ARTIFACT — an authoring session `npm run gate` executes — can have every one of its
@@ -1631,7 +1779,7 @@ Rules:
    | **(a)** | break the rule's own CLAUSES — **and the SHAPES those clauses quantify over, every value the rule ENUMERATES, each under the SAME claim** | v0.6, P4's retro; **the shapes clause v0.16, P15's retro; the enumeration clause v0.17, P16's retro; the same-claim clause v0.18, P17's retro** |
    | **(b)** | break every row of the `Outputs` table — **and where a row IS an assertion, make each of its claims a TAUTOLOGY rather than deleting it** | v0.7, P5's retro; **the tautology clause v0.20, P19's retro** |
    | **(c)** | break the PROVENANCE of every value an assertion reads — change the source expression and nothing else | v0.8, P6's retro; procedure added v0.9; **its LIMIT v0.13, P12's retro; and what *independent* excludes, v0.16, P15's retro** |
-   | **(d)** | break the LOOP BOUNDS — one entry out, the whole list out, and does anything COUNT it from elsewhere — **a count is not a membership, and a membership names the CONTROLS beside its claims** | v0.9, P7's retro; **the membership clause v0.14, P13's retro; the controls clause v0.18, P17's retro** |
+   | **(d)** | break the LOOP BOUNDS — one entry out, the whole list out, and does anything COUNT it from elsewhere — **a count is not a membership; a membership names the CONTROLS beside its claims; and a control must fail where its claim is VACUOUS, not only where its subject is ABSENT** | v0.9, P7's retro; **the membership clause v0.14, P13's retro; the controls clause v0.18, P17's retro; what a control must be able to do, v0.21, P20's retro** |
    | **(e)** | break the WIRING — what happens when the check is NOT RUN, and **is what it ran what SHIPS** | v0.10, P9's retro; second question **v0.12, P11's retro**; **third shape v0.13, P12's retro** |
    | | **and on the set as a whole:** | |
    | | a survivor is one only once a **second independent route** confirms the clause was reachable | v0.7, P5's retro |
@@ -1871,6 +2019,35 @@ Rules:
    *A membership over claims binds the vacuity of nothing.* So: where a block pairs a claim with its
    control, the list names both — and a count lowered by two is what a membership of claims cannot
    see.
+
+   **AND A CONTROL MUST FAIL WHERE ITS CLAIM IS VACUOUS, NOT ONLY WHERE ITS SUBJECT IS ABSENT —
+   P20's retro, and the clause above was FOLLOWED by every item that ever added one.** Every control
+   the clause has produced reads `length > 0` on a LIST, and every claim it guards has the shape
+   *OBSERVED equals DECLARED, both ways* — so the control reads the **declared** side of the very
+   comparison it exists to make non-vacuous.
+
+   | | the claim | its control | what ONE TOKEN cost |
+   |---|---|---|---|
+   | [W78](work-items/w78-the-run-a-consumer-holds-in-one-line.md) | a region-event equality, a fold invariant, and ADR 0058 rule 4 | two `length > 0` readings — and a third **entailed by its own claim** | **0**, three times, found by its adequacy reader asking *make each claim vacuous without tripping its control* |
+   | [W58](work-items/w58-what-a-node-says-about-its-own-task.md) | *non-zero `attempts` occurs in exactly the rows that declare it, both ways* | *and that set is not empty — a real retry happened somewhere* | **0** — re-measured at P20's retro: `1639 assertions, 0 failed` |
+   | [W58](work-items/w58-what-a-node-says-about-its-own-task.md) | *a resource event was reported for exactly the task ids some row declares, both ways* | none declared at all | **0** |
+
+   **Re-source OBSERVED to DECLARED and the claim compares a list with itself, while the control is
+   exactly as true as before** — because a re-sourced list is as non-empty as the list it came from.
+   That is obligation (c)'s entire probe class, invisible by construction to the mechanism v0.18
+   added in order to see it.
+
+   **So: a control is an expression over the OBSERVED side, or over the RELATION between the two
+   sides — never over the declared one.** W78's answer is **IDENTITY** (*the two sides are different
+   values*), which refuses the whole class in one expression and costs nothing. **And a control
+   ENTAILED by its own claim is a fourth claim**: W78's third asserted `stoppedBy` is a non-empty
+   string, which the clause beside it already required, so no tree could make it fire alone — ask of
+   every control what tree makes it fail while its claim passes, and if there is none it is not a
+   control.
+
+   *Three amendments to one obligation, each the previous one followed and short* (v0.14, v0.18,
+   v0.21) — and the reason the sequence keeps running is that each named a thing to ADD and none
+   named a property the added thing must have. [Q217](open-questions.md).
 
    **The sharpest half is that W23 already knew.** It ran five bounds probes deliberately — a row, a
    region, a foreign task, a branch, the cost model — **and all five were caught**, and its reader
@@ -2292,11 +2469,11 @@ and there is obvious work to do meanwhile — and **the thing that makes it a de
 habit is that the verdict is reported as though it were about the tree that ships.**)*
 
 **Why two readers rather than one asking both questions**, which is what earlier versions said.
-Measured **forty-six** times now: W4 1 of 13, W5 3 of ~35, W6 3 of ~25, W9 3 of ~30, W12 3 of 18,
+Measured **forty-nine** times now: W4 1 of 13, W5 3 of ~35, W6 3 of ~25, W9 3 of ~30, W12 3 of 18,
 W13 4 of 24, W14 4 of ~26, W17 3 of ~31, W18 2, W19 4 of 18, W28 4, W29 1, W30 2, W31 0, W32 2,
 W33 2, W34 2, W36 1, W39 4, W41 1 of 116, W42 2 of 61, W43 2 of 39, W45 2, W46 2, W47 2,
 W49 2, W50 2, W51 1, W53 2, W54 4, W55 2, W57 0, W58 1, W59 1, W61 1, W62 1, W63 1,
-W65 2, W66 2, W67 1, *W69 1, W70 0, W71 2*, **W72 1, W73 1, W74 1**.
+W65 2, W66 2, W67 1, *W69 1, W70 0, W71 2*, W72 1, W73 1, W74 1, **W76 2, W77 2, W78 2**.
 
 *(**This list was STALE BY THREE for a whole plan and the three italic entries are why** — P19's
 retro. [W69](work-items/w69-a-getting-started-example-a-consumer-can-copy.md),
@@ -2325,10 +2502,11 @@ yet** - the same three facts reached by six different routes, and in each case t
 routes had nothing in common.
 
 **The number to carry is the ABSOLUTE one: two readers produce 0-4 shared findings, whatever the
-item's size** - **forty-six** measurements, and P6's retro declares the question **settled and closed
+item's size** - **forty-nine** measurements, and P6's retro declares the question **settled and closed
 to re-litigation**. **The thirty-two since — 2, 2, 2, 1, 4, 1, 2, 2, 2, 2, 2, 2, 2, 1, 2, 4, 2, 0, 1, 1, 1, 1, 1, 2, 2, 1, 1, 0, 2, 1, 1 and 1 —
 are all inside the band and the band has not moved.** **P13's three are 2, 2, 2, P14's are 2, 2, 1,
-P15's are 2, 4, 2, P16's are 0, 1, 1, P17's are 1, 1, 1, P18's are 2, 2, 1 and P19's are 1, 1, 1**, and the SPLIT held in
+P15's are 2, 4, 2, P16's are 0, 1, 1, P17's are 1, 1, 1, P18's are 2, 2, 1, P19's are 1, 1, 1 and
+P20's are 2, 2, 2**, and the SPLIT held in
 all three of P17's: the conformity reader found claims that were false — twelve of its twenty-four
 blocking findings across that plan were numbers — and the adequacy reader found bounds that were not
 there. **P18's sixty-one blocking findings split 29 conformity / 32 adequacy the same way**, and its
@@ -2349,6 +2527,16 @@ the module it imports, and its conformity reader reached the identical defect fr
 is that pair's whole overlap. *Mutation is how an adequacy reader finds what a suite cannot see;
 constructing a value the corpus does not contain is how it finds what the CODE cannot see.* Recorded at
 two occurrences and not turned into a method line, because both readers already do it unprompted.
+**And P20 adds a shape the overlap number cannot express: two readers who shared a subject and
+DISAGREED about it.** [W78](work-items/w78-the-run-a-consumer-holds-in-one-line.md)'s conformity
+reader called `AGENTS.md`'s `await person` **dangerous** — unbounded when a run never parks, and
+its three rejections fatal because nothing had attached to that promise yet — and its adequacy
+reader called the same line **inert**, deletable for zero, with Node surfacing the rejection either
+way. **Both measured what they said and both were right**, about the line's two halves: it is a
+hazard that hides nothing, and one expression closes both. *An overlap is counted as a shared
+SUBJECT and the two findings on it need not be the same finding* — which is what *each overlap
+arrived from a different direction* has meant for forty-nine measurements without a case sharp
+enough to say so.
 **W41's 1 of 116 is the largest denominator ever recorded here and it did not
 move the numerator**, which is the clearest single datum against reading the fraction. **The band read 1-4 over ten measurements until W31 came in at ZERO**, and P9's
 retro corrected the number rather than the conclusion: a zero is what *"the second reader finds what
