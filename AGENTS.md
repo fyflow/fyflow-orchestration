@@ -66,8 +66,9 @@ void shape;
 
 **Two documents, and one file of your own.** A REGISTRY says what exists — a worker module, and a
 node type that runs on it. A FLOW says what happens — nodes naming those types, and the edges between
-them. `createRuntime` builds every pool, group and scheduler the registry names and hands back a
-`Driver` per run. **The only code you write is the worker**:
+them. `createRuntime` builds every pool, group and scheduler the registry names and hands back
+**`{ driver, done }`** per run — the driver already running, and `done` a promise that resolves with
+the run's terminal state ([ADR 0058](doc/decisions/0058-runtime-start-returns-a-completion-handle-the-runtime-keeps.md)). **The only code you write is the worker**:
 `examples/getting-started/worker.ts`, a class with a `run` method and nothing else — no base class,
 no import. Everything below is executed by the gate on every `npm run gate`, and the same snippet is
 in `README.md`, held byte-equal to this one by `check-docs`'s `X8`
@@ -75,7 +76,7 @@ in `README.md`, held byte-equal to this one by `check-docs`'s `X8`
 
 ```ts run
 import { createRuntime } from 'fyflow-orchestration/scheduler';
-import { fold, isTerminal, type FlowDefinition, type FoldInput, type RegistryDocument, type RunState } from 'fyflow-orchestration';
+import { type FlowDefinition, type RegistryDocument } from 'fyflow-orchestration';
 
 // THE REGISTRY — what exists. One worker module, and one node type that runs on it. This is data:
 // in your program it is a JSON file you import. The worker url is relative, and `base` below says
@@ -110,23 +111,14 @@ const flow: FlowDefinition = {
 // relative worker urls resolve against — `import.meta.url` when the registry sits beside this file.
 const runtime = createRuntime(registry, {}, { base: import.meta.url });
 
-// A run is over when its own fold says so AT A QUIESCENT POINT — which is what the `queueMicrotask`
-// below buys, and it is load-bearing rather than decoration. The driver dispatches the next node
-// synchronously inside the same listener turn, so folding the instant an input arrives can report a
-// terminal state with the run still going; `RN-R12` claims its predicate at rest. `start` hands back
-// `{ driver, done }` — the driver already running, and `done` a promise that resolves with this
-// exact state (ADR 0058). The block below is what a consumer wrote before `done` existed, and it is
-// still here because reducing these copies is W78's, not W77's.
-const inputs: FoldInput[] = [];
-const state = await new Promise<RunState>((resolve, reject) => {
-  runtime.start(flow, { text: 'hello' }, {
-    onFoldInput: (input) => {
-      inputs.push(input);
-      queueMicrotask(() => { const s = fold(inputs); if (isTerminal(s)) resolve(s); });
-    },
-    onRunFailure: (f) => reject(new Error(`${f.kind}: ${f.message}`)),
-  });
-});
+// `start` hands back `{ driver, done }` — the driver already running, and `done` a promise that
+// resolves with the run's terminal `RunState` (ADR 0058). **It never rejects**: `failed`, `stuck`
+// and `stopped` are terminal OUTCOMES, so a run that goes wrong arrives as `state.outcome` and not
+// as a `catch`. This snippet wants only the end, so it names only `done`. *A run with a person in
+// it does not end by itself — section 7 is where that is taught, and section 8 is what `done` waits
+// for.*
+const { done } = runtime.start(flow, { text: 'hello' });
+const state = await done;
 await runtime.shutdown();
 
 // What the run did, read off its state: `greet` turned `hello` into `hello world`, and `shout` was
@@ -713,7 +705,7 @@ value is the same whatever order the branches finished in.
 
 ```ts run
 import { createRuntime } from 'fyflow-orchestration/scheduler';
-import { fold, isTerminal, type FlowDefinition, type FoldInput, type RegistryDocument, type RunState } from 'fyflow-orchestration';
+import { type FlowDefinition, type FoldInput, type RegistryDocument } from 'fyflow-orchestration';
 
 // Two workers of your own: one returns a score after a stated delay, the other tags whatever it was
 // handed so the collection is legible in what it returns.
@@ -741,13 +733,13 @@ const flow: FlowDefinition = {
 };
 
 const runtime = createRuntime(registry, {}, { base: import.meta.url });
+// **`onFoldInput` is still here and what it is for is the ORDER, not the END.** `await done` is the
+// end (ADR 0058). A `RunState` is order-free by construction — the fold keys everything by task id
+// — so *which branch settled first* is a fact only the input SEQUENCE carries, and it is what the
+// claim below is measured against. **This is the residue**: `done` takes the termination out of a
+// snippet and leaves whatever else the callback was doing.
 const inputs: FoldInput[] = [];
-const state = await new Promise<RunState>((resolve, reject) => {
-  runtime.start(flow, {}, {
-    onFoldInput: (input) => { inputs.push(input); queueMicrotask(() => { const s = fold(inputs); if (isTerminal(s)) resolve(s); }); },
-    onRunFailure: (f) => reject(new Error(`${f.kind}: ${f.message}`)),
-  });
-});
+const state = await runtime.start(flow, {}, { onFoldInput: (input) => { inputs.push(input); } }).done;
 await runtime.shutdown();
 
 // **The order is READ, not assumed.** The delay above ASKS for branch "1" to settle first; this is
@@ -809,7 +801,7 @@ It is also `README.md`'s second snippet, held byte-equal to this one by `check-d
 
 ```ts run
 import { createRuntime } from 'fyflow-orchestration/scheduler';
-import { fold, isTerminal, type FlowDefinition, type FoldInput, type Predicate, type RegistryDocument, type RunState } from 'fyflow-orchestration';
+import { type FlowDefinition, type Predicate, type RegistryDocument, type RunState } from 'fyflow-orchestration';
 
 // THE REGISTRY — one worker, one type, and the NAME of a predicate the flow may use. A predicate is
 // code (ADR 0002), supplied beside the document under that name; a flow using a name nobody supplied
@@ -849,13 +841,9 @@ const flow: FlowDefinition = {
 // ONE runtime, TWO runs. Pools belong to the runtime and are shared across runs; each run is its own
 // `Driver` with its own fold, and the join policy defaults to `live-token` (ADR 0003).
 const runtime = createRuntime(registry, { predicates: { isLowConfidence } }, { base: import.meta.url });
-const run = (payload: unknown) => new Promise<RunState>((resolve, reject) => {
-  const inputs: FoldInput[] = [];
-  runtime.start(flow, payload, {
-    onFoldInput: (input) => { inputs.push(input); queueMicrotask(() => { const s = fold(inputs); if (isTerminal(s)) resolve(s); }); },
-    onRunFailure: (f) => reject(new Error(`${f.kind}: ${f.message}`)),
-  });
-});
+// Each run has its OWN `done`, so two runs are two promises — `start` is called twice and the whole
+// of the wait is `await`. Nothing here folds anything: the runtime keeps the fold (ADR 0058).
+const run = (payload: unknown) => runtime.start(flow, payload).done;
 const high = await run({ confidence: 0.9 });
 const low = await run({ confidence: 0.2 });
 await runtime.shutdown();
@@ -936,7 +924,7 @@ keeps waiting, and the run is not stuck.
 
 ```ts run
 import { createRuntime } from 'fyflow-orchestration/scheduler';
-import { fold, isTerminal, type FlowDefinition, type FoldInput, type RegistryDocument, type RunState } from 'fyflow-orchestration';
+import { fold, type FlowDefinition, type FoldInput, type RegistryDocument } from 'fyflow-orchestration';
 
 // A worker that FAILS — `examples/getting-started/flaky.ts`, a class with a `run` that throws. The
 // node is not `optional`, so when its retries are spent the scheduler parks it for a person.
@@ -964,37 +952,64 @@ let parked: string | null = null;
 // `suspended` is the node's — and those are the words the FOLD uses. The scheduler's own event is
 // called `task.user_action`, which is not what you poll on, and is the mistake this snippet used to
 // invite by delivering that event to a hand-built stub.
-const { driver } = runtime.start(flow, {}, { onFoldInput: (input) => { inputs.push(input); } });
+const { driver, done } = runtime.start(flow, {}, { onFoldInput: (input) => { inputs.push(input); } });
 
-const state = await new Promise<RunState>((resolve, reject) => {
-  // A DEADLINE, because this is the one snippet whose subject is a run that does not end by
-  // itself: without it a wrong guess about the vocabulary below hangs for ever and the failure
-  // names nothing. W71's adequacy reader broke `suspended` and got a 30-second timeout.
-  const deadline = setTimeout(() => reject(new Error('the run never reached a terminal state')), 10_000);
+// **`done` IS STILL PENDING HERE, and that is the trap this section exists to teach.** Its
+// settlement rule is terminality and nothing else (ADR 0058 rule 3), and `isTerminal` is
+// `outcome !== 'running' && outcome !== 'awaiting_action'` — so a run parked on a person is not
+// terminal and `done` waits for the resolution. **A promise cannot tell you a run has PARKED**,
+// because parking is not the end; the poll below is for the state `done` is waiting THROUGH, and it
+// is the one thing here a completion handle does not give you.
+// **THE DEADLINE, ARMED FIRST — one line, because `done` IS a promise.** There is no library
+// default and no `StartOptions` entry for one (ADR 0058 rule 8): a default would be wrong for
+// exactly this run, where the honest wait is *as long as it takes a person*. What a hand-rolled
+// `new Promise` could not give whoever held it is a way to RACE it. **It is armed before the wait
+// and not after**, because what `done` is
+// waiting for is the decision below — a race started once the person has already decided is a race
+// whose other side has already lost, and it would demonstrate the shape while being unable to fire.
+let timer: ReturnType<typeof setTimeout> | undefined;
+const nobodyCame = new Promise<never>((_, reject) => {
+  timer = setTimeout(() => reject(new Error('nobody resolved the suspended task in time')), 10_000);
+});
+
+// THE PERSON, deciding while `done` is pending. Started, not awaited: it polls the fold for the
+// park — the state `done` waits THROUGH — and resolves the task, which is what settles `done`.
+const person = new Promise<void>((resolve, reject) => {
   const poll = () => {
     const s = fold(inputs);
-    if (s.outcome === 'awaiting_action' && parked === null) {
-      parked = Object.keys(s.nodes).find((id) => s.nodes[id].state === 'suspended') ?? null;
-      if (parked === null) { clearTimeout(deadline); reject(new Error('awaiting_action with no suspended node')); return; }
+    if (s.outcome !== 'awaiting_action') { setTimeout(poll, 5); return; }
+    parked = Object.keys(s.nodes).find((id) => s.nodes[id].state === 'suspended') ?? null;
+    if (parked === null) { reject(new Error('awaiting_action with no suspended node')); return; }
 
-      // ONE pair of events, ONE record. The scheduler dispatches `task.failed` AND
-      // `task.user_action` carrying the same object; the driver drops the first, whose detail
-      // already reads `user_action`, and records on the second. Read off a REAL pair, not a
-      // hand-delivered one.
-      const records = driver.snapshot().filter((r) => r.taskId === parked);
-      if (records.length !== 1) throw new Error(`the event pair produced ${records.length} records`);
+    // ONE pair of events, ONE record. The scheduler dispatches `task.failed` AND
+    // `task.user_action` carrying the same object; the driver drops the first, whose detail
+    // already reads `user_action`, and records on the second. Read off a REAL pair, not a
+    // hand-delivered one.
+    const records = driver.snapshot().filter((r) => r.taskId === parked);
+    if (records.length !== 1) { reject(new Error(`the event pair produced ${records.length} records`)); return; }
 
-      // The only way anything outside this process changes a run — and it takes THREE arguments.
-      // `actor` is opaque: never interpreted, never authenticated (Q29).
-      const accepted = driver.resolve(parked, 'failed', { actor: 'a-person' });
-      const again    = driver.resolve(parked, 'failed', { actor: 'a-person' });
-      if (!accepted || again) throw new Error('a second resolution must be refused, not applied twice');
-    }
-    if (isTerminal(s)) { clearTimeout(deadline); resolve(s); return; }
-    setTimeout(poll, 5);
+    // The only way anything outside this process changes a run — and it takes THREE arguments.
+    // `actor` is opaque: never interpreted, never authenticated (Q29).
+    const accepted = driver.resolve(parked, 'failed', { actor: 'a-person' });
+    const again    = driver.resolve(parked, 'failed', { actor: 'a-person' });
+    if (!accepted || again) { reject(new Error('a second resolution must be refused, not applied twice')); return; }
+    resolve();
   };
   poll();
 });
+
+// **`done` AND the person, against the clock.** Neither the poll nor the deadline folds anything or
+// decides what "over" means: the first is the state the run PARKS in and the second is your patience.
+//
+// **`person` is inside the race and not awaited after it**, which is two defects in one line and
+// both were real. Awaited afterwards it is UNBOUNDED — a run that reaches a terminal outcome without
+// ever parking leaves the poll looping for ever, which is the very shape this section teaches the
+// counter-measure for; and its three `reject`s reached a promise nothing had attached to yet, so
+// Node killed the process with `ERR_UNHANDLED_REJECTION` and the snippet failed as a CRASH rather
+// than as a throw. *Both found by W78's conformity reader, one line past the deadline written to
+// prevent the first.*
+const state = await Promise.race([Promise.all([done, person]).then(([s]) => s), nobodyCame]);
+clearTimeout(timer);
 await runtime.shutdown();
 
 // `resolvedAs: 'failed'` took the `on: ['failed']` edge — the only road there for a non-optional
@@ -1116,11 +1131,34 @@ if (isTerminal(state)) console.log('finished as', state.outcome);
 fold is defined over any prefix, and a prefix taken mid-turn is not a resting state: a settlement is
 recorded before the routing it causes, so there are instants where nothing is running and the run is
 not over. If you fold `driver.foldInputs()` after the fact you are always at a quiescent point; if
-you fold incrementally from `onFoldInput`, read on a `queueMicrotask`.
+you fold incrementally from `onFoldInput`, read on a `queueMicrotask` — and that microtask is
+**load-bearing rather than decoration**, which is why `done` asks its own predicate at one
+([ADR 0058](doc/decisions/0058-runtime-start-returns-a-completion-handle-the-runtime-keeps.md)
+rule 6). *(That phrase lived in §2's copied block until [W78](doc/work-items/w78-the-run-a-consumer-holds-in-one-line.md)
+reduced it to `await done`; ADR 0058's Context cites it, so it moved here rather than going out with
+the block — W78's conformity reader, finding 3.)*
 
 **`isTerminal(state)` is how you wait for a run without a clock.** It is false for `running` and
 `awaiting_action` and true for everything else — including `stuck`, which is the point: before
 `stuck` existed, a permanently hung run folded to `completed` and a waiter reported success.
+
+**And `done` is that rule applied for you.** `runtime.start` returns `{ driver, done }`, and `done`
+resolves with the first `RunState` this predicate calls terminal
+([ADR 0058](doc/decisions/0058-runtime-start-returns-a-completion-handle-the-runtime-keeps.md)). It
+is the same two functions — the runtime keeps one `RunState`, steps it per input and asks
+`isTerminal` at a quiescent point — so there is one definition of *over* with one more caller, and
+nothing above about reading at rest stops being true. **Three things follow, and two of them catch
+people:**
+
+- **`done` never rejects.** `failed`, `stuck` and `stopped` are terminal OUTCOMES, not errors, so a
+  run that goes wrong arrives as `state.outcome`. A driver refusal resolves it with `stopped` and
+  `stoppedBy` naming the refusal — section 9.
+- **`awaiting_action` is NOT terminal, so `done` waits through it.** A run parked on a person stays
+  pending until somebody calls `resolve()`, which is correct and is the trap: if you are waiting for
+  a run and a human is in it, you are waiting for the human. Section 7 is the worked case.
+- **There is no deadline and there is no option for one**, because once `done` is a promise
+  `Promise.race([done, timeout])` is your one line — and a library default would be wrong for the
+  bullet above.
 
 ---
 
@@ -1417,7 +1455,14 @@ After a refusal the run is **stopped**: nothing routes for it again, and its sta
   suspended run rather than a failed one.
 - **Passing `arrivalCount`.** It hangs on an ordinary `optional` failure. Section 5.
 - **Waiting on `scheduler.completed`.** It fires **every time the scheduler drains**, which with a
-  flow is between every step. It is not "the run finished". Use `isTerminal(fold(...))`.
+  flow is between every step. It is not "the run finished". `await done` — the second half of what
+  `runtime.start` returns (section 8).
+- **Expecting `await done` to reject when a run goes wrong.** It resolves, always: `failed`, `stuck`
+  and `stopped` are outcomes you read off the state, and `stoppedBy` names a refusal. A `.catch` on
+  `done` is a `.catch` that never fires.
+- **Waiting on `done` for a run with a person in it.** `awaiting_action` is not terminal, so `done`
+  is still pending — by design. Poll the fold for the park, resolve the task, then await; section 7
+  is that snippet, and `Promise.race([done, timeout])` is the deadline nothing ships for you.
 - **Reading run state mid-turn.** Section 8.
 - **Retaining a scheduler event's `detail`.** It is the live task object and it mutates — including
   its `timestamp`, so a retained detail reports the *most recent* event's time. `{...e.detail}` is
@@ -1445,7 +1490,7 @@ The first half of that is executed rather than asserted:
 
 ```ts run
 import { createRuntime } from 'fyflow-orchestration/scheduler';
-import { fold, isTerminal, type FlowDefinition, type FoldInput, type RegistryDocument, type RunState } from 'fyflow-orchestration';
+import { type FlowDefinition, type FoldInput, type RegistryDocument } from 'fyflow-orchestration';
 
 const registry: RegistryDocument = {
   workers: { scorer: { url: '../../examples/getting-started/scorer.ts' } },
@@ -1485,7 +1530,7 @@ const HANDLES = ['onFoldInput', 'onRegionEvent', 'snapshot', 'foldInputs'];
 // driver's own test.
 let regionEvents = 0;
 const regionKinds: string[] = [];
-const { driver } = runtime.start(flow, {}, {
+const { driver, done } = runtime.start(flow, {}, {
   onFoldInput: (i: FoldInput) => { frozen.onFoldInput = Object.isFrozen(i); inputs.push(i); },
   onRegionEvent: (e) => {
     regionEvents += 1;
@@ -1494,17 +1539,15 @@ const { driver } = runtime.start(flow, {}, {
   },
 });
 
-await new Promise<RunState>((resolve, reject) => {
-  // A poll needs a DEADLINE, and this one is a consumer's to copy: without it a run that never
-  // becomes terminal hangs for ever and the failure names nothing at all.
-  const deadline = setTimeout(() => reject(new Error('the run never reached a terminal state')), 10_000);
-  const poll = () => {
-    const s = fold(inputs);
-    if (isTerminal(s)) { clearTimeout(deadline); resolve(s); return; }
-    setTimeout(poll, 5);
-  };
-  poll();
+// **The end, and its deadline, in two lines** — `await done` is the wait (ADR 0058) and
+// `Promise.race` is the deadline (rule 8). `onFoldInput` above is still here because THIS snippet
+// is about what the four handles hand out, and one of the four IS that callback.
+let timer: ReturnType<typeof setTimeout> | undefined;
+const tooLong = new Promise<never>((_, reject) => {
+  timer = setTimeout(() => reject(new Error('the run never reached a terminal state')), 10_000);
 });
+await Promise.race([done, tooLong]);
+clearTimeout(timer);
 await runtime.shutdown();
 
 // The two PULL handles, read after the run — and each must have handed back something, because
@@ -1562,7 +1605,7 @@ the driver logs is a plain object with the field and no method:
 
 ```ts run
 import { createRuntime } from 'fyflow-orchestration/scheduler';
-import { fold, isTerminal, type FlowDefinition, type FoldInput, type RegistryDocument, type RunState } from 'fyflow-orchestration';
+import { type FlowDefinition, type RegistryDocument } from 'fyflow-orchestration';
 
 // `classy` returns `new Score(0.9)` — a class with a method, and it CHECKS that it does before
 // handing it over, so the thing being lost below is known to have existed. `inspect` is the NEXT
@@ -1597,17 +1640,10 @@ const loud: FlowDefinition = {
 
 const runtime = createRuntime(registry, {}, { base: import.meta.url });
 const failures: string[] = [];
-const run = (flow: FlowDefinition) => new Promise<RunState>((resolve, reject) => {
-  const inputs: FoldInput[] = [];
-  const deadline = setTimeout(() => reject(new Error(`${flow.flowId} never reached a terminal state`)), 10_000);
-  runtime.start(flow, {}, {
-    onFoldInput: (input) => {
-      inputs.push(input);
-      queueMicrotask(() => { const s = fold(inputs); if (isTerminal(s)) { clearTimeout(deadline); resolve(s); } });
-    },
-    onRunFailure: (f) => { failures.push(f.kind); },
-  });
-});
+// `onRunFailure` is what the LOUD half below is read from; `done` is the end. They are two
+// different facts about the same run, which is why both are here.
+const run = (flow: FlowDefinition) =>
+  runtime.start(flow, {}, { onRunFailure: (f) => { failures.push(f.kind); } }).done;
 
 // **THE QUIET HALF.** The fields cross; the behaviour does not; nothing is reported.
 const quiet = await run(lossy);
@@ -1624,10 +1660,17 @@ if (failures.length !== 0) throw new Error(`the quiet half reported ${failures.j
 // **THE LOUD HALF, and it is what makes the line above mean anything.** A result that cannot be
 // cloned at ALL stops the run and IS reported — so `failures` has a case that fills it, and
 // `failures.length === 0` above is a measurement rather than a sentence about an empty array.
-await run(loud).catch(() => undefined);
+//
+// **And `done` RESOLVES here rather than rejecting** (ADR 0058 rules 3 and 4): a refusal is a
+// terminal OUTCOME, not an error, so there is no `.catch` — the run arrives as `stopped` with
+// `stoppedBy` naming the refusal. One settlement rule for every way a run can end.
+const stoppedRun = await run(loud);
 await runtime.shutdown();
-console.log(failures.join());                            // 'UncloneableResult'
+console.log(failures.join(), stoppedRun.outcome, stoppedRun.stoppedBy?.split(':')[0]);
+// 'UncloneableResult' 'stopped' 'UncloneableResult'
 if (failures.join() !== 'UncloneableResult') throw new Error(`the loud half reported ${failures.join() || 'nothing'}`);
+if (stoppedRun.outcome !== 'stopped') throw new Error(`a refused run resolved \`done\` with ${stoppedRun.outcome}, not stopped`);
+if (!stoppedRun.stoppedBy?.startsWith('UncloneableResult')) throw new Error(`stoppedBy: ${stoppedRun.stoppedBy}`);
 ```
 
 ## 11. What does NOT exist — do not write code using it
@@ -1659,12 +1702,15 @@ on. What is missing is an agreed envelope shape between the two repositories, no
 `fyflow-orchestration/scheduler`, [W66](doc/work-items/w66-the-runtime-entry.md). It resolves every
 name the document uses against the code you supply, refuses every defect at construction by a named
 error, builds one pool per type instance and one object per group, holds a `FyflowScheduler` over
-them, and hands you a `Driver` per run. **What stays yours is exactly what is code**: predicates,
+them, and hands you **`{ driver, done }` per run** — the driver already running, and `done` a
+promise that resolves with the run's terminal `RunState`
+([ADR 0058](doc/decisions/0058-runtime-start-returns-a-completion-handle-the-runtime-keeps.md);
+section 8 is what it waits for). **What stays yours is exactly what is code**: predicates,
 language adapters, custom group types and custom node-type classes, in one `code` argument.
 
 ```ts run
 import { createRuntime } from 'fyflow-orchestration/scheduler';
-import { fold, isTerminal, type FlowDefinition, type FoldInput, type RegistryDocument, type RunState } from 'fyflow-orchestration';
+import { type FlowDefinition, type RegistryDocument } from 'fyflow-orchestration';
 
 // The registry, as data. In your program this is a JSON file you import; here it is a literal so the
 // snippet is self-contained. A worker url may be RELATIVE, and then `base` is what it resolves
@@ -1694,22 +1740,16 @@ const flow: FlowDefinition = {
 const runtime = createRuntime(registry, {}, { base: import.meta.url });
 
 // A run is over when its OWN fold says so — never `scheduler.completed`, which fires every time the
-// scheduler drains (section 8). `start` returns `{ driver, done }` since ADR 0058, and `await done`
-// is this whole block in one line; it is spelled out here because THIS section is about what the
-// fold input sequence carries, which is the thing `done` folds.
-const inputs: FoldInput[] = [];
-const state = await new Promise<RunState>((resolve, reject) => {
-  const { driver } = runtime.start(flow, { confidence: 0.9 }, {
-    onFoldInput: (input) => {
-      inputs.push(input);
-      queueMicrotask(() => { const s = fold(inputs); if (isTerminal(s)) resolve(s); });
-    },
-    onRunFailure: (f) => reject(new Error(`${f.kind}: ${f.message}`)),
-  });
-  // **`driver.runId` is readable** (W66): the runtime minted this run's id, and every task id of the
-  // run begins with it. Pass your own as `start`'s `runId` when you need to choose it.
-  if (!/^r\d+$/.test(driver.runId)) throw new Error(`expected a minted run id, got ${driver.runId}`);
-});
+// scheduler drains (section 8). `await done` IS that, in one line: the runtime keeps the fold and
+// resolves with the terminal state (ADR 0058). This is the one snippet here that wants BOTH halves
+// of what `start` returns, and the reason is the line under it.
+const { driver, done } = runtime.start(flow, { confidence: 0.9 });
+// **`driver.runId` is readable** (W66): the runtime minted this run's id, and every task id of the
+// run begins with it. Pass your own as `start`'s `runId` when you need to choose it. It is readable
+// the instant `start` returns and does not wait for `done`, which is what holding the PAIR buys
+// over holding the promise alone.
+if (!/^r\d+$/.test(driver.runId)) throw new Error(`expected a minted run id, got ${driver.runId}`);
+const state = await done;
 const pools = Object.keys(runtime.pools).sort();
 await runtime.shutdown();
 
@@ -1728,7 +1768,7 @@ object the runtime built — [W70](doc/work-items/w70-a-flow-that-decides-and-a-
 
 ```ts run
 import { createRuntime } from 'fyflow-orchestration/scheduler';
-import { fold, isTerminal, type FlowDefinition, type FoldInput, type RegistryDocument, type RunState } from 'fyflow-orchestration';
+import { type FlowDefinition, type RegistryDocument } from 'fyflow-orchestration';
 import type { ResourceGroup } from 'fyflow-scheduler';
 
 // A CUSTOM GROUP is the scheduler's own `ResourceGroup`, and the runtime holds a factory's output to
@@ -1780,13 +1820,7 @@ const runtime = createRuntime(registry, {
   },
 }, { base: import.meta.url });
 
-const inputs: FoldInput[] = [];
-const state = await new Promise<RunState>((resolve, reject) => {
-  runtime.start(flow, { text: 'hello' }, {
-    onFoldInput: (input) => { inputs.push(input); queueMicrotask(() => { const s = fold(inputs); if (isTerminal(s)) resolve(s); }); },
-    onRunFailure: (f) => reject(new Error(`${f.kind}: ${f.message}`)),
-  });
-});
+const state = await runtime.start(flow, { text: 'hello' }).done;
 await runtime.shutdown();
 
 // The group the runtime built is the scheduler's, keyed as the document declared it — and it was
@@ -2444,7 +2478,7 @@ the object; `summarise` REQUIRES a `text` string and closes its own. Everything 
 `npm run gate`, and the same snippet is in `README.md`, held byte-equal by `check-docs`'s `X8`.
 
 ```ts run
-import { checkWiring, describePaths, pathsOf, signatureOf, tryTransform, fold, isTerminal, type FlowDefinition, type FoldInput, type RunState } from 'fyflow-orchestration';
+import { checkWiring, describePaths, pathsOf, signatureOf, tryTransform, type FlowDefinition } from 'fyflow-orchestration';
 import { createRuntime } from 'fyflow-orchestration/scheduler';
 import { jsonata } from 'fyflow-orchestration/jsonata';
 import { SESSION_BASE, SESSION_REGISTRY, SESSION_WORKERS } from '../../examples/getting-started/session-registry.ts';  // in your program: './registry.ts', a module or a JSON file of your own
@@ -2506,13 +2540,7 @@ if (!signature.includes('"text": string;')) throw new Error('the required key is
 // naming the type. Check, then build.
 const wired: FlowDefinition = { ...flow, nodes: flow.nodes.map((n) => (n.id === 'sum' ? { ...n, transform: good } : n)) };
 const runtime = createRuntime(SESSION_REGISTRY, { languages: { jsonata } }, { base: SESSION_BASE, flows: [wired] });
-const inputs: FoldInput[] = [];
-const state = await new Promise<RunState>((resolve, reject) => {
-  runtime.start(wired, { source: 'inbox' }, {
-    onFoldInput: (i) => { inputs.push(i); queueMicrotask(() => { const s = fold(inputs); if (isTerminal(s)) resolve(s); }); },
-    onRunFailure: (f) => reject(new Error(`${f.kind}: ${f.message}`)),
-  });
-});
+const state = await runtime.start(wired, { source: 'inbox' }).done;
 await runtime.shutdown();
 console.log(state.outcome, Object.values(state.nodes).find((n) => n.nodeId === 'sum')?.result);  // completed { words: 3 }
 

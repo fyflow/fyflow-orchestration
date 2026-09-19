@@ -1,9 +1,14 @@
 /**
  * **Ladder L6 — the gate.** Every real run this repository makes: P1's exit
  * artifact, P2's, P4's, P5's, P6's, **P7's**, **P10's**, **P12's**, **P13's**,
- * **P14's**, **P16's**, **P17's** and **P18's**. *(This list stopped at P12 while W47's two rows and W51's two were in
+ * **P14's**, **P16's**, **P17's**, **P18's** and **P20's**. *(This list stopped at P12 while W47's two rows and W51's two were in
  * the file — a count carried as prose in the paragraph above this file's own
- * monument to that. W51's conformity reader.)*
+ * monument to that. W51's conformity reader. **It then stopped at P18 while W78's
+ * consumer-road block was in the file**, and the table below omitted that block
+ * while carrying W67's SHIM RUN, which is not a row either — W78's conformity
+ * reader, finding 6, in the paragraph that is this file's own monument to the
+ * class. Twice now, and both times the item that added the rows wrote the
+ * monument and not the entry.)*
  *
  * **A run and a row label are two different counts.** A row label is an entry in
  * `EXPECTED[]` or a `PairRow`; a run is one `Driver` on one flow, and a `PairRow`
@@ -68,6 +73,7 @@
  * | **W63 — `transform-fails`** | **P17 decision 5 end to end.** Two non-optional typed nodes whose transforms fail at run time — `$.confidence + " points"` (`T2002`, an author who meant `&`) and `$now()` (`UNBOUND`, ADR 0052 rule 7) — are retried ONCE under the type's policy, fail again, and are parked `user_action` with `TransformFailed`'s message as the task's error on two observers (`attempts: 1`); a person `resolve()`s each with the value the transform did not supply, the join fires over all four branches and the run completes. Beside them a typed node with NO transform receives `FD-C5`'s two-key envelope to the byte, in the flow whose `Scorer` pool carries no engine — and `note`, a typed node whose transform SUCCEEDS over an ordinary edge's value, `FD-C5`'s first kind, which the exit-artifact flow cannot carry |
  * | **W67 — `triage LOW` and `triage HIGH`** | **P18's EXIT ARTIFACT: a flow and the runtime it needs from TWO JSON DOCUMENTS and a shim.** `examples/registry.json` says what exists — fourteen worker modules, five resource groups, fifteen node types, one NAMED pool instance — and `examples/flows/triage.flow.json` names registry keys and nothing else; `run-flow.ts` supplies only what P18 decision 7 keeps as code (a predicate, a custom group TYPE, a custom node-type CLASS, a language adapter) and calls `createRuntime` once. The two rows carry, from the run: a DOCUMENT-declared type (`Prompt`) and a CLASS registered in code (`GpuModel`) over the SAME worker, so the pools they built differ in their derivation alone; a node on its type's DEFAULT instance (`audit`) against one on a NAMED instance of that type (`review` on `prompt-big`), told apart by the pool the scheduler says each ran on AND by what the worker returned — four words against two, because the class derives the model from the instance's config; a BUILT-IN group and a CUSTOM one acquired by real tasks, the custom one naming its object something other than its key; the TYPE's `settings` default reaching a `Prompt` node and not a `GpuModel` one; and a declared `transform` reducing `JP-R12`'s record for the node after the join, with no reshaping node. The HIGH row is the control: one payload field different, `review` never dispatched, and the reduced report six words instead of eight |
  * | **W73 — `FD-R4` on three existing rows** | **P19 decision 5 on real workers, with no new run.** `map / live-token` and `nested-map / live-token` try a payload FIRST that the entry's worker `inputSchema` refuses — a TASK entry naming `ingest`, a FAN-OUT entry naming `scoreA` (every branch held to its own schema over the same value, the first named) — and assert a `BoundaryRefused` at the caller with the scheduler holding nothing, then run on the real payload; W63's `transform-fails` tries its two resolutions FIRST with the values the transforms did not supply, which `echo`'s `outputSchema` refuses with the task still suspended, and then resolves each with the worker's declared example. Both refusal sets are held to the rows that declare them both ways, with their controls as subjects |
+ * | **W78 — the CONSUMER ROAD** | **P20's EXIT ARTIFACT, and no `EXPECTED` row could be it**: `runFlow` IS the machinery this block exists not to use — its own `onFoldInput`, its own `inputs` array, its own predicate raced against a backstop. So it is W67's shim-run shape one plan on: ONE label, TWO runs, outside the row loop. **Run A** is a fan-out in which the consumer holds only `{ driver, done }` — the region events counted through `StartOptions.onRegionEvent` ([W76](../doc/work-items/w76-what-start-accepts.md), [Q297](../doc/open-questions.md)) and the end awaited in ONE line ([W77](../doc/work-items/w77-what-start-returns.md), [ADR 0058](../doc/decisions/0058-runtime-start-returns-a-completion-handle-the-runtime-keeps.md)), with no poll, no fold and no deadline but the one ADR 0058 rule 8 says a consumer writes; what `onRegionEvent` received is held EQUAL to the region subsequence of the driver's own fold inputs, element for element, which had never run on a real pool. **Run B** is the pair: its driver REFUSES, and `done` **RESOLVES** with `stopped` carrying `stoppedBy` rather than rejecting — ADR 0058 rules 3 and 4, which had no observer at this rung and none on real workers anywhere. **Reverting W76 alone costs 2 here, W77 alone 8 and both 10** — additive, and before this block each cost ZERO, because both items declared L6 UNMOVED and nothing at this rung reached either. *(W77's read 4 until the conformity reader found the `?? foldedA` fallback handing two clauses the caller's own fold; those two are the difference.)* |
  * | **W67 — the shim run** | **P18's sample shim's own call, and no row could make it**: `runtime.start(flow, payload)` with NO options. The runtime MINTS the run id and defaults the join policy (decision 10), and both defaults were replaceable by a `throw` for ZERO until this run existed — every row names the ids it expects and the policy it is about. The flow is `p1-routed-away` at LOW, where the two candidate policies DISAGREE: `live-token` satisfies the join and the run completes, `arrival-count` waits for an arrival that cannot come. So *the run completed* IS *the default is `live-token`*, observed rather than named |
  */
 import {
@@ -89,6 +95,12 @@ import {
   buildTaskId,
   parseTaskId,
   sharedRegionDepth,
+  // **W78, and they reach the package ROOT like everything else here.** P20's exit artifact
+  // holds `done` against the caller's own expression — `fold(driver.foldInputs())` — so the two
+  // halves of decision 2's invariant are the same two functions a consumer would have called,
+  // imported the way `AGENTS.md`'s own snippets import them.
+  fold,
+  isTerminal,
   // **W47, and it reaches the package ROOT like everything else here.** An example
   // that reached past `index.ts` would be exercising a surface no consumer has —
   // `AGENTS.md`'s own snippets import this name from `'fyflow-orchestration'`, so
@@ -96,12 +108,16 @@ import {
   validateDefinition,
   type FlowDefinition,
   type PolicyId,
+  type RegionEvent,
   type RunOutcome,
+  type RunState,
   type UnmintedTask,
   type UnsatisfiableJoin,
 } from '../index.ts';
 import {
   runFlow, runPair, violations, registryDocumentFor, THREADABLE_TYPES, codeFor,
+  // W78: P20's exit artifact builds its own runtime, because it holds NOTHING `runFlow` builds.
+  buildRuntime,
   // W67: the registry DOCUMENT this rung runs, and the predicates the shim registers. Compared
   // here to the types the flows name, to the pools the scheduler reports, and to the document's
   // own bytes read back off disk.
@@ -4279,6 +4295,23 @@ const CROSS_ROW_SUBJECTS = [
   'the wiring check over the runtime`s registry reads `no` on exactly the FD-R2 row',
   'no arc is unchecked over the runtime`s registry',
   'the wiring reports are not empty',
+  // **W78 — P20's EXIT ARTIFACT.** NINE claims and THREE controls — twelve entries, which is what
+  // the `CROSS_ROW` comment beside the count also says. *(This read "seven" over twelve entries
+  // until the conformity reader counted them, finding 13.)* The controls are members
+  // by rule since v0.18: a membership over claims alone binds the vacuity of nothing, which is
+  // what W63's adequacy reader measured and what P17's retro then found live in W58's block.
+  'the consumer passed `start` nothing but `onRegionEvent`',
+  '`await done` WON THE RACE and the deadline did not',
+  '`done` resolved with the TERMINAL RunState',
+  'a fan-out watched through StartOptions.onRegionEvent on a real FyflowScheduler',
+  'IS the region subsequence of the driver`s own',
+  '`await done` deep-equals `fold(driver.foldInputs())`',
+  '`done` RESOLVED with a RunState rather than rejecting',
+  'resolves `done` with outcome `stopped` carrying `stoppedBy`',
+  'the two runs of this block are a PAIR',
+  'CONTROL: the two sides of the region equality are DIFFERENT VALUES',
+  'CONTROL: the two sides of the fold invariant are DIFFERENT OBJECTS',
+  'CONTROL: `stoppedBy` DISCRIMINATES',
   // W65
   'retried under a policy of its OWN',
   // W67
@@ -5384,7 +5417,251 @@ if (shimReport !== null) {
     `runId ${shimReport.runId}, dispatched ${shimReport.dispatched.join(', ')}`);
 }
 
-const pairRunCount = pairResults.reduce((n, { runs }) => n + runs.length, 0) + 1;
+/**
+ * **P20's EXIT ARTIFACT — the run a consumer holds in ONE LINE** —
+ * [W78](../doc/work-items/w78-the-run-a-consumer-holds-in-one-line.md), and it is the only place
+ * at this rung where the consumer holds **nothing but what `start` returned**.
+ *
+ * **Why it is not an `EXPECTED` row** (W78 finding C). A row runs through `runFlow`, and `runFlow`
+ * IS the machinery this artifact exists not to use: it installs its own `onFoldInput`, keeps its own
+ * `inputs` array, races a declared predicate against a backstop timer and derives `finishedBy` from
+ * which won. A row cannot hold only `{ driver, done }` by construction. **W67's SHIM RUN is the
+ * precedent** — `runtime.start(flow, payload)` with no options, added outside the row loop because
+ * every row names the ids it expects and the policy it is about — and this is that shape one plan
+ * on: one labelled block, TWO runs, bound by `CROSS_ROW_SUBJECTS` rather than by `ROW_KEYS`.
+ *
+ * **What the two runs are for, and they are a DISCRIMINATING PAIR.** Run A is a fan-out that
+ * completes: `onRegionEvent` counted through `StartOptions` ([W76](../doc/work-items/w76-what-start-accepts.md),
+ * [Q297](../doc/open-questions.md)) and the end awaited in one line
+ * ([W77](../doc/work-items/w77-what-start-returns.md), [ADR 0058](../doc/decisions/0058-runtime-start-returns-a-completion-handle-the-runtime-keeps.md)).
+ * Run B's driver REFUSES — `uncloneable` returns a value `structuredClone` cannot copy — and `done`
+ * **RESOLVES** with `outcome: 'stopped'` carrying `stoppedBy`, which is ADR 0058 rules 3 and 4 and
+ * which had no observer at L6 and no observer on real workers anywhere. *With one run the
+ * `completed` below is a constant; with the pair it is a measurement, and `doc/workflow.md` rule 8's
+ * fourth requirement on the set says to assert what makes the two differ, which the last clause
+ * does.*
+ *
+ * **The deadline is part of the artifact rather than around it.** ADR 0058 rule 8 says there is no
+ * library deadline and `Promise.race([done, …])` is the consumer's one line; so racing is what a
+ * consumer writes, it is what this block writes, and **which side won is asserted** — the analogue
+ * of `runFlow`'s `finishedBy`, and the second observer P20 stop-and-ask (e)'s answer promised to put
+ * beside that field rather than instead of it. It is also [Q323](../doc/open-questions.md)'s
+ * counter-measure in the file that needs it: an unbounded `await` on a real scheduler produces no
+ * verdict at all, because a scheduler never shut down keeps the process alive.
+ */
+const CONSUMER_ROAD_DEADLINE_MS = 30_000;
+/**
+ * **Every `await` on a `done` here is BOUNDED, and the scheduler is shut down in a `finally`** —
+ * [Q323](../doc/open-questions.md), and this file is where that row was earned. W77's final rule 8
+ * pass ran for two and a half hours on one probe because a real-pool case awaited `done` unbounded:
+ * `CLAUDE.md` records that a scheduler never shut down keeps the process alive, so a probe that
+ * stops `done` settling produces **no verdict at all** rather than a failure. *Bounding it is also
+ * what ADR 0058 rule 8 says a consumer writes* — there is no library deadline and
+ * `Promise.race([done, …])` is the one line — so the counter-measure and the artifact are the same
+ * expression, and WHICH SIDE WON is asserted below.
+ *
+ * *(The first version of this block raced once and then wrote `const stateA = await done;` on the
+ * next line. It is green on a correct tree and hangs for ever the moment a probe stops `done`
+ * settling, which is Q323's defect reproduced inside the block written to close it — one line over,
+ * exactly as W77's was one case over. Found by this item's own revert-cost measurement, which is a
+ * probe that stops `done` settling by construction.)*
+ */
+/**
+ * **It returns WHICH SIDE WON, and that is the whole of the fix for the adequacy reader's `S1`.**
+ * The first version returned `T | null` and `endedBy` was derived as `settled !== null` — which is
+ * true whenever `done` settles AT ALL, race or no race. So `await Promise.race([p, deadline])`
+ * could be replaced by `await p` for **ZERO**, and with it went Q323's counter-measure: compounded
+ * with the W77 revert, the reader's run went past 120 s with no exit code and no FAIL line, where
+ * the shipped harness reports `EXIT 1, 4 FAIL` in 66 s. *A deadline whose winner nobody reads is a
+ * deadline nobody can tell from its own absence.*
+ *
+ * **The residue, stated rather than argued** (v0.10's clause): a timeout on a CORRECT tree never
+ * fires, so nothing any run of a correct tree does can observe that it is there. What the verdict
+ * below binds is that the value came out of a RACE — delete the race and `by` has no producer, so
+ * the deletion is two edits rather than one token. The second route is the rule 8 harness's own
+ * per-rung `timeout`, where a rung that cannot finish is a verdict instead of a wait.
+ */
+const settleWithin = async <T>(p: Promise<T>, ms: number): Promise<{ by: 'done'; value: T } | { by: 'the deadline' }> => {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<{ by: 'the deadline' }>((resolve) => {
+    timer = setTimeout(() => resolve({ by: 'the deadline' }), ms);
+  });
+  const won = await Promise.race([p.then((value) => ({ by: 'done' as const, value })), deadline]);
+  if (timer !== undefined) clearTimeout(timer);
+  return won;
+};
+type ConsumerRoad = {
+  optionKeys: string[];
+  /** Which side of the race ended the wait — `runFlow`'s `finishedBy` on the road that has none. */
+  endedBy: 'done' | 'the deadline';
+  /** **PROJECTED at capture, like run B's**, and that asymmetry was the adequacy reader's `S3`. */
+  outcomeA: RunOutcome | 'NEVER SETTLED';
+  terminalA: boolean;
+  stoppedByA: string | null;
+  stateA: RunState | null;
+  foldedA: RunState;
+  regionSeen: string[];
+  regionFolded: string[];
+  outcomeB: RunOutcome | 'NEVER SETTLED';
+  stoppedByB: string | null;
+  settledBWithARunState: boolean;
+  /** The flows this block actually STARTED, so the printed run count is a length and not a literal. */
+  runs: string[];
+};
+let consumerRoad: ConsumerRoad | null = null;
+try {
+  const rt = buildRuntime(false, [FJ, UC]);
+  try {
+    // ---- RUN A: a fan-out, and the consumer holds `{ driver, done }` and NOTHING ELSE.
+    // The options object is a named const so its key set is an assertion rather than a reading of
+    // this file's own source: *the consumer passed no `onFoldInput`, no `createTask` and no policy*
+    // is what makes "in one line" a claim about this call and not about the prose above it.
+    const regionSeen: string[] = [];
+    const consumerOptions = { onRegionEvent: (e: RegionEvent) => { regionSeen.push(`${e.type} ${e.branchPath}`); } };
+    const { driver, done } = rt.start(FJ, { confidence: 0.9 }, consumerOptions);
+    const wonA = await settleWithin(done, CONSUMER_ROAD_DEADLINE_MS);
+    const settledA = wonA.by === 'done' ? wonA.value : null;
+    // The caller's OWN expression over the driver's OWN sequence — P20 decision 2, which W77 bound
+    // at L1 and on real inline pools and which nothing had run on a real scheduler.
+    const inputsA = driver.foldInputs();
+    const foldedA = fold(inputsA);
+    const regionFolded = inputsA.flatMap((i) => (i.kind === 'region' ? [`${i.event.type} ${i.event.branchPath}`] : []));
+    // ---- RUN B: the same call, on a flow whose driver REFUSES. `done` must RESOLVE.
+    // A `by: 'the deadline'` is `done` never settling. **A REJECTION does NOT arrive here** — see
+    // the `catch` below, whose first message claimed it did and was measured false.
+    const wonB = await settleWithin(rt.start(UC, { confidence: 0.9 }).done, CONSUMER_ROAD_DEADLINE_MS);
+    const settledB = wonB.by === 'done' ? wonB.value : null;
+    consumerRoad = {
+      optionKeys: Object.keys(consumerOptions).sort(),
+      endedBy: wonA.by,
+      // **PROJECTED here rather than read off `stateA` below** — the adequacy reader's `S3`, and the
+      // asymmetry is the argument: run B was already projected to `outcomeB`/`stoppedByB` and was
+      // IMMUNE, while run A handed the clauses an object reference and one token could re-source it
+      // to the caller's own fold. *One block, two shapes, and the projected one survived.*
+      outcomeA: settledA !== null ? settledA.outcome : 'NEVER SETTLED',
+      terminalA: settledA !== null && isTerminal(settledA),
+      stoppedByA: settledA !== null ? (settledA.stoppedBy ?? null) : null,
+      // **NULLABLE, and the `?? foldedA` this used to carry was a hole** — the conformity reader's
+      // finding 9 and the adequacy reader's `S3`, reached from opposite ends. The fallback existed
+      // so the clauses would report WHICH claim failed rather than dying on a null; what it did was
+      // hand them the CALLER'S OWN FOLD, so where `done` never settles the invariant below compared
+      // `foldedA` with itself — P20 decision 2's headline claim, one route compared with itself,
+      // which is the shape W77's adequacy reader closed one item ago. Measured then: the W77 revert
+      // cost 4, and the two clauses that did not fire were exactly those two.
+      stateA: settledA,
+      foldedA,
+      regionSeen,
+      regionFolded,
+      outcomeB: settledB !== null ? settledB.outcome : 'NEVER SETTLED',
+      stoppedByB: settledB !== null ? (settledB.stoppedBy ?? null) : null,
+      settledBWithARunState: settledB !== null && typeof settledB === 'object' && 'outcome' in settledB,
+      // The flows this block STARTED, in order — so `pairRunCount` adds a LENGTH. The adequacy
+      // reader's `S10`: with `? 2 : 0` the derivation bought honesty against DELETION and nothing
+      // against a wrong constant, and one token printed `56 real runs` with every check green.
+      runs: [FJ.flowId, UC.flowId],
+    };
+  } finally {
+    // **In a `finally`, because a scheduler left running keeps the process alive** and would turn
+    // any failure above into no verdict at all — the second half of Q323.
+    await rt.shutdown();
+  }
+} catch (err) {
+  // **A crash is not a detection** — `doc/workflow.md` section 4, and W67's shim run carries the
+  // same guard for the same reason: this block sits outside the row loop, so a throw here would take
+  // the whole file down with exit 1 and ZERO failure lines.
+  //
+  // **It does NOT catch a `done` that rejects, and the first version of this message said it did** —
+  // the adequacy reader's `S11`, measured: a runtime made to reject `done` on a `stopped` run kills
+  // this file at ROW 13, forty rows above here, because `runFlow` destructures `{ driver }` and
+  // never attaches to its handle, so Node fatally reports the unhandled rejection with **exit 1 and
+  // zero FAIL lines**. Narrowed to this block's own runs the guard does fire and names it. *So the
+  // guard works and the road that matters never reaches it* — which is
+  // [Q321](../doc/open-questions.md) at L6, and it is ADR 0058's own decisive measurement (the
+  // reject road kills the consumer's process) reproduced at this rung.
+  failures.push(`consumer road\n      the block THREW before any assertion could run — a crash is not a detection: ` +
+    `${err instanceof Error ? err.message.slice(0, 240) : String(err)}`);
+}
+if (consumerRoad !== null) {
+  const key = 'cross-row';
+  const c = consumerRoad;
+  // (1) the CALL. What a consumer holds after `start` is a pair, and what they passed is one name.
+  check(key, 'P20: the consumer passed `start` nothing but `onRegionEvent` — no onFoldInput, no poll, no ' +
+    'deadline option and no join policy, so what follows is what `start` RETURNED and not what this file wired',
+    c.optionKeys, ['onRegionEvent']);
+  // (2) the END, in one line — and WHICH SIDE of the race ended it, which is `finishedBy`'s analogue.
+  check(key, 'ADR 0058 rule 3: `await done` WON THE RACE and the deadline did not — the run ended because its own ' +
+    'fold reached a terminal outcome, not because a clock did (ADR 0014`s Correction, on the road that has no `finishedBy`). ' +
+    'The value is the race`s own verdict, so deleting the race leaves it with no producer',
+    c.endedBy, 'done');
+  check(key, 'ADR 0058 rule 3: `done` resolved with the TERMINAL RunState — the outcome and isTerminal PROJECTED off the ' +
+    'value the promise carried, at the moment it carried it, and never off the caller`s own fold',
+    [c.outcomeA, c.terminalA], ['completed', true]);
+  // (3) W76's forwarding, on a REAL pool for the first time. W76 bound it at L1 and in AGENTS §10;
+  //     nothing had watched a fan-out through `StartOptions` on a scheduler.
+  check(key, 'Q297 at L6: a fan-out watched through StartOptions.onRegionEvent on a real FyflowScheduler — two ' +
+    'branches opened and two arrived, on the road createRuntime gives a consumer',
+    c.regionSeen.slice().sort(), ['branch.arrived 0', 'branch.arrived 1', 'branch.opened 0', 'branch.opened 1']);
+  // (4) and the EQUALITY that makes it total rather than true of one topology — W76's adequacy
+  //     reader's answer, re-asserted here because this is a different seam: a REAL pool, and a
+  //     consumer who passed no `onFoldInput` at all, so the two streams cannot be one variable.
+  check(key, 'Q297 at L6, totally: what onRegionEvent received IS the region subsequence of the driver`s own ' +
+    'fold inputs, element for element — the invariant the shapes are instances of, on real workers',
+    c.regionSeen, c.regionFolded);
+  // (5) P20 decision 2 at L6: `done` is the SAME expression moved.
+  check(key, 'RN-R2 at L6: `await done` deep-equals `fold(driver.foldInputs())` — the caller`s own expression over ' +
+    'the driver`s own sequence, on a real scheduler. The RULE is `RN-R2` (a stepped prefix equals a fold of that prefix), ' +
+    'which ADR 0058 rule 5 names as the licence for keeping ONE RunState; P20 decision 2 is the plan`s wording of it',
+    c.stateA === null ? 'NEVER SETTLED' : JSON.stringify(c.stateA), JSON.stringify(c.foldedA));
+  // (6) RUN B — ADR 0058 rules 3 and 4, which had no observer at L6 and none on real workers.
+  assertThat(key, 'ADR 0058 rule 3 on a REFUSAL: `done` RESOLVED with a RunState rather than rejecting — a rejection ' +
+    'would have arrived as a throw at the catch above, and a non-settlement as the deadline`s null',
+    c.settledBWithARunState, `settled with: ${JSON.stringify(c.outcomeB)}`);
+  check(key, 'ADR 0058 rule 4: a driver refusal resolves `done` with outcome `stopped` carrying `stoppedBy` — ' +
+    '`failRun` appends the stopped element BEFORE it calls onRunFailure, so a refusal is already terminal when a consumer hears of it',
+    [c.outcomeB, (c.stoppedByB ?? '').split(':')[0]], ['stopped', 'UncloneableResult']);
+  // (7) the PAIR, asserted rather than arranged — rule 8's fourth requirement on the set.
+  assertThat(key, 'and the two runs of this block are a PAIR: one flow completes and the other is refused, so ' +
+    '`completed` above is a measurement rather than a constant this block could have printed either way',
+    c.outcomeA !== c.outcomeB,
+    `run A ${c.outcomeA}, run B ${c.outcomeB}`);
+  // ---- the CONTROLS, named as subjects beside the claims (`doc/workflow.md` v0.18).
+  //
+  // **They guard VACUITY and not merely EMPTINESS, and the first version guarded only emptiness** —
+  // the adequacy reader's `S5`, which is v0.18's own clause FOLLOWED and SHORT for the third and
+  // fourth time (W63's block, then W58's, then these). Its test was *make each claim vacuous without
+  // tripping its control*, and all three fell: a one-token re-source made two of the claims compare
+  // a list with itself while both `length > 0` readings stayed true, because a re-sourced list is
+  // exactly as non-empty as the one it came from. **The two IDENTITY controls below are what an
+  // emptiness control cannot be**: they refuse the two sides of a comparison BEING the same value,
+  // which is the whole of that probe class. And the third was worse than weak — it asserted
+  // `stoppedBy` is a non-empty string, which the claim beside it ENTAILS, so no tree could make it
+  // fire alone. *A control entailed by its own claim is a fourth claim.*
+  assertThat(key, 'CONTROL: the two sides of the region equality are DIFFERENT VALUES — what the consumer`s callback ' +
+    'filled is not the array the driver`s own inputs were read into, so the equality above is two sources and not one',
+    c.regionSeen !== c.regionFolded && c.regionFolded.length > 0,
+    `same array: ${c.regionSeen === c.regionFolded}, length ${c.regionFolded.length}`);
+  assertThat(key, 'CONTROL: the two sides of the fold invariant are DIFFERENT OBJECTS — what `done` resolved with is not ' +
+    'the state the caller folded, so the equality above is two routes and not one',
+    c.stateA !== null && (c.stateA as unknown) !== (c.foldedA as unknown) && Object.keys(c.foldedA.nodes).length > 0,
+    `same object: ${c.stateA === c.foldedA}, nodes ${Object.keys(c.foldedA.nodes).length}`);
+  assertThat(key, 'CONTROL: `stoppedBy` DISCRIMINATES — run A completed and carries none, so the `stopped` reading above ' +
+    'is a property of the refusal rather than something every RunState has. (The first version asserted run B`s stoppedBy ' +
+    'is non-empty, which the claim beside it entails — a control no tree could make fire alone)',
+    c.stoppedByA === null && typeof c.stoppedByB === 'string' && c.stoppedByB.length > 0,
+    `run A stoppedBy: ${JSON.stringify(c.stoppedByA)}, run B: ${JSON.stringify(c.stoppedByB)}`);
+}
+
+// **`+ 1` is W67's SHIM RUN and `+ 2` is W78's consumer-road block**, which makes two runs under
+// one label — a fan-out that completes and a refusal that stops. Both sit OUTSIDE the row loop, so
+// neither is in `ROW_KEYS`, and this expression is the only thing that counts them.
+//
+// **W78's two are DERIVED from the block having run rather than written as a literal**, which is
+// [Q217](../doc/open-questions.md)'s regress paid down by one edit: with a literal, deleting the
+// block leaves this line claiming two runs nobody made, and the printed count — the thing a human
+// reads at L7 — becomes the false half of `l6.ts`'s own output. Probes `d4` and `d4b` are the
+// measurement. *The regress does not close: deleting the block, its twelve subjects and the two
+// counts is still possible, and this makes it one edit dearer and the printed count honest.*
+const pairRunCount = pairResults.reduce((n, { runs }) => n + runs.length, 0) + 1 + (consumerRoad?.runs.length ?? 0);
 console.log(`\n  ladder L6 — ${reports.length + pairRunCount} real runs on fyflow-scheduler ${SCHEDULER_VERSION}, on ${runtime}\n`);
 /**
  * **Every region of the run, in the row's declared order** — W23's conformity
@@ -5567,7 +5844,11 @@ const PER_PLAIN_ROW = 20;
 // keeps is that the next item APPENDS; W67's conformity reader, finding 9, found the chain stopping
 // at W65 with the +11 unaccounted for — which is how the assertion count then shipped stale by two
 // in two documents.)*
-const CROSS_ROW = 141;
+// **+12 since W73 — W78, P20's EXIT ARTIFACT.** Seven claims of the consumer-road block and its
+// three CONTROLS, plus the pair clause and the option-key membership: the block makes two runs
+// and every one of its assertions is cross-row, because it is not an `EXPECTED` row and could
+// not be (finding C). *The convention this file keeps is that the next item APPENDS.*
+const CROSS_ROW = 153;
 const base = (shape: string) => (shape === 'region' ? PER_REGION_ROW : PER_PLAIN_ROW);
 for (const [key, shape, cost, extras] of rowCosts) {
   if (cost !== base(shape) + extras) {
@@ -7094,7 +7375,11 @@ check('cross-row', 'every cross-row SUBJECT this file declares was asserted abou
 // control row the entry node's pool; 1609 after its adequacy reader's eleven cross-row assertions
 // and the per-row subject its a12 forced. W67's conformity reader, finding 9 — the arithmetic belongs
 // here, and its absence is why two documents shipped 1595.)*
-const DECLARED_TOTAL = 1627;
+// **+12 since W73 — W78.** P20's exit artifact adds no row and twelve cross-row assertions: the
+// consumer-road block, which holds nothing but `{ driver, done }` and makes two runs. No row
+// moved, because nothing here changes what a worker receives (P20 decision 7). *(Written as 12
+// from the arithmetic before the file was run, and the first run reported exactly that.)*
+const DECLARED_TOTAL = 1639;
 if (passed + failures.length !== DECLARED_TOTAL) {
   failures.push(
     'gate\n      the assertion count is not the number this file declares outright\n' +

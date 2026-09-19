@@ -141,7 +141,13 @@ const PROBES = [
   {
     name: 'a snippet that stops producing its stated result',
     check: 'X4',
-    mutate: (t) => t.replace("if (!accepted || again) throw", "if (accepted || !again) throw"),
+    // **Anchored AGNOSTICALLY on the CONDITION and not on what follows it** — rule 7 (b) fired here
+    // at W78's confirming gate (`the mutation matched nothing`) because that item's §7 restructure
+    // turned three `throw`s into `reject`s, to close a reader's finding that the rejections reached a
+    // promise nothing had attached to. *The fix for a reader's finding un-anchored a probe in a file
+    // the item did not own, and the GATE is what said so* — which is the shape W74's own row on this
+    // self-test records one plan earlier.
+    mutate: (t) => t.replace("if (!accepted || again)", "if (accepted || !again)"),
   },
   {
     name: 'an untagged block',

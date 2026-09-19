@@ -1752,12 +1752,32 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
   // **`start` dispatches inside this call**, so there is no separate `driver.start(payload)` line
   // any more: the run is running when it returns.
   //
-  // **Destructured since ADR 0058**, which made `start` return `{ driver, done }`. This harness
-  // keeps its OWN termination observer and does not use `done`: `finishedBy` exists because W5's
-  // adequacy reader replaced the predicate with `setTimeout(1)` and all 72 assertions still passed,
-  // so a `done` that absorbed that claim would delete the assertion ADR 0014 was CORRECTED to carry
-  // (P20 stop-and-ask (e), which is W78's to answer — this item makes the destructure and nothing
-  // else).
+  // **Destructured since ADR 0058**, which made `start` return `{ driver, done }`, and **this
+  // harness deliberately does not use `done`** — P20 stop-and-ask (e), ANSWERED by the maintainer
+  // at W78 as recommended.
+  //
+  // `finishedBy` exists because W5's adequacy reader replaced the whole termination mechanism with
+  // `setTimeout(1)` and **all 72 L6 assertions still passed**; it is ADR 0014's own Correction, and
+  // the claim it carries is that the run was over *when the run-state predicate said so* rather
+  // than *when a clock did*.
+  //
+  // **The reason is the SENSOR and not the race, and this comment's first version said the race** —
+  // W78's conformity reader, finding 7. It argued that `await done` "ends the wait with no winner
+  // to name, because it races nothing", which W78's own L6 block refutes three files over: that
+  // block DOES race `done` against a deadline and asserts which side won. A converted `runFlow`
+  // could name a winner just as easily. **What it could not do is keep the claim**: with `done`,
+  // `finishedBy: 'run-state'` would mean *the LIBRARY's own fold said so* rather than *this
+  // harness's own clock-free predicate did*, and the thing ADR 0014's Correction exists to hold up
+  // is the second. That is the sensor corroborating itself — `doc/workflow.md` rule 8 obligation
+  // (c)'s LIMIT, where the clause has exactly one observer and the change replaces it with the
+  // subject. *(Measured by that reader: replacing this race with a 1500 ms clock resolving
+  // `'run-state'` costs FIVE L6 failures, so the Correction is still load-bearing.)*
+  //
+  // **Where `done` IS asserted is BESIDE it**, in `examples/l6.ts`'s consumer-road block — W78,
+  // P20's exit artifact. It builds its own runtime through this file's `buildRuntime` and holds
+  // none of the termination machinery above, and it makes its own two runs: so the two are the same
+  // CLAIM on DIFFERENT runs rather than two expressions over one fact, which is weaker than the
+  // LIMIT's ideal and is said here rather than overstated (the same reader, finding 8).
   const { driver } = runtime.start(definition, payload, startOptions);
   driverRef.current = driver;
   // **Read OFF THE DRIVER, not from the option** — `Driver.runId` is readable since W66 precisely so

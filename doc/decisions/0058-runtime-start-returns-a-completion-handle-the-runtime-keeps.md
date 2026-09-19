@@ -18,8 +18,12 @@ decides the question.**
 *Eight lines* is **thirteen copies and 135 lines** across `AGENTS.md` and `README.md`, in **three
 shapes that disagree** — ten carry the `queueMicrotask` quiescence guard and **no deadline**, two
 carry a poll and a deadline and **no microtask**, and **exactly one of the thirteen carries both** —
-while the reference's own prose at `AGENTS.md:112` calls the microtask *"load-bearing rather than
-decoration"*. Re-run at W77's declaration step: `M-- x10`, `-PD x2`, `M-D x1`, 135 lines.
+while the reference's own prose calls the microtask *"load-bearing rather than decoration"*.
+*(That sentence sat at `AGENTS.md:112`, inside §2's copied block, until
+[W78](../work-items/w78-the-run-a-consumer-holds-in-one-line.md) reduced that block to `await done`.
+It now sits in §8 beside `isTerminal`, which is where the claim belongs once the copies are gone —
+W78's conformity reader, finding 3, in the file `doc/workflow.md` v0.7 change 3 put in the record
+step so a demonstration can correct the decision it demonstrates.)* Re-run at W77's declaration step: `M-- x10`, `-PD x2`, `M-D x1`, 135 lines.
 **Ten of the thirteen hang for ever on a run that never becomes terminal**, which is the failure
 [W71](../work-items/w71-the-reference-stops-teaching-a-fake-scheduler.md)'s own declaration records
 its author's first spike hitting.
@@ -85,8 +89,14 @@ to answer without reopening
 ## Consequences
 
 **What this makes easy.** The block a consumer copies becomes one line, and the residue is explained
-rather than left: what survives of the thirteen is whatever ELSE the snippet teaches, which is
-[W78](../work-items/)'s to measure. A run parked on a person is `awaiting_action` and `done` waits
+rather than left: what survives of the thirteen is whatever ELSE the snippet teaches.
+**[W78](../work-items/w78-the-run-a-consumer-holds-in-one-line.md) measured it — thirteen copies and
+135 lines become ONE and 16.** Four sites reduce to nothing but `done`; five keep a callback for a
+DIFFERENT fact (a fan-out's settlement ORDER, which a `RunState` is order-free about; the PARK, which
+rule 3 makes `done` wait through; the frozen-handle snippet's own `onFoldInput`; the failure KIND
+beside the outcome; and `driver.runId`, readable the instant `start` returns); and ONE cannot reduce
+at all, because §12's *driver with no scheduler* builds a `Driver` by hand and there is no runtime to
+keep a fold. *The residue is structural, and it is exactly the shape this rule does not reach.* A run parked on a person is `awaiting_action` and `done` waits
 for the resolution — correct, and a trap, and the reference now has somewhere to teach it.
 
 **What it costs, measured rather than estimated.**
