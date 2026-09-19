@@ -237,13 +237,47 @@ of — so these say what was measured and make no claim beyond it.*
   the envelope worker and the driver never authors a terminal state (`OR-R3`). The guard road remains
   available through a driver-authored `resolution`-shaped record if a later plan wants it, and taking
   it means reopening (a) in the same breath.
-- **(c) Whether W81 may add a worker that returns megabytes.** Q320 cannot be reached with the corpus
-  as it stands (fact 2), and building for a measurement is the thing
-  [P15](p15-what-a-run-retains-and-what-a-result-may-be.md) did. It touches `examples/**` and moves no row.
-- **(d) Whether the check reads EVERY declared example or only the first** — Q302's own *cheap half*,
-  which is `check:workers`' rather than the driver's, and which would sit in W80's blast radius.
+- **(c) Whether W81 may add a worker that returns megabytes — ANSWERED: yes.** Q320 cannot be
+  reached with the corpus as it stands (fact 2), and building a shape for a measurement is what
+  [P15](p15-what-a-run-retains-and-what-a-result-may-be.md) did. It is seeded as W81's exception
+  below. **Two constraints go with it**, so the item argues from them rather than re-deriving them:
+  it moves **no existing row** (decision 7), and it is a worker whose RESULT is large rather than a
+  payload that is — fact 2 measured that this corpus's large values sit at the ENTRY, which is why
+  the +1 clone per settlement costs nothing measurable here.
+- **(d) Whether the check reads EVERY declared example or only the first — ANSWERED: the FIRST
+  only.** `check:workers` is unchanged, and **that REFUSES the cheap half of
+  [Q302](../open-questions.md)'s own *what would close it***, leaving that row the
+  bounds-generating road, which is W74's territory and is out of this plan.
+
+  *The answer is coherent because of what this plan IS.* Q302 is *a bound a producer does not keep
+  past its declared domain*, and more declared examples is the synthetic answer to it: pick a second
+  value that reaches the bound and hope an author picks well. **A run-time check is the other answer
+  — the bound is tested on every real value the worker ever returns**, which no number of examples
+  can match. So P21 does not make the example loop cheaper; it makes it unnecessary for this shape,
+  and Q302's row gains that reading rather than a second example.
 
 ---
+
+## The exceptions each item will take, seeded
+
+*Seeded from W76's, W77's and W78's LATE tables read forward — P16's refused-as-a-rule,
+adopted-as-a-table procedure, used by P19 and P20. **All three of P20's items found their seeded
+table wrong in at least one direction**, so this is seeded and **will be re-measured at each item's
+declaration step**, which is where the corrections belong. It was missing from this declaration's
+first commit and is added with stop-and-ask (c)'s answer.*
+
+| path | who | why it is seeded |
+|---|---|---|
+| `examples/**` | **W81**, by stop-and-ask (c) | a worker whose RESULT is large, because fact 2 measured that this corpus's large values sit at the ENTRY and the +1 clone per settlement therefore costs nothing measurable. It moves **no existing row** |
+| `AGENTS.md`, `README.md` | W82 | the knob has to be taught where a consumer reads. **`X8` holds THREE README fences byte-equal** to the AGENTS sections they name, so a section edited in one moves in the other or the check goes red — and `README_SNIPPETS` / `README_SNIPPET_FLOOR` are two more literals beside it |
+| `examples/README.md` | W82 | its L6 row table gains a line and its counts move — **W71's, W72's, W74's and W78's late exception on the same two paragraphs, four items running**, and [Q171](../open-questions.md)'s row |
+| `scripts/check-docs.mjs` and its self-test | W82 | `RUN_FLOOR` is a ratchet an item that ADDS a `run` snippet must raise ([Q102](../open-questions.md), live for six plans) — **and W78 found the second half the hard way**: `check:docs:selftest`'s `X4` probe anchors on a literal inside `AGENTS.md` §7, so an item that edits the text a probe anchors on takes this file whether or not it moves the floor |
+| `test/definition/l4-corpus.test.ts` | **W80 or W81, whichever adds a suite** | the suite CENSUS is a standing obligation on any item adding one — W76 took it LATE, W77 declared it UP FRONT and needed it, W78 predicted it UNNEEDED and was right. Declare it, do not discover it |
+| `scripts/build-browser-tests.mjs` | **W80, conditionally** | the browser bundle carries only what this script inlines, so a suite reading any file outside `spec/examples/` needs an entry. **W76 and W77 both took it LATE and W77's row says *PREDICTED ZERO EDITS AND THE PREDICTION WAS WRONG*** |
+| `src/scheduler/index.ts` | **W80, conditionally** | the sub-path's type export is an explicit ALLOWLIST and a `export type` is erased, so a new exported type is invisible to all five typecheckers. **W77 shipped `RunHandle` declared and unexported for a whole author pass, and binding the list then found two more** |
+| `scripts/check-markdown.mjs` | **PREDICTED NEEDED, and it is the tight one** | [Q142](../open-questions.md)'s `M4` margin is **26** after this declaration's record step and `M3`'s is **2**. *An ordinary record step spends more than 26 links* — P20's spent 31 — so the retune is likelier than not, and it is a scratch-copy retune as every one since W28 |
+| `package.json`, `deno.json` | **PREDICTED UNNEEDED** | a new `DriverOptions` member is ADDITIVE, so no version moves. [Q322](../open-questions.md) records that nothing binds the version to the API's shape either way |
+| `src/driver/driver.ts`, `spec/**` | **W80's `Owns`, not an exception** | named here because P20 made the driver a scope TRIPWIRE and this plan does not: W80's whole subject is a driver option and a `spec/` rule, and the tripwire does not transfer |
 
 ## A note on ids
 
