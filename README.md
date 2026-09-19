@@ -81,7 +81,8 @@ const runtime = createRuntime(registry, {}, { base: import.meta.url });
 // synchronously inside the same listener turn, so folding the instant an input arrives can report a
 // terminal state with the run still going; `RN-R12` claims its predicate at rest. `start` hands back
 // `{ driver, done }` — the driver already running, and `done` a promise that resolves with this
-// exact state (ADR 0058), which is what section 12 uses instead of the block below.
+// exact state (ADR 0058). The block below is what a consumer wrote before `done` existed, and it is
+// still here because reducing these copies is W78's, not W77's.
 const inputs: FoldInput[] = [];
 const state = await new Promise<RunState>((resolve, reject) => {
   runtime.start(flow, { text: 'hello' }, {

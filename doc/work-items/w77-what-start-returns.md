@@ -431,6 +431,17 @@ Node 24.20.0 asserted in every shell.
     `index.ts`, `bootstrap.ts` and `envelope-worker.ts`; the browsers are `EXIT 0`, zero FAIL lines,
     95 fixtures.
 
+12. **I introduced a false claim while correcting false claims, and found it one minute after
+    pushing.** The §2 snippet comment — rewritten because it still said `start` hands back a
+    `Driver` — was given the clause *"which is what section 12 uses instead of the block below"*.
+    Section 12 does NOT use `done`: this item destructured it and left the hand-rolled block,
+    because reducing the thirteen copies is W78's. So the sentence written to un-write a stale claim
+    asserted something that was never true, in `AGENTS.md` AND in `README.md`, which `X8` holds
+    byte-equal — **and no rung can see it, because `X8` compares the two to each other and `X4`
+    executes them; neither reads English.** That is section 1 rule 5's third direction failing in
+    the DIRECTION IT DOES NOT NAME: the clause is about searching for a withdrawn claim, and the
+    hazard here was the REPLACEMENT. Corrected in both files.
+
 **What this taught.**
 
 **A measured PRICE has inputs a later item can move, and nothing in rule 8 names it.** P20 priced the
