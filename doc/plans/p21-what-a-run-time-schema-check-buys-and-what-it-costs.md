@@ -63,20 +63,50 @@ two boundaries have had their say.
 *Decided before fan-out (`doc/workflow.md` section 7 rule 3). Each is recorded with the alternative
 it was chosen over, so an item argues from the decision rather than re-deriving it.*
 
-1. **It is OPT-IN and it is OFF by default.** *Over*: on by default, with an opt-out. P19's
+1. **It is OPT-IN and it is OFF by default — ANSWERED by the maintainer at this declaration, stop-and-ask (a), as recommended.** *Over*: on by default, with an opt-out. P19's
    departure argument survives fact 4 — the schemas are the author's tool, and a library that
    refuses a run for a bound an author wrote loosely is a library that makes its own corpus
    unrunnable. **Fact 4 changes the price and not the default**, and an item that reads it as
    licence to turn the check on has misread it.
+
+   *And the honest reason is COST rather than semantics, which matters once decision 3 is read:* with the check reporting and never routing, leaving it on is **safe** anywhere — so what keeps it off is fact 4's ratio and the callback a consumer must supply, not a risk to the run.
 2. **What it checks is the RESULT against the worker's own `outputSchema`, and nothing else.** *Over*:
    also re-checking a node's input. The entry payload and a person's resolution are already held
    ONCE each by `FD-R4` (W73), and a node's input is what the wiring check decides statically; the
    result is the one value no existing mechanism sees at run time.
-3. **A refusal is a TASK's failure, not a run's.** *Over*: stopping the run. [W61](../work-items/w61-what-a-transform-is.md)
-   settled exactly this shape for `TransformFailed` — `failed` on an optional node, `user_action` on
-   a non-optional one — and a result that does not match its schema is the same kind of event as a
-   transform that would not evaluate. **An item that stops the run has broken this decision, and
-   that is the sentence its adequacy reader should try to falsify first.**
+3. **A finding is REPORTED and never ROUTED — no record is written, no terminal state changes,
+   and the run proceeds exactly as it would with the check off. ANSWERED by the maintainer at this
+   declaration, stop-and-ask (b).** *Over*: a task failure, and over stopping the run.
+
+   ***This decision REPLACES the one this plan was drafted with, and the draft cited a precedent that
+   does not transfer.*** The draft said *a TASK's failure, on [W61](../work-items/w61-what-a-transform-is.md)'s
+   `TransformFailed` precedent*. **`TransformFailed` is thrown inside the ENVELOPE WORKER**, before the
+   scheduler settles anything — so the scheduler marks the task `failed` or `user_action` itself and
+   the driver records what it was told. A result check runs in the **driver**, after the scheduler has
+   already reported `done`, and `OR-R3`'s own source column says `terminalState` comes from `d.state`
+   and is **never** the driver's. *W61's mechanism is unavailable here, and the draft's decision rested
+   on it.*
+
+   **Three things decide it:**
+
+   - **The mechanism for a guard EXISTS and is not free.** `resolution` is a second record kind whose
+     `resolvedAs` is *the terminal state the node is treated as having from here*, `OR-R9` composes it
+     with the settlement, and `RS-R3` routes `failed` exactly as an optional node's failure. So the
+     driver COULD override without rewriting — this is not refused for want of a road.
+   - **A routing change composes badly with decision 1.** *If the check is off by default and changes
+     routing when on, then turning it on changes what the flow DOES* — a run that completes in
+     production takes a failure edge, or parks for a person, in validation mode. **You cannot audit a
+     behaviour with an instrument that alters it.** A guard wants to be ON by default; a diagnostic
+     can be off.
+   - **Fact 3 says the observed fault is the SCHEMA, not the worker.** Both of Q302's instances were an
+     author's bound, and W73 fixed one in the declaration and one in the code. *Failing a task for that
+     punishes a run for a documentation defect.*
+
+   **`OR-R12` is the precedent taken**: a resolution whose value is uncloneable is refused and *the run
+   is not failed: nothing is appended*. **An item that writes a record, changes a terminal state, or
+   routes differently has broken this decision, and that is the sentence its adequacy reader should
+   try to falsify first.** The cost is stated rather than hidden: **a value that fails its schema still
+   flows downstream**, and this plan buys the consumer knowledge rather than protection.
 4. **The twelve-keyword subset is the contract language and nothing is added to it.**
    [ADR 0053](../decisions/0053-the-schema-validator-is-a-built-in-subset-and-a-keyword-outside-it-is-refused.md)
    stands; `oneOf` is [P19](p19-what-a-schema-buys-an-author.md)'s slice 2 and its condition has not
@@ -161,7 +191,7 @@ title (`doc/workflow.md` section 7 rule 2).*
 
 | | what it does | Owns | Depends on | Gate |
 |---|---|---|---|---|
-| **W80** | **What a run-time result check IS** — **ADR 0060**: the `DriverOptions` knob, OFF by default; the site (one, named); the refusal as a TASK failure on W61's precedent; the `spec/` rule and its id; the subset unchanged. **Fact 3 says there is no live defect, so the item must CONSTRUCT the case that makes it fire** and say what the wiring check and `FD-R4` cannot reach | `src/driver/**`, `src/definition/**`, `spec/**`, `test/driver/**`, `doc/decisions/0060-*` | nothing | L0 under all five typecheckers; L1-L2; `check:spec`; L6 UNMOVED |
+| **W80** | **What a run-time result check IS** — **ADR 0060**: the `DriverOptions` knob, OFF by default (stop-and-ask (a)); the site (one, named, and it is where `OR-R2`'s clone already happens); the finding **REPORTED and never routed** (stop-and-ask (b)) — no record, no terminal state, `OR-R12`'s precedent; the `spec/` rule and its id; the subset unchanged. **Fact 3 says there is no live defect, so the item must CONSTRUCT the case that makes it fire** and say what the wiring check and `FD-R4` cannot reach | `src/driver/**`, `src/definition/**`, `spec/**`, `test/driver/**`, `doc/decisions/0060-*` | nothing | L0 under all five typecheckers; L1-L2; `check:spec`; L6 UNMOVED |
 | **W81** | **The price, both halves** — fact 4's ratio re-taken with the check ON at L6's scale, and **[Q320](../open-questions.md) reached at a shape where it BITES**: fact 2 measured +1 clone per settlement and no time, so this item needs workers that RETURN large results, which the corpus does not have. Whether a consumer can decline the always-on handle is decided here or declared unreachable | `examples/**`, `test/**` as the measurement needs | W80 | L1-L5; a measurement, not a rung; both figures as RATIOS (decision 5) |
 | **W82** | **The exit artifact** — one L6 row where a worker returns a value its own `outputSchema` refuses and the run reports it BY NAME, in both runtimes, with the check's cost for the whole rung measured on and off; the reference teaching the knob. **L6 MOVES and this row says so** | `examples/**`, `AGENTS.md`, `README.md`, `examples/README.md` | W81 | L6 in **both** runtimes; `check:docs`; `check:markdown`; the full `npm run gate` |
 
@@ -178,7 +208,7 @@ of — so these say what was measured and make no claim beyond it.*
 | # | prediction | scope of the measurement it rests on | what would reverse it |
 |---|---|---|---|
 | 1 | **The check is cheap enough that the DEFAULT is the only real argument** — every cost this plan measures stays under the clone the driver already pays | fact 4, over 70 settlements on ONE flow's twelve declared schemas, timed in one process; **it does not cover a schema with deep nesting, a large `enum`, or an array of thousands**, and the corpus has none | a schema shape whose check is superlinear where the clone is linear — the likeliest is a large `enum` or a deeply nested `items`, neither of which this corpus can express |
-| 2 | **The refusal is a TASK failure and needs no new run outcome** — W61's `TransformFailed` shape carries it, and `FD-R4`'s `BoundaryRefused` is the wrong precedent because that one is a REJECTED COMMAND with the driver unstarted | decision 3, from W61's and W73's shipped rules read on paper; **no item has yet tried to write the rule** | a result refusal that must reach a caller synchronously, which would make it `FD-R4`'s shape after all and reopen decision 3 |
+| 2 | **The finding needs NO new record kind, NO new terminal state and NO new run outcome** — it is a callback and nothing else, which is what decision 3 makes it | decision 3 as ANSWERED, plus `OR-R12`'s shipped precedent (refuse, append nothing, do not fail the run) read on paper; **no item has yet tried to write the rule** | a consumer who cannot act on a report without the run pausing for them, which would make the guard necessary and reopen both (a) and (b). *(This row's FIRST version predicted a TASK failure on W61's precedent and was corrected before any item ran: `TransformFailed` is thrown inside the envelope worker, so the scheduler authors that terminal state and the driver never does — `OR-R3`'s source column. A prediction whose premise the declaration step falsified, which is the sixteenth plan to find one of its own inputs wrong by trying to act on it.)* |
 | 3 | **REACH: the check finds something the wiring check and `FD-R4` cannot** — a bound a producer does not keep past its declared domain, which is Q302's own closing sentence | **none — this is a reach, and fact 3 measured that the corpus has no live instance left.** Both of Q302's are closed | W80 failing to CONSTRUCT a case that is not also caught statically or at a boundary, which would make the feature's whole case the cost measurement and nothing else |
 | 4 | **Q320 does not bite at this library's own corpus and needs a shape built for it** | fact 2, three shapes on `map-alias` where the workers return small values and the large payload sits at the entry; **it does not cover a worker that RETURNS megabytes**, which is P15's own quantity | a corpus shape where the +1 clone per settlement is measurable, which W81 is required to try to build |
 
@@ -199,12 +229,14 @@ of — so these say what was measured and make no claim beyond it.*
 
 ## Stop and ask a human
 
-- **(a) OFF by default — confirm.** Decision 1. Fact 4 makes the check cheap and P19's departure
-  argument is about WHOSE tool a schema is, not about price. The plan recommends OFF; ON by default
-  would make the corpus's own looser schemas into run-time refusals, which is the thing P19 refused.
-- **(b) What the refusal IS.** Decision 3 says a TASK failure on W61's precedent. The alternative is
-  `FD-R4`'s rejected-command shape, which is wrong here because the driver is running and no caller
-  is on the stack — but it is the shape a consumer who wants a synchronous answer would ask for.
+- **(a) OFF by default — ANSWERED: yes, off.** Decision 1, as recommended.
+- **(b) What the finding IS — ANSWERED: REPORT ONLY, no routing change.** Decision 3, as
+  recommended, and the answer to (a) is what decided it: *a diagnostic that changes routing when you
+  enable it alters the behaviour you enabled it to audit.* **The draft's own answer — a task failure
+  on W61's precedent — was withdrawn at this declaration** because `TransformFailed` is thrown inside
+  the envelope worker and the driver never authors a terminal state (`OR-R3`). The guard road remains
+  available through a driver-authored `resolution`-shaped record if a later plan wants it, and taking
+  it means reopening (a) in the same breath.
 - **(c) Whether W81 may add a worker that returns megabytes.** Q320 cannot be reached with the corpus
   as it stands (fact 2), and building for a measurement is the thing
   [P15](p15-what-a-run-retains-and-what-a-result-may-be.md) did. It touches `examples/**` and moves no row.
