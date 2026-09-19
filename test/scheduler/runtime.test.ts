@@ -11,7 +11,7 @@
  * it is instantiated here member by member, because the rule ENUMERATES its values
  * (`doc/workflow.md` section 5 rule 8 obligation (a) at v0.17).
  */
-import { deepEqual, equal, ok, readText, ROOT, suite, throws } from '../harness.ts';
+import { AssertionError, deepEqual, equal, ok, readText, ROOT, suite, throws } from '../harness.ts';
 import {
   BUILT_IN_GROUP_FACTORIES, createRuntime, GROUP_MEMBERS, GroupNotBuildable, GroupUnusable,
   LanguageNotBuilt, RuntimeError,
@@ -25,7 +25,7 @@ import { canonical } from '../../src/definition/schema.ts';
 import { Driver } from '../../src/driver/driver.ts';
 import { liveToken } from '../../src/fold/policies.ts';
 import type { ResourceGroup } from 'fyflow-scheduler';
-import { fold, isTerminal } from '../../src/fold/run-state.ts';
+import { emptyState, fold, isTerminal, step } from '../../src/fold/run-state.ts';
 import type { FoldInput, RunState } from '../../src/fold/run-state.ts';
 import type { FlowDefinition, RegistryCode, RegistryDocument } from '../../src/definition/types.ts';
 
@@ -52,6 +52,18 @@ function seams() {
     const detail = { id, state: 'done', result, attempts: 0, timestamp: 1, startTime: 1, endTime: 2, executionTime: 1 };
     for (const fn of listeners.get('task.completed') ?? []) fn({ detail });
   };
+  /**
+   * **A settlement that is NOT `done`** — W77, which needs the outcomes `settle` cannot produce.
+   * The driver keys on the terminal STATE and not on the event name (ADR 0007 rule 2), and the
+   * scheduler dispatches `task.failed` AND `task.user_action` with the same object for a
+   * non-optional task out of retries — so a `user_action` case emits the pair, exactly as
+   * `core/FyflowScheduler.ts` does, rather than the one event a reader would guess.
+   */
+  const emitSettlement = (id: string, state: 'failed' | 'user_action', error: unknown = 'boom') => {
+    const detail = { id, state, result: null, error, attempts: 0, timestamp: 1, startTime: 1, endTime: 2, executionTime: 1 };
+    const names = state === 'user_action' ? ['task.failed', 'task.user_action'] : ['task.failed'];
+    for (const name of names) for (const fn of listeners.get(name) ?? []) fn({ detail });
+  };
   const createScheduler = (p: Record<string, unknown>, g: Record<string, unknown>) => {
     built.push({ pools: p, groups: g });
     return {
@@ -61,7 +73,7 @@ function seams() {
       shutdown() { return Promise.resolve(); },
     } as never;
   };
-  return { pools, built, added, settle, createPool, createScheduler };
+  return { pools, built, added, settle, emitSettlement, createPool, createScheduler };
 }
 
 /** The minimum document: one worker, one type, one named instance of it, one group the type holds. */
@@ -390,8 +402,8 @@ suite('W66 — decision 10: start() mints a run id, defaults the policy, and han
   test('a minted id is `r<n>`, inside ID-R2`s charset, and distinct across two runs of one runtime', () => {
     const s = seams();
     const r = createRuntime(DOC, {}, { createPool: s.createPool, createScheduler: s.createScheduler });
-    const a = r.start(FLOW, { x: 1 });
-    const b = r.start(FLOW, { x: 2 });
+    const { driver: a } = r.start(FLOW, { x: 1 });
+    const { driver: b } = r.start(FLOW, { x: 2 });
     equal([a.runId, b.runId], ['r1', 'r2'], 'r<n> from the runtime`s own counter');
     for (const id of [a.runId, b.runId]) ok(/^[A-Za-z0-9_-]{1,64}$/.test(id), `${id}: inside ID-R2's charset`);
     ok(a.runId !== b.runId, 'and distinct — two runs on one runtime never share a run id');
@@ -400,7 +412,7 @@ suite('W66 — decision 10: start() mints a run id, defaults the policy, and han
   test('a caller`s runId is taken as given, and the run is STARTED — the first task is dispatched under it', () => {
     const s = seams();
     const r = createRuntime(DOC, {}, { createPool: s.createPool, createScheduler: s.createScheduler });
-    const d = r.start(FLOW, { x: 1 }, { runId: 'mine-1' });
+    const { driver: d } = r.start(FLOW, { x: 1 }, { runId: 'mine-1' });
     equal(d.runId, 'mine-1', 'the caller`s id');
     equal(s.added.map((t) => t.id), ['mine-1:a:-:0'], 'and start() started the run: one task, under that id');
     equal((s.added[0]!.workerType as string), 'Scorer', 'dispatched to the type`s default pool');
@@ -432,19 +444,19 @@ suite('W66 — decision 10: start() mints a run id, defaults the policy, and han
     } as unknown as FlowDefinition;
     const s = seams();
     const r = createRuntime(DOC, {}, { createPool: s.createPool, createScheduler: s.createScheduler });
-    const d = r.start(fanout, { x: 1 });
+    const { driver: d } = r.start(fanout, { x: 1 });
     equal(s.added.map((t) => t.id), [`${d.runId}:a:-:0`], 'the run started, so a policy reached the driver');
     // And the caller's own policy is taken where given — the other half of the pair.
     const explicit = seams();
     const r2 = createRuntime(DOC, {}, { createPool: explicit.createPool, createScheduler: explicit.createScheduler });
-    const d2 = r2.start(fanout, { x: 1 }, { joinPolicy: liveTokenRequiringArrival });
+    const { driver: d2 } = r2.start(fanout, { x: 1 }, { joinPolicy: liveTokenRequiringArrival });
     equal(explicit.added.map((t) => t.id), [`${d2.runId}:a:-:0`], 'and so does an explicitly given one');
   });
 
   test('two runtimes over one document mint the same ids — decision 10`s scope, stated rather than assumed (Q20)', () => {
     const one = createRuntime(DOC, {}, { ...seams() });
     const two = createRuntime(DOC, {}, { ...seams() });
-    equal([one.start(FLOW, {}).runId, two.start(FLOW, {}).runId], ['r1', 'r1'],
+    equal([one.start(FLOW, {}).driver.runId, two.start(FLOW, {}).driver.runId], ['r1', 'r1'],
       'unique per RUNTIME and not globally — two runtimes on one scheduler must be given their ids by the caller');
   });
 });
@@ -511,7 +523,7 @@ suite('W66 — decision 13: the languages a pool carries come from the FLOWS, an
   test('the same flow, with the runtime told about it, starts', () => {
     const s = seams();
     const r = createRuntime(withLang, code, { createPool: s.createPool, createScheduler: s.createScheduler, flows: [TRANSFORMING] });
-    const d = r.start(TRANSFORMING, { confidence: 0.9 });
+    const { driver: d } = r.start(TRANSFORMING, { confidence: 0.9 });
     equal(s.added.map((t) => t.id), [`${d.runId}:a:-:0`], 'one task, dispatched');
     equal(Object.keys(s.added[0]!.payload as object).sort(), ['input', 'settings', 'transform'], 'with the transform as the third key — FD-C6');
   });
@@ -582,7 +594,7 @@ suite('W66 — every option start forwards, and every member the runtime exposes
       const s = seams();
       const r = createRuntime(ROUTED, { predicates: supplied }, { createPool: s.createPool, createScheduler: s.createScheduler });
       equal([...(r.registry.predicates as ReadonlyMap<string, unknown>).keys()], ['high'], shape + ': keyed by the name the document declares');
-      const d = r.start(guarded(), { x: 1 });
+      const { driver: d } = r.start(guarded(), { x: 1 });
       equal(s.added.map((t) => t.id), [d.runId + ':a:-:0'], shape + ': and a flow whose edge NAMES it starts — FD-V4 refuses it otherwise');
     }
   });
@@ -592,7 +604,7 @@ suite('W66 — every option start forwards, and every member the runtime exposes
     const counting = { ...arrivalCount, open: (region: never) => { opened++; return arrivalCount.open(region); } } as typeof arrivalCount;
     const s = seams();
     const r = createRuntime(ROUTED, { predicates: { high } }, { createPool: s.createPool, createScheduler: s.createScheduler });
-    const d = r.start(FANOUT, { x: 1 }, { joinPolicy: counting });
+    const { driver: d } = r.start(FANOUT, { x: 1 }, { joinPolicy: counting });
     // The region opens when the fanout is REACHED, so the entry has to settle first — the policy is
     // asked to open it, and a driver holding a different policy would not ask this object.
     s.settle(d.runId + ':a:-:0', { ok: true });
@@ -609,7 +621,7 @@ suite('W66 — every option start forwards, and every member the runtime exposes
       createPool: s.createPool, createScheduler: s.createScheduler,
       defaultRetryPolicy: { maxRetries: 3, backoffMs: 11 },
     });
-    const d = r.start(guarded(), { x: 1 }, {
+    const { driver: d } = r.start(guarded(), { x: 1 }, {
       createTask: (c) => ({ ...(c as Record<string, unknown>), MARK: 7 }) as never,
       onFoldInput: () => { seen.push('fold'); },
       onRunFailure: () => { seen.push('failure'); },
@@ -632,7 +644,7 @@ suite('W66 — every option start forwards, and every member the runtime exposes
   test('F10, F11: the registry SPREAD is what the driver validates against — a node naming a pool and one naming workerGroups both start', () => {
     const s = seams();
     const r = createRuntime(ROUTED, { predicates: { high } }, { createPool: s.createPool, createScheduler: s.createScheduler });
-    const d = r.start(guarded({ pool: 'T-slow', workerGroups: ['gate'] }), { x: 1 });
+    const { driver: d } = r.start(guarded({ pool: 'T-slow', workerGroups: ['gate'] }), { x: 1 });
     equal(s.added.map((t) => t.id), [d.runId + ':a:-:0'], 'FD-V38 and FD-V31 both passed, so pools and groups crossed into the driver');
     equal(s.added[0]!.workerType, 'T-slow', 'and the task went to the NAMED instance');
     equal(s.added[0]!.workerGroups, ['gate'], 'carrying the node own group');
@@ -641,15 +653,15 @@ suite('W66 — every option start forwards, and every member the runtime exposes
   test('F12: the PAYLOAD start is given is what the entry node receives', () => {
     const s = seams();
     createRuntime(ROUTED, { predicates: { high } }, { createPool: s.createPool, createScheduler: s.createScheduler })
-      .start(guarded(), { x: 1, deep: { y: 2 } });
+      .start(guarded(), { x: 1, deep: { y: 2 } }).driver;
     equal((s.added[0]!.payload as { input: unknown }).input, { x: 1, deep: { y: 2 } }, 'the envelope input IS what the caller passed');
   });
 
   test('F19: a caller supplied runId does NOT consume a mint — the counter counts what it minted', () => {
     const s = seams();
     const r = createRuntime(ROUTED, { predicates: { high } }, { createPool: s.createPool, createScheduler: s.createScheduler });
-    const a = r.start(guarded(), {}, { runId: 'mine' });
-    const b = r.start(guarded(), {});
+    const { driver: a } = r.start(guarded(), {}, { runId: 'mine' });
+    const { driver: b } = r.start(guarded(), {});
     equal([a.runId, b.runId], ['mine', 'r1'], 'the first run took the caller id and the counter is untouched by it');
   });
 
@@ -819,6 +831,15 @@ suite('W66 — what the runtime refuses that the document alone could not say', 
  * see it either, because the count is derived from the same regex and is downstream of the
  * apparatus it is meant to corroborate.*
  */
+/**
+ * A newline and a comment-line test, as CONSTANTS. W77 mangled both through a shell quoting
+ * layer twice on the way in; `CLAUDE.md`'s rule is to write a script as a FILE rather than a
+ * heredoc, and this is the same hazard one layer further in — a literal that survives no round
+ * trip belongs in exactly one place.
+ */
+const NL = String.fromCharCode(10);
+const COMMENT_LINE = new RegExp('^\\s*(//|\\*|/\\*)');
+
 const w76MembersOf = (text: string, anchor: string): string[] => {
   const at = text.indexOf(anchor);
   if (at < 0) throw new Error(`W76: anchor not found in source: ${anchor}`);
@@ -884,9 +905,17 @@ suite('W76 — StartOptions and start() are two lists, and nothing compared them
       /** Road (d), and it is the INTERFACE rather than the `Pick` — W76 finding B. */
       startPick: pickNames(runtime, 'export interface StartOptions extends Pick<DriverOptions,'),
       startOwn: membersOf(runtime, 'export interface StartOptions extends Pick<DriverOptions,'),
-      /** How `start` reaches each one: conditionally spread, or defaulted with `??`. */
+      /**
+       * **How `start` reaches each one — THREE roads since W77.** Conditionally spread, defaulted
+       * with `??`, or COMPOSED: wrapped in the runtime's own callback which then calls the
+       * consumer's. The third road arrived because ADR 0058's `done` needs `onFoldInput` and a
+       * consumer may pass one too, so replacing it would silently drop theirs — and this binding
+       * FIRED by name on W77's first run (`expected: [] actual: ["onFoldInput"]`), which is W76's
+       * Outputs (2) doing exactly what it was built for.
+       */
       spreads: [...literal.matchAll(/\.\.\.\(startOptions\.([a-zA-Z][a-zA-Z0-9]*) !== undefined/g)].map((m) => m[1] as string),
       defaulted: [...runtime.slice(sigAt, litEnd).matchAll(/startOptions\.([a-zA-Z][a-zA-Z0-9]*) \?\?/g)].map((m) => m[1] as string),
+      composed: [...literal.matchAll(/startOptions\.([a-zA-Z][a-zA-Z0-9]*)\?\.\(/g)].map((m) => m[1] as string),
     };
   }
 
@@ -908,7 +937,8 @@ suite('W76 — StartOptions and start() are two lists, and nothing compared them
       'road (c) is what start FORWARDS from RuntimeOptions, which is TWO — not the interface`s six, four of which are not DriverOptions members (W76 finding D)');
     ok(s.startPick.includes('onRegionEvent'), 'road (d) carries onRegionEvent — Q297, and this item');
     equal(s.startOwn, ['runId'], 'and StartOptions declares exactly one member in its own body');
-    ok(s.spreads.length > 0 && s.defaulted.length > 0, 'start() reaches members by both roads');
+    ok(s.spreads.length > 0 && s.defaulted.length > 0 && s.composed.length > 0,
+      'start() reaches members by all THREE roads — a road whose regex matched nothing would make the set differences below vacuously true');
   });
 
   /**
@@ -941,7 +971,7 @@ suite('W76 — StartOptions and start() are two lists, and nothing compared them
   test('every StartOptions member is REACHED by start, and everything start reaches is DECLARED', async () => {
     const s = await surfaces();
     const declared = sorted([...s.startPick, ...s.startOwn]);
-    const reached = sorted([...s.spreads, ...s.defaulted]);
+    const reached = sorted([...s.spreads, ...s.defaulted, ...s.composed]);
     equal(declared.filter((n) => !reached.includes(n)), [],
       'a name in StartOptions that start() never reads is a typed option silently dropped — P20 fact 2 p1, green on all four rungs before this item');
     equal(reached.filter((n) => !declared.includes(n)), [],
@@ -964,12 +994,103 @@ suite('W76 — StartOptions and start() are two lists, and nothing compared them
    * reader measured it FALSE and its conformity reader derived the same thing by reading — the
    * only subject the two shared.*
    */
-  test('each StartOptions member reaches the driver by EXACTLY ONE of the two roads', async () => {
+  /**
+   * **P20 decision 2, made FALSIFIABLE — and its own sentence says to try.** *"`done` resolves from
+   * `fold(inputs)` and `isTerminal` … An item that reimplements either has broken this decision, and
+   * that is the sentence its adequacy reader should try to falsify first."* W77's adequacy reader
+   * falsified it: inlining `isTerminal`'s body into the runtime (`state.outcome !== 'running' &&
+   * state.outcome !== 'awaiting_action'`) cost **ZERO**, and so did computing `done` from
+   * `fold(driver.foldInputs())` instead of stepping — which would make the headline invariant one
+   * route compared with itself.
+   *
+   * Neither is reachable behaviourally: a copied predicate agrees with the original until
+   * `RunOutcome` gains a member, and a re-folding mechanism is behaviourally identical by `RN-R2`
+   * (rule 8's `b3` measures exactly that, and it is a declared ceiling for it). **What separates
+   * them is retention and time, which no rung here weighs** — so the binding is over the SOURCE,
+   * beside the two lists it already reads, and it is a second observer rather than a better probe
+   * (obligation (c)'s LIMIT).
+   */
+  /**
+   * **Every type `runtime.ts` DECLARES is re-exported by the sub-path — both ways.** W77's
+   * conformity reader, finding 1: `RunHandle` — this item's headline type, the thing `start`
+   * RETURNS — shipped declared and unexported, so `import type { RunHandle } from
+   * 'fyflow-orchestration/scheduler'` resolved to nothing. The sub-path's type export is an explicit
+   * ALLOWLIST rather than an `export *`, which makes it `doc/workflow.md` rule 8 obligation (e)'s
+   * third shape — *a LIST is a claim about another list* — with the procedure *find the other list
+   * and compare BOTH WAYS*.
+   *
+   * **Nothing else can see it, and the reason is structural**: a `export type` is erased, so the
+   * existing export case (which compares `Object.keys(module)`) is blind to it by construction, and
+   * so is every typechecker — an absent export is not an error anywhere. *Q297's own shape one layer
+   * over: the thing the seam produces, unreachable on the road `AGENTS.md` recommends.*
+   *
+   * **Writing this found a SECOND instance the reader had not**: `RuntimeRegistry` was missing too,
+   * and it is the type P18 decision 14's road needs — the object a consumer spreads into
+   * `new Driver(…)` by hand. *A list bound to nothing is wrong more than once.*
+   */
+  test('every type the sub-path`s modules declare is re-exported by it, all three, both ways', async () => {
+    const index = await readText(ROOT + 'src/scheduler/index.ts');
+    /** Each module the sub-path re-exports types from, and what it DECLARES against what it re-exports. */
+    const MODULES = ['runtime.ts', 'bootstrap.ts', 'envelope-worker.ts'] as const;
+    const seen: string[] = [];
+    for (const mod of MODULES) {
+      const src = await readText(ROOT + 'src/scheduler/' + mod);
+      const declared = [...src.matchAll(/^export (?:interface|type) ([A-Za-z][A-Za-z0-9]*)/gm)].map((m) => m[1] as string).sort();
+      const line = index.split(NL).find((l) => l.startsWith('export type {') && l.includes("'./" + mod + "'"));
+      ok(line !== undefined, `the sub-path re-exports types from ./${mod} at all`);
+      const inBraces = (line as string).slice((line as string).indexOf('{') + 1, (line as string).indexOf('}'));
+      const reExported = [...inBraces.matchAll(/([A-Za-z][A-Za-z0-9]*)/g)].map((m) => m[1] as string).sort();
+      // the CONTROL, per module: both lists are real, so the set differences are not vacuously empty
+      ok(declared.length > 0 && reExported.length > 0,
+        `${mod}: declares ${declared.length} type(s) and the sub-path re-exports ${reExported.length}`);
+      equal(declared.filter((n) => !reExported.includes(n)), [],
+        `a type ${mod} declares and the sub-path does not re-export is a type no consumer can NAME — ` +
+        'which is what `RunHandle`, `RuntimeRegistry` AND `BootstrapRegistry` all were, the last being the first parameter type of `bootstrap` itself');
+      equal(reExported.filter((n) => !declared.includes(n)), [],
+        `and a name the sub-path re-exports that ${mod} does not declare would not resolve at all`);
+      seen.push(mod);
+    }
+    // the loop's own membership: a module dropped from MODULES takes its comparison with it
+    equal(seen, ['runtime.ts', 'bootstrap.ts', 'envelope-worker.ts'],
+      'and all three modules were compared — a module that leaves this list fails here naming itself');
+  });
+
+  test('the runtime CALLS `isTerminal` and `step` rather than reimplementing either — P20 decision 2', async () => {
+    const runtime = await readText(ROOT + 'src/scheduler/runtime.ts');
+    const at = runtime.indexOf('const driver = new Driver(flow, {');
+    const from = runtime.indexOf('const runId = startOptions.runId');
+    ok(from >= 0 && at > from, 'the `done` machinery sits between the minted runId and the `new Driver` literal');
+    // **Comment lines are stripped before any of this is read.** The first version of this case
+    // went RED on the machinery's own PROSE, which quotes `foldInputs()` while explaining why the
+    // mechanism does not call it — W25's *a comment that quotes the code it explains makes that
+    // code unmutatable*, here in the mirror direction: it made correct code unreadable.
+    const machinery = runtime.slice(from, runtime.indexOf('driver.start(payload);', at))
+      .split(NL).filter((l) => !COMMENT_LINE.test(l)).join(NL);
+    ok(/\bisTerminal\(/.test(machinery),
+      'the terminality predicate is CALLED, not copied — a copy agrees with the original until `RunOutcome` gains a member, and nothing behavioural can see that');
+    ok(!/outcome\s*!==\s*['"]running['"]/.test(machinery),
+      'and `isTerminal``s BODY does not appear here: inlining it cost ZERO on every rung (W77`s adequacy reader, BLOCKING 4)');
+    ok(/\bstep\(/.test(machinery),
+      'and the mechanism STEPS a kept prefix — `fold` is this loop, and RN-R2 is what licenses keeping it');
+    ok(!/foldInputs\(\)/.test(machinery),
+      'and it does NOT read `driver.foldInputs()`: if it did, the headline invariant would be one route compared with itself rather than two ' +
+      '(W77`s adequacy reader, BLOCKING 3 — measured at ZERO failures)');
+  });
+
+  test('each StartOptions member reaches the driver by EXACTLY ONE of the three roads', async () => {
     const s = await surfaces();
-    equal(s.spreads.filter((n) => s.defaulted.includes(n)), [],
+    const both = (a: readonly string[], b: readonly string[]) => a.filter((n) => b.includes(n));
+    equal(both(s.spreads, s.defaulted), [],
       'no member is both conditionally spread and `??`-defaulted — the second would silently win over the first');
+    equal(both(s.spreads, s.composed), [],
+      'and none is both spread and COMPOSED — the spread would overwrite the wrapper, so the consumer`s callback would be the only one called and `done` would never settle');
+    equal(both(s.defaulted, s.composed), [],
+      'and none is both `??`-defaulted and composed');
     equal(sorted(s.defaulted), ['joinPolicy', 'runId'],
-      'and the `??` road has TWO members, not the one P20 decision 5 named: runId is the same shape a declaration site over (W76 finding B)');
+      'the `??` road has TWO members, not the one P20 decision 5 named: runId is the same shape a declaration site over (W76 finding B)');
+    equal(sorted(s.composed), ['onFoldInput'],
+      'and the COMPOSED road has exactly one: `onFoldInput`, which ADR 0058 needs for `done` and which a consumer may also pass. ' +
+      'A second member arriving here is a second callback the runtime has taken over, and that is a decision, not a refactor');
   });
 });
 
@@ -1152,7 +1273,7 @@ suite('W76 — every StartOptions member ARRIVES at the driver, and the observer
       const s = seams();
       const o = OBSERVERS[name]!(s);
       const r = createRuntime(DOCUMENT, {}, { createPool: s.createPool, createScheduler: s.createScheduler });
-      const d = r.start(o.flow, { items: 7 }, o.option);
+      const { driver: d } = r.start(o.flow, { items: 7 }, o.option);
       // Settle every task the driver dispatches, in the order it dispatched them, so a fanout
       // reaches its join and a map reaches its arity refusal. `added` grows as the run advances.
       for (let i = 0; i < s.added.length && i < 20; i += 1) s.settle(String(s.added[i]!.id), { items: 7, ok: true });
@@ -1294,5 +1415,637 @@ suite('W76 — the forwarded stream IS the driver`s region stream, at every vari
       'two regions, and one of them is the MAP — the kind m3 could drop for zero');
     ok(events.some((e) => e.type === 'branch.exited'),
       `a variant beyond opened/arrived occurs: ${[...new Set(events.map((e) => e.type))].sort().join(' ')}`);
+  });
+});
+
+
+/**
+ * **W77 — what `start` RETURNS: `done`, and the invariant that makes the claim total.**
+ * [ADR 0058](../../doc/decisions/0058-runtime-start-returns-a-completion-handle-the-runtime-keeps.md),
+ * [P20](../../doc/plans/p20-what-the-runtime-owes-a-consumer.md) decisions 1 and 2,
+ * [Q293](../../doc/open-questions.md).
+ *
+ * **The invariant, and why it is asserted before the enumeration.** `done` quantifies over six run
+ * outcomes, over a run already terminal when a handler is attached and one that is not, over both
+ * region kinds and over a run with a person in the loop. Enumerating those would be the AUTHOR's
+ * enumeration, which is the thing `doc/workflow.md` rule 8 (a)'s own clause says keeps failing —
+ * and W76's sharpest finding was that the answer to a claim bound at one shape is *look for the
+ * invariant the shapes are instances of before enumerating them*. Here it is:
+ *
+ * > **`await done` IS `fold(driver.foldInputs())` — the caller's own expression over the driver's
+ * > own sequence — and it settles exactly when that value first becomes terminal.**
+ *
+ * That is total over outcome, over topology and over pool kind, because it names none of them. It
+ * is also a SECOND ROUTE rather than a second call site, which is obligation (c)'s LIMIT: the
+ * runtime `step`s a prefix it keeps, and this folds the whole sequence the DRIVER keeps, so
+ * re-sourcing either leaves the other live. *(`RN-R2` is the rule that says the two must agree —
+ * "folding `n` then applying record `n+1` equals folding `n+1`" — so a disagreement here is a
+ * `RN-R2` failure and not a rounding error.)*
+ *
+ * **The enumeration is still here, under a DIFFERENT claim**, and that is v0.18's same-claim
+ * clause: the invariant says what `done` resolves WITH; the enumeration says whether it settles at
+ * all, and `isTerminal` ENUMERATES its own values — `running` and `awaiting_action` are the two
+ * that say more input is coming, every other outcome is terminal. Six members, one claim each way.
+ *
+ * **Every expected value comes from `src/fold/run-state.ts`'s own `isTerminal` and from this item's
+ * declaration-step measurements** (`dev-dist/w77/decl-probe{,2,3,4,6}.txt`), never from this
+ * module's output.
+ */
+/**
+ * **`await done`, bounded — because an unsettled promise HANGS a runner rather than failing it.**
+ * W77's own rule 8 author pass returned four CRASH verdicts (`exit 13, 0 named failures`) where a
+ * case awaited a `done` the probe had broken: Node drains the event loop, finds a pending top-level
+ * await and exits, so the suite reports NOTHING. That is `doc/workflow.md` section 4's *a crash is
+ * not a detection* and [W59](../../doc/work-items/w59-what-a-node-type-is.md)'s *exit 1 with zero
+ * FAIL lines*, reached from inside this item's own tests.
+ *
+ * So every `await done` in these suites goes through here: a `done` that does not settle, and a
+ * `done` that REJECTS — which ADR 0058 rule 3 says it never does — are both named failures **at the
+ * handles these suites actually hold**.
+ *
+ * **That qualification is the honest one and it was measured.** `start` now creates a promise for
+ * EVERY run, and most cases in this file (W66's, W76's) never attach a handler to theirs — so a
+ * `done` made to reject reaches them as an UNHANDLED REJECTION and kills the runner mid-file with
+ * zero `FAIL` lines, which this helper cannot see. W77's rule 8 `b2` grades that as a DECLARED
+ * crash discriminated by its message rather than swallowing it, and W77's adequacy reader reached
+ * the same structural fact from the other end (its 10). *A helper can only bound the promises its
+ * own cases hold.*
+ */
+const w77Settlement = async (d: Promise<RunState>, ms = 300): Promise<RunState> => {
+  const NEVER = Symbol('never settled');
+  const r = await Promise.race([
+    d.then((s) => s as RunState | symbol | Error, (e: unknown) => new Error(`done REJECTED, and ADR 0058 rule 3 says it never does: ${String((e as Error)?.message ?? e).slice(0, 80)}`)),
+    new Promise<symbol>((res) => setTimeout(() => res(NEVER), ms)),
+  ]);
+  if (r === NEVER) throw new AssertionError(`\`done\` did not settle within ${ms} ms — ADR 0058 rule 3, and the run this case drove reached a terminal outcome`);
+  if (r instanceof Error) throw new AssertionError(r.message);
+  return r as RunState;
+};
+
+suite('W77 — `done` IS the caller`s own fold, and it settles exactly when that becomes terminal', (test) => {
+  const DOCUMENT = {
+    workers: { w: { url: 'https://example.test/w.js' } },
+    nodeTypes: { T: { worker: 'w', inline: true } },
+    predicates: [],
+  } as unknown as RegistryDocument;
+
+  const LINEAR = {
+    flowId: 'lin', version: 1, entry: 'a',
+    nodes: [
+      { id: 'a', kind: 'task', type: 'T', edges: [{ to: 'b' }] },
+      { id: 'b', kind: 'task', type: 'T', edges: [{ to: 'done' }] },
+      { id: 'done', kind: 'end', outcome: 'completed' },
+    ],
+  } as unknown as FlowDefinition;
+
+  /** A two-branch fan-out, so a region OPENS, ARRIVES and JOINS inside the sequence `done` folds. */
+  const FANOUT = {
+    flowId: 'fan', version: 1, entry: 'a',
+    nodes: [
+      { id: 'a', kind: 'task', type: 'T', edges: [{ to: 'split' }] },
+      { id: 'split', kind: 'fanout', branches: ['b', 'c'] },
+      { id: 'b', kind: 'task', type: 'T', edges: [{ to: 'j' }] },
+      { id: 'c', kind: 'task', type: 'T', edges: [{ to: 'j' }] },
+      { id: 'j', kind: 'join', of: 'split', edges: [{ to: 'done' }] },
+      { id: 'done', kind: 'end', outcome: 'completed' },
+    ],
+  } as unknown as FlowDefinition;
+
+  /** A MAP nested in a fan-out branch — dotted branch paths, the second region kind, W76's SHAPES. */
+  const NESTED = {
+    flowId: 'nest', version: 1, entry: 'a',
+    nodes: [
+      { id: 'a', kind: 'task', type: 'T', edges: [{ to: 'split' }] },
+      { id: 'split', kind: 'fanout', branches: ['pre', 'plain'] },
+      { id: 'pre', kind: 'task', type: 'T', edges: [{ to: 'm' }] },
+      { id: 'm', kind: 'map', over: 'items', branch: 'item' },
+      { id: 'item', kind: 'task', type: 'T', edges: [{ to: 'mj' }] },
+      { id: 'mj', kind: 'join', of: 'm', edges: [{ to: 'j' }] },
+      { id: 'plain', kind: 'task', type: 'T', edges: [{ to: 'j' }] },
+      { id: 'j', kind: 'join', of: 'split', edges: [{ to: 'done' }] },
+      { id: 'done', kind: 'end', outcome: 'completed' },
+    ],
+  } as unknown as FlowDefinition;
+
+  /** Start a run on the recorded seam and settle every dispatch `done`, driving it to terminality. */
+  const runToEnd = (flow: FlowDefinition, payload: unknown) => {
+    const s = seams();
+    const r = createRuntime(DOCUMENT, {}, { createPool: s.createPool, createScheduler: s.createScheduler });
+    const handle = r.start(flow, payload, {});
+    for (let i = 0; i < s.added.length && i < 60; i += 1) s.settle(String(s.added[i]!.id), { items: ['x', 'y'], ok: true });
+    return { ...handle, s };
+  };
+
+  /**
+   * **The SHAPES this loop runs over, as a MEMBERSHIP** — `doc/workflow.md` rule 8 obligation (d).
+   * W77's adequacy reader deleted the nested row for **0 failures** and the fan-out row for 0 more,
+   * and the printed count moved 1262 -> 1261 -> 1260 without anything noticing, because the runner
+   * counts `test()` CASES. A count is not a membership, so the rows are named here and the
+   * properties that make them DIFFERENT shapes are asserted rather than trusted to the label.
+   */
+  const SHAPE_ROWS = ['a linear flow', 'a two-branch fan-out', 'a map NESTED inside a fan-out branch'] as const;
+  /** What the loop BELOW actually ran, pushed by each case — the other half of the membership. */
+  const ranShapes: string[] = [];
+  test('the three shapes this suite runs `done` over are the three it declares, and they really differ', () => {
+    equal([...SHAPE_ROWS].sort(), ['a linear flow', 'a map NESTED inside a fan-out branch', 'a two-branch fan-out'],
+      'the shape list is a membership, not a count — a row that leaves fails here naming itself');
+    const kinds = (f: FlowDefinition) => [...new Set((f.nodes as { kind: string }[]).map((n) => n.kind))].sort();
+    equal(kinds(LINEAR), ['end', 'task'], 'LINEAR opens no region at all');
+    ok(kinds(FANOUT).includes('fanout') && !kinds(FANOUT).includes('map'), 'FANOUT opens a `fanout` region and no map');
+    ok(kinds(NESTED).includes('fanout') && kinds(NESTED).includes('map'),
+      'and NESTED opens BOTH region kinds, one inside the other — the dotted branchPath depth no other row reaches');
+  });
+
+  for (const [name, flow, payload] of [
+    [SHAPE_ROWS[0], LINEAR, { x: 1 }],
+    [SHAPE_ROWS[1], FANOUT, { x: 1 }],
+    [SHAPE_ROWS[2], NESTED, { items: ['x', 'y'] }],
+  ] as const) {
+    test(`${name}: await done deep-equals fold(driver.foldInputs()) — the caller's own expression, by a second route`, async () => {
+      ranShapes.push(name);
+      const { driver, done } = runToEnd(flow, payload);
+      const settled = await w77Settlement(done);
+      // The CONTROL, and it is what stops the equality holding on two empty states: a run that
+      // dispatched nothing folds to `running` with no nodes, and `deepEqual` would be satisfied by
+      // two of those. `doc/workflow.md` v0.18 — a membership names the CONTROLS beside its claims.
+      ok(driver.foldInputs().length > 3, `the driver produced a real sequence on this flow: ${driver.foldInputs().length} fold inputs`);
+      ok(Object.keys(settled.nodes).length > 0, `and the state done resolved with describes settled nodes: ${Object.keys(settled.nodes).length}`);
+      const byTheCaller = fold(driver.foldInputs());
+      // **Value-equal AND not the SAME OBJECT.** *(The first version of this comment said the
+      // identity clause is what stops the comparison being re-sourced to itself. W77's adequacy
+      // reader measured that FALSE: re-sourcing to `structuredClone(settled)` is `!==` AND
+      // deep-equal, so the clause does not discriminate a re-sourcing — what does is the THIRD
+      // observer, the refusal suite's own `deepEqual(settled, fold(driver.foldInputs()))`, which is
+      // why `b5` and `b6` are ceilings that the compound with a broken `step` catches at 5. The
+      // clause is kept because it catches the cheap re-sourcing rule 8's `b5` writes, and its
+      // stated reason is now the measured one.)*
+      ok(settled !== byTheCaller,
+        'the two states are computed by two ROUTES and are therefore two objects — the runtime stepped a prefix it kept, this folded the sequence the DRIVER kept');
+      ok(deepEqual(settled, byTheCaller),
+        `what done resolved with IS what a caller folding the driver's own sequence computes — RN-R2, and P20 decision 2's "the same expression moved". ` +
+        `${JSON.stringify(settled.outcome)} against ${JSON.stringify(byTheCaller.outcome)}`);
+      ok(isTerminal(settled), `and it is terminal: ${settled.outcome}`);
+    });
+  }
+
+  /**
+   * **Set equality against the rows that RAN, which is what `SHAPE_ROWS` alone could not give.**
+   * rule 8's `r-a7` — the adequacy reader's own edit, deleting the NESTED row from the loop above —
+   * SURVIVED the first membership, because that one compared the `SHAPE_ROWS` DECLARATION with a
+   * literal and a deleted loop row leaves the declaration alone. W35's `ROW_KEYS` is set equality
+   * *against the rows that ran*, and this is that, read the right way round: a row that leaves the
+   * loop now fails HERE, naming itself. *A membership over a declaration binds the declaration.*
+   */
+  test('and all three shapes really RAN — set equality against what the loop executed, both ways', () => {
+    equal([...ranShapes].sort(), [...SHAPE_ROWS].sort(),
+      'every declared shape ran exactly once and nothing else did — a row deleted from the loop fails here naming itself, which `SHAPE_ROWS` alone did not catch');
+  });
+
+  /**
+   * **`RN-R2` at ladder L3, which is what licenses the mechanism at all.** The runtime keeps a
+   * stepped prefix where the copied block keeps the inputs and re-folds; `RN-R2` says those agree
+   * at EVERY prefix, not only at the end. Asserted at every n rather than once, because the claim
+   * the runtime relies on is the general one — and if it held only at the end, a consumer folding a
+   * live run (which `RN-R2` exists for) would get a different answer from `done`'s own bookkeeping.
+   */
+  test('RN-R2: the stepped prefix equals the folded prefix at EVERY n, not only at the end', async () => {
+    const { driver, done } = runToEnd(FANOUT, { x: 1 });
+    await w77Settlement(done);
+    const seq = driver.foldInputs();
+    ok(seq.length > 3, `a sequence worth stepping: ${seq.length}`);
+    let stepped = emptyState();
+    for (let n = 0; n < seq.length; n += 1) {
+      stepped = step(stepped, seq[n]!);
+      const folded = fold(seq.slice(0, n + 1));
+      ok(stepped !== folded, `prefix ${n + 1}: two objects, by two routes — re-sourcing either to the other is what rule 8's b6 probe does`);
+      ok(deepEqual(stepped, folded), `prefix ${n + 1} of ${seq.length}: step(fold(prefix), next) === fold(prefix + next)`);
+    }
+  });
+
+  /**
+   * **The ENUMERATION, under the other claim: does `done` settle at all.** `isTerminal` is
+   * `outcome !== 'running' && outcome !== 'awaiting_action'`, so it names its own values and this
+   * is the list the rule enumerates rather than the list an author chose
+   * (`doc/workflow.md` rule 8 (a) at v0.17). Four settle, two do not — and the two that do not are
+   * the whole of why `done` can wait for ever, which is what the reference has to teach.
+   */
+  test('the six outcomes: four terminal ones settle `done`, and the two non-terminal ones do NOT', async () => {
+    const pending = Symbol('still pending');
+    /** Whether `done` has settled by the next macrotask turn — a microtask is not enough, because the predicate runs in one. */
+    const settledYet = (d: Promise<RunState>): Promise<RunState | symbol> =>
+      Promise.race([d, new Promise<symbol>((r) => setTimeout(() => r(pending), 5))]);
+
+    const startedWith = (flow: FlowDefinition, payload: unknown, opts: StartOptions) => {
+      const s = seams();
+      const r = createRuntime(DOCUMENT, {}, { createPool: s.createPool, createScheduler: s.createScheduler });
+      return { ...r.start(flow, payload, opts), s };
+    };
+    const started = (flow: FlowDefinition, payload: unknown) => startedWith(flow, payload, {});
+
+    // --- running: nothing settled at all -------------------------------------------------------
+    {
+      const h = started(LINEAR, { x: 1 });
+      const v = await settledYet(h.done);
+      equal(v, pending, 'running: a dispatched task that has not settled leaves `done` pending — `isTerminal` says more input is coming');
+      equal(fold(h.driver.foldInputs()).outcome, 'running', 'and the caller`s own fold agrees about which outcome that is');
+    }
+    // --- awaiting_action: a person is in the loop ----------------------------------------------
+    {
+      const h = started(LINEAR, { x: 1 });
+      h.s.emitSettlement(String(h.s.added[0]!.id), 'user_action');
+      const v = await settledYet(h.done);
+      equal(v, pending, 'awaiting_action: a run parked on a PERSON leaves `done` pending — fact 6C, and it is the trap the reference must teach');
+      equal(fold(h.driver.foldInputs()).outcome, 'awaiting_action', 'and the caller`s own fold agrees');
+      // and the CONTROL for this row: resolving the person`s task drives it to terminal, so the
+      // pending above is a statement about `awaiting_action` rather than about a broken harness.
+      h.driver.resolve(String(h.s.added[0]!.id), 'done', { actor: 'a-person', result: { ok: true } });
+      for (let i = 1; i < h.s.added.length && i < 10; i += 1) h.s.settle(String(h.s.added[i]!.id), { ok: true });
+      const after = await settledYet(h.done);
+      ok(after !== pending && isTerminal(after as RunState), `and after resolve() it settles: ${(after as RunState).outcome}`);
+    }
+    // --- completed -----------------------------------------------------------------------------
+    {
+      const h = runToEnd(LINEAR, { x: 1 });
+      const v = await settledYet(h.done);
+      ok(v !== pending, 'completed: `done` settles');
+      equal((v as RunState).outcome, 'completed', 'with the outcome the flow`s end node declares — BY NAME, for the reason the `stuck` row below carries');
+    }
+    // --- failed: a task settles `failed` on a node with no failure edge -------------------------
+    {
+      const h = started(LINEAR, { x: 1 });
+      h.s.emitSettlement(String(h.s.added[0]!.id), 'failed');
+      const v = await settledYet(h.done);
+      ok(v !== pending, 'failed: `done` settles');
+      equal((v as RunState).outcome, 'failed', 'with `failed`, which is a flow outcome an author asked for and not an error');
+    }
+    // --- stuck: a region whose join can never fire ----------------------------------------------
+    // **This block asserted the OUTCOME BY NAME only after W77's adequacy reader measured that it
+    // was not reaching it.** As first written it failed ONE branch of a `live-token` fan-out and
+    // settled the other, then asserted only *settled*, *terminal* and *agrees with the caller's
+    // fold* — every one of which `failed` satisfies. So the run folded to `failed`, `failed` was
+    // observed twice, `stuck` zero times, and a runtime that hung `done` for ever on a stuck run
+    // shipped green. *The label was the only thing that said `stuck`.* A policy that REQUIRES an
+    // arrival, with every branch lost, is what actually reaches it — and the outcome is now named.
+    {
+      const h = startedWith(FANOUT, { x: 1 }, { joinPolicy: liveTokenRequiringArrival });
+      h.s.settle(String(h.s.added[0]!.id), { x: 1 });
+      // every branch LOST and none ARRIVED, so the join can never fire: `JP-R8`'s own case
+      for (const a of h.s.added.slice(1)) h.s.emitSettlement(String(a.id), 'failed');
+      const v = await settledYet(h.done);
+      ok(v !== pending, 'stuck: `done` settles — a run whose join can no longer fire is terminal (ADR 0015)');
+      equal((v as RunState).outcome, 'stuck',
+        'and the outcome is STUCK BY NAME — without this the row is satisfied by `failed`, which is what it was measuring before W77`s adequacy reader');
+      equal((v as RunState).outcome, fold(h.driver.foldInputs()).outcome, 'and it is the outcome the caller`s own fold reports');
+    }
+  });
+});
+
+/**
+ * **W77 — the three classes of driver REFUSAL, and why `done` resolves rather than rejects.**
+ * The maintainer's answer to P20 stop-and-ask (c), and it REVERSED that plan's lean on a
+ * measurement taken at this item's declaration step.
+ *
+ * `src/driver/driver.ts` has exactly three doors into `failRun`, and they differ in what the CALLER
+ * ends up holding:
+ *
+ * | | door | the caller |
+ * |---|---|---|
+ * | **I** | refused BEFORE the run begins — `InvalidDefinition`, `LanguageNotBuilt`, `BoundaryRefused` at `start` | `runtime.start` throws; `failRun` is never reached; no run exists |
+ * | **II** | refused DURING `start()` — `failRun(e)` **then `throw e`**, the caller being on the stack | `runtime.start` throws, so the caller **never receives the handle** |
+ * | **III** | refused from a LISTENER — `failRun(e)` alone, a throw from a listener being discarded | the caller **holds** the handle |
+ *
+ * **Two measurements decide it.** First, `failRun` appends the `stopped` fold input BEFORE calling
+ * `onRunFailure`, so a refusal is ALREADY terminal when a consumer hears of it — the resolve road
+ * does not hang, it settles with `stopped` and `stoppedBy` carrying the reason. Second, on class II
+ * the reject road rejects a promise nobody can attach to: measured in a CHILD process with no
+ * `unhandledRejection` listener (because a listener suppresses the default and measures the event
+ * rather than the consequence), **the reject road exited 1 — the process DIED** on an authoring
+ * error the consumer had correctly caught, and the resolve road exited 0
+ * (`dev-dist/w77/decl-probe3.txt`).
+ *
+ * *(A fourth fixture died on the way: the first class-III probe used a decision with no matching
+ * edge, and the validator refused the document by name — **`FD-V7`: a task's edges must include an
+ * unguarded default, so `NoMatchingEdge` is not reachable from a VALID document at all.** That is
+ * W71's `MissingJoinPolicy` finding one refusal over, and it is why class III below is a `map` over
+ * a non-array.)*
+ */
+suite('W77 — a driver refusal RESOLVES `done` with `stopped`, and never rejects', (test) => {
+  const DOCUMENT = {
+    workers: { w: { url: 'https://example.test/w.js' } },
+    nodeTypes: { T: { worker: 'w', inline: true } },
+    predicates: [],
+  } as unknown as RegistryDocument;
+
+  /** A `map` AFTER a task, whose producer returns no array — `UnresolvedMapArity` from the LISTENER. */
+  const LATE_MAP = {
+    flowId: 'latemap', version: 1, entry: 'a',
+    nodes: [
+      { id: 'a', kind: 'task', type: 'T', edges: [{ to: 'spread' }] },
+      { id: 'spread', kind: 'map', over: 'items', branch: 'each' },
+      { id: 'each', kind: 'task', type: 'T', edges: [{ to: 'collect' }] },
+      { id: 'collect', kind: 'join', of: 'spread', edges: [{ to: 'done' }] },
+      { id: 'done', kind: 'end', outcome: 'completed' },
+    ],
+  } as unknown as FlowDefinition;
+
+  /** A task that PARKS on a person, then a `map` — so a refused RESOLUTION throws from `advance`. */
+  const PARK_THEN_MAP = {
+    flowId: 'parkmap', version: 1, entry: 'a',
+    nodes: [
+      { id: 'a', kind: 'task', type: 'T', edges: [{ to: 'spread' }] },
+      { id: 'spread', kind: 'map', over: 'items', branch: 'each' },
+      { id: 'each', kind: 'task', type: 'T', edges: [{ to: 'collect' }] },
+      { id: 'collect', kind: 'join', of: 'spread', edges: [{ to: 'done' }] },
+      { id: 'done', kind: 'end', outcome: 'completed' },
+    ],
+  } as unknown as FlowDefinition;
+
+  /** The same `map` AT THE ENTRY — `enter` throws inside `start()`, which reports AND rethrows. */
+  const MAP_AT_ENTRY = {
+    flowId: 'mapentry', version: 1, entry: 'spread',
+    nodes: [
+      { id: 'spread', kind: 'map', over: 'items', branch: 'each' },
+      { id: 'each', kind: 'task', type: 'T', edges: [{ to: 'collect' }] },
+      { id: 'collect', kind: 'join', of: 'spread', edges: [{ to: 'done' }] },
+      { id: 'done', kind: 'end', outcome: 'completed' },
+    ],
+  } as unknown as FlowDefinition;
+
+  test('class III — refused from a LISTENER: `done` RESOLVES with `stopped`, carrying `stoppedBy`', async () => {
+    const s = seams();
+    const r = createRuntime(DOCUMENT, {}, { createPool: s.createPool, createScheduler: s.createScheduler });
+    let reported = 0;
+    const { driver, done } = r.start(LATE_MAP, { x: 1 }, { onRunFailure: () => { reported += 1; } });
+    // the producer returns an object with no `items` array, so entering the map throws from the
+    // scheduler listener — `failRun` reports and nothing is rethrown to any caller.
+    s.settle(String(s.added[0]!.id), { notAnArray: true });
+    const settled = await w77Settlement(done);
+    equal(reported, 1, 'the CONTROL: onRunFailure fired, so this row is about a refusal rather than about a quiet run');
+    equal(settled.outcome, 'stopped', 'and `done` RESOLVED rather than rejecting — `stopped` is a terminal outcome like any other');
+    ok(String(settled.stoppedBy).includes('UnresolvedMapArity'),
+      `and the reason survives in the RunState rather than being thrown away: ${String(settled.stoppedBy).slice(0, 60)}`);
+    ok(deepEqual(settled, fold(driver.foldInputs())), 'and it is still the caller`s own fold — the invariant holds through a refusal too');
+  });
+
+  test('class II — refused DURING start(): `start` throws, and nothing is left rejected behind it', async () => {
+    const s = seams();
+    const r = createRuntime(DOCUMENT, {}, { createPool: s.createPool, createScheduler: s.createScheduler });
+    let unhandled: unknown = null;
+    const onU = (reason: unknown) => { unhandled = reason; };
+    const proc = (globalThis as { process?: { on?: (e: string, f: (r: unknown) => void) => void; off?: (e: string, f: (r: unknown) => void) => void } }).process;
+    proc?.on?.('unhandledRejection', onU);
+    let threw: string | null = null;
+    try {
+      r.start(MAP_AT_ENTRY, { items: 'not-an-array' }, {});
+    } catch (e) { threw = (e as Error).constructor.name; }
+    await new Promise((res) => setTimeout(res, 20));
+    proc?.off?.('unhandledRejection', onU);
+    equal(threw, 'UnresolvedMapArity',
+      '`start` reports through onRunFailure AND rethrows, because the caller is on the stack — so the caller learns by the throw and never holds a handle');
+    equal(unhandled, null,
+      'and because `done` RESOLVES rather than rejecting, nothing is left rejected with nobody able to attach: on the reject road this case exited 1 in a child process');
+  });
+
+  /**
+   * **The `resolve()` door — a FOURTH `failRun` call site, and a distinct caller-visibility class.**
+   * W77's conformity reader, finding 2: this item's own table said *"exactly three doors into
+   * `failRun`"* and listed a row that is not a door at all (class I never reaches it), while
+   * omitting `src/driver/driver.ts:1140` — `resolve()`'s, which reports AND rethrows **with the
+   * caller already holding the handle**, because `start` returned long ago.
+   *
+   * It is the door that matters most here: `resolve()` is ADR 0004's road and **the only way out of
+   * `awaiting_action`**, which is the one non-terminal outcome ADR 0058 spends a decision on. So a
+   * consumer waiting on `done` for a person to answer, whose answer is then REFUSED, gets both a
+   * throw from `resolve` and a `done` that resolves with `stopped` — correct, and asserted nowhere
+   * until this case.
+   */
+  test('class II(b) — refused from `resolve()`: the caller gets the throw AND `done` resolves `stopped`', async () => {
+    const s = seams();
+    const r = createRuntime(DOCUMENT, {}, { createPool: s.createPool, createScheduler: s.createScheduler });
+    const { driver, done } = r.start(PARK_THEN_MAP, { x: 1 }, {});
+    const parked = String(s.added[0]!.id);
+    s.emitSettlement(parked, 'user_action');
+    // the CONTROL for this case: the run really is parked on a person, and `done` really is waiting
+    equal(fold(driver.foldInputs()).outcome, 'awaiting_action', 'the run is parked on a person — this is the state `done` waits through');
+    let threw: string | null = null;
+    try {
+      driver.resolve(parked, 'done', { actor: 'a-person', result: { items: 'not-an-array' } });
+    } catch (e) { threw = (e as Error).constructor.name; }
+    equal(threw, 'UnresolvedMapArity',
+      '`resolve` reports AND rethrows, exactly as `start` does — the caller is on the stack (src/driver/driver.ts:1140)');
+    const settled = await w77Settlement(done);
+    equal(settled.outcome, 'stopped',
+      'and the handle the caller has held since `start` RESOLVES with `stopped` — so a person`s refused answer does not leave `done` waiting for ever');
+    ok(String(settled.stoppedBy).includes('UnresolvedMapArity'), `with the reason: ${String(settled.stoppedBy).slice(0, 50)}`);
+  });
+
+  test('`done` never rejects: a .catch on a refused run is not the road the answer arrives by', async () => {
+    const s = seams();
+    const r = createRuntime(DOCUMENT, {}, { createPool: s.createPool, createScheduler: s.createScheduler });
+    const { done } = r.start(LATE_MAP, { x: 1 }, {});
+    s.settle(String(s.added[0]!.id), { notAnArray: true });
+    let rejectedWith: unknown = 'NOT REJECTED';
+    let resolvedWith: string | null = null;
+    const bounded = Promise.race([done.then(() => 'settled', () => 'settled'), new Promise<string>((r2) => setTimeout(() => r2('NEVER SETTLED'), 300))]);
+    ok(await bounded === 'settled', '`done` settled at all — without this the two reads below would hang the runner rather than fail this case');
+    await done.then((st) => { resolvedWith = st.outcome; }, (e) => { rejectedWith = e; });
+    equal(rejectedWith, 'NOT REJECTED', '`done` has ONE settlement rule — terminality — and a refusal is terminal, so the rejection road is never taken');
+    equal(resolvedWith, 'stopped', 'the answer arrives by the resolve road, carrying the whole RunState');
+  });
+});
+
+/**
+ * **W77 — `onFoldInput` is COMPOSED, not replaced, and `done` does not depend on the consumer.**
+ * The runtime needs that channel to keep `done` and a consumer may pass one too, so this is the
+ * third road `start` reaches a `StartOptions` member by. The suite above it binds the LIST; this
+ * one says the consumer's callback still RUNS, which no text comparison can see — obligation (c)'s
+ * LIMIT, exactly as W76 applied it to the forwarding.
+ */
+suite('W77 — a consumer`s own onFoldInput still receives every element, and `done` is not downstream of it', (test) => {
+  const DOCUMENT = {
+    workers: { w: { url: 'https://example.test/w.js' } },
+    nodeTypes: { T: { worker: 'w', inline: true } },
+    predicates: [],
+  } as unknown as RegistryDocument;
+  const LINEAR = {
+    flowId: 'lin', version: 1, entry: 'a',
+    nodes: [
+      { id: 'a', kind: 'task', type: 'T', edges: [{ to: 'b' }] },
+      { id: 'b', kind: 'task', type: 'T', edges: [{ to: 'done' }] },
+      { id: 'done', kind: 'end', outcome: 'completed' },
+    ],
+  } as unknown as FlowDefinition;
+
+  const runWith = (opts: StartOptions) => {
+    const s = seams();
+    const r = createRuntime(DOCUMENT, {}, { createPool: s.createPool, createScheduler: s.createScheduler });
+    const h = r.start(LINEAR, { x: 1 }, opts);
+    for (let i = 0; i < s.added.length && i < 20; i += 1) s.settle(String(s.added[i]!.id), { ok: true });
+    return h;
+  };
+
+  test('the consumer`s callback receives EXACTLY the driver`s sequence, element for element', async () => {
+    const seen: FoldInput[] = [];
+    const { driver, done } = runWith({ onFoldInput: (i) => { seen.push(i); } });
+    await w77Settlement(done);
+    const theDriver = driver.foldInputs();
+    ok(seen.length > 3, `the CONTROL: the consumer saw a real sequence: ${seen.length}`);
+    equal(seen.length, theDriver.length, 'the consumer`s callback ran once per element — a wrapper that dropped or doubled one is a length');
+    for (let i = 0; i < seen.length; i += 1) {
+      ok(deepEqual(seen[i], theDriver[i]), `element ${i} is the one the driver appended at that position`);
+    }
+  });
+
+  test('`done` settles even when the consumer`s own callback throws — record first, schedule second, hand on third', async () => {
+    let fired = 0;
+    const s = seams();
+    const r = createRuntime(DOCUMENT, {}, { createPool: s.createPool, createScheduler: s.createScheduler });
+    // the FIRST element arrives inside `start()` (P20 fact 4A: exactly one), so a callback that
+    // throws on every element would take `start` down with it. This one throws from the SECOND,
+    // which is the case a consumer actually hits: a handler that works until some input surprises it.
+    const { done } = r.start(LINEAR, { x: 1 }, { onFoldInput: () => { fired += 1; if (fired > 1) throw new Error('consumer callback blew up'); } });
+    for (let i = 0; i < s.added.length && i < 20; i += 1) {
+      try { s.settle(String(s.added[i]!.id), { ok: true }); } catch { /* the consumer's throw, unwinding through the driver exactly as it did before ADR 0058 */ }
+    }
+    // **The sentinel is `running` and not a made-up word, because `isTerminal` is
+    // `outcome !== 'running' && outcome !== 'awaiting_action'` — so a sentinel of `'NEVER SETTLED'`
+    // IS terminal and the assertion below could not fail through it.** W77's adequacy reader, 9:
+    // with the two outcome assertions deleted and the composition order reversed, the case was
+    // green at zero. *A timeout sentinel has to be a value the predicate REJECTS.*
+    const settled = await Promise.race([done, new Promise<RunState>((r2) => setTimeout(() => r2({ outcome: 'running' } as unknown as RunState), 20))]);
+    ok(fired > 1, `the CONTROL: the throwing callback really did throw (${fired} calls)`);
+    ok(isTerminal(settled),
+      '`done` SETTLED rather than hanging, which is the property: the runtime records and schedules BEFORE handing on, so its own bookkeeping cannot be shortened by a consumer`s callback');
+    // **And the outcome is `stopped`, not `completed`, which this case got wrong on its first run.**
+    // A consumer's `onFoldInput` has always been called UNGUARDED (`src/driver/driver.ts`), so a
+    // throw from it unwinds into the driver's listener boundary, where `OR-R10` catches it and
+    // fails the run — that is behaviour ADR 0058 inherits rather than introduces. The useful half
+    // is that `done` REPORTS it: a consumer whose own handler threw learns the run stopped and why,
+    // where a hand-rolled block that folded inside the same handler would simply never resolve.
+    equal(settled.outcome, 'stopped',
+      'and it reports the consumer`s own throw as what it is — a run failure through OR-R10, with the reason in `stoppedBy`');
+    ok(String(settled.stoppedBy).includes('consumer callback blew up'),
+      `and the consumer's own message is what the run stopped for: ${String(settled.stoppedBy).slice(0, 60)}`);
+  });
+
+  test('a `.then` attached long AFTER the run is over still receives the answer — P20 fact 4C, through the real API', async () => {
+    const { done } = runWith({});
+    // burn macrotask turns so the run is demonstrably over before anything is attached
+    for (let i = 0; i < 5; i += 1) await new Promise((r) => setTimeout(r, 1));
+    let late = 'NEVER DELIVERED';
+    await w77Settlement(done);
+    await done.then((st) => { late = st.outcome; });
+    equal(late, 'completed',
+      'a promise RETAINS its resolution, which is precisely what Q293`s stated case AGAINST — "the same window" — is immune to');
+  });
+});
+
+
+/**
+ * **W77 — `done` on a REAL `FyflowScheduler`, and `done` belonging to a RUN rather than to a
+ * runtime.** Two cases, each closing a hole a reader measured rather than argued.
+ *
+ * **The real pool** is W77's `Gate:` row instantiated: it claims *"L1 on the recorded pool seam AND
+ * on real inline pools through `runtime.start`"*, and before this suite every W77 case ran on
+ * `seams()` — where every settlement is driven from a SYNCHRONOUS loop, so every queued microtask
+ * fires only after the whole run and the multi-turn case is never entered. ADR 0058 **rule 6** —
+ * *the STEP is synchronous and the PREDICATE is not* — is precisely about what happens ACROSS
+ * driver turns, and its own subject shape had no observer. Both readers found this independently;
+ * it is the one subject they shared.
+ *
+ * **The per-RUN case** is W77's adequacy reader's BLOCKING 2: making `done` a single promise shared
+ * by every run of a runtime cost **ZERO**, because every case started exactly one run per runtime.
+ * P18 decision 10 makes a runtime explicitly multi-run and this file already asserts `r1`/`r2`
+ * minting across two runs — so the shape was supported, exercised for `runId`, and unobserved for
+ * the thing this item adds.
+ */
+suite('W77 — `done` on a real scheduler, and `done` belongs to a RUN', (test) => {
+  const DOCUMENT = {
+    workers: { w: { url: 'https://example.test/w.js' } },
+    nodeTypes: { T: { worker: 'w', inline: true } },
+    predicates: [],
+  } as unknown as RegistryDocument;
+  const LINEAR = {
+    flowId: 'lin', version: 1, entry: 'a',
+    nodes: [
+      { id: 'a', kind: 'task', type: 'T', edges: [{ to: 'done' }] },
+      { id: 'done', kind: 'end', outcome: 'completed' },
+    ],
+  } as unknown as FlowDefinition;
+  const FANOUT = {
+    flowId: 'fan', version: 1, entry: 'a',
+    nodes: [
+      { id: 'a', kind: 'task', type: 'T', edges: [{ to: 'split' }] },
+      { id: 'split', kind: 'fanout', branches: ['b', 'c'] },
+      { id: 'b', kind: 'task', type: 'T', edges: [{ to: 'j' }] },
+      { id: 'c', kind: 'task', type: 'T', edges: [{ to: 'j' }] },
+      { id: 'j', kind: 'join', of: 'split', edges: [{ to: 'done' }] },
+      { id: 'done', kind: 'end', outcome: 'completed' },
+    ],
+  } as unknown as FlowDefinition;
+
+  test('TWO runs on ONE runtime: each `done` carries its OWN run, and they settle independently', async () => {
+    const s = seams();
+    const r = createRuntime(DOCUMENT, {}, { createPool: s.createPool, createScheduler: s.createScheduler });
+    const one = r.start(LINEAR, { x: 1 }, { runId: 'run-ONE' });
+    const two = r.start(FANOUT, { x: 2 }, { runId: 'run-TWO' });
+    // the CONTROL: two runs really were started on one runtime, and they are different runs
+    equal([one.driver.runId, two.driver.runId], ['run-ONE', 'run-TWO'], 'two runs, one runtime — P18 decision 10`s shape');
+    ok(one.done !== two.done, 'and TWO promises: a `done` kept per RUNTIME rather than per RUN costs zero on any single-run case (W77`s adequacy reader, BLOCKING 2)');
+    for (const a of s.added) s.settle(String(a.id), { ok: true });
+    const [a, b] = [await w77Settlement(one.done), await w77Settlement(two.done)];
+    equal(a.runId, 'run-ONE', 'run ONE`s handle resolved with run ONE`s state');
+    equal(b.runId, 'run-TWO', 'and run TWO`s with run TWO`s — the assertion a shared promise fails, naming the run it handed back');
+    ok(Object.keys(b.nodes).length > Object.keys(a.nodes).length,
+      'and the two states really are different runs: the fan-out settled more nodes than the linear flow');
+  });
+
+  test(`done settles on a REAL FyflowScheduler with real inline pools — ${IN_BROWSER ? 'SKIPPED in the browser (RT-R10)' : 'the Gate row`s second half'}`, async () => {
+    if (IN_BROWSER) {
+      ok(true, 'skipped: a browser loads no .ts worker file, which is RT-R10 and is why ladder L6 runs in Node and Deno only');
+      return;
+    }
+    const runtime = createRuntime({
+      workers: { ingest: { url: INGEST_URL }, publish: { url: PUBLISH_URL } },
+      nodeTypes: {
+        Ingest: { worker: 'ingest', inline: true, config: {}, pool: { maxThreads: 1, idleTimeout: 0 } },
+        Publish: { worker: 'publish', inline: true, config: {}, pool: { maxThreads: 1, idleTimeout: 0 } },
+      },
+    }, {}, { base: import.meta.url });
+    const flow = {
+      flowId: 'realdone', version: 1, entry: 'ingest',
+      nodes: [
+        { id: 'ingest', kind: 'task', type: 'Ingest', edges: [{ to: 'publish' }] },
+        { id: 'publish', kind: 'task', type: 'Publish', edges: [{ to: 'done' }] },
+        { id: 'done', kind: 'end', outcome: 'completed' },
+      ],
+    } as unknown as FlowDefinition;
+
+    // **ONE line, where the thirteen copied blocks are 135.** No `onFoldInput`, no `queueMicrotask`,
+    // no accumulator, no deadline — and a REAL scheduler, where settlements arrive across many
+    // driver turns rather than from a synchronous loop, which is the shape rule 6 is written about.
+    //
+    // **The await is BOUNDED and the shutdown is in a `finally`, and both are load-bearing here in a
+    // way they are not on the seam.** This case first read `const state = await done;` followed by
+    // `await runtime.shutdown()`. Under rule 8's `a1` — the terminality check never scheduled —
+    // that is not a failure and not even the exit 13 an unbounded await costs elsewhere: a real
+    // `FyflowScheduler` that is never shut down KEEPS THE PROCESS ALIVE, so the probe ran for two
+    // and a half hours and the harness never reached its own restore. *The fix for a reader's
+    // finding reintroduced the defect this item's author pass had just closed, one case over — and
+    // a real scheduler turns a missing verdict into no verdict at all.*
+    const { driver, done } = runtime.start(flow, { text: 'hello' });
+    let state: RunState;
+    try {
+      state = await w77Settlement(done, 5_000);
+    } finally {
+      await runtime.shutdown();
+    }
+
+    equal(state.outcome, 'completed', '`done` settled on a real FyflowScheduler, across real driver turns');
+    ok(isTerminal(state), 'and the state it carries is terminal');
+    ok(driver.foldInputs().length > 3, `the CONTROL: a real multi-turn sequence, not a single dispatch: ${driver.foldInputs().length} fold inputs`);
+    const byTheCaller = fold(driver.foldInputs());
+    ok(state !== byTheCaller, 'two objects, by two routes');
+    ok(deepEqual(state, byTheCaller), 'and the invariant holds on a real scheduler too, not only on the recorded seam');
   });
 });

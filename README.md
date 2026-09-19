@@ -13,7 +13,14 @@ flow once; run thousands of workloads through it.
 > scheduler** in Node and Deno *(1502 / 50 until W67; 1203 / 44 until W59; 681 and 942 / 42 until W58 re-took this line; the two numbers count different things, [Q98](doc/open-questions.md))* — where the scheduler also carries five tasks this library did not mint, and both
 > runs still complete. Not published; no version has been released.
 >
-> **The manifests read `0.2.0` and the change is BREAKING** — [W67](doc/work-items/w67-a-flow-from-documents-on-real-workers.md),
+> **The manifests read `0.3.0` and the change is BREAKING** — [W77](doc/work-items/w77-what-start-returns.md),
+> [ADR 0058](doc/decisions/0058-runtime-start-returns-a-completion-handle-the-runtime-keeps.md).
+> `runtime.start` returns `{ driver, done }` where it returned a `Driver`: `done` is a promise that
+> resolves with the run's terminal `RunState`, so *the run is over* is one line rather than a block
+> you copy. A `0.2.0` caller writing `const driver = runtime.start(…)` gets a typecheck failure
+> naming the property it reached for.
+>
+> **`0.2.0` was BREAKING too** — [W67](doc/work-items/w67-a-flow-from-documents-on-real-workers.md),
 > [Q279](doc/open-questions.md). A task node's `workerType` is RETIRED: every task node names a
 > `type` the registry declares, and its worker receives the envelope `{ settings, input }` rather
 > than the payload whole ([ADR 0054](doc/decisions/0054-every-task-node-names-a-type-and-a-type-is-a-derivation-to-pool-options.md)).
@@ -27,8 +34,8 @@ flow once; run thousands of workloads through it.
 
 **Two JSON documents, and one file of your own.** A **registry** says what exists — a worker module,
 and a node type that runs on it. A **flow** says what happens — nodes naming those types, and the
-edges between them. `createRuntime` builds everything the registry names and hands back a `Driver`
-per run. The one thing you write as code is the worker —
+edges between them. `createRuntime` builds everything the registry names, and each run hands back
+`{ driver, done }` — the driver, and a promise for the run's end. The one thing you write as code is the worker —
 [examples/getting-started/worker.ts](examples/getting-started/worker.ts), a class with a `run`
 method, and nothing else.
 
@@ -73,8 +80,8 @@ const runtime = createRuntime(registry, {}, { base: import.meta.url });
 // below buys, and it is load-bearing rather than decoration. The driver dispatches the next node
 // synchronously inside the same listener turn, so folding the instant an input arrives can report a
 // terminal state with the run still going; `RN-R12` claims its predicate at rest. `start` hands back
-// a `Driver`, already running; every fold input it reports is appended, and the run state is a pure
-// fold over that sequence.
+// `{ driver, done }` — the driver already running, and `done` a promise that resolves with this
+// exact state (ADR 0058), which is what section 12 uses instead of the block below.
 const inputs: FoldInput[] = [];
 const state = await new Promise<RunState>((resolve, reject) => {
   runtime.start(flow, { text: 'hello' }, {

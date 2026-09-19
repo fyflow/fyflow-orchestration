@@ -6,8 +6,14 @@
  * node's declared `transform`, and `TransformFailed` is what a task fails with when it cannot.
  */
 export { bootstrap, BootstrapError, ENVELOPE_WORKER_URL, transformLanguagesByType } from './bootstrap.ts';
-export type { BootstrapOptions, BootstrapResult, PoolFactory } from './bootstrap.ts';
+export type { BootstrapOptions, BootstrapRegistry, BootstrapResult, PoolFactory } from './bootstrap.ts';
 export { BUILT_IN_GROUP_FACTORIES, createRuntime, GROUP_MEMBERS, GroupNotBuildable, GroupUnusable, LanguageNotBuilt, RuntimeError } from './runtime.ts';
-export type { Runtime, RuntimeOptions, StartOptions } from './runtime.ts';
+// `RunHandle` is what `start` RETURNS, so it is the type a consumer most needs to name — and it
+// shipped UNEXPORTED for the length of W77's author pass, because this list is an explicit
+// allowlist rather than an `export *`. W77's conformity reader, finding 1: a LIST is a claim
+// about another list, and `test/scheduler/runtime.test.ts`'s export case compares runtime KEYS,
+// which is structurally blind to a missing type. *Q297's own shape one layer over — the thing
+// the seam produces, unreachable on the road `AGENTS.md` recommends.*
+export type { RunHandle, Runtime, RuntimeOptions, RuntimeRegistry, StartOptions } from './runtime.ts';
 export { default as EnvelopeWorker, NotAnEnvelope, TransformFailed, unpackEnvelope } from './envelope-worker.ts';
 export type { Envelope, EnvelopePoolConfig } from './envelope-worker.ts';

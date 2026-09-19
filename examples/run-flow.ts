@@ -1751,7 +1751,14 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
   }
   // **`start` dispatches inside this call**, so there is no separate `driver.start(payload)` line
   // any more: the run is running when it returns.
-  const driver = runtime.start(definition, payload, startOptions);
+  //
+  // **Destructured since ADR 0058**, which made `start` return `{ driver, done }`. This harness
+  // keeps its OWN termination observer and does not use `done`: `finishedBy` exists because W5's
+  // adequacy reader replaced the predicate with `setTimeout(1)` and all 72 assertions still passed,
+  // so a `done` that absorbed that claim would delete the assertion ADR 0014 was CORRECTED to carry
+  // (P20 stop-and-ask (e), which is W78's to answer — this item makes the destructure and nothing
+  // else).
+  const { driver } = runtime.start(definition, payload, startOptions);
   driverRef.current = driver;
   // **Read OFF THE DRIVER, not from the option** — `Driver.runId` is readable since W66 precisely so
   // a caller can learn a minted one, and this is the only thing that makes the shim run's id a fact

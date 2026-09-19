@@ -476,6 +476,11 @@ const LATE_SUITES = [
   'W76 — StartOptions and start() are two lists, and nothing compared them',
   'W76 — every StartOptions member ARRIVES at the driver, and the observer set is the type`s',
   'W76 — the forwarded stream IS the driver`s region stream, at every variant, kind and depth',
+  // W77 — what `start` RETURNS: a completion handle the runtime keeps (ADR 0058).
+  'W77 — `done` IS the caller`s own fold, and it settles exactly when that becomes terminal',
+  'W77 — a driver refusal RESOLVES `done` with `stopped`, and never rejects',
+  'W77 — a consumer`s own onFoldInput still receives every element, and `done` is not downstream of it',
+  'W77 — `done` on a real scheduler, and `done` belongs to a RUN',
   // W62 — the JSONata adapter, in `test/jsonata/jsonata.test.ts` and `test/jsonata/function-table.test.ts`.
   'adapter conformance — jsonata (fyflow-orchestration/jsonata)',
   'W62 — the JSONata adapter: one module, five names unbound, JSONata`s errors as Errors',

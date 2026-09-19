@@ -63,6 +63,8 @@ import { groupsNamedBy, resolveRegistry } from '../definition/registry.ts';
 import { Driver } from '../driver/driver.ts';
 import type { DriverOptions } from '../driver/driver.ts';
 import { liveToken } from '../fold/policies.ts';
+import { emptyState, isTerminal, step } from '../fold/run-state.ts';
+import type { FoldInput, RunState } from '../fold/run-state.ts';
 import type {
   FlowDefinition, GroupType, JsonSchema, Languages, NodeTypeDefinition,
   RegistryCode, RegistryDocument, ResolvedPool, ResolvedRegistry, RetryPolicy, TaskNode, WorkerEntry,
@@ -153,12 +155,18 @@ export interface RuntimeOptions {
 /**
  * **What `start` may say about ONE run. Everything else about a run is the document's.**
  *
- * **Every member here reaches the driver by exactly one of TWO roads, and a test reads this file
- * and compares the two lists BOTH WAYS** — [W76](../../doc/work-items/w76-what-start-accepts.md),
- * [P20](../../doc/plans/p20-what-the-runtime-owes-a-consumer.md) decision 5. A member is either
+ * **Every member here reaches the driver by exactly one of THREE roads, and a test reads this file
+ * and compares the lists BOTH WAYS** — [W76](../../doc/work-items/w76-what-start-accepts.md),
+ * [W77](../../doc/work-items/w77-what-start-returns.md),
+ * [P20](../../doc/plans/p20-what-the-runtime-owes-a-consumer.md) decision 5. A member is
  * **conditionally spread** into the `new Driver` literal, so that omitting it leaves the driver's
- * own default in place, or **defaulted with `??`** where this module has a default of its own to
- * supply (`runId` mints, `joinPolicy` is `liveToken`). The binding is what makes the `Pick` above a
+ * own default in place; or **defaulted with `??`** where this module has a default of its own to
+ * supply (`runId` mints, `joinPolicy` is `liveToken`); or **COMPOSED**, wrapped in the runtime's
+ * own callback which then calls the consumer's. The third road has exactly one member,
+ * `onFoldInput`, and it arrived with [ADR 0058](../../doc/decisions/0058-runtime-start-returns-a-completion-handle-the-runtime-keeps.md):
+ * `done` needs that channel and a consumer may pass one too, so replacing it would silently drop
+ * theirs. *(W76's binding FIRED by name when it moved — `expected: [] actual: ["onFoldInput"]` —
+ * which is that item's Outputs (2) doing exactly what it was built for.)* The binding is what makes the `Pick` above a
  * claim rather than a decoration: **P20 fact 2 measured that widening it and forgetting the
  * forwarding line is green on all five typecheckers, `npm test`, `check:source` AND `check:docs`**,
  * so before W76 a typed option a consumer passed could be silently dropped and nothing noticed.
@@ -203,6 +211,58 @@ export interface StartOptions extends Pick<DriverOptions,
  */
 export type RuntimeRegistry = Pick<DriverOptions, 'predicates' | 'workers' | 'nodeTypes' | 'pools' | 'groups' | 'languages'>;
 
+/**
+ * **What `runtime.start` hands back — the run's driver, and the run's END** —
+ * [ADR 0058](../../doc/decisions/0058-runtime-start-returns-a-completion-handle-the-runtime-keeps.md),
+ * [W77](../../doc/work-items/w77-what-start-returns.md), [Q293](../../doc/open-questions.md).
+ *
+ * **Why the runtime and not the driver.** A run's state is a pure fold of what the driver reports,
+ * and [ADR 0014](../../doc/decisions/0014-the-driver-produces-the-folds-ordered-input-sequence.md)
+ * spends a paragraph forbidding the driver subscribing to itself — *"a fold with a subscription has
+ * a lifetime, a fold with a lifetime has state between calls, and ladder L3's fold-the-same-log-twice
+ * stops meaning anything"* — and names `attachFold(driver)` as the ergonomic next step it refuses.
+ * **The runtime is a CALLER**: `onFoldInput` is the push half ADR 0014 rule 3 built for a caller,
+ * and `fold` still never learns that a driver exists. That is also why this is a pair and not
+ * `Object.assign(driver, { done })`: an additive `done` hanging off the driver object tells every
+ * reader that the driver produced it, which is the one thing that decision denies. It cost **31
+ * typecheck errors in two files, both ours** — and that is the scope the FIVE TYPECHECK LANES
+ * measured; the reference's snippets are a sixth lane no typechecker reaches, and three of them
+ * bind the result, so the work was in three files (W77 finding A, corrected by its conformity
+ * reader, finding 6). The maintainer took it.
+ *
+ * **`done` RESOLVES and never rejects, and that reversed the plan's own lean on a measurement.**
+ * Its settlement rule is terminality and nothing else, so a run the driver REFUSES resolves with
+ * `outcome: 'stopped'` and `stoppedBy` carrying the reason rather than throwing it away — `failRun`
+ * appends the `stopped` element BEFORE it calls `onRunFailure`, so a refusal is already terminal
+ * when a consumer hears of it. The road not taken rejects there, and on the one class of refusal
+ * that is reported AND rethrown (`start()` has the caller on the stack) it rejects a promise the
+ * caller is never handed: measured in a child process with no listener, **exit 1, the process
+ * died**, on an authoring error the consumer had correctly caught. W77 finding B.
+ *
+ * **There is no deadline and that is deliberate.** Ten of the thirteen blocks this replaces hang
+ * for ever precisely because a hand-rolled `new Promise` cannot be raced by whoever holds it; once
+ * `done` IS a promise, `Promise.race([done, timeout])` is the consumer's one line. A run parked on
+ * a person is `awaiting_action`, which `isTerminal` calls NOT terminal, so `done` waits for the
+ * resolution — correct, and a trap, and the reference teaches it rather than the library guessing a
+ * number that is wrong for every human-in-the-loop run.
+ */
+export interface RunHandle {
+  /** The run's `Driver`, already started — exactly what `start` returned before ADR 0058. */
+  readonly driver: Driver;
+  /**
+   * **The run's end.** Resolves with the terminal `RunState` — `completed`, `failed`, `stuck` or
+   * `stopped` — and never rejects. Pending while the outcome is `running` or `awaiting_action`.
+   *
+   * It is the SAME expression a consumer would have written, moved: the runtime keeps ONE
+   * `RunState` and `step`s it per fold input, which is what `fold` is
+   * (`for (const i of inputs) s = step(s, i)`), and `RN-R2` is the rule that says a stepped prefix
+   * equals a fold of that prefix. `test/scheduler/runtime.test.ts` holds `await done` equal to
+   * `fold(driver.foldInputs())` — the caller's own expression over the driver's own sequence, which
+   * is a second route rather than a second definition.
+   */
+  readonly done: Promise<RunState>;
+}
+
 export interface Runtime {
   /** **Exactly the object this runtime hands its own drivers** (decision 14) — spread it into `new Driver(…)` beside a `runId`, a `scheduler` and a `joinPolicy` and you have built what `start` builds. */
   readonly registry: RuntimeRegistry;
@@ -214,8 +274,12 @@ export interface Runtime {
   readonly pools: Readonly<Record<string, ResolvedPool>>;
   /** The group objects this runtime CREATED, keyed as the document declared them. */
   readonly groups: Readonly<Record<string, ResourceGroup>>;
-  /** Start one run of `flow` with `payload`, and return its `Driver` — already started. */
-  start(flow: FlowDefinition, payload: unknown, options?: StartOptions): Driver;
+  /**
+   * Start one run of `flow` with `payload`, and return its {@link RunHandle} — the `Driver`,
+   * already started, and a `done` promise that resolves when the run reaches a terminal
+   * outcome. **BREAKING at `0.3.0`**: this returned the `Driver` itself until ADR 0058.
+   */
+  start(flow: FlowDefinition, payload: unknown, options?: StartOptions): RunHandle;
   /** The scheduler's, forwarded — a runtime owns its pools, so it owns their shutdown. */
   shutdown(): Promise<void>;
 }
@@ -411,6 +475,53 @@ export function createRuntime(
         }
       }
       const runId = startOptions.runId ?? `r${++minted}`;
+
+      // **The run's END, kept by the RUNTIME** — ADR 0058, W77, Q293. `done` resolves with the
+      // terminal `RunState` and never rejects; `stopped` is a terminal outcome like any other, so a
+      // driver refusal arrives here carrying `stoppedBy` rather than as a thrown `Error`.
+      //
+      // **What is kept is ONE `RunState`, not the inputs.** `fold` IS this loop —
+      // `for (const i of inputs) s = step(s, i)` — and `RN-R2` is the rule that a stepped prefix
+      // equals a fold of that prefix, so this is `fold`'s own body with the prefix kept instead of
+      // recomputed. Measured over a 24-branch fan-out: keeping the inputs and re-folding retains
+      // 445.5 KiB and takes 23 ms, re-reading `driver.foldInputs()` deep-clones 5944 elements and
+      // takes 35 ms, and this retains 437.3 KiB and takes 6 ms. *(`foldInputs()` is
+      // `Object.freeze(this.inputs.map(freezeInput))`, so every call clones every result.)*
+      //
+      // **The price, stated rather than hidden** (P20's Scope Out): `step` writes
+      // `result: r.result` by reference into the record `freezeInput` cloned, so this pins ONE copy
+      // of every result for the life of the run — P15's own quantity, (tasks settled) x (bytes each
+      // returned), once more.
+      //
+      // **It is ABOUT THE SAME as what the block it replaces retains, not half, and the first
+      // version of this comment said half.** The copied block keeps its `inputs` array AND folds a
+      // state out of it — but `step` writes `result: r.result` BY REFERENCE, so that state's results
+      // ARE the objects inside its own `inputs`, and `v8.serialize` called on two roots cannot see
+      // the sharing. Measured: the block retains **89.1 KiB** of inputs plus **0.6 KiB** of state
+      // scaffolding = ~89.7, against this mechanism's **87.6** — ~2% less, where adding the two
+      // serialisations gave a spurious 176.7 and a spurious factor of two. *The identity measurement
+      // that falsifies the sum was printed three lines above it* (W77's conformity reader, finding 3).
+      //
+      // And it is bounded per RETAINED HANDLE rather than per live run: a promise retains its
+      // resolution, which is the property that makes `done` worth having, so a consumer holding N
+      // settled handles holds N `RunState`s. A consumer who previously kept no completion machinery
+      // at all now pays one copy they did not, and the `structuredClone` `freezeInput` makes is now
+      // paid on every settlement of every run rather than only where a consumer asked for one.
+      // [Q320](../../doc/open-questions.md).
+      let settle!: (s: RunState) => void;
+      const done = new Promise<RunState>((resolve) => { settle = resolve; });
+      let state = emptyState();
+      let settled = false;
+      // **The STEP is synchronous and the PREDICATE is not, and the split is load-bearing.** The
+      // driver dispatches the next node synchronously inside the same listener turn, so asking
+      // `isTerminal` the instant an input arrives can report a terminal state with the run still
+      // going — `AGENTS.md`'s own prose calls this "load-bearing rather than decoration" and
+      // `RN-R12` claims its predicate at rest. Stepping, by contrast, is correct at every prefix.
+      const settleIfTerminal = () => {
+        if (settled || !isTerminal(state)) return;
+        settled = true;
+        settle(state);
+      };
       // **The whole of `registry`, spread** — which is what makes decision 14's claim true: a
       // consumer who writes this line by hand passes the same object, `predicates` included.
       const driver = new Driver(flow, {
@@ -421,7 +532,17 @@ export function createRuntime(
         ...(options.defaultRetryPolicy !== undefined ? { defaultRetryPolicy: options.defaultRetryPolicy } : {}),
         ...(options.validateBoundaries !== undefined ? { validateBoundaries: options.validateBoundaries } : {}),
         ...(startOptions.createTask !== undefined ? { createTask: startOptions.createTask } : {}),
-        ...(startOptions.onFoldInput !== undefined ? { onFoldInput: startOptions.onFoldInput } : {}),
+        // **`onFoldInput` is COMPOSED, not conditionally spread** — the runtime needs this channel
+        // to keep `done`, and it is also a `StartOptions` member a consumer may pass, so replacing
+        // it would silently drop theirs. Record first, schedule second, hand on third: `done`
+        // settles from a sequence no consumer callback can shorten. This is the THIRD road
+        // `start` reaches a member by, and `test/scheduler/runtime.test.ts` binds all three both
+        // ways and pins this one — W76's ratchet, moved deliberately rather than around.
+        onFoldInput: (input: FoldInput) => {
+          state = step(state, input);
+          queueMicrotask(settleIfTerminal);
+          startOptions.onFoldInput?.(input);
+        },
         ...(startOptions.onRegionEvent !== undefined ? { onRegionEvent: startOptions.onRegionEvent } : {}),
         ...(startOptions.onRunFailure !== undefined ? { onRunFailure: startOptions.onRunFailure } : {}),
         ...(startOptions.onUnsatisfiableJoin !== undefined ? { onUnsatisfiableJoin: startOptions.onUnsatisfiableJoin } : {}),
@@ -429,7 +550,7 @@ export function createRuntime(
         ...(startOptions.now !== undefined ? { now: startOptions.now } : {}),
       });
       driver.start(payload);
-      return driver;
+      return { driver, done };
     },
     shutdown() {
       return scheduler.shutdown();

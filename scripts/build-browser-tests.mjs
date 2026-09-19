@@ -128,6 +128,21 @@ const fixtures = [
   // the failure mode is W33's better one — one named test rather than the whole bundle.
   join(ROOT, 'src', 'scheduler', 'runtime.ts'),
   join(ROOT, 'src', 'driver', 'driver.ts'),
+  // **W77's type-export binding reads the sub-path's INDEX and the two modules beside `runtime.ts`**
+  // — `src/scheduler/index.ts` re-exports types by an explicit ALLOWLIST, and the binding compares
+  // that list to what each module DECLARES, both ways. It found three types declared and never
+  // re-exported: `RunHandle` (what `start` returns), `RuntimeRegistry` (P18 decision 14's own road)
+  // and `BootstrapRegistry` (the first parameter type of `bootstrap` itself).
+  //
+  // **This is the SIXTH time a suite reading a file outside `spec/examples/` has reached this list,
+  // and the first time the gate is what said so.** W76's two entries were added at its build; these
+  // three were missed because `npm run test:browser:all` was read by GREPPING its count line while
+  // its exit code was 1 — `doc/workflow.md` section 4's *a rung is RUN, never PIPED*, which is
+  // [W54](../doc/work-items/w54-what-a-result-may-be-and-what-bounding-it-would-cost.md)'s defect
+  // verbatim and which W77's own Verification table quotes.
+  join(ROOT, 'src', 'scheduler', 'index.ts'),
+  join(ROOT, 'src', 'scheduler', 'bootstrap.ts'),
+  join(ROOT, 'src', 'scheduler', 'envelope-worker.ts'),
 ].sort();
 const corpus = Object.fromEntries(fixtures.map((p) => [relPosix(p), readFileSync(p, 'utf8')]));
 

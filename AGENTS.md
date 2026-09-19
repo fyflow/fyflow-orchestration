@@ -114,8 +114,8 @@ const runtime = createRuntime(registry, {}, { base: import.meta.url });
 // below buys, and it is load-bearing rather than decoration. The driver dispatches the next node
 // synchronously inside the same listener turn, so folding the instant an input arrives can report a
 // terminal state with the run still going; `RN-R12` claims its predicate at rest. `start` hands back
-// a `Driver`, already running; every fold input it reports is appended, and the run state is a pure
-// fold over that sequence.
+// `{ driver, done }` — the driver already running, and `done` a promise that resolves with this
+// exact state (ADR 0058), which is what section 12 uses instead of the block below.
 const inputs: FoldInput[] = [];
 const state = await new Promise<RunState>((resolve, reject) => {
   runtime.start(flow, { text: 'hello' }, {
@@ -963,7 +963,7 @@ let parked: string | null = null;
 // `suspended` is the node's — and those are the words the FOLD uses. The scheduler's own event is
 // called `task.user_action`, which is not what you poll on, and is the mistake this snippet used to
 // invite by delivering that event to a hand-built stub.
-const driver = runtime.start(flow, {}, { onFoldInput: (input) => { inputs.push(input); } });
+const { driver } = runtime.start(flow, {}, { onFoldInput: (input) => { inputs.push(input); } });
 
 const state = await new Promise<RunState>((resolve, reject) => {
   // A DEADLINE, because this is the one snippet whose subject is a run that does not end by
@@ -1484,7 +1484,7 @@ const HANDLES = ['onFoldInput', 'onRegionEvent', 'snapshot', 'foldInputs'];
 // driver's own test.
 let regionEvents = 0;
 const regionKinds: string[] = [];
-const driver = runtime.start(flow, {}, {
+const { driver } = runtime.start(flow, {}, {
   onFoldInput: (i: FoldInput) => { frozen.onFoldInput = Object.isFrozen(i); inputs.push(i); },
   onRegionEvent: (e) => {
     regionEvents += 1;
@@ -1693,10 +1693,12 @@ const flow: FlowDefinition = {
 const runtime = createRuntime(registry, {}, { base: import.meta.url });
 
 // A run is over when its OWN fold says so — never `scheduler.completed`, which fires every time the
-// scheduler drains (section 8). `start` returns a `Driver`, already started.
+// scheduler drains (section 8). `start` returns `{ driver, done }` since ADR 0058, and `await done`
+// is this whole block in one line; it is spelled out here because THIS section is about what the
+// fold input sequence carries, which is the thing `done` folds.
 const inputs: FoldInput[] = [];
 const state = await new Promise<RunState>((resolve, reject) => {
-  const driver = runtime.start(flow, { confidence: 0.9 }, {
+  const { driver } = runtime.start(flow, { confidence: 0.9 }, {
     onFoldInput: (input) => {
       inputs.push(input);
       queueMicrotask(() => { const s = fold(inputs); if (isTerminal(s)) resolve(s); });
