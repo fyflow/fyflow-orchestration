@@ -1,6 +1,6 @@
 # P20 — What the runtime owes a consumer that the driver does not
 
-**Status:** **DECLARED** — no item has started. Declared 2026-09-19 on `817fd73` (P1-P19 complete and
+**Status:** **IN PROGRESS** — [W76](../work-items/w76-what-start-accepts.md) is DONE and retro-ready; W77 and W78 are not started. Declared 2026-09-19 on `817fd73` (P1-P19 complete and
 retro'd, `doc/workflow.md` [v0.20](../workflow.md)), its six facts measured the same day into
 `dev-dist/p20/`.
 **Question this plan answers:** *What does `createRuntime` owe a consumer that a `Driver` does not —
@@ -42,10 +42,20 @@ sit on opposite sides of the call. Taken at face value the plan would be Q293 wi
 to it, and the honest move would be to say so.
 
 **Fact 1 is what makes them one question rather than two, and it was not known before this
-declaration.** `DriverOptions` has **eighteen** members. A consumer of `createRuntime` reaches them
-by exactly four roads — the runtime supplies two, `RuntimeRegistry` carries six, `RuntimeOptions`
-carries six, `StartOptions` carries seven — and the partition is **clean, with no member on two roads
-and exactly ONE on none**. That one is `onRegionEvent`.
+declaration.** `DriverOptions` has **eighteen** members, a consumer of `createRuntime` reaches them
+by exactly four roads, and **exactly ONE is on none**. That one is `onRegionEvent`.
+
+*(**The road SIZES this paragraph first gave were `2 / 6 / 6 / 7` and were corrected by
+[W76](../work-items/w76-what-start-accepts.md), whose own orphan test failed on them.** That is 21
+slots over 18 members and therefore not a partition at all: road (c) was read off `RuntimeOptions`'
+DECLARATION, and four of that interface's six — `base`, `flows`, `createPool`, `createScheduler` —
+are the runtime's own and are not `DriverOptions` members. Derived from what `start` actually
+FORWARDS the road is **two**, and `2 + 6 + 2 + 7 = 17` with `onRegionEvent` the eighteenth. **The
+conclusion above survives and only the arithmetic under it failed**, which is why nobody caught it —
+the orphan count is 1 either way, and `fact1-partition.mjs` prints four road sizes and never adds
+them up. `runId` is also on TWO roads under a reading that fact does not take, because
+`StartOptions` declares it in its own body rather than in the `Pick`.
+[Q316](../open-questions.md).)*
 
 So the subject is not *what a consumer holds*; it is **what the seam passes through and what it
 owes**, and the two rows are that question's two answers:
@@ -154,7 +164,7 @@ it was chosen over, so an item argues from the decision rather than re-deriving 
 
 | # | fact | where |
 |---|---|---|
-| **1** | **`DriverOptions` has 18 members; a `createRuntime` consumer reaches them by four roads; the partition is clean and has exactly ONE orphan.** Supplied by the runtime 2 (`runId`, `scheduler`); `RuntimeRegistry` 6; `RuntimeOptions` 6; `StartOptions` 7 — **0 on two roads, 1 on none: `onRegionEvent`**. *So Q297 is not a judgement about which callbacks are worth carrying; it is the unique residue of a partition that is otherwise total.* | `fact1-partition.mjs`, `fact1.txt` |
+| **1** | **`DriverOptions` has 18 members; a `createRuntime` consumer reaches them by four roads; exactly ONE is on none.** Supplied by the runtime 2 (`runId`, `scheduler`); `RuntimeRegistry` 6; `RuntimeOptions` **2 as measured by W76, stated as 6 here** ([Q316](../open-questions.md) — four of that interface's six are not `DriverOptions` members, so `2 / 6 / 6 / 7` is 21 slots over 18 and is not a partition; `2 / 6 / 2 / 7 = 17` plus the orphan is); `StartOptions` 7 — **1 on none: `onRegionEvent`**, and `runId` on two under the reading this harness does not take. *So Q297 is not a judgement about which callbacks are worth carrying; it is the unique residue of a partition that is otherwise total.* | `fact1-partition.mjs`, `fact1.txt` |
 | **2** | **The half-fix for Q297 is FREE, and the whole fix turns a GATE ENTRY red.** Four probes, control first. **control** green everywhere. **p1** — the `Pick` widened and the forwarding line NOT added: `typecheck`, `npm test`, `check:source`, `check:docs` **all green**, so a typed option a consumer passes is silently dropped and nothing anywhere notices. **p2** — widened AND forwarded: `check:docs` **EXIT 1, one FAIL line**, because `AGENTS.md` §10 asserts `regionEvents !== 0` is an error *"so the runtime forwards it now and this comment is stale"*, and `X8` holds `README.md` byte-equal to it. **p3** — a name REMOVED from the `Pick`: `typecheck` **EXIT 2, zero FAIL lines**. *The list is bound DOWNWARD by a consumer and not bound UPWARD at all — you cannot narrow it silently, you can widen it silently, and the tripwire for the fix is one the reference set on purpose.* | `fact2-probes.mjs`, `fact2.txt` |
 | **3** | **The pattern Q293 calls "eight lines" is THIRTEEN copies, 135 lines, in THREE disagreeing shapes — and exactly ONE of the thirteen carries both guards.** In `AGENTS.md` and `README.md` alone: ten are *microtask, no deadline*; two are *poll + deadline, no microtask*; one has all three. **Ten hang for ever on a run that never becomes terminal** — which is the failure W71's own declaration records its author's first spike hitting — and **two can fold mid-turn**, which the reference's own prose at `AGENTS.md:112` calls *"load-bearing rather than decoration"*. *The row understates it, in the direction that matters: the copies do not agree, and the document that tells a consumer to copy them disagrees with itself.* | `fact3-terminality.mjs`, `fact3b-shapes.mjs`, `fact3b.txt` |
 | **4** | **Q293's stated case AGAINST is measured FALSE, on a real `FyflowScheduler`.** The row argues a promise gains nothing because *"`start` starts INSIDE the call, so what the promise had seen before the caller held it is the same window."* Measured: **(A)** exactly **1** fold input arrives before `start` returns — W67's number, reproduced — so the window is real; **(B)** the prototype's `done` resolves to a `RunState` **canonically identical** to the copied pattern's; **(C)** a `.then` attached **fifty macrotask turns after the run was over** still receives `completed`. **A promise RETAINS its resolution — the window is precisely what a promise is immune to.** [Q289](../open-questions.md) is about a CLOSURE that needs the driver, which is a different thing, and it stays open. *The only argument the register had against Q293 does not survive contact with a run.* | `fact4-done.ts`, `fact4.txt` |
@@ -443,7 +453,7 @@ declaration touches — is what the five UNMOVED rows check.*
 
 | item | status | |
 |---|---|---|
-| W76 | **not started** | |
+| W76 | **DONE** 2026-09-19 | [w76-what-start-accepts.md](../work-items/w76-what-start-accepts.md). `onRegionEvent` forwarded — **[Q297](../open-questions.md) RESOLVED**, no ADR. Two lines in `src/`, so **prediction 1 HOLDS**; `src/driver/driver.ts` UNEDITED, so the scope tripwire is clean; **L6 UNMOVED at 1627 / 53** in both runtimes; L1-L5 **44 / 1251** in five runtimes; `check:docs` **RED on `X4` first, exactly as fact 2 p2 predicted**, then green at **33 / 27 / 6 UNMOVED**. **It corrects this plan in THREE places** — §10 has no README twin (finding A), fact 1 reads the `Pick` and not the interface so `runId` is on two roads (finding B), and **fact 1's table is not a PARTITION: `2 / 6 / 6 / 7` is 21 slots over 18 members** because road (c) was read off `RuntimeOptions`' declaration and four of its six are not `DriverOptions` members (finding D, [Q316](../open-questions.md)). Derived from what `start` forwards it is `2 / 6 / 2 / 7 = 17`, with `onRegionEvent` the eighteenth — *the conclusion survives and only the arithmetic under it fails*. Readers 19 / 7 blocking and 25 mutations / 14 survivors / 8 blocking, **overlap 2, the forty-seventh measurement**, and **both shared subjects are one literal reached from opposite ends**. The adequacy reader's central finding is that the forwarding was bound at **exactly one topology** and could be narrowed three ways for zero; the answer is an EQUALITY rather than more shapes — what `onRegionEvent` receives IS the region subsequence of what `onFoldInput` receives. Rule 8 final **25 probes, 23 caught, 1 declared ceiling, 0 undeclared survivors, 0 crashes, 0 against declaration, 3 aborts all re-anchored**; **W71's dated ceilings re-run HERE, one catch and one vacuous survivor** ([Q317](../open-questions.md)). Q315-Q317 raised, Q318-Q319 spent; census **244 / 187 / 2 / 55** |
 | W77 | **not started** | |
 | W78 | **not started** | |
 | W79 | *reserved, expected unused* | |

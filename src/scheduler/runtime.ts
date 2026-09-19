@@ -150,9 +150,44 @@ export interface RuntimeOptions {
   validateBoundaries?: boolean;
 }
 
-/** What `start` may say about ONE run. Everything else about a run is the document's. */
+/**
+ * **What `start` may say about ONE run. Everything else about a run is the document's.**
+ *
+ * **Every member here reaches the driver by exactly one of TWO roads, and a test reads this file
+ * and compares the two lists BOTH WAYS** — [W76](../../doc/work-items/w76-what-start-accepts.md),
+ * [P20](../../doc/plans/p20-what-the-runtime-owes-a-consumer.md) decision 5. A member is either
+ * **conditionally spread** into the `new Driver` literal, so that omitting it leaves the driver's
+ * own default in place, or **defaulted with `??`** where this module has a default of its own to
+ * supply (`runId` mints, `joinPolicy` is `liveToken`). The binding is what makes the `Pick` above a
+ * claim rather than a decoration: **P20 fact 2 measured that widening it and forgetting the
+ * forwarding line is green on all five typecheckers, `npm test`, `check:source` AND `check:docs`**,
+ * so before W76 a typed option a consumer passed could be silently dropped and nothing noticed.
+ * That is `doc/workflow.md` rule 8 obligation (e)'s third shape — *a LIST is a claim about another
+ * list*. The `??` road is DERIVED from this file rather than exempted by name, which is what lets
+ * `runId` be on it: P20 decision 5 knew of `joinPolicy` alone and W76's declaration step measured
+ * two. *(The test also PINS that road's membership to `['joinPolicy', 'runId']`, so moving a member
+ * between the two roads fails and has to be done deliberately — a ratchet of
+ * [Q102](../../doc/open-questions.md)'s shape. Both of W76's readers found the first version of
+ * this sentence overclaiming, because it said the test named nobody.)*
+ *
+ * **`onRegionEvent` is here because it was the one `DriverOptions` member no consumer of
+ * `createRuntime` could reach** ([Q297](../../doc/open-questions.md), [W71](../../doc/work-items/w71-the-reference-stops-teaching-a-fake-scheduler.md)).
+ * Of eighteen members a consumer reaches **two** because the runtime supplies them (`runId`,
+ * `scheduler`), **six** through `RuntimeRegistry`, **two** through `RuntimeOptions` — and only two,
+ * because `base`, `flows`, `createPool` and `createScheduler` are the runtime's own and are not
+ * `DriverOptions` members at all — and **seven** through this `Pick` as it stood. 2 + 6 + 2 + 7 is
+ * seventeen; the eighteenth was `onRegionEvent`. *P20 fact 1 states the third road as SIX, which
+ * makes its table 21 slots over 18 members and therefore not a partition at all; what survives is
+ * its conclusion — one residue, and a unique one — which is why this was a defect rather than a
+ * judgement about which callbacks are worth carrying.* The event the callback receives is **already
+ * frozen by the driver** (`OR-R7`, [Q73](../../doc/open-questions.md), W12), so nothing is copied or
+ * re-frozen at this seam; measured across it rather than assumed, at W76's declaration step and in
+ * `AGENTS.md` section 10. *(What `onFoldInput` receives IS re-copied — `freezeInput` gives it its
+ * own frozen object — so the two outbound paths carry equal values and not the same one, which
+ * `test/scheduler/runtime.test.ts` asserts and which its first version got wrong.)*
+ */
 export interface StartOptions extends Pick<DriverOptions,
-  'createTask' | 'joinPolicy' | 'onFoldInput' | 'onRunFailure' | 'onUnsatisfiableJoin' | 'onUnmintedTask' | 'now'> {
+  'createTask' | 'joinPolicy' | 'onFoldInput' | 'onRegionEvent' | 'onRunFailure' | 'onUnsatisfiableJoin' | 'onUnmintedTask' | 'now'> {
   /** Omitted, the runtime mints `r<n>` from its own counter — inside `ID-R2`'s charset, unique per RUNTIME and not globally (decision 10). */
   runId?: string;
 }
@@ -387,6 +422,7 @@ export function createRuntime(
         ...(options.validateBoundaries !== undefined ? { validateBoundaries: options.validateBoundaries } : {}),
         ...(startOptions.createTask !== undefined ? { createTask: startOptions.createTask } : {}),
         ...(startOptions.onFoldInput !== undefined ? { onFoldInput: startOptions.onFoldInput } : {}),
+        ...(startOptions.onRegionEvent !== undefined ? { onRegionEvent: startOptions.onRegionEvent } : {}),
         ...(startOptions.onRunFailure !== undefined ? { onRunFailure: startOptions.onRunFailure } : {}),
         ...(startOptions.onUnsatisfiableJoin !== undefined ? { onUnsatisfiableJoin: startOptions.onUnsatisfiableJoin } : {}),
         ...(startOptions.onUnmintedTask !== undefined ? { onUnmintedTask: startOptions.onUnmintedTask } : {}),

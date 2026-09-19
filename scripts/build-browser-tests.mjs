@@ -108,6 +108,26 @@ const fixtures = [
   // `spec/examples/` has done that (W32's, W33's, W54's, this). It is read inside a `test()`, so
   // the failure mode is W33's better one: one named test rather than the whole bundle.
   join(ROOT, 'examples', 'getting-started', 'session-types.ts'),
+  // **Two `src/**` modules, as TEXT, because W76's binding is a claim about two LISTS in one file
+  // and a PARTITION across two** — [W76](../doc/work-items/w76-what-start-accepts.md),
+  // [P20](../doc/plans/p20-what-the-runtime-owes-a-consumer.md) decision 5. `StartOptions`' `Pick`
+  // and `start`'s conditional spreads are two hand-written lists nothing compared, and P20 fact 2
+  // measured that widening the first without the second is green on all five typecheckers,
+  // `npm test`, `check:source` AND `check:docs`. The binding is `doc/workflow.md` rule 8 obligation
+  // (e)'s third shape — *find the other list and compare BOTH WAYS* — and the only place both lists
+  // exist is the source, so the suite reads it.
+  //
+  // **The bundle already carries both of these COMPILED; what it did not carry is their TEXT.**
+  // That is the whole cost: **193.0 KB**, and the corpus goes 386.1 KB -> 579.1 KB in a dev-only
+  // artifact. The alternative priced at W76`s declaration was a `check-source` clause, which the
+  // plan's decision 5 declines by name, and skipping the test in the browser, which would be a rung
+  // green on a test that did not run with no `RT-R10` reason behind it.
+  //
+  // **This is the FIFTH time a suite reading a file outside `spec/examples/` has reached here**, and
+  // the fourth entry's comment above enumerates the first three. Both are read inside a `test()`, so
+  // the failure mode is W33's better one — one named test rather than the whole bundle.
+  join(ROOT, 'src', 'scheduler', 'runtime.ts'),
+  join(ROOT, 'src', 'driver', 'driver.ts'),
 ].sort();
 const corpus = Object.fromEntries(fixtures.map((p) => [relPosix(p), readFileSync(p, 'utf8')]));
 

@@ -1423,7 +1423,10 @@ After a refusal the run is **stopped**: nothing routes for it again, and its sta
   **not** compliance: it still aliases `result` and `error`. The driver copies at the listener
   boundary, so the four values that carry the run — records from `snapshot()`, inputs from
   `foldInputs()` and `onFoldInput`, and events from `onRegionEvent` — are **frozen copies**, safe to
-  hold. **The other accessors return copies that are not frozen** (`dispatchedIds()`,
+  hold. *Until [W76](doc/work-items/w76-what-start-accepts.md) the fourth of those was reachable
+  only by building a `Driver` by hand, so this bullet named four values and the snippet below could
+  assert three; `createRuntime` forwards `onRegionEvent` now, and all four are on one road.*
+  **The other accessors return copies that are not frozen** (`dispatchedIds()`,
   `regionsForPolicies()`, `effectiveOutcomeOf()`, `terminalStateOf()`): writing to one changes
   nothing in the driver, but it is not a document to edit and hand back.
 - **Returning a CLASS INSTANCE from a worker.** It does not throw and it does not arrive intact.
@@ -1464,19 +1467,31 @@ const inputs: FoldInput[] = [];
 const frozen: Record<string, boolean> = {};
 // **The handles this road HAS, named rather than counted** — a count is not a membership, and
 // re-sourcing one of these onto another left a count of three unmoved (W71's adequacy reader).
-const HANDLES = ['onFoldInput', 'snapshot', 'foldInputs'];
+const HANDLES = ['onFoldInput', 'onRegionEvent', 'snapshot', 'foldInputs'];
 
-// **`onRegionEvent` is a `Driver` option the RUNTIME DOES NOT FORWARD**, so a consumer on this road
-// cannot watch a region open and close at all. That is asserted here rather than stated, because a
-// sentence listing what `StartOptions` carries is a claim about a list in the source that nothing
-// compares it to — and the first version of this comment got that list wrong ([Q297](doc/open-questions.md)).
-// The cast is what a consumer would have to write to try, and the count below is what they would get.
+// **`onRegionEvent` is FORWARDED, so this road can watch a fan-out open and close** — W76. It was
+// not, until W76: `StartOptions` is a `Pick` of the driver's options, and of the driver's eighteen
+// this was the one no `createRuntime` consumer could reach at all, which is
+// [Q297](doc/open-questions.md). **The previous version of this snippet asserted the opposite and
+// passed a CAST**, because that was the only way to try; there is no cast now, and the two counts
+// below are what changed. *The reason it went unnoticed for so long is that the snippet which
+// asserted it built its own `Driver`, and a reference that constructs its own driver can
+// demonstrate options its readers have no way to pass.*
+//
+// **What a consumer gets is the driver's own event, already frozen** (`OR-R7`,
+// [Q73](doc/open-questions.md)) — nothing is copied or re-frozen at the runtime seam, which is why
+// the freeze is asserted here on the road a consumer actually uses rather than inferred from the
+// driver's own test.
 let regionEvents = 0;
-const options = {
+const regionKinds: string[] = [];
+const driver = runtime.start(flow, {}, {
   onFoldInput: (i: FoldInput) => { frozen.onFoldInput = Object.isFrozen(i); inputs.push(i); },
-  onRegionEvent: () => { regionEvents += 1; },
-};
-const driver = runtime.start(flow, {}, options as Parameters<typeof runtime.start>[2]);
+  onRegionEvent: (e) => {
+    regionEvents += 1;
+    regionKinds.push(e.type);
+    frozen.onRegionEvent = (frozen.onRegionEvent ?? true) && Object.isFrozen(e);
+  },
+});
 
 await new Promise<RunState>((resolve, reject) => {
   // A poll needs a DEADLINE, and this one is a consumer's to copy: without it a run that never
@@ -1499,14 +1514,39 @@ if (snapshot.length === 0 || foldInputs.length === 0) throw new Error('a pull ha
 frozen.snapshot = Object.isFrozen(snapshot) && snapshot.every(Object.isFrozen);
 frozen.foldInputs = Object.isFrozen(foldInputs) && foldInputs.every(Object.isFrozen);
 
-console.log(frozen, regionEvents);   // all three true, and 0
+console.log(frozen, regionEvents, [...new Set(regionKinds)].sort());
+// all four handles true, then 4, then [ 'branch.arrived', 'branch.opened' ]
+
+// **Where each claim below is observed a SECOND time**, because every guard in an executed snippet
+// is bound by its own PRESENCE and by nothing else ([Q310](doc/open-questions.md)) — W76's adequacy
+// reader made all six guards and all four `isFrozen` readings vacuous at once with `check:docs` at
+// exit 0. The four freeze claims are re-asserted per element in `test/driver/outbound.test.ts` and
+// `test/driver/fold-inputs.test.ts`; the region-event count, kinds and freeze ACROSS THE RUNTIME
+// SEAM — which is the part those files cannot see, because they build a `Driver` by hand — are in
+// `test/scheduler/runtime.test.ts`, where the forwarded stream is held equal to the driver's own
+// region stream element for element. *Nothing here is the only observer of anything.*
 for (const [name, isFrozen] of Object.entries(frozen)) {
   if (!isFrozen) throw new Error(`${name} handed out something you can write to`);
+}
+// **The guard that fires if the answer changes BACK, and it is FIRST on purpose.** Q297 was a
+// member of `StartOptions` going missing, which nothing noticed for two plans; this is what would
+// notice now, from a consumer's side of the seam rather than from the type. *It sat BELOW the
+// membership check in the first version and was unreachable: `frozen.onRegionEvent` is written in
+// the same callback as `regionEvents`, so a regression removes the key too and the membership
+// throws first — a regression caught, by a message about `HANDLES` that says nothing about Q297.
+// W76's conformity reader; the tree's own "right verdict by the wrong route".*
+if (regionEvents === 0) {
+  throw new Error('onRegionEvent fired 0 times: the runtime has stopped forwarding it, and a consumer on this road cannot watch a fan-out again — Q297 has regressed');
 }
 if (Object.keys(frozen).sort().join() !== HANDLES.slice().sort().join()) {
   throw new Error(`expected exactly ${HANDLES.join()}, saw ${Object.keys(frozen).sort().join()}`);
 }
-if (regionEvents !== 0) throw new Error(`onRegionEvent fired ${regionEvents} times, so the runtime forwards it now and this comment is stale`);
+// The KINDS are the membership and the count stands beside them: a two-branch fan-out opens twice
+// and arrives twice, and a snippet asserting only `> 0` would pass on one branch of one kind.
+if ([...new Set(regionKinds)].sort().join() !== 'branch.arrived,branch.opened') {
+  throw new Error(`expected a fan-out's opens and arrivals, saw ${[...new Set(regionKinds)].sort().join() || '(nothing)'}`);
+}
+if (regionEvents !== 4) throw new Error(`expected 4 region events on a two-branch fan-out — two opened, two arrived — and saw ${regionEvents}`);
 ```
 - **Subscribing to the scheduler yourself and counting `task.failed`.** A `user_action` task fires
   it *and* `task.user_action`. Key on the terminal state — section 7.

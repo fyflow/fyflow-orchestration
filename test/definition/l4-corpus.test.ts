@@ -472,6 +472,10 @@ const LATE_SUITES = [
   'W66 — the sub-path re-exports what this module exports, both ways',
   'W66 — a runtime on REAL pools: a document in, a completed run out',
   'W66 — what the runtime refuses that the document alone could not say',
+  // W76 — what `start` ACCEPTS: `onRegionEvent` forwarded, and the two hand-written lists bound.
+  'W76 — StartOptions and start() are two lists, and nothing compared them',
+  'W76 — every StartOptions member ARRIVES at the driver, and the observer set is the type`s',
+  'W76 — the forwarded stream IS the driver`s region stream, at every variant, kind and depth',
   // W62 — the JSONata adapter, in `test/jsonata/jsonata.test.ts` and `test/jsonata/function-table.test.ts`.
   'adapter conformance — jsonata (fyflow-orchestration/jsonata)',
   'W62 — the JSONata adapter: one module, five names unbound, JSONata`s errors as Errors',

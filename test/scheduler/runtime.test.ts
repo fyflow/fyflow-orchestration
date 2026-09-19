@@ -11,11 +11,12 @@
  * it is instantiated here member by member, because the rule ENUMERATES its values
  * (`doc/workflow.md` section 5 rule 8 obligation (a) at v0.17).
  */
-import { equal, ok, suite, throws } from '../harness.ts';
+import { deepEqual, equal, ok, readText, ROOT, suite, throws } from '../harness.ts';
 import {
   BUILT_IN_GROUP_FACTORIES, createRuntime, GROUP_MEMBERS, GroupNotBuildable, GroupUnusable,
   LanguageNotBuilt, RuntimeError,
 } from '../../src/scheduler/runtime.ts';
+import type { StartOptions } from '../../src/scheduler/runtime.ts';
 import { bootstrap, ENVELOPE_WORKER_URL } from '../../src/scheduler/bootstrap.ts';
 import { BUILT_IN_GROUP_TYPES, DerivationRefused, GroupTypeMissing, NameMissing, WorkerMissing } from '../../src/definition/registry.ts';
 import { PATH_LANGUAGE } from './fake-language.ts';
@@ -771,5 +772,527 @@ suite('W66 — what the runtime refuses that the document alone could not say', 
     });
     await r.shutdown();
     equal(shut, 1, 'forwarded once');
+  });
+});
+
+/**
+ * **W76 — what `start` ACCEPTS: the two lists bound BOTH WAYS, and the partition with no residue.**
+ * [P20](../../doc/plans/p20-what-the-runtime-owes-a-consumer.md) decisions 4 and 5,
+ * [W76](../../doc/work-items/w76-what-start-accepts.md), ladder L1.
+ *
+ * **Why this reads the SOURCE.** `StartOptions`' `Pick` and the conditional spreads inside `start`
+ * are two hand-written lists, and **P20 fact 2 measured that they were bound by nothing**: widening
+ * the first and forgetting the second is green on all five typecheckers, `npm test`, `check:source`
+ * AND `check:docs`, so a typed option a consumer passed was silently dropped. That is
+ * `doc/workflow.md` rule 8 obligation (e)'s third shape — *a LIST is a claim about another list,
+ * find the other list and compare BOTH WAYS* — and the only place both lists exist is the source.
+ * Both files are inlined into the browser bundle for exactly this (a declared exception on
+ * `scripts/build-browser-tests.mjs`), so
+ * this suite is identical in all five runtimes rather than skipped in three.
+ *
+ * **The second road is DERIVED, not declared.** P20 decision 5 warns that a naive comparison reports
+ * a false positive, because `joinPolicy` is legitimately in the `Pick` with no spread line — it is
+ * applied as `?? liveToken`. W76's declaration step measured that `??` is not an exception but a
+ * second ROAD, and that it has TWO members: `runId` is the other, declared in `StartOptions`' own
+ * BODY rather than in the `Pick`, which is the half P20 fact 1 could not see and which W71's
+ * conformity reader had measured from the other end. **The BINDING below writes down no member
+ * name; the `exactly one road` case that follows it PINS the `??` road to two, deliberately, and
+ * the two claims are kept apart here because the first version of this paragraph ran them
+ * together and both of W76's readers said so.**
+ *
+ * **Every expected value comes from P20 fact 1 and from W76's declaration-step measurements taken on
+ * the shipped tree before a line was edited** (`dev-dist/w76/decl-partition.txt`,
+ * `dev-dist/w76/decl-before.txt`), never from this module's output.
+ */
+/**
+ * **W76's source-reading helpers, at module scope so the two suites below share ONE expression.**
+ * They were a copy each, and W76's adequacy reader measured what that cost: the text binding and
+ * the behavioural membership derived names with the same regex written twice, so *"the item's
+ * declared second observer is a second copy of the first sensor"* — obligation (c)'s LIMIT one
+ * level in. One definition, two callers.
+ *
+ * **The member pattern admits three spellings, because two of them shipped invisible.** A
+ * nineteenth `DriverOptions` member written `readonly onSilentlyMissed?: () => void;` or
+ * `onShorthand?(e: RegionEvent): void;` — both ordinary, both legal — was reachable by NO road and
+ * caught by NOTHING (that reader's m21, m22, m23), which makes W76's own Outputs (2) and (3) false
+ * for two spellings of the defect they exist to refuse. *The count beside the membership could not
+ * see it either, because the count is derived from the same regex and is downstream of the
+ * apparatus it is meant to corroborate.*
+ */
+const w76MembersOf = (text: string, anchor: string): string[] => {
+  const at = text.indexOf(anchor);
+  if (at < 0) throw new Error(`W76: anchor not found in source: ${anchor}`);
+  const body = text.slice(at);
+  const end = body.indexOf('\n}\n');
+  if (end < 0) throw new Error(`W76: no closing brace for: ${anchor}`);
+  return [...body.slice(0, end).matchAll(/^ {2}(?:readonly )?([a-zA-Z][a-zA-Z0-9]*)\??[:(]/gm)].map((m) => m[1] as string);
+};
+/** The quoted names inside a `Pick<DriverOptions, 'a' | 'b'>` type argument. */
+const w76PickNames = (text: string, anchor: string): string[] => {
+  const at = text.indexOf(anchor);
+  if (at < 0) throw new Error(`W76: anchor not found in source: ${anchor}`);
+  const tail = text.slice(at, at + 400);
+  const close = tail.indexOf('>');
+  if (close < 0) throw new Error(`W76: unterminated Pick in: ${anchor}`);
+  return [...tail.slice(0, close).matchAll(/'([a-zA-Z][a-zA-Z0-9]*)'/g)].map((m) => m[1] as string);
+};
+/** `StartOptions`' whole membership — the `Pick` AND its own body (W76 finding B). */
+const w76StartMembers = (runtimeSrc: string): string[] => {
+  const anchor = 'export interface StartOptions extends Pick<DriverOptions,';
+  return [...new Set([...w76PickNames(runtimeSrc, anchor), ...w76MembersOf(runtimeSrc, anchor)])].sort();
+};
+
+suite('W76 — StartOptions and start() are two lists, and nothing compared them', (test) => {
+  const membersOf = w76MembersOf;
+  const pickNames = w76PickNames;
+  const sorted = (xs: readonly string[]) => [...new Set(xs)].sort();
+
+  /** Everything this suite derives from the two source files, read once per case. */
+  async function surfaces() {
+    const runtime = await readText(ROOT + 'src/scheduler/runtime.ts');
+    const driver = await readText(ROOT + 'src/driver/driver.ts');
+    const startAt = runtime.indexOf('const driver = new Driver(flow, {');
+    if (startAt < 0) throw new Error('W76: the `new Driver` literal inside start() was not found');
+    const litEnd = runtime.indexOf('driver.start(payload);', startAt);
+    if (litEnd < 0) throw new Error('W76: the end of start() was not found');
+    const literal = runtime.slice(startAt, litEnd);
+    const sigAt = runtime.indexOf('start(flow, payload, startOptions = {})');
+    if (sigAt < 0) throw new Error('W76: start()`s own signature was not found');
+    return {
+      /** The universe: every member of `DriverOptions`, from its own declaration. */
+      all: membersOf(driver, 'export interface DriverOptions'),
+      /** Road (a): the keys the `new Driver(…)` literal writes itself, as bare `name,` lines. */
+      supplied: [...literal.matchAll(/^ {8}([a-zA-Z][a-zA-Z0-9]*),$/gm)].map((m) => m[1] as string),
+      /** Road (b). */
+      registry: pickNames(runtime, 'export type RuntimeRegistry = Pick<DriverOptions,'),
+      /**
+       * **Road (c), and it is what `start` FORWARDS from `RuntimeOptions` — not `RuntimeOptions`
+       * itself.** P20 fact 1 reads the whole interface and calls road (c) six, but **four of those
+       * six are not `DriverOptions` members at all**: `base`, `flows`, `createPool` and
+       * `createScheduler` are the runtime's own, and the plan's *"the runtime supplies two,
+       * `RuntimeRegistry` carries six, `RuntimeOptions` carries six, `StartOptions` carries seven"*
+       * is 21 slots over 18 members, which cannot be a partition. Derived from the forwarding lines
+       * the road is **two** — `defaultRetryPolicy` and `validateBoundaries` — and 2 + 6 + 2 + 7 is
+       * 17, with `onRegionEvent` the eighteenth and the orphan the fact is about. *The conclusion
+       * was right and the table under it was not a partition* (W76 finding D).
+       *
+       * Reading it this way also makes the road a real binding rather than a superset: a
+       * `DriverOptions` member added to `RuntimeOptions` and never spread would still be an orphan,
+       * and reading the declaration would have hidden it.
+       */
+      runtimeOptions: [...literal.matchAll(/\.\.\.\(options\.([a-zA-Z][a-zA-Z0-9]*) !== undefined/g)].map((m) => m[1] as string),
+      /** Road (d), and it is the INTERFACE rather than the `Pick` — W76 finding B. */
+      startPick: pickNames(runtime, 'export interface StartOptions extends Pick<DriverOptions,'),
+      startOwn: membersOf(runtime, 'export interface StartOptions extends Pick<DriverOptions,'),
+      /** How `start` reaches each one: conditionally spread, or defaulted with `??`. */
+      spreads: [...literal.matchAll(/\.\.\.\(startOptions\.([a-zA-Z][a-zA-Z0-9]*) !== undefined/g)].map((m) => m[1] as string),
+      defaulted: [...runtime.slice(sigAt, litEnd).matchAll(/startOptions\.([a-zA-Z][a-zA-Z0-9]*) \?\?/g)].map((m) => m[1] as string),
+    };
+  }
+
+  /**
+   * **The extraction's own positive control.** Every assertion below is a set difference, and a
+   * regex that matched NOTHING makes most of them vacuously true — rule 7 (b) one layer in, and
+   * W47's *a harness can produce a verdict having run nothing*. These names are in their lists by
+   * construction rather than by choice: `runId` and `scheduler` are the two the runtime must supply
+   * (`ID-R3`, P18 decision 10), `predicates` is what makes a decision route at all, `base` is what
+   * a relative worker url resolves against, and `onRegionEvent` is the member this item exists for.
+   */
+  test('the extraction is not vacuous — each derived list carries a name that is in it by construction', async () => {
+    const s = await surfaces();
+    ok(s.all.includes('runId') && s.all.includes('scheduler') && s.all.includes('onRegionEvent'),
+      `DriverOptions read from the shipped source: ${s.all.length} members`);
+    equal(sorted(s.supplied), ['runId', 'scheduler'], 'road (a): the two the runtime supplies, and nothing else');
+    ok(s.registry.includes('predicates'), 'road (b) carries predicates — decision 14');
+    equal(sorted(s.runtimeOptions), ['defaultRetryPolicy', 'validateBoundaries'],
+      'road (c) is what start FORWARDS from RuntimeOptions, which is TWO — not the interface`s six, four of which are not DriverOptions members (W76 finding D)');
+    ok(s.startPick.includes('onRegionEvent'), 'road (d) carries onRegionEvent — Q297, and this item');
+    equal(s.startOwn, ['runId'], 'and StartOptions declares exactly one member in its own body');
+    ok(s.spreads.length > 0 && s.defaulted.length > 0, 'start() reaches members by both roads');
+  });
+
+  /**
+   * **Q297, and fact 1's partition with the residue gone.** A `createRuntime` consumer reaches a
+   * `DriverOptions` member by exactly four roads. Before this item the partition had ONE residue,
+   * `onRegionEvent`, and it was the UNIQUE one — *not a judgement about which callbacks are worth
+   * carrying, but the leftover of a partition that is otherwise total.* Set equality BOTH ways, so
+   * that a nineteenth member added to `DriverOptions` and reached by nothing fails HERE, naming
+   * itself, rather than becoming a second Q297 in silence.
+   */
+  test('every DriverOptions member is reachable from createRuntime — ORPHAN COUNT 0, both ways', async () => {
+    const s = await surfaces();
+    const reached = sorted([...s.supplied, ...s.registry, ...s.runtimeOptions, ...s.startPick, ...s.startOwn]);
+    const universe = sorted(s.all);
+    equal(reached.filter((n) => !universe.includes(n)), [],
+      'nothing the four roads carry is missing from DriverOptions — the direction that catches a renamed member');
+    equal(universe.filter((n) => !reached.includes(n)), [],
+      'and NO DriverOptions member is unreachable from createRuntime: that is Q297`s whole shape, and W76 is where the count went to zero');
+    // The COUNT stays BESIDE the membership rather than replacing it (`doc/workflow.md` rule 8
+    // obligation (d) at v0.14): the membership above cannot see an extraction that silently found
+    // three members instead of eighteen, because three reachable members also have no residue.
+    equal(s.all.length, 18, 'DriverOptions has the eighteen members P20 fact 1 counted — move this deliberately, with the roads');
+  });
+
+  /**
+   * **The two hand-written lists, compared BOTH WAYS — this item's Outputs (2).** P20 fact 2 p1
+   * measured the first direction FREE and p3 measured the second bound only by a consumer's own
+   * typecheck. *You could widen the list silently; you could not narrow it.* Now neither.
+   */
+  test('every StartOptions member is REACHED by start, and everything start reaches is DECLARED', async () => {
+    const s = await surfaces();
+    const declared = sorted([...s.startPick, ...s.startOwn]);
+    const reached = sorted([...s.spreads, ...s.defaulted]);
+    equal(declared.filter((n) => !reached.includes(n)), [],
+      'a name in StartOptions that start() never reads is a typed option silently dropped — P20 fact 2 p1, green on all four rungs before this item');
+    equal(reached.filter((n) => !declared.includes(n)), [],
+      'and a name start() reads that StartOptions does not declare is a forward no caller can type');
+  });
+
+  /**
+   * **Exactly one road each, and the `??` road is DERIVED.** P20 decision 5 expected ONE legitimate
+   * spread-less member and named `joinPolicy`; the measurement found TWO, because `runId` is the
+   * same shape one declaration site over. Asserting *exactly one of the two roads* rather than
+   * *`joinPolicy` is exempt* is what keeps the first clause from being an exception list with one
+   * entry, and a member on BOTH — a spread that would overwrite a computed default — fails it.
+   *
+   * **The second clause is a PIN and not a derivation, and it is deliberate.** Moving a member
+   * between the roads — `now` written `startOptions.now ?? (() => Date.now())`, which is the
+   * driver's own default and is behaviourally identical — fails here and must be done
+   * deliberately. That is [Q102](../../doc/open-questions.md)'s ratchet shape, and it is what
+   * catches a behaviour-preserving move that nothing else in the suite can see. *An earlier
+   * version of this comment claimed such a move "still passes, which is right"; W76's adequacy
+   * reader measured it FALSE and its conformity reader derived the same thing by reading — the
+   * only subject the two shared.*
+   */
+  test('each StartOptions member reaches the driver by EXACTLY ONE of the two roads', async () => {
+    const s = await surfaces();
+    equal(s.spreads.filter((n) => s.defaulted.includes(n)), [],
+      'no member is both conditionally spread and `??`-defaulted — the second would silently win over the first');
+    equal(sorted(s.defaulted), ['joinPolicy', 'runId'],
+      'and the `??` road has TWO members, not the one P20 decision 5 named: runId is the same shape a declaration site over (W76 finding B)');
+  });
+});
+
+/**
+ * **W76 Outputs (4) — the SECOND observer, because the suite above is two regexes over one text.**
+ * `doc/workflow.md` rule 8 obligation (c)'s LIMIT: *when the compound probe is green, count the
+ * observers; at one, the fix is a second independent expression over the same fact.* The suite above
+ * says the LIST is complete; this one says each member ARRIVES, by running a real `Driver` on the
+ * recorded pool seam and watching the thing that option does. Neither is downstream of the other:
+ * re-sourcing the text comparison leaves these live, and deleting a forwarding line fails both.
+ *
+ * **The observer set is bound to the TYPE, both ways**, so a `StartOptions` member added later
+ * cannot arrive with no behavioural observer — which is W66's adequacy reader's finding (*every
+ * option start forwards was forwarded by the code and observed by nothing*) closed as a MEMBERSHIP
+ * rather than as five more cases.
+ */
+suite('W76 — every StartOptions member ARRIVES at the driver, and the observer set is the type`s', (test) => {
+  const DOCUMENT = {
+    workers: { w: { url: 'https://example.test/w.js' } },
+    nodeTypes: { T: { worker: 'w', inline: true } },
+    predicates: [],
+  } as unknown as RegistryDocument;
+
+  const LINEAR = {
+    flowId: 'lin', version: 1, entry: 'a',
+    nodes: [
+      { id: 'a', kind: 'task', type: 'T', edges: [{ to: 'done' }] },
+      { id: 'done', kind: 'end', outcome: 'completed' },
+    ],
+  } as unknown as FlowDefinition;
+  /** Two branches, so a region OPENS and ARRIVES — the topology that produces region events. */
+  const FANOUT = {
+    flowId: 'fan', version: 1, entry: 'a',
+    nodes: [
+      { id: 'a', kind: 'task', type: 'T', edges: [{ to: 'split' }] },
+      { id: 'split', kind: 'fanout', branches: ['b', 'c'] },
+      { id: 'b', kind: 'task', type: 'T', edges: [{ to: 'j' }] },
+      { id: 'c', kind: 'task', type: 'T', edges: [{ to: 'j' }] },
+      { id: 'j', kind: 'join', of: 'split', edges: [{ to: 'done' }] },
+      { id: 'done', kind: 'end', outcome: 'completed' },
+    ],
+  } as unknown as FlowDefinition;
+  /** `over` names a key the entry's result carries as a NUMBER — `UnresolvedMapArity`, W33. */
+  const BAD_MAP = {
+    flowId: 'badmap', version: 1, entry: 'a',
+    nodes: [
+      { id: 'a', kind: 'task', type: 'T', edges: [{ to: 'm' }] },
+      { id: 'm', kind: 'map', over: 'items', branch: 'b' },
+      { id: 'b', kind: 'task', type: 'T', edges: [{ to: 'j' }] },
+      { id: 'j', kind: 'join', of: 'm', edges: [{ to: 'done' }] },
+      { id: 'done', kind: 'end', outcome: 'completed' },
+    ],
+  } as unknown as FlowDefinition;
+
+  /** A policy whose region can never fire — the one shape that reaches `onUnsatisfiableJoin`. */
+  const deadJoin = {
+    id: 'w76-dead-join',
+    open: () => ({}),
+    step: (state: object) => state,
+    status: () => 'unsatisfiable' as const,
+    describe: () => ({ w76: true }),
+  };
+
+  interface Observer {
+    option: StartOptions;
+    flow: FlowDefinition;
+    /** Anything that must happen AFTER every dispatched task has settled. */
+    drive: (s: ReturnType<typeof seams>) => void;
+    saw: (d: Driver) => unknown;
+    want: unknown;
+  }
+
+  /**
+   * One observer per `StartOptions` member: the option to pass, and what running a real `Driver`
+   * with it does that running one without it does not. **Each reports the thing it SAW**, so a
+   * forwarding line deleted leaves the observer empty and the case fails naming the member.
+   */
+  const OBSERVERS: Record<string, (s: ReturnType<typeof seams>) => Observer> = {
+    runId: () => ({
+      option: { runId: 'w76-mine' }, flow: LINEAR, drive: () => {},
+      saw: (d) => d.runId, want: 'w76-mine',
+    }),
+    createTask: (s) => ({
+      option: { createTask: (c) => ({ ...(c as unknown as Record<string, unknown>), W76: 'mark' }) as never },
+      flow: LINEAR, drive: () => {},
+      saw: () => (s.added[0] as { W76?: string } | undefined)?.W76, want: 'mark',
+    }),
+    joinPolicy: () => {
+      const opened: string[] = [];
+      const counting = { ...liveToken, open: (r: never) => { opened.push('open'); return liveToken.open(r); } } as typeof liveToken;
+      return {
+        option: { joinPolicy: counting }, flow: FANOUT, drive: () => {},
+        saw: () => opened.length > 0, want: true,
+      };
+    },
+    onFoldInput: () => {
+      const kinds: string[] = [];
+      return {
+        option: { onFoldInput: (i: FoldInput) => { kinds.push(i.kind); } }, flow: LINEAR, drive: () => {},
+        saw: () => kinds.length > 0, want: true,
+      };
+    },
+    onRegionEvent: () => {
+      const types: string[] = [];
+      const frozen: boolean[] = [];
+      return {
+        // **Q297, and this item's reason for existing.** Before W76 this callback reached the driver
+        // by NO road at all, so `types` came back empty on the one topology that produces region
+        // events. The expected values are W76's declaration-step measurement of the same two-branch
+        // fanout on a hand-built driver (`dev-dist/w76/decl-before.txt`): two opens and two
+        // arrivals, every one FROZEN — `OR-R7` and [Q73](../../doc/open-questions.md) at the seam,
+        // which this item inherits rather than re-establishes because the driver already does it.
+        option: { onRegionEvent: (e) => { types.push(e.type); frozen.push(Object.isFrozen(e)); } },
+        flow: FANOUT, drive: () => {},
+        saw: () => ({ types: [...new Set(types)].sort(), count: types.length, allFrozen: frozen.length > 0 && frozen.every(Boolean) }),
+        want: { types: ['branch.arrived', 'branch.opened'], count: 4, allFrozen: true },
+      };
+    },
+    // `now`'s value reaches the fold's records as `observedAt`, so this reads it back through
+    // `onFoldInput`. That makes this one observer's claim ride on another option's road, which is
+    // stated rather than hidden: if `onFoldInput`'s forwarding went, THIS case would go too — and
+    // `onFoldInput` has its own case above, so the pair cannot both pass on one broken forward.
+    onRunFailure: () => {
+      const kinds: string[] = [];
+      return {
+        option: { onRunFailure: (f) => { kinds.push(f.kind); } }, flow: BAD_MAP, drive: () => {},
+        saw: () => kinds.length > 0, want: true,
+      };
+    },
+    onUnsatisfiableJoin: () => {
+      const seen: string[] = [];
+      return {
+        option: { joinPolicy: deadJoin as never, onUnsatisfiableJoin: (i) => { seen.push(i.policyId); } },
+        flow: FANOUT, drive: () => {},
+        saw: () => seen, want: ['w76-dead-join'],
+      };
+    },
+    onUnmintedTask: () => {
+      // `unknown[]`, because `UnmintedTask.taskId` is deliberately `unknown`: a `detail` with no
+      // `id` at all is one of the ways `ID-R5` fires, and reporting `''` for it would hide the
+      // sharpest case. Narrowing it here would be this suite disagreeing with the surface it reads.
+      const seen: unknown[] = [];
+      return {
+        option: { onUnmintedTask: (i) => { seen.push(i.taskId); } }, flow: LINEAR,
+        // An id no driver minted, settled on the shared scheduler — `ID-R5`, ADR 0027.
+        drive: (s) => { s.settle('nightly-cleanup', { ok: true }); },
+        saw: () => seen, want: ['nightly-cleanup'],
+      };
+    },
+    now: () => {
+      const at: number[] = [];
+      return {
+        option: {
+          now: () => 424242,
+          onFoldInput: (i: FoldInput) => { if (i.kind === 'outcome' || i.kind === 'resolution') at.push(i.record.observedAt); },
+        },
+        flow: LINEAR, drive: () => {},
+        saw: () => [...new Set(at)], want: [424242],
+      };
+    },
+  };
+
+  /**
+   * **The membership, both ways** — `doc/workflow.md` rule 8 obligation (d) at v0.14: the list above
+   * is a claim about `StartOptions`, and a member added there with no observer here would leave this
+   * suite passing on a smaller surface. Derived from the shipped source, as the suite above is.
+   */
+  test('the observer list IS StartOptions` membership — a member with no behavioural observer fails here', async () => {
+    const src = await readText(ROOT + 'src/scheduler/runtime.ts');
+    const members = w76StartMembers(src);
+    // The extraction's own control, because every assertion below it is a set comparison and an
+    // empty derivation satisfies most of them by construction.
+    ok(members.includes('onRegionEvent') && members.includes('runId'), `StartOptions read from the shipped source: ${members.join(', ')}`);
+    equal(members, Object.keys(OBSERVERS).sort(),
+      'every StartOptions member has a behavioural observer below, and every observer names a real member');
+  });
+
+  for (const name of Object.keys(OBSERVERS)) {
+    test(`${name} reaches the driver start() built`, () => {
+      const s = seams();
+      const o = OBSERVERS[name]!(s);
+      const r = createRuntime(DOCUMENT, {}, { createPool: s.createPool, createScheduler: s.createScheduler });
+      const d = r.start(o.flow, { items: 7 }, o.option);
+      // Settle every task the driver dispatches, in the order it dispatched them, so a fanout
+      // reaches its join and a map reaches its arity refusal. `added` grows as the run advances.
+      for (let i = 0; i < s.added.length && i < 20; i += 1) s.settle(String(s.added[i]!.id), { items: 7, ok: true });
+      o.drive(s);
+      equal(o.saw(d), o.want, `${name}: what the driver did with the option start() forwarded`);
+    });
+  }
+});
+
+/**
+ * **W76, the ADEQUACY reader's central finding: the forwarding was bound at EXACTLY ONE SHAPE, and
+ * the answer is an IDENTITY rather than more shapes.**
+ *
+ * `RegionEvent` has six variants and a region is a `fanout` or a `map`, at depth 1 or nested
+ * (`doc/workflow.md` rule 8 obligation (a)'s shapes clause names this exact kind). Every observer
+ * of the forwarding — the behavioural case above and `AGENTS.md` section 10 — ran ONE topology: a
+ * two-branch `fanout` at depth 1 whose branches all arrive. So the forwarding could be narrowed
+ * three ways for **zero** on `npm test`, `check:docs` and `typecheck`, each of them a consumer
+ * being told they can watch a fan-out and silently never shown half of it:
+ *
+ * | | the narrowed forward | cost before this suite |
+ * |---|---|---|
+ * | m1 | only `branch.opened` and `branch.arrived` are passed on | **0 on all three rungs** |
+ * | m2 | events whose `branchPath` is dotted — every NESTED region's — are dropped | **0 on all three** |
+ * | m3 | only a `fanout` region's events are passed on, never a `map`'s | **0 on all three** |
+ *
+ * **Enumerating shapes would not have closed it**, because the enumeration is the author's and the
+ * variants are the driver's. What closes it totally is the one claim the runtime actually owes:
+ * **what `onRegionEvent` receives IS the region subsequence of what `onFoldInput` receives, element
+ * for element, by IDENTITY.** [ADR 0014](../../doc/decisions/0014-the-driver-produces-the-folds-ordered-input-sequence.md)
+ * rule 1 puts every region event into the fold's ordered sequence, so a forward that drops,
+ * duplicates, reorders or substitutes an event fails whatever its variant, kind or depth.
+ *
+ * **It is VALUE equality and not identity, and that was measured rather than assumed.** The first
+ * version of this suite asserted `===` on the reasoning that `emit()` freezes ONE copy and both
+ * stores and hands out that same object (W12) — and it went RED on its first run: `freezeInput`
+ * (`src/driver/driver.ts`) gives `onFoldInput` its own frozen copy, `{ ...i, event: Object.freeze({
+ * ...i.event }) }`, so the two outbound paths hand out two different frozen objects carrying the
+ * same event. *The claim survived and its stated mechanism did not*, which is why it is written
+ * down here rather than quietly changed.
+ *
+ * **It is a second SOURCE and not a second call site** (P20 decision 2's shape, one option over):
+ * the two lists arrive through two different `StartOptions` members, so neither is downstream of
+ * the other's apparatus — and because both being empty would satisfy the equality vacuously, the
+ * non-emptiness is asserted beside it, which is `doc/workflow.md` v0.18's *a membership names the
+ * CONTROLS beside its claims*.
+ *
+ * It also closes the reader's **m17/m20** — the `count: 4` literal above had `AGENTS.md` section 10
+ * as its only second observer, and section 10's count guard is inside this item's own declared
+ * Q310 ceiling, so tautologising it and doubling the forwarding was green on both rungs. Doubling
+ * is a length mismatch here and no literal is involved.
+ */
+suite('W76 — the forwarded stream IS the driver`s region stream, at every variant, kind and depth', (test) => {
+  const DOCUMENT = {
+    workers: { w: { url: 'https://example.test/w.js' } },
+    nodeTypes: { T: { worker: 'w', inline: true } },
+    predicates: [],
+  } as unknown as RegistryDocument;
+
+  /**
+   * One flow carrying THREE shapes the one-topology observer could not reach: a `map` region
+   * (m3), a region NESTED inside a fan-out branch so its `branchPath` is dotted (m2), and a branch
+   * that leaves its region by an edge out of it rather than by arriving, which is `branch.exited`
+   * and is a fourth variant (m1).
+   */
+  const SHAPES = {
+    flowId: 'shapes', version: 1, entry: 'a',
+    nodes: [
+      { id: 'a', kind: 'task', type: 'T', edges: [{ to: 'split' }] },
+      // `FD-V9` requires a fan-out's branch ENTRY to be a task, so the map hangs off one rather
+      // than being one — which is how `nested-map` in the corpus is shaped too.
+      { id: 'split', kind: 'fanout', branches: ['pre', 'leaver'] },
+      { id: 'pre', kind: 'task', type: 'T', edges: [{ to: 'm' }] },
+      // branch 0: a MAP nested inside a fan-out branch — dotted branchPaths, a second region kind
+      { id: 'm', kind: 'map', over: 'items', branch: 'item' },
+      { id: 'item', kind: 'task', type: 'T', edges: [{ to: 'mj' }] },
+      { id: 'mj', kind: 'join', of: 'm', edges: [{ to: 'j' }] },
+      // branch 1: leaves the region for the end node instead of the join — `branch.exited`
+      { id: 'leaver', kind: 'task', type: 'T', edges: [{ to: 'done' }] },
+      { id: 'j', kind: 'join', of: 'split', edges: [{ to: 'done' }] },
+      { id: 'done', kind: 'end', outcome: 'completed' },
+    ],
+  } as unknown as FlowDefinition;
+
+  const FANOUT = {
+    flowId: 'fan', version: 1, entry: 'a',
+    nodes: [
+      { id: 'a', kind: 'task', type: 'T', edges: [{ to: 'split' }] },
+      { id: 'split', kind: 'fanout', branches: ['b', 'c'] },
+      { id: 'b', kind: 'task', type: 'T', edges: [{ to: 'j' }] },
+      { id: 'c', kind: 'task', type: 'T', edges: [{ to: 'j' }] },
+      { id: 'j', kind: 'join', of: 'split', edges: [{ to: 'done' }] },
+      { id: 'done', kind: 'end', outcome: 'completed' },
+    ],
+  } as unknown as FlowDefinition;
+
+  /** Run one flow through `runtime.start`, holding both streams, and settle every dispatch. */
+  const both = (flow: FlowDefinition, payload: unknown) => {
+    const s = seams();
+    const forwarded: unknown[] = [];
+    const folded: unknown[] = [];
+    const frozen: boolean[] = [];
+    const r = createRuntime(DOCUMENT, {}, { createPool: s.createPool, createScheduler: s.createScheduler });
+    r.start(flow, payload, {
+      onRegionEvent: (e) => { forwarded.push(e); frozen.push(Object.isFrozen(e)); },
+      onFoldInput: (i) => { if (i.kind === 'region') folded.push(i.event); },
+    });
+    for (let i = 0; i < s.added.length && i < 40; i += 1) s.settle(String(s.added[i]!.id), { items: ['x', 'y'], ok: true });
+    return { forwarded, folded, frozen };
+  };
+
+  for (const [name, flow, payload] of [
+    ['a two-branch fan-out', FANOUT, { items: ['x', 'y'] }],
+    ['a map NESTED in a fan-out branch, beside a branch that EXITS', SHAPES, { items: ['x', 'y'] }],
+  ] as const) {
+    test(`${name}: what onRegionEvent receives IS the region subsequence of onFoldInput, by identity`, () => {
+      const { forwarded, folded, frozen } = both(flow, payload);
+      // The CONTROL, and it is what stops the equality below holding on two empty lists — which is
+      // how a run with both forwards deleted would otherwise pass this.
+      ok(folded.length > 0, `the driver produced region events on this flow: ${folded.length}`);
+      equal(forwarded.length, folded.length, 'the runtime forwarded exactly as many as the driver emitted — a dropped or duplicated event is a length');
+      for (let i = 0; i < folded.length; i += 1) {
+        ok(deepEqual(forwarded[i], folded[i]), `event ${i} is the one the fold received at the same position: ${JSON.stringify(forwarded[i])} against ${JSON.stringify(folded[i])}`);
+      }
+      ok(frozen.length > 0 && frozen.every(Boolean), 'and every one crossed the seam frozen — OR-R7 / Q73, inherited from the driver rather than re-established here');
+    });
+  }
+
+  /**
+   * The shapes the identity above is TOTAL over, asserted as a membership so that a flow which
+   * silently stopped producing one of them would be visible. These are read from the RUN, never
+   * written beside it — `doc/workflow.md` section 5 rule 1.
+   */
+  test('the second flow really does carry the three shapes the one-topology observer could not reach', () => {
+    const { folded } = both(SHAPES, { items: ['x', 'y'] });
+    const events = folded as { type: string; regionId: string; branchPath: string }[];
+    ok(events.some((e) => e.branchPath.includes('.')), `a NESTED region's dotted branchPath occurs: ${[...new Set(events.map((e) => e.branchPath))].sort().join(' ')}`);
+    equal([...new Set(events.map((e) => e.regionId))].sort(), ['m', 'split'],
+      'two regions, and one of them is the MAP — the kind m3 could drop for zero');
+    ok(events.some((e) => e.type === 'branch.exited'),
+      `a variant beyond opened/arrived occurs: ${[...new Set(events.map((e) => e.type))].sort().join(' ')}`);
   });
 });
