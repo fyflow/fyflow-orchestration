@@ -1,7 +1,16 @@
 # spec/outcome-record — the log the driver writes
 
-**Status:** v0.9 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.10 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md).
+**v0.10 is [W80](../doc/work-items/w80-what-a-run-time-result-check-is.md) under
+[P21](../doc/plans/p21-what-a-run-time-schema-check-buys-and-what-it-costs.md), and it adds
+`OR-R13`**: a settled result may be held to the `outputSchema` its worker declares, opt-in and off
+by default, and a value that fails it is **REPORTED and never routed** — no record written, no
+terminal state authored, no dispatch moved, `OR-R12`'s precedent. **Section 4 is where it lands
+rather than `spec/flow-definition.md`**, because `FD-R` is a rule about what a RUN REFUSES and this
+refuses nothing, while section 4's whole subject is `result` — and the rule turns on `OR-R11`: what
+it reads is the value `OR-R2`'s clone produced, which is not the value the worker returned. **No
+other rule moves, and `OR-R2`, `OR-R6`, `OR-R11` and `OR-R12` are byte-unchanged.**
 **v0.9 is [W54](../doc/work-items/w54-what-a-result-may-be-and-what-bounding-it-would-cost.md) under
 [P15](../doc/plans/p15-what-a-run-retains-and-what-a-result-may-be.md), and it ANSWERS
 [Q22](../doc/open-questions.md), open since P1.** Section 4 gains **`OR-R11`** — *a result is a
@@ -270,6 +279,46 @@ driver cannot tell* — is FALSE.** It is declined on two measurements instead:
 
 **So the answer is: it is written down, and it is the one thing a worker author has to know.**
 `AGENTS.md` section 10 is where a consumer meets it, as an executed snippet.
+
+### `OR-R13` — a result may be held to the schema its worker declares, and a finding is a READING
+
+**Opt-in, off by default, and it refuses nothing** —
+[ADR 0060](../doc/decisions/0060-a-run-time-result-check-is-a-reading-and-never-a-refusal.md),
+[W80](../doc/work-items/w80-what-a-run-time-result-check-is.md),
+[P21](../doc/plans/p21-what-a-run-time-schema-check-buys-and-what-it-costs.md) decisions 1 to 3.
+It is the THIRD site at which a worker's two VALUE schemas reach a run, and the three do not
+overlap — `configSchema` and `settingsSchema` are held at CONSTRUCTION (`FD-V33`), which is a
+fourth and fifth application of the same set and not a run-time value check (W80's conformity
+reader, finding 12):
+`FD-R4` holds the run's PAYLOAD at `start()` and a PERSON's resolution at `resolve()`, once each, as
+rejected commands; this holds what a WORKER returned, per settlement, as a report.
+
+| id | | Test owed by |
+|---|---|---|
+| `OR-R13` | **A settled result may be held to the `outputSchema` of its node's worker, and a value that fails it is REPORTED and never ROUTED.** The check is OFF unless the consumer supplies `DriverOptions.onNonconformingResult`, **whose presence IS the switch** — there is no boolean beside it, because two members are two sources and both disagreements are defects: a switch with no channel is a cost paid for a report nobody receives, and a channel with the switch off is a typed option silently dropped. **What it reads is `result` AS THE RECORD CARRIES IT**, after `OR-R2`'s clone — so the losses `OR-R11` names are visible here and at no authoring-time tool, and this check and a check over what `run()` RETURNED can lawfully disagree about the same schema (measured: a non-enumerable own property, and the same nested). `done` settlements only, because `OR-R2`'s guard writes `result: null` for the other two and an output schema no worker reached would refuse every failure; SETTLEMENTS only, because a person's `done` value is `FD-R4`'s at `resolve()` and one value refused twice by two mechanisms with different answers is worse than either; and a node whose worker declares no `outputSchema` is UNCHECKED (P18 decision 3). **A finding changes NOTHING about the run**: the record is appended first and unconditionally, `OR-R3` still writes exactly one record per settlement, no terminal state is authored — `OR-R3`'s source column says `terminalState` comes from `d.state` and is never the driver's — no dispatch moves, and the value reaches its successor unaltered. **`OR-R12` is the precedent for the half that transfers: DO NOT FAIL THE RUN.** Of its three clauses only that one does — this rule refuses nothing and its record IS appended, first and unconditionally; the three were quoted whole, two clauses after the sentence saying so (W80's conformity reader, finding 13). **The cost is stated rather than hidden**: a value that fails its schema still flows downstream, and what this buys a consumer is KNOWLEDGE rather than protection. The one way it can change a run is a consumer's own callback THROWING, which `onEvent` catches, reports through `onRunFailure` and stops the run on — the treatment every callback here gets. **The CHECK's own throw is not a second way and it very nearly was**: `enum` and `const` are the only two of ADR 0053's thirteen keywords that call `canonical`, the only expression in the value check that walks the WHOLE VALUE rather than the schema's shape, so a CYCLIC result or a BIGINT — both of which `OR-R11` calls INTACT — raise there. It is caught at the call and reported as a finding at `$` saying the value could not be read, because **a value that cannot be read is a READING and not a failure** (W80's conformity reader, finding 1). `FD-R4` runs the same expression and needs no guard, because there the throw reaches a caller on the stack. Test: `test/driver/result-schema.test.ts` at L2 — the clauses with their positive and negative cases, the shapes the rule ranges over (outside a region, a fan-out branch, a map instance, a join successor; `done` against `failed` and `user_action`; a worker that declares and one that does not), and **the PAIR**: one flow and one nonconforming settlement run with the callback and without it, asserting the dispatched ids, the log record for record and the folded state are identical, with the reports themselves as the one thing the two runs differ in | **[W80](../doc/work-items/w80-what-a-run-time-result-check-is.md)** |
+
+**What it BUYS, measured rather than argued.** A static wiring check reads two SCHEMAS and
+`scripts/check-workers.mjs` runs a worker on ONE declared example; neither sees a bound the
+producer's own code does not keep past its declared domain, which is
+[Q302](../doc/open-questions.md)'s shape and which every consumer's arc reports as a `fits`.
+And the second half is unreachable by any authoring-time tool for a structural reason rather than an
+omission: **none of them holds a record**, so none can see what `OR-R2`'s clone left behind.
+
+**What it COSTS is a RATIO and the ratio is not a constant.** Against the `structuredClone`
+`OR-R2` already pays on the same settlement, the check runs from **~90% at six settlements down
+to 6% at fifty-two** on this library's own corpus (P21 fact 4, re-taken at W80: **90.3% / 14.1% /
+6.0%** over twelve declared schemas) and **0.00x** on its largest result, so the share falls as
+the VALUE grows. *(This read *6-14%* — the two cheap readings with the ~90% one dropped, in the
+direction that flatters the feature. W80's conformity reader, finding 2, and `doc/workflow.md`
+section 1 rule 5's writing clause on the number this rule is argued from.)* It **rises as the SCHEMA does**, and that half is the one a
+consumer has to know: the clone is linear in the value while the check is linear in the schema, and
+`enum` is where a schema's size is unbounded, because its membership test canonicalises every entry
+on every check. Measured at W80's declaration step: one `enum` of a hundred allowed values on a
+4 KiB result is **1.65x** of the clone, and a thousand on a 64 KiB result is **1.51x**. Two hundred
+levels of nested `properties` is **1.44x**, which is not the same shape — that recursion is linear
+in the value exactly as the clone is. *So **ADR 0060 decision 1**'s reason for the default is COST, and
+cost is a property of the PAIR rather than of the check.* *(This cited `doc/workflow.md`, which
+says nothing about this rule — W80's conformity reader, finding 8.)*
 
 ### What `OR-R2` costs, and the method the numbers were taken by
 

@@ -108,6 +108,23 @@ const fixtures = [
   // `spec/examples/` has done that (W32's, W33's, W54's, this). It is read inside a `test()`, so
   // the failure mode is W33's better one: one named test rather than the whole bundle.
   join(ROOT, 'examples', 'getting-started', 'session-types.ts'),
+  // **A `scripts/**` module, as TEXT, and it is the first** — [W80](../doc/work-items/w80-what-a-run-time-result-check-is.md),
+  // `OR-R13`. That item's reach claim is that a run-time result check sees something
+  // `scripts/check-workers.mjs` cannot, for a structural reason: that script validates what
+  // `run()` RETURNED and the check validates what the RECORD carries, which `OR-R11` says are
+  // different values. `test/driver/result-schema.test.ts` asserts the disagreement over a
+  // non-enumerable own property — but the *what `check:workers` computes* side of it was a
+  // HAND-WRITTEN MODEL of one expression in another file, bound to nothing, and W80's adequacy
+  // reader replaced the model's schema with `{}` and watched it conform trivially. The suite
+  // reads that script's text and compares, which is obligation (e)'s third shape — *find the
+  // other list and compare* — and the only place the other half exists is the source.
+  //
+  // **W80 PREDICTED this file needed no edit and the prediction was WRONG**, which is now three
+  // items running: W76 and W77 both took it LATE, and W77's row says *PREDICTED ZERO EDITS AND
+  // THE PREDICTION WAS WRONG*. The failure mode was W33's better one — the read is inside a
+  // `test()`, so chromium reported ONE named test at `fixture not inlined in the browser bundle:
+  // scripts/check-workers.mjs` rather than taking all forty-five suites down. ~10 KB.
+  join(ROOT, 'scripts', 'check-workers.mjs'),
   // **Two `src/**` modules, as TEXT, because W76's binding is a claim about two LISTS in one file
   // and a PARTITION across two** — [W76](../doc/work-items/w76-what-start-accepts.md),
   // [P20](../doc/plans/p20-what-the-runtime-owes-a-consumer.md) decision 5. `StartOptions`' `Pick`

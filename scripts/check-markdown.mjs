@@ -408,7 +408,24 @@ for (const d of r.deadAnchors) fail('M2', d);
 // `(3808, 4758]` and is untouched, and `M5` at 60 against 263. [Q142](../doc/open-questions.md)
 // for the third plan running, and this is what a declared exception looks like: the
 // item's table names the file before the edit rather than after the gate goes red.
-if (r.files < 107) fail('M3', `only ${r.files} markdown file(s) were scanned, so M1 and M2 are ` +
+// **107 -> 123 and 4450 -> 5270 at [W80](../doc/work-items/w80-what-a-run-time-result-check-is.md),
+// and the JUDGEMENT changed under the measurement.** Measured on a scratch copy at that item's
+// close: whole tree **140 / 6092 / 301**, `doc/decisions` removed **106 / 5580 / 301**, both
+// removed **106 / 4449 / 296**. So `M3`'s window is `(106, 140]` and `M4`'s is `(4449, 6092]`.
+// **Each new floor is the MIDPOINT of its own window** — 123 and 5270 — which is what balances a
+// TWO-SIDED window; every earlier retune picked a number near the middle by eye and this one says
+// so. [Q142](../doc/open-questions.md) for the ninth time.
+//
+// **The half worth recording is that W80 decided NOT to retune, and was right until it was not.**
+// With `M4` at margin **2** the item declined: `check:markdown:selftest` was 7/7 at exit 0, every
+// retune since W28 had been made on a RED gate, and *raising a ratchet that has not fired is a
+// ratchet moved for no reason*. Then the item's own Record edit — the ONE edit section 1 rule 5
+// allows after the confirming gate — spent the last link, and the margin was **1**. At 1 the same
+// reasoning inverts: the floor's own direction is *raise as the corpus grows*, and a window one
+// link wide is a trap for whoever edits next rather than a guard. *The decision did not change; the
+// measurement moved under it, which is exactly what a two-sided window does to anyone who leaves
+// it tight.*
+if (r.files < 123) fail('M3', `only ${r.files} markdown file(s) were scanned, so M1 and M2 are ` +
   'true of the walk rather than of the tree');
 // **1200 -> 1350 at P9's declaration, 1350 -> 1530 by W30, and both times because
 // ordinary work closed the window from below.** [Q142](../doc/open-questions.md).
@@ -523,7 +540,7 @@ if (r.files < 107) fail('M3', `only ${r.files} markdown file(s) were scanned, so
 // for the eleventh plan running. A declared exception on `scripts/**` for the retro, on W42's,
 // P15's and W58's precedent. *An index paragraph is the densest link source this repository has,
 // and the record step writes six of them — so a retro moves this floor without adding a file.*
-if (r.links < 4450) fail('M4', `only ${r.links} relative link(s) were found; M1 is vacuous below that`);
+if (r.links < 5270) fail('M4', `only ${r.links} relative link(s) were found; M1 is vacuous below that`);
 if (r.anchored < 60) fail('M5', `only ${r.anchored} link(s) carry an anchor; M2 is vacuous below that`);
 
 const checks = [

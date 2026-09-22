@@ -21,7 +21,7 @@ import { bootstrap, ENVELOPE_WORKER_URL } from '../../src/scheduler/bootstrap.ts
 import { BUILT_IN_GROUP_TYPES, DerivationRefused, GroupTypeMissing, NameMissing, WorkerMissing } from '../../src/definition/registry.ts';
 import { PATH_LANGUAGE } from './fake-language.ts';
 import { arrivalCount, liveTokenRequiringArrival } from '../../src/fold/policies.ts';
-import { canonical } from '../../src/definition/schema.ts';
+import { canonical, describeFindings } from '../../src/definition/schema.ts';
 import { Driver } from '../../src/driver/driver.ts';
 import { liveToken } from '../../src/fold/policies.ts';
 import type { ResourceGroup } from 'fyflow-scheduler';
@@ -960,7 +960,15 @@ suite('W76 — StartOptions and start() are two lists, and nothing compared them
     // The COUNT stays BESIDE the membership rather than replacing it (`doc/workflow.md` rule 8
     // obligation (d) at v0.14): the membership above cannot see an extraction that silently found
     // three members instead of eighteen, because three reachable members also have no residue.
-    equal(s.all.length, 18, 'DriverOptions has the eighteen members P20 fact 1 counted — move this deliberately, with the roads');
+    // **19 since [W80](../../doc/work-items/w80-what-a-run-time-result-check-is.md)**, moved
+    // here in the same diff as the two roads that carry it: `onNonconformingResult` is
+    // `OR-R13`'s switch and a per-RUN diagnostic, so it joins `StartOptions`' `Pick` and
+    // `start`'s conditional spread. **This pin and the orphan clause above BOTH fired by name
+    // when it arrived**, which is what the pin is for. *(This said *both clauses above*, meaning
+    // the two set differences — but only the second of those can fire for a member added to
+    // `DriverOptions` and not yet on a road, and this change added the road in the same edit, so
+    // neither did. W80's conformity reader, finding 10.)*
+    equal(s.all.length, 19, 'DriverOptions has nineteen members — the eighteen P20 fact 1 counted plus W80`s. Move this deliberately, with the roads');
   });
 
   /**
@@ -1109,8 +1117,17 @@ suite('W76 — StartOptions and start() are two lists, and nothing compared them
  */
 suite('W76 — every StartOptions member ARRIVES at the driver, and the observer set is the type`s', (test) => {
   const DOCUMENT = {
-    workers: { w: { url: 'https://example.test/w.js' } },
-    nodeTypes: { T: { worker: 'w', inline: true } },
+    workers: {
+      w: { url: 'https://example.test/w.js' },
+      // **W80** — a worker that DECLARES what it returns, so `onNonconformingResult`
+      // has something to report. Additive: every observer above runs on type `T`, whose
+      // worker declares nothing and is therefore UNCHECKED either way (P18 decision 3).
+      wChecked: {
+        url: 'https://example.test/checked.js',
+        outputSchema: { type: 'object', required: ['score'], properties: { score: { type: 'integer' } } },
+      },
+    },
+    nodeTypes: { T: { worker: 'w', inline: true }, TChecked: { worker: 'wChecked', inline: true } },
     predicates: [],
   } as unknown as RegistryDocument;
 
@@ -1130,6 +1147,14 @@ suite('W76 — every StartOptions member ARRIVES at the driver, and the observer
       { id: 'b', kind: 'task', type: 'T', edges: [{ to: 'j' }] },
       { id: 'c', kind: 'task', type: 'T', edges: [{ to: 'j' }] },
       { id: 'j', kind: 'join', of: 'split', edges: [{ to: 'done' }] },
+      { id: 'done', kind: 'end', outcome: 'completed' },
+    ],
+  } as unknown as FlowDefinition;
+  /** W80 — one task whose worker declares an `outputSchema` the loop's settlement value fails. */
+  const CHECKED = {
+    flowId: 'chk', version: 1, entry: 'a',
+    nodes: [
+      { id: 'a', kind: 'task', type: 'TChecked', edges: [{ to: 'done' }] },
       { id: 'done', kind: 'end', outcome: 'completed' },
     ],
   } as unknown as FlowDefinition;
@@ -1238,6 +1263,18 @@ suite('W76 — every StartOptions member ARRIVES at the driver, and the observer
         // An id no driver minted, settled on the shared scheduler — `ID-R5`, ADR 0027.
         drive: (s) => { s.settle('nightly-cleanup', { ok: true }); },
         saw: () => seen, want: ['nightly-cleanup'],
+      };
+    },
+    onNonconformingResult: () => {
+      // **W80, `OR-R13`.** The loop settles every dispatched task with `{ items: 7, ok: true }`,
+      // which `wChecked`'s `outputSchema` refuses for a missing `score` — so what is read
+      // back is the FINDING itself rather than a count, and a forwarding line deleted leaves
+      // it empty.
+      const seen: string[] = [];
+      return {
+        option: { onNonconformingResult: (f) => { seen.push(f.nodeId + '/' + f.worker + '/' + describeFindings(f.findings)); } },
+        flow: CHECKED, drive: () => {},
+        saw: () => seen, want: ['a/wChecked/$.score required'],
       };
     },
     now: () => {

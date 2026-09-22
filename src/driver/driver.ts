@@ -16,7 +16,7 @@ import type { Edge, FlowDefinition, FlowNode, LanguageAdapter, Languages, NodeTy
 import { checkRegistry, isDerivation } from '../definition/registry.ts';
 // W73 (P19 decision 5, `FD-R4`): the two boundaries no static check can reach are held to the
 // workers' declared schemas ONCE each, and the targets of the first are the wiring check's own walk.
-import { describeFindings, findings } from '../definition/schema.ts';
+import { describeFindings, findings, type SchemaFinding } from '../definition/schema.ts';
 import { boundaryTargets } from '../definition/wiring.ts';
 import {
   allRegions, branchPathOf, buildGraph, innermostRegionOf, outputIsVisible, toRegion,
@@ -480,6 +480,42 @@ export interface UnmintedTask {
 }
 
 /**
+ * **`OR-R13` — a settled `done` result the log now carries does not satisfy the `outputSchema` its
+ * node's worker declares** ([ADR 0060](../../doc/decisions/0060-a-run-time-result-check-is-a-reading-and-never-a-refusal.md),
+ * [W80](../../doc/work-items/w80-what-a-run-time-result-check-is.md), P21 decision 3).
+ *
+ * **A READING and not a refusal.** Nothing is appended differently, no terminal state changes, no
+ * dispatch moves, and the value flows downstream exactly as it would with the check off — so what
+ * this buys a consumer is KNOWLEDGE rather than protection, which the ADR states as the cost rather
+ * than hiding it. `OR-R12` is the precedent: a refusal that appends nothing and does not fail the
+ * run.
+ *
+ * **A plain object rather than an `Error` subclass**, because it is never thrown and constructing an
+ * `Error` captures a stack once per nonconforming settlement on the settlement path. `UnmintedTask`'s
+ * shape, for the same reason: a fresh literal per call, retained by nothing here, so — unlike a
+ * `RegionEvent`, which the driver stores and hands out — there is nothing for a freeze to protect.
+ */
+export interface NonconformingResult {
+  /** This driver's run — `ID-R4` has already decided the settlement is ours. */
+  runId: string;
+  /** The settled task, whole, so the branch path and the attempt are recoverable by `parseTaskId`. */
+  taskId: string;
+  /** The node it settled for. */
+  nodeId: string;
+  /** The node's `type` — the registry entry that names the worker. */
+  type: string;
+  /** The worker key whose `outputSchema` refused it, so the schema is findable in one lookup. */
+  worker: string;
+  /**
+   * Every way the result failed, in document order — `findings`' own list, unabridged. **This is
+   * what a consumer branches on**; `message` below is what it logs.
+   */
+  findings: readonly SchemaFinding[];
+  /** One line naming the task, the node, the worker and every finding — `BoundaryRefused`'s shape, without the throw. */
+  message: string;
+}
+
+/**
  * What the driver needs from a scheduler. Structural, so W3 is testable without one — and
  * satisfied by a real `FyflowScheduler` under EVERY lib configuration, which is what closed
  * [Q71](../../doc/open-questions.md) ([W57](../../doc/work-items/w57-the-scheduler-is-a-dependency.md)).
@@ -685,6 +721,45 @@ export interface DriverOptions {
    * that side is unchecked either way (P18 decision 3).
    */
   validateBoundaries?: boolean;
+  /**
+   * **`OR-R13`'s switch, and it IS the check** — [ADR 0060](../../doc/decisions/0060-a-run-time-result-check-is-a-reading-and-never-a-refusal.md),
+   * [W80](../../doc/work-items/w80-what-a-run-time-result-check-is.md), P21 decisions 1 and 3.
+   * Supply it and every `done` settlement's result is held to the `outputSchema` of its node's
+   * worker, on the value the RECORD carries; omit it and nothing is checked. **OFF by default**,
+   * which is the maintainer's answer to P21's stop-and-ask (a).
+   *
+   * **The presence of the callback is the switch, deliberately — there is no boolean beside it.**
+   * Two members would be two sources that can disagree, and both disagreements are defects this
+   * repository has a name for: `true` with no callback is a cost paid for a report nobody receives,
+   * and `false` with a callback is **a typed option silently dropped**, which is P20 fact 2's
+   * measurement and the thing `StartOptions`' both-ways binding exists to refuse. *A diagnostic
+   * whose channel is its own switch cannot be enabled and unheard.*
+   *
+   * **What keeps it off is COST, not risk.** A finding is reported and never routed, so leaving it
+   * on is safe anywhere; what a consumer is declining is P21 fact 4's ratio and the callback they
+   * would have to write. **The ratio is not a constant and this is the one place a consumer meets
+   * that**: the check is linear in the SCHEMA and the clone it is measured against is linear in the
+   * VALUE, so on this library's own corpus it runs from **~90% of a cost already paid at six
+   * settlements down to 6% at fifty-two** — and on a result carrying one `enum` of a hundred
+   * allowed values it is **1.65x** of that cost at 4 KiB and **3.08x** at 0.5 KiB (W80's
+   * declaration step — P21 prediction 1's reversal, measured deliberately).
+   * *(This read *6-14%*, which is the two cheap readings with the ~90% one dropped, in the
+   * direction that flatters the feature. W80's conformity reader, finding 2.)*
+   *
+   * **It never changes the run.** Nothing is appended, `OR-R3` still writes exactly one record per
+   * settlement, routing is untouched and the nonconforming value reaches the next node unaltered.
+   * **A callback that THROWS is the one exception, and it is the consumer's own doing.** Like every
+   * other callback here it is called inside the listener, so the throw is caught at `onEvent`,
+   * reported through `onRunFailure` and **stops the run** (`OR-R10`). That is the same treatment
+   * `onUnmintedTask` gets and it is documented rather than swallowed (`AGENTS.md` §9): a driver
+   * that ate a consumer's throw would hide a defect in the code that asked to be told.
+   *
+   * *(The CHECK's own throw is not a second exception, and it very nearly was: `findings` can
+   * raise on a cyclic result or a BigInt under `enum` or `const`, both of which `OR-R11` calls
+   * intact. It is caught at the call and reported as a finding — W80's conformity reader,
+   * finding 1.)*
+   */
+  onNonconformingResult?: (finding: NonconformingResult) => void;
 }
 
 const SETTLEMENT_EVENTS = ['task.completed', 'task.failed', 'task.user_action'] as const;
@@ -1312,6 +1387,25 @@ export class Driver {
     if (!record) return; // OR-R3/OR-R4: this event writes nothing
 
     this.append({ kind: 'outcome', record });
+    // **`OR-R13` — the result the log now carries, held to its worker's `outputSchema` and
+    // REPORTED** (ADR 0060, W80, P21 decision 3). Off unless the consumer supplied the callback:
+    // a run that registers nothing pays one `!== undefined` per settlement and nothing else.
+    //
+    // **AFTER the append, and the position is the decision.** Before it, a callback that threw
+    // would stop the record being written — a behaviour change relative to the check being off,
+    // which decision 3 forbids in the sentence its adequacy reader is told to falsify first. After
+    // it, the report is about a record the log already holds whatever happens next, including the
+    // `this.failed` guard below, which is a fact about a re-entrant `onFoldInput` and not about
+    // this result.
+    //
+    // **The callback is read ONCE and handed down**, rather than read here and again at the call.
+    // Two reads are two sources, and this repository keeps finding what that costs; more usefully,
+    // it makes the guard an **L0 assertion**: with the parameter typed non-optional, deleting this
+    // condition does not compile. *A type closes one direction* (W43, Q196) — the other, that a
+    // consumer who supplies nothing pays no `findings` walk, is a COST and W81 owns the rung that
+    // can see it.
+    const report = this.opts.onNonconformingResult;
+    if (report !== undefined) this.reportResultSchema(record, nodeId, report);
     if (this.failed) return;
     if (record.terminalState === 'user_action') {
       // Not a loss. The branch is still live and the join keeps waiting; a run
@@ -1321,6 +1415,75 @@ export class Driver {
       return;
     }
     this.advance(runId, nodeId, branchPath);
+  }
+
+  /**
+   * **`OR-R13` — hold one settled result to its worker's `outputSchema` and report, never route**
+   * ([ADR 0060](../../doc/decisions/0060-a-run-time-result-check-is-a-reading-and-never-a-refusal.md),
+   * [W80](../../doc/work-items/w80-what-a-run-time-result-check-is.md)). Called only when the
+   * consumer supplied `onNonconformingResult`, which is the whole of the switch.
+   *
+   * **`record.result` and never `detail.result`, and that is the rule's sharpest half.** What this
+   * reads is the value `OR-R2`'s clone produced — what the RUN carries — and `OR-R11` says that is
+   * a different value from the one the worker returned: a non-enumerable own property, or a nested
+   * one, is present on what `run()` handed back and absent from the record. So this check and
+   * `scripts/check-workers.mjs`, applying **the same schema**, can disagree — measured over seven
+   * shapes at W80's declaration step, three of them disagreeing — and that disagreement is
+   * unreachable by any authoring-time tool for a structural reason: none of them holds a record.
+   *
+   * **`done` only.** `OR-R2`'s guard writes `result: null` for `failed` and `user_action`, so
+   * checking those would refuse every failure against an output schema no worker ever reached.
+   *
+   * **Settlements only, never a resolution.** `FD-R4` already holds a person's `done` value to this
+   * same `outputSchema` at `resolve()` — as a REJECTED COMMAND, which is a different answer — and
+   * one value refused twice by two mechanisms that disagree is worse than either alone.
+   *
+   * A node with no type entry, a type naming no worker entry, or a worker declaring no
+   * `outputSchema` is UNCHECKED — P18 decision 3, *absent means unchecked*, as `FD-R4` reads it.
+   * The first two cannot occur on a definition this driver accepted (`FD-V32`) and are written as
+   * optional chains rather than asserted, exactly as `resolve()`'s boundary is.
+   */
+  private reportResultSchema(record: Readonly<OutcomeRecord>, nodeId: string, report: (f: NonconformingResult) => void): void {
+    if (record.terminalState !== 'done') return;
+    const n = this.graph.byId.get(nodeId);
+    if (n?.kind !== 'task') return;
+    const type = this.nodeTypes.get(n.type);
+    const worker = type === undefined ? undefined : this.workers.get(type.worker);
+    const schema = worker?.outputSchema;
+    if (schema === undefined) return;
+    // **The check must not be able to STOP the run, and unguarded it CAN** — W80's conformity
+    // reader, finding 1, measured on four shapes. `findings`' `enum` and `const` clauses are the
+    // ONLY two of ADR 0053's thirteen keywords that call `canonical`, and `canonical` is the only
+    // expression in that module which walks the WHOLE VALUE rather than the schema's shape — every
+    // other clause recurses through `properties` and `items`, whose depth is the SCHEMA's, and the
+    // subset has no `$ref` to make that unbounded. So a **cyclic** result or a **BigInt** under
+    // either keyword throws `RangeError` or `TypeError`, and `OR-R11`'s own table calls both of
+    // those **intact**. From a listener that throw reaches `onEvent`, is reported through
+    // `onRunFailure` and STOPS THE RUN — decision 3's headline invariant broken by the reporting
+    // machinery itself, one expression along from the append order above.
+    //
+    // **A value that cannot be read is a FINDING, which is what keeps this a reading.** `FD-R4`
+    // runs the same expression and needs no guard, because there the throw reaches a caller on
+    // the stack (`OR-R12`'s asymmetry); here there is nobody to throw to.
+    let fs: readonly SchemaFinding[];
+    try {
+      fs = findings(schema, record.result);
+    } catch (e) {
+      fs = [{ path: '$', says: `could not be checked against the schema: ${e instanceof Error ? e.message : String(e)}` }];
+    }
+    if (fs.length === 0) return;
+    report({
+      runId: this.runId,
+      taskId: record.taskId,
+      nodeId,
+      type: n.type,
+      worker: type!.worker,
+      findings: fs,
+      message:
+        `NonconformingResult: the result of "${record.taskId}" (node "${nodeId}", type "${n.type}") does not satisfy its ` +
+        `worker "${type!.worker}"'s outputSchema — ${describeFindings(fs)}. OR-R13: this is a READING and not a refusal — ` +
+        'the record is written, the run routes, and the value reaches the next node exactly as it would with the check off.',
+    });
   }
 
   /** Route out of a settled-or-resolved node and dispatch whatever comes next. */

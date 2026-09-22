@@ -180,7 +180,7 @@ export interface RuntimeOptions {
  *
  * **`onRegionEvent` is here because it was the one `DriverOptions` member no consumer of
  * `createRuntime` could reach** ([Q297](../../doc/open-questions.md), [W71](../../doc/work-items/w71-the-reference-stops-teaching-a-fake-scheduler.md)).
- * Of eighteen members a consumer reaches **two** because the runtime supplies them (`runId`,
+ * Of the eighteen members AS THEY STOOD a consumer reaches **two** because the runtime supplies them (`runId`,
  * `scheduler`), **six** through `RuntimeRegistry`, **two** through `RuntimeOptions` — and only two,
  * because `base`, `flows`, `createPool` and `createScheduler` are the runtime's own and are not
  * `DriverOptions` members at all — and **seven** through this `Pick` as it stood. 2 + 6 + 2 + 7 is
@@ -193,9 +193,17 @@ export interface RuntimeOptions {
  * `AGENTS.md` section 10. *(What `onFoldInput` receives IS re-copied — `freezeInput` gives it its
  * own frozen object — so the two outbound paths carry equal values and not the same one, which
  * `test/scheduler/runtime.test.ts` asserts and which its first version got wrong.)*
+ *
+ * **`onNonconformingResult` is the NINETEENTH member and it arrived here by the binding rather
+ * than by a judgement** — [W80](../../doc/work-items/w80-what-a-run-time-result-check-is.md),
+ * [ADR 0060](../../doc/decisions/0060-a-run-time-result-check-is-a-reading-and-never-a-refusal.md).
+ * It is a per-RUN diagnostic, as every other `on*` member here is, which is why it is in this
+ * `Pick` and not in `RuntimeOptions` beside `validateBoundaries`: that one is a POLICY every driver
+ * a runtime starts inherits, and this one names a `runId`. The orphan count stays **0** and its pin
+ * moved 18 to 19 in the same diff, which is what the test's own comment asks for.
  */
 export interface StartOptions extends Pick<DriverOptions,
-  'createTask' | 'joinPolicy' | 'onFoldInput' | 'onRegionEvent' | 'onRunFailure' | 'onUnsatisfiableJoin' | 'onUnmintedTask' | 'now'> {
+  'createTask' | 'joinPolicy' | 'onFoldInput' | 'onNonconformingResult' | 'onRegionEvent' | 'onRunFailure' | 'onUnsatisfiableJoin' | 'onUnmintedTask' | 'now'> {
   /** Omitted, the runtime mints `r<n>` from its own counter — inside `ID-R2`'s charset, unique per RUNTIME and not globally (decision 10). */
   runId?: string;
 }
@@ -547,6 +555,7 @@ export function createRuntime(
         ...(startOptions.onRunFailure !== undefined ? { onRunFailure: startOptions.onRunFailure } : {}),
         ...(startOptions.onUnsatisfiableJoin !== undefined ? { onUnsatisfiableJoin: startOptions.onUnsatisfiableJoin } : {}),
         ...(startOptions.onUnmintedTask !== undefined ? { onUnmintedTask: startOptions.onUnmintedTask } : {}),
+        ...(startOptions.onNonconformingResult !== undefined ? { onNonconformingResult: startOptions.onNonconformingResult } : {}),
         ...(startOptions.now !== undefined ? { now: startOptions.now } : {}),
       });
       driver.start(payload);

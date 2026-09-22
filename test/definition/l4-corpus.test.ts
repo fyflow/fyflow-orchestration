@@ -557,6 +557,11 @@ const LATE_SUITES = [
   'what the driver reports and what it does must agree',
   'where the two policies AGREE — the cases that separate nothing',
   'where they DIFFER — P1\'s question, as an executable case',
+  // W80 — OR-R13, the run-time result check, in `test/driver/result-schema.test.ts`.
+  'OR-R13 — what a nonconforming result reports, and what leaves it alone',
+  'OR-R13 — REPORTED and never ROUTED: the same run, with the check and without it',
+  'OR-R13 — SETTLEMENTS only: a person`s resolution is FD-R4`s, and the two do not overlap',
+  'OR-R13 — the REACH: what a static check and a boundary cannot see (P21 prediction 3)',
 ];
 
 suite('L1 — every suite this tree declares actually RAN', (test) => {

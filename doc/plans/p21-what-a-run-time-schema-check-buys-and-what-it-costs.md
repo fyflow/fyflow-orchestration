@@ -1,6 +1,7 @@
 # P21 — What a run-time schema check buys, and what it costs against what a settlement already pays
 
-**Status:** **DECLARED** — no item started. Declared 2026-09-19 on `eb1dbe5` (P1-P20 complete and
+**Status:** **IN PROGRESS** — [W80](../work-items/w80-what-a-run-time-result-check-is.md) is DONE
+(ADR 0060, `OR-R13`, `spec/outcome-record.md` v0.10); W81 and W82 are not started. Declared 2026-09-19 on `eb1dbe5` (P1-P20 complete and
 retro'd, `doc/workflow.md` [v0.21](../workflow.md)), its facts measured the same day into
 `dev-dist/p21/`.
 **Question this plan answers:** *What does holding a worker's RESULT to the schema it declares buy a
@@ -161,7 +162,11 @@ before anything was declared rather than after.
 **In**
 
 1. **A run-time result check**, opt-in and off by default, over the worker's declared `outputSchema`,
-   refusing as a TASK's failure — ADR 0060.
+   **REPORTED and never routed** — ADR 0060. *(This read *refusing as a TASK's failure*, which is the
+   claim commit `c869a4b` WITHDREW when the maintainer answered stop-and-ask (b): decision 3 forty
+   lines above says the opposite, and ADR 0060 cites that decision as its authority. The third
+   standing copy of it, and the one that mattered most — [W80](../work-items/w80-what-a-run-time-result-check-is.md)'s
+   conformity reader, finding 3, and `doc/workflow.md` section 1 rule 5's WITHDRAWN-claim clause.)*
 2. **Its price, measured the way fact 4 measures it**: a ratio to the clone, re-taken at L6's scale
    with the check on.
 3. **Q320's unconditional clone**, priced at a shape where it bites, and whether a consumer can
@@ -385,7 +390,7 @@ which is the check P8 built doing its work on the declaration that cites it.
 
 | item | status | |
 |---|---|---|
-| W80 | **not started** | |
-| W81 | **not started** | |
+| W80 | **DONE** | **[ADR 0060](../decisions/0060-a-run-time-result-check-is-a-reading-and-never-a-refusal.md)** and **`OR-R13`** in `spec/outcome-record.md` **v0.10** — a run-time result check is a READING and never a refusal, and the callback that receives it IS the switch. **L1-L2 45 files / 1290 cases in three runtimes** (from 44 / 1269), `check:spec` **7 / 61 / 108**, **L6 UNMOVED at 1639 / 55**. **Prediction 1 REVERSES, measured deliberately**: the clone is linear in the VALUE and the check in the SCHEMA, so the ratio is unbounded both ways and one `enum` of a hundred on a 4 KiB result is **1.65x** — fact 4's conclusion survives with its scope named. **Prediction 3 CONFIRMED with a second leg the plan does not name**: the check reads what the RECORD carries, after `OR-R2`'s clone, so it and `check:workers` can disagree about the same schema (seven shapes, three disagreeing). **Prediction 2 CONFIRMED.** Readers **20 / 4 blocking** and **34 mutations / 21 survivors / 12 blocking**, overlap **2** — the FIFTIETH measurement. Its conformity reader found the check could **STOP the run** on two values `OR-R11` calls INTACT, and its adequacy reader found that of decision 3's three consequences *writes a record* was **not bound**. Rule 8 final **49 probes, 37 caught, 11 declared ceilings RUN, 0 undeclared survivors, 0 crashes, 0 timeouts, 0 aborts, 0 against declaration**. Raises **Q330-Q333**; **Q334 spent** |
+| W81 | **not started** | W80 hands it two things: the `enum` measurement that reverses prediction 1 and names where the cost is, and the ceiling `z1` — *the check run for everyone* — which no rung at L1-L2 can see and which W81's cost rung is DATED to |
 | W82 | **not started** | |
 | W83 | *reserved, expected unused* | |
