@@ -1,7 +1,9 @@
 # P21 — What a run-time schema check buys, and what it costs against what a settlement already pays
 
 **Status:** **IN PROGRESS** — [W80](../work-items/w80-what-a-run-time-result-check-is.md) is DONE
-(ADR 0060, `OR-R13`, `spec/outcome-record.md` v0.10); W81 and W82 are not started. Declared 2026-09-19 on `eb1dbe5` (P1-P20 complete and
+(ADR 0060, `OR-R13`, `spec/outcome-record.md` v0.10) and
+[W81](../work-items/w81-what-a-settlement-costs.md) is DONE (the price, no ADR, **Q320 RESOLVED**);
+W82 is not started. Declared 2026-09-19 on `eb1dbe5` (P1-P20 complete and
 retro'd, `doc/workflow.md` [v0.21](../workflow.md)), its facts measured the same day into
 `dev-dist/p21/`.
 **Question this plan answers:** *What does holding a worker's RESULT to the schema it declares buy a
@@ -121,6 +123,40 @@ it was chosen over, so an item argues from the decision rather than re-deriving 
    two are the same question asked twice: what does a settlement cost that nobody chose?*
 7. **Nothing changes what a worker receives, and no `spec/` rule about routing moves.** The exit
    artifact adds an L6 row, so L6's numbers move and W82's row says by how much.
+8. **`examples/**` MAY hold a hand-built `Driver`, in the ONE file whose subject is what building
+   one costs — and the exemption is granted in two places, not one.** *Over*: leaving
+   [W67](../work-items/w67-a-flow-from-documents-on-real-workers.md)'s claim at `[]` and measuring
+   [Q320](../open-questions.md)'s opt-out only at L2. **Added after W81 shipped, because the
+   decision was made inside an item and belongs here** — `doc/workflow.md` section 1 rule 3, *a
+   decision that is not in `spec/`, an ADR, or a plan did not happen*, and an assertion's own
+   comment is none of the three.
+
+   `examples/l6.ts` asserts P18's exit artifact as a cross-row claim: the library does every
+   instantiation, so nothing under `examples/` constructs a pool, a scheduler, a `Driver` or a
+   built-in group. **The only road that declines the always-on completion handle is
+   `new Driver(flow, { ...runtime.registry, … })`** — [P18](p18-a-flow-and-its-runtime-from-documents-alone.md)
+   decision 14's own sentence — so the file that PRICES the two roads has to hold both, and the
+   claim as written forbade it.
+
+   **Three things decide it, and the middle one is a measurement rather than a preference:**
+
+   - **What the claim was bought for survives.** W67's adequacy reader found the exit-artifact
+     sentence held by nothing — `new ConcurrentLimitGroup(99)` added to `run-flow.ts` cost ZERO at
+     every rung. Re-run against the new form on the shipped tree: **still RED, with a named
+     failure** (`dev-dist/w81/a8-check.txt`).
+   - **A MARKER ALONE IS PERMISSION A FILE GRANTS ITSELF.** The same mutation with one comment line
+     typed above it is **GREEN**, and `lint` is indifferent. *So the claim caught the careless and
+     stopped catching the deliberate* — which is why the equality is THREE-way: the constructors,
+     the files that declare it, and a literal list in `examples/l6.ts`. **An exemption now costs an
+     edit in the file that wants it and an edit in the file that makes the claim.**
+   - **It is strictly stronger than the `[]` it replaces in one direction**: a file that declares
+     the exemption and constructs nothing is red, and a literal that names a file which stopped
+     constructing one is red. `[]` could catch neither.
+
+   *The cost is stated rather than hidden*: `examples/**` is no longer a directory in which the
+   sentence *nothing here builds a scheduler object* is true without qualification, and a reader of
+   P18's exit artifact has to read one more list to know what the exception is. It is ONE file, it
+   names itself, and W82 inherits the list unchanged unless it adds to it.
 
 ---
 
@@ -391,6 +427,6 @@ which is the check P8 built doing its work on the declaration that cites it.
 | item | status | |
 |---|---|---|
 | W80 | **DONE** | **[ADR 0060](../decisions/0060-a-run-time-result-check-is-a-reading-and-never-a-refusal.md)** and **`OR-R13`** in `spec/outcome-record.md` **v0.10** — a run-time result check is a READING and never a refusal, and the callback that receives it IS the switch. **L1-L2 45 files / 1290 cases in three runtimes** (from 44 / 1269), `check:spec` **7 / 61 / 108**, **L6 UNMOVED at 1639 / 55**. **Prediction 1 REVERSES, measured deliberately**: the clone is linear in the VALUE and the check in the SCHEMA, so the ratio is unbounded both ways and one `enum` of a hundred on a 4 KiB result is **1.65x** — fact 4's conclusion survives with its scope named. **Prediction 3 CONFIRMED with a second leg the plan does not name**: the check reads what the RECORD carries, after `OR-R2`'s clone, so it and `check:workers` can disagree about the same schema (seven shapes, three disagreeing). **Prediction 2 CONFIRMED.** Readers **20 / 4 blocking** and **34 mutations / 21 survivors / 12 blocking**, overlap **2** — the FIFTIETH measurement. Its conformity reader found the check could **STOP the run** on two values `OR-R11` calls INTACT, and its adequacy reader found that of decision 3's three consequences *writes a record* was **not bound**. Rule 8 final **49 probes, 37 caught, 11 declared ceilings RUN, 0 undeclared survivors, 0 crashes, 0 timeouts, 0 aborts, 0 against declaration**. Raises **Q330-Q333**; **Q334 spent** |
-| W81 | **not started** | W80 hands it two things: the `enum` measurement that reverses prediction 1 and names where the cost is, and the ceiling `z1` — *the check run for everyone* — which no rung at L1-L2 can see and which W81's cost rung is DATED to |
+| W81 | **DONE** | **`examples/settlement-cost.ts`, and [Q320](../open-questions.md) RESOLVED** — the always-on handle costs **exactly +1 `structuredClone` per settled task**, one more copy of everything `OR-R2` already copies, and **the opt-out EXISTS**: `new Driver(flow, { ...runtime.registry, … })`, at the price of having no `done`. **NO ADR — 0061 reserved and UNUSED.** L1-L5 **46 / 1295 in three runtimes**; **L6 UNMOVED at 1639 / 55**; `check:spec` unmoved. **Prediction 4 is NEITHER** — in COUNT it bites at every shape, in TIME at none, and *needs a shape built for it* is false twice, because `map-alias` reaches **24.0 MiB of settled results** through its own DATA: **stop-and-ask (c)'s permission granted and UNUSED**. **`z1` is a CATCH** at both rungs, and W80's other ten ceilings hold. **Decision 5 is necessary and not sufficient** ([Q335](../open-questions.md)): the same values on one tree read 58-95%, so the check's price is stated as a DIRECTION and the handle's as a COUNT. Readers **18 / 7 blocking** and **61 mutations / 39 survivors / 16 findings / 6 blocking**, overlap **3** — the FIFTY-FIRST measurement; the conformity reader's central obligation came back with **zero disagreements on the values** and found the clone counter counting `snapshot()`'s own clones, and the adequacy reader found the check ON decorative and each block deletable alone. Rule 8 final **51 probes, 36 caught, 14 declared ceilings RUN, 0 undeclared survivors, 0 crashes, 0 timeouts, 0 aborts, 0 against declaration**. **It also forced decision 8**: the opt-out is a hand-built `Driver`, which `examples/l6.ts` forbade, and a MARKER alone was measured as permission a file grants itself — so that claim is a THREE-way equality and the decision is here rather than in an assertion's comment. Raises **Q335-Q339**; census **261 / 203 / 2 / 56** |
 | W82 | **not started** | |
 | W83 | *reserved, expected unused* | |

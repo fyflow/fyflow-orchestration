@@ -4346,8 +4346,8 @@ const CROSS_ROW_SUBJECTS = [
   'the runtime CARRIES every schema the fourteen worker entries declare, exactly',
   'every schema every corpus worker entry declares carries an `examples`',
   'the pool map is read off the SCHEDULER`s own task map',
-  'no file under examples/ CONSTRUCTS a pool, a scheduler, a Driver or a built-in resource group',
-  'that detector fires on each of the four',
+  'CONSTRUCT a pool, a scheduler, a Driver or a built-in resource group are exactly the ones that DECLARE it',
+  'BOTH detectors fire on the shapes they refuse',
 ];
 
 /**
@@ -4676,29 +4676,106 @@ const REACH_CASES: [string, boolean][] = [
  * for — a pool, a scheduler, a driver, and each of the three built-in group classes — and it is the
  * same list `S16` enumerates plus `Driver`, because the point here is that the harness builds none
  * of them rather than that the pure entry loads none.
+ *
+ * **And since W81 the clause is an EQUALITY against what the files DECLARE rather than against
+ * `[]`** — [W81](../doc/work-items/w81-what-a-settlement-costs.md). That item's whole subject is
+ * what `runtime.start`'s always-on completion handle costs a consumer who never asked for it
+ * ([Q320](../doc/open-questions.md)), and the ONLY road that declines it is building the `Driver`
+ * yourself from `runtime.registry` — which is
+ * [P18](../doc/plans/p18-a-flow-and-its-runtime-from-documents-alone.md) decision 14's own
+ * sentence, and which this clause forbade. *(This cited ADR 0055, which has five numbered decisions
+ * and none about the registry, and linked a bare directory. W81's conformity reader, and it is the
+ * class a `doc/` check has been refused for nineteen times: a claim attributed to a named file that
+ * the file does not make.)* *The claim was written for the files that DRIVE flows,
+ * where the runtime does every instantiation; a file that PRICES the two roads has to hold both.*
+ *
+ * **The declaration is a marker in the file's own text AND a path in a list here, and the second
+ * half is a correction to the first.** The marker alone was measured: a file that constructs one
+ * without declaring it is red naming itself, and a file that declares it and constructs nothing is
+ * red too — which `[]` could never catch — **but one comment line was then the whole of the
+ * permission.** W67's adequacy reader's own mutation is GREEN under a marker it typed itself
+ * (`dev-dist/w81/a8-check.txt`). *A marker is a file granting itself permission; a list here is
+ * that permission granted where the claim lives.* W39's `SELFTEST-EXCLUSIVE:` precedent is the
+ * marker's, and it is a precedent for DECLARING a property rather than for waiving a claim.
  */
 const CONSTRUCTS_A_SCHEDULER_OBJECT =
   /\bnew\s+(WorkerManager|FyflowScheduler|Driver|ConcurrentLimitGroup|RateLimitGroup|KeyedRateLimitGroup)\s*\(/;
+
+/**
+ * **The marker a file writes to declare that constructing one is its SUBJECT** — W81.
+ *
+ * **Assembled from parts, and it has to be**, for exactly the reason `REACH_CASES` and `UP` are:
+ * this sweep reads `l6.ts`, so a literal here would make THIS file a declarer that constructs
+ * nothing — the other direction of the equality below, which is the direction `[]` never had.
+ */
+const CONSTRUCTOR_MARKER = 'PRICES' + '-THE-CONSTRUCTION:';
+
+/**
+ * **One expression, two callers** — the sweep below and `CONSTRUCT_CASES`'s third column, so the
+ * marker detector is exercised by a fixture exactly as the regex beside it is.
+ */
+const declaresConstruction = (text: string): boolean => text.includes(CONSTRUCTOR_MARKER);
+
+/**
+ * **And the files this claim EXEMPTS, named HERE — so an exemption costs an edit in the file that
+ * wants it AND an edit in the file that makes the claim.**
+ *
+ * **The measurement this rests on, taken on the shipped tree** (`dev-dist/w81/a8-check.txt`): with
+ * the marker alone, W67's adequacy reader's own mutation — `new ConcurrentLimitGroup(99)` in
+ * `run-flow.ts` — is still **RED** when it declares nothing, and **GREEN** the moment one comment
+ * line is typed above it. *The claim caught the careless and stopped catching the deliberate*, and
+ * a marker is permission a file grants itself.
+ *
+ * So the equality below is THREE-way. The marker still earns its place — it carries the REASON at
+ * the site, which a path in a list cannot — and this list is what makes the reason answerable to
+ * somebody. [P21](../doc/plans/p21-what-a-run-time-schema-check-buys-and-what-it-costs.md)
+ * decision 8 is where the decision lives, because *a decision that is not in `spec/`, an ADR, or a
+ * plan did not happen* (`doc/workflow.md` section 1 rule 3) and an assertion's own comment is not
+ * one of the three.
+ *
+ * It is [Q217](../doc/open-questions.md)'s shape deliberately: a member and its name are two edits
+ * in one diff. **Here that IS the mechanism** rather than its limit — the two edits are the point,
+ * and they are in different files.
+ */
+const CONSTRUCTION_PRICED: readonly string[] = ['./settlement-cost.ts'];
 
 /**
  * **The positive fixture, assembled from parts** — as `REACH_CASES` is, and for the same reason: the
  * tree is clean, so an empty offender list is what a broken matcher returns too. The second element
  * is what the detector must say.
  */
-const CONSTRUCT_CASES: readonly [string, boolean][] = [
-  [`const g = new${' '}ConcurrentLimitGroup(1, 'gate');`, true],
-  [`const s = new${' '}FyflowScheduler(pools, groups);`, true],
-  [`const d = new${' '}Driver(flow, opts);`, true],
-  [`const p = new${' '}WorkerManager(url, options);`, true],
+/**
+ * **Both detectors, one fixture, one assertion** — W81's adequacy reader, whose finding is that
+ * `CONSTRUCTOR_MARKER` had **no positive or negative case at all** while the regex beside it had
+ * four. The third element is what `declaresConstruction` must say.
+ *
+ * **What this does NOT bind, stated rather than argued** (v0.10, *where the corpus cannot express
+ * the case, RECORD it*): it binds the two DETECTORS and not the sweep's choice of which to call.
+ * Re-sourcing `declared.push` to the regex leaves both lists equal, because this tree has exactly
+ * ONE file in either — and a corpus of one declarer cannot tell two source expressions apart, which
+ * is [Q216](../doc/open-questions.md)'s recorded limit (*a both-ways comparison is worth having and
+ * is not a second observer*). What DOES bind the sweep is the pair of mutations in W81's own set:
+ * the marker deleted from the file that constructs, and the marker added to a file that does not.
+ */
+const CONSTRUCT_CASES: readonly [string, boolean, boolean][] = [
+  [`const g = new${' '}ConcurrentLimitGroup(1, 'gate');`, true, false],
+  [`const s = new${' '}FyflowScheduler(pools, groups);`, true, false],
+  [`const d = new${' '}Driver(flow, opts);`, true, false],
+  [`const p = new${' '}WorkerManager(url, options);`, true, false],
   // What the shim DOES hold, and must keep holding: a custom group class of the consumer's own,
   // constructed inside the factory the runtime calls (P18 decision 4), and a node-type class.
-  [`create: (config, key) => new${' '}DailyBudgetGroup(key, config.tokensPerDay),`, false],
-  [`nodeTypes: { GpuModel: new${' '}GpuModel() },`, false],
-  ['const runtime = createRuntime(doc, code, { base });', false],
+  [`create: (config, key) => new${' '}DailyBudgetGroup(key, config.tokensPerDay),`, false, false],
+  [`nodeTypes: { GpuModel: new${' '}GpuModel() },`, false, false],
+  ['const runtime = createRuntime(doc, code, { base });', false, false],
+  // The marker's own two cases, assembled from parts for the reason `CONSTRUCTOR_MARKER` is: a
+  // literal here would make `l6.ts` declare itself and the equality above would fail from the
+  // other side, which is that equality working.
+  [`const d = new${' '}Driver(flow, opts);   // ${CONSTRUCTOR_MARKER} this file prices the road`, true, true],
+  ['a file that merely mentions the word PRICES, and constructs nothing', false, false],
 ];
 
 async function examplesReachingPastIndexAsync(): Promise<
-  { files: string[]; read: string[]; offenders: string[]; constructors: string[] }
+  { files: string[]; read: string[]; offenders: string[]; constructors: string[]; declared: string[] }
 > {
   const deno = (globalThis as Record<string, unknown>).Deno as {
     readTextFile?: (x: URL) => Promise<string>;
@@ -4721,7 +4798,10 @@ async function examplesReachingPastIndexAsync(): Promise<
   };
   // Both directories that hold TypeScript here, listed from disk rather than named:
   // a third one appearing is not this clause's business, but a file appearing in
-  // either of these is.
+  // either of these is. **Since W81 that scope is worth restating rather than
+  // inheriting**: the clause is an EQUALITY now, so `examples/getting-started/`'s
+  // eleven files are in neither list and a `Driver` built there would be in neither
+  // — the equality would hold vacuously. No live offender; W81's conformity reader.
   const files: string[] = [];
   for (const dir of ['./', './workers/']) {
     for (const name of await listDir(dir)) if (name.endsWith('.ts')) files.push(`${dir}${name}`);
@@ -4731,6 +4811,9 @@ async function examplesReachingPastIndexAsync(): Promise<
   }
   const offenders: string[] = [];
   const constructors: string[] = [];
+  // **Read from the RAW text, because the marker lives in a comment** and the constructor scan
+  // below strips comments before matching. Two reads of one file, two different questions.
+  const declared: string[] = [];
   // **`read` is what was actually OPENED, and it is a different list from `files`** —
   // the adequacy reader's finding 4b: narrowing this loop to `files.slice(1)` skipped
   // `l6.ts`, the one file the clause was written against, and the companion clause
@@ -4752,8 +4835,9 @@ async function examplesReachingPastIndexAsync(): Promise<
     // stripper must not be allowed to make vacuous.
     const code = text.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/.*$/gm, ' ');
     if (CONSTRUCTS_A_SCHEDULER_OBJECT.test(code)) constructors.push(f);
+    if (declaresConstruction(text)) declared.push(f);
   }
-  return { files, read, offenders, constructors };
+  return { files, read, offenders, constructors, declared };
 }
 const EXAMPLES_REACH = await examplesReachingPastIndexAsync();
 
@@ -5836,8 +5920,11 @@ const PER_PLAIN_ROW = 20;
 // five its adequacy reader forced — the scheduler's own `scriptUrl` behind the pool readings (a10),
 // the custom group's object NAME as a claim rather than a factory string (a1), and the three of the
 // SHIM RUN, which is P18's sample's own call and which no row could make (a15); and two for
-// Outputs (1) as an ASSERTION — nothing under `examples/` constructs a pool, a scheduler, a driver
-// or a built-in group, with the positive fixture that keeps the detector honest (a8); and four more
+// Outputs (1) as an ASSERTION — the files under `examples/` that construct a pool, a scheduler, a
+// driver or a built-in group are exactly the ones that DECLARE it, with the positive fixture that
+// keeps the detectors honest (a8). *(This read "nothing under `examples/` constructs …" and stayed
+// present-tense through the commit that replaced the `[]` with an equality — section 1 rule 5's
+// WITHDRAWN-claim direction, in the file the item was editing. W81's conformity reader.)* And four more
 // its reader forced — `THREADABLE_TYPES` as a MEMBERSHIP (a2), the ABSENT-schema case (a13), the
 // four schemas CARRIED (a6), and the pool map anchored to the scheduler's own task map (a4).
 // *(110 at W65, 119 at this item's first run, 121 after its author pass. The convention this file
@@ -6867,12 +6954,16 @@ if (rowCosts.length !== EXPECTED.length) {
     // narrowed read loop skipped `l6.ts` and this clause passed.
     // **Outputs (1), as an assertion** — W67's adequacy reader (a8). Nothing under `examples/` builds
     // a pool, a scheduler, a driver or a built-in group any more: the runtime does, from a document.
-    check('cross-row', 'no file under examples/ CONSTRUCTS a pool, a scheduler, a Driver or a built-in resource group — ' +
-      'P18`s exit artifact is that the library does every instantiation, and this is the half `S16` does not reach',
-      EXAMPLES_REACH.constructors, []);
-    check('cross-row', 'and that detector fires on each of the four, and NOT on the consumer`s own classes the shim still builds — ' +
-      'a custom group inside the factory the runtime calls, and a node-type class',
-      CONSTRUCT_CASES.map(([text]) => CONSTRUCTS_A_SCHEDULER_OBJECT.test(text)), CONSTRUCT_CASES.map(([, want]) => want));
+    check('cross-row', 'the files under examples/ that CONSTRUCT a pool, a scheduler, a Driver or a built-in resource ' +
+      'group are exactly the ones that DECLARE it, and exactly the ones this file NAMES — THREE ways, so an ' +
+      'exemption costs an edit here as well as there. P18`s exit artifact is that the library does every ' +
+      'instantiation, and W81`s subject is what the one road that declines it costs',
+      [[...EXAMPLES_REACH.constructors].sort(), [...EXAMPLES_REACH.declared].sort()],
+      [[...CONSTRUCTION_PRICED].sort(), [...CONSTRUCTION_PRICED].sort()]);
+    check('cross-row', 'and BOTH detectors fire on the shapes they refuse and NOT on the ones they must not — the four ' +
+      'constructors, the consumer`s own classes the shim still builds, and the marker`s own two cases',
+      CONSTRUCT_CASES.map(([text]) => [CONSTRUCTS_A_SCHEDULER_OBJECT.test(text), declaresConstruction(text)]),
+      CONSTRUCT_CASES.map(([, constructs, declares]) => [constructs, declares]));
     check('cross-row', 'and the sweep OPENED exactly the files it listed, both ways',
       [...EXAMPLES_REACH.read].sort(), [...EXAMPLES_REACH.files].sort());
     assertThat('cross-row', 'and the listing reached both directories, naming the three files this ' +

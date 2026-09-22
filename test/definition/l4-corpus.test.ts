@@ -562,6 +562,10 @@ const LATE_SUITES = [
   'OR-R13 — REPORTED and never ROUTED: the same run, with the check and without it',
   'OR-R13 — SETTLEMENTS only: a person`s resolution is FD-R4`s, and the two do not overlap',
   'OR-R13 — the REACH: what a static check and a boundary cannot see (P21 prediction 3)',
+  // W81 — what a settlement COSTS, as counts, in `test/driver/result-schema-cost.test.ts`. The
+  // measurement itself is `examples/settlement-cost.ts` and is deliberately not a gate entry.
+  'W81 — the SWITCH is the callback, counted: a consumer who supplies none pays for no check',
+  'W81 — Q320: the always-on handle costs exactly one structuredClone per settled task',
 ];
 
 suite('L1 — every suite this tree declares actually RAN', (test) => {
