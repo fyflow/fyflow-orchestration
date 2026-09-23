@@ -1,6 +1,6 @@
 # Workflow
 
-**Status:** v0.21 - **run to completion TWENTY times**, by [P1](plans/p1-what-satisfies-a-join.md),
+**Status:** v0.22 - **run to completion TWENTY-ONE times**, by [P1](plans/p1-what-satisfies-a-join.md),
 [P2](plans/p2-the-non-success-half-on-a-real-scheduler.md),
 [P3](plans/p3-a-consumer-reference-the-gate-keeps-true.md),
 [P4](plans/p4-the-drivers-lifetime-and-the-handles-it-gives-out.md),
@@ -19,7 +19,8 @@
 [P17](plans/p17-what-a-node-may-do-to-its-input-before-its-worker-sees-it.md) and
 [P18](plans/p18-a-flow-and-its-runtime-from-documents-alone.md) and
 [P19](plans/p19-what-a-schema-buys-an-author.md) and
-[P20](plans/p20-what-the-runtime-owes-a-consumer.md)
+[P20](plans/p20-what-the-runtime-owes-a-consumer.md) and
+[P21](plans/p21-what-a-run-time-schema-check-buys-and-what-it-costs.md)
 **Read this before starting any work item.** *(The status line read "seven times" and listed P1-P7
 until P9's retro: **P8 ran this document to completion and adopted none of its proposals**, which is
 section 6 pass 3 rule 1's expected verdict and is not the same as not having run it.)* Paths are relative to the repo root unless they are
@@ -103,6 +104,99 @@ prediction about rule 8 is answered and is **false**.
    The dependency edge that made the junction seem necessary is gone; **the rule still said nothing
    about the removal**, which is the part that did the damage.
 
+**v0.22 is [P21](plans/p21-what-a-run-time-schema-check-buys-and-what-it-costs.md)'s retro, and its
+central finding is that v0.21's CONTROLS clause was FOLLOWED by all three items of the plan that
+began three days after it was adopted — and all three produced a control the clause's own question
+defeats.** P21 asked *what does a run-time schema check buy, and what does it cost against what a
+settlement already pays?* — answered by
+[ADR 0060](decisions/0060-a-run-time-result-check-is-a-reading-and-never-a-refusal.md) (a READING and
+never a refusal, and the callback IS the switch), a price measured as a RATIO on both axes, and an
+exit artifact in which two workers return values their own `outputSchema` refuses and the run reports
+each by name while carrying them downstream unaltered. It adopts **one** change and refuses **five**,
+all in [P21's own Retro](plans/p21-what-a-run-time-schema-check-buys-and-what-it-costs.md#retro).
+
+1. **Rule 8 obligation (d)'s CONTROLS clause keeps its REQUIREMENT and loses its PRESCRIPTION: a
+   control is one only if you can NAME THE TREE on which it fails and its claim passes.**
+
+   v0.21 says a control *must fail where its claim is VACUOUS, not only where its subject is ABSENT*,
+   and it names the answer — **IDENTITY, the two sides are different values.** All three of P21's
+   items instantiated it, and each met a different shape identity cannot see:
+
+   | item | the control it wrote under v0.21 | why identity passes anyway |
+   |---|---|---|
+   | [W80](work-items/w80-what-a-run-time-result-check-is.md) | an IDENTITY control over the check-ON / check-OFF pair | **every operand is freshly built**, so the two sides are always different values AND always equal. Three of that item's declared controls were **fourth claims** ([Q332](open-questions.md)) |
+   | [W81](work-items/w81-what-a-settlement-costs.md) | *the run reported what these same schemas say about these same values* | **`0 === 0`** on a corpus where nothing fails its schema: two operands that are different values and both empty |
+   | [W82](work-items/w82-a-result-its-own-schema-refuses-on-real-workers.md) | *and that derivation found SOMETHING* | the derivation and the report are **different objects with one source**, so a one-token re-source makes the claim a projection of the report compared with itself and leaves the control exactly as true as before |
+
+   **The mechanism is why it generalises rather than a fourth item.** *Identity answers **are these
+   two sides ONE VALUE**. It does not answer **can these two sides EVER DIFFER**, and that is the
+   property a control needs.* P20's shape — `OBSERVED equals DECLARED` over two lists — is the one
+   place the two questions coincide, because re-sourcing there really does make one value out of two.
+   Freshly-built operands, two empty operands and one-source derivations are all outside it.
+
+   **W80 wrote the replacement down and did not generalise it**: *asked of the author's own IDENTITY
+   control, what tree makes this fail while its claim passes? There is none — following the clause and
+   asking its question are different acts.* That question is what all three defective controls fail
+   and all three repairs pass, and **none of the three repairs is identity**: W80 asserted each clause
+   against a LITERAL for each arm; W81 added a CONTROL RUN whose schema refuses, so the two numbers
+   are non-zero and can disagree; W82 asserted a RELATION over the DERIVATION — its walk reaches the
+   CONFORMING settlements, which the report never names, so a walk built from the report reaches two
+   where four are required.
+
+   **What it replaces** is v0.21's naming of identity as *the* answer. The requirement is unchanged
+   and identity survives as one instance of it, correct for the shape P20 measured. **It is the FOURTH
+   amendment to obligation (d) in eight plans** — v0.14's *a count is not a membership*, v0.18's *a
+   membership names the CONTROLS*, v0.21's *what a control must be able to do*, and this — and it is
+   the first that names a TEST rather than a thing to add or a property to have.
+   [Q217](open-questions.md) gains its fourth instance and [Q332](open-questions.md) is **RESOLVED**,
+   with its residue named: the test is an obligation on whoever writes the control, nothing mechanical
+   sees it, and that is true of every clause in rule 8.
+
+   *The cost is that a control becomes something you must be able to argue for rather than something
+   you can write by pattern* — which is the point, because all three of the controls above were
+   written by pattern from a clause that named one.
+
+**REFUSED, five, each with a measurement.** **(1) A `doc/` check for the TWENTIETH time, and P21
+supplies the sharpest instance yet of why the one class that LOOKS checkable is not.** v0.14 change 3
+already requires that *a WITHDRAWN claim is searched for*. W80's conformity reader followed it and
+found **three** standing copies of the claim commit `c869a4b` withdrew; W81's found a fourth site in
+`examples/l6.ts`; and W82's found a **FOURTH standing copy of the original**, in P21's own
+Exit-artifact line, which had stood since the declaration and which W80's search passed over.
+**The reason it passed over it is what kills the check**: the three W80 found all say *a TASK's
+failure*, and the fourth says *reports it by name rather than carrying it downstream*. **A withdrawn
+claim's standing copies are PARAPHRASES**, so a grep finds the ones that share wording and is defined
+not to see the rest — and telling the fourth from the 109 deliberate historical quotations this
+corpus carries (P20's retro measured that number) is reading English. *The clause is right, its
+procedure is a grep, and the class it exists to catch is the one a grep cannot see.*
+**(2) A rule for a corpus census pinned as a LITERAL outside the corpus** —
+[Q342](open-questions.md), **one item, three sites, and the three behave differently**, which is the
+argument against one rule. `scripts/check-workers-selftest.mjs`'s `CONTROL_LINES` regex took a **GATE
+ENTRY red while `check:workers` itself stayed green**, because the count lives in the GRADING;
+`test/definition/wiring.test.ts`'s is a literal a human retypes; `spec/outcome-record.md`'s split is
+**DERIVED on every run** by `test/fold/result-value.test.ts` and announced itself by name. *Only the
+third needs no rule, and it is the one that behaved.* W82 is the first item to add a corpus flow since
+W73 created two of the three sites, so there is no second occurrence, and the sites are enumerable by
+grep today. **(3) A rule about a CRASH laundered into a NAMED failure**, at one occurrence and with a
+mechanism that argues for generalising: W82's `b6b` returned `exit 1` with **two named failures**, so
+rule 8's crash discriminator — *non-zero exit with ZERO named failures* — did not fire, and the author
+read CAUGHT. The snippet had thrown a `TypeError` and **`X4` had converted it into `X4`'s own named
+failure**, *the snippet does not run*. **So the discriminator is structurally blind wherever a rung
+EXECUTES the thing it grades** — `X4` runs snippets, `check:workers` runs workers, every `:selftest`
+runs a check. **What refuses it is that rule 8 already says a provocation is evidence only when it
+fires FOR THE REASON IT NAMES, and the reason was printed in the harness's own line.** A rule that
+was BROKEN means someone was careless (pass 3 rule 3), and the counter-measure already exists.
+**(4) An `Owns` pre-declaration rule, for the NINTH plan running** — and P21 is the third plan to run
+P16's seeded-exceptions TABLE, the procedure that replaced it. All three of P21's items found their
+seeded row wrong in at least one direction, and W82 found the table wrong **four ways at once**: one
+row predicted NEEDED that did not fire, one predicted UNNEEDED that did, and two files named nowhere.
+*That is the table working* — it is seeded and re-measured at each declaration step, which is where
+the corrections landed. **Zero undeclared exceptions in any of the three items.**
+**(5) A rule about ad-hoc tooling that reports success having changed nothing**: W82's patch script
+printed `ok` from a `str.replace` with no assert on the match, and a cost measurement was silently
+re-taken on the wrong input. **Rule 8's harness clause already requires every edit's anchor to be
+checked against the CURRENT text**, and the rule-8 harness did exactly that throughout — the defect
+was in a script beside it, at one occurrence.
+
 **v0.21 is [P20](plans/p20-what-the-runtime-owes-a-consumer.md)'s retro, and its central finding is
 that v0.18's CONTROLS clause has been FOLLOWED by every item that ever added one, and every control
 it has produced reads the WRONG SIDE of the comparison it guards.** P20 asked *what does the runtime
@@ -156,6 +250,9 @@ anchor still matched and rule 7 (b) could not abort ([Q317](open-questions.md)).
    able to do. *Each was the previous one FOLLOWED and short* — which is section 6 pass 3 rule 3 three
    times on one clause, and the reason the sequence keeps running is that each amendment names a thing
    to ADD and none named a property the thing must have. [Q217](open-questions.md).
+   *(And this one named a property and was FOLLOWED and short too, by all three items of the very next
+   plan — which is why **v0.22** replaces its PRESCRIPTION with a test. Four amendments, and the
+   fourth is the first to name neither a thing to add nor a property to have.)*
 
 **REFUSED, five, each with a measurement.** **(1) A `doc/` check for the NINETEENTH time, and P20
 supplies the first `doc/` claim in twenty plans that a check could compare without reading English.**
@@ -1779,7 +1876,7 @@ Rules:
    | **(a)** | break the rule's own CLAUSES — **and the SHAPES those clauses quantify over, every value the rule ENUMERATES, each under the SAME claim** | v0.6, P4's retro; **the shapes clause v0.16, P15's retro; the enumeration clause v0.17, P16's retro; the same-claim clause v0.18, P17's retro** |
    | **(b)** | break every row of the `Outputs` table — **and where a row IS an assertion, make each of its claims a TAUTOLOGY rather than deleting it** | v0.7, P5's retro; **the tautology clause v0.20, P19's retro** |
    | **(c)** | break the PROVENANCE of every value an assertion reads — change the source expression and nothing else | v0.8, P6's retro; procedure added v0.9; **its LIMIT v0.13, P12's retro; and what *independent* excludes, v0.16, P15's retro** |
-   | **(d)** | break the LOOP BOUNDS — one entry out, the whole list out, and does anything COUNT it from elsewhere — **a count is not a membership; a membership names the CONTROLS beside its claims; and a control must fail where its claim is VACUOUS, not only where its subject is ABSENT** | v0.9, P7's retro; **the membership clause v0.14, P13's retro; the controls clause v0.18, P17's retro; what a control must be able to do, v0.21, P20's retro** |
+   | **(d)** | break the LOOP BOUNDS — one entry out, the whole list out, and does anything COUNT it from elsewhere — **a count is not a membership; a membership names the CONTROLS beside its claims; a control must fail where its claim is VACUOUS, not only where its subject is ABSENT; and a control is one only if you can NAME THE TREE on which it fails and its claim passes** | v0.9, P7's retro; **the membership clause v0.14, P13's retro; the controls clause v0.18, P17's retro; what a control must be able to do, v0.21, P20's retro; its TEST, v0.22, P21's retro** |
    | **(e)** | break the WIRING — what happens when the check is NOT RUN, and **is what it ran what SHIPS** | v0.10, P9's retro; second question **v0.12, P11's retro**; **third shape v0.13, P12's retro** |
    | | **and on the set as a whole:** | |
    | | a survivor is one only once a **second independent route** confirms the clause was reachable | v0.7, P5's retro |

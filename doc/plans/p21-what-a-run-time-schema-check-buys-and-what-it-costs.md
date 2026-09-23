@@ -1,6 +1,6 @@
 # P21 — What a run-time schema check buys, and what it costs against what a settlement already pays
 
-**Status:** **ALL THREE ITEMS DONE, pending the RETRO** — [W80](../work-items/w80-what-a-run-time-result-check-is.md)
+**Status:** **COMPLETE and RETRO'D** — `doc/workflow.md` is [v0.22](../workflow.md), ONE change adopted and FIVE refused. All three items done: [W80](../work-items/w80-what-a-run-time-result-check-is.md)
 (ADR 0060, `OR-R13`, `spec/outcome-record.md` v0.10),
 [W81](../work-items/w81-what-a-settlement-costs.md) (the price, no ADR, **Q320 RESOLVED**) and
 **[W82](../work-items/w82-a-result-its-own-schema-refuses-on-real-workers.md)**, the exit artifact —
@@ -429,6 +429,277 @@ which is the check P8 built doing its work on the declaration that cites it.
 
 ---
 
+## Retro
+
+*Pass 3, run 2026-09-23 on `aad2c2b`'s tree. **ONE change adopted, FIVE refused**, and
+`doc/workflow.md` is [v0.22](../workflow.md), where the full reasoning lives. What follows is this
+plan's own evidence.*
+
+### The central finding: v0.21's controls clause was followed by all three items and defeated all three
+
+**Rule 8 obligation (d)'s controls clause keeps its REQUIREMENT and loses its PRESCRIPTION: a
+control is one only if you can name the tree on which IT fails and its CLAIM passes.**
+
+v0.21 was adopted three days before this plan started and says a control *must fail where its
+claim is VACUOUS, not only where its subject is ABSENT*, and it names the answer: **IDENTITY —
+the two sides are different values.** **All three of P21's items instantiated that clause, and
+all three produced a control the clause's own question defeats.** Section 6 pass 3 rule 3's
+sharpest kind, three times, on a clause with no item between it and them.
+
+| item | the control it wrote | why identity cannot see it |
+|---|---|---|
+| [W80](../work-items/w80-what-a-run-time-result-check-is.md) | an IDENTITY control over the check-ON/check-OFF pair | **every operand is freshly built**, so the two sides are ALWAYS different values and always equal. The author asked *what tree makes this fail while its claim passes* and answered: **none** |
+| [W81](../work-items/w81-what-a-settlement-costs.md) | *the run reported what these same schemas say about these same values* | **`0 === 0`** on a corpus where nothing fails its schema — two operands that are different values and are both empty |
+| [W82](../work-items/w82-a-result-its-own-schema-refuses-on-real-workers.md) | *and that derivation found SOMETHING* | the derivation and the report are **different objects** with one source, so identity passes while a one-token re-source makes the claim a projection of the report compared with itself |
+
+**The mechanism is why this generalises rather than a fourth item.** Identity answers *are these
+two sides ONE VALUE*. It does not answer *can these two sides EVER DIFFER*, and that is the
+property a control needs. P20's shape — *OBSERVED equals DECLARED* over two lists — is the one
+shape where the two questions coincide, because re-sourcing there really does make one value out
+of two. **Freshly-built operands, two empty operands and one-source derivations are all outside
+it**, and each of P21's items met a different one of the three.
+
+**W80 wrote the replacement down and did not generalise it**: *asked of the author's own IDENTITY
+control what tree makes this fail while its claim passes, there is none — following the clause and
+asking its question are different acts.* That question is what all three defective controls fail
+and all three repairs pass, and the repairs are not identity:
+
+- W80 asserted each clause against a **LITERAL, for each arm**;
+- W81 added a **CONTROL RUN** whose `tally` schema refuses, so the two numbers are non-zero and
+  can disagree;
+- W82 asserted a **RELATION over the DERIVATION** — the walk reaches the CONFORMING settlements,
+  which the report never names, so a walk built from the report reaches two where four are
+  required.
+
+*Three items, three shapes, one question.* **What this replaces** is v0.21's naming of identity
+as *the* answer; the requirement is unchanged and identity stays as one instance of it, correct
+for the shape P20 measured. **The cost is that a control is now a thing you have to be able to
+argue about rather than a thing you can write by pattern** — which is the point, because all
+three of the controls above were written by pattern from a clause that named one.
+
+### Name the rung
+
+**FORTY-ONE defects across the three items' own *What broke* lists — 14 / 18 / 9. THIRTEEN name a
+rung that FIRED, and those thirteen name FIFTEEN firings.**
+
+| the rung | what it caught |
+|---|---|
+| L1-L2, an item's own new suite on its FIRST run | two of W80's tests found real behaviour the author had not predicted — a hostile getter measured `OR-R2`'s clone rather than the check, and a throwing callback stops the run |
+| L1 **deno** | W80's pair let `observedAt` float, and two runs at two instants legitimately differ in it: green in Node, red in Deno on a one-millisecond straddle. *Caught by the second runtime rather than the first, which is what the three-runtime requirement is for* |
+| L1 **chromium** | W80's `scripts/build-browser-tests.mjs` exception, reported as ONE named test rather than taking forty-five suites down — W33's better failure mode |
+| L1, twice, and a **GATE ENTRY** once | W82's three corpus censuses: `test/definition/wiring.test.ts`, `test/fold/result-value.test.ts` — which DERIVES both sides and named itself — and `check:workers:selftest`, which went red **while `check:workers` itself stayed green** |
+| rule 8's author pass | W81's artifact CRASHING on its own truncated declaration; W82's binding that did not bind |
+| rule 8's RE-RUN | W81's first fix being worse than the defect, and its decorative check-ON; W82's compound that exercised nothing |
+| rule 8, AGAINST DECLARATION | W82's `X4` ceiling, which understated the check |
+| rule 7 (b) | W80's five aborts, every one an anchor its own fixes had moved |
+| the dated-ceiling clause | W80's `z1`, a CATCH at W81 and again at this retro |
+
+**TWELVE of the thirteen were read correctly at the first opportunity. The thirteenth is W82's
+`b6b`, and the way it was misread is new.** The probe made the reference's guards tautologies and
+broke the subject; `check:docs` returned `exit 1` with **two NAMED failures**, so rule 8's crash
+discriminator — *non-zero exit with ZERO named failures* — did not fire, and the author read CAUGHT.
+The snippet had thrown a `TypeError` on `found[0]!` of an empty array, and **`X4` had converted that
+crash into its own named failure**, *the snippet does not run*. *A check that EXECUTES the thing it
+grades launders its subject's crash into a detection*, and the discriminator is structurally blind
+there. Found by the adequacy reader; refused as a rule above, because the text was in the harness's
+own printed line and rule 8 already requires reading it.
+
+**TWENTY-EIGHT have no rung, and FOUR are in the INSTRUMENTS**: W81's clone counter, which counted
+`driver.snapshot()`'s own clones and put **17%** of a printed column into the harness; W82's patch
+script, which reported `ok` from a `str.replace` that matched nothing; W82's spike, which hung on a
+`done` that never settled because the corpus workers' relative urls resolved against the wrong base;
+and **W82's census parser, which DROPPED [Q87](../open-questions.md)'s five-line row and read 260 against
+261 with ZERO aborts.** That last is the one to carry: this register already records two readings of
+that row and **both are MISREADINGS**, which a classifier can refuse. *A parser that aborts on what it
+cannot classify does not abort on what it never SEES* ([Q343](../open-questions.md)).
+
+The remaining twenty-four are what two readers are for: **nineteen of them are claims that were
+false or bounds that were not there**, and every one was found by a reader or by an author asking
+rule 8's own question of something it had just written.
+
+### The predictions
+
+| # | verdict |
+|---|---|
+| 1 | **REVERSED at the FIRST item, and its own reversal column is what directed the measurement.** The plan wrote *a schema shape whose check is superlinear where the clone is linear — the likeliest is a large `enum`*, and W80 built exactly that: one `enum` of a hundred allowed values is **1.65x** of the clone on a 4 KiB result and **3.08x** on a 0.5 KiB one, because its membership test canonicalises every entry on every check. W81 reproduced the direction and not the magnitude (**4.35x** where W80 read 3.08x) and W82 measured the shipped rung at **0.18x-0.37x**. *A reversal clause DIRECTS an item* — [P15](p15-what-a-run-retains-and-what-a-result-may-be.md)'s finding a second time — and this is the first plan where the reversal was taken deliberately BECAUSE the plan said the item could otherwise reverse it by accident. **The conclusion it was written to protect survives with its scope named**: the share falls as the VALUE grows and rises as the SCHEMA does, and the default is unmoved and better argued |
+| 2 | **CONFIRMED.** No record kind, no terminal state, no run outcome; `OR-R13` is a `DriverOptions` member and a rule in the document where `result` is defined. It is a DERIVED prediction — from decision 3 as answered plus `OR-R12`'s shipped precedent — so confirming it tested the inference rather than the world, which is [P10](p10-is-fan-out-one-feature-or-two.md)'s reading holding for the tenth plan |
+| 3 | **CONFIRMED, and it is the only one of the four about something nobody had measured** — its scope column says *none; this is a reach*. W80 confirmed it and found a SECOND leg the plan does not name (the check reads what the RECORD carries, so it and `check:workers` can lawfully disagree about one schema), and W82 gave both legs observers on real workers and measured the reach **from both sides**: `check:workers` is green on both workers with each defect PRESENT and green with each REMOVED. **Its SCOPE is narrower than three documents stated it**, which W82's conformity reader found: the two legs are unreachable for DIFFERENT reasons, and only the record half is structurally unreachable — the bound half is reachable by a bounds-generating tool, which is [Q302](../open-questions.md)'s own open road and which P21 stop-and-ask (d) declines deliberately |
+| 4 | **NEITHER, and it is the SECOND occurrence of [Q326](../open-questions.md)'s class.** In COUNT Q320 bites at every shape W81 could reach, so *does not bite* is false; in TIME it does not bite even at 24.0 MiB of settled results, so *bites* is false too; and *needs a shape built for it* is false twice over, because `map-alias` reaches megabyte results through its own DATA. **Stop-and-ask (c)'s permission to add a worker returning megabytes was granted and UNUSED** |
+
+**So: one REVERSED, two CONFIRMED, one NEITHER** — and the reversal is the one the plan told an item
+to go and take. *Three of the four rest on measurements the declaration already had; only prediction
+3 was about a mechanism's reach, and it is the one that could have gone either way.* P10's reading is
+unmoved for the tenth plan running.
+
+### v0.21's one change, and the clauses this plan exercised
+
+**v0.21's CONTROLS clause: FOLLOWED by all three items, and DEFECTIVE in all three.** That is this
+retro's one change and the table is above. It is the fourth amendment to obligation (d) in eight
+plans — v0.14's *a count is not a membership*, v0.18's *a membership names the CONTROLS*, v0.21's
+*what a control must be able to do*, and now its TEST — and the sequence's own shape is unchanged:
+**each was the previous one FOLLOWED and short.** [Q217](../open-questions.md) gains its fourth
+instance, and this is the first amendment in the sequence that names a TEST rather than a thing to
+ADD (v0.14, v0.18) or a property to HAVE (v0.21).
+
+**v0.20's TAUTOLOGY clause: CONFIRMED on its second plan, and NARROWED by a measurement.** W81 and
+W82 both instantiated it; W82 declared `X4` a bare presence test for `throw` and was **CAUGHT AGAINST
+DECLARATION**, because `X4` refuses `if (false)` **by name** — W16's adequacy reader's own clause,
+which [Q310](../open-questions.md)'s row does not mention. *The check is stronger than the row that
+records its ceiling says it is*, and the tautology that reaches it is `x !== x`. The ceiling itself is
+real: with all eight of `AGENTS.md` section 16's guards made `x !== x` and the worker made to keep its
+bound, `check:docs` is **exit 0** and **L6 is what fires** — so the section now names L6 as its second
+route rather than claiming one inside `check:docs`.
+
+**v0.17's dated-ceiling clause: it paid, and the payment was a CATCH.** W80 dated `z1` to a rung that
+did not yet exist — *W81 owns the rung that can see it* — and W81 ran it and found it a **CATCH at
+both rungs**, then re-ran W80's other ten and found all ten holding. **This retro re-ran all three
+sets on the shipped tree** and `z1` is a catch again, at `l1` — **the same rung W81 named**, so the
+retro REPRODUCES that catch rather than finding a new one, which is what *zero NEW catches* above
+means. *(This paragraph read *at a THIRD rung W81 did not name*, which the retro's own log refutes on
+the line it was written from.)* **A ceiling whose reason names a FUTURE item is the shape that has
+yielded here twice from one declaration**; P16's two catches were a different shape — literals a
+later item's edits made unequal — so the clause has two productive forms and not one.
+
+**v0.16's *a rung is RUN, never PIPED*: FOLLOWED twice and the READING failed twice, in the same
+place.** W80's gate command ended in `grep -c`, which exits 1 on no match, and reported a green gate
+as failed — W81's Record wrote that down. **W82 then did it again at its own final gate**, three
+items and one Record later, and the harness reported the whole command as FAILED with `GATE EXIT=0`
+two lines above. *Both times it cost nothing, and for the same reason: `$?` was captured into a
+variable in the SAME command before anything read the log.* The clause is right, the counter-measure
+inside it works, and the trailing `grep` is a habit the clause does not name. **Recorded at two
+occurrences and not ruled**, because the thing that saved it both times is the clause itself.
+
+**v0.14's WITHDRAWN-claim direction: fired FOUR times and was short twice.** W80's conformity reader
+found three standing copies of the claim commit `c869a4b` withdrew; W81's found a fourth site in
+`examples/l6.ts`'s own assertion accounting, *forty lines of diff from the equality that replaced it*;
+and W82's found the FOURTH standing copy of the original, in the plan's Exit-artifact line — which
+W80's search passed over and which W82's own finding 3 declared correct after reading the line above
+it. **The reason is in refusal (i)**: the copies are paraphrases.
+
+**v0.12's WHEN clause — a measured number is re-taken on the tree the item SHIPS — fired twice in
+W82 alone**, both times in a row that says the number was re-taken: `examples/README.md` carried
+**1710** for the hour between the first green run and the readers' fourteen assertions, and the
+item's own `check:markdown` row carried a count taken before the record step moved six documents.
+*The clause names the moment and the moment keeps arriving twice.*
+
+**v0.19's environment clause: no occurrence.** Every shell in all three items asserted `fnm use 24`
+and no probe came back CRASH for want of it.
+
+### Refused, five, each with a measurement
+
+**(i) A `doc/` check, for the TWENTIETH time — and P21 supplies the sharpest instance yet of why
+the one class that LOOKS checkable is not.** The plan's four stale-claim defects are W80's *a claim
+quoted with its worst row dropped in four places*, W80's and W81's and W82's standing copies of a
+claim commit `c869a4b` WITHDREW, and the register's headline stale at W80's figure through the whole
+of W81. **The withdrawn claim is the instance to read.** `doc/workflow.md` v0.14 change 3 already
+requires that *a WITHDRAWN claim is searched for*, W80's conformity reader followed it and found
+**three** standing copies, and W82's found a **FOURTH** — in the plan's own Exit-artifact line, which
+had been there since the declaration and which W80's search passed over.
+
+**The reason it passed over it is the finding, and it kills the check.** The three W80 found all say
+*a TASK's failure*; the fourth says *reports it by name rather than carrying it downstream*. **A
+withdrawn claim's standing copies are PARAPHRASES**, so a grep for the phrase finds the ones that
+share wording and is blind to the ones that do not — and telling the fourth from the other 109
+deliberate historical quotations this corpus carries (P20's retro measured that number) is reading
+English. *The clause is right, the procedure is a grep, and the class it must catch is the one a grep
+is defined not to see.* The standing refusal is unchanged and its criterion is unmet again.
+
+**(ii) A rule for a corpus census pinned as a LITERAL outside the corpus** —
+[Q342](../open-questions.md), **one item, three sites, and the three behave differently**, which is the
+argument against a single rule. `scripts/check-workers-selftest.mjs`'s `CONTROL_LINES` regex took a
+**GATE ENTRY red while `check:workers` itself stayed green**, because the count lives in the GRADING;
+`test/definition/wiring.test.ts`'s is a literal a human retypes; and `spec/outcome-record.md`'s split
+is **DERIVED on every run** by `test/fold/result-value.test.ts` and announced itself by name. *Only
+the third needs no rule, and it is the one that behaved.* W82 is the first item to add a corpus flow
+since W73 created two of the three sites, so this is one occurrence with no second, and the three
+sites are enumerable by grep today. **Recorded, not ruled.**
+
+**(iii) A rule about a CRASH laundered into a named failure** — one occurrence, and it is a rule
+BROKEN rather than a rule followed. W82's `b6b` made the reference's guards tautologies and broke the
+subject, and `check:docs` came back `exit 1, 2 — X4 …`: rule 8's crash discriminator keys on *non-zero
+exit with ZERO named failures*, and `X4` had converted the snippet's `TypeError` into `X4`'s own named
+failure, *the snippet does not run*. **So the discriminator is structurally blind wherever a rung
+EXECUTES the thing it grades** — `X4` runs snippets, `check:workers` runs workers, every `:selftest`
+runs a check — which is an argument for generalising from one occurrence (pass 3 rule 2). **What
+refuses it is that rule 8 already says a provocation is evidence only when it fires FOR THE REASON IT
+NAMES, and the reason was in the harness's own printed line.** The author read the id and not the
+text. *A rule that was broken means someone was careless*, and the counter-measure is the clause that
+already exists.
+
+**(iv) An `Owns` pre-declaration rule, for the NINTH plan running** — and P21 is the third plan to
+run P16's seeded-exceptions TABLE, which is the procedure that replaced it. **All three of P21's
+items found their seeded row wrong in at least one direction**, exactly as P20's three did, and W82
+found the table wrong in FOUR ways at once: one row predicted NEEDED that did not fire, one predicted
+UNNEEDED that did, and two files named nowhere. *That is the table working — it is seeded and
+re-measured at each declaration step, and the re-measurement is where the corrections land.* Seven
+declared exceptions across the plan's third item and **zero undeclared in any of the three**.
+
+**(v) A rule about ad-hoc tooling that reports success having changed nothing** — W82's patch script
+printed `ok` from a `str.replace` with no assert on the match, and a cost measurement was silently
+re-taken on the old flow set. **Rule 8's harness clause already requires every edit's anchor to be
+checked against the CURRENT text**, and the rule-8 harness did exactly that throughout; the defect was
+in a script beside it. One occurrence, and the clause that covers the harness is the one a second
+occurrence would have to be argued against. **Recorded.**
+
+### The numbers
+
+**Rule 8 across the plan, all 156 probes RE-RUN at this retro on the shipped tree** (W80's
+49, W81's 55, W82's 52), tree held still at digest `e5df6f3da8f73515` over 377 files,
+identical at both ends of every set:
+
+| set | at this retro |
+|---|---|
+| W80's 49 | **37 caught, 10 declared ceilings RUN, 0 undeclared survivors, 0 crashes, 0 timeouts, 0 aborts, 1 AGAINST DECLARATION** — and the one is `z1`, the dated ceiling W81 already found to be a catch, catching again at `l1`, the same rung |
+| W81's 55 | **40 caught, 14 declared ceilings RUN, 0 undeclared survivors, 0 crashes, 0 timeouts, 0 aborts, 0 against declaration** |
+| W82's 52 | **39 caught, 12 declared ceilings RUN, 0 undeclared survivors, 0 crashes, 0 timeouts, 0 aborts, 0 against declaration** |
+
+**Across the plan: 156 probes, 116 caught, 36 declared ceilings RUN, ZERO undeclared survivors, ZERO crashes, ZERO timeouts, ZERO aborts, and ONE against declaration.** That one is `z1` again — the catch W81 already recorded INSIDE the plan, reproducing at a third rung — so the retro's yield of NEW catches over thirty-six ceilings is **ZERO, for the third plan running**. *The reason is the same one P20 gave: W81 re-ran W80's eleven inside W81, so every ceiling that could have moved had already been re-run by the item that moved the values.*
+
+**Readers: six passes, none empty. Overlaps 2, 3, 1 — the FIFTIETH, FIFTY-FIRST and FIFTY-SECOND
+measurements, all inside the 0-4 band, which has not moved in fifty-two.** Forty blocking findings,
+split **17 conformity / 23 adequacy** — the conformity readers finding claims that were false and
+the adequacy readers finding bounds that were not there, which is the split the two roles predict.
+
+**And P21 records something no plan has: the conformity reader's CENTRAL OBLIGATION came back with
+ZERO disagreements on the VALUES in all THREE items.** W80 re-derived every finding list, path, walk
+order and task id on paper; W81 derived `findings`' three reads of `schema.type`, all four count
+columns and every rung's figure from the documents and `src/`; W82 derived both rows' findings and
+their exact text, all eight dispatched ids, every `nodeResults` value, the `settledOwnKeys` pair and
+the whole `+15 / 1720 / 58` arithmetic — the count as it stood when the reader derived it, four
+assertions before its own findings moved it — **and every one matched.** P18 had one such pass and P19 had
+two; this is three of three. *What all three found instead were CLAIMS* — a number quoted with its
+worst row dropped, a decision attributed to the wrong ADR in four sites, a corpus split stale by four
+task nodes, and three more standing copies of one withdrawn sentence.
+
+**Late exceptions: zero undeclared in any of the three.** W82 declared seven and found three of its
+five needed ones unpredicted, which is refusal (iv)'s datum.
+
+**And this retro corrected ITSELF four times before it shipped, all four by re-reading the sections
+against the logs they rest on.** The conformity reader's derivation was quoted at the count its own
+findings later moved; a *held for six plans* nothing here supports; v0.22 described as naming a
+PROPERTY, which is what v0.21 did; and — the sharpest — **`z1` claimed to be catching at *a THIRD
+rung W81 did not name*, where the retro's own log says `l1`, the rung W81 named.** *A claim about a
+measurement, written from the measurement, wrong about the measurement, and refuted by the line it
+was written from.* **No rung reads any of the four**, which is refusal (1)'s whole subject arriving
+inside the document that refuses it for the twentieth time.
+
+**Census CONFIRMED for the TWENTY-THIRD plan running — 265 / 206 / 2 / 57, 265 of 265 in exactly one cluster cell, 0 aborts** (265 / 207 / 2 / 56 on arrival; this retro resolves one) — by a parser written from
+scratch that was wrong four times first and whose fourth wrong reading is
+[Q343](../open-questions.md). **[Q332](../open-questions.md) is RESOLVED by this retro's one change**: it
+asked whether the clause could be made to see a control entailed by its own claim, and the answer is
+that the clause stops prescribing an answer and starts requiring a TEST. *The residue is named rather
+than hidden — the test is an obligation on whoever writes the control, and nothing mechanical sees
+it, which is true of every clause in rule 8.*
+
+**[Q142](../open-questions.md) did not fire in any of the three items**, and the plan's seeded
+prediction that it was a coin flip was stale when it was written: `M4`'s margin was quoted as 31,
+W80's midpoint retune had already moved both floors, and the tree this plan ships leaves `M3` at **14
+files** and `M4` at **951 links**. *It also names the wrong rung — `M3` is the tight one by three
+orders of magnitude.*
+
+**W83 CLOSED unissued, Q344 SPENT, ADR 0061 SKIPPED. The next plan starts at W84, Q345 and
+ADR 0062** — derived by grep off the tree, never from this sentence.
+
 ## Record
 
 *Filled in as the plan runs.*
@@ -438,4 +709,4 @@ which is the check P8 built doing its work on the declaration that cites it.
 | W80 | **DONE** | **[ADR 0060](../decisions/0060-a-run-time-result-check-is-a-reading-and-never-a-refusal.md)** and **`OR-R13`** in `spec/outcome-record.md` **v0.10** — a run-time result check is a READING and never a refusal, and the callback that receives it IS the switch. **L1-L2 45 files / 1290 cases in three runtimes** (from 44 / 1269), `check:spec` **7 / 61 / 108**, **L6 UNMOVED at 1639 / 55**. **Prediction 1 REVERSES, measured deliberately**: the clone is linear in the VALUE and the check in the SCHEMA, so the ratio is unbounded both ways and one `enum` of a hundred on a 4 KiB result is **1.65x** — fact 4's conclusion survives with its scope named. **Prediction 3 CONFIRMED with a second leg the plan does not name**: the check reads what the RECORD carries, after `OR-R2`'s clone, so it and `check:workers` can disagree about the same schema (seven shapes, three disagreeing). **Prediction 2 CONFIRMED.** Readers **20 / 4 blocking** and **34 mutations / 21 survivors / 12 blocking**, overlap **2** — the FIFTIETH measurement. Its conformity reader found the check could **STOP the run** on two values `OR-R11` calls INTACT, and its adequacy reader found that of decision 3's three consequences *writes a record* was **not bound**. Rule 8 final **49 probes, 37 caught, 11 declared ceilings RUN, 0 undeclared survivors, 0 crashes, 0 timeouts, 0 aborts, 0 against declaration**. Raises **Q330-Q333**; **Q334 spent** |
 | W81 | **DONE** | **`examples/settlement-cost.ts`, and [Q320](../open-questions.md) RESOLVED** — the always-on handle costs **exactly +1 `structuredClone` per settled task**, one more copy of everything `OR-R2` already copies, and **the opt-out EXISTS**: `new Driver(flow, { ...runtime.registry, … })`, at the price of having no `done`. **NO ADR — 0061 reserved and UNUSED.** L1-L5 **46 / 1295 in three runtimes**; **L6 UNMOVED at 1639 / 55**; `check:spec` unmoved. **Prediction 4 is NEITHER** — in COUNT it bites at every shape, in TIME at none, and *needs a shape built for it* is false twice, because `map-alias` reaches **24.0 MiB of settled results** through its own DATA: **stop-and-ask (c)'s permission granted and UNUSED**. **`z1` is a CATCH** at both rungs, and W80's other ten ceilings hold. **Decision 5 is necessary and not sufficient** ([Q335](../open-questions.md)): the same values on one tree read 58-95%, so the check's price is stated as a DIRECTION and the handle's as a COUNT. Readers **18 / 7 blocking** and **61 mutations / 39 survivors / 16 findings / 6 blocking**, overlap **3** — the FIFTY-FIRST measurement; the conformity reader's central obligation came back with **zero disagreements on the values** and found the clone counter counting `snapshot()`'s own clones, and the adequacy reader found the check ON decorative and each block deletable alone. Rule 8 final **51 probes, 36 caught, 14 declared ceilings RUN, 0 undeclared survivors, 0 crashes, 0 timeouts, 0 aborts, 0 against declaration**. **It also forced decision 8**: the opt-out is a hand-built `Driver`, which `examples/l6.ts` forbade, and a MARKER alone was measured as permission a file grants itself — so that claim is a THREE-way equality and the decision is here rather than in an assertion's comment. Raises **Q335-Q339**; census **261 / 203 / 2 / 56** |
 | W82 | **DONE** | **P21's EXIT ARTIFACT, and it had to CONSTRUCT its own case** — fact 3 re-taken at this item's declaration step is **0 violating results over 93 settled `done` across 19 corpus flows**, stronger than the plan's 0 of 5. `examples/workers/gauge.ts` declares a bound its own code does not keep past its declared example (Q302's arithmetic rebuilt) and `examples/workers/stamp.ts` has **no bug at all** — it returns a non-enumerable own property, so what `run()` returns CONFORMS and what `OR-R2`'s clone writes does not. **Both are GREEN at `check:workers` and every arc of the flow is `fits` at `checkWiring`**, which is ADR 0060 consequence 8 with an observer: *the reach is measured from both sides, because the corpus check cannot see either defect arriving OR leaving.* **L6 is 1724 assertions over 58 real runs in BOTH runtimes** (from 1639 / 55), L1-L5 **UNMOVED at 46 / 1295** in three runtimes, `check:spec` unmoved at **7 / 61 / 108**, `check:docs` **34 snippets: 28 run, 6 check** with `RUN_FLOOR` 27 → 28 and `X8` pairing **four** README fences. **The row carries THREE observers of one fact and the middle one is the RECORD** — the scheduler's live `detail.result` at the harness's own listener still has the key, the record does not, the finding says so — which is why `StampWorker` is INLINE and must be: *a thread hides the ATTRIBUTION and not the finding*, measured at both pool modes. **The two-word control is what makes `gauge`'s finding a function of the DATA**, and the **check-OFF pair** is decision 3 on real workers: the same run with the one option removed, identical dispatched ids, log record for record and every settled result, with the reports the one thing they differ in. **The cost ON and OFF is asserted as a COUNT and printed as a ratio** — 0.25x / 0.37x in node and 0.18x / 0.19x in deno over the rung's 204 settled results, a spread across runtimes that is decision 5's own argument. Readers **16 / 6 blocking** and **17 configurations / 13 green / 9 findings / 5 blocking**, overlap **1** — the **FIFTY-SECOND** measurement; the conformity reader's central obligation came back with **ZERO disagreements on the VALUES**, and the adequacy reader's central finding is that **every observer of the report was downstream of the report** — all three declared roads collapsed to it with every control green, after which a driver could report `$.NOTHING garbled` for every settlement and L6 stayed at 1720. **What refuses it is a property the LOG has and the report does not**: the walk reaches the CONFORMING settlements. Rule 8 final **52 probes, 39 caught, 12 declared ceilings RUN, 0 undeclared survivors, 0 crashes, 0 timeouts, 0 aborts, 0 against declaration**, digest identical at both ends, with all ten of the readers' exact edits checked in. **It corrects this plan in three places**: the seeded exceptions table is wrong in four ways, the `check-markdown.mjs` row is stale for the SECOND item running and names the wrong rung, and the **Exit artifact** line above carried a FOURTH standing copy of the claim commit `c869a4b` withdrew. Raises **Q340-Q343**; **Q344 spent**; census **265 / 207 / 2 / 56** |
-| W83 | *reserved, expected unused* | |
+| W83 | **CLOSED unissued** | reserved at the declaration and never issued, on P19's W75 and P20's W79 precedent. **It is SKIPPED, never reused**, so the next plan starts at W84 |
