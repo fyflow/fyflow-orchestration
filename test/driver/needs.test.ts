@@ -26,6 +26,7 @@ import { Driver, UnresolvedReference } from '../../src/driver/driver.ts';
 import { validateDefinition, violatedRules } from '../../src/definition/validate.ts';
 import { allRegions, buildGraph } from '../../src/definition/regions.ts';
 import { liveToken } from '../../src/fold/policies.ts';
+import { fold } from '../../src/fold/run-state.ts';
 import type { FlowDefinition } from '../../src/definition/types.ts';
 import type { JoinPolicy } from '../../src/driver/policy.ts';
 
@@ -484,7 +485,7 @@ suite('L2 — ADR 0044: what a run carries across SIBLING regions', (test) => {
       'the two are IDENTICAL — nothing about the reader`s own index reaches the answer');
   });
 
-  test('the NARROWING direction has exactly ONE expressible shape, and it is already asserted', () => {
+  test('the NARROWING direction: one shape asserted, and a SECOND one W84 made expressible', () => {
     // **W50's adequacy reader's finding 5, answered with a measured ABSENCE.** Every
     // other row in this suite asserts that MORE is visible; three mutations making
     // the resolver too PERMISSIVE were caught only by W41-era and W42-era fixtures,
@@ -499,7 +500,10 @@ suite('L2 — ADR 0044: what a run carries across SIBLING regions', (test) => {
     // A narrowing case needs a target with **two or more outputs** whose reader
     // shares a region with it. `FD-V19` gives every node in a `fanout` region
     // exactly one output, so the target must be inside a **map** region — and then
-    // there are only two ways to share a region with it, both refused:
+    // there are only two ways to share a region with it. **When this row was
+    // written both were refused; [W84](../../doc/work-items/w84-what-a-regions-identity-is.md)
+    // lifted the second, so the count in this row's own title moved.** The first is
+    // still refused, by a rule rather than by a driver check:
     const readerBesideTheMap = {
       flowId: 'reader-beside-the-map', version: 1, entry: 'ingest',
       nodes: [
@@ -539,22 +543,31 @@ suite('L2 — ADR 0044: what a run carries across SIBLING regions', (test) => {
     } as unknown as FlowDefinition;
     equal(
       validateDefinition(regionInsideAMap, { predicates: [], workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools }), [],
-      'TWO: a region nested inside a MAP region — which a VALIDATOR accepts',
+      'TWO: a region nested inside a MAP region — which a VALIDATOR always accepted',
     );
-    throws(
-      () => harness(regionInsideAMap).driver.start({ items: ['a', 'b'] }),
-      'opens a region inside map region',
-      '— and the DRIVER refuses at construction, because it keys a region`s policy state by the ' +
-      'opener`s node id and a map enters its branch once per item. [Q156](../../doc/open-questions.md), ' +
-      'W33`s check. *That is the shape this test tried to build first, and it is refused.*',
-    );
+    // **And which the DRIVER now RUNS** — W84, ADR 0062. W33 refused it here because
+    // it keyed a region's policy state by the opener's node id and a map enters its
+    // branch once per item; the key is `(opener, the opener's own branchPath)` now,
+    // so `innerA` has one instance per item instead of one instance shared by all.
+    // *This row asserted the throw; it asserts the run.*
+    const two = harness(regionInsideAMap);
+    two.driver.start({ items: ['a', 'b'] });
+    two.scheduler.settle('r1:ingest:-:0', 'done', { result: { items: ['a', 'b'] } });
+    drain(two, () => ({ xs: [] }), ['r1:ingest:-:0']);
+    const st = fold(two.driver.foldInputs());
+    equal(st.outcome, 'completed',
+      'TWO, since W84: the shape this row could not build now runs to completion');
+    equal(Object.keys(st.regions['innerA']!).sort(), ['0', '1'],
+      'and it is TWO instances of one opener, keyed by the map item index — which is exactly ' +
+      'the narrowing shape this row exists to look for');
 
-    // **So the one shape that remains is reader and target in the SAME map region**,
-    // where the shared segment is the instance index — and that is the two-digit
-    // fixture two suites down, which asserts each of twelve instances receives its
-    // OWN score and never a sibling's. It is W41's and it is where this direction
-    // is observed; this row exists so that is written down rather than assumed.
-    ok(true, 'recorded: the narrowing direction is asserted by the two-digit arity suite');
+    // **So there are TWO expressible shapes now, and only the first is observed
+    // here.** What a reference ACROSS nested map regions means under ADR 0044 is
+    // W85's row, which owns visibility under nesting; this row records that the
+    // shape became reachable rather than reaching for it (`doc/workflow.md`
+    // section 5 rule 8: where the corpus cannot express a case, RECORD it — and when
+    // it can, say which item takes it).
+    ok(true, 'recorded: shape one is asserted by the two-digit arity suite; shape two is W85`s');
   });
 
   test('and a NESTED sibling pair still agrees on the region they share', () => {

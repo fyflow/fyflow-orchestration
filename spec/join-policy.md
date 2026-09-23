@@ -1,7 +1,22 @@
 # spec/join-policy — the interface the join policies sit behind
 
-**Status:** v0.16 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.17 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md).
+**v0.17 is [W84](../doc/work-items/w84-what-a-regions-identity-is.md) under
+[P22](../doc/plans/p22-what-a-regions-identity-is.md), and it names the region INSTANCE.**
+Every event in section 2 carries `regionPath` beside `regionId`, because
+[ADR 0062](../doc/decisions/0062-a-region-instance-is-its-opener-and-the-openers-own-branch-path.md)
+makes a region instance `(opener node id, the opener's own branchPath)` — which is what lets a region
+open INSIDE a `map` region, the shape [W33](../doc/work-items/w33-a-map-at-run-time-arity.md) refused
+at `Driver` construction ([Q160](../doc/open-questions.md), [Q156](../doc/open-questions.md)).
+**No policy changes, no rule id is added or retired, and section 3 is byte-unchanged for the fifth
+version running.** A policy's `open` is now called once per INSTANCE rather than once per opener, and
+it is handed the same `Region` either way — the `Region` shape of section 1 does not move, because two
+instances of one opener have the same members, the same branches and the same join. **What a join
+CARRIES does not move either**: `JP-R12` already keys by `branchPath` and a branch inside an instance
+carries that instance's path as its own prefix, so the collections of two instances are disjoint by
+construction. `JP-R10` and section 4's two `regions[…]` references gain their second subscript.
+
 **v0.16 is [W53](../doc/work-items/w53-what-a-run-retains-that-nothing-reads.md) under
 [P15](../doc/plans/p15-what-a-run-retains-and-what-a-result-may-be.md): `JP-R11` and `JP-R12` gain
 the LIFETIME of what a join collects, which neither stated and the driver therefore did not have.**
@@ -194,6 +209,23 @@ a branch. Since `JP-R10` a branch also stops when **its own inner join can never
 it settled, nothing was resolved, and the inner join's edge was eligible the whole time. The event is
 still `branch.lost`; what widened is the condition below.
 
+**Every event below carries `regionId` AND `regionPath`, and the PAIR is the region
+INSTANCE** — v0.17, [ADR 0062](../doc/decisions/0062-a-region-instance-is-its-opener-and-the-openers-own-branch-path.md),
+[W84](../doc/work-items/w84-what-a-regions-identity-is.md). `regionId` is the opener's node id and is
+unchanged in meaning and in value; `regionPath` is that **opener's own `branchPath`**
+([spec/task-id.md](task-id.md) section 1), `'-'` for an opener in no region. The field columns below
+list what is BESIDE that pair, and no row lists either, exactly as no row listed `regionId` before.
+
+**Why the pair and not a richer `regionId`.** A `map` enters its one declared branch once per item
+([ADR 0036](../doc/decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md)),
+so an opener INSIDE a map region is entered N times in one run and its node id stops naming one
+region. Qualifying `regionId` itself was built and measured: it costs twelve **silent** failure modes,
+because a composite is a string either way and no type sees a lookup miss. A second field costs **sixty
+typecheck errors, every one named** — the figure for the design as the spike measured it, which W84
+then shipped with one addition beyond it (`UnsatisfiableJoin` gained the same field for the same
+reason), so **the churn actually paid was 63 typecheck sites in 8 files and 34 L1-L5 failures**, plus
+**five more in `AGENTS.md` that no typecheck lane reads and `check:docs` does**.
+
 | event | fields | emitted when |
 |---|---|---|
 | `branch.arrived` | `branchPath` | that branch reached the region's join |
@@ -348,7 +380,7 @@ W33's conformity reader, and stated here rather than left for a consumer to noti
 | `JP-R7` | **A variant of `arrival-count` that decrements `N` on `branch.exited` is a third policy, not a repair of the first.** If it is built it is built under its own `id` ([Q24](../doc/open-questions.md)). **Not built — refused by [ADR 0025](../doc/decisions/0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md)**, which measured what it does over all nine matrix rows: it is `live-token` weakened, never strengthened. Every row on which it differs from `live-token` is a row where it reports `waiting` and `live-token` is `satisfied`, and it cannot report `unsatisfiable` — so the whole of its contribution is a **silent hang** where the adopted policy proceeds. The rule stands as written and now cites the decision that applied it | W4 |
 | `JP-R8` | **A variant of `live-token` that requires at least one `branch.arrived` before reporting `satisfied` is likewise a third policy** ([Q24](../doc/open-questions.md)). The `having been positive` clause is a pin, not a refinement: a bare *"count is zero"* is true before any branch opens, so without it `open` itself reports `satisfied`. **Built, and built the way this rule requires — under its own `id`, `live-token-requiring-arrival`, with `live-token` unchanged** ([ADR 0025](../doc/decisions/0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md)). This rule was **followed, not overridden**: what it forbids is the refinement written *into* `live-token`, and that is still forbidden | W4, and **W16** for the shipped policy |
 | `JP-R9` | **Every key of `POLICIES` names a row of the table above, and every row names a key.** A policy *shipped* under a name this document does not fix, or a name fixed here with nothing behind it, is a defect in whichever half is younger. **The rule is about `POLICIES`, not about every object that satisfies the interface** — a `JoinPolicy` written in the test tree and run as a matrix column is neither shipped nor named here, and [ADR 0025](../doc/decisions/0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md) rule 3 **requires** one to exist: `arrival-count-decrementing` is a refused refinement that is still executed so the refusal can be falsified — **This is what ADR 0025 makes checkable**: the set was frozen at two by four hand-written literals, and the rule that lets it grow is the rule that needs the two halves compared rather than copied. Test: `scripts/check-policies.mjs`, run by `npm run gate` | **W16** |
-| `JP-R10` | **A join that can never fire ends the branch it sits in.** When `status` is `unsatisfiable` for `region(F)` and `F` is itself inside a region, the driver emits `branch.lost` for **`innermost(F)`** — `spec/flow-definition.md` section 4's term, the region `F`'s own `fanout` node is most tightly in — at `F`'s own `branchPath` (`spec/task-id.md` section 1). **`innermost` and not *some* enclosing region**: at depth 3 there are two, and naming the inner one is what makes the cascade below reach the rest in order. Three things this is **not**: it is not a new **event**, though it IS a widening of section 2's emission condition and that section says so rather than this rule implying otherwise — `JP-R6` asks for a rationale, not for a new name, and the rationale is that a dead join ends a path exactly as an ineligible edge does; it is not the driver deciding the enclosing region's verdict, which stays section 4's owner table and [ADR 0001](../doc/decisions/0001-routing-executes-in-the-driver-outside-the-scheduler.md) rule 1's — that region's policy is stepped with the fact and answers for itself; and it is not a walk outward, because the enclosing region may in turn be `unsatisfiable` and the same clause applies to it, so the cascade is one rule applied repeatedly rather than a traversal. **Why it is a rule and not a note**: without it that branch has **no terminal event at all** in a run that is neither suspended nor in flight, which `JP-R5`'s own enumeration does not admit, and `RunState.regions[G].settled` simply omits it. **Unobservable at depth 1**, where `F` is in no region — which is why this document could stand at v0.9 without it. Test: `test/driver/surface.test.ts`, in both fanout declaration orders and at depth 3; and `test/matrix/matrix.test.ts`' `nested-inner-all-exit` row | **W22** |
+| `JP-R10` | **A join that can never fire ends the branch it sits in.** When `status` is `unsatisfiable` for `region(F)` and `F` is itself inside a region, the driver emits `branch.lost` for **`innermost(F)`** — `spec/flow-definition.md` section 4's term, the region `F`'s own `fanout` node is most tightly in — at `F`'s own `branchPath` (`spec/task-id.md` section 1). **`innermost` and not *some* enclosing region**: at depth 3 there are two, and naming the inner one is what makes the cascade below reach the rest in order. Three things this is **not**: it is not a new **event**, though it IS a widening of section 2's emission condition and that section says so rather than this rule implying otherwise — `JP-R6` asks for a rationale, not for a new name, and the rationale is that a dead join ends a path exactly as an ineligible edge does; it is not the driver deciding the enclosing region's verdict, which stays section 4's owner table and [ADR 0001](../doc/decisions/0001-routing-executes-in-the-driver-outside-the-scheduler.md) rule 1's — that region's policy is stepped with the fact and answers for itself; and it is not a walk outward, because the enclosing region may in turn be `unsatisfiable` and the same clause applies to it, so the cascade is one rule applied repeatedly rather than a traversal. **Why it is a rule and not a note**: without it that branch has **no terminal event at all** in a run that is neither suspended nor in flight, which `JP-R5`'s own enumeration does not admit, and `RunState.regions[G][p].settled` simply omits it, where `p` is `G`'s own instance path (v0.17). **Unobservable at depth 1**, where `F` is in no region — which is why this document could stand at v0.9 without it. Test: `test/driver/surface.test.ts`, in both fanout declaration orders and at depth 3; and `test/matrix/matrix.test.ts`' `nested-inner-all-exit` row | **W22** |
 
 ### JP-R7 and JP-R8 — the one-line changes that would delete P1
 
@@ -411,7 +443,7 @@ row, and section 3's third row is what it means. So:
 
 | | |
 |---|---|
-| what is **unchanged** | quiescence is still the only *general* detection, and it is still **the fold's** — `stuck` is decided in run state from `regions[…].joined !== true` ([ADR 0015](../doc/decisions/0015-a-run-whose-join-can-no-longer-fire-is-stuck.md), `RN-R10`), not by the driver, whose `joinStatusOf` is a per-region accessor. A policy can say `unsatisfiable` only about the shapes its own state can see, and `live-token-requiring-arrival` sees exactly one: every branch terminal, none arrived |
+| what is **unchanged** | quiescence is still the only *general* detection, and it is still **the fold's** — `stuck` is decided in run state from `regions[…][…].joined !== true` ([ADR 0015](../doc/decisions/0015-a-run-whose-join-can-no-longer-fire-is-stuck.md), `RN-R10`), not by the driver, whose `joinStatusOf` is a per-region accessor. A policy can say `unsatisfiable` only about the shapes its own state can see, and `live-token-requiring-arrival` sees exactly one: every branch terminal, none arrived |
 | what **changed** | *"detected by the driver or not at all"* was already the wrong half of a true sentence — detection is the fold's — and it is now false for that one shape in a second way, and it is the shape [ADR 0003](../doc/decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md) records as `live-token`'s cost. A run that **completes** under `live-token` is **`stuck` with `joined: false`** under this policy — reported through `onUnsatisfiableJoin` with the policy's own `describe`, and visible in `RunState.outcome` to a consumer who registers no callback at all |
 | what is **still open** | [Q7](../doc/open-questions.md), unnarrowed on its own terms. This is not a timeout and gives a join no clock; it makes **one more** class of dead join reportable without one, which is the same direction [ADR 0003](../doc/decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md) already pushed Q7 in |
 
@@ -428,7 +460,7 @@ not happen*), and W18's two Q95 cases were asserting it before this row said it.
 **Why *terminal*, and not merely *once*.** Reporting twice is untidy; **routing out of a join already
 declared dead is a correctness failure with a name.** Measured with a stub that answers
 `unsatisfiable` on the first arrival and `satisfied` on the second: without the latch the driver
-dispatches the join's successor, `regions[…].joined` becomes `true`, and `RunState.outcome` goes from
+dispatches the join's successor, `regions[…][…].joined` becomes `true`, and `RunState.outcome` goes from
 `stuck` to `completed` — with `hasFailed()` false throughout. That is character-for-character the
 false statement
 [ADR 0015](../doc/decisions/0015-a-run-whose-join-can-no-longer-fire-is-stuck.md) exists to remove,

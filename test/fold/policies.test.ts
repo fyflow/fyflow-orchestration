@@ -27,16 +27,16 @@ const REGION: Region = {
   members: ['abandoned', 'scoreA', 'scoreB'],
 };
 
-const opened = (b: string): RegionEvent => ({ type: 'branch.opened', regionId: 'split', branchPath: b });
-const arrived = (b: string): RegionEvent => ({ type: 'branch.arrived', regionId: 'split', branchPath: b });
+const opened = (b: string): RegionEvent => ({ type: 'branch.opened', regionId: 'split', regionPath: '-', branchPath: b });
+const arrived = (b: string): RegionEvent => ({ type: 'branch.arrived', regionId: 'split', regionPath: '-', branchPath: b });
 const exited = (b: string): RegionEvent =>
-  ({ type: 'branch.exited', regionId: 'split', branchPath: b, at: 'abandoned' });
+  ({ type: 'branch.exited', regionId: 'split', regionPath: '-', branchPath: b, at: 'abandoned' });
 const lost = (b: string): RegionEvent =>
-  ({ type: 'branch.lost', regionId: 'split', branchPath: b, reason: 'failed' });
+  ({ type: 'branch.lost', regionId: 'split', regionPath: '-', branchPath: b, reason: 'failed' });
 const suspended = (b: string): RegionEvent =>
-  ({ type: 'branch.suspended', regionId: 'split', branchPath: b, at: 'scoreB' });
+  ({ type: 'branch.suspended', regionId: 'split', regionPath: '-', branchPath: b, at: 'scoreB' });
 const resumed = (b: string): RegionEvent =>
-  ({ type: 'branch.resumed', regionId: 'split', branchPath: b, at: 'scoreB', resolvedAs: 'done' });
+  ({ type: 'branch.resumed', regionId: 'split', regionPath: '-', branchPath: b, at: 'scoreB', resolvedAs: 'done' });
 
 /** Run a whole event sequence through a policy and report its verdict. */
 function verdict(p: JoinPolicy<never>, events: RegionEvent[]): string {

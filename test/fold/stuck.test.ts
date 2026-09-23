@@ -26,17 +26,17 @@ const settled = (taskId: string, state: 'done' | 'failed' | 'user_action'): Fold
 });
 const dispatched = (taskId: string): FoldInput => ({ kind: 'dispatched', taskId });
 const opened = (b: string): FoldInput =>
-  ({ kind: 'region', event: { type: 'branch.opened', regionId: 'split', branchPath: b } });
+  ({ kind: 'region', event: { type: 'branch.opened', regionId: 'split', regionPath: '-', branchPath: b } });
 const arrived = (b: string): FoldInput =>
-  ({ kind: 'region', event: { type: 'branch.arrived', regionId: 'split', branchPath: b } });
+  ({ kind: 'region', event: { type: 'branch.arrived', regionId: 'split', regionPath: '-', branchPath: b } });
 const exited = (b: string, at: string): FoldInput =>
-  ({ kind: 'region', event: { type: 'branch.exited', regionId: 'split', branchPath: b, at } });
+  ({ kind: 'region', event: { type: 'branch.exited', regionId: 'split', regionPath: '-', branchPath: b, at } });
 const suspended = (b: string, at: string): FoldInput =>
-  ({ kind: 'region', event: { type: 'branch.suspended', regionId: 'split', branchPath: b, at } });
+  ({ kind: 'region', event: { type: 'branch.suspended', regionId: 'split', regionPath: '-', branchPath: b, at } });
 const pathEnd = (reason: 'end' | 'no-eligible-edge', at: string): FoldInput =>
   ({ kind: 'pathEnded', reason, at });
 const joinSettled = (fired: boolean): FoldInput =>
-  ({ kind: 'joinSettled', regionId: 'split', joinId: 'collect', fired });
+  ({ kind: 'joinSettled', regionId: 'split', regionPath: '-', joinId: 'collect', fired });
 
 /**
  * `p1-routed-away` up to the point the two policies diverge — hand-written from
@@ -68,14 +68,16 @@ suite('RN-R10 — a run whose join can no longer fire is `stuck`, not `completed
     const ac = fold([...UP_TO_THE_JOIN, ...ARRIVAL_COUNT_TAIL]);
 
     // `RN-R6`, which is exactly why `regions` could not answer this on its own.
-    equal(lt.regions['split']!.opened, ac.regions['split']!.opened, 'same branches opened');
-    equal(lt.regions['split']!.settled, ac.regions['split']!.settled, 'same branches settled, the same way');
-    equal(lt.regions['split']!.suspended, ac.regions['split']!.suspended, 'neither has anyone waiting');
-    equal(ac.regions['split']!.settled, { '0': 'arrived', '1': 'exited' },
+    equal(lt.regions['split']!['-']!.opened, ac.regions['split']!['-']!.opened, 'same branches opened');
+    equal(lt.regions['split']!['-']!.settled, ac.regions['split']!['-']!.settled,
+      'same branches settled, the same way');
+    equal(lt.regions['split']!['-']!.suspended, ac.regions['split']!['-']!.suspended,
+      'neither has anyone waiting');
+    equal(ac.regions['split']!['-']!.settled, { '0': 'arrived', '1': 'exited' },
       'this is the value Q43 said already held the information — both runs have it');
 
     // `RN-R11` — the one field that differs, and it is a routing fact.
-    equal([lt.regions['split']!.joined, ac.regions['split']!.joined], [true, null],
+    equal([lt.regions['split']!['-']!.joined, ac.regions['split']!['-']!.joined], [true, null],
       'RN-R11: one routed out of the join and one never will');
   });
 
@@ -111,7 +113,7 @@ suite('RN-R10 — a run whose join can no longer fire is `stuck`, not `completed
     // shape rather than as coverage; named in ADR 0015's Consequences as the
     // empty half.
     const s = fold([...UP_TO_THE_JOIN, joinSettled(false)]);
-    equal(s.regions['split']!.joined, false, 'the driver settled the join and did not route');
+    equal(s.regions['split']!['-']!.joined, false, 'the driver settled the join and did not route');
     equal(s.outcome, 'stuck', 'a join that can never fire stops the run as surely as one that has not');
   });
 });
@@ -196,6 +198,35 @@ suite('RN-R2 — the fold is still total over any prefix, with the new inputs', 
 });
 
 suite('RN-R10 and RN-R12 — the reachable cases no test reached', (test) => {
+  test('a run with TWO INSTANCES of ONE opener is stuck when EITHER join has not fired', () => {
+    // **W84, and rule 8's set is what found this missing.** `RN-R10` quantifies over
+    // region INSTANCES since ADR 0062, and `allRegionRuns` flattens the two levels for
+    // it — but narrowing that flatten to the FIRST instance of each opener cost ZERO,
+    // because no fold anywhere had one instance joined and another not. Two instances
+    // of ONE opener, which is the only shape that separates the flatten from a walk
+    // over openers.
+    const inst = (rp: string, joined: boolean | null): FoldInput[] => [
+      { kind: 'region', event: { type: 'branch.opened', regionId: 'f', regionPath: rp, branchPath: `${rp}.0` } },
+      { kind: 'region', event: { type: 'branch.arrived', regionId: 'f', regionPath: rp, branchPath: `${rp}.0` } },
+      ...(joined === null ? []
+        : [{ kind: 'joinSettled', regionId: 'f', regionPath: rp, joinId: 'f-j', fired: joined } as FoldInput]),
+    ];
+    const head: FoldInput[] = [
+      dispatched('r1:a:-:0'), settled('r1:a:-:0', 'done'), pathEnd('end', 'done'),
+    ];
+    equal(fold([...head, ...inst('0', true), ...inst('1', true)]).outcome, 'completed',
+      'both INSTANCES of the one opener joined');
+    equal(fold([...head, ...inst('0', true), ...inst('1', null)]).outcome, 'stuck',
+      'the SECOND instance never joined — and it is under the SAME opener key as the first, ' +
+      'so a walk over openers that stopped at the first entry would report `completed`');
+    equal(fold([...head, ...inst('0', null), ...inst('1', true)]).outcome, 'stuck',
+      'and it is symmetric: the first not joining is equally stuck');
+    // The control: with ONE instance the two walks agree, which is why every other
+    // case in this file could not tell them apart.
+    equal(fold([...head, ...inst('0', true)]).outcome, 'completed',
+      'one instance, joined — the shape on which a walk over openers is RIGHT');
+  });
+
   test('a run with TWO regions is stuck when EITHER join has not fired', () => {
     // `some`, not `every`. The two differ only when a run has more than one
     // region with different `joined` values — one join fired, another did not —
@@ -203,9 +234,10 @@ suite('RN-R10 and RN-R12 — the reachable cases no test reached', (test) => {
     // `FD-V15` refuses only NESTED fan-out, and `test/matrix/region-shapes.test.ts`
     // runs two sequential fan-outs sharing one `end` ([Q45](../../doc/open-questions.md)).
     const region = (id: string, joined: boolean | null): FoldInput[] => [
-      { kind: 'region', event: { type: 'branch.opened', regionId: id, branchPath: '0' } },
-      { kind: 'region', event: { type: 'branch.arrived', regionId: id, branchPath: '0' } },
-      ...(joined === null ? [] : [{ kind: 'joinSettled', regionId: id, joinId: `${id}-j`, fired: joined } as FoldInput]),
+      { kind: 'region', event: { type: 'branch.opened', regionId: id, regionPath: '-', branchPath: '0' } },
+      { kind: 'region', event: { type: 'branch.arrived', regionId: id, regionPath: '-', branchPath: '0' } },
+      ...(joined === null ? []
+        : [{ kind: 'joinSettled', regionId: id, regionPath: '-', joinId: `${id}-j`, fired: joined } as FoldInput]),
     ];
     const base: FoldInput[] = [
       dispatched('r1:a:-:0'), settled('r1:a:-:0', 'done'), pathEnd('end', 'done'),
@@ -230,8 +262,8 @@ suite('RN-R10 and RN-R12 — the reachable cases no test reached', (test) => {
     // before it started. Deleting the clause survived every assertion until now,
     // because `fold([])` returns `emptyState()` without ever calling `withOutcome`.
     const s = fold([
-      { kind: 'region', event: { type: 'branch.opened', regionId: 'split', branchPath: '0' } },
-      { kind: 'region', event: { type: 'branch.opened', regionId: 'split', branchPath: '1' } },
+      { kind: 'region', event: { type: 'branch.opened', regionId: 'split', regionPath: '-', branchPath: '0' } },
+      { kind: 'region', event: { type: 'branch.opened', regionId: 'split', regionPath: '-', branchPath: '1' } },
     ]);
     equal(s.outcome, 'running', 'a region has opened and its branches are about to be dispatched');
     ok(!isTerminal(s), 'RN-R12: and the run is emphatically not finished');

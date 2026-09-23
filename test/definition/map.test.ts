@@ -717,8 +717,8 @@ suite('map — branchPath is a property of the DISPATCH (spec/task-id.md v0.8, I
   });
 
   t('the index is keyed PER REGION, so supplying the wrong map does not satisfy the refusal', () => {
-    // Q156: whether a map may contain a map is not decided here, and this signature
-    // is why it does not have to be.
+    // Q156 is decided YES at W84 (ADR 0062) and was NOT decided here, which is what
+    // this signature bought: the per-region keying held across the decision unchanged.
     const regions = regionsOf(MAP_IN_FANOUT());
     throws(
       () => branchPathOf(regions, 'merge', new Map([['outer', 0]])),

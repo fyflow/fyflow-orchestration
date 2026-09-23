@@ -48,6 +48,19 @@ export interface JoinPolicy<S = unknown> {
 /** What the driver reports when a policy says a join can never fire. */
 export interface UnsatisfiableJoin {
   fanoutId: string;
+  /**
+   * **The opener's own `branchPath`, so the pair names ONE region instance** —
+   * [ADR 0062](../../doc/decisions/0062-a-region-instance-is-its-opener-and-the-openers-own-branch-path.md),
+   * [W84](../../doc/work-items/w84-what-a-regions-identity-is.md). `'-'` at top
+   * level, and unchanged for every flow that existed before W84.
+   *
+   * A `map` can enter one opener N times, so `fanoutId` alone names N joins and a
+   * report carrying only it cannot say which of them died. Same field, same
+   * reason and same spelling as `RegionEvent.regionPath` — this and that are the
+   * two places a region is named to a consumer, and they agree rather than each
+   * inventing a way to say it.
+   */
+  regionPath: string;
   joinId: string;
   /** The policy's own account of what it was waiting for. */
   describe: JsonValue;

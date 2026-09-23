@@ -73,8 +73,31 @@ export interface RunState {
   outcome: RunOutcome;
   /** Keyed by **task id**, not node id (`RN-R5`): one entry per branch of a fan-out. */
   nodes: Record<string, NodeRun>;
-  /** Keyed by fanout id, one entry per region entered. */
-  regions: Record<string, RegionRun>;
+  /**
+   * **Keyed by the opener's node id and THEN by the opener's own `branchPath`** —
+   * one entry per region INSTANCE entered
+   * ([ADR 0062](../../doc/decisions/0062-a-region-instance-is-its-opener-and-the-openers-own-branch-path.md),
+   * [W84](../../doc/work-items/w84-what-a-regions-identity-is.md)).
+   *
+   * **Two levels rather than one, because a `map` enters one opener N times.**
+   * Until W84 this was `Record<string, RegionRun>` and a region's identity was its
+   * opener's node id alone, which is total only while no opener is entered twice —
+   * a property [W33](../../doc/work-items/w33-a-map-at-run-time-arity.md) held by
+   * REFUSING a region inside a map region at `Driver` construction. That refusal is
+   * lifted here and this shape is what replaces it: instance 2 gets its own entry
+   * instead of discarding instance 1's.
+   *
+   * **The outer key is unchanged in meaning and in value**, so `regions.split` is
+   * still the `split` region and every existing flow's ids are the ids they were;
+   * what an existing reader gains is one more `[path]` before the fields. At top
+   * level that path is `'-'`, so `regions.split['-']` is the depth-1 shape.
+   *
+   * **No composite string anywhere.** `"split@1"` was built and run: it keeps this
+   * one level and costs **twelve measured silent failure modes**, because a
+   * mis-derived composite is a string a lookup simply misses. A nested record
+   * fails at the typechecker instead.
+   */
+  regions: Record<string, Record<string, RegionRun>>;
   /** How each path ended, in order. What separates `completed` from `failed`. */
   pathEnds: { reason: 'end' | 'no-eligible-edge'; at: string }[];
   /** Set when a refusal terminated the run (`OR-R10`, `RN-R8`). */
@@ -84,7 +107,8 @@ export interface RunState {
 /**
  * There is no `flowId` and no `regions[*].joinId`, and both were in the first
  * draft of `spec/run-state.md`. **Neither is derivable from the fold's input** —
- * no record carries a flow id and `RegionEvent` carries only `regionId` — so
+ * no record carries a flow id, and `RegionEvent` carries `regionId` and (since
+ * W84) `regionPath` and no join id — so
  * either they came from outside, which `RN-R4` forbids, or they were `''`
  * forever, which the first implementation did. The spec now says so rather than
  * the code quietly dropping them; a caller that wants either reads the definition,
@@ -155,10 +179,10 @@ export type FoldInput =
    * It carries no verdict. `joined` stays `null` until a `joinSettled` says
    * otherwise, which is `RN-R11` untouched.
    */
-  | { kind: 'regionEntered'; regionId: string }
+  | { kind: 'regionEntered'; regionId: string; regionPath: string }
   | { kind: 'dispatched'; taskId: string }
   | { kind: 'pathEnded'; reason: 'end' | 'no-eligible-edge'; at: string }
-  | { kind: 'joinSettled'; regionId: string; joinId: string; fired: boolean }
+  | { kind: 'joinSettled'; regionId: string; regionPath: string; joinId: string; fired: boolean }
   | { kind: 'stopped'; reason: string };
 
 export function emptyState(): RunState {
@@ -205,18 +229,18 @@ export function step(prev: RunState, input: FoldInput): RunState {
     // *(This read "`??` is what makes it so" and there is no `??` in the arm - the
     // behaviour is right and the explanation pointed at a line that does not exist.
     // W33's conformity reader.)*
-    if (prev.regions[input.regionId]) return prev;
+    if (prev.regions[input.regionId]?.[input.regionPath]) return prev;
     return withOutcome({
       ...prev,
-      regions: { ...prev.regions, [input.regionId]: emptyRegion() },
+      regions: withRegion(prev.regions, input.regionId, input.regionPath, emptyRegion()),
     });
   }
 
   if (input.kind === 'joinSettled') {
-    const cur = prev.regions[input.regionId] ?? emptyRegion();
+    const cur = prev.regions[input.regionId]?.[input.regionPath] ?? emptyRegion();
     return withOutcome({
       ...prev,
-      regions: { ...prev.regions, [input.regionId]: { ...cur, joined: input.fired } },
+      regions: withRegion(prev.regions, input.regionId, input.regionPath, { ...cur, joined: input.fired }),
     });
   }
 
@@ -255,11 +279,39 @@ function emptyRegion(): RegionRun {
   return { opened: [], settled: {}, suspended: [], joined: null };
 }
 
+/**
+ * **One region instance replaced, with the outer level copied rather than
+ * mutated** — `step` returns a new state and never touches the one it was given
+ * (`RN-R2`), and a two-level record has two levels to copy. Written once so the
+ * three arms that write a region cannot disagree about which of them they copy.
+ */
+function withRegion(
+  regions: Record<string, Record<string, RegionRun>>,
+  regionId: string,
+  regionPath: string,
+  run: RegionRun,
+): Record<string, Record<string, RegionRun>> {
+  return { ...regions, [regionId]: { ...regions[regionId], [regionPath]: run } };
+}
+
+/**
+ * **Every region INSTANCE in the state, flattened.**
+ *
+ * `RN-R10` and the nothing-yet guard both quantify over region **instances** and
+ * not over openers: with `regions` two-level since W84, one opener can carry N of
+ * them and a walk over `Object.values(s.regions)` would be iterating the inner
+ * RECORDS rather than the runs. The flatten lives here, once, so the two walks
+ * cannot drift — which is the shape `src/definition/regions.ts`'s own header
+ * gives for the four set definitions, and for the same reason.
+ */
+function allRegionRuns(s: RunState): RegionRun[] {
+  return Object.values(s.regions).flatMap((byPath) => Object.values(byPath));
+}
+
 function applyRegion(prev: RunState, e: RegionEvent): RunState {
-  const regions = { ...prev.regions };
-  const cur: RegionRun = regions[e.regionId]
-    ? { ...regions[e.regionId]!, opened: [...regions[e.regionId]!.opened],
-        settled: { ...regions[e.regionId]!.settled }, suspended: [...regions[e.regionId]!.suspended] }
+  const at = prev.regions[e.regionId]?.[e.regionPath];
+  const cur: RegionRun = at
+    ? { ...at, opened: [...at.opened], settled: { ...at.settled }, suspended: [...at.suspended] }
     : emptyRegion();
 
   switch (e.type) {
@@ -285,8 +337,7 @@ function applyRegion(prev: RunState, e: RegionEvent): RunState {
       cur.suspended = cur.suspended.filter((b) => b !== e.branchPath);
       break;
   }
-  regions[e.regionId] = cur;
-  return { ...prev, regions };
+  return { ...prev, regions: withRegion(prev.regions, e.regionId, e.regionPath, cur) };
 }
 
 /** Section 3's precedence, in one place so `RN-R7` and `RN-R8` cannot disagree with each other. */
@@ -329,7 +380,7 @@ function withOutcome(s: RunState): RunState {
   // claims its predicate at a **quiescent point** and not at every prefix — the
   // qualification the test beside that one calls load-bearing — so this is inside
   // what that rule already says, and it is recorded rather than left to be found.
-  const openedNothing = Object.values(s.regions).some((r) => r.opened.length === 0 && r.joined !== true);
+  const openedNothing = allRegionRuns(s).some((r) => r.opened.length === 0 && r.joined !== true);
   if (nodes.length === 0 && s.pathEnds.length === 0 && !openedNothing) {
     return { ...s, outcome: 'running' };
   }
@@ -348,7 +399,7 @@ function withOutcome(s: RunState): RunState {
   // because `failed` is a flow outcome an author asked for (a path ended with no
   // eligible edge) while this is a defect nobody asked for: reporting `failed`
   // would name a cause and hide that the run is not going to terminate.
-  if (Object.values(s.regions).some((r) => r.joined !== true)) return { ...s, outcome: 'stuck' };
+  if (allRegionRuns(s).some((r) => r.joined !== true)) return { ...s, outcome: 'stuck' };
 
   // Section 3's own words, and not "some node settled failed" — which is a
   // different proposition, and mislabels a failed node that ROUTED ON through an

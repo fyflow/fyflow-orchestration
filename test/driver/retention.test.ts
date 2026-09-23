@@ -106,15 +106,24 @@ type H = ReturnType<typeof harness>;
 
 /**
  * **The one reach into the driver, named once** — see the header. The shape is
- * `Map<fanoutId, Map<branchPath, payload>>`, which is the field's own declaration.
+ * `Map<fanoutId, Map<openerPath, Map<branchPath, payload>>>`, which is the field's
+ * own declaration.
+ *
+ * **THREE levels since W84, and the middle one is the region INSTANCE** (ADR 0062):
+ * a `map` can enter one opener N times, so a collection is per instance and not per
+ * opener. *This cast is why this file was one of the four a typechecker did not name
+ * when the shape moved* — a reach that RESTATES the shape it reaches into compiles
+ * against its own restatement, so the drift shows up as a wrong NUMBER at L1 rather
+ * than as an error at L0. It is still the right reach (the alternative is a public
+ * accessor for a private field), and the cost is now written where the cast is.
  */
-const arrivalsOf = (d: Driver): Map<string, Map<string, unknown>> =>
-  (d as unknown as { arrivals: Map<string, Map<string, unknown>> }).arrivals;
+const arrivalsOf = (d: Driver): Map<string, Map<string, Map<string, unknown>>> =>
+  (d as unknown as { arrivals: Map<string, Map<string, Map<string, unknown>>> }).arrivals;
 
-/** How many arrival entries the driver is holding, across every region. */
+/** How many arrival entries the driver is holding, across every region INSTANCE. */
 const heldArrivals = (d: Driver): number => {
   let n = 0;
-  for (const [, m] of arrivalsOf(d)) n += m.size;
+  for (const [, byPath] of arrivalsOf(d)) for (const [, m] of byPath) n += m.size;
   return n;
 };
 
@@ -473,7 +482,7 @@ suite(SUITE, (test) => {
       'RN-R10 — a joinSettled with fired:false gives the region joined:false, and nothing ' +
       'downstream of the join is ever dispatched. The release did not change that',
     );
-    equal(state.regions['split']?.joined, false,
+    equal(state.regions['split']?.['-']?.joined, false,
       'RN-R11 — `false` means a policy reported it unsatisfiable, which is this row`s whole shape',
     );
   });

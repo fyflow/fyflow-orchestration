@@ -311,7 +311,8 @@ suite('W73 — constructed shapes: needs, a fan-out`s record, a map`s arity, the
   });
 
   test('a region INSIDE a map region — a fan-out in a map branch, a map in a map, a fan-out through a task in a map — gets verdicts and no throw (the conformity reader`s two documents)', async () => {
-    // Shapes the validator accepts and the driver refuses at construction (Q160); the check is static
+    // Shapes the validator accepts and the driver REFUSED at construction until W84, which lifted that
+    // (ADR 0062, Q160) — so these run now, and the reason this test exists is unchanged: the check is static
     // and must answer. Derived: every arc fits — the items are `B`'s shape and every consumer accepts an object.
     const A: JsonSchema = { type: 'object', required: ['items'], properties: { items: { type: 'array', items: { type: 'object', required: ['x'], properties: { x: { type: 'integer' } } } } }, additionalProperties: false, examples: [{ items: [{ x: 1 }, { x: 2 }] }] };
     const B: JsonSchema = { type: 'object', required: ['x'], properties: { x: { type: 'integer' } }, additionalProperties: false, examples: [{ x: 1 }] };

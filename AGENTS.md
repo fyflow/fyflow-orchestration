@@ -638,7 +638,10 @@ branch actually arrived. On a flow where every branch is routed away, `liveToken
 branch reached** and carries **`{}`** onward — an empty collection, which is what a join with no
 arrivals has to say; this one instead reports the join as unfireable — through
 `onUnsatisfiableJoin`, with the policy's own state, and the run folds to **`stuck`** with
-`regions[…].joined === false` whether or not you registered that callback.
+`regions[…][…].joined === false` whether or not you registered that callback — **two subscripts**,
+because `RunState.regions` is keyed by a region's opener and then by that opener's own `branchPath`
+([ADR 0062](doc/decisions/0062-a-region-instance-is-its-opener-and-the-openers-own-branch-path.md)).
+A region whose opener is at top level has one entry, at `'-'`.
 
 ```ts run
 import {
@@ -647,11 +650,14 @@ import {
 } from 'fyflow-orchestration';
 
 const region: Region = { fanoutId: 'split', joinId: 'collect', branches: ['a', 'b'], members: [] };
+// `regionPath` is the OPENER'S own branchPath, so the pair (regionId, regionPath)
+// names ONE region instance — `'-'` here because `split` opens at top level. A map
+// enters one opener once per item, so its node id alone stopped naming one region.
 const everyBranchExits: RegionEvent[] = [
-  { type: 'branch.opened', regionId: 'split', branchPath: '0' },
-  { type: 'branch.opened', regionId: 'split', branchPath: '1' },
-  { type: 'branch.exited', regionId: 'split', branchPath: '0', at: 'stop' },
-  { type: 'branch.exited', regionId: 'split', branchPath: '1', at: 'stop' },
+  { type: 'branch.opened', regionId: 'split', regionPath: '-', branchPath: '0' },
+  { type: 'branch.opened', regionId: 'split', regionPath: '-', branchPath: '1' },
+  { type: 'branch.exited', regionId: 'split', regionPath: '-', branchPath: '0', at: 'stop' },
+  { type: 'branch.exited', regionId: 'split', regionPath: '-', branchPath: '1', at: 'stop' },
 ];
 
 function verdict<S>(policy: JoinPolicy<S>, events: RegionEvent[]) {
@@ -1064,7 +1070,7 @@ const dispatched = (taskId: string): FoldInput => ({ kind: 'dispatched', taskId 
 const ended = (reason: 'end' | 'no-eligible-edge'): FoldInput =>
   ({ kind: 'pathEnded', reason, at: 'x' });
 const openJoin: FoldInput =
-  { kind: 'joinSettled', regionId: 'split', joinId: 'collect', fired: false };
+  { kind: 'joinSettled', regionId: 'split', regionPath: '-', joinId: 'collect', fired: false };
 
 // Each row adds ONE input to the row below it and must outrank it. Read downwards:
 // this is the precedence table, executed.

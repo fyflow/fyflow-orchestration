@@ -271,9 +271,11 @@ suite('JP-R5 — the region event stream', (test) => {
     // `spec/join-policy.md` so the next reader does not mistake it for coverage.
     equal(h.ids().slice(1, 3), ['r1:scoreA:0:0', 'r1:scoreB:1:0'], 'branch index is the third id segment');
 
-    equal(h.events.at(-1), { type: 'branch.arrived', regionId: 'split', branchPath: '0' }, 'branch 0 arrives');
+    equal(h.events.at(-1), { type: 'branch.arrived', regionId: 'split', regionPath: '-', branchPath: '0' },
+      'branch 0 arrives');
     h.scheduler.settle('r1:scoreB:1:0', 'done', { result: {} });
-    equal(h.events.at(-1), { type: 'branch.arrived', regionId: 'split', branchPath: '1' }, 'branch 1 arrives');
+    equal(h.events.at(-1), { type: 'branch.arrived', regionId: 'split', regionPath: '-', branchPath: '1' },
+      'branch 1 arrives');
     equal(h.events.filter((e) => e.type === 'branch.arrived').length, 2, 'exactly two arrivals');
   });
 
@@ -402,7 +404,7 @@ suite('the join seam — the driver asks a policy and acts on the answer', (test
     h.scheduler.settle('r1:scoreA:0:0', 'done', { result: {} });
     equal(h.unsatisfiable.length, 1, 'the driver reports it');
     equal(h.unsatisfiable[0],
-      { fanoutId: 'split', joinId: 'collect', describe: { why: 'test' }, policyId: 'dead' },
+      { fanoutId: 'split', regionPath: '-', joinId: 'collect', describe: { why: 'test' }, policyId: 'dead' },
       "and carries the policy's own account — the run-level outcome is W2's (Q25), not this file's");
     equal(h.ids().includes('r1:publish:-:0'), false, 'and does not route out of the join');
   });
@@ -686,7 +688,7 @@ suite('ADR 0004 — user_action suspends, and a resolution resumes the path', (t
     equal(h.ids().length, before, 'a suspended node dispatches nothing');
     equal(
       h.events.at(-1),
-      { type: 'branch.suspended', regionId: 'split', branchPath: '1', at: 'reviewB' },
+      { type: 'branch.suspended', regionId: 'split', regionPath: '-', branchPath: '1', at: 'reviewB' },
       'branch.suspended is NOT terminal — a join waiting on a person is not stuck (Q7)',
     );
     equal(h.driver.snapshot().filter((r) => r.taskId === susp).length, 1,
@@ -699,7 +701,8 @@ suite('ADR 0004 — user_action suspends, and a resolution resumes the path', (t
     h.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
     h.scheduler.settle(susp, 'user_action', { error: 'needs a human' });
     equal(h.driver.resolve(susp, 'failed', { error: 'gave up', actor: 'ops:sam' }), true, 'a suspended task resolves');
-    equal(h.events.at(-1), { type: 'branch.exited', regionId: 'split', branchPath: '1', at: 'droppedB' },
+    equal(h.events.at(-1),
+      { type: 'branch.exited', regionId: 'split', regionPath: '-', branchPath: '1', at: 'droppedB' },
       'the human giving up routes down the failure edge to an `end` — the only road a non-optional ' +
       'node has to an on:["failed"] edge');
   });

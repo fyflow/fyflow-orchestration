@@ -23,7 +23,7 @@
  */
 import { deepEqual, equal, ok, suite } from '../harness.ts';
 import { readText, ROOT } from '../harness.ts';
-import { Driver, InvalidDefinition, UnresolvedMapArity } from '../../src/driver/driver.ts';
+import { Driver, UnresolvedMapArity } from '../../src/driver/driver.ts';
 import { validateDefinition } from '../../src/definition/validate.ts';
 import { arrivalCount, liveToken, liveTokenRequiringArrival, POLICIES } from '../../src/fold/policies.ts';
 import { fold, isTerminal } from '../../src/fold/run-state.ts';
@@ -104,6 +104,26 @@ function drain(h: H, result: unknown): void {
 
 const THREE = { items: ['a', 'b', 'c'], rows: ['x', 'y'] };
 
+/**
+ * **The driver's own collections, by region INSTANCE** — `Map<fanoutId,
+ * Map<openerPath, Map<branchPath, payload>>>` since W84 (ADR 0062). The reach is
+ * `test/driver/retention.test.ts`'s and is here for the same reason: the alternative
+ * is a public accessor for a private field, which enlarges the surface for a test's
+ * convenience ([Q53](../../doc/open-questions.md)).
+ */
+const arrivalsOf = (d: Driver): Map<string, Map<string, Map<string, unknown>>> =>
+  (d as unknown as { arrivals: Map<string, Map<string, Map<string, unknown>>> }).arrivals;
+
+/**
+ * **What an INNER join carried, read where it lands.** A `join` node dispatches no
+ * task, so an inner join's collection is not a payload on the wire — it is what that
+ * branch carries into the ENCLOSING region, and so it is the enclosing region's
+ * arrival for that branch. Reading it there is reading the value `JP-R12` produced,
+ * one hop on, rather than reconstructing it.
+ */
+const carriedInto = (h: H, outerId: string, outerPath: string, branchPath: string): unknown =>
+  arrivalsOf(h.driver).get(outerId)?.get(outerPath)?.get(branchPath);
+
 suite('L2 — a map dispatches one task per item, at an arity no document carries', (test) => {
   test('three items become three distinct task ids, indexed by ITEM', async () => {
     const h = harness(await load('valid/map-fanout.flow.json'));
@@ -170,8 +190,8 @@ suite('L2 — a map dispatches one task per item, at an arity no document carrie
       'the join routes out exactly once, and its successor is in no region so its path is `-`');
     const s = fold(h.driver.foldInputs());
     equal(s.outcome, 'completed', '');
-    equal(s.regions['split']!.joined, true, 'RN-R11 — the driver routed out of the join');
-    equal(s.regions['split']!.settled, { 0: 'arrived', 1: 'arrived', 2: 'arrived' },
+    equal(s.regions['split']!['-']!.joined, true, 'RN-R11 — the driver routed out of the join');
+    equal(s.regions['split']!['-']!.settled, { 0: 'arrived', 1: 'arrived', 2: 'arrived' },
       'RN-R6 — one entry per branch the region opened, keyed by the run-time path');
   });
 
@@ -184,7 +204,7 @@ suite('L2 — a map dispatches one task per item, at an arity no document carrie
       'DOTTED shape spec/task-id.md section 1 reserved — the outer segment derived from the ' +
       'graph and the inner one supplied by the run');
     const s = fold(h.driver.foldInputs());
-    equal([s.regions['outer']!.joined, s.regions['perItem']!.joined], [true, true],
+    equal([s.regions['outer']!['-']!.joined, s.regions['perItem']!['1']!.joined], [true, true],
       'both joins fired: ADR 0030s transitivity, with one of the two regions now a map');
     equal(s.outcome, 'completed', '');
   });
@@ -199,7 +219,7 @@ suite('L2 — a map dispatches one task per item, at an arity no document carrie
     h.driver.start({});
     drain(h, THREE);
     const entered = h.driver.foldInputs().filter((i) => i.kind === 'regionEntered');
-    equal(entered, [{ kind: 'regionEntered', regionId: 'split' }],
+    equal(entered, [{ kind: 'regionEntered', regionId: 'split', regionPath: '-' }],
       'exactly one, for the one region, from the FANOUT arm -- not only from the map arm');
 
     // And it precedes every event for that region, because it is appended beside
@@ -727,7 +747,7 @@ suite('L2 — arrival-count at a run-time arity does not fire EARLY', (test) => 
       h.driver.start({});
       drain(h, THREE);
       const s = fold(h.driver.foldInputs());
-      equal([id, s.outcome, s.regions['split']!.joined], [id, 'completed', true],
+      equal([id, s.outcome, s.regions['split']!['-']!.joined], [id, 'completed', true],
         `${id} — a map whose branches all arrive is the all-arrived row at a run-time arity, ` +
         'and section 3s three rows all say satisfied for it');
       // Policy-DEPENDENT, so the loop cannot be run three times on one policy: each
@@ -779,7 +799,7 @@ suite('L2 — arrival-count at a run-time arity does not fire EARLY', (test) => 
       const rest = h.ids().find((i) => i.startsWith('r1:publish'));
       if (rest) h.scheduler.settle(rest, 'done', { result: {} });
       const s = fold(h.driver.foldInputs());
-      equal(s.regions['split']!.settled, { 0: 'arrived', 1: 'exited', 2: 'arrived' },
+      equal(s.regions['split']!['-']!.settled, { 0: 'arrived', 1: 'exited', 2: 'arrived' },
         `${id} — RN-R6: two arrived and one reached an end node, whichever policy is running`);
       equal(s.outcome, expected,
         `${id} — P1s case at an arity nothing declared. live-token decrements on exited and ` +
@@ -835,10 +855,10 @@ suite('L2 — a map of ZERO items', (test) => {
       equal(h.ids(), ['r1:ingest:-:0'], `${id} — nothing is dispatched`);
       equal(h.events, [], `${id} — and no branch event exists to describe, because no branch opened`);
       const s = fold(h.driver.foldInputs());
-      ok(s.regions['split'] !== undefined,
+      ok(s.regions['split']?.['-'] !== undefined,
         `${id} — the region is PRESENT: spec/run-state.mds shape says "one entry per fan-out ` +
         'region ENTERED", and it was entered');
-      equal([s.regions['split']!.opened, s.regions['split']!.joined], [[], null],
+      equal([s.regions['split']!['-']!.opened, s.regions['split']!['-']!.joined], [[], null],
         `${id} — entered, nothing opened, and the join neither fired nor was declared dead`);
       equal(s.outcome, 'stuck',
         `${id} — RN-R10. The join can never fire, which is ADR 0015s own definition, and all ` +
@@ -1008,10 +1028,17 @@ suite('L2 — `over` must name an array, and that is a RUN-TIME refusal', (test)
         `${id} — the branch holding the empty map is LOST, which is what JP-R10 says a join ` +
         'that can never fire does to the branch it sits in');
       const s = fold(h.driver.foldInputs());
-      const opened = s.regions['outer']!.opened;
-      equal(opened.filter((b) => !(b in s.regions['outer']!.settled)), [],
+      // **Both regions named by the INSTANCE, and the two instances differ in their
+      // path** — W84. `outer` opens at top level, so its instance is `'-'`; `perItem`
+      // opens inside `outer`'s branch `1`, so its instance is `'1'`. Derived from the
+      // document on paper, not read back from the state.
+      const opened = s.regions['outer']!['-']!.opened;
+      equal(opened.filter((b) => !(b in s.regions['outer']!['-']!.settled)), [],
         `${id} — JP-R5: every branch opened has exactly one terminal event`);
-      equal(s.regions['perItem']!.joined, null,
+      equal(Object.keys(s.regions['perItem']!), ['1'],
+        `${id} — the nested map region is keyed by its OPENER'S OWN PATH, which is 1 ` +
+        'because perItem sits in branch 1 of outer (ADR 0062)');
+      equal(s.regions['perItem']!['1']!.joined, null,
         `${id} — and the empty region is NOT reported dead: RN-R11 gives false the meaning ` +
         '"a policy said unsatisfiable", and none did. Q97 is where the reason lives');
       equal(s.outcome, 'stuck', `${id} — the inner join never fired, so RN-R10 holds`);
@@ -1032,7 +1059,7 @@ suite('L2 — `over` must name an array, and that is a RUN-TIME refusal', (test)
     equal(lost.events.map((e) => `${e.type.replace('branch.', '')} ${e.branchPath}`),
       ['opened 0', 'opened 1', 'lost 0', 'arrived 1'],
       'branch.lost carries the ITEM INDEX, not the declared branch index');
-    equal(fold(lost.driver.foldInputs()).regions['split']!.settled, { 0: 'lost', 1: 'arrived' },
+    equal(fold(lost.driver.foldInputs()).regions['split']!['-']!.settled, { 0: 'lost', 1: 'arrived' },
       'RN-R6 records it per item');
 
     const res = harness(await load('valid/map-fanout.flow.json'));
@@ -1121,13 +1148,18 @@ suite('L2 — `over` must name an array, and that is a RUN-TIME refusal', (test)
   });
 });
 
-suite('L2 — a region opener INSIDE a map region is refused at construction', (test) => {
-  // **W33's conformity reader, and it is ADR 0036's own central finding one layer
-  // down.** The ADR decided *two features* because `branchOf` is keyed by branch
-  // NODE ID and collapses repeated entries; every piece of per-region RUN-TIME state
-  // in the driver is keyed the same way — `joinState`, `firedJoins`,
-  // `RegionEvent.regionId`, the fold's `regions` — and a map is the first construct
-  // that enters one opener node MORE THAN ONCE in a run.
+suite('L2 — a region opener INSIDE a map region RUNS, keyed by the INSTANCE', (test) => {
+  // **W33 REFUSED this shape at construction and W84 lifts the refusal**
+  // ([ADR 0062](../../doc/decisions/0062-a-region-instance-is-its-opener-and-the-openers-own-branch-path.md),
+  // [Q160](../../doc/open-questions.md), [Q156](../../doc/open-questions.md)).
+  //
+  // A `map` is the first construct that enters one opener node MORE THAN ONCE in a
+  // run, and every per-region run-time structure was keyed by that node's id alone —
+  // `joinState`, `firedJoins`, `arrivals`, `RegionEvent.regionId`, the fold's
+  // `regions`. The key is the PAIR now, so instance 2 gets its own everything.
+  //
+  // **This is the discriminating fixture and it is the one shape that did not exist
+  // before**: `f2` opens inside `split`'s branch, so `f2` has one instance per item.
   const nestedInMap = {
     flowId: 'fanout-in-map', version: 1, entry: 'ingest',
     nodes: [
@@ -1144,50 +1176,412 @@ suite('L2 — a region opener INSIDE a map region is refused at construction', (
     ],
   } as unknown as FlowDefinition;
 
-  test('the VALIDATOR accepts it, which is why the driver has to refuse it', () => {
-    // Stated first because it is the whole reason this is a driver refusal: the
-    // definition is well-formed by every rule `spec/flow-definition.md` declares.
+  test('the VALIDATOR accepts it, and since W84 so does the DRIVER', () => {
+    // Stated first because it is why this was ever a DRIVER refusal: the definition
+    // is well-formed by every rule `spec/flow-definition.md` declares, and always
+    // was. What changed is the driver, not the grammar — no `FD-V` was added and
+    // none was removed.
     const registry = { predicates: [], workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools };
     equal(validateDefinition(nestedInMap, registry), [],
       'zero findings — a map`s branch may be a task with edges, and FD-V25 says nothing ' +
       'about what those edges reach');
-  });
-
-  test('constructing a Driver on it is REFUSED, and the refusal names both nodes', () => {
     let threw: unknown = null;
     try {
       harness(nestedInMap);
     } catch (e) { threw = e; }
-    ok(threw instanceof InvalidDefinition,
-      'InvalidDefinition — the document names a structure this driver cannot execute, which is ' +
-      'what that class already means. P10 decision 4 spends its one new class on UnresolvedMapArity');
-    const m = (threw as Error).message;
-    ok(m.includes('"split"'), 'it names the MAP region');
-    ok(m.includes('"f2"'), 'and the opener inside it, so a reader knows which pair');
-    ok(m.includes('Q156'), 'and points at the open question rather than implying a decision');
+    equal(threw, null,
+      'and constructing a Driver on it no longer throws — W33`s check is GONE rather than ' +
+      'conditioned, so `map`-in-`map` and `fanout`-in-`map` are the same case (ADR 0062 rule 4)');
   });
 
-  test('what it would have DONE, recorded as the measurement the refusal rests on', () => {
-    // Kept as a comment rather than as a run, because the refusal now prevents it —
-    // which is the point. Measured before the refusal existed, on the definition
-    // above, with every one of its seven tasks settling `done`:
+  test('a fanout inside a map: N instances of ONE opener, each with its own join', () => {
+    const h = harness(nestedInMap);
+    h.driver.start({});
+    drain(h, THREE);
+
+    // Derived from `spec/task-id.md` section 1 before the run: the map segment is the
+    // item index and the fanout segment follows it, innermost last.
+    equal(h.ids(), [
+      'r1:ingest:-:0',
+      'r1:lead:0:0', 'r1:lead:1:0', 'r1:lead:2:0',
+      'r1:p:0.0:0', 'r1:q:0.1:0',
+      'r1:p:1.0:0', 'r1:q:1.1:0',
+      'r1:p:2.0:0', 'r1:q:2.1:0',
+      'r1:publish:-:0',
+    ], 'three items, each opening its own two-branch fanout, then one publish after the outer join');
+
+    const s = fold(h.driver.foldInputs());
+    equal(s.outcome, 'completed',
+      'W33 measured the SAME SEVEN-NODE CHAIN reporting `stuck` with all seven of its tasks done, ' +
+      'because instance 2`s open() discarded instance 1`s state and `firedJoins` made its join ' +
+      'unreachable. That is what the key fixes. (This flow adds publish/done and runs at THREE ' +
+      'items, so it dispatches eleven tasks, not seven — the MECHANISM is W33`s and the count is ' +
+      'not: W84`s conformity reader, finding 12)');
+
+    // **THE ASSERTION THE KEY EXISTS FOR.** One opener, THREE instances, each with
+    // its own opened/settled/joined — derived from the document, not read back.
+    equal(Object.keys(s.regions).sort(), ['f2', 'split'],
+      'two OPENERS, and the outer key is still the opener`s node id and nothing else — a join is ' +
+      'not an opener and does not appear here (ADR 0062 rule 3)');
+    equal(Object.keys(s.regions['f2']!).sort(), ['0', '1', '2'],
+      'THREE instances of ONE opener, keyed by the opener`s own branchPath — which inside a map ' +
+      'region is the ITEM INDEX (ADR 0036). Before W84 there was one entry here and it held all ' +
+      'six branch paths of three separate regions');
+    equal(Object.keys(s.regions['split']!), ['-'],
+      'and the map itself opens at top level, so it has exactly ONE instance at `-`');
+
+    for (const i of ['0', '1', '2']) {
+      equal(s.regions['f2']![i]!.opened, [`${i}.0`, `${i}.1`],
+        `f2@${i}: its own two branches and no others`);
+      equal(s.regions['f2']![i]!.settled, { [`${i}.0`]: 'arrived', [`${i}.1`]: 'arrived' },
+        `f2@${i}: both arrived at ITS join`);
+      equal(s.regions['f2']![i]!.joined, true,
+        `f2@${i}: its OWN join fired — three joins fired, not one. This is the clause ` +
+        '`firedJoins` keyed by node id made false for two of the three');
+    }
+    equal(s.regions['split']!['-']!.settled, { '0': 'arrived', '1': 'arrived', '2': 'arrived' },
+      'and every branch of the map arrived at the outer join');
+    equal(s.regions['split']!['-']!.joined, true, 'which fired');
+  });
+
+  test('every region EVENT this run emits carries the instance, and the PAIR is what discriminates', () => {
+    const h = harness(nestedInMap);
+    h.driver.start({});
+    drain(h, THREE);
+
+    // `regionId` is UNCHANGED in value — ADR 0062 rule 3 — so the opener ids here are
+    // the same strings W33 recorded. What is new is the second field beside them.
     //
-    //   ids     r1:ingest:-:0 r1:lead:0:0 r1:lead:1:0 r1:p:0.0:0 r1:q:0.1:0 r1:p:1.0:0 r1:q:1.1:0
-    //   outcome stuck
-    //   split   {opened:["0","1"], settled:{"0":"arrived"},        joined:null}
-    //   f2      {opened:["0.0","0.1","1.0","1.1"], settled:{all four}, joined:true}
+    // **TWO of the six variants, not six** — W84's conformity reader, finding 11. An
+    // all-arriving run emits `branch.opened` and `branch.arrived` and nothing else;
+    // `.exited`, `.lost`, `.suspended` and `.resumed` carry `regionPath` BY TYPE and
+    // are driven nowhere under nesting. That is exactly P22 fact 5's measured gap and
+    // it is **W85's**, which takes the three branch-exit paths as assertions. Recorded
+    // rather than implied by a title.
+    equal([...new Set(h.events.map((e) => e.regionId))].sort(), ['f2', 'split'],
+      'regionId still names the OPENER and nothing else: it did not become a composite');
+    equal([...new Set(h.events.map((e) => `${e.regionId}@${e.regionPath}`))].sort(),
+      ['f2@0', 'f2@1', 'f2@2', 'split@-'],
+      'and the PAIR names four region instances — the discrimination `regionId` alone lost');
+
+    // Every `f2` event's own branchPath must begin with its instance's path, because
+    // an instance's branches are inside it. A mis-keyed emit fails here rather than
+    // silently attributing a branch to the wrong join.
     //
-    // `open(f2)` ran twice and the second call DISCARDED instance 0's live count;
-    // `firedJoins.add('f2')` after instance 0 fired made instance 1's join
-    // unreachable; `split` branch 1 ended with NO terminal event; and two regions
-    // merged into one fold entry. Every task succeeded and the run was `stuck`.
-    ok(true, 'this case cannot be run any more, which is the assertion above');
+    // **Each loop CARRIES ITS COUNT** — W84's adequacy reader, finding 5. The runner
+    // counts `test()` cases and not assertions ([Q98](../../doc/open-questions.md)),
+    // so narrowing either filter to a name no event carries emptied the loop and cost
+    // **ZERO**: two real properties with no observer, for one token. The count is
+    // derived from the fixture on paper — three instances x (2 opened + 2 arrived) for
+    // `f2`, and 3 opened + 3 arrived for `split`.
+    let f2Events = 0;
+    for (const e of h.events) {
+      if (e.regionId !== 'f2') continue;
+      f2Events++;
+      ok(e.branchPath.startsWith(`${e.regionPath}.`),
+        `every branch of f2@${e.regionPath} sits under it: got ${e.branchPath}`);
+    }
+    equal(f2Events, 12, 'and TWELVE f2 events were looked at — three instances, two branches each, ' +
+      'opened and arrived. An empty loop asserts nothing and the runner cannot see one');
+    let splitEvents = 0;
+    for (const e of h.events) {
+      if (e.regionId !== 'split') continue;
+      splitEvents++;
+      equal(e.regionPath, '-', 'the map opens at top level, in every one of its events');
+    }
+    equal(splitEvents, 6, 'and SIX split events — three items opened, three arrived');
+  });
+
+  test('joinStatusOf names the instance, and refuses to guess when there are N', () => {
+    const h = harness(nestedInMap);
+    h.driver.start({});
+    h.scheduler.settle('r1:ingest:-:0', 'done', { result: THREE });
+    h.scheduler.settle('r1:lead:0:0', 'done', { result: {} });
+    h.scheduler.settle('r1:lead:1:0', 'done', { result: {} });
+    h.scheduler.settle('r1:lead:2:0', 'done', { result: {} });
+    h.scheduler.settle('r1:p:0.0:0', 'done', { result: {} });
+
+    // Three instances are open, so there is no SOLE one to report and the bare form
+    // says nothing rather than saying one of three — W84, and the same rule the
+    // two-level `arrivals` follows.
+    equal(h.driver.joinStatusOf('f2'), null,
+      'with N instances and no path there is no sole instance: answering would make the reply ' +
+      'depend on which instance the driver entered first, which is dispatch order');
+    equal(h.driver.joinStatusOf('f2', '0')?.describe, { live: 1, positive: true },
+      'named, f2@0 reports ITS OWN count — one of its two branches has arrived');
+    equal(h.driver.joinStatusOf('f2', '1')?.describe, { live: 2, positive: true },
+      'and f2@1 reports its own, untouched by f2@0 firing. Before W84 one state served both');
+    equal(h.driver.joinStatusOf('split')?.describe, { live: 3, positive: true },
+      'while the map, having exactly ONE instance, still answers to the bare form — which is ' +
+      'what keeps every pre-W84 caller working (ADR 0062 rule 3)');
+  });
+
+
+  test('TWO instances hold their collections AT ONCE, and each join reads its own', () => {
+    // **The shape every other case in this file could not reach, and rule 8's set is
+    // what found that.** `drain` settles in dispatch order, so instance k's join
+    // fires and RELEASES before instance k+1's branches arrive — and while only one
+    // collection is ever live, *read the instance being settled* and *read the
+    // opener's first instance* are the same expression. Two probes survived on that:
+    // one re-sourcing the read, one making `releaseArrivals` drop the opener's whole
+    // entry.
+    //
+    // So the settlements are INTERLEAVED by hand: f2@0 and f2@1 each hold one
+    // arrival at the same instant, and only then does either join fire.
+    const h = harness(nestedInMap);
+    h.driver.start({});
+    h.scheduler.settle('r1:ingest:-:0', 'done', { result: THREE });
+    for (const i of [0, 1, 2]) h.scheduler.settle(`r1:lead:${i}:0`, 'done', { result: { i } });
+
+    // One branch of each of the first two instances. Neither join can fire yet.
+    h.scheduler.settle('r1:p:0.0:0', 'done', { result: { who: 'p0' } });
+    h.scheduler.settle('r1:p:1.0:0', 'done', { result: { who: 'p1' } });
+    const held = arrivalsOf(h.driver).get('f2');
+    equal([...(held?.keys() ?? [])].sort(), ['0', '1'],
+      'TWO instances of one opener are holding collections at the same instant — which is the ' +
+      'state a release or a read keyed by the OPENER destroys, and which no sequential ' +
+      'settlement can produce');
+    equal([...(held?.get('0')?.keys() ?? [])], ['0.0'], 'f2@0 holds its own branch and only its own');
+    equal([...(held?.get('1')?.keys() ?? [])], ['1.0'], 'and f2@1 holds its own');
+
+    // **Instance 1 closes FIRST, and the order is DERIVED rather than arranged** —
+    // W84's adequacy reader, finding 4. Closing instance 0 first would leave *read the
+    // instance being settled* and *read the opener's FIRST instance* the same
+    // expression, because instance 0 is also the first one inserted; measured, the
+    // order collapsed plus that re-sourcing costs **ZERO at both rungs**. So the
+    // property the pair turns on was a SEQUENCE OF `settle` CALLS and nothing compared
+    // it — W17's `finishedBy` shape, and rule 8's fourth requirement on the set.
+    //
+    // **Asserted from the RUN**: at the instant instance 1's join fires, instance 0
+    // must still hold a non-empty collection AND must be the EARLIER key. Anyone who
+    // tidies the settlements into dispatch order — which is what `drain` does — fails
+    // here naming the order, rather than silently re-opening the defect.
+    const beforeFire = [...(arrivalsOf(h.driver).get('f2')?.entries() ?? [])]
+      .map(([rp, m]) => [rp, m.size] as const);
+    equal(beforeFire, [['0', 1], ['1', 1]],
+      'the instance about to fire is NOT the first key of its opener, and the first key is still ' +
+      'holding — which is what makes reading `values()[0]` a different answer from reading the ' +
+      'instance being settled. Collapse the order and this line says so');
+
+    h.scheduler.settle('r1:q:1.1:0', 'done', { result: { who: 'q1' } });
+    equal(carriedInto(h, 'split', '-', '1'), { '1.0': { who: 'p1' }, '1.1': { who: 'q1' } },
+      'f2@1`s join carries ITS OWN two branches — and it is the SECOND instance firing while ' +
+      'the FIRST still holds a collection, so a read keyed by the opener returns instance 0`s ' +
+      'and this is where it says so');
+    equal([...(arrivalsOf(h.driver).get('f2')?.keys() ?? [])], ['0'],
+      'and the release took instance 1 ALONE: instance 0 still holds what it had, which is ' +
+      'what a release keyed by the opener would have thrown away');
+
+    h.scheduler.settle('r1:q:0.1:0', 'done', { result: { who: 'q0' } });
+    equal(carriedInto(h, 'split', '-', '0'), { '0.0': { who: 'p0' }, '0.1': { who: 'q0' } },
+      'and f2@0`s join carries its own, unaffected by instance 1 having fired and released');
+
+    for (const i of [2]) {
+      h.scheduler.settle(`r1:p:${i}.0:0`, 'done', { result: { who: `p${i}` } });
+      h.scheduler.settle(`r1:q:${i}.1:0`, 'done', { result: { who: `q${i}` } });
+    }
+    equal(arrivalsOf(h.driver).size, 0, 'and every instance released — no key is left at all');
+    h.scheduler.settle('r1:publish:-:0', 'done', { result: {} });
+    equal(fold(h.driver.foldInputs()).outcome, 'completed', 'the run completes under the interleaving too');
+    equal(h.ids().filter((id) => id.startsWith('r1:publish')), ['r1:publish:-:0'],
+      'and the outer join fired exactly once, after all three instances — so the interleaving ' +
+      'changed the ORDER and not the outcome, which is what makes it a fair comparison with the ' +
+      'sequential case above');
+  });
+
+
+  test('a MAP inside a map: the other half of "lifted whole", which had no driver fixture', () => {
+    // **ADR 0062 rule 4 calls `map`-in-`map` and `fanout`-in-`map` THE SAME CASE, and
+    // only the second had one** — W84's adequacy reader, finding 1. Narrowing the lift
+    // back to refuse `map`-in-`map` alone cost **ZERO at every rung**: lint, all five
+    // typecheck lanes, L1-L5 in both runtimes, L6 in both, `check:spec`. Half of the
+    // enumeration the decision rests on was asserted by nothing.
+    //
+    // It is also the harder half and the one the refusal was really about: a `fanout`
+    // inside a map gets its instances from the MAP's arity, while a map inside a map
+    // gets them from run-time DATA at both levels.
+    const mapInMap = {
+      flowId: 'map-in-map', version: 1, entry: 'ingest',
+      nodes: [
+        { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'outer' }] },
+        { id: 'outer', kind: 'map', over: 'items', branch: 'mid' },
+        { id: 'mid', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'inner' }] },
+        { id: 'inner', kind: 'map', over: 'rows', branch: 'leaf' },
+        { id: 'leaf', kind: 'task', type: 'ExtractWorker', edges: [{ to: 'ij' }] },
+        { id: 'ij', kind: 'join', of: 'inner', edges: [{ to: 'oj' }] },
+        { id: 'oj', kind: 'join', of: 'outer', edges: [{ to: 'publish' }] },
+        { id: 'publish', kind: 'task', type: 'PublishWorker', edges: [{ to: 'done' }] },
+        { id: 'done', kind: 'end', outcome: 'completed' },
+      ],
+    } as unknown as FlowDefinition;
+
+    const registry = { predicates: [], workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools };
+    equal(validateDefinition(mapInMap, registry), [],
+      'the validator always accepted it — `FD-V25` requires a map`s branch to be a TASK and says ' +
+      'nothing about what that task`s edges reach, which is the road a fanout already took');
+
+    const h = harness(mapInMap);
+    h.driver.start({});
+    h.scheduler.settle('r1:ingest:-:0', 'done', { result: { items: ['a', 'b'] } });
+    equal(h.ids(), ['r1:ingest:-:0', 'r1:mid:0:0', 'r1:mid:1:0'], 'two outer items');
+    // Each outer item's `mid` returns its OWN row list, so the two inner instances have
+    // DIFFERENT arities — which is what makes the instance key carry information here.
+    h.scheduler.settle('r1:mid:0:0', 'done', { result: { rows: ['x', 'y'] } });
+    h.scheduler.settle('r1:mid:1:0', 'done', { result: { rows: ['z'] } });
+    equal(h.ids().filter((id) => id.startsWith('r1:leaf')),
+      ['r1:leaf:0.0:0', 'r1:leaf:0.1:0', 'r1:leaf:1.0:0'],
+      'THREE leaves at dotted paths — two under item 0 and ONE under item 1, so the two inner ' +
+      'instances differ in arity as well as in key');
+    for (const id of h.ids().filter((x) => x.startsWith('r1:leaf'))) {
+      h.scheduler.settle(id, 'done', { result: { id } });
+    }
+    h.scheduler.settle('r1:publish:-:0', 'done', { result: {} });
+
+    const s = fold(h.driver.foldInputs());
+    equal(s.outcome, 'completed', 'and the run completes — `map`-in-`map` runs, which is the half ' +
+      'of ADR 0062 rule 4 that had no observer');
+    equal(Object.keys(s.regions['inner']!).sort(), ['0', '1'],
+      'TWO instances of the inner map, keyed by the OUTER map`s item index');
+    equal(Object.keys(s.regions['outer']!), ['-'], 'and the outer map has one, at top level');
+    equal(s.regions['inner']!['0']!.opened, ['0.0', '0.1'], 'inner@0 opened its two rows');
+    equal(s.regions['inner']!['1']!.opened, ['1.0'], 'and inner@1 opened its one — different ' +
+      'arities under one opener, which a single entry could not hold');
+    equal([s.regions['inner']!['0']!.joined, s.regions['inner']!['1']!.joined], [true, true],
+      'and BOTH inner joins fired — before W84 the second was unreachable, because `firedJoins` ' +
+      'was keyed by the opener alone');
+  });
+
+  test('DEPTH THREE: the instance path is a PATH, not a segment', () => {
+    // **W84's adequacy reader, finding 2 — its second named target, and it SURVIVED.**
+    // Truncating `rpathOf` to its first segment cost **ZERO at every rung**, because
+    // every region instance in the whole tree sat at a single-segment path: `'-'`, the
+    // corpus's six at `'1'`, or the new fixture's item indices. The carrier was bound
+    // at depths 0 and 1 and at nothing beyond.
+    //
+    // **And the truncation is W33's exact defect one depth out**, which is why this is
+    // a fixture rather than a note: the two instances of `F` merge into one key, one
+    // join becomes unreachable, and a run in which every task settles reports `stuck`.
+    //
+    // `A(fanout)[b0,b1]` -> `b1` -> `M(map)` -> `mid` -> `F(fanout)[p,q]` -> `jF` ->
+    // `jM` -> `jA`. Derived on paper: `A` opens at top level so its instance is `'-'`;
+    // `M` opens inside `A`'s branch 1 so its instance is `'1'`; `F` opens inside `M`'s
+    // branch, whose segment is the map ITEM INDEX, so `F`'s instances are `'1.0'` and
+    // `'1.1'` — TWO SEGMENTS, which is the thing nothing observed.
+    const depth3 = {
+      flowId: 'depth-three', version: 1, entry: 'ingest',
+      nodes: [
+        { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'A' }] },
+        { id: 'A', kind: 'fanout', branches: ['b0', 'b1'] },
+        { id: 'b0', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'jA' }] },
+        { id: 'b1', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'M' }] },
+        { id: 'M', kind: 'map', over: 'items', branch: 'mid' },
+        { id: 'mid', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'F' }] },
+        { id: 'F', kind: 'fanout', branches: ['p', 'q'] },
+        { id: 'p', kind: 'task', type: 'ExtractWorker', edges: [{ to: 'jF' }] },
+        { id: 'q', kind: 'task', type: 'ExtractWorker', edges: [{ to: 'jF' }] },
+        { id: 'jF', kind: 'join', of: 'F', edges: [{ to: 'jM' }] },
+        { id: 'jM', kind: 'join', of: 'M', edges: [{ to: 'jA' }] },
+        { id: 'jA', kind: 'join', of: 'A', edges: [{ to: 'publish' }] },
+        { id: 'publish', kind: 'task', type: 'PublishWorker', edges: [{ to: 'done' }] },
+        { id: 'done', kind: 'end', outcome: 'completed' },
+      ],
+    } as unknown as FlowDefinition;
+
+    const registry = { predicates: [], workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools };
+    equal(validateDefinition(depth3, registry), [], 'the validator accepts it with zero findings');
+
+    const h = harness(depth3);
+    h.driver.start({});
+    h.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
+    h.scheduler.settle('r1:b0:0:0', 'done', { result: {} });
+    h.scheduler.settle('r1:b1:1:0', 'done', { result: { items: ['x', 'y'] } });
+    equal(h.ids().filter((id) => id.startsWith('r1:mid')), ['r1:mid:1.0:0', 'r1:mid:1.1:0'],
+      'the map`s two instances sit at TWO-segment paths — the outer fanout branch, then the item');
+    for (const id of ['r1:mid:1.0:0', 'r1:mid:1.1:0']) h.scheduler.settle(id, 'done', { result: {} });
+    equal(h.ids().filter((id) => id.startsWith('r1:p') || id.startsWith('r1:q')),
+      ['r1:p:1.0.0:0', 'r1:q:1.0.1:0', 'r1:p:1.1.0:0', 'r1:q:1.1.1:0'],
+      'and the innermost branches at THREE segments, which `spec/task-id.md` section 1`s grammar ' +
+      'has reserved since P1');
+    for (const id of h.ids().filter((x) => x.startsWith('r1:p') || x.startsWith('r1:q'))) {
+      h.scheduler.settle(id, 'done', { result: {} });
+    }
+    h.scheduler.settle('r1:publish:-:0', 'done', { result: {} });
+
+    const s = fold(h.driver.foldInputs());
+    equal(s.outcome, 'completed',
+      'the run completes. With `rpathOf` truncated to its first segment it is `stuck`: F@1.0 and ' +
+      'F@1.1 collapse to F@1, the second join is unreachable, and every task settled');
+    // **THE ASSERTION THE TRUNCATION FAILS.** Seven region instances, three openers,
+    // and the innermost opener's two keys have TWO segments each.
+    equal(Object.entries(s.regions).flatMap(([id, byPath]) =>
+      Object.keys(byPath).map((rp) => `${id}@${rp}`)).sort(),
+      ['A@-', 'F@1.0', 'F@1.1', 'M@1'],
+      'four region instances over three openers, and the innermost opener`s keys carry TWO ' +
+      'SEGMENTS — a first-segment key would make them one');
+    equal([s.regions['F']!['1.0']!.joined, s.regions['F']!['1.1']!.joined], [true, true],
+      'and both innermost joins fired, which is what a merged key makes impossible');
+    equal(s.regions['F']!['1.0']!.opened, ['1.0.0', '1.0.1'],
+      'each innermost instance opened its OWN two branches at three-segment paths');
+  });
+
+  test('regionEntered is deduplicated per INSTANCE, and a run that is stuck says so', () => {
+    // **W84's adequacy reader, finding 3.** The dedup guard this item shipped reads
+    // `prev.regions[id]?.[path]`; narrowing it to `prev.regions[id]` cost **ZERO at
+    // every rung** — and it turns a `stuck` run into `completed`, which is
+    // [ADR 0015](../../doc/decisions/0015-a-run-whose-join-can-no-longer-fire-is-stuck.md)'s
+    // founding false statement.
+    //
+    // **This is not reopening what N = 0 MEANS** — P22 decision 6 settles that on the
+    // shipped tree and W85 asserts it under nesting. What is asserted here is the
+    // GRANULARITY of a guard W84 wrote: instance 1 entering a region must not be
+    // swallowed by instance 0's entry.
+    const twoArities = {
+      flowId: 'two-inner-arities', version: 1, entry: 'ingest',
+      nodes: [
+        { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'split' }] },
+        { id: 'split', kind: 'map', over: 'items', branch: 'mid' },
+        { id: 'mid', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'inner' }] },
+        { id: 'inner', kind: 'map', over: 'rows', branch: 'leaf' },
+        { id: 'leaf', kind: 'task', type: 'ExtractWorker', edges: [{ to: 'ij' }] },
+        { id: 'ij', kind: 'join', of: 'inner', edges: [{ to: 'oj' }] },
+        { id: 'oj', kind: 'join', of: 'split', edges: [{ to: 'publish' }] },
+        { id: 'publish', kind: 'task', type: 'PublishWorker', edges: [{ to: 'done' }] },
+        { id: 'done', kind: 'end', outcome: 'completed' },
+      ],
+    } as unknown as FlowDefinition;
+
+    const h = harness(twoArities);
+    h.driver.start({});
+    h.scheduler.settle('r1:ingest:-:0', 'done', { result: { items: ['a', 'b'] } });
+    // Instance 0 has ONE row; instance 1 has NONE. So `inner@0` opens a branch and
+    // `inner@1` opens nothing — the one shape in which `regionEntered` is the ONLY
+    // producer of a region's entry, which is why W33 added that input at all.
+    h.scheduler.settle('r1:mid:0:0', 'done', { result: { rows: ['x'] } });
+    h.scheduler.settle('r1:mid:1:0', 'done', { result: { rows: [] } });
+    h.scheduler.settle('r1:leaf:0.0:0', 'done', { result: {} });
+    // `inner@1` opened nothing, so `JP-R10` ends the OUTER branch it sits in and the
+    // outer join fires over `{0: arrived, 1: lost}` — the run reaches `publish` and is
+    // quiescent once that settles, which is where `RN-R10` is decided (ADR 0046 rule 5).
+    equal(h.ids().filter((id) => id.startsWith('r1:publish')), ['r1:publish:-:0'],
+      'the outer join fired even though the inner one never did — ADR 0030 rule 4');
+    h.scheduler.settle('r1:publish:-:0', 'done', { result: {} });
+
+    const s = fold(h.driver.foldInputs());
+    equal(Object.keys(s.regions['inner']!).sort(), ['0', '1'],
+      'BOTH inner instances are PRESENT — instance 1 opened no branch, so `regionEntered` is the ' +
+      'only thing that can put it there, and a dedup keyed by the opener swallows it');
+    equal(s.regions['inner']!['1']!.opened, [],
+      'and instance 1 opened nothing, which is what makes it the one that cannot be inferred');
+    equal(s.outcome, 'stuck',
+      'so the run is STUCK. With the dedup narrowed to the opener, instance 1 has no entry, ' +
+      'RN-R10 iterates one region instead of two and the run reports `completed` — ADR 0015`s ' +
+      'own false statement, at instance granularity');
   });
 
   test('the OTHER direction is untouched: a map inside a FANOUT branch still runs', async () => {
-    // The discriminating control. `map-in-fanout` nests a map inside a fanout
-    // branch, where the opener is entered ONCE — so the refusal must not reach it,
-    // and no corpus flow is refused.
+    // The control, kept from W33. `map-in-fanout` nests a map inside a fanout branch,
+    // where the opener is entered ONCE — the direction that always worked, and which
+    // lifting the refusal must not disturb.
     const h = harness(await load('valid/map-in-fanout.flow.json'));
     h.driver.start({});
     drain(h, THREE);

@@ -120,6 +120,7 @@ import {
   type PolicyId,
   type RegionEvent,
   type RunOutcome,
+  type RegionRun,
   type RunState,
   type UnmintedTask,
   type UnsatisfiableJoin,
@@ -1317,6 +1318,9 @@ const EXPECTED: Expectation[] = [
     // last field is the whole reason this row is not the row above it.
     unsatisfiable: [{
       fanoutId: 'split',
+      // **The region INSTANCE, not just its opener** — W84, ADR 0062. `split` opens
+      // at top level, so its instance is `'-'`, derived from the document.
+      regionPath: '-',
       joinId: 'collect',
       policyId: 'live-token-requiring-arrival',
       describe: { live: 0, positive: true, arrived: 0 },
@@ -1485,6 +1489,11 @@ const EXPECTED: Expectation[] = [
     // said nothing about it. ADR 0030 rule 4's *"not the driver deciding"*.
     unsatisfiable: [{
       fanoutId: 'inner',
+      // **The region INSTANCE** — W84, ADR 0062. `inner` opens inside branch `1` of
+      // `outer`, so its instance is `'1'` and NOT `'-'`: this is the one row in the
+      // ladder where the two differ, and it is what makes the field observable here
+      // rather than a constant. Derived from `nested.flow.json` on paper.
+      regionPath: '1',
       joinId: 'innerJoin',
       policyId: 'live-token-requiring-arrival',
       describe: { live: 0, positive: true, arrived: 0 },
@@ -3211,6 +3220,50 @@ const sortedSettled = (m: Record<string, string> | undefined) =>
   m === undefined ? undefined : Object.fromEntries(Object.entries(m).sort(([x], [y]) => x.localeCompare(y)));
 
 /**
+ * **The ONE instance of a region, by its opener's id** - W84.
+ *
+ * `RunState.regions` is two-level since [ADR 0062](../doc/decisions/0062-a-region-instance-is-its-opener-and-the-openers-own-branch-path.md):
+ * `regions[openerId][openerPath]`, because a `map` can enter one opener N times.
+ * **Every flow this ladder runs enters each of its openers exactly once** - the key
+ * measurement over both corpora says openers inside a map region are 0 of 50 - so
+ * every row here names a region that has exactly one instance, and this reads it.
+ *
+ * **It ASSERTS that rather than assuming it.** With more than one instance there is
+ * no sole one, and returning either would make a row's verdict depend on which
+ * instance the driver entered first. It returns `undefined` instead, which is
+ * `joinStatusOf`'s own rule at the one other place a region is read by its opener
+ * alone.
+ *
+ * **What `undefined` then DOES is caller-dependent, and two of the callers below do
+ * NOT go red on it** — W84's conformity reader, finding 10, and it is recorded here
+ * rather than repaired because no flow this ladder runs has two instances (0 of 50
+ * openers sit inside a map region) and the repair belongs with the row that creates
+ * one. The `joined` caller reads `soleRegion(...)?.joined ?? null`, so `undefined`
+ * becomes `null` and the **eight** `EXPECTED` rows declaring `joined: null` would
+ * pass that clause in silence; `regionsOf` below *filters the region out of the
+ * rendered table* rather than naming it. **So this helper makes a multi-instance
+ * region SILENT at those two sites and red at the `settled` ones.**
+ * [W86](../doc/work-items/w86-*.md) adds the first such flow and is where the two
+ * sites have to be decided — that is the dated ceiling clause
+ * (`doc/workflow.md` v0.17) pointing at the item that expires this note.
+ *
+ * *(Not to be confused with `soleRegionOf` further down, which answers a different
+ * question — **the one OPENER a row's flow declares**, not the one INSTANCE of an
+ * opener. Same prefix, different subject; the reader found them 126 lines apart.)*
+ */
+/* **Measured: `return byPath[paths[0]!]` — this helper GUESSING rather than refusing —
+ * costs 0 at both L6 rungs** (W84's adequacy reader, finding 9), because no flow this
+ * ladder runs has two instances of one opener. So is dropping the instance flatten in
+ * the independent-arities walk below. Both are forward-looking for W86, and the number
+ * is carried here rather than the adjective. */
+const soleRegion = (state: RunState, id: string): RegionRun | undefined => {
+  const byPath = state.regions[id];
+  if (byPath === undefined) return undefined;
+  const paths = Object.keys(byPath);
+  return paths.length === 1 ? byPath[paths[0]!] : undefined;
+};
+
+/**
  * **Every cross-row label, as it runs** — W47's adequacy reader, BLOCKING finding 1.
  *
  * It deleted each of W47's three new blocks in turn and then **all of W47's cross-row
@@ -3497,7 +3550,7 @@ for (const [i, e] of EXPECTED.entries()) {
   }
   if (e.regionSuspended) {
     check(e.key, 'regions[*].suspended — who is parked on a person right now',
-      report.state.regions[e.regionId ?? 'split']?.suspended, e.regionSuspended);
+      soleRegion(report.state, e.regionId ?? 'split')?.suspended, e.regionSuspended);
   }
   if (e.stoppedBy !== undefined) {
     assertThat(e.key, 'OR-R10: stoppedBy names the refusal that terminated the run',
@@ -3708,9 +3761,9 @@ for (const [i, e] of EXPECTED.entries()) {
     // region it is about and this reads it, so a flow whose fanout has another
     // name is expressible at all.
     const rid = e.regionId ?? 'split';
-    check(e.key, 'the join fired — RN-R11', report.state.regions[rid]?.joined ?? null, e.joined);
+    check(e.key, 'the join fired — RN-R11', soleRegion(report.state, rid)?.joined ?? null, e.joined);
     check(e.key, 'how each branch left its region — spec/join-policy.md section 2',
-      sortedSettled(report.state.regions[rid]?.settled), sortedSettled(e.settled));
+      sortedSettled(soleRegion(report.state, rid)?.settled), sortedSettled(e.settled));
 
     // **Every OTHER region of the run — W23**, and the two halves are checked
     // separately: each declared region must answer as declared, AND the set of
@@ -3718,9 +3771,9 @@ for (const [i, e] of EXPECTED.entries()) {
     // the second half a row could declare one of its two and read as complete,
     // which is W22's adequacy reader's loop-bound finding one rung up.
     for (const [id, want] of Object.entries(e.otherRegions ?? {})) {
-      check(e.key, `${id}: the join fired — RN-R11`, report.state.regions[id]?.joined ?? null, want.joined);
+      check(e.key, `${id}: the join fired — RN-R11`, soleRegion(report.state, id)?.joined ?? null, want.joined);
       check(e.key, `${id}: how each branch left its region`,
-        sortedSettled(report.state.regions[id]?.settled), sortedSettled(want.settled));
+        sortedSettled(soleRegion(report.state, id)?.settled), sortedSettled(want.settled));
     }
     check(e.key, 'the run entered exactly the regions this row declares',
       Object.keys(report.state.regions).sort(),
@@ -4167,10 +4220,10 @@ if (low && lowAc) {
   // differs. Q43's register entry said `regions` already held the data to tell
   // them apart. This is the assertion that says it did not.
   check('cross-row', 'RN-R6: the two policies agree on WHAT HAPPENED in the region',
-    { opened: low.state.regions['split']?.opened, settled: low.state.regions['split']?.settled },
-    { opened: lowAc.state.regions['split']?.opened, settled: lowAc.state.regions['split']?.settled });
+    { opened: soleRegion(low.state, 'split')?.opened, settled: soleRegion(low.state, 'split')?.settled },
+    { opened: soleRegion(lowAc.state, 'split')?.opened, settled: soleRegion(lowAc.state, 'split')?.settled });
   check('cross-row', 'RN-R11: and disagree only on whether the driver routed out of the join',
-    [low.state.regions['split']?.joined, lowAc.state.regions['split']?.joined], [true, null]);
+    [soleRegion(low.state, 'split')?.joined, soleRegion(lowAc.state, 'split')?.joined], [true, null]);
   assertThat('cross-row',
     'ADR 0015: at spec/run-state.md v0.2 both of these folded to completed; they no longer do',
     low.state.outcome === 'completed' && lowAc.state.outcome === 'stuck',
@@ -4186,11 +4239,19 @@ if (low && lowAc) {
 
 // The predicate has to be able to return both answers, or the routed-away rows
 // prove only that a constant is constant (`doc/workflow.md` section 5 rule 3).
+//
+// **`['-']` by hand rather than through `soleRegion`, and the reason is stated** —
+// W84's conformity reader, finding 15. `split` in this flow is a top-level `fanout`,
+// so its one instance is `'-'` DERIVED FROM THE DOCUMENT and written here as a
+// literal; `soleRegion` would answer the same and would also silently accept a
+// second instance by returning `undefined`, which this block's `===` would read as
+// *not arrived*. The literal is the stronger reading here because the claim is about
+// the PREDICATE and not about the region.
 assertThat('cross-row', 'isLowConfidence returned FALSE at 0.9 and TRUE at 0.1 — it can fail',
-  highRouted?.state.regions['split']?.settled['1'] === 'arrived' &&
-    low?.state.regions['split']?.settled['1'] === 'exited',
-  `high: ${highRouted?.state.regions['split']?.settled['1']}, ` +
-  `low: ${low?.state.regions['split']?.settled['1']}`);
+  highRouted?.state.regions['split']?.['-']?.settled['1'] === 'arrived' &&
+    low?.state.regions['split']?.['-']?.settled['1'] === 'exited',
+  `high: ${highRouted?.state.regions['split']?.['-']?.settled['1']}, ` +
+  `low: ${low?.state.regions['split']?.['-']?.settled['1']}`);
 
 // --- W17's cross-row block: one run, three policies, three different answers ----
 //
@@ -4208,14 +4269,14 @@ if (aeLt && aeAc && aeLtra) {
   // records WHAT HAPPENED, and all three policies agree about that completely.
   check('cross-row', 'RN-R6: all three policies agree on what happened in the region',
     AE_RUNS.map((r) => ({
-      opened: r.state.regions['split']?.opened, settled: r.state.regions['split']?.settled,
+      opened: soleRegion(r.state, 'split')?.opened, settled: soleRegion(r.state, 'split')?.settled,
     })),
     AE_RUNS.map(() => ({ opened: ['0', '1'], settled: { 0: 'exited', 1: 'exited' } })));
   // `RN-R11`, and the three values are three different things: the join fired, the
   // join is still waiting, the join was reported dead. Only the middle one is
   // silent.
   check('cross-row', 'RN-R11: and disagree only on whether — and whether they can SAY — the join fired',
-    AE_RUNS.map((r) => r.state.regions['split']?.joined ?? null), [true, null, false]);
+    AE_RUNS.map((r) => soleRegion(r.state, 'split')?.joined ?? null), [true, null, false]);
   // **The whole of ADR 0025 in one line.** The run that completes under the
   // blessed policy is the run that is reported dead under the third one, and the
   // one in the middle is `stuck` with nobody told.
@@ -4239,9 +4300,9 @@ const raLt = byRun('r5');
 const raLtra = byRun('r17');
 if (raLt && raLtra) {
   check('cross-row', 'ADR 0025: where a branch ARRIVES, the refinement is live-token exactly',
-    { joined: raLtra.state.regions['split']?.joined, settled: raLtra.state.regions['split']?.settled,
+    { joined: soleRegion(raLtra.state, 'split')?.joined, settled: soleRegion(raLtra.state, 'split')?.settled,
       outcome: raLtra.state.outcome, reported: raLtra.unsatisfiableJoins.length },
-    { joined: raLt.state.regions['split']?.joined, settled: raLt.state.regions['split']?.settled,
+    { joined: soleRegion(raLt.state, 'split')?.joined, settled: soleRegion(raLt.state, 'split')?.settled,
       outcome: raLt.state.outcome, reported: raLt.unsatisfiableJoins.length });
 }
 
@@ -4343,7 +4404,7 @@ check('cross-row', 'and on every join verdict spec/join-policy.md section 3 lets
   const mapRegionsOf = (d: FlowDefinition) => d.nodes.filter((n) => n.kind === 'map').map((n) => n.id);
   const mapRegions = EXPECTED.flatMap((e, i) =>
     mapRegionsOf(e.definition).map((id) => [reports[i]!, id] as const));
-  const settledOf = (r: RunReport, id: string) => Object.keys(r.state.regions[id]?.settled ?? {});
+  const settledOf = (r: RunReport, id: string) => Object.keys(soleRegion(r.state, id)?.settled ?? {});
   check('cross-row', 'L6 runs a `map` — the node kind P10 added, and the second one there is',
     EXPECTED.some((e) => mapRegionsOf(e.definition).length > 0), true);
   // **The negative control, and without it four of the five clauses are about
@@ -4360,7 +4421,7 @@ check('cross-row', 'and on every join verdict spec/join-policy.md section 3 lets
     mapRegions.some(([r, id]) => settledOf(r, id).length > 1));
   assertThat('cross-row', 'and one opened NONE — the arity FD-V9`s floor makes a fanout unable to reach',
     mapRegions.some(([r, id]) =>
-      r.state.regions[id] !== undefined && settledOf(r, id).length === 0 && r.state.outcome === 'stuck'));
+      soleRegion(r.state, id) !== undefined && settledOf(r, id).length === 0 && r.state.outcome === 'stuck'));
   assertThat('cross-row', 'and one map instance ran at a DOTTED path — a run-time arity inside a region',
     mapRegions.some(([r, id]) => settledOf(r, id).some((p) => p.includes('.'))));
   assertThat('cross-row', 'and a join carried THREE branches back downstream — JP-R12 above any declared arity',
@@ -5587,10 +5648,10 @@ for (const row of PAIR_ROWS) {
     check(row.key, `${who}: run-state outcome`, r.state.outcome, 'completed');
     check(row.key, `${who}: finished by run state, not the backstop`, r.finishedBy, 'run-state');
     check(row.key, `${who}: nothing was reported`, r.failureKinds, []);
-    check(row.key, `${who}: the join fired`, r.state.regions['split']?.joined, true);
+    check(row.key, `${who}: the join fired`, soleRegion(r.state, 'split')?.joined, true);
     // From `spec/join-policy.md` section 2-3, not from output: `live-token` opens
     // two branches, both arrive, the count reaches zero having been positive.
-    check(row.key, `${who}: both branches arrived`, r.state.regions['split']?.settled,
+    check(row.key, `${who}: both branches arrived`, soleRegion(r.state, 'split')?.settled,
       { 0: 'arrived', 1: 'arrived' });
     // The full list, in dispatch order — a prefix predicate would pass for a run
     // that dispatched one task or seven. **On the foreign row this is the exit
@@ -6408,8 +6469,12 @@ console.log(`\n  ladder L6 — ${reports.length + pairRunCount} real runs on fyf
  * `0:arrived 1:lost` with no region name cannot be told from an inner one.
  */
 const regionsOf = (r: RunReport, e: { regionId?: string | null; otherRegions?: Record<string, unknown> }) =>
+  // `soleRegion` and not `regions[id]` — W84. `RunState.regions` is two-level since
+  // ADR 0062, and this RENDERING path is one of the sites the change reached that no
+  // typechecker named: `regions[id]` still types as `RegionRun` through the inner
+  // record's open index signature, so it compiled and then threw in `Object.entries`.
   (e.regionId === null ? [] : [e.regionId ?? 'split', ...Object.keys(e.otherRegions ?? {})])
-    .map((id) => [id, r.state.regions[id]] as const)
+    .map((id) => [id, soleRegion(r.state, id)] as const)
     .filter(([, reg]) => reg !== undefined);
 
 const renderRegions = (pairs: ReturnType<typeof regionsOf>) => {
@@ -7180,7 +7245,9 @@ if (rowCosts.length !== EXPECTED.length) {
       // halves, so making the two payloads equal is red here before any literal is compared.
       const byTotal = (n: number) => reports.find((r) => Object.entries(r.state.nodes).some(([id, x]) => /:total:-:0$/.test(id) && (x.result as { input?: unknown })?.input === n));
       const two = byTotal(990); const one = byTotal(400);
-      const arrivedAt = (r: RunReport | undefined) => Object.values(r?.state.regions['split']?.settled ?? {}).filter((s) => s === 'arrived').length;
+      const arrivedAt = (r: RunReport | undefined) =>
+        Object.values(r === undefined ? {} : soleRegion(r.state, 'split')?.settled ?? {})
+          .filter((s) => s === 'arrived').length;
       assertThat('cross-row', 'the arity-one and arity-two rows are a PAIR: two arrivals against one at the join, read from the run, and two different totals',
         two !== undefined && one !== undefined && two !== one && arrivedAt(two) === 2 && arrivedAt(one) === 1,
         `arrived: ${arrivedAt(two)} / ${arrivedAt(one)}`);
@@ -7764,8 +7831,13 @@ if (rowCosts.length !== EXPECTED.length) {
   // from one.*
   {
     const differingArities = reports.filter((r) => {
+      // **Over region INSTANCES** — W84. `regions` is two-level since ADR 0062, so
+      // `Object.values` alone yields the inner RECORDS and every `opened` reads
+      // `undefined`. An arity is a property of an INSTANCE, which is exactly why
+      // this had to move rather than being flattened at the opener.
       const opened = Object.values(r.state.regions ?? {})
-        .map((v) => (v as { opened?: readonly string[] }).opened?.length ?? 0)
+        .flatMap((byPath) => Object.values(byPath))
+        .map((v) => v.opened.length)
         .filter((n) => n > 0);
       return new Set(opened).size >= 2;
     });

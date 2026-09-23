@@ -1,8 +1,13 @@
 # P22 — What a region's IDENTITY is, and whether one may open inside a map
 
 **Status:** **DECLARED** 2026-09-23 on `1da565f` (P1-P21 complete and retro'd, `doc/workflow.md`
-[v0.22](../workflow.md)). **[W84](../work-items/w84-what-a-regions-identity-is.md) is DECLARED and
-no item has started**; W85 and W86 are rows in the table below and nothing more, because an item is
+[v0.22](../workflow.md)). **[W84](../work-items/w84-what-a-regions-identity-is.md) is DONE** — ADR 0062, the
+refusal LIFTED, `spec/` at v0.7 / v0.17 / v0.22, L1-L5 at 46 / 1302 and **L6 UNMOVED at 1724 / 58**;
+**it corrects this plan in THREE places**: the churn is **63 typecheck sites in 8 files and 34 L1-L5
+failures** and not sixty-in-six and thirty-two (the difference is `UnsatisfiableJoin.regionPath`,
+taken beyond decision 3 and recorded as a departure); **prediction 1 REVERSES** by its own stated
+condition, with 8 of the 34 in four files no typechecker names; and the per-region structure list is
+**FIVE, not four**. **W85 and W86 are still rows in the table below and nothing more**, because an item is
 declared with its full template at the point it starts, when its declaration step can correct what
 this plan handed it — which all three of P21's items did. Its facts were measured into `dev-dist/p22/` on the same
 tree, and they RE-TAKE a spike run at `228a5e1` whose evidence is `dev-dist/spike-nested-map/`.

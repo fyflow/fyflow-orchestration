@@ -1,6 +1,6 @@
 # spec/run-state — what a run holds, and what it is derived from
 
-**Status:** v0.6 — written by [W2](../doc/work-items/w2-the-fold-and-both-join-policies.md) under
+**Status:** v0.7 — written by [W2](../doc/work-items/w2-the-fold-and-both-join-policies.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md).
 **v0.6 is [W53](../doc/work-items/w53-what-a-run-retains-that-nothing-reads.md) under
 [P15](../doc/plans/p15-what-a-run-retains-and-what-a-result-may-be.md), and it ANSWERS the one
@@ -12,6 +12,33 @@ half and the whole of every result is the multiplier neither that sentence nor
 is the decision.** No `FoldInput` moved, no `RN-R*` rule was changed and no cell of run state moved:
 what a run RETAINS and what a run REPORTS are different questions, and only the first is answered
 here.
+**v0.7 is [W84](../doc/work-items/w84-what-a-regions-identity-is.md) under
+[P22](../doc/plans/p22-what-a-regions-identity-is.md), and it moves ONE cell of the shape.**
+`regions` becomes **two-level** — `regions[openerId][openerPath]` — because
+[ADR 0062](../doc/decisions/0062-a-region-instance-is-its-opener-and-the-openers-own-branch-path.md)
+makes a region INSTANCE the pair `(opener node id, the opener's own branchPath)`. Section 2's shape
+says *one entry per fan-out region ENTERED*, and that sentence was true only while no opener could be
+entered twice — a property [W33](../doc/work-items/w33-a-map-at-run-time-arity.md) held by REFUSING a
+region inside a `map` region at `Driver` construction ([Q160](../doc/open-questions.md)). **The
+refusal is lifted and this shape is what replaces it**: instance 2 gets its own entry rather than
+discarding instance 1's, which W33 measured producing a run reporting `stuck` with all seven of its
+tasks `done`.
+
+**`RN-R6` is the only rule IN THIS DOCUMENT that moves, and only in what it is keyed by. No `RN-R*`
+is added or retired, no outcome moves, and no `FoldInput` is added** — *(`spec/join-policy.md`'s
+`JP-R10` gains its second subscript at v0.17, as do section 4's two `regions[…]` references; this
+sentence read *the only rule that moves* unqualified, in the place a reader goes to ask which rules
+moved. W84's conformity reader.)* — `regionEntered` and `joinSettled` each
+gain a `regionPath` beside the `regionId` they already carried, which is the same field
+`RegionEvent` gains ([spec/join-policy.md](join-policy.md) v0.17) and not a new input.
+
+**It is BREAKING for a reader**, and the break is named rather than softened: `RunState` reaches the
+package root through `index.ts`, so `regions` is public surface, and a consumer reading
+`state.regions[F].joined` now reads one level short. It is loud where a type constrains the result
+and **silent where it does not** — `Record<string, RegionRun>` has an open index signature, so
+`regions[F].joined` still TYPES as `RegionRun` and evaluates to `undefined`. That is measured rather
+than assumed: eight of the thirty-four failures W84 paid were in four files no typechecker named.
+
 **v0.3 is [W5](../doc/work-items/w5-one-real-fan-out-flow-on-a-real-scheduler.md)'s**, and it changes
 two things this document said were open: **section 6's last bullet is done** — the input sequence
 exists and the driver produces it
@@ -84,12 +111,14 @@ log twice and deep-comparing. A fold that read `scheduler.tasks`, memoised acros
       "error": null
     }
   },
-  "regions": {                       // one entry per fan-out region ENTERED
-    "split": {
-      "opened": ["0", "1"],
-      "settled": { "0": "arrived", "1": "exited" },
-      "suspended": [],
-      "joined": true                 // v0.3 - did the DRIVER route out of the join
+  "regions": {                       // v0.7 - TWO LEVELS: opener id, then the
+    "split": {                       //   OPENER'S OWN branchPath. One entry per
+      "-": {                         //   region INSTANCE entered.
+        "opened": ["0", "1"],
+        "settled": { "0": "arrived", "1": "exited" },
+        "suspended": [],
+        "joined": true               // v0.3 - did the DRIVER route out of the join
+      }
     }
   },
   "pathEnds": [                      // how each path ended; what separates completed from failed
@@ -103,7 +132,7 @@ log twice and deep-comparing. A fold that read `scheduler.tasks`, memoised acros
 |---|---|---|
 | `RN-R4` | **A run holds only what its input sequence says.** Every field above is derived; none is supplied from outside. A node absent from `nodes` **was never dispatched** — which is only true because `dispatched` is an input (section 6); without it, absence would also mean "in flight", and the rule would be false | W2 |
 | `RN-R5` | **`nodes` is keyed by task id, not by node id.** A node inside a fan-out has one entry per branch, and [spec/task-id.md](task-id.md)'s total parse is what recovers `(nodeId, branchPath, attempt)` from the key. Keying by node id would silently merge two branches of one fan-out | W2 |
-| `RN-R6` | **`regions` records what happened, not what a policy concluded.** A policy's own state is opaque (`JP-R1`) and reachable only through `describe`; run state carries the **events**, so two policies folded over the same *region events* produce the same `opened`, `settled` and `suspended` | W2 |
+| `RN-R6` | **`regions` records what happened, not what a policy concluded.** A policy's own state is opaque (`JP-R1`) and reachable only through `describe`; run state carries the **events**, so two policies folded over the same *region events* produce the same `opened`, `settled` and `suspended`. **v0.7: it is keyed by the region INSTANCE, `regions[openerId][openerPath]`**, and the rule quantifies over instances rather than over openers ([ADR 0062](../doc/decisions/0062-a-region-instance-is-its-opener-and-the-openers-own-branch-path.md), [W84](../doc/work-items/w84-what-a-regions-identity-is.md)) — a `map` enters one opener once per item, so an opener inside a map region names N regions and one entry would merge them. **The OUTER key is unchanged in meaning and in value**, so every flow that could be written before v0.7 has exactly one inner key and `regions[F]['-']` is the v0.6 entry; `RN-R10`'s walk is over the flattened instances, which is why it reads *a region* and not *an opener* | W2, two-level **[W84](../doc/work-items/w84-what-a-regions-identity-is.md)** |
 | `RN-R11` | **`joined` is a routing fact, and it is the only field a policy's behaviour reaches that is *decidable without the definition*.** `true` the driver routed out of the join, `false` a policy reported it unsatisfiable and it never will, `null` neither. **v0.4: `null` is not always *"yet"*** — a `map` over an empty list is permanently `stuck` with `joined: null`, because no policy can report a region that opened nothing (`spec/join-policy.md` section 5) and so nothing ever moves this field. `null` means *the driver neither routed out nor was told it never will*, which is a state a run can END in. It records what the **driver did**, not what the policy said — which is the distinction `RN-R6` rests on, and it is a thin one: a field carrying a policy's `status` or `describe` would cross it. Test: drive the same flow twice, once under each policy, and assert `opened`, `settled` and `suspended` are identical while `joined` differs. **Note the test is two drivers, not one stream** — `joined` comes from a `joinSettled` input, which is not a region event, so a literally identical stream cannot differ | **W5** |
 
 **`RN-R6` is what keeps [Q4](../doc/open-questions.md) answerable.** If run state carried a
@@ -222,7 +251,7 @@ resolved each one silently**, in a document the same item wrote, which is precis
 |---|---|---|
 | `nodes` holds one entry per **dispatched** task | the fold saw only *settlements*, so a task in flight was invisible, `running` was unreachable, and **`RN-R7` was unfalsifiable** — no state could hold both a suspended node and a live one | **adds `dispatched` as an input.** The claim becomes true rather than the rule becoming weaker |
 | `completed` means *"at least one `end` was reached"*; `failed` means *"a path ended with no eligible edge"* | neither was derivable — nothing reported a path reaching an `end` outside a region. The code substituted *"some node settled failed"*, which **mislabels `failure-edge.flow.json`** | **adds `pathEnded` as an input**, so section 3's own words are what the fold computes |
-| the shape carries `flowId` and `regions[*].joinId` | neither is derivable: no record carries a flow id, and `RegionEvent` carries only `regionId`. The code shipped `joinId: ''` forever and dropped `flowId` | **removes both from the shape.** A caller that wants either reads the definition, which is where they live |
+| the shape carries `flowId` and `regions[*].joinId` | neither is derivable: no record carries a flow id, and `RegionEvent` carries `regionId` and — since v0.7 — `regionPath`, and no join id. The code shipped `joinId: ''` forever and dropped `flowId` | **removes both from the shape.** A caller that wants either reads the definition, which is where they live |
 | **v0.3's fourth row, and it is not v0.1's** — [Q43](../doc/open-questions.md) said *"`regions` already records `{0: arrived, 1: exited}`, so the information is present"* | **it is not.** Both policies settle every branch on `p1-routed-away`, so `regions` is byte-identical under each; `RN-R6` guarantees precisely that. The other candidate — infer it from `publish` being absent from `nodes` — needs the definition, which `RN-R4` forbids | **adds `joined` and the `joinSettled` input** ([ADR 0015](../doc/decisions/0015-a-run-whose-join-can-no-longer-fire-is-stuck.md)). The claim becomes true rather than the outcome staying wrong |
 | **v0.4's fifth row, and it is a v0.1 claim that stayed true by ACCIDENT for nine plans** - section 2's shape says `regions` holds *"one entry per fan-out region ENTERED"* | **an entered region that opens NO branch has no entry.** Every producer of an entry was a region EVENT, so *entered* and *opened at least one branch* were the same thing - and they were the same thing because `FD-V9`'s arity floor makes a `fanout` open at least two. **A `map` separates them** ([ADR 0036](../doc/decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md)): a map over an empty list appends nothing at all, `RN-R10` iterates nothing, and the run reports **`completed`** having reached no `end` node - through section 3's final fall-back rather than by any positive determination. Measured by [W33](../doc/work-items/w33-a-map-at-run-time-arity.md) before the fix | **adds `regionEntered` as an input**, appended when the driver opens a region's policy. The claim becomes true rather than the shape being weakened to match the code |
 

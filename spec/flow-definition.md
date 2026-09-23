@@ -1,6 +1,6 @@
 # spec/flow-definition — the flow definition format
 
-**Status:** v0.21 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.22 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2** acted on the first spec-conformity pass
 (ADR 0004, and `region(F)` made computable). **v0.3** acted on the second, which found that `FD-V19`
 had reintroduced the v0.1 defect class under a new id — a refusal rule rejecting the valid corpus.
@@ -835,8 +835,8 @@ the third can reach a worker at all, because `createTask` takes **one** value
 (`{id, workerType, payload, optional}` — measured).
 
 **What NAMES an output is the pair `(node id, branchPath)`** — `FD-C2` — and a node id alone does
-not. Measured over the region-bearing flows in `spec/examples/valid/` — **four when this was written and
-ten now**, the census deriving the set from the directory: the pairs are distinct in every one, while
+not. Measured over the region-bearing flows in `spec/examples/valid/` — **four when this was written,
+ten at v0.15 and THIRTEEN now** (W84's conformity reader), the census deriving the set from the directory: the pairs are distinct in every one, while
 the node ids collapse in exactly the flows with a `map` region, at any depth, and in **none** of the
 **five** with only `fanout`s. That is
 [ADR 0036](../doc/decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md)'s
@@ -1316,9 +1316,14 @@ of an arc is what `FD-C1`, `JP-R11` and `JP-R12` say the consumer receives, as a
 | `unchecked` | a side declares no schema (P18 decision 3, *absent means UNCHECKED*), a type, worker or language the registry lacks, or a transform with no sample to run on — named, never a throw, because a report is what an author reads |
 
 **The relation is TOTAL**: every arc gets exactly one of the five, and none is *cannot tell* (P19
-prediction 2) — including a region inside a `map` region, which the validator accepts and the driver refuses at
-construction ([Q160](../doc/open-questions.md)): the record's sample keys take item index 0 for every
-enclosing map, and a static check gives a verdict where a run would not start. **The ENTRY has no arc**: the run's payload reaches the entry task — or every branch task
+prediction 2) — including a region inside a `map` region, which the validator accepts and which
+**since v0.22 the driver RUNS** ([ADR 0062](../doc/decisions/0062-a-region-instance-is-its-opener-and-the-openers-own-branch-path.md),
+[W84](../doc/work-items/w84-what-a-regions-identity-is.md), [Q160](../doc/open-questions.md)): the
+record's sample keys take item index 0 for every enclosing map, which is a SAMPLE and was already the
+right reading — *(this said the driver refuses it at construction and that a static check gives a
+verdict where a run would not start; the first half expired when W84 lifted the refusal, and the
+second was an argument for the sample rather than for the verdict, so the verdict stands and its
+reason is now the one that survives)*. **The ENTRY has no arc**: the run's payload reaches the entry task — or every branch task
 of an entry region, recursively — with no worker in between, and that is `FD-R4`'s boundary, held at
 `start()` (section 6). **What it costs to be wrong is what the check exists to find**: measured on the
 shipped L6 corpus at W73's declaration, fourteen of fifteen task-to-task edges fit (the fifteenth had no

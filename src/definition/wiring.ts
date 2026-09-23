@@ -382,8 +382,12 @@ class Wiring {
     // **The sample's keys for a region INSIDE a map region take item index 0 for every enclosing map** —
     // the schema does not depend on the key, and `branchPathOf` refuses a path that crosses a map with
     // no index (`ID-R6`). W73's conformity reader found the check THROWING here on two documents the
-    // validator accepts (a fan-out inside a map branch, a map in a map) — shapes the driver refuses at
-    // construction (Q160) and a static check must still give a verdict for.
+    // validator accepts (a fan-out inside a map branch, a map in a map) — shapes the driver refused at
+    // construction until [W84](../../doc/work-items/w84-what-a-regions-identity-is.md) and **RUNS since**
+    // ([ADR 0062](../../doc/decisions/0062-a-region-instance-is-its-opener-and-the-openers-own-branch-path.md),
+    // Q160). **The reason this line gives survives the lift and is now the whole of it**: the schema does
+    // not depend on the key, so index 0 is a SAMPLE and always was — it was never an argument about
+    // whether a run would start.
     const enclosing = new Map(this.regions.filter((r) => r.opensWith === 'map' && r.members.has(region.fanoutId)).map((r) => [r.fanoutId, 0] as const));
     if (opener.kind === 'fanout') {
       const props: Record<string, JsonSchema> = {}; const sample: Record<string, unknown> = {};

@@ -796,10 +796,25 @@ export class Driver {
   private readonly now: () => number;
   private readonly opts: DriverOptions;
   private readonly def: FlowDefinition;
-  /** Per fanout id: the policy's opaque state. Opened when the fanout is entered. */
-  private readonly joinState = new Map<string, unknown>();
-  /** A join fires at most once, however many terminal events follow it. */
-  private readonly firedJoins = new Set<string>();
+  /**
+   * **Per region INSTANCE: the policy's opaque state.** Opened when that instance
+   * is entered, and keyed `openerId -> openerPath -> state` — ADR 0062.
+   *
+   * *(One level until W84, when a `map` stopped making an opener's node id name one
+   * region. The accessors below are `joinStateGet`/`Has`/`Set`, written so the
+   * nesting is flattened in ONE place rather than at each of the five call sites.)*
+   */
+  private readonly joinState = new Map<string, Map<string, unknown>>();
+  /**
+   * A join fires at most once, however many terminal events follow it — **per
+   * region INSTANCE**, keyed `openerId -> {openerPath}` (ADR 0062).
+   *
+   * *(A `Set<string>` until W84. Keyed by opener alone, the first instance's latch
+   * made every later instance's join UNREACHABLE — which is one of the three
+   * mechanisms W33's refusal existed to prevent, and the one that produced a run
+   * reporting `stuck` with all seven tasks `done`.)*
+   */
+  private readonly firedJoins = new Map<string, Set<string>>();
   /**
    * **What each branch carried into its join, keyed by region and then by
    * `branchPath`** — [ADR 0037](../../doc/decisions/0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md)
@@ -815,12 +830,22 @@ export class Driver {
    * the guard that keeps the choice from being quietly reintroduced is still
    * exactly where W3 put it.
    *
-   * **Keyed by the opener's node id, like every other per-region structure here**
-   * — `joinState`, `firedJoins`, `RegionEvent.regionId` and the fold's `regions`.
-   * That keying is total only because a region opener is entered at most once per
-   * run, which a `map` would break; W33 refuses that definition at construction
-   * ([Q160](../../doc/open-questions.md)), and this map is safe for exactly that
-   * reason and no other.
+   * **Keyed by the region INSTANCE, like every other per-region structure here** —
+   * `joinState`, `firedJoins`, `RegionEvent`'s `regionId`/`regionPath` pair and the
+   * fold's `regions`. **That is FIVE structures and W33's own enumeration named
+   * four**: this map is W34's and postdates that reader's list, so the sentence
+   * above used to say *like every other per-region structure here* while
+   * enumerating four that excluded its own subject. W84's declaration step re-took
+   * the list and found it; the count is now in the sentence that states it.
+   *
+   * *(Until W84 the key was the opener's NODE ID alone, which is total only because
+   * a region opener is entered at most once per run — a property W33 held by
+   * REFUSING a region inside a map region at construction
+   * ([Q160](../../doc/open-questions.md)). The refusal is lifted and the key is the
+   * pair, so instance 2 collects into its own map instead of into instance 1's.
+   * **This is the structure a mis-keying would corrupt SILENTLY**: a wrong key here
+   * hands a join somebody else's collection, and `JP-R12` is a `Record<string,
+   * unknown>` either way.)*
    *
    * **Its LIFETIME is
    * [ADR 0046](../../doc/decisions/0046-a-run-retains-what-its-tasks-returned-and-a-region-releases-its-collection-when-its-join-becomes-terminal.md)
@@ -844,7 +869,7 @@ export class Driver {
    * the run this repository calls `stuck`, and `stuck` is decided in the FOLD at a
    * quiescent point (`RN-R10`), not here — ADR 0046 rule 5.
    */
-  private readonly arrivals = new Map<string, Map<string, unknown>>();
+  private readonly arrivals = new Map<string, Map<string, Map<string, unknown>>>();
   /**
    * **The one run this driver serves** — ADR 0022 rule 1, fixed at construction
    * and never `null`.
@@ -976,62 +1001,40 @@ export class Driver {
       );
     }
 
-    // **A region opener INSIDE a `map` region is refused, and the refusal is taken
-    // from a measurement** — W33's conformity reader,
-    // [Q160](../../doc/open-questions.md).
+    // **A region opener inside a `map` region RUNS, and until W84 it was refused at
+    // this exact point** -
+    // [ADR 0062](../../doc/decisions/0062-a-region-instance-is-its-opener-and-the-openers-own-branch-path.md),
+    // [Q160](../../doc/open-questions.md) and [Q156](../../doc/open-questions.md).
     //
-    // **Why it exists.** A `map` is the first construct in this library that enters
-    // one opener node **more than once in a run**, and every piece of per-region
-    // run-time state here is keyed by that node's **id**: `joinState`,
-    // `firedJoins`, `RegionEvent.regionId`, and the fold's `regions`. So the second
-    // instance's `open()` **discards** the first's state, `firedJoins` makes the
-    // second join unreachable, and the fold merges two distinct regions into one
-    // entry. **That is [ADR 0036](../../doc/decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md)'s
-    // own central finding one layer down**: the ADR decided *two features* because
-    // `branchOf` is keyed by branch node id and collapses repeated entries, and the
-    // driver's run-time structures are keyed the same way.
+    // **What the refusal was for.** A `map` is the first construct in this library
+    // that enters one opener node more than once in a run, and every per-region
+    // run-time structure here was keyed by that node's **id** alone. So instance 2's
+    // `open()` discarded instance 1's state, `firedJoins` made the second join
+    // unreachable, and the fold merged two distinct regions into one entry. Measured
+    // by W33's conformity reader on a definition `validateDefinition` accepts with
+    // ZERO findings - `map(split)` into `lead` into `fanout(f2)` into two branches
+    // into `join(j2)` into `join(collect)`, all seven tasks settling `done` - and
+    // the run reported **`stuck`**. W33 refused the shape rather than running it
+    // wrong, which is `doc/workflow.md` section 1 rule 4 applied to a capability.
     //
-    // **Measured on a definition `validateDefinition` accepts with ZERO findings** —
-    // `map(split) → lead → fanout(f2) → {p,q} → join(j2) → join(collect)`, with all
-    // seven tasks settling `done`: the run reported **`stuck`**, `split` branch `1`
-    // received no terminal event, and `f2` held all four branch paths of two
-    // separate regions under one `joined: true`.
+    // **What replaces it is a KEY and not a check.** A region INSTANCE is
+    // `(opener node id, the opener's own branchPath)`, so those five structures are
+    // two-level and instance 2 gets its own entry. There is nothing left to refuse:
+    // the three mechanisms the refusal named are each closed by the key, and a check
+    // that stayed would be refusing the shape its own replacement now executes.
     //
-    // **Why a refusal and not a fix.** Making this work means region IDENTITY
-    // becomes (opener node, enclosing path) rather than a node id — which changes
-    // what `RegionEvent.regionId` means, what the fold's `regions` is keyed by, and
-    // what `joinStatusOf` and `onUnsatisfiableJoin` name. That is a decision with
-    // its own evidence and its own item, and
-    // [Q156](../../doc/open-questions.md) is where P10 left *"may a map's branch
-    // itself open a region"* — **expressible and undecided**. W33 makes it
-    // expressible-and-REFUSED instead of expressible-and-silently-wrong, which is
-    // `doc/workflow.md` section 1 rule 4 applied to a capability rather than to a
-    // check. **No corpus flow is refused**: `map-in-fanout` nests a map inside a
-    // FANOUT branch, which is the other direction and is fine, because a fanout's
-    // opener is entered once.
+    // **Lifted WHOLE rather than narrowed to `map`-in-`map`.** Conditioning it on
+    // which KIND of region encloses which would make the grammar's one refusal turn
+    // on a distinction
+    // [ADR 0036](../../doc/decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md)
+    // spent a plan removing - and it is the same key either way, because
+    // `branchPathOf` walks map and fanout segments with one loop.
     //
-    // `InvalidDefinition` rather than a new class: the document names a structure
-    // this driver cannot execute, which is what that class already means, and
-    // [P10](../../doc/plans/p10-is-fan-out-one-feature-or-two.md) decision 4 spends
-    // its one new class on `UnresolvedMapArity`.
-    for (const r of this.regions) {
-      if (r.opensWith !== 'map') continue;
-      const openers = [...r.members].filter((id) => {
-        const k = this.graph.byId.get(id)?.kind;
-        return k === 'fanout' || k === 'map';
-      }).sort();
-      if (openers.length > 0) {
-        throw new InvalidDefinition(
-          [],
-          `definition "${definition.flowId}" opens a region inside map region "${r.fanoutId}" ` +
-            `(${openers.map((o) => JSON.stringify(o)).join(', ')}). A map enters its branch once ` +
-            'per item, so an opener inside it is entered N times — and this driver keys a ' +
-            "region's policy state, its fired-join latch and the fold's `regions` by the opener's " +
-            'NODE ID, so instance 2 would discard instance 1 and one join would answer for both. ' +
-            'Refused rather than run wrong; whether a map may contain a region is Q156.',
-        );
-      }
-    }
+    // **What is still refused, and by what**: `FD-V19` still keeps one node out of
+    // two branch entries of one fanout, `ID-R6` still refuses a `branchPath` across
+    // a map region with no item index supplied, and `ID-R1` still refuses a
+    // duplicate dispatch. Those three are what make the derived key TOTAL, and they
+    // are why lifting this costs no new refusal.
 
     for (const name of SETTLEMENT_EVENTS) {
       // ADR 0007 rule 1: the normalization happens HERE, synchronously, while the
@@ -1183,7 +1186,9 @@ export class Driver {
     });
     const region = this.regionOf(nodeId);
     if (region) {
-      this.emit({ type: 'branch.resumed', regionId: region.fanoutId, branchPath, at: nodeId, resolvedAs });
+      this.emit({ type: 'branch.resumed', regionId: region.fanoutId,
+        regionPath: this.rpathOf(region, this.indicesFrom(nodeId, branchPath)),
+        branchPath, at: nodeId, resolvedAs });
     }
     // RS-R2: a resolution supplies an outcome for the dispatch that already
     // happened. It never re-dispatches — that is flow-level retry, Q16/Q28.
@@ -1411,7 +1416,11 @@ export class Driver {
       // Not a loss. The branch is still live and the join keeps waiting; a run
       // waiting on a person must not be reported as stuck (Q7).
       const region = this.regionOf(nodeId);
-      if (region) this.emit({ type: 'branch.suspended', regionId: region.fanoutId, branchPath, at: nodeId });
+      if (region) {
+        this.emit({ type: 'branch.suspended', regionId: region.fanoutId,
+          regionPath: this.rpathOf(region, this.indicesFrom(nodeId, branchPath)),
+          branchPath, at: nodeId });
+      }
       return;
     }
     this.advance(runId, nodeId, branchPath);
@@ -1543,7 +1552,8 @@ export class Driver {
       // No edge opts into this state. The path ends — declared by omission.
       const region = this.regionOf(nodeId);
       if (region) {
-        this.emit({ type: 'branch.lost', regionId: region.fanoutId, branchPath, reason: 'failed' });
+        this.emit({ type: 'branch.lost', regionId: region.fanoutId,
+          regionPath: this.rpathOf(region, itemIndices), branchPath, reason: 'failed' });
       }
       // `spec/run-state.md` section 3's `failed` — *"a path ended with no eligible
       // edge, outside or inside a region"*. Reported for BOTH, and appended after
@@ -1629,7 +1639,8 @@ export class Driver {
         // state to step. `JP-R5`'s ordering rule and this are the same constraint
         // seen from two sides.
         if (this.opts.joinPolicy) {
-          this.joinState.set(region.fanoutId, this.opts.joinPolicy.open(toRegion(region) as Region));
+          this.joinStateSet(region.fanoutId, this.rpathOf(region, itemIndices),
+            this.opts.joinPolicy.open(toRegion(region) as Region));
         }
         // **The region is ENTERED, and the fold is told so** — W33. Appended beside
         // `open` in both region-opening arms, because that is the moment
@@ -1637,7 +1648,8 @@ export class Driver {
         // true. Here it is redundant with the `branch.opened`s below — `FD-V9`
         // guarantees at least two — and it is emitted anyway so the invariant has
         // ONE mechanism rather than one for a fanout and another for a map.
-        this.append({ kind: 'regionEntered', regionId: region.fanoutId });
+        this.append({ kind: 'regionEntered', regionId: region.fanoutId,
+          regionPath: this.rpathOf(region, itemIndices) });
         // **Each branch entry's OWN path, not its bare index** — W21. This
         // emitted `String(i)` and threaded it, so a nested fanout opened its
         // branches at `0`/`1` with the outer prefix discarded: `fromBranch` was in
@@ -1647,7 +1659,8 @@ export class Driver {
         // priced the derivation and found it dearer than the fork table said.
         const paths = region.branches.map((b) => this.pathOf(b, itemIndices));
         region.branches.forEach((_b, i) => {
-          this.emit({ type: 'branch.opened', regionId: region.fanoutId, branchPath: paths[i]! });
+          this.emit({ type: 'branch.opened', regionId: region.fanoutId,
+            regionPath: this.rpathOf(region, itemIndices), branchPath: paths[i]! });
         });
         // **The last two arguments here are unobservable and are kept deliberately**
         // — W21's adequacy reader. `FD-V9` makes every branch entry a `task`, and
@@ -1725,11 +1738,13 @@ export class Driver {
         // `start` catches, reports and rethrows.
         const items = this.mapItems(node, received);
         if (this.opts.joinPolicy) {
-          this.joinState.set(region.fanoutId, this.opts.joinPolicy.open(toRegion(region) as Region));
+          this.joinStateSet(region.fanoutId, this.rpathOf(region, itemIndices),
+            this.opts.joinPolicy.open(toRegion(region) as Region));
         }
         // The region is ENTERED — see the `fanout` arm. **Here it is the only thing
         // that says so when N is 0**, and without it that run folds to `completed`.
-        this.append({ kind: 'regionEntered', regionId: region.fanoutId });
+        this.append({ kind: 'regionEntered', regionId: region.fanoutId,
+          regionPath: this.rpathOf(region, itemIndices) });
         // **`region.branches` is `[branch]` whatever N is** — that is the shape
         // `spec/join-policy.md` section 1 fixes and `toRegion` hands a policy, and
         // it is deliberately NOT widened to N copies. See that document's section 3
@@ -1750,7 +1765,8 @@ export class Driver {
         // for a map. The clause stays unfalsifiable and its two guarantors are now
         // two rules rather than one.
         for (const p of paths) {
-          this.emit({ type: 'branch.opened', regionId: region.fanoutId, branchPath: p });
+          this.emit({ type: 'branch.opened', regionId: region.fanoutId,
+            regionPath: this.rpathOf(region, itemIndices), branchPath: p });
         }
         // **Every instance receives its OWN ITEM, as its own copy** —
         // [ADR 0037](../../doc/decisions/0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md)
@@ -1831,6 +1847,7 @@ export class Driver {
           this.emit({
             type: 'branch.lost',
             regionId: enclosing.fanoutId,
+            regionPath: this.rpathOf(enclosing, itemIndices),
             branchPath: this.pathOf(region.fanoutId, itemIndices),
             reason: 'failed',
           });
@@ -1880,10 +1897,12 @@ export class Driver {
         // So the window a region's collection exists in is stated at both ends: it
         // opens at the first arrival and closes when the join becomes terminal, and
         // outside it nothing is recorded and nothing is held.
-        if (!this.firedJoins.has(region.fanoutId)) {
-          this.arrivalsOf(region.fanoutId).set(fromBranch, payload);
+        const rpJoin = this.rpathOf(region, itemIndices);
+        if (!this.firedHas(region.fanoutId, rpJoin)) {
+          this.arrivalsOf(region.fanoutId, rpJoin).set(fromBranch, payload);
         }
-        this.emit({ type: 'branch.arrived', regionId: region.fanoutId, branchPath: fromBranch });
+        this.emit({ type: 'branch.arrived', regionId: region.fanoutId,
+          regionPath: rpJoin, branchPath: fromBranch });
         this.settleJoin(runId, region, itemIndices);
         return;
       }
@@ -1901,7 +1920,8 @@ export class Driver {
         if (region && fromBranch !== '-') {
           // NOT "left the region" — the `end` is inside region(F). The condition is
           // "reached a node of kind `end`", which is local and computable.
-          this.emit({ type: 'branch.exited', regionId: region.fanoutId, branchPath: fromBranch, at: nodeId });
+          this.emit({ type: 'branch.exited', regionId: region.fanoutId,
+            regionPath: this.rpathOf(region, itemIndices), branchPath: fromBranch, at: nodeId });
         }
         // `spec/run-state.md` section 3's `completed` — *"at least one path ended
         // at an `end` node"*. **Reported whether or not the path was in a region**,
@@ -2424,16 +2444,22 @@ export class Driver {
    * fact 3 measured as a SECOND COPY — 49.8% of a region-bearing run, aliasing
    * neither the log record's `result` nor the worker's own object.
    */
-  private releaseArrivals(fanoutId: string): void {
-    this.arrivals.delete(fanoutId);
+  private releaseArrivals(fanoutId: string, rp: string): void {
+    this.arrivals.get(fanoutId)?.delete(rp);
+    // The opener's own entry goes when its last instance's does, so a run that
+    // released every instance holds no key at all rather than N empty maps —
+    // which is what makes `RN-R13`'s "released" observable as an absence.
+    if (this.arrivals.get(fanoutId)?.size === 0) this.arrivals.delete(fanoutId);
   }
 
   /** The arrival map for one region, created on first arrival. */
-  private arrivalsOf(fanoutId: string): Map<string, unknown> {
-    const existing = this.arrivals.get(fanoutId);
+  private arrivalsOf(fanoutId: string, rp: string): Map<string, unknown> {
+    const byPath = this.arrivals.get(fanoutId) ?? new Map<string, Map<string, unknown>>();
+    this.arrivals.set(fanoutId, byPath);
+    const existing = byPath.get(rp);
     if (existing) return existing;
     const fresh = new Map<string, unknown>();
-    this.arrivals.set(fanoutId, fresh);
+    byPath.set(rp, fresh);
     return fresh;
   }
 
@@ -2505,6 +2531,69 @@ export class Driver {
    * Nothing could see it while nested fan-out was refused; the moment it was not,
    * the same graph gave two different answers depending on node order.
    */
+  /* ---- region INSTANCE accessors — ADR 0062 --------------------------------
+   * A region instance is `(opener node id, the opener's own branchPath)`. The
+   * path is derived by the existing `pathOf`/`branchPathOf` from the
+   * `itemIndices` the driver already threads, so **no call site gains a
+   * parameter and no second region-chain walk is added** — which is the whole of
+   * why key (b) was taken over the minimal sufficient qualifier.
+   *
+   * **Nothing here builds a composite string.** The pair is carried as a pair, at
+   * every level, in all three structures and in both fold inputs. A composite was
+   * built and run: `joinStatusOf` returned `null` for every nested region and
+   * three more lookups returned `[]`, twelve silent modes in all, because a
+   * mis-derived composite is a string a `Map.get` simply misses.
+   */
+  private rpathOf(region: RegionSets, m: ReadonlyMap<string, number> = EMPTY_INDICES): string {
+    return this.pathOf(region.fanoutId, m);
+  }
+
+  /* **TWO EQUIVALENT DERIVATIONS of this value exist and neither is a defect** — W84's
+   * adequacy reader, finding 6, and they are recorded rather than guarded because
+   * `doc/workflow.md` v0.22's own test asks for the TREE on which a claim fails and
+   * neither has one.
+   *
+   *   - `region.joinId` in place of `region.fanoutId`: a region's join is never a
+   *     MEMBER of that region (`src/definition/regions.ts`: *J is not a member*), so
+   *     `innermostRegionOf` gives both the same enclosing region. Measured over the
+   *     21 regions of `spec/examples/valid` and `spec/examples/wiring`: **0 where the
+   *     two differ.** Swapping it costs 0 at every rung.
+   *   - deriving `regionPath` from the EVENT's own `branchPath` by dropping its last
+   *     segment: a branch entry's path is always its instance's path plus one segment,
+   *     so the two agree by construction. Costs 0 at every rung.
+   *
+   * *Both are survivors of a provenance probe whose mutation is semantically
+   * equivalent, which rule 8's own definition says is not a survivor.* What they cost
+   * is INDEPENDENCE: an assertion comparing `regionPath` with `branchPath` is a
+   * tautology under the second, which is why the suite's binding is the DOCUMENT-derived
+   * key in `test/matrix/chain.test.ts` and not that comparison.
+   */
+
+  private joinStateGet(id: string, rp: string): unknown {
+    return this.joinState.get(id)?.get(rp);
+  }
+
+  private joinStateHas(id: string, rp: string): boolean {
+    return this.joinState.get(id)?.has(rp) ?? false;
+  }
+
+  private joinStateSet(id: string, rp: string, v: unknown): void {
+    const byPath = this.joinState.get(id) ?? new Map<string, unknown>();
+    byPath.set(rp, v);
+    this.joinState.set(id, byPath);
+  }
+
+  private firedHas(id: string, rp: string): boolean {
+    return this.firedJoins.get(id)?.has(rp) ?? false;
+  }
+
+  private firedAdd(id: string, rp: string): void {
+    const s = this.firedJoins.get(id) ?? new Set<string>();
+    s.add(rp);
+    this.firedJoins.set(id, s);
+  }
+  /* ------------------------------------------------------------------------- */
+
   private regionOf(nodeId: string): RegionSets | undefined {
     return innermostRegionOf(this.regions, nodeId);
   }
@@ -2537,8 +2626,8 @@ export class Driver {
     // `undefined` is a legal value of it. An `open()` returning `undefined` used to
     // silently disable the whole seam — no event reached `step`, the join never
     // fired, and `joinStatusOf` reported "not entered" about a region that was.
-    if (policy && this.joinState.has(e.regionId)) {
-      this.joinState.set(e.regionId, policy.step(this.joinState.get(e.regionId), e));
+    if (policy && this.joinStateHas(e.regionId, e.regionPath)) {
+      this.joinStateSet(e.regionId, e.regionPath, policy.step(this.joinStateGet(e.regionId, e.regionPath), e));
     }
     // **`OR-R7` and ADR 0014 — every value the driver hands outward is a frozen
     // copy, and `onRegionEvent` was the one path that was not** ([Q73](../../doc/open-questions.md)).
@@ -2586,9 +2675,10 @@ export class Driver {
     itemIndices: ReadonlyMap<string, number> = EMPTY_INDICES,
   ): void {
     const policy = this.opts.joinPolicy;
-    if (!policy || this.firedJoins.has(region.fanoutId)) return;
-    if (!this.joinState.has(region.fanoutId)) return;
-    const state = this.joinState.get(region.fanoutId);
+    const rp = this.rpathOf(region, itemIndices);
+    if (!policy || this.firedHas(region.fanoutId, rp)) return;
+    if (!this.joinStateHas(region.fanoutId, rp)) return;
+    const state = this.joinStateGet(region.fanoutId, rp);
 
     const status = policy.status(state);
     if (status === 'waiting') return;
@@ -2609,7 +2699,7 @@ export class Driver {
       // one function away: *a defensive clause that cannot fail is not a defect;
       // describing it as though it could is*.
       const describe = policy.describe(state);
-      this.firedJoins.add(region.fanoutId);
+      this.firedAdd(region.fanoutId, rp);
       // **[ADR 0046](../../doc/decisions/0046-a-run-retains-what-its-tasks-returned-and-a-region-releases-its-collection-when-its-join-becomes-terminal.md)
       // rule 3 — the latch on the line above is the whole of the argument.** This
       // arm routes nowhere, so it never reads the collection at all; and once
@@ -2623,13 +2713,21 @@ export class Driver {
       // A policy reporting `unsatisfiable` is the one such region the driver is
       // TOLD about. The rest — a region nothing ever settles — is the bound rather
       // than a leak, and ADR 0046 rule 5 says why the driver cannot know.
-      this.releaseArrivals(region.fanoutId);
+      this.releaseArrivals(region.fanoutId, rp);
       // ADR 0015 — the join is settled and it did NOT fire. Nothing downstream of
       // it will ever be dispatched, which is what makes the run `stuck` rather
       // than `completed`.
-      this.append({ kind: 'joinSettled', regionId: region.fanoutId, joinId: region.joinId, fired: false });
+      this.append({ kind: 'joinSettled', regionId: region.fanoutId, regionPath: rp,
+        joinId: region.joinId, fired: false });
       this.opts.onUnsatisfiableJoin?.({
         fanoutId: region.fanoutId,
+        // **The INSTANCE, not just the opener** - W84. Under nesting one
+        // `fanoutId` names N joins and a report carrying only the id cannot say
+        // which of them died. That is `RegionEvent`'s own argument at the one
+        // other place a region is named to a consumer, and W33's comment named
+        // `onUnsatisfiableJoin` beside `joinStatusOf` as a thing this decision
+        // reaches. Additive: a consumer reading the four fields it had is unmoved.
+        regionPath: rp,
         joinId: region.joinId,
         describe,
         policyId: policy.id,
@@ -2676,6 +2774,7 @@ export class Driver {
         this.emit({
           type: 'branch.lost',
           regionId: enclosing.fanoutId,
+          regionPath: this.rpathOf(enclosing, itemIndices),
           branchPath: this.pathOf(region.fanoutId, itemIndices),
           reason: 'failed',
         });
@@ -2685,7 +2784,7 @@ export class Driver {
     }
 
     // satisfied — route out of the join, exactly once.
-    this.firedJoins.add(region.fanoutId);
+    this.firedAdd(region.fanoutId, rp);
     // **ADR 0015.** Appended before the routing it authorises, so a fold that
     // reads the sequence sees the join fire and *then* sees what it dispatched.
     //
@@ -2698,7 +2797,8 @@ export class Driver {
     // It records what the DRIVER did, not what a policy concluded, which is why it
     // does not violate `RN-R6`: `fired` is "routing left the join", an action, and
     // the same two policies over the same events still produce identical `regions`.
-    this.append({ kind: 'joinSettled', regionId: region.fanoutId, joinId: region.joinId, fired: true });
+    this.append({ kind: 'joinSettled', regionId: region.fanoutId, regionPath: rp,
+      joinId: region.joinId, fired: true });
     // **`OR-R10` on the one door into this function that is already OPEN — W53's
     // conformity reader.** The three doors into `settleJoin` are all shut behind
     // `this.failed`, and the argument in `failRun` enumerates them correctly; what it
@@ -2736,8 +2836,8 @@ export class Driver {
     // join's successor, which is outside this region or in the enclosing one, and
     // `firedJoins` already holds this region — so no path out of that call can read
     // or refill what is dropped here.
-    const collected = collectArrivals(this.arrivals.get(region.fanoutId));
-    this.releaseArrivals(region.fanoutId);
+    const collected = collectArrivals(this.arrivals.get(region.fanoutId)?.get(rp));
+    this.releaseArrivals(region.fanoutId, rp);
     const join = this.graph.byId.get(region.joinId);
     if (!join || join.kind !== 'join') return;
     const edge = join.edges?.[0];
@@ -2856,18 +2956,35 @@ export class Driver {
   }
 
   /**
-   * What the join policy currently says, per fan-out. `null` when there is no
-   * policy or the region has not been entered.
+   * What the join policy currently says, per region INSTANCE. `null` when there is
+   * no policy, the instance has not been entered, or no single instance is named.
    *
    * `spec/join-policy.md` section 4 assigns W3 *"how it detects a stuck one when
    * no policy says so"* — and neither pinned policy ever returns `unsatisfiable`,
    * so this accessor is the whole of that detection today. Anything more is
    * [Q7](../../doc/open-questions.md), which is W4's.
    */
-  joinStatusOf(fanoutId: string): { status: string; describe: unknown } | null {
+  /**
+   * **`regionPath` is OPTIONAL and its absence means THE SOLE INSTANCE** - W84.
+   * Every region any flow could express before W84 has exactly one instance, so a
+   * caller that never heard of nesting keeps working AND keeps getting the same
+   * answer, which is ADR 0062 rule 3 reaching the read side. **With N instances
+   * and no path there is no sole one**, so the caller is told `null` rather than
+   * told one of the N: picking would make the answer depend on Map insertion
+   * order, which is dispatch order, which is exactly the order-dependence
+   * `settleJoin`'s bare signature exists to refuse.
+   *
+   * *(The composite-string design returned `null` here for EVERY nested region and
+   * nothing typed could see it - nine of the twelve silent failure modes that road
+   * was measured to have, and the sharpest single argument for this one.)*
+   */
+  joinStatusOf(fanoutId: string, regionPath?: string): { status: string; describe: unknown } | null {
     const policy = this.opts.joinPolicy;
-    if (!policy || !this.joinState.has(fanoutId)) return null;
-    const state = this.joinState.get(fanoutId);
+    const byPath = this.joinState.get(fanoutId);
+    if (!policy || !byPath) return null;
+    const rp = regionPath ?? (byPath.size === 1 ? [...byPath.keys()][0]! : undefined);
+    if (rp === undefined || !byPath.has(rp)) return null;
+    const state = byPath.get(rp);
     try {
       return { status: policy.status(state), describe: policy.describe(state) };
     } catch {

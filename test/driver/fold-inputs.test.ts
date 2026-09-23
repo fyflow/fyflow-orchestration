@@ -200,9 +200,9 @@ suite('ADR 0014 — the driver produces one ordered input sequence', (test) => {
 
     equal(h.unsatisfiable.length, 1, 'the driver reports it once');
     equal(h.driver.foldInputs().filter((i) => i.kind === 'joinSettled'),
-      [{ kind: 'joinSettled', regionId: 'split', joinId: 'collect', fired: false }],
+      [{ kind: 'joinSettled', regionId: 'split', regionPath: '-', joinId: 'collect', fired: false }],
       'and the sequence records that the join settled WITHOUT routing — ADR 0015 rule 2');
-    equal(fold(h.driver.foldInputs()).regions['split']!.joined, false,
+    equal(fold(h.driver.foldInputs()).regions['split']!['-']!.joined, false,
       'which the fold reads as `joined: false`, not `null`: it will never fire, rather than not yet');
   });
 

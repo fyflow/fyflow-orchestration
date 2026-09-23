@@ -740,8 +740,14 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
   // Beside FD-V9's identical clause rather than with the other FD-V25 clauses,
   // because both need `kindOf` and therefore the graph. Requiring a `task` here is
   // what keeps map-inside-map expressible only through that task's edges — the same
-  // road nesting a fanout already takes — so P10's "not taken" stays not taken
-  // rather than being decided in either direction (Q156).
+  // road nesting a fanout already takes.
+  //
+  // **[Q156](../../doc/open-questions.md) is DECIDED and this rule did not move for it**
+  // ([ADR 0062](../../doc/decisions/0062-a-region-instance-is-its-opener-and-the-openers-own-branch-path.md),
+  // [W84](../../doc/work-items/w84-what-a-regions-identity-is.md)): a map's branch may reach a region and
+  // the driver RUNS it. *(This read "so P10's `not taken` stays not taken rather than being decided in
+  // either direction" — true when it was written and false since W84. The rule is unchanged either way,
+  // which is what that sentence was really about.)*
   for (const m of maps) {
     if (typeof m.branch === 'string' && g.byId.has(m.branch) && kindOf(m.branch) !== 'task') {
       add('FD-V25', m.id, `branch "${m.branch}" is a ${kindOf(m.branch)}, not a task`);
@@ -956,10 +962,11 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
         // output; only a `map` region enters its branch once per item.
         //
         // **That is `FD-C2`'s own measurement, and the rule was written against a
-        // set that contradicted it.** `spec/examples/valid`'s six region-bearing
-        // flows give (node id, branchPath) pairs distinct 4/4, 4/4, 5/5, 6/6, 4/4
-        // and 7/7, and the node ids collapse in **exactly** the four with a map
-        // region and in neither with only `fanout`s. Same document, nine lines
+        // set that contradicted it.** `spec/examples/valid`'s region-bearing flows
+        // — **six when this was written and THIRTEEN now**, found by W84's conformity
+        // reader — gave (node id, branchPath) pairs distinct 4/4, 4/4, 5/5, 6/6, 4/4
+        // and 7/7, and the node ids collapse in **exactly** those with a map
+        // region and in none with only `fanout`s. Same document, nine lines
         // apart, and the code followed the wrong half.
         const many = regions.some((r) => r.opensWith === 'map' && r.members.has(target) && !r.members.has(n.id));
         if (many && t.form === 'one') {

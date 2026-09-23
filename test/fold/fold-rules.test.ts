@@ -177,31 +177,31 @@ suite('regions record what happened — including the distinctions W4 needs', (t
     // Recording a `lost` as an `exited` survived the whole suite. W5's failure
     // matrix is exactly where that distinction is the answer.
     const s = fold([
-      region({ type: 'branch.opened', regionId: 'f', branchPath: '0' }),
-      region({ type: 'branch.opened', regionId: 'f', branchPath: '1' }),
-      region({ type: 'branch.lost', regionId: 'f', branchPath: '0', reason: 'failed' }),
-      region({ type: 'branch.exited', regionId: 'f', branchPath: '1', at: 'abandoned' }),
+      region({ type: 'branch.opened', regionId: 'f', regionPath: '-', branchPath: '0' }),
+      region({ type: 'branch.opened', regionId: 'f', regionPath: '-', branchPath: '1' }),
+      region({ type: 'branch.lost', regionId: 'f', regionPath: '-', branchPath: '0', reason: 'failed' }),
+      region({ type: 'branch.exited', regionId: 'f', regionPath: '-', branchPath: '1', at: 'abandoned' }),
     ]);
-    equal(s.regions['f']!.settled, { '0': 'lost', '1': 'exited' },
+    equal(s.regions['f']!['-']!.settled, { '0': 'lost', '1': 'exited' },
       'Q5 separates these two, so run state must too');
   });
 
   test('a terminal event clears a suspension', () => {
     const s = fold([
-      region({ type: 'branch.opened', regionId: 'f', branchPath: '0' }),
-      region({ type: 'branch.suspended', regionId: 'f', branchPath: '0', at: 'review' }),
-      region({ type: 'branch.lost', regionId: 'f', branchPath: '0', reason: 'failed' }),
+      region({ type: 'branch.opened', regionId: 'f', regionPath: '-', branchPath: '0' }),
+      region({ type: 'branch.suspended', regionId: 'f', regionPath: '-', branchPath: '0', at: 'review' }),
+      region({ type: 'branch.lost', regionId: 'f', regionPath: '-', branchPath: '0', reason: 'failed' }),
     ]);
-    equal(s.regions['f']!.suspended, [], 'a branch that ended is not still waiting on a person');
-    equal(s.regions['f']!.settled, { '0': 'lost' }, 'it ended');
+    equal(s.regions['f']!['-']!.suspended, [], 'a branch that ended is not still waiting on a person');
+    equal(s.regions['f']!['-']!.settled, { '0': 'lost' }, 'it ended');
   });
 
   test('branch.opened is deduplicated', () => {
     const s = fold([
-      region({ type: 'branch.opened', regionId: 'f', branchPath: '0' }),
-      region({ type: 'branch.opened', regionId: 'f', branchPath: '0' }),
+      region({ type: 'branch.opened', regionId: 'f', regionPath: '-', branchPath: '0' }),
+      region({ type: 'branch.opened', regionId: 'f', regionPath: '-', branchPath: '0' }),
     ]);
-    equal(s.regions['f']!.opened, ['0'], 'JP-R5 gives one per branch; a duplicate is a malformed stream');
+    equal(s.regions['f']!['-']!.opened, ['0'], 'JP-R5 gives one per branch; a duplicate is a malformed stream');
   });
 
   test('runId comes from the FIRST record, not the last', () => {
@@ -220,15 +220,16 @@ suite("RN-R10 and `regionEntered` \u2014 an entered region that opened NOTHING",
   // *opened at least one branch* were the same thing. They were the same thing
   // because `FD-V9`'s arity floor makes a `fanout` open at least two; a `map` of zero
   // items separates them, and it is the only thing that can.
-  const entered = (regionId: string): FoldInput => ({ kind: 'regionEntered', regionId });
+  const entered = (regionId: string, regionPath = '-'): FoldInput =>
+    ({ kind: 'regionEntered', regionId, regionPath });
 
   test('a region entered with no branch opened is PRESENT, and the run is stuck', () => {
     const s = fold([
       dispatched('r1:ingest:-:0'), rec(settled('r1:ingest:-:0', 'done')),
       entered('split'),
     ]);
-    ok(s.regions['split'] !== undefined, 'section 2: one entry per region ENTERED');
-    equal(s.regions['split'], { opened: [], settled: {}, suspended: [], joined: null },
+    ok(s.regions['split']?.['-'] !== undefined, 'section 2: one entry per region INSTANCE ENTERED');
+    equal(s.regions['split'], { '-': { opened: [], settled: {}, suspended: [], joined: null } },
       'entered, nothing opened, and the join neither fired nor was declared dead');
     equal(s.outcome, 'stuck',
       'RN-R10 -- nothing is live, nothing waits on a person, and an entered region has not ' +
@@ -253,14 +254,14 @@ suite("RN-R10 and `regionEntered` \u2014 an entered region that opened NOTHING",
     // total over any prefix and a malformed sequence must not corrupt state.
     const base: FoldInput[] = [
       entered('f'),
-      region({ type: 'branch.opened', regionId: 'f', branchPath: '0' }),
-      region({ type: 'branch.arrived', regionId: 'f', branchPath: '0' }),
-      { kind: 'joinSettled', regionId: 'f', joinId: 'j', fired: true },
+      region({ type: 'branch.opened', regionId: 'f', regionPath: '-', branchPath: '0' }),
+      region({ type: 'branch.arrived', regionId: 'f', regionPath: '-', branchPath: '0' }),
+      { kind: 'joinSettled', regionId: 'f', regionPath: '-', joinId: 'j', fired: true },
     ];
     const once = fold(base);
     const twice = fold([...base, entered('f')]);
     equal(twice.regions, once.regions, 'a repeat is a no-op, not a reset');
-    equal(once.regions['f']!.joined, true, 'and the region really did carry something to lose');
+    equal(once.regions['f']!['-']!.joined, true, 'and the region really did carry something to lose');
   });
 
   test('it does not invent a region the run never reached', () => {
@@ -289,8 +290,8 @@ suite('the policies against a Region that is not two branches', (test) => {
     fanoutId: 'f', joinId: 'j',
     branches: ['a', 'b', 'c', 'd'], members: ['a', 'b', 'c', 'd'],
   };
-  const arrived = (b: string): RegionEvent => ({ type: 'branch.arrived', regionId: 'f', branchPath: b });
-  const opened = (b: string): RegionEvent => ({ type: 'branch.opened', regionId: 'f', branchPath: b });
+  const arrived = (b: string): RegionEvent => ({ type: 'branch.arrived', regionId: 'f', regionPath: '-', branchPath: b });
+  const opened = (b: string): RegionEvent => ({ type: 'branch.opened', regionId: 'f', regionPath: '-', branchPath: b });
 
   test('arrival-count COUNTS N from branch.opened, at any width', () => {
     // **v0.12 - this test called `arrivalCount.open(wide)` and asserted `need: 4`
@@ -353,7 +354,7 @@ suite('the policies against a Region that is not two branches', (test) => {
     let s = arrivalCount.open(wide);
     for (const b of ['0', '1']) s = arrivalCount.step(s, opened(b));
     s = arrivalCount.step(s, arrived('0'));
-    s = arrivalCount.step(s, { type: 'branch.exited', regionId: 'f', branchPath: '1', at: 'done' });
+    s = arrivalCount.step(s, { type: 'branch.exited', regionId: 'f', regionPath: '-', branchPath: '1', at: 'done' });
     equal(arrivalCount.status(s), 'waiting',
       'two opened, one arrived, one routed away: it waits forever, which is the cost ADR 0003 records');
     equal(arrivalCount.describe(s), { need: 2, arrived: ['0'] }, 'and `need` was NOT decremented');
@@ -378,8 +379,8 @@ suite('the policies against a Region that is not two branches', (test) => {
 
 suite('JP-R2 — describe reports CONTENT, not just valid JSON', (test) => {
   const r: Region = { fanoutId: 'f', joinId: 'j', branches: ['a', 'b'], members: ['a', 'b'] };
-  const opened = (b: string): RegionEvent => ({ type: 'branch.opened', regionId: 'f', branchPath: b });
-  const arrived = (b: string): RegionEvent => ({ type: 'branch.arrived', regionId: 'f', branchPath: b });
+  const opened = (b: string): RegionEvent => ({ type: 'branch.opened', regionId: 'f', regionPath: '-', branchPath: b });
+  const arrived = (b: string): RegionEvent => ({ type: 'branch.arrived', regionId: 'f', regionPath: '-', branchPath: b });
 
   test('live-token describes both live AND positive', () => {
     // Dropping `positive` from describe survived: JP-R2's test only asserted a
@@ -410,8 +411,8 @@ suite('JP-R2 — describe reports CONTENT, not just valid JSON', (test) => {
 
 suite('the policies on non-conformant streams — asymmetries W4 could misread', (test) => {
   const r: Region = { fanoutId: 'f', joinId: 'j', branches: ['a', 'b'], members: ['a', 'b'] };
-  const opened = (b: string): RegionEvent => ({ type: 'branch.opened', regionId: 'f', branchPath: b });
-  const arrived = (b: string): RegionEvent => ({ type: 'branch.arrived', regionId: 'f', branchPath: b });
+  const opened = (b: string): RegionEvent => ({ type: 'branch.opened', regionId: 'f', regionPath: '-', branchPath: b });
+  const arrived = (b: string): RegionEvent => ({ type: 'branch.arrived', regionId: 'f', regionPath: '-', branchPath: b });
 
   test('arrival-count counts DISTINCT arrivals, so a duplicate does not satisfy it', () => {
     let s = arrivalCount.open(r);

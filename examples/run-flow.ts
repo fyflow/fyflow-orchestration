@@ -1224,10 +1224,52 @@ export interface PairFacts {
  * — *a redundant surface is read as a permissive one*), and a byte measurement needs
  * `v8.serialize`, which exists in two of the five runtimes.
  *
- * **The shape is the field's own declaration**, `Map<fanoutId, Map<branchPath, payload>>`.
+ * **The shape is the field's own declaration**, and since
+ * [W84](../doc/work-items/w84-what-a-regions-identity-is.md) that is THREE levels:
+ * `Map<fanoutId, Map<openerPath, Map<branchPath, payload>>>`, because a `map` can
+ * enter one opener N times and a collection belongs to the region INSTANCE
+ * ([ADR 0062](../doc/decisions/0062-a-region-instance-is-its-opener-and-the-openers-own-branch-path.md)).
+ *
+ * **`arrivalsOf` flattens the middle level away, and that is LOSSLESS rather than a
+ * convenience.** Every branch path inside an instance begins with that instance's
+ * own path, so two instances of one opener hold DISJOINT branch-path key sets —
+ * which the merge asserts rather than assumes. What this file reports is per-region
+ * and every flow it runs has one instance per opener, so the merge changes no
+ * number here and keeps working when one does not.
+ *
+ * *This cast is why this file was not named by any typechecker when the shape moved:
+ * a reach that restates the shape it reaches into compiles against its own
+ * restatement. It surfaced as a wrong COUNT at L6 instead.*
  */
-const arrivalsOf = (d: Driver): Map<string, Map<string, unknown>> =>
-  (d as unknown as { arrivals: Map<string, Map<string, unknown>> }).arrivals;
+const rawArrivalsOf = (d: Driver): Map<string, Map<string, Map<string, unknown>>> =>
+  (d as unknown as { arrivals: Map<string, Map<string, Map<string, unknown>>> }).arrivals;
+
+const arrivalsOf = (d: Driver): Map<string, Map<string, unknown>> => {
+  const out = new Map<string, Map<string, unknown>>();
+  for (const [fanoutId, byPath] of rawArrivalsOf(d)) {
+    const merged = new Map<string, unknown>();
+    for (const [, held] of byPath) {
+      for (const [branchPath, payload] of held) {
+        // **No live case, and the number is 0 / 0** — W84's adequacy reader, finding 9:
+        // `if (false)` here costs zero at both L6 rungs, because no flow this file runs
+        // has two instances of one opener. It is a construction rather than a guard —
+        // the merge below is only lossless while the key sets are disjoint, and this is
+        // the sentence that says so executing rather than sitting in the comment above.
+        // **W86 adds the first flow with two instances** and is where it acquires a case.
+        if (merged.has(branchPath)) {
+          throw new Error(
+            `two instances of region "${fanoutId}" both hold branch path "${branchPath}" — ` +
+            'a branch path inside an instance begins with that instance`s own path, so this ' +
+            'merge is only lossless while they are disjoint (W84)',
+          );
+        }
+        merged.set(branchPath, payload);
+      }
+    }
+    out.set(fanoutId, merged);
+  }
+  return out;
+};
 
 /** The `result` object of every settled record in the driver's own log, **by reference**. */
 const loggedResults = (d: Driver): unknown[] =>
@@ -1765,7 +1807,11 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
     // that retains what a callback gave it is the habit that produced ADR 0007.
     onUnsatisfiableJoin: (j) => {
       unsatisfiableJoins.push({
-        fanoutId: j.fanoutId, joinId: j.joinId, policyId: j.policyId, describe: j.describe,
+        // **`regionPath` copied too, and it is not decoration** — W84. Under ADR 0062
+        // one `fanoutId` can name N joins, so a report that drops the path cannot say
+        // which of them died; copying it is what lets an L6 row assert the instance.
+        fanoutId: j.fanoutId, regionPath: j.regionPath,
+        joinId: j.joinId, policyId: j.policyId, describe: j.describe,
       });
     },
     // **`ID-R5` — and this callback MUST NOT THROW.**

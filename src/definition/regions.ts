@@ -301,7 +301,13 @@ export function innermostRegionOf(
  *
  * **Keyed per region rather than taking one index**, so that whether a map may
  * contain a map — P10's *"not taken"*, [Q156](../../doc/open-questions.md) — needs no
- * signature change whichever way it lands.
+ * signature change whichever way it lands. **It landed YES at
+ * [W84](../../doc/work-items/w84-what-a-regions-identity-is.md)
+ * ([ADR 0062](../../doc/decisions/0062-a-region-instance-is-its-opener-and-the-openers-own-branch-path.md))
+ * and this signature did not move** — which is the sentence above confirmed rather
+ * than merely still standing: an opener inside a map region now asks for its OWN path
+ * and gets it from the same per-region map, and the region INSTANCE key is exactly
+ * `branchPathOf(regions, openerId, itemIndices)`.
  */
 export function branchPathOf(
   regions: RegionSets[],

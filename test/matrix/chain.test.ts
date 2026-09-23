@@ -41,6 +41,7 @@ import { equal, ok, suite } from '../harness.ts';
 import { arrivalCount, liveToken } from '../../src/fold/policies.ts';
 import type { JoinPolicy } from '../../src/driver/policy.ts';
 import { fold, isTerminal } from '../../src/fold/run-state.ts';
+import { allRegions, branchPathOf, buildGraph } from '../../src/definition/regions.ts';
 import { driveScenario, runCell } from './run.ts';
 import { NESTED_SCENARIOS, SCENARIOS } from './scenarios.ts';
 // **`liveTokenRequiringArrival` comes from `src/` since ADR 0025**, not from
@@ -76,6 +77,8 @@ suite('L2 — from `unsatisfiable` to `stuck`, in one run', (test) => {
     const { unsatisfiable } = drive(liveTokenRequiringArrival as JoinPolicy);
     equal(unsatisfiable, [{
       fanoutId: REGION,
+      // The region INSTANCE — `split` opens at top level, so `'-'` (W84, ADR 0062).
+      regionPath: '-',
       joinId: JOIN,
       describe: { live: 0, positive: true, arrived: 0 },
       policyId: 'live-token-requiring-arrival',
@@ -132,7 +135,7 @@ suite('L2 — from `unsatisfiable` to `stuck`, in one run', (test) => {
     // the join is settled and it did NOT fire.
     const { driver } = drive(liveTokenRequiringArrival as JoinPolicy);
     const settled = driver.foldInputs().filter((i) => i.kind === 'joinSettled');
-    equal(settled, [{ kind: 'joinSettled', regionId: REGION, joinId: JOIN, fired: false }],
+    equal(settled, [{ kind: 'joinSettled', regionId: REGION, regionPath: '-', joinId: JOIN, fired: false }],
       'exactly one, and `fired: false`. Without this input a permanently stuck run and a ' +
       'completed one are the SAME fold — which is what ADR 0015 was written for');
   });
@@ -180,9 +183,9 @@ suite('L2 — from `unsatisfiable` to `stuck`, in one run', (test) => {
     const { driver } = drive(liveTokenRequiringArrival as JoinPolicy);
     const state = fold(driver.foldInputs());
     equal(Object.keys(state.regions), [REGION], 'one region was entered');
-    equal(state.regions[REGION]!.joined, false,
+    equal(state.regions[REGION]!['-']!.joined, false,
       'the driver settled the join and did not route — not `null`, which would say "not yet"');
-    equal(state.regions[REGION]!.settled, { '0': 'exited', '1': 'exited' },
+    equal(state.regions[REGION]!['-']!.settled, { '0': 'exited', '1': 'exited' },
       'and `RN-R6` still holds: `regions` records the EVENTS, so this is what every column ' +
       'produces on this row. `joined` is the only field a policy`s behaviour reaches that is ' +
       'DECIDABLE WITHOUT THE DEFINITION — the qualifier is load-bearing and ADR 0015`s Correction ' +
@@ -235,7 +238,7 @@ suite('L2 — `joined: false` and `joined: null` are the same outcome', (test) =
     equal(driver.foldInputs().filter((i) => i.kind === 'joinSettled'), [],
       'and the join never settled either way');
     const state = fold(driver.foldInputs());
-    equal(state.regions[REGION]!.joined, null, '`null` — neither fired nor declared unfireable');
+    equal(state.regions[REGION]!['-']!.joined, null, '`null` — neither fired nor declared unfireable');
     equal(state.outcome, 'stuck', 'and the run is stuck all the same');
   });
 
@@ -250,7 +253,7 @@ suite('L2 — `joined: false` and `joined: null` are the same outcome', (test) =
     equal(reported.outcome, silent.outcome,
       'one row, two policies, the same `stuck` — the difference survives ONLY in ' +
       '`regions[*].joined` and in whether `onUnsatisfiableJoin` fired');
-    ok(reported.regions[REGION]!.joined !== silent.regions[REGION]!.joined,
+    ok(reported.regions[REGION]!['-']!.joined !== silent.regions[REGION]!['-']!.joined,
       'and there it does survive: `false` against `null`. If this ever stopped being true the ' +
       'two runs would be indistinguishable end to end, which is the state ADR 0015 removed');
   });
@@ -301,6 +304,22 @@ suite('Q37 — what a consumer WITHOUT the callback can learn', (test) => {
  * and stays open — these are assertions beside the matrix, not a widening of it.
  */
 suite('L2 — the whole matrix, checked against the fold and against the scheduler', (test) => {
+  // **Why this walk does NOT run over `NESTED_SCENARIOS`, measured rather than
+  // assumed** (W84). Every scenario in `SCENARIOS` has ONE region and it opens at top
+  // level, so `'-'` is the right instance path for all of them — which means the walk
+  // below can be narrowed from region INSTANCES back to openers for ZERO, and rule
+  // 8's set says so. Adding the nested rows was the obvious answer and it is WRONG:
+  // it goes red on `nested-inner-lost/outer@-`, where `live-token` folds
+  // `{"0":"arrived","1":"arrived"}` and `arrival-count` folds `{"0":"arrived"}`.
+  //
+  // **That red is right.** `RN-R6`'s premise is *two policies folded over THE SAME
+  // region events*; under nesting the two policies disagree about the INNER join, and
+  // `JP-R10` turns that disagreement into a `branch.lost` on the OUTER branch — so
+  // the two runs do not see the same outer events. That is
+  // [ADR 0030](../../doc/decisions/0030-a-join-is-transitive-and-a-dead-join-ends-the-branch-it-sits-in.md)
+  // rule 4's content, not a defect, and widening this claim to cover it would make it
+  // false. What binds the instance keying instead is the test directly below, which
+  // compares each instance's key against the DOCUMENT rather than across policies.
   const ROWS = SCENARIOS.map((scenario) => ({
     scenario,
     runs: MATRIX_COLUMNS.map((policy) => ({ policy, driven: driveScenario(scenario, policy) })),
@@ -321,14 +340,28 @@ suite('L2 — the whole matrix, checked against the fold and against the schedul
       const states = runs.map(({ policy, driven }) =>
         ({ id: policy.id, state: fold(driven.driver.foldInputs()) }));
       const [first, ...rest] = states as [{ id: string; state: ReturnType<typeof fold> }, ...typeof states];
-      for (const regionId of Object.keys(first.state.regions)) {
+      // **Over region INSTANCES and not over openers** — W84. `regions` is two-level
+      // since ADR 0062, so the pair `(openerId, openerPath)` is what `RN-R6`
+      // quantifies over; iterating openers alone would compare the inner RECORDS and
+      // pass on any two states whose instance sets happen to have the same keys.
+      const instances = Object.entries(first.state.regions)
+        .flatMap(([id, byPath]) => Object.keys(byPath).map((rp) => [id, rp] as const));
+      // **The walk asserts it COMPARED something** — rule 8's set found that narrowing
+      // the instance list makes `shape()` return `null` on BOTH sides, so the loop
+      // compares `null` to `null` and is vacuous exactly when it is wrong (W84).
+      ok(instances.length > 0, `${scenario.key}: the instance list is not empty`);
+      for (const [regionId, regionPath] of instances) {
         const shape = (st: ReturnType<typeof fold>) => {
-          const r = st.regions[regionId];
+          const r = st.regions[regionId]?.[regionPath];
           return r ? { opened: r.opened, settled: r.settled, suspended: r.suspended } : null;
         };
+        ok(shape(first.state) !== null,
+          `${scenario.key}/${regionId}@${regionPath}: the instance this walk names is PRESENT in ` +
+          'the state it was derived from — a path that names no instance makes every comparison ' +
+          'below `null` against `null`');
         for (const other of rest) {
           equal(shape(other.state), shape(first.state),
-            `${scenario.key}/${regionId}: ${other.id} folded to a different region shape from ` +
+            `${scenario.key}/${regionId}@${regionPath}: ${other.id} folded to a different region shape from ` +
             `${first.id}. RN-R6 — \`regions\` records the EVENTS, not what a policy concluded, so ` +
             'the only field the four columns may differ in is `joined`');
         }
@@ -341,7 +374,7 @@ suite('L2 — the whole matrix, checked against the fold and against the schedul
     // policy's behaviour. Without this the assertion above is satisfied by a
     // fold that produced nothing at all for every column.
     const joined = ROWS.map(({ scenario, runs }) => [scenario.key, runs.map(({ policy, driven }) =>
-      `${policy.id}=${String(fold(driven.driver.foldInputs()).regions['split']?.joined)}`)] as const);
+      `${policy.id}=${String(fold(driven.driver.foldInputs()).regions['split']?.['-']?.joined)}`)] as const);
     const allExit = joined.find(([k]) => k === 'all-exit')![1];
     equal(allExit, [
       'arrival-count=null',
@@ -406,9 +439,9 @@ suite('L2 — a dead INNER join, through the fold', (test) => {
 
     equal(unsatisfiable.map((u) => u.fanoutId), ['inner'],
       'exactly one region is reported dead, and it is the inner one');
-    equal(state.regions['inner']?.joined, false,
+    equal(state.regions['inner']?.['1']?.joined, false,
       '`joinSettled fired:false` for the inner region — ADR 0015');
-    equal(state.regions['outer']?.joined, true,
+    equal(state.regions['outer']?.['-']?.joined, true,
       'and the outer join DID fire: its live count reached zero having been positive, and ' +
       '`scoreA` arrived. That is the policy answering, not the driver deciding');
     equal(state.outcome, 'stuck',
@@ -424,7 +457,7 @@ suite('L2 — a dead INNER join, through the fold', (test) => {
       '`JP-R5` names the two states in which a branch may have NO terminal event — suspended ' +
       'and unresolved, or still in flight. Before W22 this branch had none while being neither, ' +
       'and `RunState.regions.outer.settled` simply omitted it');
-    equal(fold(driver.foldInputs()).regions['outer']?.settled, { '0': 'arrived', '1': 'lost' },
+    equal(fold(driver.foldInputs()).regions['outer']?.['-']?.settled, { '0': 'arrived', '1': 'lost' },
       'both outer branches are accounted for. The `1` entry is the one that did not exist');
   });
 
@@ -452,12 +485,53 @@ suite('L2 — a dead INNER join, through the fold', (test) => {
   test('the report names the inner region under the OUTER run, with the policy own describe', () => {
     const { unsatisfiable } = driveScenario(NESTED_ALL_EXIT, liveTokenRequiringArrival as JoinPolicy);
     equal(unsatisfiable.length, 1, 'one report');
-    equal({ fanoutId: unsatisfiable[0]!.fanoutId, joinId: unsatisfiable[0]!.joinId,
+    equal({ fanoutId: unsatisfiable[0]!.fanoutId, regionPath: unsatisfiable[0]!.regionPath,
+            joinId: unsatisfiable[0]!.joinId,
             describe: unsatisfiable[0]!.describe, policyId: unsatisfiable[0]!.policyId },
-      { fanoutId: 'inner', joinId: 'innerJoin',
+      // `inner` opens inside branch `1` of `outer` (W84, ADR 0062).
+      { fanoutId: 'inner', regionPath: '1', joinId: 'innerJoin',
         describe: { live: 0, positive: true, arrived: 0 },
         policyId: 'live-token-requiring-arrival' },
       'section 4: the driver reports the POLICY`s own describe and invents no run-level outcome');
+  });
+
+  test('a region instance is keyed by its OPENER and that opener`s OWN path — from the DOCUMENT', () => {
+    // **W84, ADR 0062, and it is what binds the two-level keying here.** The walk
+    // above cannot: every `SCENARIOS` region opens at top level, so `'-'` is right for
+    // all of them and *instances* and *openers* are the same list. These rows nest.
+    //
+    // The expected key is derived from the scenario's own definition — `allRegions`
+    // for the openers, `branchPathOf` for each opener's own path — and compared with
+    // what the FOLD produced.
+    //
+    // **Two CALL SITES of one derivation, not two derivations** — W84's conformity
+    // reader, finding 13. The driver reaches `branchPathOf` through `rpathOf` and
+    // `pathOf`; this reaches it directly. So a defect INSIDE `branchPathOf` is
+    // invisible here, and what this binds is that the driver KEYS BY that derivation
+    // rather than by something else — which is the claim ADR 0062 makes. The
+    // derivation itself is bound by `test/definition/map.test.ts`'s round trip
+    // against `parseTaskId`'s grammar.
+    let nested = 0;
+    for (const scenario of NESTED_SCENARIOS) {
+      const { driver } = driveScenario(scenario, liveToken as JoinPolicy);
+      const state = fold(driver.foldInputs());
+      const regions = allRegions(buildGraph(scenario.flow), scenario.flow);
+      const expected = regions
+        .map((r) => [r.fanoutId, branchPathOf(regions, r.fanoutId)] as const)
+        .filter(([id]) => state.regions[id] !== undefined)
+        .map(([id, rp]) => `${id}@${rp}`)
+        .sort();
+      const actual = Object.entries(state.regions)
+        .flatMap(([id, byPath]) => Object.keys(byPath).map((rp) => `${id}@${rp}`))
+        .sort();
+      equal(actual, expected,
+        `${scenario.key}: every region instance the fold carries is keyed by (opener, the ` +
+        'opener`s own branchPath), derived from the document');
+      nested += expected.filter((k) => !k.endsWith('@-')).length;
+    }
+    ok(nested > 0,
+      'and at least one of those keys is NOT `-` — otherwise this claim is true of a walk over ' +
+      'openers too, which is the whole thing it exists to separate');
   });
 
   test('under the other three columns nothing is reported dead and the run is not `stuck` for that reason', () => {
@@ -468,7 +542,9 @@ suite('L2 — a dead INNER join, through the fold', (test) => {
       const { driver, unsatisfiable } = driveScenario(NESTED_ALL_EXIT, policy);
       equal(unsatisfiable.length, 0, `${policy.id}: reports no dead join`);
       const state = fold(driver.foldInputs());
-      equal(state.regions['inner']?.joined !== false, true,
+      // `inner` opens inside branch `1` of `outer`, so its instance is `'1'` — the
+      // path is derived from the scenario's own document, not from the state (W84).
+      equal(state.regions['inner']?.['1']?.joined !== false, true,
         `${policy.id}: the inner region is not marked dead`);
     }
   });

@@ -39,15 +39,15 @@ const rec = (r: LogRecord): FoldInput => ({ kind: r.kind, record: r });
 suite('L3 — determinism: fold the same log twice and deep-compare', (test) => {
   const log: FoldInput[] = [
     rec(settled('r1:ingest:-:0', 'done')),
-    region({ type: 'branch.opened', regionId: 'split', branchPath: '0' }),
-    region({ type: 'branch.opened', regionId: 'split', branchPath: '1' }),
+    region({ type: 'branch.opened', regionId: 'split', regionPath: '-', branchPath: '0' }),
+    region({ type: 'branch.opened', regionId: 'split', regionPath: '-', branchPath: '1' }),
     rec(settled('r1:scoreA:0:0', 'done')),
-    region({ type: 'branch.arrived', regionId: 'split', branchPath: '0' }),
+    region({ type: 'branch.arrived', regionId: 'split', regionPath: '-', branchPath: '0' }),
     rec(settled('r1:scoreB:1:0', 'user_action')),
-    region({ type: 'branch.suspended', regionId: 'split', branchPath: '1', at: 'scoreB' }),
+    region({ type: 'branch.suspended', regionId: 'split', regionPath: '-', branchPath: '1', at: 'scoreB' }),
     rec(resolution('r1:scoreB:1:0', 'done')),
-    region({ type: 'branch.resumed', regionId: 'split', branchPath: '1', at: 'scoreB', resolvedAs: 'done' }),
-    region({ type: 'branch.arrived', regionId: 'split', branchPath: '1' }),
+    region({ type: 'branch.resumed', regionId: 'split', regionPath: '-', branchPath: '1', at: 'scoreB', resolvedAs: 'done' }),
+    region({ type: 'branch.arrived', regionId: 'split', regionPath: '-', branchPath: '1' }),
   ];
 
   test('two independent folds are deeply equal', () => {
@@ -71,9 +71,9 @@ suite('L3 — determinism: fold the same log twice and deep-compare', (test) => 
 suite('RN-R2 — the fold is total over any prefix', (test) => {
   const log: FoldInput[] = [
     rec(settled('r1:a:-:0', 'done')),
-    region({ type: 'branch.opened', regionId: 'f', branchPath: '0' }),
+    region({ type: 'branch.opened', regionId: 'f', regionPath: '-', branchPath: '0' }),
     rec(settled('r1:b:0:0', 'failed')),
-    region({ type: 'branch.lost', regionId: 'f', branchPath: '0', reason: 'failed' }),
+    region({ type: 'branch.lost', regionId: 'f', regionPath: '-', branchPath: '0', reason: 'failed' }),
   ];
 
   test('folding n then applying n+1 equals folding n+1, for every n', () => {
@@ -160,27 +160,27 @@ suite('RN-R9 — a resolved node is indistinguishable from one that settled that
 suite('RN-R6 — regions record what happened, not what a policy concluded', (test) => {
   test('the region carries events, and a policy could not be inferred from it', () => {
     const s = fold([
-      region({ type: 'branch.opened', regionId: 'split', branchPath: '0' }),
-      region({ type: 'branch.opened', regionId: 'split', branchPath: '1' }),
-      region({ type: 'branch.arrived', regionId: 'split', branchPath: '0' }),
-      region({ type: 'branch.exited', regionId: 'split', branchPath: '1', at: 'abandoned' }),
+      region({ type: 'branch.opened', regionId: 'split', regionPath: '-', branchPath: '0' }),
+      region({ type: 'branch.opened', regionId: 'split', regionPath: '-', branchPath: '1' }),
+      region({ type: 'branch.arrived', regionId: 'split', regionPath: '-', branchPath: '0' }),
+      region({ type: 'branch.exited', regionId: 'split', regionPath: '-', branchPath: '1', at: 'abandoned' }),
     ]);
-    equal(s.regions['split']!.opened, ['0', '1'], 'both branches opened, in emission order');
-    equal(s.regions['split']!.settled, { '0': 'arrived', '1': 'exited' },
+    equal(s.regions['split']!['-']!.opened, ['0', '1'], 'both branches opened, in emission order');
+    equal(s.regions['split']!['-']!.settled, { '0': 'arrived', '1': 'exited' },
       'and how each one left. **No verdict**: if run state carried a policy conclusion, W4 would ' +
       'be comparing two run states rather than two policies and every cell would be a tautology');
   });
 
   test('suspended and resumed move a branch in and out of `suspended` without settling it', () => {
     const s = fold([
-      region({ type: 'branch.opened', regionId: 'f', branchPath: '0' }),
-      region({ type: 'branch.suspended', regionId: 'f', branchPath: '0', at: 'review' }),
+      region({ type: 'branch.opened', regionId: 'f', regionPath: '-', branchPath: '0' }),
+      region({ type: 'branch.suspended', regionId: 'f', regionPath: '-', branchPath: '0', at: 'review' }),
     ]);
-    equal(s.regions['f']!.suspended, ['0'], 'a branch waiting on a person is still live');
-    equal(s.regions['f']!.settled, {}, 'and has not left the region');
+    equal(s.regions['f']!['-']!.suspended, ['0'], 'a branch waiting on a person is still live');
+    equal(s.regions['f']!['-']!.settled, {}, 'and has not left the region');
 
-    const resumed = step(s, region({ type: 'branch.resumed', regionId: 'f', branchPath: '0', at: 'review', resolvedAs: 'done' }));
-    equal(resumed.regions['f']!.suspended, [], 'and resuming clears it');
+    const resumed = step(s, region({ type: 'branch.resumed', regionId: 'f', regionPath: '-', branchPath: '0', at: 'review', resolvedAs: 'done' }));
+    equal(resumed.regions['f']!['-']!.suspended, [], 'and resuming clears it');
   });
 });
 
@@ -221,7 +221,7 @@ suite('RN-R7, RN-R8 — the run-level outcome vocabulary and its precedence', (t
       // `test/fold/stuck.test.ts` because a test that names the vocabulary closed
       // and lists five of six is a test that stopped being about closure.
       step(
-        step(fold([]), { kind: 'region', event: { type: 'branch.opened', regionId: 'f', branchPath: '0' } }),
+        step(fold([]), { kind: 'region', event: { type: 'branch.opened', regionId: 'f', regionPath: '-', branchPath: '0' } }),
         { kind: 'pathEnded', reason: 'end', at: 'done' },
       ).outcome,
     ]);

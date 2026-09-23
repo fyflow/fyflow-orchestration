@@ -374,7 +374,7 @@ const SUITES = [
   'L2 — a decision picks the first eligible edge whose predicate passes',
   'L2 — a map dispatches one task per item, at an arity no document carries',
   'L2 — a map of ZERO items',
-  'L2 — a region opener INSIDE a map region is refused at construction',
+  'L2 — a region opener INSIDE a map region RUNS, keyed by the INSTANCE',
   'L2 — arrival-count at a run-time arity does not fire EARLY',
   'L2 — from `unsatisfiable` to `stuck`, in one run',
   'L2 — sequence routes from a fixture log, with no scheduler',
