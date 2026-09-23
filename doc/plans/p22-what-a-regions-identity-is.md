@@ -7,9 +7,16 @@ refusal LIFTED, `spec/` at v0.7 / v0.17 / v0.22, L1-L5 at 46 / 1302 and **L6 UNM
 failures** and not sixty-in-six and thirty-two (the difference is `UnsatisfiableJoin.regionPath`,
 taken beyond decision 3 and recorded as a departure); **prediction 1 REVERSES** by its own stated
 condition, with 8 of the 34 in four files no typechecker names; and the per-region structure list is
-**FIVE, not four**. **W85 and W86 are still rows in the table below and nothing more**, because an item is
-declared with its full template at the point it starts, when its declaration step can correct what
-this plan handed it — which all three of P21's items did. Its facts were measured into `dev-dist/p22/` on the same
+**FIVE, not four**. **[W85](../work-items/w85-what-a-nested-region-carries-and-how-it-ends.md) is DONE** — no ADR, no
+rule id, `spec/join-policy.md` v0.18 and `spec/run-state.md` v0.8 moving THREE `Test:` cells and
+nothing else, L1-L5 at **47 / 1322** and **L6 UNMOVED at 1724 / 58**; **it corrects fact 5**, which
+named three branch-exit paths as the undriven class and is wrong in both directions — `branch.lost`
+was already bound at 7, four sites the class does not name were also at 0, and `branch.exited` is a
+fifth ([Q352](../open-questions.md)). **W86 is still a row in the table below and nothing more**,
+because an item is declared with its full template at the point it starts, when its declaration step
+can correct what this plan handed it — which all three of P21's items did, and both of P22's have.
+*(This read "W85 and W86 are still rows" until W85 made it false, and is corrected by that item as a
+declared exception rather than by the retro — section 1 rule 5's third direction.)* Its facts were measured into `dev-dist/p22/` on the same
 tree, and they RE-TAKE a spike run at `228a5e1` whose evidence is `dev-dist/spike-nested-map/`.
 **Question this plan answers:** *What is a region's identity, and may a region open inside a `map`
 region?*

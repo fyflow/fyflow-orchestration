@@ -21,7 +21,7 @@
  * | an ABSENT key, and `[]` | section 3's two v0.13 table rows, and `FD-C4` |
  * | *a node with no `needs` is unchanged* | `FD-C1`'s first clause, and ADR 0040 rule 1 |
  */
-import { equal, listDir, ok, readText, ROOT, suite, throws } from '../harness.ts';
+import { collected, equal, listDir, ok, readText, ROOT, suite, throws } from '../harness.ts';
 import { Driver, UnresolvedReference } from '../../src/driver/driver.ts';
 import { validateDefinition, violatedRules } from '../../src/definition/validate.ts';
 import { allRegions, buildGraph } from '../../src/definition/regions.ts';
@@ -561,13 +561,28 @@ suite('L2 — ADR 0044: what a run carries across SIBLING regions', (test) => {
       'and it is TWO instances of one opener, keyed by the map item index — which is exactly ' +
       'the narrowing shape this row exists to look for');
 
-    // **So there are TWO expressible shapes now, and only the first is observed
-    // here.** What a reference ACROSS nested map regions means under ADR 0044 is
-    // W85's row, which owns visibility under nesting; this row records that the
-    // shape became reachable rather than reaching for it (`doc/workflow.md`
-    // section 5 rule 8: where the corpus cannot express a case, RECORD it — and when
-    // it can, say which item takes it).
-    ok(true, 'recorded: shape one is asserted by the two-digit arity suite; shape two is W85`s');
+    // **So there are TWO expressible shapes now, and the second is TAKEN rather than
+    // recorded** — [W85](../../doc/work-items/w85-what-a-nested-region-carries-and-how-it-ends.md),
+    // in `test/driver/nested-regions.test.ts`'s *ADR 0044 visibility across a region
+    // nested in a map*. A reader past the nested region reads ITS OWN instance's
+    // output and not the sibling item's, and the LIST form is refused by name as
+    // that row's control — because the outer map multiplies the READERS and not the
+    // visible outputs, which is the half this row could not have predicted from the
+    // shape alone. *This line asserted that the shape had become reachable; it
+    // asserts where it is reached.*
+    // **What this binds that the suite census does NOT.** `test/definition/l4-corpus.test.ts`'s
+    // census is a membership over SUITE names and says so in its own header, so it catches the
+    // suite disappearing and is blind to the suite keeping its name and losing the CASE. The
+    // case is what this row handed over, so the case is what is named here.
+    equal(
+      collected()
+        .filter((s) => s.suite === 'L2 — W85: ADR 0044 visibility across a region nested in a map')
+        .flatMap((s) => s.cases.map((c) => c.name)),
+      ['a reader past a nested region sees ITS OWN instance`s output and no other',
+       'and a sibling branch of the inner region is still refused, by a RULE'],
+      'shape one is asserted by the two-digit arity suite, and shape two by W85`s own two cases — ' +
+      'named here so that losing either fails in the row that handed the shape over, rather than ' +
+      'leaving this sentence describing a case nobody wrote');
   });
 
   test('and a NESTED sibling pair still agrees on the region they share', () => {

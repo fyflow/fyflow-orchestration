@@ -177,7 +177,7 @@ paths are driven.
 final tree. Content digest **`375e78c30c36242d` over 380 files**, identical before and after.
 `selftests` 8 / 8 completed, 8 ok. The counts it printed: `check:spec` **7 / 61 / 108**,
 `check:docs` **34 — 28 run, 6 check**, `check:workers` **16**, `check:markdown` **145 documents /
-6464 relative links / 336 anchored**, L1-L5 **46 / 1302** in node, deno and chromium, and L6
+6465 relative links / 336 anchored**, L1-L5 **46 / 1302** in node, deno and chromium, and L6
 **1724 assertions over 58 real runs** in BOTH runtimes. *The exit code is the predicate and the FAIL
 count is the secondary signal* (`doc/workflow.md` section 4, v0.15) — both are recorded, and the
 rung was RUN and redirected rather than piped.

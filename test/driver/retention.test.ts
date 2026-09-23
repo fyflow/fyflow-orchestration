@@ -128,6 +128,32 @@ const heldArrivals = (d: Driver): number => {
 };
 
 /**
+ * **Which region INSTANCES are holding, and how much each holds** — `opener@path`
+ * to entry count, in insertion order.
+ *
+ * **`heldArrivals`' second level was bound by NOTHING, and W85's declaration step
+ * measured it at ZERO**: narrowing that inner loop to each opener's FIRST instance
+ * cost no failures at any rung, because every fixture this file loaded had exactly
+ * one instance per opener. A sum over a walk cannot say which level it summed.
+ *
+ * *(The subject is handed here by [ADR 0062](../../doc/decisions/0062-a-region-instance-is-its-opener-and-the-openers-own-branch-path.md)
+ * consequence 7 and by [W84](../../doc/work-items/w84-what-a-regions-identity-is.md)'s
+ * Scope-Out bullet, with [Q349](../../doc/open-questions.md) as the mechanism. This
+ * comment cited "W84's adequacy reader, finding 8" and **that finding does not exist
+ * in the tree** — W84's file carries one numbered reader finding, its finding 7,
+ * about a different subject. W85's conformity reader, finding 3.)*
+ *
+ * So the per-instance cases below assert THIS rather than the total, and the total's
+ * two levels are held to it both ways in the same breath: a number is what a walk
+ * reports and a key set is what says where it came from.
+ */
+const heldByInstance = (d: Driver): Record<string, number> => {
+  const out: Record<string, number> = {};
+  for (const [opener, byPath] of arrivalsOf(d)) for (const [rp, m] of byPath) out[`${opener}@${rp}`] = m.size;
+  return out;
+};
+
+/**
  * **What the walk below does NOT look in, and why each is excluded.** `graph`, `opts`
  * and `def` are the DEFINITION and the caller's own options: neither grows with the
  * run, which is `RN-R13`'s subject. Nothing else is excluded, and the test below
@@ -239,6 +265,36 @@ const DRIVER_FIELDS = [
 // judgement to keep right. The binding earning its place on its first run is the
 // argument for it.)*
 
+/**
+ * **A `fanout` inside a `map` — the one shape in which ONE opener holds N
+ * collections**, and the shape no document under `spec/examples/` contains, because
+ * [W33](../../doc/work-items/w33-a-map-at-run-time-arity.md) refused it at `Driver`
+ * construction until [W84](../../doc/work-items/w84-what-a-regions-identity-is.md)
+ * lifted the refusal. Written inline rather than added to the corpus: a corpus
+ * document is `spec/flow-definition.md` section 7's to declare and `check:spec`'s to
+ * count, and this file needs a shape rather than an example.
+ *
+ * `split` opens at top level, so its instance is `-`; `f2` opens inside `split`'s
+ * branch, so its instances are the ITEM INDICES — `f2@0` and `f2@1` at two items,
+ * with branches `0.0` / `0.1` and `1.0` / `1.1` ([ADR 0062](../../doc/decisions/0062-a-region-instance-is-its-opener-and-the-openers-own-branch-path.md)
+ * rule 1).
+ */
+const FANOUT_IN_MAP = {
+  flowId: 'w85-fanout-in-map', version: 1, entry: 'ingest',
+  nodes: [
+    { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'split' }] },
+    { id: 'split', kind: 'map', over: 'items', branch: 'lead' },
+    { id: 'lead', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'f2' }] },
+    { id: 'f2', kind: 'fanout', branches: ['p', 'q'] },
+    { id: 'p', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'j2' }] },
+    { id: 'q', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'j2' }] },
+    { id: 'j2', kind: 'join', of: 'f2', edges: [{ to: 'collect' }] },
+    { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'publish' }] },
+    { id: 'publish', kind: 'task', type: 'PublishWorker', edges: [{ to: 'done' }] },
+    { id: 'done', kind: 'end', outcome: 'completed' },
+  ],
+} as unknown as FlowDefinition;
+
 const SUITE = 'ADR 0046 / RN-R13 — a region releases its collection when its join becomes terminal';
 
 /**
@@ -259,6 +315,11 @@ const DECLARED_CASES = [
   'rule 5 — a run the FOLD calls `stuck` still holds its collection, and that is the bound',
   'a `fanout` region releases as a `map` one does — the half that had no observer',
   'a nested region releases its OWN collection and leaves the enclosing one held',
+  // **W85.** ADR 0062 consequence 7 — *a region's collection is released per INSTANCE,
+  // and the opener's own entry goes when its last instance's does.* Both rows are the
+  // shape `heldArrivals`' second level had no case for.
+  'an opener entered N times releases PER INSTANCE, and the opener`s key goes with the last',
+  'the unsatisfiable exit releases its OWN instance, and the sibling keeps what it held',
   'RN-R13 — `outputsCache` holds results BY REFERENCE, and identity is what says so',
   'the walk looks at EVERY growing structure — a new driver field fails here naming itself',
   'a run stopped from inside `append` does not route out of the join it was settling',
@@ -683,6 +744,128 @@ suite(SUITE, (test) => {
       'ADR 0030 — a join is transitive over nested fan-out, and releasing per region did not ' +
       'disturb it. Releasing ALL regions instead costs 1 failure in the L5 matrix, where a ' +
       'nested outer join then carries ["1"] against the ["0","1"] JP-R12 declares',
+    );
+  });
+
+  /**
+   * **ADR 0062 consequence 7, and the case `heldArrivals`' second level had none of.**
+   * That sentence reads *a region's collection is released per INSTANCE, and the
+   * opener's own entry goes when its last instance's does — so a run that released
+   * everything holds no key at all rather than N empty maps.* Every fixture above
+   * loads a document in which each opener has exactly ONE instance, so the walk's
+   * inner loop could be narrowed to each opener's first entry for **zero**.
+   *
+   * **The settlements are INTERLEAVED and the order is load-bearing**, which is
+   * W84's own finding one file over ([Q349](../../doc/open-questions.md)): with
+   * instances settling in dispatch order there is never a second collection to
+   * confuse the first with, so *release the instance being settled* and *release the
+   * opener's whole entry* are the same expression. Instance **1** closes first here
+   * on purpose — instance 0 is also `values()[0]`, so closing it first leaves a
+   * release keyed by the opener looking right.
+   */
+  test('an opener entered N times releases PER INSTANCE, and the opener`s key goes with the last', () => {
+    const h = harness(FANOUT_IN_MAP, liveToken as JoinPolicy);
+    h.driver.start({});
+    h.scheduler.settle('r1:ingest:-:0', 'done', { result: { items: ['a', 'b'] } });
+    for (const i of [0, 1]) h.scheduler.settle(`r1:lead:${i}:0`, 'done', { result: {} });
+
+    // One branch of each instance. Neither join can fire, so BOTH windows are open.
+    h.scheduler.settle('r1:p:0.0:0', 'done', { result: { s: 'p0' } });
+    h.scheduler.settle('r1:p:1.0:0', 'done', { result: { s: 'p1' } });
+    equal(heldByInstance(h.driver), { 'f2@0': 1, 'f2@1': 1 },
+      'TWO instances of ONE opener are holding at the same instant, one entry each — the state a ' +
+      'single-instance fixture cannot reach, and the state in which the walk`s two levels stop ' +
+      'agreeing with each other',
+    );
+    equal(heldArrivals(h.driver), 2,
+      'and the total agrees with the decomposition, which is what holds the sum`s inner loop to ' +
+      'the key set: narrowed to each opener`s FIRST instance this reads 1',
+    );
+
+    h.scheduler.settle('r1:q:1.1:0', 'done', { result: { s: 'q1' } });
+    equal(heldByInstance(h.driver), { 'f2@0': 1, 'split@-': 1 },
+      'instance 1`s join fired and released ITS OWN collection; instance 0 still holds what it had, ' +
+      'and the ENCLOSING map now holds the value instance 1 routed into it. A release keyed by the ' +
+      'opener drops f2@0 here and the opener`s key disappears with it',
+    );
+
+    h.scheduler.settle('r1:q:0.1:0', 'done', { result: { s: 'q0' } });
+    equal(heldByInstance(h.driver), {},
+      'and with the last instance released the OPENER`S OWN KEY is gone too — ADR 0062 ' +
+      'consequence 7`s second half: a run that released everything holds no key at all rather than ' +
+      'N empty maps',
+    );
+    equal([...arrivalsOf(h.driver).keys()], [],
+      'asserted on the outer map directly as well, because an empty inner map and an absent one ' +
+      'are the same number and different structures',
+    );
+    h.scheduler.settle('r1:publish:-:0', 'done', { result: {} });
+    equal(fold(h.driver.foldInputs()).outcome, 'completed',
+      'and the interleaving changed the ORDER and not the outcome, which is what makes the two ' +
+      'releases above comparable with the sequential case',
+    );
+  });
+
+  /**
+   * **The other exit, per instance.** `releaseArrivals` is called at BOTH ends of
+   * `settleJoin`, and the `unsatisfiable` one has no route that reads the collection
+   * first — so it is the arm where a release keyed one level short is completely
+   * silent. W85's declaration step measured it at **zero**.
+   *
+   * The policy is constructed for the same reason W53's is: no shipped policy
+   * declares a region dead with an arrival recorded in it.
+   */
+  test('the unsatisfiable exit releases its OWN instance, and the sibling keeps what it held', () => {
+    type DeadState = { target: boolean; terminals: number };
+    const deadInnerAfterOne: JoinPolicy = {
+      id: 'w85-dead-inner-after-one',
+      open: (region: { fanoutId: string }) => ({ target: region.fanoutId === 'f2', terminals: 0 }),
+      step: (s: DeadState, e: RegionEvent) =>
+        (e.type === 'branch.arrived' ? { ...s, terminals: s.terminals + 1 } : s),
+      // Scoped to `f2`, so the enclosing map's join is an ordinary waiting one and the
+      // only thing that moves is an inner INSTANCE.
+      // **TWO terminals and not one**, so the arrival is HELD before the death: a policy
+      // that dies on the first arrival releases in the same call that recorded it, and
+      // then nothing is ever holding and this row asserts an empty map twice.
+      status: (s: DeadState) => (s.target && s.terminals >= 2 ? 'unsatisfiable' : 'waiting'),
+      describe: (s: DeadState) => ({ w85: 'dead with an arrival recorded', terminals: s.terminals }),
+    } as unknown as JoinPolicy;
+
+    const h = harness(FANOUT_IN_MAP, deadInnerAfterOne);
+    h.driver.start({});
+    h.scheduler.settle('r1:ingest:-:0', 'done', { result: { items: ['a', 'b'] } });
+    for (const i of [0, 1]) h.scheduler.settle(`r1:lead:${i}:0`, 'done', { result: {} });
+
+    h.scheduler.settle('r1:p:1.0:0', 'done', { result: { s: 'p1' } });
+    h.scheduler.settle('r1:p:0.0:0', 'done', { result: { s: 'p0' } });
+    equal(heldByInstance(h.driver), { 'f2@1': 1, 'f2@0': 1 },
+      'both instances hold one arrival and neither policy has died yet — the window this exit has ' +
+      'to close, open twice at once under ONE opener',
+    );
+
+    // **Instance 1 dies FIRST, and the order is the claim.** Killing instance 0 first
+    // would leave *release the dying instance* and *release the opener's first entry*
+    // the same expression, because instance 0 is also `values()[0]`.
+    h.scheduler.settle('r1:q:1.1:0', 'done', { result: { s: 'q1' } });
+    equal(heldByInstance(h.driver), { 'f2@0': 1 },
+      'instance 1 is declared dead and the `unsatisfiable` arm released ITS collection alone — ' +
+      'which is the arm with no route that reads the collection first, so a release keyed one ' +
+      'level short is completely silent there. Instance 0 still holds what it had',
+    );
+    equal((h.unsatisfiable as { fanoutId: string; regionPath: string }[])
+      .map((u) => `${u.fanoutId}@${u.regionPath}`), ['f2@1'],
+      'and the report names the instance that died, not the opener — `UnsatisfiableJoin.regionPath`',
+    );
+
+    h.scheduler.settle('r1:q:0.1:0', 'done', { result: { s: 'q0' } });
+    equal(heldByInstance(h.driver), {},
+      'and instance 0 then dies on its own account, releasing its own — so the DEATH of one ' +
+      'instance neither released nor latched the other, which is the same expression`s too-STRONG ' +
+      'direction on the arm that had no observer at all',
+    );
+    equal((h.unsatisfiable as { fanoutId: string; regionPath: string }[])
+      .map((u) => `${u.fanoutId}@${u.regionPath}`), ['f2@1', 'f2@0'],
+      'both deaths reported, each naming its own instance, in the order they occurred',
     );
   });
 

@@ -566,6 +566,18 @@ const LATE_SUITES = [
   // measurement itself is `examples/settlement-cost.ts` and is deliberately not a gate entry.
   'W81 — the SWITCH is the callback, counted: a consumer who supplies none pays for no check',
   'W81 — Q320: the always-on handle costs exactly one structuredClone per settled task',
+  // W85 — what a region nested inside a `map` region CARRIES and how it ENDS, in
+  // `test/driver/nested-regions.test.ts`. The retention half is two more cases inside
+  // W53's suite, which that file's own `DECLARED_CASES` binds.
+  'L2 — W85: the three branch-exit paths, under a region nested in a map',
+  'L2 — W85: what a NESTED join carries — JP-R12 at two levels and at depth three',
+  'L2 — W85: N = 0 inside a map, at the depths the lift made reachable',
+  'L2 — W85: the at-most-once latch is per INSTANCE — Q95`s precondition one key deeper',
+  'L2 — W85: ADR 0044 visibility across a region nested in a map',
+  // and that file's OWN case-level membership, which this census structurally cannot
+  // be: a census over SUITE names is satisfied by an empty suite, which is how eleven
+  // of W85's thirteen cases were deletable at exit 0 (its adequacy reader, finding 3).
+  'L2 — W85: every case this file declares actually RAN',
 ];
 
 suite('L1 — every suite this tree declares actually RAN', (test) => {
@@ -583,5 +595,19 @@ suite('L1 — every suite this tree declares actually RAN', (test) => {
       'is deliberate and is `S12`s: an equality catches a rename, a floor does not',
     );
     ok(names.length >= SUITES.length, 'and the census is not empty, which would make both sets vacuous');
+    // **The line above is not a CONTROL and the line below is** — W85's adequacy
+    // reader, finding 5, measured on this very clause. Re-source `declared` from
+    // `names` and both differences are empty BY CONSTRUCTION, while `names.length >=
+    // SUITES.length` reads a literal that is still non-empty and stays **exactly as
+    // true as before**: the whole membership goes vacuous at exit 0. That is v0.21's
+    // clause and v0.22's test of it — *name the tree on which the control fails and
+    // its claim passes*, and for the `>=` there is none.
+    //
+    // A COUNT survives the re-source, because re-sourcing makes the two sides EQUAL
+    // and the literal does not move: with `declared` re-sourced AND a suite file
+    // deleted this fails at 1 where the two differences report 0.
+    equal(names.length, SUITES.length + LATE_SUITES.length,
+      'and the observed COUNT equals the declared one, compared as NUMBERS — which is what the ' +
+      'two set differences above cannot do once either side is sourced from the other');
   });
 });

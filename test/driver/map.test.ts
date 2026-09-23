@@ -1255,9 +1255,17 @@ suite('L2 — a region opener INSIDE a map region RUNS, keyed by the INSTANCE', 
     // **TWO of the six variants, not six** — W84's conformity reader, finding 11. An
     // all-arriving run emits `branch.opened` and `branch.arrived` and nothing else;
     // `.exited`, `.lost`, `.suspended` and `.resumed` carry `regionPath` BY TYPE and
-    // are driven nowhere under nesting. That is exactly P22 fact 5's measured gap and
-    // it is **W85's**, which takes the three branch-exit paths as assertions. Recorded
-    // rather than implied by a title.
+    // this run drives none of them.
+    //
+    // **All four are driven under nesting now**, in
+    // `test/driver/nested-regions.test.ts` —
+    // [W85](../../doc/work-items/w85-what-a-nested-region-carries-and-how-it-ends.md),
+    // which took P22 fact 5's three and found the enumeration short by `.exited`.
+    // *(This comment read "are driven nowhere under nesting … and it is W85's", which
+    // W85 made false in the commit that made it so: an expiry-dated claim corrected by
+    // the item that expired it, `doc/workflow.md` section 1 rule 5's third direction.
+    // Measured: with W85 in the tree, forcing `branch.suspended`'s `regionPath` to
+    // `'-'` costs 2 and `branch.resumed`'s costs 1, all in that file.)*
     equal([...new Set(h.events.map((e) => e.regionId))].sort(), ['f2', 'split'],
       'regionId still names the OPENER and nothing else: it did not become a composite');
     equal([...new Set(h.events.map((e) => `${e.regionId}@${e.regionPath}`))].sort(),
