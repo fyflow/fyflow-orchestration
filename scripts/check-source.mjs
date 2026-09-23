@@ -693,7 +693,8 @@ const GATE_CHAIN = [
   'check:source',
   'check:markdown',
   'check:wiring',
-  // W72: the worker conformance check RUNS fourteen workers on their declared examples — measured
+  // W72: the worker conformance check RUNS sixteen workers on their declared examples — measured
+  // (fourteen until W82's `gauge` and `stamp`, whose whole point is that it is GREEN on both)
   // at ~1 s, ahead of `check:docs` (6.5 s, twenty-six executed snippets) and behind `check:wiring`.
   'check:workers',
   'check:docs',

@@ -1,0 +1,12 @@
+{
+  "flowId": "l6-nonconforming",
+  "version": 1,
+  "entry": "gauge",
+  "nodes": [
+    { "id": "gauge",   "kind": "task", "type": "GaugeWorker",   "edges": [ { "to": "stamp" } ] },
+    { "id": "stamp",   "kind": "task", "type": "StampWorker",   "edges": [ { "to": "attest" } ] },
+    { "id": "attest",  "kind": "task", "type": "AttestWorker",  "edges": [ { "to": "publish" } ] },
+    { "id": "publish", "kind": "task", "type": "PublishWorker", "edges": [ { "to": "done" } ] },
+    { "id": "done",    "kind": "end",  "outcome": "completed" }
+  ]
+}

@@ -1,7 +1,7 @@
 /**
  * **Ladder L6 — the gate.** Every real run this repository makes: P1's exit
  * artifact, P2's, P4's, P5's, P6's, **P7's**, **P10's**, **P12's**, **P13's**,
- * **P14's**, **P16's**, **P17's**, **P18's** and **P20's**. *(This list stopped at P12 while W47's two rows and W51's two were in
+ * **P14's**, **P16's**, **P17's**, **P18's**, **P20's** and **P21's**. *(This list stopped at P12 while W47's two rows and W51's two were in
  * the file — a count carried as prose in the paragraph above this file's own
  * monument to that. W51's conformity reader. **It then stopped at P18 while W78's
  * consumer-road block was in the file**, and the table below omitted that block
@@ -71,9 +71,11 @@
  * | **W59 — `typed-regions`** | **half two, and obligation (a)'s shapes**: a typed task at path `1` inside a fanout branch feeding a typed `map` branch at `1.0`, `1.1`, `1.2` — arity three from a worker's return, each instance's envelope wrapping its OWN item (`JP-R11`) so three confidences give three scores from one settings object; branch 0 is a bare `ScoreWorker`, and the outer join carries the bare result beside the typed region's collection. Every typed id held `scorer`; no bare id did |
  * | **W63 — `transformed` at arity TWO, ONE and ZERO** | **P17's EXIT ARTIFACT, and it is [Q263](../doc/open-questions.md) as three rows.** One flow: a typed `map` branch whose declared `transform` RESHAPES its own item with the map's settings read through `$settings`, then a fanout of two typed scorers into a join whose typed successor declares `transform: { lang: "jsonata", expr: "$sum([*.score])" }` and NO reshaping node — its worker receiving the reduced value as `input` (`FD-C6`), echoed from the run: **990** when both branches arrive, **400** when one is routed away (P1's own case under `live-token`), **0** — the NUMBER, not `undefined` — when the join is reached by nothing and `live-token` fires it. Every value is what the worker RECEIVED, read off the outcome record and never a literal the row alone carries; the `Echo` pool that evaluates the expression is a real THREAD in both runtimes, loading the adapter by its module URL, and every result it returns reports the fresh realm it ran in. **What these rows observe is the VALUE the successor received and not the record's shape**: JP-R12's key set is observed by `transform-fails`' untyped `publish`, and its `{}` by W17's `all-exit` row — the reduction is key-blind and sums `null` to 0 as it sums `{}` (the adequacy reader, M2 and M6) |
  * | **W63 — `transform-fails`** | **P17 decision 5 end to end.** Two non-optional typed nodes whose transforms fail at run time — `$.confidence + " points"` (`T2002`, an author who meant `&`) and `$now()` (`UNBOUND`, ADR 0052 rule 7) — are retried ONCE under the type's policy, fail again, and are parked `user_action` with `TransformFailed`'s message as the task's error on two observers (`attempts: 1`); a person `resolve()`s each with the value the transform did not supply, the join fires over all four branches and the run completes. Beside them a typed node with NO transform receives `FD-C5`'s two-key envelope to the byte, in the flow whose `Scorer` pool carries no engine — and `note`, a typed node whose transform SUCCEEDS over an ordinary edge's value, `FD-C5`'s first kind, which the exit-artifact flow cannot carry |
- * | **W67 — `triage LOW` and `triage HIGH`** | **P18's EXIT ARTIFACT: a flow and the runtime it needs from TWO JSON DOCUMENTS and a shim.** `examples/registry.json` says what exists — fourteen worker modules, five resource groups, fifteen node types, one NAMED pool instance — and `examples/flows/triage.flow.json` names registry keys and nothing else; `run-flow.ts` supplies only what P18 decision 7 keeps as code (a predicate, a custom group TYPE, a custom node-type CLASS, a language adapter) and calls `createRuntime` once. The two rows carry, from the run: a DOCUMENT-declared type (`Prompt`) and a CLASS registered in code (`GpuModel`) over the SAME worker, so the pools they built differ in their derivation alone; a node on its type's DEFAULT instance (`audit`) against one on a NAMED instance of that type (`review` on `prompt-big`), told apart by the pool the scheduler says each ran on AND by what the worker returned — four words against two, because the class derives the model from the instance's config; a BUILT-IN group and a CUSTOM one acquired by real tasks, the custom one naming its object something other than its key; the TYPE's `settings` default reaching a `Prompt` node and not a `GpuModel` one; and a declared `transform` reducing `JP-R12`'s record for the node after the join, with no reshaping node. The HIGH row is the control: one payload field different, `review` never dispatched, and the reduced report six words instead of eight |
+ * | **W67 — `triage LOW` and `triage HIGH`** | **P18's EXIT ARTIFACT: a flow and the runtime it needs from TWO JSON DOCUMENTS and a shim.** `examples/registry.json` says what exists — sixteen worker modules (fourteen when W67 wrote this; W82's `gauge` and `stamp` are the other two), five resource groups, seventeen node types (fifteen then), one NAMED pool instance — and `examples/flows/triage.flow.json` names registry keys and nothing else; `run-flow.ts` supplies only what P18 decision 7 keeps as code (a predicate, a custom group TYPE, a custom node-type CLASS, a language adapter) and calls `createRuntime` once. The two rows carry, from the run: a DOCUMENT-declared type (`Prompt`) and a CLASS registered in code (`GpuModel`) over the SAME worker, so the pools they built differ in their derivation alone; a node on its type's DEFAULT instance (`audit`) against one on a NAMED instance of that type (`review` on `prompt-big`), told apart by the pool the scheduler says each ran on AND by what the worker returned — four words against two, because the class derives the model from the instance's config; a BUILT-IN group and a CUSTOM one acquired by real tasks, the custom one naming its object something other than its key; the TYPE's `settings` default reaching a `Prompt` node and not a `GpuModel` one; and a declared `transform` reducing `JP-R12`'s record for the node after the join, with no reshaping node. The HIGH row is the control: one payload field different, `review` never dispatched, and the reduced report six words instead of eight |
  * | **W73 — `FD-R4` on three existing rows** | **P19 decision 5 on real workers, with no new run.** `map / live-token` and `nested-map / live-token` try a payload FIRST that the entry's worker `inputSchema` refuses — a TASK entry naming `ingest`, a FAN-OUT entry naming `scoreA` (every branch held to its own schema over the same value, the first named) — and assert a `BoundaryRefused` at the caller with the scheduler holding nothing, then run on the real payload; W63's `transform-fails` tries its two resolutions FIRST with the values the transforms did not supply, which `echo`'s `outputSchema` refuses with the task still suspended, and then resolves each with the worker's declared example. Both refusal sets are held to the rows that declare them both ways, with their controls as subjects |
  * | **W78 — the CONSUMER ROAD** | **P20's EXIT ARTIFACT, and no `EXPECTED` row could be it**: `runFlow` IS the machinery this block exists not to use — its own `onFoldInput`, its own `inputs` array, its own predicate raced against a backstop. So it is W67's shim-run shape one plan on: ONE label, TWO runs, outside the row loop. **Run A** is a fan-out in which the consumer holds only `{ driver, done }` — the region events counted through `StartOptions.onRegionEvent` ([W76](../doc/work-items/w76-what-start-accepts.md), [Q297](../doc/open-questions.md)) and the end awaited in ONE line ([W77](../doc/work-items/w77-what-start-returns.md), [ADR 0058](../doc/decisions/0058-runtime-start-returns-a-completion-handle-the-runtime-keeps.md)), with no poll, no fold and no deadline but the one ADR 0058 rule 8 says a consumer writes; what `onRegionEvent` received is held EQUAL to the region subsequence of the driver's own fold inputs, element for element, which had never run on a real pool. **Run B** is the pair: its driver REFUSES, and `done` **RESOLVES** with `stopped` carrying `stoppedBy` rather than rejecting — ADR 0058 rules 3 and 4, which had no observer at this rung and none on real workers anywhere. **Reverting W76 alone costs 2 here, W77 alone 8 and both 10** — additive, and before this block each cost ZERO, because both items declared L6 UNMOVED and nothing at this rung reached either. *(W77's read 4 until the conformity reader found the `?? foldedA` fallback handing two clauses the caller's own fold; those two are the difference.)* |
+ * | **W82 — `nonconforming` at eleven words and at two** | **P21's EXIT ARTIFACT, and the first rows here whose WORKERS are wrong on purpose.** Four task nodes, two of which return values their own `outputSchema` refuses and are reported BY NAME through `onNonconformingResult` — `gauge`'s `$.load above maximum 1`, a bound its code does not keep past its declared example (`check:workers` runs that example and is GREEN), and `stamp`'s `$.label required`, a key that is present on what `run()` returned and absent from what `OR-R2`'s clone wrote. **Three observers of that second one and the middle is the RECORD**: the scheduler's live `detail.result` still has the key at the harness's own listener, the record does not, and the finding says so — which is why `StampWorker` is INLINE, because a thread hides the attribution and not the finding. The two conforming nodes beside them are EXISTING corpus workers and are reported on not at all, and `attest` reports the key set it RECEIVED, so the value flowing downstream unaltered is an assertion rather than ADR 0060's sentence. **The two-word row is the control** — same flow, same workers, only the payload's word count different, and `gauge` goes silent while `stamp` does not, which separates the two legs from each other |
+ * | **W82 — the check-OFF pair** | **ADR 0060 decision 3, and no row could be it**: the row above run AGAIN with the one option removed and the SAME run id, held identical record for record. Dispatched ids, the log with only the clocks zeroed, the folded outcome and every settled result all agree; **the reports are the one thing the two runs differ in**, two against zero. *You cannot audit a behaviour with an instrument that alters it*, which is the sentence P21 tells an adequacy reader to falsify first, and this is the only place it has ever been run on real workers. What it COSTS is asserted as a COUNT and printed as a ratio: a check whose answer is discarded has one observable, and a ratio of two clocks is still two clocks ([Q179](../doc/open-questions.md)) |
  * | **W67 — the shim run** | **P18's sample shim's own call, and no row could make it**: `runtime.start(flow, payload)` with NO options. The runtime MINTS the run id and defaults the join policy (decision 10), and both defaults were replaceable by a `throw` for ZERO until this run existed — every row names the ids it expects and the policy it is about. The flow is `p1-routed-away` at LOW, where the two candidate policies DISAGREE: `live-token` satisfies the join and the run completes, `arrival-count` waits for an arrival that cannot come. So *the run completed* IS *the default is `live-token`*, observed rather than named |
  */
 import {
@@ -99,6 +101,10 @@ import {
   // holds `done` against the caller's own expression — `fold(driver.foldInputs())` — so the two
   // halves of decision 2's invariant are the same two functions a consumer would have called,
   // imported the way `AGENTS.md`'s own snippets import them.
+  // W82: the printed cost line below applies the SHIPPED value check to every result this rung
+  // settled, which is the same expression `OR-R13` runs — reached through the package ROOT, so the
+  // number is about what a consumer's driver would pay rather than about a copy of it.
+  findings,
   fold,
   isTerminal,
   // **W47, and it reaches the package ROOT like everything else here.** An example
@@ -107,6 +113,10 @@ import {
   // asserting a refusal here asserts the refusal a consumer gets.
   validateDefinition,
   type FlowDefinition,
+  // W82: the check-OFF pair compares two runs' LOGS record for record, so it names the record type
+  // rather than stringifying an `unknown[]` — the comparison is over `OR-R2`'s own shape.
+  type JsonSchema,
+  type LogRecord,
   type PolicyId,
   type RegionEvent,
   type RunOutcome,
@@ -252,6 +262,12 @@ import typedRegions from './flows/typed-regions.flow.json' with { type: 'json' }
 import transformed from './flows/transformed.flow.json' with { type: 'json' };
 import transformFails from './flows/transform-fails.flow.json' with { type: 'json' };
 import triageFlow from './flows/triage.flow.json' with { type: 'json' };
+// **W82, and it is the one flow here whose workers are WRONG on purpose.** `examples/workers/gauge.ts`
+// declares a bound its own code does not keep past its declared domain and `examples/workers/stamp.ts`
+// returns a value that conforms as `run()` returned it and does not survive `OR-R2`'s clone — the two
+// legs of W80's prediction 3, constructed because P21 fact 3 measured that the corpus has no live
+// instance of either left. Both modules' headers say so at the top.
+import nonconformingFlow from './flows/nonconforming.flow.json' with { type: 'json' };
 import failureEdge from '../spec/examples/valid/failure-edge.flow.json' with { type: 'json' };
 
 /**
@@ -635,6 +651,40 @@ interface Expectation {
    * `transform failed` error occurs in exactly the rows that declare one.
    */
   taskErrors?: Record<string, string[]>;
+  /**
+   * **Turn `OR-R13`'s result check ON for this row — W82, and the PRESENCE of the option is the
+   * whole of the switch** ([ADR 0060](../doc/decisions/0060-a-run-time-result-check-is-a-reading-and-never-a-refusal.md)
+   * decision 4, and there is no boolean beside it here for the same reason there is none there).
+   * Every row that omits it asserts `nonconforming: []`, in the cross-row block, which is what
+   * makes the OFF position a claim about the DRIVER rather than a fact about one row.
+   */
+  checkResults?: true;
+  /**
+   * **What the check must report, per task id, in document order — W82, `OR-R13`.**
+   *
+   * Each value is the finding list as `describeFindings` renders it, derived from the worker's
+   * declared `outputSchema` and the payload BEFORE anything runs: `gauge`'s eleven words over a
+   * ten-word budget is `1.1` against a declared `maximum: 1`, and `stamp`'s label is a
+   * non-enumerable own property, which `required` accepts on the value `run()` returned and
+   * `structuredClone` does not carry.
+   *
+   * **A row declaring this asserts the WHOLE report** — the id set both ways and the findings per
+   * id — so a driver that reported a third node, or reported one of these twice, fails on the set
+   * rather than on a count.
+   */
+  nonconforming?: Record<string, string>;
+  /**
+   * **The own property NAMES the SCHEDULER's live result carried at settlement, per task id — W82,
+   * and it is the first of three observers of one fact.**
+   *
+   * `RunReport.settledOwnKeys` is read at the harness's own listener before `OR-R2` has cloned
+   * anything, so this is what the worker returned; the RECORD's own keys are what the run carries;
+   * and `nonconforming` above is what the check says about the second. **Only an INLINE pool makes
+   * the first two differ** — a thread serialises the result at its own boundary, so a row declaring
+   * this is making a claim about `OR-R2` and its type must be inline, which is `tally.ts`'s
+   * reasoning one rule across.
+   */
+  settledOwnKeys?: Record<string, string[]>;
 }
 
 const FJ = fanoutJoin as unknown as FlowDefinition;
@@ -716,6 +766,37 @@ const TRI = triageFlow as unknown as FlowDefinition;
 const SMF = siblingMapFanout as unknown as FlowDefinition;
 const RT = retryFlow as unknown as FlowDefinition;
 const GR = groupFlow as unknown as FlowDefinition;
+/**
+ * **W82 — P21's EXIT ARTIFACT: a flow whose workers return values their own `outputSchema`
+ * refuses, and a run that says so BY NAME without changing anything.**
+ *
+ * Four task nodes on one path, two of which are reported and two of which are not:
+ *
+ * | node | worker | what the check says |
+ * |---|---|---|
+ * | `gauge` | `gauge` | **`$.load above maximum 1`** — a bound the producer's own code does not keep past its declared domain, which is [Q302](../doc/open-questions.md)'s shape reconstructed |
+ * | `stamp` | `stamp` | **`$.label required`** — a value that CONFORMS as `run()` returned it and does not survive `OR-R2`'s clone |
+ * | `attest` | `attest` | nothing — and it reports the key set it RECEIVED, which is `['words']`, so the key the record lost is missing downstream too |
+ * | `publish` | `publish` | nothing |
+ *
+ * **The two silent nodes are EXISTING corpus workers**, so the check is silent on the corpus's own
+ * in the very run where it fires twice — and `nonconforming` is asserted as a SET both ways, so a
+ * driver reporting a third is red on the id rather than on a count.
+ *
+ * **Both workers are GREEN at `npm run check:workers`** — it runs each on its declared input
+ * example, and one example confirms a schema at ONE value — **and `checkWiring` calls every arc of
+ * this flow `fits`**, because it reads two SCHEMAS and never a value. *Neither tool is wrong and
+ * neither can see either of these*, which is
+ * [ADR 0060](../doc/decisions/0060-a-run-time-result-check-is-a-reading-and-never-a-refusal.md)
+ * consequence 8 with an observer on real workers.
+ *
+ * **Its two types are INLINE and must be**, for `tally.ts`'s reason one rule across: a threaded
+ * pool serialises a result at the thread boundary, so `stamp`'s label would be gone before the
+ * driver saw it. The finding would still be reported — measured at this item's declaration step,
+ * identical at `inline: true` and `inline: false` — and *the ATTRIBUTION would not survive*, which
+ * is the whole of what makes this leg a claim about `OR-R2` rather than about a transport.
+ */
+const NC = nonconformingFlow as unknown as FlowDefinition;
 
 /**
  * **P18's sample's payload, and the ONE field the two rows differ in** — W67. `text` and `url` are
@@ -753,6 +834,27 @@ const THREE_WORDS = { confidence: 0.9, text: 'a bb ccc' };
 const THREE_WORDS_LOW = { confidence: 0.1, text: 'a bb ccc' };
 const TWO_WORDS = { confidence: 0.9, text: 'a bb' };
 const NO_WORDS = { confidence: 0.9, text: '' };
+/**
+ * **ELEVEN words, and the number is the whole of why the row reports anything — W82.**
+ *
+ * `gauge` returns `words / 10` against a declared `maximum: 1`, so the bound holds at every arity
+ * its own declared example reaches and breaks at eleven. That is `memoisedItems`' pre-W73
+ * arithmetic — `word.length / 10` at an eleven-LETTER word — moved one noun across, which is
+ * [Q302](../doc/open-questions.md)'s shape and is why this payload is a count rather than a value.
+ *
+ * **Its pair is `TWO_WORDS` above, unchanged and already in the file** — two words is `0.2`, inside
+ * the bound, so the control row reports `stamp` and NOT `gauge`. That is what makes the first
+ * finding a function of the DATA rather than of the node: a worker that simply always failed would
+ * be reported on both rows, and `gauge`'s claim is *the bound holds in its declared domain and
+ * breaks outside it*. The two payloads differ in the word count and in nothing else, and the rows
+ * assert that difference rather than resting on it (`doc/workflow.md` rule 8's fourth requirement
+ * on the set).
+ *
+ * `confidence` rides along because every other payload in this file carries one; `gauge`'s
+ * `inputSchema` declares `text` alone and does not close the object, so `FD-R4` admits it at
+ * `start()` and nothing downstream reads it.
+ */
+const ELEVEN_WORDS = { confidence: 0.9, text: 'one two three four five six seven eight nine ten eleven' };
 /**
  * **One word, twice — W35's adequacy reader.** The `split` role memoises per word,
  * so this payload produces an `items` array holding **one object at both indices**,
@@ -3011,6 +3113,74 @@ const EXPECTED: Expectation[] = [
       '`review` is never dispatched, the NAMED pool instance runs nothing, and the reduced report is ' +
       'six words instead of eight. Whatever makes a discriminating pair differ is itself a claim',
   },
+  {
+    key: 'nonconforming — eleven words',
+    definition: NC, policyId: 'live-token', payload: ELEVEN_WORDS, threaded: false,
+    checkResults: true,
+    outcome: 'completed',
+    dispatched: ['r49:gauge:-:0', 'r49:stamp:-:0', 'r49:attest:-:0', 'r49:publish:-:0'],
+    pathEnds: [{ reason: 'end', at: 'done' }],
+    // **Derived from the two schemas and the payload before anything ran**: eleven words over a
+    // ten-word budget is 1.1 against `maximum: 1`, and `stamp`'s `label` is a non-enumerable own
+    // property, which `required` reads with `hasOwnProperty` and `structuredClone` does not copy.
+    nonconforming: {
+      'r49:gauge:-:0': '$.load above maximum 1',
+      'r49:stamp:-:0': '$.label required',
+    },
+    // **The FIRST of three observers, and it is the scheduler's own.** Read off the live
+    // `detail.result` at the harness's listener, before `OR-R2` has cloned anything — so `label` is
+    // here and, below, absent from what the record carries. Declared on `stamp` alone because it is
+    // the only node whose returned value and recorded value differ. **`gauge` is NOT a control for
+    // this observer, and the first version of this comment called it one** — nothing compares gauge's
+    // live own keys to its record's, so the word named an assertion that does not exist (W82's
+    // conformity reader, finding 14). What IS a control here is the cross-row clause below, which
+    // requires an entry for EVERY settled object result on every row.
+    settledOwnKeys: { 'r49:stamp:-:0': ['label', 'words'] },
+    // **The SECOND observer — what the run CARRIES — and the THIRD is `attest` reading it.**
+    // `gauge` is recorded with the value its schema refuses, unaltered; `stamp` is recorded without
+    // the key; and `attest`'s `keys` is the key set its successor RECEIVED, which is `['words']`.
+    // *That is ADR 0060's declared cost — a value that fails its schema still flows downstream —
+    // as an assertion rather than as a sentence.*
+    nodeResults: {
+      'r49:gauge:-:0': { words: 11, load: 1.1 },
+      'r49:stamp:-:0': { words: 11 },
+      'r49:attest:-:0': { keys: ['words'], sawVerdict: false, verdict: null },
+      'r49:publish:-:0': { published: true, joinPayload: { keys: ['words'], sawVerdict: false, verdict: null } },
+    },
+    regionId: null,
+    why: 'W82 — P21`s EXIT ARTIFACT. Two workers return values their own outputSchema refuses and the run ' +
+      'reports each BY NAME, on real workers, in both runtimes — and reports NOTHING about the two ' +
+      'conforming nodes beside them. The two are the two legs of W80`s prediction 3: a bound the producer`s ' +
+      'own code does not keep past its declared domain (Q302 reconstructed), and a value that conforms as ' +
+      'run() returned it and does not survive OR-R2`s clone. Both workers are GREEN at check:workers and ' +
+      'every arc of this flow is `fits` at checkWiring, because one runs a worker on ONE example and the ' +
+      'other reads two SCHEMAS — so this is the reach ADR 0060 consequence 8 names, with an observer',
+  },
+  {
+    key: 'nonconforming — two words (the control)',
+    definition: NC, policyId: 'live-token', payload: TWO_WORDS, threaded: false,
+    checkResults: true,
+    outcome: 'completed',
+    dispatched: ['r50:gauge:-:0', 'r50:stamp:-:0', 'r50:attest:-:0', 'r50:publish:-:0'],
+    pathEnds: [{ reason: 'end', at: 'done' }],
+    // **ONE finding, not two, and the missing one is the claim.** Two words is `0.2`, inside the
+    // declared bound — so `gauge` is silent here and reported on the row above, from the same code
+    // and the same schema. A worker that simply always failed would be reported on both.
+    nonconforming: { 'r50:stamp:-:0': '$.label required' },
+    settledOwnKeys: { 'r50:stamp:-:0': ['label', 'words'] },
+    nodeResults: {
+      'r50:gauge:-:0': { words: 2, load: 0.2 },
+      'r50:stamp:-:0': { words: 2 },
+      'r50:attest:-:0': { keys: ['words'], sawVerdict: false, verdict: null },
+      'r50:publish:-:0': { published: true, joinPayload: { keys: ['words'], sawVerdict: false, verdict: null } },
+    },
+    regionId: null,
+    why: 'W82 — the control for the row above, and the one that makes gauge`s finding a function of the DATA ' +
+      'rather than of the node. Same flow, same registry, same two workers; only the payload`s WORD COUNT ' +
+      'differs, and gauge is reported on eleven words and silent on two. stamp is reported on both, because ' +
+      'its defect is in the clone rather than in the arithmetic — so the pair also separates the two legs ' +
+      'from each other. Whatever makes a discriminating pair differ is itself a claim',
+  },
 ];
 
 // --- assertions ---------------------------------------------------------------
@@ -3243,6 +3413,10 @@ for (const [i, e] of EXPECTED.entries()) {
       // outcome reading `running` rather than `awaiting_action`.
       backstopMs: e.backstopMs,
       holdGroup: e.holdGroup,
+      // **W82: the PRESENCE of this is the switch** — `RunOptions.checkResults` is spread into
+      // `StartOptions` only where a row asks, so every row that omits it runs with the check OFF
+      // and asserts an empty report in the cross-row block (ADR 0060 decision 4).
+      ...(e.checkResults === true ? { checkResults: true as const } : {}),
     });
   } catch (err) {
     // **A row whose run THROWS is a FAIL line naming the row, never a process crash with zero
@@ -3390,6 +3564,119 @@ for (const [i, e] of EXPECTED.entries()) {
       typeof err === 'string' && wants.every((w) => err.includes(w)), `error: ${String(err)}`);
     check(e.key, `and the LIVE task the scheduler settled carried the same error string — the second observer`,
       report.errorsSeen[id], err);
+  }
+  // **W82 — `OR-R13`: the WHOLE report, as a set both ways and then per id.**
+  //
+  // The set first, because a driver that reported a THIRD node — or one of these twice — is a
+  // defect in the check's reach rather than in a finding, and a per-id loop alone could not see it.
+  // The findings are then compared as `describeFindings` renders them, which is the string the
+  // callback's own `message` embeds, so a driver that reported the right node for the wrong reason
+  // fails on the value.
+  if (e.nonconforming !== undefined) {
+    check(e.key, 'OR-R13: the check reported on exactly the settlements this row declares, both ways',
+      report.nonconforming.map((f) => f.taskId).sort(), Object.keys(e.nonconforming).sort());
+    for (const [id, says] of Object.entries(e.nonconforming)) {
+      const got = report.nonconforming.find((f) => f.taskId === id);
+      check(e.key, `and ${id.split(':')[1]}`, got?.findings.map((x) => `${x.path} ${x.says}`).join('; '), says);
+      // **The callback carries the NODE and the WORKER, not only the task id** — `OR-R13`'s own
+      // wording, and the half that makes a finding actionable: the schema is findable in one
+      // lookup. Derived from the definition and the registry document rather than declared beside
+      // the row, so a driver that named the wrong worker is red without this row saying which.
+      const nodeId = id.split(':')[1]!;
+      const type = (e.definition.nodes.find((n) => n.id === nodeId) as { type?: string } | undefined)?.type;
+      const worker = (REGISTRY_DOCUMENT.nodeTypes ?? {})[type ?? '']?.worker;
+      check(e.key, `and it names ${nodeId}'s node, type and worker — the schema findable in one lookup`,
+        [got?.nodeId, got?.type, got?.worker], [nodeId, type, worker]);
+    }
+  }
+  // **W82 — the report DERIVED from this row's own log, beside the literal above.**
+  //
+  // The clauses above hold the report to what the ROW DECLARES, and a literal is bound by whatever
+  // compares it: re-source either side to the other and both go vacuous with every count unmoved
+  // (`doc/workflow.md` v0.21). **This is the second road and it reads no literal at all** — for every
+  // `done` settlement of this row, look up the node's type, its worker and that worker's
+  // `outputSchema` exactly as `OR-R13` says the driver does, apply the value check to the RECORD, and
+  // require the callback's report to be precisely the settlements that failed.
+  //
+  // **What it binds is the driver's DISPATCH of the check** — which settlements it reaches, which it
+  // skips, and what it names them — and each of the rule's three *and nothing else* clauses is one of
+  // those: `done` ONLY (`OR-R2` writes `result: null` otherwise), a worker with NO `outputSchema` is
+  // UNCHECKED, and a node that is not a task is not checked at all. Every one of those had no observer
+  // at this rung until this clause, because all four of this flow's nodes settle `done` and all four
+  // declare a schema — measured, as three undeclared survivors, by this item's own rule-8 pass.
+  //
+  // **It does NOT bind `findings` itself, and that is the row's literal's job** — the same function
+  // applied at a different SITE, to a value reached by a different ROAD (this file's snapshot against
+  // the callback's payload). *Three roads, and only the first two can disagree about the same call.*
+  if (e.checkResults === true) {
+    const want: Record<string, { nodeId: string; type: string; worker: string; says: string }> = {};
+    // **What the walk REACHED, beside what it found** — the adequacy reader's findings 1 and 2, and
+    // it is the whole of what makes the clause below a second road rather than a second reading.
+    const reached: string[] = [];
+    for (const r of report.log) {
+      if (r.kind !== 'outcome' || r.terminalState !== 'done') continue;
+      const nodeId = r.taskId.split(':')[1]!;
+      const node = e.definition.nodes.find((n) => n.id === nodeId);
+      if (node?.kind !== 'task') continue;
+      const type = (node as { type: string }).type;
+      const worker = (REGISTRY_DOCUMENT.nodeTypes ?? {})[type]?.worker;
+      const schema = worker === undefined ? undefined : (REGISTRY_DOCUMENT.workers ?? {})[worker]?.outputSchema;
+      if (schema === undefined) continue;
+      reached.push(r.taskId);
+      const fs = findings(schema as JsonSchema, r.result);
+      if (fs.length === 0) continue;
+      want[r.taskId] = { nodeId, type, worker: worker!, says: fs.map((x) => `${x.path} ${x.says}`).join('; ') };
+    }
+    check(e.key, 'OR-R13: and the report IS the settlements of this row whose RECORD fails its worker`s declared outputSchema — ' +
+      'derived from the log and the registry, reading no literal, so it holds the driver`s dispatch of the check rather than its arithmetic',
+      report.nonconforming.map((f) => ({ taskId: f.taskId, nodeId: f.nodeId, type: f.type, worker: f.worker, says: f.findings.map((x) => `${x.path} ${x.says}`).join('; ') }))
+        .sort((x, y) => x.taskId.localeCompare(y.taskId)),
+      Object.entries(want).map(([taskId, w]) => ({ taskId, ...w })).sort((x, y) => x.taskId.localeCompare(y.taskId)));
+    // **CONTROL: the walk reached the CONFORMING settlements too, which the report never names.**
+    //
+    // *Every observer of the report is downstream of the report* — obligation (c)'s LIMIT at its
+    // sharpest, and the adequacy reader measured what that costs: with the walk above re-sourced to
+    // `report.nonconforming` the clause became a projection of the report compared with itself, and
+    // the control it carried — *the derivation found SOMETHING* — was then *the report is non-empty*,
+    // **exactly as true as before**. Pointed at the report by one more edit, a driver reporting
+    // `$.NOTHING garbled` for every settlement left this rung at 1720, 0 failed.
+    //
+    // What refuses it is a property the LOG has and the report does not: this flow settles FOUR
+    // tasks whose workers declare an `outputSchema` and the report names TWO. A walk built from the
+    // report reaches two, and this fails naming both lists. *It is a relation over the walk rather
+    // than an expression over one of its operands* — `doc/workflow.md` v0.21's clause.
+    const withSchemaHere = report.log.flatMap((r) => {
+      if (r.kind !== 'outcome' || r.terminalState !== 'done') return [];
+      const node = e.definition.nodes.find((n) => n.id === r.taskId.split(':')[1]);
+      if (node?.kind !== 'task') return [];
+      const w = (REGISTRY_DOCUMENT.nodeTypes ?? {})[(node as { type: string }).type]?.worker;
+      return (w !== undefined && (REGISTRY_DOCUMENT.workers ?? {})[w]?.outputSchema !== undefined) ? [r.taskId] : [];
+    }).sort();
+    check(e.key, 'CONTROL: and the walk above reached EVERY `done` settlement of this row whose worker declares an outputSchema — ' +
+      'including the CONFORMING ones, which the report never names, so it cannot have been built from the report',
+      reached.sort(), withSchemaHere);
+    assertThat(e.key, 'CONTROL: and it reached STRICTLY MORE than the report names — a row on a flow whose every record conforms, or ' +
+      'whose every record fails, would make the clause above an equality this control cannot discriminate',
+      reached.length > report.nonconforming.length && report.nonconforming.length > 0,
+      `walked ${reached.length}, reported ${report.nonconforming.length}`);
+  }
+  // **W82 — the FIRST of the row's three observers: what the SCHEDULER settled with.**
+  //
+  // Read off the live `detail.result` before `OR-R2` cloned anything, so this and the record's own
+  // key set are two readings of what is nominally one value — and where they differ, the difference
+  // is the clone's. The record's side is derived here rather than declared, because the row already
+  // declares the record's whole value under `nodeResults` and a second literal would be a second
+  // source that could agree with nothing.
+  for (const [id, keys] of Object.entries(e.settledOwnKeys ?? {})) {
+    check(e.key, `OR-R11: the LIVE result ${id.split(':')[1]} settled with carried these own keys`,
+      report.settledOwnKeys[id], keys);
+    const rec = report.log.find((r) => r.kind === 'outcome' && r.taskId === id);
+    const carried = rec?.kind === 'outcome' && typeof rec.result === 'object' && rec.result !== null
+      ? Object.getOwnPropertyNames(rec.result).sort() : undefined;
+    assertThat(e.key, `and the RECORD carries FEWER — OR-R2's clone copies own ENUMERABLE keys and nothing else, ` +
+      `so the same schema applied to the two lawfully disagrees and no authoring-time tool holds the second`,
+      carried !== undefined && carried.length < keys.length && carried.every((k) => keys.includes(k)),
+      `live ${JSON.stringify(keys)} against record ${JSON.stringify(carried)}`);
   }
   // **W63 — ADR 0051 rule 4 on EVERY row: the pools whose config carries a language are exactly the
   // types some node of THIS row's flow transforms on, in exactly the languages those nodes name,
@@ -3791,6 +4078,18 @@ for (const [i, e] of EXPECTED.entries()) {
     + Object.keys(e.poolOfTask ?? {}).length
     // W63: two observers per declared `taskErrors` id — the record's error and the live task's.
     + Object.keys(e.taskErrors ?? {}).length * 2
+    // **W82: the report's id SET, plus two per declared finding — its text and the node/type/worker
+    // it names.** Derived from the expectation like every other extra here, so declaring a finding
+    // moves the floor with it.
+    + (e.nonconforming !== undefined ? 1 + Object.keys(e.nonconforming).length * 2 : 0)
+    // W82: two per declared `settledOwnKeys` id — the live result's own keys, and that the RECORD
+    // carries strictly fewer of them.
+    + Object.keys(e.settledOwnKeys ?? {}).length * 2
+    // W82: the LOG-DERIVED report and its TWO controls, on a row that asks for the check — the walk's
+    // REACH and that it reached strictly more than the report names, which is what the adequacy
+    // reader's findings 1 and 2 bought. Derived from the expectation like every other extra here, so
+    // declaring `checkResults` moves the floor with it.
+    + (e.checkResults === true ? 3 : 0)
     // **`JP-R12`'s SECOND-COPY claim, and only where there is something to be a copy
     // of.** A row that records no arrival would assert `0 === 0`, which is the
     // vacuity `doc/workflow.md` section 5 rule 3 refuses — so it is an extra derived
@@ -4144,6 +4443,8 @@ const ROW_KEYS: readonly string[] = [
   'transform-fails / a transform FAILS at run time on two non-optional nodes (T2002, UNBOUND) — parked as user_action, resolved by a person, the run completes',
   'triage LOW / P18`s sample from two documents — a class type on a NAMED instance, a document type on its DEFAULT',
   'triage HIGH / the control — one payload field different, and the NAMED instance is never dispatched',
+  'nonconforming — eleven words',
+  'nonconforming — two words (the control)',
 ];
 
 /**
@@ -4343,11 +4644,41 @@ const CROSS_ROW_SUBJECTS = [
   'a node whose worker entry declares NO settingsSchema takes any settings at all',
   // W72 — the clause was rewritten from four entries to the rule's enumeration over fourteen, and the
   // corpus's examples gained a subject of their own: a membership names its claims (v0.14).
-  'the runtime CARRIES every schema the fourteen worker entries declare, exactly',
+  'the runtime CARRIES every schema the sixteen worker entries declare, exactly',
   'every schema every corpus worker entry declares carries an `examples`',
   'the pool map is read off the SCHEDULER`s own task map',
   'CONSTRUCT a pool, a scheduler, a Driver or a built-in resource group are exactly the ones that DECLARE it',
   'BOTH detectors fire on the shapes they refuse',
+  // **W82 — P21's EXIT ARTIFACT.** Six claims and TWO controls; the controls are members by rule
+  // since v0.18, and v0.21 is why each of them reads the RELATION rather than the emptiness of an
+  // operand: every clause of the check-OFF block compares two strings, so a control over one side
+  // would stay exactly as true after the claim was made a tautology by re-sourcing.
+  'OR-R13 is a READING: with the check ON and OFF the same flow dispatches the same ids',
+  'the LOG is identical record for record with only the clocks zeroed',
+  'the folded outcome is the same',
+  'every settled RESULT is the same value',
+  'what the check COSTS the run, ON and OFF, as a COUNT rather than a clock',
+  'the check LOOKED AT every settlement of the run',
+  'CONTROL: the two arms are DIFFERENT RUNS of one flow',
+  'OR-R13 reported on exactly the rows that ASKED for the check',
+  'CONTROL: and that set is NOT every row',
+  // **The SIX the first version left out** — the adequacy reader's findings 4 and 5, measured: the
+  // derived block's four and two of the check-OFF block's three CONTROLS deleted for TWO integer
+  // edits, with L6 green at the lowered numbers and nothing named. The derived block is this item's
+  // SECOND DERIVATION and its control is rule 8's fourth requirement on the set — *whatever makes a
+  // discriminating pair differ is itself a claim* — so a membership that omits them omits the half
+  // v0.18's clause is about.
+  'the registry DOCUMENT declares a `maximum` for gauge`s `load`',
+  'which row must report `gauge` is ARITHMETIC over the document`s declared maximum',
+  'and the finding it declares names the bound the DOCUMENT declares',
+  'CONTROL: the two rows DISAGREE about gauge',
+  'CONTROL for the cost: the OFF arm reported NOTHING',
+  'CONTROL: and the ON arm IS the row',
+  // W82, after its adequacy reader: the clause that makes `settledOwnKeys`' own sentence true. The
+  // two clauses that make the log-derived road a ROAD are PER-ROW (they are emitted under the row's
+  // own key), so they move the row's declared extra rather than this list.
+  'every settled task whose result is an OBJECT has its own key set recorded, on every row',
+  'CONTROL: and there are MANY more of those than the two ids any row declares',
 ];
 
 /**
@@ -4463,11 +4794,15 @@ const REFERENCE_SPELLINGS_IN_SPEC = await referenceSpellingsInSpecAsync();
  * runs, and a module no entry names is red in the same clause. The `role` switch, the `Role` union
  * and both directions of Q196's asymmetry are GONE — there is nothing left for a type to half-close.
  *
- * **Measured on the tree this item ships**: the document declares **14** workers and
- * `examples/workers/` holds fourteen modules beside `shared.ts`; it declares **15** node types (the
- * eleven pre-W65 ones, `Echo`, `Scorer`, and W67's `Fetch` and `Prompt`) and the 25 flow documents
- * name exactly those the rows run — **16** with the `GpuModel` CLASS the shim registers; it declares **5** groups and the scheduler
- * reports exactly those five. Both sides of each pair are read from somewhere other than the object
+ * **Measured on the tree this item ships**: the document declares **16** workers and
+ * `examples/workers/` holds sixteen modules beside `shared.ts`; it declares **17** node types (the
+ * eleven pre-W65 ones, `Echo`, `Scorer`, W67's `Fetch` and `Prompt`, and W82's `GaugeWorker` and
+ * `StampWorker`) and the 26 flow documents
+ * name exactly those the rows run — **18** with the `GpuModel` CLASS the shim registers; it declares **5** groups and the scheduler
+ * reports exactly those five. *(This paragraph read 14 / fourteen / 15 / 25 / 16 on the tree W82
+ * ships, four numbers wrong in the paragraph whose heading is `Measured on the tree this item
+ * ships` — W82's conformity reader, finding 4. The CLAUSE below reads the file and passed
+ * throughout; only the prose was false.)* Both sides of each pair are read from somewhere other than the object
  * the runtime was built from — the document from its own BYTES, the modules from the DIRECTORY —
  * which is what keeps a re-sourced export from making the comparison vacuous.
  *
@@ -5735,9 +6070,319 @@ if (consumerRoad !== null) {
     `run A stoppedBy: ${JSON.stringify(c.stoppedByA)}, run B: ${JSON.stringify(c.stoppedByB)}`);
 }
 
-// **`+ 1` is W67's SHIM RUN and `+ 2` is W78's consumer-road block**, which makes two runs under
-// one label — a fan-out that completes and a refusal that stops. Both sit OUTSIDE the row loop, so
-// neither is in `ROW_KEYS`, and this expression is the only thing that counts them.
+/**
+ * **W82 — P21's EXIT ARTIFACT, second half: the check is a READING, and here is the run that says
+ * so with nothing left to argue.**
+ *
+ * `ADR 0060` decision 3 is the sentence P21 tells an adequacy reader to falsify first: *an item
+ * that writes a record, changes a terminal state, or routes differently has broken this decision.*
+ * Every observer of that claim so far is L2's, on a fake scheduler. This is the same claim on a
+ * real `FyflowScheduler`: **the `nonconforming — eleven words` row run AGAIN, same flow, same
+ * payload, same run id, with the one option removed**, and the two runs held identical — the
+ * dispatched ids, the log record for record with the clocks zeroed, the folded outcome, and every
+ * settled node's result — **with the reports the one thing they differ in.**
+ *
+ * **The run id is the ROW's, derived from its index and not typed**, which is what makes the two
+ * logs literally comparable rather than comparable-after-normalisation: `runFlow` builds its own
+ * runtime and therefore its own scheduler, so two drivers minting one id set never meet (`ID-R3`
+ * is about two drivers on ONE scheduler, and these are on two).
+ *
+ * **What it costs, ON and OFF, is a COUNT and not a clock**, which is [Q179](../doc/open-questions.md)
+ * and P21 decision 5. A check whose answer is discarded has exactly one observable — *how many
+ * answers it produced* — so that is what is asserted: 2 against 0 over four settlements whose
+ * workers all declare an `outputSchema`. The RATIO of the two costs over every result this rung
+ * settles is PRINTED beside it and asserted nowhere, because a ratio of two clocks is still two
+ * clocks ([Q335](../doc/open-questions.md), W81).
+ */
+type CheckOffRun = {
+  onKey: string;
+  runId: string;
+  dispatchedOn: readonly string[];
+  dispatchedOff: readonly string[];
+  /**
+   * **The two arms' logs THEMSELVES, and the claim and its control are two projections of these.**
+   *
+   * They were four strings — two zeroed and two raw — and that was two sources per arm: this
+   * item's own rule-8 pass re-sourced the OFF arm's ZEROED log to the ON arm's and the RAW control
+   * passed, because `rawOff` was still reading the real off-run. *A control over a SECOND
+   * projection of an arm cannot see the FIRST projection being re-sourced.* One array per arm, and
+   * both projections computed where they are asserted, is what closes it.
+   */
+  logRecordsOn: readonly LogRecord[];
+  logRecordsOff: readonly LogRecord[];
+  outcomeOn: RunOutcome;
+  outcomeOff: RunOutcome;
+  resultsOn: string;
+  resultsOff: string;
+  reportsOn: number;
+  reportsOff: number;
+  settledDone: number;
+  withSchema: number;
+  /** The flows this block STARTED, so the printed run count is a length and not a literal. */
+  runs: string[];
+};
+let checkOff: CheckOffRun | null = null;
+{
+  // **The ON arm is the ROW's own run, not a third one** — so the pair is one variable changed on a
+  // run this file already asserts forty ways, rather than two runs nobody else looks at.
+  const onIndex = EXPECTED.findIndex((e) => e.key === 'nonconforming — eleven words');
+  const onRow = EXPECTED[onIndex];
+  const onReport = reports[onIndex];
+  if (onIndex < 0 || onRow === undefined || onReport === undefined) {
+    failures.push('cross-row\n      the check-OFF pair could not find its ON arm — the row `nonconforming — eleven words` is gone');
+  } else {
+    try {
+      // Every option the row loop passes, MINUS `checkResults`. Written out rather than spread from
+      // the row so that a row gaining an option this block does not pass is a visible difference
+      // here rather than a silent one.
+      const off = await runFlow({
+        definition: onRow.definition,
+        policy: POLICIES[onRow.policyId],
+        runId: `r${onIndex + 1}`,
+        payload: onRow.payload,
+        predicates,
+        threaded: onRow.threaded,
+      });
+      // **The clocks are zeroed and NOTHING else is** — `observedAt` and the scheduler's four
+      // timings are the only fields two runs of one flow may lawfully differ in, and zeroing more
+      // than that would be the comparison excusing itself.
+      const resultsOf = (r: typeof onReport) => JSON.stringify(
+        r.log.filter((x) => x.kind === 'outcome').map((x) => [x.taskId, (x as { result: unknown }).result]));
+      const workers = REGISTRY_DOCUMENT.workers ?? {};
+      const types = REGISTRY_DOCUMENT.nodeTypes ?? {};
+      const settledDone = onReport.log.filter((r) => r.kind === 'outcome' && r.terminalState === 'done').length;
+      // **Derived from the DOCUMENT and not from the same walk** — the adequacy reader's finding 8:
+      // read off the log with the same predicate, `settledDone` and this become one expression
+      // computed twice, and *four settled, four with a schema* is `4 === 4`. The flow's TASK NODES
+      // are what the document describes, so the count is a property of the registry.
+      const withSchema = onRow.definition.nodes.filter((n) => n.kind === 'task'
+        && (workers[types[(n as { type: string }).type]?.worker ?? '']?.outputSchema !== undefined)).length;
+      checkOff = {
+        onKey: onRow.key,
+        runId: `r${onIndex + 1}`,
+        dispatchedOn: onReport.dispatched, dispatchedOff: off.dispatched,
+        logRecordsOn: onReport.log, logRecordsOff: off.log,
+        outcomeOn: onReport.state.outcome, outcomeOff: off.state.outcome,
+        resultsOn: resultsOf(onReport), resultsOff: resultsOf(off),
+        reportsOn: onReport.nonconforming.length, reportsOff: off.nonconforming.length,
+        settledDone, withSchema,
+        runs: [onRow.definition.flowId],
+      };
+    } catch (err) {
+      // **A crash is not a detection** — `doc/workflow.md` section 4. This block sits outside the
+      // row loop, so a throw here would take the whole file down with exit 1 and ZERO failure lines.
+      failures.push(`cross-row\n      the check-OFF pair THREW before any assertion could run — a crash is not a detection: ` +
+        `${err instanceof Error ? err.message.slice(0, 240) : String(err)}`);
+    }
+  }
+}
+if (checkOff !== null) {
+  const key = 'cross-row';
+  const c = checkOff;
+  // **The clocks are zeroed and NOTHING else is** — `observedAt` and the scheduler's four timings
+  // are the only fields two runs of one flow may lawfully differ in, and zeroing more than that
+  // would be the comparison excusing itself. Both projections are taken HERE, off the one array
+  // per arm the block captured, so the claim and its control cannot read different sources.
+  //
+  // **What this rung is therefore BLIND to, said rather than left to be assumed** — the adequacy
+  // reader's finding 7: a record WRITE into any of those five fields is invisible here. The check
+  // holds the record by reference, so `record.observedAt = 0` inside `reportResultSchema` leaves
+  // L6 at 1720, 0 failed, and is RED at L1 — `test/driver/result-schema.test.ts` asserts all eleven
+  // fields against a literal. So P21 decision 3's *writes a record* is held at L2 and this block
+  // holds the other two, *routes differently* and *changes a terminal state*, on real workers.
+  const zeroed = (rs: readonly LogRecord[]) => JSON.stringify(rs.map((r) => (r.kind === 'outcome'
+    ? { ...r, observedAt: 0, schedulerTimestamp: 0, startTime: 0, endTime: 0, executionTime: 0 }
+    : { ...r, observedAt: 0 })));
+  const logOn = zeroed(c.logRecordsOn), logOff = zeroed(c.logRecordsOff);
+  const rawOn = JSON.stringify(c.logRecordsOn), rawOff = JSON.stringify(c.logRecordsOff);
+  // (1) the headline: OR-R13 changes NOTHING about the run. Four clauses, because "nothing" has
+  // four observable halves and decision 3 names three of them by name.
+  check(key, 'OR-R13 is a READING: with the check ON and OFF the same flow dispatches the same ids — no dispatch moves',
+    c.dispatchedOn, c.dispatchedOff);
+  assertThat(key, 'and the LOG is identical record for record with only the clocks zeroed — no record is written differently ' +
+    'and no terminal state is authored (OR-R3`s source column says terminalState comes from d.state and is never the driver`s)',
+    logOn === logOff, `ON ${logOn.slice(0, 200)} / OFF ${logOff.slice(0, 200)}`);
+  check(key, 'and the folded outcome is the same — the run proceeds exactly as it would with the check off',
+    c.outcomeOn, c.outcomeOff);
+  assertThat(key, 'and every settled RESULT is the same value — a result that fails its schema reaches its successor ' +
+    'UNALTERED, which is the cost ADR 0060 states rather than hides',
+    c.resultsOn === c.resultsOff, `ON ${c.resultsOn.slice(0, 200)} / OFF ${c.resultsOff.slice(0, 200)}`);
+  // (2) what it COSTS, on and off, as the only observable a check whose answer is discarded has.
+  check(key, 'what the check COSTS the run, ON and OFF, as a COUNT rather than a clock — the reports are the one thing ' +
+    'the two runs differ in (Q179, P21 decision 5: a ratio of two clocks is still two clocks)',
+    { on: c.reportsOn, off: c.reportsOff }, { on: 2, off: 0 });
+  assertThat(key, 'CONTROL for the cost: the OFF arm reported NOTHING on a run whose records DO fail their schemas — a relation ' +
+    'between two different things, so it cannot be made true by re-sourcing one side of the pair above to the other',
+    c.reportsOff === 0 && c.reportsOn > 0,
+    `off ${c.reportsOff} / on ${c.reportsOn}`);
+  check(key, 'and the check LOOKED AT every settlement of the run — four settled `done`, four whose worker declares an ' +
+    'outputSchema, so the two it stayed silent about are silent by CONFORMANCE and not by absence',
+    { settledDone: c.settledDone, withSchema: c.withSchema }, { settledDone: 4, withSchema: 4 });
+  // (3) CONTROL: the two sides of every equality above are DIFFERENT RUNS.
+  //
+  // Each of the four clauses compares two STRINGS, and re-sourcing either side to the other makes
+  // all four tautologies while leaving a control over one OPERAND exactly as true as before — which
+  // is `doc/workflow.md` v0.21's clause, adopted because every control v0.18 produced fell to
+  // precisely that. So this reads the RELATION, in the one form two runs of one flow admit:
+  // **the RAW logs must DIFFER while the zeroed ones agree.** `observedAt` and the scheduler's four
+  // timings are real clocks, so two runs cannot produce identical bytes — and one run compared with
+  // itself cannot produce different ones. *It fails where the claim is VACUOUS and not only where
+  // its subject is absent.*
+  assertThat(key, 'CONTROL: the two arms are DIFFERENT RUNS of one flow — their RAW logs DIFFER, because the clocks in them ' +
+    'are real, while the zeroed logs above agree. A claim made vacuous by re-sourcing one arm to the other fails HERE',
+    rawOn !== rawOff && logOn === logOff,
+    `raw differ: ${rawOn !== rawOff}, zeroed agree: ${logOn === logOff}`);
+  assertThat(key, 'CONTROL: and the ON arm IS the row — same run id, so nothing but the option removed can make the two agree, ' +
+    'and the arm this block calls ON is one this file asserts forty other ways',
+    c.reportsOn !== c.reportsOff && c.runId === `r${EXPECTED.findIndex((e) => e.key === c.onKey) + 1}`,
+    `on ${c.reportsOn} / off ${c.reportsOff} / id ${c.runId}`);
+}
+/**
+ * **WHICH of the two `nonconforming` rows must report `gauge` is DERIVED from the registry
+ * DOCUMENT and each row's payload, never from either row's declaration** — W82.
+ *
+ * The two rows declare their findings as literals, and a literal is bound by whatever compares it.
+ * The per-row clauses compare each to the REPORT, so re-sourcing a row's declared side to its own
+ * report would make both rows tautologies and leave every count unmoved — v0.21's clause, asked of
+ * this item's own headline. **This is the second derivation**: `gauge` returns `words / BUDGET` and
+ * its schema declares a `maximum`, so which payloads breach it is arithmetic over two numbers the
+ * DOCUMENT states and one the payload states, and neither is anything a run produced.
+ *
+ * *It is the discriminating property of the pair, asserted rather than rested on* — rule 8's fourth
+ * requirement on the set.
+ */
+{
+  const gauge = (REGISTRY_DOCUMENT.workers ?? {}).gauge as unknown as
+    { outputSchema?: { properties?: { load?: { maximum?: number } } } } | undefined;
+  const max = gauge?.outputSchema?.properties?.load?.maximum;
+  // The budget is the worker's, read from its own module rather than repeated here: ten words, the
+  // number the schema's `maximum: 1` is a fraction OF.
+  const BUDGET = 10;
+  const wordsIn = (p: { text?: string }) => (p.text ?? '').split(' ').filter((w) => w.length > 0).length;
+  const rows = EXPECTED.map((e, i) => [e, `r${i + 1}`] as const).filter(([e]) => e.definition.flowId === 'l6-nonconforming');
+  assertThat('cross-row', 'the registry DOCUMENT declares a `maximum` for gauge`s `load`, so the rows below have a second source',
+    typeof max === 'number' && rows.length === 2, `maximum ${String(max)} over ${rows.length} row(s)`);
+  if (typeof max === 'number' && rows.length === 2) {
+    const derived = rows
+      .filter(([e]) => wordsIn(e.payload) / BUDGET > max)
+      .map(([, id]) => `${id}:gauge:-:0`).sort();
+    const declared = rows
+      .flatMap(([e, id]) => (e.nonconforming?.[`${id}:gauge:-:0`] !== undefined ? [`${id}:gauge:-:0`] : []))
+      .sort();
+    check('cross-row', 'which row must report `gauge` is ARITHMETIC over the document`s declared maximum and each payload`s word ' +
+      'count — one of the two, derived without reading either row`s declaration or any run',
+      declared, derived);
+    // And the FINDING's own text names the document's bound rather than a number typed beside it.
+    for (const [e, id] of rows) {
+      const says = e.nonconforming?.[`${id}:gauge:-:0`];
+      if (says !== undefined) {
+        check('cross-row', 'and the finding it declares names the bound the DOCUMENT declares', says, `$.load above maximum ${max}`);
+      }
+    }
+    assertThat('cross-row', 'CONTROL: the two rows DISAGREE about gauge — exactly one of them is in that set, so the clause above ' +
+      'is a discrimination rather than a count, and a worker that always failed would put both there',
+      derived.length === 1 && rows.length === 2, `${derived.length} of ${rows.length} rows breach the declared bound`);
+  }
+}
+/**
+ * **The check is OFF everywhere it was not asked for — W82, and it is the switch's OFF position as
+ * an assertion about the DRIVER rather than a fact about one row.**
+ *
+ * `onNonconformingResult`'s PRESENCE is the whole of the switch (ADR 0060 decision 4). So a driver
+ * that checked a settlement nobody asked it to check would be reported here on every row at once —
+ * and, because two of this rung's rows DO ask and are reported, the clause is a partition rather
+ * than an emptiness test.
+ */
+/**
+ * **`settledOwnKeys` is recorded for EVERY settled task on EVERY row — W82, the adequacy reader's
+ * finding 6.**
+ *
+ * The field's own comment says so and calls the rows that do not declare it the control; nothing
+ * held it. Measured by that reader: narrowing the RECORDING to task ids containing `:stamp:` costs
+ * **zero**, because the value is read at exactly the two ids the two `nonconforming` rows declare.
+ * So the sentence was a claim about a harness with no assertion under it, and this is the assertion:
+ * every settled task of every row whose result is an OBJECT has an entry, derived from each row's
+ * own log rather than from the field it checks.
+ */
+{
+  const missing: string[] = [];
+  let objectResults = 0;
+  EXPECTED.forEach((e, i) => {
+    const r = reports[i];
+    if (r === undefined) return;
+    for (const rec of r.log) {
+      if (rec.kind !== 'outcome' || typeof rec.result !== 'object' || rec.result === null) continue;
+      objectResults++;
+      if (r.settledOwnKeys[rec.taskId] === undefined) missing.push(`${e.key}: ${rec.taskId}`);
+    }
+  });
+  check('cross-row', 'every settled task whose result is an OBJECT has its own key set recorded, on every row — the observer the ' +
+    'two nonconforming rows read is recorded for all of them, which is what makes those rows` declarations a sample rather than the whole of it',
+    missing, []);
+  assertThat('cross-row', 'CONTROL: and there are MANY more of those than the two ids any row declares — so the clause above ranges ' +
+    'over the rung rather than over the two settlements it is pointed at',
+    objectResults > 20, `${objectResults} settled object results across the rung`);
+}
+{
+  const asked = EXPECTED.filter((e) => e.checkResults === true).map((e) => e.key).sort();
+  const reported = EXPECTED.filter((_, i) => (reports[i]?.nonconforming.length ?? 0) > 0).map((e) => e.key).sort();
+  check('cross-row', 'OR-R13 reported on exactly the rows that ASKED for the check, both ways — the callback`s presence is the switch',
+    reported, asked);
+  assertThat('cross-row', 'CONTROL: and that set is NOT every row — forty-eight rows ran with the check off and were reported on none, ' +
+    'so the clause above is a partition rather than an emptiness test',
+    asked.length > 0 && asked.length < EXPECTED.length, `${asked.length} of ${EXPECTED.length} rows asked`);
+}
+
+/**
+ * **What `OR-R13` would cost this WHOLE RUNG, against the `structuredClone` `OR-R2` already pays on
+ * the same settlements — PRINTED, and asserted by nothing** — W82, P21 decision 5.
+ *
+ * **Nothing here is an assertion and that is the decision rather than an omission.**
+ * [Q179](../doc/open-questions.md) says wall time here is not reproducible, and W81 measured how
+ * badly: the same two values over eight readings of one row read between 58% and 95%, a spread as
+ * wide as the effect. *A ratio of two clocks is still two clocks* ([Q335](../doc/open-questions.md)),
+ * so a rung that asserted a magnitude would be a ratchet on hardware. What IS asserted is the
+ * COUNT, in the check-OFF block above — the only observable a check whose answer is discarded has.
+ *
+ * **It is PRINTED rather than left to a document for [Q171](../doc/open-questions.md)'s reason**:
+ * this is the one place that holds every result the rung settled, so the number is re-taken on every
+ * run instead of transcribed into prose nothing compares. The two sides are timed on the SAME values
+ * and in BOTH orders, because W46 measured that run ORDER costs nothing here and ACCUMULATION in one
+ * process costs up to 4.4x — so two readings that disagree are a warning the reader can see.
+ */
+{
+  const workers = REGISTRY_DOCUMENT.workers ?? {};
+  const types = REGISTRY_DOCUMENT.nodeTypes ?? {};
+  const pairs: { schema: unknown; value: unknown }[] = [];
+  EXPECTED.forEach((e, i) => {
+    for (const r of reports[i]?.log ?? []) {
+      if (r.kind !== 'outcome' || r.terminalState !== 'done') continue;
+      const node = e.definition.nodes.find((n) => n.id === r.taskId.split(':')[1]);
+      const w = node?.kind === 'task' ? workers[types[(node as { type: string }).type]?.worker ?? ''] : undefined;
+      if (w?.outputSchema !== undefined) pairs.push({ schema: w.outputSchema, value: r.result });
+    }
+  });
+  if (pairs.length > 0) {
+    // Both roads warmed before either is timed, so neither pays the other's JIT.
+    for (let i = 0; i < 5; i++) for (const p of pairs) { structuredClone(p.value); findings(p.schema as JsonSchema, p.value); }
+    const median = (xs: number[]) => xs.slice().sort((a, b) => a - b)[xs.length >> 1]!;
+    const time = (f: () => void) => { const xs: number[] = []; for (let i = 0; i < 31; i++) { const t = performance.now(); f(); xs.push(performance.now() - t); } return median(xs); };
+    const clone = time(() => { for (const p of pairs) structuredClone(p.value); });
+    const check = time(() => { for (const p of pairs) findings(p.schema as JsonSchema, p.value); });
+    const check2 = time(() => { for (const p of pairs) findings(p.schema as JsonSchema, p.value); });
+    const clone2 = time(() => { for (const p of pairs) structuredClone(p.value); });
+    console.log(`  OR-R13 over this whole rung, OBSERVED and asserted by nothing (Q179): ${pairs.length} settled results with a declared ` +
+      `outputSchema — check/clone ${(check / clone).toFixed(2)}x, and ${(check2 / clone2).toFixed(2)}x with the two timed in the ` +
+      `opposite order. The COUNT is what the check-OFF block asserts.\n`);
+  }
+}
+
+// **`+ 1` is W67's SHIM RUN, `+ 2` is W78's consumer-road block and `+ 1` is W82's check-OFF arm.**
+// W78's makes two runs under one label — a fan-out that completes and a refusal that stops; W82's
+// makes ONE, because its ON arm is a row the loop above already ran. All three sit OUTSIDE the row
+// loop, so none is in `ROW_KEYS`, and this expression is the only thing that counts them. *(It named
+// the first two and not the third, in the paragraph that calls itself the only thing that counts
+// them — W82's conformity reader, finding 15.)*
 //
 // **W78's two are DERIVED from the block having run rather than written as a literal**, which is
 // [Q217](../doc/open-questions.md)'s regress paid down by one edit: with a literal, deleting the
@@ -5745,7 +6390,7 @@ if (consumerRoad !== null) {
 // reads at L7 — becomes the false half of `l6.ts`'s own output. Probes `d4` and `d4b` are the
 // measurement. *The regress does not close: deleting the block, its twelve subjects and the two
 // counts is still possible, and this makes it one edit dearer and the printed count honest.*
-const pairRunCount = pairResults.reduce((n, { runs }) => n + runs.length, 0) + 1 + (consumerRoad?.runs.length ?? 0);
+const pairRunCount = pairResults.reduce((n, { runs }) => n + runs.length, 0) + 1 + (consumerRoad?.runs.length ?? 0) + (checkOff?.runs.length ?? 0);
 console.log(`\n  ladder L6 — ${reports.length + pairRunCount} real runs on fyflow-scheduler ${SCHEDULER_VERSION}, on ${runtime}\n`);
 /**
  * **Every region of the run, in the row's declared order** — W23's conformity
@@ -5935,7 +6580,20 @@ const PER_PLAIN_ROW = 20;
 // three CONTROLS, plus the pair clause and the option-key membership: the block makes two runs
 // and every one of its assertions is cross-row, because it is not an `EXPECTED` row and could
 // not be (finding C). *The convention this file keeps is that the next item APPENDS.*
-const CROSS_ROW = 153;
+// **+17 since W78 - W82, P21's EXIT ARTIFACT**, and the decomposition is: the check-OFF pair's SIX
+// claims and THREE controls (9); the partition that says the check was OFF on every row which did
+// not ask for it, with its own control (2); the DERIVED block — which row must report `gauge` is
+// arithmetic over the document's declared `maximum` and each payload's word count — as a
+// precondition, a claim, ONE per-row reading and a control (4); and `settledOwnKeys`' own sentence
+// with its control (2). All seventeen are cross-row because the ON arm IS a row and the OFF arm is a
+// second run of that row, so each claim is about the two together and belongs to neither.
+//
+// *(It read **+14** beside a correct literal and its decomposition was wrong three ways — two
+// controls where the block has three, one partition assertion where there are two, and two per-row
+// readings where the loop executes once. W82's conformity reader, finding 7, in the comment that
+// explains the number rather than in the number.)*
+// *The convention this file keeps is that the next item APPENDS.*
+const CROSS_ROW = 170;
 const base = (shape: string) => (shape === 'region' ? PER_REGION_ROW : PER_PLAIN_ROW);
 for (const [key, shape, cost, extras] of rowCosts) {
   if (cost !== base(shape) + extras) {
@@ -6843,13 +7501,13 @@ if (rowCosts.length !== EXPECTED.length) {
         // list is the rule's rather than the document's — v0.17's *where a rule enumerates its own
         // values, the set is that enumeration*.
         // **Since W72 (P19, ADR 0056) EVERY worker declares the two P19 schemas** — an `inputSchema` on all
-        // fourteen and an `outputSchema` on the twelve whose output a JSON Schema can describe (`fail` never
+        // sixteen and an `outputSchema` on the fourteen whose output a JSON Schema can describe (`fail` never
         // returns and `uncloneable` returns a function) — beside the config and settings schemas the four
         // entries that had them keep. The expected side is the RULE's enumeration over every entry rather
         // than a literal for four, because the claim is now about the whole document and a four-entry
         // literal would let ten entries drop a schema for zero; and it is still a LITERAL rather than a
         // read of `REGISTRY_DOCUMENT` (`ra6`), so the probe that deletes a schema moves one side only.
-        check('cross-row', 'the runtime CARRIES every schema the fourteen worker entries declare, exactly: the two P19 schemas on every entry ' +
+        check('cross-row', 'the runtime CARRIES every schema the sixteen worker entries declare, exactly: the two P19 schemas on every entry ' +
           '(no outputSchema on the two undescribable workers), plus prompt`s configSchema and the three settingsSchemas — ' +
           'two enforced by the runtime, the other two declared, carried, and checked by `check-workers` on a run',
           Object.fromEntries(Object.entries(reports[0]!.workerSchemas).sort(([a], [b]) => a.localeCompare(b))),
@@ -6858,12 +7516,17 @@ if (rowCosts.length !== EXPECTED.length) {
             echo: ['inputSchema', 'outputSchema', 'settingsSchema'],
             fail: ['inputSchema'],
             fetch: ['inputSchema', 'outputSchema'],
+            // W82: the two workers P21's exit artifact adds. They declare both P19 schemas like
+            // every other corpus entry — which is half of why `check:workers` and `checkWiring` are
+            // GREEN on them and `OR-R13` is not.
+            gauge: ['inputSchema', 'outputSchema'],
             ingest: ['inputSchema', 'outputSchema'],
             prompt: ['configSchema', 'inputSchema', 'outputSchema', 'settingsSchema'],
             publish: ['inputSchema', 'outputSchema'],
             retry: ['inputSchema', 'outputSchema'],
             score: ['inputSchema', 'outputSchema'],
             split: ['inputSchema', 'outputSchema'],
+            stamp: ['inputSchema', 'outputSchema'],
             tally: ['inputSchema', 'outputSchema'],
             typed: ['inputSchema', 'outputSchema', 'settingsSchema'],
             uncloneable: ['inputSchema'],
@@ -6884,12 +7547,17 @@ if (rowCosts.length !== EXPECTED.length) {
             echo: ['inputSchema', 'outputSchema', 'settingsSchema'],
             fail: ['inputSchema'],
             fetch: ['inputSchema', 'outputSchema'],
+            // W82: the two workers P21's exit artifact adds. They declare both P19 schemas like
+            // every other corpus entry — which is half of why `check:workers` and `checkWiring` are
+            // GREEN on them and `OR-R13` is not.
+            gauge: ['inputSchema', 'outputSchema'],
             ingest: ['inputSchema', 'outputSchema'],
             prompt: ['configSchema', 'inputSchema', 'outputSchema', 'settingsSchema'],
             publish: ['inputSchema', 'outputSchema'],
             retry: ['inputSchema', 'outputSchema'],
             score: ['inputSchema', 'outputSchema'],
             split: ['inputSchema', 'outputSchema'],
+            stamp: ['inputSchema', 'outputSchema'],
             tally: ['inputSchema', 'outputSchema'],
             typed: ['inputSchema', 'outputSchema', 'settingsSchema'],
             uncloneable: ['inputSchema'],
@@ -7470,7 +8138,7 @@ check('cross-row', 'every cross-row SUBJECT this file declares was asserted abou
 // consumer-road block, which holds nothing but `{ driver, done }` and makes two runs. No row
 // moved, because nothing here changes what a worker receives (P20 decision 7). *(Written as 12
 // from the arithmetic before the file was run, and the first run reported exactly that.)*
-const DECLARED_TOTAL = 1639;
+const DECLARED_TOTAL = 1724;
 if (passed + failures.length !== DECLARED_TOTAL) {
   failures.push(
     'gate\n      the assertion count is not the number this file declares outright\n' +

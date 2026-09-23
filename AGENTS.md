@@ -1393,8 +1393,13 @@ the driver is still UNSTARTED and a corrected payload starts it, at `resolve` th
 a corrected value (the worker's declared example is one) resolves it. It carries `boundary`, `nodeId`,
 `taskId` and the schema's `findings`, and its message names the worker and every finding, so you read
 the VALUE and not the flow. A worker declaring no schema on that side is unchecked; `validateBoundaries: false`
-on `DriverOptions` or `RuntimeOptions` turns both off. Never per settlement: what a worker returns is
-checked at authoring time by `npm run check:workers` and by the wiring check (section 13), not by the run.
+on `DriverOptions` or `RuntimeOptions` turns both off. **`FD-R4` is never per settlement**: it holds the run's PAYLOAD once and a person's RESOLUTION
+once, as rejected commands. What a WORKER returns is checked at authoring time by
+`npm run check:workers` and by the wiring check (section 13) — **and, since
+[ADR 0060](doc/decisions/0060-a-run-time-result-check-is-a-reading-and-never-a-refusal.md), by the
+RUN as well if you ask it to**: `OR-R13`, section 16, opt-in and a READING rather than a refusal.
+*(This read *"not by the run"*, which W80 falsified and which stood four sections above the section
+that teaches the opposite — W82's conformity reader, finding 2.)*
 
 *(This paragraph read *"`UnresolvedBranchPath` is the tenth class, and it belongs to a feature nothing
 dispatches yet … no `Driver` opens one"* until W33, which is the item that made it run.
@@ -1516,7 +1521,8 @@ const frozen: Record<string, boolean> = {};
 const HANDLES = ['onFoldInput', 'onRegionEvent', 'snapshot', 'foldInputs'];
 
 // **`onRegionEvent` is FORWARDED, so this road can watch a fan-out open and close** — W76. It was
-// not, until W76: `StartOptions` is a `Pick` of the driver's options, and of the driver's eighteen
+// not, until W76: `StartOptions` is a `Pick` of the driver's options, and of the driver's nineteen
+// (eighteen when W76 wrote this; `onNonconformingResult` is ADR 0060's, W80's)
 // this was the one no `createRuntime` consumer could reach at all, which is
 // [Q297](doc/open-questions.md). **The previous version of this snippet asserted the opposite and
 // passed a CAST**, because that was the only way to try; there is no cast now, and the two counts
@@ -2591,3 +2597,157 @@ W74's conformity reader, from the author's own scratchpad output.)* Neither hold
 which RUNS each worker on its declared example and validates what came back — is what catches the
 rest.** Even that sees one value: a bound the code does not keep past the example is invisible to it
 and visible at every consumer the wiring check reads ([Q302](doc/open-questions.md)).
+---
+
+## 16. What a schema buys a RUN — holding a result to the schema its worker declares
+
+**Section 15's last sentence is where this one starts.** A bound a worker's code does not keep past
+its declared example is invisible to every authoring-time tool here, and there is a second kind of
+gap beside it that no such tool could ever reach: **what the run CARRIES is not what the worker
+returned.** `OR-R2` clones every settled result into the log, and `structuredClone` copies a value's
+own **enumerable** string-keyed data and nothing else (`OR-R11`, section 9) — so a worker can return
+a value that satisfies its own `outputSchema` and the record can fail it.
+
+**So a result may be held to that schema at run time, per settlement, and the answer is a READING.**
+Supply `onNonconformingResult` and every `done` settlement whose worker declares an `outputSchema`
+is checked; omit it and nothing is. **There is no boolean beside it — the callback's presence IS the
+switch**, because two members would be two sources that can disagree, and both disagreements are
+defects: a switch with no channel is a cost paid for a report nobody receives, and a channel with the
+switch off is a typed option silently dropped
+([ADR 0060](doc/decisions/0060-a-run-time-result-check-is-a-reading-and-never-a-refusal.md),
+`OR-R13`).
+
+**A finding changes NOTHING about the run.** No record is written differently, no terminal state is
+authored, no dispatch moves, and the value reaches its successor unaltered — so the run completes
+exactly as it would with the check off. *You cannot audit a behaviour with an instrument that alters
+it*, and that is the whole reason this is not a refusal: what it buys you is **knowledge rather than
+protection**, and a value that fails its schema still flows downstream. The one way it can change a
+run is **your own callback throwing**, which is caught at the listener, reported through
+`onRunFailure` and stops the run — the treatment every callback here gets (section 9).
+
+Three more things worth knowing before you switch it on:
+
+| | |
+|---|---|
+| **`done` settlements only** | a failed or parked task has `result: null` (`OR-R2`), and an output schema no worker reached would refuse every one of them |
+| **settlements only, never a resolution** | a person's `done` value is held to the same schema at `resolve()`, once, as a REJECTED command (`FD-R4`, section 9). One value refused twice by two mechanisms with different answers is worse than either |
+| **a worker with no `outputSchema` is UNCHECKED** | *absent means unchecked*, exactly as `FD-R4` reads it |
+
+*What it costs is a RATIO to the `structuredClone` the driver already pays on the same settlement,
+and on this repository's own corpus it stays UNDER it at every shape measured. The share FALLS as the
+value grows and RISES as the schema does — the clone is linear in the value and the check is linear in
+the schema, and `enum` is where a schema's size is unbounded, so one large `enum` puts the check OVER
+the clone. `spec/outcome-record.md` section 4 carries the figures with the method that took them. It
+is a ratio rather than a millisecond, deliberately, and the reason is visible in the one number
+`examples/l6.ts` PRINTS: over every settlement that rung makes, the same two values read about twice
+as dear in Node as in Deno. **A single figure would be a property of a machine**
+([Q179](doc/open-questions.md), [Q335](doc/open-questions.md)). (This paragraph said "about a third",
+which is the Node reading — W82's conformity reader, finding 12.)*
+
+The worker below is
+[`examples/getting-started/drift.ts`](examples/getting-started/drift.ts) and it has **both** shapes
+in one return value, neither of which is a mistake anybody would call out in review. Everything here
+runs on every `npm run gate`, and the same snippet is in `README.md`, held byte-equal by
+`check-docs`'s `X8`.
+
+```ts run
+import { createRuntime } from 'fyflow-orchestration/scheduler';
+import { checkWiring, type FlowDefinition, type NonconformingResult, type RegistryDocument } from 'fyflow-orchestration';
+
+// THE REGISTRY — one worker with both of its VALUE schemas declared, and one with none. The schemas
+// are the same objects the wiring check reads; what changes below is that a RUN reads them too.
+const registry: RegistryDocument = {
+  workers: {
+    drift: {
+      url: '../../examples/getting-started/drift.ts',   // in your program: './drift.ts'
+      inputSchema: { type: 'object', properties: { text: { type: 'string' } }, examples: [{ text: 'alpha bb' }] },
+      outputSchema: {
+        type: 'object', required: ['words', 'load', 'label'], additionalProperties: false,
+        properties: {
+          words: { type: 'integer', minimum: 0 },
+          load: { type: 'number', minimum: 0, maximum: 1 },
+          label: { type: 'string' },
+        },
+        examples: [{ words: 2, load: 0.2, label: 'w2' }],
+      },
+    },
+    inspect: { url: '../../examples/getting-started/inspect.ts' },   // no outputSchema: UNCHECKED
+  },
+  nodeTypes: { Drift: { worker: 'drift', inline: true }, Inspect: { worker: 'inspect', inline: true } },
+};
+
+const flow: FlowDefinition = {
+  flowId: 'drift', version: 1, entry: 'measure',
+  nodes: [
+    { id: 'measure', kind: 'task', type: 'Drift', edges: [{ to: 'after' }] },
+    { id: 'after', kind: 'task', type: 'Inspect', edges: [{ to: 'done' }] },
+    { id: 'done', kind: 'end', outcome: 'completed' },
+  ],
+};
+
+// EVERY authoring-time tool says this flow is fine, and both are right: one reads two SCHEMAS and
+// the other runs a worker on ONE declared example. Neither holds a record. The wiring check takes
+// the document's two relevant PARTS rather than the document (section 15).
+const wiring = await checkWiring({ workers: registry.workers, nodeTypes: registry.nodeTypes }, flow);
+console.log(wiring.counts.no);                       // 0
+if (wiring.counts.no !== 0) throw new Error('the static check has nothing to say about either defect');
+
+// SUPPLY THE CALLBACK AND THE CHECK IS ON. There is no boolean beside it: its presence IS the
+// switch (ADR 0060). A finding is a READING — nothing is appended differently, no terminal state is
+// authored, no dispatch moves, and the value reaches the next node exactly as it would with the
+// check off.
+const found: NonconformingResult[] = [];
+const runtime = createRuntime(registry, {}, { base: import.meta.url, flows: [flow] });
+const state = await runtime.start(flow, { text: 'one two three four five six seven eight nine ten eleven' }, {
+  onNonconformingResult: (f) => { found.push(f); },
+}).done;
+await runtime.shutdown();
+
+console.log(state.outcome);                          // completed — a finding changes nothing
+// ONE report per settlement, carrying EVERY way that result failed, in document order.
+console.log(found.map((f) => `${f.nodeId} (${f.worker}): ${f.findings.map((x) => `${x.path} ${x.says}`).join('; ')}`));
+//   [ 'measure (drift): $.label required; $.load above maximum 1' ]
+
+if (state.outcome !== 'completed') throw new Error(`a finding is a reading: expected completed, got ${state.outcome}`);
+if (found.length !== 1) throw new Error(`one report per settlement, not one per finding: got ${found.length}`);
+if (found[0]?.worker !== 'drift' || found[0]?.type !== 'Drift') throw new Error(`a finding names the node, its type and the worker whose schema refused it: ${JSON.stringify(found[0])}`);
+
+// `found` rather than `found[0]!`: a guard that raises a TypeError on an empty report is a CRASH and
+// not a detection, and every `includes` below would inherit it.
+const says = found.flatMap((f) => f.findings).map((x) => `${x.path} ${x.says}`).join('; ');
+// The BOUND is one the worker's own code does not keep past its declared domain: at the two words
+// its declared example carries, `load` is 0.2 and nothing is reported. `check-workers` runs that
+// example and is green; one example confirms a schema at ONE value.
+if (!says.includes('$.load above maximum 1')) throw new Error(`expected the bound to be reported, got ${says}`);
+// The MISSING KEY is not a defect in the worker at all. It returned `label`; `structuredClone`
+// copies own ENUMERABLE keys and nothing else (OR-R11), so the RECORD the run carries does not have
+// it — and what this check reads is the record. No authoring-time tool holds one.
+if (!says.includes('$.label required')) throw new Error(`expected the clone's loss to be reported, got ${says}`);
+
+// AND THE VALUE FLOWED ON ANYWAY. `after` declares no `outputSchema`, so it is UNCHECKED; what it
+// reports is the key set it RECEIVED, which is the record's and not the worker's.
+const after = Object.values(state.nodes).find((n) => n.nodeId === 'after')?.result as { keys: string[] };
+console.log(after.keys);                             // [ 'load', 'words' ]
+if (after.keys.join() !== 'load,words') throw new Error(`the successor received ${after.keys.join()}`);
+
+// OMIT THE CALLBACK AND NOTHING IS CHECKED — and the run is the same run. This is the property to
+// rely on: you can turn the reading on in one environment and off in another without changing what
+// the flow DOES, because an instrument that altered what it measures would be useless for auditing.
+const quiet = createRuntime(registry, {}, { base: import.meta.url, flows: [flow] });
+const same = await quiet.start(flow, { text: 'one two three four five six seven eight nine ten eleven' }).done;
+await quiet.shutdown();
+const shape = (s: typeof state) => JSON.stringify(Object.values(s.nodes).map((n) => [n.nodeId, n.result]));
+if (same.outcome !== state.outcome || shape(same) !== shape(state)) {
+  throw new Error('a finding is a reading: the same run with the check off must reach the same nodes with the same results');
+}
+```
+
+**Where the two halves of this are proved, and it is not here.** Every guard in the snippet above
+can be made a tautology with `npm run check:docs` at exit 0 — `X4` counts a `throw` textually and
+refuses `if (false)` by name, and neither reaches `found.length !== found.length`
+([Q310](doc/open-questions.md), measured on this section by W82's adequacy reader). **What holds the
+two claims is `examples/l6.ts`**, which runs the same two shapes as two separate workers on a real
+`FyflowScheduler` in both runtimes — `nonconforming — eleven words` and its control at two words,
+where the bound is kept and the clone's loss is reported anyway — and holds the check-ON run against
+the identical run with the check OFF, record for record. *A worker here made to keep its bound is
+green at this rung and red at that one.*

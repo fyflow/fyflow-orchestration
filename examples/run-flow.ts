@@ -46,6 +46,10 @@
 import {
   Driver, branchIndices, buildTaskId, checkWiring, emptyState, isTerminal, step,
   type FlowDefinition, type WiringReport, type FoldInput, type JoinPolicy, type LogRecord,
+  // **W82: `OR-R13`'s payload, from the package ROOT like everything else here.** `index.ts`
+  // re-exports `src/driver/driver.ts` whole, so this is the name a consumer has — which is what
+  // makes the callback below the one a consumer writes rather than a shape this harness invented.
+  type NonconformingResult,
   type Predicate, type RunOutcome, type RunState, type UnmintedTask,
   type UnsatisfiableJoin,
 } from '../index.ts';
@@ -570,6 +574,37 @@ export interface RunReport {
    */
   errorsSeen: Readonly<Record<string, string>>;
   /**
+   * **What `onNonconformingResult` reported, in order — W82, `OR-R13`,
+   * [ADR 0060](../doc/decisions/0060-a-run-time-result-check-is-a-reading-and-never-a-refusal.md).**
+   *
+   * **`[]` on every row that does not ask for the check, and that is what makes this an assertion
+   * about the DRIVER rather than about one row**: the check is OFF unless `RunOptions` supplies the
+   * callback, whose presence IS the switch (ADR 0060 decision 4), so a driver that checked without
+   * being asked would fail every other row at once.
+   *
+   * Copied field by field rather than retained, for `OR-R1`'s reason applied to our own surface —
+   * the driver hands out a fresh literal here, and a harness that retains what a callback gave it
+   * is the habit that produced ADR 0007. `findings` is copied as a fresh array of fresh pairs for
+   * the same reason.
+   */
+  nonconforming: readonly { taskId: string; nodeId: string; type: string; worker: string; runId: string; findings: { path: string; says: string }[]; message: string }[];
+  /**
+   * **The OWN PROPERTY NAMES of each settled task's result on the SCHEDULER's live object, per task
+   * id — W82, and it is the first of this row's three observers of one fact.**
+   *
+   * `OR-R2` clones what the scheduler settled with, and `OR-R11` says the clone carries a value's
+   * own **enumerable** string-keyed data and nothing else. So on an INLINE pool this is what the
+   * worker returned and `record.result`'s own keys are what the run CARRIES, and the two can
+   * differ — which is the half of `OR-R13` no authoring-time tool can reach, because none of them
+   * holds a record.
+   *
+   * Read synchronously off the live detail at this harness's own listener and never retained
+   * (`OR-R1`); only the NAMES, which are strings. Recorded for every settled task on every row, so
+   * the rows that do not declare it are the control: a driver whose clone started keeping
+   * non-enumerable properties would move a value here on one row and nowhere else.
+   */
+  settledOwnKeys: Readonly<Record<string, string[]>>;
+  /**
    * **What the scheduler said about a task's RESOURCES, in order, per task id — W58.** The
    * four `resource.*` events the scheduler emits on the task's behalf (`AGENTS.md` §6: blocked
    * on every push onto a blocked queue, unblocked on every exit, acquired immediately after
@@ -918,6 +953,20 @@ export interface RunOptions {
    * run with `payload`. A row that declares it and is not refused is red.
    */
   refuseAtStart?: unknown;
+  /**
+   * **Turn `OR-R13`'s result check ON for this run — W82, and supplying it IS the switch.**
+   *
+   * [ADR 0060](../doc/decisions/0060-a-run-time-result-check-is-a-reading-and-never-a-refusal.md)
+   * decision 4: there is no boolean beside the callback, so this option is forwarded into
+   * `StartOptions` **only when the caller asks for it** and its absence is what leaves the check
+   * off. That is why this is a `true` rather than a callback — the harness owns the channel, because
+   * `RunReport.nonconforming` is what a row asserts, and a row supplying its own would be a second
+   * source.
+   *
+   * **Every row that omits it asserts `nonconforming: []`**, which is what makes the switch's OFF
+   * position an assertion about the driver rather than a fact about one row.
+   */
+  checkResults?: true;
 }
 
 /**
@@ -1363,6 +1412,8 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
   const resolved: string[] = [];
   const suspendedAt: Record<string, string> = {};
   const refusedResolutions: string[] = [];
+  // W82: what `onNonconformingResult` reported, in order. Empty unless `opts.checkResults` asked.
+  const nonconforming: RunReport['nonconforming'][number][] = [];
   const refusedResolutionErrors: Record<string, { name: string; message: string }> = {};
   let startRefusal: RunReport['startRefusal'];
   let state = emptyState();
@@ -1466,6 +1517,10 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
   // row's second observer of `TransformFailed`'s message, independent of the driver's record
   // (whose listener copies the same field). A string, copied synchronously, never the object.
   const errorsSeen: Record<string, string> = {};
+  // **W82: the own property NAMES of the live result, read before `OR-R2` has cloned anything.**
+  // The names only — strings, copied synchronously, the object never retained (`OR-R1`). This is
+  // the observer that can say a key the RECORD lacks was there when the scheduler settled.
+  const settledOwnKeys: Record<string, string[]> = {};
   const noteDone = (e: { detail: unknown }) => {
     const id = (e.detail as { id?: string })?.id;
     if (typeof id !== 'string') return;
@@ -1478,6 +1533,10 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
     if (typeof attempts === 'number') { numericAttemptsSeen++; attemptsSeen[id] = attempts; }
     const error = (e.detail as { error?: unknown }).error;
     if (typeof error === 'string') errorsSeen[id] = error;
+    const result = (e.detail as { result?: unknown }).result;
+    // `getOwnPropertyNames` rather than `Object.keys`, because the whole point is a key
+    // `Object.keys` cannot see and `structuredClone` therefore does not copy.
+    if (typeof result === 'object' && result !== null) settledOwnKeys[id] = Object.getOwnPropertyNames(result).sort();
   };
   scheduler.addEventListener('task.running', noteRunning);
   scheduler.addEventListener('task.completed', noteDone);
@@ -1723,6 +1782,30 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
     onUnmintedTask: (u) => {
       unmintedTasks.push({ runId: u.runId, event: u.event, taskId: u.taskId, reason: u.reason });
     },
+    // **`OR-R13` — and the SPREAD is the switch, which is why this is conditional rather than a
+    // callback that ignores rows.** ADR 0060 decision 4: `onNonconformingResult`'s PRESENCE is what
+    // turns the check on, so a harness that always installed one would turn it on for every row and
+    // the `nonconforming: []` every other row asserts would stop being about the driver.
+    //
+    // Copied field by field, for `OR-R1`'s reason applied to our own surface, and `findings` is
+    // rebuilt as fresh pairs rather than aliased: the driver hands out a fresh literal, and a
+    // harness that retains what a callback gave it is the habit that produced ADR 0007.
+    //
+    // **It must not throw.** Like every other callback here it is called inside the listener, so a
+    // throw is caught at `onEvent`, reported through `onRunFailure` and STOPS THE RUN — which would
+    // reinstate, through this harness, exactly the behaviour change ADR 0060 decision 3 forbids.
+    // Six field reads and a push, and nothing that can raise.
+    ...(opts.checkResults === true
+      ? {
+        onNonconformingResult: (f: NonconformingResult) => {
+          nonconforming.push({
+            runId: f.runId, taskId: f.taskId, nodeId: f.nodeId, type: f.type, worker: f.worker,
+            findings: f.findings.map((x) => ({ path: x.path, says: x.says })),
+            message: f.message,
+          });
+        },
+      }
+      : {}),
   };
 
   // **`checkWiring` over the registry this runtime hands its drivers** (W73): the one road on which a
@@ -1911,6 +1994,8 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
     numericAttemptsSeen,
     attemptsSeen,
     errorsSeen,
+    nonconforming,
+    settledOwnKeys,
     resourceEvents,
     heldGroups,
     schedulerGroups,

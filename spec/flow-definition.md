@@ -1121,7 +1121,7 @@ NOTHING is declared, and nothing is refused for it** — the maintainer's choice
 [W72](../doc/work-items/w72-the-contract-an-example-beside-every-schema-and-a-worker-run-on-it.md)'s
 stop-and-ask 1, with the fallback priced: a tool that needs a value to run a worker on generates a
 WITNESS from the schema and says so, and a witness is the least value the schema admits — `{}` for
-thirteen of the fourteen corpus input schemas and `{"text":""}` for the one that requires a key —
+thirteen of the sixteen corpus input schemas and `{"text":""}` for the one that requires a key —
 which exercises fewer output paths than the declared example in five of the twelve corpus workers
 whose output a schema describes (measured there, on the shipped document).
 
@@ -1760,7 +1760,7 @@ can live in `valid/` (every document there is one an author would want) or in `i
 against their own registry document, `wiring/registry.json` — five workers with OPPOSED schemas and
 `path` as the language, resolved by `test/definition/corpus-types.ts` as the L4 registry's is — because the
 L4 corpus's `corpus://` workers declare no schemas ([Q300](../doc/open-questions.md); the maintainer's choice at
-W73's stop-and-ask 1 left them so, and the check's LIVE corpus is the L6 one, whose fourteen workers
+W73's stop-and-ask 1 left them so, and the check's LIVE corpus is the L6 one, whose sixteen workers
 `check:workers` runs). `test/definition/wiring.test.ts` compares this table to the directory BOTH WAYS,
 holds each document's verdicts to its cell, and asserts that every verdict kind is reached.
 

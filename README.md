@@ -9,7 +9,7 @@ flow once; run thousands of workloads through it.
 > `fyflow-orchestration/scheduler` builds every one of them, and the only code left is the code that
 > is genuinely yours: a predicate, a worker module, a custom group type, a custom node-type class
 > ([P18](doc/plans/p18-a-flow-and-its-runtime-from-documents-alone.md)). **1112 `test()` cases in five
-> runtimes** — Node 24, Deno, chromium, firefox, webkit — **plus 1639 assertions across 55 runs against a real
+> runtimes** — Node 24, Deno, chromium, firefox, webkit — **plus 1724 assertions across 58 runs against a real
 > scheduler** in Node and Deno *(1627 / 53 until [W78](doc/work-items/w78-the-run-a-consumer-holds-in-one-line.md), whose consumer-road block is P20's exit artifact; 1502 / 50 until W67; 1203 / 44 until W59; 681 and 942 / 42 until W58 re-took this line; the two numbers count different things, [Q98](doc/open-questions.md))* — where the scheduler also carries five tasks this library did not mint, and both
 > runs still complete. Not published; no version has been released.
 >
@@ -284,6 +284,119 @@ snippet the gate RAN. A verdict of `transform-passes` is a statement about the O
 never about every value — *the sample passed*, with its source and its arity on it — which is why the
 reference says so rather than calling it `fits`.
 
+## Checking a result after it ran
+
+**A schema is for the author, and a RUN can read it too.** The section above catches what two
+declarations say about each other; this catches what a worker actually returned — per settlement,
+against its own `outputSchema`, opt-in and off by default. **Supply `onNonconformingResult` and the
+check is on; there is no boolean beside it.** A finding is a READING and never a refusal: no record
+is written differently, no terminal state is authored, no dispatch moves, and the value reaches the
+next node unaltered, so you can switch the reading on without changing what the flow does. What it
+catches is two things, unreachable for DIFFERENT reasons: a bound the producer's code does not keep
+past its declared example — which a check that runs a worker on ONE example cannot see, and which a
+bounds-generating tool could — and a key `structuredClone` did not carry, which **no** authoring-time
+tool can see at all, because none of them holds a record. The worker is
+[examples/getting-started/drift.ts](examples/getting-started/drift.ts), and both of its defects are
+what an ordinary author writes.
+
+```ts
+import { createRuntime } from 'fyflow-orchestration/scheduler';
+import { checkWiring, type FlowDefinition, type NonconformingResult, type RegistryDocument } from 'fyflow-orchestration';
+
+// THE REGISTRY — one worker with both of its VALUE schemas declared, and one with none. The schemas
+// are the same objects the wiring check reads; what changes below is that a RUN reads them too.
+const registry: RegistryDocument = {
+  workers: {
+    drift: {
+      url: '../../examples/getting-started/drift.ts',   // in your program: './drift.ts'
+      inputSchema: { type: 'object', properties: { text: { type: 'string' } }, examples: [{ text: 'alpha bb' }] },
+      outputSchema: {
+        type: 'object', required: ['words', 'load', 'label'], additionalProperties: false,
+        properties: {
+          words: { type: 'integer', minimum: 0 },
+          load: { type: 'number', minimum: 0, maximum: 1 },
+          label: { type: 'string' },
+        },
+        examples: [{ words: 2, load: 0.2, label: 'w2' }],
+      },
+    },
+    inspect: { url: '../../examples/getting-started/inspect.ts' },   // no outputSchema: UNCHECKED
+  },
+  nodeTypes: { Drift: { worker: 'drift', inline: true }, Inspect: { worker: 'inspect', inline: true } },
+};
+
+const flow: FlowDefinition = {
+  flowId: 'drift', version: 1, entry: 'measure',
+  nodes: [
+    { id: 'measure', kind: 'task', type: 'Drift', edges: [{ to: 'after' }] },
+    { id: 'after', kind: 'task', type: 'Inspect', edges: [{ to: 'done' }] },
+    { id: 'done', kind: 'end', outcome: 'completed' },
+  ],
+};
+
+// EVERY authoring-time tool says this flow is fine, and both are right: one reads two SCHEMAS and
+// the other runs a worker on ONE declared example. Neither holds a record. The wiring check takes
+// the document's two relevant PARTS rather than the document (section 15).
+const wiring = await checkWiring({ workers: registry.workers, nodeTypes: registry.nodeTypes }, flow);
+console.log(wiring.counts.no);                       // 0
+if (wiring.counts.no !== 0) throw new Error('the static check has nothing to say about either defect');
+
+// SUPPLY THE CALLBACK AND THE CHECK IS ON. There is no boolean beside it: its presence IS the
+// switch (ADR 0060). A finding is a READING — nothing is appended differently, no terminal state is
+// authored, no dispatch moves, and the value reaches the next node exactly as it would with the
+// check off.
+const found: NonconformingResult[] = [];
+const runtime = createRuntime(registry, {}, { base: import.meta.url, flows: [flow] });
+const state = await runtime.start(flow, { text: 'one two three four five six seven eight nine ten eleven' }, {
+  onNonconformingResult: (f) => { found.push(f); },
+}).done;
+await runtime.shutdown();
+
+console.log(state.outcome);                          // completed — a finding changes nothing
+// ONE report per settlement, carrying EVERY way that result failed, in document order.
+console.log(found.map((f) => `${f.nodeId} (${f.worker}): ${f.findings.map((x) => `${x.path} ${x.says}`).join('; ')}`));
+//   [ 'measure (drift): $.label required; $.load above maximum 1' ]
+
+if (state.outcome !== 'completed') throw new Error(`a finding is a reading: expected completed, got ${state.outcome}`);
+if (found.length !== 1) throw new Error(`one report per settlement, not one per finding: got ${found.length}`);
+if (found[0]?.worker !== 'drift' || found[0]?.type !== 'Drift') throw new Error(`a finding names the node, its type and the worker whose schema refused it: ${JSON.stringify(found[0])}`);
+
+// `found` rather than `found[0]!`: a guard that raises a TypeError on an empty report is a CRASH and
+// not a detection, and every `includes` below would inherit it.
+const says = found.flatMap((f) => f.findings).map((x) => `${x.path} ${x.says}`).join('; ');
+// The BOUND is one the worker's own code does not keep past its declared domain: at the two words
+// its declared example carries, `load` is 0.2 and nothing is reported. `check-workers` runs that
+// example and is green; one example confirms a schema at ONE value.
+if (!says.includes('$.load above maximum 1')) throw new Error(`expected the bound to be reported, got ${says}`);
+// The MISSING KEY is not a defect in the worker at all. It returned `label`; `structuredClone`
+// copies own ENUMERABLE keys and nothing else (OR-R11), so the RECORD the run carries does not have
+// it — and what this check reads is the record. No authoring-time tool holds one.
+if (!says.includes('$.label required')) throw new Error(`expected the clone's loss to be reported, got ${says}`);
+
+// AND THE VALUE FLOWED ON ANYWAY. `after` declares no `outputSchema`, so it is UNCHECKED; what it
+// reports is the key set it RECEIVED, which is the record's and not the worker's.
+const after = Object.values(state.nodes).find((n) => n.nodeId === 'after')?.result as { keys: string[] };
+console.log(after.keys);                             // [ 'load', 'words' ]
+if (after.keys.join() !== 'load,words') throw new Error(`the successor received ${after.keys.join()}`);
+
+// OMIT THE CALLBACK AND NOTHING IS CHECKED — and the run is the same run. This is the property to
+// rely on: you can turn the reading on in one environment and off in another without changing what
+// the flow DOES, because an instrument that altered what it measures would be useless for auditing.
+const quiet = createRuntime(registry, {}, { base: import.meta.url, flows: [flow] });
+const same = await quiet.start(flow, { text: 'one two three four five six seven eight nine ten eleven' }).done;
+await quiet.shutdown();
+const shape = (s: typeof state) => JSON.stringify(Object.values(s.nodes).map((n) => [n.nodeId, n.result]));
+if (same.outcome !== state.outcome || shape(same) !== shape(state)) {
+  throw new Error('a finding is a reading: the same run with the check off must reach the same nodes with the same results');
+}
+```
+
+**Executed too**: this is [AGENTS.md](AGENTS.md) section 16, and `X8` holds it byte-equal to the
+snippet the gate RAN. What it costs is a RATIO rather than a millisecond — about a third of the
+`structuredClone` the driver already pays on the same settlement, falling as the value grows and
+rising as the schema does — and `spec/outcome-record.md` section 4 carries the measurement with its
+method.
+
 ## The idea
 
 A task enters a flow and passes through workers. **Decision blocks** route it onward based on what a
@@ -406,14 +519,14 @@ ADR 0013 rule 1" until W57 superseded that rule.)*
 | `npm run gate` | everything below, **in ladder order** — `lint` and `typecheck`, then the eight checks cheapest-first *(seven until W72's `check:workers`)*, then L1-L5 and L6, and only then `selftests`. **393.1 s**, of which **365.0 is `selftests`** ([ADR 0039](doc/decisions/0039-the-gate-climbs-the-ladder-and-the-self-tests-run-concurrently.md); it was 516.1 s and it ran 488.9 s of self-test ahead of `lint`). *A sum of per-entry medians; end-to-end runs have read 401, 414 and 463 s* |
 | `npm run selftests` | **the eight `:selftest` entries, CONCURRENTLY** *(seven until W72)*, derived from `package.json` rather than from any list — with the two that mutate state outside their own scratch space (`check-scheduler:selftest` deletes `node_modules/fyflow-scheduler`; `check-wiring:selftest` stages every check flat into `dev-dist/` and runs it) declaring themselves with a `SELFTEST-EXCLUSIVE:` marker in their own file and running alone. **`G4` in `check-wiring.mjs` asks it for its plan and compares it to the manifest both ways** — the entries, their COMMANDS, and the exclusive set — then runs it against a stub and requires every planned entry completed |
 | `npm test` · `npm run test:deno` · `npm run test:browser:all` | **1174** `test()` cases, five runtimes *(1112 until [W73](doc/work-items/w73-the-wiring-check-a-verdict-per-edge-and-two-boundaries-validated-once.md); 979 until [W69](doc/work-items/w69-a-getting-started-example-a-consumer-can-copy.md) — 1065 at W65, 1111 at W66, 1112 at W67, and this cell moved for none of them; 958 until W62; 858 until W61 — 953 at its author pass, 958 after its readers; 746 until W59 — 835 at its author pass, 858 after its adequacy reader's fourth shape; 705 until W58; 656 until W57 re-took it; the count had gone stale in this row over three plans)* — `npm run gate` runs three of them, and `test:browser:all` is what adds firefox and webkit |
-| `npm run test:l6` · `npm run test:l6:deno` | a real scheduler, **55 runs, 1639 assertions** *(53 / 1627 until W78; 1611 / 53 until W73; 50 / 1502 until W69 — W67 moved both and this cell neither; 50 / 1501 until W65; 46 / 1281 until W63; 44 / 1203 until W59; 42 / 1138 until W58; 40 / 879 until W57 re-took it)* |
+| `npm run test:l6` · `npm run test:l6:deno` | a real scheduler, **58 runs, 1724 assertions** *(55 / 1639 until [W82](doc/work-items/w82-a-result-its-own-schema-refuses-on-real-workers.md), P21`s exit artifact; 53 / 1627 until W78; 1611 / 53 until W73; 50 / 1502 until W69 — W67 moved both and this cell neither; 50 / 1501 until W65; 46 / 1281 until W63; 44 / 1203 until W59; 42 / 1138 until W58; 40 / 879 until W57 re-took it)* |
 | `npm run check:markdown` | **every relative link and every anchor** across **128** documents, **5503** links, **272** anchored *(91 / 3822 / 197 until W69, then **125 / 5426 / 271** until W69's and W70's conformity readers BOTH re-took it: that triple matched neither item's Record nor either item's own gate log, so it had never been measured anywhere. Every number in this cell is one `npm run check:markdown` prints, and it had not been re-read since W25 — section 1 rule 5's WHEN clause, which asks for the tree the item SHIPS and not the tree it was working on)* — `check-spec`s `C5` lifted here and still reported as `C5` |
 | `npm run check:spec:selftest` | **the first negative test `check-spec` has ever had** — `check-spec.mjs` shipped with W1 and its probes were run by hand once. **29 probes and 28 gradings** *(26 / 25 until W61 added `C7`'s two language clauses and `C4`'s headline clause; 22 / 23 until W59 added `C7`'s two node-type clauses; this row read 18, then 20; the file prints its own count on every gate run — P11's retro)*: one probe and one grading per `fail()` site for `C1`-`C4`, `C6`-`C8` (**19** of them, `C2` having gained **two** at W41 for the `RULE_PREFIXES` binding), two for the report block, two for the exit path, plus one probe that trips **two `C7` clauses at once** so the failure-COUNT discriminator is reachable at all. `C5` is not here — W25 lifted it to `check-markdown` and it is probed and graded from there |
 | `npm run check:source:selftest` | **the gate's own wiring, negative-tested** — **41** probes, **27** gradings of those probes, **10** of the probe list itself *(35 / 24 / 10 until W57, which narrowed `S7` and `S8`, retired `S9`, and added a `clean` CONTROL probe)*. W30 added ten: `S4` and `S7`, the two clauses no second mechanism guards, each reachable only through a copied published tree (`CHECK_SOURCE_SRC`) — and **one probe per entry of both pattern lists**, after its adequacy reader measured that three of five entries in each could leave for **0**. `S12` compares `gate`'s **15** entries to a declared list both ways and in order — and **seven of this file's probes went vacuous when ADR 0039 reordered that chain**, rule 7 (b) firing correctly, so all seven are now anchored AGNOSTICALLY (*the last entry whatever it is called*, *the first two whatever they are called*) rather than re-pinned to names; `S13` takes the three chains it composes. *(This row read **3** until W29 corrected it: W28 added four `SELF` entries and did not raise it. `doc/` is checked by nothing, and this is that class in the front-door document.)* |
 | `npm run check:wiring:selftest` | **the gate's own wiring one layer in — the check that proves a `:selftest` entry actually runs a self-test**, [W38](doc/work-items/w38-the-dispatch-nothing-binds.md). **34 probes, 14 gradings, 6 `SELF` entries.** `G1` RUNS each of the seven `:selftest` scripts with the flag and an override pointing its self-test at a stub, and requires the stub's sentinel — a text test would be satisfied by the word `--self-test` in a comment. `G2` reads the DEFAULT that dispatch loads when nothing sets the override, **which is every run the gate makes and the one configuration `G1` cannot observe**. `G3` derives the manifest's two entries per check from the `scripts/` listing, both ways, because both of this check's own gate entries were otherwise repointable and deletable for **0**. **`G4` is [ADR 0039](doc/decisions/0039-the-gate-climbs-the-ladder-and-the-self-tests-run-concurrently.md)'s**: with the seven `:selftest` entries out of the `&&` chain, `S11`, `S12` and `G3` all stop seeing them, so `G4` asks `scripts/run-selftests.mjs` for its plan and compares it to the manifest both ways — names, COMMANDS and the exclusive set — and then runs it against a stub and requires every planned entry completed. **`G5` is the half `G4` structurally cannot reach**: all three of `G4`'s runs set an override, so the branch `npm run gate` takes is the one branch no `G4` clause observes — W39's adequacy reader made the runner report `7/7 completed, 7 ok` in **0.1 s** with four checks green, four different ways. `G5` reads the nine declarations that decide the runner's DEFAULT behaviour and compares each to the one form it may take, which is `G2`'s answer to `G2`'s question. Its self-test is **96.7 s**, of which `G4` bought **31**, which is [Q176](doc/open-questions.md)'s subject in one row |
 | `npm run check:scheduler:selftest` | **41 probes and 36 gradings since W57 (`D8`, the published manifests at the pin)**; when this row was written: **20 `PROBES` entries and 22 gradings — one per `fail()` site (18), one per way the report can lie (3), and one for the exit path**. *(The file prints **32**, which is `PROBES` plus the `.d.ts` and install probe sets; 20 is a correct number for a narrower set than this sentence claimed — P11's retro.)* Of the 22: **20** are noticed by the probe the entry names, **1** only by the failure COUNT, which the id set cannot see, and **1** is a declared **masking** — a sibling clause reporting the same id *in its place*, so that one clause is deletable for 0 and the entry says so ([Q146](doc/open-questions.md)) |
 | `npm run check:policies:selftest` | **13 probes, 6 gradings, and 14 bounds on those two lists** — the `SELF` list this file went three items without. Every entry is one edit to a list that sits ABOVE it, so nothing self-matches, and each makes the run go red **with the guard in place** rather than removing the guard. **Eight of the fourteen entries bound a mutation that cost 0 before W31** — `MIN_META` lowered, a duplicate entry, a global anchor, an ambiguous anchor, a grading passing as `corpus`, a second `wide` exemption, the `ran:` guard, the probe-pass verdict — and its readers added three more. **It is 2.2 s to 14.7 s for that**, which is the honest number and is recorded rather than a ratio ([Q133](doc/open-questions.md)) |
-| `npm run check:workers` · `npm run check:workers:selftest` | **the worker CONFORMANCE check — every worker in `examples/registry.json` is RUN on its declared input example and what it returned is validated against its output schema** ([P19](doc/plans/p19-what-a-schema-buys-an-author.md) decision 3, [ADR 0056](doc/decisions/0056-an-example-is-an-annotation-validated-against-the-schema-it-sits-on.md), [W72](doc/work-items/w72-the-contract-an-example-beside-every-schema-and-a-worker-run-on-it.md)): fourteen workers in **0.2 s**, twelve confirmed on a run, two NOT CHECKED by name because no JSON Schema describes what they return. Its self-test is **24 probes, 9 gradings** *(16 before its two readers; five of the twenty-four run scratch worker modules the corpus cannot supply)*, the first probe being P19 fact 6 verbatim — `echo.arrays` typed as a list with an example that conforms to the wrong schema, which only running the worker catches — and two of the nine gradings declared `corpus` because the defect they reintroduce (an un-copied example, no retry) is one the corpus itself exhibits |
+| `npm run check:workers` · `npm run check:workers:selftest` | **the worker CONFORMANCE check — every worker in `examples/registry.json` is RUN on its declared input example and what it returned is validated against its output schema** ([P19](doc/plans/p19-what-a-schema-buys-an-author.md) decision 3, [ADR 0056](doc/decisions/0056-an-example-is-an-annotation-validated-against-the-schema-it-sits-on.md), [W72](doc/work-items/w72-the-contract-an-example-beside-every-schema-and-a-worker-run-on-it.md)): sixteen workers in **0.2 s**, fourteen confirmed on a run, two NOT CHECKED by name because no JSON Schema describes what they return. Its self-test is **24 probes, 9 gradings** *(16 before its two readers; five of the twenty-four run scratch worker modules the corpus cannot supply)*, the first probe being P19 fact 6 verbatim — `echo.arrays` typed as a list with an example that conforms to the wrong schema, which only running the worker catches — and two of the nine gradings declared `corpus` because the defect they reintroduce (an un-copied example, no retry) is one the corpus itself exhibits |
 | `npm run check:docs:selftest` | **19 probes, 10 gradings** *(18 until W59's sub-path probe)* — one per check id, two for the report block, one for the exit path, and two more per direction of `X6`s comparison ([W46](doc/work-items/w46-what-a-reference-costs-and-whether-anything-says-so.md)). **Capped deliberately and the cap is stated**: `check-docs.mjs` has **17** clauses, an entry here is two `check-docs` runs at ~7.1 s against `check-scheduler`'s ~0.5 s, and the **nine** left ungraded are named in that file's own header — one of them reachable by no probe at all ([Q148](doc/open-questions.md)) |
 
 ## Documentation

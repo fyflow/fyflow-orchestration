@@ -214,9 +214,9 @@ suite('W73 — the L6 corpus census, as an EQUALITY, and every arc shape reached
   const registry = { workers: l6Registry.workers, nodeTypes: l6Registry.nodeTypes, languages: { jsonata } } as unknown as Parameters<typeof checkWiring>[0];
   const options = { workerHalf: { jsonata: compileExpression } };
   let reports: WiringReport[] = [];
-  test('the census: 62 fit, 1 no, 5 transform-passes, 2 transform-fails, 8 unchecked over 25 flows', async () => {
+  test('the census: 65 fit, 1 no, 5 transform-passes, 2 transform-fails, 8 unchecked over 26 flows', async () => {
     const names = (await listDir(flowsDir)).filter((n) => n.endsWith('.flow.json')).sort();
-    ok(names.length === 25, `25 L6 flows, got ${names.length}`);
+    ok(names.length === 26, `26 L6 flows, got ${names.length}`);
     reports = [];
     for (const n of names) reports.push(await checkWiring(registry, JSON.parse(await readText(`${flowsDir}/${n}`)) as FlowDefinition, options));
     const counts: Record<VerdictKind, number> = { 'fits': 0, 'no': 0, 'transform-passes': 0, 'transform-fails': 0, 'unchecked': 0 };
@@ -227,7 +227,11 @@ suite('W73 — the L6 corpus census, as an EQUALITY, and every arc shape reached
     // triage's three GpuModel arcs — a CLASS type W67's shim registers in code, which a document
     // alone cannot carry; ladder L6 runs the check on every row over the RUNTIME's registry (decision
     // 14's object, the class included) and asserts triage has no unchecked arc there.
-    equal(counts, { 'fits': 62, 'no': 1, 'transform-passes': 5, 'transform-fails': 2, 'unchecked': 8 }, 'the L6 census');
+    // **+3 fits and +1 flow since W73 — W82's `nonconforming.flow.json`**, and its verdicts are the
+    // point rather than a side effect: its two workers return values their own `outputSchema`
+    // refuses, and every arc of it FITS, because a wiring check reads two SCHEMAS and never a value.
+    // *The census is where that is a number instead of a sentence.*
+    equal(counts, { 'fits': 65, 'no': 1, 'transform-passes': 5, 'transform-fails': 2, 'unchecked': 8 }, 'the L6 census');
     // And the one `no` is the FD-R2 prediction: map-no-array's `over: "rows"` on a producer that never emits it.
     const no = reports.flatMap((r) => r.verdicts.filter((v) => v.kind === 'no'));
     equal(no.map((v) => `${v.through}:${v.consumer}`), ['split:score'], 'the one no');

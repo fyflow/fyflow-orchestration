@@ -57,7 +57,7 @@ export interface Envelope {
  * threaded, dispatch order stops implying settle order.
  *
  * **`setup()` and `teardown()` are abstract on `BaseWorker` and omitting either is a compile
- * error**, so they are here once rather than in fourteen modules.
+ * error**, so they are here once rather than in sixteen modules.
  *
  * **Both constructor arguments are forwarded** — dropping the second leaves `this.workerContext`
  * undefined and `terminateWithError()` silently does nothing (`AGENTS.md` §4).

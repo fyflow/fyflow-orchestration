@@ -843,6 +843,87 @@
           }
         ]
       }
+    },
+    "gauge": {
+      "url": "./workers/gauge.ts",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          }
+        },
+        "examples": [
+          {
+            "text": "alpha bb"
+          }
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "words",
+          "load"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "words": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "load": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "examples": [
+          {
+            "words": 2,
+            "load": 0.2
+          }
+        ]
+      }
+    },
+    "stamp": {
+      "url": "./workers/stamp.ts",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "words": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "examples": [
+          {
+            "words": 2
+          }
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "words",
+          "label"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "words": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "examples": [
+          {
+            "words": 2,
+            "label": "w2"
+          }
+        ]
+      }
     }
   },
   "groups": {
@@ -890,7 +971,9 @@
       "groups": ["vendor", "budget"],
       "retryPolicy": { "maxRetries": 1, "backoffMs": 0 },
       "settings": { "temperature": 0 }
-    }
+    },
+    "GaugeWorker": { "worker": "gauge", "inline": true, "config": { "delayMs": 5 }, "pool": { "maxThreads": 1, "idleTimeout": 0 } },
+    "StampWorker": { "worker": "stamp", "inline": true, "config": { "delayMs": 5 }, "pool": { "maxThreads": 1, "idleTimeout": 0 } }
   },
 
   "pools": {
