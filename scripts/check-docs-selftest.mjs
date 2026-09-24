@@ -215,7 +215,8 @@ const PROBES = [
     name: 'README.md tells a consumer the manifests read a version they do not',
     check: 'X9',
     mutate: (t) => t,
-    readme: (t) => t.replace('**The manifests read `0.4.0`', '**The manifests read `0.9.9`'),
+    // The literal moved `0.4.0` -> `0.5.0` with the manifests at W90: rule 7 (b) would ABORT this probe otherwise.
+    readme: (t) => t.replace('**The manifests read `0.5.0`', '**The manifests read `0.9.9`'),
   },
   // --- X7: AGENTS.md's refusal count against spec/flow-definition.md section 5's rows — W65 (`d4`) ---
   {
@@ -268,7 +269,8 @@ const PROBES = [
   {
     name: 'an unclosed fence',
     check: 'X1',
-    // + X8 since W74: the LAST closing fence in the reference is now section 15's, and that
+    // + X8 since W74: the LAST closing fence in the reference is now section 15's — section 17's since W86 and section 18's
+    // since W90, each also a snippet X8 pairs, so the declared set is unmoved — and that
     // snippet is one X8 PAIRS — so removing it leaves the pairing with no `run` fence under the
     // heading it names. MEASURED, not assumed: this probe read `[X1,X8]` against its declared
     // `[X1]` on W74's first confirming run, which is rule 7 (c) discriminating exactly as it is

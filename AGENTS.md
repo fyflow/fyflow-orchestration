@@ -1153,7 +1153,7 @@ the block — W78's conformity reader, finding 3.)*
 [ADR 0064](doc/decisions/0064-a-checkpoint-is-the-whole-event-sequence-and-a-header-and-it-is-a-copy.md),
 and `driver.checkpoint()` hands out the header with every event so far (`spec/run-state.md`
 section 8); `runtime.resume(flow, checkpoint)` resumes a run from one, returning the same handle
-([ADR 0065](doc/decisions/0065-a-resume-replays-the-stored-stimuli-refuses-what-it-cannot-regenerate-and-re-dispatches-what-was-in-flight.md), `spec/run-state.md` section 9 — W90 teaches it) — and `done`
+([ADR 0065](doc/decisions/0065-a-resume-replays-the-stored-stimuli-refuses-what-it-cannot-regenerate-and-re-dispatches-what-was-in-flight.md), `spec/run-state.md` section 9 — section 18 teaches it, as an executed snippet) — and `done`
 resolves with the first `RunState` this predicate calls terminal
 ([ADR 0058](doc/decisions/0058-runtime-start-returns-a-completion-handle-the-runtime-keeps.md)). It
 is the same two functions — the runtime keeps one `RunState`, steps it per input and asks
@@ -1283,8 +1283,8 @@ reported, which is why the rule is about the stack:
 | `driver.start()` with a payload that is not structured-cloneable | throws the platform's own `DataCloneError` with the driver UNSTARTED — a run whose entry payload cannot be copied into its checkpoint header cannot be checkpointed, so it is refused before it exists (`RN-R15`, [ADR 0064](doc/decisions/0064-a-checkpoint-is-the-whole-event-sequence-and-a-header-and-it-is-a-copy.md)). **New in W88, and BREAKING**: such a payload used to start a run on an inline pool |
 | `driver.checkpoint()` before `start()` | throws `NotStarted` — there is no run, and no entry payload to put in a header (`RN-R14`) |
 | `driver.resume(checkpoint)` or `runtime.resume(flow, checkpoint)` with an entry payload that is not structured-cloneable | throws the platform's `DataCloneError` before anything is replayed — the driver unstarted, and on a runtime no run id spent (`RN-R15`) |
-| `driver.checkpoint()` on a driver whose resume was refused | throws `NotStarted` — a refused resume leaves the driver SPENT and deaf to its scheduler, with no run to checkpoint (`RN-R23`) |
-| `driver.resume(checkpoint)` or `runtime.resume(flow, checkpoint)` on a checkpoint it will not resume | throws `ResumeRefused`, whose `reason` is `format`, `run`, `flow`, `stopped` or `diverged` and whose `index` names the position for the last two — nothing is handed to a scheduler ([ADR 0065](doc/decisions/0065-a-resume-replays-the-stored-stimuli-refuses-what-it-cannot-regenerate-and-re-dispatches-what-was-in-flight.md)). `resume()` on a driver that already started or resumed throws `MultipleRuns` (`ID-R3`) |
+| `driver.checkpoint()` on a driver whose resume was refused | throws `NotStarted` — a refused resume leaves the driver SPENT and deaf to its scheduler, with no run to checkpoint (`RN-R23`) — **except** a resume refused `stopped` because its replay regenerated a stop in the lost tail: that driver keeps the STOPPED run, and its checkpoint is one a store may take. *(This row said `NotStarted` without the exception until W90 read it against `RN-R23`.)* |
+| `driver.resume(checkpoint)` or `runtime.resume(flow, checkpoint)` on a checkpoint it will not resume | throws `ResumeRefused`, whose `reason` is `format`, `run`, `flow`, `stopped` or `diverged` and whose `index` names the position for the last two — nothing is handed to a scheduler ([ADR 0065](doc/decisions/0065-a-resume-replays-the-stored-stimuli-refuses-what-it-cannot-regenerate-and-re-dispatches-what-was-in-flight.md)). `resume()` on a driver that already started or resumed throws `MultipleRuns` (`ID-R3`). **On a runtime, a refusal DURING the replay spends the run id there** — the driver exists and cannot be detached, so that runtime answers the id with `RunIdInUse` from then on; one refused by its header spends nothing ([Q371](doc/open-questions.md), section 18) |
 
 `MultipleRuns` is thrown by a second `start()`: a driver's sequence and join state carry no run id,
 so a second run would silently merge into the first. **One driver, one run** — and the run id is a
@@ -2894,3 +2894,194 @@ and that ruling is unchanged by nesting.
 level is a break for anyone reading it, and `UnsatisfiableJoin.regionPath` is a REQUIRED member on an
 interface a consumer may construct — so a test double reporting a dead join no longer compiles.
 `regionId` keeps its meaning AND its value, which is why no flow, no policy and no region name moves.
+
+---
+
+## 18. Saving a run and RESUMING it — append the events, resume from them
+
+**A run can outlive the process that ran it, and what it needs is the events you were already
+handed.** The library defines the value and never where it goes
+([P23](doc/plans/p23-what-a-run-needs-to-outlive-its-process.md) decision 1): no file, no database,
+no serializer. A CHECKPOINT is `{ header, events }`
+([ADR 0064](doc/decisions/0064-a-checkpoint-is-the-whole-event-sequence-and-a-header-and-it-is-a-copy.md)) —
+the header is five facts the events cannot regenerate (`format`, `runId`, `flowId`, `version` and a
+copy of the entry payload), and `events` is every fold input so far, so **every event after a
+checkpoint is an append to it**. You never have to call `driver.checkpoint()` to keep one:
+
+| | where you get it | what you do with it |
+|---|---|---|
+| the header | `runtime.start(…)` returns it as `header`, beside `driver` and `done` | write it once |
+| every event | `onFoldInput(event, position)` | write it AT `position` — the driver's index, never a count you start again in each process |
+| a resumed run | `runtime.resume(flow, { header, events }, options)` returns the same `{ driver, done, header }` | keep writing: it hands you positions from the STORED LENGTH on |
+
+**Key the store by POSITION, and the reason is measured.** The first events are delivered WHILE
+`start` runs, so the header arrives after them — a store that must write its header first cannot —
+and a resumed run's first position is the length you stored, not 0, so an arrival counter per process
+overwrites the run it is resuming. ([W90](doc/work-items/w90-a-run-killed-and-resumed-on-real-workers.md)
+runs exactly that wrong store at L6 and it is refused `diverged` at position 0.) **The contract is
+`structuredClone`, not JSON**: a result is whatever survived `OR-R2`'s clone, which includes `Map`,
+`Set`, `Date`, `BigInt` and `-0` — pick a serializer that keeps them, or revive them.
+
+```ts run
+import { createRuntime, RunIdInUse } from 'fyflow-orchestration/scheduler';
+import { fold, ResumeRefused } from 'fyflow-orchestration';
+import type { CheckpointHeader, FlowDefinition, FoldInput, RegistryDocument } from 'fyflow-orchestration';
+
+// Section 17's flow and workers — ONE map inside another — so there is something in flight to lose.
+const registry: RegistryDocument = {
+  workers: {
+    orders: { url: '../../examples/getting-started/orders.ts' },   // in your program: './orders.ts'
+    lines: { url: '../../examples/getting-started/lines.ts' },
+    tag: { url: '../../examples/getting-started/tag.ts' },
+  },
+  nodeTypes: {
+    Orders: { worker: 'orders', inline: true },
+    Lines: { worker: 'lines', inline: true },
+    Tag: { worker: 'tag', inline: true },
+  },
+};
+const flow: FlowDefinition = {
+  flowId: 'per-item', version: 1, entry: 'intake',
+  nodes: [
+    { id: 'intake', kind: 'task', type: 'Orders', edges: [{ to: 'perOrder' }] },
+    { id: 'perOrder', kind: 'map', over: 'orders', branch: 'expand' },
+    { id: 'expand', kind: 'task', type: 'Lines', edges: [{ to: 'perLine' }] },
+    { id: 'perLine', kind: 'map', over: 'lines', branch: 'price' },
+    { id: 'price', kind: 'task', type: 'Tag', settings: { label: 'priced' }, edges: [{ to: 'lineJoin' }] },
+    { id: 'lineJoin', kind: 'join', of: 'perLine', edges: [{ to: 'orderJoin' }] },
+    { id: 'orderJoin', kind: 'join', of: 'perOrder', edges: [{ to: 'report' }] },
+    { id: 'report', kind: 'task', type: 'Tag', settings: { label: 'reported' }, edges: [{ to: 'done' }] },
+    { id: 'done', kind: 'end', outcome: 'completed' },
+  ],
+};
+
+// YOUR STORE. The library never writes one: here it is an object in memory, in your program a
+// file, a table or a queue. It holds the HEADER once and every event AT ITS POSITION — the second
+// argument `onFoldInput` is handed — so a later process can go on appending to it.
+const store: { header?: CheckpointHeader; events: FoldInput[] } = { events: [] };
+
+// ---- PROCESS ONE, which dies mid-run.
+let alive = true;
+let die!: () => void;
+const died = new Promise<void>((resolve) => { die = resolve; });
+const first = createRuntime(registry, {}, { base: import.meta.url, flows: [flow] });
+const run = first.start(flow, { region: 'ab c' }, {
+  onFoldInput: (event, position) => {
+    if (!alive) return;                                   // a dead process writes nothing
+    store.events[position] = structuredClone(event);     // your durable append, BY POSITION
+    // THE CRASH, simulated: the process dies the instant the first `expand` settles — inside the
+    // driver's turn, BEFORE it dispatches what that settlement causes.
+    if (event.kind === 'outcome' && event.record.taskId.includes(':expand:')) { alive = false; die(); }
+  },
+});
+// The header arrives on the handle, AFTER the first events: they were delivered while `start` ran.
+// A store that had to write its header first could not; one keyed by position does not care.
+store.header = run.header;
+await died;
+// `shutdown()` is cleanup, NOT the kill: it lets running work finish, and here that finishes the
+// whole run. What makes this a crash is the store — nothing after `alive = false` reached it.
+await first.shutdown();
+
+const storedSettled = new Set(store.events.flatMap((e) => (e.kind === 'outcome' ? [e.record.taskId] : [])));
+const storedDispatched = new Set(store.events.flatMap((e) => (e.kind === 'dispatched' ? [e.taskId] : [])));
+console.log(`stored ${store.events.length} events, the last one the settlement the process died in`);
+
+// ---- PROCESS TWO: a FRESH runtime, which is all a restarted process has. Resume from the store and
+// keep appending BY POSITION: a resumed run hands you positions from the stored length on, so the
+// same store holds the whole run again.
+const header = store.header!;                            // written once, by process one
+const second = createRuntime(registry, {}, { base: import.meta.url, flows: [flow] });
+const resumed = second.resume(flow, { header, events: store.events.slice() }, {
+  onFoldInput: (event, position) => { store.events[position] = structuredClone(event); },
+});
+const state = await resumed.done;
+
+console.log(state.outcome);                                  // completed
+if (state.outcome !== 'completed') throw new Error(`expected completed, got ${state.outcome}`);
+// The same answer a run nobody killed gives (section 17's):
+const report = Object.values(state.nodes).find((n) => n.nodeId === 'report')?.result as Record<string, Record<string, { sku: string }>>;
+if (report['0']!['0.1']!.sku !== 'ab-1' || report['1']!['1.0']!.sku !== 'c-0') {
+  throw new Error(`the resumed run reaches the same report: ${JSON.stringify(report)}`);
+}
+
+// WHAT RAN AGAIN — named by the `resumed` event, and recorded by the fold in `state.resumes`.
+const resumes = store.events.flatMap((e) => (e.kind === 'resumed' ? [e.taskIds] : []));
+if (resumes.length !== 1) throw new Error(`one resume is recorded as one \`resumed\` event: ${resumes.length}`);
+const again = resumes[0]!;
+console.log(again);                  // e.g. [ 'r1:expand:1:0', 'r1:price:0.0:0', 'r1:price:0.1:0' ]
+if (JSON.stringify(state.resumes) !== JSON.stringify(resumes)) throw new Error('RunState.resumes records it');
+// Nothing that SETTLED in the store runs again...
+if (again.some((id) => storedSettled.has(id))) throw new Error('a stored settlement is never re-run');
+// ...but work the store NEVER SAW does: the prices the dying settlement dispatched after the last
+// thing that was written. The re-run set is what was in flight at the END of the replay.
+const neverStored = again.filter((id) => !storedDispatched.has(id));
+console.log(neverStored);            // the `price` tasks of the order whose `expand` the process died in
+if (neverStored.length === 0 || !neverStored.every((id) => id.includes(':price:'))) {
+  throw new Error(`the lost tail's dispatches run again: ${JSON.stringify(neverStored)}`);
+}
+
+// THE STORE HOLDS THE WHOLE RUN AGAIN: no gap at any position, and its fold IS the run.
+if (Object.keys(store.events).length !== store.events.length) throw new Error('a store keyed by position has no holes');
+if (JSON.stringify(fold(store.events)) !== JSON.stringify(state)) throw new Error('the store folds to the run');
+
+// A run id belongs to the runtime that holds it: resuming the same run on `second` again is refused.
+try {
+  second.resume(flow, { header, events: store.events.slice() });
+  throw new Error('expected RunIdInUse');
+} catch (err) {
+  if (!(err instanceof RunIdInUse)) throw err;
+}
+// And a checkpoint is resumed against the definition it was stored under, or not at all.
+const third = createRuntime(registry, {}, { base: import.meta.url, flows: [flow] });
+try {
+  third.resume({ ...flow, version: 2 }, { header, events: store.events.slice() });
+  throw new Error('expected ResumeRefused');
+} catch (err) {
+  if (!(err instanceof ResumeRefused) || err.reason !== 'flow') throw err;
+}
+await second.shutdown();
+await third.shutdown();
+```
+
+**What a resume PROMISES, and what it does not** — [ADR 0065](doc/decisions/0065-a-resume-replays-the-stored-stimuli-refuses-what-it-cannot-regenerate-and-re-dispatches-what-was-in-flight.md), `spec/run-state.md` section 9:
+
+- **It is AT-LEAST-ONCE, and your workers must tolerate running twice.** The resume REPLAYS the
+  stored settlements and resolutions through the routing that produced them, with every dispatch
+  held, and then hands every task still in flight to the new scheduler at the SAME task id. That set
+  is what was in flight at the END of the replay — including a task that finished in the dead process
+  whose settlement you had not stored yet, and a task the dying settlement dispatched after your last
+  write, which the snippet shows the store never saw. The run records it: a `resumed` event naming
+  those ids, and `state.resumes`.
+- **A re-run task gets a FRESH retry budget.** The log records a task's `attempts` only when it
+  SETTLES, so the attempts a task spent before the crash are recorded nowhere — measured: a task with
+  a budget of two attempts ran THREE times across one kill ([Q365](doc/open-questions.md)).
+- **A task PARKED for a person is not in flight.** It stays parked, the resumed run is
+  `awaiting_action`, and `resolve()` on the RESUMED driver completes it (section 7).
+- **The check sees only what you STORED.** The stored events must be a prefix of what the replay
+  regenerates, and the first position where they are not is refused `diverged` — so a predicate or a
+  flow you changed is caught where the stored run's road crosses it, and NOT where that road lies
+  past your last event: there the resumed run takes the new road silently
+  ([Q372](doc/open-questions.md)). Change a flow, change its `version`.
+- **The store is TRUSTED for what the resume feeds.** A stored settlement's result and a stored
+  person's resolution are replayed as stored — nothing can check they are what the process saw
+  ([Q374](doc/open-questions.md)). A store you do not trust is a store you should not resume from.
+- **`ResumeRefused` names its `reason`**: `format` (not a checkpoint this version writes), `run` (the
+  header's run is not the driver's), `flow` (another flow id or `version` — there is no migration),
+  `stopped` and `diverged` — the last two with the `index` of the position. **A STOPPED run is not
+  resumable**: the refusal that stopped it would stop it again. A completed or `stuck` run resumes to
+  itself and dispatches nothing.
+- **A refused resume may SPEND its run id.** Refused by its header, nothing exists and the id is still
+  free; refused during its replay, the runtime built a driver, and a driver cannot be detached from its
+  scheduler — so that runtime refuses the id with `RunIdInUse` from then on, as it refuses any id a
+  driver of it holds, a finished run's included. Resume on a fresh runtime
+  ([Q371](doc/open-questions.md)).
+- **`shutdown()` is not a kill.** It DRAINS: measured in node and deno, a run one settlement in
+  completes inside it, while a retry waiting on its backoff never runs. It waits while tasks are RUNNING
+  and for at most five seconds, so a run with longer work in flight, or only queued or blocked tasks, is
+  left where the wait ended. A crash is what the snippet's
+  `alive` flag stands for — the store stops, whatever the process was doing.
+
+**`0.5.0` is BREAKING for a consumer of the fold, in two ways.** `FoldInput` has a new kind,
+`resumed`, so a `switch` that is exhaustive over `kind` no longer compiles, and `RunState` has a new
+cell, `resumes`, so a `RunState` you construct needs it. A run nobody resumes carries no `resumed`
+event and `resumes: []`.

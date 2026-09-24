@@ -1,7 +1,8 @@
 /**
  * **Ladder L6 — the gate.** Every real run this repository makes: P1's exit
  * artifact, P2's, P4's, P5's, P6's, **P7's**, **P10's**, **P12's**, **P13's**,
- * **P14's**, **P16's**, **P17's**, **P18's**, **P20's** and **P21's**. *(This list stopped at P12 while W47's two rows and W51's two were in
+ * **P14's**, **P16's**, **P17's**, **P18's**, **P20's**, **P21's**, **P22's** and **P23's**. *(**P22's** was missing from this
+ * list for the whole of P23 — W86 added its rows and not its entry, a THIRD time; W90 adds both.)* *(This list stopped at P12 while W47's two rows and W51's two were in
  * the file — a count carried as prose in the paragraph above this file's own
  * monument to that. W51's conformity reader. **It then stopped at P18 while W78's
  * consumer-road block was in the file**, and the table below omitted that block
@@ -76,6 +77,7 @@
  * | **W78 — the CONSUMER ROAD** | **P20's EXIT ARTIFACT, and no `EXPECTED` row could be it**: `runFlow` IS the machinery this block exists not to use — its own `onFoldInput`, its own `inputs` array, its own predicate raced against a backstop. So it is W67's shim-run shape one plan on: ONE label, TWO runs, outside the row loop. **Run A** is a fan-out in which the consumer holds only `{ driver, done }` — the region events counted through `StartOptions.onRegionEvent` ([W76](../doc/work-items/w76-what-start-accepts.md), [Q297](../doc/open-questions.md)) and the end awaited in ONE line ([W77](../doc/work-items/w77-what-start-returns.md), [ADR 0058](../doc/decisions/0058-runtime-start-returns-a-completion-handle-the-runtime-keeps.md)), with no poll, no fold and no deadline but the one ADR 0058 rule 8 says a consumer writes; what `onRegionEvent` received is held EQUAL to the region subsequence of the driver's own fold inputs, element for element, which had never run on a real pool. **Run B** is the pair: its driver REFUSES, and `done` **RESOLVES** with `stopped` carrying `stoppedBy` rather than rejecting — ADR 0058 rules 3 and 4, which had no observer at this rung and none on real workers anywhere. **Reverting W76 alone costs 2 here, W77 alone 8 and both 10** — additive, and before this block each cost ZERO, because both items declared L6 UNMOVED and nothing at this rung reached either. *(W77's read 4 until the conformity reader found the `?? foldedA` fallback handing two clauses the caller's own fold; those two are the difference.)* |
  * | **W82 — `nonconforming` at eleven words and at two** | **P21's EXIT ARTIFACT, and the first rows here whose WORKERS are wrong on purpose.** Four task nodes, two of which return values their own `outputSchema` refuses and are reported BY NAME through `onNonconformingResult` — `gauge`'s `$.load above maximum 1`, a bound its code does not keep past its declared example (`check:workers` runs that example and is GREEN), and `stamp`'s `$.label required`, a key that is present on what `run()` returned and absent from what `OR-R2`'s clone wrote. **Three observers of that second one and the middle is the RECORD**: the scheduler's live `detail.result` still has the key at the harness's own listener, the record does not, and the finding says so — which is why `StampWorker` is INLINE, because a thread hides the attribution and not the finding. The two conforming nodes beside them are EXISTING corpus workers and are reported on not at all, and `attest` reports the key set it RECEIVED, so the value flowing downstream unaltered is an assertion rather than ADR 0060's sentence. **The two-word row is the control** — same flow, same workers, only the payload's word count different, and `gauge` goes silent while `stamp` does not, which separates the two legs from each other |
  * | **W82 — the check-OFF pair** | **ADR 0060 decision 3, and no row could be it**: the row above run AGAIN with the one option removed and the SAME run id, held identical record for record. Dispatched ids, the log with only the clocks zeroed, the folded outcome and every settled result all agree; **the reports are the one thing the two runs differ in**, two against zero. *You cannot audit a behaviour with an instrument that alters it*, which is the sentence P21 tells an adequacy reader to falsify first, and this is the only place it has ever been run on real workers. What it COSTS is asserted as a COUNT and printed as a ratio: a check whose answer is discarded has one observable, and a ratio of two clocks is still two clocks ([Q179](../doc/open-questions.md)) |
+ * | **W90 — block (2g), KILLED and RESUMED** | **P23's EXIT ARTIFACT: a run killed mid-run on real workers and resumed on a FRESH runtime from a store the consumer built by appending events** — the header from the handle, every `onFoldInput` element at its POSITION. At EVERY kill point of `fan-out-per-item` and `triage`, the store frozen mid-step at a settlement and the runtime shut down, then `runtime.resume` on a fresh one: identical to a run nobody killed on outcome AND every node, the re-dispatched ids equal to a derivation from the KILLED process and to what the fresh scheduler holds when `resume` returns. **`shutdown()` DRAINS** (W90's declaration, measured), so the kill is the store and not the shutdown — and every re-dispatched task visibly ran twice. Beside the sweep: THREE processes appending to ONE positional store, with the same events keyed by arrival refused `diverged`; one killed run cut MID-STEP and QUIESCENT, re-dispatching the same set; and a PARKED kill that re-dispatches nothing and is resolved on the resumed driver |
  * | **W67 — the shim run** | **P18's sample shim's own call, and no row could make it**: `runtime.start(flow, payload)` with NO options. The runtime MINTS the run id and defaults the join policy (decision 10), and both defaults were replaceable by a `throw` for ZERO until this run existed — every row names the ids it expects and the policy it is about. The flow is `p1-routed-away` at LOW, where the two candidate policies DISAGREE: `live-token` satisfies the join and the run completes, `arrival-count` waits for an arrival that cannot come. So *the run completed* IS *the default is `live-token`*, observed rather than named |
  */
 import {
@@ -116,6 +118,11 @@ import {
   // `AGENTS.md`'s own snippets import this name from `'fyflow-orchestration'`, so
   // asserting a refusal here asserts the refusal a consumer gets.
   validateDefinition,
+  // **W90, P23's EXIT ARTIFACT**: block (2g) resumes runs through `runtime.resume` and names the refusal a
+  // wrongly-keyed store gets, the header it stores and the driver it reads back — through the package ROOT.
+  ResumeRefused,
+  type CheckpointHeader,
+  type Driver,
   type FlowDefinition,
   // **W86**: block (2f)'s SECOND ROAD to the overlap annotates the sequence it walks, and nothing
   // else in this file names the union. `lint` and both L6 rungs STRIP types, so the only rung that
@@ -151,7 +158,7 @@ import {
 // name.** The helper's own reading of which types transform in which languages, compared on every
 // L6 definition to a derivation this file makes without it, so the function the pools were built
 // from cannot quietly read a different document than the row runs.
-import { transformLanguagesByType } from '../src/scheduler/index.ts';
+import { transformLanguagesByType, type RunHandle } from '../src/scheduler/index.ts';
 import fanoutJoin from '../spec/examples/valid/fanout-join.flow.json' with { type: 'json' };
 import routedAway from '../spec/examples/valid/p1-routed-away.flow.json' with { type: 'json' };
 // **Local to `examples/`, and that is [Q44](../doc/open-questions.md) again.** The
@@ -4935,7 +4942,11 @@ const CROSS_ROW_SUBJECTS = [
   'COUNTED before they are reported absent',
   'the other two release moments have NO case at this rung',
   'the reporter`s predicate is SILENT on a real released run',
-  'every run this file makes is in the retention claim',
+  // **Narrowed by W90**: it read *every run this file makes*, which was false from W78's consumer road on — W78's two runs,
+  // W82's check-OFF arm and W90's forty all sit outside the retention claim, and the clause's own arithmetic below counts
+  // exactly the row loop, the pair rows and the shim. A claim states the scope it was measured at (`doc/workflow.md`
+  // section 1 rule 5).
+  'every run the row loop, the pair rows and the shim make is in the retention claim',
   'FIVE more runs than the row loop produces',
   'the byte measurement WALKS every growing structure',
   'is on the WALKED side of that split',
@@ -5082,7 +5093,7 @@ const CROSS_ROW_SUBJECTS = [
   'CONTROL: and across every row this rung runs, EXACTLY ONE',
   'rows this block is about both RAN',
   'the two collections are DISJOINT',
-  'the pair IS the region, over every run this rung makes',
+  'the pair IS the region, over every ROW this rung runs',
   'CONTROL: and this rung emits region events whose regionPath is NOT',
   'JP-R12 at TWO LEVELS on real workers',
   'the ARRANGEMENT that makes that order determinate',
@@ -5092,6 +5103,28 @@ const CROSS_ROW_SUBJECTS = [
   'ADR 0062 consequence 6, the SAME set by another road',
   '`soleRegion` REFUSES the opener that has TWO instances',
   'P22 prediction 3, the REACH',
+  // **W90 — P23's EXIT ARTIFACT.** Twenty entries — sixteen claims and four controls; the controls are members by
+  // rule since v0.18, and each names the tree it fails on (v0.22).
+  'P23 EXIT ARTIFACT: a run killed at EVERY kill point',
+  'RN-R21 at L6: the re-dispatched ids ARE the in-flight set',
+  'the re-dispatch COUNT read from the SCHEDULER',
+  'RN-R22 and RN-R24 at L6',
+  'RN-R19 at L6: the LOST TAIL is regenerated',
+  'P23 prediction 2 at L6',
+  'the at-least-once set is NOT the stored events` in-flight set',
+  'AT-LEAST-ONCE, visible',
+  'RN-R18 at L6: the HEADER arrives AFTER the first events',
+  'THREE processes, ONE store keyed by position',
+  'the store holds the WHOLE run again',
+  'a store keyed by an ARRIVAL counter per process',
+  'a MID-STEP cut and a QUIESCENT cut of ONE killed run',
+  'the stored events` in-flight set is right at the quiescent cut',
+  'a PARKED task is not in flight',
+  'resolve() on the RESUMED driver',
+  'CONTROL: outcome alone does NOT discriminate',
+  'CONTROL: the K = 1 re-dispatch of each flow is the DOCUMENT`s',
+  'CONTROL: the fresh runtime RAN every task its scheduler held',
+  'CONTROL: the sweep is EVERY kill point, counted from a second source',
 ];
 
 /**
@@ -6771,8 +6804,9 @@ if (checkOff !== null) {
  *
  *   - the CONTROL ROW is the same flow at ONE item, where the same walk must report that nothing
  *     overlapped — so the detector is not a constant;
- *   - over the WHOLE rung, exactly one run has two instances of one opener holding at once, so the
- *     detector is not *true of everything*;
+ *   - over every ROW the rung runs, exactly one has two instances of one opener holding at once, so the
+ *     detector is not *true of everything*; *(this read *the WHOLE rung*, which W90's block (2g) made false — it runs
+ *     `fan-out-per-item` at two items twenty-odd times more. W90's conformity reader.)*
  *   - and the ARRANGEMENT that makes the closing order determinate is asserted as a fact about the
  *     run — `shard@0` settled before `shard@1`, and `recheck` ran under instance 0 alone — so a
  *     stagger that stopped working fails HERE rather than turning the overlap into a coin flip
@@ -6944,8 +6978,9 @@ if (checkOff !== null) {
     'held at once, so the two clauses above are claims about THIS run rather than constants',
     { together: walkB.maxTogether, others: walkB.othersAtClose['perShard@0'], closed: walkB.closedOrder },
     { together: 1, others: [], closed: ['perShard@0', 'perWord@-'] });
-  // **CONTROL 2: over the whole rung.** SIXTY real runs, and exactly one of them ever had two
-  // instances of one opener holding together — so the walk is not *true of everything it is shown*.
+  // **CONTROL 2: over every ROW.** Fifty-two rows of the rung's hundred runs, and exactly one of them ever had two
+  // instances of one opener holding together *(this read *the whole rung* and *SIXTY real runs* — true until W90's
+  // forty runs, which the walk does not reach. W90's conformity reader)* — so the walk is not *true of everything it is shown*.
   // *(This comment read *fifty-eight*, which is the count this item's own two rows take to sixty —
   // and one of the two is the single positive case, so the figure understated the control by
   // exactly the runs that make it one. W86's conformity reader, finding 7.)*
@@ -7013,7 +7048,7 @@ if (checkOff !== null) {
   // DIFFERENT expression and binds its own universe. So the number of runs walked is asserted
   // beside the finding, derived from `EXPECTED` rather than typed.
   check('cross-row', 'ADR 0062 rule 3: every RegionEvent`s regionPath is the opener`s own path and its branchPath extends ' +
-    'it — the pair IS the region, over every run this rung makes',
+    'it — the pair IS the region, over every ROW this rung runs',
     { bad: badPaths, runsWalked }, { bad: [], runsWalked: EXPECTED.length });
   // **CONTROL: and the relation is not vacuous on a rung of top-level regions**, where it is
   // satisfied by any depth-1 branch path.
@@ -7068,6 +7103,496 @@ if (checkOff !== null) {
       hop: (outerBranch.edges ?? []).map((x) => x.to),
     },
     { needs: [], transforms: [], hop: ['perShard'] });
+}
+
+/**
+ * **Block (2g) — W90, P23's EXIT ARTIFACT: a run KILLED mid-run on real workers and RESUMED on a
+ * FRESH runtime from a store the consumer built by appending events** —
+ * [W90](../doc/work-items/w90-a-run-killed-and-resumed-on-real-workers.md),
+ * [ADR 0064](../doc/decisions/0064-a-checkpoint-is-the-whole-event-sequence-and-a-header-and-it-is-a-copy.md),
+ * [ADR 0065](../doc/decisions/0065-a-resume-replays-the-stored-stimuli-refuses-what-it-cannot-regenerate-and-re-dispatches-what-was-in-flight.md).
+ *
+ * **What a KILL is here, measured before it was relied on** (W90's declaration, re-take 2):
+ * `runtime.shutdown()` DRAINS — in both runtimes it waits while tasks are running, a settlement
+ * routed during that wait dispatches the next one, and a run killed one settlement in ends
+ * COMPLETED inside `shutdown()`. So a shutdown is not a kill. **The kill is the STORE**: the consumer
+ * stops appending at the kill point, which is exactly what a process that died would have written,
+ * and the shutdown is cleanup whose drain the store never sees. That drain is also what makes
+ * at-least-once VISIBLE here — every task the resume runs again already ran in the killed runtime —
+ * and it is asserted rather than hidden (claim (8)).
+ *
+ * **Why it is a block and not an `EXPECTED` row** — W78's finding C: a row runs through `runFlow`,
+ * which installs its own `onFoldInput` and keeps its own sequence; this block's whole subject is a
+ * consumer's store. Every `await` on a `done` is BOUNDED and every runtime is shut down in a
+ * `finally` ([Q323](../doc/open-questions.md)), and a throw is a FAIL line, never a crash.
+ *
+ * **What it SELECTS, and the fixture where each well-formed wrong selection DIFFERS** (`doc/workflow.md`
+ * rule 8 obligation (a), v0.23):
+ *
+ *   - **the re-dispatched set** is the in-flight set at the END of the replay, derived from the
+ *     KILLED process's own sequence up to its next stimulus past the cut — never from the resumed
+ *     driver being judged. The STORED events' in-flight set is the wrong selection W89 corrected P23
+ *     prediction 2 away from, and it DIFFERS at the kill points where the lost tail dispatched;
+ *   - **the cut** — mid-step at every kill point of the sweep, and one killed run cut both mid-step
+ *     and quiescent, which store different lengths and re-dispatch the same set;
+ *   - **the store's keys** — the driver's positions across THREE processes, against an arrival
+ *     counter per process, which is a different store and is refused;
+ *   - **a parked task** is not in flight;
+ *   - **"completed identically"** is judged on outcome AND every node, and the control is a second
+ *     payload's reference that also completes, with different nodes.
+ */
+const SWEEP_FLOWS = ['fan-out-per-item', 'triage'];
+/** Every run here takes well under a second; ten is a verdict rather than a wait when one never ends (Q323). */
+const KILL_RESUME_DEADLINE_MS = 10_000;
+/** A refused resume, named — every `runtime.resume` in the block reports through this rather than throwing. */
+const refusalOf = (err: unknown): string =>
+  err instanceof ResumeRefused ? `ResumeRefused ${err.reason} at ${err.index}` : `${err instanceof Error ? err.name : 'a throw'}: ${String(err).slice(0, 120)}`;
+const isStimulus = (i: FoldInput): boolean => i.kind === 'outcome' || i.kind === 'resolution';
+const nodesOf = (s: RunState): Record<string, { state: string; result: unknown }> =>
+  Object.fromEntries(Object.entries(s.nodes).map(([k, v]) => [k, { state: v.state, result: v.result }]));
+const sameNodes = (a: RunState, b: RunState): boolean => JSON.stringify(nodesOf(a)) === JSON.stringify(nodesOf(b));
+/** Dispatched and never settled in `seq[0, end)`, in dispatch order — `RN-R21`'s set over any prefix. */
+const inFlightIn = (seq: readonly FoldInput[], end: number): string[] => {
+  const settled = new Set(seq.slice(0, end).flatMap((i) => (i.kind === 'outcome' ? [i.record.taskId] : [])));
+  return seq.slice(0, end).flatMap((i) => (i.kind === 'dispatched' && !settled.has(i.taskId) ? [i.taskId] : []));
+};
+type KillPoint = {
+  label: string;
+  stored: number;
+  /** Where the KILLED process's next stimulus past the cut sits — the end of what a replay regenerates. */
+  q: number;
+  /** The `resumed` element's ids, read at position `q` of the resumed driver's own sequence. */
+  ids: string[] | null;
+  derived: string[];
+  storedInFlight: string[];
+  /** The fresh scheduler's own task map at the instant `runtime.resume` returned — ids in INSERTION order. */
+  heldAtReturn: string[];
+  /** The same, each id with the PAYLOAD the fresh scheduler holds for it. */
+  heldWithPayload: string[];
+  /** What the KILLED process's own scheduler held at the kill, in the order it was handed them, with payloads — for the held ids. */
+  killedWithPayload: string[];
+  ranOnFresh: string[];
+  settledInKilled: string[];
+  killedOutcome: string;
+  positionsFromStored: boolean;
+  tailRegenerated: boolean;
+  settledRedispatched: string[];
+  /** The resumed run's outcome and node projection, and the reference's — the PROJECTIONS, so claim (1) compares values. */
+  got: string;
+  want: string;
+  /** A refusal `runtime.resume` threw, by name — a FINDING, never a crash of this block (the adequacy reader's p9). */
+  refused: string;
+};
+type KillResume = {
+  points: KillPoint[];
+  expectedLabels: string[];
+  k1: { flow: string; ids: string[] | null; fromDocument: string[] }[];
+  otherRefSameOutcome: boolean;
+  otherRefNodesDiffer: boolean;
+  chain: {
+    beforeHandle: number; identical: boolean; refused: string; resumes: string[][]; resumedIds: string[][];
+    holes: number; foldIsDone: boolean; arrivalDiffers: boolean; arrivalRefused: string;
+  } | null;
+  cuts: { midStored: number; quietStored: number; midAt: number; quietAt: number; midIds: string[]; quietIds: string[]; refused: string;
+    midStoredInFlight: string[]; quietStoredInFlight: string[]; bothCompleted: boolean } | null;
+  parked: { ids: string[] | null; before: string; parkedStored: boolean; scoreFirst: boolean; accepted: boolean; refused: string;
+    outcome: string; identical: boolean } | null;
+  /** Every run this block made on a real scheduler, so the printed run count is a LENGTH. */
+  runs: string[];
+};
+let killResume: KillResume | null = null;
+try {
+  const runs: string[] = [];
+  const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+  /** A run nobody killed. `person` resolves the parked task in-process, as a person would. */
+  const referenceRun = async (flow: FlowDefinition, payload: unknown, runId: string, person?: (d: Driver) => Promise<void>) => {
+    const rt = buildRuntime(false, [flow]);
+    try {
+      const h = rt.start(flow, payload, { runId });
+      runs.push(`${flow.flowId} reference`);
+      if (person) await person(h.driver);
+      const won = await settleWithin(h.done, KILL_RESUME_DEADLINE_MS);
+      if (won.by !== 'done') throw new Error(`the reference run of ${flow.flowId} never settled`);
+      return { state: won.value, inputs: h.driver.foldInputs() };
+    } finally { await rt.shutdown(); }
+  };
+  /**
+   * **One KILLED process.** The consumer's store is keyed by POSITION and FROZEN at `freeze`'s
+   * answer — inside `onFoldInput`, so the cut is mid-step unless `freeze` says to wait a microtask —
+   * and the runtime is then shut down. The driver is returned so the killed process's own sequence
+   * can be read AFTER the drain.
+   */
+  const killedRun = async (flow: FlowDefinition, payload: unknown, runId: string, freezeAt: (i: FoldInput, stimuli: number) => 'now' | 'after-this-turn' | 'no') => {
+    const rt = buildRuntime(false, [flow]);
+    try {
+      const store: FoldInput[] = [];
+      // Assigned from inside the callback, so declared through a cast: a `let` initialised to `null`
+      // is NARROWED to `null` at every later read, and the checks below would type as dead code.
+      let mid = null as FoldInput[] | null;
+      let quiet = null as FoldInput[] | null;
+      let stimuli = 0;
+      const h = rt.start(flow, payload, {
+        runId,
+        onFoldInput: (i, seq) => {
+          if (quiet !== null) return;                        // a dead process writes nothing
+          store[seq] = structuredClone(i);                   // the consumer's append, BY POSITION
+          if (mid === null && isStimulus(i)) {
+            const verdict = freezeAt(i, ++stimuli);
+            if (verdict === 'now') { mid = store.slice(); quiet = mid; }
+            else if (verdict === 'after-this-turn') { mid = store.slice(); queueMicrotask(() => { quiet = store.slice(); }); }
+          }
+        },
+      });
+      // **What had arrived when the handle came back** — read off the STORE's length at the instant `start` returned,
+      // not counted by a flag: the elements a consumer was handed before it could have written a header.
+      const beforeHandle = store.length;
+      runs.push(`${flow.flowId} killed`);
+      for (let w = 0; quiet === null && w < 3000; w++) await sleep(1);
+      // **A kill that never happened is a FINDING, not a throw**: a run that stops short of its kill point (rule 8's `a5`
+      // measured one) would otherwise take every clause of this block down with it. The store is kept as it stands.
+      const froze = quiet !== null && mid !== null;
+      // **What the killed process's own SCHEDULER held at the kill**, in its insertion order — which is `addTask`'s order —
+      // each with the payload it was handed: the source the scheduler-side claim compares against, and it reads neither the
+      // resumed driver nor either driver's sequence. Read BEFORE `shutdown()`, which clears the map. *(The first version
+      // listened for `task.running`, and that event is not heard for every task the drain runs — `grade:1.2` and `audit`
+      // settled in the killed driver with no `task.running` delivered, measured; a record that misses work is not a source.)*
+      const heldWith: [string, string][] = [...rt.scheduler.tasks.entries()].map(([id, t]) => [id, JSON.stringify(t.payload)]);
+      return { header: h.header, mid: mid ?? store.slice(), quiet: quiet ?? store.slice(), driver: h.driver, beforeHandle, froze, heldWith };
+    } finally { await rt.shutdown(); }
+  };
+  /** A FRESH runtime resuming from a store. */
+  const resumedRun = async (flow: FlowDefinition, header: CheckpointHeader, events: FoldInput[], sink?: (i: FoldInput, seq: number) => void) => {
+    const rt = buildRuntime(false, [flow]);
+    try {
+      const ran: string[] = [];
+      rt.scheduler.addEventListener('task.running', (e: Event) => ran.push((e as unknown as { detail: { id: string } }).detail.id));
+      const positions: number[] = [];
+      let h: RunHandle;
+      try {
+        h = rt.resume(flow, { header, events }, { onFoldInput: (i, seq) => { positions.push(seq); sink?.(i, seq); } });
+      } catch (err) {
+        // **A refused resume is a FINDING, not a crash** — the adequacy reader's p9: unguarded, one kill point refused
+        // `diverged` erased every clause of this block, which is the defect family ADR 0065 decides.
+        const refused = refusalOf(err);
+        return { driver: null, state: null, positions, heldAtReturn: [] as string[], heldWithPayload: [] as string[], ran, refused };
+      }
+      const held = [...rt.scheduler.tasks.entries()];
+      const heldAtReturn = held.map(([id]) => id);
+      const heldWithPayload = held.map(([id, t]) => `${id} ${JSON.stringify(t.payload)}`);
+      runs.push(`${flow.flowId} resumed`);
+      const won = await settleWithin(h.done, KILL_RESUME_DEADLINE_MS);
+      return { driver: h.driver, state: won.by === 'done' ? won.value : null, positions, heldAtReturn, heldWithPayload, ran, refused: '' };
+    } finally { await rt.shutdown(); }
+  };
+
+  // ---- THE SWEEP: every kill point of two flows, each on its own killed process and its own fresh runtime.
+  const SWEEP: [string, FlowDefinition, unknown, string][] = [
+    ['fan-out-per-item', FOPI, TWO_THEN_THREE, 'kr'],
+    ['triage', TRI, TRIAGE_LOW, 'kt'],
+  ];
+  const points: KillPoint[] = [];
+  const expectedLabels: string[] = [];
+  const refs: Record<string, RunState> = {};
+  for (const [name, flow, payload, runId] of SWEEP) {
+    const ref = await referenceRun(flow, payload, runId);
+    refs[name] = ref.state;
+    const stimuli = ref.inputs.filter(isStimulus).length;
+    for (let K = 1; K < stimuli; K++) expectedLabels.push(`${name} K=${K}`);
+    for (let K = 1; K < stimuli; K++) {
+      const k = await killedRun(flow, payload, runId, (_i, n) => (n === K ? 'now' : 'no'));
+      const killed = k.driver.foldInputs();
+      const p = k.mid.length - 1;
+      let q = killed.findIndex((i, j) => j > p && isStimulus(i));
+      if (q < 0) q = killed.length;
+      const r = await resumedRun(flow, k.header, k.mid.slice());
+      const seq = r.driver?.foldInputs() ?? [];
+      const at = seq[q];
+      const ids = at?.kind === 'resumed' ? [...at.taskIds] : null;
+      const storedSettled = new Set(k.mid.flatMap((i) => (i.kind === 'outcome' ? [i.record.taskId] : [])));
+      points.push({
+        label: `${name} K=${K}`,
+        stored: k.mid.length,
+        q,
+        ids,
+        derived: inFlightIn(killed, q),
+        storedInFlight: inFlightIn(k.mid, k.mid.length),
+        heldAtReturn: r.heldAtReturn,
+        heldWithPayload: r.heldWithPayload,
+        killedWithPayload: k.heldWith.filter(([id]) => (ids ?? []).includes(id)).map(([id, payload]) => `${id} ${payload}`),
+        ranOnFresh: r.ran,
+        settledInKilled: killed.flatMap((i) => (i.kind === 'outcome' ? [i.record.taskId] : [])),
+        killedOutcome: fold(killed).outcome,
+        positionsFromStored: r.positions.length > 0 && r.positions.every((s, j) => s === k.mid.length + j),
+        tailRegenerated: JSON.stringify(seq.slice(p + 1, q)) === JSON.stringify(killed.slice(p + 1, q)) && q > p,
+        settledRedispatched: (ids ?? []).filter((id) => storedSettled.has(id)),
+        got: !k.froze ? 'NEVER FROZE' : r.refused !== '' ? `REFUSED ${r.refused}` : r.state === null ? 'NEVER SETTLED' : `${r.state.outcome} ${JSON.stringify(nodesOf(r.state))}`,
+        want: `${ref.state.outcome} ${JSON.stringify(nodesOf(ref.state))}`,
+        refused: r.refused,
+      });
+    }
+  }
+  // The K = 1 re-dispatch, from the DOCUMENT: a mid-step cut at the entry's settlement loses exactly
+  // what that settlement dispatches — one `shard` per word of the payload, and triage's fan-out branches.
+  const triFanout = TRI.nodes.find((n) => n.kind === 'fanout') as { branches: string[] } | undefined;
+  const k1 = [
+    { flow: 'fan-out-per-item', ids: points.find((p) => p.label === 'fan-out-per-item K=1')?.ids ?? null,
+      fromDocument: TWO_THEN_THREE.text.split(' ').map((_, i) => `kr:shard:${i}:0`) },
+    { flow: 'triage', ids: points.find((p) => p.label === 'triage K=1')?.ids ?? null,
+      fromDocument: (triFanout?.branches ?? []).map((b, i) => `kt:${b}:${i}:0`) },
+  ];
+  // The CONTROL for "identical": the same flow on another payload also completes, with other nodes.
+  const other = await referenceRun(FOPI, ONE_THEN_TWO, 'kr');
+
+  // ---- THE CHAIN: three processes, ONE store keyed by position — and beside it the same events
+  // keyed by an ARRIVAL counter per process, the well-formed wrong key.
+  let chain: KillResume['chain'] = null;
+  {
+    const byPosition: FoldInput[] = [];
+    const byArrival: FoldInput[] = [];
+    let arrivals = 0;
+    const p1 = await killedRun(FOPI, TWO_THEN_THREE, 'kr', (_i, n) => (n === 1 ? 'now' : 'no'));
+    p1.mid.forEach((e, j) => { byPosition[j] = e; byArrival[arrivals++] = e; });
+    // process two, killed again at its third delivered stimulus — its own store frozen by the same rule
+    const rt2 = buildRuntime(false, [FOPI]);
+    let resumedIds2: string[] = [];
+    let p2froze = false;
+    let p2refused = '';
+    try {
+      let frozen = false, stimuli = 0;
+      arrivals = 0;
+      // **Guarded as every resume here is** — rule 8's pass 2 (`r6`): the fix for the adequacy reader's finding 3 guarded
+      // `resumedRun` and left THIS resume, which is called directly, so a refused replay still took the whole block down.
+      let h2: RunHandle | null = null;
+      try {
+        h2 = rt2.resume(FOPI, { header: p1.header, events: byPosition.slice() }, {
+          onFoldInput: (i, seq) => {
+            if (frozen) return;
+            byPosition[seq] = structuredClone(i);
+            byArrival[arrivals++] = structuredClone(i);
+            if (isStimulus(i) && ++stimuli === 3) frozen = true;
+          },
+        });
+      } catch (err) { p2refused = refusalOf(err); }
+      if (h2 !== null) {
+        runs.push(`${FOPI.flowId} resumed and killed`);
+        for (let w = 0; !frozen && w < 3000; w++) await sleep(1);
+        p2froze = frozen;
+        const r2 = h2.driver.foldInputs().find((i) => i.kind === 'resumed');
+        resumedIds2 = r2?.kind === 'resumed' ? [...r2.taskIds] : [];
+      }
+    } finally { await rt2.shutdown(); }
+    // **A refusal here is a FINDING and not a crash**: a store written under the wrong key is refused by `runtime.resume`,
+    // and that must fail the chain's own clauses by name rather than take the whole block down.
+    let r3: Awaited<ReturnType<typeof resumedRun>> | null = null;
+    let r3refused = '';
+    try {
+      r3 = await resumedRun(FOPI, p1.header, byPosition.slice(), (i, seq) => { byPosition[seq] = structuredClone(i); });
+      r3refused = r3.refused;
+    } catch (err) { r3refused = err instanceof Error ? err.message.slice(0, 160) : String(err); }
+    const r3at = r3?.driver?.foldInputs().filter((i) => i.kind === 'resumed') ?? [];
+    let arrivalRefused = 'NOT REFUSED';
+    const rt4 = buildRuntime(false, [FOPI]);
+    try {
+      try { rt4.resume(FOPI, { header: p1.header, events: byArrival.slice() }); } catch (err) {
+        arrivalRefused = err instanceof ResumeRefused ? `${err.reason} at ${err.index}` : `a ${err instanceof Error ? err.name : 'non-Error'}`;
+      }
+    } finally { await rt4.shutdown(); }
+    chain = {
+      beforeHandle: p1.beforeHandle,
+      identical: p1.froze && p2froze && r3refused === '' && r3 !== null && r3.state !== null && r3.state.outcome === refs['fan-out-per-item']!.outcome && sameNodes(r3.state, refs['fan-out-per-item']!),
+      refused: [p2refused, r3refused].filter((x) => x !== '').join('; '),
+      resumes: r3?.state?.resumes.map((ids) => [...ids]) ?? [],
+      // Process three's sequence holds BOTH `resumed` elements — process two's, FED at its stored position, and its own —
+      // so its own is the LAST one; process two's is read off process two's driver, a different process.
+      resumedIds: [resumedIds2, ...r3at.slice(-1).map((i) => (i.kind === 'resumed' ? [...i.taskIds] : []))],
+      holes: byPosition.length - Object.keys(byPosition).length,
+      foldIsDone: r3 !== null && r3.state !== null && JSON.stringify(fold(byPosition)) === JSON.stringify(r3.state),
+      arrivalDiffers: JSON.stringify(byArrival) !== JSON.stringify(byPosition.slice(0, byArrival.length)),
+      arrivalRefused,
+    };
+  }
+
+  // ---- THE TWO CUTS of ONE killed run: mid-step at its second stimulus, and quiescent a microtask later.
+  let cuts: KillResume['cuts'] = null;
+  {
+    const k = await killedRun(FOPI, TWO_THEN_THREE, 'kr', (_i, n) => (n === 2 ? 'after-this-turn' : 'no'));
+    const mid = await resumedRun(FOPI, k.header, k.mid.slice());
+    const quiet = await resumedRun(FOPI, k.header, k.quiet.slice());
+    const resumedOf = (d: Driver | null) => {
+      const seq = d?.foldInputs() ?? [];
+      const at = seq.findIndex((i) => i.kind === 'resumed');
+      const e = seq[at];
+      return { at, ids: e?.kind === 'resumed' ? [...e.taskIds] : [] };
+    };
+    const m = resumedOf(mid.driver), qq = resumedOf(quiet.driver);
+    cuts = {
+      midStored: k.mid.length, quietStored: k.quiet.length, midAt: m.at, quietAt: qq.at, midIds: m.ids, quietIds: qq.ids,
+      midStoredInFlight: inFlightIn(k.mid, k.mid.length), quietStoredInFlight: inFlightIn(k.quiet, k.quiet.length),
+      refused: [mid.refused, quiet.refused].filter((x) => x !== '').join('; '),
+      bothCompleted: k.froze && mid.state?.outcome === 'completed' && quiet.state?.outcome === 'completed',
+    };
+  }
+
+  // ---- A PARKED kill: `suspend-resume` frozen a turn after `needsAPerson` parks, resumed, resolved.
+  let parked: KillResume['parked'] = null;
+  {
+    const RESOLUTION = { result: { reviewed: 'by a person' }, actor: 'ana' };
+    const PARKED_ID = 'kp:needsAPerson:1:0';
+    const isPark = (i: FoldInput) => i.kind === 'outcome' && i.record.kind === 'outcome' && i.record.terminalState === 'user_action';
+    const ref = await referenceRun(SR, HIGH, 'kp', async (d) => {
+      for (let w = 0; w < 3000 && !d.foldInputs().some(isPark); w++) await sleep(1);
+      d.resolve(PARKED_ID, 'done', RESOLUTION);
+    });
+    const k = await killedRun(SR, HIGH, 'kp', (i) => (isPark(i) ? 'after-this-turn' : 'no'));
+    const rt = buildRuntime(false, [SR]);
+    try {
+      let h: RunHandle | null = null;
+      let refused = '';
+      try { h = rt.resume(SR, { header: k.header, events: k.quiet.slice() }); } catch (err) { refused = refusalOf(err); }
+      if (h === null) {
+        parked = { ids: null, before: 'REFUSED', parkedStored: false, scoreFirst: false, accepted: false, refused, outcome: 'REFUSED', identical: false };
+      } else {
+      runs.push(`${SR.flowId} resumed`);
+      const e = h.driver.foldInputs().find((i) => i.kind === 'resumed');
+      const before = fold(h.driver.foldInputs()).outcome;
+      const accepted = h.driver.resolve(PARKED_ID, 'done', RESOLUTION);
+      const won = await settleWithin(h.done, KILL_RESUME_DEADLINE_MS);
+      const at = (id: string) => k.quiet.findIndex((i) => i.kind === 'outcome' && i.record.taskId === id);
+      parked = {
+        ids: e?.kind === 'resumed' ? [...e.taskIds] : null,
+        before,
+        parkedStored: k.froze && k.quiet.some((i) => i.kind === 'dispatched' && i.taskId === PARKED_ID) && k.quiet.some((i) => isPark(i) && i.kind === 'outcome' && i.record.taskId === PARKED_ID),
+        scoreFirst: at('kp:scoreA:0:0') >= 0 && at('kp:scoreA:0:0') < at(PARKED_ID),
+        accepted,
+        refused: '',
+        outcome: won.by === 'done' ? won.value.outcome : 'NEVER SETTLED',
+        identical: won.by === 'done' && sameNodes(won.value, ref.state),
+      };
+      }
+    } finally { await rt.shutdown(); }
+  }
+
+  killResume = {
+    points, expectedLabels, k1,
+    otherRefSameOutcome: other.state.outcome === refs['fan-out-per-item']!.outcome,
+    otherRefNodesDiffer: !sameNodes(other.state, refs['fan-out-per-item']!),
+    chain, cuts, parked, runs,
+  };
+} catch (err) {
+  failures.push(`kill and resume\n      the block THREW before its assertions could run — a crash is not a detection: ` +
+    `${err instanceof Error ? err.message.slice(0, 240) : String(err)}`);
+}
+if (killResume !== null) {
+  const key = 'cross-row';
+  const kr = killResume;
+  console.log('\n  P23 exit artifact — killed mid-step at every kill point, resumed on a fresh runtime:');
+  for (const p of kr.points) {
+    console.log(`    ${p.label.padEnd(22)} stored ${String(p.stored).padStart(2)}  lost tail ${String(p.q - p.stored).padStart(2)}  ` +
+      `re-dispatched ${String(p.ids?.length ?? '-').padStart(1)}  ${(p.ids ?? []).join(' ')}`);
+  }
+  const reDispatched = kr.points.reduce((n, p) => n + (p.ids?.length ?? 0), 0);
+  const tailOnly = kr.points.reduce((n, p) => n + (p.ids ?? []).filter((id) => !p.storedInFlight.includes(id)).length, 0);
+  console.log(`    ${kr.points.length} kill points, ${reDispatched} tasks re-dispatched, ${tailOnly} of them dispatched only in the lost tail\n`);
+
+  // (1) the headline, at EVERY kill point — the list of labels is derived from the references' own stimuli.
+  check(key, 'P23 EXIT ARTIFACT: a run killed at EVERY kill point of two flows and resumed on a fresh runtime completes IDENTICALLY ' +
+    'to a run nobody killed — outcome AND every node`s state and result, read from the run',
+    // **The PROJECTIONS, not a boolean over them** — the adequacy reader's finding 2: a boolean made the node comparison
+    // one token from gone (`&& sameNodes(…)` deleted, a re-dispatch given another task's payload, L6 green), and control 1
+    // reads the projection on a DIFFERENT pair of runs, so it guarded the helper and not this use of it. The labels come
+    // from the references' own stimuli; the payload is also held at the scheduler by claim (3), a second observer.
+    kr.points.map((p) => `${p.label} ${p.got}`),
+    kr.expectedLabels.map((l) => `${l} ${kr.points.find((p) => p.label === l)?.want ?? 'NO REFERENCE'}`));
+  // (2) the re-dispatched ids, against a derivation that never reads the resumed driver.
+  check(key, 'RN-R21 at L6: the re-dispatched ids ARE the in-flight set at the END of the replay — derived from the KILLED ' +
+    'process`s own sequence up to its next stimulus past the cut, in dispatch order',
+    kr.points.map((p) => `${p.label} ${JSON.stringify(p.ids)}`),
+    kr.points.map((p) => `${p.label} ${JSON.stringify(p.derived)}`));
+  // (3) the COUNT, read from the SCHEDULER.
+  // **COUNT, ORDER and PAYLOAD, from two SCHEDULERS** — the adequacy reader's findings 1 and 2: the first version compared
+  // SORTED sets, so RN-R21's dispatch order had one observer (claim (2), whose expected side one token re-sources to the
+  // value it judges), and a re-dispatch carrying another task's payload had one too. This side reads neither driver: the
+  // fresh scheduler's own task map in insertion order, against the KILLED process's scheduler's task map at the kill, in
+  // its insertion order, with the payload it held.
+  check(key, 'the re-dispatch COUNT read from the SCHEDULER: at the instant runtime.resume returns, the fresh scheduler holds ' +
+    'exactly the tasks the `resumed` element names — before any settlement could dispatch anything new — in the ORDER the killed ' +
+    'process`s scheduler was handed them and with the PAYLOAD it held (RN-R21: the same ids, the replay`s composition)',
+    kr.points.map((p) => `${p.label} ${p.heldWithPayload.join(' | ')}`),
+    kr.points.map((p) => `${p.label} ${p.killedWithPayload.join(' | ')}`));
+  // (4) where `resumed` sits, and the positions the consumer is handed.
+  check(key, 'RN-R22 and RN-R24 at L6: `resumed` sits at the killed run`s next stimulus — after the whole regenerated tail — and ' +
+    'the consumer is handed positions from the STORED LENGTH on, contiguous',
+    kr.points.map((p) => `${p.label} resumed ${p.ids !== null} positions ${p.positionsFromStored}`),
+    kr.points.map((p) => `${p.label} resumed true positions true`));
+  // (5) the lost tail, element for element.
+  check(key, 'RN-R19 at L6: the LOST TAIL is regenerated exactly as the killed process appended it — every element between the ' +
+    'cut and the next stimulus, element for element',
+    kr.points.map((p) => `${p.label} ${p.tailRegenerated}`), kr.points.map((p) => `${p.label} true`));
+  // (6) P23 prediction 2's substance.
+  check(key, 'P23 prediction 2 at L6: no task that SETTLED in the stored events is re-dispatched, at any kill point',
+    kr.points.flatMap((p) => p.settledRedispatched), []);
+  // (7) and its wording, reversed by W89: the stored events' in-flight set is a WRONG selection that differs.
+  assertThat(key, 'and the at-least-once set is NOT the stored events` in-flight set — tasks dispatched only in the lost tail run again, ' +
+    'and the two selections DIFFER at some kill points and AGREE at others, so neither is a constant',
+    tailOnly > 0 && kr.points.some((p) => JSON.stringify(p.ids) !== JSON.stringify(p.storedInFlight)) &&
+      kr.points.some((p) => JSON.stringify(p.ids) === JSON.stringify(p.storedInFlight)),
+    `${tailOnly} tail-only re-dispatches`);
+  // (8) at-least-once, made visible by the drain.
+  check(key, 'AT-LEAST-ONCE, visible: every re-dispatched task ALSO SETTLED in the killed runtime — `shutdown()` DRAINS, and ' +
+    'the killed run ended `completed` inside it, so the store froze and the work did not',
+    kr.points.map((p) => `${p.label} ${(p.ids ?? []).filter((id) => p.settledInKilled.includes(id)).length}/${p.ids?.length ?? 0} ${p.killedOutcome}`),
+    kr.points.map((p) => `${p.label} ${p.ids?.length ?? 0}/${p.ids?.length ?? 0} completed`));
+  // (9)-(12) the chain.
+  const c = kr.chain;
+  assertThat(key, 'RN-R18 at L6: the HEADER arrives AFTER the first events — the handle is returned once start has delivered at ' +
+    'least one — so a store keyed by position is the one that does not care',
+    c !== null && c.beforeHandle >= 1, `delivered before the handle: ${c?.beforeHandle}`);
+  check(key, 'THREE processes, ONE store keyed by position: the third completes identically, and RunState.resumes records BOTH ' +
+    'resumes — process two`s and process three`s own `resumed` elements, in order',
+    c === null ? null : [c.identical, c.refused, c.resumes], c === null ? 'a chain' : [true, '', c.resumedIds]);
+  check(key, 'and the store holds the WHOLE run again: no hole at any position, and its fold IS what `done` resolved with',
+    c === null ? null : [c.holes, c.foldIsDone], [0, true]);
+  check(key, 'a store keyed by an ARRIVAL counter per process is a DIFFERENT store — the wrong selection, arranged — and a ' +
+    'resume from it is refused `diverged` at position 0',
+    c === null ? null : [c.arrivalDiffers, c.arrivalRefused], [true, 'diverged at 0']);
+  // (13)-(14) the cuts.
+  const u = kr.cuts;
+  check(key, 'a MID-STEP cut and a QUIESCENT cut of ONE killed run: the quiescent store is longer, `resumed` lands at the same ' +
+    'position after both, and both re-dispatch the SAME tasks — the set is the replay`s, not the store`s',
+    u === null ? null : [u.midStored < u.quietStored, u.midAt, u.quietAt, u.midIds, u.bothCompleted, u.refused],
+    u === null ? 'two cuts' : [true, u.quietStored, u.quietStored, u.quietIds, true, '']);
+  check(key, 'and that is the PAIR: the stored events` in-flight set is right at the quiescent cut and WRONG at the mid-step one',
+    u === null ? null : [JSON.stringify(u.quietStoredInFlight) === JSON.stringify(u.quietIds), JSON.stringify(u.midStoredInFlight) === JSON.stringify(u.midIds)],
+    [true, false]);
+  // (15)-(16) parked.
+  const pk = kr.parked;
+  check(key, 'a PARKED task is not in flight: killed a turn after it parked — with the other branch settled first, arranged and ' +
+    'asserted — the resume re-dispatches NOTHING and the run is awaiting_action, where counting it would give [needsAPerson]',
+    pk === null ? null : [pk.refused, pk.parkedStored, pk.scoreFirst, pk.ids, pk.before], ['', true, true, [], 'awaiting_action']);
+  check(key, 'and resolve() on the RESUMED driver completes it IDENTICALLY to a person resolving in the process that never died',
+    pk === null ? null : [pk.accepted, pk.outcome, pk.identical], [true, 'completed', true]);
+  // ---- the CONTROLS (v0.22: each names the tree on which it fails while its claim passes).
+  check(key, 'CONTROL: outcome alone does NOT discriminate — the same flow on another payload also completes, with DIFFERENT ' +
+    'nodes; so claim (1) rests on the node comparison (fails on a tree whose node projection returns a constant)',
+    [kr.otherRefSameOutcome, kr.otherRefNodesDiffer], [true, true]);
+  check(key, 'CONTROL: the K = 1 re-dispatch of each flow is the DOCUMENT`s — one `shard` per word of the payload, and triage`s ' +
+    'fan-out branches (fails on a tree whose derivation is re-sourced to the value it judges and that value is wrong)',
+    kr.k1.map((k) => `${k.flow} ${JSON.stringify(k.ids)}`), kr.k1.map((k) => `${k.flow} ${JSON.stringify(k.fromDocument)}`));
+  // *(Its first version also required the killed runtime to have run on past every freeze. The adequacy reader could name
+  // no tree on which that conjunct fails while its claim passes — every tree it names is red on six other clauses — so by
+  // v0.22's test it was not a control, and it is gone.)*
+  assertThat(key, 'CONTROL: the fresh runtime RAN every task its scheduler held when resume returned, at every kill point — so the ' +
+    'held set claim (3) reads is work that happened, not a map nobody drained',
+    kr.points.every((p) => p.heldAtReturn.every((id) => p.ranOnFresh.includes(id))) && reDispatched > 0,
+    kr.points.filter((p) => !p.heldAtReturn.every((id) => p.ranOnFresh.includes(id))).map((p) => p.label).join(', '));
+  check(key, 'CONTROL: the sweep is EVERY kill point, counted from a second source — nine of `fan-out-per-item` (ten ' +
+    'settlements: the entry, two shards, five grades, one recheck, publish) and five of `triage` — so a bound narrowed in both ' +
+    'loops at once, which claim (1) cannot see, is a count that moved (fails on a tree where `stimuli` is capped)',
+    // And the block's RUNS, which the printed count adds and nothing asserted (the adequacy reader's finding 7): four
+    // references, fourteen kills and fourteen resumes, three processes of the chain, one kill and two resumes of the cuts,
+    // one kill and one resume parked.
+    [...SWEEP_FLOWS.map((f) => `${f} ${kr.points.filter((p) => p.label.startsWith(`${f} K=`)).length}`), `runs ${kr.runs.length}`],
+    ['fan-out-per-item 9', 'triage 5', 'runs 40']);
 }
 
 /**
@@ -7127,7 +7652,9 @@ if (checkOff !== null) {
 // reads at L7 — becomes the false half of `l6.ts`'s own output. Probes `d4` and `d4b` are the
 // measurement. *The regress does not close: deleting the block, its twelve subjects and the two
 // counts is still possible, and this makes it one edit dearer and the printed count honest.*
-const pairRunCount = pairResults.reduce((n, { runs }) => n + runs.length, 0) + 1 + (consumerRoad?.runs.length ?? 0) + (checkOff?.runs.length ?? 0);
+// **And `+ killResume.runs.length` since W90**: block (2g) counts every run it made — each reference, each killed process and
+// each resume on a fresh runtime — as a LENGTH, on W78's precedent, so deleting the block moves the printed count with it.
+const pairRunCount = pairResults.reduce((n, { runs }) => n + runs.length, 0) + 1 + (consumerRoad?.runs.length ?? 0) + (checkOff?.runs.length ?? 0) + (killResume?.runs.length ?? 0);
 console.log(`\n  ladder L6 — ${reports.length + pairRunCount} real runs on fyflow-scheduler ${SCHEDULER_VERSION}, on ${runtime}\n`);
 /**
  * **Every region of the run, in the row's declared order** — W23's conformity
@@ -7370,7 +7897,14 @@ const PER_PLAIN_ROW = 20;
 // already there — it moves `DECLARED_TOTAL` and not `CROSS_ROW`. *This constant is the cross-row
 // count AT THAT LINE, which is the quirk its own header records.*
 // *The convention this file keeps is that the next item APPENDS.*
-const CROSS_ROW = 187;
+// **+20 since W86 — W90, P23's EXIT ARTIFACT**: block (2g)'s SIXTEEN claims — identical at every kill point, the
+// re-dispatched ids against the killed process, the count read from the scheduler, where `resumed` sits and the positions,
+// the lost tail regenerated, prediction 2's substance and its wording, at-least-once made visible by the drain, the header
+// after the first events, the three-process chain, the whole run in the store, the arrival-keyed store refused, the two
+// cuts and their pair, the parked task and its resolution — and its FOUR controls. All twenty are cross-row because
+// the block is outside the row loop and every claim is about a pair of processes. *(Written as 20 at the declaration,
+// and 20 at the build.)*
+const CROSS_ROW = 207;
 const base = (shape: string) => (shape === 'region' ? PER_REGION_ROW : PER_PLAIN_ROW);
 for (const [key, shape, cost, extras] of rowCosts) {
   if (cost !== base(shape) + extras) {
@@ -8681,12 +9215,12 @@ if (rowCosts.length !== EXPECTED.length) {
   {
     const pairArity = allRegions(buildGraph(FJ), FJ)[0]!.branches.length;
     const pairRuns = pairResults.flatMap(({ runs }) => runs.map(([who, rep]) => [who, rep] as const));
-    check('cross-row', 'every run this file makes is in the retention claim, the pair rows included — ' +
+    check('cross-row', 'every run the row loop, the pair rows and the shim make is in the retention claim, the pair rows included — ' +
       'two drivers on ONE scheduler each collected their own region and released it',
       pairRuns.map(([who, rep]) => `${who} ${rep.retention.peakEntries}/${rep.retention.endEntries}`),
       pairRuns.map(([who]) => `${who} ${pairArity}/0`));
     check('cross-row', 'and that is FIVE more runs than the row loop produces — four from the two pair rows and ONE from the ' +
-      'shim run, so the claim covers every run rather than most of them',
+      'shim run, so the claim covers every run of those three — not W78`s two, W82`s one or W90`s forty',
       reports.length + pairRuns.length + 1, EXPECTED.length + pairResults.reduce((n, { runs }) => n + runs.length, 0) + 1);
   }
 
@@ -8965,7 +9499,9 @@ check('cross-row', 'every cross-row SUBJECT this file declares was asserted abou
 // consumer-road block, which holds nothing but `{ driver, done }` and makes two runs. No row
 // moved, because nothing here changes what a worker receives (P20 decision 7). *(Written as 12
 // from the arithmetic before the file was run, and the first run reported exactly that.)*
-const DECLARED_TOTAL = 1833;
+// **+20 since W86 — W90.** P23's exit artifact adds no row and twenty cross-row assertions: block (2g), which makes forty
+// runs of its own. No row moved. *(Written as 20 from the arithmetic before the file was run.)*
+const DECLARED_TOTAL = 1853;
 if (passed + failures.length !== DECLARED_TOTAL) {
   failures.push(
     'gate\n      the assertion count is not the number this file declares outright\n' +

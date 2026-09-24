@@ -359,7 +359,10 @@ if (written.length) {
 // through `onRegionEvent`, and `JP-R12`'s collection two levels deep. **Q102's ratchet, and this item
 // declared the file in its exceptions table before the snippet was written**, on W59's, W61's and
 // W62's precedent: the obligation is created by the CONTENT of the change and not by a file set.
-const RUN_FLOOR = 29;
+// **Raised 29 -> 30 by [W90](../doc/work-items/w90-a-run-killed-and-resumed-on-real-workers.md)**, which added section 18's
+// `run` snippet — append-then-resume on a real `createRuntime`, a store keyed by position across two processes. Q102's
+// ratchet, declared in that item's exceptions table before the snippet was written.
+const RUN_FLOOR = 30;
 {
   // **Only when the document parsed.** A count over a reference whose fences are
   // malformed or untagged is true of the parse and says nothing about coverage —
@@ -503,11 +506,14 @@ const README_SNIPPETS = [
   { readme: 'Checking a flow before it runs', agents: '15. What a schema buys an AUTHOR — an authoring session' },
   { readme: 'Checking a result after it ran', agents: '16. What a schema buys a RUN — holding a result to the schema its worker declares' },
   { readme: 'Fanning out per item', agents: '17. Fanning out PER ITEM — a region inside a `map` region' },
+  { readme: 'Saving and resuming a run', agents: '18. Saving a run and RESUMING it — append the events, resume from them' },
 ];
 // **5 since [W86](../doc/work-items/w86-score-each-item-then-fan-out-per-item.md)**, which added
 // section 17's pair — Q102's ratchet, and that item's adequacy reader (finding 16) is what noticed
 // the floor had been left at four while `README_SNIPPETS` became five.
-const README_SNIPPET_FLOOR = 5;
+// **6 since [W90](../doc/work-items/w90-a-run-killed-and-resumed-on-real-workers.md)**, which added section 18's pair —
+// Q102's ratchet, raised in the commit that adds the entry, as a declared exception.
+const README_SNIPPET_FLOOR = 6;
 /** The README's text above its first `## ` heading, which is a section for X8's purposes. */
 const README_OPENING = '(the opening, above the first ## heading)';
 {
