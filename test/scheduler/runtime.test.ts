@@ -11,7 +11,7 @@
  * it is instantiated here member by member, because the rule ENUMERATES its values
  * (`doc/workflow.md` section 5 rule 8 obligation (a) at v0.17).
  */
-import { AssertionError, deepEqual, equal, ok, readText, ROOT, suite, throws } from '../harness.ts';
+import { AssertionError, collected, deepEqual, equal, ok, readText, ROOT, suite, throws } from '../harness.ts';
 import {
   BUILT_IN_GROUP_FACTORIES, createRuntime, GROUP_MEMBERS, GroupNotBuildable, GroupUnusable,
   LanguageNotBuilt, RuntimeError,
@@ -877,13 +877,17 @@ suite('W76 — StartOptions and start() are two lists, and nothing compared them
     const litEnd = runtime.indexOf('driver.start(payload);', startAt);
     if (litEnd < 0) throw new Error('W76: the end of start() was not found');
     const literal = runtime.slice(startAt, litEnd);
-    const sigAt = runtime.indexOf('start(flow, payload, startOptions = {})');
-    if (sigAt < 0) throw new Error('W76: start()`s own signature was not found');
+    // **W89 moved the literal into `openRun`**, the one function `start` AND `resume` build a driver
+    // through (ADR 0065), so the signature this reads from is that function's and the literal's keys
+    // sit two spaces shallower. Moved deliberately, with the item that moved them — this binding
+    // went red naming both on W89's first run, which is its job.
+    const sigAt = runtime.indexOf('function openRun(flow: FlowDefinition, payload: unknown, startOptions: StartOptions, from: Checkpoint | null): RunHandle {');
+    if (sigAt < 0) throw new Error('W76: openRun()`s own signature was not found');
     return {
       /** The universe: every member of `DriverOptions`, from its own declaration. */
       all: membersOf(driver, 'export interface DriverOptions'),
       /** Road (a): the keys the `new Driver(…)` literal writes itself, as bare `name,` lines. */
-      supplied: [...literal.matchAll(/^ {8}([a-zA-Z][a-zA-Z0-9]*),$/gm)].map((m) => m[1] as string),
+      supplied: [...literal.matchAll(/^ {6}([a-zA-Z][a-zA-Z0-9]*),$/gm)].map((m) => m[1] as string),
       /** Road (b). */
       registry: pickNames(runtime, 'export type RuntimeRegistry = Pick<DriverOptions,'),
       /**
@@ -1318,6 +1322,38 @@ suite('W76 — every StartOptions member ARRIVES at the driver, and the observer
       equal(o.saw(d), o.want, `${name}: what the driver did with the option start() forwarded`);
     });
   }
+
+  // **W89 — and the SAME member reaches the driver `resume()` built** (`RN-R25`). `resume` builds its
+  // driver through the one literal `start` does (`openRun`), and this is the behavioural half of that
+  // claim: each observer again, on a run RESUMED from a checkpoint whose header a real run on another
+  // runtime handed out and whose events are EMPTY — a store that kept the header and lost every
+  // element, which replays from the entry and delivers every element, so each observer sees exactly
+  // the run `start` gave it. `runId` is not a `ResumeOptions` member: the run's id is the header's.
+  for (const name of Object.keys(OBSERVERS).filter((n) => n !== 'runId')) {
+    test(`${name} reaches the driver resume() built`, () => {
+      const s = seams();
+      const o = OBSERVERS[name]!(s);
+      const header = createRuntime(DOCUMENT, {}, { createPool: seams().createPool, createScheduler: seams().createScheduler })
+        .start(o.flow, { items: 7 }).header;
+      const r = createRuntime(DOCUMENT, {}, { createPool: s.createPool, createScheduler: s.createScheduler });
+      const { runId: _omitted, ...option } = o.option as StartOptions;
+      const { driver: d } = r.resume(o.flow, { header, events: [] }, option);
+      for (let i = 0; i < s.added.length && i < 20; i += 1) s.settle(String(s.added[i]!.id), { items: 7, ok: true });
+      o.drive(s);
+      equal(o.saw(d), o.want, `${name}: what the driver did with the option resume() forwarded`);
+    });
+  }
+
+  // **The loop above is a membership over `StartOptions` minus `runId`, and it is bound as one** —
+  // `doc/workflow.md` rule 8 obligation (d): filtered to nothing, it registers no case and every case
+  // it would have run is silent. So the cases that REGISTERED are compared with the members, both ways.
+  test('every StartOptions member but runId has a resume() observer that registered', async () => {
+    const members = w76StartMembers(await readText(ROOT + 'src/scheduler/runtime.ts')).filter((n) => n !== 'runId');
+    const suffix = ' reaches the driver resume() built';
+    const registered = collected().flatMap((x) => x.cases.map((c) => c.name)).filter((n) => n.endsWith(suffix)).map((n) => n.slice(0, -suffix.length)).sort();
+    ok(members.length >= 9, `the CONTROL: StartOptions minus runId read from the shipped source, ${members.length} members`);
+    equal(registered, members, 'one registered resume() observer per ResumeOptions member, and none for a name that is not one');
+  });
 });
 
 /**

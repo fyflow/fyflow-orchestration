@@ -179,6 +179,18 @@ const RUN_FOR: Record<FoldInput['kind'], () => Promise<Driver>> = {
     scheduler.settle('r1:ingest:-:0', 'done', { result: { f: () => 1 } });
     return driver;
   },
+  // W89 (`RN-R22`): a run RESUMED from its own checkpoint, cut with `ingest` in flight, so the
+  // `resumed` element names one task and the run then completes on the resumed driver.
+  resumed: async () => {
+    const def = await load('valid/linear.flow.json');
+    const { driver: first } = corpusDriver(def);
+    first.start({ seed: 5 });
+    const { driver, scheduler } = corpusDriver(def);
+    driver.resume(first.checkpoint());
+    scheduler.settle('r1:ingest:-:0', 'done', { result: RICH() });
+    scheduler.settle('r1:publish:-:0', 'done', { result: { ok: true } });
+    return driver;
+  },
 };
 
 const SUITE = 'W88 — what a checkpoint IS: RN-R14 to RN-R18';
@@ -307,7 +319,7 @@ suite(SUITE, (test) => {
 
   test('RN-R17 — every fold-input KIND round-trips structuredClone as data AND prototype', async () => {
     const kinds = Object.keys(RUN_FOR) as FoldInput['kind'][];
-    equal(kinds.length, 8, 'the union has eight kinds — the Record is what binds it, this is the COUNT beside that membership');
+    equal(kinds.length, 9, 'the union has nine kinds since W89 added `resumed` — the Record is what binds it, this is the COUNT beside that membership');
     // **The kinds VISITED, bound to the kinds DECLARED** - W88's own rule 8 set (`d2`): with the
     // loop truncated to one kind the count above still read 8 and every per-kind clause below was
     // simply never asked, for ZERO. The count is of the list; this is of the iterations.

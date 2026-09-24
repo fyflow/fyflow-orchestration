@@ -583,6 +583,10 @@ const LATE_SUITES = [
   // own `DECLARED_CASES`, because this census cannot see an emptied suite.
   'W88 — what a checkpoint IS: RN-R14 to RN-R18',
   'W88 — the checkpoint through the runtime: RunHandle.header and the position',
+  // W89 — what RESUMING is (ADR 0065, `spec/run-state.md` section 9), in `test/driver/resume.test.ts`
+  // and `test/scheduler/resume.test.ts`, each with its own `DECLARED_CASES` and counted below.
+  'W89 — what RESUMING is: RN-R19 to RN-R24',
+  'W89 — resuming through the runtime: runtime.resume, the positions, and run ids in use',
 ];
 
 suite('L1 — every suite this tree declares actually RAN', (test) => {
@@ -625,5 +629,13 @@ suite('L1 — every suite this tree declares actually RAN', (test) => {
     const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
     equal(count('W88 — what a checkpoint IS: RN-R14 to RN-R18'), 13, 'test/driver/checkpoint.test.ts registers its thirteen cases');
     equal(count('W88 — the checkpoint through the runtime: RunHandle.header and the position'), 3, 'test/scheduler/checkpoint.test.ts registers its three');
+  });
+
+  // **W89's two suites, counted the same way and for the same reason** — an emptied suite takes its
+  // own `DECLARED_CASES` check with it, and this count does not go with it.
+  test('W89`s two suites still REGISTER the cases they declare — an emptied suite fails here', () => {
+    const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
+    equal(count('W89 — what RESUMING is: RN-R19 to RN-R24'), 19, 'test/driver/resume.test.ts registers its nineteen cases');
+    equal(count('W89 — resuming through the runtime: runtime.resume, the positions, and run ids in use'), 7, 'test/scheduler/resume.test.ts registers its seven');
   });
 });

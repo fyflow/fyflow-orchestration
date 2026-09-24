@@ -8713,6 +8713,10 @@ if (rowCosts.length !== EXPECTED.length) {
     // copy of the entry payload — WALKED, because it is run state the driver retains, so
     // `run-flow.ts`'s `NOT_RUN_STATE` is unchanged and only this list moves.
     'header',
+    // `replay` since W89: the resume's stored events and held dispatches (`RN-R19`, ADR 0065),
+    // `null` outside `resume()` and so retaining nothing on any run here — WALKED, as `header` is,
+    // and a declared exception of W89's, seeded at its declaration from W88's own row.
+    'replay',
   ].sort();
   const anyRun = reports[0]!;
   check('cross-row', 'the byte measurement WALKS every growing structure the driver has and skips ' +

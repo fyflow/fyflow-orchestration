@@ -60,8 +60,8 @@
 import { ConcurrentLimitGroup, FyflowScheduler, KeyedRateLimitGroup, RateLimitGroup } from 'fyflow-scheduler';
 import type { ResourceGroup, WorkerManager } from 'fyflow-scheduler';
 import { groupsNamedBy, resolveRegistry } from '../definition/registry.ts';
-import { Driver } from '../driver/driver.ts';
-import type { CheckpointHeader, DriverOptions } from '../driver/driver.ts';
+import { Driver, resumeRefusal } from '../driver/driver.ts';
+import type { Checkpoint, CheckpointHeader, DriverOptions } from '../driver/driver.ts';
 import { liveToken } from '../fold/policies.ts';
 import { emptyState, isTerminal, step } from '../fold/run-state.ts';
 import type { FoldInput, RunState } from '../fold/run-state.ts';
@@ -96,6 +96,14 @@ export class GroupUnusable extends RuntimeError {}
 export class GroupNotBuildable extends RuntimeError {}
 /** `start` was given a flow whose transforming type runs on pools this runtime built without that language — the pool would meet the transform with nothing to evaluate it. */
 export class LanguageNotBuilt extends RuntimeError {}
+/**
+ * **A `start` or a `resume` naming a run id a driver of THIS runtime already holds** — `RN-R25`,
+ * [ADR 0065](../../doc/decisions/0065-a-resume-replays-the-stored-stimuli-refuses-what-it-cannot-regenerate-and-re-dispatches-what-was-in-flight.md),
+ * [Q364](../../doc/open-questions.md), P23 stop-and-ask (b). `at` is the run id. Thrown before any
+ * driver is built, so the refused call costs nothing — and a minted id never reaches it, because the
+ * counter skips ids in use.
+ */
+export class RunIdInUse extends RuntimeError {}
 
 /**
  * **The three built-in group types' FACTORIES, and they are three different constructors** (P18
@@ -204,9 +212,19 @@ export interface RuntimeOptions {
  */
 export interface StartOptions extends Pick<DriverOptions,
   'createTask' | 'joinPolicy' | 'onFoldInput' | 'onNonconformingResult' | 'onRegionEvent' | 'onRunFailure' | 'onUnsatisfiableJoin' | 'onUnmintedTask' | 'now'> {
-  /** Omitted, the runtime mints `r<n>` from its own counter — inside `ID-R2`'s charset, unique per RUNTIME and not globally (decision 10). */
+  /**
+   * Omitted, the runtime mints `r<n>` from its own counter — inside `ID-R2`'s charset, unique per RUNTIME and not globally
+   * (decision 10). **Since W89 the counter SKIPS an id in use on this runtime, and a caller naming one is refused** (`RunIdInUse`,
+   * `RN-R25`): a resumed run keeps the id it was stored under, so a fresh runtime's counter would otherwise mint it again.
+   */
   runId?: string;
 }
+
+/**
+ * **What `resume` may say about the run it resumes: everything `start` may, but its id** — `RN-R25`. The run id is the
+ * checkpoint's (`header.runId`), because every task id the stored run dispatched embeds it; there is nothing to choose.
+ */
+export type ResumeOptions = Omit<StartOptions, 'runId'>;
 
 /**
  * **What a driver is handed, and therefore what `runtime.registry` IS** — decision 14. Note
@@ -302,6 +320,19 @@ export interface Runtime {
    * outcome. **BREAKING at `0.3.0`**: this returned the `Driver` itself until ADR 0058.
    */
   start(flow: FlowDefinition, payload: unknown, options?: StartOptions): RunHandle;
+  /**
+   * **Resume the run a checkpoint stored**, on THIS runtime's scheduler, and return the same {@link RunHandle} `start` does —
+   * `RN-R19` to `RN-R25`, [ADR 0065](../../doc/decisions/0065-a-resume-replays-the-stored-stimuli-refuses-what-it-cannot-regenerate-and-re-dispatches-what-was-in-flight.md).
+   * The header is refused first and before any driver exists (`resumeRefusal` — format, flow id, version, a stopped run),
+   * then a run id in use (`RunIdInUse`); then a driver is built for `header.runId` exactly as `start` builds one and
+   * `Driver.resume` replays the stored events, re-dispatches what was in flight AT-LEAST-ONCE, and appends `resumed`.
+   *
+   * **The consumer's `onFoldInput` receives the DRIVER's positions from the stored length on** — the elements the replay
+   * regenerated past the stored events (the lost tail), then `resumed`, then whatever the run does next — so a store that
+   * appends what it is handed holds the whole run again (`RN-R24`). `done` resolves with the terminal `RunState` of the
+   * WHOLE run, stored elements included.
+   */
+  resume(flow: FlowDefinition, checkpoint: Checkpoint, options?: ResumeOptions): RunHandle;
   /** The scheduler's, forwarded — a runtime owns its pools, so it owns their shutdown. */
   shutdown(): Promise<void>;
 }
@@ -470,6 +501,20 @@ export function createRuntime(
   const builtLanguages = transformLanguagesByType(options.flows ?? []);
 
   let minted = 0;
+  /**
+   * **Every run id a driver of THIS runtime holds** — `RN-R25`, [Q364](../../doc/open-questions.md), P23 stop-and-ask (b),
+   * answered: *refuse, and the counter skips ids in use*. **Held for the runtime's LIFE, not the run's**, and that is a
+   * measurement rather than caution: a driver subscribes to the scheduler at construction and `SchedulerLike` has no way to
+   * unsubscribe it, so a completed run's driver still hears every settlement carrying its run id — a second run under that
+   * id would have its settlements appended to the first run's sequence, and the first run's checkpoint would change after it
+   * completed. So *live* here means *a driver of this runtime holds it*, which is every run it started or resumed.
+   */
+  const inUse = new Set<string>();
+  const mint = (): string => {
+    let id: string;
+    do id = `r${++minted}`; while (inUse.has(id));
+    return id;
+  };
   const runtime: Runtime = {
     registry,
     resolved,
@@ -477,116 +522,155 @@ export function createRuntime(
     pools: built.derived,
     groups,
     start(flow, payload, startOptions = {}) {
-      // **A transform this runtime built no pool for is refused HERE, not met by the wrapper.** The
-      // languages a pool carries were decided at construction from `options.flows` (W61), so a flow
-      // arriving now with a transform on a type whose pool carries no such adapter would fail every
-      // task of that node with `language "…" is not loaded in this pool`, one run in.
-      for (const [type, langs] of transformLanguagesByType([flow])) {
-        // An UNREGISTERED type is `FD-V32` at `new Driver` and not this refusal's business; a
-        // registered one that transformed in no construction flow carries NOTHING, which is the case
-        // this exists for. *(Read as one `undefined` at first, so the empty case skipped the check
-        // and every unbuilt transform started — caught by this suite's own negative fixture.)*
-        if (!resolved.nodeTypes.has(type)) continue;
-        const carried = builtLanguages.get(type) ?? new Set<string>();
-        for (const lang of langs) {
-          if (!carried.has(lang)) {
-            throw new LanguageNotBuilt(type, `flow ${q(flow.flowId)} declares transform.lang ${q(lang)} on a node of type ${q(type)}, ` +
-              `and this runtime's pools for that type carry ${carried.size ? [...carried].sort().map(q).join(', ') : 'no language'} — ` +
-              'pools are built once, so pass every flow this runtime will run as `flows` to createRuntime');
-          }
-        }
-      }
-      const runId = startOptions.runId ?? `r${++minted}`;
-
-      // **The run's END, kept by the RUNTIME** — ADR 0058, W77, Q293. `done` resolves with the
-      // terminal `RunState` and never rejects; `stopped` is a terminal outcome like any other, so a
-      // driver refusal arrives here carrying `stoppedBy` rather than as a thrown `Error`.
-      //
-      // **What is kept is ONE `RunState`, not the inputs.** `fold` IS this loop —
-      // `for (const i of inputs) s = step(s, i)` — and `RN-R2` is the rule that a stepped prefix
-      // equals a fold of that prefix, so this is `fold`'s own body with the prefix kept instead of
-      // recomputed. Measured over a 24-branch fan-out: keeping the inputs and re-folding retains
-      // 445.5 KiB and takes 23 ms, re-reading `driver.foldInputs()` deep-clones 5944 elements and
-      // takes 35 ms, and this retains 437.3 KiB and takes 6 ms. *(`foldInputs()` is
-      // `Object.freeze(this.inputs.map(freezeInput))`, so every call clones every result.)*
-      //
-      // **The price, stated rather than hidden** (P20's Scope Out): `step` writes
-      // `result: r.result` by reference into the record `freezeInput` cloned, so this pins ONE copy
-      // of every result for the life of the run — P15's own quantity, (tasks settled) x (bytes each
-      // returned), once more.
-      //
-      // **It is ABOUT THE SAME as what the block it replaces retains, not half, and the first
-      // version of this comment said half.** The copied block keeps its `inputs` array AND folds a
-      // state out of it — but `step` writes `result: r.result` BY REFERENCE, so that state's results
-      // ARE the objects inside its own `inputs`, and `v8.serialize` called on two roots cannot see
-      // the sharing. Measured: the block retains **89.1 KiB** of inputs plus **0.6 KiB** of state
-      // scaffolding = ~89.7, against this mechanism's **87.6** — ~2% less, where adding the two
-      // serialisations gave a spurious 176.7 and a spurious factor of two. *The identity measurement
-      // that falsifies the sum was printed three lines above it* (W77's conformity reader, finding 3).
-      //
-      // And it is bounded per RETAINED HANDLE rather than per live run: a promise retains its
-      // resolution, which is the property that makes `done` worth having, so a consumer holding N
-      // settled handles holds N `RunState`s. A consumer who previously kept no completion machinery
-      // at all now pays one copy they did not, and the `structuredClone` `freezeInput` makes is now
-      // paid on every settlement of every run rather than only where a consumer asked for one.
-      // [Q320](../../doc/open-questions.md).
-      let settle!: (s: RunState) => void;
-      const done = new Promise<RunState>((resolve) => { settle = resolve; });
-      let state = emptyState();
-      let settled = false;
-      // **The STEP is synchronous and the PREDICATE is not, and the split is load-bearing.** The
-      // driver dispatches the next node synchronously inside the same listener turn, so asking
-      // `isTerminal` the instant an input arrives can report a terminal state with the run still
-      // going — `AGENTS.md`'s own prose calls this "load-bearing rather than decoration" and
-      // `RN-R12` claims its predicate at rest. Stepping, by contrast, is correct at every prefix.
-      const settleIfTerminal = () => {
-        if (settled || !isTerminal(state)) return;
-        settled = true;
-        settle(state);
-      };
-      // **The whole of `registry`, spread** — which is what makes decision 14's claim true: a
-      // consumer who writes this line by hand passes the same object, `predicates` included.
-      const driver = new Driver(flow, {
-        runId,
-        scheduler,
-        ...registry,
-        joinPolicy: startOptions.joinPolicy ?? liveToken,
-        ...(options.defaultRetryPolicy !== undefined ? { defaultRetryPolicy: options.defaultRetryPolicy } : {}),
-        ...(options.validateBoundaries !== undefined ? { validateBoundaries: options.validateBoundaries } : {}),
-        ...(startOptions.createTask !== undefined ? { createTask: startOptions.createTask } : {}),
-        // **`onFoldInput` is COMPOSED, not conditionally spread** — the runtime needs this channel
-        // to keep `done`, and it is also a `StartOptions` member a consumer may pass, so replacing
-        // it would silently drop theirs. Record first, schedule second, hand on third: `done`
-        // settles from a sequence no consumer callback can shorten. This is the THIRD road
-        // `start` reaches a member by, and `test/scheduler/runtime.test.ts` binds all three both
-        // ways and pins this one — W76's ratchet, moved deliberately rather than around.
-        // **`seq` is handed on as the DRIVER gave it** (`RN-R18`, ADR 0064 rule 5) — never counted
-        // here. A runtime-side counter would agree today, because this wrapper sees every element
-        // of a run from its first, and it is the well-formed wrong answer the first time a driver's
-        // sequence does not start at this callback's first call.
-        onFoldInput: (input: FoldInput, seq: number) => {
-          state = step(state, input);
-          queueMicrotask(settleIfTerminal);
-          startOptions.onFoldInput?.(input, seq);
-        },
-        ...(startOptions.onRegionEvent !== undefined ? { onRegionEvent: startOptions.onRegionEvent } : {}),
-        ...(startOptions.onRunFailure !== undefined ? { onRunFailure: startOptions.onRunFailure } : {}),
-        ...(startOptions.onUnsatisfiableJoin !== undefined ? { onUnsatisfiableJoin: startOptions.onUnsatisfiableJoin } : {}),
-        ...(startOptions.onUnmintedTask !== undefined ? { onUnmintedTask: startOptions.onUnmintedTask } : {}),
-        ...(startOptions.onNonconformingResult !== undefined ? { onNonconformingResult: startOptions.onNonconformingResult } : {}),
-        ...(startOptions.now !== undefined ? { now: startOptions.now } : {}),
-      });
-      driver.start(payload);
-      // **The header is the DRIVER's, read back — not assembled here from `flow`, `payload` and
-      // `runId`** (ADR 0064 rule 5, P23 decision 4). Assembling it would agree on every field but
-      // one: the entry payload would be the caller's own object, which the caller can still mutate.
-      return { driver, done, header: driver.checkpoint().header };
+      return openRun(flow, payload, startOptions, null);
+    },
+    resume(flow, checkpoint, resumeOptions = {}) {
+      // **The header is refused BEFORE a driver is built** — the one function `Driver.resume` calls too, so the two cannot
+      // disagree, and a checkpoint refused here has cost no run id (a driver, once built, is subscribed for good).
+      const refused = resumeRefusal(flow, checkpoint);
+      if (refused !== null) throw refused;
+      // **And an entry payload the clone refuses, before a driver exists too** — W89's conformity reader, finding 7: thrown
+      // from `Driver.resume` it spent the run id on this runtime, so the corrected checkpoint could not be resumed here. The
+      // platform's `DataCloneError`, as `start()` throws it (`RN-R15`).
+      structuredClone(checkpoint.header.entryPayload);
+      return openRun(flow, checkpoint.header.entryPayload, { ...resumeOptions, runId: checkpoint.header.runId }, checkpoint);
     },
     shutdown() {
       return scheduler.shutdown();
     },
   };
   return runtime;
+
+  /**
+   * **One run opened — by `start` from a payload, or by `resume` from a checkpoint — and the ONE place a runtime builds a
+   * `Driver`.** Both doors share it so that every `StartOptions` member reaches a resumed driver by the same road it reaches a
+   * started one (`test/scheduler/runtime.test.ts` binds the literal below both ways), and so that the run id in use, the
+   * transform refusal and `done` cannot differ between the two.
+   */
+  function openRun(flow: FlowDefinition, payload: unknown, startOptions: StartOptions, from: Checkpoint | null): RunHandle {
+    // **A transform this runtime built no pool for is refused HERE, not met by the wrapper.** The
+    // languages a pool carries were decided at construction from `options.flows` (W61), so a flow
+    // arriving now with a transform on a type whose pool carries no such adapter would fail every
+    // task of that node with `language "…" is not loaded in this pool`, one run in.
+    for (const [type, langs] of transformLanguagesByType([flow])) {
+      // An UNREGISTERED type is `FD-V32` at `new Driver` and not this refusal's business; a
+      // registered one that transformed in no construction flow carries NOTHING, which is the case
+      // this exists for. *(Read as one `undefined` at first, so the empty case skipped the check
+      // and every unbuilt transform started — caught by this suite's own negative fixture.)*
+      if (!resolved.nodeTypes.has(type)) continue;
+      const carried = builtLanguages.get(type) ?? new Set<string>();
+      for (const lang of langs) {
+        if (!carried.has(lang)) {
+          throw new LanguageNotBuilt(type, `flow ${q(flow.flowId)} declares transform.lang ${q(lang)} on a node of type ${q(type)}, ` +
+            `and this runtime's pools for that type carry ${carried.size ? [...carried].sort().map(q).join(', ') : 'no language'} — ` +
+            'pools are built once, so pass every flow this runtime will run as `flows` to createRuntime');
+        }
+      }
+    }
+    const runId = startOptions.runId ?? mint();
+    if (inUse.has(runId)) {
+      throw new RunIdInUse(runId, `run id ${q(runId)} is in use on this runtime — a driver it built holds it, and a driver cannot be detached ` +
+        'from its scheduler, so a second run under that id would be heard by both (RN-R25, Q364). Resume or start it on a fresh runtime, ' +
+        'or omit runId and let the runtime mint one (the counter skips ids in use).');
+    }
+
+    // **The run's END, kept by the RUNTIME** — ADR 0058, W77, Q293. `done` resolves with the
+    // terminal `RunState` and never rejects; `stopped` is a terminal outcome like any other, so a
+    // driver refusal arrives here carrying `stoppedBy` rather than as a thrown `Error`.
+    //
+    // **What is kept is ONE `RunState`, not the inputs.** `fold` IS this loop —
+    // `for (const i of inputs) s = step(s, i)` — and `RN-R2` is the rule that a stepped prefix
+    // equals a fold of that prefix, so this is `fold`'s own body with the prefix kept instead of
+    // recomputed. Measured over a 24-branch fan-out: keeping the inputs and re-folding retains
+    // 445.5 KiB and takes 23 ms, re-reading `driver.foldInputs()` deep-clones 5944 elements and
+    // takes 35 ms, and this retains 437.3 KiB and takes 6 ms. *(`foldInputs()` is
+    // `Object.freeze(this.inputs.map(freezeInput))`, so every call clones every result.)*
+    //
+    // **The price, stated rather than hidden** (P20's Scope Out): `step` writes
+    // `result: r.result` by reference into the record `freezeInput` cloned, so this pins ONE copy
+    // of every result for the life of the run — P15's own quantity, (tasks settled) x (bytes each
+    // returned), once more.
+    //
+    // **It is ABOUT THE SAME as what the block it replaces retains, not half, and the first
+    // version of this comment said half.** The copied block keeps its `inputs` array AND folds a
+    // state out of it — but `step` writes `result: r.result` BY REFERENCE, so that state's results
+    // ARE the objects inside its own `inputs`, and `v8.serialize` called on two roots cannot see
+    // the sharing. Measured: the block retains **89.1 KiB** of inputs plus **0.6 KiB** of state
+    // scaffolding = ~89.7, against this mechanism's **87.6** — ~2% less, where adding the two
+    // serialisations gave a spurious 176.7 and a spurious factor of two. *The identity measurement
+    // that falsifies the sum was printed three lines above it* (W77's conformity reader, finding 3).
+    //
+    // And it is bounded per RETAINED HANDLE rather than per live run: a promise retains its
+    // resolution, which is the property that makes `done` worth having, so a consumer holding N
+    // settled handles holds N `RunState`s. A consumer who previously kept no completion machinery
+    // at all now pays one copy they did not, and the `structuredClone` `freezeInput` makes is now
+    // paid on every settlement of every run rather than only where a consumer asked for one.
+    // [Q320](../../doc/open-questions.md).
+    let settle!: (s: RunState) => void;
+    const done = new Promise<RunState>((resolve) => { settle = resolve; });
+    let state = emptyState();
+    let settled = false;
+    // **A RESUMED run's state starts from the events the checkpoint STORED** (`RN-R25`), stepped at the first element the
+    // driver delivers — the first position PAST them (`RN-R24`). Not before: `Driver.resume` compares every stored element
+    // with what its replay regenerates and delivers nothing until the stored ones have all been matched, so by the time this
+    // steps them they are the driver's own first elements, and a checkpoint the replay refuses is never folded here at all.
+    let seed: readonly FoldInput[] | null = from === null ? null : from.events;
+    // **The STEP is synchronous and the PREDICATE is not, and the split is load-bearing.** The
+    // driver dispatches the next node synchronously inside the same listener turn, so asking
+    // `isTerminal` the instant an input arrives can report a terminal state with the run still
+    // going — `AGENTS.md`'s own prose calls this "load-bearing rather than decoration" and
+    // `RN-R12` claims its predicate at rest. Stepping, by contrast, is correct at every prefix.
+    const settleIfTerminal = () => {
+      if (settled || !isTerminal(state)) return;
+      settled = true;
+      settle(state);
+    };
+    // **The whole of `registry`, spread** — which is what makes decision 14's claim true: a
+    // consumer who writes this line by hand passes the same object, `predicates` included.
+    const driver = new Driver(flow, {
+      runId,
+      scheduler,
+      ...registry,
+      joinPolicy: startOptions.joinPolicy ?? liveToken,
+      ...(options.defaultRetryPolicy !== undefined ? { defaultRetryPolicy: options.defaultRetryPolicy } : {}),
+      ...(options.validateBoundaries !== undefined ? { validateBoundaries: options.validateBoundaries } : {}),
+      ...(startOptions.createTask !== undefined ? { createTask: startOptions.createTask } : {}),
+      // **`onFoldInput` is COMPOSED, not conditionally spread** — the runtime needs this channel
+      // to keep `done`, and it is also a `StartOptions` member a consumer may pass, so replacing
+      // it would silently drop theirs. Record first, schedule second, hand on third: `done`
+      // settles from a sequence no consumer callback can shorten. This is the THIRD road
+      // `start` reaches a member by, and `test/scheduler/runtime.test.ts` binds all three both
+      // ways and pins this one — W76's ratchet, moved deliberately rather than around.
+      // **`seq` is handed on as the DRIVER gave it** (`RN-R18`, ADR 0064 rule 5) — never counted
+      // here. A runtime-side counter would agree today, because this wrapper sees every element
+      // of a run from its first, and it is the well-formed wrong answer the first time a driver's
+      // sequence does not start at this callback's first call.
+      onFoldInput: (input: FoldInput, seq: number) => {
+        if (seed !== null) {
+          for (const stored of seed) state = step(state, stored);
+          seed = null;
+        }
+        state = step(state, input);
+        queueMicrotask(settleIfTerminal);
+        startOptions.onFoldInput?.(input, seq);
+      },
+      ...(startOptions.onRegionEvent !== undefined ? { onRegionEvent: startOptions.onRegionEvent } : {}),
+      ...(startOptions.onRunFailure !== undefined ? { onRunFailure: startOptions.onRunFailure } : {}),
+      ...(startOptions.onUnsatisfiableJoin !== undefined ? { onUnsatisfiableJoin: startOptions.onUnsatisfiableJoin } : {}),
+      ...(startOptions.onUnmintedTask !== undefined ? { onUnmintedTask: startOptions.onUnmintedTask } : {}),
+      ...(startOptions.onNonconformingResult !== undefined ? { onNonconformingResult: startOptions.onNonconformingResult } : {}),
+      ...(startOptions.now !== undefined ? { now: startOptions.now } : {}),
+    });
+    // **In use from the moment the driver EXISTS**, before it starts or resumes: it has subscribed, and a `start` refused by
+    // `FD-R4` or a resume refused mid-replay leaves a driver that still hears this run id (RN-R25).
+    inUse.add(runId);
+    if (from === null) driver.start(payload);
+    else driver.resume(from);
+    // **The header is the DRIVER's, read back — not assembled here from `flow`, `payload` and
+    // `runId`** (ADR 0064 rule 5, P23 decision 4). Assembling it would agree on every field but
+    // one: the entry payload would be the caller's own object, which the caller can still mutate.
+    return { driver, done, header: driver.checkpoint().header };
+  }
 }
 
 /** Re-exported so a consumer can read what a schema-bearing built-in admits without importing the pure entry. */

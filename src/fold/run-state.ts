@@ -102,6 +102,18 @@ export interface RunState {
   pathEnds: { reason: 'end' | 'no-eligible-edge'; at: string }[];
   /** Set when a refusal terminated the run (`OR-R10`, `RN-R8`). */
   stoppedBy: string | null;
+  /**
+   * **Every resume this run has had, in order, each the task ids it handed a scheduler AGAIN** —
+   * `RN-R22`, [ADR 0065](../../doc/decisions/0065-a-resume-replays-the-stored-stimuli-refuses-what-it-cannot-regenerate-and-re-dispatches-what-was-in-flight.md),
+   * P23 stop-and-ask (a). `[]` for a run nobody resumed; `[[]]` for a run resumed with nothing in
+   * flight. **This is the at-least-once cost, readable from run state**: a task named here may have
+   * run once in a process that is gone and runs again here (P23 decision 6), which a run's events are
+   * otherwise silent about — the replay regenerates everything else exactly.
+   *
+   * *(v0.10 adds this field. It is the one cell of run state W89 moves, and it is additive: every
+   * other field of a resumed run folds exactly as the run nobody killed does.)*
+   */
+  resumes: string[][];
 }
 
 /**
@@ -183,10 +195,25 @@ export type FoldInput =
   | { kind: 'dispatched'; taskId: string }
   | { kind: 'pathEnded'; reason: 'end' | 'no-eligible-edge'; at: string }
   | { kind: 'joinSettled'; regionId: string; regionPath: string; joinId: string; fired: boolean }
-  | { kind: 'stopped'; reason: string };
+  | { kind: 'stopped'; reason: string }
+  /**
+   * **The run was RESUMED, and these are the tasks handed to a scheduler again** — `RN-R22`,
+   * [W89](../../doc/work-items/w89-what-resuming-is.md), P23 stop-and-ask (a), answered: *a resume
+   * IS recorded*. Appended by `Driver.resume` after the replay and BEFORE the first re-dispatch, and
+   * always — `taskIds: []` when nothing was in flight — so a resumed run's sequence says it was
+   * resumed even when it re-ran nothing.
+   *
+   * **Every id here was already `dispatched` in this sequence**, at the same id (stop-and-ask (c)), so
+   * the fold does not resurrect or re-run a node: each stays `running` until it settles, exactly as
+   * the run nobody killed has it. What the fold gains is the fact itself, in `RunState.resumes`.
+   *
+   * **A new kind, and it is BREAKING for a consumer switching on `kind` exhaustively** — the cost
+   * stop-and-ask (a) priced, which is why the package moves at W90's close.
+   */
+  | { kind: 'resumed'; taskIds: string[] };
 
 export function emptyState(): RunState {
-  return { runId: null, outcome: 'running', nodes: {}, regions: {}, pathEnds: [], stoppedBy: null };
+  return { runId: null, outcome: 'running', nodes: {}, regions: {}, pathEnds: [], stoppedBy: null, resumes: [] };
 }
 
 /**
@@ -234,6 +261,13 @@ export function step(prev: RunState, input: FoldInput): RunState {
       ...prev,
       regions: withRegion(prev.regions, input.regionId, input.regionPath, emptyRegion()),
     });
+  }
+
+  if (input.kind === 'resumed') {
+    // `RN-R22` — recorded, and nothing else moves: the ids were dispatched before and are still
+    // `running`, so `outcome` is untouched and `withOutcome` has nothing to recompute. A COPY of the
+    // list, because `step` never shares a value it was handed with the state it returns (`RN-R2`).
+    return { ...prev, resumes: [...prev.resumes, [...input.taskIds]] };
   }
 
   if (input.kind === 'joinSettled') {

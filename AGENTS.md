@@ -1152,7 +1152,8 @@ the block — W78's conformity reader, finding 3.)*
 `header` is the run's CHECKPOINT header since
 [ADR 0064](doc/decisions/0064-a-checkpoint-is-the-whole-event-sequence-and-a-header-and-it-is-a-copy.md),
 and `driver.checkpoint()` hands out the header with every event so far (`spec/run-state.md`
-section 8); resuming from one is not built yet — and `done`
+section 8); `runtime.resume(flow, checkpoint)` resumes a run from one, returning the same handle
+([ADR 0065](doc/decisions/0065-a-resume-replays-the-stored-stimuli-refuses-what-it-cannot-regenerate-and-re-dispatches-what-was-in-flight.md), `spec/run-state.md` section 9 — W90 teaches it) — and `done`
 resolves with the first `RunState` this predicate calls terminal
 ([ADR 0058](doc/decisions/0058-runtime-start-returns-a-completion-handle-the-runtime-keeps.md)). It
 is the same two functions — the runtime keeps one `RunState`, steps it per input and asks
@@ -1262,16 +1263,17 @@ calls that resolver first — section 12), and by the bootstrap helper before it
 `InvalidDefinition`, on purpose: a registry defect is fixed in the registry and a flow defect in the
 flow, and the class says which document to open.
 
-**And three the RUNTIME adds, all `RuntimeError` subclasses from `fyflow-orchestration/scheduler`**
+**And four the RUNTIME adds, all `RuntimeError` subclasses from `fyflow-orchestration/scheduler`**
 (W66): `GroupUnusable` — a group factory returned something the scheduler cannot use, naming the
 member and the group's key; `GroupNotBuildable` — a group type with no `create`; `LanguageNotBuilt` —
-`start` was given a flow that transforms on a type no pool was built for. A bare `RuntimeError` is
-the fourth road: a relative worker url with no `base`, and a predicate or adapter supplied that the
+`start` was given a flow that transforms on a type no pool was built for; and, since W89, `RunIdInUse`
+— a `start` or `resume` naming a run id a driver of that runtime already holds (`RN-R25`). A bare
+`RuntimeError` is the fifth road: a relative worker url with no `base`, and a predicate or adapter supplied that the
 document names nowhere. **They are not exported from the package ROOT**, so the enumeration below —
 which walks the root's own exports — does not see them, and `BootstrapError` has never been there
 either.
 
-**Two more that throw, because you called them.** They are the same classes the next paragraph calls
+**And more that throw, because you called them.** Some are the same classes the next paragraph calls
 reported, which is why the rule is about the stack:
 
 | | |
@@ -1280,6 +1282,9 @@ reported, which is why the rule is about the stack:
 | `driver.resolve()` with a `result` that is not structured-cloneable | throws the platform's own `DataCloneError`, **not** `UncloneableResult`, and the run is not stopped |
 | `driver.start()` with a payload that is not structured-cloneable | throws the platform's own `DataCloneError` with the driver UNSTARTED — a run whose entry payload cannot be copied into its checkpoint header cannot be checkpointed, so it is refused before it exists (`RN-R15`, [ADR 0064](doc/decisions/0064-a-checkpoint-is-the-whole-event-sequence-and-a-header-and-it-is-a-copy.md)). **New in W88, and BREAKING**: such a payload used to start a run on an inline pool |
 | `driver.checkpoint()` before `start()` | throws `NotStarted` — there is no run, and no entry payload to put in a header (`RN-R14`) |
+| `driver.resume(checkpoint)` or `runtime.resume(flow, checkpoint)` with an entry payload that is not structured-cloneable | throws the platform's `DataCloneError` before anything is replayed — the driver unstarted, and on a runtime no run id spent (`RN-R15`) |
+| `driver.checkpoint()` on a driver whose resume was refused | throws `NotStarted` — a refused resume leaves the driver SPENT and deaf to its scheduler, with no run to checkpoint (`RN-R23`) |
+| `driver.resume(checkpoint)` or `runtime.resume(flow, checkpoint)` on a checkpoint it will not resume | throws `ResumeRefused`, whose `reason` is `format`, `run`, `flow`, `stopped` or `diverged` and whose `index` names the position for the last two — nothing is handed to a scheduler ([ADR 0065](doc/decisions/0065-a-resume-replays-the-stored-stimuli-refuses-what-it-cannot-regenerate-and-re-dispatches-what-was-in-flight.md)). `resume()` on a driver that already started or resumed throws `MultipleRuns` (`ID-R3`) |
 
 `MultipleRuns` is thrown by a second `start()`: a driver's sequence and join state carry no run id,
 so a second run would silently merge into the first. **One driver, one run** — and the run id is a
@@ -1433,7 +1438,7 @@ import {
   BoundaryRefused,
   ConfigRefused, DerivationRefused, DuplicateTaskId, GroupConfigRefused, GroupTypeMissing, InvalidDefinition,
   InvalidRunId, InvalidTaskId, MissingJoinPolicy, MultipleRuns, NameCollision, NameMissing, NoMatchingEdge, NotStarted,
-  PoolTypeMissing, RegistryError, SchemaRefused, TypeDefaultRefused, UncloneableResult, UndeclaredKey,
+  PoolTypeMissing, RegistryError, ResumeRefused, SchemaRefused, TypeDefaultRefused, UncloneableResult, UndeclaredKey,
   UndispatchedTask, UnresolvedBranchPath, UnresolvedMapArity, UnresolvedReference, WorkerMissing,
 } from 'fyflow-orchestration';
 
@@ -1441,6 +1446,7 @@ const documented = [
   DuplicateTaskId, UncloneableResult, NoMatchingEdge, UndispatchedTask,  // reported inside a listener
   MultipleRuns, InvalidRunId, InvalidDefinition, MissingJoinPolicy,      // thrown at you
   NotStarted,                                // thrown at you from checkpoint() before start() — there is no run yet (RN-R14)
+  ResumeRefused,                             // thrown at you from resume() — a checkpoint it will not resume, `reason` says why (RN-R23)
   RegistryError, WorkerMissing, PoolTypeMissing, ConfigRefused, TypeDefaultRefused, GroupTypeMissing,   // thrown at you — a REGISTRY defect,
   GroupConfigRefused, NameCollision, SchemaRefused, UndeclaredKey, NameMissing, DerivationRefused,       // the base class and its eleven (section 13)
   UnresolvedMapArity, UnresolvedReference,   // reported in a listener; reported AND thrown from start()/resolve()

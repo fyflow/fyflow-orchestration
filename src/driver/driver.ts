@@ -26,7 +26,7 @@ import { effectiveSettings, languagesOf, nodeTypesOf, poolsOf, referenceTarget, 
 import {
   assertRunId, branchIndices, buildTaskId, InvalidTaskId, parseTaskId, type TaskIdParts,
 } from './ids.ts';
-import { effectiveOutcome, isSuspended, type LogRecord, type OutcomeRecord } from './log.ts';
+import { effectiveOutcome, isSuspended, type LogRecord, type OutcomeRecord, type ResolutionRecord } from './log.ts';
 import { normalizeEvent, type TaskDetailLike } from './listener.ts';
 import { selectEdge, type PredicateRegistry } from './routing.ts';
 import type { RegionEvent } from './events.ts';
@@ -197,7 +197,7 @@ export class NotStarted extends Error {}
 /**
  * **What a checkpoint's header says, and the number a resume refuses on** — `RN-R16`,
  * ADR 0064 rule 3. `1` at this version; it moves only when what a checkpoint CARRIES moves, and
- * W89's resume refuses a format it does not know (P23's second item, declared when it starts).
+ * a resume refuses a format it does not know — `ResumeRefused` with `reason: 'format'` (`RN-R23`, W89).
  */
 export const CHECKPOINT_FORMAT = 1;
 
@@ -215,7 +215,7 @@ export const CHECKPOINT_FORMAT = 1;
  * | `format` | {@link CHECKPOINT_FORMAT} | — |
  * | `runId` | the driver's own (`ID-R3`, fixed at construction) | the runtime's first minted id, `r1` |
  * | `flowId`, `version` | the definition this driver was constructed with | a constant `1` — every corpus flow is at version 1 |
- * | `entryPayload` | a `structuredClone` of the value `start()` was CALLED with, taken at the call | the entry node's COMPOSED payload (they differ whenever the entry declares `needs`), its RESULT, any task's envelope, or the caller's own object by reference |
+ * | `entryPayload` | a `structuredClone` of the value `start()` was CALLED with, taken at the call — or, on a RESUMED driver, of the stored header's (`RN-R15`, v0.10) | the entry node's COMPOSED payload (they differ whenever the entry declares `needs`), its RESULT, any task's envelope, or the caller's own object by reference |
  */
 export interface CheckpointHeader {
   readonly format: number;
@@ -247,6 +247,144 @@ export interface CheckpointHeader {
 export interface Checkpoint {
   readonly header: CheckpointHeader;
   readonly events: readonly FoldInput[];
+}
+
+/**
+ * **Why a resume was refused** — `RN-R19` to `RN-R23`,
+ * [ADR 0065](../../doc/decisions/0065-a-resume-replays-the-stored-stimuli-refuses-what-it-cannot-regenerate-and-re-dispatches-what-was-in-flight.md).
+ *
+ * | reason | refused when | `index` |
+ * |---|---|---|
+ * | `format` | the value is not `{ header, events[] }`, or `header.format` is not {@link CHECKPOINT_FORMAT} (`RN-R16`) | `null` |
+ * | `run` | `header.runId` is not the run this driver was constructed for (`ID-R3`) — every stored task id embeds it | `null` |
+ * | `flow` | `header.flowId` or `header.version` is not this driver's definition's — **no migration** (P23 decision 7) | `null` |
+ * | `stopped` | the run was STOPPED — a stored `stopped` element, or one the replay regenerates past the stored events (P23 decision 10) | the `stopped` element's position |
+ * | `diverged` | a stored element the replay does not produce at the same position — a predicate, a definition or an entry payload that is not what the stored run had (P23 decision 9) | the FIRST such position |
+ */
+export type ResumeRefusalReason = 'format' | 'run' | 'flow' | 'stopped' | 'diverged';
+
+/**
+ * **A resume the driver will not make, thrown at the caller** — `RN-R23`, ADR 0065.
+ *
+ * Thrown rather than reported, for `start()`'s reason: the caller is on the stack, and a checkpoint is a
+ * value the CALLER brought (`OR-R12`'s asymmetry). **One class with a `reason`, on `BoundaryRefused`'s
+ * precedent** of one class for two boundaries: a consumer catching a refused resume wants one `catch`,
+ * and branches on `reason` — `diverged` and `stopped` carry the POSITION a store can be inspected at.
+ *
+ * **What it leaves behind is the driver SPENT, and nothing handed to a scheduler.** A refusal before the
+ * replay (`format`, `run`, `flow`, a stored `stopped`) and a `diverged` one leave no run to checkpoint;
+ * a `stopped` the replay itself regenerated leaves the STOPPED run, whose checkpoint a store may take —
+ * its lost tail, `stopped` included, was delivered to `onFoldInput` before the refusal was thrown.
+ */
+export class ResumeRefused extends Error {
+  readonly reason: ResumeRefusalReason;
+  /** The position `stopped` and `diverged` name; `null` for the three a header decides. */
+  readonly index: number | null;
+  constructor(reason: ResumeRefusalReason, index: number | null, message: string) {
+    super(message);
+    this.name = 'ResumeRefused';
+    this.reason = reason;
+    this.index = index;
+  }
+}
+
+/**
+ * **What a resume refuses a checkpoint for BEFORE replaying anything** — `RN-R23`, ADR 0065 rule 2.
+ * `format`, `run` (only when `runId` is given — a runtime resuming names the run BY the header), `flow`,
+ * and a stored `stopped` element, in that order; `null` when the header and the events' kinds say
+ * nothing against it — which is not a promise the replay will agree, and that is `diverged`'s road.
+ *
+ * **Pure, exported, and called from two places**: `Driver.resume`, and `runtime.resume` BEFORE it builds
+ * a driver — because a driver subscribes to its scheduler at construction and nothing can detach it, so
+ * a runtime that built one to find out the header was wrong would have spent the run id (`RN-R25`). One
+ * function, two callers, so the two cannot refuse different checkpoints.
+ */
+export function resumeRefusal(definition: FlowDefinition, checkpoint: unknown, runId?: string): ResumeRefused | null {
+  const cp = checkpoint as { header?: unknown; events?: unknown } | null;
+  const h = (typeof cp === 'object' && cp !== null ? cp.header : undefined) as Partial<CheckpointHeader> | undefined;
+  if (typeof h !== 'object' || h === null || !Array.isArray(cp!.events)) {
+    return new ResumeRefused('format', null,
+      'ResumeRefused (format): this is not a checkpoint — a checkpoint is `{ header, events }` with `events` an array (RN-R14); ' +
+        'resume takes what driver.checkpoint() returned, or a header and the events appended after it, positions 0 … n-1.');
+  }
+  if (h.format !== CHECKPOINT_FORMAT) {
+    return new ResumeRefused('format', null,
+      `ResumeRefused (format): the checkpoint's header.format is ${JSON.stringify(h.format) ?? String(h.format)}, and this version reads ` +
+        `format ${CHECKPOINT_FORMAT} only (RN-R16) — a checkpoint in a format this driver does not know is refused rather than guessed at.`);
+  }
+  // **The header's three identifying fields must be the TYPES format 1 writes** — W89's conformity reader, finding 1: a
+  // header with no `runId` passed this function when no run id was given (the runtime's call), so `runtime.resume` minted an
+  // id, built a driver, spent the id, and only then heard the driver refuse it; a numeric `runId` reached the replay and was
+  // refused as `diverged` at 0. A header that is not format 1's shape is refused as `format`, before anything is built.
+  if (typeof h.runId !== 'string' || typeof h.flowId !== 'string' || typeof h.version !== 'number') {
+    return new ResumeRefused('format', null,
+      `ResumeRefused (format): the checkpoint's header carries runId ${JSON.stringify(h.runId) ?? String(h.runId)}, flowId ` +
+        `${JSON.stringify(h.flowId) ?? String(h.flowId)} and version ${JSON.stringify(h.version) ?? String(h.version)} — format ${CHECKPOINT_FORMAT} ` +
+        'writes two strings and a number (RN-R15), so this is not a header this version wrote.');
+  }
+  if (runId !== undefined && h.runId !== runId) {
+    return new ResumeRefused('run', null,
+      `ResumeRefused (run): the checkpoint is of run ${JSON.stringify(h.runId)}, and this driver serves run "${runId}" (ID-R3) — every ` +
+        'task id the stored run dispatched embeds its run id, so the replay would mint different ids. Construct the driver with the header\'s runId.');
+  }
+  if (h.flowId !== definition.flowId || h.version !== definition.version) {
+    return new ResumeRefused('flow', null,
+      `ResumeRefused (flow): the checkpoint is of flow ${JSON.stringify(h.flowId)} version ${JSON.stringify(h.version)}, and this driver runs ` +
+        `"${definition.flowId}" version ${definition.version}. There is no migration (P23 decision 7): a checkpoint resumes against the ` +
+        'definition that produced it, and a changed flow is a new version.');
+  }
+  const at = (cp!.events as unknown[]).findIndex((e) => (e as { kind?: unknown } | null)?.kind === 'stopped');
+  if (at >= 0) {
+    return new ResumeRefused('stopped', at,
+      `ResumeRefused (stopped): the stored run was STOPPED — its element at position ${at} is \`stopped\` ` +
+        `(${JSON.stringify((cp!.events as { reason?: unknown }[])[at]?.reason)}). A stopped run is not resumable (P23 decision 10): ` +
+        'the refusal that stopped it would stop it again, and the one class whose cause never reached the log — a result OR-R6 refused — cannot be regenerated at all.');
+  }
+  return null;
+}
+
+/**
+ * **Is a regenerated element the stored one?** — the prefix check's comparison for every kind the
+ * replay REGENERATES (`RN-R20`). Those kinds are flat plain data — strings and booleans, one level of
+ * nesting for a region event — so this is structural equality over data, **key order ignored and an
+ * `undefined`-valued key treated as absent**: a consumer's store may reorder keys or drop an undefined
+ * one, and neither is the run diverging. The kinds the replay is FED (settlements, resolutions and
+ * `resumed`) are not compared by this: they are the stored element itself, appended at its own position.
+ */
+function sameData(a: unknown, b: unknown): boolean {
+  if (Object.is(a, b)) return true;
+  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
+  if (Array.isArray(a) !== Array.isArray(b)) return false;
+  const ra = a as Record<string, unknown>, rb = b as Record<string, unknown>;
+  const ka = Object.keys(ra).filter((k) => ra[k] !== undefined);
+  const kb = Object.keys(rb).filter((k) => rb[k] !== undefined);
+  return ka.length === kb.length && ka.every((k) => Object.hasOwn(rb, k) && sameData(ra[k], rb[k]));
+}
+
+/** The three kinds a replay is FED rather than regenerates — `RN-R19`. */
+function isFed(e: FoldInput): boolean {
+  return e.kind === 'outcome' || e.kind === 'resolution' || e.kind === 'resumed';
+}
+
+/** One stored element, in a sentence a refusal can carry. */
+function describeElement(e: unknown): string {
+  if (e === undefined) return 'nothing';
+  let s: string;
+  try { s = JSON.stringify(e, (_k, v) => (typeof v === 'bigint' ? `${v}n` : v)); } catch { s = String((e as { kind?: unknown })?.kind); }
+  return s.length > 160 ? `${s.slice(0, 157)}...` : s;
+}
+
+/** What `createTask` is handed — held, during a replay, until the resume knows what is in flight. */
+type TaskConfig = Parameters<TaskFactory>[0];
+
+/** The replay's own state, present only while `resume()` runs — `RN-R19`. */
+interface Replay {
+  /** The stored events: what every regenerated element at a covered position is compared with. */
+  readonly stored: readonly FoldInput[];
+  /** The stored position of the element being FED right now, so its own append is not compared. */
+  feeding: number;
+  /** Every dispatch the replay made, by task id — HELD, never handed to the scheduler during the replay. */
+  readonly held: Map<string, TaskConfig>;
 }
 
 /**
@@ -431,12 +569,16 @@ function cloneRecord<T extends { result?: unknown }>(r: T): T {
 
 /**
  * One element of the fold's input sequence, copied and frozen on the way out
- * (ADR 0014). Only the two record kinds carry a `result`; the other **five** are
- * flat and primitive, so a shallow freeze of a fresh object is the whole copy.
+ * (ADR 0014). Only the two record kinds carry a `result`; `region` wraps one flat event and
+ * `resumed` one array of strings; the other **five** are flat and primitive, so a shallow freeze
+ * of a fresh object is the whole copy.
  *
  * *(Read "four" until W33 added `regionEntered`. The count is in the sentence that
  * justifies the `{ ...i }` fall-through, so it is load-bearing prose rather than
- * decoration: the fall-through is only sound while every remaining kind is flat.)*
+ * decoration: the fall-through is only sound while every remaining kind is flat. **W89's
+ * `resumed` is the first kind since that is NOT flat**, and it went through the fall-through on
+ * the item's first run — handing a consumer the driver's own `taskIds` array — caught by W88's
+ * every-kind copy case, `RN-R17`, which is exactly what that case was built to do.)*
  */
 function freezeInput(i: FoldInput): FoldInput {
   return Object.freeze(
@@ -444,6 +586,8 @@ function freezeInput(i: FoldInput): FoldInput {
       ? { ...i, record: Object.freeze(cloneRecord(i.record)) }
       : i.kind === 'region'
       ? { ...i, event: Object.freeze({ ...i.event }) }
+      : i.kind === 'resumed'
+      ? { ...i, taskIds: Object.freeze([...i.taskIds]) as string[] }
       : { ...i },
   ) as FoldInput;
 }
@@ -781,7 +925,8 @@ export interface DriverOptions {
    * **`seq` is the element's POSITION in the sequence** — `RN-R18`,
    * [ADR 0064](../../doc/decisions/0064-a-checkpoint-is-the-whole-event-sequence-and-a-header-and-it-is-a-copy.md)
    * rule 5. The index at which the same element appears in `foldInputs()` and in
-   * `checkpoint().events`, counted from 0 and contiguous in delivery order, so a consumer that
+   * `checkpoint().events`, contiguous in delivery order — from 0 on a run entered by `start()`, and from the STORED LENGTH
+   * on one entered by `resume()`, whose earlier elements the consumer already holds (`RN-R24`) — so a consumer that
    * appends what it is handed holds *everything before position N* and nothing else: a stored
    * stream is named by its length. **It is the driver's index and never the listener's own count**
    * — the two agree while one listener sees a run from its first event, and a runtime composing
@@ -962,11 +1107,12 @@ export class Driver {
    * caller must be able to learn it — every task id this run dispatches begins with it.
    */
   readonly runId: string;
-  /** `ID-R3` — `start()` at most once, whatever id the caller had in mind. */
+  /** `ID-R3` — ONE door into ONE run, once: `start()` or `resume()`, whatever id the caller had in mind (v0.11). */
   private started = false;
   /**
-   * **The checkpoint's header, set once by `start()`** — `RN-R15`, ADR 0064 rule 2. `null` until
-   * then, which is what `checkpoint()` refuses on. It holds the driver's OWN copy of the entry
+   * **The checkpoint's header, set once by `start()` or `resume()`** — `RN-R15`, ADR 0064 rule 2 and ADR 0065. `null` until
+   * then, and `null` again on a driver whose resume was refused before it regenerated a run (`RN-R23`) — which is
+   * what `checkpoint()` refuses on, and what makes a spent driver deaf to its scheduler. It holds the driver's OWN copy of the entry
    * payload: taken by `structuredClone` at the call, never handed to a task (the entry node still
    * receives the caller's value, exactly as before this item), and never handed out — `checkpoint()`
    * clones it again on the way out.
@@ -979,6 +1125,14 @@ export class Driver {
    * handed.
    */
   private header: CheckpointHeader | null = null;
+  /**
+   * **The replay, while `resume()` runs, and `null` at every other moment** — `RN-R19`, ADR 0065. It
+   * holds the stored events every regenerated element is compared with and the dispatches the replay
+   * HELD; `resume()` drops it before the first re-dispatch, so a resumed driver retains nothing here
+   * and `RN-R13`'s terms are unmoved. It is also the one thing that makes a callback fire only for the
+   * elements a consumer does not already hold ({@link Driver.delivers}).
+   */
+  private replay: Replay | null = null;
   /** The run has been stopped by a refusal. Nothing dispatches for it again. */
   private failed = false;
 
@@ -1228,6 +1382,197 @@ export class Driver {
     }
   }
 
+  /**
+   * **Resume the run a checkpoint stored, in place of `start()`** — `spec/run-state.md` section 9,
+   * `RN-R19` to `RN-R24`,
+   * [ADR 0065](../../doc/decisions/0065-a-resume-replays-the-stored-stimuli-refuses-what-it-cannot-regenerate-and-re-dispatches-what-was-in-flight.md),
+   * P23 decisions 6, 7, 9 and 10. The driver must be FRESH and constructed for the checkpoint's run
+   * (`runtime.resume` does both); `start()` and `resume()` are one run's two doors and a driver takes
+   * one of them once (`ID-R3`).
+   *
+   * **In order, and each step is a rule:**
+   *   1. **Refuse what the header says** (`RN-R23`) — {@link resumeRefusal}.
+   *   2. **REPLAY** (`RN-R19`): enter the entry node with a copy of `header.entryPayload` exactly as
+   *      `start()` enters it, then FEED every stored settlement, resolution and `resumed` element at its
+   *      own position through the routing the listener and `resolve()` use — every dispatch HELD. Every
+   *      other element the replay REGENERATES.
+   *   3. **The PREFIX check** (`RN-R20`): each regenerated element at a position the stored events cover
+   *      must be the stored one; the first that is not is refused as `diverged`, naming its position, and
+   *      so is a replay that ends short. A replay that runs PAST the stored events is the stored run's
+   *      lost tail — a checkpoint taken inside `onFoldInput` ends mid-step (ADR 0064) — and it is
+   *      DELIVERED, because the consumer does not hold it (`RN-R24`).
+   *   4. **A run the replay STOPS is refused** as `stopped` (P23 decision 10), its tail delivered first.
+   *   5. **Append `resumed`** naming the IN-FLIGHT set — dispatched and never settled, in dispatch order
+   *      (`RN-R21`, `RN-R22`) — and then hand each to the scheduler at the SAME task id.
+   *
+   * **At-least-once, and that is the contract rather than a defect** (P23 decision 6): a task named in
+   * `resumed` may have finished in the process that is gone, and runs again here with a FRESH retry
+   * budget ([Q365](../../doc/open-questions.md) — measured: a budget of two attempts ran three times
+   * across one kill). A task parked at `user_action` has SETTLED and is not in flight: it stays parked,
+   * and `resolve()` works on it.
+   *
+   * @throws MultipleRuns — the driver has already started or resumed a run.
+   * @throws ResumeRefused — see {@link ResumeRefusalReason}; the driver is then spent.
+   */
+  resume(checkpoint: Checkpoint): void {
+    if (this.started) {
+      throw new MultipleRuns(
+        `MultipleRuns: this driver already started or resumed run "${this.runId}", and resume() is the other door into the SAME run. ` +
+          'ID-R3: a Driver serves exactly one run, entered once — construct a fresh Driver for the checkpoint (runtime.resume does).',
+      );
+    }
+    const refused = resumeRefusal(this.def, checkpoint, this.runId);
+    if (refused !== null) {
+      // Spent, like any refused resume: a driver subscribed at construction and cannot be detached, so
+      // it is never offered a second chance at a run a consumer may meanwhile have resumed elsewhere.
+      this.started = true;
+      this.failed = true;
+      throw refused;
+    }
+    const stored = checkpoint.events;
+    // **The header is the checkpoint's, as `RN-R15` defines it one run later**: the same five facts,
+    // and the entry payload a COPY of the stored copy — taken HERE, so an uncloneable value throws
+    // `DataCloneError` with the driver unstarted, as `start()` does, and so the replay below is handed a
+    // copy of its own rather than the header's.
+    const entryPayload = structuredClone(checkpoint.header.entryPayload);
+    this.header = { format: CHECKPOINT_FORMAT, runId: this.runId, flowId: this.def.flowId, version: this.def.version, entryPayload };
+    this.started = true;
+    const replay: Replay = { stored, feeding: -1, held: new Map() };
+    this.replay = replay;
+    try {
+      this.replayStored(stored);
+    } catch (e) {
+      this.replay = null;
+      this.header = null;
+      this.failed = true;
+      throw e;
+    }
+    this.replay = null;
+    // **`stopped` regenerated PAST the stored events** — the lost tail held the run's stop. The
+    // elements were delivered (the consumer's store now holds the stop); the run is not resumed.
+    if (this.failed) {
+      const at = this.inputs.findIndex((e) => e.kind === 'stopped');
+      throw new ResumeRefused('stopped', at,
+        `ResumeRefused (stopped): replaying run "${this.runId}" regenerated its STOP at position ${at} — past the ${stored.length} ` +
+          `stored element(s), in the tail the store had lost: ${describeElement(this.inputs[at])}. A stopped run is not resumable ` +
+          '(P23 decision 10); the tail, `stopped` included, has been delivered to onFoldInput so a store can hold it.');
+    }
+    const inFlight = this.inFlight();
+    // **`resumed` BEFORE the first re-dispatch** (P23 stop-and-ask (a)): a consumer and the fold learn
+    // what is being run again before any of it can settle.
+    this.append({ kind: 'resumed', taskIds: inFlight });
+    try {
+      for (const id of inFlight) {
+        const config = replay.held.get(id);
+        // Every in-flight id was dispatched DURING the replay, and every dispatch during it is held, so
+        // this cannot miss — and if it could, a task would be silently lost, which is the one outcome
+        // at-least-once exists to exclude. Loud instead.
+        if (config === undefined) throw new Error(`resume: in-flight task "${id}" has no held dispatch — this is a defect in the driver`);
+        this.opts.scheduler.addTask((this.opts.createTask ?? defaultCreateTask)(config));
+      }
+    } catch (e) {
+      // `start()`'s treatment: caller-initiated, so reported AND rethrown.
+      this.failRun(e);
+      throw e;
+    }
+  }
+
+  /**
+   * **The replay** — `RN-R19` and `RN-R20`. Every fed element goes through {@link Driver.feed}, which
+   * turns a refusal routing raises into a `stopped` element exactly as the listener's boundary does
+   * (`OR-R10`), so the replay regenerates a stop where the stored run had one.
+   */
+  private replayStored(stored: readonly FoldInput[]): void {
+    const replay = this.replay!;
+    this.feed(() => this.enter(this.runId, this.def.entry, structuredClone(this.header!.entryPayload)));
+    for (let i = 0; i < stored.length; i += 1) {
+      const e = stored[i]!;
+      if (!isFed(e)) continue;
+      // The replay must have regenerated everything before this position. Short of it, the stored
+      // element at the replay's length is one the replay did not produce.
+      if (this.inputs.length !== i) throw this.diverged(this.inputs.length, 'the replay produced nothing there');
+      replay.feeding = i;
+      this.feed(() => this.feedOne(e, i));
+    }
+    if (this.inputs.length < stored.length) throw this.diverged(this.inputs.length, 'the replay ended before it');
+  }
+
+  /** One fed element — a settlement, a resolution, or an earlier resume — at stored position `i`. */
+  private feedOne(e: FoldInput, i: number): void {
+    if (e.kind === 'resumed') {
+      // **An earlier resume, fed and CHECKED** (`RN-R22`): the ids it names must be exactly what is in
+      // flight in the replay at this point, or the stored run is not the one this replay regenerates.
+      const now = this.inFlight();
+      if (!Array.isArray(e.taskIds) || e.taskIds.length !== now.length || e.taskIds.some((t, k) => t !== now[k])) {
+        throw this.diverged(i, `in flight in the replay here: ${JSON.stringify(now)}`);
+      }
+      this.append({ kind: 'resumed', taskIds: [...e.taskIds] });
+      return;
+    }
+    if (e.kind !== 'outcome' && e.kind !== 'resolution') return;
+    const record = e.record;
+    let parts: TaskIdParts;
+    try {
+      parts = parseTaskId(record?.taskId);
+    } catch {
+      throw this.diverged(i, 'its task id does not parse, so no driver minted it');
+    }
+    const { runId, nodeId, branchPath } = parts;
+    if (e.kind === 'outcome') {
+      // `ID-R4`'s two tiers, asked of the REPLAY: the stored run appended only settlements for tasks it
+      // had dispatched, so one the replay did not dispatch is a run the replay is not regenerating.
+      if (runId !== this.runId || !this.dispatched.has(record.taskId)) {
+        throw this.diverged(i, 'the replay never dispatched that task');
+      }
+      this.settle(cloneRecord(record as OutcomeRecord), runId, nodeId, branchPath);
+      return;
+    }
+    // `RS-R1`, asked of the REPLAY: the stored run accepted this resolution, so its task was parked.
+    if (!isSuspended(this.log, record.taskId)) throw this.diverged(i, 'that task is not parked in the replay');
+    this.appendResolution(cloneRecord(record as ResolutionRecord), nodeId, branchPath);
+    this.advance(runId, nodeId, branchPath);
+  }
+
+  /** The listener's boundary, for the replay: a refusal routing raises stops the run (`OR-R10`); a refused resume passes through. */
+  private feed(step: () => void): void {
+    try {
+      step();
+    } catch (e) {
+      if (e instanceof ResumeRefused) throw e;
+      this.failRun(e);
+    }
+  }
+
+  /** `RN-R20`'s refusal, naming the position and both elements there. */
+  private diverged(at: number, why: string): ResumeRefused {
+    const stored = this.replay?.stored ?? [];
+    return new ResumeRefused('diverged', at,
+      `ResumeRefused (diverged): replaying run "${this.runId}" does not reproduce the stored element at position ${at} — ` +
+        `stored ${describeElement(stored[at])}, replayed ${describeElement(this.inputs[at])} (${why}). P23 decision 9: a stored run the ` +
+        'replay cannot regenerate — a predicate, a definition or an entry payload that is not what produced it — is refused rather than ' +
+        'resumed on a different road. Nothing was handed to the scheduler.');
+  }
+
+  /**
+   * **What is IN FLIGHT: dispatched, and no settlement in the log** — `RN-R21`, in dispatch order. A
+   * `user_action` settlement IS a settlement: a parked task is waiting on a person, not on a worker, and
+   * handing it to a worker again would run what a person was asked to decide.
+   */
+  private inFlight(): string[] {
+    const settled = new Set<string>();
+    for (const r of this.log) if (r.kind === 'outcome') settled.add(r.taskId);
+    return [...this.dispatched].filter((id) => !settled.has(id));
+  }
+
+  /**
+   * **Whether a callback fires for the element at `seq`** — `RN-R24`. Always, except during a replay,
+   * where it fires for exactly the positions PAST the stored events: the consumer holds everything
+   * before them, and the lost tail is what it does not.
+   */
+  private delivers(seq: number): boolean {
+    return this.replay === null || seq >= this.replay.stored.length;
+  }
+
   // --- inbound: the one thing outside this process that can change a run -------
 
   /**
@@ -1272,24 +1617,15 @@ export class Driver {
         }
       }
     }
-    this.append({
+    this.appendResolution({
       kind: 'resolution',
-      record: {
-        kind: 'resolution',
-        taskId,
-        resolvedAs,
-        result: resolvedAs === 'done' ? structuredClone(value.result ?? null) : null,
-        error: resolvedAs === 'failed' ? (value.error ?? 'resolved as failed') : null,
-        actor: value.actor,
-        observedAt: this.now(),
-      },
-    });
-    const region = this.regionOf(nodeId);
-    if (region) {
-      this.emit({ type: 'branch.resumed', regionId: region.fanoutId,
-        regionPath: this.rpathOf(region, this.indicesFrom(nodeId, branchPath)),
-        branchPath, at: nodeId, resolvedAs });
-    }
+      taskId,
+      resolvedAs,
+      result: resolvedAs === 'done' ? structuredClone(value.result ?? null) : null,
+      error: resolvedAs === 'failed' ? (value.error ?? 'resolved as failed') : null,
+      actor: value.actor,
+      observedAt: this.now(),
+    }, nodeId, branchPath);
     // RS-R2: a resolution supplies an outcome for the dispatch that already
     // happened. It never re-dispatches — that is flow-level retry, Q16/Q28.
     //
@@ -1323,9 +1659,30 @@ export class Driver {
     return true;
   }
 
+  /**
+   * **A resolution appended, and the region told** — the half of `resolve()` the REPLAY shares
+   * (`RN-R19`): a stored resolution is appended as it was stored and routes exactly as the live one
+   * did, so a resumed run's `branch.resumed` and everything after it are regenerated rather than
+   * written by a second road.
+   */
+  private appendResolution(record: ResolutionRecord, nodeId: string, branchPath: string): void {
+    this.append({ kind: 'resolution', record });
+    const region = this.regionOf(nodeId);
+    if (region) {
+      this.emit({ type: 'branch.resumed', regionId: region.fanoutId,
+        regionPath: this.rpathOf(region, this.indicesFrom(nodeId, branchPath)),
+        branchPath, at: nodeId, resolvedAs: record.resolvedAs });
+    }
+  }
+
   // --- the scheduler's side ----------------------------------------------------
 
   private onEvent(name: string, detail: TaskDetailLike): void {
+    // **A SPENT driver hears nothing** — `RN-R23`, and both of W89's readers from opposite ends: a driver whose resume was
+    // refused holds no run (`header` reset, `started` set) and yet stayed subscribed, so a settlement under its run id was
+    // appended to its partial replay and delivered to its `onFoldInput`, another reached `onRunFailure` as `UndispatchedTask`,
+    // and with `failed` unset it would even have ROUTED (the adequacy reader's a22). It has no run to refuse anything for.
+    if (this.started && this.header === null) return;
     // The listener boundary is also the FAILURE boundary: a throw from here is
     // discarded by dispatchEvent, so it is caught, reported, and the run stops.
     //
@@ -1366,8 +1723,9 @@ export class Driver {
     const already = this.failed;
     this.failed = true;
     const err = cause instanceof Error ? cause : new Error(String(cause));
+    let seq: number | null = null;
     if (!already) {
-      this.append({ kind: 'stopped', reason: `${err.constructor?.name ?? 'Error'}: ${err.message}` });
+      seq = this.append({ kind: 'stopped', reason: `${err.constructor?.name ?? 'Error'}: ${err.message}` });
       // **The RUN-LEVEL moment — the THIRD of the three
       // [ADR 0046](../../doc/decisions/0046-a-run-retains-what-its-tasks-returned-and-a-region-releases-its-collection-when-its-join-becomes-terminal.md)
       // rule 3 names**, and it is not per-region: `OR-R10` says the driver has
@@ -1384,6 +1742,9 @@ export class Driver {
       // drops only the structure no `FoldInput` carries.
       this.arrivals.clear();
     }
+    // `RN-R24`: during a replay a failure is reported only with the `stopped` element it appended
+    // PAST the stored events — below them the append has already refused the resume as `diverged`.
+    if (this.replay !== null && (seq === null || !this.delivers(seq))) return;
     this.opts.onRunFailure?.({
       runId: this.runId,
       kind: err.constructor?.name ?? 'Error',
@@ -1490,8 +1851,18 @@ export class Driver {
 
     const record = normalizeEvent(name, detail, this.now());
     if (!record) return; // OR-R3/OR-R4: this event writes nothing
+    this.settle(record, runId, nodeId, branchPath);
+  }
 
-    this.append({ kind: 'outcome', record });
+  /**
+   * **A settlement appended, reported and routed** — everything the listener does once `ID-R4` has
+   * decided the settlement is this run's and `OR-R2` has normalised it. **The REPLAY shares it**
+   * (`RN-R19`): a stored settlement is fed here as it was stored, so a resumed run is regenerated by the
+   * routing that produced it rather than by a second road beside it — P23 prediction 1, *resume needs
+   * no change to routing*, held as a structure rather than as a hope.
+   */
+  private settle(record: OutcomeRecord, runId: string, nodeId: string, branchPath: string): void {
+    const seq = this.append({ kind: 'outcome', record });
     // **`OR-R13` — the result the log now carries, held to its worker's `outputSchema` and
     // REPORTED** (ADR 0060, W80, P21 decision 3). Off unless the consumer supplied the callback:
     // a run that registers nothing pays one `!== undefined` per settlement and nothing else.
@@ -1510,7 +1881,8 @@ export class Driver {
     // consumer who supplies nothing pays no `findings` walk, is a COST and W81 owns the rung that
     // can see it.
     const report = this.opts.onNonconformingResult;
-    if (report !== undefined) this.reportResultSchema(record, nodeId, report);
+    // `RN-R24`: a REPLAYED settlement was reported, if at all, in the process that stored it.
+    if (report !== undefined && this.delivers(seq)) this.reportResultSchema(record, nodeId, report);
     if (this.failed) return;
     if (record.terminalState === 'user_action') {
       // Not a loss. The branch is still live and the join keeps waiting; a run
@@ -2474,16 +2846,22 @@ export class Driver {
     // `settings` is the type's defaults merged under the node's (decision 12, `effectiveSettings`).
     const type = this.nodeTypes.get(node.type)!;
     const retryPolicy = node.retryPolicy ?? type.retryPolicy ?? this.opts.defaultRetryPolicy;
-    this.opts.scheduler.addTask(
-      (this.opts.createTask ?? defaultCreateTask)({
-        id: taskId,
-        workerType: node.pool ?? node.type,
-        payload: { settings: cloneValue(effectiveSettings(node, type)), input: payload, ...(node.transform !== undefined ? { transform: cloneValue(node.transform) } : {}) },
-        optional: node.optional === true,
-        ...(retryPolicy !== undefined ? { retryPolicy } : {}),
-        ...(node.workerGroups !== undefined ? { workerGroups: node.workerGroups } : {}),
-      }),
-    );
+    const config: TaskConfig = {
+      id: taskId,
+      workerType: node.pool ?? node.type,
+      payload: { settings: cloneValue(effectiveSettings(node, type)), input: payload, ...(node.transform !== undefined ? { transform: cloneValue(node.transform) } : {}) },
+      optional: node.optional === true,
+      ...(retryPolicy !== undefined ? { retryPolicy } : {}),
+      ...(node.workerGroups !== undefined ? { workerGroups: node.workerGroups } : {}),
+    };
+    // **HELD during a replay** (`RN-R19`): the stored run dispatched this already, and whether it runs
+    // again is decided once the replay knows what is in flight (`RN-R21`). `createTask` is called at
+    // release, so a factory sees exactly the tasks handed to a scheduler.
+    if (this.replay !== null) {
+      this.replay.held.set(taskId, config);
+      return;
+    }
+    this.opts.scheduler.addTask((this.opts.createTask ?? defaultCreateTask)(config));
   }
 
   /**
@@ -2714,13 +3092,23 @@ export class Driver {
    * copy, frozen, for the same reason `snapshot()` is: a listener holding the
    * driver's own array could forge a settlement and bypass `RS-R1`.
    */
-  private append(input: FoldInput): void {
+  private append(input: FoldInput): number {
     // **`RN-R18` — the position is the index `push` gave this element, read from `push` itself**
     // rather than from a length read before or after, so a re-entrant `onFoldInput` that appends
     // again (the `failRun` door on the stack, `OR-R10`) cannot shift the number already chosen.
     const seq = this.inputs.push(input) - 1;
     if (input.kind === 'outcome' || input.kind === 'resolution') this.log.push(input.record);
-    if (this.opts.onFoldInput) this.opts.onFoldInput(freezeInput(input), seq);
+    // **`RN-R20` — the PREFIX check, at the one place every element passes.** During a replay, an
+    // element at a position the stored events cover is the stored one or the resume is refused there:
+    // a FED element must be appended at the very position it was fed from, and a REGENERATED one must
+    // be the stored element as data. Past the stored events nothing is compared — that is the lost tail.
+    const replay = this.replay;
+    if (replay !== null && seq < replay.stored.length) {
+      const same = isFed(input) ? replay.feeding === seq && input.kind === replay.stored[seq]?.kind : sameData(input, replay.stored[seq]);
+      if (!same) throw this.diverged(seq, 'a different element there');
+    }
+    if (this.opts.onFoldInput && this.delivers(seq)) this.opts.onFoldInput(freezeInput(input), seq);
+    return seq;
   }
 
   private emit(e: RegionEvent): void {
@@ -2754,8 +3142,8 @@ export class Driver {
     // The policy is stepped first and the sequence records second, so that a
     // `onFoldInput` listener asking `joinStatusOf` sees the status this event
     // produced rather than the one before it.
-    this.append({ kind: 'region', event });
-    this.opts.onRegionEvent?.(event);
+    const seq = this.append({ kind: 'region', event });
+    if (this.delivers(seq)) this.opts.onRegionEvent?.(event);
   }
 
   /**
@@ -2820,9 +3208,9 @@ export class Driver {
       // ADR 0015 — the join is settled and it did NOT fire. Nothing downstream of
       // it will ever be dispatched, which is what makes the run `stuck` rather
       // than `completed`.
-      this.append({ kind: 'joinSettled', regionId: region.fanoutId, regionPath: rp,
+      const settledAt = this.append({ kind: 'joinSettled', regionId: region.fanoutId, regionPath: rp,
         joinId: region.joinId, fired: false });
-      this.opts.onUnsatisfiableJoin?.({
+      if (this.delivers(settledAt)) this.opts.onUnsatisfiableJoin?.({
         fanoutId: region.fanoutId,
         // **The INSTANCE, not just the opener** - W84. Under nesting one
         // `fanoutId` names N joins and a report carrying only the id cannot say
@@ -3061,9 +3449,9 @@ export class Driver {
     const h = this.header;
     if (h === null) {
       throw new NotStarted(
-        `NotStarted: driver for run "${this.runId}" has not started, so there is no run to checkpoint. ` +
+        `NotStarted: driver for run "${this.runId}" holds no run to checkpoint — it has not started, or its resume was refused. ` +
           'RN-R14: a checkpoint is a header and the whole event sequence, and the header\'s entry payload is the value ' +
-          'start() was called with — call start() first.',
+          'start() was called with (or a resumed checkpoint carried) — call start() first; a driver whose resume was refused is spent (RN-R23).',
       );
     }
     return Object.freeze({

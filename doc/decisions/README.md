@@ -74,6 +74,7 @@ Use [TEMPLATE.md](TEMPLATE.md).
 | [0060](0060-a-run-time-result-check-is-a-reading-and-never-a-refusal.md) | A run-time result check is a READING and never a refusal, and the callback that receives it IS the switch | P21 / W80 | 2026-09-22 |
 | [0062](0062-a-region-instance-is-its-opener-and-the-openers-own-branch-path.md) | A region INSTANCE is its opener and the opener's own branch path | Q160, Q156 / W84 | 2026-09-23 |
 | [0064](0064-a-checkpoint-is-the-whole-event-sequence-and-a-header-and-it-is-a-copy.md) | A checkpoint is the run's whole event sequence and a header of what it cannot regenerate, handed out as a COPY, and every event has a position | P23 / W88 | 2026-09-24 |
+| [0065](0065-a-resume-replays-the-stored-stimuli-refuses-what-it-cannot-regenerate-and-re-dispatches-what-was-in-flight.md) | A resume replays the stored stimuli through the routing that produced them, refuses what it cannot regenerate, and re-dispatches what was in flight | P23, Q15, Q364 / W89 | 2026-09-24 |
 
 **0062 was missing when W88 added 0064, the FOURTH time this table has stopped** — W84 took the ADR and no item after it added the row. Derived from 0062's own header, as the notes below prescribe. **0061 and 0063 are absent on purpose**: each was reserved by its plan and skipped. [W88](../work-items/w88-what-a-checkpoint-is.md).
 

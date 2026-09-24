@@ -259,6 +259,11 @@ const DRIVER_FIELDS = [
   // proportional to the payload, which `RN-R13` names as a third term since v0.9. The ratchet fired
   // by name on W88's first run, the only L1-L5 failure it cost.
   'header',
+  // W89 — `replay`: the replay's stored events and HELD dispatches, present only while `resume()`
+  // runs and `null` at every other moment (`RN-R19`, ADR 0065), so it retains nothing once a run is
+  // resumed and `RN-R13`'s terms do not move. WALKED, because while it exists it holds the stored
+  // events — the consumer's, handed in. The ratchet fired by name on W89's first L1 run.
+  'replay',
 ].sort();
 // `nodeTypes` since W59 — the ratchet firing as designed: the field was added and this list went
 // red naming it. It holds the registry's node types (consumer functions, no result) and joins
