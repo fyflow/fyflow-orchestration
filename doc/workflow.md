@@ -1,6 +1,6 @@
 # Workflow
 
-**Status:** v0.23 - **run to completion TWENTY-TWO times**, by [P1](plans/p1-what-satisfies-a-join.md),
+**Status:** v0.24 - **run to completion TWENTY-THREE times**, by [P1](plans/p1-what-satisfies-a-join.md),
 [P2](plans/p2-the-non-success-half-on-a-real-scheduler.md),
 [P3](plans/p3-a-consumer-reference-the-gate-keeps-true.md),
 [P4](plans/p4-the-drivers-lifetime-and-the-handles-it-gives-out.md),
@@ -21,7 +21,8 @@
 [P19](plans/p19-what-a-schema-buys-an-author.md) and
 [P20](plans/p20-what-the-runtime-owes-a-consumer.md) and
 [P21](plans/p21-what-a-run-time-schema-check-buys-and-what-it-costs.md) and
-[P22](plans/p22-what-a-regions-identity-is.md)
+[P22](plans/p22-what-a-regions-identity-is.md) and
+[P23](plans/p23-what-a-run-needs-to-outlive-its-process.md)
 **Read this before starting any work item.** *(The status line read "seven times" and listed P1-P7
 until P9's retro: **P8 ran this document to completion and adopted none of its proposals**, which is
 section 6 pass 3 rule 1's expected verdict and is not the same as not having run it.)* Paths are relative to the repo root unless they are
@@ -104,6 +105,70 @@ prediction about rule 8 is answered and is **false**.
    ([ADR 0029](decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)).
    The dependency edge that made the junction seem necessary is gone; **the rule still said nothing
    about the removal**, which is the part that did the damage.
+
+**v0.24 is [P23](plans/p23-what-a-run-needs-to-outlive-its-process.md)'s retro, and its central
+finding is that of the twenty-four defects a rung FIRED on across that plan's three items, twenty-two
+were read correctly and BOTH misreadings were a rule 8 GRADER's — the second one a grader carrying
+the reason check the first asked for.** P23 asked *what does a run need to outlive its process?* —
+answered by [ADR 0064](decisions/0064-a-checkpoint-is-the-whole-event-sequence-and-a-header-and-it-is-a-copy.md)
+(a checkpoint is the whole event sequence and a header, handed out as a copy),
+[ADR 0065](decisions/0065-a-resume-replays-the-stored-stimuli-refuses-what-it-cannot-regenerate-and-re-dispatches-what-was-in-flight.md)
+(a resume replays the stored stimuli with every dispatch held, refuses what it cannot regenerate and
+re-dispatches what was in flight) and an exit artifact that kills a run at every kill point of two
+flows on real workers and resumes it on a fresh runtime. It adopts **one** change and refuses **six**,
+all in [P23's own Retro](plans/p23-what-a-run-needs-to-outlive-its-process.md#retro).
+
+1. **Rule 8's requirement on the HARNESS gains: its GRADER is controlled too — the set carries a probe
+   whose right verdict is CRASH and one whose right verdict is WRONG-REASON, each graded against that
+   expectation on every pass, and a reason is matched on the failure line its clause writes, never in
+   a window that can reach another failure's text.**
+
+   | item | the grader | what it graded | what had happened |
+   |---|---|---|---|
+   | [W82](work-items/w82-a-result-its-own-schema-refuses-on-real-workers.md) (P21) | `exit 1` with named failures is a catch | `b6b` CAUGHT | the snippet threw a `TypeError` and `X4` reported it as its own named failure |
+   | [W88](work-items/w88-what-a-checkpoint-is.md) | `FAIL` lines counted, never matched to the probe | `d1` CAUGHT | `typecheck:tests` was already red for an unrelated defect |
+   | [W89](work-items/w89-what-resuming-is.md) | the fix W88 asked for: the declared text within FOUR lines of a failure | `e2` WRONG-REASON, correctly | — the mechanism working, on L1's output |
+   | [W90](work-items/w90-a-run-killed-and-resumed-on-real-workers.md) | W89's grader, over L6's output | `a5`, `c1`, `c5` CAUGHT | block (2g) had THROWN; its `try` named the throw, and the cross-row membership printed every subject's name two lines under its `FAIL` line |
+
+   **Measured at the retro**: block (2g) with a `throw` as its first statement exits 1 with FOUR named
+   failures, so the crash discriminator — non-zero with zero `FAIL` lines — cannot see it at all.
+   Re-graded against that log, **W89's four-line window would call 28 of W90's 35 catches CAUGHT on a
+   block that never ran; W90's two-line fix still calls 4; and a one-line window finds only 7 of the 35
+   probes' own reasons.** *No width reads right from the output alone.*
+
+   **Why no existing requirement reaches it.** v0.11's control, the restore, the anchors, the digest and
+   the environment clause each control the RUNGS or the TREE; **none controls the component that turns
+   a rung's output into the verdict a Record prints.** And wherever a subject reports its own throw as a
+   failure — every block outside L6's row loop since W59 — the crash discriminator is defeated by
+   construction, so the reason check is the only thing between a crash and a catch, and it had no case
+   whose right answer is NO. *v0.13's LIMIT on a detector — one observer and no case that makes it fire —
+   applied to the harness's own detector.*
+
+   **What it replaces**: nothing is deleted. v0.10's *fires for the reason it names* is a requirement on
+   the SET; this makes its implementation provocable, as v0.11 made the rungs provocable. **Three
+   occurrences over two plans, and the third is section 6 pass 3 rule 3's sharpest kind**: asked for by
+   W88, built by W89, FOLLOWED by W90 — and wrong.
+
+**REFUSED, six, each with a measurement.** **(1) A fifth amendment to obligation (a)** naming three
+more selections — W88's *which run a position counter belongs to*, W89's *the index a refusal
+reports*, W90's *the ORDER a sorted comparison discards* — v0.23's clause followed in all three and
+short once in each, every miss found by a reader and none shipped, and each item closing the previous
+one's miss: the regress (a) and (d) have both shown, which an amendment naming examples extends.
+**(2) A rule that an exit artifact names the INSTRUMENT that performs its event** — P22's FIFO pool
+([Q358](open-questions.md)) and P23's draining `shutdown()` ([Q376](open-questions.md)), both caught
+before anything shipped by P15 decision 5's re-take. **(3) A fix applied at one of the sites that share
+a defect** — W90's `r6` guard on one resume of four and W86's crash repair one block short; v0.8's
+re-run caught the first and a reader the second. **(4) A block outside L6's row loop that throws** —
+W67, W86, W90; each block is in a `try` now, and what W90 measured (one throw costing thirteen named
+clauses) is per-subject structure inside one file, the next item's to build. **(5) A `doc/` check for
+the TWENTY-SECOND time — on the ENGLISH class only.** P23 found two machine-comparable classes the
+refusal does not cover and says so: `doc/decisions/README.md` against its directory (29 of the 46
+commits that touched `doc/decisions/` shipped the index short, in five episodes) and
+[Q171](open-questions.md)'s L6 count copies (`README.md`'s current cell stale for six commits, named for
+the next plan by P20's retro and built by none) — both a set or a number a check derives from another
+file, which is the criterion this refusal has stated since P18; handed to the next plan's declaration.
+**(6) An `Owns` pre-declaration rule for the ELEVENTH plan** — P23 seeded its table at the declaration,
+five of eight rows fired and zero exceptions went undeclared.
 
 **v0.23 is [P22](plans/p22-what-a-regions-identity-is.md)'s retro, and its central finding is that
 all three of that plan's items FOLLOWED rule 8 obligation (a) — the shapes, the enumeration and the
@@ -1944,7 +2009,7 @@ Rules:
    | | a provocation is evidence only when it **fires**, and only when it fires **for the reason it names** | v0.10, P9's retro |
    | | whatever makes a **discriminating PAIR differ** is itself a claim, and the set breaks it | **v0.13, P12's retro** |
    | | **and on the HARNESS that applies the break:** | |
-   | | it carries a **control** — a probe that changes nothing comes back clean — and the **restore is asserted**, bytes compared back rather than assumed; **and every declared survivor is RUN, against the rung its own reason names**; **and every EDIT's anchor is checked against the CURRENT text, an abort undoes what it applied, and the tree is held still by a content DIGEST**; **and a set-equal-literal ceiling is DATED — the item that moves the value re-runs it**; **and it asserts the ENVIRONMENT its rungs need** | v0.11, P10's retro; **the ceiling clause v0.14, P13's retro; the per-edit and dated-ceiling clauses v0.17, P16's retro; the environment clause v0.19, P18's retro** |
+   | | it carries a **control** — a probe that changes nothing comes back clean — and the **restore is asserted**, bytes compared back rather than assumed; **and every declared survivor is RUN, against the rung its own reason names**; **and every EDIT's anchor is checked against the CURRENT text, an abort undoes what it applied, and the tree is held still by a content DIGEST**; **and a set-equal-literal ceiling is DATED — the item that moves the value re-runs it**; **and it asserts the ENVIRONMENT its rungs need**; **and its GRADER is controlled — a probe whose right verdict is CRASH and one whose right verdict is WRONG-REASON, each graded on every pass, the reason matched on its clause's own failure line** | v0.11, P10's retro; **the ceiling clause v0.14, P13's retro; the per-edit and dated-ceiling clauses v0.17, P16's retro; the environment clause v0.19, P18's retro; the grader clause v0.24, P23's retro** |
 
    The three founding cases:
    - W4 - the join's `null` payload could become `{}` and survive 251 assertions.
@@ -2580,6 +2645,25 @@ Rules:
    two holds**, every one found by the retro in one command. **All twenty-four of P19's ceilings re-run
    at its retro, ZERO catches** — against P18's 1 in 14, P16's 2 in 23 and P13's 2 in 11.)*
 
+   **AND THE HARNESS'S GRADER IS CONTROLLED — P23's retro, and every requirement above controls the
+   RUNGS or the TREE and none the component that WRITES THE VERDICT.** A grader turns a rung's output
+   into CAUGHT, SURVIVED, CRASH or WRONG-REASON, and until v0.24 nothing asked it to show it can say
+   anything but CAUGHT. [W88](work-items/w88-what-a-checkpoint-is.md)'s counted `FAIL` lines, so `d1`
+   was graded caught by a lane already red for another reason; [W89](work-items/w89-what-resuming-is.md)
+   built the reason check W88 asked for — the probe's declared text within four lines of a failure — and
+   [W90](work-items/w90-a-run-killed-and-resumed-on-real-workers.md) inherited it and graded three
+   CRASHES as catches, because L6's block turns its own throw into a named failure and the cross-row
+   membership then prints every subject's name two lines under its `FAIL` line. **Measured at P23's
+   retro on the crash itself** — a `throw` as block (2g)'s first statement exits 1 with four named
+   failures, invisible to the crash discriminator — **the four-line window grades 28 of W90's 35 catches
+   CAUGHT on it, W90's two-line fix still grades 4, and a one-line window finds only 7 of the 35 probes'
+   own reasons.** So the width is not something to read off the output: **the set carries a probe whose
+   right verdict is CRASH — the subject made to throw — and one whose right verdict is WRONG-REASON — a
+   failure in a clause the probe does not name — and the harness grades both against those
+   expectations on every pass**, beside the control it already runs. P21's W82 `b6b` is the same class
+   one check out: `X4` laundered a snippet's `TypeError` into its own named failure. *A detector with no
+   case whose answer is NO* is v0.13's LIMIT, and a harness's grader is a detector.
+
 ## 6. Verify: the three passes
 
 **Pass 1 - the ladder.** Section 4. Report which levels ran and which did not, per work item.
@@ -2646,14 +2730,20 @@ and there is obvious work to do meanwhile — and **the thing that makes it a de
 habit is that the verdict is reported as though it were about the tree that ships.**)*
 
 **Why two readers rather than one asking both questions**, which is what earlier versions said.
-Measured **fifty-three** times now: W4 1 of 13, W5 3 of ~35, W6 3 of ~25, W9 3 of ~30, W12 3 of 18,
+Measured **fifty-six** times now: W4 1 of 13, W5 3 of ~35, W6 3 of ~25, W9 3 of ~30, W12 3 of 18,
 W13 4 of 24, W14 4 of ~26, W17 3 of ~31, W18 2, W19 4 of 18, W28 4, W29 1, W30 2, W31 0, W32 2,
 W33 2, W34 2, W36 1, W39 4, W41 1 of 116, W42 2 of 61, W43 2 of 39, W45 2, W46 2, W47 2,
 W49 2, W50 2, W51 1, W53 2, W54 4, W55 2, W57 0, W58 1, W59 1, W61 1, W62 1, W63 1,
 W65 2, W66 2, W67 1, *W69 1, W70 0, W71 2*, W72 1, W73 1, W74 1, **W76 2, W77 2, W78 2**,
-**W80 2, W81 3, W82 1, W86 2**.
+**W80 2, W81 3, W82 1, W86 2**, **W88 2, W89 2, W90 1**.
 
-*(**The last four were appended at P22's retro, and three of them are P21's** — that plan's retro
+*(**The last three were appended at P23's retro — and the retro's own prompt named TWO of them**, W89's
+and W90's, because W90's Record said *W89's fifty-fifth is not yet in the list* and did not say that
+W88's fifty-fourth was not either. Counted against the list rather than against the sentence, the list
+was short by three, which is the defect recorded two paragraphs down a third time: an ordinal copied
+from a Record is a copy, and the list is the only source.)*
+
+*(**The four before them were appended at P22's retro, and three of them are P21's** — that plan's retro
 wrote *the fiftieth to fifty-second measurements* into its own file and did not append them here,
 which is the list's own recorded defect a second time, now from inside a retro rather than from an
 item outside a plan. **W84 and W85 took no overlap measurement**, as W35, W37 and W38 did not; the
@@ -2686,11 +2776,15 @@ yet** - the same three facts reached by six different routes, and in each case t
 routes had nothing in common.
 
 **The number to carry is the ABSOLUTE one: two readers produce 0-4 shared findings, whatever the
-item's size** - **fifty-three** measurements, and P6's retro declares the question **settled and closed
-to re-litigation**. **The thirty-two since — 2, 2, 2, 1, 4, 1, 2, 2, 2, 2, 2, 2, 2, 1, 2, 4, 2, 0, 1, 1, 1, 1, 1, 2, 2, 1, 1, 0, 2, 1, 1 and 1 —
-are all inside the band and the band has not moved.** **P13's three are 2, 2, 2, P14's are 2, 2, 1,
+item's size** - **fifty-six** measurements, and P6's retro declares the question **settled and closed
+to re-litigation**. **The forty-two since — 2, 2, 2, 1, 4, 1, 2, 2, 2, 2, 2, 2, 2, 1, 2, 4, 2, 0, 1, 1, 1, 1, 1, 2, 2, 1, 1, 0, 2, 1, 1, 1, 2, 2, 2, 2, 3, 1, 2, 2, 2 and 1 —
+are all inside the band and the band has not moved.** *(**This sequence read *thirty-two* and stopped at
+W74 through THREE retros** — P20's, P21's and P22's each moved the total beside it and not the values
+under it, so the count said fifty-three over a list of forty-six. Counted back from W31's zero at P23's
+retro: W32 to W74 are the thirty-two it had, and W76, W77, W78, W80, W81, W82, W86, W88, W89 and W90 are the
+ten it lacked.)* **P13's three are 2, 2, 2, P14's are 2, 2, 1,
 P15's are 2, 4, 2, P16's are 0, 1, 1, P17's are 1, 1, 1, P18's are 2, 2, 1, P19's are 1, 1, 1,
-P20's are 2, 2, 2, P21's are 2, 3, 1 and P22's one is 2**, and the SPLIT held in
+P20's are 2, 2, 2, P21's are 2, 3, 1, P22's one is 2 and P23's are 2, 2, 1**, and the SPLIT held in
 all three of P17's: the conformity reader found claims that were false — twelve of its twenty-four
 blocking findings across that plan were numbers — and the adequacy reader found bounds that were not
 there. **P18's sixty-one blocking findings split 29 conformity / 32 adequacy the same way**, and its

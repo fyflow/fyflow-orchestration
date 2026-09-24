@@ -169,7 +169,7 @@ runtimes**, which is the declared result.
 | 10 | **the adequacy reader's F8 was wrong**: handing out the driver's own `region` elements is NOT equivalent — the `event` is frozen, the element wrapping it is not | the every-kind copy case written for F1 — rule 8's pass 2, `r7` AGAINST DECLARATION |
 | 11 | **`RN-R13` said a run's footprint IS two terms** while the driver now retains a third | the conformity reader — and it is P23 prediction 4 REVERSING (below) |
 | 12 | stale copies: `{ driver, done }` in `AGENTS.md` §2 and §12 and `README.md`; *1 to 5* stated generally; *every typecheck lane*; ADR 0064 **rule 4** cited for the position in three places (it is rule 5); `RN-R15`'s own cell repeating the withdrawn *beside `RN-R13`* | the conformity reader, and section 1 rule 5's third direction (a grep) for `RN-R15`'s copy |
-| 13 | `doc/decisions/README.md` had stopped at 0060 — **0062 missing, the FOURTH time** | none; adding this item's row |
+| 13 | `doc/decisions/README.md` had stopped at 0060 — **0062 missing, the FOURTH time** *(**The FIFTH, counted by history at P23's retro** — the index against its directory at every commit that touched `doc/decisions/`: 29 of 46 shipped it short, in five episodes, 0022-0029, 0030-0036, 0039-0046, 0049-0058 and 0062.)* | none; adding this item's row |
 | 14 | the EXCEPTIONS table was not in this file at the declaration step, as P23 seeded | none |
 | 15 | two edits written through heredocs containing backticks or backslashes, against this item's own discipline | none; both outputs verified byte-for-byte (no CR, backticks balanced, the grep) |
 

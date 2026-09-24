@@ -168,7 +168,9 @@ and deno 2.9.6, from 1833 / 60 — exactly the +20 assertions and +40 runs the d
 | `check:spec` | **7 / 61 / 120** — unmoved |
 | `check:markdown` | **153 documents, 6980 links, 374 anchored** before the record step, from 152 / 6955 / 374 — see the gate row for the tree that ships |
 | `npm run gate` | **`GATE EXIT=0`, zero `FAIL` lines**, 1354 s; `selftests` 8 / 8 in 1240.6 s wall ([Q373](../open-questions.md)); spec 7 / 61 / 120, markdown **153 / 7011 / 378**, docs 36 / 30 / 6, L1-L5 51 / 1376 in node, deno and chromium, L6 1853 / 100 in node and deno; content digest `3d1249b7317910ed` over 397 files identical at both ends — taken on the tree with this Record written but for this cell. Baseline, on `3635789` plus the declaration: `GATE EXIT=0`, 1448 s, `selftests` 1346.5 s, digest `f2677fd204e846a4` identical at both ends |
-| Q142, measured BEFORE the record step | probe 1 (`doc/decisions` cut) **116 files against `M3`'s 123 — margin 7**, as P23's declaration predicted; probe 2 (`doc/decisions` + `doc/plans` cut) **5166 links against `M4`'s 5270 — margin 104**, from 129; **re-measured AFTER the record step: `M3` 7, `M4` 78** — Q142 does not fire, and the next item that adds a document outside `doc/decisions` takes `M3` to 6 |
+| Q142, measured BEFORE the record step | probe 1 (`doc/decisions` cut) **116 files against `M3`'s 123 — margin 7**, as P23's declaration predicted; probe 2 (`doc/decisions` + `doc/plans` cut) **5166 links against `M4`'s 5270 — margin 104**, from 129; **re-measured AFTER the record step: `M3` 7, `M4` 78** *(**77 on the tree this item ships** — P23's
+retro, pass 3 rule 6, by W88's `q142.py` unchanged: the gate cell above was filled after this
+measurement and carries one more link)* — Q142 does not fire, and the next item that adds a document outside `doc/decisions` takes `M3` to 6 |
 
 ### Outputs
 

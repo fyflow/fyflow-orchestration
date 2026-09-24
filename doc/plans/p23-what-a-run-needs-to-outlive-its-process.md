@@ -1,11 +1,11 @@
 # P23 — What a run needs to OUTLIVE its process
 
-**Status:** **COMPLETE pending its retro** — declared 2026-09-24 on `5d704a1` (P1-P22 complete and retro'd, `doc/workflow.md`
+**Status:** **COMPLETE and RETRO'D** — retro run 2026-09-25, `doc/workflow.md` [v0.24](../workflow.md), ONE change adopted and SIX refused ([Retro](#retro)). Declared 2026-09-24 on `5d704a1` (P1-P22 complete and retro'd, `doc/workflow.md`
 [v0.23](../workflow.md)). **[W88](../work-items/w88-what-a-checkpoint-is.md) is DONE** — ADR 0064, `spec/run-state.md` v0.9, L6
 unmoved, and **prediction 4 REVERSED on its first test** (`RN-R13` gained a clause for the header's
 retained entry payload). **[W89](../work-items/w89-what-resuming-is.md) is DONE** — ADR 0065, `spec/run-state.md`
 v0.10 (`RN-R19` to `RN-R25`), `runtime.resume`, L6 unmoved, prediction 2's WORDING reversed and its
-substance confirmed. **[W90](../work-items/w90-a-run-killed-and-resumed-on-real-workers.md) is DONE and P23 is COMPLETE pending its retro** — the exit artifact in both L6
+substance confirmed. **[W90](../work-items/w90-a-run-killed-and-resumed-on-real-workers.md) is DONE and P23 was COMPLETE pending its retro** until its [retro](#retro) — the exit artifact in both L6
 runtimes, L6 **1853 / 100**, the package at `0.5.0`, and its declaration step's correction: `shutdown()` DRAINS, so the
 kill is the consumer's store and not the scheduler thrown away. Its facts were measured into `dev-dist/p23/`
 on that tree and nothing there is checked in, on P22 stop-and-ask (a)'s precedent — so each item's
@@ -16,7 +16,11 @@ and a live view?*
 **Exit artifact:** a flow on a real `FyflowScheduler`, in **both** L6 runtimes, **killed mid-run**
 with its scheduler thrown away, and **resumed on a fresh runtime** from a checkpoint a consumer
 stored by appending events — completing exactly as a run nobody killed, with the work re-run by the
-resume asserted as a COUNT.
+resume asserted as a COUNT. *(**"With its scheduler thrown away" is FALSE and stood here until P23's
+retro** (pass 3 rule 6): `runtime.shutdown()` DRAINS — it runs the work in flight and what that work
+dispatches — so the KILL is the consumer's store freezing, and the shutdown is cleanup the store never
+sees. W90's declaration step measured it ([Q376](../open-questions.md)) and the artifact is built on the
+store.)*
 **Reserves:** W88-W91 (W91 expected unused), Q364-Q378, ADR 0064-0065.
 *Derived by grep off the tree, never from a sentence — see [A note on ids](#a-note-on-ids).*
 
@@ -270,3 +274,222 @@ margin 9** — and probe 2's (`doc/decisions` and `doc/plans` removed) **5030 li
 — margin 240**. This declaration adds one document to `doc/work-items/`, which neither probe cuts, and
 W89 and W90 will add two more there, so **`M3`'s margin reaches 7 by W90's declaration** before any
 record step — narrow enough that each item measures it again rather than inheriting this sentence.
+
+---
+
+## Retro
+
+*Pass 3, run 2026-09-25 on `a26c92a`'s tree. **ONE change adopted, SIX refused**, and
+`doc/workflow.md` is [v0.24](../workflow.md), where the full reasoning lives. What follows is this
+plan's own evidence. Every harness was re-run in an isolated copy and every number below was taken on
+the tree this retro commits unless it says otherwise.*
+
+### The central finding: the only rung readings that were WRONG were a GRADER's
+
+**Of the twenty-four defects in the three items' *What broke* lists that a rung FIRED on, twenty-two
+were read correctly — and the two misread were both misread by a rule 8 HARNESS's grader, not by a
+person.** [W88](../work-items/w88-what-a-checkpoint-is.md)'s harness counted `FAIL` lines and never
+matched one to the probe that was supposed to produce it, so `d1` was graded CAUGHT by a
+`typecheck:tests` that was already red for an unrelated reason (What broke 8); W88 asked for the fix
+in words — *fires for the reason it names is a requirement on the SET that the harness does not
+implement* — and [W89](../work-items/w89-what-resuming-is.md) BUILT it: a probe is caught only when
+a failure line within four lines carries the text its declaration names, which reported `e2`
+WRONG-REASON on its first run. **[W90](../work-items/w90-a-run-killed-and-resumed-on-real-workers.md)
+inherited that grader and it graded three CRASHES as CATCHES** (`a5`, `c1`, `c5`): block (2g) had
+thrown, its `try` turned the throw into a named failure, and the `CROSS_ROW_SUBJECTS` membership then
+printed every subject's name TWO lines below its `FAIL` line — inside the window. *Section 6 pass 3
+rule 3's sharpest kind: a mechanism asked for by one item, built by the next, FOLLOWED by the third,
+and wrong.*
+
+**Why no existing requirement reaches it.** Every requirement on the harness controls the RUNGS (a
+probe that changes nothing comes back clean) or the TREE (restore, anchors, digest, environment).
+**None controls the GRADER** — the one component that turns a rung's output into the verdict the
+Record prints. And the crash discriminator, *non-zero exit with zero `FAIL` lines*, is defeated by
+construction wherever the subject reports its own throw as a failure, which every block outside
+L6's row loop now does ([W59](../work-items/w59-what-a-node-type-is.md)'s per-row catch, and the
+`try` around each block). **Measured at this retro**: block (2g) with a `throw` as its first
+statement, run once at L6 in an isolated copy, exits 1 with **FOUR named `FAIL` lines** — `kill and
+resume`, two `gate` counts and `cross-row` — so it is not a CRASH to the discriminator at all, and
+only the reason check can tell it from a catch. Re-grading W90's thirty-five declared catches against
+that log: | the grader's window after each `FAIL` line | W90's catches whose reason it finds in their OWN logs | catches it would grade CAUGHT on the CRASH log, where the block never ran |
+|---|---|---|
+| 1 line — the `FAIL` line alone | **7 / 35** — an L6 clause prints its text on the NEXT line | 0 |
+| **2 lines — W90's shipped fix** | **35 / 35** | **4** — `b1`, `b2`, `d5`, `r11`, whose named clauses (the membership and the counts) a crash fires too |
+| **4 lines — W89's grader, and W90's author pass** | **35 / 35** | **28 / 35** |
+
+**At the width W89 built, twenty-eight of W90's thirty-five catches could not be told from a block
+that never ran; at the width W90 shipped, four still cannot, and no width finds every probe's own
+reason while refusing the crash.** *A reason window cannot be chosen by reading the output — it has to
+be graded against a probe whose right answer is NO*, which is what the change below makes the set
+carry. (`dev-dist/p23r/grader.py`, untracked like every harness before it.)
+
+**THE ONE CHANGE: rule 8's requirement on the HARNESS gains that its GRADER is controlled** — the set
+carries a probe whose right verdict is CRASH (the subject made to throw) and one whose right verdict is
+WRONG-REASON (a failure in a clause the probe does not name), both graded against those expectations on
+every pass; and a reason is matched on the failure line the named clause writes, never in a window
+that can reach another failure's text. It is **v0.11's control one component along**, and the third
+occurrence of the class across two plans — P21's W82 `b6b`, where `X4` laundered a snippet's
+`TypeError` into its own named failure, refused as a rule at one occurrence.
+
+### Name the rung
+
+**SEVENTY-THREE defects across the three items' own *What broke* lists — 27 / 24 / 22** — counted one
+per DISTINCT defect a row names (W88's row 9 is five findings, W90's row 11 three claims, W89's row 9
+eight), and **W89's row 3 counted as ZERO**: its five entries are ratchets moved deliberately, each
+firing by name, which is the design working rather than a defect. **TWENTY-FOUR name a rung that FIRED
+(9 / 7 / 8), TWENTY-TWO were read correctly, and the TWO misread were both a GRADER's** (above).
+
+| the rung | what it caught |
+|---|---|
+| rule 8's AUTHOR pass | W88's `b7` and `d2`, and its own `c2b` misdeclared; W89's `a9`, `b9`, `b16` — each deletable for ZERO — and its harness's first CRASH (`a12`) and WRONG-REASON (`e2`); W90's `c5` WRONG-REASON, a malformed probe of the author's own |
+| rule 8's RE-RUN with the readers' edits | W88's `r7`, the adequacy reader's own *equivalent* classification measured wrong |
+| L0, each lane run separately | W89's `typecheck:tests` RED on a cast while `npm test` was green; W90's `typecheck:examples` three times on the block's own types |
+| an item's own new suite or block on its FIRST run | W88's entry-payload claim; W89's `freezeInput` handing out the driver's own array (W88's every-kind copy case, doing what it was built for); W90's chain expecting a `resumed` twice, and claim (3)'s first source not delivered by a drain |
+| a gate-entry self-test | W90's `check:docs:selftest` at 33 / 34 — rule 7 (c) discriminating exactly as designed |
+| the environment clause | W88's bare `node` resolving to 16 in the author's shell, and the harness's assertion on its first run |
+| node's type stripping | W88's own probe written with a constructor parameter property |
+
+**FORTY-NINE have no rung, and FOURTEEN of the seventy-three are in the INSTRUMENTS** — the facts
+harness capturing its own replays and its prototype-blind `deepEqual` (W88, both at the declaration
+step), three probes and a probe declaration, two graders, the heredoc discipline broken twice, and
+**the exit artifact's own KILL**: P23 wrote *killed mid-run with its scheduler thrown away*, and
+`shutdown()` DRAINS ([Q376](../open-questions.md)). Of the forty-nine, **thirty-seven were found by a
+reader, four by a declaration step's re-take, and eight by an item reading its own files.**
+
+**And W90's twenty-two are ALL outside the product** — the harness, the reference, the counts and
+the plan — because it wrote no product code; fourteen of them have no rung, which is P22's reading of
+W85 one plan on: *an item whose deliverable is a harness has defects of the kind no rung fires on.*
+
+### The predictions
+
+| # | kind | verdict |
+|---|---|---|
+| 1 | derived, from fact 1 (a FAKE scheduler) and fact 4 (two flows) | **CONFIRMED, its wording narrowed by the item that met it** (W89). *No change to routing* is false in its letter — a dispatch HELD during a replay and a callback GATED by position are two new branches inside routing's own sites — and true of what it meant: neither decides a road. P18 prediction 2's shape, a derived prediction whose wording was stronger than its observable |
+| 2 | derived, from fact 4 | **SUBSTANCE CONFIRMED, WORDING REVERSED** (W89), then **CONFIRMED on real workers in both L6 runtimes in W89's wording** (W90). Its prediction column said *the in-flight set at the stored PREFIX*; its own harness computed `held − settled` — the set at the END of the replay — and 14 of 29 re-dispatched tasks were dispatched only in the lost tail. *A prediction that names a SELECTION its measurement did not make*: the stored-prefix set is the well-formed wrong selection that coincides with the right one at a QUIESCENT cut, the default position, and differs at 8 of 14 mid-step ones — v0.23's clause, inside a prediction's own sentence |
+| 3 | **the REACH** | **CONFIRMED for the store, three processes deep, with its exceptions named** (W90). Its reversal column's FIRST entry is a real exception — a retry budget half spent, measured three attempts against two ([Q365](../open-questions.md)) — two more differ in cost and not in result (a group slot, a compiled transform), the fourth (a person's resolution across the restart) is exercised by the parked kill, resolved on the resumed driver, and **one it did not name**: the consumer's own `shutdown()` is not a kill ([Q376](../open-questions.md)). Confirmed in-process only ([Q378](../open-questions.md)) |
+| 4 | derived, from decision 9 and fact 1 | **REVERSED at its first test** (W88), by RETENTION: `RN-R13`'s text moved for the header's copy of the entry payload; W89 then moved `RN-R15`, `RN-R18` and `ID-R3` by a clause each. **Its measurement answered a narrower question than its wording** — fact 1 is about which fold-input KINDS a replay regenerates, the prediction about which rules' TEXT moves — which is P13's reading of a derived reversal, a fourth plan |
+
+**So: two confirmed (one narrowed), one reversed, one split** — and **the one REACH is the one that
+held**, with its reversal column right about its first entry and silent about the instrument. *Two of
+three derived predictions went wrong in their WORDS while their measurements were right*, and both in
+the direction P22's finding names: the wording described the default case.
+
+### v0.23's selection clause: FOLLOWED in all three, and short once in each — on a selection nobody framed as one
+
+| item | the declared selection table | the selection it missed | found by |
+|---|---|---|---|
+| W88 | the header — `r1`, version 1, the composed payload, the result, clone-late, a reference: **every one caught on the first pass** | *which RUN a position counter belongs to* — a runtime counter agrees on a FIRST run, the default position | BOTH readers |
+| W89 | five rows, one of them **W88's miss**, which caught W88's dated ceilings `c3` and `r6` | the `stopped` refusal's own `index`, whose only fixtures sat at the stored length and the last element, where both wrong answers are the right one | the adequacy reader (`a18`, `a19`) |
+| W90 | seven rows, each arranged so the wrong one DIFFERS — the cut, the set, the count, the keys, the parked task, *identical*, K = 1 | the ORDER `RN-R21` fixes: the scheduler-side claim compared SORTED sets, so a reversal above three ids was L6 GREEN in both runtimes | the adequacy reader (BLOCKING 1) |
+
+**Each item closed the previous one's miss and missed a new one**, and every miss was in a place the
+author had not framed as a selection — a counter's scope, a refusal's REPORTED number, an order a
+comparison discards. W90's is a new variety: its FIXTURE could differ and its OBSERVER could not see it,
+because a sorted comparison is blind to the one selection the rule makes. **Not amended** — refusal (1)
+below.
+
+### Refused, six, each with a measurement
+
+**(1) A fifth amendment to obligation (a)** naming three more selections — a counter's scope, a
+refusal's index, an order. **Three misses, three items, all found by a reader and none shipped**, and
+the table above is the regress P22 recorded for (a) and P21 for (d): an amendment that names examples
+is followed and short at the next example. What the clause asks is a QUESTION a reader asks, and the
+readers asked it.
+
+**(2) A rule that a plan's exit artifact names the INSTRUMENT that performs its event, and the
+declaration measures it.** Two occurrences in two plans — P22's real pool interleaving LESS than a fake
+([Q358](../open-questions.md), found at W86's build) and P23's `shutdown()` DRAINING
+([Q376](../open-questions.md), W90's declaration re-take 2). **Both were caught before anything
+shipped**, the second by P15 decision 5's re-take — prompted, W90's file says, by the item's own
+instructions. *The mechanism is the re-take and it fired*; the cost was a plan sentence, corrected here
+under pass 3 rule 6.
+
+**(3) A rule for a fix applied at ONE of the sites that share a defect** — W90's pass 2 found the guard
+for its reader's `r6` on one resume of four, and P22's W86 shipped its crash repair one block short of
+the identical defect. **v0.8's re-run with the readers' exact edits checked in is the counter-measure
+and it caught W90's**; W86's was caught by a reader. Zero shipped.
+
+**(4) A rule that a block outside L6's row loop REPORTS rather than throws** — W67, W86 and W90, three
+plans. Every block now sits in a `try` that turns a throw into ONE named failure; what W90 found is that
+one throw still costs a block every claim (its `r6` names **13** clauses where it had named one), so
+the repair is per SUBJECT inside a block, which is a property of one file and the next item's to build
+where it adds one. The workflow half — *a crash is not a detection* — is already rule 8's, and the change
+above is what makes a laundered crash visible to the harness.
+
+**(5) A `doc/` check, for the TWENTY-SECOND time, on the English class — and this retro does NOT refuse
+the other class, because its criterion is met.** P23's English stale claims are the plan's own kill,
+`AGENTS.md`'s *resuming from one is not built yet*, `README.md`'s *P22 is DECLARED* through five
+commits and three sibling *whole rung* claims — nothing to compare them against without reading.
+**Two classes are machine-comparable and neither is under the standing refusal**: `doc/decisions/README.md`
+against the directory it indexes — **measured over history: 29 of the 46 commits that touched
+`doc/decisions/` shipped an index missing at least one ADR on disk, in FIVE episodes** (0022-0029,
+0030-0036, 0039-0046, 0049-0058 — eight ADRs behind at its worst — and 0062), where W88 said *the fourth*;
+and [Q171](../open-questions.md)'s L6 count copies, which **P20's retro NAMED for the next plan and three
+plans have not built** — `README.md`'s current-count cell read **1724 / 58 for six commits** (W86 to W89)
+while `DECLARED_TOTAL` read 1833, and a check reading only *does README contain the total* passes all
+six, because the total appears in another sentence. **Both are a set or a number a check can derive from
+another file**, which is the criterion the refusal has named since P18 and the shape `X7` already has.
+They are an item's work in `scripts/**`, and this retro hands both to the next plan's declaration rather
+than counting a refusal it no longer holds.
+
+**(6) An `Owns` pre-declaration rule, for the ELEVENTH plan** — P23 SEEDED its exceptions table at the
+declaration, as P22's retro argued it should, and every item re-measured its rows: **eight rows seeded,
+five fired — two of them for a reason the seed did not give — and three did not; the two exceptions nobody
+seeded were W88's corrections to this plan's own facts and W90's `X9` probe anchor, the second found at
+W90's own declaration step**. Zero undeclared. *The procedure measured from the side where it was kept.*
+
+### The numbers
+
+**Rule 8 across the plan, all 169 probes RE-RUN at this retro on the shipped tree** (W88's 46, W89's
+77, W90's 46) — each in its own isolated copy: a `git clone --no-hardlinks` of `a26c92a` with
+`core.longpaths` set (a copy under the scratch directory could not check out six ADR file names
+otherwise) and `node_modules` copied in, zero symlinks and zero reparse points measured first, each
+item's own harness run unchanged against it. **All three read digest `e758ab75c60df81d` over 397
+files, identical at both ends of every set**, and the retro's documents were written while the probes
+ran.
+
+| set | at this retro |
+|---|---|
+| W88's 46 | **40 caught, 5 declared ceilings RUN, 1 control clean, 0 crashes — after NINE ABORTS, all rule 7 (b) and all re-anchored**: W89 moved every line they pin (`openRun` re-indented the runtime's composition, the handle's `return` and the settled flag; `delivers(seq)` gated the driver's callback; the runtime's type import gained `Checkpoint`), and re-anchored, seven are CAUGHT and two survive as declared. Those two are `c3` and `r6`, W88's DATED ceilings — they survive on W88's own rung, a first run, and are **CATCHES on the rung their reasons name**, re-taken in W89's set below as its `c1` and `c2`. **W88's harness has no reason check**, so its forty catches are graded by count alone — the defect the change above closes |
+| W89's 77 | **73 caught, 3 declared ceilings RUN (`b12`, `c3`, `c4`), 1 control clean, 0 wrong-reason, 0 crashes, 0 aborts, 0 against declaration** — exactly W89's pass 2, with W88's `c3` and `r6` caught as its `c1` and `c2` |
+| W90's 46 | **2 clean, 35 caught, 9 declared ceilings RUN, 0 wrong-reason, 0 crashes, 0 aborts, 0 against declaration** — exactly W90's pass 3, with its `a6` re-anchor holding. Its reason check is the 2-line window above, so its catches are graded by NAME — with the four exceptions the crash log measures |
+
+**Across the plan: 169 probes, **4 controls clean, 148 caught, 17 declared ceilings RUN, ZERO undeclared survivors, ZERO crashes, ZERO wrong-reason, NINE aborts — all W88's, all rule 7 (b), all re-anchored — and ZERO against declaration after re-anchoring**** — and the dated-ceiling clause's yield is **ZERO NEW
+catches for the fifth plan running**: W88's two were re-run and taken by W89, the item their reasons
+name.
+
+**Readers: six passes, none empty, and THREE overlaps — 2, 2, 1, the fifty-fourth to fifty-sixth
+measurements**, band unmoved. **And section 6's list was short by THREE, not two**: this retro's prompt
+named W89's and W90's because W90's Record said *W89's fifty-fifth is not yet in the list*, and W88's
+fifty-fourth was not either — while the sequence under the total had stopped at W74 through three
+retros (appended here). **Blocking findings: W88 3 + 6, W89 3 + 8, W90 2 + 3 — twenty-five, split 8
+conformity / 17 adequacy**, and the split held: the conformity readers found claims that were false,
+the adequacy readers bounds that were not there. **All THREE conformity readers' central obligations
+came back with ZERO disagreements on the VALUES — the third plan running to record three of three.**
+
+**Late exceptions: zero undeclared in any of the three.**
+
+**Census CONFIRMED for the TWENTY-FIFTH plan running — 295 / 230 / 1 / 64, 295 of 295 in exactly one
+cluster cell**, by W88's parser unchanged — which refuses ten rows by id (Q119, Q71, Q87, Q123, Q131,
+Q135, Q204, Q215, Q301, Q343), classified by hand as eight open and two resolved. The retro raises no
+question and resolves none.
+
+**[Q142](../open-questions.md) did not fire in any of the three items** — measured before each record
+step at margins of 9 / 218, 8 / 177 and 7 / 104 (`M3` files / `M4` links) — **and measured at this
+retro, before its edits, on the shipped tree: `M3` 116 files against 123 — margin 7 — and `M4` 5193
+links against 5270 — margin 77**, where W90's file says *78 after the record step*: its last Record cell
+was filled after the measurement, v0.12's WHEN clause at one link, corrected in W90's file. **Re-measured AFTER this retro's edits, on the tree it commits: `M3` 7, and `M4` 5233 links —
+margin 37**, forty links narrower, every one in `CLAUDE.md`, `doc/README.md`, `doc/workflow.md` and the register — files
+probe 2 does not cut. Q142 does not fire; **the margin is within six of the 31 at which P18's retro FIRED**, so the next
+plan's declaration measures it before it writes a paragraph rather than inheriting this sentence.
+
+**The confirming `npm run gate` over the retro's final tree: `GATE EXIT=0`, ZERO `FAIL` lines**, 1449 s in node
+24.20.0; `selftests` 8 / 8 ok in 1326.7 s wall; spec 7 / 61 / 120; markdown 153 / 7069 / 381; docs 36 / 30 / 6; L1-L5
+51 / 1376 in node, deno and chromium; L6 1853 / 100 in node and deno — every rung UNMOVED, which is what a retro that
+edits only documents must show. Content digest `e25d5028097b5be2` over 397 tracked and untracked-unignored files,
+identical before and after — RUN and redirected, never piped. This sentence is the one edit made after it, and
+`check:markdown` was re-run over it.
+
+**W91 CLOSED unissued. Q364-Q378 all used or spent** — Q368-Q370 (W88) and Q375 (W89) reserved and
+unused. **ADR 0064 and 0065 both taken. The next plan starts at W92, Q379 and ADR 0066** — derived by
+grep off the tree at this retro, never from this sentence, and `CLAUDE.md` already says so.
