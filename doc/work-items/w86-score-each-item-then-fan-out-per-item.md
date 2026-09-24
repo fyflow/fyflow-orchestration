@@ -214,7 +214,7 @@ make a red row ambiguous between the nesting and the road. W85 drives all three 
 | (1) the flow | **yes** | `e1` (one shard per word rather than per character) **31** at L6; `e2` (every shard high-confidence, so the second pass is never reached) **18**; `validateDefinition` returns zero findings and `checkWiring` four `fits` |
 | (2) the worker, and whether the GRANT was used | **yes, and it WAS** | `h2` (a shard outside its own declared bound) **1** at `check:workers` and **20** at L6. *This is the SECOND consecutive plan to grant one new worker and the FIRST to use it; P21's was measured UNUSED by W81* |
 | (3) two L6 rows, L6 MOVES | **yes — 1724 / 58 → 1833 / 60** | `d1` (a row key renamed) — and it was a CRASH with zero failure lines until this item's own probe found it |
-| (4) the OVERLAP, derived and asserted | **yes, and by TWO roads** | `x2` (the second pass's road flattened, so the windows never overlap) **3** at L6, all three the overlap clauses; `a2` (Q353's mutation) **2**; `r1` (the adequacy reader's tautology, which cost ZERO with all four controls green) — caught by the index relation that reader forced |
+| (4) the OVERLAP, derived and asserted | **yes, and by TWO roads** | `x2` (the second pass's road flattened, so the windows never overlap) **4** at L6, all four the overlap clauses *(this read 3, taken before the second road the adequacy reader forced existed — P22's retro, and W86's own pass-2 log already reads 4)*; `a2` (Q353's mutation) **2**; `r1` (the adequacy reader's tautology, which cost ZERO with all four controls green) — caught by the index relation that reader forced |
 | (5) the SILENT sites decided | **yes, and THREE rather than two** | `f3` (`regionsOf` back to filtering) **1**; `soleRegion`'s refusal against its answer as a pair — the first LIVE case that helper's refusal has ever had. The `{instances}` pair is a declared CEILING with the tree that fails it NAMED (`f1a`/`f1b`) |
 | (6) the reference, executed | **yes** | `g2` (README's fence edited alone) **1** at `check:docs` via `X8`; `g3` (the snippet's own SUBJECT broken) **1** — so the snippet asserts the CAPABILITY and not only that a run completed, which is named target (b) |
 | (7) `0.4.0`, with the break NAMED | **yes** | `h1` (the manifest reverted) cost **ZERO** until `X9`; `deno.json` alone reverted costs **1** |
@@ -294,11 +294,17 @@ prose* — with W85's Record among this item's declared inputs. The measurement 
 attribution is corrected everywhere rather than repeated.
 
 **Rule 8 — 43 probes over THREE passes, 33 caught, 10 classified, ZERO UNDECLARED survivors, ZERO
-crashes, ZERO aborts, ZERO against declaration on the final pass.** Controls green at every rung at
+crashes, ZERO aborts, ZERO against declaration on the final pass.** *(**The final pass is pass 3's FIVE
+probes** — P22's retro. Re-run whole on the shipped tree, this set's own harness prints SIX against
+declaration, every one a probe this Record reclassified in PROSE and not in the set: `b1`, `b2`, `r1`
+and `r2` still declared to go RED, `h1` and `a2b` still declared to SURVIVE. The classification below
+is right and the set disagrees with it, exactly as it did at pass 2.)* Controls green at every rung at
 both ends of every pass; the tree held still by a content digest over TRACKED and
 UNTRACKED-UNIGNORED files — `978011651686b61a` over 387 files at both ends of pass 2 and
-`0825f616b1faf854` at both ends of pass 3. The ten classified are **six declared CEILINGS each with
-the tree that fails it NAMED** (`b1`, `b2`, `f1`, `r6`, `g1`, `r9`, `r13`), **two VACUOUS by rule 8's
+`0825f616b1faf854` at both ends of pass 3. The ten classified are **SEVEN declared CEILINGS each with
+the tree that fails it NAMED** (`b1`, `b2`, `f1`, `r6`, `g1`, `r9`, `r13`) *(this read *six* beside
+the seven it lists and the ten it totals, until P22's retro corrected it under `doc/workflow.md`
+section 6 pass 3 rule 6)*, **two VACUOUS by rule 8's
 own definition** — a literal set-EQUAL to the value it replaces, which is
 [W47](w47-the-blocked-flow-on-real-workers.md)'s `c3` verbatim (`r2`, and `r1`'s tautology, which is
 a TRUE statement on this tree) — and **one semantically equivalent** (`r11`, the driver's own
@@ -313,7 +319,11 @@ recorded alternative derivation of `regionPath`).
 
 *That is [Q349](../open-questions.md) and [Q353](../open-questions.md) turned from a sentence into a
 pair of numbers, on real workers.* The overlap-removing edit is one field of one node type
-(`SecondPass`'s `delayMs`), so the two arms differ in the ROUTE and in nothing else.
+(`SecondPass`'s `delayMs`), so the two arms differ in the ROUTE and in nothing else. *(**The
+overlap-REMOVED column is the cost ABOVE `x2`'s own**, which every probe in that column pays for
+removing the overlap: on the tree this item ships `x2` is **4**, `x3b` **5** and `a2b` **4**, so the
+keying costs 1 and 0 as the table says — as increments. The table stated them as costs; P22's retro
+re-ran all three and found the pass-2 logs agreeing with it.)*
 
 **And the second road is measured the same way.** The adequacy reader's tautology (`r1`) is TRUE on
 the shipped tree and nothing can fire on it; on the tree where the claim is FALSE it costs **3 of 4**

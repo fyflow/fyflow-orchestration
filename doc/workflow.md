@@ -1,6 +1,6 @@
 # Workflow
 
-**Status:** v0.22 - **run to completion TWENTY-ONE times**, by [P1](plans/p1-what-satisfies-a-join.md),
+**Status:** v0.23 - **run to completion TWENTY-TWO times**, by [P1](plans/p1-what-satisfies-a-join.md),
 [P2](plans/p2-the-non-success-half-on-a-real-scheduler.md),
 [P3](plans/p3-a-consumer-reference-the-gate-keeps-true.md),
 [P4](plans/p4-the-drivers-lifetime-and-the-handles-it-gives-out.md),
@@ -20,7 +20,8 @@
 [P18](plans/p18-a-flow-and-its-runtime-from-documents-alone.md) and
 [P19](plans/p19-what-a-schema-buys-an-author.md) and
 [P20](plans/p20-what-the-runtime-owes-a-consumer.md) and
-[P21](plans/p21-what-a-run-time-schema-check-buys-and-what-it-costs.md)
+[P21](plans/p21-what-a-run-time-schema-check-buys-and-what-it-costs.md) and
+[P22](plans/p22-what-a-regions-identity-is.md)
 **Read this before starting any work item.** *(The status line read "seven times" and listed P1-P7
 until P9's retro: **P8 ran this document to completion and adopted none of its proposals**, which is
 section 6 pass 3 rule 1's expected verdict and is not the same as not having run it.)* Paths are relative to the repo root unless they are
@@ -103,6 +104,65 @@ prediction about rule 8 is answered and is **false**.
    ([ADR 0029](decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)).
    The dependency edge that made the junction seem necessary is gone; **the rule still said nothing
    about the removal**, which is the part that did the damage.
+
+**v0.23 is [P22](plans/p22-what-a-regions-identity-is.md)'s retro, and its central finding is that
+all three of that plan's items FOLLOWED rule 8 obligation (a) — the shapes, the enumeration and the
+same claim — and all three put the value their rule discriminates where its most plausible WRONG
+value is the same value.** P22 asked *what is a region's identity, and may a region open inside a
+`map`?* — answered by
+[ADR 0062](decisions/0062-a-region-instance-is-its-opener-and-the-openers-own-branch-path.md) (a
+region INSTANCE is its opener and the opener's own branch path, the carrier two-level, W33's refusal
+lifted whole), a suite asserting what a nested region carries and how it ends, and an exit artifact in
+which one opener has two instances on real workers and their overlap is ARRANGED, derived and
+asserted. It adopts **one** change and refuses **seven**, all in
+[P22's own Retro](plans/p22-what-a-regions-identity-is.md#retro).
+
+1. **Rule 8 obligation (a) gains: where a rule SELECTS — a key, an index, an instance, a path — the
+   set names the well-formed WRONG selections the type admits, and each fixture puts the right one
+   where every one of them DIFFERS.**
+
+   | item | what the rule selects | where the fixture put it | what the wrong selection cost |
+   |---|---|---|---|
+   | [W84](work-items/w84-what-a-regions-identity-is.md) | a region's collection, by instance; the instance, by its opener's path | instances settled in DISPATCH ORDER; every instance at ONE path segment | the opener's FIRST instance read in place of the right one: **0**; the instance path truncated to its first segment: **0 at every rung** |
+   | [W85](work-items/w85-what-a-nested-region-carries-and-how-it-ends.md) | a branch-exit event and `JP-R10`'s emission, by instance | both parks in instance 0; every region `JP-R10` names with ONE instance | filed under the opener's FIRST opened instance: **0 at five sites** — in the item written to discharge W84's finding ([Q353](open-questions.md)) |
+   | [W86](work-items/w86-score-each-item-then-fan-out-per-item.md) | `arrivals`, by instance, on real workers | what a FIFO pool gives: each window closed before the next opens ([Q358](open-questions.md)) | with the ARRANGED overlap removed, keying by the opener alone costs **1 where it costs 3** and by the first instance **0 where it costs 2**, each counted ABOVE what removing the overlap costs by itself |
+
+   **The mechanism is why it generalises rather than a fourth item.** A WELL-FORMED wrong selection —
+   the first instance, the first segment, `values()[0]` — is the one that COINCIDES with the right
+   answer at the DEFAULT position: index 0, the first opened, a single segment, settlement in
+   dispatch order. **A fixture at the default position cannot tell a rule from its most plausible
+   defect, however many shapes it covers**, and it is the position an author reaches for because
+   every pre-existing flow already sits there. W85 drove four exit paths where the plan named three,
+   depth three, N = 0, retention and visibility: the ENUMERATION was complete and every INSTANCE in
+   it was the degenerate one.
+
+   **What it replaces**: nothing is deleted. The shapes clause says *instantiate every value of the
+   kind*; this says what *instantiate* must mean for a rule that selects — **discriminate**. It is
+   the **FOURTH amendment to obligation (a)** — v0.16's shapes, v0.17's enumeration, v0.18's same
+   claim, and this — and the sequence has the shape obligation (d)'s had: each the previous one
+   FOLLOWED and short, each a finer grain of one question. [Q353](open-questions.md) is **RESOLVED**,
+   its forcing condition met by W86's overlap-removed arm; [Q349](open-questions.md) stays open on its
+   own, which is about a RELEASE rather than a fixture.
+
+**REFUSED, seven, each with a measurement.** **(1) A `doc/` check for the TWENTY-FIRST time**, on a
+class with nothing to compare against: a citation of a reader's NUMBERED FINDING, wrong in two
+consecutive items (W85's *finding 8*, W86's inherited *finding 10*) — and no reader's report is in
+the tree, which is P22 stop-and-ask (a)'s *nothing is checked in* one layer out. **(2) *Act on no
+reader's findings until every reader has reported*** ([Q363](open-questions.md)) — section 6's
+*while a reader is reading, the author's tree holds still* already names A reader, and W86 broke it
+six times and obeyed it once; RESOLVED as answered by its own text. **(3) An `Owns` and `Gate`
+pre-declaration rule for the TENTH plan** — all three items corrected the plan's `Gate` column at
+their declaration step, and P22 is the first plan since P18 not to SEED an exceptions table, with W86
+shipping none until its reader asked: the procedure measured from the side where it was omitted.
+**(4) A rule for a gap read off a DIFF** ([Q352](open-questions.md)) — P15 decision 5's re-take caught
+it exactly where this plan made it the only road. **(5) A membership over CONTAINERS**
+([Q356](open-questions.md)) — v0.14's *a count is not a membership* one layer in, and
+[Q217](open-questions.md)'s regress inward. **(6) Projections of one walk as observers**
+([Q362](open-questions.md)) — obligation (c)'s LIMIT and v0.16's *downstream of one apparatus* already
+say it, and W82's [Q340](open-questions.md) is the same shape: two occurrences, and both repairs
+quoted the existing clause. **(7) A corpus census pinned outside its corpus**, at its second
+occurrence ([Q342](open-questions.md), [Q360](open-questions.md)) — every site was named by a rung that
+fired and was read correctly.
 
 **v0.22 is [P21](plans/p21-what-a-run-time-schema-check-buys-and-what-it-costs.md)'s retro, and its
 central finding is that v0.21's CONTROLS clause was FOLLOWED by all three items of the plan that
@@ -1873,7 +1933,7 @@ Rules:
 
    | | obligation | added by |
    |---|---|---|
-   | **(a)** | break the rule's own CLAUSES — **and the SHAPES those clauses quantify over, every value the rule ENUMERATES, each under the SAME claim** | v0.6, P4's retro; **the shapes clause v0.16, P15's retro; the enumeration clause v0.17, P16's retro; the same-claim clause v0.18, P17's retro** |
+   | **(a)** | break the rule's own CLAUSES — **and the SHAPES those clauses quantify over, every value the rule ENUMERATES, each under the SAME claim; and where the rule SELECTS, a fixture that puts the right selection where every well-formed WRONG one differs** | v0.6, P4's retro; **the shapes clause v0.16, P15's retro; the enumeration clause v0.17, P16's retro; the same-claim clause v0.18, P17's retro; the discriminating-instance clause v0.23, P22's retro** |
    | **(b)** | break every row of the `Outputs` table — **and where a row IS an assertion, make each of its claims a TAUTOLOGY rather than deleting it** | v0.7, P5's retro; **the tautology clause v0.20, P19's retro** |
    | **(c)** | break the PROVENANCE of every value an assertion reads — change the source expression and nothing else | v0.8, P6's retro; procedure added v0.9; **its LIMIT v0.13, P12's retro; and what *independent* excludes, v0.16, P15's retro** |
    | **(d)** | break the LOOP BOUNDS — one entry out, the whole list out, and does anything COUNT it from elsewhere — **a count is not a membership; a membership names the CONTROLS beside its claims; a control must fail where its claim is VACUOUS, not only where its subject is ABSENT; and a control is one only if you can NAME THE TREE on which it fails and its claim passes** | v0.9, P7's retro; **the membership clause v0.14, P13's retro; the controls clause v0.18, P17's retro; what a control must be able to do, v0.21, P20's retro; its TEST, v0.22, P21's retro** |
@@ -1959,6 +2019,26 @@ Rules:
    were found too. **An enumeration is of the values a claim ranges over; a member instantiated under
    a different claim is a value of the kind and not an instance of the claim.** One occurrence, with
    that argument; the fourth branch of the failure flow is the instance.
+
+   **AND WHERE THE RULE SELECTS, EACH INSTANCE PUTS THE RIGHT SELECTION WHERE THE WRONG ONES DIFFER —
+   P22's retro, and the three clauses above were FOLLOWED by all three of that plan's items and each
+   was short in the same place.** A rule that SELECTS — a key, an index, an instance, a path — has
+   well-formed WRONG selections its type admits, and the ones that survive are the ones that COINCIDE
+   with the right answer at the DEFAULT position: index 0, the first opened, a single segment,
+   settlement in dispatch order.
+
+   | | what the rule selects | the instance the set used | what the wrong selection cost |
+   |---|---|---|---|
+   | [W84](work-items/w84-what-a-regions-identity-is.md) | a region's collection, by instance; an instance, by its opener's path | instances settled in dispatch order, every one at ONE segment | the FIRST instance read in place of the right one, **0**; the path truncated to one segment, **0 at every rung** — W33's defect one depth out |
+   | [W85](work-items/w85-what-a-nested-region-carries-and-how-it-ends.md) | a branch-exit event, by instance | both parks in instance 0; each `JP-R10` region with one instance | filed under the first OPENED instance, **0 at five sites** ([Q353](open-questions.md)) |
+   | [W86](work-items/w86-score-each-item-then-fan-out-per-item.md) | `arrivals`, by instance, on a real pool | the order a FIFO pool gives, each window closed before the next opens | overlap removed: opener-only keying **1 where it costs 3**, first-instance keying **0 where it costs 2** — each above the removal's own cost |
+
+   **So: for a rule that selects, name the well-formed wrong selections — at least the first, the
+   default, and the one the TYPE suggests — and build the fixture so each of them gives a DIFFERENT
+   answer from the right one.** Where the corpus or the scheduler gives only the default position,
+   ARRANGE the other and assert the arrangement's own effect beside it, which is W17's lesson and
+   what W86 did. *A shape covered at its default instance is a shape visited, not a shape
+   discriminated.*
 
    **AND enumerate the `Outputs` table's rows and break each of those — P5's retro, and the amendment
    above is right but not sufficient.** Its prediction was fewer reader survivors; measured over
@@ -2566,11 +2646,18 @@ and there is obvious work to do meanwhile — and **the thing that makes it a de
 habit is that the verdict is reported as though it were about the tree that ships.**)*
 
 **Why two readers rather than one asking both questions**, which is what earlier versions said.
-Measured **forty-nine** times now: W4 1 of 13, W5 3 of ~35, W6 3 of ~25, W9 3 of ~30, W12 3 of 18,
+Measured **fifty-three** times now: W4 1 of 13, W5 3 of ~35, W6 3 of ~25, W9 3 of ~30, W12 3 of 18,
 W13 4 of 24, W14 4 of ~26, W17 3 of ~31, W18 2, W19 4 of 18, W28 4, W29 1, W30 2, W31 0, W32 2,
 W33 2, W34 2, W36 1, W39 4, W41 1 of 116, W42 2 of 61, W43 2 of 39, W45 2, W46 2, W47 2,
 W49 2, W50 2, W51 1, W53 2, W54 4, W55 2, W57 0, W58 1, W59 1, W61 1, W62 1, W63 1,
-W65 2, W66 2, W67 1, *W69 1, W70 0, W71 2*, W72 1, W73 1, W74 1, **W76 2, W77 2, W78 2**.
+W65 2, W66 2, W67 1, *W69 1, W70 0, W71 2*, W72 1, W73 1, W74 1, **W76 2, W77 2, W78 2**,
+**W80 2, W81 3, W82 1, W86 2**.
+
+*(**The last four were appended at P22's retro, and three of them are P21's** — that plan's retro
+wrote *the fiftieth to fifty-second measurements* into its own file and did not append them here,
+which is the list's own recorded defect a second time, now from inside a retro rather than from an
+item outside a plan. **W84 and W85 took no overlap measurement**, as W35, W37 and W38 did not; the
+count is of measurements TAKEN.)*
 
 *(**This list was STALE BY THREE for a whole plan and the three italic entries are why** — P19's
 retro. [W69](work-items/w69-a-getting-started-example-a-consumer-can-copy.md),
@@ -2599,11 +2686,11 @@ yet** - the same three facts reached by six different routes, and in each case t
 routes had nothing in common.
 
 **The number to carry is the ABSOLUTE one: two readers produce 0-4 shared findings, whatever the
-item's size** - **forty-nine** measurements, and P6's retro declares the question **settled and closed
+item's size** - **fifty-three** measurements, and P6's retro declares the question **settled and closed
 to re-litigation**. **The thirty-two since — 2, 2, 2, 1, 4, 1, 2, 2, 2, 2, 2, 2, 2, 1, 2, 4, 2, 0, 1, 1, 1, 1, 1, 2, 2, 1, 1, 0, 2, 1, 1 and 1 —
 are all inside the band and the band has not moved.** **P13's three are 2, 2, 2, P14's are 2, 2, 1,
-P15's are 2, 4, 2, P16's are 0, 1, 1, P17's are 1, 1, 1, P18's are 2, 2, 1, P19's are 1, 1, 1 and
-P20's are 2, 2, 2**, and the SPLIT held in
+P15's are 2, 4, 2, P16's are 0, 1, 1, P17's are 1, 1, 1, P18's are 2, 2, 1, P19's are 1, 1, 1,
+P20's are 2, 2, 2, P21's are 2, 3, 1 and P22's one is 2**, and the SPLIT held in
 all three of P17's: the conformity reader found claims that were false — twelve of its twenty-four
 blocking findings across that plan were numbers — and the adequacy reader found bounds that were not
 there. **P18's sixty-one blocking findings split 29 conformity / 32 adequacy the same way**, and its
