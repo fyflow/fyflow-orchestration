@@ -8709,6 +8709,10 @@ if (rowCosts.length !== EXPECTED.length) {
     'languages', 'log', 'nodeTypes', 'now', 'opts', 'outputsCache', 'regions', 'runId', 'started',
     // `workers` since W73: the registry's worker entries, skipped by the walk as `nodeTypes` is.
     'workers',
+    // `header` since W88: the checkpoint's header (`RN-R15`, ADR 0064), holding the driver's own
+    // copy of the entry payload — WALKED, because it is run state the driver retains, so
+    // `run-flow.ts`'s `NOT_RUN_STATE` is unchanged and only this list moves.
+    'header',
   ].sort();
   const anyRun = reports[0]!;
   check('cross-row', 'the byte measurement WALKS every growing structure the driver has and skips ' +

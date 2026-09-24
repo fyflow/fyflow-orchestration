@@ -183,6 +183,73 @@ export class BoundaryRefused extends Error {
 export class MultipleRuns extends Error {}
 
 /**
+ * **`checkpoint()` on a driver that has not started a run** — `RN-R14`,
+ * [ADR 0064](../../doc/decisions/0064-a-checkpoint-is-the-whole-event-sequence-and-a-header-and-it-is-a-copy.md).
+ *
+ * Thrown, like `MultipleRuns`, because the caller is on the stack and nothing is appended. **A
+ * checkpoint of an unstarted driver would have to invent its header's ENTRY PAYLOAD**, and the
+ * only candidates are `undefined` — which is also what a run started with `undefined` carries, so
+ * the two would be indistinguishable to the resume that reads it — or a sentinel the contract
+ * does not define. Refusing is the one answer that cannot be mistaken for a run.
+ */
+export class NotStarted extends Error {}
+
+/**
+ * **What a checkpoint's header says, and the number a resume refuses on** — `RN-R16`,
+ * ADR 0064 rule 3. `1` at this version; it moves only when what a checkpoint CARRIES moves, and
+ * W89's resume refuses a format it does not know (P23's second item, declared when it starts).
+ */
+export const CHECKPOINT_FORMAT = 1;
+
+/**
+ * **The header — the facts a run's EVENTS cannot regenerate** (`RN-R15`, ADR 0064 rule 2, P23
+ * decision 4). Every other fact about a run is in its events, which the driver regenerates from
+ * their settlements alone (P23 fact 1); these five are what the regeneration STARTS from.
+ *
+ * **Each field is a SELECTION with a named source, and the well-formed wrong ones are named with
+ * it** — `doc/workflow.md` rule 8 obligation (a), v0.23 — because every one of them coincides
+ * with the right answer on this repository's corpus and the tests are built where they do not:
+ *
+ * | field | its source | the wrong selection it is NOT |
+ * |---|---|---|
+ * | `format` | {@link CHECKPOINT_FORMAT} | — |
+ * | `runId` | the driver's own (`ID-R3`, fixed at construction) | the runtime's first minted id, `r1` |
+ * | `flowId`, `version` | the definition this driver was constructed with | a constant `1` — every corpus flow is at version 1 |
+ * | `entryPayload` | a `structuredClone` of the value `start()` was CALLED with, taken at the call | the entry node's COMPOSED payload (they differ whenever the entry declares `needs`), its RESULT, any task's envelope, or the caller's own object by reference |
+ */
+export interface CheckpointHeader {
+  readonly format: number;
+  readonly runId: string;
+  readonly flowId: string;
+  readonly version: number;
+  /**
+   * **The one thing the log does not carry** — P23 fact 2, [W42](../../doc/work-items/w42-what-a-decision-sees.md)'s
+   * finding made load-bearing: a `dispatched` event holds a task id and no payload, and a replay
+   * recomputes every dispatch's payload FROM this value. A copy, so a caller mutating the object it
+   * passed to `start()` moves nothing here.
+   */
+  readonly entryPayload: unknown;
+}
+
+/**
+ * **A checkpoint: the header and the run's WHOLE fold-input sequence, in append order** —
+ * `RN-R14`, ADR 0064 rule 1, P23 decision 2. Not a `RunState`, which cannot restore a run because
+ * the driver's private routing state is not in it; not the settlements alone, which regenerate the
+ * run but cannot serve a live view. **So an event IS a checkpoint's element**: a checkpoint is
+ * every event so far, and every event after it is an append — which is what `onFoldInput`'s
+ * second argument, the position, is for (`RN-R18`).
+ *
+ * **PLAIN DATA**: it round-trips `structuredClone` exactly, holds no function, no class instance
+ * and no reference to anything the driver holds (`RN-R17`). The contract is `structuredClone` and
+ * not JSON (P23 decision 5): a `result` is whatever survived `OR-R2`'s clone, and that includes a
+ * `Map` and a `Date`.
+ */
+export interface Checkpoint {
+  readonly header: CheckpointHeader;
+  readonly events: readonly FoldInput[];
+}
+
+/**
  * A settlement carrying THIS driver's run id for a task it never dispatched —
  * `ID-R4`, and the inbound counterpart of `ID-R1`
  * ([ADR 0023](../../doc/decisions/0023-an-inbound-settlement-is-this-runs-only-if-this-driver-dispatched-it.md)
@@ -710,8 +777,17 @@ export interface DriverOptions {
    * `RunState.outcome` leaving `running`/`awaiting_action` — without a clock, a
    * poll, or `scheduler.completed`, which fires on every drain and is not
    * "the run finished".
+   *
+   * **`seq` is the element's POSITION in the sequence** — `RN-R18`,
+   * [ADR 0064](../../doc/decisions/0064-a-checkpoint-is-the-whole-event-sequence-and-a-header-and-it-is-a-copy.md)
+   * rule 5. The index at which the same element appears in `foldInputs()` and in
+   * `checkpoint().events`, counted from 0 and contiguous in delivery order, so a consumer that
+   * appends what it is handed holds *everything before position N* and nothing else: a stored
+   * stream is named by its length. **It is the driver's index and never the listener's own count**
+   * — the two agree while one listener sees a run from its first event, and a runtime composing
+   * this callback (ADR 0058) hands the driver's `seq` on unchanged.
    */
-  onFoldInput?: (input: FoldInput) => void;
+  onFoldInput?: (input: FoldInput, seq: number) => void;
   /**
    * **`FD-R4`'s switch — W73.** `true` (the default): the run's payload is held to the input schema of
    * every task it reaches with no worker in between at `start()`, and a person's `done` resolution to
@@ -888,6 +964,21 @@ export class Driver {
   readonly runId: string;
   /** `ID-R3` — `start()` at most once, whatever id the caller had in mind. */
   private started = false;
+  /**
+   * **The checkpoint's header, set once by `start()`** — `RN-R15`, ADR 0064 rule 2. `null` until
+   * then, which is what `checkpoint()` refuses on. It holds the driver's OWN copy of the entry
+   * payload: taken by `structuredClone` at the call, never handed to a task (the entry node still
+   * receives the caller's value, exactly as before this item), and never handed out — `checkpoint()`
+   * clones it again on the way out.
+   *
+   * **It is retained for the life of the run and it is ONE copy of one value** — constant in the
+   * number of tasks and proportional to the payload, which for a `map` at the entry is its whole item
+   * list, so it IS a third term of what a run retains and `RN-R13` says so since v0.9. *(This read
+   * "beside that rule's two terms rather than a third one"; W88's conformity reader.)* The byte walk's
+   * universe gains it on the WALKED side: it is run state the driver holds, not configuration it was
+   * handed.
+   */
+  private header: CheckpointHeader | null = null;
   /** The run has been stopped by a refusal. Nothing dispatches for it again. */
   private failed = false;
 
@@ -1117,6 +1208,15 @@ export class Driver {
         }
       }
     }
+    // **`RN-R15` — the header, and its entry payload is a COPY taken HERE, at the call** (ADR 0064
+    // rule 2). Before `started` is set, so an uncloneable payload throws the platform's
+    // `DataCloneError` at the caller with the driver UNSTARTED and nothing appended — `OR-R12`'s
+    // asymmetry at the other caller-initiated boundary: the one party that can fix it is on the
+    // stack. **A behaviour change, measured rather than argued**: before W88 a payload holding a
+    // function started a run on an inline pool; it cannot be checkpointed, and a run that cannot be
+    // checkpointed is refused before it exists rather than discovered when someone asks for one.
+    const entryPayload = structuredClone(payload);
+    this.header = { format: CHECKPOINT_FORMAT, runId, flowId: this.def.flowId, version: this.def.version, entryPayload };
     this.started = true;
     try {
       this.enter(runId, this.def.entry, payload);
@@ -2615,9 +2715,12 @@ export class Driver {
    * driver's own array could forge a settlement and bypass `RS-R1`.
    */
   private append(input: FoldInput): void {
-    this.inputs.push(input);
+    // **`RN-R18` — the position is the index `push` gave this element, read from `push` itself**
+    // rather than from a length read before or after, so a re-entrant `onFoldInput` that appends
+    // again (the `failRun` door on the stack, `OR-R10`) cannot shift the number already chosen.
+    const seq = this.inputs.push(input) - 1;
     if (input.kind === 'outcome' || input.kind === 'resolution') this.log.push(input.record);
-    if (this.opts.onFoldInput) this.opts.onFoldInput(freezeInput(input));
+    if (this.opts.onFoldInput) this.opts.onFoldInput(freezeInput(input), seq);
   }
 
   private emit(e: RegionEvent): void {
@@ -2935,6 +3038,38 @@ export class Driver {
    */
   foldInputs(): readonly FoldInput[] {
     return Object.freeze(this.inputs.map(freezeInput)) as readonly FoldInput[];
+  }
+
+  /**
+   * **The run, as plain data a consumer can store and a resume can start from** — `RN-R14` to
+   * `RN-R17`, [ADR 0064](../../doc/decisions/0064-a-checkpoint-is-the-whole-event-sequence-and-a-header-and-it-is-a-copy.md),
+   * P23 decisions 2-5. `events` is exactly `foldInputs()` at this moment; `header` is the five facts
+   * the events cannot regenerate.
+   *
+   * **A COPY, not a reference — decided on a measurement** (W88's declaration step, P23 fact 6's
+   * run): at 10 000 tasks the copy costs 22 / 24 / 61 ms at 16 B / 1 KiB / 16 KiB results and holds
+   * one more copy of the events while the caller keeps it, where handing out the driver's own array
+   * costs 0.1-0.3 ms and shares every result. The reference is refused on the contract rather than
+   * on the price: a caller writing into a result it was handed would rewrite the run (`OR-R7`), and
+   * P23 decision 5 says a checkpoint holds no live reference. *The copy is ~0.5-1.2x of the
+   * `v8.serialize` a store pays on whichever it is handed*, and a consumer keeping a store current
+   * does it by APPENDING `onFoldInput`'s elements (`RN-R18`), not by calling this repeatedly.
+   *
+   * @throws NotStarted — before `start()`: there is no run, and no entry payload to put in a header.
+   */
+  checkpoint(): Checkpoint {
+    const h = this.header;
+    if (h === null) {
+      throw new NotStarted(
+        `NotStarted: driver for run "${this.runId}" has not started, so there is no run to checkpoint. ` +
+          'RN-R14: a checkpoint is a header and the whole event sequence, and the header\'s entry payload is the value ' +
+          'start() was called with — call start() first.',
+      );
+    }
+    return Object.freeze({
+      header: Object.freeze({ ...h, entryPayload: structuredClone(h.entryPayload) }),
+      events: this.foldInputs(),
+    });
   }
 
 

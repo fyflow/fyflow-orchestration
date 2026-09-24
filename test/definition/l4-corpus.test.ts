@@ -578,6 +578,11 @@ const LATE_SUITES = [
   // be: a census over SUITE names is satisfied by an empty suite, which is how eleven
   // of W85's thirteen cases were deletable at exit 0 (its adequacy reader, finding 3).
   'L2 — W85: every case this file declares actually RAN',
+  // W88 — what a CHECKPOINT is (ADR 0064, `spec/run-state.md` section 8), in
+  // `test/driver/checkpoint.test.ts` and `test/scheduler/checkpoint.test.ts`. Each file carries its
+  // own `DECLARED_CASES`, because this census cannot see an emptied suite.
+  'W88 — what a checkpoint IS: RN-R14 to RN-R18',
+  'W88 — the checkpoint through the runtime: RunHandle.header and the position',
 ];
 
 suite('L1 — every suite this tree declares actually RAN', (test) => {
@@ -609,5 +614,16 @@ suite('L1 — every suite this tree declares actually RAN', (test) => {
     equal(names.length, SUITES.length + LATE_SUITES.length,
       'and the observed COUNT equals the declared one, compared as NUMBERS — which is what the ' +
       'two set differences above cannot do once either side is sourced from the other');
+  });
+
+  // **The CASES of W88's two suites, counted from OUTSIDE them** — W88's adequacy reader, F5: each
+  // file's own `DECLARED_CASES` check is a case INSIDE the suite it guards, so one edit emptying the
+  // suite takes the guard with it and `npm test` stays at exit 0 (W85's finding a second time). A
+  // count here survives that edit. It is a count and not a membership, deliberately: the names are
+  // each file's own, and a rename is what the in-file membership already catches.
+  test('W88`s two suites still REGISTER the cases they declare — an emptied suite fails here', () => {
+    const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
+    equal(count('W88 — what a checkpoint IS: RN-R14 to RN-R18'), 13, 'test/driver/checkpoint.test.ts registers its thirteen cases');
+    equal(count('W88 — the checkpoint through the runtime: RunHandle.header and the position'), 3, 'test/scheduler/checkpoint.test.ts registers its three');
   });
 });

@@ -67,7 +67,7 @@ void shape;
 **Two documents, and one file of your own.** A REGISTRY says what exists — a worker module, and a
 node type that runs on it. A FLOW says what happens — nodes naming those types, and the edges between
 them. `createRuntime` builds every pool, group and scheduler the registry names and hands back
-**`{ driver, done }`** per run — the driver already running, and `done` a promise that resolves with
+**`{ driver, done, header }`** per run — the driver already running, and `done` a promise that resolves with
 the run's terminal state ([ADR 0058](doc/decisions/0058-runtime-start-returns-a-completion-handle-the-runtime-keeps.md)). **The only code you write is the worker**:
 `examples/getting-started/worker.ts`, a class with a `run` method and nothing else — no base class,
 no import. Everything below is executed by the gate on every `npm run gate`, and the same snippet is
@@ -1148,7 +1148,11 @@ the block — W78's conformity reader, finding 3.)*
 `awaiting_action` and true for everything else — including `stuck`, which is the point: before
 `stuck` existed, a permanently hung run folded to `completed` and a waiter reported success.
 
-**And `done` is that rule applied for you.** `runtime.start` returns `{ driver, done }`, and `done`
+**And `done` is that rule applied for you.** `runtime.start` returns `{ driver, done, header }` —
+`header` is the run's CHECKPOINT header since
+[ADR 0064](doc/decisions/0064-a-checkpoint-is-the-whole-event-sequence-and-a-header-and-it-is-a-copy.md),
+and `driver.checkpoint()` hands out the header with every event so far (`spec/run-state.md`
+section 8); resuming from one is not built yet — and `done`
 resolves with the first `RunState` this predicate calls terminal
 ([ADR 0058](doc/decisions/0058-runtime-start-returns-a-completion-handle-the-runtime-keeps.md)). It
 is the same two functions — the runtime keeps one `RunState`, steps it per input and asks
@@ -1274,6 +1278,8 @@ reported, which is why the rule is about the stack:
 |---|---|
 | `driver.start()` a **second time** | throws `MultipleRuns` — a driver serves one run and its id was fixed at construction (`ID-R3`) |
 | `driver.resolve()` with a `result` that is not structured-cloneable | throws the platform's own `DataCloneError`, **not** `UncloneableResult`, and the run is not stopped |
+| `driver.start()` with a payload that is not structured-cloneable | throws the platform's own `DataCloneError` with the driver UNSTARTED — a run whose entry payload cannot be copied into its checkpoint header cannot be checkpointed, so it is refused before it exists (`RN-R15`, [ADR 0064](doc/decisions/0064-a-checkpoint-is-the-whole-event-sequence-and-a-header-and-it-is-a-copy.md)). **New in W88, and BREAKING**: such a payload used to start a run on an inline pool |
+| `driver.checkpoint()` before `start()` | throws `NotStarted` — there is no run, and no entry payload to put in a header (`RN-R14`) |
 
 `MultipleRuns` is thrown by a second `start()`: a driver's sequence and join state carry no run id,
 so a second run would silently merge into the first. **One driver, one run** — and the run id is a
@@ -1426,7 +1432,7 @@ import * as lib from 'fyflow-orchestration';
 import {
   BoundaryRefused,
   ConfigRefused, DerivationRefused, DuplicateTaskId, GroupConfigRefused, GroupTypeMissing, InvalidDefinition,
-  InvalidRunId, InvalidTaskId, MissingJoinPolicy, MultipleRuns, NameCollision, NameMissing, NoMatchingEdge,
+  InvalidRunId, InvalidTaskId, MissingJoinPolicy, MultipleRuns, NameCollision, NameMissing, NoMatchingEdge, NotStarted,
   PoolTypeMissing, RegistryError, SchemaRefused, TypeDefaultRefused, UncloneableResult, UndeclaredKey,
   UndispatchedTask, UnresolvedBranchPath, UnresolvedMapArity, UnresolvedReference, WorkerMissing,
 } from 'fyflow-orchestration';
@@ -1434,6 +1440,7 @@ import {
 const documented = [
   DuplicateTaskId, UncloneableResult, NoMatchingEdge, UndispatchedTask,  // reported inside a listener
   MultipleRuns, InvalidRunId, InvalidDefinition, MissingJoinPolicy,      // thrown at you
+  NotStarted,                                // thrown at you from checkpoint() before start() — there is no run yet (RN-R14)
   RegistryError, WorkerMissing, PoolTypeMissing, ConfigRefused, TypeDefaultRefused, GroupTypeMissing,   // thrown at you — a REGISTRY defect,
   GroupConfigRefused, NameCollision, SchemaRefused, UndeclaredKey, NameMissing, DerivationRefused,       // the base class and its eleven (section 13)
   UnresolvedMapArity, UnresolvedReference,   // reported in a listener; reported AND thrown from start()/resolve()
@@ -1714,8 +1721,8 @@ on. What is missing is an agreed envelope shape between the two repositories, no
 `fyflow-orchestration/scheduler`, [W66](doc/work-items/w66-the-runtime-entry.md). It resolves every
 name the document uses against the code you supply, refuses every defect at construction by a named
 error, builds one pool per type instance and one object per group, holds a `FyflowScheduler` over
-them, and hands you **`{ driver, done }` per run** — the driver already running, and `done` a
-promise that resolves with the run's terminal `RunState`
+them, and hands you **`{ driver, done, header }` per run** — the driver already running, `done` a
+promise that resolves with the run's terminal `RunState`, and `header` the run's checkpoint header
 ([ADR 0058](doc/decisions/0058-runtime-start-returns-a-completion-handle-the-runtime-keeps.md);
 section 8 is what it waits for). **What stays yours is exactly what is code**: predicates,
 language adapters, custom group types and custom node-type classes, in one `code` argument.

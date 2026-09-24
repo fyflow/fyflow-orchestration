@@ -50,7 +50,7 @@ flow once; run thousands of workloads through it.
 **Two JSON documents, and one file of your own.** A **registry** says what exists — a worker module,
 and a node type that runs on it. A **flow** says what happens — nodes naming those types, and the
 edges between them. `createRuntime` builds everything the registry names, and each run hands back
-`{ driver, done }` — the driver, and a promise for the run's end. The one thing you write as code is the worker —
+`{ driver, done, header }` — the driver, a promise for the run's end, and the run's checkpoint header. The one thing you write as code is the worker —
 [examples/getting-started/worker.ts](examples/getting-started/worker.ts), a class with a `run`
 method, and nothing else.
 

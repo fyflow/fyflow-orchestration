@@ -253,6 +253,12 @@ const DRIVER_FIELDS = [
   // and output schema. Declarations the consumer wrote, holding no result, and it joins
   // `NOT_RUN_STATE` beside `nodeTypes` and `languages` for the same reason. The ratchet fired as designed.
   'workers',
+  // W88 — `header`: the checkpoint's header, set once by `start()` (`RN-R15`, ADR 0064). It holds the
+  // driver's own COPY of the entry payload, so it is run state the driver RETAINS and it is on the
+  // WALKED side, not in `NOT_RUN_STATE` — one copy of one value, constant in the task count and
+  // proportional to the payload, which `RN-R13` names as a third term since v0.9. The ratchet fired
+  // by name on W88's first run, the only L1-L5 failure it cost.
+  'header',
 ].sort();
 // `nodeTypes` since W59 — the ratchet firing as designed: the field was added and this list went
 // red naming it. It holds the registry's node types (consumer functions, no result) and joins

@@ -61,7 +61,7 @@ import { ConcurrentLimitGroup, FyflowScheduler, KeyedRateLimitGroup, RateLimitGr
 import type { ResourceGroup, WorkerManager } from 'fyflow-scheduler';
 import { groupsNamedBy, resolveRegistry } from '../definition/registry.ts';
 import { Driver } from '../driver/driver.ts';
-import type { DriverOptions } from '../driver/driver.ts';
+import type { CheckpointHeader, DriverOptions } from '../driver/driver.ts';
 import { liveToken } from '../fold/policies.ts';
 import { emptyState, isTerminal, step } from '../fold/run-state.ts';
 import type { FoldInput, RunState } from '../fold/run-state.ts';
@@ -269,6 +269,20 @@ export interface RunHandle {
    * is a second route rather than a second definition.
    */
   readonly done: Promise<RunState>;
+  /**
+   * **What a consumer writes FIRST when it stores this run by appending its events** — P23
+   * decision 4, [ADR 0064](../../doc/decisions/0064-a-checkpoint-is-the-whole-event-sequence-and-a-header-and-it-is-a-copy.md)
+   * rule 5. Equal to `driver.checkpoint().header` and a separate copy of it.
+   *
+   * **It arrives AFTER the run's first events, and that is measured rather than avoidable.** `start`
+   * dispatches the entry node synchronously, so a consumer's `onFoldInput` has been handed **1 to 5**
+   * elements before this handle exists — 1 on 59 of L6's 62 starts, 5 on a nested map at the entry
+   * (W88's declaration step) — and it is not bounded by 5: an entry FAN-OUT of N branches delivers
+   * `regionEntered`, N `branch.opened` and N `dispatched`, 2N + 1, before `start` returns (W88's
+   * conformity reader, finding 11). That is what `onFoldInput`'s `seq` is for: a store keyed by position
+   * does not care which was written first (`RN-R18`).
+   */
+  readonly header: CheckpointHeader;
 }
 
 export interface Runtime {
@@ -546,10 +560,14 @@ export function createRuntime(
         // settles from a sequence no consumer callback can shorten. This is the THIRD road
         // `start` reaches a member by, and `test/scheduler/runtime.test.ts` binds all three both
         // ways and pins this one — W76's ratchet, moved deliberately rather than around.
-        onFoldInput: (input: FoldInput) => {
+        // **`seq` is handed on as the DRIVER gave it** (`RN-R18`, ADR 0064 rule 5) — never counted
+        // here. A runtime-side counter would agree today, because this wrapper sees every element
+        // of a run from its first, and it is the well-formed wrong answer the first time a driver's
+        // sequence does not start at this callback's first call.
+        onFoldInput: (input: FoldInput, seq: number) => {
           state = step(state, input);
           queueMicrotask(settleIfTerminal);
-          startOptions.onFoldInput?.(input);
+          startOptions.onFoldInput?.(input, seq);
         },
         ...(startOptions.onRegionEvent !== undefined ? { onRegionEvent: startOptions.onRegionEvent } : {}),
         ...(startOptions.onRunFailure !== undefined ? { onRunFailure: startOptions.onRunFailure } : {}),
@@ -559,7 +577,10 @@ export function createRuntime(
         ...(startOptions.now !== undefined ? { now: startOptions.now } : {}),
       });
       driver.start(payload);
-      return { driver, done };
+      // **The header is the DRIVER's, read back — not assembled here from `flow`, `payload` and
+      // `runId`** (ADR 0064 rule 5, P23 decision 4). Assembling it would agree on every field but
+      // one: the entry payload would be the caller's own object, which the caller can still mutate.
+      return { driver, done, header: driver.checkpoint().header };
     },
     shutdown() {
       return scheduler.shutdown();
