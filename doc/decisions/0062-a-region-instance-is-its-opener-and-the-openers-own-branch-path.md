@@ -91,7 +91,10 @@ and, because it is not a `branchPath`, a composite string to carry it.
 **The corpus cannot arbitrate between them, and that is the measurement rather than a gap.** Over both
 corpora — **45 documents, 33 region-bearing, 50 regions** — (b) qualifies **6 of 50** and (c) **0 of
 50**, and **openers inside a map region are 0 of 50**. *That zero IS the refusal*: the one shape both
-keys exist for is the shape W33 forbade, so no document contains one, and (b)'s six are all
+keys exist for is the shape W33 forbade, so no document CONTAINED one when this was measured —
+**[W86](../work-items/w86-score-each-item-then-fan-out-per-item.md) is the first, and on the tree
+that item ships the same measurement reads 1 of 52 over 46 documents, 34 region-bearing** — and
+(b)'s six are all
 `fanout`-nested at `path=1` where the opener was already a distinct node. **Neither key is needed by
 anything that exists today**, which is what makes this a cost argument.
 

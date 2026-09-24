@@ -1,6 +1,6 @@
 # P22 — What a region's IDENTITY is, and whether one may open inside a map
 
-**Status:** **DECLARED** 2026-09-23 on `1da565f` (P1-P21 complete and retro'd, `doc/workflow.md`
+**Status:** **COMPLETE pending its retro** — declared 2026-09-23 on `1da565f` (P1-P21 complete and retro'd, `doc/workflow.md`
 [v0.22](../workflow.md)). **[W84](../work-items/w84-what-a-regions-identity-is.md) is DONE** — ADR 0062, the
 refusal LIFTED, `spec/` at v0.7 / v0.17 / v0.22, L1-L5 at 46 / 1302 and **L6 UNMOVED at 1724 / 58**;
 **it corrects this plan in THREE places**: the churn is **63 typecheck sites in 8 files and 34 L1-L5
@@ -12,7 +12,22 @@ rule id, `spec/join-policy.md` v0.18 and `spec/run-state.md` v0.8 moving THREE `
 nothing else, L1-L5 at **47 / 1322** and **L6 UNMOVED at 1724 / 58**; **it corrects fact 5**, which
 named three branch-exit paths as the undriven class and is wrong in both directions — `branch.lost`
 was already bound at 7, four sites the class does not name were also at 0, and `branch.exited` is a
-fifth ([Q352](../open-questions.md)). **W86 is still a row in the table below and nothing more**,
+fifth ([Q352](../open-questions.md)). **[W86](../work-items/w86-score-each-item-then-fan-out-per-item.md) is DONE and it is this plan's
+EXIT ARTIFACT** — *score each item, then fan out per item* on a real `FyflowScheduler` in BOTH L6
+runtimes, **L6 1833 / 60** from 1724 / 58, L1-L5 UNMOVED at 47 / 1322, the package at **`0.4.0`**,
+and the ONE new worker stop-and-ask (c) grants **USED**. **It removes fact 1's headline zero**:
+*openers inside a map region: 0 of 50 — that zero IS the refusal* reads **1 of 52 over 46
+documents** on the tree it ships. **And prediction 3's reversal condition went the OTHER WAY** —
+*because a real pool interleaves two instances in a way the fake does not* is false in the direction
+that matters, since a `map` dispatches every instance at once and one FIFO pool makes each window
+close before the next opens, so a real run interleaves **LESS** ([Q358](../open-questions.md)). The
+overlap is ARRANGED, DERIVED from the run's own sequence and asserted, and measured from both sides.
+
+*(This read "W86 is still a row in the table below and nothing more" until that item made it false,
+and is corrected by it as a declared exception rather than by the retro — section 1 rule 5's third
+direction, for the second consecutive item of this plan.)*
+
+**W86 was still a row in the table below and nothing more**,
 because an item is declared with its full template at the point it starts, when its declaration step
 can correct what this plan handed it — which all three of P21's items did, and both of P22's have.
 *(This read "W85 and W86 are still rows" until W85 made it false, and is corrected by that item as a
@@ -169,7 +184,7 @@ title (`doc/workflow.md` section 7 rule 2).*
 |---|---|---|---|---|
 | [**W84**](../work-items/w84-what-a-regions-identity-is.md) | **What a region's IDENTITY is** — **ADR 0062**: key (b), the two-level carrier, `RegionEvent.regionPath`, `regionId` unchanged in meaning and in value; W33's construction refusal LIFTED; the `spec/` rules that move (`RN-R6`'s shape, and whatever `spec/run-state.md` and `spec/join-policy.md` say about `regions` being keyed by an opener). **All sixty typecheck sites and all thirty-two L1-L5 failures are this item's**, because the change does not compile without them | `src/driver/**`, `src/fold/**`, `spec/**`, `test/**`, `doc/decisions/0062-*` | nothing | L0 under all five typecheckers; L1-L5 in three runtimes; `check:spec`; **L6 UNMOVED** |
 | **W85** | **What a nested region CARRIES and how it ENDS** — the shapes: `JP-R12` at two levels and at depth 3, the three branch-exit paths under nesting (fact 5's, as assertions rather than a probe), N = 0 inside a map, retention released per instance, and ADR 0044 visibility across nested map regions. **Fact 5 is the reason this is its own item**: those three paths are the one class of churn no typechecker can see | `test/**`, `spec/**` as the shapes need | W84 | L1-L5 in three runtimes; `check:spec`; **L6 UNMOVED** |
-| **W86** | **The exit artifact** — *score each item, then fan out per item* on a real `FyflowScheduler` in **both** L6 runtimes, and the reference teaching it. The inner region is a **`map`** and stop-and-ask (c) grants it **ONE new worker**, returning a per-item list directly, so no transform is in the artifact's road. **It also moves the package to `0.4.0`** (stop-and-ask (b)), with `README.md` naming the break. **L6 MOVES and this row says by how much.** It must also try what no fact here measured: a REAL pool's interleaving of two region instances | `examples/**`, `AGENTS.md`, `README.md`, `examples/README.md`, `package.json`, `deno.json` | W85 | L6 in **both** runtimes; `check:docs`; `check:markdown`; the full `npm run gate` |
+| [**W86**](../work-items/w86-score-each-item-then-fan-out-per-item.md) — **DONE** | **The exit artifact** — *score each item, then fan out per item* on a real `FyflowScheduler` in **both** L6 runtimes, and the reference teaching it. The inner region is a **`map`** and stop-and-ask (c) grants it **ONE new worker**, returning a per-item list directly, so no transform is in the artifact's road. **It also moves the package to `0.4.0`** (stop-and-ask (b)), with `README.md` naming the break. **L6 MOVES and this row says by how much.** It must also try what no fact here measured: a REAL pool's interleaving of two region instances. **DONE: L6 1833 / 60 in both runtimes, the package at `0.4.0`, the grant USED, and prediction 3 CONFIRMED with its reversal condition measured the OTHER way** — a real pool interleaves two instances LESS than a fake does, so the overlap is ARRANGED and DERIVED rather than found ([Q358](../open-questions.md)) | `examples/**`, `AGENTS.md`, `README.md`, `examples/README.md`, `package.json`, `deno.json` | W85 | L6 in **both** runtimes; `check:docs`; `check:markdown`; the full `npm run gate` |
 
 **W87 is reserved and expected unused**, on P19's W75, P20's W79 and P21's W83 precedent.
 

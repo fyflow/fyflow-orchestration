@@ -885,6 +885,78 @@
         ]
       }
     },
+    "shard": {
+      "url": "./workers/shard.ts",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "word": {
+            "type": "string"
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "examples": [
+          {
+            "word": "ja",
+            "confidence": 0.2
+          }
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "word",
+          "shards"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "word": {
+            "type": "string"
+          },
+          "shards": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "shard",
+                "confidence"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "shard": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "confidence": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                }
+              }
+            }
+          }
+        },
+        "examples": [
+          {
+            "word": "ja",
+            "shards": [
+              {
+                "shard": "j",
+                "confidence": 1
+              },
+              {
+                "shard": "a",
+                "confidence": 0.1
+              }
+            ]
+          }
+        ]
+      }
+    },
     "stamp": {
       "url": "./workers/stamp.ts",
       "inputSchema": {
@@ -973,7 +1045,9 @@
       "settings": { "temperature": 0 }
     },
     "GaugeWorker": { "worker": "gauge", "inline": true, "config": { "delayMs": 5 }, "pool": { "maxThreads": 1, "idleTimeout": 0 } },
-    "StampWorker": { "worker": "stamp", "inline": true, "config": { "delayMs": 5 }, "pool": { "maxThreads": 1, "idleTimeout": 0 } }
+    "StampWorker": { "worker": "stamp", "inline": true, "config": { "delayMs": 5 }, "pool": { "maxThreads": 1, "idleTimeout": 0 } },
+    "Shard": { "worker": "shard", "inline": true, "config": { "msPerChar": 60 }, "pool": { "maxThreads": 2, "idleTimeout": 0 } },
+    "SecondPass": { "worker": "score", "inline": true, "config": { "delayMs": 120 }, "pool": { "maxThreads": 1, "idleTimeout": 0 } }
   },
 
   "pools": {

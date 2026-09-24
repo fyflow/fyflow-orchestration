@@ -214,9 +214,9 @@ suite('W73 — the L6 corpus census, as an EQUALITY, and every arc shape reached
   const registry = { workers: l6Registry.workers, nodeTypes: l6Registry.nodeTypes, languages: { jsonata } } as unknown as Parameters<typeof checkWiring>[0];
   const options = { workerHalf: { jsonata: compileExpression } };
   let reports: WiringReport[] = [];
-  test('the census: 65 fit, 1 no, 5 transform-passes, 2 transform-fails, 8 unchecked over 26 flows', async () => {
+  test('the census: 69 fit, 1 no, 5 transform-passes, 2 transform-fails, 8 unchecked over 27 flows', async () => {
     const names = (await listDir(flowsDir)).filter((n) => n.endsWith('.flow.json')).sort();
-    ok(names.length === 26, `26 L6 flows, got ${names.length}`);
+    ok(names.length === 27, `27 L6 flows, got ${names.length}`);
     reports = [];
     for (const n of names) reports.push(await checkWiring(registry, JSON.parse(await readText(`${flowsDir}/${n}`)) as FlowDefinition, options));
     const counts: Record<VerdictKind, number> = { 'fits': 0, 'no': 0, 'transform-passes': 0, 'transform-fails': 0, 'unchecked': 0 };
@@ -231,7 +231,12 @@ suite('W73 — the L6 corpus census, as an EQUALITY, and every arc shape reached
     // point rather than a side effect: its two workers return values their own `outputSchema`
     // refuses, and every arc of it FITS, because a wiring check reads two SCHEMAS and never a value.
     // *The census is where that is a number instead of a sentence.*
-    equal(counts, { 'fits': 65, 'no': 1, 'transform-passes': 5, 'transform-fails': 2, 'unchecked': 8 }, 'the L6 census');
+    // **+4 fits and +1 flow since W82 — W86's `fan-out-per-item.flow.json`**, P22's exit artifact: a
+    // `map` whose branch opens a second `map`. Every one of its arcs FITS, and that is the point
+    // rather than a side effect — a region nested inside a map region is a shape `checkWiring`
+    // traverses with no change at all, which is P22 prediction 2 (*`JP-R12`, ADR 0044 and
+    // `checkWiring` need zero changes*) as a number rather than as a sentence.
+    equal(counts, { 'fits': 69, 'no': 1, 'transform-passes': 5, 'transform-fails': 2, 'unchecked': 8 }, 'the L6 census');
     // And the one `no` is the FD-R2 prediction: map-no-array's `over: "rows"` on a producer that never emits it.
     const no = reports.flatMap((r) => r.verdicts.filter((v) => v.kind === 'no'));
     equal(no.map((v) => `${v.through}:${v.consumer}`), ['split:score'], 'the one no');

@@ -2757,3 +2757,127 @@ two claims is `examples/l6.ts`**, which runs the same two shapes as two separate
 where the bound is kept and the clone's loss is reported anyway — and holds the check-ON run against
 the identical run with the check OFF, record for record. *A worker here made to keep its bound is
 green at this rung and red at that one.*
+## 17. Fanning out PER ITEM — a region inside a `map` region
+
+**The shape this section teaches was refused at `Driver` construction until `0.4.0`.** *Score each item, then fan
+out per item* — a `map` over a list, and inside each of its branches a SECOND `map` over a list that
+branch computed — was refused at `Driver` construction, because a region's identity was its opener's
+node id and a `map` makes one opener reachable once per item. The workaround was the one this library
+exists to remove: a reshaping node and a second flow.
+
+**A region INSTANCE is now the pair `(opener node id, the opener's own branch path)`**
+([ADR 0062](doc/decisions/0062-a-region-instance-is-its-opener-and-the-openers-own-branch-path.md)).
+Three things follow, and they are the whole of what you need:
+
+| | |
+|---|---|
+| **`RunState.regions` is TWO-LEVEL** | `regions[openerId][openerPath]`. The opener's id is unchanged in meaning and in value; the second key is `-` for a region in no region, and inside a `map` region it is that map's item index |
+| **every `RegionEvent` carries `regionPath` beside `regionId`** | so an event says WHICH instance it is about. The same for `UnsatisfiableJoin` |
+| **a join's collection is per INSTANCE** | `JP-R12` keys it by branch path, and a branch inside an instance carries that instance's path as its own prefix — so two instances of one opener hold DISJOINT key sets and cannot collide |
+
+**Both arities come from data, at both levels, and neither is in the document.** That is what
+separates a `map` from a `fanout`: `FD-V9` requires a fan-out's branch entries to be written down, so
+a fan-out's width is an authoring-time fact. Here the outer width is *how many orders the entry
+returned* and each inner width is *how many lines THAT order has* — different per instance.
+
+**Writing it needs exactly one node between the two maps.** A `map`'s `over` names a key of what the
+previous node returned, and a `map`'s branch is a TASK (`FD-V25` refuses a map whose branch is a
+map) — so the outer branch entry is the node whose output carries the item's own list. No `needs`, no
+`transform`, no reshaping node and no second flow.
+
+```ts run
+import { createRuntime } from 'fyflow-orchestration/scheduler';
+import type { FlowDefinition, RegionEvent, RegistryDocument } from 'fyflow-orchestration';
+
+const registry: RegistryDocument = {
+  workers: {
+    orders: { url: '../../examples/getting-started/orders.ts' },   // in your program: './orders.ts'
+    lines: { url: '../../examples/getting-started/lines.ts' },
+    tag: { url: '../../examples/getting-started/tag.ts' },
+  },
+  nodeTypes: {
+    Orders: { worker: 'orders', inline: true },
+    Lines: { worker: 'lines', inline: true },
+    Tag: { worker: 'tag', inline: true },
+  },
+};
+
+// TWO MAPS, one inside the other's branch. `expand` is the single node between them: a map's `over`
+// names a key of what the PREVIOUS node returned, so the outer branch entry is what produces the
+// item's own list. `FD-V25` refuses a map whose branch is a map, which is why that node is required
+// and why it is the only one.
+const flow: FlowDefinition = {
+  flowId: 'per-item', version: 1, entry: 'intake',
+  nodes: [
+    { id: 'intake', kind: 'task', type: 'Orders', edges: [{ to: 'perOrder' }] },
+    { id: 'perOrder', kind: 'map', over: 'orders', branch: 'expand' },
+    { id: 'expand', kind: 'task', type: 'Lines', edges: [{ to: 'perLine' }] },
+    { id: 'perLine', kind: 'map', over: 'lines', branch: 'price' },
+    { id: 'price', kind: 'task', type: 'Tag', settings: { label: 'priced' }, edges: [{ to: 'lineJoin' }] },
+    { id: 'lineJoin', kind: 'join', of: 'perLine', edges: [{ to: 'orderJoin' }] },
+    { id: 'orderJoin', kind: 'join', of: 'perOrder', edges: [{ to: 'report' }] },
+    { id: 'report', kind: 'task', type: 'Tag', settings: { label: 'reported' }, edges: [{ to: 'done' }] },
+    { id: 'done', kind: 'end', outcome: 'completed' },
+  ],
+};
+
+// A region event now says WHICH INSTANCE it is about. Before 0.4.0 it carried `regionId` alone,
+// which is the same string for every instance of one opener.
+const arrivals: string[] = [];
+const runtime = createRuntime(registry, {}, { base: import.meta.url, flows: [flow] });
+const state = await runtime.start(flow, { region: 'ab c' }, {
+  onRegionEvent: (e: RegionEvent) => {
+    if (e.type === 'branch.arrived') arrivals.push(`${e.regionId}@${e.regionPath} <- ${e.branchPath}`);
+  },
+}).done;
+await runtime.shutdown();
+
+console.log(state.outcome);                                  // completed
+if (state.outcome !== 'completed') throw new Error(`expected completed, got ${state.outcome}`);
+
+// ONE OPENER, TWO INSTANCES — keyed by the opener's own branch path, which inside `perOrder` is the
+// item index. `'ab c'` is two orders, so `perOrder` opened two branches and `perLine` was entered
+// twice; `ab` has two lines and `c` has one, and neither number is in the flow above.
+console.log(Object.keys(state.regions['perLine'] ?? {}).sort());   // [ '0', '1' ]
+console.log(Object.keys(state.regions['perOrder'] ?? {}).sort());  // [ '-' ]
+const instances = Object.keys(state.regions['perLine'] ?? {}).sort();
+if (instances.join() !== '0,1') throw new Error(`one opener, two instances: got ${instances.join()}`);
+if (Object.keys(state.regions['perOrder'] ?? {}).join() !== '-') throw new Error('perOrder is in no region, so its instance key is `-`');
+
+// EACH INSTANCE HAS ITS OWN WIDTH AND ITS OWN ANSWER, and their branch keys are disjoint because a
+// branch inside an instance begins with that instance's path.
+const widths = instances.map((p) => Object.keys(state.regions['perLine']![p]!.settled).sort().join(' '));
+console.log(widths);                                         // [ '0.0 0.1', '1.0' ]
+if (widths.join(' | ') !== '0.0 0.1 | 1.0') throw new Error(`each instance has its own width: got ${widths.join(' | ')}`);
+if (!instances.every((p) => state.regions['perLine']![p]!.joined === true)) throw new Error('both inner joins fired');
+
+// AND THE EVENTS NAMED THE INSTANCE, not just the region.
+console.log(arrivals.sort());
+//   [ 'perLine@0 <- 0.0', 'perLine@0 <- 0.1', 'perLine@1 <- 1.0', 'perOrder@- <- 0', 'perOrder@- <- 1' ]
+if (!arrivals.includes('perLine@0 <- 0.0') || !arrivals.includes('perLine@1 <- 1.0')) {
+  throw new Error(`a region event names the instance: ${arrivals.sort().join(', ')}`);
+}
+
+// WHAT THE OUTER JOIN CARRIES IS TWO LEVELS DEEP. `JP-R12`: one entry per branch that arrived, keyed
+// by branch path — and each of the outer entries IS that instance's own collection.
+const report = Object.values(state.nodes).find((n) => n.nodeId === 'report')?.result as Record<string, Record<string, { sku: string }>>;
+console.log(Object.keys(report).filter((k) => k !== 'reported').sort());   // [ '0', '1' ]
+console.log(report['0']!['0.1']!.sku);                       // ab-1
+if (report['0']!['0.1']!.sku !== 'ab-1' || report['1']!['1.0']!.sku !== 'c-0') {
+  throw new Error(`the outer collection's values are the inner collections: ${JSON.stringify(report)}`);
+}
+```
+
+**What is still refused, and by what.** `FD-V19` keeps one node out of two branch entries of one
+fan-out; `FD-V25` keeps a map's branch from being a map; `ID-R6` refuses a branch path across a map
+region with no item index; `ID-R1` refuses a duplicate dispatch. **Those four are what make the
+derived key total**, and they are why this cost no new refusal and no new error class.
+
+**An empty inner list still stops the run.** A `map` over zero items opens no branch, so its join can
+never fire and the run is `stuck` (section 8) — one empty list anywhere makes the whole run stuck,
+and that ruling is unchanged by nesting.
+
+**`0.4.0` is BREAKING in two ways and neither is `regionId`.** `RunState.regions` gaining its second
+level is a break for anyone reading it, and `UnsatisfiableJoin.regionPath` is a REQUIRED member on an
+interface a consumer may construct — so a test double reporting a dead join no longer compiles.
+`regionId` keeps its meaning AND its value, which is why no flow, no policy and no region name moves.

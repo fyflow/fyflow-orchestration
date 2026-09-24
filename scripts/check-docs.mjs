@@ -353,7 +353,13 @@ if (written.length) {
 // 23 until W69, which added the getting-started snippet to section 2 and raised the floor to the
 // count it ships (Q102's ratchet: the item that adds a snippet raises it); 24 until W70, which added
 // the routing snippet to section 5 and the custom-group snippet to section 12 — 26.
-const RUN_FLOOR = 28;
+// **Raised 28 -> 29 by [W86](../doc/work-items/w86-score-each-item-then-fan-out-per-item.md)**, which
+// added section 17's `run` snippet — a `map` whose branch opens a second `map`, one opener with two
+// INSTANCES, `RunState.regions` read at both levels, `RegionEvent.regionPath` naming the instance
+// through `onRegionEvent`, and `JP-R12`'s collection two levels deep. **Q102's ratchet, and this item
+// declared the file in its exceptions table before the snippet was written**, on W59's, W61's and
+// W62's precedent: the obligation is created by the CONTENT of the change and not by a file set.
+const RUN_FLOOR = 29;
 {
   // **Only when the document parsed.** A count over a reference whose fences are
   // malformed or untagged is true of the parse and says nothing about coverage —
@@ -496,8 +502,12 @@ const README_SNIPPETS = [
   { readme: 'A flow that decides', agents: 'The same on the RUNTIME — a decision, a fan-out and a join on real workers' },
   { readme: 'Checking a flow before it runs', agents: '15. What a schema buys an AUTHOR — an authoring session' },
   { readme: 'Checking a result after it ran', agents: '16. What a schema buys a RUN — holding a result to the schema its worker declares' },
+  { readme: 'Fanning out per item', agents: '17. Fanning out PER ITEM — a region inside a `map` region' },
 ];
-const README_SNIPPET_FLOOR = 4;
+// **5 since [W86](../doc/work-items/w86-score-each-item-then-fan-out-per-item.md)**, which added
+// section 17's pair — Q102's ratchet, and that item's adequacy reader (finding 16) is what noticed
+// the floor had been left at four while `README_SNIPPETS` became five.
+const README_SNIPPET_FLOOR = 5;
 /** The README's text above its first `## ` heading, which is a section for X8's purposes. */
 const README_OPENING = '(the opening, above the first ## heading)';
 {
@@ -629,6 +639,37 @@ const README_OPENING = '(the opening, above the first ## heading)';
   }
 }
 
+// X9 — the version README.md tells a consumer to expect IS the version both manifests carry
+//
+// **[W86](../doc/work-items/w86-score-each-item-then-fan-out-per-item.md), and its own rule 8 pass
+// is what earned it.** Probe `h1` put `package.json` back to `0.3.0` on the tree that ships `0.4.0`
+// and it cost **ZERO** at `check:docs`, `check:spec` and both L6 rungs: the one sentence in this
+// repository that tells a consumer which version a breaking change arrived in was compared to
+// nothing at all, while `D7` has held the SCHEDULER's pin to two sentences since
+// [W37](../doc/work-items/w37-the-scheduler-pin-moves-to-0-5-2.md).
+//
+// `X7`'s shape and `D7`'s subject: the number a consumer reads against the file it is about, both
+// manifests, and both of them against each other — because
+// [ADR 0029](../doc/decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)
+// publishes through two of them and a reader of either gets one answer.
+{
+  // Through `CHECK_DOCS_README`, as `X8` reads it and for the same reason: a clause a probe
+  // cannot reach is a clause the self-test's coverage bound counts and cannot grade.
+  const RM = join(ROOT, README);
+  const PKG = join(ROOT, 'package.json');
+  const DENO = join(ROOT, 'deno.json');
+  if (!existsSync(RM) || !existsSync(PKG) || !existsSync(DENO)) {
+    fail('X9', 'README.md, package.json or deno.json is missing, so the version cannot be compared');
+  } else {
+    const npmV = JSON.parse(readFileSync(PKG, 'utf8')).version;
+    const jsrV = JSON.parse(readFileSync(DENO, 'utf8')).version;
+    const said = /The manifests read `([0-9]+\.[0-9]+\.[0-9]+)`/.exec(readFileSync(RM, 'utf8'));
+    if (!said) fail('X9', 'README.md`s manifest-version sentence is not where X9 looks for it');
+    else if (said[1] !== npmV) fail('X9', `README.md says the manifests read ${said[1]} and package.json reads ${npmV}`);
+    if (npmV !== jsrV) fail('X9', `package.json reads ${npmV} and deno.json reads ${jsrV} — one consumer of two gets the wrong answer`);
+  }
+}
+
 const checks = [
   'X1 the reference exists and its fences parse',
   'X2 every ```ts block is tagged run or check, or opts out explicitly',
@@ -638,6 +679,7 @@ const checks = [
   'X6 AGENTS.md`s cost figures ARE spec/flow-definition.md section 3`s, both ways',
   'X7 AGENTS.md`s refusal count IS spec/flow-definition.md section 5`s row count, and its range end the highest row',
   'X8 every ```ts fence in README.md IS the executed AGENTS.md snippet its section NAMES, byte for byte, both ways',
+  'X9 the version README.md tells a consumer to expect IS the version both manifests carry',
 ];
 const runCount = written.filter((x) => x.tag === 'run').length;
 console.log(`docs check — ${all.length} snippet(s): ${runCount} run, ` +

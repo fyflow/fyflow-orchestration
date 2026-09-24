@@ -9,11 +9,26 @@ flow once; run thousands of workloads through it.
 > `fyflow-orchestration/scheduler` builds every one of them, and the only code left is the code that
 > is genuinely yours: a predicate, a worker module, a custom group type, a custom node-type class
 > ([P18](doc/plans/p18-a-flow-and-its-runtime-from-documents-alone.md)). **1299 `test()` cases in five
-> runtimes** — Node 24, Deno, chromium, firefox, webkit — **plus 1724 assertions across 58 runs against a real
-> scheduler** in Node and Deno *(1627 / 53 until [W78](doc/work-items/w78-the-run-a-consumer-holds-in-one-line.md), whose consumer-road block is P20's exit artifact; 1502 / 50 until W67; 1203 / 44 until W59; 681 and 942 / 42 until W58 re-took this line; the two numbers count different things, [Q98](doc/open-questions.md))* — where the scheduler also carries five tasks this library did not mint, and both
+> runtimes** — Node 24, Deno, chromium, firefox, webkit — **plus 1833 assertions across 60 runs against a real
+> scheduler** in Node and Deno *(1724 / 58 until [W86](doc/work-items/w86-score-each-item-then-fan-out-per-item.md), whose two `fan-out-per-item` rows are P22's exit artifact; 1627 / 53 until [W78](doc/work-items/w78-the-run-a-consumer-holds-in-one-line.md), whose consumer-road block is P20's exit artifact; 1502 / 50 until W67; 1203 / 44 until W59; 681 and 942 / 42 until W58 re-took this line; the two numbers count different things, [Q98](doc/open-questions.md))* — where the scheduler also carries five tasks this library did not mint, and both
 > runs still complete. Not published; no version has been released.
 >
-> **The manifests read `0.3.0` and the change is BREAKING** — [W77](doc/work-items/w77-what-start-returns.md),
+> **The manifests read `0.4.0` and the change is BREAKING IN TWO WAYS** —
+> [W86](doc/work-items/w86-score-each-item-then-fan-out-per-item.md),
+> [ADR 0062](doc/decisions/0062-a-region-instance-is-its-opener-and-the-openers-own-branch-path.md).
+> **`RunState.regions` is TWO-LEVEL**: `regions[openerId][openerPath]`, because a `map` whose branch
+> opens a region enters one opener once per item, so a region has INSTANCES. A `0.3.0` reader writing
+> `state.regions['split'].joined` still TYPES — `Record<string, T>` has an open index signature — and
+> evaluates to `undefined`, which is the half of this break a typechecker cannot show you; it goes red
+> at compile time only where the value is used at a constrained type. **And
+> `UnsatisfiableJoin.regionPath` is a REQUIRED member on an interface a consumer may CONSTRUCT**, so a
+> test double reporting a dead join no longer compiles — *additive for a reader* is true of
+> `RegionEvent.regionPath` and is not true of the change. **`regionId` keeps its meaning AND its
+> value**, so no flow, no policy, no region name and no task id moves. What it BUYS is the flow in
+> *Fanning out per item* below, which could not be written at all before: the refusal
+> [W33](doc/work-items/w33-a-map-at-run-time-arity.md) put in the `Driver` constructor is lifted whole.
+>
+> **`0.3.0` was BREAKING too** — [W77](doc/work-items/w77-what-start-returns.md),
 > [ADR 0058](doc/decisions/0058-runtime-start-returns-a-completion-handle-the-runtime-keeps.md).
 > `runtime.start` returns `{ driver, done }` where it returned a `Driver`: `done` is a promise that
 > resolves with the run's terminal `RunState`, so *the run is over* is one line rather than a block
@@ -396,6 +411,106 @@ snippet the gate RAN. What it costs is a RATIO rather than a millisecond — abo
 `structuredClone` the driver already pays on the same settlement, falling as the value grows and
 rising as the schema does — and `spec/outcome-record.md` section 4 carries the measurement with its
 method.
+
+## Fanning out per item
+
+**This shape was refused at `Driver` construction until `0.4.0`.** *Score each item, then fan out per item* — a
+`map` over a list, and inside each of its branches a SECOND `map` over a list that branch computed
+— was refused at `Driver` construction, because a region's identity was its opener's node id and a
+`map` makes one opener reachable once per item. The workaround was a reshaping node and a second
+flow, which is the workaround this library exists to remove. **A region INSTANCE is now the pair
+`(opener node id, the opener's own branch path)`**: `RunState.regions` is two-level, every
+`RegionEvent` carries a `regionPath` beside its `regionId`, and a join's collection belongs to the
+instance. Both arities come from data at both levels and neither is in the document — which is what
+separates a `map` from a `fanout`, whose branch entries `FD-V9` requires to be written down.
+
+```ts
+import { createRuntime } from 'fyflow-orchestration/scheduler';
+import type { FlowDefinition, RegionEvent, RegistryDocument } from 'fyflow-orchestration';
+
+const registry: RegistryDocument = {
+  workers: {
+    orders: { url: '../../examples/getting-started/orders.ts' },   // in your program: './orders.ts'
+    lines: { url: '../../examples/getting-started/lines.ts' },
+    tag: { url: '../../examples/getting-started/tag.ts' },
+  },
+  nodeTypes: {
+    Orders: { worker: 'orders', inline: true },
+    Lines: { worker: 'lines', inline: true },
+    Tag: { worker: 'tag', inline: true },
+  },
+};
+
+// TWO MAPS, one inside the other's branch. `expand` is the single node between them: a map's `over`
+// names a key of what the PREVIOUS node returned, so the outer branch entry is what produces the
+// item's own list. `FD-V25` refuses a map whose branch is a map, which is why that node is required
+// and why it is the only one.
+const flow: FlowDefinition = {
+  flowId: 'per-item', version: 1, entry: 'intake',
+  nodes: [
+    { id: 'intake', kind: 'task', type: 'Orders', edges: [{ to: 'perOrder' }] },
+    { id: 'perOrder', kind: 'map', over: 'orders', branch: 'expand' },
+    { id: 'expand', kind: 'task', type: 'Lines', edges: [{ to: 'perLine' }] },
+    { id: 'perLine', kind: 'map', over: 'lines', branch: 'price' },
+    { id: 'price', kind: 'task', type: 'Tag', settings: { label: 'priced' }, edges: [{ to: 'lineJoin' }] },
+    { id: 'lineJoin', kind: 'join', of: 'perLine', edges: [{ to: 'orderJoin' }] },
+    { id: 'orderJoin', kind: 'join', of: 'perOrder', edges: [{ to: 'report' }] },
+    { id: 'report', kind: 'task', type: 'Tag', settings: { label: 'reported' }, edges: [{ to: 'done' }] },
+    { id: 'done', kind: 'end', outcome: 'completed' },
+  ],
+};
+
+// A region event now says WHICH INSTANCE it is about. Before 0.4.0 it carried `regionId` alone,
+// which is the same string for every instance of one opener.
+const arrivals: string[] = [];
+const runtime = createRuntime(registry, {}, { base: import.meta.url, flows: [flow] });
+const state = await runtime.start(flow, { region: 'ab c' }, {
+  onRegionEvent: (e: RegionEvent) => {
+    if (e.type === 'branch.arrived') arrivals.push(`${e.regionId}@${e.regionPath} <- ${e.branchPath}`);
+  },
+}).done;
+await runtime.shutdown();
+
+console.log(state.outcome);                                  // completed
+if (state.outcome !== 'completed') throw new Error(`expected completed, got ${state.outcome}`);
+
+// ONE OPENER, TWO INSTANCES — keyed by the opener's own branch path, which inside `perOrder` is the
+// item index. `'ab c'` is two orders, so `perOrder` opened two branches and `perLine` was entered
+// twice; `ab` has two lines and `c` has one, and neither number is in the flow above.
+console.log(Object.keys(state.regions['perLine'] ?? {}).sort());   // [ '0', '1' ]
+console.log(Object.keys(state.regions['perOrder'] ?? {}).sort());  // [ '-' ]
+const instances = Object.keys(state.regions['perLine'] ?? {}).sort();
+if (instances.join() !== '0,1') throw new Error(`one opener, two instances: got ${instances.join()}`);
+if (Object.keys(state.regions['perOrder'] ?? {}).join() !== '-') throw new Error('perOrder is in no region, so its instance key is `-`');
+
+// EACH INSTANCE HAS ITS OWN WIDTH AND ITS OWN ANSWER, and their branch keys are disjoint because a
+// branch inside an instance begins with that instance's path.
+const widths = instances.map((p) => Object.keys(state.regions['perLine']![p]!.settled).sort().join(' '));
+console.log(widths);                                         // [ '0.0 0.1', '1.0' ]
+if (widths.join(' | ') !== '0.0 0.1 | 1.0') throw new Error(`each instance has its own width: got ${widths.join(' | ')}`);
+if (!instances.every((p) => state.regions['perLine']![p]!.joined === true)) throw new Error('both inner joins fired');
+
+// AND THE EVENTS NAMED THE INSTANCE, not just the region.
+console.log(arrivals.sort());
+//   [ 'perLine@0 <- 0.0', 'perLine@0 <- 0.1', 'perLine@1 <- 1.0', 'perOrder@- <- 0', 'perOrder@- <- 1' ]
+if (!arrivals.includes('perLine@0 <- 0.0') || !arrivals.includes('perLine@1 <- 1.0')) {
+  throw new Error(`a region event names the instance: ${arrivals.sort().join(', ')}`);
+}
+
+// WHAT THE OUTER JOIN CARRIES IS TWO LEVELS DEEP. `JP-R12`: one entry per branch that arrived, keyed
+// by branch path — and each of the outer entries IS that instance's own collection.
+const report = Object.values(state.nodes).find((n) => n.nodeId === 'report')?.result as Record<string, Record<string, { sku: string }>>;
+console.log(Object.keys(report).filter((k) => k !== 'reported').sort());   // [ '0', '1' ]
+console.log(report['0']!['0.1']!.sku);                       // ab-1
+if (report['0']!['0.1']!.sku !== 'ab-1' || report['1']!['1.0']!.sku !== 'c-0') {
+  throw new Error(`the outer collection's values are the inner collections: ${JSON.stringify(report)}`);
+}
+```
+
+**Executed too**: this is [AGENTS.md](AGENTS.md) section 17, and `X8` holds it byte-equal to the
+snippet the gate RAN. `regionId` keeps its meaning and its VALUE, so no flow, no policy and no region
+name moves — what `0.4.0` breaks is `RunState.regions`' second level and
+`UnsatisfiableJoin.regionPath`, which is a required member on an interface a consumer may construct.
 
 ## The idea
 

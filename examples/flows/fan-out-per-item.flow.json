@@ -1,0 +1,18 @@
+{
+  "flowId": "l6-fan-out-per-item",
+  "version": 1,
+  "entry": "ingest",
+  "nodes": [
+    { "id": "ingest",   "kind": "task", "type": "SplitWorker", "edges": [ { "to": "perWord" } ] },
+    { "id": "perWord",  "kind": "map",  "over": "items",  "branch": "shard" },
+    { "id": "shard",    "kind": "task", "type": "Shard",  "edges": [ { "to": "perShard" } ] },
+    { "id": "perShard", "kind": "map",  "over": "shards", "branch": "grade" },
+    { "id": "grade",    "kind": "task", "type": "ScoreWorker",
+      "edges": [ { "when": "isLowScore", "to": "recheck" }, { "to": "gather" } ] },
+    { "id": "recheck",  "kind": "task", "type": "SecondPass", "edges": [ { "to": "gather" } ] },
+    { "id": "gather",   "kind": "join", "of": "perShard", "edges": [ { "to": "collect" } ] },
+    { "id": "collect",  "kind": "join", "of": "perWord",  "edges": [ { "to": "publish" } ] },
+    { "id": "publish",  "kind": "task", "type": "PublishWorker", "edges": [ { "to": "done" } ] },
+    { "id": "done",     "kind": "end",  "outcome": "completed" }
+  ]
+}

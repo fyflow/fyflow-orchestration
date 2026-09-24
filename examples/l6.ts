@@ -93,10 +93,14 @@ import {
   // they were declared, and nobody chose it.)*
   allRegions,
   branchIndices,
+  branchPathOf,
   buildGraph,
   buildTaskId,
   parseTaskId,
   sharedRegionDepth,
+  // **W86**: `UnresolvedBranchPath` is `ID-R6`'s own class, and the clause that reads it names the
+  // class rather than catching everything — see its comment.
+  UnresolvedBranchPath,
   // **W78, and they reach the package ROOT like everything else here.** P20's exit artifact
   // holds `done` against the caller's own expression — `fold(driver.foldInputs())` — so the two
   // halves of decision 2's invariant are the same two functions a consumer would have called,
@@ -113,6 +117,11 @@ import {
   // asserting a refusal here asserts the refusal a consumer gets.
   validateDefinition,
   type FlowDefinition,
+  // **W86**: block (2f)'s SECOND ROAD to the overlap annotates the sequence it walks, and nothing
+  // else in this file names the union. `lint` and both L6 rungs STRIP types, so the only rung that
+  // reads this is `typecheck:examples` — which is why the item's own `Gate:` line runs the five
+  // lanes separately, and why the confirming gate is where a missing type import surfaces.
+  type FoldInput,
   // W82: the check-OFF pair compares two runs' LOGS record for record, so it names the record type
   // rather than stringifying an `unknown[]` — the comparison is over `OR-R2`'s own shape.
   type JsonSchema,
@@ -269,6 +278,12 @@ import triageFlow from './flows/triage.flow.json' with { type: 'json' };
 // legs of W80's prediction 3, constructed because P21 fact 3 measured that the corpus has no live
 // instance of either left. Both modules' headers say so at the top.
 import nonconformingFlow from './flows/nonconforming.flow.json' with { type: 'json' };
+// **W86, and it is the flow this library could not express before
+// [ADR 0062](../doc/decisions/0062-a-region-instance-is-its-opener-and-the-openers-own-branch-path.md)**:
+// a `map` whose branch opens a second `map`, so one opener is entered once per outer item and the
+// inner arity comes from run-time data at BOTH levels. [W33](../doc/work-items/w33-a-map-at-run-time-arity.md)
+// refused this shape at `Driver` construction; P22 lifted the refusal whole.
+import fanOutPerItem from './flows/fan-out-per-item.flow.json' with { type: 'json' };
 import failureEdge from '../spec/examples/valid/failure-edge.flow.json' with { type: 'json' };
 
 /**
@@ -686,6 +701,41 @@ interface Expectation {
    * reasoning one rule across.
    */
   settledOwnKeys?: Record<string, string[]>;
+  /**
+   * **A region with MORE THAN ONE INSTANCE, by the opener's own `branchPath` — W86, and it is the
+   * field `regionId`/`otherRegions` structurally could not be.**
+   *
+   * Those two name a region by its OPENER and read it through `soleRegion`, which is total only
+   * while every opener is entered once in a run
+   * ([ADR 0062](../doc/decisions/0062-a-region-instance-is-its-opener-and-the-openers-own-branch-path.md):
+   * *a region INSTANCE is the pair*). A `map` whose branch opens a region enters that opener once
+   * per item, so its answer is N answers and there is no sole one — which is the whole shape this
+   * plan exists for.
+   *
+   * Keyed by opener id, then by the opener's own `branchPath`, valued exactly as `otherRegions` is.
+   * Two assertions per instance, and the base clause that compares the set of openers the RUN
+   * entered to the set the row declares reads these keys too — so an instance that stopped existing
+   * fails naming its opener rather than passing at a lower count.
+   */
+  regionInstances?: Record<string, Record<string, {
+    joined: boolean | null;
+    settled: Record<string, 'arrived' | 'exited' | 'lost'>;
+  }>>;
+  /**
+   * **Which region INSTANCE each branch path's events name — W86, `RegionEvent.regionPath`, and
+   * nothing at this rung could observe it before.**
+   *
+   * ADR 0062 rule 3 gives every one of the six `RegionEvent` variants a `regionPath` beside its
+   * `regionId`, *so the two places a region is named to a consumer agree*. W84 shipped that field
+   * and declared **L6 UNMOVED**, which is exactly the statement that no run here read it: the value
+   * crossed the fold, reached `onRegionEvent`, and was asserted by nothing on real workers.
+   *
+   * Declared per branch path as `openerId@openerPath`, and compared against the SET of pairs that
+   * branch's events actually carried — so an event stream that named the right region and the wrong
+   * instance is red on the value, and one that named two different instances for one branch is red
+   * on the set.
+   */
+  regionEventKeys?: Record<string, string>;
 }
 
 const FJ = fanoutJoin as unknown as FlowDefinition;
@@ -800,6 +850,50 @@ const GR = groupFlow as unknown as FlowDefinition;
 const NC = nonconformingFlow as unknown as FlowDefinition;
 
 /**
+ * **W86 — P22's EXIT ARTIFACT: *score each item, then fan out per item*, and it is the first flow
+ * in this repository where a region opens INSIDE a `map` region.**
+ *
+ * ```
+ * ingest -> perWord(map over items, branch shard)
+ *   shard -> perShard(map over shards, branch grade)
+ *     grade -> recheck          when isLowScore
+ *     grade -> gather           otherwise
+ *     recheck -> gather
+ *   gather(join of perShard) -> collect(join of perWord) -> publish -> done
+ * ```
+ *
+ * **`perShard` is entered ONCE PER OUTER ITEM**, so at two items it has two INSTANCES —
+ * `perShard@0` and `perShard@1` — which is exactly what
+ * [W33](../doc/work-items/w33-a-map-at-run-time-arity.md) refused at `Driver` construction and what
+ * [ADR 0062](../doc/decisions/0062-a-region-instance-is-its-opener-and-the-openers-own-branch-path.md)
+ * rule 1 keys by `(opener node id, the opener's own branchPath)`. Under the refusal this document
+ * could not be run at all; under a driver keyed by the opener ALONE it reported `stuck` with every
+ * task settled.
+ *
+ * **Both arities come from DATA and neither is in the document.** `perWord`'s comes from `split`'s
+ * items — one per word — and `perShard`'s from what `shard` returned for THAT item, one per
+ * character. So the two instances of `perShard` differ in WIDTH (two shards against three) and in
+ * ROAD (one of instance 0's shards scores below fifty and is sent to `recheck`), and neither
+ * difference is expressible in a `fanout`, whose branch entries `FD-V9` requires to be written down.
+ *
+ * **The road difference and the word-length stagger are the ARRANGEMENT, and the block below
+ * asserts their EFFECT rather than trusting it** — [W17](../doc/work-items/w17-the-all-exit-row-at-l6.md)'s
+ * `joinSettledBy` lesson, whose whole point is that *the row that exists to reach a path stopped
+ * reaching it, silently, on a one-word edit to a different file*. What the arrangement buys is the
+ * one thing a per-instance key is FOR: an instant at which TWO instances of one opener are each
+ * holding a collection. `ADR 0046` rule 3 releases a region's collection the moment its join becomes
+ * terminal, so without an overlap a driver that keyed `arrivals` by the opener alone would give the
+ * RIGHT answer — the window would never contain two instances at once
+ * ([Q349](../doc/open-questions.md), [Q353](../doc/open-questions.md)).
+ *
+ * **A real pool does not arrange that for you**, which is the plan's own *it must try what no fact
+ * here measured*: the overlap below is DERIVED from the run's own fold-input sequence and asserted,
+ * never hoped for, and the control row is the same flow at ONE item, where the derivation must
+ * report that it did not happen.
+ */
+const FOPI = fanOutPerItem as unknown as FlowDefinition;
+
+/**
  * **P18's sample's payload, and the ONE field the two rows differ in** — W67. `text` and `url` are
  * shared so that everything downstream is a function of the model and the settings; `confidence` is
  * what `isLowConfidence` reads off `classify`'s result, so it is the whole of what decides whether
@@ -810,6 +904,25 @@ const TRIAGE_TEXT = 'alpha bb ccc dddd';
 const TRIAGE_URL = 'https://example.invalid/doc';
 const TRIAGE_LOW = { confidence: 0.4, text: TRIAGE_TEXT, url: TRIAGE_URL };
 const TRIAGE_HIGH = { confidence: 0.9, text: TRIAGE_TEXT, url: TRIAGE_URL };
+
+/* **W86's two payloads live BELOW W67's block, not above it** — this item first inserted them
+ * between that docblock and the `TRIAGE_*` constants it documents, so a paragraph reading *`text`
+ * and `url` are shared … **Four words*** sat immediately above a two-word payload with no `url`.
+ * W86's conformity reader, finding 8. */
+/**
+ * **W86's two payloads, and every number in its two rows is derived from these two strings.**
+ *
+ * `split` makes one item per word and `shard` one shard per character, so the text chooses BOTH
+ * arities; `shardConfidence` maps `a`-`j` to 0.1-1.0, so it also chooses each inner branch's score
+ * and therefore its road. `'ja eee'` is two items of widths two and three, with `a` at 0.1 the one
+ * shard `isLowScore` sends to `recheck`; `'ja'` is the same item alone.
+ *
+ * **The two differ in the word COUNT and in nothing else** — `'ja'` occurs in both, so the control
+ * row's every value is the other row's instance 0, character for character. Whatever makes a
+ * discriminating pair differ is itself a claim (`doc/workflow.md` rule 8), and here it is one word.
+ */
+const TWO_THEN_THREE = { confidence: 0.9, text: 'ja eee' };
+const ONE_THEN_TWO = { confidence: 0.9, text: 'ja' };
 
 const HIGH = { confidence: 0.9 };
 const LOW = { confidence: 0.1 };
@@ -3190,6 +3303,151 @@ const EXPECTED: Expectation[] = [
       'its defect is in the clone rather than in the arithmetic — so the pair also separates the two legs ' +
       'from each other. Whatever makes a discriminating pair differ is itself a claim',
   },
+  {
+    /**
+     * **W86 — P22's EXIT ARTIFACT, and the first run anywhere in this repository in which one
+     * region OPENER has two INSTANCES.**
+     *
+     * `'ja eee'` is two words, so `perWord` opens two branches and `shard` runs twice; `shard`
+     * returns one shard per CHARACTER, so `perShard@0` is two branches wide and `perShard@1` is
+     * three. **Every number here is a property of the text and of `shardConfidence`, and none of
+     * them is in the flow document** — which is what a `map` buys and a `fanout` cannot
+     * (`FD-V9` requires branch entries to be written down).
+     *
+     * | shard | confidence | `grade`'s score | road |
+     * |---|---|---|---|
+     * | `0.0` = `j` | 1.0 | 100 | straight to `gather` |
+     * | `0.1` = `a` | 0.1 | 10 | `isLowScore` → `recheck`, then `gather` |
+     * | `1.0`–`1.2` = `e` | 0.5 | 50 | straight to `gather` — fifty is not *below* fifty |
+     *
+     * **So the run's shape is the arrangement**: `shard@0` settles first (`msPerChar` times two
+     * characters against three), which opens `perShard@0` first and starts its window at `0.0`'s
+     * arrival; `perShard@1` then opens, runs three fast branches and **fires its join while
+     * instance 0 is still holding**; and `perShard@0`'s join comes last, behind `recheck`'s
+     * second pass. *The non-first instance closes first, and instance 0 is also `values()[0]`*
+     * ([Q353](../doc/open-questions.md)) — which is the whole reason the order is a claim here and
+     * not a detail.
+     *
+     * **`joinPayload` is `JP-R12` at TWO LEVELS on real workers**: the outer collection's `0` and
+     * `1` are themselves the two inner collections, keyed by their own branch paths, and the two key
+     * sets are DISJOINT — ADR 0062 consequence 5 turned from an argument into a value.
+     */
+    key: 'fan-out-per-item / P22 — a map whose branch opens a MAP, two instances of one opener, overlapping',
+    definition: FOPI, policyId: 'live-token', payload: TWO_THEN_THREE, threaded: false,
+    outcome: 'completed',
+    dispatched: ['r51:ingest:-:0', 'r51:shard:0:0', 'r51:shard:1:0',
+      'r51:grade:0.0:0', 'r51:grade:0.1:0', 'r51:recheck:0.1:0',
+      'r51:grade:1.0:0', 'r51:grade:1.1:0', 'r51:grade:1.2:0', 'r51:publish:-:0'],
+    regionId: 'perWord',
+    joined: true,
+    settled: { '0': 'arrived', '1': 'arrived' },
+    // **The two instances, each with its own answer** — and `otherRegions` could not carry this,
+    // because it is keyed by the opener and there is no sole instance to read.
+    regionInstances: {
+      perShard: {
+        '0': { joined: true, settled: { '0.0': 'arrived', '0.1': 'arrived' } },
+        '1': { joined: true, settled: { '1.0': 'arrived', '1.1': 'arrived', '1.2': 'arrived' } },
+      },
+    },
+    branchEvents: {
+      '0': ['branch.opened', 'branch.arrived'],
+      '1': ['branch.opened', 'branch.arrived'],
+      '0.0': ['branch.opened', 'branch.arrived'],
+      '0.1': ['branch.opened', 'branch.arrived'],
+      '1.0': ['branch.opened', 'branch.arrived'],
+      '1.1': ['branch.opened', 'branch.arrived'],
+      '1.2': ['branch.opened', 'branch.arrived'],
+    },
+    // **ADR 0062 rule 3 reaching a consumer.** The outer region's two branches are named
+    // `perWord@-`; every inner branch is named by the INSTANCE it belongs to, and `0.0` and `1.0`
+    // differ in exactly the field W84 added.
+    regionEventKeys: {
+      '0': 'perWord@-', '1': 'perWord@-',
+      '0.0': 'perShard@0', '0.1': 'perShard@0',
+      '1.0': 'perShard@1', '1.1': 'perShard@1', '1.2': 'perShard@1',
+    },
+    pathEnds: [{ reason: 'end', at: 'done' }],
+    nodeResults: {
+      'r51:ingest:-:0': { confidence: 0.9, items: [{ word: 'ja', confidence: 0.2 }, { word: 'eee', confidence: 0.3 }] },
+      'r51:shard:0:0': { word: 'ja', shards: [{ shard: 'j', confidence: 1 }, { shard: 'a', confidence: 0.1 }] },
+      'r51:shard:1:0': { word: 'eee', shards: [{ shard: 'e', confidence: 0.5 }, { shard: 'e', confidence: 0.5 }, { shard: 'e', confidence: 0.5 }] },
+      'r51:grade:0.0:0': { confidence: 1, score: 100 },
+      'r51:grade:0.1:0': { confidence: 0.1, score: 10 },
+      // The second pass returns the same answer — it is a SLOWER road and not a different verdict,
+      // which is what keeps the arrangement a property of the ROUTE rather than of the arithmetic.
+      'r51:recheck:0.1:0': { confidence: 0.1, score: 10 },
+      'r51:grade:1.0:0': { confidence: 0.5, score: 50 },
+      'r51:grade:1.1:0': { confidence: 0.5, score: 50 },
+      'r51:grade:1.2:0': { confidence: 0.5, score: 50 },
+      'r51:publish:-:0': {
+        published: true,
+        joinPayload: {
+          '0': { '0.0': { confidence: 1, score: 100 }, '0.1': { confidence: 0.1, score: 10 } },
+          '1': {
+            '1.0': { confidence: 0.5, score: 50 },
+            '1.1': { confidence: 0.5, score: 50 },
+            '1.2': { confidence: 0.5, score: 50 },
+          },
+        },
+      },
+    },
+    why: 'W86 — P22`s EXIT ARTIFACT on real workers: score each item, then fan out per item. A `map` ' +
+      'whose branch opens a second `map`, which W33 refused at Driver construction and ADR 0062 lifted ' +
+      'whole. `perShard` is ONE opener with TWO instances, `perShard@0` two branches wide and ' +
+      '`perShard@1` three, and both arities come from data no document carries. The two instances ' +
+      'OVERLAP — instance 1`s join fires while instance 0 is still holding — and instance 1 closes ' +
+      'FIRST, which is what makes the key discriminating rather than merely present, because ' +
+      'instance 0 is also values()[0]. JP-R12 at two levels, with the two collections disjoint',
+  },
+  {
+    /**
+     * **The control, and what it changes is the PAYLOAD** — one word instead of two, so `perWord`
+     * opens one branch, `shard` runs once and `perShard` has exactly ONE instance.
+     *
+     * It is the tree on which the overlap derivation must report that nothing overlapped
+     * (`doc/workflow.md` v0.22: *a control is one only if you can NAME THE TREE on which it fails
+     * and its claim passes*). The same flow, the same workers, the same `recheck` road for shard
+     * `a` — and the two numbers the block above asserts both move.
+     *
+     * **It is also the regression half of ADR 0062 rule 3**: with one instance the opener's entry is
+     * still keyed by a path (`'0'`, because `perShard` sits inside `perWord`'s branch 0), so the
+     * two-level carrier is exercised at N = 1 and not only where it was needed.
+     */
+    key: 'fan-out-per-item / ONE item (the control) — one instance, so no two of them ever hold at once',
+    definition: FOPI, policyId: 'live-token', payload: ONE_THEN_TWO, threaded: false,
+    outcome: 'completed',
+    dispatched: ['r52:ingest:-:0', 'r52:shard:0:0',
+      'r52:grade:0.0:0', 'r52:grade:0.1:0', 'r52:recheck:0.1:0', 'r52:publish:-:0'],
+    regionId: 'perWord',
+    joined: true,
+    settled: { '0': 'arrived' },
+    regionInstances: {
+      perShard: { '0': { joined: true, settled: { '0.0': 'arrived', '0.1': 'arrived' } } },
+    },
+    branchEvents: {
+      '0': ['branch.opened', 'branch.arrived'],
+      '0.0': ['branch.opened', 'branch.arrived'],
+      '0.1': ['branch.opened', 'branch.arrived'],
+    },
+    regionEventKeys: { '0': 'perWord@-', '0.0': 'perShard@0', '0.1': 'perShard@0' },
+    pathEnds: [{ reason: 'end', at: 'done' }],
+    nodeResults: {
+      'r52:ingest:-:0': { confidence: 0.9, items: [{ word: 'ja', confidence: 0.2 }] },
+      'r52:shard:0:0': { word: 'ja', shards: [{ shard: 'j', confidence: 1 }, { shard: 'a', confidence: 0.1 }] },
+      'r52:grade:0.0:0': { confidence: 1, score: 100 },
+      'r52:grade:0.1:0': { confidence: 0.1, score: 10 },
+      'r52:recheck:0.1:0': { confidence: 0.1, score: 10 },
+      'r52:publish:-:0': {
+        published: true,
+        joinPayload: { '0': { '0.0': { confidence: 1, score: 100 }, '0.1': { confidence: 0.1, score: 10 } } },
+      },
+    },
+    why: 'W86 — the control for the row above, and the only thing that differs is the payload`s word ' +
+      'count. One item means ONE instance of `perShard`, so the overlap derivation must report that ' +
+      'no two instances of one opener ever held at once — which is what makes the row above`s two ' +
+      'and its closing order claims rather than constants. It also runs the two-level carrier at ' +
+      'N = 1, where the instance`s key is `0` and not `-`',
+  },
 ];
 
 // --- assertions ---------------------------------------------------------------
@@ -3234,18 +3492,24 @@ const sortedSettled = (m: Record<string, string> | undefined) =>
  * `joinStatusOf`'s own rule at the one other place a region is read by its opener
  * alone.
  *
- * **What `undefined` then DOES is caller-dependent, and two of the callers below do
- * NOT go red on it** — W84's conformity reader, finding 10, and it is recorded here
- * rather than repaired because no flow this ladder runs has two instances (0 of 50
- * openers sit inside a map region) and the repair belongs with the row that creates
- * one. The `joined` caller reads `soleRegion(...)?.joined ?? null`, so `undefined`
- * becomes `null` and the **eight** `EXPECTED` rows declaring `joined: null` would
- * pass that clause in silence; `regionsOf` below *filters the region out of the
- * rendered table* rather than naming it. **So this helper makes a multi-instance
- * region SILENT at those two sites and red at the `settled` ones.**
- * [W86](../doc/work-items/w86-*.md) adds the first such flow and is where the two
- * sites have to be decided — that is the dated ceiling clause
- * (`doc/workflow.md` v0.17) pointing at the item that expires this note.
+ * **What `undefined` then DID was caller-dependent, and two of the callers below did
+ * NOT go red on it** — recorded in this comment by W84 rather
+ * than repaired because no flow this ladder ran had two instances (0 of 50 openers
+ * sat inside a map region) and the repair belonged with the row that creates one.
+ * The `joined` caller read `soleRegion(...)?.joined ?? null`, so `undefined` became
+ * `null` and the **eight** `EXPECTED` rows declaring `joined: null` would have passed
+ * that clause in silence; `regionsOf` below *filtered the region out of the rendered
+ * table* rather than naming it.
+ *
+ * **[W86](../doc/work-items/w86-score-each-item-then-fan-out-per-item.md) adds the
+ * first such flow and BOTH sites are decided here** — the dated-ceiling clause
+ * (`doc/workflow.md` v0.17) firing on the item it named. The `joined` clauses compare
+ * a PAIR whose first member is `Object.keys(regions[id]).length`, so *exactly one
+ * instance* is part of what a row asserts and the `?? null` can absorb nothing; and
+ * `regionsOf` walks `regions[id]` whole and prints one line per INSTANCE. **A
+ * multi-instance region is now red at all three sites**, and a row that means to have
+ * one declares it under `Expectation.regionInstances`, which reads
+ * `regions[openerId][openerPath]` directly and never through this helper.
  *
  * *(Not to be confused with `soleRegionOf` further down, which answers a different
  * question — **the one OPENER a row's flow declares**, not the one INSTANCE of an
@@ -3324,6 +3588,15 @@ const regionsDeclaredBy = (e: Expectation): [boolean | null | undefined, Record<
   ...Object.values(e.otherRegions ?? {}).map(
     (r) => [r.joined, r.settled] as [boolean | null, Record<string, string>],
   ),
+  // **W86 — and every INSTANCE is a region here, not every opener.** `ADR 0046`'s window and
+  // `JP-R12`'s collection are both per instance (`RN-R13`'s second term reads *a join*, which is
+  // per instance under `RN-R6`), so a row whose opener has two instances records two collections
+  // and the retention clauses count both. Flattening to the opener would have made this row's
+  // `peakEntries` short by the width of its second instance — which is the arithmetic form of the
+  // defect the whole plan is about.
+  ...Object.values(e.regionInstances ?? {}).flatMap((byPath) => Object.values(byPath).map(
+    (r) => [r.joined, r.settled] as [boolean | null, Record<string, string>],
+  )),
 ];
 
 const arrivedIn = (settled: Record<string, string> | undefined): number =>
@@ -3412,6 +3685,12 @@ const regionsStillLive = (e: Expectation): string[] => {
   if (own != null && e.joined === null && arrivedIn(e.settled) > 0) out.push(own);
   for (const [id, r] of Object.entries(e.otherRegions ?? {})) {
     if (r.joined === null && arrivedIn(r.settled) > 0) out.push(id);
+  }
+  // W86: an instance that is still holding names its OPENER here, because
+  // `Retention.endByRegion` is keyed by the opener and sums its instances — which is
+  // ADR 0062 consequence 7's *the opener's own entry goes when its last instance's does*.
+  for (const [id, byPath] of Object.entries(e.regionInstances ?? {})) {
+    if (Object.values(byPath).some((r) => r.joined === null && arrivedIn(r.settled) > 0)) out.push(id);
   }
   return out.sort();
 };
@@ -3761,7 +4040,20 @@ for (const [i, e] of EXPECTED.entries()) {
     // region it is about and this reads it, so a flow whose fanout has another
     // name is expressible at all.
     const rid = e.regionId ?? 'split';
-    check(e.key, 'the join fired — RN-R11', soleRegion(report.state, rid)?.joined ?? null, e.joined);
+    // **The instance COUNT is inside the claim, and the paragraph above `soleRegion` is why** — W84
+    // wrote there that two sites make a multi-instance region SILENT, and named W86 as the item that
+    // has to decide them. *(That paragraph credits **W84's conformity reader, finding 10**, and W84's
+    // file enumerates no such numbered finding — it does not contain the string `soleRegion` at all.
+    // The measurement reproduces and the attribution does not; W86's conformity reader, finding 5,
+    // and it is W85's own *a citation with no referent* one item later, INHERITED rather than
+    // invented.)* This is the first: `?? null` turns *there is
+    // no sole instance* into `null`, which is what eight rows here declare, so a region that
+    // quietly gained a second instance would have passed this clause in silence. Comparing the PAIR
+    // costs no assertion and makes *exactly one instance* part of what the row asserts — a region
+    // with N answers is red on the count rather than absorbed by the fallback.
+    check(e.key, 'the join fired — RN-R11, and this opener has exactly ONE instance to read it from',
+      { instances: Object.keys(report.state.regions[rid] ?? {}).length, joined: soleRegion(report.state, rid)?.joined ?? null },
+      { instances: 1, joined: e.joined });
     check(e.key, 'how each branch left its region — spec/join-policy.md section 2',
       sortedSettled(soleRegion(report.state, rid)?.settled), sortedSettled(e.settled));
 
@@ -3771,14 +4063,42 @@ for (const [i, e] of EXPECTED.entries()) {
     // the second half a row could declare one of its two and read as complete,
     // which is W22's adequacy reader's loop-bound finding one rung up.
     for (const [id, want] of Object.entries(e.otherRegions ?? {})) {
-      check(e.key, `${id}: the join fired — RN-R11`, soleRegion(report.state, id)?.joined ?? null, want.joined);
+      check(e.key, `${id}: the join fired — RN-R11, and this opener has exactly ONE instance to read it from`,
+        { instances: Object.keys(report.state.regions[id] ?? {}).length, joined: soleRegion(report.state, id)?.joined ?? null },
+        { instances: 1, joined: want.joined });
       check(e.key, `${id}: how each branch left its region`,
         sortedSettled(soleRegion(report.state, id)?.settled), sortedSettled(want.settled));
     }
+    // **W86 — a region with MORE THAN ONE instance, read at `regions[openerId][openerPath]`.**
+    //
+    // ADR 0062 rule 2's carrier, from the outside: the row names the instance by the opener's own
+    // branch path and this reads that key and no other. Two assertions per instance, and they are
+    // what a `soleRegion` read structurally cannot make — there is no sole instance, and returning
+    // either would make the verdict depend on which one the driver entered first.
+    for (const [id, byPath] of Object.entries(e.regionInstances ?? {})) {
+      for (const [path, want] of Object.entries(byPath)) {
+        check(e.key, `${id}@${path}: the join fired — RN-R11 per INSTANCE, ADR 0062 rule 2`,
+          report.state.regions[id]?.[path]?.joined ?? null, want.joined);
+        check(e.key, `${id}@${path}: how each branch left THIS instance — and its keys carry the instance's own path as their prefix`,
+          sortedSettled(report.state.regions[id]?.[path]?.settled), sortedSettled(want.settled));
+      }
+    }
     check(e.key, 'the run entered exactly the regions this row declares',
       Object.keys(report.state.regions).sort(),
-      [rid, ...Object.keys(e.otherRegions ?? {})].sort());
+      [rid, ...Object.keys(e.otherRegions ?? {}), ...Object.keys(e.regionInstances ?? {})].sort());
 
+  }
+  // **W86 — `RegionEvent.regionPath` on real workers, per branch, as a SET.**
+  //
+  // ADR 0062 rule 3 put `regionPath` on all six variants and W84 declared L6 UNMOVED, which is the
+  // statement that nothing at this rung read it. This is the read: every region event of one branch
+  // must name one instance, and it must be the instance the row says. A set rather than a first
+  // element, so a stream that named two different instances for one branch fails on the set.
+  for (const [branch, want] of Object.entries(e.regionEventKeys ?? {})) {
+    const got = [...new Set(report.inputs
+      .filter((x) => x.kind === 'region' && x.event.branchPath === branch)
+      .map((x) => `${(x as { event: { regionId: string } }).event.regionId}@${(x as { event: { regionPath: string } }).event.regionPath}`))].sort();
+    check(e.key, `ADR 0062 rule 3: branch ${branch}'s region events all name the instance ${want}`, got, [want]);
   }
 
   // **Q32 — every dispatched node produces an outcome record.** Cheap insurance
@@ -4149,7 +4469,14 @@ for (const [i, e] of EXPECTED.entries()) {
     // from the row's own `settled`, and declaring an arrival moves the floor with it.
     + (arrivedInRun(e) > 0 ? 1 : 0)
     // W55's adequacy reader: the region NAMES behind the count, on the rows that hold.
-    + (heldWhenOver(e) > 0 ? 1 : 0);
+    + (heldWhenOver(e) > 0 ? 1 : 0)
+    // **W86: two per declared region INSTANCE** — its join's verdict and how each of its branches
+    // left it — derived from the expectation like every other extra here, so declaring an instance
+    // moves the floor with it. An opener with N instances costs 2N and `otherRegions`' 2-per-region
+    // is untouched, because the two fields answer different questions.
+    + Object.values(e.regionInstances ?? {}).reduce((n, byPath) => n + Object.keys(byPath).length * 2, 0)
+    // W86: one per declared `regionEventKeys` branch — ADR 0062 rule 3 at this rung.
+    + Object.keys(e.regionEventKeys ?? {}).length;
   if (arrivedInRun(e) > 0) {
     // **The OTHER side's size is in the assertion, and it has to be** — W55's
     // adequacy reader, BLOCKING. `peakAliasingLog` is the size of an intersection,
@@ -4506,6 +4833,8 @@ const ROW_KEYS: readonly string[] = [
   'triage HIGH / the control — one payload field different, and the NAMED instance is never dispatched',
   'nonconforming — eleven words',
   'nonconforming — two words (the control)',
+  'fan-out-per-item / P22 — a map whose branch opens a MAP, two instances of one opener, overlapping',
+  'fan-out-per-item / ONE item (the control) — one instance, so no two of them ever hold at once',
 ];
 
 /**
@@ -4705,7 +5034,7 @@ const CROSS_ROW_SUBJECTS = [
   'a node whose worker entry declares NO settingsSchema takes any settings at all',
   // W72 — the clause was rewritten from four entries to the rule's enumeration over fourteen, and the
   // corpus's examples gained a subject of their own: a membership names its claims (v0.14).
-  'the runtime CARRIES every schema the sixteen worker entries declare, exactly',
+  'the runtime CARRIES every schema the seventeen worker entries declare, exactly',
   'every schema every corpus worker entry declares carries an `examples`',
   'the pool map is read off the SCHEDULER`s own task map',
   'CONSTRUCT a pool, a scheduler, a Driver or a built-in resource group are exactly the ones that DECLARE it',
@@ -4740,6 +5069,29 @@ const CROSS_ROW_SUBJECTS = [
   // own key), so they move the row's declared extra rather than this list.
   'every settled task whose result is an OBJECT has its own key set recorded, on every row',
   'CONTROL: and there are MANY more of those than the two ids any row declares',
+  // **W86 — P22's EXIT ARTIFACT.** Nineteen entries — fifteen claims and four controls; the controls are members by rule
+  // since v0.18, and v0.22 is why each names the tree it fails on rather than the emptiness of an
+  // operand: the overlap walk's claim is a RELATION over a sequence, so a control over one of its
+  // operands would stay exactly as true after the claim was made a tautology.
+  'the openers that do are exactly the ones this item adds',
+  'CONTROL: and the same detector asked about a FANOUT region',
+  'one opener is entered once per outer item',
+  'perShard@0 was STILL HOLDING',
+  'the NON-FIRST instance closed FIRST',
+  'CONTROL: the same flow at ONE item',
+  'CONTROL: and across every row this rung runs, EXACTLY ONE',
+  'rows this block is about both RAN',
+  'the two collections are DISJOINT',
+  'the pair IS the region, over every run this rung makes',
+  'CONTROL: and this rung emits region events whose regionPath is NOT',
+  'JP-R12 at TWO LEVELS on real workers',
+  'the ARRANGEMENT that makes that order determinate',
+  'the printed table names BOTH instances of one opener',
+  'a row declaring `regionInstances` exists for the printed-table clause to read',
+  'read off the sequence`s own INDICES rather than off that walk',
+  'ADR 0062 consequence 6, the SAME set by another road',
+  '`soleRegion` REFUSES the opener that has TWO instances',
+  'P22 prediction 3, the REACH',
 ];
 
 /**
@@ -6395,6 +6747,330 @@ if (checkOff !== null) {
 }
 
 /**
+ * **Block (2f) — W86, P22's EXIT ARTIFACT, and the claim no row could make alone: TWO INSTANCES OF
+ * ONE OPENER HELD COLLECTIONS AT ONE INSTANT.**
+ *
+ * The rows above assert what each instance CARRIED. That is the answer a per-instance key gives,
+ * and on a run where the instances never overlap it is the answer the WRONG key gives too:
+ * [ADR 0046](../doc/decisions/0046-a-run-retains-what-its-tasks-returned-and-a-region-releases-its-collection-when-its-join-becomes-terminal.md)
+ * rule 3 releases a region's collection the moment its join becomes terminal, so a driver that
+ * filed `arrivals` under the opener ALONE would fill, read and empty one entry per instance in turn
+ * and report exactly the right collections. **The mis-keying is observable only where two instances
+ * are alive together** — [Q349](../doc/open-questions.md), and
+ * [W85](../doc/work-items/w85-what-a-nested-region-carries-and-how-it-ends.md) had to ARRANGE that
+ * by hand at L2 because a fake scheduler settles what you tell it to.
+ *
+ * **A real pool does not arrange it, so this DERIVES it from the run rather than hoping for it.**
+ * The walk below reads the fold-input sequence — `branch.arrived` opens an instance's window,
+ * `joinSettled` closes it, which is `JP-R12`'s window and `RN-R13`'s release stated as a walk — and
+ * reports, per instance whose join became terminal, **which OTHER instances of the same opener were
+ * still holding at that moment.** Nothing is declared beside it except the answer.
+ *
+ * **Three controls, each with the tree on which it fails named** (`doc/workflow.md` v0.22 — *a
+ * control is one only if you can NAME THE TREE on which it fails and its claim passes*):
+ *
+ *   - the CONTROL ROW is the same flow at ONE item, where the same walk must report that nothing
+ *     overlapped — so the detector is not a constant;
+ *   - over the WHOLE rung, exactly one run has two instances of one opener holding at once, so the
+ *     detector is not *true of everything*;
+ *   - and the ARRANGEMENT that makes the closing order determinate is asserted as a fact about the
+ *     run — `shard@0` settled before `shard@1`, and `recheck` ran under instance 0 alone — so a
+ *     stagger that stopped working fails HERE rather than turning the overlap into a coin flip
+ *     ([W17](../doc/work-items/w17-the-all-exit-row-at-l6.md)'s `joinSettledBy`, whose finding was
+ *     exactly that a row can stop reaching the path it exists for, silently).
+ */
+{
+  /**
+   * **What a run's fold-input sequence says about when each region INSTANCE was holding.**
+   *
+   * `branch.arrived` is the first thing `JP-R12` records and `joinSettled` is the moment ADR 0046
+   * rule 3 releases — so the set between them IS the driver's `arrivals` for that instance, read
+   * from the sequence a consumer receives rather than from the driver's internals. The measurement
+   * at a close is taken BEFORE the release, because *the instant the join became terminal* is
+   * precisely when a mis-keyed collection would hand it somebody else's entries.
+   */
+  const holdingWalk = (r: RunReport) => {
+    const holding = new Map<string, Set<string>>();
+    const closedOrder: string[] = [];
+    const othersAtClose: Record<string, string[]> = {};
+    let maxTogether = 0;
+    for (const inp of r.inputs) {
+      if (inp.kind === 'region' && inp.event.type === 'branch.arrived') {
+        const s = holding.get(inp.event.regionId) ?? new Set<string>();
+        s.add(inp.event.regionPath);
+        holding.set(inp.event.regionId, s);
+        maxTogether = Math.max(maxTogether, s.size);
+      } else if (inp.kind === 'joinSettled') {
+        const s = holding.get(inp.regionId) ?? new Set<string>();
+        maxTogether = Math.max(maxTogether, s.size);
+        closedOrder.push(`${inp.regionId}@${inp.regionPath}`);
+        othersAtClose[`${inp.regionId}@${inp.regionPath}`] = [...s].filter((p) => p !== inp.regionPath).sort();
+        s.delete(inp.regionPath);
+      }
+    }
+    return { maxTogether, closedOrder, othersAtClose };
+  };
+
+  const ARTIFACT = 'fan-out-per-item / P22 — a map whose branch opens a MAP, two instances of one opener, overlapping';
+  const CONTROL = 'fan-out-per-item / ONE item (the control) — one instance, so no two of them ever hold at once';
+  // **The two rows this block is about are LOOKED UP BY KEY, so it REPORTS rather than crashes** —
+  // W86's own rule 8 pass, probe `d1`, and it is the shape `doc/workflow.md` section 4 names: *a
+  // crash is not a detection*, because it cannot tell a fired clause from a broken harness. Renaming
+  // one of the two keys made `findIndex` return `-1`, `reports[-1]` `undefined`, and the walk below
+  // died in a `TypeError` naming a helper — loud, at exit 1, and with ZERO failure lines, while
+  // `ROW_KEYS` two hundred lines further down would have named exactly what left and never ran.
+  // W59 closed this shape for the ROW LOOP and W67 found it twice more in what that item added;
+  // this is the third file-level occurrence and the first in a block that indexes `reports` by key.
+  const reportFor = (key: string): RunReport | undefined => reports[EXPECTED.findIndex((e) => e.key === key)];
+  const artifact = reportFor(ARTIFACT);
+  const control = reportFor(CONTROL);
+  assertThat('cross-row', 'the two `fan-out-per-item` rows this block is about both RAN — a key that stopped matching is a ' +
+    'FAIL line naming it here, never a TypeError two hundred lines before ROW_KEYS could say what left',
+    artifact !== undefined && control !== undefined,
+    `artifact: ${artifact === undefined ? 'missing' : 'present'}, control: ${control === undefined ? 'missing' : 'present'}`);
+  if (artifact === undefined || control === undefined) {
+    for (const f of failures) console.log(`  FAIL  ${f}`);
+    exit(1);
+  }
+  const walkA = holdingWalk(artifact);
+  const walkB = holdingWalk(control);
+
+  // **(i) The shape itself, read from the DOCUMENTS this rung runs and not from a row key.**
+  // An opener sits inside a `map` region exactly when some MAP region's member set contains it —
+  // which is the condition `FD-V25` and W33's refusal were both about — and before this item no
+  // flow in either corpus had one (the key measurement: 0 of 50).
+  const openersInsideAKindOfRegion = (kind: 'map' | 'fanout') => {
+    const out: string[] = [];
+    for (const e of EXPECTED) {
+      const rs = allRegions(buildGraph(e.definition), e.definition);
+      for (const r of rs) {
+        if (rs.some((o) => o.fanoutId !== r.fanoutId && o.opensWith === kind && o.members.has(r.fanoutId))) {
+          out.push(`${e.key.split(' /')[0]}:${r.fanoutId}`);
+        }
+      }
+    }
+    return [...new Set(out)].sort();
+  };
+  check('cross-row', 'ADR 0062 rule 4: L6 runs a region whose opener sits INSIDE a `map` region — the shape W33 refused at ' +
+    'Driver construction — and the openers that do are exactly the ones this item adds, both ways',
+    openersInsideAKindOfRegion('map'), ['fan-out-per-item:perShard']);
+  // **The SAME set by a completely different road — ADR 0062 consequence 6** — and it is the
+  // adequacy reader's finding 2, BLOCKING: the clause above could have its `map` arm HARD-CODED to
+  // `perShard` with the `fanout` arm left real, and the declared control (which asks that the
+  // fanout arm find something else) passed unchanged, because it was written against a detector
+  // that hard-codes BOTH arms. *A control that exercises the other arm does not bind this one.*
+  //
+  // `branchPathOf` throws `ID-R6` for exactly the openers a static walk cannot path, which is
+  // exactly the openers inside a `map` region — *those three are what make the derived key TOTAL*.
+  // Two roads to one set: a membership over the region sets, and a REFUSAL from the shipped
+  // derivation. Hard-coding either is red on the other.
+  {
+    const throwsId6: string[] = [];
+    for (const e of EXPECTED) {
+      const rs = allRegions(buildGraph(e.definition), e.definition);
+      for (const r of rs) {
+        // **The catch names the CLASS, and a bare one cost this clause its whole meaning on its
+        // first run**: `branchPathOf` was not in this file's import list, so every call threw a
+        // `ReferenceError`, the bare `catch` read all 37 of them as the refusal, and the clause
+        // reported the entire corpus. *A `catch` that treats ANY throw as the answer is an
+        // assertion about its own wiring* — `doc/workflow.md` section 4's *a crash is not a
+        // detection*, on the expected side of a comparison.
+        try {
+          branchPathOf(rs, r.fanoutId);
+        } catch (err) {
+          if (!(err instanceof UnresolvedBranchPath)) throw err;
+          throwsId6.push(`${e.key.split(' /')[0]}:${r.fanoutId}`);
+        }
+      }
+    }
+    check('cross-row', 'ADR 0062 consequence 6, the SAME set by another road: the openers `branchPathOf` REFUSES with ID-R6 — ' +
+      'a static walk cannot supply a map`s item index — are exactly the openers inside a map region, both ways',
+      [...new Set(throwsId6)].sort(), openersInsideAKindOfRegion('map'));
+  }
+  // **CONTROL: the detector is about the enclosing region's KIND and not about nesting.** Asked of
+  // `fanout` it returns the corpus's long-standing nested regions — which is what makes the empty
+  // answer above a fact about maps rather than a walk that finds nothing. Without it, a detector
+  // that always returned `[]` for a `fanout` and hard-coded `perShard` would pass.
+  assertThat('cross-row', 'CONTROL: and the same detector asked about a FANOUT region finds the corpus`s long-standing nested ' +
+    'ones and NOT this flow`s — so it reads the enclosing region`s kind',
+    openersInsideAKindOfRegion('fanout').length > 0 &&
+      !openersInsideAKindOfRegion('fanout').includes('fan-out-per-item:perShard'),
+    `fanout-nested openers: ${openersInsideAKindOfRegion('fanout').join(', ') || '(none)'}`);
+
+  // **(ii) One opener, N instances — ADR 0062 rule 1, and the arity is the PAYLOAD's.**
+  check('cross-row', 'ADR 0062 rule 1: one opener is entered once per outer item, and the two rows` instance keys differ ' +
+    'in exactly the word count of their payloads',
+    { artifact: Object.keys(artifact.state.regions['perShard'] ?? {}).sort(), control: Object.keys(control.state.regions['perShard'] ?? {}).sort() },
+    { artifact: ['0', '1'], control: ['0'] });
+
+  // **(iii) THE OVERLAP, derived from the run.** At the instant `perShard@1`'s join became terminal
+  // — the moment ADR 0046 rule 3 releases it — instance `0` was still holding. That is the state in
+  // which a collection keyed by the opener alone hands one instance the other's entries, and it is
+  // the only state in which the key is observable at all.
+  check('cross-row', 'ADR 0062 and Q349: at the instant perShard@1`s join became terminal, perShard@0 was STILL HOLDING — ' +
+    'two instances of ONE opener held collections at one instant, derived from the run`s own fold-input sequence',
+    walkA.othersAtClose['perShard@1'], ['0']);
+  // **A SECOND ROAD to the same fact, and it is what the four controls could not supply** — the
+  // adequacy reader's finding 1, BLOCKING: `maxTogether`, `closedOrder` and `othersAtClose` are
+  // three projections of ONE walk, so a control over any of them leaves the others free, and the
+  // clause above was made a tautology — `othersAtClose['perShard@1'] = ['0']` keyed off how many
+  // regions the run closed — **with all four controls green**. *A relation over a sequence needs a
+  // second EXPRESSION over that sequence, not a third projection of the same one.*
+  //
+  // This reads the sequence's INDICES and never `holdingWalk`: instance 0's first arrival must come
+  // BEFORE instance 1's join settles, and instance 0's own join must come AFTER it. That is the
+  // overlap stated as an ordering rather than as a set, and on the tree where the overlap does not
+  // happen (the second pass's road flattened) it is RED for the same reason the clause above is.
+  {
+    const at = (pred: (x: FoldInput) => boolean) => artifact.inputs.findIndex(pred);
+    const firstArrival = (rp: string) => at((x) => x.kind === 'region' && x.event.type === 'branch.arrived' &&
+      x.event.regionId === 'perShard' && x.event.regionPath === rp);
+    const settledAt = (rp: string) => at((x) => x.kind === 'joinSettled' && x.regionId === 'perShard' && x.regionPath === rp);
+    const [a0, s1, s0] = [firstArrival('0'), settledAt('1'), settledAt('0')];
+    assertThat('cross-row', 'and the SAME fact read off the sequence`s own INDICES rather than off that walk: perShard@0`s first ' +
+      'arrival precedes perShard@1`s join settling, which precedes perShard@0`s — a second EXPRESSION, not a third projection',
+      a0 >= 0 && s1 > a0 && s0 > s1, `arrived@0 at ${a0}, settled@1 at ${s1}, settled@0 at ${s0}`);
+  }
+  // **(iv) And the NON-FIRST instance closed FIRST.** Q353: instance 0 is also `values()[0]`, so a
+  // driver that read *the first instance* instead of *this instance* is indistinguishable from a
+  // correct one wherever instance 0 closes first. The order is the arrangement's whole point.
+  check('cross-row', 'Q353: and the NON-FIRST instance closed FIRST — so `values()[0]` and *this instance* are different ' +
+    'answers here, which is what makes the key discriminating rather than merely present',
+    walkA.closedOrder, ['perShard@1', 'perShard@0', 'perWord@-']);
+  // **CONTROL 1: the same walk on the same flow at ONE item.** The tree on which the two clauses
+  // above fail while their claims pass is this one — it runs the identical document and the
+  // identical `recheck` road, and the derivation must report that nothing overlapped.
+  check('cross-row', 'CONTROL: the same flow at ONE item — the same walk reports that no two instances of one opener ever ' +
+    'held at once, so the two clauses above are claims about THIS run rather than constants',
+    { together: walkB.maxTogether, others: walkB.othersAtClose['perShard@0'], closed: walkB.closedOrder },
+    { together: 1, others: [], closed: ['perShard@0', 'perWord@-'] });
+  // **CONTROL 2: over the whole rung.** SIXTY real runs, and exactly one of them ever had two
+  // instances of one opener holding together — so the walk is not *true of everything it is shown*.
+  // *(This comment read *fifty-eight*, which is the count this item's own two rows take to sixty —
+  // and one of the two is the single positive case, so the figure understated the control by
+  // exactly the runs that make it one. W86's conformity reader, finding 7.)*
+  // **and its own REACH is inside it** — the adequacy reader's finding 5: a control whose whole
+  // content is its UNIVERSE is worth nothing once the universe can be narrowed for free, and
+  // restricting this filter to the two rows the block is already about cost ZERO.
+  const walksHere = EXPECTED.map((_, i) => holdingWalk(reports[i]!));
+  // **`rowsWalked` is incremented INSIDE the predicate for the same reason**: the first version
+  // read `walksHere.length`, which a narrowed FILTER does not move. The reader's exact edit
+  // replaces this predicate whole, so a counter inside it goes to zero and the pair is red.
+  let rowsWalked = 0;
+  const runsWithTwoTogether = EXPECTED.filter((_, i) => { rowsWalked++; return walksHere[i]!.maxTogether > 1; }).map((e) => e.key);
+  check('cross-row', 'CONTROL: and across every row this rung runs, EXACTLY ONE has two instances of one opener holding ' +
+    'together — the walk is not true of everything it is shown, and it was SHOWN every one of them',
+    { only: runsWithTwoTogether, rowsWalked }, { only: [ARTIFACT], rowsWalked: EXPECTED.length });
+
+  // **`soleRegion` REFUSES a multi-instance opener and ANSWERS a single-instance one, and this is
+  // its first live case anywhere** — the adequacy reader's finding 6, and it is W84's conformity
+  // reader's finding 10 reached from the other side. That helper returns `undefined` rather than
+  // guessing precisely because *returning either would make a row's verdict depend on which
+  // instance the driver entered first*, and until this row existed the refusal had no instance:
+  // W84's adequacy reader measured `return byPath[paths[0]!]` at ZERO at both L6 rungs. **The two
+  // rows are the pair** — the same opener, the same document, one word of payload apart.
+  assertThat('cross-row', 'W84 finding 10: `soleRegion` REFUSES the opener that has TWO instances and ANSWERS the one that ' +
+    'has one — the same opener in two runs, so the refusal is a function of the RUN and not of the name',
+    soleRegion(artifact.state, 'perShard') === undefined && soleRegion(control.state, 'perShard') !== undefined,
+    `artifact: ${soleRegion(artifact.state, 'perShard') === undefined ? 'refused' : 'answered'}, ` +
+    `control: ${soleRegion(control.state, 'perShard') === undefined ? 'refused' : 'answered'}`);
+
+  // **(v) ADR 0062 consequence 5, turned from an argument into a value.** *A branch inside an
+  // instance carries that instance's path as its own prefix*, so two instances of one opener hold
+  // DISJOINT key sets and their collections cannot collide. Asserted as a relation over the run's
+  // own regions rather than against a literal: every branch path of every instance must begin with
+  // that instance's path, and the union must be every branch that arrived.
+  const instanceKeys = (r: RunReport, opener: string) =>
+    Object.entries(r.state.regions[opener] ?? {}).map(([path, run]) => [path, Object.keys(run.settled).sort()] as const);
+  const keysA = instanceKeys(artifact, 'perShard');
+  const prefixed = keysA.every(([path, ks]) => ks.every((k) => k === path || k.startsWith(`${path}.`)));
+  const union = keysA.flatMap(([, ks]) => ks);
+  assertThat('cross-row', 'ADR 0062 consequence 5: every branch key of an instance carries that instance`s own path as its ' +
+    'prefix, so the two collections are DISJOINT and their union is every branch that arrived',
+    prefixed && new Set(union).size === union.length && union.length === 5,
+    `${JSON.stringify(keysA)}`);
+
+  // **(vi) ADR 0062 rule 3 as a RELATION over every region event this rung emits**, not only over
+  // the two rows that declare `regionEventKeys`: a `regionPath` is either `-` or a prefix of the
+  // branch path the event is about. One expression, SIXTY runs, and it is the invariant the
+  // two rows' literals are instances of.
+  // **`runsWalked` is incremented INSIDE the walk, and the first version counted `reports.length`**
+  // — which the mutation this clause exists to refuse does not touch. So the reach was asserted
+  // beside the finding and still not bound BY it, and the adequacy reader's exact edit survived
+  // the fix for it. *A re-run found a defect in the FIX rather than in the product*, which is
+  // rule 8's founding observation and what its second pass is for.
+  let runsWalked = 0;
+  const badPaths = reports.flatMap((r) => { runsWalked++; return r.inputs.flatMap((x) => {
+    if (x.kind !== 'region') return [];
+    const ev = x.event as { regionId: string; regionPath: string; branchPath: string };
+    const ok = ev.regionPath === '-' ? !ev.branchPath.includes('.')
+      : ev.branchPath === ev.regionPath || ev.branchPath.startsWith(`${ev.regionPath}.`);
+    return ok ? [] : [`${ev.regionId}@${ev.regionPath} b=${ev.branchPath}`];
+  }); });
+  // **The REACH is inside the claim** — the adequacy reader's finding 4, BLOCKING: an ABSENCE over
+  // an unbound universe is satisfied by walking nothing, and `reports.slice(0, 1)` — one report, and
+  // not even a W86 row — cost ZERO. The control beside it could not see that, because it is a
+  // DIFFERENT expression and binds its own universe. So the number of runs walked is asserted
+  // beside the finding, derived from `EXPECTED` rather than typed.
+  check('cross-row', 'ADR 0062 rule 3: every RegionEvent`s regionPath is the opener`s own path and its branchPath extends ' +
+    'it — the pair IS the region, over every run this rung makes',
+    { bad: badPaths, runsWalked }, { bad: [], runsWalked: EXPECTED.length });
+  // **CONTROL: and the relation is not vacuous on a rung of top-level regions**, where it is
+  // satisfied by any depth-1 branch path.
+  //
+  // *(This comment read **"Before this item every region event here carried `regionPath: '-'`"**,
+  // which is FALSE and was measured so by the adequacy reader, finding 13: **28** non-root events
+  // across five variants predate W86 — W23's and W35's nested rows emit them — against the **14**
+  // these two rows add, so the control is satisfied two-to-one by runs this item did not write. The
+  // control is sound and its stated reason was not. **And the census names a scope this item does
+  // not otherwise state**: `branch.lost` carries a non-root `regionPath` NOWHERE at L6, so ADR 0062
+  // rule 3's six-variant enumeration is observed at FIVE of six at this rung and at two of six in
+  // the artifact's own flow — W85 drives the other four at L2, under nesting, at a non-first
+  // instance.)*
+  const nonRootEvents = reports.flatMap((r) => r.inputs.filter((x) =>
+    x.kind === 'region' && (x.event as { regionPath: string }).regionPath !== '-')).length;
+  assertThat('cross-row', 'CONTROL: and this rung emits region events whose regionPath is NOT `-` — without them the ' +
+    'relation above is satisfied by every top-level region and says nothing',
+    nonRootEvents > 0, `${nonRootEvents} events at a non-root instance`);
+
+  // **(vii) `JP-R12` at TWO LEVELS on real workers.** The outer join's collection is keyed by the
+  // outer branch paths, and each VALUE is the inner instance's own collection — derived from the
+  // run's regions rather than from the row's literal, so the two roads to one value can disagree.
+  const outerPayload = (artifact.state.nodes['r51:publish:-:0']?.result as { joinPayload?: Record<string, Record<string, unknown>> })?.joinPayload ?? {};
+  check('cross-row', 'JP-R12 at TWO LEVELS on real workers: the outer collection`s keys are the outer branches and each ' +
+    'VALUE`s keys are that instance`s own collection, derived from the run`s regions',
+    Object.fromEntries(Object.entries(outerPayload).map(([k, v]) => [k, Object.keys(v).sort()])),
+    Object.fromEntries(keysA.map(([path, ks]) => [path, ks])));
+
+  // **(viii) The ARRANGEMENT, asserted rather than trusted.** Two facts of the run make the closing
+  // order determinate: `shard@0` settled before `shard@1` (the worker's work is proportional to the
+  // word it splits, and `ja` is shorter than `eee`), and `recheck` ran under instance 0 alone (one
+  // shard of one word scores below fifty). Neither is a clock; both are read from the run.
+  const settleOrder = artifact.log.filter((r) => r.taskId.includes(':shard:')).map((r) => r.taskId);
+  const recheckUnder = artifact.dispatched.filter((id) => id.includes(':recheck:')).map((id) => id.split(':')[2]!.split('.')[0]);
+  check('cross-row', 'and the ARRANGEMENT that makes that order determinate is a fact about the run: shard@0 settled first ' +
+    'and the second pass ran under instance 0 alone — a stagger that stopped working fails HERE',
+    { shards: settleOrder, recheckUnder },
+    { shards: ['r51:shard:0:0', 'r51:shard:1:0'], recheckUnder: ['0'] });
+
+  // **(ix) P22 prediction 3, the REACH, asserted from the DOCUMENT.** *A consumer writing "score
+  // each item, then fan out per item" needs no reshaping node and no second flow.* What that means
+  // on this tree is checkable: the flow declares no `needs` and no `transform` anywhere, and the
+  // road from the outer map's branch entry to the inner map is ONE node — the item's own task. A
+  // reshaping node would be a second one whose only job is to change the shape.
+  const fopiNodes = FOPI.nodes as unknown as { id: string; kind: string; needs?: unknown; transform?: unknown; edges?: { to: string }[] }[];
+  const outerBranch = fopiNodes.find((n) => n.id === 'shard')!;
+  check('cross-row', 'P22 prediction 3, the REACH: this flow declares NO needs and NO transform, and the road from the outer ' +
+    'map`s branch entry to the inner map is ONE node — the workaround ADR 0040 exists to remove is gone for this shape',
+    {
+      needs: fopiNodes.filter((n) => n.needs !== undefined).map((n) => n.id),
+      transforms: fopiNodes.filter((n) => n.transform !== undefined).map((n) => n.id),
+      hop: (outerBranch.edges ?? []).map((x) => x.to),
+    },
+    { needs: [], transforms: [], hop: ['perShard'] });
+}
+
+/**
  * **What `OR-R13` would cost this WHOLE RUNG, against the `structuredClone` `OR-R2` already pays on
  * the same settlements — PRINTED, and asserted by nothing** — W82, P21 decision 5.
  *
@@ -6468,13 +7144,32 @@ console.log(`\n  ladder L6 — ${reports.length + pairRunCount} real runs on fyf
  * A multi-region run prints each region's own answer, prefixed, because a
  * `0:arrived 1:lost` with no region name cannot be told from an inner one.
  */
-const regionsOf = (r: RunReport, e: { regionId?: string | null; otherRegions?: Record<string, unknown> }) =>
-  // `soleRegion` and not `regions[id]` — W84. `RunState.regions` is two-level since
-  // ADR 0062, and this RENDERING path is one of the sites the change reached that no
-  // typechecker named: `regions[id]` still types as `RegionRun` through the inner
-  // record's open index signature, so it compiled and then threw in `Object.entries`.
-  (e.regionId === null ? [] : [e.regionId ?? 'split', ...Object.keys(e.otherRegions ?? {})])
-    .map((id) => [id, soleRegion(r.state, id)] as const)
+/*
+ * **W86 — and this is the SECOND of the two sites the `soleRegion` comment names**, which W84 wrote
+ * and dated to this item.
+ *
+ * It read every declared region through `soleRegion` and then **filtered out** whatever came back
+ * `undefined` — so a region with two instances vanished from the table a person reads, silently,
+ * which is [Q100](../doc/open-questions.md)'s *a formatting bug can make the table say something
+ * FALSE rather than merely ugly* one shape further on. It now walks `regions[id]` whole and prints
+ * one row per INSTANCE, labelling each `opener@path` when there is more than one — so the two
+ * instances of `perShard` are visible as two, and a region that is missing prints nothing because
+ * it is missing rather than because there was no sole one.
+ */
+const regionsOf = (r: RunReport, e: {
+  regionId?: string | null;
+  otherRegions?: Record<string, unknown>;
+  regionInstances?: Record<string, unknown>;
+}) =>
+  (e.regionId === null
+    ? []
+    : [e.regionId ?? 'split', ...Object.keys(e.otherRegions ?? {}), ...Object.keys(e.regionInstances ?? {})])
+    .flatMap((id) => {
+      const byPath = r.state.regions[id];
+      if (byPath === undefined) return [];
+      const paths = Object.keys(byPath).sort();
+      return paths.map((p) => [paths.length === 1 ? id : `${id}@${p}`, byPath[p]] as const);
+    })
     .filter(([, reg]) => reg !== undefined);
 
 const renderRegions = (pairs: ReturnType<typeof regionsOf>) => {
@@ -6657,8 +7352,25 @@ const PER_PLAIN_ROW = 20;
 // controls where the block has three, one partition assertion where there are two, and two per-row
 // readings where the loop executes once. W82's conformity reader, finding 7, in the comment that
 // explains the number rather than in the number.)*
+// **+17 since W82 — W86, P22's EXIT ARTIFACT**, and the decomposition is: block (2f)'s TWELVE claims
+// — the shape read from the documents, one opener's N instances, the OVERLAP at the instant a join
+// became terminal, the closing ORDER, the two collections' disjointness, `regionPath` as a relation
+// over every event this rung emits, `JP-R12` at two levels, the arrangement that makes the order
+// determinate, and prediction 3's reach read from the document — and its FOUR controls: the
+// detector asked about a `fanout`, the control ROW, the whole rung, and the non-root events that
+// keep the relation from being vacuous — plus the FIVE its two readers forced: a SECOND ROAD to the
+// overlap (the sequence's own indices, because `maxTogether`, `closedOrder` and `othersAtClose` are
+// three projections of ONE walk and a control over any of them leaves the others free), a second
+// road to the detector (`ID-R6`'s refusal, ADR 0062 consequence 6), `soleRegion`'s refusal against
+// its answer as a PAIR, and the two reach clauses folded into the claims they bound. All thirteen are cross-row because the central claim is
+// about a pair of runs and the controls range over all SIXTY, plus the clause that makes this block
+// REPORT rather than crash when one of its two keys stops matching (probe `d1`). **A FIFTEENTH assertion this item
+// adds is NOT in this number and the reason is positional**: the rendered table's own clause sits
+// beside its sibling, below the line that checks this constant, so — like the three that were
+// already there — it moves `DECLARED_TOTAL` and not `CROSS_ROW`. *This constant is the cross-row
+// count AT THAT LINE, which is the quirk its own header records.*
 // *The convention this file keeps is that the next item APPENDS.*
-const CROSS_ROW = 170;
+const CROSS_ROW = 187;
 const base = (shape: string) => (shape === 'region' ? PER_REGION_ROW : PER_PLAIN_ROW);
 for (const [key, shape, cost, extras] of rowCosts) {
   if (cost !== base(shape) + extras) {
@@ -7574,7 +8286,7 @@ if (rowCosts.length !== EXPECTED.length) {
         // than a literal for four, because the claim is now about the whole document and a four-entry
         // literal would let ten entries drop a schema for zero; and it is still a LITERAL rather than a
         // read of `REGISTRY_DOCUMENT` (`ra6`), so the probe that deletes a schema moves one side only.
-        check('cross-row', 'the runtime CARRIES every schema the sixteen worker entries declare, exactly: the two P19 schemas on every entry ' +
+        check('cross-row', 'the runtime CARRIES every schema the seventeen worker entries declare, exactly: the two P19 schemas on every entry ' +
           '(no outputSchema on the two undescribable workers), plus prompt`s configSchema and the three settingsSchemas — ' +
           'two enforced by the runtime, the other two declared, carried, and checked by `check-workers` on a run',
           Object.fromEntries(Object.entries(reports[0]!.workerSchemas).sort(([a], [b]) => a.localeCompare(b))),
@@ -7592,6 +8304,10 @@ if (rowCosts.length !== EXPECTED.length) {
             publish: ['inputSchema', 'outputSchema'],
             retry: ['inputSchema', 'outputSchema'],
             score: ['inputSchema', 'outputSchema'],
+            // W86: the ONE worker P22 stop-and-ask (c) grants. Both P19 schemas like every other
+            // corpus entry, and no `configSchema` — `check:workers` constructs from `{}`, so the
+            // conformance run does not pay for the stagger only a real run needs.
+            shard: ['inputSchema', 'outputSchema'],
             split: ['inputSchema', 'outputSchema'],
             stamp: ['inputSchema', 'outputSchema'],
             tally: ['inputSchema', 'outputSchema'],
@@ -7623,6 +8339,10 @@ if (rowCosts.length !== EXPECTED.length) {
             publish: ['inputSchema', 'outputSchema'],
             retry: ['inputSchema', 'outputSchema'],
             score: ['inputSchema', 'outputSchema'],
+            // W86: the ONE worker P22 stop-and-ask (c) grants. Both P19 schemas like every other
+            // corpus entry, and no `configSchema` — `check:workers` constructs from `{}`, so the
+            // conformance run does not pay for the stagger only a real run needs.
+            shard: ['inputSchema', 'outputSchema'],
             split: ['inputSchema', 'outputSchema'],
             stamp: ['inputSchema', 'outputSchema'],
             tally: ['inputSchema', 'outputSchema'],
@@ -8124,6 +8844,33 @@ check('cross-row', 'and at least one row declares a SECOND region, so a nested j
     cells.joined.includes('/'), `printed: ${cells.joined}`);
 }
 
+// **SITE TWO of the `soleRegion` comment's two: the table a PERSON reads names both INSTANCES**
+// — W86, and W84 dated the repair to this item there by name. `regionsOf` read every declared
+// region through `soleRegion` and FILTERED OUT whatever came back `undefined`, so a region with two
+// instances vanished from the table entirely. A by-product nothing reads is a by-product that can
+// LIE, which is [Q100](../doc/open-questions.md) answered *yes* by the item that introduced it — so
+// the repair is asserted rather than merely made. **The clause above covers a NESTED row** (two
+// openers, one instance each); this covers an INSTANCED one, which is the shape that used to
+// disappear, and the two are different mechanisms in `regionsOf` rather than one written twice.
+{
+  // **And it REPORTS rather than crashes, for the reason block (2f) does** — the adequacy reader's
+  // finding 3, and it is this item's OWN repair shipped at one site while the identical defect went
+  // out one block over: renaming `regionInstances` made `findIndex` return `-1`, `reports[-1]!`
+  // `undefined`, and `regionsOf` died in a `TypeError` at exit 1 with ZERO failure lines — masking
+  // SIX named detections that the guarded version reports. *A crash is not a detection*
+  // (`doc/workflow.md` section 4), and an author who has just written that sentence is not thereby
+  // immune to the next instance of it.
+  const iRow = EXPECTED.findIndex((e) => Object.keys(e.regionInstances ?? {}).length > 0);
+  assertThat('cross-row', 'a row declaring `regionInstances` exists for the printed-table clause to read — a field that stopped ' +
+    'being declared is a FAIL line naming it, never a TypeError inside the renderer',
+    iRow >= 0, 'no EXPECTED row declares regionInstances');
+  const cells = iRow < 0 ? { branches: '(no instanced row)', joined: '' } : renderRegions(regionsOf(reports[iRow]!, EXPECTED[iRow]!));
+  assertThat('cross-row', 'W84 finding 10: the printed table names BOTH instances of one opener — `perShard@0` and `perShard@1` — ' +
+    'and prints a verdict per instance, where a region with two instances used to vanish from it entirely',
+    cells.branches.includes('perShard@0 ') && cells.branches.includes('perShard@1 ') && cells.joined.split('/').length === 3,
+    `printed: ${cells.branches} | ${cells.joined}`);
+}
+
 check('cross-row', 'the foreign-task list is six: one per parseTaskId refusal, plus Q107 second event road',
   UNMINTED.length, 6);
 check('cross-row', 'and they reach ID-R5 under TWO scheduler events, not one',
@@ -8210,7 +8957,7 @@ check('cross-row', 'every cross-row SUBJECT this file declares was asserted abou
 // consumer-road block, which holds nothing but `{ driver, done }` and makes two runs. No row
 // moved, because nothing here changes what a worker receives (P20 decision 7). *(Written as 12
 // from the arithmetic before the file was run, and the first run reported exactly that.)*
-const DECLARED_TOTAL = 1724;
+const DECLARED_TOTAL = 1833;
 if (passed + failures.length !== DECLARED_TOTAL) {
   failures.push(
     'gate\n      the assertion count is not the number this file declares outright\n' +

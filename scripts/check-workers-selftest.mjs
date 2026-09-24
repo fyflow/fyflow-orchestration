@@ -330,13 +330,20 @@ export async function selfTest(ROOT) {
     [/fail\s+NOT CHECKED — no outputSchema declared; threw on both attempts \(flaky worker/, '`fail` reported NOT CHECKED by name, having thrown twice'],
     [/uncloneable\s+NOT CHECKED — no outputSchema declared; returned \{\} on attempt 1/, '`uncloneable` reported NOT CHECKED by name, having returned'],
     [/retry\s+conforms on attempt 2 \(the first threw: retry worker: first attempt/, '`retry` conforms on attempt 2 with the first throw quoted'],
-    // **16 since [W82](../doc/work-items/w82-a-result-its-own-schema-refuses-on-real-workers.md)**,
+    // **17 since [W86](../doc/work-items/w86-score-each-item-then-fan-out-per-item.md); 16 since
+    // [W82](../doc/work-items/w82-a-result-its-own-schema-refuses-on-real-workers.md)**,
     // whose `gauge` and `stamp` are P21's exit artifact — and **both are GREEN here on purpose**:
     // one declares a bound its code does not keep past this example and the other returns a key
     // `structuredClone` will not carry, and neither is anything a run of a DECLARED EXAMPLE can see.
-    // *That this line reads `16 ran on a declared example` with two defective workers in the
-    // document is the measurement `OR-R13`'s capability half rests on.* (14 until then.)
-    [/16 worker\(s\) in examples\/registry\.json: 16 ran on a declared example, 0 on the generator's witness, 2 not checked \(no outputSchema\), 0 refused/, 'the header tally: all 16 on declared examples, 0 on the witness, 2 of them not checked, 0 refused'],
+    // *That this line reads `17 ran on a declared example` with two defective workers in the
+    // document is the measurement `OR-R13`'s capability half rests on.* (14 until then, 16 until
+    // [W86](../doc/work-items/w86-score-each-item-then-fan-out-per-item.md) added `shard`.)
+    //
+    // **This literal is [Q342](../doc/open-questions.md), and it fires on every item that adds a
+    // worker**: the tally is a corpus CENSUS pinned in the GRADING rather than in the check, so a
+    // seventeenth worker takes this gate entry RED while `check:workers` itself stays green. W82
+    // recorded it and W86 is the second item to pay it, which is the datum rather than the edit.
+    [/17 worker\(s\) in examples\/registry\.json: 17 ran on a declared example, 0 on the generator's witness, 2 not checked \(no outputSchema\), 0 refused/, 'the header tally: all 17 on declared examples, 0 on the witness, 2 of them not checked, 0 refused'],
   ];
   for (const [re, what] of CONTROL_LINES) if (!re.test(control.out)) bad(`CONTROL: the shipped document's verdict does not say ${what}`);
   // **And the configuration the GATE runs — nothing set — is the one every spawn above overrides**

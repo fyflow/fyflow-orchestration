@@ -1508,8 +1508,20 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
   // **The snapshot holds the payload OBJECTS**, which is what makes the
   // reconstruction below a measurement of the same graph rather than of a copy of
   // it — and what makes `peakAliasingLog` answerable at all.
-  const peakByRegion: Record<string, number> = {};
-  const peakSnapshot = new Map<string, Map<string, unknown>>();
+  // **The peak is per region INSTANCE and summed per opener — W86, and it was per OPENER until
+  // this item found the difference with a number.**
+  //
+  // `ADR 0046` rule 3 and `RN-R13` release per instance, so an opener with two instances fills and
+  // empties two windows that need not overlap in time. A max over the opener's FLATTENED collection
+  // therefore reports *the largest the opener ever held at once*, which under nesting is strictly
+  // less than *one entry per branch that arrived*: on W86's row `perShard@0` holds one entry while
+  // `perShard@1` holds three, and the two never coexist at five. Measured, the opener-level max
+  // reported **6** where the branches that arrived are **7**.
+  //
+  // *`arrivalsOf`'s flatten is lossless in the KEYS — every branch path inside an instance begins
+  // with that instance's own path — and it was never lossless in TIME. That distinction had no
+  // case until a flow had two instances, which is ADR 0062 consequence 7 arriving at the observer.*
+  const peakByInstance = new Map<string, { region: string; size: number; held: Map<string, unknown> }>();
   //
   // **`runtime.start` starts the run INSIDE the call, so there is a window in which fold inputs
   // arrive and this closure does not yet hold the driver — W67.** Before this item the driver was
@@ -1521,12 +1533,34 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
   const driverRef: { current: Driver | null } = { current: null };
   const samplePeak = (): void => {
     if (driverRef.current === null) { sampledBeforeDriver++; return; }
-    for (const [region, held] of arrivalsOf(driverRef.current)) {
-      if (held.size > (peakByRegion[region] ?? 0)) {
-        peakByRegion[region] = held.size;
-        peakSnapshot.set(region, new Map(held));
+    for (const [region, byPath] of rawArrivalsOf(driverRef.current)) {
+      for (const [path, held] of byPath) {
+        const key = `${region} @ ${path}`;
+        if (held.size > (peakByInstance.get(key)?.size ?? 0)) {
+          peakByInstance.set(key, { region, size: held.size, held: new Map(held) });
+        }
       }
     }
+  };
+  /**
+   * **Per opener, the SUM of its instances' peaks, and the union of the maps they peaked at.**
+   *
+   * The two levels are folded back together here rather than in `samplePeak`, so the number stays
+   * *one entry per branch that arrived* while the SNAPSHOT stays a set of real payload objects for
+   * `peakAliasingLog` and for the byte reconstruction. The union is sound for the reason
+   * `arrivalsOf`'s merge is — two instances of one opener hold disjoint branch-path key sets
+   * (ADR 0062 consequence 5) — and `arrivalsOf` is what refuses a collision by name.
+   */
+  const peakFolded = (): { byRegion: Record<string, number>; snapshot: Map<string, Map<string, unknown>> } => {
+    const byRegion: Record<string, number> = {};
+    const snapshot = new Map<string, Map<string, unknown>>();
+    for (const { region, size, held } of peakByInstance.values()) {
+      byRegion[region] = (byRegion[region] ?? 0) + size;
+      const into = snapshot.get(region) ?? new Map<string, unknown>();
+      for (const [k, v] of held) into.set(k, v);
+      snapshot.set(region, into);
+    }
+    return { byRegion, snapshot };
   };
 
   // In-flight tracking, for the overlap check. `task.running` and the settlement
@@ -1981,6 +2015,7 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
   // collection at a different moment in the run.
   const endByRegion: Record<string, number> = {};
   for (const [region, held] of arrivalsOf(driver)) endByRegion[region] = held.size;
+  const { byRegion: peakByRegion, snapshot: peakSnapshot } = peakFolded();
   const peakValues = [...peakSnapshot.values()].flatMap((m) => [...m.values()]);
   // **Identity, not equality** — `JP-R12`'s *second copy* claim. `OR-R2` deep-copies
   // at the listener boundary and `advance` clones again for the edge hop, so an
@@ -2004,7 +2039,7 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
   // **The instrument is dropped once it has been read, and that is observer 2's
   // whole standing** — W55's conformity reader, BLOCKING.
   //
-  // `samplePeak` closes over `peakSnapshot`, `samplePeak` is reachable from
+  // `samplePeak` closes over `peakByInstance`, `samplePeak` is reachable from
   // `onFoldInput`, and `onFoldInput` is on `driver.opts` — which `retainedBytes`
   // skips by name. So observer 1 could not see it and observer 2 could: under
   // `keepDriver` every kept driver transitively retained **a second copy of the very
@@ -2012,6 +2047,14 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
   // shipped against 129.4 MiB with this line**, which is 256 KiB a run — exactly one
   // collection each, 9% of the figure being reported. *A sensor cannot corroborate
   // itself, and here the second sensor was measuring the first one's instrument.*
+  //
+  // **It reads `peakByInstance` since W86, and for one round it did not** — that item re-keyed the
+  // sampler PER INSTANCE and made `peakSnapshot` a local the fold builds, so this line went on
+  // clearing a fresh Map nobody holds while the structure `samplePeak` actually closes over kept
+  // every payload. *The fix for the peak's ARITHMETIC un-did the guard for its RETENTION, in the
+  // line whose own comment records why the guard exists* — found by the author re-reading this
+  // line during its reader window, and held until both readers had reported.
+  peakByInstance.clear();
   peakSnapshot.clear();
 
   // REQUIRED, or the process stays alive (`AGENTS.md` §2) — but only for a

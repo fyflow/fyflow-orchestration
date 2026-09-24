@@ -207,6 +207,16 @@ const PROBES = [
     mutate: (t) => t.replace('the `?` suffix costs nothing (**617.4 ms**)',
       'the `?` suffix costs nothing (**617.4 ms**, and once **99.9 ms**)'),
   },
+  // --- X9: the version README.md tells a consumer to expect, against both manifests — W86 (`h1`) ---
+  // **A README-side probe, because X9's subject is the README sentence.** The `mutate` is the
+  // identity on AGENTS.md, so the probe declares `X9` alone and the run proves it: a probe that
+  // trips a check it did not name is malformed, and this one must trip exactly one.
+  {
+    name: 'README.md tells a consumer the manifests read a version they do not',
+    check: 'X9',
+    mutate: (t) => t,
+    readme: (t) => t.replace('**The manifests read `0.4.0`', '**The manifests read `0.9.9`'),
+  },
   // --- X7: AGENTS.md's refusal count against spec/flow-definition.md section 5's rows — W65 (`d4`) ---
   {
     name: 'AGENTS.md`s refusal count moved to 35 while section 5 declares 34',
@@ -472,10 +482,15 @@ const RAN = (out) => /^(All checks passed|\d+ failure\(s\)\.)/m.test(out);
 // 20 until W69, which added X8's three and raised it to the count it ships — 25; 26 since W70's
 // second-fence probe; **33 since W69 and W70 ran their reader passes**, which gave each of `X8`'s clauses a probe that trips THAT
 // clause and no other, after both adequacy readers measured six of them deletable at 26/26, 13/13.
-const MIN_PROBES = 33;
+// **34 since [W86](../doc/work-items/w86-score-each-item-then-fan-out-per-item.md)**, which added
+// `X9`'s probe and raised the floor to the count it ships (Q102's ratchet: the item that adds one
+// raises it, and it goes stale toward WEAKNESS in silence otherwise).
+const MIN_PROBES = 34;
 
 /** The same floor for `META`, and for the same reason. */
-const MIN_META = 20;
+// **21 since W86**, which gave `X9`'s comparison clause a grading — the coverage bound below is
+// what required one, by deriving `ALL_CHECKS` from `check-docs.mjs`'s own `checks` array.
+const MIN_META = 21;
 
 /**
  * **The mutations `check-docs.mjs` itself is run against**, one per check id plus
@@ -562,6 +577,10 @@ const META = [
   ['X6`s `AGENTS quotes what the spec does not` direction disabled',
     'AGENTS.md quotes an EXTRA figure the spec does not have — the `missing` direction alone',
     (t) => t.replace('      if (missing.length) {', '      if (false) {')],
+  // W86 (`h1`): X9's comparison clause. The guard above the `fail` is what is disabled, so
+  // `idAt` reads the next `fail('X9'` after the divergence and the coverage bound sees the id.
+  ['X9`s comparison clause disabled', 'README.md tells a consumer the manifests read a version they do not',
+    (t) => t.replace("    else if (said[1] !== npmV) fail('X9',", "    else if (false) fail('X9',")],
   // W65 (`d4`): X7's two clauses, one probe each.
   ['X7`s count clause disabled', 'AGENTS.md`s refusal count moved to 35 while section 5 declares 34',
     (t) => t.replace('      if (Number(said[1]) !== live) fail', '      if (false) fail')],
