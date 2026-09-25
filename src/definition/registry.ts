@@ -41,8 +41,8 @@ import type {
   PoolInstance, PoolSpec, RegistryCode, RegistryDocument, ResolvedGroup, ResolvedPool, ResolvedRegistry, WorkerEntry,
 } from './types.ts';
 import { describeFindings, findings, schemaProblem, type JsonSchema } from './schema.ts';
-import { languagesOf, nodeTypesOf, poolsOf, retryPolicyProblem, workersOf } from './validate.ts';
-import type { NodeTypes, Pools, Workers } from './types.ts';
+import { BUILT_IN_GATE_TYPES, gateTypeCollisions, gateTypeProblem, languagesOf, nodeTypesOf, poolsOf, retryPolicyProblem, workersOf } from './validate.ts';
+import type { GateTypes, NodeTypes, Pools, Workers } from './types.ts';
 
 // ---- the refusals, each a named class ------------------------------------------------------------
 
@@ -82,6 +82,13 @@ export class UndeclaredKey extends RegistryError {}
 export class NameMissing extends RegistryError {}
 /** A derivation returned something that is not a `PoolSpec`, threw, or produced a pool the runtime refuses (a resident group beside `idleTimeout: 0`). */
 export class DerivationRefused extends RegistryError {}
+/**
+ * **A registered GATE type is not a `GateType`** — v0.23 (W92, ADR 0066): not an object; a key beside the
+ * interface's four; `routes` empty, repeated or outside `FD-V16`'s charset; a `defaultRoute` that is not one
+ * of them; a `settingsSchema` outside the subset; or no `fn`. `gateTypeProblem` is the predicate, shared with
+ * `FD-V39`'s second clause, so the registry and the validator cannot disagree about what a gate type IS.
+ */
+export class GateTypeRefused extends RegistryError {}
 
 // ---- the built-in group types, as DATA -----------------------------------------------------------
 
@@ -333,7 +340,10 @@ export function derivePool(
  * check (`derivePool`), where it constructs the pool. The `groups` a document type declares are the
  * driver's own `FD-V31` check, as at v0.17, and are not repeated here.
  */
-export function checkRegistry(reg: { workers?: Workers; nodeTypes?: NodeTypes; pools?: Pools }): void {
+export function checkRegistry(reg: { workers?: Workers; nodeTypes?: NodeTypes; pools?: Pools; gateTypes?: GateTypes }): void {
+  // **The gate types first, v0.23 (W92)** — a consumer's, beside the built-ins. Every entry of a kind before
+  // the next kind is read (this module's rule), so the refusal names the first defect.
+  checkGateTypes(reg.gateTypes);
   const workers = workersOf(reg.workers);
   for (const [name, w] of workers) {
     if (!isPlainObject(w)) throw new UndeclaredKey(name, `worker ${q(name)} is not an object`);
@@ -360,6 +370,25 @@ export function checkRegistry(reg: { workers?: Workers; nodeTypes?: NodeTypes; p
       throw new PoolTypeMissing(key, `pool ${q(key)} names type ${JSON.stringify(p?.type)}, which is not a node type` +
         (types.size ? ` (the registry declares ${[...types.keys()].sort().map(q).join(', ')})` : ' (the registry declares none)'));
     }
+  }
+}
+
+/**
+ * **A consumer's gate types, held to the interface by name — and never allowed to REPLACE a built-in.**
+ * v0.23 (W92, ADR 0066). A name that is a built-in's is `NameCollision` (one namespace, one definition per
+ * name — the rule a custom group type named as a built-in already meets); an entry that is not a
+ * `GateType` is `GateTypeRefused`, naming the type and the member. **The built-ins are held to the SAME
+ * predicate** here too, so `distinct` is not a type the check exempts: it passes because it is one.
+ */
+export function checkGateTypes(x: GateTypes | undefined): void {
+  const collisions = gateTypeCollisions(x);
+  if (collisions.length) {
+    throw new NameCollision(collisions[0]!, `gate type ${q(collisions[0]!)} is registered in gateTypes and is a built-in gate type — one namespace, one definition per name; a built-in is never replaced`);
+  }
+  const own = x === undefined ? [] : x instanceof Map ? [...x] : Object.entries(x);
+  for (const [name, t] of [...Object.entries(BUILT_IN_GATE_TYPES), ...own]) {
+    const problem = gateTypeProblem(t);
+    if (problem !== null) throw new GateTypeRefused(name, `gate type ${q(name)} is not a GateType: ${problem}`);
   }
 }
 

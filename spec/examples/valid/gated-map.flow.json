@@ -1,0 +1,21 @@
+{
+  "flowId": "gated-map",
+  "version": 1,
+  "entry": "ingest",
+  "nodes": [
+    { "id": "ingest",        "kind": "task", "type": "IngestWorker",  "edges": [ { "to": "split" } ] },
+    { "id": "split",         "kind": "map",  "over": "files", "branch": "identify" },
+    { "id": "identify",      "kind": "task", "type": "ExtractWorker", "edges": [ { "to": "dedupe" } ] },
+    { "id": "dedupe",        "kind": "gate", "type": "distinct", "settings": { "key": "series.id" }, "edges": [
+        { "to": "setup" },
+        { "route": "duplicate", "to": "dropDuplicate" },
+        { "route": "nokey",     "to": "dropNoKey" }
+    ] },
+    { "id": "setup",         "kind": "task", "type": "ScoreWorker",   "edges": [ { "to": "collect" } ] },
+    { "id": "dropDuplicate", "kind": "end",  "outcome": "duplicate" },
+    { "id": "dropNoKey",     "kind": "end",  "outcome": "unidentified" },
+    { "id": "collect",       "kind": "join", "of": "split", "edges": [ { "to": "publish" } ] },
+    { "id": "publish",       "kind": "task", "type": "PublishWorker", "edges": [ { "to": "done" } ] },
+    { "id": "done",          "kind": "end",  "outcome": "completed" }
+  ]
+}

@@ -540,7 +540,16 @@ if (r.files < 123) fail('M3', `only ${r.files} markdown file(s) were scanned, so
 // for the eleventh plan running. A declared exception on `scripts/**` for the retro, on W42's,
 // P15's and W58's precedent. *An index paragraph is the densest link source this repository has,
 // and the record step writes six of them — so a retro moves this floor without adding a file.*
-if (r.links < 5270) fail('M4', `only ${r.links} relative link(s) were found; M1 is vacuous below that`);
+// **5270 -> 6225 at [W92](../doc/work-items/w92-what-a-gate-is.md)'s record step, PREDICTED at P24's declaration and
+// CONFIRMED by measuring before and after.** P24's seeded exceptions table named this file for this reason: `M4`'s
+// margin was **22** links after that declaration. Measured on a copy of the tree with the probe's directories cut
+// (`dev-dist/w92/q142.py`): BEFORE W92's record step the both-removed fixture read **5269** — the item's own
+// documents had spent 21 of the 22 — and AFTER it **5291**, past the floor, so probe 2 would have reported
+// `wanted [M1,M3,M4], got [M1,M3]`. Whole tree **156 / 7159 / 386**, `doc/decisions` removed **118 / 6607**, both
+// removed **93 / 5291**. So `M4`'s window is `(5291, 7159]` and 6225 is its MIDPOINT, W80's rule. **`M3` is NOT
+// retuned**: its margin is 5 files and it has not fired, and W80's *a ratchet moved before it fires is moved for no
+// reason* holds for it. [Q142](../doc/open-questions.md) for the tenth time, and the second declared in advance.
+if (r.links < 6225) fail('M4', `only ${r.links} relative link(s) were found; M1 is vacuous below that`);
 if (r.anchored < 60) fail('M5', `only ${r.anchored} link(s) carry an anchor; M2 is vacuous below that`);
 
 const checks = [

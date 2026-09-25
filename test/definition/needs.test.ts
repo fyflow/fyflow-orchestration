@@ -772,12 +772,14 @@ suite('L1 — FD-V29: an unconditional reference names a node that MUST have run
 suite('L1 — FD-V29 is not dominance, and that is a measurement over the corpus', (test) => {
   type Doc = { entry: string; nodes: { id: string; kind: string; [k: string]: unknown }[] };
 
-  /** Section 4's arc shapes: a task's and a join's `edges`, a fanout's `branches`, a map's `branch`. */
+  /** Section 4's arc shapes: a task's, a join's and — v0.23 — a GATE's `edges`, a fanout's `branches`, a map's `branch`. */
   const succOf = (d: Doc) => {
     const out = new Map<string, string[]>(d.nodes.map((n) => [n.id, [] as string[]]));
     for (const n of d.nodes) {
       const push = (t: string) => out.get(n.id)!.push(t);
-      if (n.kind === 'task' || n.kind === 'join') {
+      // A gate's edges are arcs like a task's, and DISJUNCTIVE like a task's — one route is taken (W92). Without this
+      // arm the oracle dropped every arc out of a gate and disagreed with `certainlySettled` on `gated-map`.
+      if (n.kind === 'task' || n.kind === 'join' || n.kind === 'gate') {
         for (const e of (n.edges ?? []) as { to: string }[]) push(e.to);
       } else if (n.kind === 'fanout') for (const b of (n.branches ?? []) as string[]) push(b);
       else if (n.kind === 'map') push(n.branch as string);
@@ -929,11 +931,11 @@ suite('L1 — what `FD-V17` refuses against IS what `spec/` declares', (test) =>
 
   test('the EDGE key table and `EDGE_KEYS` are the same set, both ways', () => {
     const declared = keyRows('| Edge key | | |');
-    equal(declared, ['needs', 'on', 'to', 'when'],
-      'section 3 declares exactly four edge keys — and a row struck through or added is red here ' +
-      'rather than silently disagreeing with the validator');
+    equal(declared, ['needs', 'on', 'route', 'to', 'when'],
+      'section 3 declares exactly five edge keys — `route` since v0.23 (W92), a gate`s — and a row struck ' +
+      'through or added is red here rather than silently disagreeing with the validator');
     equal([...EDGE_KEYS_DECLARED].sort(), declared,
-      '`FD-V17` refuses against the same four the document declares. A key in one and not the ' +
+      '`FD-V17` refuses against the same five the document declares. A key in one and not the ' +
       'other is a rule whose set nobody wrote down');
   });
 });

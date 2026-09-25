@@ -248,6 +248,11 @@ function entryWalk(flow: FlowDefinition, payload: unknown, sampled: boolean): { 
     if (n.kind === 'task') { out.push({ node: id, value }); return; }
     seen.add(id);
     if (n.kind === 'fanout') for (const b of n.branches) walk(b, value);
+    // **A gate hands on what reached it, unchanged, on ONE route** (v0.23, ADR 0066) — so the payload may
+    // reach any of its routes' targets, and statically every one is a place it may land. Without this arm an
+    // entry gate ENDED the walk and the report's `entry` was empty (W92's census). Which ONE route a run takes
+    // is the gate's decision at run time, and the driver's `FD-R4` targets are W93's to narrow.
+    if (n.kind === 'gate') for (const e of n.edges ?? []) walk(e.to, value);
     if (n.kind === 'map') {
       if (!sampled) { walk(n.branch, undefined); return; }
       // A map's own `needs` composed as `enter` composes it — at an entry only `"."` can be named
@@ -266,7 +271,7 @@ class Wiring {
   private readonly byId: ReadonlyMap<string, FlowNode>;
   private readonly graph: Graph;
   private readonly regions: RegionSets[];
-  private readonly inbound = new Map<string, { from: string; kind: 'edge' | 'branch' | 'item' | 'join' }[]>();
+  private readonly inbound = new Map<string, { from: string; kind: 'edge' | 'branch' | 'item' | 'join' | 'gate' }[]>();
   private readonly memo = new Map<string, Arrival[]>();
   private readonly workers: ReturnType<typeof workersOf>;
   private readonly types: ReturnType<typeof nodeTypesOf>;
@@ -278,10 +283,14 @@ class Wiring {
     this.byId = new Map(flow.nodes.map((n) => [n.id, n] as const));
     this.graph = buildGraph(flow);
     this.regions = allRegions(this.graph, flow);
-    const add = (to: string, from: string, kind: 'edge' | 'branch' | 'item' | 'join') =>
+    const add = (to: string, from: string, kind: 'edge' | 'branch' | 'item' | 'join' | 'gate') =>
       this.inbound.set(to, [...(this.inbound.get(to) ?? []), { from, kind }]);
     for (const n of flow.nodes) {
       if (n.kind === 'task' || n.kind === 'join') for (const e of n.edges ?? []) add(e.to, n.id, n.kind === 'task' ? 'edge' : 'join');
+      // **A gate is a PASS-THROUGH** (v0.23): what leaves it on any route is exactly what reached it. Without
+      // this line a gate's edges added no inbound arc, so every consumer after a gate had NO arrival and its
+      // arcs VANISHED from the report — total-ness broken in silence (W92's declaration-step census).
+      if (n.kind === 'gate') for (const e of n.edges ?? []) add(e.to, n.id, 'gate');
       if (n.kind === 'fanout') for (const b of n.branches) add(b, n.id, 'branch');
       if (n.kind === 'map') add(n.branch, n.id, 'item');
     }
@@ -318,6 +327,8 @@ class Wiring {
       if (kind === 'edge') raw.push({ shape: 'edge', producer: from, ...this.produced(from) });
       else if (kind === 'branch') for (const a of this.arrivals(from)) raw.push({ ...a, shape: 'branch', through: from });
       else if (kind === 'item') for (const a of this.arrivals(from)) raw.push(this.item(a, this.byId.get(from) as MapNode));
+      // A gate: every arrival AT the gate arrives, unchanged, after it — same shape, same producer, same sample.
+      else if (kind === 'gate') for (const a of this.arrivals(from)) raw.push({ ...a });
       else raw.push(this.record(this.byId.get(from) as JoinNode));
     }
     const needs = (node as { needs?: Readonly<Record<string, unknown>> } | undefined)?.needs;
@@ -352,7 +363,7 @@ class Wiring {
   private arrivingAt(region: RegionSets, branch: string): FlowNode[] {
     const members = region.branchOf.get(branch) ?? new Set<string>();
     return [...members].map((id) => this.byId.get(id)!).filter((n) =>
-      (n.kind === 'task' || n.kind === 'join') && (n.edges ?? []).some((e) => e.to === region.joinId));
+      (n.kind === 'task' || n.kind === 'join' || n.kind === 'gate') && (n.edges ?? []).some((e) => e.to === region.joinId));
   }
 
   /** `JP-R12`'s record for the region a join closes — exact for a fan-out, keyed by minted paths for a map. */
@@ -366,15 +377,22 @@ class Wiring {
     for (const b of branches) {
       const arriving = this.arrivingAt(region, b);
       if (arriving.length === 0) continue;                                  // the branch never arrives; no key
-      const shapes = arriving.map((n) => n.kind === 'join' ? this.record(n) : { ...this.produced(n.id) });
+      // A GATE routing into the join carries in what reached it — one shape per arrival at the gate (v0.23).
+      // Without it the branch had no arriving node, and the record LOST that branch's key (W92's census).
+      type From = { node: FlowNode; shape: Pick<Arrival, 'schema' | 'sample' | 'unchecked'> };
+      const from = arriving.flatMap((n): From[] => n.kind === 'join' ? [{ node: n, shape: this.record(n) as Pick<Arrival, 'schema' | 'sample' | 'unchecked'> }]
+        : n.kind === 'gate' ? this.arrivals(n.id).map((a) => ({ node: n, shape: a as Pick<Arrival, 'schema' | 'sample' | 'unchecked'> }))
+        : [{ node: n, shape: { ...this.produced(n.id) } }]);
+      if (from.length === 0) continue;                                      // a gate nothing reaches; no key
+      const shapes = from.map((x) => x.shape);
       // An undeclared arriving node is named BEFORE two declared ones are compared — the reader found the
       // message reading *whose outputs differ* of a pair where one declared nothing (W73's conformity reader, 17).
       const bad = shapes.findIndex((s) => s.schema === undefined);
-      if (bad >= 0) return { ...base, unchecked: `branch "${b}" of "${region.fanoutId}" arrives at "${j.id}" from "${arriving[bad]!.id}", which ${shapes[bad]!.unchecked ?? 'declares nothing'}` };
+      if (bad >= 0) return { ...base, unchecked: `branch "${b}" of "${region.fanoutId}" arrives at "${j.id}" from "${from[bad]!.node.id}", which ${shapes[bad]!.unchecked ?? 'declares nothing'}` };
       const first = shapes[0]!;
       const firstSchema = first.schema as JsonSchema;                        // every schema is defined past the check above
       if (shapes.some((s) => canon(s.schema) !== canon(firstSchema))) {
-        return { ...base, unchecked: `branch "${b}" of "${region.fanoutId}" arrives at "${j.id}" from ${arriving.length} nodes whose outputs differ` };
+        return { ...base, unchecked: `branch "${b}" of "${region.fanoutId}" arrives at "${j.id}" from ${from.length} arrivals whose outputs differ` };
       }
       values.push({ branch: b, schema: firstSchema, sample: first.sample ?? { value: null, source: 'witness' } });
     }

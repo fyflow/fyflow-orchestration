@@ -160,7 +160,9 @@ suite('L4 — the corpus IS what spec/flow-definition.md section 7 says it is', 
       }
     }
     equal(
-      ['task', 'fanout', 'map', 'join', 'end'].filter((k) => !kinds.has(k)),
+      // `gate` since v0.23 (W92): `gated-map.flow.json` is its case. A kind the spec declares and no valid
+      // example carries is a kind nothing demonstrates, which is this clause's whole subject.
+      ['task', 'fanout', 'map', 'join', 'end', 'gate'].filter((k) => !kinds.has(k)),
       [],
       'a node kind the spec declares appears in no valid example, so nothing demonstrates it',
     );
@@ -587,6 +589,9 @@ const LATE_SUITES = [
   // and `test/scheduler/resume.test.ts`, each with its own `DECLARED_CASES` and counted below.
   'W89 — what RESUMING is: RN-R19 to RN-R24',
   'W89 — resuming through the runtime: runtime.resume, the positions, and run ids in use',
+  // W92 — what a GATE is (ADR 0066, `spec/flow-definition.md` v0.23), in `test/definition/gate.test.ts`, with its
+  // own `DECLARED_CASES` and counted below.
+  'W92 — what a GATE is: FD-V39 to FD-V41, the default route, and the one interface',
 ];
 
 suite('L1 — every suite this tree declares actually RAN', (test) => {
@@ -637,5 +642,11 @@ suite('L1 — every suite this tree declares actually RAN', (test) => {
     const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
     equal(count('W89 — what RESUMING is: RN-R19 to RN-R24'), 19, 'test/driver/resume.test.ts registers its nineteen cases');
     equal(count('W89 — resuming through the runtime: runtime.resume, the positions, and run ids in use'), 7, 'test/scheduler/resume.test.ts registers its seven');
+  });
+
+  // **W92's suite, counted the same way and for the same reason.**
+  test('W92`s suite still REGISTERS the cases it declares — an emptied suite fails here', () => {
+    const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
+    equal(count('W92 — what a GATE is: FD-V39 to FD-V41, the default route, and the one interface'), 17, 'test/definition/gate.test.ts registers its seventeen cases');
   });
 });

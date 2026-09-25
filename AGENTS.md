@@ -143,8 +143,18 @@ their schemas buy you before a run**.
 
 ## 3. The flow definition
 
-**Five** node kinds. A definition is JSON: no functions, so it can be stored, versioned and sent over
+**Six** node kinds. A definition is JSON: no functions, so it can be stored, versioned and sent over
 a wire.
+
+> **`gate` is the sixth, and NOTHING RUNS ONE YET** — `spec/flow-definition.md` v0.23,
+> [ADR 0066](doc/decisions/0066-a-gate-is-a-decision-with-memory-that-names-a-registered-type-and-wires-every-route-exactly-once.md),
+> [W92](doc/work-items/w92-what-a-gate-is.md). A gate is a decision WITH MEMORY: it routes the branch that
+> reaches it by what the run's other branches have already shown it — `distinct`, the one built-in type,
+> sends the FIRST branch per key down its default route `first` and every later one down `duplicate` — and it
+> hands on exactly what reached it. It is a VALID definition, checked by `validateDefinition` and
+> `checkWiring`; **`new Driver` refuses a flow holding one, at construction, with `InvalidDefinition`** until
+> P24's second item runs it. Every route its type declares must be wired by exactly one edge — a drop is an
+> edge to an `end` — and an edge with no `route` carries the type's DEFAULT route, never every route.
 
 > **`map` is the fifth, and since [W33](doc/work-items/w33-a-map-at-run-time-arity.md) a `Driver`
 > RUNS one.** It is a valid definition since `spec/flow-definition.md` v0.8 —
@@ -230,6 +240,7 @@ if (!noGroups.some((f) => f.rule === 'FD-V31' && f.at === 'score')) {
 | `map` | `over: '<key>'` and `branch: '<node id>'` — **one** branch, opened once per item at run time. Dispatches nothing itself; the RUN opens N instances of its one branch. Optionally **`needs`**, which is what `over` is then a key on | any `edges` at all, a `branch` that is not a `task`, or an `over` outside `^[A-Za-z0-9_-]{1,64}$` (`FD-V25`); a missing `over` or `branch` (`FD-V23`) |
 | `join` | `of: '<fanout id>'`. Fires when its policy says so | it does not have **exactly one** edge, or that edge carries `when` or `on` (`FD-V7`) |
 | `end` | terminal. `outcome` is **your label**, never interpreted | — |
+| `gate` | `type: '<gate type>'`, optional `settings`, and `edges` of `{ to, route? }` — routes the branch that reaches it and hands on what reached it. `settings.key` is a dotted key path over that value (`series.id`; no index). **Not run by any driver yet** | its `type` is not a registered gate type (`FD-V39`); its `settings` are not a plain object its type's schema accepts, or its `key` is not a key path (`FD-V40`); a route is unwired, wired twice, or not its type's, or a gate edge carries `when`, `on` or `needs` (`FD-V41`) — and `route` on any other node's edge is `FD-V41` too |
 
 **A `task` node must have an edge that can be taken when it succeeds.** A node whose only edge is
 `{ when: 'p', to: 'x' }` is refused at construction — it is the mistake the format most invites, and
@@ -432,7 +443,7 @@ if (!rules.includes('FD-V2') || !rules.includes('FD-V32')) {
 }
 ```
 
-There are **34 refusals** over the id range `FD-V1` … `FD-V38` *(35 over `FD-V1` … `FD-V37` until W65 retired `workerType` and with it `FD-V5` and `FD-V34`, adding `FD-V38`; 32 over `FD-V1` … `FD-V34` until W61 added the three transform rules; 29 over `FD-V1` … `FD-V31` until W59 added the three node-type rules — and this sentence stood at 29 twelve lines below the table W59 rewrote, until its conformity reader read the two together)*, each with a failing example in
+There are **37 refusals** over the id range `FD-V1` … `FD-V41` *(34 over `FD-V1` … `FD-V38` until W92 added the gate's three; 35 over `FD-V1` … `FD-V37` until W65 retired `workerType` and with it `FD-V5` and `FD-V34`, adding `FD-V38`; 32 over `FD-V1` … `FD-V34` until W61 added the three transform rules; 29 over `FD-V1` … `FD-V31` until W59 added the three node-type rules — and this sentence stood at 29 twelve lines below the table W59 rewrote, until its conformity reader read the two together)*, each with a failing example in
 `spec/examples/invalid/`. Four ids in that range are **deliberately absent** and have no rule behind
 them: `FD-V14`, which never existed; **`FD-V15`, retired when nested fan-out became
 expressible**; and **`FD-V5` and `FD-V34`, retired with `workerType`** at v0.19 (section 13). The ids are never renumbered, so it is safe to assert on them. The full
@@ -1259,8 +1270,11 @@ five — `ConfigRefused`, `TypeDefaultRefused`, `GroupTypeMissing`, `GroupConfig
 `NameMissing` — need a derivation run or a group built, and are thrown by
 `resolveRegistry(document, code)` when a registry DOCUMENT is resolved against the code that
 supplies its predicates, languages, group types and node-type classes, by `createRuntime` (which
-calls that resolver first — section 12), and by the bootstrap helper before it builds a pool. None is
-`InvalidDefinition`, on purpose: a registry defect is fixed in the registry and a flow defect in the
+calls that resolver first — section 12), and by the bootstrap helper before it builds a pool. The
+twelfth, **`GateTypeRefused`** (v0.23), is thrown by `checkRegistry` when a gate type it holds is not
+a `GateType` — the built-in `distinct` on every call, and any the registry adds in `gateTypes` — and a gate
+type named as a built-in is `NameCollision`; `new Driver` carries no gate types of yours yet (section 3),
+so there it checks only the built-in. None is `InvalidDefinition`, on purpose: a registry defect is fixed in the registry and a flow defect in the
 flow, and the class says which document to open.
 
 **And four the RUNTIME adds, all `RuntimeError` subclasses from `fyflow-orchestration/scheduler`**
@@ -1436,7 +1450,7 @@ mentioning it here a **failure** rather than an omission nobody can observe:
 import * as lib from 'fyflow-orchestration';
 import {
   BoundaryRefused,
-  ConfigRefused, DerivationRefused, DuplicateTaskId, GroupConfigRefused, GroupTypeMissing, InvalidDefinition,
+  ConfigRefused, DerivationRefused, DuplicateTaskId, GateTypeRefused, GroupConfigRefused, GroupTypeMissing, InvalidDefinition,
   InvalidRunId, InvalidTaskId, MissingJoinPolicy, MultipleRuns, NameCollision, NameMissing, NoMatchingEdge, NotStarted,
   PoolTypeMissing, RegistryError, ResumeRefused, SchemaRefused, TypeDefaultRefused, UncloneableResult, UndeclaredKey,
   UndispatchedTask, UnresolvedBranchPath, UnresolvedMapArity, UnresolvedReference, WorkerMissing,
@@ -1448,7 +1462,8 @@ const documented = [
   NotStarted,                                // thrown at you from checkpoint() before start() — there is no run yet (RN-R14)
   ResumeRefused,                             // thrown at you from resume() — a checkpoint it will not resume, `reason` says why (RN-R23)
   RegistryError, WorkerMissing, PoolTypeMissing, ConfigRefused, TypeDefaultRefused, GroupTypeMissing,   // thrown at you — a REGISTRY defect,
-  GroupConfigRefused, NameCollision, SchemaRefused, UndeclaredKey, NameMissing, DerivationRefused,       // the base class and its eleven (section 13)
+  GroupConfigRefused, NameCollision, SchemaRefused, UndeclaredKey, NameMissing, DerivationRefused,       // the base class and its twelve (section 13)
+  GateTypeRefused,                           // a registered GATE type that is not a GateType — checkRegistry (v0.23)
   UnresolvedMapArity, UnresolvedReference,   // reported in a listener; reported AND thrown from start()/resolve()
   BoundaryRefused,                           // thrown at you from start()/resolve() with the run UNTOUCHED — a rejected command (FD-R4)
   InvalidTaskId, UnresolvedBranchPath,                                   // neither — see above

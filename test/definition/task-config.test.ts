@@ -250,8 +250,8 @@ suite('the task key table — section 2 and FD-V17 agree on what a task declares
   });
   test('and EVERY kind row agrees with FD-V17`s key set, both ways — the adequacy reader added retryPolicy to the map kind for zero (adj03)', async () => {
     const spec = await readText(`${ROOT}spec/flow-definition.md`);
-    const rows = spec.split('\n').filter((l) => /^\| `(task|fanout|map|join|end)` \|/.test(l));
-    equal(rows.length, 5, 'section 2 has one row per kind');
+    const rows = spec.split('\n').filter((l) => /^\| `(task|fanout|map|join|end|gate)` \|/.test(l));
+    equal(rows.length, 6, 'section 2 has one row per kind — six since v0.23 (W92)');
     const documented = Object.fromEntries(rows.map((row) => {
       const kind = /^\| `(\w+)` \|/.exec(row)![1]!;
       const cell = row.split('|')[2] ?? '';

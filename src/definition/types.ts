@@ -73,6 +73,15 @@ export interface Edge {
    * a node's payload is not derivable at routing time.
    */
   needs?: Needs;
+  /**
+   * **Which of a GATE's routes this edge carries** — `spec/flow-definition.md` v0.23,
+   * [ADR 0066](../../doc/decisions/0066-a-gate-is-a-decision-with-memory-that-names-a-registered-type-and-wires-every-route-exactly-once.md).
+   * A route name the gate's TYPE declares; **absent means the type's DEFAULT route**, never *every*
+   * route — the precedent is an edge with no `on`, which means `done` only. `FD-V41` owns the key
+   * everywhere: on an edge of any node that is not a `gate` it is refused, and a gate's edge carries
+   * `to` and `route` and nothing else.
+   */
+  route?: string;
 }
 
 /**
@@ -477,7 +486,78 @@ export interface EndNode {
   outcome: string;
 }
 
-export type FlowNode = TaskNode | FanoutNode | MapNode | JoinNode | EndNode;
+/**
+ * **A GATE: a decision WITH MEMORY** — `spec/flow-definition.md` section 2 (v0.23),
+ * [P24](../../doc/plans/p24-what-a-node-may-remember-across-a-runs-branches.md) decisions 1-4,
+ * [ADR 0066](../../doc/decisions/0066-a-gate-is-a-decision-with-memory-that-names-a-registered-type-and-wires-every-route-exactly-once.md).
+ *
+ * It routes the branch that reaches it and computes NOTHING: what leaves it on the chosen route is
+ * exactly what reached it. It is dispatched to no scheduler, so it has no task id and produces no
+ * output (`FD-V27` refuses a reference to one). Like a `task` it names a registered TYPE and carries
+ * `settings`; unlike a `task` its type is a GATE type (`FD-V39`), code rather than a document entry,
+ * and its edges name ROUTES rather than terminal states or predicates (`FD-V41`).
+ *
+ * **Valid since v0.23 and RUN by nothing yet** — `new Driver` refuses a flow holding one, by name,
+ * until W93 (P24's second item) gives `enter()` its arm; this is
+ * v0.8's `map` split (a kind valid before any driver executes it), taken at construction as W33 took
+ * its region-in-a-map refusal.
+ */
+export interface GateNode {
+  id: string;
+  kind: 'gate';
+  /** A registered GATE type's name — a built-in (`distinct`) or `Registry.gateTypes`' (`FD-V39`). */
+  type: string;
+  /**
+   * **What the gate's type is configured with** — a plain object its type's `settingsSchema` accepts
+   * (`FD-V40`), `{}` when absent. **`key` is the one setting the LIBRARY reads**: where present it is a
+   * KEY PATH (`keyPathProblem`) over the value the gate receives, resolved by the driver and handed to
+   * the type's `fn` as `ctx.key`.
+   */
+  settings?: Readonly<Record<string, unknown>>;
+  /** Each carries `to` and, optionally, `route` — and nothing else (`FD-V41`). */
+  edges: Edge[];
+}
+
+/**
+ * **What a gate type's `fn` is handed** — once per branch that reaches the gate, synchronously (the
+ * driver has no `async`, P24 decision 5). W93 calls it; W92 fixes its shape.
+ */
+export interface GateContext {
+  /** `settings.key` resolved over `input` by `readKeyPath` — `undefined` where the gate declares no `key` or a segment is missing. */
+  readonly key: unknown;
+  /** The value that reached the gate — what leaves it, unchanged, on the route `fn` returns. */
+  readonly input: unknown;
+  /** The gate node's settings, `{}` when it declares none. */
+  readonly settings: Readonly<Record<string, unknown>>;
+  /**
+   * **The gate's memory: ONE per gate per RUN, the driver's, and never written down** (P24 decisions 6
+   * and stop-and-ask (a)). A type reads and writes it; it is a pure function of the order branches
+   * reached the gate, which is why a resume can rebuild it by replay (W93).
+   */
+  readonly memory: Map<string, unknown>;
+}
+
+/**
+ * **A gate TYPE — the ONE public interface every gate type is written against, `distinct` included**
+ * (P24 decision 2, ADR 0066). Code, not a document entry: `fn` is a function, which a JSON registry
+ * cannot carry (ADR 0002 rule 1), so a consumer's types are registered in `Registry.gateTypes` the way
+ * a language adapter's `compile` is supplied in code.
+ */
+export interface GateType {
+  /** Every route `fn` may return, each in `FD-V16`'s charset, distinct, at least one. Every one must be wired by exactly one edge (`FD-V41`). */
+  readonly routes: readonly string[];
+  /** What an edge with no `route` carries. One of `routes` — and NOT necessarily the first. */
+  readonly defaultRoute: string;
+  /** What a gate's `settings` must satisfy, in the built-in subset (ADR 0053). Absent means UNCHECKED (P18 decision 3). */
+  readonly settingsSchema?: JsonSchema;
+  /** The decision: one of `routes`, synchronously. A route not declared STOPS the run by name (P24 decision 8 — W93's). */
+  fn(ctx: GateContext): string;
+}
+
+/** A consumer's gate types, keyed by the name a gate's `type` gives. A `Map` or a plain object, as `nodeTypes` is. */
+export type GateTypes = ReadonlyMap<string, GateType> | Readonly<Record<string, GateType>>;
+
+export type FlowNode = TaskNode | FanoutNode | MapNode | JoinNode | EndNode | GateNode;
 
 export interface FlowDefinition {
   flowId: string;
@@ -530,6 +610,15 @@ export interface Registry {
    * entry, `compile`, at instantiation only; the bootstrap helper reads `worker`.
    */
   languages?: Languages;
+  /**
+   * **A consumer's GATE types, beside the built-ins** — the sixth set, v0.23 (W92, ADR 0066). **Absent
+   * means the BUILT-INS ALONE** — `distinct` is always there, so this set only ever ADDS; a name that
+   * is a built-in's is refused (`NameCollision` at construction, `FD-V39` reached here directly). The
+   * validator reads `routes`, `defaultRoute` and `settingsSchema`; the driver will read `fn` (W93).
+   * **`DriverOptions` does not carry it yet** — a hand-built `Driver` validates against the built-ins
+   * and refuses every gate flow at construction until W93 runs one.
+   */
+  gateTypes?: GateTypes;
 }
 
 /**
@@ -539,7 +628,7 @@ export interface Registry {
  * legitimately violate more than one rule.
  */
 export interface Finding {
-  /** `FD-V1` … `FD-V38`. Never renumbered, so it is safe to assert on. */
+  /** `FD-V1` … `FD-V41`. Never renumbered, so it is safe to assert on. */
   rule: string;
   /** Node id, edge index, or document-level `null`. */
   at: string | null;

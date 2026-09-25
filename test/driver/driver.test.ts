@@ -793,11 +793,12 @@ suite('ADR 0002 rule 3 — the definition is validated in full at instantiation'
  * *where the corpus cannot express a case, record that rather than arguing it*).
  * Measured: a node carrying a kind outside the union is refused by **`FD-V24` at
  * construction** — `InvalidDefinition: FD-V24 at b: node kind "teleport" is not
- * task|fanout|map|join|end` — so no definition a `Driver` will accept can reach the
- * arm. It is kept as defence in depth, and **W33 gave it the exhaustiveness check
+ * task|fanout|map|join|end|gate` (the list gained `gate` at v0.23, W92) — so no definition a
+ * `Driver` will accept can reach the arm. It is kept as defence in depth, and **W33 gave it the exhaustiveness check
  * W32's comment described and could not write**: with every kind handled, `node`
- * narrows to `never` in that arm, so a sixth kind added to `FlowNode` without an
- * arm is a COMPILE error in five typecheck projects. That is a stronger guarantee
+ * narrows to `never` in that arm, so a kind added to `FlowNode` without an arm is a
+ * COMPILE error in five typecheck projects — measured when W92 added the sixth, `gate`:
+ * exactly that one error, in all five lanes, and it is why `gate` has an explicit arm. That is a stronger guarantee
  * than the run-time test that used to stand here, and it is the reason the run-time
  * one is not replaced by a contrivance.
  */

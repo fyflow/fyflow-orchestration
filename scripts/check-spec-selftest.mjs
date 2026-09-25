@@ -462,14 +462,18 @@ const PROBES = [
     // was RED on this one line — rule 7 (b)'s shape, a probe going vacuous on the next version's
     // edit, which is exactly what an anchor pinned to a sentence does at the next bump (W32).
     apply: (spec) => edit(join(spec, 'flow-definition.md'),
-      (t) => { const last = t.lastIndexOf('**34 refusals**'); if (last < 0) return t; return t.slice(0, last) + '**35 refusals**' + t.slice(last + '**34 refusals**'.length); }),
+      // **And COUNT-AGNOSTIC since W92**: `lastIndexOf('**34 refusals**')` found a HISTORICAL 34 once v0.23's
+      // paragraph said 37, so the probe edited history and went vacuous — the same shape, one bump later. It now
+      // moves whatever the LAST `**N refusals**` says, which is the occurrence the clause reads.
+      (t) => { const all = [...t.matchAll(/\*\*(\d+) refusals\*\*/g)]; const m = all[all.length - 1]; if (!m) return t; return t.slice(0, m.index) + `**${Number(m[1]) + 1} refusals**` + t.slice(m.index + m[0].length); }),
   },
   {
     name: 'spec/README.md`s headline refusal count reverted while the version paragraph`s is right',
     check: 'C4',
     apply: (spec) => edit(join(spec, 'README.md'),
       // W65: 34 since v0.19 (35 until then) — rule 7 (b): a probe pinned to a count is re-anchored by the item that moves it.
-      (t) => t.replace('how fan-out and join are paired, and **34 refusals**.', 'how fan-out and join are paired, and **32 refusals**.')),
+      // COUNT-AGNOSTIC since W92 (37 at v0.23): it reverts whatever the headline says by two.
+      (t) => t.replace(/how fan-out and join are paired, and \*\*(\d+) refusals\*\*\./, (_m, n) => `how fan-out and join are paired, and **${Number(n) - 2} refusals**.`)),
   },
   // W61: the fifth registry set. A transform's `lang` is read against `languages` — one probe per
   // new `fail()` site, as for `type`.

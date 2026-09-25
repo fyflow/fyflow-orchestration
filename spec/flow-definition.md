@@ -1,6 +1,6 @@
 # spec/flow-definition — the flow definition format
 
-**Status:** v0.22 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.23 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2** acted on the first spec-conformity pass
 (ADR 0004, and `region(F)` made computable). **v0.3** acted on the second, which found that `FD-V19`
 had reintroduced the v0.1 defect class under a new id — a refusal rule rejecting the valid corpus.
@@ -269,6 +269,27 @@ resolution: the code made to keep the bound); the subset cannot say `additionalP
 a join record's shape is the check's own knowledge and not a keyword's; and the two boundaries cost
 under a microsecond per run on every corpus payload, 0.35 ms at the walking worst case.
 
+**v0.23 adds a SIXTH node kind, `gate` — a decision WITH MEMORY** ([P24](../doc/plans/p24-what-a-node-may-remember-across-a-runs-branches.md),
+[ADR 0066](../doc/decisions/0066-a-gate-is-a-decision-with-memory-that-names-a-registered-type-and-wires-every-route-exactly-once.md), [W92](../doc/work-items/w92-what-a-gate-is.md)).
+A gate routes the branch that reaches it by what the run's OTHER branches have already shown it, and
+computes nothing: what leaves it is exactly what reached it. It names a registered GATE type and carries
+`settings`, as a `task` names a node type; its edges name the type's ROUTES through a new edge key,
+**`route`**, and an edge with no `route` carries the type's DEFAULT route. **Every route the type declares
+is wired by exactly one edge**, refused at instantiation against the registry — a document alone cannot
+know a type's routes. One type ships, **`distinct`**, written against the same public interface a
+consumer's type is. Section 5 gains **`FD-V39`** (the type), **`FD-V40`** (its settings, and the KEY PATH
+grammar P24 stop-and-ask (d) fixed) and **`FD-V41`** (the routes, and the `route` key on every edge); the
+enumerations in `FD-V23` and `FD-V24` name the kind, and `FD-V21`'s example list names a gate's `type`
+*(this sentence omitted `FD-V21` until W92's conformity reader)*; **`FD-V17` does not move**, because `route` is a
+declared edge key and `FD-V41` owns it on every edge, `FD-V26`'s precedent for `needs`. **A gate is valid
+and RUN by nothing yet**: `new Driver` refuses a flow holding one, by name, until W93 — v0.8's `map`
+split, taken at construction. **Measured before the rule was written** (W92's declaration step): the kind
+added to the `FlowNode` union is ONE typecheck error, the driver's `never`, in all five lanes, while
+`KINDS` taught alone made the validator THROW — a `TypeError` from `NODE_KEYS`, a `Record<string, …>`
+lookup no lane can see. So this document now holds **37 refusals** — `FD-V1` … `FD-V41` less `FD-V5`,
+`FD-V14`, `FD-V15` and `FD-V34` — and it is the number `check-spec` prints as *C4 covered 37 definition
+refusals*.
+
 **Binds:** [ADR 0002](../doc/decisions/0002-a-flow-definition-is-data-and-a-predicate-is-registered-by-name.md)
 (the graph is data; a predicate is a name; an unknown name fails at instantiation) and
 [ADR 0004](../doc/decisions/0004-a-non-success-outcome-routes-only-where-an-edge-opts-in-and-user-action-suspends.md)
@@ -300,8 +321,11 @@ instances — anything that does not survive `JSON.parse(JSON.stringify(x))` is 
 
 ## 2. Node kinds
 
-Five. There is **no `decision` node kind** — a decision is a property of an edge, which is
-ADR 0002 rule 2 taken literally (`when: "isLowConfidence"`).
+Six. There is **no `decision` node kind** — a decision is a property of an edge, which is
+ADR 0002 rule 2 taken literally (`when: "isLowConfidence"`). **A decision WITH MEMORY is a node**, and
+that is the sixth kind, `gate` (v0.23, below): its memory is one per gate per run, so it belongs to a
+node and not to an edge, and a predicate is asked to be pure ([Q9](../doc/open-questions.md)) where a
+gate's whole job is to remember.
 
 | kind | keys | |
 |---|---|---|
@@ -310,10 +334,11 @@ ADR 0002 rule 2 taken literally (`when: "isLowConfidence"`).
 | `map` | `id`, `kind`, `over`, `branch`, **`needs?`** | opens a region with **one branch, opened N times at run time**. Dispatches nothing itself. v0.8 |
 | `join` | `id`, `kind`, `of`, `edges` | closes the region opened by the `fanout` **or `map`** named in `of`. Dispatches nothing itself |
 | `end` | `id`, `kind`, `outcome` | terminates one path. No edges |
+| `gate` | `id`, `kind`, `type`, `edges`, **`settings?`** | routes the branch that reaches it by a registered GATE type's decision, and hands on exactly what reached it. Dispatches nothing itself. v0.23 |
 
 **Only a `task` node is ever dispatched**, and therefore only a `task` node has a task id
-([spec/task-id.md](task-id.md)), produces an outcome record, or can suspend. `fanout`, `map`, `join`
-and `end` are structural: a run passes through them within a single driver turn. **This is why `end`
+([spec/task-id.md](task-id.md)), produces an outcome record, or can suspend. `fanout`, `map`, `join`,
+`end` and `gate` are structural: a run passes through them within a single driver turn. **This is why `end`
 nodes are exempt from `FD-V13`, `FD-V19` and `FD-V22`** — sharing one between two paths creates no
 ambiguity about anything, because nothing about it is per-path.
 
@@ -687,6 +712,86 @@ W33 took it as a declared late exception.)*
 **A `map` node has no `edges`** (`FD-V25`), exactly as a `fanout` has none (`FD-V9`): its one arc is
 `branch`, and the region's exit is the join.
 
+### `gate` — a decision WITH MEMORY — v0.23
+
+[ADR 0066](../doc/decisions/0066-a-gate-is-a-decision-with-memory-that-names-a-registered-type-and-wires-every-route-exactly-once.md), [P24](../doc/plans/p24-what-a-node-may-remember-across-a-runs-branches.md)
+decisions 1-4 and stop-and-asks (a)-(d).
+
+```json
+{ "id": "dedupe", "kind": "gate", "type": "distinct", "settings": { "key": "series.id" },
+  "edges": [ { "to": "seriesSetup" },
+             { "route": "duplicate", "to": "dropDuplicate" },
+             { "route": "nokey", "to": "dropNoKey" } ] }
+```
+
+| key | | |
+|---|---|---|
+| `type` | required | a registered GATE type — a built-in (`distinct`) or one the registry's `gateTypes` adds (`FD-V39`). Gate types are CODE, not document entries: a type's decision is a function, which a JSON registry cannot carry (ADR 0002 rule 1) — the section 3 registry subsection's *Gate types* |
+| `settings` | optional | a plain object its type's `settingsSchema` accepts, `{}` when absent (`FD-V40`). **`key` is the one setting the library reads**: where present it is a KEY PATH, below |
+| `edges` | required | each `{ to, route? }` — `route` names one of the type's routes and is ABSENT for the DEFAULT route; nothing else may sit beside them (`FD-V41`) |
+
+**It routes and computes nothing.** What leaves a gate on the route its type chooses is exactly the value
+that reached it — the same value, never its settings and never the predecessor's whole record — so a gate
+is invisible to what the next node receives: `FD-C1`'s *"the value this node receives"* for the node after
+a gate is the value the gate received. **It is dispatched to no scheduler**, so it has no task id and
+**produces no output** — `FD-V27` refuses a reference to one, as it refuses a reference to any node that is
+not a `task`.
+
+**Routes, and the DEFAULT route.** A gate type DECLARES its routes; `distinct` declares `first`,
+`duplicate` and `nokey`, with `first` its default. An edge names a route with `route`, and **an edge with
+no `route` carries the type's DEFAULT route — never *every* route**: the precedent is a `task`'s edge with
+no `on`, which means `done` and nothing else. The default is whichever route the type names, **not
+necessarily its first**; for `distinct` the two coincide, which is why W92's suite registers a type whose
+default is not its first route.
+
+**Every route is wired exactly once, and a drop is an edge to an `end`** (P24 decision 4). An unwired
+route, an edge naming a route the type does not declare, and two edges for one route are all refused at
+instantiation against the registry (`FD-V41`) — and a gate edge carrying `when`, `on` or `needs` is refused
+too: a gate has no terminal state for `on` to select, runs no predicate for `when` to name, and hands on
+what reached it, so an edge `needs` would have no reader. *Over*: dropping by OMISSION, which the library
+allows for a task's terminal states because those are a fixed list the library owns; a gate type's routes
+are the registry's, the registry carries no version ([Q249](../doc/open-questions.md)), and a route added
+to a type later would be dropped in silence by every flow that had omitted it. **A route dropped to an
+`end` produces exactly the events an `end` already produces** — `pathEnded`, and `branch.exited` inside a
+region, with the run `completed` — measured at P24's declaration (fact 3) on an emulation, with no new rule.
+
+**The KEY PATH — P24 stop-and-ask (d)**: dot-separated OBJECT keys, each segment in `FD-V16`'s charset
+(`^[A-Za-z0-9_-]{1,64}(\.[A-Za-z0-9_-]{1,64})*$`), over the value the gate receives. **No array index, no
+wildcard, no expression** — a key a flow needs COMPUTED is computed in the task before the gate, because
+the driver has no `async` and every expression language here evaluates to a Promise (ADR 0051). Checked
+by `FD-V40` on EVERY gate that declares `key`, because the library, not the type, resolves it: a segment
+that is not an own key of a plain object — a missing key, `null`, an array mid-path, a primitive — resolves
+to *nothing*, which `distinct` routes to `nokey`. **The grammar is not a `settingsSchema`'s to state**: the
+subset has no `pattern` (ADR 0053).
+
+**Where a gate may stand.** Anywhere a `task` may, except as a region's branch entry — `FD-V9` and `FD-V25`
+keep those a `task`, unchanged. Inside a region a gate is a member like a task (`FD-V13`, `FD-V19` and
+`FD-V22` apply to it as to any non-`end` node), and its out-arcs are DISJUNCTIVE — exactly one route is
+taken — which is how `FD-V29`'s certainty walk already reads a `task`'s. It may be the `entry`; `FD-V3`
+refuses only a `join` or an `end`.
+
+**What a gate's memory is, and what running one does, are W93's** — P24 decisions 5-8: one memory per gate
+per RUN (stop-and-ask (a)), the driver's, evaluated synchronously where a branch enters the gate, rebuilt by
+replay on resume, and a route the type returns that it did not declare stops the run by name. **Until then
+`new Driver` refuses a flow holding a gate, by name, at construction** — `InvalidDefinition` with no rule
+ids, W33's precedent for a valid definition the driver cannot execute ([ADR 0066](../doc/decisions/0066-a-gate-is-a-decision-with-memory-that-names-a-registered-type-and-wires-every-route-exactly-once.md) rule 7).
+Measured at W92's declaration: taught to the validator and not to the driver, a gate flow constructed,
+dispatched the task before the gate, and was stopped only when that task SETTLED — a real worker having run
+first.
+
+**`distinct` — the one built-in gate type:**
+
+| route | taken when |
+|---|---|
+| `first` | **the default.** The key has not reached this gate before in this run |
+| `duplicate` | it has |
+| `nokey` | the key is missing, `null`, or not a string or a number (P24 stop-and-ask (c)) — **and a number that is not FINITE is not a key either**: W92's refinement of (c)'s words rather than (c) itself, because `NaN` and the infinities have no JSON value (`JSON.stringify(NaN)` is `"null"`), so two of them could not be told apart from `null` or from each other — *over* stopping the run (one bad file ends a batch) and treating the missing key as a key (every unidentified file after the first dropped as a duplicate of *"undefined"*) |
+
+Its settings are `{ key }` — required, a non-empty string, no other key — and keys are compared as JSON
+values, so `"1"` and `1` are two keys. **Which branch is FIRST is the order branches reach the gate in a
+run, which varies between runs** (P24 decision 7) — no test may assert which one wins, only that exactly one
+does per key ([Q379](../doc/open-questions.md)).
+
 ## 3. Edges, decisions, and which outcomes route
 
 ```json
@@ -703,6 +808,7 @@ W33 took it as a declared late exception.)*
 | `on` | optional, default `["done"]` | the terminal states this edge is eligible for. Values: `"done"`, `"failed"` (`FD-V18`) |
 | `when` | optional | a predicate name. An edge without one is the default for its eligible states |
 | `needs` | optional, v0.12 | **what this edge's PREDICATE sees**, under `ctx.needs` — `FD-C3` below. Same grammar as a node's `needs`, **minus the `"."` form** (`FD-V26`). An edge with no `when` may carry one and no predicate ever reads it |
+| `route` | optional, v0.23, **a GATE's edges only** | which of the gate type's routes this edge carries; absent means the type's DEFAULT route. On any other node's edge it is refused, and a gate's edge carries `to` and `route` and nothing else (`FD-V41`) — section 2's `gate` subsection. **The routing rules below are a `task`'s and a `join`'s**; a gate's edge is chosen by the route its type returns |
 
 > **This table is what `FD-V17` refuses against, so `needs` being absent from it made the code
 > accept a key the document did not declare.** `FD-V17` reads *"a node object, **an edge object**, or
@@ -1219,6 +1325,27 @@ reporting idle, and one with no `getMetrics` runs to `done`. W66's conformity re
 is not required**, though the interface extends it: a plain object carrying the six holds a task and
 completes it.
 
+#### Gate types — CODE, beside the built-ins — v0.23
+
+A gate's `type` names a GATE type ([ADR 0066](../doc/decisions/0066-a-gate-is-a-decision-with-memory-that-names-a-registered-type-and-wires-every-route-exactly-once.md)), and every gate type — the
+built-in `distinct` included — is a value of ONE public interface, `GateType` in `src/definition/types.ts`:
+
+| member | |
+|---|---|
+| `routes` | every route the type may return — a non-empty list of distinct names, each in `FD-V16`'s charset. Every one must be wired by exactly one edge (`FD-V41`) |
+| `defaultRoute` | one of `routes` — what an edge with no `route` carries. **Not necessarily the first** |
+| `settingsSchema` | optional — what a gate's `settings` must satisfy, in the built-in subset; absent means UNCHECKED (P18 decision 3). `FD-V40` applies it |
+| `fn(ctx)` | the decision, synchronous: handed `{ key, input, settings, memory }` — `settings.key` resolved over the value that reached the gate, that value, the gate's settings, and the gate's memory — and returning one of `routes`. **Called by the driver, which is W93's** |
+
+**A type is CODE, not a document entry** — `fn` is a function, which a JSON registry cannot carry, so a
+consumer registers their types in the driver registry's **`gateTypes`** (a `Map` or a plain object keyed
+by name), the way a language adapter's `compile` is supplied in code. **Absent, the built-ins alone**: the
+set only ever ADDS, and a consumer type named as a built-in is refused rather than merged (`NameCollision`),
+exactly as a custom group type named as a built-in is. **`distinct` is registered THROUGH the interface**:
+nothing in the validator, the wiring check or the driver names it; each reads the four members off
+whatever type a gate names, and `distinct` is held to the same predicate as a consumer's
+(`gateTypeProblem`), so the extension road is exercised the day it ships (P24 decision 2).
+
 #### The schema subset
 
 Every schema above is JSON Schema restricted to the thirteen keywords below — twelve that CONSTRAIN
@@ -1275,11 +1402,12 @@ carries, for each, a document that trips it and the plan's sample that does not.
 | `TypeDefaultRefused` | a type's OWN config — its default instance's — fails its own `configSchema` or, derived, the worker's: the type has no valid default and **the type is refused, not its nodes** (decision 1, the maintainer's) |
 | `GroupTypeMissing` | a group's `type` is neither a built-in nor registered in `code.groupTypes`, or a registered group type is not `{ configSchema?, create }` |
 | `GroupConfigRefused` | a group's config fails its group type's `configSchema` |
-| `NameCollision` | a node type is declared in the document AND registered as a class; a pool is named as a node type; a custom group type is named as a built-in |
+| `NameCollision` | a node type is declared in the document AND registered as a class; a pool is named as a node type; a custom group type is named as a built-in; **a registered gate type is named as a built-in** (v0.23) |
 | `SchemaRefused` | a declared schema — any of a worker's four, a group type's, a class's — carries a keyword outside the subset or a keyword with a malformed value ([Q278](../doc/open-questions.md)); **or, since v0.20, carries an `examples` value the schema it sits on refuses** ([ADR 0056](../doc/decisions/0056-an-example-is-an-annotation-validated-against-the-schema-it-sits-on.md)) — the same class, because an example that refutes its schema is a defect of the DECLARATION, and the message says which kind |
 | `UndeclaredKey` | the document, a worker, a node type, its `pool`, a pool instance or a group carries a key its kind does not declare; a section is not an object keyed by name; or `predicates` / `languages` is not an array of names |
 | `NameMissing` | a predicate or language the document names and `code` does not supply (or a language whose adapter has no `compile`); a node type's declared group, or a group a derivation names, that `groups` lacks |
 | `DerivationRefused` | a derivation throws or returns something that is not a `PoolSpec`; a `pool`, `inline`, `groups`, `retryPolicy` or `settings` field of the wrong shape; a resident group beside `idleTimeout: 0` |
+| `GateTypeRefused` | **a registered gate type is not a `GateType`** (v0.23, W92): not an object, a key beside the interface's four, `routes` empty or repeated or outside `FD-V16`'s charset, a `defaultRoute` that is not one of them, a `settingsSchema` outside the subset, or no `fn`. **Checked by `checkRegistry` on EVERY call** — the built-ins are held to the same predicate whether or not the registry carries `gateTypes`, and a consumer's are checked beside them. *Gate types are code, so this row's fixtures both ways are in `test/definition/gate.test.ts` and not in `registry.test.ts` — the one exception to this section's opening sentence* |
 
 **What the DRIVER reads of a resolved registry, and how `new Driver` relates to it.** The driver's
 registry — `predicates`, `groups`, `workers`, `nodeTypes`, `pools`, `languages` — is DERIVED from the
@@ -1323,8 +1451,14 @@ record's sample keys take item index 0 for every enclosing map, which is a SAMPL
 right reading — *(this said the driver refuses it at construction and that a static check gives a
 verdict where a run would not start; the first half expired when W84 lifted the refusal, and the
 second was an argument for the sample rather than for the verdict, so the verdict stands and its
-reason is now the one that survives)*. **The ENTRY has no arc**: the run's payload reaches the entry task — or every branch task
-of an entry region, recursively — with no worker in between, and that is `FD-R4`'s boundary, held at
+reason is now the one that survives)*. **A GATE is a PASS-THROUGH** (v0.23): what leaves it on any
+route is exactly what reached it, so an arc through a gate is the arc INTO it, verdict and all — the
+consumer after a gate is judged against what reached the gate, and a gate routing into a join carries its
+branch's key into the record as the node before it would. A gate has no worker, so it is never a consumer.
+*(Before W92 taught the check the kind, every arc after a gate vanished from the report and a gate routing
+into a join dropped its branch's key — measured at W92's declaration step.)* **The ENTRY has no arc**: the run's payload reaches the entry task — or every branch task
+of an entry region, recursively, or every route target of an entry GATE (v0.23: which one a run takes is
+the gate's decision at run time, so the report lists them all) — with no worker in between, and that is `FD-R4`'s boundary, held at
 `start()` (section 6). **What it costs to be wrong is what the check exists to find**: measured on the
 shipped L6 corpus at W73's declaration, fourteen of fifteen task-to-task edges fit (the fifteenth had no
 input schema to meet) and NINE arcs of the other shapes did not — seven of them one dropped bound
@@ -1606,10 +1740,10 @@ C4 fails if one is missing.
 | `FD-V18` | an edge's `on` is present and is not a non-empty array of distinct values drawn from `"done"` and `"failed"`. **`"user_action"` is refused** — it suspends rather than routes (ADR 0004 rule 3, [Q30](../doc/open-questions.md)) |
 | `FD-V19` | a node whose kind is not `end` belongs to `branchOf(F, bᵢ)` for **two distinct** branch entries of the same `fanout`. Convergent branches make `branchPath` a property of the traversal rather than of the node, and P1 refuses them ([Q27](../doc/open-questions.md)) |
 | `FD-V20` | a node outside `region(F)` has an edge to `F`'s join |
-| `FD-V21` | a declared key holds a value of the wrong type **or outside its declared range** — `optional` not a boolean, `edges` not an array, `outcome` not a string, `version` not an integer or below 1, **`type`** or **`pool`** not a string (v0.17, v0.19), and so on |
+| `FD-V21` | a declared key holds a value of the wrong type **or outside its declared range** — `optional` not a boolean, `edges` not an array, `outcome` not a string, `version` not an integer or below 1, **`type`** or **`pool`** not a string (v0.17, v0.19; a `gate`'s `type` too, v0.23), and so on |
 | `FD-V22` | a node in `region(F)` whose kind is not `end` has an incoming edge from a node that is neither in `region(F)` nor `F` itself. **The only way into a region is through the node that OPENED it** — its `fanout` or, since v0.8, its `map`. Section 4's *"where a rule says a fanout `F` it means whichever kind opened the region"* is scoped to that section, so this rider says it in the section where the rule lives |
-| `FD-V23` | a **required key is absent** — a node without `id` or `kind`; a `task` without `edges` **or without `type`** (v0.19: `type` is required on every task node, and the *neither of two keys* clause v0.17 wrote here went with `workerType`); a `fanout` without `branches`; **a `map` without `over` or `branch`**; a `join` without `of` or `edges`; an `end` without `outcome`; an edge without `to`; or the document without `flowId`, `version`, `entry` or `nodes`. **`version` is required**, matching section 1 — an omitted version is one that silently means nothing |
-| `FD-V24` | a node's `kind` is not one of `task`, `fanout`, **`map`**, `join`, `end`. **`kind: "decision"` is the case this exists for** — section 2 warns the author away from that word, and until v0.4 nothing rejected it |
+| `FD-V23` | a **required key is absent** — a node without `id` or `kind`; a `task` without `edges` **or without `type`** (v0.19: `type` is required on every task node, and the *neither of two keys* clause v0.17 wrote here went with `workerType`); a `fanout` without `branches`; **a `map` without `over` or `branch`**; a `join` without `of` or `edges`; an `end` without `outcome`; **a `gate` without `type` or `edges`** (v0.23); an edge without `to`; or the document without `flowId`, `version`, `entry` or `nodes`. **`version` is required**, matching section 1 — an omitted version is one that silently means nothing |
+| `FD-V24` | a node's `kind` is not one of `task`, `fanout`, **`map`**, `join`, `end`, **`gate`** (v0.23). **`kind: "decision"` is the case this exists for** — section 2 warns the author away from that word, and until v0.4 nothing rejected it |
 | `FD-V25` | a `map` has `edges`; its `branch` names a node whose kind is not `task`; or its `over` is not a string matching `^[A-Za-z0-9_-]{1,64}$`. **The map's own rule, and `FD-V9` is unchanged** — each is about one node kind, because a rule about two kinds is the confusion [ADR 0036](../doc/decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md) exists to remove. A map declares ONE branch, so `FD-V9`'s arity floor and repeated-entry clause have nothing to say about it and are not restated here |
 | `FD-V26` | a `needs` — **on a node OR on an edge** — is not an object, is an empty one, has a key outside `^[A-Za-z0-9_-]{1,64}$`, or has a value that is not `"."`, a node id **with an optional `?` suffix**, or a one-element array holding one; **or is on an EDGE and uses `"."`**, which a predicate has no use for because `ctx.outcome` already carries what it would otherwise name (v0.12). **Section 3's grammar and nothing else** — where the reference POINTS is `FD-V27`'s and `FD-V28`'s. *"Only a `task` or a `map` may carry `needs`"* is **deliberately not a clause here**: `needs` is absent from the other three kinds' key lists, so `FD-V17` already refuses it and names the kind, and a second rule saying the same thing is one `FD-V17` could never disagree with |
 | `FD-V27` | a `needs` reference names a node that does not exist, names a node whose kind is not `task` (**only a `task` produces an output** — section 2), or names a node **this node is not reachable from**. The last is what makes a reference a statement about the graph rather than a hope about the run: a reference pointing sideways or backwards names a node that may not have run, and without this the only thing to say so is `FD-R3`, at run time, on the one workload that takes that branch — which is ADR 0002 rule 3's own argument for validating at instantiation. **This rule is UNCHANGED at v0.13 and `FD-V29` is what finished the sentence**: reachability says *it is not upstream of you at all*, and *upstream and yet not certain* is a second question with a different fix ([Q187](../doc/open-questions.md)). Both apply to a conditional reference too — a `?` excuses a target that may not have run, never a target that does not exist, is not a `task`, or is not upstream |
@@ -1624,6 +1758,9 @@ C4 fails if one is missing.
 | `FD-V36` | a typed `task`'s `transform.expr` is **refused by the named language's `compile`** — v0.18, section 2. The registry half of an adapter is a synchronous compiler that THROWS on an expression it refuses (P17 fact 2: JSONata throws `S0203` at position 12 for `$sum(*.score`), so the refusal is decided at `new Driver` rather than on the one workload that reaches the node — ADR 0002 rule 3's whole argument, and the reason the adapter's compile is required to be synchronous. The detail is the language's own message, with its `position` and `code` where it sets them. A `compile` that is not a function is the REGISTRY's mistake and is refused at construction naming the LANGUAGE, as a non-function settings validator is under `FD-V33`. **What this cannot see**: `$eval` re-compiles at run time, so a syntax error inside it lands as a task failure ([Q265](../doc/open-questions.md)). Case: `spec/examples/invalid/FD-V36--transform-the-language-refuses.flow.json`, against the fake language `path`, whose grammar refuses `$sum(*.score` |
 | `FD-V37` | a `transform` is **not exactly `{ lang, expr }`** — not an object, missing either key, either not a string, or carrying any other key. v0.18, section 2. A key beside the two would be read by nothing (`FD-V30`'s reason). *(v0.18's other clause — a transform on a `task` with no `type` — has no instance since v0.19: every task node is typed, the wrapper fronts every pool, and a node with no `type` is `FD-V23` with the transform's own clauses still applied beside it.)* Case: `spec/examples/invalid/FD-V37--transform-not-lang-and-expr.flow.json` |
 | `FD-V38` | a `task`'s `pool` names **no registered pool instance**, or names an instance **of another type than the node's** — v0.19, section 2, [ADR 0054](../doc/decisions/0054-every-task-node-names-a-type-and-a-type-is-a-derivation-to-pool-options.md). The registry's `pools` is **EMPTY when absent**; the type's own name is the default instance and is accepted; a non-string `pool` is `FD-V21`; and the rule is asked only once the type is registered (`FD-V32` first). **Its own id rather than a clause of `FD-V32`** because the fix is different: `FD-V32` sends an author to the registry's types, this to its instances or to the node. Case: `spec/examples/invalid/FD-V38--pool-not-an-instance-of-the-type.flow.json`, against `spec/examples/registry.json`, whose `scorer-fast` is an instance of `Scorer` named by a `ScoreWorker` node |
+| `FD-V39` | a `gate`'s `type` names **no registered gate type** — none of the built-ins and none the registry's `gateTypes` adds — or names one that **is not a `GateType`**, or one **registered twice** (a built-in and the registry's) — v0.23, section 2's `gate` subsection, [ADR 0066](../doc/decisions/0066-a-gate-is-a-decision-with-memory-that-names-a-registered-type-and-wires-every-route-exactly-once.md). **Two readings of one fix**, on `FD-V32`'s precedent: the name or the registry. A malformed or colliding type is the REGISTRY's mistake and is refused at construction by name (`GateTypeRefused`, `NameCollision`); reached here directly, it is reported on the gate that names it, as `FD-V36` reports a `compile` that is not a function. Case: `spec/examples/invalid/FD-V39--gate-type-not-registered.flow.json` |
+| `FD-V40` | a `gate`'s `settings` is **not a plain object**; its **`key` is not a KEY PATH** — dot-separated object keys, each in `FD-V16`'s charset, no index, no wildcard, no expression (P24 stop-and-ask (d)) — checked on every gate that declares `key`, because the library resolves it; or its type's **`settingsSchema` refuses** the settings, `{}` when absent, asked once `FD-V39` passed. v0.23. **Its own id rather than a clause of `FD-V33`**, whose subject is a node TYPE's worker: an author fixes this in the gate's own settings, and the key grammar is the library's rather than a schema's — the subset has no `pattern`. Case: `spec/examples/invalid/FD-V40--gate-key-path-with-an-index.flow.json` — `files[0].series` |
+| `FD-V41` | **the `route` key and a gate's wiring** — v0.23: a gate's edge **names a route its type does not declare**; a route the type declares has **no edge** or **more than one**, an edge with no `route` counting for the DEFAULT route and never for every route (both asked once `FD-V39` passed — a document alone cannot know a type's routes); a gate's edge carries **`when`, `on` or `needs`**, or a `route` that is not a string; or **an edge of any node that is not a `gate` carries `route`**. **One rule owns the key on every edge**, `FD-V26`'s precedent for `needs`, so `FD-V17`'s key table does not move; and a gate's edge carrying only `to` and `route` is `FD-V7`'s precedent for a join's edge carrying neither `when` nor `on`. **Why every route is wired rather than a drop being an omission**: a route a type grows later would be dropped in silence by every flow that had omitted it (P24 decision 4). Case: `spec/examples/invalid/FD-V41--a-declared-route-with-no-edge.flow.json` — `distinct`'s `duplicate` unwired |
 
 **`FD-V19`'s second clause is derived rather than stated.** *"One branch entry is reachable from
 another"* needs no rule of its own: `FD-V9` requires every branch entry to be a `task`, and a branch
@@ -1727,6 +1864,7 @@ instantiation, and instantiation is a driver action. Hand-written, never generat
 | `typed.flow.json` | **a node TYPE, in all FOUR shapes `FD-C5` enumerates** — v0.17, [W59](../doc/work-items/w59-what-a-node-type-is.md). `type: "Scorer"` on the top-level entry (`ingest`, declaring **no** `settings`, so the `{}` default the validator sees is in the corpus), on the **branch task of a `map`** (`rank`, `settings: { factor: 100 }` — per INSTANCE, the envelope wrapping each instance's own item under `JP-R11`), on a task inside a `fanout` branch (`scoreA`, `settings: { factor: 10 }`, beside `scoreB`, a `ScoreWorker` — a former bare pool, a type like any other since v0.19 — so two types sit in one region), and on a **join's successor** (`publish`, `settings: { factor: 1 }`, whose `input` is `JP-R12`'s collection — the fourth kind, which no suite instantiated until W59's adequacy reader found a driver handing it `{}` cost zero). `Scorer` is a document-declared type in `registry.json` whose worker `scorer` carries the `settingsSchema` `FD-V33` applies and whose `settings` defaults (`factor: 1`) merge under each node's — so the entry's absent settings are the defaults road, in the corpus (v0.19). **Validated at L4 and never RUN**: what two typed nodes of one type with different settings do on real workers is `examples/flows/typed.flow.json` and `typed-regions.flow.json` at ladder L6 |
 | `pooled.flow.json` | **a node on a NAMED pool instance of its type, and one on the default by name** — v0.19, [W65](../doc/work-items/w65-the-registry-document-and-a-node-type-is-a-derivation.md). `score` is a `Scorer` on `pool: "scorer-fast"`, an instance `registry.json` declares under `pools` with its own config merged over the type's; `publish` is a `Scorer` on `pool: "Scorer"`, the default instance stated explicitly, which `FD-V38` accepts. The pair `FD-V38` refuses is `spec/examples/invalid/FD-V38--pool-not-an-instance-of-the-type.flow.json`, the same instance named by a node of another type. **Validated at L4 and never RUN** |
 | `transformed.flow.json` | **a TRANSFORM, on all FOUR shapes `FD-C5` enumerates** — v0.18, [W61](../doc/work-items/w61-what-a-transform-is.md). `transform` in the fake language `path` on the top-level entry (`ingest`, `document`), on the **branch task of a `map`** (`rank`, `confidence` — its own item under `JP-R11`), on a task inside a `fanout` branch that declares `needs` (`scoreA`, `run.config` — what `needs` composed, the kind `typed.flow.json` does not carry), and on a **join's successor** (`publish`, `$settings.factor` — reading the binding rather than the collection, so the corpus shows `$settings`). `path` is in `registry.json` under `languages` and resolves to the test fixture's adapter in `test/definition/corpus-types.ts`, as `Scorer`'s validator does. **Validated at L4 and never RUN**: what a transform does on real workers is W63's exit artifact |
+| `gated-map.flow.json` | **a GATE, v0.23** — [W92](../doc/work-items/w92-what-a-gate-is.md). The maintainer's ingest (P24): a `map` over `files` whose one branch identifies each file and reaches `dedupe`, a `distinct` gate keyed by the KEY PATH `series.id`, whose DEFAULT route (an edge with no `route`) opens the per-series `setup` and whose `duplicate` and `nokey` routes DROP to two `end` nodes inside the region, one per route so the graph stays local. Every route wired exactly once. **Validated at L4 and never RUN**: `new Driver` refuses a flow holding a gate until W93, and `test/driver/needs.test.ts` asserts THAT refusal on this document where it runs every other region-bearing one — so the day W93 lifts it, that assertion is what fails. What a gate does on real workers is W94's exit artifact |
 
 **This table and the directory are compared BOTH WAYS, and that is v0.8's addition rather than a
 restatement.** `test/definition/l4-corpus.test.ts` asserts the set of `.flow.json` files in

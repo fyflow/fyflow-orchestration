@@ -86,7 +86,7 @@ has today, a decision whose predicate keeps closure memory.*
 | 2 | **Arrival order on real pools.** Six files over three series, a `map`, the emulated dedupe on the decision after `identify`, equal work, ten runs per pool mode | **inline: settle order `0,1,2,3,4,5` in 10 of 10 runs in node and 9 of 10 in deno — the winners are ALWAYS the lowest index per series.** Threaded: a different order in every run, and three different winner sets over ten. With the work ARRANGED so later files finish first, the winners move (`f1,f2,f3` instead of `f0,f1,f3`) |
 | 3 | **A drop to an `end` inside the map** | `completed`, **three `branch.exited`** and three `pathEnded end@dropped` beside the one `end@done` — the events and the outcome the design needs, with no new rule |
 | 4 | **Memory across a resume.** The emulated run killed after its third `identify` settles (the store frozen, the runtime shut down — which DRAINS, [Q376](../open-questions.md)), then resumed on a fresh runtime | **naive memory kept in the same process: REFUSED `diverged` at position 16** — the replay re-asks the predicate and a remembered key answers differently. Memory cleared, or memory that records the OWNER task id: **identical to a run nobody killed**, in both runtimes. The predicate was called 6 times during the resume — **the replay re-evaluates every decision on the stored settlements**, which is what will rebuild a gate's memory |
-| 5 | **What a sixth node kind costs at L0.** `GateNode` added to the `FlowNode` union in a copy of the tree, the five typecheck lanes run separately | **ONE error, the same in four lanes**: the driver's exhaustive `never` in `enter()`'s `default` arm (`typecheck:deno` fails on it too). **`src/` has 51 node-kind dispatch sites in 6 files** — `validate.ts` 18, `wiring.ts` 12, `regions.ts` 10, `driver.ts` 9, one each in `bootstrap.ts` and `routing.ts` — **and ONE is exhaustive.** 45 more sit outside `src/`, in `examples/l6.ts`, `scripts/check-spec.mjs` and nine test files |
+| 5 | **What a sixth node kind costs at L0.** `GateNode` added to the `FlowNode` union in a copy of the tree, the five typecheck lanes run separately | **ONE error, the same in four lanes**: the driver's exhaustive `never` in `enter()`'s `default` arm (`typecheck:deno` fails on it too). **`src/` has 51 node-kind dispatch sites in 6 files** — `validate.ts` 18, `wiring.ts` 12, `regions.ts` 10, `driver.ts` 9, one each in `bootstrap.ts` and `routing.ts` — **and ONE is exhaustive.** 45 more sit outside `src/`, in `examples/l6.ts`, `scripts/check-spec.mjs` and nine test files. *(**Re-taken at [W92](../work-items/w92-what-a-gate-is.md)'s declaration step**: the one error is in ALL FIVE lanes — *four, deno too* is five; and *51 / 45* recorded no predicate on disk, so it could not be reproduced. With one STATED — `kind ===\|!== '<kind>'`, `case '<kind>'`, `opensWith`, `KINDS` — it is **55 in the same six files and 58 outside, in fifteen**, plus 11 `kindOf` comparisons and the two key TABLES the validator indexes by kind. **And `gate` in `KINDS` alone makes the validator THROW**, which *every other site falls through in silence* below does not say.)* |
 | 6 | **The validator today** | a `kind` outside its `KINDS` literal is refused by **`FD-V24`** by name — so before this plan a gate document is LOUD; the moment `gate` joins that literal, every other site that does not name it falls through in silence |
 | 7 | **A worker cannot hold the memory** (measured in conversation, `dev-dist/teardown/`) | an inline pool's instance state is LOST on idle teardown and its MODULE state survives; a threaded pool loses both, because a new thread loads the module fresh |
 
@@ -97,7 +97,8 @@ has today, a decision whose predicate keeps closure memory.*
   on an inline pool *first to arrive* and *lowest index* are the same selection 19 times in 20. Every
   fixture that asserts a winner must ARRANGE the order and assert the arrangement's own effect, and the
   exit artifact's threaded rows are where the two differ without arrangement. **[Q379](../open-questions.md).**
-- **The churn is SILENT, and fact 5 is why.** One exhaustive check among 51 dispatch sites means the
+- **The churn is SILENT, and fact 5 is why.** *(Half right, measured at W92: SILENT at L0, and LOUD in the wrong way at
+  the validator, which threw a `TypeError` the moment `gate` joined `KINDS` — [Q380](../open-questions.md), resolved.)* One exhaustive check among 51 dispatch sites means the
   typechecker names one place and L1-L6 must find the rest — P22's *the churn is loud at L0* reversed
   before this plan's first item, measured rather than predicted. **[Q380](../open-questions.md).**
 - **A dotted key path is a new grammar.** `map`'s `over` is a KEY NAME in `FD-V16`'s charset, which has no
@@ -158,7 +159,8 @@ Seeded here from P22's and P23's late tables and from fact 5; each item re-measu
 |---|---|---|
 | W92 | `scripts/check-markdown.mjs` | **`M4`'s margin is 22 links after this declaration** (below): an item's record step writes more than that into `CLAUDE.md`, `doc/README.md` and the register, none of which probe 2 cuts — so Q142 is PREDICTED to fire at W92's record step and `M4` to be retuned from a scratch copy, as P18's retro did |
 | W92 | `examples/l6.ts` | ten node-kind dispatch sites (fact 5) and the byte walk's field lists, if a type or the registry gains a member it walks |
-| W92 | `scripts/check-spec.mjs`, `scripts/check-spec-selftest.mjs` | six node-kind sites; `C7` reads every task's type, and a gate has a type and is not a task |
+| W92 | `scripts/check-spec.mjs`, `scripts/check-spec-selftest.mjs` | six node-kind sites; `C7` reads every task's type, and a gate has a type and is not a task *(W92: `check-spec.mjs` NOT needed — its sites fall through correctly; the SELF-TEST was, for its count anchors)* |
+| W92 | `scripts/check-docs-selftest.mjs` | *NOT SEEDED, found at W92's declaration step*: two `X7` probes anchored on *34 refusals*, which three new rules move |
 | W92 | `AGENTS.md` | *Five node kinds* in section 3, and section 9's executed error-class enumeration if a refusal gains a class ([Q101](../open-questions.md)) |
 | W93 | `examples/l6.ts` | the driver's new private field reaches `DRIVER_FIELDS` — W55's universe binding, which fired on W59, W61, W88 and W89 |
 | W93 | `AGENTS.md` | a new `FoldInput` kind, if stop-and-ask (b) takes one, reaches the executed snippets that walk `kind` |
@@ -230,3 +232,24 @@ but it is tighter than at any declaration since P18**: P23's retro left `M3`'s m
 `M4`'s at **37** links, and this declaration's two documents and index paragraphs take them to **5** (probe 1:
 118 files against 123) and **22** (probe 2: 5248 links against 5270). `check:markdown` **155 documents,
 7105 links, 386 anchored**, EXIT 0. **The seeded table predicts it fires at W92's record step.**
+
+---
+
+## Record
+
+| item | status | where |
+|---|---|---|
+| [W92](../work-items/w92-what-a-gate-is.md) | **DONE 2026-09-25** — [ADR 0066](../decisions/0066-a-gate-is-a-decision-with-memory-that-names-a-registered-type-and-wires-every-route-exactly-once.md); `spec/flow-definition.md` v0.23, `FD-V39`-`FD-V41`, 37 refusals; a gate VALID and refused by every `Driver` at construction; L6 UNMOVED at 1853 / 100 | its Record |
+| W93 | next | |
+| W94 | | |
+
+**What W92 decided that this plan left open**, each argued in ADR 0066: `route` is a declared edge key owned by ONE rule,
+`FD-V41`, on every edge, so `FD-V17` does not move; the KEY PATH is the LIBRARY's grammar and the driver resolves it,
+because stop-and-ask (b)'s recorded decision names the key; gate types live on the DEFINITION layer's `Registry.gateTypes`
+and **`DriverOptions` does not carry them until W93**, because W76 binds every `DriverOptions` member to a runtime road;
+and the refusal is taken at CONSTRUCTION, because the declaration step measured the run-time `default` arm letting a real
+worker run first. **Prediction 1 CONFIRMED**, with a loud site no lane names; **prediction 4 holding** at W92 —
+`FD-V21`, `FD-V23` and `FD-V24` moved, every one an enumeration. **Handed to W93**: the driver's road for a consumer's gate
+types; `routing.ts`' `eligibleEdges`, which answers `[]` for a gate. **Handed to W94**: [Q381](../open-questions.md) — a new
+node kind is BREAKING for a consumer's exhaustive switch, and the `README.md` list must say so; and `examples/l6.ts`'
+`NOT_YET_AT_L6` exemption, which W94's row turns red until it is removed.

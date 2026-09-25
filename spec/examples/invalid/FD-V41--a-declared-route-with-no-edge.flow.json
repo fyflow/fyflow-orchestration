@@ -1,0 +1,15 @@
+{
+  "flowId": "fd-v41",
+  "version": 1,
+  "entry": "identify",
+  "nodes": [
+    { "id": "identify", "kind": "task", "type": "ExtractWorker", "edges": [ { "to": "dedupe" } ] },
+    { "id": "dedupe",   "kind": "gate", "type": "distinct", "settings": { "key": "series" }, "edges": [
+        { "to": "setup" },
+        { "route": "nokey", "to": "dropped" }
+    ] },
+    { "id": "setup",    "kind": "task", "type": "ScoreWorker", "edges": [ { "to": "done" } ] },
+    { "id": "dropped",  "kind": "end",  "outcome": "dropped" },
+    { "id": "done",     "kind": "end",  "outcome": "completed" }
+  ]
+}

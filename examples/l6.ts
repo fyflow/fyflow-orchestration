@@ -5673,8 +5673,23 @@ check('cross-row', 'EXPECTED runs exactly the rows this file declares, in order'
   }
   const kindsAtL6 = new Set<string>();
   for (const e of EXPECTED) for (const n of e.definition.nodes) kindsAtL6.add(n.kind);
+  // **`gate` is EXEMPT until W94, and the exemption EXPIRES LOUDLY** — W92, a declared exception. A valid gate
+  // document entered the corpus at `spec/flow-definition.md` v0.23, and no L6 row CAN run one: `new Driver`
+  // refuses a gate flow at construction until W93, and the row is W94's exit artifact. So a kind is flagged
+  // when it is in the corpus and missing here and NOT exempt — or exempt and PRESENT here, or exempt and in
+  // no corpus flow at all — and it is one clause, so the count does not move: the day W94's row runs a gate,
+  // this names `gate` until the exemption is removed. *A dated exemption with no expiry is a hole.*
+  const NOT_YET_AT_L6 = ['gate'];
+  // **And the clause is evaluated on TWO constructed inputs beside the real one, inside the same check** — W92's
+  // adequacy reader (#18): replaced by `.filter(() => false)` the clause went on printing `[]`, green at 1853, and the
+  // expiry half had no live case at all. On a corpus with a PHANTOM kind no row runs, it must name it; with `gate`
+  // present at L6 while still exempt, it must name `gate`. Neither tree exists — the clause is shown able to fail on
+  // each, and the count does not move.
+  const flagged = (corpus: ReadonlySet<string>, atL6: ReadonlySet<string>) => [...new Set([...corpus, ...NOT_YET_AT_L6])].sort()
+    .filter((k) => !corpus.has(k) || atL6.has(k) === NOT_YET_AT_L6.includes(k));
   check('cross-row', 'L6 runs a flow containing every node kind the spec corpus expresses',
-    [...kindsInCorpus].sort().filter((k) => !kindsAtL6.has(k)), []);
+    [flagged(kindsInCorpus, kindsAtL6), flagged(new Set([...kindsInCorpus, 'phantom']), kindsAtL6), flagged(kindsInCorpus, new Set([...kindsAtL6, 'gate']))],
+    [[], ['phantom'], ['gate']]);
   // The negative control: the set is non-empty, so the clause above is not vacuous
   // on an empty corpus read. Without it a `listDir` that returns nothing passes.
   assertThat('cross-row', 'and the corpus read found node kinds at all — the clause`s own negative control',

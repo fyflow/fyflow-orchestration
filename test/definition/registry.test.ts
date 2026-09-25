@@ -371,7 +371,7 @@ suite('every construction-time refusal, by name — a document that trips it and
       .filter(([, v]) => typeof v === 'function' && (v as { prototype?: unknown }).prototype instanceof RegistryError)
       .map(([name]) => name).sort();
     equal(inSpec, exported, 'one row per class, one class per row');
-    ok(exported.length === 11, 'eleven');
+    ok(exported.length === 12, 'twelve — GateTypeRefused since v0.23 (W92)');
   });
 });
 

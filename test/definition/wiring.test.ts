@@ -353,8 +353,11 @@ suite('W73 — constructed shapes: needs, a fan-out`s record, a map`s arity, the
       total += report.verdicts.length;
     }
     // W73's declaration census over the nineteen L4 flows: 53 consumers plus the 3 transformed ones the
-    // census set aside, one arc each — the check gives 56 verdicts, and 0 of any other kind.
-    equal(total, 56, 'the L4 corpus`s 56 arcs');
+    // census set aside, one arc each — the check gives 56 verdicts, and 0 of any other kind. **59 since W92
+    // added `gated-map.flow.json`**: `identify` (the map's item), `setup` (THROUGH the gate — a pass-through, so
+    // the arc into the gate) and `publish` (the join's record); the entry has none. Before W92 taught the check
+    // the kind, `setup`'s arc was not in the report at all — 58, and nothing here would have said so.
+    equal(total, 59, 'the L4 corpus`s 59 arcs');
   });
 
   test('a map`s record is BUILT with the branch-path marker: a successor naming "0" as a number is `no`, naming it as an object fits, naming `confidence` is never met (rule 8 probe s4 survived until this existed)', async () => {

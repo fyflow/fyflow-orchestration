@@ -219,15 +219,19 @@ const PROBES = [
     readme: (t) => t.replace('**The manifests read `0.5.0`', '**The manifests read `0.9.9`'),
   },
   // --- X7: AGENTS.md's refusal count against spec/flow-definition.md section 5's rows — W65 (`d4`) ---
+  // **COUNT-AGNOSTIC since W92**, which moved the count 34 -> 37 and the range end V38 -> V41: both probes were
+  // pinned to the literal and would have ABORTED (rule 7 (b)) at every new rule id — *a mutation pinned to a
+  // magic number is unmutatable the moment the number is right to change* (P9's declaration). Each now reads
+  // whatever the sentence says and moves it by one, so the next item that adds a rule has nothing to re-anchor.
   {
-    name: 'AGENTS.md`s refusal count moved to 35 while section 5 declares 34',
+    name: 'AGENTS.md`s refusal count moved up by one while section 5 declares the old count',
     check: 'X7',
-    mutate: (t) => t.replace('There are **34 refusals** over the id range `FD-V1` … `FD-V38`', 'There are **35 refusals** over the id range `FD-V1` … `FD-V38`'),
+    mutate: (t) => t.replace(/There are \*\*(\d+) refusals\*\* over the id range `FD-V1` … `FD-V(\d+)`/, (_m, n, hi) => `There are **${Number(n) + 1} refusals** over the id range \`FD-V1\` … \`FD-V${hi}\``),
   },
   {
-    name: 'AGENTS.md`s id range ends at FD-V37 while section 5`s highest row is FD-V38 — the range clause alone',
+    name: 'AGENTS.md`s id range ends one below section 5`s highest row — the range clause alone',
     check: 'X7',
-    mutate: (t) => t.replace('There are **34 refusals** over the id range `FD-V1` … `FD-V38`', 'There are **34 refusals** over the id range `FD-V1` … `FD-V37`'),
+    mutate: (t) => t.replace(/There are \*\*(\d+) refusals\*\* over the id range `FD-V1` … `FD-V(\d+)`/, (_m, n, hi) => `There are **${n} refusals** over the id range \`FD-V1\` … \`FD-V${Number(hi) - 1}\``),
   },
   {
     name: 'AGENTS.md`s cost paragraph moved, so X6 cannot find its own subject',
@@ -584,9 +588,9 @@ const META = [
   ['X9`s comparison clause disabled', 'README.md tells a consumer the manifests read a version they do not',
     (t) => t.replace("    else if (said[1] !== npmV) fail('X9',", "    else if (false) fail('X9',")],
   // W65 (`d4`): X7's two clauses, one probe each.
-  ['X7`s count clause disabled', 'AGENTS.md`s refusal count moved to 35 while section 5 declares 34',
+  ['X7`s count clause disabled', 'AGENTS.md`s refusal count moved up by one while section 5 declares the old count',
     (t) => t.replace('      if (Number(said[1]) !== live) fail', '      if (false) fail')],
-  ['X7`s range-end clause disabled', 'AGENTS.md`s id range ends at FD-V37 while section 5`s highest row is FD-V38 — the range clause alone',
+  ['X7`s range-end clause disabled', 'AGENTS.md`s id range ends one below section 5`s highest row — the range clause alone',
     (t) => t.replace('      if (Number(said[2]) !== top) fail', '      if (false) fail')],
   ['X6`s `the spec states what AGENTS does not quote` direction disabled — the other way',
     'a cost figure spec/flow-definition.md states that AGENTS.md drops — the OTHER direction',

@@ -1,9 +1,9 @@
 /**
  * The definition validator — `spec/flow-definition.md` section 5.
  *
- * Thirty-four refusals — `FD-V14`, `FD-V15` and, since v0.19 (W65, ADR 0054), `FD-V5` and `FD-V34`
- * deliberately absent — the number `check-spec` prints as *C4 covered 34 definition refusals*, derived
- * from the ids in this file. *(This read
+ * Thirty-seven refusals — `FD-V14`, `FD-V15` and, since v0.19 (W65, ADR 0054), `FD-V5` and `FD-V34`
+ * deliberately absent — the number `check-spec` prints as *C4 covered 37 definition refusals*, derived
+ * from the ids in this file. *(34 until W92 added `FD-V39`-`FD-V41`, the GATE's three, v0.23. This read
  * 23 before W45 and 24 after it: the increment was applied to a number nothing was tracking, and
  * it had been wrong by three for several plans. W45's conformity reader. **27 until W58 added
  * `FD-V30` and `FD-V31`, 29 until W59 added `FD-V32`-`FD-V34`, 32 until W61 added
@@ -14,12 +14,15 @@
  *
  * ADR 0002 rule 3: this runs in full, at instantiation, before any task is queued.
  */
-import type { Edge, Finding, FlowDefinition, FlowNode, JsonSchema, LanguageAdapter, Languages, NodeTypeEntry, NodeTypes, Pools, Registry, Transform, WorkerEntry, Workers } from './types.ts';
+import type { Edge, Finding, FlowDefinition, FlowNode, GateContext, GateType, GateTypes, JsonSchema, LanguageAdapter, Languages, NodeTypeEntry, NodeTypes, Pools, Registry, Transform, WorkerEntry, Workers } from './types.ts';
 import { describeFindings, findings, schemaProblem } from './schema.ts';
 import { allRegions, buildGraph, certainlySettled } from './regions.ts';
 
 const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
-const KINDS = ['task', 'fanout', 'map', 'join', 'end'] as const;
+// `gate` since v0.23 (W92, ADR 0066) — and adding it HERE alone made this validator THROW: `NODE_KEYS[nd.kind]!`
+// below found no row, a `TypeError` all five typecheck lanes pass, because the table is a `Record<string, …>`.
+// Measured at W92's declaration step, which is why the two tables below and this list move together.
+const KINDS = ['task', 'fanout', 'map', 'join', 'end', 'gate'] as const;
 const ROUTABLE = ['done', 'failed'] as const;
 
 const DOC_KEYS = ['flowId', 'version', 'entry', 'nodes'];
@@ -40,8 +43,13 @@ const NODE_KEYS: Record<string, { req: string[]; opt: string[] }> = {
   map: { req: ['id', 'kind', 'over', 'branch'], opt: ['needs'] },
   join: { req: ['id', 'kind', 'of', 'edges'], opt: [] },
   end: { req: ['id', 'kind', 'outcome'], opt: [] },
+  // v0.23 (W92, ADR 0066): a gate names a GATE type and carries settings, as a task names a node type — and
+  // nothing else a task carries. `needs` is absent on purpose: a gate hands on what reached it, unchanged.
+  gate: { req: ['id', 'kind', 'type', 'edges'], opt: ['settings'] },
 };
-const EDGE_KEYS = { req: ['to'], opt: ['on', 'when', 'needs'] };
+// `route` since v0.23 (W92): a DECLARED edge key, so `FD-V17` does not move — and one rule, `FD-V41`, owns it on
+// every edge (refused off a gate; on a gate, the only key beside `to`), on `FD-V26`'s precedent for `needs`.
+const EDGE_KEYS = { req: ['to'], opt: ['on', 'when', 'needs', 'route'] };
 /**
  * **The keys `FD-V17` refuses against, exported so a test can compare them to
  * `spec/flow-definition.md` section 3s own Edge key table** — W42s conformity reader.
@@ -145,6 +153,142 @@ export function languagesOf(x: Languages | undefined): ReadonlyMap<string, Langu
   if (x === undefined) return new Map();
   if (x instanceof Map) return x as ReadonlyMap<string, LanguageAdapter>;
   return new Map(Object.entries(x as Readonly<Record<string, LanguageAdapter>>));
+}
+
+// ---- the GATE: its key path, its interface, and the one built-in type — v0.23 (W92, ADR 0066) ----
+
+/**
+ * **A KEY PATH — P24 stop-and-ask (d), answered**: dot-separated OBJECT keys, each segment in `FD-V16`'s
+ * charset, over the value a gate receives. **No array index, no wildcard, no expression** — a key a flow
+ * needs COMPUTED is computed in the task before the gate (P24 decision 5), because the driver has no
+ * `async` and `evaluate()` in every expression language here returns a Promise (ADR 0051).
+ */
+export const KEY_PATH_RE = /^[A-Za-z0-9_-]{1,64}(?:\.[A-Za-z0-9_-]{1,64})*$/;
+
+/**
+ * **Why a gate's `settings.key` is not a key path, or `null`** — `FD-V40`'s grammar clause. `key` is the
+ * ONE setting the library itself reads on a gate (the driver resolves it and hands the type's `fn` the
+ * result), so its grammar is the library's and not a type's — which is also why it is checked here rather
+ * than by a `settingsSchema`: the subset has no `pattern` (ADR 0053), so no schema could say it.
+ */
+export function keyPathProblem(v: unknown): string | null {
+  if (typeof v !== 'string') return `settings.key must be a key path string, got ${JSON.stringify(v)}`;
+  if (KEY_PATH_RE.test(v)) return null;
+  return `settings.key ${JSON.stringify(v)} is not a key path — dot-separated object keys, each [A-Za-z0-9_-]{1,64}; ` +
+    'no array index, no wildcard, no expression (a key that must be computed is computed in the task before the gate)';
+}
+
+/**
+ * **What a key path NAMES on a value — the meaning of stop-and-ask (d)'s grammar**, one definition for the
+ * driver that will resolve it (W93) and the tests that pin it. Each segment is an OWN key of a plain object
+ * (`hasOwnProperty`, never `in`, which walks the prototype — W65's conformity reader, three keyword sites);
+ * anything else — a missing key, `null`, an ARRAY mid-path (no index, by (d)), a primitive — is
+ * `undefined`, which is what `distinct` routes to `nokey`. The value at the end is returned whatever it is.
+ */
+export function readKeyPath(value: unknown, path: string): unknown {
+  let v = value;
+  for (const seg of path.split('.')) {
+    if (typeof v !== 'object' || v === null) return undefined;
+    // **A PLAIN object** — its prototype `Object.prototype` or none. An ARRAY is not one (so no index, by (d)), nor
+    // is a class instance, a `Map` or a `Date`, whatever its own fields hold. *(An `Array.isArray` guard stood above
+    // this and was removed once this made it unreachable — rule 8's `a13` measured it survive.)* W92's conformity
+    // reader (finding 10) found the first cut reading a class instance's own field while the spec says *own key of
+    // a plain object*. Unreachable through a run today
+    // (`OR-R2`'s clone hands on plain data), and stated here so W93's resolution cannot be wider than the grammar.
+    const proto = Object.getPrototypeOf(v);
+    if (proto !== Object.prototype && proto !== null) return undefined;
+    if (!Object.prototype.hasOwnProperty.call(v, seg)) return undefined;
+    v = (v as Record<string, unknown>)[seg];
+  }
+  return v;
+}
+
+/** A gate type's own members — the interface's four, and no other own key (a typo is the silent kind). */
+export const GATE_TYPE_KEYS: readonly string[] = ['routes', 'defaultRoute', 'settingsSchema', 'fn'];
+
+/**
+ * **Why a value is not a `GateType`, or `null`** — one predicate for the validator (`FD-V39`'s second
+ * clause, a malformed type reached through a flow) and the registry (`GateTypeRefused`, at construction),
+ * so the two cannot disagree about what a gate type IS. `distinct` is held to it like any other.
+ */
+export function gateTypeProblem(t: unknown): string | null {
+  if (typeof t !== 'object' || t === null || Array.isArray(t)) return `a gate type is an object { routes, defaultRoute, settingsSchema?, fn }, got ${JSON.stringify(t)}`;
+  const o = t as Record<string, unknown>;
+  const extra = Object.keys(o).filter((k) => !GATE_TYPE_KEYS.includes(k));
+  if (extra.length) return `it carries ${extra.map((k) => JSON.stringify(k)).join(', ')}, which a gate type does not declare; it is { routes, defaultRoute, settingsSchema?, fn }`;
+  const routes = o.routes;
+  if (!Array.isArray(routes) || routes.length === 0) return `routes must be a non-empty array of route names, got ${JSON.stringify(routes)}`;
+  for (const r of routes) {
+    if (typeof r !== 'string' || !ID_RE.test(r)) return `route ${JSON.stringify(r)} is not [A-Za-z0-9_-]{1,64}`;
+  }
+  if (new Set(routes).size !== routes.length) return 'routes repeats a route';
+  if (typeof o.defaultRoute !== 'string' || !(routes as string[]).includes(o.defaultRoute)) {
+    return `defaultRoute ${JSON.stringify(o.defaultRoute)} is not one of its routes (${(routes as string[]).join(', ')}) — an edge with no route would carry a route the type never returns`;
+  }
+  if (o.settingsSchema !== undefined) {
+    const p = schemaProblem(o.settingsSchema);
+    if (p !== null) return `its settingsSchema is not in the built-in subset — ${p}`;
+  }
+  if (typeof o.fn !== 'function') return 'fn must be a function (ctx) => route';
+  return null;
+}
+
+/**
+ * **`distinct` — the one BUILT-IN gate type, and it is written against the public interface and nothing
+ * else** (P24 decision 2): nothing in the validator, the wiring check or the driver names it; they read
+ * `routes`, `defaultRoute`, `settingsSchema` and `fn` off whatever type a gate names. It keeps the FIRST
+ * branch to reach the gate per key and routes every later one with the same key to `duplicate`.
+ *
+ * - `first` (the DEFAULT) — the key has not been seen at this gate in this run;
+ * - `duplicate` — it has;
+ * - `nokey` — the key is missing, `null`, or not a string or a FINITE number (P24 stop-and-ask (c)):
+ *   treating a missing key as a key would drop every unidentified file after the first as a duplicate of
+ *   "undefined", and stopping the run would end a batch on one bad file.
+ *
+ * **Keys are compared as JSON values**, so `"1"` and `1` are two keys — JSON tells them apart, and a type
+ * that merged them would be making a decision the document cannot see. The empty string is a string and a
+ * key. Memory holds one entry per key seen; `fn` writes it and nothing else does (W93 decides its life).
+ */
+export const distinct: GateType = Object.freeze({
+  routes: Object.freeze(['first', 'duplicate', 'nokey']),
+  defaultRoute: 'first',
+  settingsSchema: Object.freeze({
+    type: 'object',
+    required: ['key'],
+    properties: { key: { type: 'string', minLength: 1 } },
+    additionalProperties: false,
+  }) as JsonSchema,
+  fn(ctx: GateContext): string {
+    const key = ctx.key;
+    if (!(typeof key === 'string' || (typeof key === 'number' && Number.isFinite(key)))) return 'nokey';
+    const seen = JSON.stringify(key);
+    if (ctx.memory.has(seen)) return 'duplicate';
+    ctx.memory.set(seen, true);
+    return 'first';
+  },
+});
+
+/** **The built-in gate types, by name** — `distinct` and nothing else (P24 Scope/Out: the interface ships, a second built-in does not). */
+export const BUILT_IN_GATE_TYPES: Readonly<Record<string, GateType>> = Object.freeze({ distinct });
+
+/**
+ * **Every gate type a flow may name: the built-ins, then the consumer's** — `Registry.gateTypes`' own
+ * reading, a `Map` or a plain object in and a `Map` out, and absent is the built-ins ALONE. **A consumer
+ * entry named as a built-in is NOT merged** — the built-in stays, and the collision is refused where the
+ * registry is built (`NameCollision`) or, reached here directly, on the gate that names it (`FD-V39`).
+ */
+export function gateTypesOf(x: GateTypes | undefined): ReadonlyMap<string, GateType> {
+  const out = new Map<string, GateType>(Object.entries(BUILT_IN_GATE_TYPES));
+  const own = x === undefined ? [] : x instanceof Map ? [...(x as ReadonlyMap<string, GateType>)] : Object.entries(x as Readonly<Record<string, GateType>>);
+  for (const [name, t] of own) if (!out.has(name)) out.set(name, t);
+  return out;
+}
+
+/** The consumer's gate-type names that collide with a built-in — refused, never merged (`gateTypesOf`). */
+export function gateTypeCollisions(x: GateTypes | undefined): string[] {
+  if (x === undefined) return [];
+  const names = x instanceof Map ? [...(x as ReadonlyMap<string, GateType>).keys()] : Object.keys(x);
+  return names.filter((n) => Object.prototype.hasOwnProperty.call(BUILT_IN_GATE_TYPES, n)).sort();
 }
 
 /**
@@ -332,6 +476,10 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
   // The workers and the named pool instances, read the same way (W65, v0.19): absent means none.
   const workers = workersOf(registry.workers);
   const pools = poolsOf(registry.pools);
+  // The sixth set (W92, v0.23): the built-in gate types and the consumer's, and the consumer's names that
+  // collide with a built-in — refused rather than merged (`gateTypesOf`).
+  const gateTypes = gateTypesOf(registry.gateTypes);
+  const gateCollisions = new Set(gateTypeCollisions(registry.gateTypes));
   const d = doc as unknown as Record<string, unknown>;
 
   // ---- document shape: FD-V23, FD-V17, FD-V21, FD-V16 ----
@@ -375,7 +523,7 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
       // FD-V24. The rule the other three could not reach: `kind` is present so
       // FD-V23 is silent, it is a string so FD-V21 is silent, and FD-V17 has no
       // declared key set to compare against for an unknown kind.
-      add('FD-V24', where, `node kind ${JSON.stringify(nd.kind)} is not task|fanout|map|join|end`);
+      add('FD-V24', where, `node kind ${JSON.stringify(nd.kind)} is not task|fanout|map|join|end|gate`);
       continue;
     }
 
@@ -503,6 +651,77 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
         }
       }
     }
+    // ---- a GATE: its type, its settings and its routes — FD-V39, FD-V40, FD-V41 (v0.23) ----
+    // `spec/flow-definition.md` section 2's `gate` subsection, ADR 0066, P24 decisions 2-4. Every clause is
+    // decided HERE, at instantiation and against the registry, because a document alone cannot know a
+    // type's routes: shape is checked without a registry, exhaustiveness with one. **Split by what an
+    // author FIXES** (`FD-V28`'s precedent): the type is `FD-V39`, what the type is configured with is
+    // `FD-V40`, how the gate is wired is `FD-V41`.
+    if (nd.kind === 'gate') {
+      if (nd.type !== undefined && typeof nd.type !== 'string') add('FD-V21', where, 'type must be a string');
+      const typeName = typeof nd.type === 'string' ? nd.type : undefined;
+      const type = typeName === undefined ? undefined : gateTypes.get(typeName);
+      // **`FD-V39`** — the type is registered, is a gate type, and is declared once.
+      let usable: GateType | undefined;
+      if (typeName !== undefined) {
+        if (type === undefined) {
+          const added = [...gateTypes.keys()].filter((x) => !Object.prototype.hasOwnProperty.call(BUILT_IN_GATE_TYPES, x)).sort();
+          add('FD-V39', where, `type "${typeName}" is not a registered gate type (the built-ins are ${Object.keys(BUILT_IN_GATE_TYPES).sort().map((x) => `"${x}"`).join(', ')}` +
+            (added.length ? `; the registry adds ${added.map((x) => `"${x}"`).join(', ')})` : '; the registry adds none)'));
+        } else if (gateCollisions.has(typeName)) {
+          add('FD-V39', where, `type "${typeName}" is a built-in gate type AND registered in the registry's gateTypes — one namespace, one definition per name`);
+        } else {
+          const problem = gateTypeProblem(type);
+          if (problem !== null) add('FD-V39', where, `type "${typeName}" is registered and is not a gate type: ${problem}`);
+          else usable = type;
+        }
+      }
+      // **`FD-V40`** — the settings: a plain object (always), a `key` in stop-and-ask (d)'s grammar (always —
+      // the key is the LIBRARY's, not the type's), and the type's `settingsSchema` over them, `{}` when absent
+      // (only once `FD-V39` passed — an unknown type has no schema to ask).
+      const settings = nd.settings;
+      if (settings !== undefined && (typeof settings !== 'object' || settings === null || Array.isArray(settings))) {
+        add('FD-V40', where, `settings must be a plain object, got ${JSON.stringify(settings)}`);
+      } else {
+        const s = (settings ?? {}) as Record<string, unknown>;
+        if (Object.prototype.hasOwnProperty.call(s, 'key')) {
+          const kp = keyPathProblem(s.key);
+          if (kp !== null) add('FD-V40', where, kp);
+        }
+        if (usable?.settingsSchema !== undefined) {
+          const fs = findings(usable.settingsSchema, s);
+          if (fs.length) add('FD-V40', where, `settings ${JSON.stringify(s)} fail gate type "${typeName}"'s settingsSchema: ${describeFindings(fs)}`);
+        }
+      }
+      // **`FD-V41`'s WIRING half** — every route the type declares is wired by EXACTLY ONE edge, an edge with no
+      // `route` carrying the type's DEFAULT route (never *every* route: an edge with no `on` means `done` only),
+      // and no edge names a route the type does not declare. **Only once the type is usable**: with no type
+      // there are no routes to count. The per-edge half — a `route` that is not a string, `when`/`on`/`needs`
+      // on a gate edge, `route` on any other node's edge — is in the edge loop below, and needs no registry.
+      if (usable !== undefined && Array.isArray(nd.edges)) {
+        const gate = usable;
+        const count = new Map<string, number>(gate.routes.map((r) => [r, 0]));
+        (nd.edges as unknown[]).forEach((e, i) => {
+          if (e === null || typeof e !== 'object') return;          // FD-V21's
+          const r = (e as Record<string, unknown>).route;
+          if (r !== undefined && typeof r !== 'string') return;     // the edge loop's
+          const route = r === undefined ? gate.defaultRoute : r;
+          if (!count.has(route)) {
+            add('FD-V41', `${where}#edge${i}`, `route "${route}" is not a route gate type "${typeName}" declares (it declares ${gate.routes.map((x) => `"${x}"`).join(', ')})`);
+            return;
+          }
+          count.set(route, count.get(route)! + 1);
+        });
+        for (const [route, n] of count) {
+          const how = route === gate.defaultRoute ? ' (the default route — an edge with no `route` carries it)' : '';
+          if (n === 0) {
+            add('FD-V41', where, `route "${route}"${how} of gate type "${typeName}" has no edge; every declared route is wired exactly once — a drop is an edge to an \`end\` node, because a route left unwired would be dropped in silence the day the type grows one`);
+          } else if (n > 1) {
+            add('FD-V41', where, `route "${route}"${how} of gate type "${typeName}" is wired by ${n} edges; exactly one`);
+          }
+        }
+      }
+    }
     if (nd.kind === 'end') {
       if (nd.edges !== undefined) add('FD-V8', where, 'end node has edges');
       // Both rules apply and section 5 names both: FD-V8 owns "absent or empty",
@@ -622,6 +841,24 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
       }
       if (ed?.when !== undefined && (typeof ed.when !== 'string' || !preds.has(ed.when))) {
         add('FD-V4', at, `when names "${String(ed.when)}", which is not a registered predicate`);
+      }
+      // ---- FD-V41's per-edge half: the `route` key, owned everywhere (v0.23, W92) ----
+      // On `FD-V26`'s precedent for `needs`: one rule owns the key's whole shape on every edge. A `route` off a
+      // gate is a key read by nothing — a task's edges select by `on` and `when` — so it is refused rather
+      // than carried; on a gate it is a string or absent; and a gate's edge carries `to` and `route` and
+      // NOTHING else, `FD-V7`'s precedent for a join's edge: a gate has no terminal state for `on` to select,
+      // runs no predicate for `when` to name, and hands on what reached it, so an edge `needs` has no reader.
+      if (nd.kind === 'gate') {
+        if (ed?.route !== undefined && typeof ed.route !== 'string') {
+          add('FD-V41', at, `route must be a string naming one of the gate type's routes, got ${JSON.stringify(ed.route)}`);
+        }
+        for (const k of ['when', 'on', 'needs']) {
+          if (ed?.[k] !== undefined) {
+            add('FD-V41', at, `a gate's edge carries "${k}"; it carries \`to\` and \`route\` and nothing else — a gate routes by the route its TYPE returns, never by a predicate, a terminal state or a composed value`);
+          }
+        }
+      } else if (ed?.route !== undefined) {
+        add('FD-V41', at, `edge carries "route", which only a gate's edge declares — a ${String(nd.kind)} edge selects by \`on\` and \`when\`, and a route here would be read by nothing`);
       }
       // ---- FD-V26 on an EDGE, and the one clause a node's does not have ----
       // `spec/flow-definition.md` section 3, v0.12, and ADR 0041. The grammar is the
@@ -885,8 +1122,8 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
         }
         if (kindOf(target) !== 'task') {
           // **Only a task produces an output** — section 2's own sentence. A
-          // reference to a `fanout`, `map`, `join` or `end` names something that
-          // has no result to give, at any branch path.
+          // reference to a `fanout`, `map`, `join`, `end` or — v0.23 — `gate` names
+          // something that has no result to give, at any branch path.
           add('FD-V27', at, `${site}[${JSON.stringify(k)}] names "${target}", a ${kindOf(target)}; only a task produces an output`);
           continue;
         }

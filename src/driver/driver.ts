@@ -1231,6 +1231,32 @@ export class Driver {
           findings.map((f) => `${f.rule} at ${f.at ?? '<document>'}: ${f.detail}`).join('; '),
       );
     }
+    // **A GATE is a VALID definition this driver cannot RUN yet, and it is refused HERE, by name** —
+    // v0.23, [ADR 0066](../../doc/decisions/0066-a-gate-is-a-decision-with-memory-that-names-a-registered-type-and-wires-every-route-exactly-once.md)
+    // rule 7, [W92](../../doc/work-items/w92-what-a-gate-is.md). Running a gate — its memory, the
+    // `gated` fold input, the undeclared-route stop, replay — is W93's, and until then `enter()` has no
+    // arm that can execute one.
+    //
+    // **At construction and not in `enter()`, on a measurement.** W92's declaration step taught the
+    // validator the kind in a copy of the tree and left the driver alone: the definition validated clean,
+    // `new Driver` constructed, `start()` DISPATCHED the task before the gate, and only when it SETTLED did
+    // the `default` arm report — a real worker had run first, on the one workload that reaches the gate,
+    // which is ADR 0002 rule 3's whole argument for refusing at instantiation. So a gate flow queues
+    // nothing. **After validation**, so an INVALID gate document still reports every `FD-V` it violates.
+    //
+    // **`InvalidDefinition` with no rule ids, and no new class** — W33's precedent for its region-in-a-map
+    // refusal (lifted by W84): *"the document names a node this driver cannot execute, which is what that
+    // class already means"*. No rule id because no rule is violated: the definition is valid.
+    const gates = definition.nodes.filter((n) => n?.kind === 'gate').map((n) => n.id).sort();
+    if (gates.length > 0) {
+      throw new InvalidDefinition(
+        [],
+        `definition "${definition.flowId}" holds gate node(s) ${gates.map((g) => JSON.stringify(g)).join(', ')}. ` +
+          'A gate is a valid definition (spec/flow-definition.md v0.23, ADR 0066) and this driver cannot run one ' +
+          'yet — its memory, its recorded decision and its replay are W93\'s — so it is refused at construction, ' +
+          'before anything is queued, rather than on the first branch that reaches it.',
+      );
+    }
     this.def = definition;
     this.opts = opts;
     this.now = opts.now ?? (() => Date.now());
@@ -2401,6 +2427,23 @@ export class Driver {
         // region event either, so `pathEnded` had no producer anywhere (Q41).
         this.append({ kind: 'pathEnded', reason: 'end', at: nodeId });
         if (region && fromBranch !== '-') this.settleJoin(runId, region, itemIndices);
+        return;
+      }
+
+      // **A GATE has an arm and it cannot be reached** — W92. The constructor refuses every flow holding one,
+      // so no branch can enter a gate on a driver that exists; the arm is here because the switch must name
+      // the kind for the `never` below to keep making a SEVENTH kind a compile error in all five lanes (the
+      // one exhaustive site of W92's census). It reports rather than returns, as the `default` arm does,
+      // so that if the constructor's refusal were ever removed without an arm here the stop is not silent.
+      // **W93 replaces it with the arm that evaluates the gate.**
+      case 'gate': {
+        this.failRun(
+          new InvalidDefinition(
+            [],
+            `definition "${this.def.flowId}" routes into gate "${nodeId}", which this driver cannot execute ` +
+              '(W93) — and the constructor refuses every gate flow, so this line is unreachable.',
+          ),
+        );
         return;
       }
 

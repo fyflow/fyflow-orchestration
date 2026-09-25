@@ -22,7 +22,7 @@
  * | *a node with no `needs` is unchanged* | `FD-C1`'s first clause, and ADR 0040 rule 1 |
  */
 import { collected, equal, listDir, ok, readText, ROOT, suite, throws } from '../harness.ts';
-import { Driver, UnresolvedReference } from '../../src/driver/driver.ts';
+import { Driver, InvalidDefinition, UnresolvedReference } from '../../src/driver/driver.ts';
 import { validateDefinition, violatedRules } from '../../src/definition/validate.ts';
 import { allRegions, buildGraph } from '../../src/definition/regions.ts';
 import { liveToken } from '../../src/fold/policies.ts';
@@ -348,9 +348,22 @@ suite('L2 — FD-C2: what NAMES an output', (test) => {
     // this item wrote three before the reader found them.*
     const REGION_KINDS = new Set(['fanout', 'map']);
     const onDisk: string[] = [];
+    // **A region-bearing flow holding a GATE is not RUN here, and its REFUSAL is asserted instead** — W92,
+    // ADR 0066 rule 7: `new Driver` refuses every gate flow at construction until W93 runs one. Split off by
+    // KIND and not by name, so the day W93 lifts the refusal the assertion below fails naming the flow, and
+    // it joins `entries` with its expectation — rather than leaving this census silently one flow short.
+    const gated: string[] = [];
     for (const f of (await listDir(`${EX}/valid`)).filter((n) => n.endsWith('.flow.json')).sort()) {
       const d = JSON.parse(await readText(`${EX}/valid/${f}`)) as FlowDefinition;
-      if (d.nodes.some((n) => REGION_KINDS.has(n.kind))) onDisk.push(f.replace(/\.flow\.json$/, ''));
+      if (!d.nodes.some((n) => REGION_KINDS.has(n.kind))) continue;
+      (d.nodes.some((n) => n.kind === 'gate') ? gated : onDisk).push(f.replace(/\.flow\.json$/, ''));
+    }
+    ok(gated.length > 0, 'the ARRANGEMENT: the corpus holds a region-bearing gate flow (gated-map, v0.23)');
+    for (const name of gated) {
+      let err: unknown;
+      try { harness(await load(`valid/${name}.flow.json`)); } catch (e) { err = e; }
+      ok(err instanceof InvalidDefinition && err.rules.length === 0 && /gate node/.test(err.message),
+        `${name}: a VALID gate flow is refused at Driver construction with no rule ids, naming the gate — until W93 runs one: ${String(err)}`);
     }
     equal(entries.map((e) => e[0]).sort(), onDisk,
       'the censused set IS the corpus`s region-bearing flows, both ways — derived from the ' +
