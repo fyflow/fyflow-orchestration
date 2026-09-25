@@ -491,5 +491,5 @@ identical before and after — RUN and redirected, never piped. This sentence is
 `check:markdown` was re-run over it.
 
 **W91 CLOSED unissued. Q364-Q378 all used or spent** — Q368-Q370 (W88) and Q375 (W89) reserved and
-unused. **ADR 0064 and 0065 both taken. The next plan starts at W92, Q379 and ADR 0066** — derived by
+unused. **ADR 0064 and 0065 both taken. The next plan starts at W92, Q379 and ADR 0066** *(and [P24](p24-what-a-node-may-remember-across-a-runs-branches.md) did, 2026-09-25)* — derived by
 grep off the tree at this retro, never from this sentence, and `CLAUDE.md` already says so.
