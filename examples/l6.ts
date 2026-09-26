@@ -3480,6 +3480,14 @@ const EXPECTED: Expectation[] = [
     dispatched: ['r51:ingest:-:0', 'r51:shard:0:0', 'r51:shard:1:0',
       'r51:grade:0.0:0', 'r51:grade:0.1:0', 'r51:recheck:0.1:0',
       'r51:grade:1.0:0', 'r51:grade:1.1:0', 'r51:grade:1.2:0', 'r51:publish:-:0'],
+    // **`recheck` is dispatched by a COMPLETION — W97.** It goes out when `grade:0.1` SETTLES, and the three `grade:1.x`
+    // when `shard:1` does: two branches, and the arrangement above fixes only that `shard@0` settles first. With
+    // `ScoreWorker` threaded, or delayed to 300 ms (`doc/workflow.md` rule 8 obligation (f)), `grade:0.1` lands after
+    // `shard:1` and this row's ordered list went red in both runtimes while every clause that NAMES the arrangement stayed
+    // green. So `recheck` ALONE leaves the ordered list — W97's adequacy reader measured the three `grade:1.x` loosened for
+    // nothing — and the other nine keep their order. **The overlap asserted beside it cannot fail on this row**: `shard:0`
+    // and `shard:1` always overlap, so W51's justification says nothing about `recheck` in particular ([Q400](../doc/open-questions.md)).
+    unorderedDispatch: ['r51:recheck:0.1:0'],
     regionId: 'perWord',
     joined: true,
     settled: { '0': 'arrived', '1': 'arrived' },
@@ -5367,6 +5375,7 @@ const CROSS_ROW_SUBJECTS = [
   'the runtime CARRIES every schema the twenty-one worker entries declare, exactly',
   // W94 — block (2h)'s three claims and two controls, and the TV pair's two claims and its route control.
   'W94 (2h): at EVERY kill point the TV ingest resumed',
+  'W94 (2h), W97: and the ARRANGEMENT held across every kill',
   'W94 (2h): and the replay REGENERATED every stored `gated` element',
   'W94 (2h): and the re-dispatched ids are the killed process`s in-flight set',
   'W94 (2h) CONTROL: the sweep is EVERY kill point',
@@ -7517,8 +7526,14 @@ const KILL_RESUME_DEADLINE_MS = 10_000;
 const refusalOf = (err: unknown): string =>
   err instanceof ResumeRefused ? `ResumeRefused ${err.reason} at ${err.index}` : `${err instanceof Error ? err.name : 'a throw'}: ${String(err).slice(0, 120)}`;
 const isStimulus = (i: FoldInput): boolean => i.kind === 'outcome' || i.kind === 'resolution';
+// **In KEY order, never insertion order — W97.** The fold inserts a node's key when its task is DISPATCHED, and a dispatch
+// can depend on a completion (`recheck` goes out when `grade:0.1` settles), so `JSON.stringify` of `RunState.nodes`
+// carried a completion order into every identity that compared two runs' nodes. With `ScoreWorker` threaded
+// (`doc/workflow.md` rule 8 obligation (f)) P23's block (2g) went red in both runtimes with every node's state and result
+// EQUAL and `recheck`'s key one place earlier — W23's class (a serialisation's key order), latent since W90. *(This said
+// *settle* and named (2h) too until W97's conformity reader: the key goes in at dispatch, and (2h) was never red there.)*
 const nodesOf = (s: RunState): Record<string, { state: string; result: unknown }> =>
-  Object.fromEntries(Object.entries(s.nodes).map(([k, v]) => [k, { state: v.state, result: v.result }]));
+  Object.fromEntries(Object.entries(s.nodes).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([k, v]) => [k, { state: v.state, result: v.result }]));
 const sameNodes = (a: RunState, b: RunState): boolean => JSON.stringify(nodesOf(a)) === JSON.stringify(nodesOf(b));
 /** Dispatched and never settled in `seq[0, end)`, in dispatch order — `RN-R21`'s set over any prefix. */
 const inFlightIn = (seq: readonly FoldInput[], end: number): string[] => {
@@ -7562,7 +7577,7 @@ type KillResume = {
     beforeHandle: number; identical: boolean; refused: string; resumes: string[][]; resumedIds: string[][];
     holes: number; foldIsDone: boolean; arrivalDiffers: boolean; arrivalRefused: string;
   } | null;
-  cuts: { midStored: number; quietStored: number; midAt: number; quietAt: number; midIds: string[]; quietIds: string[]; refused: string;
+  cuts: { midStored: number; quietStored: number; quietStimuli: number; midAt: number; quietAt: number; midIds: string[]; quietIds: string[]; refused: string;
     midStoredInFlight: string[]; quietStoredInFlight: string[]; bothCompleted: boolean } | null;
   parked: { ids: string[] | null; before: string; parkedStored: boolean; scoreFirst: boolean; accepted: boolean; refused: string;
     outcome: string; identical: boolean } | null;
@@ -7795,7 +7810,8 @@ try {
     };
     const m = resumedOf(mid.driver), qq = resumedOf(quiet.driver);
     cuts = {
-      midStored: k.mid.length, quietStored: k.quiet.length, midAt: m.at, quietAt: qq.at, midIds: m.ids, quietIds: qq.ids,
+      midStored: k.mid.length, quietStored: k.quiet.length, quietStimuli: k.quiet.filter(isStimulus).length,
+      midAt: m.at, quietAt: qq.at, midIds: m.ids, quietIds: qq.ids,
       midStoredInFlight: inFlightIn(k.mid, k.mid.length), quietStoredInFlight: inFlightIn(k.quiet, k.quiet.length),
       refused: [mid.refused, quiet.refused].filter((x) => x !== '').join('; '),
       bothCompleted: k.froze && mid.state?.outcome === 'completed' && quiet.state?.outcome === 'completed',
@@ -7926,10 +7942,16 @@ if (killResume !== null) {
     c === null ? null : [c.arrivalDiffers, c.arrivalRefused], [true, 'diverged at 0']);
   // (13)-(14) the cuts.
   const u = kr.cuts;
+  // **And the ARRANGEMENT the pair rests on — W97's adequacy reader (N1).** Both cuts are one STEP only while no other
+  // settlement lands in the second stimulus's turn: with `Shard` at 0 ms per character `shard:1` settled in that turn, the
+  // quiescent store held a THIRD stimulus and the two cuts resumed at 13 and 21. `shard@0`'s two characters against
+  // `shard@1`'s three at 60 ms each is the arrangement; its effect — the quiescent store holds exactly TWO stimuli — is
+  // asserted here, so that delay now names it. Found by a SPEED-UP, which obligation (f)'s *delayed past its peers* never
+  // tries ([Q401](../doc/open-questions.md)).
   check(key, 'a MID-STEP cut and a QUIESCENT cut of ONE killed run: the quiescent store is longer, `resumed` lands at the same ' +
-    'position after both, and both re-dispatch the SAME tasks — the set is the replay`s, not the store`s',
-    u === null ? null : [u.midStored < u.quietStored, u.midAt, u.quietAt, u.midIds, u.bothCompleted, u.refused],
-    u === null ? 'two cuts' : [true, u.quietStored, u.quietStored, u.quietIds, true, '']);
+    'position after both, and both re-dispatch the SAME tasks — the set is the replay`s, not the store`s; and the arrangement holds, the quiescent store two stimuli',
+    u === null ? null : [u.midStored < u.quietStored, u.midAt, u.quietAt, u.midIds, u.bothCompleted, u.refused, u.quietStimuli],
+    u === null ? 'two cuts' : [true, u.quietStored, u.quietStored, u.quietIds, true, '', 2]);
   check(key, 'and that is the PAIR: the stored events` in-flight set is right at the quiescent cut and WRONG at the mid-step one',
     u === null ? null : [JSON.stringify(u.quietStoredInFlight) === JSON.stringify(u.quietIds), JSON.stringify(u.midStoredInFlight) === JSON.stringify(u.midIds)],
     [true, false]);
@@ -7991,7 +8013,11 @@ if (killResume !== null) {
  *
  * The flow and payload are the LAST-first row's, on the INLINE pool: W94's declaration measured 25 / 25 identical in
  * both runtimes there, and on threads too — but a thread's timing moves an arrival past the kill, which is the pool's
- * right, so the sweep is where the arrangement holds by construction.
+ * right. **The identity holds by ARRANGEMENT and not by construction — W97**: a resume re-dispatches what was in flight,
+ * so the arrivals after the cut are a FRESH sample, identical to the reference only because `identify`'s 30 ms per MB
+ * dwarfs the skew a re-dispatch adds. `Download` delayed to 300 ms (obligation (f)) turned the identity red in both
+ * runtimes, 2 of 2 each; so the arrangement's effect — the files reach the gate in SIZE order in every resumed run —
+ * is asserted beside it, and the same delay now names the arrangement.
  */
 type GateKillPoint = {
   K: number;
@@ -8001,6 +8027,10 @@ type GateKillPoint = {
   killedDiffers: boolean;
   killedMemoryComplete: boolean;
   prefixRegenerated: boolean;
+  /** The resumed run's files reached the gate in SIZE order — the arrangement the identity rests on (W97). */
+  arrivedInSizeOrder: boolean;
+  /** The stimuli the STORE holds at the freeze — K, read off the store itself rather than a counter upstream of it. */
+  storedStimuli: number;
   /** The stimulus count at the instant the store froze — `K` itself, or the sweep ran duplicates (the adequacy reader's finding 1). */
   killedAt: number;
   /** The gate memory's keys the instant `runtime.resume` returned — the replay done, nothing live yet. */
@@ -8013,6 +8043,10 @@ type GateKillPoint = {
   want: string;
 };
 let gateKill: { points: GateKillPoint[]; stimuli: number; runs: string[] } | null = null;
+const SIZE_ORDER = TV_LAST_FIRST.files.map((f, i) => [f.sizeMB, i] as const).sort((a, b) => a[0] - b[0]).map(([, i]) => i);
+// ONE predicate for the run and for the constructed input below, so a comparison weakened here (sorted, truncated) is
+// weakened for both and the constructed input goes green where it must be refused (W97's adequacy reader, p2b).
+const inSizeOrder = (order: readonly number[]): boolean => JSON.stringify(order) === JSON.stringify(SIZE_ORDER);
 try {
   const runs: string[] = [];
   const RUN_ID = 'kg';
@@ -8073,6 +8107,7 @@ try {
     let ids: string[] | null = null;
     let prefixRegenerated = false;
     let rebuilt = 'NOT RESUMED';
+    let arrivedInSizeOrder = false;
     try {
       let h2: RunHandle | null = null;
       try {
@@ -8092,6 +8127,7 @@ try {
         const at = seq[q];
         ids = at?.kind === 'resumed' ? [...at.taskIds] : null;
         prefixRegenerated = JSON.stringify(gatedIn(seq.slice(0, store.length))) === JSON.stringify(pre);
+        arrivedInSizeOrder = inSizeOrder(gatedIn(seq).map((x) => Number(x.branchPath.split('.')[0])));
       }
     } finally { await rt2.shutdown(); }
     points.push({
@@ -8104,6 +8140,8 @@ try {
       killedDiffers: post.some((x) => x.route === 'first'),
       killedMemoryComplete: JSON.stringify(memoryOf(killedDriver!)) === refMemory,
       prefixRegenerated,
+      arrivedInSizeOrder,
+      storedStimuli: store.filter((x) => x !== undefined && isStimulus(x)).length,
       killedAt: seen,
       rebuilt,
       wantRebuilt: JSON.stringify(gatedIn(killed.slice(0, q)).length === 0 ? [] : [['dedupe', [...new Set(gatedIn(killed.slice(0, q)).flatMap((x) => (x.key === undefined ? [] : [JSON.stringify(x.key)])))].sort()]]),
@@ -8134,6 +8172,13 @@ if (gateKill !== null) {
   // the end of the replay, which is what a FRESH memory (empty) and the KILLED process's (every key: it drained, Q376)
   // are not. The adequacy reader's finding 3: a memory cleared the moment the replay ended was one observer from gone
   // here, the identity claim alone; this is the second, and it reads the memory where the selection is made.
+  // **Its control is a CONSTRUCTED input, W92's kind clause's shape**: the same predicate over the size order REVERSED must
+  // refuse it. W97's adequacy reader sorted both sides of the comparison and the clause went green with `Download` at 60 ms,
+  // where it is the ONLY observer (the identity holds there) — a clause with no tree named on which it fails (v0.22).
+  check(key, 'W94 (2h), W97: and the ARRANGEMENT held across every kill — in every resumed run the files reached the gate in SIZE order, ' +
+    'which is SUFFICIENT for the post-cut decisions to be identical: a resume re-dispatches what was in flight, and the order after the cut is a fresh sample',
+    { failing: gk.points.filter((p) => !p.arrivedInSizeOrder).map((p) => `K=${p.K}`), reversedRefused: !inSizeOrder([...SIZE_ORDER].reverse()) },
+    { failing: [], reversedRefused: true });
   check(key, 'W94 (2h): and the replay REGENERATED every stored `gated` element exactly, and the memory it REBUILT is exactly the keys the killed run had decided by the end of the replay',
     gk.points.filter((p) => !p.prefixRegenerated || p.rebuilt !== p.wantRebuilt).map((p) => `K=${p.K} prefix ${p.prefixRegenerated} rebuilt ${p.rebuilt} want ${p.wantRebuilt}`), []);
   check(key, 'W94 (2h): and the re-dispatched ids are the killed process`s in-flight set at the END of the replay, at every kill point',
@@ -8144,12 +8189,18 @@ if (gateKill !== null) {
   // per-series task per series, and publish). Fails on a tree whose loop bound is capped.
   check(key, 'W94 (2h) CONTROL: the sweep is EVERY kill point — one per stimulus of the reference, and that count from the PAYLOAD: three tasks a file, one per series, and publish — each point DISTINCT',
     // **And the points are DISTINCT** — the adequacy reader's finding 1: a count cannot see K = 19..24 all killed at 18,
-    // which with a memory fresh between decisions read green in both runtimes. The stimulus count at each freeze is K,
-    // and the stored lengths strictly rise.
+    // which with a memory fresh between decisions read green in both runtimes. The stimulus count at each freeze is K.
+    // *(A `rising` term read the stored LENGTHS strictly rising from one point to the next until W97 — but each point is
+    // a SEPARATE run, and how many regenerated events precede its K-th stimulus is a completion order: with `Download`
+    // threaded (obligation (f)) it went red intermittently in both runtimes.)* **`killedAt` is a counter UPSTREAM of the
+    // store**, and W97's adequacy reader wrote K = 19..24 from K = 18's store with it honest at 1..25 — W94's finding 1
+    // reopened, green with a memory cleared mid-run. So the STORE is read too: each holds exactly K stimuli, which is
+    // order-free (measured green with `Download` threaded, where `rising` went red).
     { points: gk.points.length, fromReference: gk.stimuli, runs: gk.runs.length,
-      killedAt: gk.points.map((p) => p.killedAt).join(), rising: gk.points.every((p, j) => j === 0 || p.stored > gk.points[j - 1]!.stored) },
+      killedAt: gk.points.map((p) => p.killedAt).join(), storedStimuli: gk.points.map((p) => p.storedStimuli).join() },
     { points: TV_N * 3 + TV_KEYS.length + 1, fromReference: TV_N * 3 + TV_KEYS.length + 1, runs: 1 + 2 * (TV_N * 3 + TV_KEYS.length + 1),
-      killedAt: Array.from({ length: TV_N * 3 + TV_KEYS.length + 1 }, (_, j) => j + 1).join(), rising: true });
+      killedAt: Array.from({ length: TV_N * 3 + TV_KEYS.length + 1 }, (_, j) => j + 1).join(),
+      storedStimuli: Array.from({ length: TV_N * 3 + TV_KEYS.length + 1 }, (_, j) => j + 1).join() });
   // Fails on a tree whose kills all land before the first decision (a memory never rebuilt from anything) or whose
   // arrangement puts every decision on one side of every cut — where identity says nothing about the memory at all.
   check(key, 'W94 (2h) CONTROL: the selections DISCRIMINATE on this sweep — kill points before the first decision (Q386`s case), between and after the last; ' +
@@ -8513,7 +8564,8 @@ const PER_PLAIN_ROW = 20;
 // here. *(Written as 7 at the declaration, and 7 at the build.)* **+1 the same day, before either reader**: the route
 // control above, which W94's own rule 8 planning showed was missing (`d2`: the file table losing its trailer took `nokey`
 // out of every run with every clause green).
-const CROSS_ROW = 215;
+// **+1 since W94 — W97**: block (2h)'s arrangement, asserted beside the identity it rests on (obligation (f)).
+const CROSS_ROW = 216;
 const base = (shape: string) => (shape === 'region' ? PER_REGION_ROW : PER_PLAIN_ROW);
 for (const [key, shape, cost, extras] of rowCosts) {
   if (cost !== base(shape) + extras) {
@@ -10158,7 +10210,9 @@ check('cross-row', 'every cross-row SUBJECT this file declares was asserted abou
 // overlap that justifies it (+2 — the conformity reader's finding 2: the first cut asserted a fan-out's completion
 // order), and the realm its `identify` ran in (+1 — the adequacy reader's finding 4). No cross-row count moved: block
 // (2h)'s distinct kill points and rebuilt memory, and its re-stated control, widened clauses that were already there.
-const DECLARED_TOTAL = 2069;
+// **2072 since W97**: +1 cross-row, block (2h)'s arrangement, and +2 on P22's row, which compares `recheck` as a set and
+// asserts the overlap beside it (the `unorderedDispatch` pair). No run moved.
+const DECLARED_TOTAL = 2072;
 // **And the RUN count, declared outright beside it — W96.** It was printed on every gate run and written nowhere, so the
 // copies of it in `README.md` and `examples/README.md` had nothing to be compared against: `check-docs`' `X10` reads
 // BOTH declarations and holds each current copy to them ([Q171](../doc/open-questions.md), named by P20's retro and built
