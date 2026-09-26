@@ -91,7 +91,7 @@ import registryDocument from './registry.json' with { type: 'json' };
  * that as a DIFF.** The one derivation below exists because a per-run knob has NO DOCUMENT SPELLING:
  * `inline` is fixed per TYPE (P18 decision 2 — an instance's config merges into `config` and never
  * reaches it), while `Expectation.threaded` is a property of a ROW. So `registryDocumentFor` writes
- * `inline: !threaded` into the two types that declare none, and does nothing else.
+ * `inline: !threaded` into the types that declare none — three since W94's `Identify` — and does nothing else.
  *
  * *(These sentences said **"every row but a threaded one runs the document AS IT IS ON DISK"** and
  * **"at `threaded: false` it returns the document object itself, unchanged"**. Both are FALSE and
@@ -1291,7 +1291,11 @@ const loggedResults = (d: Driver): unknown[] =>
 // `nodeTypes` since W59: the registry's node types — consumer configuration holding validator
 // FUNCTIONS, which `v8.serialize` refuses and which hold no result. The same reading as `opts`.
 // `workers` since W73: the registry's worker entries, read at FD-R4's two boundaries — declarations, no result.
-const NOT_RUN_STATE = ['def', 'graph', 'languages', 'nodeTypes', 'opts', 'workers'];
+// `gateTypes` since W93 (ADR 0067): the gate types — the built-in `distinct` and a consumer's — whose `fn` is a
+// FUNCTION, so configuration as `languages` is. Walked, it hands `v8.serialize` a function, `retainedBytes` catches the
+// refusal and returns -1, and L6 fails BY NAME on the reporter's relation clause (measured at W93: 2 named failures and
+// no crash — the declaration step had predicted a crash, and the walk's own catch is why it is not). The MEMORY is walked.
+const NOT_RUN_STATE = ['def', 'gateTypes', 'graph', 'languages', 'nodeTypes', 'opts', 'workers'];
 
 /** The two halves of `NOT_RUN_STATE`'s claim, for the clause in `examples/l6.ts` that binds it. */
 const walkOf = (d: Driver): { walked: string[]; skipped: string[] } => {

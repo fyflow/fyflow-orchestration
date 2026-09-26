@@ -362,7 +362,10 @@ if (written.length) {
 // **Raised 29 -> 30 by [W90](../doc/work-items/w90-a-run-killed-and-resumed-on-real-workers.md)**, which added section 18's
 // `run` snippet — append-then-resume on a real `createRuntime`, a store keyed by position across two processes. Q102's
 // ratchet, declared in that item's exceptions table before the snippet was written.
-const RUN_FLOOR = 30;
+// **Raised 30 -> 31 by [W94](../doc/work-items/w94-a-tv-series-ingest-through-a-gate-on-real-workers.md)**, which added section 19's `run` snippet — the TV ingest
+// through a `distinct` gate on a real `createRuntime`, and a consumer's gate type stopping a run with `UndeclaredRoute`.
+// Q102's ratchet, SEEDED in P24's declaration and declared in W94's exceptions table before the snippet was written.
+const RUN_FLOOR = 31;
 {
   // **Only when the document parsed.** A count over a reference whose fences are
   // malformed or untagged is true of the parse and says nothing about coverage —
@@ -507,13 +510,15 @@ const README_SNIPPETS = [
   { readme: 'Checking a result after it ran', agents: '16. What a schema buys a RUN — holding a result to the schema its worker declares' },
   { readme: 'Fanning out per item', agents: '17. Fanning out PER ITEM — a region inside a `map` region' },
   { readme: 'Saving and resuming a run', agents: '18. Saving a run and RESUMING it — append the events, resume from them' },
+  { readme: 'Remembering across branches', agents: '19. What a node may REMEMBER across branches — a gate' },
 ];
 // **5 since [W86](../doc/work-items/w86-score-each-item-then-fan-out-per-item.md)**, which added
 // section 17's pair — Q102's ratchet, and that item's adequacy reader (finding 16) is what noticed
 // the floor had been left at four while `README_SNIPPETS` became five.
 // **6 since [W90](../doc/work-items/w90-a-run-killed-and-resumed-on-real-workers.md)**, which added section 18's pair —
 // Q102's ratchet, raised in the commit that adds the entry, as a declared exception.
-const README_SNIPPET_FLOOR = 6;
+// **7 since [W94](../doc/work-items/w94-a-tv-series-ingest-through-a-gate-on-real-workers.md)**, which added section 19's pair — the same ratchet, raised in the commit that adds the entry.
+const README_SNIPPET_FLOOR = 7;
 /** The README's text above its first `## ` heading, which is a section for X8's purposes. */
 const README_OPENING = '(the opening, above the first ## heading)';
 {

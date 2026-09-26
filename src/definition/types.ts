@@ -319,6 +319,14 @@ export interface RegistryCode {
   nodeTypes?: Readonly<Record<string, NodeTypeDefinition>>;
   /** The adapters the document's `languages` name. */
   languages?: Languages;
+  /**
+   * **A consumer's GATE types, beside the built-ins** — v0.23's run half,
+   * [W93](../../doc/work-items/w93-what-a-gate-does-in-a-run.md). CODE with no document entry (a type's `fn`
+   * is a function), so there is nothing in the registry DOCUMENT to hold them to: the runtime holds them to
+   * `GateType` with `checkGateTypes` where it is built, and hands them to every driver it starts through
+   * `runtime.registry.gateTypes`. Absent, the built-ins alone.
+   */
+  gateTypes?: GateTypes;
 }
 
 /** One pool instance, derived and checked — the default instance of a type (`key === type`) or a named one. Nothing is constructed. */
@@ -497,10 +505,12 @@ export interface EndNode {
  * `settings`; unlike a `task` its type is a GATE type (`FD-V39`), code rather than a document entry,
  * and its edges name ROUTES rather than terminal states or predicates (`FD-V41`).
  *
- * **Valid since v0.23 and RUN by nothing yet** — `new Driver` refuses a flow holding one, by name,
- * until W93 (P24's second item) gives `enter()` its arm; this is
- * v0.8's `map` split (a kind valid before any driver executes it), taken at construction as W33 took
- * its region-in-a-map refusal.
+ * **Valid since v0.23 and RUN since
+ * [W93](../../doc/work-items/w93-what-a-gate-does-in-a-run.md)** — the driver evaluates it synchronously
+ * where a branch enters it, records a `gated` fold input, and takes the one edge wired for the route its
+ * type returned (`spec/flow-definition.md` section 2, `RN-R26`). *(Until W93 `new Driver` refused a flow
+ * holding one, by name, at construction — v0.8's `map` split, taken as W33 took its region-in-a-map
+ * refusal.)*
  */
 export interface GateNode {
   id: string;
@@ -520,7 +530,11 @@ export interface GateNode {
 
 /**
  * **What a gate type's `fn` is handed** — once per branch that reaches the gate, synchronously (the
- * driver has no `async`, P24 decision 5). W93 calls it; W92 fixes its shape.
+ * driver has no `async`, P24 decision 5). W92 fixed its shape and W93's driver calls it, handing COPIES of
+ * the value and the settings — a predicate is handed a copy too — so a type writing into either moves
+ * nothing the run holds. *(An ENTRY gate is also evaluated once at `start()` against a throwaway empty
+ * memory, for `FD-R4` alone — so a type must be the pure function of its context Q9 asks every decision
+ * to be.)*
  */
 export interface GateContext {
   /** `settings.key` resolved over `input` by `readKeyPath` — `undefined` where the gate declares no `key` or a segment is missing. */
@@ -532,7 +546,8 @@ export interface GateContext {
   /**
    * **The gate's memory: ONE per gate per RUN, the driver's, and never written down** (P24 decisions 6
    * and stop-and-ask (a)). A type reads and writes it; it is a pure function of the order branches
-   * reached the gate, which is why a resume can rebuild it by replay (W93).
+   * reached the gate, which is why a resume REBUILDS it by replay (W93, `RN-R26`): a resumed driver starts
+   * it EMPTY and re-evaluates every gate on the stored settlements.
    */
   readonly memory: Map<string, unknown>;
 }
@@ -550,7 +565,7 @@ export interface GateType {
   readonly defaultRoute: string;
   /** What a gate's `settings` must satisfy, in the built-in subset (ADR 0053). Absent means UNCHECKED (P18 decision 3). */
   readonly settingsSchema?: JsonSchema;
-  /** The decision: one of `routes`, synchronously. A route not declared STOPS the run by name (P24 decision 8 — W93's). */
+  /** The decision: one of `routes`, synchronously. A route not declared STOPS the run by name (P24 decision 8 — `FD-R5`, `UndeclaredRoute`); a throw stops it with the thrown error, as a predicate's does. */
   fn(ctx: GateContext): string;
 }
 
@@ -614,9 +629,10 @@ export interface Registry {
    * **A consumer's GATE types, beside the built-ins** — the sixth set, v0.23 (W92, ADR 0066). **Absent
    * means the BUILT-INS ALONE** — `distinct` is always there, so this set only ever ADDS; a name that
    * is a built-in's is refused (`NameCollision` at construction, `FD-V39` reached here directly). The
-   * validator reads `routes`, `defaultRoute` and `settingsSchema`; the driver will read `fn` (W93).
-   * **`DriverOptions` does not carry it yet** — a hand-built `Driver` validates against the built-ins
-   * and refuses every gate flow at construction until W93 runs one.
+   * validator reads `routes`, `defaultRoute` and `settingsSchema`; the driver reads `fn` too. **A driver
+   * is handed the set as `DriverOptions.gateTypes`** since W93 — the runtime's road is
+   * `runtime.registry.gateTypes`, from `RegistryCode.gateTypes`. *(Until W93 no driver carried it and
+   * every gate flow was refused at construction.)*
    */
   gateTypes?: GateTypes;
 }

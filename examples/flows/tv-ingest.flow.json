@@ -1,0 +1,25 @@
+{
+  "flowId": "l6-tv-ingest",
+  "version": 1,
+  "entry": "episodes",
+  "nodes": [
+    { "id": "episodes",         "kind": "map",    "over": "files", "branch": "download" },
+    { "id": "download",         "kind": "task",   "type": "Download",    "edges": [ { "to": "beside" } ] },
+    { "id": "beside",           "kind": "fanout", "branches": [ "thumbnail", "identify" ] },
+    { "id": "thumbnail",        "kind": "task",   "type": "Thumbnail",   "edges": [ { "to": "perFile" } ] },
+    { "id": "identify",         "kind": "task",   "type": "Identify",    "edges": [ { "to": "dedupe" } ] },
+    { "id": "dedupe",           "kind": "gate",   "type": "distinct", "settings": { "key": "series.id" }, "edges": [
+        { "to": "setupSeries" },
+        { "route": "duplicate", "to": "dropDuplicate" },
+        { "route": "nokey",     "to": "dropUnidentified" }
+    ] },
+    { "id": "setupSeries",      "kind": "task",   "type": "SeriesSetup", "edges": [ { "to": "seriesReady" } ] },
+    { "id": "seriesReady",      "kind": "end",    "outcome": "series-ready" },
+    { "id": "dropDuplicate",    "kind": "end",    "outcome": "duplicate" },
+    { "id": "dropUnidentified", "kind": "end",    "outcome": "unidentified" },
+    { "id": "perFile",          "kind": "join",   "of": "beside",   "edges": [ { "to": "all" } ] },
+    { "id": "all",              "kind": "join",   "of": "episodes", "edges": [ { "to": "publish" } ] },
+    { "id": "publish",          "kind": "task",   "type": "PublishWorker", "edges": [ { "to": "done" } ] },
+    { "id": "done",             "kind": "end",    "outcome": "completed" }
+  ]
+}

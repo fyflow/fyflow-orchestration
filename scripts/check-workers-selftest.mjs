@@ -343,7 +343,11 @@ export async function selfTest(ROOT) {
     // worker**: the tally is a corpus CENSUS pinned in the GRADING rather than in the check, so a
     // seventeenth worker takes this gate entry RED while `check:workers` itself stays green. W82
     // recorded it and W86 is the second item to pay it, which is the datum rather than the edit.
-    [/17 worker\(s\) in examples\/registry\.json: 17 ran on a declared example, 0 on the generator's witness, 2 not checked \(no outputSchema\), 0 refused/, 'the header tally: all 17 on declared examples, 0 on the witness, 2 of them not checked, 0 refused'],
+    //
+    // **21 since [W94](../doc/work-items/w94-a-tv-series-ingest-through-a-gate-on-real-workers.md)**, P24's exit artifact:
+    // `download`, `identify`, `thumbnail` and `series`, the TV ingest's four — Q342's third item to pay it, SEEDED this
+    // time in P24's declaration and in W94's, so it fired as predicted rather than as a surprise.
+    [/21 worker\(s\) in examples\/registry\.json: 21 ran on a declared example, 0 on the generator's witness, 2 not checked \(no outputSchema\), 0 refused/, 'the header tally: all 21 on declared examples, 0 on the witness, 2 of them not checked, 0 refused'],
   ];
   for (const [re, what] of CONTROL_LINES) if (!re.test(control.out)) bad(`CONTROL: the shipped document's verdict does not say ${what}`);
   // **And the configuration the GATE runs — nothing set — is the one every spawn above overrides**

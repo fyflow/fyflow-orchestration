@@ -18,7 +18,8 @@ import {
 } from '../../src/scheduler/runtime.ts';
 import type { StartOptions } from '../../src/scheduler/runtime.ts';
 import { bootstrap, ENVELOPE_WORKER_URL } from '../../src/scheduler/bootstrap.ts';
-import { BUILT_IN_GROUP_TYPES, DerivationRefused, GroupTypeMissing, NameMissing, WorkerMissing } from '../../src/definition/registry.ts';
+import { BUILT_IN_GROUP_TYPES, DerivationRefused, GateTypeRefused, GroupTypeMissing, NameCollision, NameMissing, WorkerMissing } from '../../src/definition/registry.ts';
+import type { GateType } from '../../src/definition/types.ts';
 import { PATH_LANGUAGE } from './fake-language.ts';
 import { arrivalCount, liveTokenRequiringArrival } from '../../src/fold/policies.ts';
 import { canonical, describeFindings } from '../../src/definition/schema.ts';
@@ -863,6 +864,73 @@ const w76StartMembers = (runtimeSrc: string): string[] => {
   return [...new Set([...w76PickNames(runtimeSrc, anchor), ...w76MembersOf(runtimeSrc, anchor)])].sort();
 };
 
+/**
+ * **A consumer's GATE types, on the runtime's road** — [W93](../../doc/work-items/w93-what-a-gate-does-in-a-run.md),
+ * ADR 0067. Gate types are CODE with no document entry, so `RegistryCode.gateTypes` is where a runtime consumer hands
+ * them over; the runtime holds them to `GateType` where it is BUILT and hands them to every driver it starts or
+ * resumes as `registry.gateTypes`. `pick` routes to its NON-default route only when the key says so, so a run that
+ * reaches `toB` is one whose gate was decided by the consumer's `fn` and by nothing else.
+ */
+const pickGate: GateType = { routes: ['a', 'b'], defaultRoute: 'a', fn: (ctx) => (ctx.key === 'go-b' ? 'b' : 'a') };
+const GATED: FlowDefinition = {
+  flowId: 'gated', version: 1, entry: 'a',
+  nodes: [
+    { id: 'a', kind: 'task', type: 'Scorer', settings: { factor: 1 }, edges: [{ to: 'g' }] },
+    { id: 'g', kind: 'gate', type: 'pick', settings: { key: 'k' }, edges: [{ to: 'toA' }, { route: 'b', to: 'toB' }] },
+    { id: 'toA', kind: 'task', type: 'Scorer', settings: { factor: 1 }, edges: [{ to: 'done' }] },
+    { id: 'toB', kind: 'task', type: 'Scorer', settings: { factor: 1 }, edges: [{ to: 'done' }] },
+    { id: 'done', kind: 'end', outcome: 'completed' },
+  ],
+} as unknown as FlowDefinition;
+
+suite('W93 — a consumer`s GATE types reach every driver the runtime starts or resumes, and a malformed one is refused where the runtime is built', (test) => {
+  test('code.gateTypes IS runtime.registry.gateTypes, and a started run`s gate is decided by the consumer`s fn', () => {
+    const s = seams();
+    const code = { gateTypes: { pick: pickGate } };
+    const r = createRuntime(DOC, code, { createPool: s.createPool, createScheduler: s.createScheduler });
+    ok(r.registry.gateTypes === code.gateTypes, 'the object the consumer handed over, as the registry every driver is handed (decision 14)');
+    const { driver } = r.start(GATED, {}, { runId: 'g1' });
+    s.settle('g1:a:-:0', { k: 'go-b' });
+    equal(s.added.map((t) => t.id), ['g1:a:-:0', 'g1:toB:-:0'], 'the gate took `b`, its NON-default route — only the consumer`s fn chooses it');
+    equal(driver.foldInputs().flatMap((i) => (i.kind === 'gated' ? [[i.gateId, i.route, i.key]] : [])), [['g', 'b', 'go-b']], 'and recorded the decision');
+  });
+
+  test('absent code.gateTypes: the built-ins alone — a flow naming a consumer type is FD-V39 at start', () => {
+    const s = seams();
+    const r = createRuntime(DOC, {}, { createPool: s.createPool, createScheduler: s.createScheduler });
+    equal('gateTypes' in r.registry, false, 'the registry carries no gateTypes key when the code supplies none — absent means the built-ins');
+    throws(() => r.start(GATED, {}), 'FD-V39', 'so "pick" is an unregistered gate type at new Driver');
+  });
+
+  test('a consumer type named as a built-in, or not a GateType, is refused at createRuntime — before any run', () => {
+    const s = seams();
+    let err: unknown;
+    try { createRuntime(DOC, { gateTypes: { pick: pickGate, distinct: pickGate } }, { createPool: s.createPool, createScheduler: s.createScheduler }); } catch (e) { err = e; }
+    ok(err instanceof NameCollision, `a gate type named as a built-in: ${String(err)}`);
+    err = undefined;
+    try { createRuntime(DOC, { gateTypes: { pick: { ...pickGate, routes: [] } } }, { createPool: s.createPool, createScheduler: s.createScheduler }); } catch (e) { err = e; }
+    ok(err instanceof GateTypeRefused, `a value that is not a GateType: ${String(err)}`);
+    equal(s.built.length, 0, 'and no scheduler was built — refused where the runtime is built, not on a first start');
+  });
+
+  test('runtime.resume carries them too — the replay re-asks the consumer`s fn, and without it the resume is refused FD-V39', () => {
+    const s = seams();
+    const code = { gateTypes: { pick: pickGate } };
+    const r = createRuntime(DOC, code, { createPool: s.createPool, createScheduler: s.createScheduler });
+    const { driver } = r.start(GATED, {}, { runId: 'g2' });
+    s.settle('g2:a:-:0', { k: 'go-b' });
+    const cp = driver.checkpoint();
+    const s2 = seams();
+    const r2 = createRuntime(DOC, code, { createPool: s2.createPool, createScheduler: s2.createScheduler });
+    const { driver: resumed } = r2.resume(GATED, cp);
+    equal(resumed.foldInputs().flatMap((i) => (i.kind === 'gated' ? [i.route] : [])), ['b'], 'the replay regenerated the gate`s answer through the same fn, unrefused');
+    equal(s2.added.map((t) => t.id), ['g2:toB:-:0'], 'and re-dispatched what was in flight — the task the route led to');
+    const s3 = seams();
+    const r3 = createRuntime(DOC, {}, { createPool: s3.createPool, createScheduler: s3.createScheduler });
+    throws(() => r3.resume(GATED, cp), 'FD-V39', 'a runtime without the type cannot resume a run its gate decided');
+  });
+});
+
 suite('W76 — StartOptions and start() are two lists, and nothing compared them', (test) => {
   const membersOf = w76MembersOf;
   const pickNames = w76PickNames;
@@ -972,7 +1040,11 @@ suite('W76 — StartOptions and start() are two lists, and nothing compared them
     // the two set differences — but only the second of those can fire for a member added to
     // `DriverOptions` and not yet on a road, and this change added the road in the same edit, so
     // neither did. W80's conformity reader, finding 10.)*
-    equal(s.all.length, 19, 'DriverOptions has nineteen members — the eighteen P20 fact 1 counted plus W80`s. Move this deliberately, with the roads');
+    // **20 since [W93](../../doc/work-items/w93-what-a-gate-does-in-a-run.md)**: `gateTypes`, the consumer's gate types,
+    // on road (b) — `RuntimeRegistry` — because they are CODE registered once per runtime, as `languages` are. This pin
+    // FIRED by name on W93's first run (`expected: 19 actual: 20`) and the orphan clause did not, because the road was
+    // added in the same edit — moved here deliberately, with the road.
+    equal(s.all.length, 20, 'DriverOptions has twenty members — the eighteen P20 fact 1 counted, W80`s, and W93`s gateTypes. Move this deliberately, with the roads');
   });
 
   /**

@@ -1,7 +1,7 @@
 /**
  * **Ladder L6 — the gate.** Every real run this repository makes: P1's exit
  * artifact, P2's, P4's, P5's, P6's, **P7's**, **P10's**, **P12's**, **P13's**,
- * **P14's**, **P16's**, **P17's**, **P18's**, **P20's**, **P21's**, **P22's** and **P23's**. *(**P22's** was missing from this
+ * **P14's**, **P16's**, **P17's**, **P18's**, **P20's**, **P21's**, **P22's**, **P23's** and **P24's**. *(**P22's** was missing from this
  * list for the whole of P23 — W86 added its rows and not its entry, a THIRD time; W90 adds both.)* *(This list stopped at P12 while W47's two rows and W51's two were in
  * the file — a count carried as prose in the paragraph above this file's own
  * monument to that. W51's conformity reader. **It then stopped at P18 while W78's
@@ -78,6 +78,8 @@
  * | **W82 — `nonconforming` at eleven words and at two** | **P21's EXIT ARTIFACT, and the first rows here whose WORKERS are wrong on purpose.** Four task nodes, two of which return values their own `outputSchema` refuses and are reported BY NAME through `onNonconformingResult` — `gauge`'s `$.load above maximum 1`, a bound its code does not keep past its declared example (`check:workers` runs that example and is GREEN), and `stamp`'s `$.label required`, a key that is present on what `run()` returned and absent from what `OR-R2`'s clone wrote. **Three observers of that second one and the middle is the RECORD**: the scheduler's live `detail.result` still has the key at the harness's own listener, the record does not, and the finding says so — which is why `StampWorker` is INLINE, because a thread hides the attribution and not the finding. The two conforming nodes beside them are EXISTING corpus workers and are reported on not at all, and `attest` reports the key set it RECEIVED, so the value flowing downstream unaltered is an assertion rather than ADR 0060's sentence. **The two-word row is the control** — same flow, same workers, only the payload's word count different, and `gauge` goes silent while `stamp` does not, which separates the two legs from each other |
  * | **W82 — the check-OFF pair** | **ADR 0060 decision 3, and no row could be it**: the row above run AGAIN with the one option removed and the SAME run id, held identical record for record. Dispatched ids, the log with only the clocks zeroed, the folded outcome and every settled result all agree; **the reports are the one thing the two runs differ in**, two against zero. *You cannot audit a behaviour with an instrument that alters it*, which is the sentence P21 tells an adequacy reader to falsify first, and this is the only place it has ever been run on real workers. What it COSTS is asserted as a COUNT and printed as a ratio: a check whose answer is discarded has one observable, and a ratio of two clocks is still two clocks ([Q179](../doc/open-questions.md)) |
  * | **W90 — block (2g), KILLED and RESUMED** | **P23's EXIT ARTIFACT: a run killed mid-run on real workers and resumed on a FRESH runtime from a store the consumer built by appending events** — the header from the handle, every `onFoldInput` element at its POSITION. At EVERY kill point of `fan-out-per-item` and `triage`, the store frozen mid-step at a settlement and the runtime shut down, then `runtime.resume` on a fresh one: identical to a run nobody killed on outcome AND every node, the re-dispatched ids equal to a derivation from the KILLED process and to what the fresh scheduler holds when `resume` returns. **`shutdown()` DRAINS** (W90's declaration, measured), so the kill is the store and not the shutdown — and every re-dispatched task visibly ran twice. Beside the sweep: THREE processes appending to ONE positional store, with the same events keyed by arrival refused `diverged`; one killed run cut MID-STEP and QUIESCENT, re-dispatching the same set; and a PARKED kill that re-dispatches nothing and is resolved on the resumed driver |
+ * | **W94 — `tv-ingest` arranged LAST-first, FIRST-first, and threaded** | **P24's EXIT ARTIFACT: a TV library's files through a `map` whose branch fetches each file and fans out BESIDE — a thumbnail for every file, and `identify` then a `distinct` GATE keyed on `series.id`.** The FIRST file of each series to ARRIVE opens the per-series work and every other file ends at an `end` (`duplicate`, or `nokey` for a file whose name carries no series); both joins fire and the run completes. **No assertion names which file won** (P24 decision 7): the gate clause reads the run's own `gated` elements — one `first` per series, the first of its series to arrive, the per-series task for exactly those branches, what reached the gate handed on. The sizes ARRANGE the order ([Q379](../doc/open-questions.md)): LAST-first makes first-to-arrive differ from the lowest index and the first dispatched, FIRST-first is its pair (a different file opens each multi-file series, the same series once each), and the threaded row at equal work names no order at all. **The per-series road ends at its own `end`**, so every `beside` instance ends the same way whatever wins |
+ * | **W94 — block (2h), the TV ingest KILLED and RESUMED** | **P24's exit artifact, its second half**: block (2g)'s kill — the consumer's store frozen mid-step, the runtime shut down (it DRAINS) — at EVERY one of the run's 25 kill points, resumed on a fresh runtime and IDENTICAL to a run nobody killed on outcome, every node, every branch's decision and the gate's MEMORY, which the replay rebuilt (`RN-R26`). Fifteen kill points lie BEFORE the first decision — [Q386](../doc/open-questions.md)'s case — and the sweep is shown to DISCRIMINATE the rebuilt memory from a fresh one and from the killed process's, both derived from the killed run |
  * | **W67 — the shim run** | **P18's sample shim's own call, and no row could make it**: `runtime.start(flow, payload)` with NO options. The runtime MINTS the run id and defaults the join policy (decision 10), and both defaults were replaceable by a `throw` for ZERO until this run existed — every row names the ids it expects and the policy it is about. The flow is `p1-routed-away` at LOW, where the two candidate policies DISAGREE: `live-token` satisfies the join and the run completes, `arrival-count` waits for an arrival that cannot come. So *the run completed* IS *the default is `live-token`*, observed rather than named |
  */
 import {
@@ -118,6 +120,9 @@ import {
   // `AGENTS.md`'s own snippets import this name from `'fyflow-orchestration'`, so
   // asserting a refusal here asserts the refusal a consumer gets.
   validateDefinition,
+  // **W94**: the route-coverage clause reads the routes the built-in TYPE declares — a second source beside the file
+  // table the TV rows derive their counts from — through the package ROOT, as a consumer would.
+  distinct,
   // **W90, P23's EXIT ARTIFACT**: block (2g) resumes runs through `runtime.resume` and names the refusal a
   // wrongly-keyed store gets, the header it stores and the driver it reads back — through the package ROOT.
   ResumeRefused,
@@ -291,6 +296,11 @@ import nonconformingFlow from './flows/nonconforming.flow.json' with { type: 'js
 // inner arity comes from run-time data at BOTH levels. [W33](../doc/work-items/w33-a-map-at-run-time-arity.md)
 // refused this shape at `Driver` construction; P22 lifted the refusal whole.
 import fanOutPerItem from './flows/fan-out-per-item.flow.json' with { type: 'json' };
+// **W94, P24's EXIT ARTIFACT**: a `map` over a TV library's files whose branch fetches each file and fans out BESIDE —
+// a thumbnail for every file, and `identify` then a `distinct` GATE keyed on the dotted path `series.id` — so the first
+// file of each series opens the per-series work and every other file ends at an `end`
+// ([W94](../doc/work-items/w94-a-tv-series-ingest-through-a-gate-on-real-workers.md)).
+import tvIngest from './flows/tv-ingest.flow.json' with { type: 'json' };
 import failureEdge from '../spec/examples/valid/failure-edge.flow.json' with { type: 'json' };
 
 /**
@@ -387,7 +397,7 @@ interface Expectation {
    * the one thing `FD-V9` makes impossible for a `fanout`. An empty string is a
    * lawful map of zero items (`FD-R2`).
    */
-  payload: { confidence: number; text?: string; url?: string };
+  payload: { confidence?: number; text?: string; url?: string; files?: readonly TvFile[] };
   threaded: boolean;
   /**
    * **Which POOL each named task actually ran on, read off `scheduler.tasks` — W67.**
@@ -743,6 +753,35 @@ interface Expectation {
    * on the set.
    */
   regionEventKeys?: Record<string, string>;
+  /**
+   * **What the row's GATE decided, asserted from the run's OWN `gated` elements — W94, P24's exit artifact.**
+   *
+   * P24 decision 7: *first* means first to reach the gate in THIS run, so **no assertion here names which file
+   * won** — only that exactly one did per key, that it was the first of its key to ARRIVE, that the per-series task
+   * ran for exactly the branches the gate routed `first` (so `dispatched` above leaves `opens`' ids out, and they
+   * are asserted here instead, derived from the run), and that what reached the gate is what left it. `keys` and
+   * `routes` are the PAYLOAD's — written from the file names, never read off the run.
+   *
+   * `arranged` is the row's ARRANGEMENT, and it is asserted beside the claim ([Q379](../doc/open-questions.md), and
+   * `doc/workflow.md` rule 8 obligation (a)'s selection clause): `last-first` says the first to arrive is NOT the
+   * lowest index of any multi-file series and not the first `from` dispatched; `first-first` is the pair's other half,
+   * where the order IS the index order. A row with no `arranged` (the threaded one) asserts no order at all.
+   */
+  gate?: {
+    node: string;
+    from: string;
+    opens: string;
+    keys: readonly string[];
+    routes: { first: number; duplicate: number; nokey: number };
+    arranged?: 'last-first' | 'first-first';
+    /**
+     * **Where the row's `from` task must have RUN — declared, and NOT derived from `threaded`.** Rule 8's second pass
+     * measured the first cut, which compared the realm to `threaded ? 'thread' : 'harness'`: the adequacy reader's exact
+     * edit — the threaded row flipped to `threaded: false` — moved BOTH sides and survived. A knob and the claim about
+     * it cannot share a source.
+     */
+    realm: 'harness' | 'thread';
+  };
 }
 
 const FJ = fanoutJoin as unknown as FlowDefinition;
@@ -930,6 +969,102 @@ const TRIAGE_HIGH = { confidence: 0.9, text: TRIAGE_TEXT, url: TRIAGE_URL };
  */
 const TWO_THEN_THREE = { confidence: 0.9, text: 'ja eee' };
 const ONE_THEN_TWO = { confidence: 0.9, text: 'ja' };
+
+/**
+ * **W94 — P24's EXIT ARTIFACT, and every number in its three rows and block (2h) is derived from the table below.**
+ *
+ * A TV library's seven files: three of `Dark`, two of `Lost`, one of `Fargo`, and `trailer.mkv`, whose name carries no
+ * series. `identify` PARSES the series out of the name, so the gate's key is data a worker computed in the same branch
+ * — a branch cannot see its siblings, which is the whole reason a gate exists — and `trailer.mkv` reaches the gate with
+ * NO key at all: `distinct`'s `nokey` route (P24 stop-and-ask (c)). **The table is hand-written from `identify`'s
+ * documented rule** (`Show.S01E02.ext` is series `show`, episode `S01E02`; anything else is no series), never computed
+ * by calling it: a fixture from the code under test proves the code agrees with itself (`doc/workflow.md` section 5
+ * rule 4).
+ *
+ * **The SIZES are the ARRANGEMENT** ([Q379](../doc/open-questions.md)). `identify` waits in proportion to a file's
+ * size and its pool is as wide as the map — W94's declaration measured a SERIAL pool running identify in dispatch order
+ * whatever the delays — so a row decides the ORDER the branches reach the gate by the sizes it declares. LAST-first
+ * falls with the index, so the LAST file of each series arrives first, and neither the lowest index nor the first
+ * dispatched is the right answer; FIRST-first rises with it, the pair's other half, where the order IS the index order.
+ * **The two differ in the ORDER of the sizes and in nothing else**, which the cross-row block asserts (whatever makes a
+ * pair differ is itself a claim). EQUAL is the threaded row's: the POOL decides the order, and the row names no winner.
+ */
+const TV = tvIngest as unknown as FlowDefinition;
+type TvFile = { name: string; sizeMB: number };
+const TV_IDENTIFIED: readonly { name: string; series?: { id: string; title: string }; episode?: string }[] = [
+  { name: 'Dark.S01E01.mkv', series: { id: 'dark', title: 'Dark' }, episode: 'S01E01' },
+  { name: 'Lost.S01E01.mkv', series: { id: 'lost', title: 'Lost' }, episode: 'S01E01' },
+  { name: 'Dark.S01E02.mkv', series: { id: 'dark', title: 'Dark' }, episode: 'S01E02' },
+  { name: 'trailer.mkv' },
+  { name: 'Lost.S01E02.mkv', series: { id: 'lost', title: 'Lost' }, episode: 'S01E02' },
+  { name: 'Dark.S01E03.mkv', series: { id: 'dark', title: 'Dark' }, episode: 'S01E03' },
+  { name: 'Fargo.S01E01.mkv', series: { id: 'fargo', title: 'Fargo' }, episode: 'S01E01' },
+];
+const TV_N = TV_IDENTIFIED.length;
+const TV_LAST_FIRST = { files: TV_IDENTIFIED.map((f, i): TvFile => ({ name: f.name, sizeMB: TV_N - i })) };
+const TV_FIRST_FIRST = { files: TV_IDENTIFIED.map((f, i): TvFile => ({ name: f.name, sizeMB: i + 1 })) };
+const TV_EQUAL = { files: TV_IDENTIFIED.map((f): TvFile => ({ name: f.name, sizeMB: 2 })) };
+/** The series the files belong to, sorted — from the table, a second source beside the run's own `gated` keys. */
+const TV_KEYS = [...new Set(TV_IDENTIFIED.flatMap((f) => (f.series ? [f.series.id] : [])))].sort();
+/** Every series with more than one file: where *first to arrive* and *lowest index* CAN differ. */
+const TV_MULTI = TV_KEYS.filter((k) => TV_IDENTIFIED.filter((f) => f.series?.id === k).length > 1);
+/** `distinct`'s three routes over the table: one `first` per series, the rest of the identified files `duplicate`, the unidentified `nokey`. */
+const TV_ROUTES = {
+  first: TV_KEYS.length,
+  duplicate: TV_IDENTIFIED.filter((f) => f.series).length - TV_KEYS.length,
+  nokey: TV_IDENTIFIED.filter((f) => !f.series).length,
+};
+/**
+ * **What a TV row dispatches BESIDE the per-series task** — from the flow's shape and the payload's arity: the map opens
+ * one `download` per file at once, each one's `beside` fan-out dispatches `thumbnail` then `identify` at `i.0` and
+ * `i.1`, and `publish` is last. **The fourteen `beside` ids are compared as a SET** (`TV_UNORDERED`): the order they are
+ * dispatched in is the order seven concurrent downloads SETTLE in, a fan-out's completion order, which `spec/` does not
+ * fix and `doc/workflow.md` section 5 rule 5 forbids a row to assert — W94's conformity reader, finding 2 (the first cut
+ * compared them in order, justified by the inline pool's timer FIFO, W51's exact class). **`setupSeries` is left out ON PURPOSE** — which file opens a series is the one thing P24
+ * decision 7 says no test may name, so its ids are asserted by the gate clause from the run's own `gated` elements.
+ */
+const tvDispatched = (run: string): string[] => [
+  ...TV_IDENTIFIED.map((_, i) => `${run}:download:${i}:0`),
+  ...TV_IDENTIFIED.flatMap((_, i) => [`${run}:thumbnail:${i}.0:0`, `${run}:identify:${i}.1:0`]),
+  `${run}:publish:-:0`,
+];
+/**
+ * **Every `beside` instance ends the SAME way whatever the gate decided** — the thumbnail ARRIVES and the other road
+ * EXITS at an `end`: `seriesReady` after the per-series task, `dropDuplicate`, or `dropUnidentified`. That is why the
+ * flow sends the per-series road to its own `end` rather than into the per-file join: W94's declaration found that
+ * with it joining, every field naming `beside`'s record would name the winner, and decision 7 would hold only by care.
+ */
+const tvUnordered = (run: string): string[] => TV_IDENTIFIED.flatMap((_, i) => [`${run}:thumbnail:${i}.0:0`, `${run}:identify:${i}.1:0`]);
+const TV_INSTANCES = {
+  beside: Object.fromEntries(TV_IDENTIFIED.map((_, i) =>
+    [String(i), { joined: true, settled: { [`${i}.0`]: 'arrived' as const, [`${i}.1`]: 'exited' as const } }])),
+};
+const TV_MAP_SETTLED = Object.fromEntries(TV_IDENTIFIED.map((_, i) => [String(i), 'arrived' as const]));
+/** The region events per branch: the map's and the thumbnail's arrive, the gate road's EXITS — `all` for the first row, the gate road alone for the other two. */
+const tvBranchEvents = (all: boolean): Record<string, string[]> => Object.fromEntries([
+  ...(all ? TV_IDENTIFIED.map((_, i) => [String(i), ['branch.opened', 'branch.arrived']]) : []),
+  ...(all ? TV_IDENTIFIED.map((_, i) => [`${i}.0`, ['branch.opened', 'branch.arrived']]) : []),
+  ...TV_IDENTIFIED.map((_, i) => [`${i}.1`, ['branch.opened', 'branch.exited']]),
+]);
+/** `thumbnail`'s documented answer: the name with its extension replaced by `.jpg`, under `thumbs/`. */
+const tvThumb = (name: string) => ({ name, thumbnail: `thumbs/${name.slice(0, name.lastIndexOf('.'))}.jpg` });
+/**
+ * **What `publish` receives is `JP-R12` at TWO levels and it names NO winner**: `all`'s record is one entry per map
+ * branch, each being that branch's `perFile` record — which holds the thumbnail at `i.0` and nothing at `i.1`, because
+ * the gate road EXITED in every instance.
+ */
+const tvPublish = () => ({
+  published: true,
+  joinPayload: Object.fromEntries(TV_IDENTIFIED.map((f, i) => [String(i), { [`${i}.0`]: tvThumb(f.name) }])),
+});
+const tvResults = (run: string, files: readonly TvFile[], which: 'all' | 'identify' | 'publish'): Record<string, unknown> => ({
+  ...(which === 'all' ? Object.fromEntries(files.map((f, i) => [`${run}:download:${i}:0`, { name: f.name, sizeMB: f.sizeMB, path: `cache/${f.name}` }])) : {}),
+  ...(which === 'all' ? Object.fromEntries(files.map((f, i) => [`${run}:thumbnail:${i}.0:0`, tvThumb(f.name)])) : {}),
+  // `realm: 'harness'` — these rows run `identify` INLINE, in this module's realm (the adequacy reader's finding 4).
+  ...(which !== 'publish' ? Object.fromEntries(TV_IDENTIFIED.map((f, i) => [`${run}:identify:${i}.1:0`, { ...f, realm: 'harness' }])) : {}),
+  [`${run}:publish:-:0`]: tvPublish(),
+});
+const TV_GATE = { node: 'dedupe', from: 'identify', opens: 'setupSeries', keys: TV_KEYS, routes: TV_ROUTES };
 
 const HIGH = { confidence: 0.9 };
 const LOW = { confidence: 0.1 };
@@ -3455,6 +3590,98 @@ const EXPECTED: Expectation[] = [
       'and its closing order claims rather than constants. It also runs the two-level carrier at ' +
       'N = 1, where the instance`s key is `0` and not `-`',
   },
+  {
+    /**
+     * **P24's EXIT ARTIFACT, and the row whose ARRANGEMENT makes both wrong selections differ from the right one** —
+     * [W94](../doc/work-items/w94-a-tv-series-ingest-through-a-gate-on-real-workers.md).
+     *
+     * Seven files, the LAST-first sizes: `identify` finishes the smallest file first, so `Fargo` (one file), then the
+     * last `Dark` and the last `Lost` reach the gate before anything else of their series — and the FIRST file
+     * dispatched to `identify` is the LAST to arrive. **The gate clause asserts that from the run's own sequence** and
+     * never names a file: exactly one `first` per series, the `first` branch the first of its series to arrive, the
+     * per-series task run for exactly those branches, and that arrival NOT the lowest index of `dark` or `lost`.
+     *
+     * `pathEnds` is the ORDER in which the roads ended and it names no file: three `seriesReady` (each opened series,
+     * in arrival order), the unidentified trailer, the three duplicates, then `done`.
+     */
+    key: 'tv-ingest / arranged LAST-first — the last file of each series reaches the gate first, so the first to ARRIVE is neither the lowest index nor the first dispatched',
+    definition: TV, policyId: 'live-token', payload: TV_LAST_FIRST, threaded: false,
+    outcome: 'completed',
+    dispatched: tvDispatched('r53'),
+    unorderedDispatch: tvUnordered('r53'),
+    regionId: 'episodes',
+    joined: true,
+    settled: TV_MAP_SETTLED,
+    regionInstances: TV_INSTANCES,
+    branchEvents: tvBranchEvents(true),
+    pathEnds: [
+      { reason: 'end', at: 'seriesReady' }, { reason: 'end', at: 'seriesReady' }, { reason: 'end', at: 'seriesReady' },
+      { reason: 'end', at: 'dropUnidentified' },
+      { reason: 'end', at: 'dropDuplicate' }, { reason: 'end', at: 'dropDuplicate' }, { reason: 'end', at: 'dropDuplicate' },
+      { reason: 'end', at: 'done' },
+    ],
+    nodeResults: tvResults('r53', TV_LAST_FIRST.files, 'all'),
+    gate: { ...TV_GATE, realm: 'harness', arranged: 'last-first' },
+    why: 'W94 — P24`s EXIT ARTIFACT on real workers: a TV library`s files through a `map`, each fetched and fanned out ' +
+      'BESIDE into a thumbnail and a `distinct` GATE keyed on `series.id`. Exactly ONE file per series opens the ' +
+      'per-series work and every other file ends at an `end`; thumbnails run for all seven; both joins fire and the run ' +
+      'completes. The sizes are ARRANGED so the last file of each series arrives first, which makes first-to-arrive ' +
+      'differ from the lowest index and from the first dispatched — asserted from the run`s own sequence, never a file name',
+  },
+  {
+    /**
+     * **The pair: the same seven files, the sizes in the OPPOSITE order** — so the order the gate sees IS the index
+     * order, the default position [Q379](../doc/open-questions.md) warns about, taken deliberately as the other half.
+     * A DIFFERENT file opens `dark` and `lost` than in the row above and the count per series is the same, which the
+     * cross-row block asserts: *exactly one per series whatever order the files arrive in* (P24's exit sentence).
+     */
+    key: 'tv-ingest / arranged FIRST-first (the pair) — the same files in index order, so a DIFFERENT file opens each series and the count is the same',
+    definition: TV, policyId: 'live-token', payload: TV_FIRST_FIRST, threaded: false,
+    outcome: 'completed',
+    dispatched: tvDispatched('r54'),
+    unorderedDispatch: tvUnordered('r54'),
+    regionId: 'episodes',
+    joined: true,
+    settled: TV_MAP_SETTLED,
+    regionInstances: TV_INSTANCES,
+    branchEvents: tvBranchEvents(false),
+    pathEnds: [
+      { reason: 'end', at: 'seriesReady' }, { reason: 'end', at: 'seriesReady' },
+      { reason: 'end', at: 'dropDuplicate' }, { reason: 'end', at: 'dropUnidentified' },
+      { reason: 'end', at: 'dropDuplicate' }, { reason: 'end', at: 'dropDuplicate' },
+      { reason: 'end', at: 'seriesReady' },
+      { reason: 'end', at: 'done' },
+    ],
+    nodeResults: tvResults('r54', TV_FIRST_FIRST.files, 'identify'),
+    gate: { ...TV_GATE, realm: 'harness', arranged: 'first-first' },
+    why: 'W94 — the pair for the row above: the same files with the sizes reversed, so the gate sees them in index ' +
+      'order. A different file opens each multi-file series and exactly one still does, which is the whole of P24 ' +
+      'decision 7 on real workers',
+  },
+  {
+    /**
+     * **Threaded, at EQUAL work, and no winner asserted** — the POOL decides the order. W94's declaration measured it:
+     * four winner sets over ten runs in node and two in deno, where Deno's threaded order is close to the index order
+     * (28 of 30 keys), so this row cannot discriminate the two selections and does not claim to. What it claims is the
+     * one thing that must hold whatever the pool does: one `first` per series, the per-series task for exactly those
+     * branches, what reached the gate handed on, and a thumbnail for every file. `pathEnds` is undeclared because its
+     * ORDER is the pool's.
+     */
+    key: 'tv-ingest / threaded, equal work — the pool decides the order and exactly one file per series still opens it',
+    definition: TV, policyId: 'live-token', payload: TV_EQUAL, threaded: true,
+    outcome: 'completed',
+    dispatched: tvDispatched('r55'),
+    unorderedDispatch: tvUnordered('r55'),
+    regionId: 'episodes',
+    joined: true,
+    settled: TV_MAP_SETTLED,
+    regionInstances: TV_INSTANCES,
+    branchEvents: tvBranchEvents(false),
+    nodeResults: tvResults('r55', TV_EQUAL.files, 'publish'),
+    gate: { ...TV_GATE, realm: 'thread' },
+    why: 'W94 — the same flow with `identify` on THREADS at equal work: whatever order the pool delivers, exactly one ' +
+      'file per series opens it and every file gets its thumbnail. No winner and no order is asserted',
+  },
 ];
 
 // --- assertions ---------------------------------------------------------------
@@ -3801,8 +4028,11 @@ for (const [i, e] of EXPECTED.entries()) {
       ids.filter((id) => !loose.has(id)),
       ids.filter((id) => loose.has(id)).slice().sort(),
     ] as const;
-    const [gotOrdered, gotLoose] = split(report.dispatched);
-    const [wantOrdered, wantLoose] = split(e.dispatched);
+    // **W94: a row with a GATE leaves the per-series task's ids to the gate clause**, which derives them from the run's
+    // own `gated` elements — P24 decision 7: which file opens a series varies between runs, so no literal may name it.
+    const besideGate = (ids: readonly string[]) => (e.gate ? ids.filter((id) => parseTaskId(id).nodeId !== e.gate!.opens) : ids);
+    const [gotOrdered, gotLoose] = split(besideGate(report.dispatched));
+    const [wantOrdered, wantLoose] = split(besideGate(e.dispatched));
     check(e.key, 'dispatched task ids, in order — spec/task-id.md', gotOrdered, wantOrdered);
     if (loose.size > 0) {
       check(e.key, 'and the ids whose dispatch order the RUN does not fix, as a set',
@@ -3831,8 +4061,15 @@ for (const [i, e] of EXPECTED.entries()) {
   // `spec/run-state.md` section 3's discriminant between `completed` and `failed`,
   // asserted directly rather than only through the outcome it produces.
   if (e.pathEnds) {
+    // **A row through a GATE compares its path ends as a MULTISET** — W94's confirming gate, RED in deno on the LAST-first
+    // row: the per-series road reaches `seriesReady` only once its task SETTLES, while a drop ends synchronously at the gate,
+    // so the two interleave by a task's COMPLETION time — a fan-out completion order, which `spec/` does not fix and section
+    // 5 rule 5 forbids asserting (the conformity reader's finding 2, one field over; ten green runs held it by timing
+    // alone). The ORDER the gate decided in is asserted where it is a fact — the arrangement clause's `arrival`.
+    const endsOf = (ends: readonly { reason: string; at: string }[]) =>
+      e.gate ? [...ends].map((x) => JSON.stringify(x)).sort().map((x) => JSON.parse(x) as { reason: string; at: string }) : ends;
     check(e.key, 'pathEnds — section 3 discriminates completed from failed by these',
-      report.state.pathEnds, e.pathEnds);
+      endsOf(report.state.pathEnds), endsOf(e.pathEnds));
   }
   if (e.regionSuspended) {
     check(e.key, 'regions[*].suspended — who is parked on a person right now',
@@ -4106,6 +4343,71 @@ for (const [i, e] of EXPECTED.entries()) {
       .filter((x) => x.kind === 'region' && x.event.branchPath === branch)
       .map((x) => `${(x as { event: { regionId: string } }).event.regionId}@${(x as { event: { regionPath: string } }).event.regionPath}`))].sort();
     check(e.key, `ADR 0062 rule 3: branch ${branch}'s region events all name the instance ${want}`, got, [want]);
+  }
+
+  // **W94 — the GATE, from the run's OWN `gated` elements, and no assertion here names a file** (P24 decision 7). Six
+  // claims on every row that declares `gate`, and a seventh — the ARRANGEMENT's own effect — on the two that arrange
+  // it. Each expected side is the PAYLOAD's (`keys`, `routes`, the file names) or a relation over the run, never a
+  // literal naming which file won.
+  if (e.gate) {
+    const g = e.gate;
+    const files = e.payload.files ?? [];
+    const gated = report.inputs.filter((x): x is Extract<FoldInput, { kind: 'gated' }> => x.kind === 'gated');
+    const itemOf = (bp: string) => Number(bp.split('.')[0]);
+    const runId = report.state.runId ?? 'no-run';
+    const count = (route: string) => gated.filter((x) => x.route === route).length;
+    check(e.key, 'the gate decided ONCE per file, at the declared gate — its route counts, P24 decision 4`s three routes',
+      { gates: [...new Set(gated.map((x) => x.gateId))], decisions: gated.length, first: count('first'), duplicate: count('duplicate'), nokey: count('nokey') },
+      { gates: [g.node], decisions: files.length, ...g.routes });
+    check(e.key, 'exactly ONE `first` per series, across every map instance — the memory is the RUN`s, one per gate (P24 stop-and-ask (a))',
+      gated.filter((x) => x.route === 'first').map((x) => String(x.key)).sort(), [...g.keys]);
+    check(e.key, 'the branch routed `first` for each series is the FIRST of that series to ARRIVE at the gate — P24 decision 7, read from the run`s own sequence',
+      g.keys.filter((k) => gated.find((x) => x.key === k)?.route !== 'first'), []);
+    check(e.key, 'the per-series task ran for EXACTLY the branches the gate routed `first`, both ways — derived from the run`s gated elements, never a literal naming a file',
+      report.dispatched.filter((id) => parseTaskId(id).nodeId === g.opens).sort(),
+      gated.filter((x) => x.route === 'first').map((x) => `${runId}:${g.opens}:${x.branchPath}:0`).sort());
+    check(e.key, 'RN-R26: RunState.gated IS the run`s gated fold inputs, in order — the fold`s own copy of every decision',
+      report.state.gated.map((d) => [d.gateId, d.branchPath, d.route, d.key ?? null]),
+      gated.map((d) => [d.gateId, d.branchPath, d.route, d.key ?? null]));
+    // **ADR 0066 rule 1 — what LEFT the gate is what REACHED it**: the per-series worker returns the file NAME it
+    // received, which neither the gate's key (`series.id`) nor its settings carry, so a gate that handed on either would
+    // leave `openedBy` empty. Compared to the name the PAYLOAD has at the branch the gate recorded, and the series to
+    // the key it recorded there — both halves from outside the per-series task.
+    // **Every field `identify` returns, against the FILE TABLE at the recorded branch** — the adequacy reader's finding 2:
+    // compared on the name and the series alone, a gate handing on the name and the key and nothing else read green in
+    // both runtimes, at L1 and in `check:docs`.
+    check(e.key, 'ADR 0066 rule 1: what LEFT the gate is what REACHED it — each per-series task received its own branch`s whole identify result, the name neither the key nor the settings carries',
+      Object.entries(report.state.nodes).filter(([id]) => parseTaskId(id).nodeId === g.opens).map(([id, n]) => {
+        const r = n.result as { series?: unknown; openedBy?: unknown } | null;
+        return { id, series: (r as { series?: unknown } | null)?.series, title: (r as { title?: unknown } | null)?.title,
+          episode: (r as { episode?: unknown } | null)?.episode, openedBy: r?.openedBy };
+      }).sort((a, b) => a.id.localeCompare(b.id)),
+      gated.filter((x) => x.route === 'first').map((x) => ({
+        id: `${runId}:${g.opens}:${x.branchPath}:0`, series: x.key, title: TV_IDENTIFIED[itemOf(x.branchPath)]?.series?.title,
+        episode: TV_IDENTIFIED[itemOf(x.branchPath)]?.episode, openedBy: files[itemOf(x.branchPath)]?.name,
+      })).sort((a, b) => a.id.localeCompare(b.id)));
+    // **The realm the `from` task ran in — threads on the threaded row, this module's realm on the others** (the adequacy
+    // reader's finding 4: the threaded row read green with `threaded: false`, nothing reading what the pool was).
+    check(e.key, 'the per-file task before the gate ran in the realm the row asks for — a THREAD on the threaded row',
+      [...new Set(Object.entries(report.state.nodes).filter(([id]) => parseTaskId(id).nodeId === g.from).map(([, n]) => (n.result as { realm?: unknown } | null)?.realm))],
+      [g.realm]);
+    if (g.arranged) {
+      const byKey = new Map<string, number[]>();
+      for (const x of gated) if (typeof x.key === 'string') byKey.set(x.key, [...(byKey.get(x.key) ?? []), itemOf(x.branchPath)]);
+      // **Two halves: the arrangement DID its work, and it made the selection DIFFER.** The branches reached the gate in
+      // the order of the files' SIZES — the arrangement's own effect, read from the run's sequence — and, on the LAST-first
+      // row, the first to arrive is not the lowest index of any multi-file series. *(The first cut's second half compared
+      // the first arrival with the first `identify` DISPATCHED, which rests on seven concurrent downloads settling in
+      // index order — a completion order (W94's conformity reader, finding 2). And its adequacy reader (finding 5) found the
+      // two wrong selections are ONE here: identify is dispatched per file as its download settles, so within a series the
+      // first dispatched IS the lowest index, and this fixture discriminates the two together or not at all.)*
+      const bySize = files.map((f, i) => [f.sizeMB, i] as const).sort((a, b) => a[0] - b[0]).map(([, i]) => i);
+      check(e.key, 'the ARRANGEMENT`s own effect (Q379) — the branches reached the gate in the order of the files` SIZES, and ' + (g.arranged === 'last-first'
+        ? 'so the first to ARRIVE is not the lowest index of any multi-file series'
+        : 'so the order IS the index order, the pair`s other half'),
+        { notLowest: [...byKey].filter(([, idx]) => idx[0] !== Math.min(...idx)).map(([k]) => k).sort(), arrival: gated.map((x) => itemOf(x.branchPath)) },
+        { notLowest: g.arranged === 'last-first' ? TV_MULTI : [], arrival: bySize });
+    }
   }
 
   // **Q32 — every dispatched node produces an outcome record.** Cheap insurance
@@ -4483,7 +4785,10 @@ for (const [i, e] of EXPECTED.entries()) {
     // is untouched, because the two fields answer different questions.
     + Object.values(e.regionInstances ?? {}).reduce((n, byPath) => n + Object.keys(byPath).length * 2, 0)
     // W86: one per declared `regionEventKeys` branch — ADR 0062 rule 3 at this rung.
-    + Object.keys(e.regionEventKeys ?? {}).length;
+    + Object.keys(e.regionEventKeys ?? {}).length
+    // W94: seven gate claims on a row that declares `gate` (six, and the realm since the readers), and the arrangement's own
+    // effect where it declares one.
+    + (e.gate ? 7 + (e.gate.arranged ? 1 : 0) : 0);
   if (arrivedInRun(e) > 0) {
     // **The OTHER side's size is in the assertion, and it has to be** — W55's
     // adequacy reader, BLOCKING. `peakAliasingLog` is the size of an intersection,
@@ -4842,6 +5147,9 @@ const ROW_KEYS: readonly string[] = [
   'nonconforming — two words (the control)',
   'fan-out-per-item / P22 — a map whose branch opens a MAP, two instances of one opener, overlapping',
   'fan-out-per-item / ONE item (the control) — one instance, so no two of them ever hold at once',
+  'tv-ingest / arranged LAST-first — the last file of each series reaches the gate first, so the first to ARRIVE is neither the lowest index nor the first dispatched',
+  'tv-ingest / arranged FIRST-first (the pair) — the same files in index order, so a DIFFERENT file opens each series and the count is the same',
+  'tv-ingest / threaded, equal work — the pool decides the order and exactly one file per series still opens it',
 ];
 
 /**
@@ -4896,6 +5204,17 @@ const PER_ROW_SUBJECTS: readonly [string, (rows: readonly Expectation[]) => numb
   // nothing but `DECLARED_TOTAL` counting it. v0.14's *a count is not a membership*, in the file
   // that records the clause.
   ['ran on, read off scheduler.tasks', (rows) => rows.filter((e) => Object.keys(e.poolOfTask ?? {}).length > 0).length],
+  // **W94 — the gate clause's claims AND its control, by name** (v0.18: a membership names the controls beside its
+  // claims). `decided ONCE per file` is the control: without it the other five compare empty lists on a run that
+  // reached no gate at all.
+  ['the gate decided ONCE per file', (rows) => rows.filter((e) => e.gate).length],
+  ['exactly ONE `first` per series', (rows) => rows.filter((e) => e.gate).length],
+  ['is the FIRST of that series to ARRIVE', (rows) => rows.filter((e) => e.gate).length],
+  ['the per-series task ran for EXACTLY the branches', (rows) => rows.filter((e) => e.gate).length],
+  ['RunState.gated IS the run`s gated fold inputs', (rows) => rows.filter((e) => e.gate).length],
+  ['what LEFT the gate is what REACHED it', (rows) => rows.filter((e) => e.gate).length],
+  ['the ARRANGEMENT`s own effect', (rows) => rows.filter((e) => e.gate?.arranged).length],
+  ['ran in the realm the row asks for', (rows) => rows.filter((e) => e.gate).length],
 ];
 
 // **The two W57 observers above are vacuous on a row that dispatched nothing, so this says they
@@ -5041,11 +5360,20 @@ const CROSS_ROW_SUBJECTS = [
   'a run started with NO options completes',
   'the runtime MINTED the run id',
   'it is the id this RUN dispatched under',
-  'the types whose `inline` the document leaves UNSAID are exactly the two this file expects',
+  'the types whose `inline` the document leaves UNSAID are exactly the three this file expects',
   'a node whose worker entry declares NO settingsSchema takes any settings at all',
   // W72 — the clause was rewritten from four entries to the rule's enumeration over fourteen, and the
   // corpus's examples gained a subject of their own: a membership names its claims (v0.14).
-  'the runtime CARRIES every schema the seventeen worker entries declare, exactly',
+  'the runtime CARRIES every schema the twenty-one worker entries declare, exactly',
+  // W94 — block (2h)'s three claims and two controls, and the TV pair's two claims and its route control.
+  'W94 (2h): at EVERY kill point the TV ingest resumed',
+  'W94 (2h): and the replay REGENERATED every stored `gated` element',
+  'W94 (2h): and the re-dispatched ids are the killed process`s in-flight set',
+  'W94 (2h) CONTROL: the sweep is EVERY kill point',
+  'W94 (2h) CONTROL: the selections DISCRIMINATE',
+  'W94: the LAST-first and FIRST-first rows are a PAIR',
+  'W94: and the SAME series were opened once each',
+  'W94: and every route `distinct` DECLARES was TAKEN',
   'every schema every corpus worker entry declares carries an `examples`',
   'the pool map is read off the SCHEDULER`s own task map',
   'CONSTRUCT a pool, a scheduler, a Driver or a built-in resource group are exactly the ones that DECLARE it',
@@ -5084,13 +5412,13 @@ const CROSS_ROW_SUBJECTS = [
   // since v0.18, and v0.22 is why each names the tree it fails on rather than the emptiness of an
   // operand: the overlap walk's claim is a RELATION over a sequence, so a control over one of its
   // operands would stay exactly as true after the claim was made a tautology.
-  'the openers that do are exactly the ones this item adds',
+  'the openers that do are exactly W86`s `map` in a `map` and W94`s `fanout` in a `map`',
   'CONTROL: and the same detector asked about a FANOUT region',
   'one opener is entered once per outer item',
   'perShard@0 was STILL HOLDING',
   'the NON-FIRST instance closed FIRST',
   'CONTROL: the same flow at ONE item',
-  'CONTROL: and across every row this rung runs, EXACTLY ONE',
+  'CONTROL: and across every row this rung runs, ONLY the P22 artifact and the rows through a gate',
   'rows this block is about both RAN',
   'the two collections are DISJOINT',
   'the pair IS the region, over every ROW this rung runs',
@@ -5673,22 +6001,21 @@ check('cross-row', 'EXPECTED runs exactly the rows this file declares, in order'
   }
   const kindsAtL6 = new Set<string>();
   for (const e of EXPECTED) for (const n of e.definition.nodes) kindsAtL6.add(n.kind);
-  // **`gate` is EXEMPT until W94, and the exemption EXPIRES LOUDLY** — W92, a declared exception. A valid gate
-  // document entered the corpus at `spec/flow-definition.md` v0.23, and no L6 row CAN run one: `new Driver`
-  // refuses a gate flow at construction until W93, and the row is W94's exit artifact. So a kind is flagged
-  // when it is in the corpus and missing here and NOT exempt — or exempt and PRESENT here, or exempt and in
-  // no corpus flow at all — and it is one clause, so the count does not move: the day W94's row runs a gate,
-  // this names `gate` until the exemption is removed. *A dated exemption with no expiry is a hole.*
-  const NOT_YET_AT_L6 = ['gate'];
-  // **And the clause is evaluated on TWO constructed inputs beside the real one, inside the same check** — W92's
-  // adequacy reader (#18): replaced by `.filter(() => false)` the clause went on printing `[]`, green at 1853, and the
-  // expiry half had no live case at all. On a corpus with a PHANTOM kind no row runs, it must name it; with `gate`
-  // present at L6 while still exempt, it must name `gate`. Neither tree exists — the clause is shown able to fail on
-  // each, and the count does not move.
-  const flagged = (corpus: ReadonlySet<string>, atL6: ReadonlySet<string>) => [...new Set([...corpus, ...NOT_YET_AT_L6])].sort()
-    .filter((k) => !corpus.has(k) || atL6.has(k) === NOT_YET_AT_L6.includes(k));
+  // **`gate` WAS exempt until W94, and the exemption EXPIRED LOUDLY, as W92 built it to** — a valid gate document
+  // entered the corpus at `spec/flow-definition.md` v0.23 and no L6 row could run one until P24's exit artifact, so
+  // W92 flagged a kind that was exempt and PRESENT here. **W94's three TV rows made it red on their first run** —
+  // `[["gate"],["gate","phantom"],["gate"]]` against `[[],["phantom"],["gate"]]`, logged in
+  // `dev-dist/w94/b1-l6.log` — and the exemption was then removed: a kind is flagged when it is in the corpus and
+  // missing here, with nothing exempt. *A dated exemption with no expiry is a hole*; this one had one, and it fired.
+  //
+  // **And the clause is still evaluated on TWO constructed inputs beside the real one, inside the same check** —
+  // W92's adequacy reader (#18): replaced by `.filter(() => false)` the clause went on printing `[]`. On a corpus
+  // with a PHANTOM kind no row runs, it must name it; and with the kind W94 added taken back OUT of L6, it must name
+  // `gate` — the second input's meaning changed with the exemption (it was *`gate` present while exempt*). Neither
+  // tree exists; the clause is shown able to fail on each, and the count does not move.
+  const flagged = (corpus: ReadonlySet<string>, atL6: ReadonlySet<string>) => [...corpus].sort().filter((k) => !atL6.has(k));
   check('cross-row', 'L6 runs a flow containing every node kind the spec corpus expresses',
-    [flagged(kindsInCorpus, kindsAtL6), flagged(new Set([...kindsInCorpus, 'phantom']), kindsAtL6), flagged(kindsInCorpus, new Set([...kindsAtL6, 'gate']))],
+    [flagged(kindsInCorpus, kindsAtL6), flagged(new Set([...kindsInCorpus, 'phantom']), kindsAtL6), flagged(kindsInCorpus, new Set([...kindsAtL6].filter((k) => k !== 'gate')))],
     [[], ['phantom'], ['gate']]);
   // The negative control: the set is non-empty, so the clause above is not vacuous
   // on an empty corpus read. Without it a `listDir` that returns nothing passes.
@@ -6901,8 +7228,10 @@ if (checkOff !== null) {
     return [...new Set(out)].sort();
   };
   check('cross-row', 'ADR 0062 rule 4: L6 runs a region whose opener sits INSIDE a `map` region — the shape W33 refused at ' +
-    'Driver construction — and the openers that do are exactly the ones this item adds, both ways',
-    openersInsideAKindOfRegion('map'), ['fan-out-per-item:perShard']);
+    'Driver construction — and the openers that do are exactly W86`s `map` in a `map` and W94`s `fanout` in a `map`, both ways',
+    // **+1 since W94**: the TV ingest's `beside` is a FANOUT opened once per file inside `episodes`, so it is the second
+    // opener here and the first of the two kinds ADR 0062 rule 4 names together — `fanout`-in-`map`.
+    openersInsideAKindOfRegion('map'), ['fan-out-per-item:perShard', 'tv-ingest:beside']);
   // **The SAME set by a completely different road — ADR 0062 consequence 6** — and it is the
   // adequacy reader's finding 2, BLOCKING: the clause above could have its `map` arm HARD-CODED to
   // `perShard` with the `fanout` arm left real, and the declared control (which asks that the
@@ -6993,6 +7322,8 @@ if (checkOff !== null) {
     'held at once, so the two clauses above are claims about THIS run rather than constants',
     { together: walkB.maxTogether, others: walkB.othersAtClose['perShard@0'], closed: walkB.closedOrder },
     { together: 1, others: [], closed: ['perShard@0', 'perWord@-'] });
+  // *(W94: fifty-five rows of a hundred and fifty-four runs now, and FOUR hold two instances at once — the paragraph just
+  // below this one's first sentence was left reading the old figures by W94's first cut; its conformity reader, 5d.)*
   // **CONTROL 2: over every ROW.** Fifty-two rows of the rung's hundred runs, and exactly one of them ever had two
   // instances of one opener holding together *(this read *the whole rung* and *SIXTY real runs* — true until W90's
   // forty runs, which the walk does not reach. W90's conformity reader)* — so the walk is not *true of everything it is shown*.
@@ -7008,9 +7339,13 @@ if (checkOff !== null) {
   // replaces this predicate whole, so a counter inside it goes to zero and the pair is red.
   let rowsWalked = 0;
   const runsWithTwoTogether = EXPECTED.filter((_, i) => { rowsWalked++; return walksHere[i]!.maxTogether > 1; }).map((e) => e.key);
-  check('cross-row', 'CONTROL: and across every row this rung runs, EXACTLY ONE has two instances of one opener holding ' +
+  // **Four since W94, and the three it adds are DERIVED from the rows that declare a gate**: the TV ingest opens a `beside`
+  // fan-out per file, all seven at once, and each holds its thumbnail's arrival until the gate road exits — so its runs
+  // have seven instances of one opener holding together by construction. The control's claim is unchanged: the walk is
+  // not true of everything it is shown (fifty-one of fifty-five rows read one).
+  check('cross-row', 'CONTROL: and across every row this rung runs, ONLY the P22 artifact and the rows through a gate have two instances of one opener holding ' +
     'together — the walk is not true of everything it is shown, and it was SHOWN every one of them',
-    { only: runsWithTwoTogether, rowsWalked }, { only: [ARTIFACT], rowsWalked: EXPECTED.length });
+    { only: runsWithTwoTogether, rowsWalked }, { only: [ARTIFACT, ...EXPECTED.filter((e) => e.gate).map((e) => e.key)], rowsWalked: EXPECTED.length });
 
   // **`soleRegion` REFUSES a multi-instance opener and ANSWERS a single-instance one, and this is
   // its first live case anywhere** — the adequacy reader's finding 6, and it is W84's conformity
@@ -7611,6 +7946,239 @@ if (killResume !== null) {
 }
 
 /**
+ * **Block (2h) — W94, P24's EXIT ARTIFACT, its second half: the TV ingest KILLED at EVERY kill point and RESUMED on a
+ * FRESH runtime** — [W94](../doc/work-items/w94-a-tv-series-ingest-through-a-gate-on-real-workers.md),
+ * [ADR 0067](../doc/decisions/0067-a-gate-runs-in-the-driver-its-memory-is-the-drivers-and-its-decision-is-recorded.md)
+ * rule 2 and `RN-R26`: the gate's memory is a DRIVER field created empty and REBUILT by replay, never written down.
+ *
+ * **Block (2g)'s kill, one flow on**: the consumer's store keyed by POSITION and FROZEN mid-step at the K-th stimulus
+ * (inside `onFoldInput`), then `runtime.shutdown()` — which DRAINS ([Q376](../doc/open-questions.md)), so the killed
+ * process runs to completion and its driver's memory ends holding EVERY key — and `runtime.resume` on a fresh runtime
+ * from the store. Every `done` is BOUNDED and every runtime shut down in a `finally` ([Q323](../doc/open-questions.md));
+ * a refused resume is a FINDING carried in the point, never a crash of this block.
+ *
+ * **What it SELECTS, and where each well-formed wrong selection DIFFERS** (`doc/workflow.md` rule 8 obligation (a)):
+ *
+ *   - **the kill point** — EVERY stimulus of the run, 25 of them: BEFORE the first decision (fifteen at W94's
+ *     declaration — [Q386](../doc/open-questions.md)'s case, where a memory kept by the PROCESS resumed WRONG in
+ *     silence at W93's), BETWEEN decisions, and AFTER the last;
+ *   - **the resumed memory** — the one the replay rebuilds, against a FRESH one (which would route `first` again a key
+ *     decided before the cut) and the KILLED process's (which drained to every key, so would route every later
+ *     `first` as `duplicate`). Both wrong answers are DERIVED from the killed process's own sequence, never from the
+ *     resumed driver being judged, and the control below requires each to differ somewhere in the sweep;
+ *   - **identical** — outcome, every node's state and result, every branch's decision, and the gate's MEMORY, read
+ *     from the resumed DRIVER's private field (`gateMemory`, a map this harness reads the way `rawArrivalsOf` reads
+ *     `arrivals`) against a run nobody killed.
+ *
+ * The flow and payload are the LAST-first row's, on the INLINE pool: W94's declaration measured 25 / 25 identical in
+ * both runtimes there, and on threads too — but a thread's timing moves an arrival past the kill, which is the pool's
+ * right, so the sweep is where the arrangement holds by construction.
+ */
+type GateKillPoint = {
+  K: number;
+  stored: number;
+  category: 'before the first decision' | 'between decisions' | 'after the last decision';
+  freshDiffers: boolean;
+  killedDiffers: boolean;
+  killedMemoryComplete: boolean;
+  prefixRegenerated: boolean;
+  /** The stimulus count at the instant the store froze — `K` itself, or the sweep ran duplicates (the adequacy reader's finding 1). */
+  killedAt: number;
+  /** The gate memory's keys the instant `runtime.resume` returned — the replay done, nothing live yet. */
+  rebuilt: string;
+  /** What the replay must have rebuilt: the keys the KILLED run decided up to the end of the replay (`q`). */
+  wantRebuilt: string;
+  ids: string[] | null;
+  derived: string[];
+  got: string;
+  want: string;
+};
+let gateKill: { points: GateKillPoint[]; stimuli: number; runs: string[] } | null = null;
+try {
+  const runs: string[] = [];
+  const RUN_ID = 'kg';
+  type Gated = Extract<FoldInput, { kind: 'gated' }>;
+  const gatedIn = (seq: readonly FoldInput[]) => seq.filter((i): i is Gated => i.kind === 'gated');
+  const decisionsOf = (st: RunState) => st.gated.map((d) => [d.branchPath, d.route, d.key ?? null]).sort();
+  const memoryOf = (d: Driver) =>
+    [...(d as unknown as { gateMemory: Map<string, Map<string, unknown>> }).gateMemory].map(([g, m]) => [g, [...m.keys()].sort()]);
+  const projection = (st: RunState, d: Driver) =>
+    `${st.outcome} ${JSON.stringify(nodesOf(st))} ${JSON.stringify(decisionsOf(st))} ${JSON.stringify(memoryOf(d))}`;
+  // The reference: nobody kills it.
+  const rtRef = buildRuntime(false, [TV]);
+  let want = '';
+  let refMemory = '';
+  let stimuli = 0;
+  try {
+    const h = rtRef.start(TV, TV_LAST_FIRST, { runId: RUN_ID });
+    runs.push('tv-ingest reference');
+    const won = await settleWithin(h.done, KILL_RESUME_DEADLINE_MS);
+    if (won.by !== 'done') throw new Error('the TV reference run never settled');
+    want = projection(won.value, h.driver);
+    refMemory = JSON.stringify(memoryOf(h.driver));
+    stimuli = h.driver.foldInputs().filter(isStimulus).length;
+  } finally { await rtRef.shutdown(); }
+  const points: GateKillPoint[] = [];
+  for (let K = 1; K <= stimuli; K++) {
+    // ---- the KILLED process: the store frozen mid-step at the K-th stimulus, then the runtime shut down (it drains).
+    const rt1 = buildRuntime(false, [TV]);
+    const store: FoldInput[] = [];
+    let frozen = false;
+    let seen = 0;
+    let header: CheckpointHeader | null = null;
+    let killedDriver: Driver | null = null;
+    try {
+      const h1 = rt1.start(TV, TV_LAST_FIRST, {
+        runId: RUN_ID,
+        onFoldInput: (i, seq) => {
+          if (frozen) return;                                // a dead process writes nothing
+          store[seq] = structuredClone(i);                   // the consumer's append, BY POSITION
+          if (isStimulus(i) && ++seen === K) frozen = true;
+        },
+      });
+      header = h1.header;
+      killedDriver = h1.driver;
+      runs.push(`tv-ingest killed K=${K}`);
+      for (let w = 0; !frozen && w < 3000; w++) await new Promise<void>((r) => setTimeout(r, 1));
+    } finally { await rt1.shutdown(); }
+    const killed = killedDriver!.foldInputs();
+    const pre = gatedIn(store);
+    const post = gatedIn(killed.slice(store.length));
+    const preKeys = new Set(pre.map((x) => JSON.stringify(x.key)));
+    const p = store.length - 1;
+    let q = killed.findIndex((i, j) => j > p && isStimulus(i));
+    if (q < 0) q = killed.length;
+    // ---- the RESUME on a fresh runtime.
+    const rt2 = buildRuntime(false, [TV]);
+    let got = '';
+    let ids: string[] | null = null;
+    let prefixRegenerated = false;
+    let rebuilt = 'NOT RESUMED';
+    try {
+      let h2: RunHandle | null = null;
+      try {
+        h2 = rt2.resume(TV, { header: header!, events: store.slice() });
+        // **Read where the memory is REBUILT, not where the run ends** — the conformity reader's finding 7: at the end of
+        // a completed run every memory holds every key, so an end-of-run comparison discriminates nothing. `resume`
+        // replays synchronously and returns, so this is the memory the replay built and nothing live has touched.
+        rebuilt = JSON.stringify(memoryOf(h2.driver));
+      } catch (err) {
+        got = `REFUSED ${refusalOf(err)}`;
+      }
+      if (h2 !== null) {
+        runs.push(`tv-ingest resumed K=${K}`);
+        const won = await settleWithin(h2.done, KILL_RESUME_DEADLINE_MS);
+        const seq = h2.driver.foldInputs();
+        got = won.by === 'done' ? projection(won.value, h2.driver) : 'NEVER SETTLED';
+        const at = seq[q];
+        ids = at?.kind === 'resumed' ? [...at.taskIds] : null;
+        prefixRegenerated = JSON.stringify(gatedIn(seq.slice(0, store.length))) === JSON.stringify(pre);
+      }
+    } finally { await rt2.shutdown(); }
+    points.push({
+      K,
+      stored: store.length,
+      category: pre.length === 0 ? 'before the first decision' : post.length === 0 ? 'after the last decision' : 'between decisions',
+      // A FRESH memory routes `first` any key it has not seen: wrong wherever a key decided before the cut comes again after it.
+      freshDiffers: post.some((x) => x.key !== undefined && preKeys.has(JSON.stringify(x.key))),
+      // The KILLED process's memory drained to every key: wrong wherever a decision after the cut was a `first`.
+      killedDiffers: post.some((x) => x.route === 'first'),
+      killedMemoryComplete: JSON.stringify(memoryOf(killedDriver!)) === refMemory,
+      prefixRegenerated,
+      killedAt: seen,
+      rebuilt,
+      wantRebuilt: JSON.stringify(gatedIn(killed.slice(0, q)).length === 0 ? [] : [['dedupe', [...new Set(gatedIn(killed.slice(0, q)).flatMap((x) => (x.key === undefined ? [] : [JSON.stringify(x.key)])))].sort()]]),
+      ids,
+      derived: inFlightIn(killed, q),
+      got,
+      want,
+    });
+  }
+  gateKill = { points, stimuli, runs };
+} catch (err) {
+  failures.push(`TV ingest kill and resume\n      the block THREW before its assertions could run — a crash is not a detection: ` +
+    `${err instanceof Error ? err.message.slice(0, 240) : String(err)}`);
+}
+if (gateKill !== null) {
+  const key = 'cross-row';
+  const gk = gateKill;
+  const by = (c: string) => gk.points.filter((p) => p.category === c).length;
+  console.log(`\n  P24 exit artifact — the TV ingest killed at all ${gk.points.length} kill points and resumed: ` +
+    `${by('before the first decision')} before the first decision, ${by('between decisions')} between, ${by('after the last decision')} after the last; ` +
+    `a FRESH memory would route differently at ${gk.points.filter((p) => p.freshDiffers).length}, the KILLED process's at ${gk.points.filter((p) => p.killedDiffers).length}\n`);
+  // *(The memory at the END of a completed run holds every key whatever road it took — the conformity reader's finding 7 —
+  // so this claim's memory term confirms the end state and nothing more; where the memory is REBUILT is the clause below.)*
+  check(key, 'W94 (2h): at EVERY kill point the TV ingest resumed on a fresh runtime is IDENTICAL to a run nobody killed — outcome, ' +
+    'every node, every branch`s gate decision, and the gate`s MEMORY at the end (RN-R26)',
+    gk.points.filter((p) => p.got !== p.want).map((p) => `K=${p.K} ${p.category}: ${p.got.slice(0, 200)}`), []);
+  // **And the memory the replay REBUILT, read the instant `resume` returned** — the keys the killed run had decided up to
+  // the end of the replay, which is what a FRESH memory (empty) and the KILLED process's (every key: it drained, Q376)
+  // are not. The adequacy reader's finding 3: a memory cleared the moment the replay ended was one observer from gone
+  // here, the identity claim alone; this is the second, and it reads the memory where the selection is made.
+  check(key, 'W94 (2h): and the replay REGENERATED every stored `gated` element exactly, and the memory it REBUILT is exactly the keys the killed run had decided by the end of the replay',
+    gk.points.filter((p) => !p.prefixRegenerated || p.rebuilt !== p.wantRebuilt).map((p) => `K=${p.K} prefix ${p.prefixRegenerated} rebuilt ${p.rebuilt} want ${p.wantRebuilt}`), []);
+  check(key, 'W94 (2h): and the re-dispatched ids are the killed process`s in-flight set at the END of the replay, at every kill point',
+    gk.points.filter((p) => JSON.stringify(p.ids) !== JSON.stringify(p.derived)).map((p) => `K=${p.K} ${JSON.stringify(p.ids)} vs ${JSON.stringify(p.derived)}`), []);
+  // ---- the CONTROLS (v0.22: each names the tree on which it fails while its claim passes).
+  // A sweep narrowed to a few kill points leaves every claim above true of fewer points — so the COUNT is asserted from
+  // two sources: the reference's own stimuli, and the PAYLOAD (three tasks a file — download, thumbnail, identify — one
+  // per-series task per series, and publish). Fails on a tree whose loop bound is capped.
+  check(key, 'W94 (2h) CONTROL: the sweep is EVERY kill point — one per stimulus of the reference, and that count from the PAYLOAD: three tasks a file, one per series, and publish — each point DISTINCT',
+    // **And the points are DISTINCT** — the adequacy reader's finding 1: a count cannot see K = 19..24 all killed at 18,
+    // which with a memory fresh between decisions read green in both runtimes. The stimulus count at each freeze is K,
+    // and the stored lengths strictly rise.
+    { points: gk.points.length, fromReference: gk.stimuli, runs: gk.runs.length,
+      killedAt: gk.points.map((p) => p.killedAt).join(), rising: gk.points.every((p, j) => j === 0 || p.stored > gk.points[j - 1]!.stored) },
+    { points: TV_N * 3 + TV_KEYS.length + 1, fromReference: TV_N * 3 + TV_KEYS.length + 1, runs: 1 + 2 * (TV_N * 3 + TV_KEYS.length + 1),
+      killedAt: Array.from({ length: TV_N * 3 + TV_KEYS.length + 1 }, (_, j) => j + 1).join(), rising: true });
+  // Fails on a tree whose kills all land before the first decision (a memory never rebuilt from anything) or whose
+  // arrangement puts every decision on one side of every cut — where identity says nothing about the memory at all.
+  check(key, 'W94 (2h) CONTROL: the selections DISCRIMINATE on this sweep — kill points before the first decision (Q386`s case), between and after the last; ' +
+    'points where a FRESH memory would route a later decision differently, and — between decisions — where the KILLED process`s would, having drained to every key (Q376)',
+    {
+      before: by('before the first decision') > 0, between: by('between decisions') > 0, after: by('after the last decision') > 0,
+      // `killedDiffers` is read BETWEEN decisions: before the first one every `first` is post-cut, so it held by
+      // construction wherever `before` did — a control entailed by another (the adequacy reader's finding 6).
+      freshDiffers: gk.points.some((p) => p.freshDiffers), killedDiffers: gk.points.some((p) => p.category === 'between decisions' && p.killedDiffers),
+      killedMemoryComplete: gk.points.every((p) => p.killedMemoryComplete),
+    },
+    { before: true, between: true, after: true, freshDiffers: true, killedDiffers: true, killedMemoryComplete: true });
+}
+
+/**
+ * **The TV rows' PAIR — P24's exit sentence, *exactly one per-series branch per series WHATEVER order the files arrive
+ * in*, on real workers.** W94. The LAST-first and FIRST-first rows run the same seven files with the sizes in opposite
+ * orders, and whatever makes a pair differ is itself a claim (`doc/workflow.md` rule 8), so the first clause asserts
+ * the arrangement differs in its ORDER and in nothing else; the second, read from each run's own `gated` elements,
+ * that a DIFFERENT file opened every multi-file series while the SAME series were opened, once each. **No file is
+ * named**: the claim is the difference, and each row's own clause says exactly one.
+ */
+{
+  const iLast = EXPECTED.findIndex((e) => e.gate?.arranged === 'last-first');
+  const iFirst = EXPECTED.findIndex((e) => e.gate?.arranged === 'first-first');
+  const filesOf = (i: number) => EXPECTED[i]?.payload.files ?? [];
+  const firstBy = (i: number) => Object.fromEntries((reports[i]?.inputs ?? [])
+    .filter((x): x is Extract<FoldInput, { kind: 'gated' }> => x.kind === 'gated' && x.route === 'first')
+    .map((x) => [String(x.key), x.branchPath]));
+  check('cross-row', 'W94: the LAST-first and FIRST-first rows are a PAIR — the same files and names, the SIZES in the opposite order, which is the whole of the arrangement',
+    { both: iLast >= 0 && iFirst >= 0, names: filesOf(iLast).map((f) => f.name), sizes: filesOf(iLast).map((f) => f.sizeMB) },
+    { both: true, names: filesOf(iFirst).map((f) => f.name), sizes: filesOf(iFirst).map((f) => f.sizeMB).reverse() });
+  const a = firstBy(iLast);
+  const b = firstBy(iFirst);
+  check('cross-row', 'W94: and the SAME series were opened once each in both runs by a DIFFERENT file for every multi-file series — exactly one per series WHATEVER the arrival order (P24 decision 7)',
+    { opened: [Object.keys(a).sort(), Object.keys(b).sort()], differ: TV_KEYS.filter((k) => a[k] !== undefined && b[k] !== undefined && a[k] !== b[k]) },
+    { opened: [TV_KEYS, TV_KEYS], differ: TV_MULTI });
+  // **Every route `distinct` DECLARES was TAKEN on the rows through a gate** — obligation (a)'s enumeration, and W94's
+  // own rule 8 planning found why it is needed: each row's expected route COUNTS derive from the file table, so a table
+  // that lost `trailer.mkv` took `nokey` out of every run with every per-row clause agreeing. Read from the TYPE — the
+  // one source the table cannot move — so the tree on which it fails is exactly that one.
+  const routesTaken = [...new Set(EXPECTED.flatMap((e, i) => (e.gate ? (reports[i]?.inputs ?? [])
+    .filter((x): x is Extract<FoldInput, { kind: 'gated' }> => x.kind === 'gated').map((x) => x.route) : [])))].sort();
+  check('cross-row', 'W94: and every route `distinct` DECLARES was TAKEN on the rows through a gate — read from the TYPE, never from the file table the rows derive their counts from',
+    routesTaken, [...distinct.routes].sort());
+}
+
+/**
  * **What `OR-R13` would cost this WHOLE RUNG, against the `structuredClone` `OR-R2` already pays on
  * the same settlements — PRINTED, and asserted by nothing** — W82, P21 decision 5.
  *
@@ -7669,7 +8237,7 @@ if (killResume !== null) {
 // counts is still possible, and this makes it one edit dearer and the printed count honest.*
 // **And `+ killResume.runs.length` since W90**: block (2g) counts every run it made — each reference, each killed process and
 // each resume on a fresh runtime — as a LENGTH, on W78's precedent, so deleting the block moves the printed count with it.
-const pairRunCount = pairResults.reduce((n, { runs }) => n + runs.length, 0) + 1 + (consumerRoad?.runs.length ?? 0) + (checkOff?.runs.length ?? 0) + (killResume?.runs.length ?? 0);
+const pairRunCount = pairResults.reduce((n, { runs }) => n + runs.length, 0) + 1 + (consumerRoad?.runs.length ?? 0) + (checkOff?.runs.length ?? 0) + (killResume?.runs.length ?? 0) + (gateKill?.runs.length ?? 0);
 console.log(`\n  ladder L6 — ${reports.length + pairRunCount} real runs on fyflow-scheduler ${SCHEDULER_VERSION}, on ${runtime}\n`);
 /**
  * **Every region of the run, in the row's declared order** — W23's conformity
@@ -7919,7 +8487,14 @@ const PER_PLAIN_ROW = 20;
 // cuts and their pair, the parked task and its resolution — and its FOUR controls. All twenty are cross-row because
 // the block is outside the row loop and every claim is about a pair of processes. *(Written as 20 at the declaration,
 // and 20 at the build.)*
-const CROSS_ROW = 207;
+// **+7 since W90 — W94, P24's EXIT ARTIFACT**: block (2h)'s THREE claims — identical at every kill point, the stored `gated`
+// prefix regenerated, the re-dispatched ids against the killed process — and its TWO controls (every kill point from two
+// sources; the selections discriminate), and the TV pair's two: the arrangement differs in its order alone, and a different
+// file opened every multi-file series with the same series opened once each. The three TV ROWS are per-row (199) and not
+// here. *(Written as 7 at the declaration, and 7 at the build.)* **+1 the same day, before either reader**: the route
+// control above, which W94's own rule 8 planning showed was missing (`d2`: the file table losing its trailer took `nokey`
+// out of every run with every clause green).
+const CROSS_ROW = 215;
 const base = (shape: string) => (shape === 'region' ? PER_REGION_ROW : PER_PLAIN_ROW);
 for (const [key, shape, cost, extras] of rowCosts) {
   if (cost !== base(shape) + extras) {
@@ -8308,6 +8883,11 @@ if (rowCosts.length !== EXPECTED.length) {
     const documentTypes = new Set<string>();
     for (const e of EXPECTED) {
       for (const n of e.definition.nodes) {
+        // **A TASK node's type, and only a task node's — W94.** A `gate` carries a `type` too, and it names a GATE type
+        // (`distinct`, built in — ADR 0066 rule 3), which is no entry of the registry's `nodeTypes`: read off every node,
+        // this clause named `distinct` as an unregistered node type on W94's first run, a node-kind site W92's census
+        // (fifteen files outside `src/`) did not list because its read is `.type`, not `kind ===`.
+        if (n.kind !== 'task') continue;
         const t = (n as unknown as { type?: string }).type;
         if (t !== undefined) documentTypes.add(t);
       }
@@ -8404,6 +8984,8 @@ if (rowCosts.length !== EXPECTED.length) {
       const namedTypes = new Set<string>();
       for (const e of EXPECTED) {
         for (const n of e.definition.nodes) {
+          // A TASK node's type only — the clause above's W94 note: a gate's `type` is a gate type.
+          if (n.kind !== 'task') continue;
           const t = (n as unknown as { type?: string }).type;
           if (t !== undefined) namedTypes.add(t);
         }
@@ -8575,8 +9157,19 @@ if (rowCosts.length !== EXPECTED.length) {
       // class-form `GpuModel`, so triage's arcs get verdicts here that the document alone cannot give (the L1
       // census reads three unchecked there); and the one `no` the corpus holds is `map-no-array`'s `FD-R2`,
       // predicted before the run that this file then measures as `UnresolvedMapArity`.
-      const rowsWithNo = EXPECTED.filter((_, i) => reports[i]!.wiring.counts.no > 0).map((e) => e.key).sort();
-      check('cross-row', 'the wiring check over the runtime`s registry reads `no` on exactly the FD-R2 row, both ways — the static prediction of the refusal the row then runs', rowsWithNo, ['map / FD-R2 — over names no array']);
+      // **And, since W94, on the three TV rows at the per-series task ALONE — a FALSE `no`, [Q391](../doc/open-questions.md).**
+      // `checkWiring` reads a gate as a PASS-THROUGH (ADR 0066's consequences), so the arc `identify` → `setupSeries` is
+      // judged as if the gate were not there: `series` is not required of what `identify` returns (a trailer has none),
+      // `series` IS required of what the per-series worker receives, and the check reads `no` — while `distinct` routes a
+      // branch `first` only where the key RESOLVED, so the run cannot deliver the value the verdict fears, and every one
+      // of these runs completes. Asserted rather than hidden: weakening the worker's `inputSchema` would have silenced the
+      // one observer of the gap. The day the check learns a route's guarantee, this clause is red and names the rows.
+      const rowsWithNo = EXPECTED.flatMap((e, i) => reports[i]!.wiring.counts.no > 0
+        ? [e.gate ? `${e.key} at ${reports[i]!.wiring.verdicts.filter((v) => v.kind === 'no').map((v) => v.consumer).join(' ')}` : e.key]
+        : []).sort();
+      check('cross-row', 'the wiring check over the runtime`s registry reads `no` on exactly the FD-R2 row, both ways — the static prediction of the refusal the row then runs — ' +
+        'and on the rows through a gate at the per-series task ALONE, a FALSE `no` (Q391): the check reads a gate as a pass-through, and every one of those runs completes',
+        rowsWithNo, ['map / FD-R2 — over names no array', ...EXPECTED.filter((e) => e.gate).map((e) => `${e.key} at ${e.gate!.opens}`)].sort());
       const triageUnchecked = EXPECTED.map((e, i) => [e.key, reports[i]!.wiring.counts.unchecked] as const).filter(([k]) => k.startsWith('triage')).map(([k, n]) => `${k}: ${n}`);
       check('cross-row', 'and on the two triage rows the CLASS type is resolved — no arc is unchecked over the runtime`s registry, where the document alone leaves three', triageUnchecked,
         EXPECTED.filter((e) => e.key.startsWith('triage')).map((e) => `${e.key}: 0`));
@@ -8644,10 +9237,10 @@ if (rowCosts.length !== EXPECTED.length) {
       // BLOCKING: the diff clause computed its expected side FROM `THREADABLE_TYPES` and its actual
       // side from a derivation that also reads it, so both moved together and dropping a member cost
       // ZERO. `run-flow.ts`'s own header claimed this comparison existed; it did not. The literal is
-      // the two types `examples/registry.json` deliberately leaves `inline` unsaid on.
-      check('cross-row', 'the types whose `inline` the document leaves UNSAID are exactly the two this file expects, both ways — ' +
+      // the three types `examples/registry.json` deliberately leaves `inline` unsaid on — `Identify` the third since W94.
+      check('cross-row', 'the types whose `inline` the document leaves UNSAID are exactly the three this file expects, both ways — ' +
         'the knob`s membership, where the diff clause below computes both of its sides from it',
-        [...THREADABLE_TYPES].sort(), ['ScoreWorker', 'WeighWorker']);
+        [...THREADABLE_TYPES].sort(), ['Identify', 'ScoreWorker', 'WeighWorker']);
       const wantThreaded = THREADABLE_TYPES.map((t) => `nodeTypes.${t}.inline`).sort();
       // **The VALUE as well as the key set** — rule 8's `p4`: a derivation that wrote `inline: true`
       // whatever the row asked passed the diff clause, because the key it differs in is the same key
@@ -8835,12 +9428,16 @@ if (rowCosts.length !== EXPECTED.length) {
         // than a literal for four, because the claim is now about the whole document and a four-entry
         // literal would let ten entries drop a schema for zero; and it is still a LITERAL rather than a
         // read of `REGISTRY_DOCUMENT` (`ra6`), so the probe that deletes a schema moves one side only.
-        check('cross-row', 'the runtime CARRIES every schema the seventeen worker entries declare, exactly: the two P19 schemas on every entry ' +
+        check('cross-row', 'the runtime CARRIES every schema the twenty-one worker entries declare, exactly: the two P19 schemas on every entry ' +
           '(no outputSchema on the two undescribable workers), plus prompt`s configSchema and the three settingsSchemas — ' +
           'two enforced by the runtime, the other two declared, carried, and checked by `check-workers` on a run',
           Object.fromEntries(Object.entries(reports[0]!.workerSchemas).sort(([a], [b]) => a.localeCompare(b))),
           {
             attest: ['inputSchema', 'outputSchema'],
+            // W94: the four workers P24's exit artifact adds — download (its fetch), identify, thumbnail and series. Both P19
+            // schemas like every other corpus entry, and no `configSchema`: `identify`'s `msPerMB` is an arrangement, and
+            // `check:workers` constructs from `{}` so the conformance run does not pay for it.
+            download: ['inputSchema', 'outputSchema'],
             echo: ['inputSchema', 'outputSchema', 'settingsSchema'],
             fail: ['inputSchema'],
             fetch: ['inputSchema', 'outputSchema'],
@@ -8848,11 +9445,13 @@ if (rowCosts.length !== EXPECTED.length) {
             // every other corpus entry — which is half of why `check:workers` and `checkWiring` are
             // GREEN on them and `OR-R13` is not.
             gauge: ['inputSchema', 'outputSchema'],
+            identify: ['inputSchema', 'outputSchema'],
             ingest: ['inputSchema', 'outputSchema'],
             prompt: ['configSchema', 'inputSchema', 'outputSchema', 'settingsSchema'],
             publish: ['inputSchema', 'outputSchema'],
             retry: ['inputSchema', 'outputSchema'],
             score: ['inputSchema', 'outputSchema'],
+            series: ['inputSchema', 'outputSchema'],
             // W86: the ONE worker P22 stop-and-ask (c) grants. Both P19 schemas like every other
             // corpus entry, and no `configSchema` — `check:workers` constructs from `{}`, so the
             // conformance run does not pay for the stagger only a real run needs.
@@ -8860,6 +9459,7 @@ if (rowCosts.length !== EXPECTED.length) {
             split: ['inputSchema', 'outputSchema'],
             stamp: ['inputSchema', 'outputSchema'],
             tally: ['inputSchema', 'outputSchema'],
+            thumbnail: ['inputSchema', 'outputSchema'],
             typed: ['inputSchema', 'outputSchema', 'settingsSchema'],
             uncloneable: ['inputSchema'],
             weigh: ['inputSchema', 'outputSchema'],
@@ -8876,6 +9476,10 @@ if (rowCosts.length !== EXPECTED.length) {
             .sort(([a], [b]) => a.localeCompare(b))),
           {
             attest: ['inputSchema', 'outputSchema'],
+            // W94: the four workers P24's exit artifact adds — download (its fetch), identify, thumbnail and series. Both P19
+            // schemas like every other corpus entry, and no `configSchema`: `identify`'s `msPerMB` is an arrangement, and
+            // `check:workers` constructs from `{}` so the conformance run does not pay for it.
+            download: ['inputSchema', 'outputSchema'],
             echo: ['inputSchema', 'outputSchema', 'settingsSchema'],
             fail: ['inputSchema'],
             fetch: ['inputSchema', 'outputSchema'],
@@ -8883,11 +9487,13 @@ if (rowCosts.length !== EXPECTED.length) {
             // every other corpus entry — which is half of why `check:workers` and `checkWiring` are
             // GREEN on them and `OR-R13` is not.
             gauge: ['inputSchema', 'outputSchema'],
+            identify: ['inputSchema', 'outputSchema'],
             ingest: ['inputSchema', 'outputSchema'],
             prompt: ['configSchema', 'inputSchema', 'outputSchema', 'settingsSchema'],
             publish: ['inputSchema', 'outputSchema'],
             retry: ['inputSchema', 'outputSchema'],
             score: ['inputSchema', 'outputSchema'],
+            series: ['inputSchema', 'outputSchema'],
             // W86: the ONE worker P22 stop-and-ask (c) grants. Both P19 schemas like every other
             // corpus entry, and no `configSchema` — `check:workers` constructs from `{}`, so the
             // conformance run does not pay for the stagger only a real run needs.
@@ -8895,6 +9501,7 @@ if (rowCosts.length !== EXPECTED.length) {
             split: ['inputSchema', 'outputSchema'],
             stamp: ['inputSchema', 'outputSchema'],
             tally: ['inputSchema', 'outputSchema'],
+            thumbnail: ['inputSchema', 'outputSchema'],
             typed: ['inputSchema', 'outputSchema', 'settingsSchema'],
             uncloneable: ['inputSchema'],
             weigh: ['inputSchema', 'outputSchema'],
@@ -9266,6 +9873,10 @@ if (rowCosts.length !== EXPECTED.length) {
     // `null` outside `resume()` and so retaining nothing on any run here — WALKED, as `header` is,
     // and a declared exception of W89's, seeded at its declaration from W88's own row.
     'replay',
+    // `gateMemory` and `gateTypes` since W93 (`RN-R26`, ADR 0067): each gate's memory — run state, WALKED,
+    // `RN-R13`'s fourth term, empty on every run here since no L6 row runs a gate — and the gate types, whose
+    // `fn` is a FUNCTION, SKIPPED as `languages` is. A declared exception of W93's, seeded by P24.
+    'gateMemory', 'gateTypes',
   ].sort();
   const anyRun = reports[0]!;
   check('cross-row', 'the byte measurement WALKS every growing structure the driver has and skips ' +
@@ -9275,7 +9886,7 @@ if (rowCosts.length !== EXPECTED.length) {
   check('cross-row', 'and `arrivals` is on the WALKED side of that split, which is the one structure ' +
     'ADR 0046 rule 3 is about',
     { walked: anyRun.retention.walked.includes('arrivals'), skipped: anyRun.retention.skipped },
-    { walked: true, skipped: ['def', 'graph', 'languages', 'nodeTypes', 'opts', 'workers'] });
+    { walked: true, skipped: ['def', 'gateTypes', 'graph', 'languages', 'nodeTypes', 'opts', 'workers'] });
   // **The two release moments this rung cannot reach, recorded rather than argued** —
   // `doc/workflow.md` section 5 rule 8: *construct the case that makes each guard
   // fire, and where the corpus cannot express one, RECORD that.*
@@ -9516,7 +10127,19 @@ check('cross-row', 'every cross-row SUBJECT this file declares was asserted abou
 // from the arithmetic before the file was run, and the first run reported exactly that.)*
 // **+20 since W86 — W90.** P23's exit artifact adds no row and twenty cross-row assertions: block (2g), which makes forty
 // runs of its own. No row moved. *(Written as 20 from the arithmetic before the file was run.)*
-const DECLARED_TOTAL = 1853;
+// **+206 since W90 — W94, P24's EXIT ARTIFACT.** Three TV rows (region, 22 each): LAST-first 88 (21 `branchEvents`, 22
+// `nodeResults`, `pathEnds`, seven `beside` instances at two, one arrival held, and SEVEN gate claims — six on every gated
+// row and the arrangement's own effect), FIRST-first 60 (7, 8, `pathEnds`, 14, 1, 7) and threaded 51 (7, 1, 14, 1, 6) —
+// 199 — plus seven cross-row: block (2h)'s five and the pair's two. Fifty-four more real runs: the three rows, and block
+// (2h)'s reference with a killed and a resumed run at each of its twenty-five kill points. *(Written as 2059 / 154 in
+// W94's file before the file was run; the first complete run read 2060 with ONE failure — the derived-count clause's own
+// mismatch line, which counts itself — and 2059 once `CROSS_ROW` moved.)* **2060** with the route control, +1 before
+// either reader read the tree — the arithmetic's own cross-row term was short by the control its enumeration needed.
+// **2069 after the readers**, +9 and all per-row: each TV row compares its fourteen `beside` ids as a SET and asserts the
+// overlap that justifies it (+2 — the conformity reader's finding 2: the first cut asserted a fan-out's completion
+// order), and the realm its `identify` ran in (+1 — the adequacy reader's finding 4). No cross-row count moved: block
+// (2h)'s distinct kill points and rebuilt memory, and its re-stated control, widened clauses that were already there.
+const DECLARED_TOTAL = 2069;
 if (passed + failures.length !== DECLARED_TOTAL) {
   failures.push(
     'gate\n      the assertion count is not the number this file declares outright\n' +

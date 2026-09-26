@@ -5,7 +5,7 @@
  * Eligibility is checked BEFORE the `when` evaluation, and only over the eligible
  * edges (ADR 0004 rule 2).
  */
-import type { Edge, FlowNode, TerminalState } from '../definition/types.ts';
+import type { Edge, FlowNode, GateNode, TerminalState } from '../definition/types.ts';
 import type { OutcomeRecord } from './log.ts';
 
 /**
@@ -50,9 +50,27 @@ export type RoutingResult =
 const onOf = (e: Edge): readonly string[] => (Array.isArray(e.on) && e.on.length ? e.on : ['done']);
 
 export function eligibleEdges(node: FlowNode, terminalState: TerminalState): Edge[] {
+  // **A gate's `[]` here is UNREACHABLE, not a silent path end** — W92 handed this line over and W93
+  // measured why: this is called only from `selectEdge`, which only `advance` calls, for a settled TASK's
+  // id — and a gate is dispatched to no scheduler, so it never settles and has no id. A gate's edge is
+  // chosen by `gateEdge` below, by the ROUTE its type returned, where a branch ENTERS it.
   if (node.kind !== 'task' && node.kind !== 'join') return [];
   const edges: Edge[] = Array.isArray((node as { edges?: Edge[] }).edges) ? (node as { edges: Edge[] }).edges : [];
   return edges.filter((e) => onOf(e).includes(terminalState));
+}
+
+/**
+ * **The ONE edge a gate takes for a route** — `spec/flow-definition.md` section 2's gate,
+ * [ADR 0066](../../doc/decisions/0066-a-gate-is-a-decision-with-memory-that-names-a-registered-type-and-wires-every-route-exactly-once.md)
+ * rule 4, [W93](../../doc/work-items/w93-what-a-gate-does-in-a-run.md). An edge carries the route it names,
+ * and **an edge with no `route` carries the type's DEFAULT route** — never every route, and not the first.
+ * Pure, as `selectEdge` is: the caller has already held `route` to the type's declared routes (`FD-R5`), and
+ * `FD-V41` wires every declared route by exactly one edge, so this is total over what reaches it — `null` is
+ * the assertion that `FD-V41` held, and the driver stops the run on it rather than routing nowhere.
+ */
+export function gateEdge(node: GateNode, defaultRoute: string, route: string): Edge | null {
+  const edges: Edge[] = Array.isArray(node.edges) ? node.edges : [];
+  return edges.find((e) => (e.route ?? defaultRoute) === route) ?? null;
 }
 
 /**

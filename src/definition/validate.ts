@@ -180,7 +180,7 @@ export function keyPathProblem(v: unknown): string | null {
 
 /**
  * **What a key path NAMES on a value — the meaning of stop-and-ask (d)'s grammar**, one definition for the
- * driver that will resolve it (W93) and the tests that pin it. Each segment is an OWN key of a plain object
+ * driver that resolves it (W93, where a branch enters a gate) and the tests that pin it. Each segment is an OWN key of a plain object
  * (`hasOwnProperty`, never `in`, which walks the prototype — W65's conformity reader, three keyword sites);
  * anything else — a missing key, `null`, an ARRAY mid-path (no index, by (d)), a primitive — is
  * `undefined`, which is what `distinct` routes to `nokey`. The value at the end is returned whatever it is.
@@ -193,8 +193,10 @@ export function readKeyPath(value: unknown, path: string): unknown {
     // is a class instance, a `Map` or a `Date`, whatever its own fields hold. *(An `Array.isArray` guard stood above
     // this and was removed once this made it unreachable — rule 8's `a13` measured it survive.)* W92's conformity
     // reader (finding 10) found the first cut reading a class instance's own field while the spec says *own key of
-    // a plain object*. Unreachable through a run today
-    // (`OR-R2`'s clone hands on plain data), and stated here so W93's resolution cannot be wider than the grammar.
+    // a plain object*. Reachable through a run since W93, where it IS the driver's resolution — over the value AS A
+    // CLONE CARRIES IT, so a caller's class instance is plain by the time a gate reads it (W93's conformity reader,
+    // finding 1: reading the original made a run and its replay resolve different keys); stated here so the
+    // resolution cannot be wider than the grammar.
     const proto = Object.getPrototypeOf(v);
     if (proto !== Object.prototype && proto !== null) return undefined;
     if (!Object.prototype.hasOwnProperty.call(v, seg)) return undefined;
@@ -247,7 +249,8 @@ export function gateTypeProblem(t: unknown): string | null {
  *
  * **Keys are compared as JSON values**, so `"1"` and `1` are two keys — JSON tells them apart, and a type
  * that merged them would be making a decision the document cannot see. The empty string is a string and a
- * key. Memory holds one entry per key seen; `fn` writes it and nothing else does (W93 decides its life).
+ * key. Memory holds one entry per key seen; `fn` writes it and nothing else does. Its life is the RUN's —
+ * one memory per gate, created empty with the driver and rebuilt by replay on resume (W93, `RN-R26`).
  */
 export const distinct: GateType = Object.freeze({
   routes: Object.freeze(['first', 'duplicate', 'nokey']),

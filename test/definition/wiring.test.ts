@@ -214,9 +214,9 @@ suite('W73 — the L6 corpus census, as an EQUALITY, and every arc shape reached
   const registry = { workers: l6Registry.workers, nodeTypes: l6Registry.nodeTypes, languages: { jsonata } } as unknown as Parameters<typeof checkWiring>[0];
   const options = { workerHalf: { jsonata: compileExpression } };
   let reports: WiringReport[] = [];
-  test('the census: 69 fit, 1 no, 5 transform-passes, 2 transform-fails, 8 unchecked over 27 flows', async () => {
+  test('the census: 72 fit, 2 no, 5 transform-passes, 2 transform-fails, 8 unchecked over 28 flows', async () => {
     const names = (await listDir(flowsDir)).filter((n) => n.endsWith('.flow.json')).sort();
-    ok(names.length === 27, `27 L6 flows, got ${names.length}`);
+    ok(names.length === 28, `28 L6 flows, got ${names.length}`);
     reports = [];
     for (const n of names) reports.push(await checkWiring(registry, JSON.parse(await readText(`${flowsDir}/${n}`)) as FlowDefinition, options));
     const counts: Record<VerdictKind, number> = { 'fits': 0, 'no': 0, 'transform-passes': 0, 'transform-fails': 0, 'unchecked': 0 };
@@ -236,11 +236,19 @@ suite('W73 — the L6 corpus census, as an EQUALITY, and every arc shape reached
     // rather than a side effect — a region nested inside a map region is a shape `checkWiring`
     // traverses with no change at all, which is P22 prediction 2 (*`JP-R12`, ADR 0044 and
     // `checkWiring` need zero changes*) as a number rather than as a sentence.
-    equal(counts, { 'fits': 69, 'no': 1, 'transform-passes': 5, 'transform-fails': 2, 'unchecked': 8 }, 'the L6 census');
-    // And the one `no` is the FD-R2 prediction: map-no-array's `over: "rows"` on a producer that never emits it.
+    // **+3 fits, +1 no and +1 flow since W86 — W94's `tv-ingest.flow.json`**, P24's exit artifact (a declared exception
+    // of W94's, [Q342](../../doc/open-questions.md)'s literal a sixth time). Its two `beside` branch arcs and `publish`'s
+    // record FIT; its fourth arc is a FALSE `no` ([Q391](../../doc/open-questions.md)): the check reads the gate as a
+    // pass-through, so the per-series worker, which requires `series`, is judged against `identify`, which does not
+    // guarantee it — while `distinct` routes `first` only where `series.id` resolved, and ladder L6 runs the flow to
+    // `completed` three times. Kept as the census reads it rather than hidden by weakening the worker's schema.
+    equal(counts, { 'fits': 72, 'no': 2, 'transform-passes': 5, 'transform-fails': 2, 'unchecked': 8 }, 'the L6 census');
+    // And the `no`s are the FD-R2 prediction — map-no-array's `over: "rows"` on a producer that never emits it — and,
+    // since W94, the gate's pass-through on tv-ingest's per-series task. In flow-name order.
     const no = reports.flatMap((r) => r.verdicts.filter((v) => v.kind === 'no'));
-    equal(no.map((v) => `${v.through}:${v.consumer}`), ['split:score'], 'the one no');
+    equal(no.map((v) => `${v.through ?? v.producer}:${v.consumer}`), ['split:score', 'identify:setupSeries'], 'the two nos');
     ok(no[0]!.why.includes('FD-R2'), `the reason names the run-time refusal it predicts: ${no[0]!.why}`);
+    ok(no[1]!.why.includes('requires "series"'), `the gate's pass-through: the consumer's requirement the producer does not guarantee: ${no[1]!.why}`);
   });
   test('every arc shape the relation ranges over occurs in the census, and nothing else does', () => {
     const seen = new Set<WiringShape>();

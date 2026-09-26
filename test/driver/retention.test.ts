@@ -167,7 +167,9 @@ const heldByInstance = (d: Driver): Record<string, number> => {
 // as `opts` is, holds no result, and a serialising walk would refuse it.
 // `languages` since W61, for the same reason one set over: the registry's languages, whose `compile` is a
 // FUNCTION and whose `worker` is a URL string — configuration, holding no result.
-const NOT_RUN_STATE = ['def', 'graph', 'languages', 'nodeTypes', 'opts'];
+// `gateTypes` since W93, for the same reason one set over again: the gate types — the built-in `distinct` and a
+// consumer's — whose `fn` is a FUNCTION. Configuration, holding no result; the gate's MEMORY is the run state and is walked.
+const NOT_RUN_STATE = ['def', 'gateTypes', 'graph', 'languages', 'nodeTypes', 'opts'];
 
 /** The driver's own growing structures — every own property that is not in the list above. */
 const walkableKeys = (d: Driver): string[] =>
@@ -264,6 +266,11 @@ const DRIVER_FIELDS = [
   // resumed and `RN-R13`'s terms do not move. WALKED, because while it exists it holds the stored
   // events — the consumer's, handed in. The ratchet fired by name on W89's first L1 run.
   'replay',
+  // W93 — `gateMemory`: each gate's memory, one per gate per RUN (`RN-R26`, ADR 0067), holding whatever its type
+  // wrote — for `distinct` one entry per key seen — for the life of the run. WALKED: it is run state, and it is
+  // `RN-R13`'s FOURTH term. `gateTypes`: the gate types, normalised once — configuration, in `NOT_RUN_STATE`.
+  // The ratchet fired by name on W93's first L1 run, naming both.
+  'gateMemory', 'gateTypes',
 ].sort();
 // `nodeTypes` since W59 — the ratchet firing as designed: the field was added and this list went
 // red naming it. It holds the registry's node types (consumer functions, no result) and joins
@@ -334,6 +341,8 @@ const DECLARED_CASES = [
   'RN-R13 — `outputsCache` holds results BY REFERENCE, and identity is what says so',
   'the walk looks at EVERY growing structure — a new driver field fails here naming itself',
   'a run stopped from inside `append` does not route out of the join it was settling',
+  // **W93.** `RN-R13`'s fourth term — a gate's memory — and what it holds: the KEY, not the value that reached the gate.
+  'RN-R13 — a GATE`s memory is a fourth term: it holds the KEY, for the life of the run, and not the value it was handed',
   'every case this suite declares actually ran — a deleted case fails naming itself',
 ];
 
@@ -900,6 +909,26 @@ suite(SUITE, (test) => {
    * **A reachability SET cannot tell an alias from a copy. Identity can**, and that is
    * what the rule now says and what this asserts.
    */
+  test('RN-R13 — a GATE`s memory is a fourth term: it holds the KEY, for the life of the run, and not the value it was handed', async () => {
+    // `gated-map`: two files of ONE series, so the second is a duplicate. The KEY carries one marker and the rest of
+    // the value another — so a memory that kept what reached the gate, rather than the key, holds the wrong marker.
+    const KEY = 'W93-KEY-7b1e', REST = 'W93-REST-c40d';
+    const h = harness(await load('valid/gated-map.flow.json'), liveToken as JoinPolicy);
+    h.driver.start({});
+    h.scheduler.settle('r1:ingest:-:0', 'done', { result: { files: [{ n: 0 }, { n: 1 }] } });
+    h.scheduler.settle('r1:identify:0:0', 'done', { result: { series: { id: KEY }, note: REST } });
+    h.scheduler.settle('r1:identify:1:0', 'done', { result: { series: { id: KEY }, note: REST } });
+    equal(holdersOf(h.driver, KEY), ['gateMemory', 'inputs', 'log'],
+      'the key is held by the gate`s memory beside `inputs` and `log` — a FOURTH holder, the memory`s own copy of the key');
+    equal(holdersOf(h.driver, REST), ['inputs', 'log'],
+      'and the REST of the value is not — the memory holds the key and nothing the key did not name');
+    h.scheduler.settle('r1:setup:0:0', 'done', { result: { set: 1 } });
+    h.scheduler.settle('r1:publish:-:0', 'done', { result: { ok: true } });
+    equal(fold(h.driver.foldInputs()).outcome, 'completed', 'the run COMPLETED — the join fired and its collection was released');
+    equal(holdersOf(h.driver, KEY), ['gateMemory', 'inputs', 'log'],
+      'and the memory is STILL held: unlike a region`s collection it has no terminal moment inside the run, so it is retained for the life of the run');
+  });
+
   test('RN-R13 — `outputsCache` holds results BY REFERENCE, and identity is what says so', async () => {
     const h = harness(await load('valid/map-over-region-output.flow.json'), liveToken as JoinPolicy);
     h.driver.start({});

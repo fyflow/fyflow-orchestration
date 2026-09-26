@@ -1,6 +1,7 @@
 # ADR 0066 — A gate is a decision WITH MEMORY that names a registered type, and wires every route its type declares exactly once
 
-**Status:** accepted 2026-09-25
+**Status:** accepted 2026-09-25 — **rule 7 SUPERSEDED by [ADR 0067](0067-a-gate-runs-in-the-driver-its-memory-is-the-drivers-and-its-decision-is-recorded.md)**
+(W93, the same day): a gate RUNS, and `new Driver` constructs a flow holding one. Rules 1-6 stand.
 **Item:** [W92](../work-items/w92-what-a-gate-is.md)
 **Plan:** [P24](../plans/p24-what-a-node-may-remember-across-a-runs-branches.md) — *what may a node
 REMEMBER across a run's branches?*

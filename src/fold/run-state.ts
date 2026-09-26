@@ -114,6 +114,33 @@ export interface RunState {
    * other field of a resumed run folds exactly as the run nobody killed does.)*
    */
   resumes: string[][];
+  /**
+   * **Every decision a GATE made in this run, in the order it made them** — `RN-R26`, v0.11,
+   * [W93](../../doc/work-items/w93-what-a-gate-does-in-a-run.md), P24 stop-and-ask (b), answered: *a gate's
+   * decision IS recorded*. One entry per branch that reached a gate: which gate, on which branch path, the
+   * route its type returned and the key it was handed. `[]` for a run no gate decided in.
+   *
+   * **In order, and the order is the point**: which branch was FIRST to reach a `distinct` gate is a fact
+   * about the ORDER branches arrived, which varies between runs (P24 decision 7) and is reproduced exactly
+   * by a resume. So this is a list, `pathEnds`' precedent, and not a record keyed by gate — a record would
+   * keep *which* and drop *when*.
+   */
+  gated: GateDecision[];
+}
+
+/**
+ * **One gate decision** — what a `gated` fold input carries, and what `RunState.gated` holds. `branchPath`
+ * is the GATE's own, derived as a task's is (`spec/task-id.md` section 1) — `'-'` outside every region, one
+ * segment per enclosing region instance otherwise — because a gate has no task id and this is what tells
+ * two branches' decisions at one gate apart. `key` is what the driver resolved `settings.key` to over the
+ * value that reached the gate, and is ABSENT where nothing was resolved — the gate declares no `key`, or a
+ * segment is missing — which is what `distinct` routes to `nokey`.
+ */
+export interface GateDecision {
+  gateId: string;
+  branchPath: string;
+  route: string;
+  key?: unknown;
 }
 
 /**
@@ -210,10 +237,25 @@ export type FoldInput =
    * **A new kind, and it is BREAKING for a consumer switching on `kind` exhaustively** — the cost
    * stop-and-ask (a) priced, which is why the package moves at W90's close.
    */
-  | { kind: 'resumed'; taskIds: string[] };
+  | { kind: 'resumed'; taskIds: string[] }
+  /**
+   * **A GATE decided** — `RN-R26`, [W93](../../doc/work-items/w93-what-a-gate-does-in-a-run.md), P24
+   * stop-and-ask (b), answered: *a gate's decision is recorded as a fold input*. Appended by the driver where
+   * a branch ENTERS a gate, after the type's `fn` returned a route the type declares and BEFORE the driver
+   * enters that route's target — so what the route led to follows it in the sequence.
+   *
+   * **REGENERATED on resume, never FED** (`RN-R19`): the replay re-evaluates every gate on the stored
+   * settlements, rebuilding the gate's memory as it goes, and the prefix check (`RN-R20`) compares each
+   * regenerated `gated` element with the stored one — so a resume checks the gate's ANSWERS directly, and a
+   * type whose answer changed is refused `diverged` at that position.
+   *
+   * **A new kind, and it is BREAKING for a consumer switching on `kind` exhaustively** — the cost
+   * stop-and-ask (b) priced, which is why the package moves at W94's close, on `resumed`'s precedent.
+   */
+  | ({ kind: 'gated' } & GateDecision);
 
 export function emptyState(): RunState {
-  return { runId: null, outcome: 'running', nodes: {}, regions: {}, pathEnds: [], stoppedBy: null, resumes: [] };
+  return { runId: null, outcome: 'running', nodes: {}, regions: {}, pathEnds: [], stoppedBy: null, resumes: [], gated: [] };
 }
 
 /**
@@ -268,6 +310,17 @@ export function step(prev: RunState, input: FoldInput): RunState {
     // `running`, so `outcome` is untouched and `withOutcome` has nothing to recompute. A COPY of the
     // list, because `step` never shares a value it was handed with the state it returns (`RN-R2`).
     return { ...prev, resumes: [...prev.resumes, [...input.taskIds]] };
+  }
+
+  if (input.kind === 'gated') {
+    // `RN-R26` — recorded, and nothing else moves: a gate dispatches nothing and settles nothing, so no node,
+    // no region and no outcome is touched here — what the route LED to arrives as its own inputs. A COPY of
+    // the decision, and of its key, because `step` never shares a value it was handed with the state it
+    // returns (`RN-R2`) and a key may be an object. **Without this arm the fold THREW** — every kind `step`
+    // does not name reaches `input.record` below, measured at W93's declaration step as a `TypeError`.
+    const d: GateDecision = { gateId: input.gateId, branchPath: input.branchPath, route: input.route };
+    if (input.key !== undefined) d.key = structuredClone(input.key);
+    return { ...prev, gated: [...prev.gated, d] };
   }
 
   if (input.kind === 'joinSettled') {

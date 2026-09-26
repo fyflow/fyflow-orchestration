@@ -59,7 +59,7 @@
  * `checkWiring` returns a Promise; no `node:` import, no clock (`RT-R3`, `RT-R4`).
  */
 import { describeFindings, findings, type JsonSchema } from './schema.ts';
-import type { FanoutNode, FlowDefinition, FlowNode, JoinNode, MapNode, Registry } from './types.ts';
+import type { Edge, FanoutNode, FlowDefinition, FlowNode, GateNode, JoinNode, MapNode, Registry } from './types.ts';
 import { effectiveSettings, languagesOf, nodeTypesOf, referenceTarget, workersOf } from './validate.ts';
 import { allRegions, branchPathOf, buildGraph, type Graph, type RegionSets } from './regions.ts';
 import { sampleOf, type SampleSource } from './witness.ts';
@@ -227,9 +227,21 @@ interface Arrival {
  * task's worker `inputSchema`. ONE walk, two callers — the driver with the payload, and
  * `checkWiring` with none for `WiringReport.entry` (W73's adequacy reader found a second walk
  * beside this one whose map arm nothing bound; there is one walk now, `entryWalk`).
+ *
+ * **`choose` is what a RUN knows and a static report does not: which route a gate takes** — v0.23's run
+ * half, [W93](../../doc/work-items/w93-what-a-gate-does-in-a-run.md). Without it an entry gate hands the walk
+ * EVERY route's target, which is right for `checkWiring` (any of them is a place the payload may land) and
+ * wrong for `FD-R4`: measured at W93's declaration step, a payload `distinct` sends to `first` was still held
+ * to the `nokey` target's `inputSchema`, so a run could be refused at `start()` by a task it never reaches.
+ * The driver passes the edges its gate actually takes — one, or none where the type's `fn` would stop the run
+ * — and the walk goes on from those alone. Absent, every edge, exactly as before.
  */
-export function boundaryTargets(flow: FlowDefinition, payload: unknown): { node: string; value: unknown }[] {
-  return entryWalk(flow, payload, true);
+export function boundaryTargets(
+  flow: FlowDefinition,
+  payload: unknown,
+  choose?: (gate: GateNode, value: unknown) => readonly Edge[],
+): { node: string; value: unknown }[] {
+  return entryWalk(flow, payload, true, choose);
 }
 
 /** The names `boundaryTargets` walks to, with no payload — what `WiringReport.entry` lists. */
@@ -238,7 +250,12 @@ function entryTasks(flow: FlowDefinition): string[] {
 }
 
 /** The walk both of the above are: `sampled` reads the payload's array under a map's `over`; unsampled, a map's branch is walked once. */
-function entryWalk(flow: FlowDefinition, payload: unknown, sampled: boolean): { node: string; value: unknown }[] {
+function entryWalk(
+  flow: FlowDefinition,
+  payload: unknown,
+  sampled: boolean,
+  choose?: (gate: GateNode, value: unknown) => readonly Edge[],
+): { node: string; value: unknown }[] {
   const byId = new Map(flow.nodes.map((n) => [n.id, n] as const));
   const out: { node: string; value: unknown }[] = [];
   const seen = new Set<string>();
@@ -251,8 +268,9 @@ function entryWalk(flow: FlowDefinition, payload: unknown, sampled: boolean): { 
     // **A gate hands on what reached it, unchanged, on ONE route** (v0.23, ADR 0066) — so the payload may
     // reach any of its routes' targets, and statically every one is a place it may land. Without this arm an
     // entry gate ENDED the walk and the report's `entry` was empty (W92's census). Which ONE route a run takes
-    // is the gate's decision at run time, and the driver's `FD-R4` targets are W93's to narrow.
-    if (n.kind === 'gate') for (const e of n.edges ?? []) walk(e.to, value);
+    // is the gate's decision at run time, and the driver narrows `FD-R4`'s targets to it through `choose`
+    // (W93) — so a static report walks every route and a run walks the one it takes.
+    if (n.kind === 'gate') for (const e of choose ? choose(n, value) : n.edges ?? []) walk(e.to, value);
     if (n.kind === 'map') {
       if (!sampled) { walk(n.branch, undefined); return; }
       // A map's own `needs` composed as `enter` composes it — at an entry only `"."` can be named

@@ -1,6 +1,6 @@
 # P24 — What a node may REMEMBER across a run's branches
 
-**Status:** **DECLARED** 2026-09-25 on `912bfcb`, all four stop-and-asks ANSWERED the same day as recommended, and
+**Status:** **COMPLETE pending its retro** — [W94](../work-items/w94-a-tv-series-ingest-through-a-gate-on-real-workers.md), the exit artifact, DONE 2026-09-26. **DECLARED** 2026-09-25 on `912bfcb`, all four stop-and-asks ANSWERED the same day as recommended, and
 [W92](../work-items/w92-what-a-gate-is.md) declared (P1-P23 complete and
 retro'd, `doc/workflow.md` [v0.24](../workflow.md)). Its facts were measured into `dev-dist/p24/` on that tree
 and nothing there is checked in, on P22 stop-and-ask (a)'s precedent — so each item's declaration step
@@ -162,11 +162,12 @@ Seeded here from P22's and P23's late tables and from fact 5; each item re-measu
 | W92 | `scripts/check-spec.mjs`, `scripts/check-spec-selftest.mjs` | six node-kind sites; `C7` reads every task's type, and a gate has a type and is not a task *(W92: `check-spec.mjs` NOT needed — its sites fall through correctly; the SELF-TEST was, for its count anchors)* |
 | W92 | `scripts/check-docs-selftest.mjs` | *NOT SEEDED, found at W92's declaration step*: two `X7` probes anchored on *34 refusals*, which three new rules move |
 | W92 | `AGENTS.md` | *Five node kinds* in section 3, and section 9's executed error-class enumeration if a refusal gains a class ([Q101](../open-questions.md)) |
-| W93 | `examples/l6.ts` | the driver's new private field reaches `DRIVER_FIELDS` — W55's universe binding, which fired on W59, W61, W88 and W89 |
-| W93 | `AGENTS.md` | a new `FoldInput` kind, if stop-and-ask (b) takes one, reaches the executed snippets that walk `kind` |
-| W94 | `scripts/check-docs.mjs`, `scripts/check-docs-selftest.mjs` | `RUN_FLOOR`, `README_SNIPPET_FLOOR`, the `X8` pair list, and the `X9` probe's version anchor |
-| W94 | `test/definition/wiring.test.ts`, `spec/outcome-record.md` section 4 | the corpus censuses pinned outside their corpus ([Q342](../open-questions.md), [Q360](../open-questions.md)), because W94 ADDS a flow |
-| W94 | `scripts/check-workers-selftest.mjs` | W94 adds workers (fetch, identify, thumbnail, series setup) |
+| W93 | `examples/l6.ts` | the driver's new private field reaches `DRIVER_FIELDS` — W55's universe binding, which fired on W59, W61, W88 and W89 *(W93: TWO fields, and a sentence of the kind clause)* |
+| W93 | `AGENTS.md` | a new `FoldInput` kind, if stop-and-ask (b) takes one, reaches the executed snippets that walk `kind` *(W93: re-taken, every such snippet FILTERS on a named kind; what moved is section 9's class list and three sentences the item made false)* |
+| W93 | `examples/run-flow.ts`, `src/definition/types.ts`, `validate.ts`, `wiring.ts` | *NOT SEEDED, found at W93's declaration step*: `NOT_RUN_STATE` must skip the driver's gate types; `RegistryCode.gateTypes`; the expiry-dated sentences W92 wrote with W93's id; `boundaryTargets`' chooser for `FD-R4` |
+| W94 | `scripts/check-docs.mjs`, `scripts/check-docs-selftest.mjs` | `RUN_FLOOR`, `README_SNIPPET_FLOOR`, the `X8` pair list, and the `X9` probe's version anchor *(W94: **both fired as seeded**; the `X9` probe made version-agnostic)* |
+| W94 | `test/definition/wiring.test.ts`, `spec/outcome-record.md` section 4 | the corpus censuses pinned outside their corpus ([Q342](../open-questions.md), [Q360](../open-questions.md)), because W94 ADDS a flow *(W94: **both fired as seeded** — and the wiring census now asserts a false `no`, [Q391](../open-questions.md))* |
+| W94 | `scripts/check-workers-selftest.mjs` | W94 adds workers (fetch, identify, thumbnail, series setup) *(W94: **fired as seeded**, 17 → 21; `fetch` was P18's name already, so the fetch is `download`)* |
 
 ---
 
@@ -178,7 +179,7 @@ Seeded here from P22's and P23's late tables and from fact 5; each item re-measu
 |---|---|---|---|
 | 1 | **The churn surfaces at L1 and not at L0**: W92's typecheck names only the driver's `default` arm, and every other site that must learn the kind is found by a failing test or by reading | fact 5: 51 sites, one exhaustive, measured by the TYPE change alone; no site's BEHAVIOUR on a gate document was measured | a second exhaustive site, or a site that mishandles a gate with every test green — which would be a silent defect, not a reversal to be glad of |
 | 2 | **Resume needs no new mechanism**: the gate's memory is rebuilt by the replay P23 built, a checkpoint needs no new field, and a checkpoint taken before this plan resumes unchanged | fact 4: an EMULATION — a predicate, not a gate — one flow, one kill point, both runtimes | a memory the replay cannot regenerate — anything keyed by wall time, by pool, or by a callback's side effect |
-| 3 | **REACH: the TV-series flow runs as the maintainer described it** — one per-series branch per series whatever the arrival order, thumbnails for every file, the run `completed`, and identical after a kill at every kill point | **none — this is a reach.** No gate has run; fact 2 measured arrival order under a predicate | a shape the flow needs that a gate cannot express — a key the task before it cannot compute, a drop that must report more than `branch.exited`, a join that must know how many were dropped |
+| 3 | ***CONFIRMED by W94, with one named exception outside the run — the wiring check reads the gate as a pass-through ([Q391](../open-questions.md)).*** **REACH: the TV-series flow runs as the maintainer described it** — one per-series branch per series whatever the arrival order, thumbnails for every file, the run `completed`, and identical after a kill at every kill point | **none — this is a reach.** No gate has run; fact 2 measured arrival order under a predicate | a shape the flow needs that a gate cannot express — a key the task before it cannot compute, a drop that must report more than `branch.exited`, a join that must know how many were dropped |
 | 4 | **`RN-R13`'s TEXT moves** — a run's footprint gains the gate memory as a term — and no other existing rule's text changes except the lists that enumerate node kinds and fold-input kinds | P23 prediction 4 reversed by retention at its first test; this plan predicts the reversal in advance | an existing rule that changes for a gate — `JP-R5`'s terminal events, `branch.exited`'s definition, or the outcome table |
 
 ---
@@ -240,8 +241,8 @@ but it is tighter than at any declaration since P18**: P23's retro left `M3`'s m
 | item | status | where |
 |---|---|---|
 | [W92](../work-items/w92-what-a-gate-is.md) | **DONE 2026-09-25** — [ADR 0066](../decisions/0066-a-gate-is-a-decision-with-memory-that-names-a-registered-type-and-wires-every-route-exactly-once.md); `spec/flow-definition.md` v0.23, `FD-V39`-`FD-V41`, 37 refusals; a gate VALID and refused by every `Driver` at construction; L6 UNMOVED at 1853 / 100 | its Record |
-| W93 | next | |
-| W94 | | |
+| [W93](../work-items/w93-what-a-gate-does-in-a-run.md) | **DONE 2026-09-25** — [ADR 0067](../decisions/0067-a-gate-runs-in-the-driver-its-memory-is-the-drivers-and-its-decision-is-recorded.md) (supersedes ADR 0066 rule 7); `spec/flow-definition.md` v0.24 (`FD-R5`), `spec/run-state.md` v0.11 (`RN-R26`, `RN-R13`'s fourth term); a gate RUNS, its memory the driver's and rebuilt by replay, its decision a `gated` fold input; L6 UNMOVED at 1853 / 100 | its Record |
+| [W94](../work-items/w94-a-tv-series-ingest-through-a-gate-on-real-workers.md) | **DONE 2026-09-26** — the TV ingest through a `distinct` gate in both L6 runtimes, arranged, paired, threaded and killed at all 25 kill points; L6 **2069 / 154**; `0.6.0`, four breaks; the `gate` exemption expired and removed | its Record |
 
 **What W92 decided that this plan left open**, each argued in ADR 0066: `route` is a declared edge key owned by ONE rule,
 `FD-V41`, on every edge, so `FD-V17` does not move; the KEY PATH is the LIBRARY's grammar and the driver resolves it,
@@ -253,3 +254,20 @@ worker run first. **Prediction 1 CONFIRMED**, with a loud site no lane names; **
 types; `routing.ts`' `eligibleEdges`, which answers `[]` for a gate. **Handed to W94**: [Q381](../open-questions.md) — a new
 node kind is BREAKING for a consumer's exhaustive switch, and the `README.md` list must say so; and `examples/l6.ts`'
 `NOT_YET_AT_L6` exemption, which W94's row turns red until it is removed.
+
+**What W94 found that this plan left open**, each measured: an arrangement is defeated by a SERIAL pool, so the exit
+artifact's `identify` pool is as wide as the map, and Deno's threaded pool nearly repeats Q379's trap (28 of 30 keys); the
+per-series road ENDS at its own `end`, or every row field naming the per-file record would name the winner; `checkWiring`
+reads the gate as a pass-through and calls the natural wiring `no` ([Q391](../open-questions.md)); and the package's
+breaks are FOUR — a `route` key on a non-gate edge moved from `FD-V17` to `FD-V41`. **Prediction 3 CONFIRMED**, its one
+exception an authoring tool's rather than the run's. **P24 is COMPLETE pending its retro**; W95 was never issued.
+
+**What W93 decided that this plan left open**, each argued in ADR 0067: the memory is a DRIVER FIELD created empty and never
+handed in or out — its declaration step measured a memory kept by the PROCESS resuming WRONG, in silence, when the kill preceded
+the first decision ([Q386](../open-questions.md)); the `gated` element is REGENERATED on resume, never fed, and recorded BEFORE
+what its route leads to; a type that throws stops the run with its own error, a throwing predicate's road; `DriverOptions.gateTypes`
+travels W76's road (b), `RuntimeRegistry`; and `FD-R4` through an entry gate holds the payload to the chosen target, asking the
+type against a throwaway memory ([Q387](../open-questions.md)). **And the key is resolved ONCE, off the value as a
+`structuredClone` carries it** — its conformity reader found a class instance at an entry gate routing differently in a run and
+its replay. **Predictions 2 and 4 CONFIRMED.** **Handed to W94**: the `gated` kind in `README.md`'s breaking-change list beside
+[Q381](../open-questions.md)'s node kind, and the exit artifact.

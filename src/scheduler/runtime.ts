@@ -59,7 +59,7 @@
  */
 import { ConcurrentLimitGroup, FyflowScheduler, KeyedRateLimitGroup, RateLimitGroup } from 'fyflow-scheduler';
 import type { ResourceGroup, WorkerManager } from 'fyflow-scheduler';
-import { groupsNamedBy, resolveRegistry } from '../definition/registry.ts';
+import { checkGateTypes, groupsNamedBy, resolveRegistry } from '../definition/registry.ts';
 import { Driver, resumeRefusal } from '../driver/driver.ts';
 import type { Checkpoint, CheckpointHeader, DriverOptions } from '../driver/driver.ts';
 import { liveToken } from '../fold/policies.ts';
@@ -235,7 +235,7 @@ export type ResumeOptions = Omit<StartOptions, 'runId'>;
  * names. W66's conformity reader, finding 4, with a probe.)* To validate a document against this
  * registry rather than run it, pass `[...registry.predicates.keys()]` as the validator's names.
  */
-export type RuntimeRegistry = Pick<DriverOptions, 'predicates' | 'workers' | 'nodeTypes' | 'pools' | 'groups' | 'languages'>;
+export type RuntimeRegistry = Pick<DriverOptions, 'predicates' | 'workers' | 'nodeTypes' | 'pools' | 'groups' | 'languages' | 'gateTypes'>;
 
 /**
  * **What `runtime.start` hands back — the run's driver, and the run's END** —
@@ -406,6 +406,13 @@ export function createRuntime(
     }
   }
 
+  // **The consumer's GATE types, held to `GateType` HERE rather than on a first `start`** — W93, ADR 0067. A gate
+  // type is CODE with no document entry (its `fn` is a function), so there is no `both ways` to take against the
+  // document as there is for a predicate or a language above: what can be checked is the SHAPE and the name —
+  // `GateTypeRefused` and `NameCollision`, the same predicate `checkRegistry` runs in every `new Driver`. Handed
+  // to every driver as `registry.gateTypes`; absent, the built-ins alone.
+  checkGateTypes(code.gateTypes);
+
   // (2) The worker URLs, resolved against the consumer's base before any pool is built, so a pool's
   //     config carries what a worker thread can actually load (fact 8).
   const workers: Record<string, WorkerEntry> = {};
@@ -490,6 +497,7 @@ export function createRuntime(
     nodeTypes,
     pools,
     languages: languages as Languages,
+    ...(code.gateTypes !== undefined ? { gateTypes: code.gateTypes } : {}),
   };
 
   // **Which languages each type's pools were BUILT with** — what `start` holds an incoming flow to.

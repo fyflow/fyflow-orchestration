@@ -191,6 +191,18 @@ const RUN_FOR: Record<FoldInput['kind'], () => Promise<Driver>> = {
     scheduler.settle('r1:publish:-:0', 'done', { result: { ok: true } });
     return driver;
   },
+  // W93 (`RN-R26`): a run through a GATE — the corpus's own `gated-map` — whose second file's key path ends on an
+  // OBJECT carrying what JSON cannot, so a `gated` element's `key` is held to `structuredClone` round-tripping too,
+  // and to being frozen when a consumer is handed it. *This entry is why W93's L0 was red in `typecheck:tests`
+  // and nowhere else: the `Record` refuses a kind with no run, which is the binding doing its job.*
+  gated: async () => {
+    const { driver, scheduler } = corpusDriver(await load('valid/gated-map.flow.json'));
+    driver.start({});
+    scheduler.settle('r1:ingest:-:0', 'done', { result: { files: [{ n: 0 }, { n: 1 }] } });
+    scheduler.settle('r1:identify:0:0', 'done', { result: { series: { id: 's1' } } });
+    scheduler.settle('r1:identify:1:0', 'done', { result: { series: { id: RICH() } } });
+    return driver;
+  },
 };
 
 const SUITE = 'W88 — what a checkpoint IS: RN-R14 to RN-R18';
@@ -319,7 +331,7 @@ suite(SUITE, (test) => {
 
   test('RN-R17 — every fold-input KIND round-trips structuredClone as data AND prototype', async () => {
     const kinds = Object.keys(RUN_FOR) as FoldInput['kind'][];
-    equal(kinds.length, 9, 'the union has nine kinds since W89 added `resumed` — the Record is what binds it, this is the COUNT beside that membership');
+    equal(kinds.length, 10, 'the union has ten kinds since W93 added `gated` (nine since W89 added `resumed`) — the Record is what binds it, this is the COUNT beside that membership');
     // **The kinds VISITED, bound to the kinds DECLARED** - W88's own rule 8 set (`d2`): with the
     // loop truncated to one kind the count above still read 8 and every per-kind clause below was
     // simply never asked, for ZERO. The count is of the list; this is of the iterations.

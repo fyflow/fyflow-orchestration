@@ -30,6 +30,7 @@ import { checkRegistry, GateTypeRefused, NameCollision } from '../../src/definit
 import { allRegions, branchPathOf, buildGraph } from '../../src/definition/regions.ts';
 import { checkWiring, type WiringRegistry } from '../../src/definition/wiring.ts';
 import { Driver, InvalidDefinition } from '../../src/driver/driver.ts';
+import { liveToken } from '../../src/fold/policies.ts';
 import type { Edge, FlowDefinition, GateContext, GateType, JsonSchema, Registry } from '../../src/definition/types.ts';
 import { PATH_LANGUAGE } from '../scheduler/fake-language.ts';
 
@@ -148,7 +149,7 @@ const DECLARED_CASES = [
   'GateTypeRefused and NameCollision at construction — each clause of gateTypeProblem, both ways',
   'distinct`s decision: first, duplicate and nokey, keys compared as JSON values, one memory',
   'readKeyPath — own keys of plain objects, no index, and anything else is nothing',
-  'new Driver REFUSES a gate flow at construction, by name, after validation, queueing nothing',
+  'new Driver CONSTRUCTS a gate flow since W93 — ADR 0066 rule 7 LIFTED — an INVALID one still reports its FD-V, and a consumer type arrives by DriverOptions.gateTypes',
   'the spec`s tables are the code`s lists, both ways — the gate`s keys, the interface`s members, distinct`s routes',
   'the pass-through on EVERY route, with a plain and a transformed consumer, and from an entry gate',
   'every case this suite declares actually ran — a deleted case fails naming itself',
@@ -461,34 +462,41 @@ suite(SUITE, (test) => {
   });
 
   test(DECLARED_CASES[13]!, async () => {
+    // **W92 asserted the REFUSAL here, and W93's lift turned it red on its first run** — `a VALID gate flow is refused
+    // at construction: Error: MissingJoinPolicy…`, the constructor having reached the next check instead. That was the
+    // assertion's designed expiry (ADR 0066 rule 7, lifted by ADR 0067); what it asserts now is the lift itself.
     const calls = { addTask: 0, addEventListener: 0 };
     const scheduler = { addTask: () => { calls.addTask++; }, addEventListener: () => { calls.addEventListener++; } };
-    const make = (d: FlowDefinition) => new Driver(d, { runId: 'r1', scheduler: scheduler as never, predicates: new Map(), createTask: (c: unknown) => c as never, ...typesFor(['IngestWorker', 'ExtractWorker', 'ScoreWorker', 'PublishWorker']) } as never);
+    const make = (d: FlowDefinition, extra: Record<string, unknown> = {}) => new Driver(d, {
+      runId: 'r1', scheduler: scheduler as never, predicates: new Map(), createTask: (c: unknown) => c as never,
+      joinPolicy: liveToken as never, ...typesFor(['IngestWorker', 'ExtractWorker', 'ScoreWorker', 'PublishWorker']), ...extra,
+    } as never);
     const valid = JSON.parse(await readText(`${ROOT}spec/examples/valid/gated-map.flow.json`)) as FlowDefinition;
-    let err: unknown;
-    try { make(valid); } catch (e) { err = e; }
-    ok(err instanceof InvalidDefinition, `a VALID gate flow is refused at construction: ${String(err)}`);
-    equal((err as InvalidDefinition).rules, [], 'with NO rule ids — the definition is valid; the driver cannot run it (W33`s precedent)');
-    ok((err as Error).message.includes('"dedupe"'), 'naming the gate');
-    equal(calls, { addTask: 0, addEventListener: 0 }, 'and NOTHING was queued or subscribed — refused before any listener exists');
-    // An INVALID gate document reports its FD-V findings first — validation precedes the refusal.
+    const d = make(valid);
+    ok(calls.addEventListener > 0, 'a VALID gate flow CONSTRUCTS — the driver subscribes');
+    d.start({});
+    equal(calls.addTask, 1, 'and STARTS: the task before the gate is dispatched, as it is in any flow');
+    // An INVALID gate document is still refused, with its rule — validation is untouched by the lift.
     const invalid = JSON.parse(await readText(`${ROOT}spec/examples/invalid/FD-V41--a-declared-route-with-no-edge.flow.json`)) as FlowDefinition;
+    let err: unknown;
     try { make(invalid); } catch (e) { err = e; }
     equal((err as InvalidDefinition).rules, ['FD-V41'], 'an invalid gate document is InvalidDefinition with its rule');
-    // Every shape, including a gate at the top level of a flow with no region at all.
+    // Every shape constructs, a gate at the top level of a flow with no region included.
     for (const [shape, build] of SHAPES) {
       err = undefined;
       try { make(build(GATE())); } catch (e) { err = e; }
-      ok(err instanceof InvalidDefinition && (err as InvalidDefinition).rules.length === 0, `${shape}: refused at construction`);
+      equal(err, undefined, `${shape}: constructs`);
     }
-    // The neighbour: the same flow with the gate replaced by a task constructs.
-    const noGate = { flowId: 'ng', version: 1, entry: 'identify', nodes: [
-      { id: 'identify', kind: 'task', type: 'ExtractWorker', edges: [{ to: 'dedupe' }] },
-      { id: 'dedupe', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'done' }] },
-      { id: 'done', kind: 'end', outcome: 'completed' },
-    ] } as unknown as FlowDefinition;
-    make(noGate);
-    ok(calls.addEventListener > 0, 'without the gate the driver constructs and subscribes');
+    // A CONSUMER's type reaches a hand-built driver by DriverOptions.gateTypes — and without it the driver validates
+    // against the built-ins alone, so a gate naming it is FD-V39 at construction (the registry road ADR 0066 rule 3 left
+    // to the definition layer, and W93 gave the driver).
+    const thresholdFlow = SHAPES[0]![1](GATE({ type: 'threshold', settings: { limit: 3, key: 'n' }, edges: [{ route: 'low', to: 'setup' }, { to: 'dropped' }] }));
+    err = undefined;
+    try { make(thresholdFlow); } catch (e) { err = e; }
+    ok(err instanceof InvalidDefinition && (err as InvalidDefinition).rules.includes('FD-V39'), `no gateTypes: "threshold" is FD-V39 — ${String(err)}`);
+    err = undefined;
+    try { make(thresholdFlow, { gateTypes: { threshold } }); } catch (e) { err = e; }
+    equal(err, undefined, 'with gateTypes: { threshold } it constructs');
   });
 
   test(DECLARED_CASES[14]!, async () => {

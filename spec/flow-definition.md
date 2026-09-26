@@ -1,6 +1,6 @@
 # spec/flow-definition — the flow definition format
 
-**Status:** v0.23 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.24 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2** acted on the first spec-conformity pass
 (ADR 0004, and `region(F)` made computable). **v0.3** acted on the second, which found that `FD-V19`
 had reintroduced the v0.1 defect class under a new id — a refusal rule rejecting the valid corpus.
@@ -283,12 +283,27 @@ enumerations in `FD-V23` and `FD-V24` name the kind, and `FD-V21`'s example list
 *(this sentence omitted `FD-V21` until W92's conformity reader)*; **`FD-V17` does not move**, because `route` is a
 declared edge key and `FD-V41` owns it on every edge, `FD-V26`'s precedent for `needs`. **A gate is valid
 and RUN by nothing yet**: `new Driver` refuses a flow holding one, by name, until W93 — v0.8's `map`
-split, taken at construction. **Measured before the rule was written** (W92's declaration step): the kind
+split, taken at construction *(true of v0.23; v0.24 runs one, below)*. **Measured before the rule was written** (W92's declaration step): the kind
 added to the `FlowNode` union is ONE typecheck error, the driver's `never`, in all five lanes, while
 `KINDS` taught alone made the validator THROW — a `TypeError` from `NODE_KEYS`, a `Record<string, …>`
 lookup no lane can see. So this document now holds **37 refusals** — `FD-V1` … `FD-V41` less `FD-V5`,
 `FD-V14`, `FD-V15` and `FD-V34` — and it is the number `check-spec` prints as *C4 covered 37 definition
 refusals*.
+
+**v0.24 RUNS a gate** ([ADR 0067](../doc/decisions/0067-a-gate-runs-in-the-driver-its-memory-is-the-drivers-and-its-decision-is-recorded.md), [W93](../doc/work-items/w93-what-a-gate-does-in-a-run.md),
+P24 decisions 5-8). Section 2's gate subsection gains its run-time half — the driver evaluates a gate
+synchronously where a branch ENTERS it, asks its type's `fn` with the gate's memory (one per gate per RUN,
+the driver's, rebuilt by replay on resume), records the decision (`spec/run-state.md`'s `RN-R26`), and
+takes the one edge wired for the returned route with what reached the gate. Section 6 gains **`FD-R5`**: a
+route the type returns that it does not declare stops the run by name, `UndeclaredRoute` — the counterpart
+of `FD-R1`, which no load-time check can reach. **ADR 0066 rule 7's construction refusal is LIFTED.** **No
+`FD-V` moves and the refusal count stays 37**: a gate's document half is unchanged, and `FD-R4`'s text is
+unchanged too — *a task the payload reaches* at `start()` is, through an entry gate, the one the gate
+chooses, and what moved is the walk that computes it (below). **Measured before the rule was written**
+(W93's declaration step): a gate arm prototyped in a copy of the tree, killed at every kill point and
+resumed, came back identical 6 of 6 with the memory the DRIVER's — and with it kept by the PROCESS the kill
+before the first decision resumed WRONG, in silence, past the stored events where `RN-R20` compares
+nothing.
 
 **Binds:** [ADR 0002](../doc/decisions/0002-a-flow-definition-is-data-and-a-predicate-is-registered-by-name.md)
 (the graph is data; a predicate is a name; an unknown name fails at instantiation) and
@@ -770,14 +785,45 @@ keep those a `task`, unchanged. Inside a region a gate is a member like a task (
 taken — which is how `FD-V29`'s certainty walk already reads a `task`'s. It may be the `entry`; `FD-V3`
 refuses only a `join` or an `end`.
 
-**What a gate's memory is, and what running one does, are W93's** — P24 decisions 5-8: one memory per gate
-per RUN (stop-and-ask (a)), the driver's, evaluated synchronously where a branch enters the gate, rebuilt by
-replay on resume, and a route the type returns that it did not declare stops the run by name. **Until then
-`new Driver` refuses a flow holding a gate, by name, at construction** — `InvalidDefinition` with no rule
-ids, W33's precedent for a valid definition the driver cannot execute ([ADR 0066](../doc/decisions/0066-a-gate-is-a-decision-with-memory-that-names-a-registered-type-and-wires-every-route-exactly-once.md) rule 7).
-Measured at W92's declaration: taught to the validator and not to the driver, a gate flow constructed,
-dispatched the task before the gate, and was stopped only when that task SETTLED — a real worker having run
-first.
+**What RUNNING a gate does — v0.24** ([ADR 0067](../doc/decisions/0067-a-gate-runs-in-the-driver-its-memory-is-the-drivers-and-its-decision-is-recorded.md), P24 decisions 5-8). *(v0.23 said
+this was W93's and that until then `new Driver` refused every flow holding a gate at construction — ADR 0066
+rule 7, which v0.24 LIFTS.)* The driver evaluates a gate **synchronously, where a branch ENTERS it** — no
+dispatch, no task id, no scheduler:
+
+1. **It asks the type.** `fn` is handed `{ key, input, settings, memory }`: `input` and `settings` are COPIES,
+   so a type writing into either moves nothing the run holds — a predicate is handed a copy for the same
+   reason; `key` is `settings.key` resolved by the key-path rule above over **that copy — the value as a
+   `structuredClone` carries it**, ONCE, and recorded as a copy taken BEFORE the type runs (absent where the
+   gate declares no `key` or a segment resolves to nothing). *Over the clone and not the value itself*: the
+   two differ only for a caller's entry payload holding a CLASS instance, whose clone is a plain object — and
+   a resume enters from the header's clone (`spec/run-state.md`'s `RN-R19`), so reading the original would
+   make a run and its replay resolve different keys (measured by W93's conformity reader: an honest
+   checkpoint refused `diverged` at 0). `OR-R11`'s *a value, not an object*, at the one place a caller's own
+   object reached a decision; and `settings` is `{}` where the gate declares none. `memory` is **the gate's
+   memory: ONE per gate per RUN**, the same `Map` for every branch that reaches the gate whatever region
+   instance or map item it comes from (P24 stop-and-ask (a)).
+2. **A route the type does not declare stops the run** — `FD-R5`, `UndeclaredRoute`, through `OR-R10`; and
+   a type that THROWS stops it with the thrown error as it is, which is what a throwing decision predicate
+   does (measured at W93's declaration step). Nothing is recorded for the gate in either case.
+3. **It records the decision** — a `gated` fold input, `spec/run-state.md`'s `RN-R26` — before anything the
+   route leads to.
+4. **It takes the ONE edge wired for the returned route** — an edge with no `route` for the DEFAULT — handing
+   on **exactly the value that reached the gate**, with the branch that reached it, so an `end` after a gate
+   is that branch's `branch.exited` and a `join` after one is that branch's arrival.
+
+**Which branch is FIRST is the order branches REACH the gate** — the order the run's settlements arrive in,
+which is the order of the log — and a resume reproduces it exactly, because the gate's memory is rebuilt by
+REPLAY: the driver that resumes a run starts it EMPTY and re-asks every gate on the stored settlements in
+their order (`RN-R26`). **Never a memory kept anywhere else**: measured at W93's declaration step, a memory
+kept by the PROCESS resumed a run killed before its first gate decision WRONG, with nothing refused — that
+decision lay past the stored events, where `RN-R20` compares nothing.
+
+**`FD-R4` through an ENTRY gate holds the payload to the target the gate CHOOSES.** *A task the payload
+reaches with no worker in between* is, through a gate, the one its route leads to — so the driver asks the
+entry gate's type at `start()` against a THROWAWAY memory, which is empty, exactly what the run's memory is
+before its first decision, and holds the payload to that route's target alone; a type that throws or returns
+an undeclared route there holds nothing past the gate, and the run then stops on it for real. The static
+wiring check still lists every route's target, since any of them is a place the payload may land.
 
 **`distinct` — the one built-in gate type:**
 
@@ -1335,7 +1381,7 @@ built-in `distinct` included — is a value of ONE public interface, `GateType` 
 | `routes` | every route the type may return — a non-empty list of distinct names, each in `FD-V16`'s charset. Every one must be wired by exactly one edge (`FD-V41`) |
 | `defaultRoute` | one of `routes` — what an edge with no `route` carries. **Not necessarily the first** |
 | `settingsSchema` | optional — what a gate's `settings` must satisfy, in the built-in subset; absent means UNCHECKED (P18 decision 3). `FD-V40` applies it |
-| `fn(ctx)` | the decision, synchronous: handed `{ key, input, settings, memory }` — `settings.key` resolved over the value that reached the gate, that value, the gate's settings, and the gate's memory — and returning one of `routes`. **Called by the driver, which is W93's** |
+| `fn(ctx)` | the decision, synchronous: handed `{ key, input, settings, memory }` — `settings.key` resolved over the value that reached the gate, that value, the gate's settings, and the gate's memory — and returning one of `routes`. **Called by the driver where a branch enters the gate, since v0.24** — and once more at `start()` for an ENTRY gate, against a throwaway memory, for `FD-R4` alone, so a type is the pure function of its context Q9 asks every decision to be |
 
 **A type is CODE, not a document entry** — `fn` is a function, which a JSON registry cannot carry, so a
 consumer registers their types in the driver registry's **`gateTypes`** (a `Map` or a plain object keyed
@@ -1344,7 +1390,10 @@ set only ever ADDS, and a consumer type named as a built-in is refused rather th
 exactly as a custom group type named as a built-in is. **`distinct` is registered THROUGH the interface**:
 nothing in the validator, the wiring check or the driver names it; each reads the four members off
 whatever type a gate names, and `distinct` is held to the same predicate as a consumer's
-(`gateTypeProblem`), so the extension road is exercised the day it ships (P24 decision 2).
+(`gateTypeProblem`), so the extension road is exercised the day it ships (P24 decision 2). **A driver is
+handed the set as `DriverOptions.gateTypes`, and a runtime consumer as `RegistryCode.gateTypes`**, which the
+runtime holds to `GateType` where it is built and hands every driver it starts or resumes as
+`runtime.registry.gateTypes` — v0.24, [W93](../doc/work-items/w93-what-a-gate-does-in-a-run.md).
 
 #### The schema subset
 
@@ -1818,6 +1867,7 @@ owning item's gate, **not W1's L0**.
 | `FD-R1` | routing reaches a node, eligible edges exist for the settled terminal state, and none evaluates true. The failure names the run id and the node id and is **reported** rather than thrown out of a listener (`OR-R10`). **Unreachable through a valid definition**, and that is `FD-V7` working rather than a gap — see below. Test: assert against the routing function directly, with a node whose eligible edges are all guarded and a registry whose predicates all return false; **and a companion test that the reachable neighbour is not this rule** — no eligible edge at all is a declared path end (section 3) | W3 |
 | `FD-R3` | **an UNCONDITIONAL** `needs` reference names a node and **no output of that node is on this node's branch path**. Reported as an `UnresolvedReference` naming the declaring node, its branch path, the key and the target. **Since v0.13 the decision-routed-around case is `FD-V29`'s and is refused at instantiation**, and what is left is the two things a validator provably cannot see, both measured rather than argued: (a) **a reader whose branch path is comparable with none of the target's**, which needs no policy at all — two `map` regions of different arity, `reference-past-a-map-arity.flow.json`, where `FD-V29` correctly says the target ran and the third instance of the second region can see neither output of the first; and (b) a join **policy** firing before a branch entry has SETTLED — for any reason, parking at `user_action` being one and a branch entry that has simply not settled yet being another — which `validateDefinition` cannot know about because it is not given the policy (`FD-V15`'s note, [Q97](../doc/open-questions.md)). *(This clause read *"parked at `user_action`"*, as did four other statements of the same limit, and W45's conformity reader measured that parking is inessential: a policy satisfied on the first arrival, with the other branch entry never settling, dispatches the reader and this rule fires with no `user_action` anywhere. `test/driver/needs.test.ts` asserts it under a constructed policy, with a shipped-policy control beside it.)* **A CONDITIONAL reference never reaches this rule** — `FD-C4` is what it does instead. **AND v0.15 REMOVES (a), which leaves (b) as the only road.** [ADR 0044](../doc/decisions/0044-a-reference-is-visible-when-two-paths-agree-on-the-regions-that-contain-both-of-them.md) makes a reader in a SIBLING region see **all** of the target's outputs, so *comparable with none of the target's* has no instance there — the case (a) names was the sibling road, and it was `FD-C1`'s defect rather than a fact about what a validator can see. **So this rule now has exactly one road that a shipped policy can reach, and it is the POLICY one** — which is `FD-V29`'s own history one version on: that rule removed the decision case and this removes the arity case, each leaving the backstop narrower. *(The removal landed with the DRIVER, in **W50**: `reference-past-a-map-arity` resolves at every arity pair now, and this rule's remaining road is the policy one — [Q218](../doc/open-questions.md).)* *(Before v0.13 this row read *"a decision routed around it, or it settled `user_action`"* and said *"no validator rule could have seen this"*. **The first clause was `FD-V29`'s all along and the sentence was the argument against looking**; the second half is (b), and (a) was in neither. W45.)* **`FD-V27` has already checked that this node is reachable FROM the named one** and `FD-V29` that it must have run, which together are everything the graph can say. **Why its own class and not `UnresolvedMapArity`**: that one says *the previous node did not return an array*, which is a WORKER's bug, and this says *the node you named did not run on your path*, which is the FLOW's shape, and the two send a reader to different places. Reported through `OR-R10` from a listener, and reported **and rethrown** from `resolve()`, which is caller-initiated. **Not from `start()`, and that is a property of `FD-V27` rather than of this rule**: `start()` composes only the entry node, and a reference from the entry node names a target the entry node must be reachable from — which with `FD-V11` makes the entry reachable from it, and that is an `FD-V10` cycle. So the `start()` road is refused at instantiation and has no case. *(This row said `start()` and `resolve()`, and the test named for it asserted neither. W41's conformity reader, and it is `FD-R1`'s own *test that cannot be built* one section up.)* Test: `test/driver/needs.test.ts` | **[W41](../doc/work-items/w41-what-a-node-can-reach-and-what-names-it.md)** |
 | `FD-R4` | **the run's PAYLOAD fails the `inputSchema` of a task it reaches with no worker in between, at `start()`; or a PERSON's `done` resolution fails the parked node's worker `outputSchema`, at `resolve()`** — v0.21, [P19](../doc/plans/p19-what-a-schema-buys-an-author.md) decision 5, [W73](../doc/work-items/w73-the-wiring-check-a-verdict-per-edge-and-two-boundaries-validated-once.md). Once per run and once per human action, NEVER per settlement (per-settlement validation of a worker's result is OUT of P19 as a default). **A REJECTED COMMAND and not a terminated run — the one row of this table whose heading clause does not hold, and it says so**: thrown at the caller as `BoundaryRefused` (naming the boundary, the node, the worker, the task where there is one, and every finding), NOTHING appended, nothing reported through `OR-R10`. At `start` it is thrown before the driver counts itself started, so a corrected payload starts the same driver (`ID-R3` sees nothing, because nothing ran); at `resolve` the task is still suspended and a corrected value resolves it — `RS-R1`'s own reading, *it came from outside and a caller can retry* — and the worker's declared example is a value a person can supply (ADR 0056 rule 3). A boundary that STOPPED the run would turn a typo in a human's value into a dead run, the opposite of what the schemas are for; the maintainer's choice at W73's stop-and-ask 2. **The targets at `start` are the wiring check's own walk** (`boundaryTargets`, one derivation, two callers): the entry task, or every branch task of an entry fan-out recursively over the same value, or a map's branch task once per element of the array under `over` (a non-array is `FD-R2`'s, as before) — each value composed through the node's `needs` as `enter` composes it (at an entry only `"."` can be named, `FD-V27`, and an entry `map`'s own `needs` is composed the same way before `over` is read). A `done` resolution with no `result` is held as `null`, which is what the record stores for it (`RS-R2`). A worker declaring no schema on that side is UNCHECKED (P18 decision 3); `DriverOptions.validateBoundaries: false`, forwarded by `createRuntime`'s `RuntimeOptions`, turns both off. **Measured before the rule was written** (W73's declaration, fact D): 0.47-1.28 µs per check on every corpus payload and resolution, 0.35 ms at the walking worst case (a 1000-item array under a schema that walks items), against ~100 ms per real run at L6. Test: `test/driver/boundary.test.ts` at L2 — a task entry, a fan-out entry naming the refusing branch, a map entry refusing one item, an entry composing `"."`, the resolve boundary with the task still suspended and then resolved on the declared example, both switches, and the runtime forwarding — and `examples/l6.ts` on real workers in both runtimes: an entry payload refused with NOTHING dispatched to the scheduler and the row's run then started beside it, and a person's resolution refused and then accepted on the SAME driver. **The same-driver half of the start boundary is L2's alone**: `createRuntime`'s `start` builds a driver and starts it in one call, so a refused driver is a value no caller of the runtime holds (W73's adequacy reader, f1 — [Q307](../doc/open-questions.md)) | **W73** |
+| `FD-R5` | **a GATE's type returns a route it does not declare** — v0.24, P24 decision 8, [ADR 0067](../doc/decisions/0067-a-gate-runs-in-the-driver-its-memory-is-the-drivers-and-its-decision-is-recorded.md), [W93](../doc/work-items/w93-what-a-gate-does-in-a-run.md). The counterpart of `FD-R1`, and like it unreachable at load: `FD-V41` wires every route the type DECLARES, and a route nobody declared has no edge to be wired by — only running `fn` reveals it. Reported as an `UndeclaredRoute` naming the rule, the run, the gate, its type, what was returned and the routes the type declares, through `OR-R10` (reported from a listener; reported AND rethrown from `start()` and `resolve()`, which are caller-initiated), **with nothing recorded for the gate** — no `gated` element, because no route was taken. **A type whose `fn` THROWS is not this rule**: the run stops with the thrown error as it is, a throwing decision predicate's road, measured at W93's declaration step. Test: at ladder L2, a type returning an undeclared string, a number and nothing, each from a gate after a task — stopped, one report of kind `UndeclaredRoute` naming the rule, the gate and the type, no `gated` element and nothing past the gate dispatched — and from an ENTRY gate, where `start()` rethrows it; and a type that throws, from both roads, stopping with its own error | **[W93](../doc/work-items/w93-what-a-gate-does-in-a-run.md)** |
 
 ### FD-R1's test, corrected
 
@@ -1864,7 +1914,7 @@ instantiation, and instantiation is a driver action. Hand-written, never generat
 | `typed.flow.json` | **a node TYPE, in all FOUR shapes `FD-C5` enumerates** — v0.17, [W59](../doc/work-items/w59-what-a-node-type-is.md). `type: "Scorer"` on the top-level entry (`ingest`, declaring **no** `settings`, so the `{}` default the validator sees is in the corpus), on the **branch task of a `map`** (`rank`, `settings: { factor: 100 }` — per INSTANCE, the envelope wrapping each instance's own item under `JP-R11`), on a task inside a `fanout` branch (`scoreA`, `settings: { factor: 10 }`, beside `scoreB`, a `ScoreWorker` — a former bare pool, a type like any other since v0.19 — so two types sit in one region), and on a **join's successor** (`publish`, `settings: { factor: 1 }`, whose `input` is `JP-R12`'s collection — the fourth kind, which no suite instantiated until W59's adequacy reader found a driver handing it `{}` cost zero). `Scorer` is a document-declared type in `registry.json` whose worker `scorer` carries the `settingsSchema` `FD-V33` applies and whose `settings` defaults (`factor: 1`) merge under each node's — so the entry's absent settings are the defaults road, in the corpus (v0.19). **Validated at L4 and never RUN**: what two typed nodes of one type with different settings do on real workers is `examples/flows/typed.flow.json` and `typed-regions.flow.json` at ladder L6 |
 | `pooled.flow.json` | **a node on a NAMED pool instance of its type, and one on the default by name** — v0.19, [W65](../doc/work-items/w65-the-registry-document-and-a-node-type-is-a-derivation.md). `score` is a `Scorer` on `pool: "scorer-fast"`, an instance `registry.json` declares under `pools` with its own config merged over the type's; `publish` is a `Scorer` on `pool: "Scorer"`, the default instance stated explicitly, which `FD-V38` accepts. The pair `FD-V38` refuses is `spec/examples/invalid/FD-V38--pool-not-an-instance-of-the-type.flow.json`, the same instance named by a node of another type. **Validated at L4 and never RUN** |
 | `transformed.flow.json` | **a TRANSFORM, on all FOUR shapes `FD-C5` enumerates** — v0.18, [W61](../doc/work-items/w61-what-a-transform-is.md). `transform` in the fake language `path` on the top-level entry (`ingest`, `document`), on the **branch task of a `map`** (`rank`, `confidence` — its own item under `JP-R11`), on a task inside a `fanout` branch that declares `needs` (`scoreA`, `run.config` — what `needs` composed, the kind `typed.flow.json` does not carry), and on a **join's successor** (`publish`, `$settings.factor` — reading the binding rather than the collection, so the corpus shows `$settings`). `path` is in `registry.json` under `languages` and resolves to the test fixture's adapter in `test/definition/corpus-types.ts`, as `Scorer`'s validator does. **Validated at L4 and never RUN**: what a transform does on real workers is W63's exit artifact |
-| `gated-map.flow.json` | **a GATE, v0.23** — [W92](../doc/work-items/w92-what-a-gate-is.md). The maintainer's ingest (P24): a `map` over `files` whose one branch identifies each file and reaches `dedupe`, a `distinct` gate keyed by the KEY PATH `series.id`, whose DEFAULT route (an edge with no `route`) opens the per-series `setup` and whose `duplicate` and `nokey` routes DROP to two `end` nodes inside the region, one per route so the graph stays local. Every route wired exactly once. **Validated at L4 and never RUN**: `new Driver` refuses a flow holding a gate until W93, and `test/driver/needs.test.ts` asserts THAT refusal on this document where it runs every other region-bearing one — so the day W93 lifts it, that assertion is what fails. What a gate does on real workers is W94's exit artifact |
+| `gated-map.flow.json` | **a GATE, v0.23** — [W92](../doc/work-items/w92-what-a-gate-is.md). The maintainer's ingest (P24): a `map` over `files` whose one branch identifies each file and reaches `dedupe`, a `distinct` gate keyed by the KEY PATH `series.id`, whose DEFAULT route (an edge with no `route`) opens the per-series `setup` and whose `duplicate` and `nokey` routes DROP to two `end` nodes inside the region, one per route so the graph stays local. Every route wired exactly once. **Validated at L4, and RUN at L2 since v0.24**: `new Driver` refused a flow holding a gate until W93, and `test/driver/needs.test.ts` asserted THAT refusal on this document where it runs every other region-bearing one — so W93's lift failed that assertion on its first run, and the document joined that census as a row. What a gate does on real workers is W94's exit artifact |
 
 **This table and the directory are compared BOTH WAYS, and that is v0.8's addition rather than a
 restatement.** `test/definition/l4-corpus.test.ts` asserts the set of `.flow.json` files in

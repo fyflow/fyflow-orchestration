@@ -22,7 +22,7 @@
  * | *a node with no `needs` is unchanged* | `FD-C1`'s first clause, and ADR 0040 rule 1 |
  */
 import { collected, equal, listDir, ok, readText, ROOT, suite, throws } from '../harness.ts';
-import { Driver, InvalidDefinition, UnresolvedReference } from '../../src/driver/driver.ts';
+import { Driver, UnresolvedReference } from '../../src/driver/driver.ts';
 import { validateDefinition, violatedRules } from '../../src/definition/validate.ts';
 import { allRegions, buildGraph } from '../../src/definition/regions.ts';
 import { liveToken } from '../../src/fold/policies.ts';
@@ -305,6 +305,12 @@ suite('L2 — FD-C2: what NAMES an output', (test) => {
       // 5 node ids / 2 lost**. A `transform` changes no id and no region, and the driver
       // evaluates none of them, which is what this census says of it.
       ['transformed', { ids: 7, nodes: 5, lost: 2, map: true }],
+      // **W92's document, RUN since W93** — the one region-bearing flow with a GATE. Derived by reading its nodes and
+      // the stimuli below (three files, series s1, s1, s2, settled in dispatch order): ingest, identify x3, setup x2 —
+      // the FIRST file of each series, the second s1 routed `duplicate` to an `end` — and publish = **7 ids / 4 node
+      // ids / 3 lost**, the three lost being `identify`'s two collapsing ids and `setup`'s one. A gate mints no id,
+      // so it adds none here; what it changes is HOW MANY branches reach `setup`, which is its whole point.
+      ['gated-map', { ids: 7, nodes: 4, lost: 3, map: true }],
     ]);
     const entries: [string, unknown, (id: string) => unknown][] = [
       ['fanout-join', { from: 'ingest' }, (id) => ({ by: id })],
@@ -332,6 +338,13 @@ suite('L2 — FD-C2: what NAMES an output', (test) => {
       // W61: the same shape, the transformed entry feeding the map.
       ['transformed', { from: 'ingest' },
         (id) => (id.includes(':ingest:') ? { items: ['a', 'b', 'c'] } : { by: id })],
+      // W93: `ingest` feeds the map over `files`; each `identify` names its file's series, two files sharing one.
+      ['gated-map', {},
+        (id) => (id.includes(':ingest:')
+          ? { files: ['a', 'b', 'c'] }
+          : id.includes(':identify:')
+            ? { series: { id: ['s1', 's1', 's2'][Number(id.split(':')[2])] } }
+            : { by: id })],
     ];
     // **The list is bound to a source this file does not own** — W41's adequacy
     // reader, whose sharpest measurement is that every bound in these two files was
@@ -348,23 +361,21 @@ suite('L2 — FD-C2: what NAMES an output', (test) => {
     // this item wrote three before the reader found them.*
     const REGION_KINDS = new Set(['fanout', 'map']);
     const onDisk: string[] = [];
-    // **A region-bearing flow holding a GATE is not RUN here, and its REFUSAL is asserted instead** — W92,
-    // ADR 0066 rule 7: `new Driver` refuses every gate flow at construction until W93 runs one. Split off by
-    // KIND and not by name, so the day W93 lifts the refusal the assertion below fails naming the flow, and
-    // it joins `entries` with its expectation — rather than leaving this census silently one flow short.
+    // **A region-bearing flow holding a GATE is RUN here since W93, as every other one is** — ADR 0066 rule 7's
+    // construction refusal is LIFTED (ADR 0067). W92 split such flows off by KIND and asserted their REFUSAL, so that
+    // the lift would fail that assertion naming the flow rather than leave this census silently one flow short; it
+    // did, on W93's first run (`gated-map: … refused … until W93 runs one: undefined`), and the flow joined `entries`
+    // with its expectation above. What stays is the ARRANGEMENT, because the census is only a statement about gates
+    // while the corpus holds one: the gate flows below are counted, and must be more than none.
     const gated: string[] = [];
     for (const f of (await listDir(`${EX}/valid`)).filter((n) => n.endsWith('.flow.json')).sort()) {
       const d = JSON.parse(await readText(`${EX}/valid/${f}`)) as FlowDefinition;
       if (!d.nodes.some((n) => REGION_KINDS.has(n.kind))) continue;
-      (d.nodes.some((n) => n.kind === 'gate') ? gated : onDisk).push(f.replace(/\.flow\.json$/, ''));
+      onDisk.push(f.replace(/\.flow\.json$/, ''));
+      if (d.nodes.some((n) => n.kind === 'gate')) gated.push(f.replace(/\.flow\.json$/, ''));
     }
-    ok(gated.length > 0, 'the ARRANGEMENT: the corpus holds a region-bearing gate flow (gated-map, v0.23)');
-    for (const name of gated) {
-      let err: unknown;
-      try { harness(await load(`valid/${name}.flow.json`)); } catch (e) { err = e; }
-      ok(err instanceof InvalidDefinition && err.rules.length === 0 && /gate node/.test(err.message),
-        `${name}: a VALID gate flow is refused at Driver construction with no rule ids, naming the gate — until W93 runs one: ${String(err)}`);
-    }
+    ok(gated.length > 0 && gated.every((g) => onDisk.includes(g)),
+      `the ARRANGEMENT: the corpus holds a region-bearing gate flow, and it is censused — RUN — like the rest: ${gated.join(', ')}`);
     equal(entries.map((e) => e[0]).sort(), onDisk,
       'the censused set IS the corpus`s region-bearing flows, both ways — derived from the ' +
       'directory rather than declared beside itself');
@@ -435,8 +446,9 @@ suite('L2 — FD-C2: what NAMES an output', (test) => {
     // membership — the `expected` table above is the membership, and `onDisk` binds it to the
     // directory both ways, so this line is the count a human writes and the two above are what
     // stop it being the only bound.
-    equal([...expected.values()].filter((v) => v.lost > 0).length, 8,
-      'and exactly the EIGHT flows with a map region lose an output');
+    // **NINE since W93**: `gated-map` carries a map region and RUNS here now that ADR 0066 rule 7 is lifted.
+    equal([...expected.values()].filter((v) => v.lost > 0).length, 9,
+      'and exactly the NINE flows with a map region lose an output');
     equal([...expected.values()].filter((v) => !v.map).length, 5,
       'while FIVE carry only `fanout` regions and lose NOTHING — at depth 1, at depth 2, with an ' +
       'optional branch that can fail, with a branch routed away from its join, and — since W50 — ' +

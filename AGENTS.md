@@ -146,15 +146,19 @@ their schemas buy you before a run**.
 **Six** node kinds. A definition is JSON: no functions, so it can be stored, versioned and sent over
 a wire.
 
-> **`gate` is the sixth, and NOTHING RUNS ONE YET** — `spec/flow-definition.md` v0.23,
-> [ADR 0066](doc/decisions/0066-a-gate-is-a-decision-with-memory-that-names-a-registered-type-and-wires-every-route-exactly-once.md),
+> **`gate` is the sixth, and since [W93](doc/work-items/w93-what-a-gate-does-in-a-run.md) a `Driver` RUNS
+> one** — `spec/flow-definition.md` v0.23-v0.24,
+> [ADR 0066](doc/decisions/0066-a-gate-is-a-decision-with-memory-that-names-a-registered-type-and-wires-every-route-exactly-once.md)
+> and [ADR 0067](doc/decisions/0067-a-gate-runs-in-the-driver-its-memory-is-the-drivers-and-its-decision-is-recorded.md),
 > [W92](doc/work-items/w92-what-a-gate-is.md). A gate is a decision WITH MEMORY: it routes the branch that
 > reaches it by what the run's other branches have already shown it — `distinct`, the one built-in type,
 > sends the FIRST branch per key down its default route `first` and every later one down `duplicate` — and it
-> hands on exactly what reached it. It is a VALID definition, checked by `validateDefinition` and
-> `checkWiring`; **`new Driver` refuses a flow holding one, at construction, with `InvalidDefinition`** until
-> P24's second item runs it. Every route its type declares must be wired by exactly one edge — a drop is an
-> edge to an `end` — and an edge with no `route` carries the type's DEFAULT route, never every route.
+> hands on exactly what reached it. The driver evaluates it where a branch reaches it — the gate's memory is
+> ONE per gate per RUN, the driver's, rebuilt by replay on a resume — records each decision as a `gated` fold
+> input (`RunState.gated`), and stops the run with an `UndeclaredRoute` if a type returns a route it does not
+> declare (`FD-R5`). *(Until W93 `new Driver` refused a flow holding one, at construction.)* Every route its
+> type declares must be wired by exactly one edge — a drop is an edge to an `end` — and an edge with no
+> `route` carries the type's DEFAULT route, never every route.
 
 > **`map` is the fifth, and since [W33](doc/work-items/w33-a-map-at-run-time-arity.md) a `Driver`
 > RUNS one.** It is a valid definition since `spec/flow-definition.md` v0.8 —
@@ -1273,8 +1277,8 @@ supplies its predicates, languages, group types and node-type classes, by `creat
 calls that resolver first — section 12), and by the bootstrap helper before it builds a pool. The
 twelfth, **`GateTypeRefused`** (v0.23), is thrown by `checkRegistry` when a gate type it holds is not
 a `GateType` — the built-in `distinct` on every call, and any the registry adds in `gateTypes` — and a gate
-type named as a built-in is `NameCollision`; `new Driver` carries no gate types of yours yet (section 3),
-so there it checks only the built-in. None is `InvalidDefinition`, on purpose: a registry defect is fixed in the registry and a flow defect in the
+type named as a built-in is `NameCollision` — at `new Driver`, which since W93 takes yours as `gateTypes`, and
+at `createRuntime`, which takes them as `code.gateTypes` and hands them to every run (section 3). None is `InvalidDefinition`, on purpose: a registry defect is fixed in the registry and a flow defect in the
 flow, and the class says which document to open.
 
 **And four the RUNTIME adds, all `RuntimeError` subclasses from `fyflow-orchestration/scheduler`**
@@ -1453,7 +1457,7 @@ import {
   ConfigRefused, DerivationRefused, DuplicateTaskId, GateTypeRefused, GroupConfigRefused, GroupTypeMissing, InvalidDefinition,
   InvalidRunId, InvalidTaskId, MissingJoinPolicy, MultipleRuns, NameCollision, NameMissing, NoMatchingEdge, NotStarted,
   PoolTypeMissing, RegistryError, ResumeRefused, SchemaRefused, TypeDefaultRefused, UncloneableResult, UndeclaredKey,
-  UndispatchedTask, UnresolvedBranchPath, UnresolvedMapArity, UnresolvedReference, WorkerMissing,
+  UndeclaredRoute, UndispatchedTask, UnresolvedBranchPath, UnresolvedMapArity, UnresolvedReference, WorkerMissing,
 } from 'fyflow-orchestration';
 
 const documented = [
@@ -1465,6 +1469,7 @@ const documented = [
   GroupConfigRefused, NameCollision, SchemaRefused, UndeclaredKey, NameMissing, DerivationRefused,       // the base class and its twelve (section 13)
   GateTypeRefused,                           // a registered GATE type that is not a GateType — checkRegistry (v0.23)
   UnresolvedMapArity, UnresolvedReference,   // reported in a listener; reported AND thrown from start()/resolve()
+  UndeclaredRoute,                           // the same two roads — a GATE's type returned a route it does not declare (FD-R5, W93)
   BoundaryRefused,                           // thrown at you from start()/resolve() with the run UNTOUCHED — a rejected command (FD-R4)
   InvalidTaskId, UnresolvedBranchPath,                                   // neither — see above
 ].map((c) => c.name);
@@ -1555,8 +1560,8 @@ const frozen: Record<string, boolean> = {};
 const HANDLES = ['onFoldInput', 'onRegionEvent', 'snapshot', 'foldInputs'];
 
 // **`onRegionEvent` is FORWARDED, so this road can watch a fan-out open and close** — W76. It was
-// not, until W76: `StartOptions` is a `Pick` of the driver's options, and of the driver's nineteen
-// (eighteen when W76 wrote this; `onNonconformingResult` is ADR 0060's, W80's)
+// not, until W76: `StartOptions` is a `Pick` of the driver's options, and of the driver's twenty
+// (eighteen when W76 wrote this; `onNonconformingResult` is ADR 0060's, W80's; `gateTypes` ADR 0067's, W93's)
 // this was the one no `createRuntime` consumer could reach at all, which is
 // [Q297](doc/open-questions.md). **The previous version of this snippet asserted the opposite and
 // passed a CAST**, because that was the only way to try; there is no cast now, and the two counts
@@ -3100,3 +3105,170 @@ await third.shutdown();
 `resumed`, so a `switch` that is exhaustive over `kind` no longer compiles, and `RunState` has a new
 cell, `resumes`, so a `RunState` you construct needs it. A run nobody resumes carries no `resumed`
 event and `resumes: []`.
+
+---
+
+## 19. What a node may REMEMBER across branches — a gate
+
+**A branch cannot see its siblings, and that is usually what you want.** Two instances of one `map` are
+invisible to each other (section 3's reference rule), a join waits for all of them, and a worker's own
+memory is lost when its pool tears down or runs it on another thread. So a flow that must route each branch
+by what the run's OTHER branches have already seen — *keep the first file of each TV series and drop the
+rest, while every file gets a thumbnail* — had nowhere to keep that memory.
+([P24](doc/plans/p24-what-a-node-may-remember-across-a-runs-branches.md) is that ingest.)
+
+**A `gate` is a decision WITH MEMORY, and the memory is the DRIVER's**
+([ADR 0066](doc/decisions/0066-a-gate-is-a-decision-with-memory-that-names-a-registered-type-and-wires-every-route-exactly-once.md),
+[ADR 0067](doc/decisions/0067-a-gate-runs-in-the-driver-its-memory-is-the-drivers-and-its-decision-is-recorded.md)):
+
+| | |
+|---|---|
+| **it names a gate TYPE** | `distinct` is built in: routes `first` (its DEFAULT), `duplicate` and `nokey`, keyed by `settings.key` — a DOTTED path of object keys over the value that reached the gate, no index, no wildcard, no expression. A key a flow needs COMPUTED is computed by the task before the gate |
+| **every route is wired, exactly once** | an edge with no `route` carries the type's DEFAULT route, never every route; a DROP is an edge to an `end`, and each is refused at load if it is missing (`FD-V41`) |
+| **it computes nothing** | the branch leaves on the chosen route with EXACTLY the value that reached the gate |
+| **its memory is ONE per gate per RUN** | shared by every branch that reaches it, whatever map item or region instance it comes from — and it starts empty with the run and ends with it |
+| ***first* means first to ARRIVE in this run** | which varies between runs — so a test asserts that exactly ONE branch per key went `first`, never WHICH |
+| **every decision is recorded** | a `gated` fold input — the gate, the branch path, the route and the key — and `RunState.gated`, in the order the branches arrived |
+| **a resume REBUILDS the memory** | the replay asks the gate again for every stored settlement that reached it — the recorded decisions are REGENERATED and compared, never fed — so a run killed at any point resumes routing exactly as the run that was killed would have (section 18) |
+
+```ts run
+import { createRuntime } from 'fyflow-orchestration/scheduler';
+import type { FlowDefinition, GateType, RegistryDocument } from 'fyflow-orchestration';
+
+const registry: RegistryDocument = {
+  workers: {
+    download: { url: '../../examples/workers/download.ts' },     // in your program: './download.ts'
+    identify: { url: '../../examples/workers/identify.ts' },     // parses `Show.S01E02.mkv` into series `show`
+    thumbnail: { url: '../../examples/workers/thumbnail.ts' },
+    series: { url: '../../examples/workers/series.ts' },         // the per-series work; returns the file that opened it
+    publish: { url: '../../examples/workers/publish.ts' },
+  },
+  nodeTypes: {
+    Download: { worker: 'download', inline: true, pool: { maxThreads: 8 } },
+    Identify: { worker: 'identify', inline: true, pool: { maxThreads: 8 } },
+    Thumbnail: { worker: 'thumbnail', inline: true, pool: { maxThreads: 8 } },
+    SeriesSetup: { worker: 'series', inline: true },
+    Publish: { worker: 'publish', inline: true },
+  },
+};
+
+// A map over files. Each branch fetches its file and fans out BESIDE: a thumbnail for EVERY file, and `identify`,
+// which assigns the SERIES, then the gate. No task could know whether another file of its series came first — the
+// gate can, because its memory is the run's.
+const flow: FlowDefinition = {
+  flowId: 'tv-ingest', version: 1, entry: 'episodes',
+  nodes: [
+    { id: 'episodes', kind: 'map', over: 'files', branch: 'download' },
+    { id: 'download', kind: 'task', type: 'Download', edges: [{ to: 'beside' }] },
+    { id: 'beside', kind: 'fanout', branches: ['thumbnail', 'identify'] },
+    { id: 'thumbnail', kind: 'task', type: 'Thumbnail', edges: [{ to: 'perFile' }] },
+    { id: 'identify', kind: 'task', type: 'Identify', edges: [{ to: 'dedupe' }] },
+    // ALL THREE of `distinct`'s routes wired, once each. The edge with no `route` carries its DEFAULT, `first`.
+    { id: 'dedupe', kind: 'gate', type: 'distinct', settings: { key: 'series.id' }, edges: [
+      { to: 'setupSeries' },
+      { route: 'duplicate', to: 'dropDuplicate' },   // a DROP is an edge to an `end`
+      { route: 'nokey', to: 'dropUnidentified' },    // `series.id` resolved to nothing: a name with no series in it
+    ] },
+    { id: 'setupSeries', kind: 'task', type: 'SeriesSetup', edges: [{ to: 'seriesReady' }] },
+    { id: 'seriesReady', kind: 'end', outcome: 'series-ready' },
+    { id: 'dropDuplicate', kind: 'end', outcome: 'duplicate' },
+    { id: 'dropUnidentified', kind: 'end', outcome: 'unidentified' },
+    { id: 'perFile', kind: 'join', of: 'beside', edges: [{ to: 'all' }] },
+    { id: 'all', kind: 'join', of: 'episodes', edges: [{ to: 'publish' }] },
+    { id: 'publish', kind: 'task', type: 'Publish', edges: [{ to: 'done' }] },
+    { id: 'done', kind: 'end', outcome: 'completed' },
+  ],
+};
+
+const files = ['Dark.S01E01.mkv', 'Lost.S01E01.mkv', 'Dark.S01E02.mkv', 'trailer.mkv', 'Lost.S01E02.mkv']
+  .map((name) => ({ name, sizeMB: 1 }));
+const runtime = createRuntime(registry, {}, { base: import.meta.url, flows: [flow] });
+const state = await runtime.start(flow, { files }).done;
+await runtime.shutdown();
+
+console.log(state.outcome);                                     // completed
+if (state.outcome !== 'completed') throw new Error(`expected completed, got ${state.outcome}`);
+
+// EVERY DECISION, in the order the branches reached the gate. WHICH file of a series went `first` is whichever
+// ARRIVED first in this run — so assert the count per key, never the file.
+console.log(state.gated.map((d) => `${d.branchPath} ${d.route} ${d.key ?? '-'}`));
+//   e.g. [ '0.1 first dark', '1.1 first lost', '2.1 duplicate dark', '3.1 nokey -', '4.1 duplicate lost' ]
+const opened = state.gated.filter((d) => d.route === 'first').map((d) => String(d.key)).sort();
+if (opened.join() !== 'dark,lost') throw new Error(`exactly ONE first per series: ${opened.join()}`);
+if (state.gated.filter((d) => d.route === 'duplicate').length !== 2) throw new Error('the other two identified files are duplicates');
+if (state.gated.filter((d) => d.route === 'nokey').length !== 1) throw new Error('the trailer carries no series');
+
+// The per-series task ran for EXACTLY the branches the gate routed `first` — and received exactly what reached the
+// gate: `identify`'s whole result, the file name included, which neither the key nor the settings carries.
+const setups = Object.values(state.nodes).filter((n) => n.nodeId === 'setupSeries');
+const firsts = state.gated.filter((d) => d.route === 'first');
+if (setups.map((n) => n.branchPath).sort().join() !== firsts.map((d) => d.branchPath).sort().join()) {
+  throw new Error('setupSeries ran for exactly the branches routed first');
+}
+for (const d of firsts) {
+  const r = setups.find((n) => n.branchPath === d.branchPath)!.result as { series: string; openedBy: string };
+  if (r.series !== d.key || r.openedBy !== files[Number(d.branchPath.split('.')[0])]!.name) {
+    throw new Error(`what left the gate is what reached it: ${JSON.stringify(r)}`);
+  }
+}
+
+// A DROP IS AN `end`, so it is a path end like any other — and the thumbnail ran for EVERY file: each file's
+// `perFile` record holds its thumbnail, and nothing from the gate road, which ended at an `end` in every branch.
+console.log(state.pathEnds.map((p) => p.at).sort());
+//   [ 'done', 'dropDuplicate', 'dropDuplicate', 'dropUnidentified', 'seriesReady', 'seriesReady' ]
+const published = Object.values(state.nodes).find((n) => n.nodeId === 'publish')!.result as
+  { joinPayload: Record<string, Record<string, { thumbnail?: string }>> };
+const thumbs = Object.entries(published.joinPayload).map(([i, perFile]) => perFile[`${i}.0`]?.thumbnail);
+if (thumbs.length !== files.length || thumbs.some((t) => t === undefined)) throw new Error(`a thumbnail per file: ${thumbs.join()}`);
+
+// A GATE TYPE OF YOUR OWN is CODE, registered by name the way `distinct` is written. A route its `fn` returns that
+// it did not declare STOPS the run by name — `UndeclaredRoute` (`FD-R5`): no validator can see it, because only
+// running `fn` reveals it.
+const sloppy: GateType = { routes: ['keep', 'drop'], defaultRoute: 'keep', fn: () => 'maybe' };
+const filter: FlowDefinition = {
+  flowId: 'sloppy-filter', version: 1, entry: 'download',
+  nodes: [
+    { id: 'download', kind: 'task', type: 'Download', edges: [{ to: 'filter' }] },
+    { id: 'filter', kind: 'gate', type: 'sloppy', edges: [{ to: 'thumbnail' }, { route: 'drop', to: 'dropped' }] },
+    { id: 'thumbnail', kind: 'task', type: 'Thumbnail', edges: [{ to: 'done' }] },
+    { id: 'dropped', kind: 'end', outcome: 'dropped' },
+    { id: 'done', kind: 'end', outcome: 'completed' },
+  ],
+};
+const second = createRuntime(registry, { gateTypes: { sloppy } }, { base: import.meta.url, flows: [filter] });
+const kinds: string[] = [];
+const stopped = await second.start(filter, { name: 'Dark.S01E01.mkv', sizeMB: 1 }, { onRunFailure: (f) => kinds.push(f.kind) }).done;
+await second.shutdown();
+console.log(stopped.outcome, kinds);                            // stopped [ 'UndeclaredRoute' ]
+if (stopped.outcome !== 'stopped' || kinds.join() !== 'UndeclaredRoute' || stopped.gated.length !== 0) {
+  throw new Error(`an undeclared route stops the run by name, recording nothing: ${stopped.outcome} ${kinds.join()}`);
+}
+```
+
+**What the snippet cannot show, and you need:**
+
+- **Test the COUNT, never the winner.** On an inline pool the first file to reach a gate is almost always the
+  first file in the list, so a test that names it passes for the wrong reason and fails the day a pool is threaded
+  ([Q379](doc/open-questions.md)). If a test must show that *first to arrive* is not *first in the list*, ARRANGE
+  the arrival order — `examples/l6.ts` does it with the files' sizes, on a pool as wide as the map — and assert
+  what the arrangement did beside the claim.
+- **The memory is per RUN, not per region instance.** A gate inside a nested `map` remembers across every outer
+  item; there is no per-season scope. It forgets at the run's end — deduplicating across RUNS is your store's job.
+- **A gate's type must be the PURE function of its context** a decision predicate is asked to be
+  ([Q9](doc/open-questions.md)): a resume replays every stored decision through `fn` to rebuild the memory, and a
+  type that answered differently the second time is refused `diverged`. An ENTRY gate's type is also asked once more
+  at `start()`, against an empty throwaway memory, to hold the payload to the target it chooses (`FD-R4`,
+  [Q387](doc/open-questions.md)).
+- **Keep your gate's memory in the gate.** A decision predicate that remembers in a closure looks like a gate and is
+  not one: its memory lives in your process, a resume cannot rebuild it, and a run killed before its first decision
+  resumes WRONG in silence ([Q386](doc/open-questions.md)).
+- **`checkWiring` reads a gate as a pass-through.** An arc through a gate is judged as the arc into it, so a worker
+  after `first` that REQUIRES the key reads `no` although `distinct` only routes `first` where the key resolved
+  ([Q391](doc/open-questions.md)). The run is right; the verdict is conservative.
+
+**`0.6.0` is BREAKING in four ways, all of them for code that enumerates or matches.** `FlowNode` has a SIXTH kind,
+`GateNode` ([Q381](doc/open-questions.md)), so a `switch` exhaustive over `node.kind` no longer compiles;
+`FoldInput` has a new kind, `gated`, so one exhaustive over `input.kind` no longer compiles either; `RunState` has a
+new cell, `gated`, so a `RunState` you construct needs it; and a `route` key on the edge of a node that is not a gate
+was refused as `FD-V17` and is refused as `FD-V41` — the same document refused under another rule id, so code
+matching a finding's `rule` moves. A flow with no gate records no `gated` input and has `gated: []`.

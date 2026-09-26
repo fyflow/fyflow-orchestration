@@ -12,7 +12,7 @@
  * driver turns out to need a second copy of run truth, that is a finding about the
  * spec rather than a thing to build.
  */
-import type { Edge, FlowDefinition, FlowNode, LanguageAdapter, Languages, NodeTypeDeclaration, NodeTypeEntry, NodeTypes, Pools, Registry, TerminalState, WorkerEntry, Workers } from '../definition/types.ts';
+import type { Edge, FlowDefinition, FlowNode, GateNode, GateType, GateTypes, LanguageAdapter, Languages, NodeTypeDeclaration, NodeTypeEntry, NodeTypes, Pools, Registry, TerminalState, WorkerEntry, Workers } from '../definition/types.ts';
 import { checkRegistry, isDerivation } from '../definition/registry.ts';
 // W73 (P19 decision 5, `FD-R4`): the two boundaries no static check can reach are held to the
 // workers' declared schemas ONCE each, and the targets of the first are the wiring check's own walk.
@@ -22,13 +22,13 @@ import {
   allRegions, branchPathOf, buildGraph, innermostRegionOf, outputIsVisible, toRegion,
   type Graph, type RegionSets,
 } from '../definition/regions.ts';
-import { effectiveSettings, languagesOf, nodeTypesOf, poolsOf, referenceTarget, retryPolicyProblem, validateDefinition, violatedRules, workersOf } from '../definition/validate.ts';
+import { effectiveSettings, gateTypesOf, languagesOf, nodeTypesOf, poolsOf, readKeyPath, referenceTarget, retryPolicyProblem, validateDefinition, violatedRules, workersOf } from '../definition/validate.ts';
 import {
   assertRunId, branchIndices, buildTaskId, InvalidTaskId, parseTaskId, type TaskIdParts,
 } from './ids.ts';
 import { effectiveOutcome, isSuspended, type LogRecord, type OutcomeRecord, type ResolutionRecord } from './log.ts';
 import { normalizeEvent, type TaskDetailLike } from './listener.ts';
-import { selectEdge, type PredicateRegistry } from './routing.ts';
+import { gateEdge, selectEdge, type PredicateRegistry } from './routing.ts';
 import type { RegionEvent } from './events.ts';
 import type { JoinPolicy, Region, UnsatisfiableJoin } from './policy.ts';
 // Type-only, so it is erased and there is no runtime cycle with `src/fold/`.
@@ -124,6 +124,23 @@ export class UnresolvedMapArity extends Error {}
  * `UnresolvedMapArity` is.
  */
 export class UnresolvedReference extends Error {}
+
+/**
+ * **`FD-R5` — a gate's TYPE returned a route it does not declare.** P24 decision 8,
+ * [ADR 0067](../../doc/decisions/0067-a-gate-runs-in-the-driver-its-memory-is-the-drivers-and-its-decision-is-recorded.md),
+ * [W93](../../doc/work-items/w93-what-a-gate-does-in-a-run.md). The counterpart of `FD-R1`: nothing at load
+ * can refuse it, because only RUNNING the type's `fn` reveals it — `FD-V41` checks every declared route is
+ * wired, and a route nobody declared has no edge to be wired by.
+ *
+ * **Its own class, for `UnresolvedMapArity`'s reason**: the flow is valid and the DATA is not wrong — the
+ * CODE registered as the type is, which is a third person's bug, and naming it sends a reader to the type
+ * rather than to the document. It stops the run through `OR-R10` (reported from a listener, reported AND
+ * rethrown from `start()` and `resolve()`), and **nothing is appended for the gate**: no `gated` element,
+ * because no route was taken, and the memory the type may have written before returning is the driver's own
+ * and dies with the stopped run. *A type whose `fn` THROWS takes the same road with its OWN error* — the road
+ * a throwing decision predicate takes, measured at W93's declaration step.
+ */
+export class UndeclaredRoute extends Error {}
 
 /**
  * **`FD-R4` — one of the two values no static check can reach fails the schema the worker's author
@@ -552,6 +569,12 @@ function withIndex(
   return next;
 }
 
+/** For `UndeclaredRoute`'s message: what a gate type returned, whatever it is. */
+function describeRoute(v: unknown): string {
+  if (typeof v === 'string') return JSON.stringify(v);
+  return `${describeShape(v)} (${String(v)}) — not a route name`;
+}
+
 /** For `UnresolvedMapArity`'s message: what a value IS, in one word a reader can act on. */
 function describeShape(v: unknown): string {
   if (v === null) return 'null';
@@ -569,9 +592,11 @@ function cloneRecord<T extends { result?: unknown }>(r: T): T {
 
 /**
  * One element of the fold's input sequence, copied and frozen on the way out
- * (ADR 0014). Only the two record kinds carry a `result`; `region` wraps one flat event and
- * `resumed` one array of strings; the other **five** are flat and primitive, so a shallow freeze
- * of a fresh object is the whole copy.
+ * (ADR 0014). Only the two record kinds carry a `result`; `region` wraps one flat event,
+ * `resumed` one array of strings, and `gated` a KEY that may be anything the key path ends on; the
+ * other **five** are flat and primitive, so a shallow freeze of a fresh object is the whole copy.
+ * *(W93's `gated` is the second kind that is NOT flat — its declaration step found the fall-through
+ * handing a consumer the driver's own key object wherever a key path ends on an object.)*
  *
  * *(Read "four" until W33 added `regionEntered`. The count is in the sentence that
  * justifies the `{ ...i }` fall-through, so it is load-bearing prose rather than
@@ -588,6 +613,8 @@ function freezeInput(i: FoldInput): FoldInput {
       ? { ...i, event: Object.freeze({ ...i.event }) }
       : i.kind === 'resumed'
       ? { ...i, taskIds: Object.freeze([...i.taskIds]) as string[] }
+      : i.kind === 'gated' && i.key !== undefined
+      ? { ...i, key: Object.freeze(cloneValue(i.key)) }
       : { ...i },
   ) as FoldInput;
 }
@@ -878,6 +905,16 @@ export interface DriverOptions {
    */
   languages?: Languages;
   /**
+   * **A consumer's GATE types, beside the built-ins — the sixth set, and the TWENTIETH member**
+   * ([W93](../../doc/work-items/w93-what-a-gate-does-in-a-run.md), ADR 0067). Absent, the built-ins alone
+   * (`distinct`); the set only ever ADDS, a name that is a built-in's is refused (`NameCollision`) and a
+   * value that is not a `GateType` is `GateTypeRefused` — both by `checkRegistry`, at construction. The
+   * validator reads each type's `routes`, `defaultRoute` and `settingsSchema` (`FD-V39`-`FD-V41`); the driver
+   * reads `fn`, where a branch enters a gate. **The runtime's road is `runtime.registry.gateTypes`**, from
+   * `RegistryCode.gateTypes` — code registered once per runtime, as `languages` is (W76's road (b)).
+   */
+  gateTypes?: GateTypes;
+  /**
    * Required when the definition contains a fan-out. **W3 ships none** — both
    * policies are W2's and which is right is W4's question (`JP-R7`, `JP-R8`), so
    * a driver that decided satisfaction itself would answer Q4 from inside W3.
@@ -1142,6 +1179,26 @@ export class Driver {
   private readonly languages: ReadonlyMap<string, LanguageAdapter>;
   /** The registry's workers, normalised once (W73). Read at the two boundaries for a task's input and output schema, and nowhere else. */
   private readonly workers: ReadonlyMap<string, WorkerEntry>;
+  /** The gate types — the built-ins and the registry's — normalised once (W93). Read where a branch enters a gate, and at `start()` for an ENTRY gate's `FD-R4` target. */
+  private readonly gateTypes: ReadonlyMap<string, GateType>;
+  /**
+   * **Each gate's MEMORY: one per gate per RUN, the driver's, and never written down** — `RN-R26`,
+   * [ADR 0067](../../doc/decisions/0067-a-gate-runs-in-the-driver-its-memory-is-the-drivers-and-its-decision-is-recorded.md),
+   * P24 decision 6 and stop-and-ask (a). Keyed by gate node id ALONE — never by region instance or map item —
+   * so two branches of any region, or of two instances of an enclosing one, reaching one gate share it. An
+   * entry is made on the gate's first evaluation and holds whatever its type's `fn` wrote.
+   *
+   * **Created EMPTY with the driver, and that is the property a resume stands on** — measured at W93's
+   * declaration step (`dev-dist/w93/r1b.ts`). A memory kept by the PROCESS, keyed by run and gate, resumed
+   * WRONG in silence when the kill came before the first gate decision: the first `gated` element lay past
+   * the stored events, where `RN-R20` compares nothing, and every file routed `duplicate`. A driver is one
+   * run (`ID-R3`) and is never handed a memory: the replay REBUILDS it by re-evaluating every gate on the
+   * stored settlements in their order, so it is the run's memory at every position and nothing else's.
+   *
+   * **Retained for the life of the run** — `RN-R13`'s fourth term: a later branch may reach the gate, and
+   * this driver cannot know that none will. For `distinct` it is one entry per distinct key seen.
+   */
+  private readonly gateMemory = new Map<string, Map<string, unknown>>();
 
   /**
    * Validates the definition IN FULL before anything is queued (ADR 0002 rule 3),
@@ -1197,7 +1254,7 @@ export class Driver {
     // pool named as a type (`NameCollision`). A registry defect is reported where the registry is built,
     // as a `RegistryError` naming the entry, and never blamed on the document. The runtime ran the same
     // checks when it built the pools; here they run for a driver built by hand.
-    checkRegistry({ workers: opts.workers, nodeTypes: opts.nodeTypes, pools: opts.pools });
+    checkRegistry({ workers: opts.workers, nodeTypes: opts.nodeTypes, pools: opts.pools, gateTypes: opts.gateTypes });
     // **The languages are held at construction too, and read for ONE thing** — W61. A `compile`
     // that is not a function is the REGISTRY's mistake (the schema-object shape a reader is likely
     // to try, one set over from `FD-V33`'s), refused here naming the language rather than on every
@@ -1205,6 +1262,9 @@ export class Driver {
     // the driver never loads it. `languagesOf` is the validator's own normaliser.
     this.languages = languagesOf(opts.languages);
     this.workers = workersOf(opts.workers);
+    // The gate types — `checkRegistry` above has already held a consumer's to `GateType` and refused one
+    // named as a built-in, so this is the normaliser the validator shares (`gateTypesOf`), read once.
+    this.gateTypes = gateTypesOf(opts.gateTypes);
     for (const [name, l] of this.languages) {
       if (typeof l?.compile !== 'function') {
         throw new InvalidDefinition(['FD-V36'], `language "${name}" declares no compile function — FD-V36: ` +
@@ -1222,6 +1282,9 @@ export class Driver {
       // names, normalised as the sets above are — absent means EMPTY.
       workers: workersOf(opts.workers),
       pools: poolsOf(opts.pools),
+      // v0.23: the gate types a gate's `type` may name (`FD-V39`) — handed as given, since the validator
+      // merges them over the built-ins with the same `gateTypesOf` this driver reads them through.
+      ...(opts.gateTypes !== undefined ? { gateTypes: opts.gateTypes } : {}),
     };
     const findings = validateDefinition(definition, registry);
     if (findings.length) {
@@ -1231,32 +1294,16 @@ export class Driver {
           findings.map((f) => `${f.rule} at ${f.at ?? '<document>'}: ${f.detail}`).join('; '),
       );
     }
-    // **A GATE is a VALID definition this driver cannot RUN yet, and it is refused HERE, by name** —
-    // v0.23, [ADR 0066](../../doc/decisions/0066-a-gate-is-a-decision-with-memory-that-names-a-registered-type-and-wires-every-route-exactly-once.md)
-    // rule 7, [W92](../../doc/work-items/w92-what-a-gate-is.md). Running a gate — its memory, the
-    // `gated` fold input, the undeclared-route stop, replay — is W93's, and until then `enter()` has no
-    // arm that can execute one.
-    //
-    // **At construction and not in `enter()`, on a measurement.** W92's declaration step taught the
-    // validator the kind in a copy of the tree and left the driver alone: the definition validated clean,
-    // `new Driver` constructed, `start()` DISPATCHED the task before the gate, and only when it SETTLED did
-    // the `default` arm report — a real worker had run first, on the one workload that reaches the gate,
-    // which is ADR 0002 rule 3's whole argument for refusing at instantiation. So a gate flow queues
-    // nothing. **After validation**, so an INVALID gate document still reports every `FD-V` it violates.
-    //
-    // **`InvalidDefinition` with no rule ids, and no new class** — W33's precedent for its region-in-a-map
-    // refusal (lifted by W84): *"the document names a node this driver cannot execute, which is what that
-    // class already means"*. No rule id because no rule is violated: the definition is valid.
-    const gates = definition.nodes.filter((n) => n?.kind === 'gate').map((n) => n.id).sort();
-    if (gates.length > 0) {
-      throw new InvalidDefinition(
-        [],
-        `definition "${definition.flowId}" holds gate node(s) ${gates.map((g) => JSON.stringify(g)).join(', ')}. ` +
-          'A gate is a valid definition (spec/flow-definition.md v0.23, ADR 0066) and this driver cannot run one ' +
-          'yet — its memory, its recorded decision and its replay are W93\'s — so it is refused at construction, ' +
-          'before anything is queued, rather than on the first branch that reaches it.',
-      );
-    }
+    // **A GATE RUNS, and until W93 it was refused at this exact point** — ADR 0066 rule 7, LIFTED by
+    // [ADR 0067](../../doc/decisions/0067-a-gate-runs-in-the-driver-its-memory-is-the-drivers-and-its-decision-is-recorded.md).
+    // W92 made a gate a VALID definition and refused every flow holding one here, by name, because the
+    // `enter()` arm that runs one was this item's; taught to the validator and not to the driver, a gate flow had
+    // DISPATCHED the task before the gate and stopped only when it settled — a real worker run first. The arm
+    // exists now, so there is nothing left to refuse: what a gate can still do wrong at RUN time — a type
+    // returning a route it does not declare (`FD-R5`), or throwing — stops the run by name where it happens,
+    // and everything a DOCUMENT can do wrong is `FD-V39`-`FD-V41`, above. *(`test/driver/needs.test.ts`
+    // asserted the refusal on `gated-map` where it RUNS every other region-bearing corpus flow, so that this
+    // lift would fail it rather than pass in silence.)*
     this.def = definition;
     this.opts = opts;
     this.now = opts.now ?? (() => Date.now());
@@ -1370,7 +1417,9 @@ export class Driver {
     // composing `"."` reads the value whole (W73's adequacy reader measured the guard dead on every
     // valid definition — a `needs` naming anything else is refused at construction, `FD-V11`/`FD-V27`).
     if (this.opts.validateBoundaries !== false) {
-      for (const { node, value } of boundaryTargets(this.def, payload)) {
+      // **Through an entry GATE, only the route it will take** (W93): without the chooser the walk holds the
+      // payload to every route's target, and a run could be refused by a task it never reaches.
+      for (const { node, value } of boundaryTargets(this.def, payload, (g, v) => this.boundaryEdges(g, v))) {
         const n = this.graph.byId.get(node);
         if (!n || n.kind !== 'task') continue;
         const type = this.nodeTypes.get(n.type);
@@ -2430,20 +2479,49 @@ export class Driver {
         return;
       }
 
-      // **A GATE has an arm and it cannot be reached** — W92. The constructor refuses every flow holding one,
-      // so no branch can enter a gate on a driver that exists; the arm is here because the switch must name
-      // the kind for the `never` below to keep making a SEVENTH kind a compile error in all five lanes (the
-      // one exhaustive site of W92's census). It reports rather than returns, as the `default` arm does,
-      // so that if the constructor's refusal were ever removed without an arm here the stop is not silent.
-      // **W93 replaces it with the arm that evaluates the gate.**
+      // **A GATE decides, where a branch ENTERS it, and dispatches nothing** — `spec/flow-definition.md`
+      // section 2, P24 decisions 5-8,
+      // [ADR 0067](../../doc/decisions/0067-a-gate-runs-in-the-driver-its-memory-is-the-drivers-and-its-decision-is-recorded.md),
+      // [W93](../../doc/work-items/w93-what-a-gate-does-in-a-run.md). Synchronous, no task id, no scheduler:
+      //
+      //   1. the TYPE's `fn` is handed `{ key, input, settings, memory }` (`decideGate`) — `settings.key`
+      //      resolved by `readKeyPath`, COPIES of the value and the settings, and THIS gate's run memory;
+      //   2. a route the type does not declare stops the run by name — `FD-R5`, `UndeclaredRoute` — and a
+      //      throw stops it with the thrown error, as a predicate's does; nothing is appended for the gate;
+      //   3. the decision is RECORDED — a `gated` element, `RN-R26` — BEFORE its route is entered, so what
+      //      the route led to follows it in the sequence and a resume compares the answer where it was made;
+      //   4. the ONE edge wired for the route is taken (`gateEdge` — an edge with no `route` carries the
+      //      type's DEFAULT), with **`received` itself: what reached the gate, unchanged**, and the branch,
+      //      region and item indices that reached it — so an `end` or a `join` after a gate sees the branch
+      //      that reached the gate, which is how a drop to an `end` is a `branch.exited` (P24 fact 3).
+      //
+      // **`received` and not a copy of it is handed on**, and that is sound for the reason every other arm
+      // hands it on: it is this hop's own edge-hop clone (`advance`) or the caller's entry payload, held by
+      // nothing else; the type saw a COPY, so a type writing into its `input` moves nothing downstream.
       case 'gate': {
-        this.failRun(
-          new InvalidDefinition(
-            [],
-            `definition "${this.def.flowId}" routes into gate "${nodeId}", which this driver cannot execute ` +
-              '(W93) — and the constructor refuses every gate flow, so this line is unreachable.',
-          ),
-        );
+        const decided = this.decideGate(node, received, this.memoryOf(nodeId));
+        if ('threw' in decided) throw decided.threw;
+        const type = decided.type;
+        if (!decided.declared) {
+          throw new UndeclaredRoute(
+            `UndeclaredRoute: FD-R5 — run "${runId}" reached gate "${nodeId}" and its type "${node.type}" returned ` +
+              `${describeRoute(decided.route)}, which it does not declare; its routes are ${type.routes.map((r) => JSON.stringify(r)).join(', ')}. ` +
+              'A route only running the type reveals cannot be refused at load (FD-V41 wires every DECLARED route), so the run stops ' +
+              'here rather than routing nowhere. The type is the CODE registered under that name, not the document.',
+          );
+        }
+        const route = decided.route as string;
+        const edge = gateEdge(node, type.defaultRoute, route);
+        // `FD-V41` wires every declared route by exactly one edge, so this cannot miss; if it could, the branch
+        // would end with no event, which is the silent stop section 3 refuses by name — so loud instead.
+        if (edge === null) {
+          throw new InvalidDefinition(['FD-V41'], `gate "${nodeId}" has no edge for route ${JSON.stringify(route)} — FD-V41 should have refused this definition at construction`);
+        }
+        const d: Extract<FoldInput, { kind: 'gated' }> = { kind: 'gated', gateId: nodeId, branchPath: this.pathOf(nodeId, itemIndices), route };
+        // `decided.key` is already a COPY, taken before the type ran (`decideGate`), so it is stored as it is.
+        if (decided.key !== undefined) d.key = decided.key;
+        this.append(d);
+        this.enter(runId, edge.to, received, fromBranch, fromRegion, itemIndices);
         return;
       }
 
@@ -2506,6 +2584,79 @@ export class Driver {
         return;
       }
     }
+  }
+
+  /**
+   * **One gate's memory — the same `Map` for every branch that reaches the gate in this run** (`RN-R26`),
+   * made on the gate's first evaluation. Keyed by gate id ALONE, which is P24 stop-and-ask (a): per RUN, not
+   * per region instance and not per map item.
+   */
+  private memoryOf(gateId: string): Map<string, unknown> {
+    let m = this.gateMemory.get(gateId);
+    if (m === undefined) {
+      m = new Map<string, unknown>();
+      this.gateMemory.set(gateId, m);
+    }
+    return m;
+  }
+
+  /**
+   * **Ask a gate's TYPE, and nothing else** — the one place a type's `fn` is called, for the arm in `enter()`
+   * with the run's memory and for `FD-R4`'s entry walk with a throwaway one. The type is handed COPIES of
+   * the value and of the settings (a predicate is handed a copy — `advance`'s `cloneRecord` — for Q9's
+   * reason), so nothing the type writes reaches what the gate hands on or the definition.
+   *
+   * **The gate reads the value AS A `structuredClone` CARRIES IT, and resolves the key ONCE** — W93's
+   * conformity reader, finding 1 (BLOCKING), and the adequacy reader's R3/R4. The first cut resolved the key
+   * the type was handed off the COPY and the key it recorded off the ORIGINAL: for a CLASS instance in a
+   * caller's entry payload the two differ — `readKeyPath` reads own keys of PLAIN objects, and the clone of an
+   * instance is plain — so the type saw `"x"`, the record saw nothing, and a resume, which enters from the
+   * header's clone (`RN-R19`), regenerated a key the stored element lacked and was REFUSED `diverged` at 0 on
+   * a checkpoint nobody tampered with. Reading the clone in BOTH is what makes a run and its replay read the
+   * same value — `OR-R11`'s *a value, not an object* at the one boundary where the caller's own object used to
+   * reach a decision. And the recorded key is copied BEFORE `fn` runs, so a type writing into its input at the
+   * key path moves nothing recorded. A throw is RETURNED, not raised, so each caller decides what it means.
+   */
+  private decideGate(
+    node: GateNode,
+    value: unknown,
+    memory: Map<string, unknown>,
+  ): { type: GateType; route: unknown; declared: boolean; key: unknown } | { threw: unknown } {
+    // `FD-V39` at construction: every gate names a registered gate type, so this cannot miss.
+    const type = this.gateTypes.get(node.type)!;
+    const settings = (node.settings ?? {}) as Readonly<Record<string, unknown>>;
+    const path = typeof settings.key === 'string' ? settings.key : undefined;
+    const input = cloneValue(value);
+    const key = path === undefined ? undefined : readKeyPath(input, path);
+    const recorded = key === undefined ? undefined : cloneValue(key);
+    let route: unknown;
+    try {
+      route = type.fn({
+        key,
+        input,
+        settings: cloneValue(settings) as Readonly<Record<string, unknown>>,
+        memory,
+      });
+    } catch (threw) {
+      return { threw };
+    }
+    const declared = typeof route === 'string' && type.routes.includes(route);
+    return { type, route, declared, key: recorded };
+  }
+
+  /**
+   * **`FD-R4`'s road through an ENTRY gate: the edge the run will take, and no other** — W93, Outputs (9).
+   * The type is asked against a THROWAWAY memory, which is empty — exactly what this run's memory is at
+   * `start()`, since no gate has been evaluated yet — so for a type that is the pure function of its context
+   * Q9 asks every decision to be, this is the route `enter()` will take a moment later. **A throw or an
+   * undeclared route holds NOTHING past the gate**: the run stops on it for real in `enter()`, where it is
+   * reported and rethrown, and a boundary refusal would name a task the run never reaches.
+   */
+  private boundaryEdges(gate: GateNode, value: unknown): readonly Edge[] {
+    const decided = this.decideGate(gate, value, new Map<string, unknown>());
+    if ('threw' in decided || !decided.declared) return [];
+    const edge = gateEdge(gate, decided.type.defaultRoute, decided.route as string);
+    return edge === null ? [] : [edge];
   }
 
   /**

@@ -996,6 +996,272 @@
           }
         ]
       }
+    },
+    "download": {
+      "url": "./workers/download.ts",
+      "inputSchema": {
+        "type": "object",
+        "required": [
+          "name",
+          "sizeMB"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sizeMB": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "examples": [
+          {
+            "name": "Dark.S01E02.mkv",
+            "sizeMB": 3
+          }
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "name",
+          "sizeMB",
+          "path"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sizeMB": {
+            "type": "number",
+            "minimum": 0
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "examples": [
+          {
+            "name": "Dark.S01E02.mkv",
+            "sizeMB": 3,
+            "path": "cache/Dark.S01E02.mkv"
+          }
+        ]
+      }
+    },
+    "identify": {
+      "url": "./workers/identify.ts",
+      "inputSchema": {
+        "type": "object",
+        "required": [
+          "name",
+          "sizeMB"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sizeMB": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "examples": [
+          {
+            "name": "Dark.S01E02.mkv",
+            "sizeMB": 3,
+            "path": "cache/Dark.S01E02.mkv"
+          }
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "name",
+          "realm"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "series": {
+            "type": "object",
+            "required": [
+              "id",
+              "title"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "episode": {
+            "type": "string",
+            "minLength": 1
+          },
+          "realm": {
+            "enum": [
+              "harness",
+              "thread"
+            ]
+          }
+        },
+        "examples": [
+          {
+            "name": "Dark.S01E02.mkv",
+            "series": {
+              "id": "dark",
+              "title": "Dark"
+            },
+            "episode": "S01E02",
+            "realm": "thread"
+          }
+        ]
+      }
+    },
+    "thumbnail": {
+      "url": "./workers/thumbnail.ts",
+      "inputSchema": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "examples": [
+          {
+            "name": "Dark.S01E02.mkv",
+            "sizeMB": 3,
+            "path": "cache/Dark.S01E02.mkv"
+          }
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "name",
+          "thumbnail"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "thumbnail": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "examples": [
+          {
+            "name": "Dark.S01E02.mkv",
+            "thumbnail": "thumbs/Dark.S01E02.jpg"
+          }
+        ]
+      }
+    },
+    "series": {
+      "url": "./workers/series.ts",
+      "inputSchema": {
+        "type": "object",
+        "required": [
+          "name",
+          "series"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "series": {
+            "type": "object",
+            "required": [
+              "id",
+              "title"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "episode": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "examples": [
+          {
+            "name": "Dark.S01E02.mkv",
+            "series": {
+              "id": "dark",
+              "title": "Dark"
+            },
+            "episode": "S01E02"
+          }
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "series",
+          "title",
+          "episode",
+          "openedBy"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "series": {
+            "type": "string",
+            "minLength": 1
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "episode": {
+            "type": "string",
+            "minLength": 1
+          },
+          "openedBy": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "examples": [
+          {
+            "series": "dark",
+            "title": "Dark",
+            "episode": "S01E02",
+            "openedBy": "Dark.S01E02.mkv"
+          }
+        ]
+      }
     }
   },
   "groups": {
@@ -1047,7 +1313,11 @@
     "GaugeWorker": { "worker": "gauge", "inline": true, "config": { "delayMs": 5 }, "pool": { "maxThreads": 1, "idleTimeout": 0 } },
     "StampWorker": { "worker": "stamp", "inline": true, "config": { "delayMs": 5 }, "pool": { "maxThreads": 1, "idleTimeout": 0 } },
     "Shard": { "worker": "shard", "inline": true, "config": { "msPerChar": 60 }, "pool": { "maxThreads": 2, "idleTimeout": 0 } },
-    "SecondPass": { "worker": "score", "inline": true, "config": { "delayMs": 120 }, "pool": { "maxThreads": 1, "idleTimeout": 0 } }
+    "SecondPass": { "worker": "score", "inline": true, "config": { "delayMs": 120 }, "pool": { "maxThreads": 1, "idleTimeout": 0 } },
+    "Download": { "worker": "download", "inline": true, "config": { "delayMs": 5 }, "pool": { "maxThreads": 8, "idleTimeout": 0 } },
+    "Identify": { "worker": "identify", "config": { "msPerMB": 30 }, "pool": { "maxThreads": 8, "idleTimeout": 0 } },
+    "Thumbnail": { "worker": "thumbnail", "inline": true, "config": { "delayMs": 5 }, "pool": { "maxThreads": 8, "idleTimeout": 0 } },
+    "SeriesSetup": { "worker": "series", "inline": true, "config": { "delayMs": 5 }, "pool": { "maxThreads": 1, "idleTimeout": 0 } }
   },
 
   "pools": {

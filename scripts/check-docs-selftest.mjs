@@ -215,8 +215,13 @@ const PROBES = [
     name: 'README.md tells a consumer the manifests read a version they do not',
     check: 'X9',
     mutate: (t) => t,
-    // The literal moved `0.4.0` -> `0.5.0` with the manifests at W90: rule 7 (b) would ABORT this probe otherwise.
-    readme: (t) => t.replace('**The manifests read `0.5.0`', '**The manifests read `0.9.9`'),
+    // The literal moved `0.4.0` -> `0.5.0` with the manifests at W90 and `0.5.0` -> `0.6.0` at W94, and rule 7 (b) would
+    // have ABORTED this probe at each. **VERSION-AGNOSTIC since W94**, on W92's precedent for `X7`'s two probes: it reads
+    // whatever version the sentence names and replaces it with one no manifest carries, so the next bump re-anchors nothing.
+    // **Digits only, and the META pass is why**: W94's first cut wrote `9.9.9-never`, which X9's `[0-9]+.[0-9]+.[0-9]+`
+    // does not match — so the probe tripped the *sentence is not where X9 looks* clause instead of the comparison, and
+    // the META grading below read it STILL CAUGHT with the comparison disabled. A probe firing for another reason.
+    readme: (t) => t.replace(/\*\*The manifests read `[^`]+`/, '**The manifests read `9.9.9`'),
   },
   // --- X7: AGENTS.md's refusal count against spec/flow-definition.md section 5's rows — W65 (`d4`) ---
   // **COUNT-AGNOSTIC since W92**, which moved the count 34 -> 37 and the range end V38 -> V41: both probes were
@@ -273,8 +278,8 @@ const PROBES = [
   {
     name: 'an unclosed fence',
     check: 'X1',
-    // + X8 since W74: the LAST closing fence in the reference is now section 15's — section 17's since W86 and section 18's
-    // since W90, each also a snippet X8 pairs, so the declared set is unmoved — and that
+    // + X8 since W74: the LAST closing fence in the reference is now section 15's — section 17's since W86, section 18's
+    // since W90 and section 19's since W94, each also a snippet X8 pairs, so the declared set is unmoved — and that
     // snippet is one X8 PAIRS — so removing it leaves the pairing with no `run` fence under the
     // heading it names. MEASURED, not assumed: this probe read `[X1,X8]` against its declared
     // `[X1]` on W74's first confirming run, which is rule 7 (c) discriminating exactly as it is

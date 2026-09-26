@@ -592,6 +592,10 @@ const LATE_SUITES = [
   // W92 — what a GATE is (ADR 0066, `spec/flow-definition.md` v0.23), in `test/definition/gate.test.ts`, with its
   // own `DECLARED_CASES` and counted below.
   'W92 — what a GATE is: FD-V39 to FD-V41, the default route, and the one interface',
+  // W93 — what a gate DOES in a run (ADR 0067, `spec/run-state.md` v0.11's `RN-R26`), in `test/driver/gate.test.ts`
+  // with its own `DECLARED_CASES`, and the runtime's road in `test/scheduler/runtime.test.ts`; both counted below.
+  'W93 — what a GATE does in a run: the arm, the memory, the recorded decision, FD-R5, resume',
+  'W93 — a consumer`s GATE types reach every driver the runtime starts or resumes, and a malformed one is refused where the runtime is built',
 ];
 
 suite('L1 — every suite this tree declares actually RAN', (test) => {
@@ -648,5 +652,13 @@ suite('L1 — every suite this tree declares actually RAN', (test) => {
   test('W92`s suite still REGISTERS the cases it declares — an emptied suite fails here', () => {
     const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
     equal(count('W92 — what a GATE is: FD-V39 to FD-V41, the default route, and the one interface'), 17, 'test/definition/gate.test.ts registers its seventeen cases');
+  });
+
+  // **W93's two suites, counted the same way and for the same reason** — a suite emptied of its cases is still a suite.
+  test('W93`s two suites still REGISTER the cases they declare — an emptied suite fails here', () => {
+    const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
+    equal(count('W93 — what a GATE does in a run: the arm, the memory, the recorded decision, FD-R5, resume'), 19, 'test/driver/gate.test.ts registers its nineteen cases');
+    equal(count('W93 — a consumer`s GATE types reach every driver the runtime starts or resumes, and a malformed one is refused where the runtime is built'), 4,
+      'test/scheduler/runtime.test.ts registers W93`s four');
   });
 });
