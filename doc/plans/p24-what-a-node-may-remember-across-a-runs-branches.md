@@ -1,6 +1,6 @@
 # P24 — What a node may REMEMBER across a run's branches
 
-**Status:** **COMPLETE pending its retro** — [W94](../work-items/w94-a-tv-series-ingest-through-a-gate-on-real-workers.md), the exit artifact, DONE 2026-09-26. **DECLARED** 2026-09-25 on `912bfcb`, all four stop-and-asks ANSWERED the same day as recommended, and
+**Status:** **COMPLETE and RETRO'D** 2026-09-26 — `doc/workflow.md` [v0.25](../workflow.md), ONE change adopted and FIVE refused; see the [Retro](#retro). **COMPLETE pending its retro** until then — [W94](../work-items/w94-a-tv-series-ingest-through-a-gate-on-real-workers.md), the exit artifact, DONE 2026-09-26. **DECLARED** 2026-09-25 on `912bfcb`, all four stop-and-asks ANSWERED the same day as recommended, and
 [W92](../work-items/w92-what-a-gate-is.md) declared (P1-P23 complete and
 retro'd, `doc/workflow.md` [v0.24](../workflow.md)). Its facts were measured into `dev-dist/p24/` on that tree
 and nothing there is checked in, on P22 stop-and-ask (a)'s precedent — so each item's declaration step
@@ -271,3 +271,181 @@ type against a throwaway memory ([Q387](../open-questions.md)). **And the key is
 `structuredClone` carries it** — its conformity reader found a class instance at an entry gate routing differently in a run and
 its replay. **Predictions 2 and 4 CONFIRMED.** **Handed to W94**: the `gated` kind in `README.md`'s breaking-change list beside
 [Q381](../open-questions.md)'s node kind, and the exit artifact.
+
+---
+
+## Retro
+
+*Pass 3, run 2026-09-26 on `5a80473`'s tree — W93 and W94 in ONE commit on top of W92's `fb2a981`, the working tree
+clean. **ONE change adopted, FIVE refused**, and `doc/workflow.md` is [v0.25](../workflow.md), where the full reasoning
+lives. What follows is this plan's own evidence. Every harness was re-run in an isolated copy and every number below was
+taken on the tree this retro commits unless it says otherwise.*
+
+### The central finding: section 5 rule 5 was FOLLOWED, and a completion order shipped past every rung but one
+
+**[W94](../work-items/w94-a-tv-series-ingest-through-a-gate-on-real-workers.md) asserted a fan-out's COMPLETION order
+twice, in the item that quoted the rule forbidding it.** Its conformity reader found the first — the fourteen `beside`
+dispatch ids in the order seven concurrent downloads settle (finding 2), closed with W51's `unorderedDispatch` and the
+overlap that justifies it. **The second was one field over and neither reader reached it**: the gated rows' `pathEnds`,
+where the per-series road ends when its task SETTLES and a drop ends at the gate synchronously, so their interleaving is a
+completion time. **Ten green runs, then red in deno inside the confirming `npm run gate`** (What broke 11) — the one
+defect of P24's fifty first seen at the last rung, and seen there by chance. The author had applied the rule: the gate's
+decision order is asserted only where the arrangement makes it a fact, and the beside ids are a set. The miss was an order
+nobody FRAMED as a completion order — v0.23's *a selection nobody framed as one*, for an order.
+
+**Measured at this retro** (`dev-dist/p24r/order.py`, an isolated copy, the fix reverted to W94's pre-gate comparison, every
+run's exit code read and every failure attributed by the clause printed under its `FAIL` line):
+
+| the gated rows' `pathEnds` compared | how the order was chosen | node | deno |
+|---|---|---|---|
+| IN ORDER (W94 before its gate) | SAMPLED — the rungs as they run | **red 0 / 3** | **red 0 / 3** |
+| IN ORDER | ARRANGED — `SeriesSetup`'s delay 5 → 300 ms, a worker whose timing no row arranges | **red 3 / 3** | **red 3 / 3** |
+| as a MULTISET (the shipped tree) | the same arrangement — the CONTROL | green 3 / 3 | green 3 / 3 |
+
+**Every arranged failure is exactly two `FAIL` lines, the `pathEnds` clause on BOTH arranged rows** — the LAST-first row the
+gate caught and its FIRST-first pair, which no rung had ever turned red. *A completion order is a property of a SAMPLE;
+every rung takes one, and rule 8's harness grades its L6 probes in one runtime.* No obligation (a)-(e) changes WHICH
+completion wins — they break the tree, not the timing — so a set of any size cannot see it, and an ARRANGEMENT sees it every
+time. And it is not new: W23 (P7) shipped nested rows asserting terminal-event order, found at the build; W51 (P14) asserted
+`refine`'s dispatch order, found by its conformity reader and measured **25 / 25 identical inline and 12 / 12 REVERSED
+threaded** — an arrangement, used by a reader, ten plans before anyone wrote it down as a procedure. **And run once against the tree P24 SHIPS it found one more** (`dev-dist/p24r/order2.py`): `Thumbnail` — a worker no TV row arranges — delayed 5 → 300 ms turns L6 red **2 of 2 in node and 2 of 2 in deno**, ONE `FAIL` line each and every other clause green: the cross-row CONTROL *only the P22 artifact and the rows through a gate have two instances of one opener holding together*, whose comment says the TV rows hold *by construction* and which holds by a thumbnail settling before `identify` — a completion order W94's rows configure and never assert ([Q394](../open-questions.md), raised here). *The procedure's first application to a shipped tree found a latent order the item's readers, its three rule 8 passes and its confirming gate had all passed over.*
+
+**THE ONE CHANGE: rule 8 gains obligation (f), BREAK THE ORDER** — for each worker a row runs whose timing the row does not
+ARRANGE, the set re-runs the row with that worker delayed past its peers (within one worker type, the other pool mode, W51's
+arrangement); an assertion that goes red there compared an order `spec/` does not fix. **It enumerates WORKERS, not orders**:
+a flow's node types are a finite list anyone can read off the document, and the orders an author did not frame are exactly
+the ones an enumeration of orders misses. *Section 5 rule 5 made provocable*, as v0.8 made rule 4 provocable as obligation
+(c) and v0.20 rule 3 as (b)'s tautology clause — it has said *never assert a fan-out completion order* since v0.3 with no
+procedure, and four occurrences in three plans are what that has cost.
+
+### Name the rung
+
+**FIFTY defects across the three items' own *What broke* lists — 17 / 16 / 17** — counted one per DISTINCT defect a row
+names (W92's row 9 is four, W93's rows 9 and 10 four each, W94's row 5 three), with rows that are a RATCHET firing by
+design counted as ZERO, on P23's reading of W89's row 3: W92's row 3 (the spec bindings before the spec), W93's rows 3 and
+4 (`RN-R17`'s every-kind `Record`, the lift's two designed expiries, W76's pin, `DRIVER_FIELDS`) and W94's row 5 literals.
+**SEVENTEEN name a rung that FIRED (6 / 3 / 8), and ALL SEVENTEEN were read correctly** — the second plan to record none
+misread, after P22.
+
+| the rung | what it caught |
+|---|---|
+| L0, each lane RUN separately, read off the exit code | W92's `typecheck:tests` at exit 2 with ZERO `FAIL` lines; W94's `lint` on an unused local while printing *Checked 129 files* |
+| L1, by name, an item's own suite on its first run | W92's shapes carrying an `end` no gate reached, and the record fixture no consumer judged; W93's entry-gate fixture leaving a task `FD-V11`-unreachable |
+| L6, by name | W93's `NOT_RUN_STATE` walking the gate types — two NAMED failures where the declaration predicted a crash; W94's two TYPE clauses reading a gate's `type`, and its own cross-row claims' missing subjects; `checkWiring`'s false `no` ([Q391](../open-questions.md)), with the L4 census |
+| a gate-entry self-test | W92's `check:docs:selftest`, rule 7 (b) ABORT on two renamed probes; W94's at 20 / 21 on the author's own `X9` probe edit |
+| **rule 8's GRADER — v0.24's clause, on its first plan** | W92's two cases running under EACH OTHER's names ([Q382](../open-questions.md)) — WRONG-REASON on the failure line, which no assertion in the file could see; W93's `e1` declared against a suite name, and W92's `d2` crashing another suite |
+| rule 8's RE-RUN with the readers' edits (v0.8) | W94's realm fix, which read its expected side from the very knob the reader's edit flipped |
+| the confirming `npm run gate` | W94's gated `pathEnds` — above, by chance |
+
+**THIRTY-THREE have no rung (11 / 13 / 9)**: EIGHTEEN found by a reader (5 / 9 / 4), SEVEN at a declaration step's re-take
+(2 / 2 / 3 — a validator that THREW, the design's incompatible *L6 UNMOVED*, the process-kept memory resuming wrong in
+silence ([Q386](../open-questions.md)), the fold throwing on a new kind, a serial pool defeating an arrangement, Deno's
+threaded pool nearly repeating [Q379](../open-questions.md)'s trap, a winner leaking into every row field), and EIGHT by the
+author's own reading. **ELEVEN of the fifty are in the INSTRUMENTS (6 / 3 / 2)** — probes and their declarations, two
+self-tests' anchors, heredocs broken four times, a reader copy past Windows' path limit, a self-test run while a test file
+moved. **All thirteen BLOCKING reader findings have no rung** (3 conformity / 10 adequacy), and the split held: the
+conformity readers found claims that were false and one BEHAVIOUR (W93's key read off the copy for the type and off the
+original for the record), the adequacy readers bounds that were not there — W92's pass-through bound on the DEFAULT route
+only, W93's one gate in every fixture, W94's kill points never checked DISTINCT.
+
+### The predictions
+
+| # | kind | verdict |
+|---|---|---|
+| 1 | derived, from fact 5 | **CONFIRMED** (W92) — L0 named ONE site in all five lanes, and every other site surfaced at L1 or by reading. **And the churn did not stop at the item it named**: W94's two L6 TYPE clauses read a gate's `type` as a registry node type, a node-kind site W92's census could not list because its read is `.type` and not `kind ===`, found at L6 BY NAME two items later — true to the prediction's letter (not L0), and a scope the prediction did not state |
+| 2 | derived, from fact 4 (an EMULATION, one kill point) | **CONFIRMED** (W93), then **on real workers at all 25 kill points in both L6 runtimes** (W94's block (2h)). Its reversal condition — a memory the replay cannot regenerate — was MET by one placement at W93's declaration step, a memory kept by the PROCESS, which completed wrong in silence past the stored events ([Q386](../open-questions.md)); that measurement is why the shipped memory is a driver field |
+| 3 | **the REACH** | **CONFIRMED** (W94), one exception outside the run — the wiring check reads the gate as a pass-through ([Q391](../open-questions.md)); none of its reversal column's three shapes was needed. [Q387](../open-questions.md) (an entry gate's type asked twice) was observed on real workers and is outside the artifact |
+| 4 | derived, from P23 prediction 4's reversal | **CONFIRMED** (W93) — `RN-R13`'s TEXT moved and no other rule's did but enumerations. **With one thing its wording could not see**: `FD-V17`'s text did not move and its REACH did — a `route` key on a non-gate edge was refused as `FD-V17` before P24 and as `FD-V41` after, which W94 found as `README.md`'s FOURTH break. *A prediction about which rules' TEXT moves cannot see a rule whose extension moves under unchanged text* |
+
+**Four of four CONFIRMED — the third plan to record that, after P16 and P18** — and P10's reading holds: the three derived
+predictions tested the inference, and the one REACH is the one that could have reversed.
+
+### v0.24's grader clause: FOLLOWED in all three items, and it caught a defect nothing else could
+
+`gX` (right verdict CRASH) and `gW` (right verdict WRONG-REASON) were graded right on every pass of all three items — three,
+two and three — and on this retro's three re-runs. **Its yield is W92's [Q382](../open-questions.md)**: a case's NAME
+appended to `DECLARED_CASES` after the self-check's while its BODY sat before it, so two cases ran under each other's names,
+invisible to the in-file membership (a SET) and to the outside count — seen only because the grader matched the reason on
+the clause's own failure line. **CONFIRMED on its first plan, no change.**
+
+### Refused, five, each with a measurement
+
+**(1) A rule for a fix that SURVIVES its reader's own exact edit** — W94's realm check compared the realm to
+`threaded ? 'thread' : 'harness'`, so the reader's edit (the threaded row run inline) moved BOTH sides. **Seven fixes in six
+items over six plans** — [W46](../work-items/w46-what-a-reference-costs-and-whether-anything-says-so.md)'s low-baseline
+guard, [W53](../work-items/w53-what-a-run-retains-that-nothing-reads.md)'s wrong-route test,
+[W86](../work-items/w86-score-each-item-then-fan-out-per-item.md)'s two reach counters,
+[W90](../work-items/w90-a-run-killed-and-resumed-on-real-workers.md)'s guard on one resume of four, and W94's — **every one
+caught by v0.8's re-run with the readers' exact edits checked back in, zero shipped.** That is v0.8 CONFIRMED at its
+seventh occurrence; W94's mechanism is v0.16's *independent* one step along — a fix whose expected side is downstream of
+the edit it answers — and the clause that catches it fired.
+
+**(2) A `doc/` check for the TWENTY-THIRD time, on the English class** — and **P24's declaration did not take either
+machine-comparable class P23's retro handed it.** Re-measured: `doc/decisions/README.md` indexed every ADR on disk at all
+three of P24's commits, so that class did not recur; **[Q171](../open-questions.md)'s did** — W94 shipped its four L6 count
+copies at 2059 on a tree running 2060 until its conformity reader's finding 1, BLOCKING, no rung. **A hand-off to a
+declaration has now been taken by NONE of the plans it was handed to** — P20's retro named Q171 and P23's named both —
+because a plan is the maintainer's question and P24 was a feature request. This retro cannot build a check (`scripts/**` is
+an item's), so it hands the two classes to the MAINTAINER instead, as an item outside any plan on W69-W71's precedent.
+
+**(3) An `Owns` pre-declaration rule for the TWELFTH plan** — P24 seeded twelve files; eleven fired (`check-spec.mjs`
+did not — a gate type is code, L4's), several for a reason the seed did not give; the six nobody seeded were all found at
+a declaration step (W92 one, W93 four, W94 the plan file). **Zero undeclared in all three.**
+
+**(4) A rule for a dispatch site a stated census predicate cannot see** — W94's two L6 TYPE clauses read a gate's `.type`,
+outside W92's `kind ===` predicate. One occurrence, and the rung it needed fired BY NAME on the rows' first run; prediction
+1 records its scope.
+
+**(5) A rule that a rule 8 harness grades L6 in BOTH runtimes** — W94's graded node only and the order fired in deno. The
+measurement above says the ARRANGEMENT is runtime-independent (3 / 3 in each), so the change adopted covers it; a second
+runtime doubles the cost and still samples.
+
+### The numbers
+
+**Rule 8 across the plan, all 169 probes RE-RUN at this retro on the shipped tree** (W92's 48, W93's 67, W94's 54) — each in
+its own isolated copy: a `git clone --no-hardlinks` of `5a80473` with `node_modules` copied in, zero symlinks and zero reparse
+points measured first, each copy verified green on the four rungs its harness reads (L1-L5, L6, `check:spec`, `check:docs`,
+each exit 0) before any probe ran, each item's own harness run against it. **All three read digest `ac4a78518bb90a35` over 414
+files, identical at both ends of every set.**
+
+| set | at this retro |
+|---|---|
+| W92's 48 | **1 control clean, `gX` CRASH and `gW` WRONG-REASON as declared, 37 caught, 3 declared ceilings RUN (`r6`, `r10`, `r12`) — and FIVE ABORTS, every one a SITE the later items CONSUMED BY DESIGN**: `b1`, `b2`, `c2` and the ceiling `b10` anchor on ADR 0066 rule 7's construction refusal, which W93 LIFTED (ADR 0067); `b8` on the `NOT_YET_AT_L6` exemption, which W94's Output 5 REMOVED. Neither confirmed nor falsified (P18's reading of a deleted site); the lift is W93's `a21` and the expiry W94's kind clause. **Four RE-ANCHORED and CAUGHT**: `b5` and `r8` on `boundaryTargets`' entry walk, which W93 gave a chooser; `r11` and `b9` on the kind clause, which lost its exemption — `b9` re-expressed as its nearest meaning, a permanent `gate` exemption written back, refused by the clause's third constructed input. **`b9` is the dated ceiling W92 already took as a catch** |
+| W93's 67 | **1 control clean, `gX` CRASH and `gW` WRONG-REASON as declared, 62 caught, 2 declared ceilings RUN (`k1`, `k2`), 0 aborts, 0 against declaration** — exactly W93's pass 2 |
+| W94's 54 | **1 control clean, `gX` CRASH and `gW` WRONG-REASON as declared, 48 caught, 3 declared ceilings RUN (`rc2`, `r5`, `r7`), 0 aborts, 0 against declaration** — and **the first time this set has run whole on the tree W94 SHIPS**: its Record's pass 3, headed *the final tree*, ran at `b6d1ae564aa3644b`, before the confirming gate turned What broke 11 up, and only `b16`, `d2` and the controls were re-run on the fix — corrected in W94's file under pass 3 rule 6. **`rc2`'s stated reason is itself a completion order** (*the inline downloads DO settle in index order*): a declared ceiling that obligation (f) would provoke, recorded rather than re-graded because the obligation is this retro's and the item's set predates it |
+
+**Across the plan: 169 probes, 3 controls clean, 147 caught, 8 declared ceilings RUN, ZERO undeclared survivors, all six grader controls graded as declared (three CRASH, three WRONG-REASON), FIVE aborts — all W92's, every one a site W93 or W94 consumed by design — and ZERO against declaration otherwise** — and the dated-ceiling clause's yield is **ZERO NEW catches for the sixth plan running**:
+W92's one dated ceiling (`b9`) was taken inside W92, by its own adequacy reader.
+
+**Readers: six passes, none empty, and THREE overlaps — 1, 1, 2, the fifty-seventh to fifty-ninth measurements**, band
+unmoved, and section 6's list and the sequence under it appended here. **Blocking findings: W92 0 + 4, W93 1 + 4, W94 2 + 2
+— thirteen, split 3 conformity / 10 adequacy. All THREE conformity readers' central obligations came back with ZERO
+disagreements on the VALUES — the fourth plan running.**
+
+**Late exceptions: zero undeclared in any of the three.**
+
+**Census CONFIRMED for the TWENTY-SIXTH plan running — 303 / 235 / 1 / 67 before this retro's edits and 304 / 236 / 1 / 67
+after, every id in exactly one cluster cell**, by W92's parser unchanged. The retro RAISES [Q394](../open-questions.md) — the
+next free id, outside P24's block, found by applying the change it adopts — and resolves none: [Q391](../open-questions.md) stays open (an authoring tool
+that reads a gate as a pass-through is conservative, not wrong about the run, and teaching it routes is a plan's
+question); [Q392](../open-questions.md) stays open (the static root import that makes L6 honest is what makes a revert
+unreadable, and a dynamic one would reach a surface no consumer has); [Q386](../open-questions.md) stays open (the shipped
+gate cannot resume wrong; a decision predicate with closure memory still can, which is [Q9](../open-questions.md)'s purity
+one road over); [Q387](../open-questions.md) stays open (an entry gate's type asked twice, observed on real workers).
+
+**[Q142](../open-questions.md)** — measured before this retro's edits on the shipped tree: probe 1 **120 files against `M3`'s
+123, margin 3**; probe 2 **5402 links against `M4`'s 6225, margin 823**. **Re-measured AFTER this retro's edits, on the tree it commits: `M3` unmoved at margin 3 (the retro adds no document), and probe 2 5449 links — `M4` margin 776**, forty-seven links narrower, every one in `CLAUDE.md`, `README.md`, `doc/README.md`, `doc/workflow.md` and the register — files probe 2 does not cut (it cuts this one). Q142 does not fire. **`M3` at 3 is the tightest any retro
+has handed on**: the next plan's declaration writes a plan and a work item outside `doc/decisions`, which takes it to 1, and
+its second item's file FIRES it — **predicted here, from the count, as P24 predicted `M4` at W92.**
+
+**This retro's own instruments, recorded rather than hidden**: its first launch of the three sets put `&` after a `cd … &&`,
+so only W92's ran and two 19-byte logs landed one directory ABOVE the repository — seen within minutes because two of three
+logs were missing, removed, the live tree untouched, and W93's and W94's sets then run in their own copies; one Python
+heredoc carried a backslash escape (its anchor asserted, the bytes right); and the order harness's own `FAIL` counter read
+lines from column 0 where L6 indents them, so it was re-graded from the kept logs by exit code and clause line.
+
+**The confirming `npm run gate` over the retro's final tree: `GATE EXIT=0`, ZERO `FAIL` lines**, about nineteen minutes in node 24.20.0; `selftests` 8 / 8 ok in 1002.0 s wall; spec 7 / 65 / 125; markdown 159 / 7359 / 408; docs 37 snippets, 31 run, 6 check, `X8` pairing seven; `check:workers` 21; L1-L5 53 / 1423 in node, deno and chromium; L6 2069 / 154 in node and deno — every rung UNMOVED, which is what a retro that edits only documents must show. Content digest `060ca71b6f27a904` over 414 tracked and untracked-unignored files, identical before and after — RUN and redirected, never piped. This sentence is the one edit made after it, and `check:markdown` and `check:docs` were re-run over it.
+
+**W95 CLOSED unissued. Q379-Q393 all used or spent** — Q383-Q385 (W92), Q388-Q390 (W93) and Q393 (W94) reserved and unused.
+**ADR 0066 and 0067 both taken; Q394 taken by this retro. The next plan starts at W96, Q395 and ADR 0068** — derived by grep off the tree at this
+retro, never from this sentence, and `CLAUDE.md` already says so.

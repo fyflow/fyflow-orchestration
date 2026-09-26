@@ -317,7 +317,7 @@ tautology together with the product defect it guards, so a catch names the claim
 |---|---|---|
 | author | 43 | control clean, both grader controls RIGHT, **40 caught, 0 survived, 0 aborts, 0 against declaration**, digest `7f985f9dafe96d46` identical. Three claims have no second observer AT L6 and are held one rung over: a `gated` element's order and `RunState.gated` at L1 (`a12`, `b6`), and *what left the gate* by section 19's snippet (`b7`) |
 | 2 — with the readers' exact edits | 54 | control clean, both grader controls right, 47 caught, 3 declared ceilings, **1 against declaration — the reader's `r4` SURVIVED MY FIX** (What broke 7) |
-| 3 — the final tree | 54 | **control clean, `gX` CRASH and `gW` WRONG-REASON as declared, 48 caught, 3 declared ceilings RUN, 0 aborts, 0 against declaration**, digest `b6d1ae564aa3644b` identical at both ends |
+| 3 — the final tree *(it was NOT: pass 3 ran at `b6d1ae564aa3644b`, BEFORE the confirming gate turned What broke 11 up, and only `b16`, `d2` and the controls were re-run on the fix, at `12a3a199311aa160`; the whole set on the shipped tree is P24's retro's — corrected there under pass 3 rule 6)* | 54 | **control clean, `gX` CRASH and `gW` WRONG-REASON as declared, 48 caught, 3 declared ceilings RUN, 0 aborts, 0 against declaration**, digest `b6d1ae564aa3644b` identical at both ends |
 
 **The three ceilings, each run against the rung its reason names**: `rc2` — file 0's two `beside` ids moved back into the
 ORDERED comparison survives on this tree, because the inline downloads DO settle in index order; they are compared as a set

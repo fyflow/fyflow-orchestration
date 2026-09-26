@@ -1,6 +1,6 @@
 # Workflow
 
-**Status:** v0.24 - **run to completion TWENTY-THREE times**, by [P1](plans/p1-what-satisfies-a-join.md),
+**Status:** v0.25 - **run to completion TWENTY-FOUR times**, by [P1](plans/p1-what-satisfies-a-join.md),
 [P2](plans/p2-the-non-success-half-on-a-real-scheduler.md),
 [P3](plans/p3-a-consumer-reference-the-gate-keeps-true.md),
 [P4](plans/p4-the-drivers-lifetime-and-the-handles-it-gives-out.md),
@@ -22,7 +22,8 @@
 [P20](plans/p20-what-the-runtime-owes-a-consumer.md) and
 [P21](plans/p21-what-a-run-time-schema-check-buys-and-what-it-costs.md) and
 [P22](plans/p22-what-a-regions-identity-is.md) and
-[P23](plans/p23-what-a-run-needs-to-outlive-its-process.md)
+[P23](plans/p23-what-a-run-needs-to-outlive-its-process.md) and
+[P24](plans/p24-what-a-node-may-remember-across-a-runs-branches.md)
 **Read this before starting any work item.** *(The status line read "seven times" and listed P1-P7
 until P9's retro: **P8 ran this document to completion and adopted none of its proposals**, which is
 section 6 pass 3 rule 1's expected verdict and is not the same as not having run it.)* Paths are relative to the repo root unless they are
@@ -105,6 +106,63 @@ prediction about rule 8 is answered and is **false**.
    ([ADR 0029](decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)).
    The dependency edge that made the junction seem necessary is gone; **the rule still said nothing
    about the removal**, which is the part that did the damage.
+
+**v0.25 is [P24](plans/p24-what-a-node-may-remember-across-a-runs-branches.md)'s retro, and its central
+finding is that section 5 rule 5 was FOLLOWED by the item that asserted a fan-out's completion order twice — and that the
+second one shipped past every rung but the last, by chance.** P24 asked *what may a node remember across a run's
+branches?* — answered by
+[ADR 0066](decisions/0066-a-gate-is-a-decision-with-memory-that-names-a-registered-type-and-wires-every-route-exactly-once.md)
+(a `gate` is a decision with memory that names a registered TYPE and wires every route exactly once),
+[ADR 0067](decisions/0067-a-gate-runs-in-the-driver-its-memory-is-the-drivers-and-its-decision-is-recorded.md) (the driver
+evaluates it, its memory is the driver's and is rebuilt by replay, and each decision is recorded) and an exit artifact in
+which a TV library's files pass a `distinct` gate on real workers, arranged, paired, threaded and killed at every kill
+point. It adopts **one** change and refuses **five**, all in
+[P24's own Retro](plans/p24-what-a-node-may-remember-across-a-runs-branches.md#retro).
+
+1. **Rule 8 gains obligation (f): BREAK THE ORDER — for each worker a row runs whose timing the row does not ARRANGE, the
+   set re-runs the row with that worker delayed past its peers (within one worker type, in the other pool mode); an
+   assertion that goes red there compared an order `spec/` does not fix.**
+
+   | item | the order asserted | found by |
+   |---|---|---|
+   | [W23](work-items/w23-a-nested-flow-on-real-workers.md) (P7) | every nested row's `settled`, in terminal-event order | the build — fixed by sorting |
+   | [W51](work-items/w51-the-sibling-region-flow-on-real-workers.md) (P14) | `refine`'s dispatch order, a fan-out's settle order | the conformity reader — **25 / 25 identical inline, 12 / 12 REVERSED threaded** |
+   | [W94](work-items/w94-a-tv-series-ingest-through-a-gate-on-real-workers.md) | the fourteen `beside` dispatch ids, in the order seven downloads settle | the conformity reader |
+   | W94 | the gated rows' `pathEnds` — a setup's SETTLEMENT against a drop's synchronous end | **ten green runs, then the confirming `npm run gate`, red in deno once** |
+
+   **Measured at the retro**, W94's fix reverted in an isolated copy: SAMPLED, the ordered comparison is red **0 of 3** runs
+   in node and **0 of 3** in deno; ARRANGED — one worker no row arranges (`SeriesSetup`) delayed 5 → 300 ms — it is red
+   **3 of 3 in each, on BOTH arranged rows**, including the pair no rung had ever turned red, every failure that clause and
+   no other; and the shipped comparison under the same delay is green 3 of 3 in each. *A completion order is a property of a
+   SAMPLE, every rung takes one, and no obligation (a)-(e) changes which completion wins* — they break the tree, not the
+   timing — so a set of any size cannot see it and an arrangement sees it every time. **Applied once to the tree P24
+   SHIPS, it found a latent one**: `Thumbnail` delayed the same way turns an L6 overlap CONTROL red 2 of 2 in each runtime,
+   its comment calling *construction* what is a thumbnail settling before `identify` ([Q394](open-questions.md)).
+
+   **Why it is the sharpest kind.** W94's author applied the rule — the `beside` ids a set once the reader named them, the
+   gate's decision order asserted only where the arrangement makes it a fact — and the second order was one nobody FRAMED
+   as a completion order, v0.23's *a selection nobody framed as one*, for an order. So the obligation enumerates WORKERS and
+   not orders: a flow's node types are a finite list read off the document, and the orders an author did not frame are
+   exactly the ones an enumeration of orders misses.
+
+   **What it replaces**: nothing is deleted. It is **section 5 rule 5 made provocable**, as v0.8 made rule 4 provocable as
+   obligation (c) and v0.20 rule 3 as (b)'s tautology clause — *never assert a fan-out completion order* has stood since
+   v0.3 with no procedure, and four occurrences in three plans are what that has cost.
+
+**REFUSED, five, each with a measurement.** **(1) A rule for a fix that SURVIVES its reader's own exact edit** — W94's realm
+check read its expected side from the knob the reader's edit flipped; **seven fixes in six items over six plans** (W46, W53,
+W86 twice, W90, W94), **every one caught by v0.8's re-run and none shipped**. v0.8 CONFIRMED at its seventh occurrence.
+**(2) A `doc/` check for the TWENTY-THIRD time, on the English class** — and P24's declaration took NEITHER machine-comparable
+class P23's retro handed it: the ADR index was complete at all three of P24's commits, and [Q171](open-questions.md)'s L6
+count copies recurred (W94's four at 2059 on a tree running 2060, BLOCKING, found by a reader). A hand-off to a declaration
+has been taken by none of the plans it was handed to, so this one goes to the MAINTAINER, as an item outside any plan.
+**(3) An `Owns` pre-declaration rule for the TWELFTH plan** — twelve files seeded, eleven fired, six unseeded all found at a
+declaration step, zero undeclared. **(4) A rule for a dispatch site a stated census predicate cannot see** — W94's two L6
+clauses reading a gate's `.type`, outside W92's `kind ===` census; one occurrence, and L6 named both on the rows' first run.
+**(5) A rule that a rule 8 harness grades L6 in both runtimes** — the arrangement is runtime-independent, 3 of 3 in each, so
+(f) covers what a second runtime would only sample. **And v0.24's grader clause is CONFIRMED on its first plan**: both grader
+controls right on every pass of all three items, and it found W92's two cases running under each other's names
+([Q382](open-questions.md)), which no assertion in that file could see.
 
 **v0.24 is [P23](plans/p23-what-a-run-needs-to-outlive-its-process.md)'s retro, and its central
 finding is that of the twenty-four defects a rung FIRED on across that plan's three items, twenty-two
@@ -1953,7 +2011,9 @@ Rules:
    scheduler run and review it line by line at birth.
 5. **Test the contract, not the implementation.** Never assert internal call order, or a fan-out
    completion order the spec does not fix - that order is genuinely non-deterministic (concept
-   section 5) and a test that depends on it will flake in CI and nowhere else.
+   section 5) and a test that depends on it will flake in CI and nowhere else. **Rule 8 obligation (f) is how
+   it is provoked** (v0.25, P24's retro): a completion order is a property of a SAMPLE, so it is found by
+   ARRANGING a completion the other way, never by running the rung again.
 6. **The cases the spec names are a coverage checklist with addresses.** A branch routed away from
    its join (Q4), a task ending in `user_action` (Q17), no decision edge matching (Q10), a
    duplicate task id (Q13), a nested fan-out (Q6) - each missing test is a hole with a citation,
@@ -1990,7 +2050,7 @@ Rules:
    rather than for checks, and it exists because **three consecutive items shipped a repair that
    could not fail**.
 
-   **This rule has grown to five obligations, FOUR requirements on the set and one on the harness,
+   **This rule has grown to SIX obligations, FOUR requirements on the set and one on the harness,
    so it carries its own index.** P6's retro asked whether a fourth obligation should make it a section; P9's retro answered
    **no**, because *"section 5 rule 8"* is cited in this document, four plans, eleven work items and
    the register, and section 3's *ids are never renumbered* is the same argument one level out. It is
@@ -2003,6 +2063,7 @@ Rules:
    | **(c)** | break the PROVENANCE of every value an assertion reads — change the source expression and nothing else | v0.8, P6's retro; procedure added v0.9; **its LIMIT v0.13, P12's retro; and what *independent* excludes, v0.16, P15's retro** |
    | **(d)** | break the LOOP BOUNDS — one entry out, the whole list out, and does anything COUNT it from elsewhere — **a count is not a membership; a membership names the CONTROLS beside its claims; a control must fail where its claim is VACUOUS, not only where its subject is ABSENT; and a control is one only if you can NAME THE TREE on which it fails and its claim passes** | v0.9, P7's retro; **the membership clause v0.14, P13's retro; the controls clause v0.18, P17's retro; what a control must be able to do, v0.21, P20's retro; its TEST, v0.22, P21's retro** |
    | **(e)** | break the WIRING — what happens when the check is NOT RUN, and **is what it ran what SHIPS** | v0.10, P9's retro; second question **v0.12, P11's retro**; **third shape v0.13, P12's retro** |
+   | **(f)** | break the ORDER — for each worker a row runs whose timing the row does not ARRANGE, re-run the row with that worker delayed past its peers (within one worker type, in the other pool mode); an assertion that goes red there compared an order `spec/` does not fix | **v0.25, P24's retro** — section 5 rule 5 made provocable |
    | | **and on the set as a whole:** | |
    | | a survivor is one only once a **second independent route** confirms the clause was reachable | v0.7, P5's retro |
    | | re-run the whole set **after** acting on the readers, with their exact edits checked back in | v0.8, P6's retro |
@@ -2500,6 +2561,34 @@ Rules:
    live. And it is not (c): a provenance probe changes where a value comes from, while this changes
    what two fixtures disagree about — W43's author ran (c) over the same rows and reached neither.
 
+   **AND BREAK THE ORDER — P24's retro, and it is a SIXTH axis: section 5 rule 5 made provocable.** Obligations
+   (a)-(e) break the TREE — a clause, an output, a source, a bound, the wiring — and none of them changes WHICH
+   completion wins, so a row asserting a completion order passes every one of them for as long as the pool keeps
+   choosing the order the row was written from. A completion order is a property of a SAMPLE, and every rung takes
+   one.
+
+   | | the order asserted | found by |
+   |---|---|---|
+   | [W23](work-items/w23-a-nested-flow-on-real-workers.md) | every nested row's `settled`, in terminal-event order | the build |
+   | [W51](work-items/w51-the-sibling-region-flow-on-real-workers.md) | `refine`'s dispatch order | its conformity reader, with an ARRANGEMENT: 25 / 25 identical inline, **12 / 12 reversed threaded** |
+   | [W94](work-items/w94-a-tv-series-ingest-through-a-gate-on-real-workers.md) | the `beside` dispatch ids | its conformity reader |
+   | W94 | the gated rows' `pathEnds` | ten green runs, then the confirming gate, red once in deno — by chance |
+
+   **Measured at P24's retro**, W94's `pathEnds` fix reverted in an isolated copy: sampled, **0 of 3** red in node and
+   **0 of 3** in deno; with ONE worker no row arranges (`SeriesSetup`) delayed 5 → 300 ms, **3 of 3 in each**, on both
+   arranged rows, the `pathEnds` clause and no other; the shipped comparison under the same delay green 3 of 3 in each.
+   **And applied once to the tree P24 SHIPS it found a latent one** — `Thumbnail` delayed the same way turns an L6
+   overlap CONTROL red 2 of 2 in each runtime, its comment saying *by construction* of a thumbnail settling before
+   `identify` ([Q394](open-questions.md)).
+
+   **So: enumerate the WORKERS a row runs, not the orders it asserts** — for each one whose timing the row does not
+   ARRANGE, re-run the row with it delayed past its peers, and within one worker type run the other pool mode. A
+   comparison that goes red there asserted an order `spec/` does not fix; one the row DID arrange stays green or
+   names its arrangement. *The orders an author did not frame are exactly the ones an enumeration of orders misses*
+   — W94 followed rule 5 where it saw a fan-out and not where it saw a path end — and a flow's node types are a
+   finite list read off the document. **Its limit is stated rather than hidden**: it provokes timing through the
+   knobs a worker exposes, so a worker with no delay setting is arranged by its pool mode or not at all.
+
    **AND A PROVOCATION IS EVIDENCE ONLY WHEN IT FIRES, AND ONLY WHEN IT FIRES FOR THE REASON IT
    NAMES — P9's retro, and it is a requirement on the SET rather than a sixth axis.** Two halves, and
    they are the same question in two directions.
@@ -2730,12 +2819,12 @@ and there is obvious work to do meanwhile — and **the thing that makes it a de
 habit is that the verdict is reported as though it were about the tree that ships.**)*
 
 **Why two readers rather than one asking both questions**, which is what earlier versions said.
-Measured **fifty-six** times now: W4 1 of 13, W5 3 of ~35, W6 3 of ~25, W9 3 of ~30, W12 3 of 18,
+Measured **fifty-nine** times now: W4 1 of 13, W5 3 of ~35, W6 3 of ~25, W9 3 of ~30, W12 3 of 18,
 W13 4 of 24, W14 4 of ~26, W17 3 of ~31, W18 2, W19 4 of 18, W28 4, W29 1, W30 2, W31 0, W32 2,
 W33 2, W34 2, W36 1, W39 4, W41 1 of 116, W42 2 of 61, W43 2 of 39, W45 2, W46 2, W47 2,
 W49 2, W50 2, W51 1, W53 2, W54 4, W55 2, W57 0, W58 1, W59 1, W61 1, W62 1, W63 1,
 W65 2, W66 2, W67 1, *W69 1, W70 0, W71 2*, W72 1, W73 1, W74 1, **W76 2, W77 2, W78 2**,
-**W80 2, W81 3, W82 1, W86 2**, **W88 2, W89 2, W90 1**.
+**W80 2, W81 3, W82 1, W86 2**, **W88 2, W89 2, W90 1**, **W92 1, W93 1, W94 2**.
 
 *(**The last three were appended at P23's retro — and the retro's own prompt named TWO of them**, W89's
 and W90's, because W90's Record said *W89's fifty-fifth is not yet in the list* and did not say that
@@ -2776,15 +2865,15 @@ yet** - the same three facts reached by six different routes, and in each case t
 routes had nothing in common.
 
 **The number to carry is the ABSOLUTE one: two readers produce 0-4 shared findings, whatever the
-item's size** - **fifty-six** measurements, and P6's retro declares the question **settled and closed
-to re-litigation**. **The forty-two since — 2, 2, 2, 1, 4, 1, 2, 2, 2, 2, 2, 2, 2, 1, 2, 4, 2, 0, 1, 1, 1, 1, 1, 2, 2, 1, 1, 0, 2, 1, 1, 1, 2, 2, 2, 2, 3, 1, 2, 2, 2 and 1 —
+item's size** - **fifty-nine** measurements, and P6's retro declares the question **settled and closed
+to re-litigation**. **The forty-five since — 2, 2, 2, 1, 4, 1, 2, 2, 2, 2, 2, 2, 2, 1, 2, 4, 2, 0, 1, 1, 1, 1, 1, 2, 2, 1, 1, 0, 2, 1, 1, 1, 2, 2, 2, 2, 3, 1, 2, 2, 2, 1, 1, 1 and 2 —
 are all inside the band and the band has not moved.** *(**This sequence read *thirty-two* and stopped at
 W74 through THREE retros** — P20's, P21's and P22's each moved the total beside it and not the values
 under it, so the count said fifty-three over a list of forty-six. Counted back from W31's zero at P23's
 retro: W32 to W74 are the thirty-two it had, and W76, W77, W78, W80, W81, W82, W86, W88, W89 and W90 are the
 ten it lacked.)* **P13's three are 2, 2, 2, P14's are 2, 2, 1,
 P15's are 2, 4, 2, P16's are 0, 1, 1, P17's are 1, 1, 1, P18's are 2, 2, 1, P19's are 1, 1, 1,
-P20's are 2, 2, 2, P21's are 2, 3, 1, P22's one is 2 and P23's are 2, 2, 1**, and the SPLIT held in
+P20's are 2, 2, 2, P21's are 2, 3, 1, P22's one is 2, P23's are 2, 2, 1 and P24's are 1, 1, 2**, and the SPLIT held in
 all three of P17's: the conformity reader found claims that were false — twelve of its twenty-four
 blocking findings across that plan were numbers — and the adequacy reader found bounds that were not
 there. **P18's sixty-one blocking findings split 29 conformity / 32 adequacy the same way**, and its
