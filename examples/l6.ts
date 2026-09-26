@@ -7340,12 +7340,31 @@ if (checkOff !== null) {
   let rowsWalked = 0;
   const runsWithTwoTogether = EXPECTED.filter((_, i) => { rowsWalked++; return walksHere[i]!.maxTogether > 1; }).map((e) => e.key);
   // **Four since W94, and the three it adds are DERIVED from the rows that declare a gate**: the TV ingest opens a `beside`
-  // fan-out per file, all seven at once, and each holds its thumbnail's arrival until the gate road exits — so its runs
-  // have seven instances of one opener holding together by construction. The control's claim is unchanged: the walk is
-  // not true of everything it is shown (fifty-one of fifty-five rows read one).
+  // fan-out per file, all seven at once, and each holds its thumbnail's arrival until the gate road exits. **That is an
+  // ARRANGEMENT and not construction** — [Q394](../doc/open-questions.md), found by P24's retro applying `doc/workflow.md`
+  // rule 8 obligation (f): `Thumbnail` waits 5 ms and `identify` 30 ms per MB, so the thumbnail arrives first; delayed to
+  // 300 ms, this clause was RED in both runtimes with the TV rows gone from `only`. This comment said *by construction*
+  // until W96. So the arrangement's own EFFECT is asserted beside the claim, W17's `joinSettledBy`: in every gated row,
+  // every `beside` instance's thumbnail ARRIVED before its gate road ENDED — read off the sequence's own indices, a second
+  // expression over the same run rather than a third projection of the walk. The control's claim is unchanged: the walk
+  // is not true of everything it is shown (fifty-one of fifty-five rows read one).
+  const thumbnailFirst = (r: RunReport): boolean => {
+    const at = (type: string, branchPath: string) => r.inputs.findIndex((x) => x.kind === 'region' &&
+      x.event.type === type && x.event.regionId === 'beside' && x.event.branchPath === branchPath);
+    const instances = [...new Set(r.inputs.flatMap((x) => x.kind === 'region' && x.event.regionId === 'beside' &&
+      x.event.type === 'branch.opened' ? [x.event.regionPath] : []))];
+    return instances.length > 0 && instances.every((p) => {
+      const arrived = at('branch.arrived', `${p}.0`);
+      const ended = at('branch.exited', `${p}.1`);
+      return arrived >= 0 && ended >= 0 && arrived < ended;
+    });
+  };
+  const gatedKeys = EXPECTED.filter((e) => e.gate).map((e) => e.key);
   check('cross-row', 'CONTROL: and across every row this rung runs, ONLY the P22 artifact and the rows through a gate have two instances of one opener holding ' +
-    'together — the walk is not true of everything it is shown, and it was SHOWN every one of them',
-    { only: runsWithTwoTogether, rowsWalked }, { only: [ARTIFACT, ...EXPECTED.filter((e) => e.gate).map((e) => e.key)], rowsWalked: EXPECTED.length });
+    'together — the walk is not true of everything it is shown, and it was SHOWN every one of them; and the gated rows hold by their ARRANGEMENT, ' +
+    'every thumbnail arriving before its gate road ended (Q394)',
+    { only: runsWithTwoTogether, rowsWalked, arranged: EXPECTED.flatMap((e, i) => e.gate && thumbnailFirst(reports[i]!) ? [e.key] : []) },
+    { only: [ARTIFACT, ...gatedKeys], rowsWalked: EXPECTED.length, arranged: gatedKeys });
 
   // **`soleRegion` REFUSES a multi-instance opener and ANSWERS a single-instance one, and this is
   // its first live case anywhere** — the adequacy reader's finding 6, and it is W84's conformity
@@ -10140,12 +10159,27 @@ check('cross-row', 'every cross-row SUBJECT this file declares was asserted abou
 // order), and the realm its `identify` ran in (+1 — the adequacy reader's finding 4). No cross-row count moved: block
 // (2h)'s distinct kill points and rebuilt memory, and its re-stated control, widened clauses that were already there.
 const DECLARED_TOTAL = 2069;
+// **And the RUN count, declared outright beside it — W96.** It was printed on every gate run and written nowhere, so the
+// copies of it in `README.md` and `examples/README.md` had nothing to be compared against: `check-docs`' `X10` reads
+// BOTH declarations and holds each current copy to them ([Q171](../doc/open-questions.md), named by P20's retro and built
+// by none of the four plans after it). Checked here the way `DECLARED_TOTAL` is — a mismatch is a named failure and NOT a
+// counted assertion, so neither number moves the other — though, like `DECLARED_TOTAL`'s own guard, a mismatch run prints
+// a total one higher, because the report adds `failures.length` (W96's adequacy reader).
+const DECLARED_RUNS = 154;
 if (passed + failures.length !== DECLARED_TOTAL) {
   failures.push(
     'gate\n      the assertion count is not the number this file declares outright\n' +
       `      declared: ${DECLARED_TOTAL}\n` +
       `      actual:   ${passed + failures.length}\n` +
       '      If you added or removed an assertion deliberately, update DECLARED_TOTAL.',
+  );
+}
+if (reports.length + pairRunCount !== DECLARED_RUNS) {
+  failures.push(
+    'gate\n      the real-run count is not the number this file declares outright\n' +
+      `      declared: ${DECLARED_RUNS}\n` +
+      `      actual:   ${reports.length + pairRunCount}\n` +
+      '      If you added or removed a run deliberately, update DECLARED_RUNS — and check-docs X10 then names every copy.',
   );
 }
 

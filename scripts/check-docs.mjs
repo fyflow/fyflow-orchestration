@@ -19,7 +19,7 @@
 // Exits 0 when every snippet typechecks and every `run` snippet executes.
 // It reports; it does not fix.
 
-import { readFileSync, writeFileSync, mkdirSync, rmSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, rmSync, existsSync, readdirSync } from 'node:fs';
 import { join, dirname, resolve, relative } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
@@ -681,6 +681,96 @@ const README_OPENING = '(the opening, above the first ## heading)';
   }
 }
 
+// X10 — every CURRENT copy of ladder L6's counts IS what `examples/l6.ts` declares
+//
+// **[W96](../doc/work-items/w96-the-counts-and-the-index-a-check-can-compare-and-q394.md), and [Q171](../doc/open-questions.md)
+// is why** — named for a check by P20's retro, measured by P23's (`README.md`'s current cell read 1724 / 58 for SIX commits
+// while `DECLARED_TOTAL` read 1833), and stale again inside W94 (four copies at 2059 on a tree running 2060, found by a reader).
+// W96's declaration measured the hole: `README.md`'s current sentence moved to 2070 / 155 cost `check:docs` EXIT 0.
+//
+// **Each copy is found by its OWN anchored sentence, never by searching for the number** — P23's retro: a check asking *does
+// the README contain the total* passes on a stale cell, because every copy also carries its predecessors' figures in
+// parentheses. So the anchors name WHICH copy is current, as `X7`'s does. **Its limit is the anchors'**: a new sentence stating
+// the counts that no anchor names is invisible here ([Q217](../doc/open-questions.md)'s regress, one layer on).
+// The subjects are read through overrides for the self-test, obligation (e)'s second question.
+const EXAMPLES_README = process.env.CHECK_DOCS_EXAMPLES || join('examples', 'README.md');
+const L6_FILE = process.env.CHECK_DOCS_L6 || join('examples', 'l6.ts');
+{
+  const L6P = join(ROOT, L6_FILE);
+  const RMP = join(ROOT, README);
+  const EXP = join(ROOT, EXAMPLES_README);
+  if (!existsSync(L6P) || !existsSync(RMP) || !existsSync(EXP)) {
+    fail('X10', 'examples/l6.ts, README.md or examples/README.md is missing, so the L6 counts cannot be compared');
+  } else {
+    const l6 = readFileSync(L6P, 'utf8');
+    const total = /^const DECLARED_TOTAL = (\d+);$/m.exec(l6);
+    const runs = /^const DECLARED_RUNS = (\d+);$/m.exec(l6);
+    if (!total || !runs) {
+      fail('X10', 'examples/l6.ts declares no DECLARED_TOTAL or DECLARED_RUNS where X10 looks for them');
+    } else {
+      const want = { assertions: Number(total[1]), runs: Number(runs[1]) };
+      const rm = readFileSync(RMP, 'utf8');
+      const ex = readFileSync(EXP, 'utf8');
+      // [document, text, the copy's name, its anchored sentence, which group is the assertion count]
+      const COPIES = [
+        ['README.md', rm, 'status paragraph', /\*\*plus (\d+) assertions across (\d+) runs against a real/, 'ar'],
+        ['README.md', rm, 'ladder table', /a real scheduler, \*\*(\d+) runs, (\d+) assertions\*\*/, 'ra'],
+        ['examples/README.md', ex, 'paragraph under the two commands', /run the same \*\*(\d+) assertions over (\d+) real runs\*\*/, 'ar'],
+        ['examples/README.md', ex, '`l6.ts` row', /\| \[`l6\.ts`\]\(l6\.ts\) \| \*\*the gate\.\*\* \*\*(\d+) real runs, (\d+) assertions\*\*/, 'ra'],
+      ];
+      let compared = 0;
+      for (const [doc, text, name, re, order] of COPIES) {
+        const m = re.exec(text);
+        if (!m) { fail('X10', `${doc}'s ${name} — the sentence carrying the current L6 counts — is not where X10 looks for it`); continue; }
+        const said = order === 'ar' ? { assertions: Number(m[1]), runs: Number(m[2]) } : { assertions: Number(m[2]), runs: Number(m[1]) };
+        compared++;
+        if (said.assertions !== want.assertions || said.runs !== want.runs) {
+          fail('X10', `${doc}'s ${name} says ${said.assertions} assertions over ${said.runs} runs, and examples/l6.ts ` +
+            `declares ${want.assertions} over ${want.runs}`);
+        }
+      }
+      if (compared === COPIES.length) {
+        console.log(`note: X10 compared ${compared} copies of the L6 counts against examples/l6.ts's ` +
+          `${want.assertions} / ${want.runs}.`);
+      }
+    }
+  }
+}
+
+// X11 — doc/decisions/README.md indexes EXACTLY the ADRs on disk, both ways
+//
+// **W96, and P23's retro measured the class**: 29 of the 46 commits that touched `doc/decisions/` shipped an index missing at
+// least one ADR, in five episodes, eight behind at its worst. A set compared to the directory it indexes — the criterion the
+// standing `doc/` refusal has named since P18 — so it is checked, both ways, each direction its own clause (obligation (e)'s
+// third shape). The directory is always the tree's own; the index is read through an override so a probe can reach both
+// directions by editing the index alone.
+const ADR_INDEX = process.env.CHECK_DOCS_ADR_INDEX || join('doc', 'decisions', 'README.md');
+{
+  const DIR = join(ROOT, 'doc', 'decisions');
+  const IDX = join(ROOT, ADR_INDEX);
+  if (!existsSync(DIR) || !existsSync(IDX)) {
+    fail('X11', 'doc/decisions or its README.md is missing, so the ADR index cannot be compared');
+  } else {
+    const disk = readdirSync(DIR).filter((f) => /^\d{4}-.+\.md$/.test(f)).sort();
+    const matched = [...readFileSync(IDX, 'utf8').matchAll(/^\| \[(\d{4})\]\((\d{4}-[^)]+\.md)\)/gm)];
+    const rows = matched.map((m) => m[2]).sort();
+    // **A row is its ADR's ONCE, under its own number** — W96's adequacy reader: an index carrying the 0067 row twice
+    // passed with a note printing 38 rows against 37 ADRs, and a row reading `[0065]` over `0066-...` passed too.
+    const duplicated = rows.filter((f, i) => rows.indexOf(f) !== i);
+    const misnumbered = matched.filter((m) => !m[2].startsWith(m[1] + '-')).map((m) => `[${m[1]}] over ${m[2]}`);
+    const unindexed = disk.filter((f) => !rows.includes(f));
+    const phantom = rows.filter((f) => !disk.includes(f));
+    if (disk.length === 0) fail('X11', 'doc/decisions holds no NNNN-*.md file where X11 looks for them');
+    if (unindexed.length) fail('X11', `doc/decisions holds ${unindexed.join(', ')}, which its README.md does not index`);
+    if (phantom.length) fail('X11', `doc/decisions/README.md indexes ${phantom.join(', ')}, which is not on disk`);
+    if (duplicated.length) fail('X11', `doc/decisions/README.md indexes ${[...new Set(duplicated)].join(', ')} more than once`);
+    if (misnumbered.length) fail('X11', `doc/decisions/README.md names a row by another ADR's number: ${misnumbered.join(', ')}`);
+    if (!unindexed.length && !phantom.length && !duplicated.length && !misnumbered.length && disk.length) {
+      console.log(`note: X11 compared doc/decisions/README.md's ${rows.length} rows against the ${disk.length} ADRs on disk, both ways.`);
+    }
+  }
+}
+
 const checks = [
   'X1 the reference exists and its fences parse',
   'X2 every ```ts block is tagged run or check, or opts out explicitly',
@@ -691,13 +781,17 @@ const checks = [
   'X7 AGENTS.md`s refusal count IS spec/flow-definition.md section 5`s row count, and its range end the highest row',
   'X8 every ```ts fence in README.md IS the executed AGENTS.md snippet its section NAMES, byte for byte, both ways',
   'X9 the version README.md tells a consumer to expect IS the version both manifests carry',
+  'X10 every current copy of the L6 counts in README.md and examples/README.md IS what examples/l6.ts declares',
+  'X11 doc/decisions/README.md indexes EXACTLY the ADRs on disk, both ways',
 ];
 const runCount = written.filter((x) => x.tag === 'run').length;
 console.log(`docs check — ${all.length} snippet(s): ${runCount} run, ` +
   `${written.length - runCount} check, ${all.length - written.length} untagged`);
 console.log(`             under the DOM lib, failing: ${domFailing}\n`);
 for (const c of checks) {
-  const bad = failures.filter((f) => f.startsWith(c.slice(0, 2) + ':'));
+  // The id is the report line's first WORD, never its first two characters — W96: `c.slice(0, 2)` read `X10` as `X1`, so the
+  // row for a two-digit id would have printed `X1`'s verdict and never its own.
+  const bad = failures.filter((f) => f.startsWith(c.split(' ')[0] + ':'));
   console.log(`  ${bad.length ? 'FAIL' : 'ok  '}  ${c}${bad.length ? ` (${bad.length})` : ''}`);
 }
 if (failures.length) {

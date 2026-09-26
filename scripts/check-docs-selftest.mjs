@@ -63,6 +63,9 @@
 //   X4  the RUN_FLOOR ratchet                probe: a whole `run` snippet deleted
 //   X3  the `tsc failed:` fallback           covered jointly by the X3 entry below
 //   report  a row deleted from the `checks` array — reachable by `agree`, not graded
+//   X10 the MISSING-FILES refusal            **NO PROBE CAN REACH IT** — every probe writes the files it stages (W96)
+//   X11 the MISSING-INDEX refusal            **NO PROBE CAN REACH IT** — ditto (W96)
+//   X11 the EMPTY-DIRECTORY vacuity guard    **NO PROBE CAN REACH IT** — the directory is always the tree's own (W96)
 //
 // **One of those ten is a different kind and is called out rather than listed
 // quietly.** `check-docs.mjs`'s missing-document refusal is ungraded **and
@@ -442,6 +445,129 @@ const PROBES = [
     mutate: (t) => t,
     readme: (r) => r.replace('\'{"text":"hello world !"}\'', '\'{"text":"hello world!"}\''),
   },
+  // ---- X10: every CURRENT copy of the L6 counts against what examples/l6.ts declares — W96 (Q171) ----
+  // One probe per COPY, because each is found by its own anchored sentence and a probe that moved one copy grades
+  // nothing about the other three; one for the OTHER direction (the declaration moves and every copy is stale); and
+  // one each for the two clauses that say a subject is not where X10 looks. Each moves its number by ONE and reads
+  // whatever the sentence says, so the next L6 change re-anchors nothing (X7's precedent since W92).
+  {
+    name: 'README.md`s status paragraph states an L6 assertion count one above what l6.ts declares',
+    check: 'X10',
+    mutate: (t) => t,
+    readme: (r) => r.replace(/\*\*plus (\d+) assertions across/, (_m, n) => `**plus ${Number(n) + 1} assertions across`),
+  },
+  {
+    name: 'README.md`s ladder table states an L6 run count one above what l6.ts declares',
+    check: 'X10',
+    mutate: (t) => t,
+    readme: (r) => r.replace(/a real scheduler, \*\*(\d+) runs,/, (_m, n) => `a real scheduler, **${Number(n) + 1} runs,`),
+  },
+  {
+    name: 'examples/README.md`s paragraph under the two commands states an assertion count one below l6.ts`s',
+    check: 'X10',
+    mutate: (t) => t,
+    examples: (e) => e.replace(/run the same \*\*(\d+) assertions/, (_m, n) => `run the same **${Number(n) - 1} assertions`),
+  },
+  {
+    name: 'examples/README.md`s l6.ts row states a run count one below l6.ts`s',
+    check: 'X10',
+    mutate: (t) => t,
+    examples: (e) => e.replace(/\*\*the gate\.\*\* \*\*(\d+) real runs,/, (_m, n) => `**the gate.** **${Number(n) - 1} real runs,`),
+  },
+  {
+    name: 'examples/l6.ts declares one more run while every copy states the old count — the OTHER direction',
+    check: 'X10',
+    mutate: (t) => t,
+    l6: (s) => s.replace(/^const DECLARED_RUNS = (\d+);$/m, (_m, n) => `const DECLARED_RUNS = ${Number(n) + 1};`),
+  },
+  {
+    name: 'README.md`s status paragraph reworded so X10 cannot find the copy it holds',
+    check: 'X10',
+    mutate: (t) => t,
+    readme: (r) => r.replace('**plus ', '**and also '),
+  },
+  {
+    name: 'examples/l6.ts stops declaring its run count where X10 reads it',
+    check: 'X10',
+    mutate: (t) => t,
+    l6: (s) => s.replace(/^const DECLARED_RUNS = /m, 'const DECLARED_RUN_COUNT = '),
+  },
+  // ---- X11: doc/decisions/README.md against the ADRs on disk, both ways — W96 ----
+  // X11 shipped with NO live case (the index was 37 / 37 at W96's declaration), so these two are the whole of its
+  // evidence — P8's retro: a check written for a defect you just fixed has no live case.
+  {
+    name: 'doc/decisions/README.md drops the row for ADR 0067, which is on disk — the unindexed direction',
+    check: 'X11',
+    mutate: (t) => t,
+    adrIndex: (x) => x.split('\n').filter((l) => !l.startsWith('| [0067](')).join('\n'),
+  },
+  {
+    name: 'doc/decisions/README.md gains a row for an ADR that is not on disk — the phantom direction',
+    check: 'X11',
+    mutate: (t) => t,
+    adrIndex: (x) => x.replace(/^(\| \[0067\]\()/m, '| [0099](0099-a-decision-nobody-wrote.md) | nothing | — | 2026-09-26 |\n$1'),
+  },
+  // ---- X10's ANCHORS, bound — W96's adequacy reader (M2-M5) ----
+  // Every current copy was also the FIRST number of its shape in its file, so an anchor loosened to the bare numbers read
+  // the same copy and every probe above stayed refused: the wrong selection coinciding with the right one at the default
+  // position (`doc/workflow.md` v0.23). Each probe below puts a CORRECT figure in the loose shape AHEAD of the copy and makes
+  // the copy itself stale, so a strict anchor fails and a loose one reads the decoy and passes. The two runs-first copies
+  // move their ASSERTION count, which no probe above did (M5: that half was compared by nothing).
+  {
+    name: 'a correct decoy ahead of README.md`s status paragraph, whose own assertion count is stale — the anchor, not the first match',
+    check: 'X10',
+    mutate: (t) => t,
+    readme: (r) => {
+      const m = /\*\*plus (\d+) assertions across (\d+) runs/.exec(r);
+      return `<!-- ${m[1]} assertions across ${m[2]} runs -->\n` + r.replace(m[0], `**plus ${Number(m[1]) + 1} assertions across ${m[2]} runs`);
+    },
+  },
+  {
+    name: 'a correct decoy ahead of README.md`s ladder table, whose own ASSERTION count is stale',
+    check: 'X10',
+    mutate: (t) => t,
+    readme: (r) => {
+      const m = /a real scheduler, \*\*(\d+) runs, (\d+) assertions\*\*/.exec(r);
+      return `<!-- **${m[1]} runs, ${m[2]} assertions** -->\n` + r.replace(m[0], `a real scheduler, **${m[1]} runs, ${Number(m[2]) + 1} assertions**`);
+    },
+  },
+  {
+    name: 'a correct decoy ahead of examples/README.md`s paragraph, whose own run count is stale',
+    check: 'X10',
+    mutate: (t) => t,
+    examples: (e) => {
+      const m = /run the same \*\*(\d+) assertions over (\d+) real runs\*\*/.exec(e);
+      return `<!-- ${m[1]} assertions over ${m[2]} real runs -->\n` + e.replace(m[0], `run the same **${m[1]} assertions over ${Number(m[2]) + 1} real runs**`);
+    },
+  },
+  {
+    name: 'a correct decoy ahead of examples/README.md`s l6.ts row, whose own ASSERTION count is stale',
+    check: 'X10',
+    mutate: (t) => t,
+    examples: (e) => {
+      const m = /\*\*the gate\.\*\* \*\*(\d+) real runs, (\d+) assertions\*\*/.exec(e);
+      return `<!-- **${m[1]} real runs, ${m[2]} assertions** -->\n` + e.replace(m[0], `**the gate.** **${m[1]} real runs, ${Number(m[2]) + 1} assertions**`);
+    },
+  },
+  {
+    // M6: the OTHER direction's other half — no probe moved `DECLARED_TOTAL`, so re-sourcing it to a literal was free.
+    name: 'examples/l6.ts declares one more assertion while every copy states the old count',
+    check: 'X10',
+    mutate: (t) => t,
+    l6: (s) => s.replace(/^const DECLARED_TOTAL = (\d+);$/m, (_m, n) => `const DECLARED_TOTAL = ${Number(n) + 1};`),
+  },
+  {
+    name: 'doc/decisions/README.md indexes ADR 0067 twice',
+    check: 'X11',
+    mutate: (t) => t,
+    adrIndex: (x) => x.replace(/^(\| \[0067\]\(.*)$/m, '$1\n$1'),
+  },
+  {
+    name: 'doc/decisions/README.md names ADR 0067`s row by the number 0068',
+    check: 'X11',
+    mutate: (t) => t,
+    adrIndex: (x) => x.replace('| [0067](0067-', '| [0068](0067-'),
+  },
 ];
 
 /** Every check `check-docs.mjs` reports under, in the order it reports them. */
@@ -496,12 +622,14 @@ const RAN = (out) => /^(All checks passed|\d+ failure\(s\)\.)/m.test(out);
 // **34 since [W86](../doc/work-items/w86-score-each-item-then-fan-out-per-item.md)**, which added
 // `X9`'s probe and raised the floor to the count it ships (Q102's ratchet: the item that adds one
 // raises it, and it goes stale toward WEAKNESS in silence otherwise).
-const MIN_PROBES = 34;
+// **50 since W96**, which added X10's twelve probes and X11's four.
+const MIN_PROBES = 50;
 
 /** The same floor for `META`, and for the same reason. */
 // **21 since W86**, which gave `X9`'s comparison clause a grading — the coverage bound below is
 // what required one, by deriving `ALL_CHECKS` from `check-docs.mjs`'s own `checks` array.
-const MIN_META = 21;
+// **28 since W96**, X10's three reachable clauses and X11's four.
+const MIN_META = 28;
 
 /**
  * **The mutations `check-docs.mjs` itself is run against**, one per check id plus
@@ -600,6 +728,27 @@ const META = [
   ['X6`s `the spec states what AGENTS does not quote` direction disabled — the other way',
     'a cost figure spec/flow-definition.md states that AGENTS.md drops — the OTHER direction',
     (t) => t.replace('      if (extra.length) {', '      if (false) {')],
+  // W96: X10's three reachable clauses and X11's four, each named for the probe that trips it alone. X10's missing-files
+  // clause and X11's missing-index and empty-directory clauses are UNREACHABLE by any probe and named in the header.
+  ['X10`s comparison clause disabled, so a copy of the L6 counts can drift from what l6.ts declares in silence',
+    'README.md`s status paragraph states an L6 assertion count one above what l6.ts declares',
+    (t) => t.replace('        if (said.assertions !== want.assertions || said.runs !== want.runs) {', '        if (false) {')],
+  ['X10`s cannot-find-the-copy clause disabled, so a reworded sentence drops out of the comparison in silence',
+    'README.md`s status paragraph reworded so X10 cannot find the copy it holds',
+    (t) => t.replace("        if (!m) { fail('X10',", "        if (!m) { if (0) fail('X10',")],
+  ['X10`s cannot-find-the-declaration clause disabled, so a renamed DECLARED_RUNS compares nothing',
+    'examples/l6.ts stops declaring its run count where X10 reads it',
+    (t) => t.replace("      fail('X10', 'examples/l6.ts declares no", "      if (0) fail('X10', 'examples/l6.ts declares no")],
+  ['X11`s unindexed direction disabled — an ADR on disk the index does not name',
+    'doc/decisions/README.md drops the row for ADR 0067, which is on disk — the unindexed direction',
+    (t) => t.replace("    if (unindexed.length) fail('X11',", "    if (false) fail('X11',")],
+  ['X11`s phantom direction disabled — an index row naming an ADR not on disk',
+    'doc/decisions/README.md gains a row for an ADR that is not on disk — the phantom direction',
+    (t) => t.replace("    if (phantom.length) fail('X11',", "    if (false) fail('X11',")],
+  ['X11`s duplicate-row clause disabled', 'doc/decisions/README.md indexes ADR 0067 twice',
+    (t) => t.replace('    if (duplicated.length) fail(', '    if (false) fail(')],
+  ['X11`s row-number clause disabled', 'doc/decisions/README.md names ADR 0067`s row by the number 0068',
+    (t) => t.replace('    if (misnumbered.length) fail(', '    if (false) fail(')],
   // (b) the report block. **These two are why the `agree` projection exists**, and
   // it was measured before it was written: with the verdict loop forced to `ok`,
   // every probe still reported `wanted [X2] got [X2] exit 1` and passed. A mutation
@@ -632,6 +781,12 @@ export async function selfTest(root) {
   // same way and handed to the check as `CHECK_DOCS_README` — one direction of a both-ways
   // comparison needs a mutation on each side (W69).
   const readme = readFileSync(join(root, 'README.md'), 'utf8');
+  // W96: X10's and X11's subjects, staged the same way — `examples`, `l6` and `adrIndex` beside `readme`.
+  const EXTRA = [
+    ['examples', 'CHECK_DOCS_EXAMPLES', readFileSync(join(root, 'examples', 'README.md'), 'utf8'), '-examples.md'],
+    ['l6', 'CHECK_DOCS_L6', readFileSync(join(root, 'examples', 'l6.ts'), 'utf8'), '-l6.ts'],
+    ['adrIndex', 'CHECK_DOCS_ADR_INDEX', readFileSync(join(root, 'doc', 'decisions', 'README.md'), 'utf8'), '-adr.md'],
+  ];
   const dir = join(root, 'dev-dist', 'docs-selftest');
   rmSync(dir, { recursive: true, force: true });
   mkdirSync(dir, { recursive: true });
@@ -680,7 +835,11 @@ export async function selfTest(root) {
       if (m === null) return null;
       let i = 0;
       while (i < m.length && i < src.length && m[i] === src[i]) i++;
-      return (src.slice(i).match(/fail\('(X\d)'/) ?? [, null])[1];
+      // `X\d+` since W96 — with one digit, `fail('X10'` does not match at all (the quote must follow ONE digit), so every
+      // X10 and X11 entry read `null` and the bound below failed LOUDLY naming both. W96's declaration said the ids read as
+      // `X1` and the bound passed in silence; its conformity reader measured that false. The widening was needed; the
+      // silence was not the mechanism.
+      return (src.slice(i).match(/fail\('(X\d+)'/) ?? [, null])[1];
     };
     const covered = new Set(mutants.map(idAt).filter(Boolean));
     const missing = ALL_CHECKS.filter((id) => !covered.has(id));
@@ -699,7 +858,8 @@ export async function selfTest(root) {
     const rel = `dev-dist/docs-selftest/${String(i).padStart(2, '0')}.md`;
     const mutated = probe.mutate(doc);
     const readmeMutated = probe.readme ? probe.readme(readme) : null;
-    if (mutated === doc && (readmeMutated === null || readmeMutated === readme)) {
+    const extras = EXTRA.filter(([k]) => probe[k]).map(([k, envName, text, suffix]) => ({ envName, text, suffix, out: probe[k](text) }));
+    if (mutated === doc && (readmeMutated === null || readmeMutated === readme) && extras.every((x) => x.out === x.text)) {
       // A probe that changes nothing passes for the wrong reason — the exact
       // vacuity rule 7 (b) refuses. A README-side probe is vacuous on the same terms.
       return { vacuous: true, refused: false, ran: false, declared, tripped: [], agree: true,
@@ -711,6 +871,11 @@ export async function selfTest(root) {
       const rrel = rel.replace(/\.md$/, '-readme.md');
       writeFileSync(join(root, rrel), readmeMutated);
       env.CHECK_DOCS_README = rrel;
+    }
+    for (const x of extras) {
+      const xrel = rel.replace(/\.md$/, x.suffix);
+      writeFileSync(join(root, xrel), x.out);
+      env[x.envName] = xrel;
     }
     const r = spawnSync(process.execPath, [script], { cwd: root, encoding: 'utf8', env, timeout: 300_000 });
     const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
@@ -747,6 +912,7 @@ export async function selfTest(root) {
     const env = { ...process.env };
     delete env.CHECK_DOCS_DOC;
     delete env.CHECK_DOCS_README;
+    for (const [, envName] of EXTRA) delete env[envName];
     return spawnSync(process.execPath, [script], { cwd: root, encoding: 'utf8', env, timeout: 300_000 }).status === 0;
   };
 
