@@ -123,7 +123,7 @@ Three, serial. Each is declared in its own file before it starts, from the row b
 |---|---|---|---|
 | **W99** | what a ROUTE guarantees | `GateType`'s optional per-route guarantee, `WiringRegistry` widened, the derivation, and the arc out of a gate judged as its own arc. Fact 6's prototype rebuilt as a declaration the TYPE makes rather than a semantics the check knows | **ADR 0068**; `spec/flow-definition.md` — the arc-shape table gains a gate row, and the guarantee gets a rule id |
 | **W100** | what a KEY PATH must satisfy | The wiring verdict of fact 7, `unchecked` where the producer says nothing, and **the run-time half measured**: a gate whose key path resolves nowhere routes every branch to its type's unresolved route and the run completes having done nothing | `spec/flow-definition.md` — one more clause on the same table; no `FD-V` |
-| **W101** | the exit artifact | The authoring session, executed, with its `README.md` twin held byte-equal by `X8`; and **L6 MOVES** — W94's false-`no` clause replaced by its opposite, in both runtimes | none — an exit artifact writes no rule |
+| **W101** | the exit artifact | The authoring session, executed, with its `README.md` twin held byte-equal by `X8`. *(**Corrected at W99's declaration step**: this row gave W101 `examples/l6.ts` and said L6 moves here. It moves at **W99** — read rather than assumed, L6's cross-row clause compares against a literal naming EVERY gate row, so the moment the TV arc stops being a `no` that comparison fails and W99's own gate cannot be green without replacing it. What W101 moves at L6 is its own artifact's, and its declaration step settles it.)* | none — an exit artifact writes no rule |
 
 **Reserves W99-W102, Q410-Q424, ADR 0068-0069**, derived by grep off the tree at this declaration (highest
 W on disk 98; highest Q in the register 407, with W98's Q408-Q409 reserved-and-unused and therefore SPENT;
@@ -139,6 +139,7 @@ the ones this table gets WRONG, which the retro reads.
 |---|---|---|---|---|
 | `src/definition/wiring.ts` | **owns** | **owns** | no | the check is the whole subject |
 | `src/definition/types.ts` | **owns** | no | no | `GateType`'s new member |
+| `src/definition/validate.ts` | **owns** | no | no | **ADDED at W99's declaration step**, which this table missed: `GATE_TYPE_KEYS` is a CLOSED list refusing an extra key by name, so it decides whether the member may exist at all — and `distinct`'s own declaration lives there |
 | `spec/flow-definition.md` | **owns** | **owns** | no | the arc-shape table, both halves |
 | `spec/README.md` | likely | likely | no | `C8`'s version column moves with the document |
 | `test/definition/wiring.test.ts` | **owns** | **owns** | no | where the verdicts are asserted |
