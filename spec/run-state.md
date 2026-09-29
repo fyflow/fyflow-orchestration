@@ -1,7 +1,11 @@
 # spec/run-state — what a run holds, and what it is derived from
 
-**Status:** v0.11 — written by [W2](../doc/work-items/w2-the-fold-and-both-join-policies.md) under
+**Status:** v0.12 — written by [W2](../doc/work-items/w2-the-fold-and-both-join-policies.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md).
+**v0.12 is [W98](../doc/work-items/w98-what-a-row-may-assert-about-a-dispatch-order.md), an item outside any plan: section 11
+and ONE rule, `RN-R27` — what a run fixes about the ORDER of its own dispatches, which nothing said and a rung asserted
+row by row from [W51](../doc/work-items/w51-the-sibling-region-flow-on-real-workers.md) until this item ([Q400](../doc/open-questions.md), [Q401](../doc/open-questions.md)). No `FoldInput` moves, no cell of run state
+moves, and no existing rule's text moves: the sequence already carried every fact the rule reads.**
 **v0.11 is [W93](../doc/work-items/w93-what-a-gate-does-in-a-run.md) under [P24](../doc/plans/p24-what-a-node-may-remember-across-a-runs-branches.md), and it ADDS section 10, what a GATE
 records, and ONE rule, `RN-R26`.** [ADR 0067](../doc/decisions/0067-a-gate-runs-in-the-driver-its-memory-is-the-drivers-and-its-decision-is-recorded.md) is the decision. **ONE `FoldInput` kind
 is added — `gated` — and ONE cell of run state, `gated`**, which is P24 stop-and-ask (b)'s answer: a gate's
@@ -554,3 +558,34 @@ answered that it IS recorded, and this section is that record and the memory it 
 | id | | Test owed by |
 |---|---|---|
 | `RN-R26` | **A gate's decision is RECORDED, and its memory is the DRIVER's.** Where a branch ENTERS a gate the driver asks the gate's type — its `fn`, synchronously, handed the gate's memory, **ONE per gate per RUN**, the same for every branch that reaches the gate whatever region instance or map item it comes from (P24 stop-and-ask (a)) — and, where the route it returns is one the type declares, appends **`{ kind: 'gated', gateId, branchPath, route, key }`** BEFORE entering that route's target: `branchPath` the gate's own, derived as a task's is (`spec/task-id.md` section 1), and `key` a COPY of what `settings.key` resolved to over the value as a `structuredClone` carries it — the SAME key the type was handed, resolved once and copied before the type ran — **absent** where nothing resolved. The fold appends `{ gateId, branchPath, route, key? }` to **`RunState.gated`**, in order, as a copy, and **moves nothing else** — a gate dispatches and settles nothing, so what its route leads to arrives as its own inputs. **The memory is created EMPTY with the driver and never handed in or out**, so a resume REBUILDS it: `gated` is not one of the three kinds `RN-R19` FEEDS, so the replay re-asks every gate on the stored settlements in their order, and `RN-R20` compares each regenerated `gated` element with the stored one — a stored route that is not the replay's, or a type whose answer changed ([Q9](../doc/open-questions.md)), is refused `diverged` at its position. **It is the one kind v0.11 adds and it is BREAKING for a consumer switching on `kind` exhaustively**, as `resumed` was. *(A memory kept anywhere but the driver is what this rule refuses by construction, and it was measured rather than argued: at W93's declaration step a memory kept by the PROCESS resumed a run killed before its first gate decision WRONG, with nothing refused — that decision lay past the stored events, where `RN-R20` compares nothing.)* Test: at ladder L2, the element field for field and its position — after the settlement that brought the branch, before what the route led to — and `RunState.gated` from the fold, `step` moving no other field; a key path ending on an OBJECT recorded as a COPY, frozen at its top level, which a consumer cannot write through to the driver, a worker writing into its input moving nothing recorded, and a missing segment or a gate with no `key` recording no key in the element or the fold; a type writing into its key moving nothing downstream or recorded; the memory shared across two instances of an ENCLOSING map with the settlements ARRANGED so the first arrival is not the lowest index, exactly one `first` per key read off the sequence — and two gates in one run keeping two memories; a gate in a `fanout` branch whose drop exits the branch while the join fires on the other; a run resumed at EVERY cut equal to the reference element for element with the killed driver alive in the same process; the resumed memory asserted to be the REBUILT one at a cut where it, a fresh one and the killed driver's DIFFER; a tampered stored route, key, gate and branch path, and an impure type, each refused at its position; an entry gate started with a CLASS instance whose checkpoint resumes; and a checkpoint produced by v0.10's code resuming with `gated` empty | **[W93](../doc/work-items/w93-what-a-gate-does-in-a-run.md)** |
+## 11. What a run FIXES about the ORDER of its own dispatches — v0.12, [W98](../doc/work-items/w98-what-a-row-may-assert-about-a-dispatch-order.md)
+
+**This section exists because a rung asserted orders nothing fixes, and nothing here said which orders a run fixes at all.** A dispatch happens in
+the TURN a settlement opens: the driver hears a task settle, routes, and dispatches synchronously
+(`spec/join-policy.md` section 2, *a fanout dispatches all its branches in one turn*). Nothing in this
+document, that one or [task-id.md](task-id.md) said which of two dispatches comes first — and
+[W97](../doc/work-items/w97-obligation-f-across-ladder-l6.md) found four assertions that depended on it by
+DELAYING one worker at a time, while [W98](../doc/work-items/w98-what-a-row-may-assert-about-a-dispatch-order.md)'s
+declaration step derived the whole set from the runs themselves. *The four were the ones a delay happened to move.*
+**The counts are in W98's Record, with their methods, and not here**, because the quantity they measure was re-measured under three relations of different strength and only the last stands: what the shipped relation leaves asserted by NOTHING on this rung. A normative document carries the rule and not an item's arithmetic — and the figure that circulated before this one was an over-count taken from a relation that knew only case (a).
+
+**So the rule says which pairs a run fixes, and a test may assert those and no others.** It fixes a
+partial order, never a total one, and the three relations below are it. **What it does NOT fix is the
+order of two settlements that raced** — which is `doc/workflow.md` section 5 rule 5 stated as a property
+of the RUN rather than as advice to an author.
+
+**Two dispatches under one `map` opener are case (b)**, and an earlier cut of this section said the opposite in its own
+next sentence — that they are unfixed because [flow-definition.md](flow-definition.md) section 6 declines to fix a map's
+arity and order. That section declines to fix them *as a property of the definition's graph*; the ARRAY the `over` names
+fixes them, one item of it per dispatch, in one pass. So the order is the DATA's, the data is the payload a caller passes,
+and a test that names the payload may assert it. W98's conformity reader found the contradiction.
+
+| id | | Test owed by |
+|---|---|---|
+| `RN-R27` | **A run fixes the order of two dispatches by its own CAUSALITY and by the DEFINITION, and by nothing else.** (a) **A trigger chain**: the settlement that opened one dispatch's turn is the other dispatch, or is reachable from it by repeating that step — the earlier task was dispatched AND settled before the later one's turn existed. (b) **One turn**: both were dispatched in the turn one settlement opened, in which case their order is neither task's and neither run's — it is the order the DEFINITION lists them in, or, under a `map`, the order of the array its `over` names, because the driver dispatches a turn's tasks in one synchronous pass. (c) **A join BARRIER**: a `joinSettled` for a region precedes one of them inside its own turn, in which case every task of that region precedes it, because the policy could not satisfy the join until those branches were terminal (`JP-R5`, and section 4's owner table in [join-policy.md](join-policy.md)). **And (a) COMPOSES with (b)**: where one dispatch is fixed before another, everything dispatched in ITS turn is fixed before that other too — the same synchronous pass ran them all before the settlement that opened the later turn. **Any other pair is two turns opened by settlements that RACED, and its order is not this run's to fix, not reproducible, and not assertable.** A test that asserts one is green on the sample it was written from and red on the machine that reorders it | `examples/l6.ts` — every row's dispatch comparison derives this relation from the run's own fold-input sequence and asserts the pairs it returns, with the rung-wide census of fixed and free pairs as its control and two CONSTRUCTED sequences as that census's |
+
+**What this does not say.** It does not say a run is nondeterministic — the same machine at the same
+delays reproduces its order, which is exactly why the pairs nothing fixes were green for as long as they were.
+It says the order is a property of the SAMPLE and not of the flow, so nothing may be derived from it.
+And it does not fix (b)'s order any harder than the document does: a flow that reorders a fanout's
+branch list reorders those dispatches, and that is a change to the flow.

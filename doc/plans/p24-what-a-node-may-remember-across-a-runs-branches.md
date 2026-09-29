@@ -69,6 +69,13 @@ is exactly what a resume regenerates from the log** — which is the argument fo
    REBUILDS it by replay, and a checkpoint needs no new field.
 7. **"First" means first to reach the gate in this run**, which varies between runs and is reproduced
    exactly by a resume. No test may assert WHICH file wins, only that exactly one does per key.
+   *(**Corrected by [W98](../work-items/w98-what-a-row-may-assert-about-a-dispatch-order.md), [Q402](../open-questions.md)**:
+   *reproduced exactly by a resume* is true of the decisions in the STORED PREFIX, which a replay regenerates and
+   `RN-R20` compares, and FALSE of the decisions after the cut — a resume re-dispatches what was in flight, so their
+   arrival order is a fresh sample. [W97](../work-items/w97-obligation-f-across-ladder-l6.md) measured it: with
+   `Download` at 300 ms the post-cut winners change and W94's identity goes red in both runtimes, which is why block (2h)
+   now asserts the arrangement it rests on. The sentence's own rule — no test may assert which file wins — is what kept
+   this from mattering.)*
 8. **A route a gate type returns and did not declare STOPS the run by name** (`OR-R10`), the counterpart of
    `FD-R1`: it cannot be refused at load, because only running the function reveals it.
 

@@ -619,28 +619,6 @@ interface Expectation {
    */
   expectBackstop?: true;
   /**
-   * **The ids whose DISPATCH ORDER this run does not fix** — W51's conformity
-   * reader, BLOCKING, and it is `sortedSettled`'s finding one field across.
-   *
-   * `dispatched` is compared **in order**, which is right wherever the order is
-   * causal. It is not causal when a node is dispatched by the settlement of ONE
-   * map instance and the instances are genuinely in flight together: then the
-   * list is the settle order of a fan-out, which
-   * `doc/workflow.md` section 5 rule 5 forbids a test from depending on.
-   *
-   * **Measured rather than argued** — 25 runs of `sibling-map-fanout` per
-   * configuration: `threaded: false` gives the same order 25/25 in node and in
-   * deno, and `threaded: true` gives a DIFFERENT order 12/12. So the row was green
-   * on a property of the inline pool's timer FIFO, and `Expectation.threaded` is a
-   * knob this file records as held down by no assertion
-   * ([Q99](../doc/open-questions.md)) — flipping it would have turned a correct row
-   * red.
-   *
-   * Names listed here are compared as a SET; everything else keeps its order, so
-   * the dependency is removed exactly where it exists and nowhere else.
-   */
-  unorderedDispatch?: readonly string[];
-  /**
    * **The `attempts` a settled task's OUTCOME RECORD must carry, per task id — W58, and it is
    * the first non-zero `attempts` a SCHEDULER has ever set at any rung** (P16 prediction 2:
    * `test/driver/log.test.ts` feeds 2 and 3 to the listener from fixtures, and nothing above
@@ -1028,13 +1006,6 @@ const tvDispatched = (run: string): string[] => [
   ...TV_IDENTIFIED.flatMap((_, i) => [`${run}:thumbnail:${i}.0:0`, `${run}:identify:${i}.1:0`]),
   `${run}:publish:-:0`,
 ];
-/**
- * **Every `beside` instance ends the SAME way whatever the gate decided** — the thumbnail ARRIVES and the other road
- * EXITS at an `end`: `seriesReady` after the per-series task, `dropDuplicate`, or `dropUnidentified`. That is why the
- * flow sends the per-series road to its own `end` rather than into the per-file join: W94's declaration found that
- * with it joining, every field naming `beside`'s record would name the winner, and decision 7 would hold only by care.
- */
-const tvUnordered = (run: string): string[] => TV_IDENTIFIED.flatMap((_, i) => [`${run}:thumbnail:${i}.0:0`, `${run}:identify:${i}.1:0`]);
 const TV_INSTANCES = {
   beside: Object.fromEntries(TV_IDENTIFIED.map((_, i) =>
     [String(i), { joined: true, settled: { [`${i}.0`]: 'arrived' as const, [`${i}.1`]: 'exited' as const } }])),
@@ -2724,7 +2695,6 @@ const EXPECTED: Expectation[] = [
     // run's, and declaring it in order made a correct row depend on the inline
     // pool's timer FIFO. W51's conformity reader, BLOCKING, measured at 12/12
     // reversed under `threaded: true`.
-    unorderedDispatch: ['r38:refine:0:0', 'r38:refine:1:0', 'r38:refine:2:0'],
     regionId: 'split',
     joined: true,
     settled: { '0': 'arrived', '1': 'arrived', '2': 'arrived' },
@@ -3487,7 +3457,6 @@ const EXPECTED: Expectation[] = [
     // green. So `recheck` ALONE leaves the ordered list — W97's adequacy reader measured the three `grade:1.x` loosened for
     // nothing — and the other nine keep their order. **The overlap asserted beside it cannot fail on this row**: `shard:0`
     // and `shard:1` always overlap, so W51's justification says nothing about `recheck` in particular ([Q400](../doc/open-questions.md)).
-    unorderedDispatch: ['r51:recheck:0.1:0'],
     regionId: 'perWord',
     joined: true,
     settled: { '0': 'arrived', '1': 'arrived' },
@@ -3616,7 +3585,6 @@ const EXPECTED: Expectation[] = [
     definition: TV, policyId: 'live-token', payload: TV_LAST_FIRST, threaded: false,
     outcome: 'completed',
     dispatched: tvDispatched('r53'),
-    unorderedDispatch: tvUnordered('r53'),
     regionId: 'episodes',
     joined: true,
     settled: TV_MAP_SETTLED,
@@ -3647,7 +3615,6 @@ const EXPECTED: Expectation[] = [
     definition: TV, policyId: 'live-token', payload: TV_FIRST_FIRST, threaded: false,
     outcome: 'completed',
     dispatched: tvDispatched('r54'),
-    unorderedDispatch: tvUnordered('r54'),
     regionId: 'episodes',
     joined: true,
     settled: TV_MAP_SETTLED,
@@ -3679,7 +3646,6 @@ const EXPECTED: Expectation[] = [
     definition: TV, policyId: 'live-token', payload: TV_EQUAL, threaded: true,
     outcome: 'completed',
     dispatched: tvDispatched('r55'),
-    unorderedDispatch: tvUnordered('r55'),
     regionId: 'episodes',
     joined: true,
     settled: TV_MAP_SETTLED,
@@ -3969,6 +3935,132 @@ const reports: RunReport[] = [];
 /** Per row: key, shape, assertions actually run, and how many are row-specific extras. */
 const rowCosts: [string, string, number, number][] = [];
 
+/**
+ * **What order a RUN fixes over its own dispatches — W98, and [Q400](../doc/open-questions.md).**
+ *
+ * A dispatch happens in the TURN a settlement opens: the driver hears a task settle, routes, and
+ * dispatches synchronously. So the settlement that opened the turn is that dispatch's **TRIGGER**
+ * (the entry's turn has none), and **three relations, and only these three, fix an order between two
+ * dispatches**:
+ *
+ * | | why the run fixes it |
+ * |---|---|
+ * | **causal** — `a` is the trigger of `b`'s turn, or transitively | `a` was dispatched and SETTLED before `b`'s turn existed |
+ * | **one turn** — `a` and `b` share a trigger | the driver dispatches a turn's tasks in the DOCUMENT's order, in one synchronous pass (`spec/join-policy.md` section 2: *a fanout dispatches all its branches in one turn*) |
+ * | **a join BARRIER** — a `joinSettled` for region R precedes `b` in `b`'s own turn | the join could not settle until every branch of R was terminal, so every task of R settled first, whatever order they settled in |
+ *
+ * **Everything else is a completion order and this rung asserts none of it** — two turns opened by
+ * settlements that RACED. [W97](../doc/work-items/w97-obligation-f-across-ladder-l6.md) found four such
+ * assertions by perturbing them one at a time; this item's declaration step derived the whole set and
+ * found **210 racing pairs asserted across 37 of the 55 rows**, which is why the comparison is derived
+ * rather than declared. *`unorderedDispatch` is RETIRED with it* — the field, the five rows that declared it and the helper that fed three of
+ * them are gone from this file: a row no longer says which ids are loose, because the run says it. W51's flag justified
+ * a loose set by whether the ROW overlapped at all, which is true of every fan-out row and names no id (Q400). *(Three
+ * comments here said it was retired while all seven sites stood with zero readers — both of W98's readers, blocking.)*
+ *
+ * The barrier is what keeps this from weakening the rung: without it a join's successor would be
+ * unordered against every branch task, and that order IS fixed.
+ */
+const dispatchOrder = (report: Pick<RunReport, 'inputs'>) => {
+  const trigger = new Map<string, string>();
+  const pos = new Map<string, number>();
+  /** Per dispatch: the join barriers in force when it was dispatched — the branch paths terminal AT that join, and where. */
+  const barrier = new Map<string, { paths: string[]; at: number }[]>();
+  const terminal = new Map<string, Set<string>>();
+  const dispatched: string[] = [];
+  let turn = '-';
+  let joins: { paths: string[]; at: number }[] = [];
+  report.inputs.forEach((inp, at) => {
+    if (inp.kind === 'outcome' || inp.kind === 'resolution') { turn = inp.record.taskId; joins = []; }
+    else if (inp.kind === 'region' && (inp.event.type === 'branch.arrived' || inp.event.type === 'branch.exited' || inp.event.type === 'branch.lost')) {
+      terminal.set(inp.event.regionId, (terminal.get(inp.event.regionId) ?? new Set()).add(inp.event.branchPath));
+    } else if (inp.kind === 'joinSettled' && inp.fired) {
+      // **The paths terminal AT THIS MOMENT, copied** — a policy may fire a join with branches still live
+      // (`arrival-count` does), and those branches' tasks may be dispatched AFTER this successor; reading the set at the
+      // END of the run would claim they came first. *(Both of this line's guards — the copy and `at` — are DECLARED
+      // CEILINGS: no row on this rung pairs an early-firing join with a later dispatch in its region, so neither has a
+      // live case. W98's rule 8 `a4`, and its adequacy reader's `M14`.)*
+      joins = [...joins, { paths: [...(terminal.get(inp.regionId) ?? new Set<string>())], at }];
+    } else if (inp.kind === 'dispatched') {
+      trigger.set(inp.taskId, turn);
+      barrier.set(inp.taskId, joins);
+      pos.set(inp.taskId, at);
+      dispatched.push(inp.taskId);
+    }
+  });
+  const under = (paths: readonly string[], id: string): boolean => {
+    const bp = parseTaskId(id).branchPath;
+    return paths.some((p) => bp === p || bp.startsWith(`${p}.`));
+  };
+  const siblings = (d: string): string[] => dispatched.filter((id) => id !== d && trigger.get(id) === trigger.get(d));
+  /**
+   * The dispatches this run fixes BEFORE `b`, and by WHICH relation — `RN-R27`'s three, kept apart, because a barrier
+   * over-reaching by exactly what a chain under-reaches is invisible to one number (W98's adequacy reader, `M2`/`B2`).
+   *
+   * **A member's SAME-TURN siblings precede `b` too**, which is (a) composed with (b) and is why this is a closure rather
+   * than a walk: a member SETTLED before `b`'s turn existed, and its siblings were dispatched in the same synchronous
+   * pass, so they were dispatched before that settlement. W98's conformity reader derived it and measured what it is
+   * worth — **281 pairs the first cut called racing** — which is the enumeration clause (v0.17) on this item's own rule.
+   */
+  const before = (b: string) => {
+    const chain = new Set<string>();
+    const viaBarrier = new Set<string>();
+    const seen = new Set<string>();
+    const add = (d: string, into: Set<string>) => {
+      if (d === b) return;
+      if (!chain.has(d)) into.add(d);
+      expand(d);
+    };
+    const expand = (d: string) => {
+      if (seen.has(d)) return;
+      seen.add(d);
+      const t = trigger.get(d);
+      if (t !== undefined && t !== '-') add(t, chain);
+      if (d !== b) for (const s of siblings(d)) add(s, chain);
+      for (const j of barrier.get(d) ?? []) {
+        for (const id of dispatched) if ((pos.get(id) ?? Infinity) < j.at && under(j.paths, id)) add(id, viaBarrier);
+      }
+    };
+    expand(b);
+    for (const d of chain) viaBarrier.delete(d);
+    return { chain, viaBarrier };
+  };
+  /** Which of `RN-R27`'s relations fixes these two dispatches, if any? `turn` is the DEFINITION's order, or the DATA's. */
+  const fixes = (a: string, b: string): 'chain' | 'barrier' | 'turn' | null => {
+    const fb = before(b), fa = before(a);
+    if (fb.chain.has(a) || fa.chain.has(b)) return 'chain';
+    if (fb.viaBarrier.has(a) || fa.viaBarrier.has(b)) return 'barrier';
+    const ta = trigger.get(a), tb = trigger.get(b);
+    return ta !== undefined && ta === tb ? 'turn' : null;
+  };
+  return { fixes, trigger };
+};
+
+/**
+ * **The derivation's own CONTROL, on two CONSTRUCTED sequences — W98's adequacy reader, `B1`.** The census below is what
+ * catches a `fixes` that collapses, and it had no control of its own: `rows: orderCensus.length` compared against
+ * `EXPECTED.length` is a self-comparison, and with the two literals gone a derivation returning one relation for every
+ * pair was green. These two inputs are the tree v0.22 asks for — a tree on which the control fails while the census's
+ * claim passes — and neither exists as a run: ONE turn dispatching three tasks (every pair the document's order, nothing
+ * racing), and TWO turns opened by settlements that raced (the cross pairs fixed by nothing).
+ */
+const dispatchOrderControl = (): { oneTurn: string[]; racing: (string | null)[] } => {
+  const rec = (taskId: string) => ({ kind: 'outcome' as const, record: { taskId } as LogRecord });
+  const dis = (taskId: string) => ({ kind: 'dispatched' as const, taskId });
+  const one = dispatchOrder({ inputs: [rec('r:a:-:0'), dis('r:x:0:0'), dis('r:y:1:0'), dis('r:z:2:0')] as FoldInput[] });
+  const two = dispatchOrder({
+    inputs: [rec('r:a:-:0'), dis('r:x:0:0'), dis('r:y:1:0'), rec('r:x:0:0'), dis('r:p:0:0'), rec('r:y:1:0'), dis('r:q:1:0')] as FoldInput[],
+  });
+  return {
+    // one turn: all three pairs are the DOCUMENT's order
+    oneTurn: [one.fixes('r:x:0:0', 'r:y:1:0'), one.fixes('r:y:1:0', 'r:z:2:0'), one.fixes('r:x:0:0', 'r:z:2:0')].map((x) => String(x)),
+    // two racing turns: x < p by the chain, y < q by the chain, and p against q by NOTHING
+    racing: [two.fixes('r:x:0:0', 'r:p:0:0'), two.fixes('r:y:1:0', 'r:q:1:0'), two.fixes('r:p:0:0', 'r:q:1:0')],
+  };
+};
+
+const orderCensus: { key: string; ids: number; free: number; chain: number; barrier: number; turn: number }[] = [];
+
 for (const [i, e] of EXPECTED.entries()) {
   let report: Awaited<ReturnType<typeof runFlow>>;
   try {
@@ -4026,35 +4118,50 @@ for (const [i, e] of EXPECTED.entries()) {
   if (report.finishedBy !== wantFinish) continue;
 
   check(e.key, 'run-state outcome — spec/run-state.md section 3', report.state.outcome, e.outcome);
-  // **Order-insensitive only for the ids a row NAMES** — see `unorderedDispatch`.
-  // The names are pulled out of both sides and compared as sorted sets; the rest of
-  // the list keeps its order, so a row that declares none is compared exactly as
-  // before and the two halves cannot drift apart.
+  // **The SET, and the ORDER THE RUN FIXES — nothing else. W98, `RN-R27`.** A row's `dispatched` list is its
+  // documentation of what ran and in what order it reads; what is ASSERTED about the order is `dispatchOrder`'s three
+  // relations (above), derived from this run's own sequence. A pair the run does not fix is a completion order, and
+  // [Q401](../doc/open-questions.md)'s sweep could only find the ones a delay happened to move.
   {
-    const loose = new Set(e.unorderedDispatch ?? []);
-    const split = (ids: readonly string[]) => [
-      ids.filter((id) => !loose.has(id)),
-      ids.filter((id) => loose.has(id)).slice().sort(),
-    ] as const;
     // **W94: a row with a GATE leaves the per-series task's ids to the gate clause**, which derives them from the run's
     // own `gated` elements — P24 decision 7: which file opens a series varies between runs, so no literal may name it.
     const besideGate = (ids: readonly string[]) => (e.gate ? ids.filter((id) => parseTaskId(id).nodeId !== e.gate!.opens) : ids);
-    const [gotOrdered, gotLoose] = split(besideGate(report.dispatched));
-    const [wantOrdered, wantLoose] = split(besideGate(e.dispatched));
-    check(e.key, 'dispatched task ids, in order — spec/task-id.md', gotOrdered, wantOrdered);
-    if (loose.size > 0) {
-      check(e.key, 'and the ids whose dispatch order the RUN does not fix, as a set',
-        gotLoose, wantLoose);
-      // **And the row's JUSTIFICATION for declaring them is asserted, not stated.**
-      // The order is not causal only because the branches genuinely overlapped; a
-      // row that declared `unorderedDispatch` on a sequential run would be
-      // weakening an assertion for no reason, and nothing would say so. *Whatever
-      // makes a clause affordable is itself a claim.*
-      assertThat(e.key, 'and its branches really did OVERLAP, which is why that order is not the ' +
-        'run`s to fix', report.branchesOverlapped,
-        'declaring unorderedDispatch on a run whose branches did not overlap weakens the ' +
-        'comparison for nothing');
+    const got = besideGate(report.dispatched);
+    const want = besideGate(e.dispatched);
+    check(e.key, 'the dispatched task ids, as a SET — spec/task-id.md', [...got].sort(), [...want].sort());
+    const { fixes } = dispatchOrder(report);
+    const at = (id: string) => got.indexOf(id);
+    const pairs: string[] = [];
+    const wrong: string[] = [];
+    // **Counted, not subtracted — W98's own rule 8 pass, probe `c1`.** `free` read `total - fixed`, so the census's two
+    // numbers were ONE reading and re-sourcing `fixed` to a literal left both agreeing: obligation (c)'s LIMIT, *a sensor
+    // cannot corroborate itself*. It counts the pairs `fixes` REFUSES now, so the two sides move independently.
+    let free = 0;
+    const byRelation = { chain: 0, barrier: 0, turn: 0 };
+    for (let i = 0; i < want.length; i++) {
+      for (let j = i + 1; j < want.length; j++) {
+        const [a, b] = [want[i]!, want[j]!];
+        const how = fixes(a, b);
+        if (how === null) { free++; continue; }            // a completion order: not this rung's to assert
+        pairs.push(`${a} < ${b} (${how})`);
+        byRelation[how] += 1;
+        // *(`at(a) >= 0 && at(b) >= 0` is a DEAD guard and is kept as a total function rather than removed: the SET
+        // clause above already fails where an expected id was not dispatched. W98's adequacy reader, `M5`.)*
+        if (at(a) >= 0 && at(b) >= 0 && at(a) > at(b)) wrong.push(`${b} before ${a}, and the run fixes ${a} < ${b} (${how})`);
+      }
     }
+    check(e.key, 'and every PAIR of them whose order this run FIXES — a trigger chain, one turn, or a join barrier — ' +
+      'came out in that order (RN-R27)', wrong, []);
+    // **The control, per row, and it is `n - 1` rather than `> 0`** — W98's adequacy reader (`M1`): every row's dispatches
+    // form at least a chain from the entry, so `ids - 1` pairs are fixed at minimum, and the eight rows with three ids all
+    // read 3. `> 0` was satisfied by a derivation that found ONE pair on a row of twenty-five. *(The comment here read *any
+    // row with two dispatches has at least one fixed pair*, which is false in general — two dispatches in two racing turns
+    // are fixed by nothing — and true of this corpus, where the five rows with no fixed pair are the five with one id.)*
+    assertThat(e.key, 'and the run FIXED at least one pair per dispatch beyond the first, so the clause above is a claim ' +
+      'about this run rather than a derivation that fixes almost nothing', pairs.length >= want.length - 1,
+      `${pairs.length} fixed pairs over ${want.length} dispatched ids`);
+    orderCensus.push({ key: e.key, ids: want.length, free,
+      chain: byRelation.chain, barrier: byRelation.barrier, turn: byRelation.turn });
   }
   // **The region-event stream, per branch.** Between branches the order is fan-out
   // completion order and nothing may assert it (section 5 rule 5); within one
@@ -4753,10 +4860,8 @@ for (const [i, e] of EXPECTED.entries()) {
     + (e.refuseAtStart ? 3 : 0)
     + (refusedFirstCount(e) > 0 ? 1 + refusedFirstCount(e) : 0)
     + (e.joinSettledBy ? 1 : 0)
-    // **The set comparison a row buys by declaring `unorderedDispatch`** — one
-    // assertion, and it is derived from the expectation like every other extra here
-    // so that declaring the field moves the floor with it.
-    + (e.unorderedDispatch ? 2 : 0)
+    // *(`unorderedDispatch` bought two here until W98 retired it: the dispatch comparison is THREE clauses on EVERY row
+    // now — the set, the pairs the run FIXES, and the control that the run fixed one — and all three are in the base.)*
     + (e.stoppedBy !== undefined ? 1 : 0)
     // W58: two observers per declared `attempts`, and a sequence plus an ordering per
     // declared `resourceEvents` — derived from the expectation like every other extra here.
@@ -5455,6 +5560,7 @@ const CROSS_ROW_SUBJECTS = [
   'the store holds the WHOLE run again',
   'a store keyed by an ARRIVAL counter per process',
   'a MID-STEP cut and a QUIESCENT cut of ONE killed run',
+  'W98: over every row of this rung, the pairs the RUN FIXES',
   'the stored events` in-flight set is right at the quiescent cut',
   'a PARKED task is not in flight',
   'resolve() on the RESUMED driver',
@@ -8043,10 +8149,26 @@ type GateKillPoint = {
   want: string;
 };
 let gateKill: { points: GateKillPoint[]; stimuli: number; runs: string[] } | null = null;
-const SIZE_ORDER = TV_LAST_FIRST.files.map((f, i) => [f.sizeMB, i] as const).sort((a, b) => a[0] - b[0]).map(([, i]) => i);
+/** Each series' own file indices, smallest file FIRST — the order `identify`'s `msPerMB` arranges within a series. */
+const SIZE_ORDER_BY_SERIES: Record<string, number[]> = TV_IDENTIFIED.reduce((acc, f, i) => {
+  const key = f.name.includes('.') ? f.name.split('.')[0]!.toLowerCase() : '';
+  return key === '' ? acc
+    : { ...acc, [key]: [...(acc[key] ?? []), i].sort((a, b) => TV_LAST_FIRST.files[a]!.sizeMB - TV_LAST_FIRST.files[b]!.sizeMB) };
+}, {} as Record<string, number[]>);
 // ONE predicate for the run and for the constructed input below, so a comparison weakened here (sorted, truncated) is
 // weakened for both and the constructed input goes green where it must be refused (W97's adequacy reader, p2b).
-const inSizeOrder = (order: readonly number[]): boolean => JSON.stringify(order) === JSON.stringify(SIZE_ORDER);
+/**
+ * **Per SERIES, not over the whole list — W98.** W97 asserted the total size order across all seven files, and it was
+ * RED 1 run in 6 on node (`K=4`): a resume re-dispatches what was in flight, and two files of DIFFERENT series 30 ms
+ * apart in `identify` time can swap without changing any winner. What the identity rests on is each series' own arrivals
+ * being ordered, so that is what this asserts — a flake this item's conformity reader found in a PUSHED commit, which
+ * is [Q401](../doc/open-questions.md)'s *each GREEN is one sample* inside the file W97 owned.
+ */
+const inSizeOrder = (arrivals: readonly { key: string; file: number }[]): boolean =>
+  Object.entries(SIZE_ORDER_BY_SERIES).every(([key, want]) => {
+    const got = arrivals.filter((a) => a.key === key).map((a) => a.file);
+    return JSON.stringify(got) === JSON.stringify(want.filter((f) => got.includes(f)));
+  });
 try {
   const runs: string[] = [];
   const RUN_ID = 'kg';
@@ -8127,7 +8249,8 @@ try {
         const at = seq[q];
         ids = at?.kind === 'resumed' ? [...at.taskIds] : null;
         prefixRegenerated = JSON.stringify(gatedIn(seq.slice(0, store.length))) === JSON.stringify(pre);
-        arrivedInSizeOrder = inSizeOrder(gatedIn(seq).map((x) => Number(x.branchPath.split('.')[0])));
+        arrivedInSizeOrder = inSizeOrder(gatedIn(seq).map((x) => ({
+          key: typeof x.key === 'string' ? x.key : '', file: Number(x.branchPath.split('.')[0]) })));
       }
     } finally { await rt2.shutdown(); }
     points.push({
@@ -8175,9 +8298,10 @@ if (gateKill !== null) {
   // **Its control is a CONSTRUCTED input, W92's kind clause's shape**: the same predicate over the size order REVERSED must
   // refuse it. W97's adequacy reader sorted both sides of the comparison and the clause went green with `Download` at 60 ms,
   // where it is the ONLY observer (the identity holds there) — a clause with no tree named on which it fails (v0.22).
-  check(key, 'W94 (2h), W97: and the ARRANGEMENT held across every kill — in every resumed run the files reached the gate in SIZE order, ' +
+  check(key, 'W94 (2h), W97: and the ARRANGEMENT held across every kill — in every resumed run EACH SERIES` files reached the gate in SIZE order, ' +
     'which is SUFFICIENT for the post-cut decisions to be identical: a resume re-dispatches what was in flight, and the order after the cut is a fresh sample',
-    { failing: gk.points.filter((p) => !p.arrivedInSizeOrder).map((p) => `K=${p.K}`), reversedRefused: !inSizeOrder([...SIZE_ORDER].reverse()) },
+    { failing: gk.points.filter((p) => !p.arrivedInSizeOrder).map((p) => `K=${p.K}`), reversedRefused: !inSizeOrder(Object.entries(SIZE_ORDER_BY_SERIES)
+        .flatMap(([key, fs]) => [...fs].reverse().map((file) => ({ key, file })))) },
     { failing: [], reversedRefused: true });
   check(key, 'W94 (2h): and the replay REGENERATED every stored `gated` element exactly, and the memory it REBUILT is exactly the keys the killed run had decided by the end of the replay',
     gk.points.filter((p) => !p.prefixRegenerated || p.rebuilt !== p.wantRebuilt).map((p) => `K=${p.K} prefix ${p.prefixRegenerated} rebuilt ${p.rebuilt} want ${p.wantRebuilt}`), []);
@@ -8442,8 +8566,10 @@ for (const row of PAIR_ROWS) console.log(`    ${w(row.key, KEY_W)}${row.why}`);
  * carrying a language are exactly the types its flow transforms on — in the base because every
  * row pays it, and on the forty-two rows declaring no transform it says that NO pool carries one.
  */
-const PER_REGION_ROW = 22;
-const PER_PLAIN_ROW = 20;
+// **24 since W98**: +2, the dispatch comparison going from one clause (in order) to three (the SET, the pairs the run
+// FIXES, and the per-row control). `unorderedDispatch`'s two extras are gone with it.
+const PER_REGION_ROW = 24;
+const PER_PLAIN_ROW = 22;
 /**
  * **A number a human writes, and its NAME over-reads** — 13 at W23, 18 at W35, 32
  * at W43, 39 at W45, **61 at W47** and **68 at W51**.
@@ -8565,7 +8691,9 @@ const PER_PLAIN_ROW = 20;
 // control above, which W94's own rule 8 planning showed was missing (`d2`: the file table losing its trailer took `nokey`
 // out of every run with every clause green).
 // **+1 since W94 — W97**: block (2h)'s arrangement, asserted beside the identity it rests on (obligation (f)).
-const CROSS_ROW = 216;
+// **+2 since W97 — W98**: the dispatch-order derivation's own census — `RN-R27`'s three relations counted apart — and
+// its CONTROL on two constructed sequences, which is what the census itself had none of (its adequacy reader, B1).
+const CROSS_ROW = 218;
 const base = (shape: string) => (shape === 'region' ? PER_REGION_ROW : PER_PLAIN_ROW);
 for (const [key, shape, cost, extras] of rowCosts) {
   if (cost !== base(shape) + extras) {
@@ -10012,6 +10140,43 @@ if (rowCosts.length !== EXPECTED.length) {
     { unsatisfiableWithArrival, stoppedWithArrival }, { unsatisfiableWithArrival: [], stoppedWithArrival: [] });
 }
 
+// **The DERIVATION's own census — W98.** Every row asserts the pairs `dispatchOrder` returns, so a `fixes` that collapsed
+// — to `null` everywhere, or to one relation everywhere — makes every row's clause vacuous or unsatisfiable while each row
+// stays green on its own terms. The rung-wide totals are what see that, and they are this item's measurement:
+// **941 pairs this rung's runs FIX and 264 they do not**, the same in node and deno and in repeated runs of each.
+//
+// *Two earlier cuts of this derivation read differently and each was corrected by a MEASUREMENT rather than by an
+// argument*: one collected only branches that ARRIVED at a join and read them at the END of the run, and its census
+// read 656 in one run and 657 in the next; the next composed (a) with nothing, and read 660 / 545 until this item's
+// conformity reader derived that everything dispatched in a FIXED predecessor's own turn is fixed too — worth 281
+// pairs. **What the rung asserted before W98 is left to the Record**, because the figure the declaration step took
+// (647, of which 210 racing) came from that same first relation and its reader recomputed it at 566.
+{
+  const sum = (k: 'free' | 'chain' | 'barrier' | 'turn') => orderCensus.reduce((n, r) => n + r[k], 0);
+  const [chain, barrier, turn, free] = [sum('chain'), sum('barrier'), sum('turn'), sum('free')];
+  console.log(`\n  W98 — dispatch order: ${orderCensus.length} rows, ${chain + barrier + turn} pairs the run FIXES ` +
+    `(${chain} by a chain, ${barrier} by a join barrier, ${turn} in one turn), ${free} it does not (asserted by nothing)\n`);
+  // **`turn` apart from the other two, and the other two only as a SUM** — the adequacy reader's `B2` asked for all three
+  // apart, and MEASURED they cannot be: `chain` and `barrier` read 759/5 in one run of this tree and 760/4 in the next,
+  // because which of them reaches a join's successor depends on WHICH BRANCH SETTLED LAST. Their sum is a property of the
+  // run and their split is a property of the sample — this item's own subject, one layer in. **What binds the three labels
+  // is the CONSTRUCTED control below**, which answers each of them deterministically; what the census binds is the counts.
+  // `turn` is a property of the DOCUMENT and is invariant, so B2's own probe — swapping the `chain` and `turn` labels — is
+  // caught here.
+  check('cross-row', 'W98: over every row of this rung, the pairs the RUN FIXES — by its own CAUSALITY (a trigger chain or ' +
+    'a join barrier, which trade places between runs) and in ONE TURN, which is the document`s — and the pairs it does not (RN-R27)',
+    // *(A `rows` term compared `orderCensus.length` against `EXPECTED.length` until W98's own rule 8 pass 3: re-sourcing
+    // the left side to `EXPECTED.length` SURVIVED, and row completeness is `ROW_KEYS`' job two hundred lines down, by set
+    // equality AND order. A decorative term in a control is worse than no term: it reads as a claim.)*
+    { byCausality: chain + barrier, turn, free },
+    { byCausality: 764, turn: 177, free: 264 });
+  // Its CONTROL, on two constructed sequences no run produces (above): the census's claim passes on this tree and this
+  // fails on any `fixes` that answers one relation everywhere, or none.
+  check('cross-row', 'W98 CONTROL: and the derivation answers two CONSTRUCTED sequences correctly — three dispatches in ' +
+    'ONE turn are the document`s order, and two turns opened by settlements that RACED fix their own chains and nothing across',
+    dispatchOrderControl(), { oneTurn: ['turn', 'turn', 'turn'], racing: ['chain', 'chain', null] });
+}
+
 const EXPECTED_TOTAL =
   rowCosts.reduce((n, [, shape, , extras]) => n + base(shape) + extras, 0) + CROSS_ROW + PAIR_ROW;
 if (passed + failures.length !== EXPECTED_TOTAL) {
@@ -10210,9 +10375,11 @@ check('cross-row', 'every cross-row SUBJECT this file declares was asserted abou
 // overlap that justifies it (+2 — the conformity reader's finding 2: the first cut asserted a fan-out's completion
 // order), and the realm its `identify` ran in (+1 — the adequacy reader's finding 4). No cross-row count moved: block
 // (2h)'s distinct kill points and rebuilt memory, and its re-stated control, widened clauses that were already there.
-// **2072 since W97**: +1 cross-row, block (2h)'s arrangement, and +2 on P22's row, which compares `recheck` as a set and
+// **2173 since W98**: +1 cross-row, the derivation's census. *(2172 while W98's three per-row clauses landed and its
+// census was still a `console.log`.)*
+// **2172 since W97**: +1 cross-row, block (2h)'s arrangement, and +2 on P22's row, which compares `recheck` as a set and
 // asserts the overlap beside it (the `unorderedDispatch` pair). No run moved.
-const DECLARED_TOTAL = 2072;
+const DECLARED_TOTAL = 2174;
 // **And the RUN count, declared outright beside it — W96.** It was printed on every gate run and written nowhere, so the
 // copies of it in `README.md` and `examples/README.md` had nothing to be compared against: `check-docs`' `X10` reads
 // BOTH declarations and holds each current copy to them ([Q171](../doc/open-questions.md), named by P20's retro and built

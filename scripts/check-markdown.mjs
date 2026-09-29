@@ -425,7 +425,11 @@ for (const d of r.deadAnchors) fail('M2', d);
 // link wide is a trap for whoever edits next rather than a guard. *The decision did not change; the
 // measurement moved under it, which is exactly what a two-sided window does to anyone who leaves
 // it tight.*
-if (r.files < 123) fail('M3', `only ${r.files} markdown file(s) were scanned, so M1 and M2 are ` +
+// **142 since [W98](../doc/work-items/w98-what-a-row-may-assert-about-a-dispatch-order.md)**, whose declaration document took
+// `M3`'s margin to ZERO exactly as W97's record step predicted ([Q142](../doc/open-questions.md)): 123 files against a floor
+// of 123. The midpoint of its window `(123, 162]` on the tree W98 ships, from a scratch-copy measurement — W80's rule, and
+// W92's precedent for `M4`. Probe 1 still fires (123 < 142) and the whole tree still passes (162).
+if (r.files < 142) fail('M3', `only ${r.files} markdown file(s) were scanned, so M1 and M2 are ` +
   'true of the walk rather than of the tree');
 // **1200 -> 1350 at P9's declaration, 1350 -> 1530 by W30, and both times because
 // ordinary work closed the window from below.** [Q142](../doc/open-questions.md).

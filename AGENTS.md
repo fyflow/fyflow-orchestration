@@ -755,8 +755,8 @@ const flow: FlowDefinition = {
 
 const runtime = createRuntime(registry, {}, { base: import.meta.url });
 // **`onFoldInput` is still here and what it is for is the ORDER, not the END.** `await done` is the
-// end (ADR 0058). A `RunState` is order-free by construction — the fold keys everything by task id
-// — so *which branch settled first* is a fact only the input SEQUENCE carries, and it is what the
+// end (ADR 0058). `RunState.nodes` keys everything by task id and carries no settlement order — *which
+// branch settled first* is a fact only the input SEQUENCE carries, and it is what the
 // claim below is measured against. **This is the residue**: `done` takes the termination out of a
 // snippet and leaves whatever else the callback was doing.
 const inputs: FoldInput[] = [];
