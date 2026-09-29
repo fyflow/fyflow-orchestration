@@ -205,8 +205,21 @@ export function readKeyPath(value: unknown, path: string): unknown {
   return v;
 }
 
-/** A gate type's own members — the interface's four, and no other own key (a typo is the silent kind). */
-export const GATE_TYPE_KEYS: readonly string[] = ['routes', 'defaultRoute', 'settingsSchema', 'fn'];
+/** A gate type's own members — the interface's five, and no other own key (a typo is the silent kind). */
+export const GATE_TYPE_KEYS: readonly string[] = ['routes', 'defaultRoute', 'settingsSchema', 'keyResolvedRoutes', 'fn'];
+
+/** Which of `GATE_TYPE_KEYS` may be absent — the `?` the message below prints. */
+const GATE_TYPE_OPTIONAL: ReadonlySet<string> = new Set(['settingsSchema', 'keyResolvedRoutes']);
+
+/**
+ * **The interface's shape, as a sentence, DERIVED from `GATE_TYPE_KEYS`** rather than restated beside it.
+ * Both of `gateTypeProblem`'s shape messages said `{ routes, defaultRoute, settingsSchema?, fn }` as a
+ * literal, so `keyResolvedRoutes` would have left two live error messages describing an interface that no
+ * longer exists — `doc/workflow.md` obligation (e)'s third shape, *a list is a claim about another list*,
+ * found at [W99](../../doc/work-items/w99-what-a-route-guarantees.md)'s declaration step before the member
+ * was added. Adding a key to the list now moves the message with it.
+ */
+const GATE_TYPE_SHAPE = `{ ${GATE_TYPE_KEYS.map((k) => (GATE_TYPE_OPTIONAL.has(k) ? `${k}?` : k)).join(', ')} }`;
 
 /**
  * **Why a value is not a `GateType`, or `null`** — one predicate for the validator (`FD-V39`'s second
@@ -214,10 +227,10 @@ export const GATE_TYPE_KEYS: readonly string[] = ['routes', 'defaultRoute', 'set
  * so the two cannot disagree about what a gate type IS. `distinct` is held to it like any other.
  */
 export function gateTypeProblem(t: unknown): string | null {
-  if (typeof t !== 'object' || t === null || Array.isArray(t)) return `a gate type is an object { routes, defaultRoute, settingsSchema?, fn }, got ${JSON.stringify(t)}`;
+  if (typeof t !== 'object' || t === null || Array.isArray(t)) return `a gate type is an object ${GATE_TYPE_SHAPE}, got ${JSON.stringify(t)}`;
   const o = t as Record<string, unknown>;
   const extra = Object.keys(o).filter((k) => !GATE_TYPE_KEYS.includes(k));
-  if (extra.length) return `it carries ${extra.map((k) => JSON.stringify(k)).join(', ')}, which a gate type does not declare; it is { routes, defaultRoute, settingsSchema?, fn }`;
+  if (extra.length) return `it carries ${extra.map((k) => JSON.stringify(k)).join(', ')}, which a gate type does not declare; it is ${GATE_TYPE_SHAPE}`;
   const routes = o.routes;
   if (!Array.isArray(routes) || routes.length === 0) return `routes must be a non-empty array of route names, got ${JSON.stringify(routes)}`;
   for (const r of routes) {
@@ -231,6 +244,21 @@ export function gateTypeProblem(t: unknown): string | null {
     const p = schemaProblem(o.settingsSchema);
     if (p !== null) return `its settingsSchema is not in the built-in subset — ${p}`;
   }
+  // **`FD-V39`'s second clause** — the routes on which the key path resolved are a SUBSET of `routes`,
+  // without repeats. No id of its own: this predicate IS that clause, and `C4` refused a separate one by
+  // asking for a case in `spec/examples/invalid/` that cannot exist, a gate type being CODE (W99).
+  // A name that is not a route is the silent kind twice over: the check would never match it, so the
+  // guarantee would simply never apply and the type would read as making one (W99, ADR 0068 rule 4).
+  if (o.keyResolvedRoutes !== undefined) {
+    const kr = o.keyResolvedRoutes;
+    if (!Array.isArray(kr)) return `keyResolvedRoutes must be an array of route names, got ${JSON.stringify(kr)}`;
+    for (const r of kr) {
+      if (typeof r !== 'string' || !(routes as string[]).includes(r)) {
+        return `keyResolvedRoutes names ${JSON.stringify(r)}, which is not one of its routes (${(routes as string[]).join(', ')}) — a guarantee on a route the type never returns applies to nothing`;
+      }
+    }
+    if (new Set(kr as string[]).size !== kr.length) return 'keyResolvedRoutes repeats a route';
+  }
   if (typeof o.fn !== 'function') return 'fn must be a function (ctx) => route';
   return null;
 }
@@ -238,7 +266,8 @@ export function gateTypeProblem(t: unknown): string | null {
 /**
  * **`distinct` — the one BUILT-IN gate type, and it is written against the public interface and nothing
  * else** (P24 decision 2): nothing in the validator, the wiring check or the driver names it; they read
- * `routes`, `defaultRoute`, `settingsSchema` and `fn` off whatever type a gate names. It keeps the FIRST
+ * `routes`, `defaultRoute`, `settingsSchema`, `keyResolvedRoutes` and `fn` off whatever type a gate names. It
+ * keeps the FIRST
  * branch to reach the gate per key and routes every later one with the same key to `duplicate`.
  *
  * - `first` (the DEFAULT) — the key has not been seen at this gate in this run;
@@ -261,6 +290,11 @@ export const distinct: GateType = Object.freeze({
     properties: { key: { type: 'string', minLength: 1 } },
     additionalProperties: false,
   }) as JsonSchema,
+  // **`first` and `duplicate` are reached only where the key path RESOLVED** — read off `fn` below, whose
+  // first statement sends every other case to `nokey`. So a branch leaving this gate on either of them
+  // carries a value with the key path present, which is what `checkWiring` refines with (ADR 0068).
+  // `nokey` is deliberately absent: it is the route for the value that has no key.
+  keyResolvedRoutes: Object.freeze(['first', 'duplicate']),
   fn(ctx: GateContext): string {
     const key = ctx.key;
     if (!(typeof key === 'string' || (typeof key === 'number' && Number.isFinite(key)))) return 'nokey';

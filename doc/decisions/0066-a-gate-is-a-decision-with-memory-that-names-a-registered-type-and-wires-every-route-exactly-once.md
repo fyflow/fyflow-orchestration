@@ -51,7 +51,7 @@ dispatch the task before the gate, and stop only when it settles; a valid gate e
 2. **A gate names a GATE TYPE, and every gate type is a value of ONE public interface** —
    `GateType { routes, defaultRoute, settingsSchema?, fn(ctx) }`, `ctx = { key, input, settings, memory }`,
    `fn` returning one of `routes`, synchronously. **`distinct` is a value of that interface and nothing
-   names it anywhere else**: the validator, the wiring check and the driver read the four members off
+   names it anywhere else**: the validator, the wiring check and the driver read the five members off
    whatever type a gate names, and `distinct` is held to the same predicate (`gateTypeProblem`) a
    consumer's is. Its routes are `first` (the default), `duplicate` and `nokey`; its settings `{ key }`.
 3. **Gate types are CODE, in the definition layer's `Registry.gateTypes`, beside the built-ins.** Absent,
@@ -145,6 +145,11 @@ an `end` per dropped route.
   passing silently; `examples/l6.ts` exempts the kind in its corpus clause, dated to W94.
 - **`checkWiring` treats a gate as a pass-through**, so an arc through a gate is the arc into it — and it
   did not before this item: every arc after a gate vanished and a gate into a join lost its branch key.
+  *(**SUPERSEDED IN PART 2026-09-29 by [ADR 0068](0068-a-route-guarantees-what-its-type-declares-and-the-library-derives-it-from-the-key-path.md), [W99](../work-items/w99-what-a-route-guarantees.md).**
+  A gate still carries what reached it and the arc still exists, which is the half this consequence was written
+  for; what is no longer true is *the arc INTO it, verdict and all* — where the type declares a route
+  key-resolved, the value is refined with `required` along the gate's key path. The flat reading produced a `no`
+  on a CORRECT flow, P24's own exit artifact ([Q391](../open-questions.md)).)*
 - **What a gate's memory holds, when it is written, and what a resume replays are NOT decided here.**
   `GateContext.memory` is a `Map` a type reads and writes; its scope (one per gate per run) and its life
   are W93's to implement and may amend this ADR's rule 2 if running one finds `fn`'s shape wrong.

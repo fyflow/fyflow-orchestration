@@ -1,6 +1,6 @@
 # spec/flow-definition — the flow definition format
 
-**Status:** v0.24 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.25 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2** acted on the first spec-conformity pass
 (ADR 0004, and `region(F)` made computable). **v0.3** acted on the second, which found that `FD-V19`
 had reintroduced the v0.1 defect class under a new id — a refusal rule rejecting the valid corpus.
@@ -304,6 +304,21 @@ chooses, and what moved is the walk that computes it (below). **Measured before 
 resumed, came back identical 6 of 6 with the memory the DRIVER's — and with it kept by the PROCESS the kill
 before the first decision resumed WRONG, in silence, past the stored events where `RN-R20` compares
 nothing.
+
+**v0.25 says what a ROUTE GUARANTEES** ([P25](../doc/plans/p25-what-a-route-guarantees-about-the-value-it-carries.md), [ADR 0068](../doc/decisions/0068-a-route-guarantees-what-its-type-declares-and-the-library-derives-it-from-the-key-path.md), [W99](../doc/work-items/w99-what-a-route-guarantees.md)): a gate type may declare
+**`keyResolvedRoutes`**, the routes on which its KEY PATH resolved, and section 3's wiring check refines what
+leaves the gate on such a route with `required` along the gate's own key path. **A gate was a flat
+PASS-THROUGH until here, and that produced a `no` on a CORRECT flow** ([Q391](../doc/open-questions.md)): the
+arc through a gate was the arc INTO it, so a consumer requiring what only the taken route guarantees read
+*producer does not guarantee it* while the run completed in both L6 runtimes. **It adds NO RULE ID and the
+count stays 37**: a malformed `keyResolvedRoutes` is `FD-V39`'s second clause, where every other malformed
+member of this interface is reported, by the one predicate `gateTypeProblem`. *A separate id was written
+first and `C4` refused it by asking for a case in `spec/examples/invalid/` that cannot exist — that
+corpus is a flow plus a JSON registry document, and a gate type is CODE.* The guarantee is
+**PRESENCE** and not the leaf's TYPE, which is the type's own judgement and differs between types; and the
+ROUTE an arc carries is the edge's or the type's `defaultRoute`, resolved through the type rather than
+treated as a route of its own — because a type's default may be one it does NOT call key-resolved,
+which `distinct`'s coincidence of the two hides.
 
 **Binds:** [ADR 0002](../doc/decisions/0002-a-flow-definition-is-data-and-a-predicate-is-registered-by-name.md)
 (the graph is data; a predicate is a name; an unknown name fails at instantiation) and
@@ -1381,6 +1396,7 @@ built-in `distinct` included — is a value of ONE public interface, `GateType` 
 | `routes` | every route the type may return — a non-empty list of distinct names, each in `FD-V16`'s charset. Every one must be wired by exactly one edge (`FD-V41`) |
 | `defaultRoute` | one of `routes` — what an edge with no `route` carries. **Not necessarily the first** |
 | `settingsSchema` | optional — what a gate's `settings` must satisfy, in the built-in subset; absent means UNCHECKED (P18 decision 3). `FD-V40` applies it |
+| `keyResolvedRoutes` | optional, **v0.25** — the routes on which the gate's KEY PATH resolved, a subset of `routes` without repeats, refused by **`FD-V39`'s second clause** like every other malformed member of this interface (one predicate, `gateTypeProblem`, reported at the gate that names the type). **The one guarantee a route can make that the library can act on**, because `settings.key` is the one thing the driver resolves on a gate's behalf: a type naming a route here says *when I return this, that path was there*, and the wiring check refines what leaves the gate on it (below). Absent means the type makes NO guarantee, which is what every type said before v0.25. **PRESENCE only** — whether a resolved key is a USABLE key is the type's judgement (`distinct` wants a string or a finite number) and nothing static derives it. `distinct` declares `['first', 'duplicate']`, read off its own `fn`, whose first statement sends every other case to `nokey` |
 | `fn(ctx)` | the decision, synchronous: handed `{ key, input, settings, memory }` — `settings.key` resolved over the value that reached the gate, that value, the gate's settings, and the gate's memory — and returning one of `routes`. **Called by the driver where a branch enters the gate, since v0.24** — and once more at `start()` for an ENTRY gate, against a throwaway memory, for `FD-R4` alone, so a type is the pure function of its context Q9 asks every decision to be |
 
 **A type is CODE, not a document entry** — `fn` is a function, which a JSON registry cannot carry, so a
@@ -1388,7 +1404,7 @@ consumer registers their types in the driver registry's **`gateTypes`** (a `Map`
 by name), the way a language adapter's `compile` is supplied in code. **Absent, the built-ins alone**: the
 set only ever ADDS, and a consumer type named as a built-in is refused rather than merged (`NameCollision`),
 exactly as a custom group type named as a built-in is. **`distinct` is registered THROUGH the interface**:
-nothing in the validator, the wiring check or the driver names it; each reads the four members off
+nothing in the validator, the wiring check or the driver names it; each reads the five members off
 whatever type a gate names, and `distinct` is held to the same predicate as a consumer's
 (`gateTypeProblem`), so the extension road is exercised the day it ships (P24 decision 2). **A driver is
 handed the set as `DriverOptions.gateTypes`, and a runtime consumer as `RegistryCode.gateTypes`**, which the
@@ -1456,7 +1472,7 @@ carries, for each, a document that trips it and the plan's sample that does not.
 | `UndeclaredKey` | the document, a worker, a node type, its `pool`, a pool instance or a group carries a key its kind does not declare; a section is not an object keyed by name; or `predicates` / `languages` is not an array of names |
 | `NameMissing` | a predicate or language the document names and `code` does not supply (or a language whose adapter has no `compile`); a node type's declared group, or a group a derivation names, that `groups` lacks |
 | `DerivationRefused` | a derivation throws or returns something that is not a `PoolSpec`; a `pool`, `inline`, `groups`, `retryPolicy` or `settings` field of the wrong shape; a resident group beside `idleTimeout: 0` |
-| `GateTypeRefused` | **a registered gate type is not a `GateType`** (v0.23, W92): not an object, a key beside the interface's four, `routes` empty or repeated or outside `FD-V16`'s charset, a `defaultRoute` that is not one of them, a `settingsSchema` outside the subset, or no `fn`. **Checked by `checkRegistry` on EVERY call** — the built-ins are held to the same predicate whether or not the registry carries `gateTypes`, and a consumer's are checked beside them. *Gate types are code, so this row's fixtures both ways are in `test/definition/gate.test.ts` and not in `registry.test.ts` — the one exception to this section's opening sentence* |
+| `GateTypeRefused` | **a registered gate type is not a `GateType`** (v0.23, W92): not an object, a key beside the interface's five, `routes` empty or repeated or outside `FD-V16`'s charset, a `defaultRoute` that is not one of them, a `settingsSchema` outside the subset, **a `keyResolvedRoutes` that is not an array, names something that is not one of its routes, or repeats one** (v0.25), or no `fn`. **Checked by `checkRegistry` on EVERY call** — the built-ins are held to the same predicate whether or not the registry carries `gateTypes`, and a consumer's are checked beside them. *Gate types are code, so this row's fixtures both ways are in `test/definition/gate.test.ts` and not in `registry.test.ts` — the one exception to this section's opening sentence* |
 
 **What the DRIVER reads of a resolved registry, and how `new Driver` relates to it.** The driver's
 registry — `predicates`, `groups`, `workers`, `nodeTypes`, `pools`, `languages` — is DERIVED from the
@@ -1500,10 +1516,27 @@ record's sample keys take item index 0 for every enclosing map, which is a SAMPL
 right reading — *(this said the driver refuses it at construction and that a static check gives a
 verdict where a run would not start; the first half expired when W84 lifted the refusal, and the
 second was an argument for the sample rather than for the verdict, so the verdict stands and its
-reason is now the one that survives)*. **A GATE is a PASS-THROUGH** (v0.23): what leaves it on any
-route is exactly what reached it, so an arc through a gate is the arc INTO it, verdict and all — the
-consumer after a gate is judged against what reached the gate, and a gate routing into a join carries its
-branch's key into the record as the node before it would. A gate has no worker, so it is never a consumer.
+reason is now the one that survives)*. **A GATE carries what reached it, REFINED by what its ROUTE
+GUARANTEES** (v0.25, [ADR 0068](../doc/decisions/0068-a-route-guarantees-what-its-type-declares-and-the-library-derives-it-from-the-key-path.md)):
+the value is the one that reached the gate — a gate has no worker, so it is never a consumer and produces
+nothing — and where the gate's type declares this route **key-resolved**, the SCHEMA gains `required` along
+the gate's own key path, at every step, because the run cannot take that route unless the path was there.
+A gate routing into a join carries its branch's key into the record as the node before it would.
+
+The ROUTE an arc carries is the edge's `route`, or the type's `defaultRoute` where the edge declares none —
+resolved through the type rather than treated as a route of its own, because a type's default may be a route
+it does NOT call key-resolved. **Three ways the refinement does not apply, each a silence rather than a
+guess**: a type declaring no `keyResolvedRoutes`, a gate naming no `key`, and a route the type does not call
+key-resolved. In all three the arrival passes through exactly as it did before v0.25.
+
+*(**This read `A GATE is a PASS-THROUGH` (v0.23) — what leaves it on any route is exactly what reached it,
+so an arc through a gate is the arc INTO it, verdict and all — until [W99](../doc/work-items/w99-what-a-route-guarantees.md).**
+That was conservative rather than wrong about any run, and it produced a `no` on a CORRECT flow:
+[P24](../doc/plans/p24-what-a-node-may-remember-across-a-runs-branches.md)'s own exit artifact requires
+`series` of a per-series worker sitting past a `distinct` gate keyed on `series.id`, `identify` does not
+guarantee `series` because a trailer has none, and the route that reaches that worker is taken only where
+the key resolved — so the check read `no` while ladder L6 ran the flow to `completed` in both runtimes
+([Q391](../doc/open-questions.md)).)*
 *(Before W92 taught the check the kind, every arc after a gate vanished from the report and a gate routing
 into a join dropped its branch's key — measured at W92's declaration step.)* **The ENTRY has no arc**: the run's payload reaches the entry task — or every branch task
 of an entry region, recursively, or every route target of an entry GATE (v0.23: which one a run takes is

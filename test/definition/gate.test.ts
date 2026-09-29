@@ -144,14 +144,14 @@ const DECLARED_CASES = [
   'FD-V41 — a gate`s edge carries to and route and nothing else, and route on any other node`s edge is refused',
   'the corpus: gated-map is valid, and the three invalid cases are refused naming their own rule',
   'where a gate stands: a region member like a task, disjunctive out-arcs, no output, and never a branch entry',
-  'the value a gate hands on is what reached it — the wiring check treats a gate as a PASS-THROUGH',
+  'the value a gate hands on is what reached it — and since W99 the wiring check refines it by what the route guarantees',
   'distinct is registered THROUGH the interface: one predicate, one registry road, a second type the same way',
   'GateTypeRefused and NameCollision at construction — each clause of gateTypeProblem, both ways',
   'distinct`s decision: first, duplicate and nokey, keys compared as JSON values, one memory',
   'readKeyPath — own keys of plain objects, no index, and anything else is nothing',
   'new Driver CONSTRUCTS a gate flow since W93 — ADR 0066 rule 7 LIFTED — an INVALID one still reports its FD-V, and a consumer type arrives by DriverOptions.gateTypes',
   'the spec`s tables are the code`s lists, both ways — the gate`s keys, the interface`s members, distinct`s routes',
-  'the pass-through on EVERY route, with a plain and a transformed consumer, and from an entry gate',
+  'what a gate carries on EVERY route, with a plain and a transformed consumer, and from an entry gate',
   'every case this suite declares actually ran — a deleted case fails naming itself',
 ];
 

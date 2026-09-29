@@ -18,9 +18,9 @@
  */
 import { equal, listDir, ok, readText, ROOT, suite } from '../harness.ts';
 import { checkWiring, describeVerdict, boundaryTargets, fits, VERDICT_KINDS, WIRING_SHAPES, type VerdictKind, type WiringReport, type WiringShape } from '../../src/definition/wiring.ts';
-import { validateDefinition, violatedRules } from '../../src/definition/validate.ts';
+import { distinct, GATE_TYPE_KEYS, gateTypeProblem, validateDefinition, violatedRules } from '../../src/definition/validate.ts';
 import { resolveRegistry } from '../../src/definition/registry.ts';
-import type { FlowDefinition, JsonSchema } from '../../src/definition/types.ts';
+import type { FlowDefinition, GateContext, GateType, JsonSchema } from '../../src/definition/types.ts';
 import { corpusRegistry, CORPUS_LANGUAGES, type CorpusRegistryDocument } from './corpus-types.ts';
 import { PATH_LANGUAGE } from '../scheduler/fake-language.ts';
 import compileExpression, { jsonata } from '../../src/jsonata/index.ts';
@@ -214,7 +214,7 @@ suite('W73 — the L6 corpus census, as an EQUALITY, and every arc shape reached
   const registry = { workers: l6Registry.workers, nodeTypes: l6Registry.nodeTypes, languages: { jsonata } } as unknown as Parameters<typeof checkWiring>[0];
   const options = { workerHalf: { jsonata: compileExpression } };
   let reports: WiringReport[] = [];
-  test('the census: 72 fit, 2 no, 5 transform-passes, 2 transform-fails, 8 unchecked over 28 flows', async () => {
+  test('the census: 73 fit, 1 no, 5 transform-passes, 2 transform-fails, 8 unchecked over 28 flows', async () => {
     const names = (await listDir(flowsDir)).filter((n) => n.endsWith('.flow.json')).sort();
     ok(names.length === 28, `28 L6 flows, got ${names.length}`);
     reports = [];
@@ -236,19 +236,25 @@ suite('W73 — the L6 corpus census, as an EQUALITY, and every arc shape reached
     // rather than a side effect — a region nested inside a map region is a shape `checkWiring`
     // traverses with no change at all, which is P22 prediction 2 (*`JP-R12`, ADR 0044 and
     // `checkWiring` need zero changes*) as a number rather than as a sentence.
-    // **+3 fits, +1 no and +1 flow since W86 — W94's `tv-ingest.flow.json`**, P24's exit artifact (a declared exception
+    // **+3 fits, +1 no and +1 flow at W94 — `tv-ingest.flow.json`**, P24's exit artifact (a declared exception
     // of W94's, [Q342](../../doc/open-questions.md)'s literal a sixth time). Its two `beside` branch arcs and `publish`'s
-    // record FIT; its fourth arc is a FALSE `no` ([Q391](../../doc/open-questions.md)): the check reads the gate as a
-    // pass-through, so the per-series worker, which requires `series`, is judged against `identify`, which does not
-    // guarantee it — while `distinct` routes `first` only where `series.id` resolved, and ladder L6 runs the flow to
-    // `completed` three times. Kept as the census reads it rather than hidden by weakening the worker's schema.
-    equal(counts, { 'fits': 72, 'no': 2, 'transform-passes': 5, 'transform-fails': 2, 'unchecked': 8 }, 'the L6 census');
-    // And the `no`s are the FD-R2 prediction — map-no-array's `over: "rows"` on a producer that never emits it — and,
-    // since W94, the gate's pass-through on tv-ingest's per-series task. In flow-name order.
+    // record FIT — **and its fourth arc was a FALSE `no` until W99** ([Q391](../../doc/open-questions.md)): the check
+    // read the gate as a flat pass-through, so the per-series worker, which requires `series`, was judged against
+    // `identify`, which does not guarantee it, while `distinct` routes `first` only where `series.id` RESOLVED.
+    // **+1 fit and —1 no at W99** ([ADR 0068](../../doc/decisions/0068-a-route-guarantees-what-its-type-declares-and-the-library-derives-it-from-the-key-path.md)):
+    // `distinct` declares `first` and `duplicate` key-resolved, so what leaves the gate on the default route carries
+    // `series` required and the arc FITS. *This census is where that is a number instead of a sentence, in both
+    // directions — it carried the false `no` as a number for one plan and it carries the fix as one now.*
+    equal(counts, { 'fits': 73, 'no': 1, 'transform-passes': 5, 'transform-fails': 2, 'unchecked': 8 }, 'the L6 census');
+    // The one `no` is the FD-R2 prediction — map-no-array's `over: "rows"` on a producer that never emits it.
     const no = reports.flatMap((r) => r.verdicts.filter((v) => v.kind === 'no'));
-    equal(no.map((v) => `${v.through ?? v.producer}:${v.consumer}`), ['split:score', 'identify:setupSeries'], 'the two nos');
+    equal(no.map((v) => `${v.through ?? v.producer}:${v.consumer}`), ['split:score'], 'the one no');
     ok(no[0]!.why.includes('FD-R2'), `the reason names the run-time refusal it predicts: ${no[0]!.why}`);
-    ok(no[1]!.why.includes('requires "series"'), `the gate's pass-through: the consumer's requirement the producer does not guarantee: ${no[1]!.why}`);
+    // **And the arc that WAS the false `no` is asserted FITTING, by name** — a census whose gate row simply
+    // vanished from the `no` list would read the same with the derivation deleted and the worker's schema weakened.
+    const tv = reports[names.indexOf('tv-ingest.flow.json')]!;
+    const perSeries = tv.verdicts.filter((v) => v.consumer === 'setupSeries');
+    equal(perSeries.map((v) => `${v.producer}:${v.kind}`), ['identify:fits'], 'the arc through the gate FITS, and there is one of it');
   });
   test('every arc shape the relation ranges over occurs in the census, and nothing else does', () => {
     const seen = new Set<WiringShape>();
@@ -362,7 +368,7 @@ suite('W73 — constructed shapes: needs, a fan-out`s record, a map`s arity, the
     }
     // W73's declaration census over the nineteen L4 flows: 53 consumers plus the 3 transformed ones the
     // census set aside, one arc each — the check gives 56 verdicts, and 0 of any other kind. **59 since W92
-    // added `gated-map.flow.json`**: `identify` (the map's item), `setup` (THROUGH the gate — a pass-through, so
+    // added `gated-map.flow.json`**: `identify` (the map's item), `setup` (THROUGH the gate — the arc out of it, so
     // the arc into the gate) and `publish` (the join's record); the entry has none. Before W92 taught the check
     // the kind, `setup`'s arc was not in the report at all — 58, and nothing here would have said so.
     equal(total, 59, 'the L4 corpus`s 59 arcs');
@@ -512,5 +518,194 @@ suite('W73 — constructed shapes: needs, a fan-out`s record, a map`s arity, the
     const nested = flow([{ id: 'outer', kind: 'fanout', branches: ['a', 'inner'] }, task('a', 'A', 'oj'), { id: 'inner', kind: 'fanout', branches: ['c', 'd'] }, task('c', 'A', 'ij'), task('d', 'A', 'ij'),
       { id: 'ij', kind: 'join', of: 'inner', edges: [{ to: 'oj' }] }, { id: 'oj', kind: 'join', of: 'outer', edges: [{ to: 'done' }] }, { id: 'done', kind: 'end', outcome: 'completed' }], 'outer');
     equal((await checkWiring(r, nested)).entry, boundaryTargets(nested, {}).map((t) => t.node), 'the same names in the same order');
+  });
+});
+
+/**
+ * **W99 — what a ROUTE guarantees.** The producer here DESCRIBES the key path and does not REQUIRE it,
+ * which is `identify`'s shape in P24's exit artifact and the whole reason the guarantee is load-bearing: a
+ * producer that requires it makes the arc fit either way, so a fixture built that way asserts nothing
+ * (W92's own pass-through fixture is exactly that, which is why its verdicts did not move at this item).
+ */
+suite('W99 — what a ROUTE guarantees: the type declares it, the library derives it from the key path', (test) => {
+  const producer = {
+    type: 'object', required: ['name'],
+    properties: {
+      name: { type: 'string' },
+      // **`series` DESCRIBES `id` and does NOT require it** — W99's adequacy reader, F1. With `required:
+      // ['id']` here, `fits` found the leaf already guaranteed by the producer, so the only step the walk had
+      // to add was the ROOT one and `i >= steps.length` could be `i >= 1` for ZERO. The corpus has the same
+      // shape (`identify` declares `series: { required: ['id','title'] }`), which is why no rung saw it.
+      series: { type: 'object', properties: { id: { type: 'string' } } },
+    },
+    examples: [{ name: 'n', series: { id: 's1' } }],
+  } as unknown as JsonSchema;
+  const wantsSeries = { type: 'object', required: ['series'] } as unknown as JsonSchema;
+  const reg = (gateTypes?: Record<string, GateType>) => ({
+    workers: { p: { url: 'test://p', outputSchema: producer }, c: { url: 'test://c', inputSchema: wantsSeries } },
+    nodeTypes: { P: { worker: 'p' }, C: { worker: 'c' } },
+    ...(gateTypes === undefined ? {} : { gateTypes }),
+  } as unknown as Parameters<typeof checkWiring>[0]);
+  /** Three consumers, one per route, each REQUIRING `series` — so each arc's verdict is that route's guarantee. */
+  const flow = (type: string, edges: readonly Record<string, unknown>[], settings?: Record<string, unknown>) => ({
+    flowId: 'guarantee', version: 1, entry: 'produce', nodes: [
+      { id: 'produce', kind: 'task', type: 'P', edges: [{ to: 'gate' }] },
+      { id: 'gate', kind: 'gate', type, ...(settings === undefined ? {} : { settings }), edges },
+      { id: 'onA', kind: 'task', type: 'C', edges: [{ to: 'done' }] },
+      { id: 'onB', kind: 'task', type: 'C', edges: [{ to: 'done' }] },
+      { id: 'onC', kind: 'task', type: 'C', edges: [{ to: 'done' }] },
+      { id: 'done', kind: 'end', outcome: 'completed' },
+    ],
+  } as unknown as FlowDefinition);
+  const kinds = async (r: Parameters<typeof checkWiring>[0], f: FlowDefinition) => {
+    const report = await checkWiring(r, f);
+    return ['onA', 'onB', 'onC'].map((c) => `${c}:${report.verdicts.find((v) => v.consumer === c)?.kind ?? 'none'}`);
+  };
+  const DISTINCT_EDGES = [{ to: 'onA' }, { route: 'duplicate', to: 'onB' }, { route: 'nokey', to: 'onC' }];
+
+  test('the member is a subset of routes without repeats, and a malformed one is FD-V39`s second clause', () => {
+    ok(GATE_TYPE_KEYS.includes('keyResolvedRoutes'), 'the interface declares it, so a type carrying it is not refused as an extra key');
+    equal([...(distinct.keyResolvedRoutes ?? [])], ['first', 'duplicate'], 'distinct declares exactly the routes its own fn reaches with a key');
+    ok(!(distinct.keyResolvedRoutes ?? []).includes('nokey'), 'and NOT nokey, which is the route for the value that has none');
+    equal(gateTypeProblem({ ...distinct, keyResolvedRoutes: ['first'] }), null, 'a strict subset is fine');
+    equal(gateTypeProblem({ ...distinct, keyResolvedRoutes: [] }), null, 'so is empty — a type may declare that no route resolves one');
+    ok((gateTypeProblem({ ...distinct, keyResolvedRoutes: 'first' }) ?? '').includes('must be an array'), 'a string is refused');
+    ok((gateTypeProblem({ ...distinct, keyResolvedRoutes: ['nope'] }) ?? '').includes('not one of its routes'), 'a name that is not a route is refused, because a guarantee on it applies to nothing');
+    ok((gateTypeProblem({ ...distinct, keyResolvedRoutes: ['first', 'first'] }) ?? '').includes('repeats'), 'a repeat is refused');
+    // The one predicate, so the registry and the validator cannot disagree — and it is what makes this
+    // `FD-V39`'s second clause rather than a rule id of its own (ADR 0068 rule 4).
+    ok((gateTypeProblem({ routes: ['a'], defaultRoute: 'a', keyResolvedRoutes: ['a'] }) ?? '').includes('fn must be a function'), 'and the rest of the interface is still asked');
+    // **The shape MESSAGE names every key of `GATE_TYPE_KEYS`, both ways** — correction 2's repair, bound.
+    // The two messages said `{ routes, defaultRoute, settingsSchema?, fn }` as a LITERAL, so a member added to
+    // the list left them describing an interface that no longer exists; they are derived from the list now, and
+    // without this clause reverting them to a literal is caught by nothing (the spec's table compares the LIST).
+    const shapeMsg = gateTypeProblem('not an object') ?? '';
+    for (const k of GATE_TYPE_KEYS) ok(shapeMsg.includes(k), `the shape message names every key of GATE_TYPE_KEYS: ${k} is missing from ${shapeMsg}`);
+    const named = shapeMsg.slice(shapeMsg.indexOf('{'), shapeMsg.indexOf('}') + 1).replace(/[{}?\s]/g, '').split(',').filter((s) => s !== '');
+    equal(named.slice().sort(), [...GATE_TYPE_KEYS].sort(), 'and names NOTHING else — the message IS the list');
+    // And the OPTIONAL ones print with a `?`, which is the half a set comparison cannot see (F3's M32): a message
+    // calling `keyResolvedRoutes` REQUIRED is a false statement to the consumer writing a type.
+    for (const k of ['settingsSchema', 'keyResolvedRoutes']) ok(shapeMsg.includes(`${k}?`), `${k} is printed as OPTIONAL: ${shapeMsg}`);
+    for (const k of ['routes', 'defaultRoute', 'fn']) ok(!shapeMsg.includes(`${k}?`), `${k} is printed as REQUIRED: ${shapeMsg}`);
+  });
+
+  test('a key-resolved route carries the key path REQUIRED, and a route the type does not name carries what arrived', async () => {
+    equal(await kinds(reg(), flow('distinct', DISTINCT_EDGES, { key: 'series.id' })),
+      ['onA:fits', 'onB:fits', 'onC:no'],
+      'first (the DEFAULT) and duplicate fit; nokey does NOT, because that route is where the key was absent');
+    // The `no` names what it always named — the consumer's requirement the producer does not guarantee.
+    const report = await checkWiring(reg(), flow('distinct', DISTINCT_EDGES, { key: 'series.id' }));
+    ok((report.verdicts.find((v) => v.consumer === 'onC')?.why ?? '').includes('requires "series"'), 'and the nokey reason is unchanged');
+  });
+
+  test('the three SILENCES: a type that declares nothing, a gate with no key, and a route not named — each passes through as before', async () => {
+    // (1) a type IDENTICAL to distinct but declaring no guarantee: every arc is what it was before v0.25.
+    const blind: GateType = { routes: distinct.routes, defaultRoute: distinct.defaultRoute, settingsSchema: distinct.settingsSchema, fn: distinct.fn };
+    equal(await kinds(reg({ blind }), flow('blind', DISTINCT_EDGES, { key: 'series.id' })), ['onA:no', 'onB:no', 'onC:no'],
+      'a type declaring no keyResolvedRoutes refines nothing — which is the CONTROL for the case above: the same flow, the same producer, three nos');
+    // (2) no `key` on the gate: there is no path to require, so a declared route guarantees nothing.
+    const keyless: GateType = { routes: ['a', 'b'], defaultRoute: 'a', keyResolvedRoutes: ['a'], fn: () => 'a' };
+    equal(await kinds(reg({ keyless }), flow('keyless', [{ to: 'onA' }, { route: 'b', to: 'onB' }])), ['onA:no', 'onB:no', 'onC:none'],
+      'a gate naming no key refines nothing, on the route it declares resolved and on the other');
+  });
+
+  test('the ROUTE is resolved through the type`s defaultRoute, not treated as a route of its own', async () => {
+    // **Correction 3's fixture.** `distinct`'s defaultRoute is `first`, which IS key-resolved, so every
+    // fixture over `distinct` alone is green whether the check maps the default edge through the type or
+    // simply treats *the default* as resolved. This type's default is the route that is NOT.
+    const flipped: GateType = {
+      routes: ['plain', 'keyed'], defaultRoute: 'plain', keyResolvedRoutes: ['keyed'],
+      settingsSchema: { type: 'object', required: ['key'], properties: { key: { type: 'string' } }, additionalProperties: false } as unknown as JsonSchema,
+      fn: (ctx: GateContext) => (typeof ctx.key === 'string' ? 'keyed' : 'plain'),
+    };
+    equal(await kinds(reg({ flipped }), flow('flipped', [{ to: 'onA' }, { route: 'keyed', to: 'onB' }], { key: 'series.id' })),
+      ['onA:no', 'onB:fits', 'onC:none'],
+      'the DEFAULT edge is judged as `plain`, which this type does not call key-resolved, and the explicit `keyed` edge fits');
+    // **And the other direction, which is the one that binds the LOOKUP** — W99's adequacy reader, F2: with
+    // `flipped` alone, the default edge's expected verdict is `no` EITHER WAY, so the lookup could be the literal
+    // `'first'` or `routes[0]` for zero — every type this tree can reach has `defaultRoute === routes[0]`, and
+    // the only one whose default edge is expected to FIT is `distinct`, whose default is literally named `first`.
+    // Three well-formed wrong selections coincided with the right one on the whole fixture set. This type's
+    // default is NEITHER first in `routes` NOR named `first`, and it IS key-resolved, so the default edge FITS
+    // only if the check asked the type.
+    const lastResolved: GateType = {
+      routes: ['plain', 'keyed'], defaultRoute: 'keyed', keyResolvedRoutes: ['keyed'],
+      settingsSchema: { type: 'object', required: ['key'], properties: { key: { type: 'string' } }, additionalProperties: false } as unknown as JsonSchema,
+      fn: (ctx: GateContext) => (typeof ctx.key === 'string' ? 'keyed' : 'plain'),
+    };
+    equal(await kinds(reg({ lastResolved }), flow('lastResolved', [{ to: 'onA' }, { route: 'plain', to: 'onB' }], { key: 'series.id' })),
+      ['onA:fits', 'onB:no', 'onC:none'],
+      'a default route that is NOT routes[0] and IS key-resolved: the default edge fits and the explicit unresolved one does not');
+  });
+
+  test('the refinement is PRESENCE along every step of the path, and it leaves an undescribed step alone', async () => {
+    // A consumer requiring the LEAF`s parent and one requiring nothing about it: the walk adds `required`
+    // at each step, so `series.id` requires `series` at the root AND `id` under it.
+    const wantsId = { type: 'object', required: ['series'], properties: { series: { type: 'object', required: ['id'] } } } as unknown as JsonSchema;
+    const r = {
+      workers: { p: { url: 'test://p', outputSchema: producer }, c: { url: 'test://c', inputSchema: wantsId } },
+      nodeTypes: { P: { worker: 'p' }, C: { worker: 'c' } },
+    } as unknown as Parameters<typeof checkWiring>[0];
+    equal(await kinds(r, flow('distinct', DISTINCT_EDGES, { key: 'series.id' })), ['onA:fits', 'onB:fits', 'onC:no'],
+      'a consumer requiring series.id fits on a key-resolved route — the walk requires every step, not only the first');
+    // A key path the producer does not DESCRIBE: `required` is still added (the value carries it or the
+    // run could not be here), and nothing invents a shape for it.
+    const deep = await checkWiring(reg(), flow('distinct', DISTINCT_EDGES, { key: 'absent.thing' }));
+    equal(deep.verdicts.find((v) => v.consumer === 'onA')?.kind, 'no',
+      'a key path the producer never describes buys the consumer nothing it asked for — requiring `absent` is not requiring `series`');
+  });
+  test('a key path segment that is a PROTOTYPE key is not special — `fits` and the refinement read OWN keys only', async () => {
+    // **W99's conformity reader, F1, and it is bigger than this item.** `FD-V16`'s charset admits `toString`,
+    // `constructor`, `valueOf` and `__proto__` as key-path segments, and a gate whose `key` is one of them is a
+    // document `validateDefinition` accepts with ZERO findings. Two bare reads answered from `Object.prototype`:
+    // this item's own `requireAlong` wrote `Object.prototype.toString` — a native FUNCTION — into a refined
+    // schema's `properties`, and **`fits` itself read it back as a sub-schema through a bare `k in pp`**, which
+    // is P19's code and reachable on an ORDINARY EDGE with no gate at all. The measured verdict flip: a consumer
+    // describing `toString` and not requiring it read `no` with an invented type union
+    // (`producer may be object|array|number|integer|boolean|null`) where the same consumer asking about `zzz`
+    // read `fits`. **Third and fourth occurrence of this class** — W65's reader found bare `in` at three
+    // keyword sites, W74's in `pathsOf`.
+    //
+    // The claim the fix makes is *a prototype key is not special*, so this is an EQUALITY between two flows
+    // differing only in the key path, over every consumer shape that discriminates. **The first cut of this
+    // case asked about a key the gate's path does NOT name and so passed with both defects in place** — it was
+    // measured vacuous against the reverted guard, which is why the consumer asks about THE KEY here.
+    const shapes = (k: string): [string, Record<string, unknown>][] => [
+      ['requires it, describes {}', { type: 'object', required: [k], properties: { [k]: {} } }],
+      ['requires it, describes a string', { type: 'object', required: [k], properties: { [k]: { type: 'string' } } }],
+      ['requires it, describes nothing', { type: 'object', required: [k] }],
+      ['describes a string, does not require', { type: 'object', properties: { [k]: { type: 'string' } } }],
+    ];
+    const verdict = async (key: string, consumer: Record<string, unknown>) => {
+      const r = {
+        workers: { p: { url: 'test://p', outputSchema: producer }, c: { url: 'test://c', inputSchema: consumer as unknown as JsonSchema } },
+        nodeTypes: { P: { worker: 'p' }, C: { worker: 'c' } },
+      } as unknown as Parameters<typeof checkWiring>[0];
+      const v = (await checkWiring(r, flow('distinct', DISTINCT_EDGES, { key }))).verdicts.find((x) => x.consumer === 'onA')!;
+      return `${v.kind}: ${v.why}`;
+    };
+    for (const [label] of shapes('zzz')) {
+      const proto = await verdict('toString', shapes('toString').find(([l]) => l === label)![1]);
+      const plain = await verdict('zzz', shapes('zzz').find(([l]) => l === label)![1]);
+      equal(proto.replace(/toString/g, 'KEY'), plain.replace(/zzz/g, 'KEY'),
+        `a prototype-named key path answers as an ordinary undescribed one does ' + D + ' ${label}`);
+    }
+    // And `fits` alone, with NO gate in the picture, because that half is P19's and predates this item.
+    const open = { type: 'object', required: ['name'], properties: { name: { type: 'string' } } } as unknown as JsonSchema;
+    for (const k of ['toString', 'zzz']) {
+      const r = fits(open, { type: 'object', properties: { [k]: { type: 'string' } } } as unknown as JsonSchema);
+      equal([k, r.verdict], [k, 'fits'],
+        'a consumer describing a key an OPEN producer does not name, and not requiring it, fits — the leniency, for a prototype name too');
+    }
+    // **The THIRD bare read: the LEAK comparison**, which asks which producer keys the consumer forbids. A
+    // producer that really does emit `toString` against a CLOSED consumer that does not name it is a leak;
+    // `'toString' in cp` answers TRUE from the prototype, so the bare read called it declared and returned
+    // `fits`. Both sides closed, which is the only shape that reaches this clause.
+    for (const k of ['toString', 'zzz']) {
+      const closedP = { type: 'object', required: [], properties: { [k]: { type: 'string' } }, additionalProperties: false } as unknown as JsonSchema;
+      const closedC = { type: 'object', required: [], properties: {}, additionalProperties: false } as unknown as JsonSchema;
+      const r = fits(closedP, closedC);
+      equal([k, r.verdict], [k, 'no'], 'a producer key the closed consumer does not name is a LEAK, whatever the key is called');
+    }
   });
 });

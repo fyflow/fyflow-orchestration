@@ -3262,9 +3262,15 @@ if (stopped.outcome !== 'stopped' || kinds.join() !== 'UndeclaredRoute' || stopp
 - **Keep your gate's memory in the gate.** A decision predicate that remembers in a closure looks like a gate and is
   not one: its memory lives in your process, a resume cannot rebuild it, and a run killed before its first decision
   resumes WRONG in silence ([Q386](doc/open-questions.md)).
-- **`checkWiring` reads a gate as a pass-through.** An arc through a gate is judged as the arc into it, so a worker
-  after `first` that REQUIRES the key reads `no` although `distinct` only routes `first` where the key resolved
-  ([Q391](doc/open-questions.md)). The run is right; the verdict is conservative.
+- **`checkWiring` reads a route's GUARANTEE, where its type declares one.** A gate type may name the routes on
+  which its key path resolved — `distinct` names `first` and `duplicate` — and what leaves the gate on such a
+  route is what arrived with `required` added along the gate's key path, at every step. So a worker after `first`
+  that REQUIRES the key `fits`. *It read `no` there until v0.25, which is [Q391](doc/open-questions.md) and is
+  [ADR 0068](doc/decisions/0068-a-route-guarantees-what-its-type-declares-and-the-library-derives-it-from-the-key-path.md).*
+- **A route that guarantees something else guarantees nothing a check can use.** A type declaring no
+  `keyResolvedRoutes`, a gate naming no `key`, and a route the type does not name each pass the value through
+  exactly as before — and the guarantee is PRESENCE along the path, never the leaf's TYPE, which is the type's own
+  judgement (`distinct` wants a string or a finite number, and no static tool derives that).
 
 **`0.6.0` is BREAKING in four ways, all of them for code that enumerates or matches.** `FlowNode` has a SIXTH kind,
 `GateNode` ([Q381](doc/open-questions.md)), so a `switch` exhaustive over `node.kind` no longer compiles;

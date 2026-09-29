@@ -5338,6 +5338,11 @@ assertThat('cross-row', 'ADR 0048 rule 5 was observed on tasks the scheduler act
   `${reports.reduce((n, r) => n + r.tasksHeld, 0)} tasks held, ${reports.reduce((n, r) => n + r.settlementsSeen, 0)} settlements seen`);
 
 const CROSS_ROW_SUBJECTS = [
+  // **W99**: the arc that was Q391's false `no`, asserted FITTING at the consumer each gate row names, and the
+  // consumer's own requirement beside it. Its sibling `rowsWithNo` was listed here and it was not (its adequacy
+  // reader, F4).
+  'and the arc that WAS that false `no` FITS on every gate row',
+  'and the per-series worker REQUIRES what that route guarantees',
   'the loop above ran at all',
   'ADR 0048 rule 5 was observed on tasks the scheduler actually HELD',
   'RN-R6',
@@ -8691,9 +8696,11 @@ const PER_PLAIN_ROW = 22;
 // control above, which W94's own rule 8 planning showed was missing (`d2`: the file table losing its trailer took `nokey`
 // out of every run with every clause green).
 // **+1 since W94 — W97**: block (2h)'s arrangement, asserted beside the identity it rests on (obligation (f)).
+// **+2 since W98 — W99**: the arc that was Q391's false `no`, asserted fitting on every gate row, and the
+// per-series consumer's own requirement beside it (ADR 0068; its adequacy reader, F4 and F5).
 // **+2 since W97 — W98**: the dispatch-order derivation's own census — `RN-R27`'s three relations counted apart — and
 // its CONTROL on two constructed sequences, which is what the census itself had none of (its adequacy reader, B1).
-const CROSS_ROW = 218;
+const CROSS_ROW = 220;
 const base = (shape: string) => (shape === 'region' ? PER_REGION_ROW : PER_PLAIN_ROW);
 for (const [key, shape, cost, extras] of rowCosts) {
   if (cost !== base(shape) + extras) {
@@ -9356,19 +9363,47 @@ if (rowCosts.length !== EXPECTED.length) {
       // class-form `GpuModel`, so triage's arcs get verdicts here that the document alone cannot give (the L1
       // census reads three unchecked there); and the one `no` the corpus holds is `map-no-array`'s `FD-R2`,
       // predicted before the run that this file then measures as `UnresolvedMapArity`.
-      // **And, since W94, on the three TV rows at the per-series task ALONE — a FALSE `no`, [Q391](../doc/open-questions.md).**
-      // `checkWiring` reads a gate as a PASS-THROUGH (ADR 0066's consequences), so the arc `identify` → `setupSeries` is
-      // judged as if the gate were not there: `series` is not required of what `identify` returns (a trailer has none),
-      // `series` IS required of what the per-series worker receives, and the check reads `no` — while `distinct` routes a
-      // branch `first` only where the key RESOLVED, so the run cannot deliver the value the verdict fears, and every one
-      // of these runs completes. Asserted rather than hidden: weakening the worker's `inputSchema` would have silenced the
-      // one observer of the gap. The day the check learns a route's guarantee, this clause is red and names the rows.
+      // **The three TV rows carried a FALSE `no` at the per-series task from W94 until W99** ([Q391](../doc/open-questions.md)),
+      // because `checkWiring` read a gate as a flat PASS-THROUGH: the arc `identify` → `setupSeries` was judged as if the
+      // gate were not there, `series` is not required of what `identify` returns (a trailer has none) and IS required of
+      // what the per-series worker receives. W94 asserted that `no` rather than hiding it and wrote the condition for its
+      // own inversion here: *the day the check learns a route's guarantee, this clause is red and names the rows.*
+      // **[ADR 0068](../doc/decisions/0068-a-route-guarantees-what-its-type-declares-and-the-library-derives-it-from-the-key-path.md)
+      // is that day** — `distinct` declares `first` and `duplicate` key-resolved, so what leaves the gate on the route the
+      // per-series task sits on carries `series` REQUIRED, and the arc FITS. The clause below is the inversion, and the
+      // one beside it is why the inversion is not a DELETION: a gate row that merely stopped appearing in this list
+      // would read identically with the derivation removed and the worker's `inputSchema` weakened, so the arc is
+      // asserted FITTING at the consumer the row itself names.
       const rowsWithNo = EXPECTED.flatMap((e, i) => reports[i]!.wiring.counts.no > 0
         ? [e.gate ? `${e.key} at ${reports[i]!.wiring.verdicts.filter((v) => v.kind === 'no').map((v) => v.consumer).join(' ')}` : e.key]
         : []).sort();
       check('cross-row', 'the wiring check over the runtime`s registry reads `no` on exactly the FD-R2 row, both ways — the static prediction of the refusal the row then runs — ' +
-        'and on the rows through a gate at the per-series task ALONE, a FALSE `no` (Q391): the check reads a gate as a pass-through, and every one of those runs completes',
-        rowsWithNo, ['map / FD-R2 — over names no array', ...EXPECTED.filter((e) => e.gate).map((e) => `${e.key} at ${e.gate!.opens}`)].sort());
+        'and on NOTHING else: the three rows through a gate read `no` at the per-series task until W99, a FALSE one (Q391), and ADR 0068 is what removed it',
+        rowsWithNo, ['map / FD-R2 — over names no array']);
+      // **The inversion, asserted rather than left as an absence** (W99): on every gate row, the arc the false `no` sat
+      // on FITS, at the consumer that row's own `gate.opens` names — so the claim is about the verdict and not about
+      // a row having dropped out of a list.
+      const gateArcs = EXPECTED.flatMap((e, i) => e.gate === undefined ? [] : reports[i]!.wiring.verdicts
+        .filter((v) => v.consumer === e.gate!.opens).map((v) => `${e.key}: ${v.producer} → ${v.consumer} ${v.kind}`)).sort();
+      // Its subject is in `CROSS_ROW_SUBJECTS` (W99's adequacy reader, F4: it was held by the COUNT alone, so the
+      // whole clause was deletable to green in three integer edits and four count copies, and not one failure
+      // on the way named what had left — v0.14's *a count is not a membership*, in the file whose own header
+      // records that finding at its fifth iteration).
+      check('cross-row', 'and the arc that WAS that false `no` FITS on every gate row — what leaves the gate on a key-resolved route carries the key path required (ADR 0068)',
+        gateArcs, EXPECTED.filter((e) => e.gate).map((e) => `${e.key}: identify → ${e.gate!.opens} fits`).sort());
+      // **And what makes that pair a DISCRIMINATOR rather than a second reading of `rowsWithNo`** (W99's adequacy
+      // reader, F5): the arc FITS is exactly what a WEAKENED consumer gives for free, and it measured the whole
+      // set satisfied with the derivation reverted AND `series`' `required` cut to `["name"]` — 0 at every rung.
+      // So the consumer's own requirement is asserted here, off the registry document the rows run against: the
+      // guarantee is only doing work while the thing it guarantees is the thing the worker demands.
+      const perSeriesWorker = EXPECTED.filter((e) => e.gate).map((e) => {
+        const node = (TV.nodes as { id: string; type?: string }[]).find((n) => n.id === e.gate!.opens);
+        const worker = (REGISTRY_DOCUMENT.nodeTypes ?? {})[node?.type ?? '']?.worker ?? '';
+        const schema = (REGISTRY_DOCUMENT.workers as unknown as Record<string, { inputSchema?: { required?: string[] } }>)[worker]?.inputSchema;
+        return `${e.key}: ${node?.type} requires ${JSON.stringify((schema?.required ?? []).slice().sort())}`;
+      }).sort();
+      check('cross-row', 'and the per-series worker REQUIRES what that route guarantees — the arc above FITS for free if the consumer stops asking (ADR 0068`s cost, and its adequacy reader`s F5)',
+        perSeriesWorker, EXPECTED.filter((e) => e.gate).map((e) => `${e.key}: SeriesSetup requires ["name","series"]`).sort());
       const triageUnchecked = EXPECTED.map((e, i) => [e.key, reports[i]!.wiring.counts.unchecked] as const).filter(([k]) => k.startsWith('triage')).map(([k, n]) => `${k}: ${n}`);
       check('cross-row', 'and on the two triage rows the CLASS type is resolved — no arc is unchecked over the runtime`s registry, where the document alone leaves three', triageUnchecked,
         EXPECTED.filter((e) => e.key.startsWith('triage')).map((e) => `${e.key}: 0`));
@@ -10375,11 +10410,17 @@ check('cross-row', 'every cross-row SUBJECT this file declares was asserted abou
 // overlap that justifies it (+2 — the conformity reader's finding 2: the first cut asserted a fan-out's completion
 // order), and the realm its `identify` ran in (+1 — the adequacy reader's finding 4). No cross-row count moved: block
 // (2h)'s distinct kill points and rebuilt memory, and its re-stated control, widened clauses that were already there.
-// **2173 since W98**: +1 cross-row, the derivation's census. *(2172 while W98's three per-row clauses landed and its
+// **2175 since W99**: +2 cross-row — the arc that was Q391's false `no` asserted FITTING on every gate row,
+// and the per-series consumer's own `required` beside it, which is what makes the pair a discriminator rather than
+// a second reading of `rowsWithNo` (its adequacy reader, F5). No run moved and no row's per-row cost moved.
+// **2174 since W98**: +1 cross-row, the derivation's census. *(This entry read **2173** until W99, which is wrong by
+// one: `git show` at W98's commit gives `DECLARED_TOTAL = 2174`, and `README.md`'s trail says 2174 too. `X10`
+// compares only the CURRENT value, so a stale HISTORY line is invisible to it — W99's adequacy reader, note 1,
+// which also found that W99 had appended nothing to either block.)* *(2172 while W98's three per-row clauses landed and its
 // census was still a `console.log`.)*
 // **2172 since W97**: +1 cross-row, block (2h)'s arrangement, and +2 on P22's row, which compares `recheck` as a set and
 // asserts the overlap beside it (the `unorderedDispatch` pair). No run moved.
-const DECLARED_TOTAL = 2174;
+const DECLARED_TOTAL = 2176;
 // **And the RUN count, declared outright beside it — W96.** It was printed on every gate run and written nowhere, so the
 // copies of it in `README.md` and `examples/README.md` had nothing to be compared against: `check-docs`' `X10` reads
 // BOTH declarations and holds each current copy to them ([Q171](../doc/open-questions.md), named by P20's retro and built

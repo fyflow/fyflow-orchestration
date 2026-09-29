@@ -59,8 +59,8 @@
  * `checkWiring` returns a Promise; no `node:` import, no clock (`RT-R3`, `RT-R4`).
  */
 import { describeFindings, findings, type JsonSchema } from './schema.ts';
-import type { Edge, FanoutNode, FlowDefinition, FlowNode, GateNode, JoinNode, MapNode, Registry } from './types.ts';
-import { effectiveSettings, languagesOf, nodeTypesOf, referenceTarget, workersOf } from './validate.ts';
+import type { Edge, FanoutNode, FlowDefinition, FlowNode, GateNode, GateType, JoinNode, MapNode, Registry } from './types.ts';
+import { effectiveSettings, gateTypesOf, languagesOf, nodeTypesOf, referenceTarget, workersOf } from './validate.ts';
 import { allRegions, branchPathOf, buildGraph, type Graph, type RegionSets } from './regions.ts';
 import { sampleOf, type SampleSource } from './witness.ts';
 
@@ -105,13 +105,26 @@ export interface WiringReport {
    */
   entry: string[];
 }
-/** What the check reads of a registry: the workers' two schemas, the types' workers, the languages' worker halves. */
-export type WiringRegistry = Pick<Registry, 'workers' | 'nodeTypes' | 'languages'>;
+/**
+ * What the check reads of a registry: the workers' two schemas, the types' workers, the languages' worker
+ * halves — and, since v0.25, the GATE types, for the one thing a route can guarantee (ADR 0068).
+ *
+ * **`gateTypes` is the fourth key and it was the missing one.** Before W99 this was a `Pick` of three and
+ * `wiring.ts` contained zero occurrences of `gateTypes`, so the check could not know what routes a gate's
+ * type declares, which is default, or what any of them mean — which is why it read a gate as a
+ * pass-through: with no type in hand there was nothing else to read. Widening it cost **zero** typecheck
+ * errors on all five lanes, because `Registry.gateTypes` is optional (W99's declaration step, P25 fact 5).
+ */
+export type WiringRegistry = Pick<Registry, 'workers' | 'nodeTypes' | 'languages' | 'gateTypes'>;
 
 // ---- the relation ----------------------------------------------------------------------------
 
 const TYPES = ['object', 'array', 'string', 'number', 'integer', 'boolean', 'null'];
 const isPlainObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
+/** An OWN key, never `k in o` — `Object.prototype` answers `toString`, `constructor` and `valueOf` for every
+ * object, and a schema's `properties` is an ordinary object. `schema.ts` has the same one-liner for the same
+ * reason; this is its third and fourth site in this repository (W99's conformity reader, F1). */
+const own = (o: object, k: string): boolean => Object.prototype.hasOwnProperty.call(o, k);
 const jsonType = (v: unknown): string => v === null ? 'null' : Array.isArray(v) ? 'array' : Number.isInteger(v) ? 'integer' : typeof v;
 const typesOf = (s: Record<string, unknown>): string[] => {
   if (s.const !== undefined) return [jsonType(s.const)];
@@ -167,7 +180,16 @@ export function fits(P: JsonSchema, C: JsonSchema, path = '$'): { verdict: 'fits
     // A `JP-R12` record over a map region: its keys are branch paths, each of the branch's shape (the header).
     const record = p.branchKeys === true && isPlainObject(p.additionalProperties) ? (p.additionalProperties as JsonSchema) : undefined;
     for (const k of Object.keys(cp)) {
-      if (!(k in pp)) {
+      // **`own`, never a bare `k in pp`** — the third and fourth occurrence of a class this repository has
+      // now met three times: W65's conformity reader found bare `in` walking `Object.prototype` at three
+      // keyword sites, W74's found it again in `pathsOf`, and **W99's found it HERE**, in `fits` itself and
+      // reachable with no gate at all. A consumer that describes `toString` and does not require it read `no`
+      // with an invented type union (`producer may be object|array|number|integer|boolean|null`), because
+      // `pp['toString']` is `Object.prototype.toString` and the recursion below read that native FUNCTION as
+      // the producer's sub-schema — where the same consumer asking about `zzz` reads `fits` by the leniency
+      // one line down. *Measured on an ordinary edge, so it predates gates and this item found it by looking
+      // at what a route guarantees.*
+      if (!own(pp, k)) {
         if (record !== undefined && BRANCH_KEY.test(k)) {
           const r = fits(record, cp[k]!, `${path}.${k}`);
           if (r.verdict !== 'fits') return { verdict: 'no', why: `${r.why} (a branch path the map's record may mint)` };
@@ -182,7 +204,7 @@ export function fits(P: JsonSchema, C: JsonSchema, path = '$'): { verdict: 'fits
     }
     if (c.additionalProperties === false) {
       if (p.additionalProperties !== false) return { verdict: 'no', why: `${path}: consumer forbids extra keys, producer may emit any` };
-      const leak = Object.keys(pp).filter((k) => !(k in cp));
+      const leak = Object.keys(pp).filter((k) => !own(cp, k));
       if (leak.length) return { verdict: 'no', why: `${path}: producer emits ${leak.join(',')} which consumer forbids` };
     }
   }
@@ -289,29 +311,87 @@ class Wiring {
   private readonly byId: ReadonlyMap<string, FlowNode>;
   private readonly graph: Graph;
   private readonly regions: RegionSets[];
-  private readonly inbound = new Map<string, { from: string; kind: 'edge' | 'branch' | 'item' | 'join' | 'gate' }[]>();
+  private readonly inbound = new Map<string, { from: string; kind: 'edge' | 'branch' | 'item' | 'join' | 'gate'; route?: string }[]>();
   private readonly memo = new Map<string, Arrival[]>();
   private readonly workers: ReturnType<typeof workersOf>;
   private readonly types: ReturnType<typeof nodeTypesOf>;
+  private readonly gateTypes: ReadonlyMap<string, GateType>;
   // Explicit fields, never parameter properties: Node's type stripping refuses those (`RT-R9`, `S4`),
   // which is how P18's own sample failed to load (W67's declaration step).
-  constructor(flow: FlowDefinition, workers: ReturnType<typeof workersOf>, types: ReturnType<typeof nodeTypesOf>) {
+  constructor(
+    flow: FlowDefinition,
+    workers: ReturnType<typeof workersOf>,
+    types: ReturnType<typeof nodeTypesOf>,
+    gateTypes: ReadonlyMap<string, GateType>,
+  ) {
     this.workers = workers;
     this.types = types;
+    this.gateTypes = gateTypes;
     this.byId = new Map(flow.nodes.map((n) => [n.id, n] as const));
     this.graph = buildGraph(flow);
     this.regions = allRegions(this.graph, flow);
-    const add = (to: string, from: string, kind: 'edge' | 'branch' | 'item' | 'join' | 'gate') =>
-      this.inbound.set(to, [...(this.inbound.get(to) ?? []), { from, kind }]);
+    const add = (to: string, from: string, kind: 'edge' | 'branch' | 'item' | 'join' | 'gate', route?: string) =>
+      this.inbound.set(to, [...(this.inbound.get(to) ?? []), { from, kind, route }]);
     for (const n of flow.nodes) {
       if (n.kind === 'task' || n.kind === 'join') for (const e of n.edges ?? []) add(e.to, n.id, n.kind === 'task' ? 'edge' : 'join');
-      // **A gate is a PASS-THROUGH** (v0.23): what leaves it on any route is exactly what reached it. Without
-      // this line a gate's edges added no inbound arc, so every consumer after a gate had NO arrival and its
-      // arcs VANISHED from the report — total-ness broken in silence (W92's declaration-step census).
-      if (n.kind === 'gate') for (const e of n.edges ?? []) add(e.to, n.id, 'gate');
+      // **A gate carries what reached it, REFINED by what its route GUARANTEES** (v0.25,
+      // ADR 0068). It was a flat PASS-THROUGH until W99 — what left it on any route was exactly what
+      // reached it — which made the arc through a gate the arc into it and produced Q391's false `no`.
+      // Without this line at all a gate's edges added no inbound arc, so every consumer after a gate had
+      // NO arrival and its arcs VANISHED from the report (W92's declaration-step census), and that half
+      // is unchanged: the arc exists, and only what it carries has learned anything.
+      //
+      // **The ROUTE is carried here and resolved against the type's `defaultRoute` where the edge
+      // declares none** — not treated as a route named `(default)`. `distinct`'s default IS one of its
+      // key-resolved routes, so a set holding a placeholder would have been right for the only type that
+      // exists and wrong for a type whose default is its unresolved route, in silence (W99's declaration
+      // step, correction 3; `doc/workflow.md` v0.23's selection clause).
+      if (n.kind === 'gate') {
+        const dflt = this.gateTypes.get(n.type)?.defaultRoute;
+        for (const e of n.edges ?? []) add(e.to, n.id, 'gate', e.route ?? dflt);
+      }
       if (n.kind === 'fanout') for (const b of n.branches) add(b, n.id, 'branch');
       if (n.kind === 'map') add(n.branch, n.id, 'item');
     }
+  }
+
+  /**
+   * **A schema with `required` added along a dotted key path, at every step** — the refinement a
+   * key-resolved route licenses. A step the producer's schema does not describe is left alone rather than
+   * invented: `required` on a key no `properties` entry mentions is still a promise the value carries it,
+   * which is what the consumer asked about, and describing its SHAPE is not this function's to guess.
+   */
+  private requireAlong(schema: JsonSchema | undefined, key: string): JsonSchema | undefined {
+    if (schema === undefined || key === '') return schema;
+    const steps = key.split('.');
+    const go = (s: unknown, i: number): unknown => {
+      if (i >= steps.length || typeof s !== 'object' || s === null || Array.isArray(s)) return s;
+      const o = s as Record<string, unknown>;
+      const here = steps[i]!;
+      const req = Array.isArray(o.required) ? (o.required as string[]) : [];
+      const props = (o.properties ?? {}) as Record<string, unknown>;
+      // **An OWN key, never a bare read.** `FD-V16`'s charset admits `toString`, `constructor`, `valueOf` and
+      // `__proto__` as key-path segments, and a gate whose `key` is one of them is a document the validator
+      // accepts with ZERO findings — so `props['toString']` would return `Object.prototype.toString`, a native
+      // FUNCTION, and this walk would write it into the refined schema's `properties` for `fits` to read as a
+      // sub-schema. Measured by W99's conformity reader: it FLIPS a verdict, in the lenient direction, on
+      // nothing but whether the segment is a prototype key. **Third occurrence of this class here** — W65's
+      // conformity reader found bare `in` at three keyword sites and W74's found it again in `pathsOf`; the
+      // guard `readKeyPath` and `schema.ts`' own `own()` both use is this one.
+      const described = own(props, here);
+      return {
+        ...o,
+        required: req.includes(here) ? req : [...req, here],
+        properties: described ? { ...props, [here]: go(props[here], i + 1) } : props,
+      };
+    };
+    return go(schema, 0) as JsonSchema;
+  }
+
+  /** The key path a gate resolves, or `''` where it names none — `settings.key` is the one setting the library reads. */
+  private keyOf(gate: GateNode): string {
+    const k = (gate.settings as Record<string, unknown> | undefined)?.key;
+    return typeof k === 'string' ? k : '';
   }
 
   /** A task's worker entry's schema of one kind, or `undefined` with the reason. */
@@ -341,12 +421,25 @@ class Wiring {
     if (hit) return hit;
     const node = this.byId.get(nodeId);
     const raw: Arrival[] = [];
-    for (const { from, kind } of this.inbound.get(nodeId) ?? []) {
+    for (const { from, kind, route } of this.inbound.get(nodeId) ?? []) {
       if (kind === 'edge') raw.push({ shape: 'edge', producer: from, ...this.produced(from) });
       else if (kind === 'branch') for (const a of this.arrivals(from)) raw.push({ ...a, shape: 'branch', through: from });
       else if (kind === 'item') for (const a of this.arrivals(from)) raw.push(this.item(a, this.byId.get(from) as MapNode));
-      // A gate: every arrival AT the gate arrives, unchanged, after it — same shape, same producer, same sample.
-      else if (kind === 'gate') for (const a of this.arrivals(from)) raw.push({ ...a });
+      // **A gate: every arrival AT the gate arrives after it, REFINED by what this route guarantees.** Same
+      // shape, same producer, same sample — the value is the one that reached the gate — and where the
+      // type declares this route key-resolved the SCHEMA gains `required` along the node's key
+      // path, because the run cannot take that route unless the path was there (ADR 0068).
+      //
+      // Three ways it does not apply, each a silence rather than a guess: a type that declares no
+      // `keyResolvedRoutes` (every type before v0.25), a gate that names no `key`, and a route the type
+      // does not call key-resolved. In all three the arrival passes through exactly as it did before.
+      else if (kind === 'gate') {
+        const gate = this.byId.get(from) as GateNode;
+        const key = this.keyOf(gate);
+        const resolved = key !== '' && route !== undefined
+          && (this.gateTypes.get(gate.type)?.keyResolvedRoutes ?? []).includes(route);
+        for (const a of this.arrivals(from)) raw.push(resolved ? { ...a, schema: this.requireAlong(a.schema, key) } : { ...a });
+      }
       else raw.push(this.record(this.byId.get(from) as JoinNode));
     }
     const needs = (node as { needs?: Readonly<Record<string, unknown>> } | undefined)?.needs;
@@ -516,7 +609,10 @@ export async function checkWiring(registry: WiringRegistry, flow: FlowDefinition
   const workers = workersOf(registry.workers);
   const types = nodeTypesOf(registry.nodeTypes);
   const languages = languagesOf(registry.languages);
-  const w = new Wiring(flow, workers, types);
+  // `gateTypesOf` is the registry's own reading — the built-ins, then the consumer's, and absent is the
+  // built-ins ALONE — so the check resolves a gate's type exactly as `checkRegistry` and the driver do,
+  // and the three cannot disagree about what `distinct` guarantees.
+  const w = new Wiring(flow, workers, types, gateTypesOf(registry.gateTypes));
   const verdicts: WiringVerdict[] = [];
   for (const node of flow.nodes) {
     if (node.kind !== 'task') continue;

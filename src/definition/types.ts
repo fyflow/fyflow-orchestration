@@ -565,6 +565,23 @@ export interface GateType {
   readonly defaultRoute: string;
   /** What a gate's `settings` must satisfy, in the built-in subset (ADR 0053). Absent means UNCHECKED (P18 decision 3). */
   readonly settingsSchema?: JsonSchema;
+  /**
+   * **The routes on which the gate's KEY PATH resolved** — a subset of `routes` (`FD-V39`'s second clause, as every
+   * other malformed member of this interface is), OPTIONAL, and
+   * absent means this type makes no guarantee, which is what every type said before v0.25 and what
+   * `checkWiring` assumed of all of them ([ADR 0068](../../doc/decisions/0068-a-route-guarantees-what-its-type-declares-and-the-library-derives-it-from-the-key-path.md)).
+   *
+   * **It is the one guarantee the LIBRARY can act on**, because a key path is the one thing the driver
+   * resolves on a gate's behalf — it reads `settings.key` over the value that arrived and hands the result
+   * to `fn` as `ctx.key`. So a type naming a route here is saying *when I return this, that path was
+   * there*, and `checkWiring` refines what leaves the gate on such a route with `required` along the
+   * NODE's own key path, at every step.
+   *
+   * **PRESENCE only.** Whether a resolved key is a USABLE key is this type's judgement and differs
+   * between types — `distinct` wants a string or a finite number — so nothing static derives that half,
+   * and a type must not read this member as a promise about the leaf's TYPE.
+   */
+  readonly keyResolvedRoutes?: readonly string[];
   /** The decision: one of `routes`, synchronously. A route not declared STOPS the run by name (P24 decision 8 — `FD-R5`, `UndeclaredRoute`); a throw stops it with the thrown error, as a predicate's does. */
   fn(ctx: GateContext): string;
 }
