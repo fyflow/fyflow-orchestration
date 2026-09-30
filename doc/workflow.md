@@ -2819,12 +2819,12 @@ and there is obvious work to do meanwhile — and **the thing that makes it a de
 habit is that the verdict is reported as though it were about the tree that ships.**)*
 
 **Why two readers rather than one asking both questions**, which is what earlier versions said.
-Measured **sixty-three** times now: W4 1 of 13, W5 3 of ~35, W6 3 of ~25, W9 3 of ~30, W12 3 of 18,
+Measured **sixty-five** times now: W4 1 of 13, W5 3 of ~35, W6 3 of ~25, W9 3 of ~30, W12 3 of 18,
 W13 4 of 24, W14 4 of ~26, W17 3 of ~31, W18 2, W19 4 of 18, W28 4, W29 1, W30 2, W31 0, W32 2,
 W33 2, W34 2, W36 1, W39 4, W41 1 of 116, W42 2 of 61, W43 2 of 39, W45 2, W46 2, W47 2,
 W49 2, W50 2, W51 1, W53 2, W54 4, W55 2, W57 0, W58 1, W59 1, W61 1, W62 1, W63 1,
 W65 2, W66 2, W67 1, *W69 1, W70 0, W71 2*, W72 1, W73 1, W74 1, **W76 2, W77 2, W78 2**,
-**W80 2, W81 3, W82 1, W86 2**, **W88 2, W89 2, W90 1**, **W92 1, W93 1, W94 2**, **W96 1, W97 1, W98 3**, **W99 2**.
+**W80 2, W81 3, W82 1, W86 2**, **W88 2, W89 2, W90 1**, **W92 1, W93 1, W94 2**, **W96 1, W97 1, W98 3**, **W99 2, W100 4, W101 4**.
 
 *(**The last three were appended at P23's retro — and the retro's own prompt named TWO of them**, W89's
 and W90's, because W90's Record said *W89's fifty-fifth is not yet in the list* and did not say that

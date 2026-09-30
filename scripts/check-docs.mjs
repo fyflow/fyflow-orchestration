@@ -365,7 +365,9 @@ if (written.length) {
 // **Raised 30 -> 31 by [W94](../doc/work-items/w94-a-tv-series-ingest-through-a-gate-on-real-workers.md)**, which added section 19's `run` snippet — the TV ingest
 // through a `distinct` gate on a real `createRuntime`, and a consumer's gate type stopping a run with `UndeclaredRoute`.
 // Q102's ratchet, SEEDED in P24's declaration and declared in W94's exceptions table before the snippet was written.
-const RUN_FLOOR = 31;
+// **32 since [W101](../doc/work-items/w101-the-authoring-session-wiring-a-gate-before-it-runs.md)**, whose
+// section 20 is an authoring session for a GATE — raised in the commit that adds the snippet.
+const RUN_FLOOR = 32;
 {
   // **Only when the document parsed.** A count over a reference whose fences are
   // malformed or untagged is true of the parse and says nothing about coverage —
@@ -511,6 +513,7 @@ const README_SNIPPETS = [
   { readme: 'Fanning out per item', agents: '17. Fanning out PER ITEM — a region inside a `map` region' },
   { readme: 'Saving and resuming a run', agents: '18. Saving a run and RESUMING it — append the events, resume from them' },
   { readme: 'Remembering across branches', agents: '19. What a node may REMEMBER across branches — a gate' },
+  { readme: 'Wiring a gate before it runs', agents: '20. What a ROUTE buys an AUTHOR — wiring a gate before it runs' },
 ];
 // **5 since [W86](../doc/work-items/w86-score-each-item-then-fan-out-per-item.md)**, which added
 // section 17's pair — Q102's ratchet, and that item's adequacy reader (finding 16) is what noticed
@@ -518,7 +521,12 @@ const README_SNIPPETS = [
 // **6 since [W90](../doc/work-items/w90-a-run-killed-and-resumed-on-real-workers.md)**, which added section 18's pair —
 // Q102's ratchet, raised in the commit that adds the entry, as a declared exception.
 // **7 since [W94](../doc/work-items/w94-a-tv-series-ingest-through-a-gate-on-real-workers.md)**, which added section 19's pair — the same ratchet, raised in the commit that adds the entry.
-const README_SNIPPET_FLOOR = 7;
+// **8 since [W101](../doc/work-items/w101-the-authoring-session-wiring-a-gate-before-it-runs.md)**, which added
+// section 20's pair — the same ratchet, and the three edits are one diff. **What this floor does NOT have is
+// `RUN_FLOOR`'s self-test probe**: W101's adequacy reader (F12) lowered it to 7 and `check:docs:selftest` was
+// EXIT 0 at 50/50 and 28/28, where lowering `RUN_FLOOR` is CAUGHT by name. A declared CEILING, and
+// [Q102](../doc/open-questions.md)'s shape on one of two floors that carry it.
+const README_SNIPPET_FLOOR = 8;
 /** The README's text above its first `## ` heading, which is a section for X8's purposes. */
 const README_OPENING = '(the opening, above the first ## heading)';
 {

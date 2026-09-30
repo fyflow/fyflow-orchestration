@@ -15,7 +15,9 @@ npm run test:l6:deno    # Deno
 [W69](../doc/work-items/w69-a-getting-started-example-a-consumer-can-copy.md) and
 [W70](../doc/work-items/w70-a-flow-that-decides-and-a-custom-group-on-the-runtime.md) and
 [W71](../doc/work-items/w71-the-reference-stops-teaching-a-fake-scheduler.md). It holds the
-files a consumer writes as code — **nine workers**: `worker.ts` and `tag.ts`, then W71's
+files a consumer writes as code — **fifteen workers and three modules that are not workers**
+(`session-registry.ts` and `session-types.ts`, W74's, and `quota-registry.ts`, W101's, each a DECLARATION
+a snippet and a test both read): `worker.ts` and `tag.ts`, then W71's
 `flaky.ts` (throws, so a task parks for a person), `scorer.ts` (a score after a stated delay, so
 an arrival order can be ARRANGED), `classy.ts` (returns a class instance), `inspect.ts` (reports
 what it RECEIVED) and `uncloneable.ts` (returns a function, which stops a run), and then W74's
@@ -24,9 +26,9 @@ adds two files that are not workers**: `session-registry.ts`, the one declaratio
 workers' schemas that the reference's snippet and `test/definition/assist.test.ts` both read, and
 `session-types.ts`, GENERATED from it by `signatureOf` and compared to the generator's output both
 ways — `npm run typecheck:examples` is what then compiles the two workers against it. What executes
-them is `npm run check:docs`: `AGENTS.md` sections **2, 5, 7, 9, 10, 12, 15, 16, 17 and 18** — the ones whose snippets load a module from THIS directory — carry the
+them is `npm run check:docs`: `AGENTS.md` sections **2, 5, 7, 9, 10, 12, 15, 16, 17, 18 and 20** — the ones whose snippets load a module from THIS directory — carry the
 getting-started, routing, human-in-the-loop, refusal, common-mistake, custom-group,
-authoring-session, result-check, per-item and save-and-resume snippets, the gate extracts and runs each, and `README.md` carries six of them
+authoring-session, result-check, per-item, save-and-resume and gate-wiring snippets, the gate extracts and runs each, and `README.md` carries seven of them
 byte-equal *(this read **2, 5, 7, 9, 10, 12 and 15** and **three** through W82 and W86, which added sections 16 and 17 and two README pairs — corrected by W90, which adds section 18 and the sixth pair)* under `check-docs`'s `X8`, which holds every README fence to an executed one. *(This said **two**
 workers and **three** sections until W71's conformity reader read it: W71 added three of the
 modules and named itself nowhere, in a file it did not own and took no exception for.)* `l6.ts` lists `workers/` on disk and compares that listing to
@@ -262,3 +264,10 @@ npm or JSR exactly as this repository now does
 which supersedes ADR 0013 rules 3 and 5). *(This paragraph read "when 0.3.0 reaches a registry" and
 "rather than from a `file:` link to a sibling checkout" after both had stopped being true — the
 `doc/`-is-checked-by-nothing class, in the front matter of the directory it describes.)*
+
+*(**Three of the numbers above were wrong when [W101](../doc/work-items/w101-the-authoring-session-wiring-a-gate-before-it-runs.md) ran**,
+and its conformity reader is what measured them: *nine workers* for a directory of fifteen, a section list
+missing 20, and *six* README pairs where there are seven. Two of the three were already wrong before this
+item — `orders.ts` and `lines.ts` are W86's and `drift.ts` is W82's — which is why the paragraph above
+carries its own parenthetical about W71 doing the same thing: a count in a file no check reaches, in the page
+about the directory the item is adding to. A declared exception, taken here rather than left.)*

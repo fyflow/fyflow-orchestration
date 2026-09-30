@@ -2611,7 +2611,9 @@ none — and the verdict carries which it ran on and, over a region, the ARITY t
 a transform's result changes type with the arity ([Q263](doc/open-questions.md)). **A witness is not
 a proof**, and the reference says *the sample passed* rather than *fits* for exactly that reason.
 Two more the check knows and a document cannot say: an OPEN producer is read as never emitting a key
-it does not name, which is a stated leniency ([Q305](doc/open-questions.md)); and a join successor's
+it does not name **unless it REQUIRES that key**, which is a stated leniency and its one scope
+([Q305](doc/open-questions.md); the scope is W100's, and `required` is what refutes the leniency's own
+premise); and a join successor's
 record is the check's own knowledge, because the subset cannot spell *any key, each of shape S*
 ([Q306](doc/open-questions.md)).
 
@@ -3278,3 +3280,145 @@ if (stopped.outcome !== 'stopped' || kinds.join() !== 'UndeclaredRoute' || stopp
 new cell, `gated`, so a `RunState` you construct needs it; and a `route` key on the edge of a node that is not a gate
 was refused as `FD-V17` and is refused as `FD-V41` — the same document refused under another rule id, so code
 matching a finding's `rule` moves. A flow with no gate records no `gated` input and has `gated: []`.
+
+## 20. What a ROUTE buys an AUTHOR — wiring a gate before it runs
+
+**Section 15 showed what a schema buys whoever is wiring a flow. A gate adds something a schema alone
+cannot say.** A gate routes by a KEY PATH into the value reaching it — `owner.id`, `series.id` — and two
+things follow that an author has to get right before anything runs:
+
+1. **The path has to be one the producer can actually carry.** Misspell it and the key resolves for no
+   branch, so every branch takes whichever route the gate's TYPE gives an unresolved key: the run
+   completes, having done none of the work the gate guards. Nothing about the document is wrong —
+   `owner.ident` is a perfectly good string — so the grammar accepts it, and step 5 below RUNS that
+   case rather than describing it. *(Which route an unresolved key takes is the type's judgement, not
+   the library's: `FD-V41` requires only that every route a type declares is wired exactly once, and a
+   type need not declare a no-key route at all. `distinct` and the `quota` below both do.)*
+2. **On the routes where the path DID resolve, the value carries more than its producer promised.** A
+   producer may declare `owner` optional; a branch leaving by a key-resolved route has an `owner`, or it
+   would not have left that way. A consumer requiring it is correctly wired, and only the route says so.
+
+**`checkWiring` answers both, and it answers them from the gate TYPE's own declaration**
+([ADR 0068](doc/decisions/0068-a-route-guarantees-what-its-type-declares-and-the-library-derives-it-from-the-key-path.md)):
+a type lists the routes on which its key path resolved — `keyResolvedRoutes` — and the library derives
+the guarantee from the path. `distinct` declares `first` and `duplicate`; the type below declares two of
+its three routes, so the third is the control sitting in the same report.
+
+| the author writes | the check says |
+|---|---|
+| a key path the producer FORBIDS at any step | **`no`** on every arc leaving by a key-resolved route, naming the gate, the key, the STEP it stopped on, the word the schema itself uses, and the route |
+| a key path the producer describes | those arcs carry `required` along the path, so a consumer requiring it **`fits`** |
+| the same arc, with the type declaring no guarantee | **`no`** again — *consumer requires "owner", producer does not guarantee it* |
+| an arc leaving by a route the type does NOT call key-resolved | its own verdict, unchanged — the refusal is the ROUTE's and not the gate's |
+
+**The type never walks the key path.** The library resolves it and hands the value over as `ctx.key`,
+which is why the library can derive what a route guarantees while the type decides what to do with it —
+including deciding that a path which resolved to the empty string is not a key, which is one of the two
+roads to `nokey` the run below takes.
+
+**The registry, the gate type and the flow are
+[`examples/getting-started/quota-registry.ts`](examples/getting-started/quota-registry.ts)**, imported
+rather than written out here, for the reason that file's header gives: the session needs a second
+observer and a snippet cannot be one, so `test/definition/gate-session.test.ts` asserts the same
+verdicts from the same declarations.
+
+```ts run
+import { checkWiring, distinct } from 'fyflow-orchestration';
+import type { GateType } from 'fyflow-orchestration';
+import { createRuntime } from 'fyflow-orchestration/scheduler';
+// Everything the session claims lives in ONE module, so a TEST asserts the same verdicts from the same
+// declarations — `test/definition/gate-session.test.ts`. A snippet cannot be its own second observer.
+import { QUOTA, QUOTA_BASE, QUOTA_FILES, QUOTA_REGISTRY, QUOTA_WIRING, quotaFlow } from '../../examples/getting-started/quota-registry.ts';
+
+// `report` has exactly ONE arc — the one leaving by `within`, the route the quota guards.
+const arc = async (key: string) => {
+  const verdicts = (await checkWiring(QUOTA_WIRING, quotaFlow(key))).verdicts;
+  const mine = verdicts.filter((v) => v.consumer === 'report');
+  if (mine.length !== 1) throw new Error(`one arc into report, not ${mine.length}`);
+  return mine[0]!;
+};
+
+// ---- 1. the author misspells the key. Nothing is wrong with the DOCUMENT. ----
+const typo = await arc('ownr.id');
+console.log(typo.kind, '—', typo.why);
+// no — gate "quota" is keyed on "ownr.id", which the producer's schema FORBIDS at $: the schema forbids
+// every key it does not name (additionalProperties: false) and it names file, owner — so route "within"
+// can never be taken, and a run may route every branch by another route, doing none of the work this gate guards
+if (typo.kind !== 'no') throw new Error(`a forbidden key path is a wiring failure, got ${typo.kind}`);
+const NAMED = ['is keyed on "ownr.id"', 'FORBIDS at $:', 'it names file, owner', 'route "within"'];
+if (NAMED.length !== 4) throw new Error('the reason names FOUR things and each is asserted');
+for (const part of NAMED) {
+  if (part === '' || !typo.why.includes(part)) throw new Error(`the reason names the gate, the key, the step, the schema's own words and the route: ${part}`);
+}
+
+// ---- 2. one step in, the reason moves with it ----
+const deeper = await arc('owner.ident');
+if (!deeper.why.includes('FORBIDS at $.owner:') || !deeper.why.includes('it names id, name')) {
+  throw new Error(`the STEP it stopped on is where to look: ${deeper.why}`);
+}
+
+// ---- 3. the refusal belongs to the ROUTE. `skip` has two arcs and two verdicts at once. ----
+const both = (await checkWiring(QUOTA_WIRING, quotaFlow('ownr.id'))).verdicts.filter((v) => v.consumer === 'skip');
+console.log(both.map((v) => v.kind));                           // [ 'no', 'fits' ]
+// A verdict carries no `route` field (Q410), so the ROUTE is read from the reason the refusal itself
+// gives: the `no` arc names `over`, and swapping which routes are key-resolved is caught here.
+const refused = both.filter((v) => v.kind === 'no');
+if (refused.length !== 1 || !refused[0]!.why.includes('route "over"')) {
+  throw new Error('exactly the over arc is refused and its reason says so: ' + both.map((v) => v.kind + ' ' + v.why).join(' | '));
+}
+if (both.filter((v) => v.kind === 'fits').length !== 1) throw new Error('and the nokey arc, which the type does not call key-resolved, keeps its own verdict');
+
+// ---- 4. spelled right, it fits — and the GUARANTEE is what makes it fit ----
+const right = await arc('owner.id');
+if (right.kind !== 'fits') throw new Error(`the path the producer describes: ${right.why}`);
+const { keyResolvedRoutes: _none, ...noGuarantee } = QUOTA;
+const blind = (await checkWiring({ ...QUOTA_WIRING, gateTypes: { quota: noGuarantee as GateType } }, quotaFlow('owner.id'))).verdicts;
+const unguaranteed = blind.find((v) => v.consumer === 'report')!;
+console.log(unguaranteed.kind, '—', unguaranteed.why);          // no — $: consumer requires "owner", producer does not guarantee it
+if (unguaranteed.kind !== 'no' || !unguaranteed.why.includes('does not guarantee it')) {
+  throw new Error('with no declared guarantee the same arc is `no`, which is what the declaration buys');
+}
+// The built-in type declares its own two, which is where this member came from.
+if ([...(distinct.keyResolvedRoutes ?? [])].join() !== 'first,duplicate') throw new Error('`distinct` declares first and duplicate');
+
+// ---- 5. and it runs. ONE run, so the quota is shared by every branch. ----
+// `base` is the REGISTRY's own url, never the caller's: its worker urls are relative to the module that
+// declares them. Point it at the wrong base and the workers cannot load, which does not fail the run —
+// the tasks stay pending for ever (Q266), so this is a line to get right rather than to debug.
+const runtime = createRuntime(QUOTA_REGISTRY, { gateTypes: { quota: QUOTA } }, { base: QUOTA_BASE });
+const { done } = runtime.start(quotaFlow('owner.id'), { files: QUOTA_FILES });
+const state = await done;
+
+console.log(state.outcome, state.gated.map((d) => `${d.key ?? '-'} ${d.route}`));
+// completed [ 'ada within', 'ada within', 'ada over', 'grace within', ' nokey', '- nokey' ]
+if (state.outcome !== 'completed') throw new Error(`expected completed, got ${state.outcome}`);
+const routes = state.gated.map((d) => d.route).sort();
+if (routes.join() !== 'nokey,nokey,over,within,within,within') throw new Error(`two within the quota per owner, ada's third over, and two roads to nokey: ${routes.join()}`);
+const over = state.gated.filter((d) => d.route === 'over');
+if (over.length !== 1 || over[0]!.key !== 'ada') throw new Error('the owner with three files is the one who goes over');
+// BOTH roads to `nokey`: a path that RESOLVES to the empty string, which the TYPE refuses, and a path
+// that does not resolve at all, which the library never resolved.
+const nokeys = state.gated.filter((d) => d.route === 'nokey').map((d) => (d.key === '' ? 'empty' : d.key === undefined ? 'unresolved' : `?${String(d.key)}`)).sort();
+if (nokeys.join() !== 'empty,unresolved') throw new Error(`the two roads to nokey are both taken: ${nokeys.join()}`);
+// And the work the guarantee licensed actually HAPPENED: the run completing is not evidence on its own.
+const did = Object.values(state.nodes).filter((n) => n.nodeId === 'report').map((n) => (n.result as { owner: string }).owner).sort();
+if (did.join() !== 'ada,ada,grace') throw new Error(`three reports ran, and each read the owner the route guaranteed: ${did.join()}`);
+
+// ---- and the run the MISSPELLED key gives, which is what being wrong costs ----
+const wrong = await (runtime.start(quotaFlow('ownr.id'), { files: QUOTA_FILES })).done;
+await runtime.shutdown();
+console.log(wrong.outcome, wrong.gated.map((d) => d.route));    // completed [ 'nokey', 'nokey', ... ]
+if (wrong.outcome !== 'completed') throw new Error(`the run COMPLETES, which is what makes this worth checking: ${wrong.outcome}`);
+if (wrong.gated.some((d) => d.route !== 'nokey')) throw new Error('every branch takes the unresolved route');
+if (Object.values(wrong.nodes).some((n) => n.nodeId === 'report')) throw new Error('and NONE of the work the gate guards runs');
+```
+
+**What the check does NOT say, each measured rather than assumed.** An **entry gate** takes no verdict at
+all — it has no arc, so a key path misspelled there is caught by nothing this report carries
+([Q416](doc/open-questions.md)). A gate wired into a **join** is neither refined nor refused, because a
+join's record is built from what arrived AT the gate ([Q415](doc/open-questions.md)). A container declared
+by `enum` or `const` rather than by `properties` can forbid a step in silence ([Q417](doc/open-questions.md)).
+A verdict carries **no `route` field** ([Q410](doc/open-questions.md)), so which route an arc left by is
+read from the reason a refusal gives rather than from the report's shape — which is why step 3 asserts
+the reason and not the order. And a type that declares **no** `keyResolvedRoutes` is asked no question
+about its key path at all — which is step 4's control, and the reason the declaration is worth writing.

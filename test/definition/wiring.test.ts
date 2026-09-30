@@ -18,7 +18,8 @@
  */
 import { equal, listDir, ok, readText, ROOT, suite } from '../harness.ts';
 import { checkWiring, describeVerdict, boundaryTargets, fits, VERDICT_KINDS, WIRING_SHAPES, type VerdictKind, type WiringReport, type WiringShape } from '../../src/definition/wiring.ts';
-import { distinct, GATE_TYPE_KEYS, gateTypeProblem, validateDefinition, violatedRules } from '../../src/definition/validate.ts';
+import { distinct, GATE_TYPE_KEYS, gateTypeProblem, readKeyPath, validateDefinition, violatedRules } from '../../src/definition/validate.ts';
+import { findings } from '../../src/definition/schema.ts';
 import { resolveRegistry } from '../../src/definition/registry.ts';
 import type { FlowDefinition, GateContext, GateType, JsonSchema } from '../../src/definition/types.ts';
 import { corpusRegistry, CORPUS_LANGUAGES, type CorpusRegistryDocument } from './corpus-types.ts';
@@ -706,6 +707,290 @@ suite('W99 — what a ROUTE guarantees: the type declares it, the library derive
       const closedC = { type: 'object', required: [], properties: {}, additionalProperties: false } as unknown as JsonSchema;
       const r = fits(closedP, closedC);
       equal([k, r.verdict], [k, 'no'], 'a producer key the closed consumer does not name is a LEAK, whatever the key is called');
+    }
+  });
+});
+
+/**
+ * **W100 — what a KEY PATH must satisfy.** A route can only promise that a path RESOLVED if the path is
+ * one the producer can emit, so `spec/flow-definition.md`'s gate paragraph gains the refusing half of
+ * [ADR 0068](../../doc/decisions/0068-a-route-guarantees-what-its-type-declares-and-the-library-derives-it-from-the-key-path.md):
+ * a key path the arriving schema FORBIDS makes the arc leaving on that route `no`, and what the schema says
+ * NOTHING about is a silence.
+ *
+ * **Every expected value is derived from `readKeyPath`'s own semantics** — the DRIVER's resolution
+ * (`src/definition/validate.ts`, W93), where each segment is an OWN key of a PLAIN object and a missing key,
+ * a `null`, an ARRAY mid-path or a primitive is `undefined` — and the last case here holds the static answer
+ * against that function over hand-written values, so the two roads to *the path cannot resolve* are two
+ * expressions rather than one (obligation (c)`s LIMIT).
+ *
+ * The consumer in most cases accepts EVERY object, so `fits` can only ever say `fits` and a `no` is the key
+ * path's. Rule 8 obligation (a), v0.23: the walk SELECTS a failing STEP, and each well-formed wrong
+ * selection has a fixture where it differs — a walk bounded at one step misses `series.slug`, `name.id` and
+ * `tags.0`; one that knows only the CLOSED shape misses `name.id` and `tags.0`; one that knows only the TYPE
+ * shape misses `sereis.id` and `series.slug`; one that reads the LEAF refuses `tags`, `name` and `series`,
+ * which are correct paths.
+ */
+suite('W100 — what a KEY PATH must satisfy: a path the producer FORBIDS is `no`, and what it says nothing about is a silence', (test) => {
+  const producer = {
+    type: 'object', required: ['name'], additionalProperties: false,
+    properties: {
+      name: { type: 'string' },
+      series: { type: 'object', additionalProperties: false, properties: { id: { type: 'string' } } },
+      tags: { type: 'array', items: { type: 'string' } },
+    },
+    examples: [{ name: 'n' }],
+  } as unknown as JsonSchema;
+  /** The same producer with the root OPEN and `series` gone: the silence`s fixture. */
+  const openProducer = { type: 'object', required: ['name'], properties: { name: { type: 'string' } }, examples: [{ name: 'n' }] } as unknown as JsonSchema;
+  /** A consumer that accepts every object — so the only thing that can make an arc `no` is the key path. */
+  const anything = { type: 'object' } as unknown as JsonSchema;
+  const reg = (out: JsonSchema | undefined, gateTypes?: Record<string, GateType>, consumer: JsonSchema = anything) => ({
+    workers: { p: { url: 'test://p', ...(out === undefined ? {} : { outputSchema: out }) }, c: { url: 'test://c', inputSchema: consumer } },
+    nodeTypes: { P: { worker: 'p' }, C: { worker: 'c' } },
+    ...(gateTypes === undefined ? {} : { gateTypes }),
+  } as unknown as Parameters<typeof checkWiring>[0]);
+  /** One consumer per route, so each arc`s verdict is that route`s. */
+  const flow = (type: string, edges: readonly Record<string, unknown>[], settings?: Record<string, unknown>) => ({
+    flowId: 'keypath', version: 1, entry: 'produce', nodes: [
+      { id: 'produce', kind: 'task', type: 'P', edges: [{ to: 'gate' }] },
+      { id: 'gate', kind: 'gate', type, ...(settings === undefined ? {} : { settings }), edges },
+      { id: 'onA', kind: 'task', type: 'C', edges: [{ to: 'done' }] },
+      { id: 'onB', kind: 'task', type: 'C', edges: [{ to: 'done' }] },
+      { id: 'onC', kind: 'task', type: 'C', edges: [{ to: 'done' }] },
+      { id: 'done', kind: 'end', outcome: 'completed' },
+    ],
+  } as unknown as FlowDefinition);
+  const DISTINCT_EDGES = [{ to: 'onA' }, { route: 'duplicate', to: 'onB' }, { route: 'nokey', to: 'onC' }];
+  /** The default edge`s verdict and its reason, which is the route `distinct` calls key-resolved. */
+  const onA = async (r: Parameters<typeof checkWiring>[0], key?: string, edges = DISTINCT_EDGES, type = `distinct`) => {
+    const f = flow(type, edges, key === undefined ? undefined : { key });
+    const v = (await checkWiring(r, f)).verdicts.find((x) => x.consumer === 'onA');
+    return { kind: v?.kind ?? 'none', why: v?.why ?? '' };
+  };
+
+  /**
+   * The table, derived from `readKeyPath`: the CONTAINER at each step must be able to be a plain object and
+   * must be able to hold the step. `at` is the container the walk stopped on.
+   */
+  const TABLE: readonly { key: string; kind: string; at?: string; says?: string; why: string }[] = [
+    { key: 'series.id', kind: 'fits', why: 'the producer describes every step, so the route`s guarantee applies' },
+    { key: 'sereis.id', kind: 'no', at: '$', says: 'additionalProperties: false', why: 'a transposition: the root is CLOSED and does not name it' },
+    { key: 'series.slug', kind: 'no', at: '$.series', says: 'additionalProperties: false', why: 'the SECOND step is the closed one — a walk bounded at one step passes this' },
+    { key: 'name.id', kind: 'no', at: '$.name', says: 'calls it string', why: 'a key path reads an own key of a plain object and the producer calls this one a string' },
+    { key: 'tags.0', kind: 'no', at: '$.tags', says: 'calls it array', why: '`readKeyPath` reads no index: an ARRAY mid-path is undefined' },
+    { key: 'tags', kind: 'fits', why: 'the LEAF`s type is never read — an array is a fine place for a path to END, and `nokey` at run time' },
+    { key: 'name', kind: 'fits', why: 'the leaf is a string, which is what `distinct` wants and is still not this check`s question' },
+    { key: 'series', kind: 'fits', why: 'the leaf is an object, which `distinct` routes to `nokey` — the type`s judgement, not the library`s' },
+    // **Q411's FIFTH site, GUARDED rather than recorded** (W99 raised that row; its first four sites were closed
+    // and nothing stopped a fifth). `FD-V16`'s charset admits `toString`, and this producer's root is CLOSED, so
+    // the closed arm must fire: under a bare `here in props` it does NOT, because `Object.prototype` answers
+    // `toString` for every object, and the path would read as DESCRIBED and the arc as `fits`. Measured: the
+    // author pass's probe `a8` SURVIVED until these two rows existed, because every other row's producer is open
+    // at the step that matters and a prototype name answers the same either way.
+    { key: 'toString', kind: 'no', at: '$', says: 'additionalProperties: false', why: 'a PROTOTYPE name at a closed root: own keys only, or `Object.prototype` answers for the schema' },
+    { key: 'series.toString', kind: 'no', at: '$.series', says: 'additionalProperties: false', why: 'and one step in, where the container is the closed sub-schema' },
+    // **A THREE-segment path, and `at` is the whole PREFIX rather than the last segment** — the adequacy
+    // reader's F4. Every other key here and every key in the corpus is at most two segments, where the two
+    // expressions AGREE: at one step in, `steps.slice(0, 1).join('.')` and `steps[0]` are the same string. So
+    // `at` was a selection bound at the position where its most plausible wrong value coincides with the right
+    // one (v0.23), and the mutant reported `FORBIDS at $.id` — a path the schema does not contain, sending an
+    // author to look in the wrong place. `readKeyPath` and `requireAlong` both walk arbitrary depth, so three
+    // segments is an ordinary shape and not a constructed one.
+    { key: 'series.id.x', kind: 'no', at: '$.series.id', says: 'calls it string', why: 'the THIRD step: `at` is the whole prefix, which only a path this deep can tell from the last segment' },
+  ];
+
+  test('each way the arriving schema FORBIDS a step, and each way it does not — the reason names the gate, the key, the STEP and the ROUTE', async () => {
+    for (const row of TABLE) {
+      const got = await onA(reg(producer), row.key);
+      equal([row.key, got.kind], [row.key, row.kind], `${row.key}: ${row.why} — got ${got.kind}: ${got.why}`);
+      if (row.kind !== 'no') continue;
+      ok(got.why.includes(`gate "gate" is keyed on "${row.key}"`), `the reason names the gate and the key: ${got.why}`);
+      ok(got.why.includes(`FORBIDS at ${row.at}:`), `and the STEP it stopped on, ${row.at}: ${got.why}`);
+      ok(got.why.includes(row.says!), `and the word the schema itself uses (${row.says}): ${got.why}`);
+      // **And where the schema's word is *forbids every key it does not name*, the PROPERTIES it does name** —
+      // the adequacy reader's F11: `named.join(', ')` truncated to `named[0]` cost ZERO, because `says` reads the
+      // literal `additionalProperties: false` and never what follows it.
+      if (row.says === 'additionalProperties: false') {
+        const container = row.at === '$' ? 'name, series, tags' : 'id';
+        ok(got.why.includes(`it names ${container}`), `and every property that container DOES name (${container}): ${got.why}`);
+      }
+      ok(got.why.includes(`route "first" can never be taken`), `and the ROUTE, which is what is unreachable: ${got.why}`);
+    }
+  });
+
+  test('the static refusal agrees with `readKeyPath`, the DRIVER`s own resolution — over values the schema admits', () => {
+    // **The second expression over one fact** (obligation (c)`s LIMIT): the check above says a path cannot
+    // resolve; this says what the driver does with a value the producer really may emit. The values are
+    // hand-written from the schema above, and each is asserted to be one the producer's schema ACCEPTS —
+    // otherwise the resolution would be a fact about a value no run can produce.
+    const values: readonly Record<string, unknown>[] = [
+      { name: 'n' },
+      { name: 'n', series: { id: 's' } },
+      { name: 'n', series: {}, tags: ['a'] },
+    ];
+    for (const v of values) equal(findings(producer, v).length, 0, `the producer schema admits ${JSON.stringify(v)}`);
+    // **A COUNT beside the list** — the author pass's `d3`: `values` was a bound with nothing on it, so cutting it
+    // to one left the agreement below asserted over a third of the values and every clause green.
+    equal(values.length, 3, 'three values, each admitted by the schema — a list cut down is caught here and not by the loop');
+    const forbidden = TABLE.filter((r) => r.kind === 'no').map((r) => r.key);
+    equal(forbidden, ['sereis.id', 'series.slug', 'name.id', 'tags.0', 'toString', 'series.toString', 'series.id.x'],
+      'the seven the check refuses — two are Q411`s fifth site (a prototype name at a closed container) and one is three segments deep');
+    // **And the ALLOWED rows are a membership too** — the adequacy reader's F5. `forbidden` bound only the `no`
+    // half, so the four `fits` rows were held by nothing: deleting `tags` alone cost ZERO, and deleting all four
+    // cost ZERO. They are not decoration — `tags` is the ONLY observer of ADR 0068 rule 3 (*the LEAF's type is
+    // never read*), measured by the reader as a surgical leaf-read caught by that row and by nothing else, so a
+    // set that can lose the row can lose the rule with it.
+    equal(TABLE.filter((r) => r.kind === 'fits').map((r) => r.key), ['series.id', 'tags', 'name', 'series'],
+      'the four the check allows: a described path, and three LEAVES of the three kinds whose type this check must not judge');
+    for (const key of forbidden) {
+      for (const v of values) {
+        equal([key, JSON.stringify(v), readKeyPath(v, key)], [key, JSON.stringify(v), undefined],
+          'a path the check FORBIDS resolves to undefined on every value the producer admits — which is the route the run does not take');
+      }
+    }
+    // And the other direction, so this is not satisfied by `readKeyPath` returning `undefined` for everything:
+    // each path the check does NOT refuse resolves on some value the schema admits.
+    equal(readKeyPath(values[1]!, 'series.id'), 's', 'series.id resolves');
+    equal(readKeyPath(values[2]!, 'tags'), values[2]!.tags, 'tags resolves to the array — a leaf the check does not judge');
+    equal(readKeyPath(values[0]!, 'name'), 'n', 'name resolves');
+  });
+
+  test('the FOUR silences: an OPEN producer, a producer with no schema, a type declaring no guarantee, and a gate with no key', async () => {
+    // (1) **an OPEN producer that says nothing at a step forbids nothing** — P25 stop-and-ask (b)`s
+    //     *rather than a false alarm*, and it is `fits`'s own leniency one question over. Measured at this
+    //     item`s declaration step: replacing the arc`s verdict with `unchecked` here would DELETE a sound
+    //     answer, because the arc`s own reasons (`producer is open there`, a requirement at another path)
+    //     are about the SHAPE and not about the key.
+    equal((await onA(reg(openProducer), 'absent.thing')).kind, 'fits', 'an OPEN producer silent at a step is not refused');
+    equal((await onA(reg(openProducer), 'name.id')).kind, 'no', 'and the TYPE shape still refuses on an open producer — openness is about a MISSING key, not about a string');
+    // (2) a producer declaring no schema: the arc is `unchecked` and there is nothing to read a path over.
+    const none = await onA(reg(undefined), 'sereis.id');
+    equal(none.kind, 'unchecked', 'no outputSchema, no key-path question');
+    ok(none.why.includes('declares no outputSchema'), `and the reason is the missing schema, not the key: ${none.why}`);
+    // (3) **the design`s stated LIMIT**: a type declaring no `keyResolvedRoutes` gets no key-path verdict,
+    //     because the check can name a route unreachable only where the TYPE says what the route means
+    //     (ADR 0068 rule 1, in the refusing direction). A consumer`s own type keyed on a path nothing can
+    //     carry is caught by nothing, and this asserts that it is a choice rather than an oversight.
+    const blind: GateType = { routes: distinct.routes, defaultRoute: distinct.defaultRoute, settingsSchema: distinct.settingsSchema, fn: distinct.fn };
+    equal((await onA(reg(producer, { blind }), 'sereis.id', DISTINCT_EDGES, 'blind')).kind, 'fits',
+      'a type that declares no guarantee is asked no question about the key path — the limit, and it is the CONTROL for the case above: the same producer, the same key, the same flow');
+    // (4) a gate naming no key: there is no path to forbid.
+    const keyless: GateType = { routes: ['a', 'b'], defaultRoute: 'a', keyResolvedRoutes: ['a'], fn: () => 'a' };
+    equal((await onA(reg(producer, { keyless }), undefined, [{ to: 'onA' }, { route: 'b', to: 'onB' }], 'keyless')).kind, 'fits',
+      'a gate with no key is one of ADR 0068`s three silences here too');
+  });
+
+  test('only a KEY-RESOLVED route`s arc is refused — the route the run actually takes keeps its own verdict', async () => {
+    // **The anti-false-alarm claim, and it is [Q391](../../doc/open-questions.md)`s class.** A key path that
+    // resolves nowhere makes `distinct` route every branch `nokey`, so THAT arc is the one that carries a
+    // value — and a refusal there would be a `no` on the only road the run takes.
+    const r = await checkWiring(reg(producer), flow('distinct', DISTINCT_EDGES, { key: 'sereis.id' }));
+    equal(['onA', 'onB', 'onC'].map((c) => `${c}:${r.verdicts.find((v) => v.consumer === c)?.kind}`),
+      ['onA:no', 'onB:no', 'onC:fits'],
+      'first and duplicate are key-resolved and unreachable; nokey is neither, and it FITS');
+    // **EACH refused arc's reason names ITS OWN route** — the adequacy reader's F3, and it is v0.23's selection
+    // clause exactly. `distinct` calls BOTH `first` and `duplicate` key-resolved, and every reason assertion in
+    // this file was on `onA`, the DEFAULT route: hard-coding the reason's route to the literal `"first"` cost
+    // ZERO, and `onB` — which this case already had in hand — then named the wrong route while its `kind` was
+    // still `no`. The well-formed wrong selection (the default) coincides with the right answer at every fixture
+    // that reads a reason, so the pair is asserted here as an equality over the two.
+    const routeIn = (c: string): string => (r.verdicts.find((v) => v.consumer === c)!.why.match(/route "([^"]+)" can never be taken/) ?? [])[1] ?? 'none';
+    equal([routeIn('onA'), routeIn('onB')], ['first', 'duplicate'],
+      'the default route`s arc names `first` and the OTHER key-resolved route`s names `duplicate` — one reason, two routes');
+    // **The `nokey` control, rebuilt** — the adequacy reader's F7 measured the old one (`!c.why.includes('keyed
+    // on')`) as a FOURTH CLAIM: `refused !== null` implies `kind === 'no'`, so no tree makes it fire while its
+    // claim passes, and under the author's own probe `a7` both went red together. v0.22's test is *name the tree
+    // on which the control fails and its claim passes*. This one has one: the CORRECT key, where every arc is
+    // `fits` — so *`onC` is `fits`* is not evidence by itself, and what carries the claim is the ASYMMETRY on one
+    // run, asserted above, plus the reason `onC` does get.
+    const c = r.verdicts.find((v) => v.consumer === 'onC')!;
+    equal(c.why, 'fits', 'the nokey arc`s reason is the ordinary one, with no key path in it at all');
+    const right = await checkWiring(reg(producer), flow('distinct', DISTINCT_EDGES, { key: 'series.id' }));
+    equal(['onA', 'onB', 'onC'].map((x) => right.verdicts.find((v) => v.consumer === x)!.kind), ['fits', 'fits', 'fits'],
+      'the CONTROL: the same flow keyed on a path the producer describes refuses nothing, so the asymmetry above is the key path`s and not the routes`');
+  });
+
+  test('a refusal is about the ROUTE, so it survives every shape the consumer past the gate can declare', async () => {
+    // **BOTH readers found this, from opposite ends** — the conformity reader's F2 (the spec states the verdict
+    // unconditionally and the code did not) and the adequacy reader's F6 (Output (1) is false in two of the arc
+    // shapes it ranges over). Measured on documents `validateDefinition` accepts, one consumer key at a time:
+    // plain was `no`; a declared `transform` and `needs: {"v": "."}` were **`unchecked`** carrying the reason;
+    // and a fourth configuration neither reader reached — `needs` naming ANOTHER NODE — read **`fits`**, with
+    // the reason gone altogether. `unchecked` is documented as *a side declares no schema* and is the verdict
+    // authors are taught to skip, so a transformed consumer past a misspelled gate key read as green.
+    //
+    // The fix is an ORDER rather than a case: `keyPathRefusal` says *no value this producer admits can carry this
+    // path*, so the route is never traversed — and a transform runs on a value that only exists if it is, while
+    // `needs` composes one for the same reason. So the refusal outranks both roads in the verdict loop and
+    // `composed()` carries it instead of downgrading it. This is obligation (a)'s shapes clause: the rule ranges
+    // over the arc shapes and the set had instantiated `edge` alone.
+    const shapes: readonly [string, Record<string, unknown>][] = [
+      ['plain', {}],
+      ['a declared transform', { transform: { lang: 'jsonata', expr: '$' } }],
+      ['needs naming the edge', { needs: { v: '.' } }],
+      ['needs naming another node', { needs: { v: 'produce' } }],
+    ];
+    equal(shapes.length, 4, 'four shapes a consumer can declare — a list cut down is caught here and not by the loop');
+    const r = reg(producer, undefined, anything);
+    (r as { languages?: unknown }).languages = { jsonata };
+    for (const [label, extra] of shapes) {
+      const f = flow('distinct', DISTINCT_EDGES, { key: 'sereis.id' }) as unknown as { nodes: Record<string, unknown>[] };
+      const onANode = f.nodes.find((n) => n.id === 'onA')!;
+      Object.assign(onANode, extra);
+      const v = (await checkWiring(r, f as unknown as FlowDefinition)).verdicts.find((x) => x.consumer === 'onA')!;
+      equal([label, v.kind], [label, 'no'], `${label}: the refusal belongs to the ROUTE, so no consumer shape can hide it — got ${v.kind}: ${v.why}`);
+      ok(v.why.includes('is keyed on "sereis.id"'), `${label}: and it is the key-path reason rather than a fit or a sample: ${v.why}`);
+    }
+  });
+
+  test('`fits`s leniency does not read a key the producer REQUIRES as never emitted — the pair, and a VALUE that proves it', () => {
+    // **W99`s `requireAlong` is the first thing here that manufactures a required-and-undescribed key from an
+    // ordinary flow**, and the leniency`s own argument — *an author who leaves an output schema open means
+    // "there are keys I do not describe"* — is refuted by a schema that REQUIRES the key. The pair differs in
+    // the producer`s `required` ALONE, and the difference is asserted rather than described.
+    const describes = { type: 'object', properties: { series: { type: 'object', required: ['id'] } } } as unknown as JsonSchema;
+    const requiring = { type: 'object', required: ['name', 'series'], properties: { name: { type: 'string' } } } as unknown as JsonSchema;
+    const silent = { type: 'object', required: ['name'], properties: { name: { type: 'string' } } } as unknown as JsonSchema;
+    equal(fits(silent, describes).verdict, 'fits', 'the LENIENCY, unchanged: an open producer that does not name the key is read as never emitting it');
+    const r = fits(requiring, describes);
+    equal(r.verdict, 'no', 'and it does NOT apply where the producer REQUIRES the key — `required` says the key IS emitted');
+    ok(r.why.includes('requires it and describes nothing'), `the reason says which of the two it is: ${r.why}`);
+    // **The soundness half, from a VALUE rather than from the relation`s own opinion**: this is a value the
+    // producer`s schema ACCEPTS and the consumer`s REFUSES, so the `fits` this guard removes was one the run
+    // can falsify — the unsafe kind.
+    const value = { name: 'n', series: 42 };
+    equal(findings(requiring, value).length, 0, 'the producer`s schema accepts it');
+    ok(findings(describes, value).length > 0, 'and the consumer`s refuses it — which is what a `fits` there would have claimed away');
+    // The guard is about the PRODUCER`s `required`, so a consumer that requires the key is unmoved.
+    const wants = { type: 'object', required: ['series'], properties: { series: { type: 'object', required: ['id'] } } } as unknown as JsonSchema;
+    for (const p of [silent, requiring]) equal(fits(p, wants).verdict, 'no', 'a consumer REQUIRING a key an open producer does not describe is `no` either way');
+  });
+
+  test('the corpus: the three wrong keys of P25 fact 7 are each NAMED, where none of them was before', async () => {
+    // **The item`s headline, over the REAL registry and the REAL flow.** Before W100 the three read: two `no`
+    // carrying [Q391](../../doc/open-questions.md)`s own string (`consumer requires "series", producer does not
+    // guarantee it`) and one — `series.slug`, the worst, because `identify``s `series` is CLOSED — reading
+    // **`fits`**. The correct key is the control and W73`s census holds it at 73 fits / 1 `no`.
+    const registry = { workers: l6Registry.workers, nodeTypes: l6Registry.nodeTypes, languages: { jsonata } } as unknown as Parameters<typeof checkWiring>[0];
+    const base = JSON.parse(await readText(`${ROOT}examples/flows/tv-ingest.flow.json`)) as FlowDefinition;
+    const keyed = (key: string): FlowDefinition => {
+      const f = JSON.parse(JSON.stringify(base)) as FlowDefinition;
+      (f.nodes.find((n) => n.kind === 'gate') as unknown as { settings: Record<string, unknown> }).settings = { key };
+      return f;
+    };
+    const arc = async (key: string) => (await checkWiring(registry, keyed(key))).verdicts.find((v) => v.consumer === 'setupSeries')!;
+    const right = await arc('series.id');
+    equal(right.kind, 'fits', 'the shipped key: the arc through the gate FITS, which is W99`s and the control for the three below');
+    // **A COUNT beside the list** — the author pass's `d5`: the three keys were a bound with nothing on them, so
+    // dropping one left the corpus half asserted over two and every clause green. Each is one of P25 fact 7's.
+    const WRONG = [['sereis.id', '$'], ['series.slug', '$.series'], ['name.id', '$.name']] as const;
+    equal(WRONG.length, 3, 'three wrong keys, which is what P25 fact 7 measured and what this re-takes');
+    for (const [key, at] of WRONG) {
+      const v = await arc(key);
+      equal([key, v.kind], [key, 'no'], `${key} is named`);
+      ok(v.why.includes(`gate "dedupe" is keyed on "${key}"`) && v.why.includes(`FORBIDS at ${at}:`), `${key}: ${v.why}`);
+      ok(!v.why.includes(`consumer requires`), `and it no longer reads as Q391 did: ${v.why}`);
     }
   });
 });

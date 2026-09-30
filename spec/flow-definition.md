@@ -1,6 +1,6 @@
 # spec/flow-definition — the flow definition format
 
-**Status:** v0.25 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.26 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2** acted on the first spec-conformity pass
 (ADR 0004, and `region(F)` made computable). **v0.3** acted on the second, which found that `FD-V19`
 had reintroduced the v0.1 defect class under a new id — a refusal rule rejecting the valid corpus.
@@ -319,6 +319,20 @@ corpus is a flow plus a JSON registry document, and a gate type is CODE.* The gu
 ROUTE an arc carries is the edge's or the type's `defaultRoute`, resolved through the type rather than
 treated as a route of its own — because a type's default may be one it does NOT call key-resolved,
 which `distinct`'s coincidence of the two hides.
+**v0.26 says what a KEY PATH must SATISFY** ([W100](../doc/work-items/w100-what-a-key-path-must-satisfy.md), the
+refusing half of the same ADR): a key path the arriving schema FORBIDS makes the arc leaving the gate on a
+key-resolved route **`no`**, because a route can only promise that a path resolved if the path is one the
+producer can emit. Two shapes forbid a step and both come from `readKeyPath`, the DRIVER's own resolution — a
+step whose declared types cannot be a plain object, and a step a CLOSED object does not name — while an OPEN
+producer that says nothing there forbids nothing. **Two further silences, each measured and each in the safe
+direction** (v0.26, W100, its two readers independently): an ENTRY gate has no arc, so it takes no verdict of
+any kind and a key path misspelled there is caught by nothing this check reports; and a container declared by
+`enum` or `const` rather than by `properties` can forbid a step without the walk reading it, because the type
+test reads those two keywords and the key test reads `properties` alone. **What it costs to be wrong is MEASURED rather than argued**:
+on real workers a misspelled key routes EVERY branch to the unresolved route, dispatches NO per-series task
+at all, and the run reports **`completed`** (P25 prediction 4). The same item SCOPES the wiring
+check's one stated leniency, which W99's refinement is the first thing here that could defeat. **No rule id is
+added and the count stays 37** — this refuses no document and stops no run; it is a verdict an author reads.
 
 **Binds:** [ADR 0002](../doc/decisions/0002-a-flow-definition-is-data-and-a-predicate-is-registered-by-name.md)
 (the graph is data; a predicate is a name; an unknown name fails at instantiation) and
@@ -1396,7 +1410,7 @@ built-in `distinct` included — is a value of ONE public interface, `GateType` 
 | `routes` | every route the type may return — a non-empty list of distinct names, each in `FD-V16`'s charset. Every one must be wired by exactly one edge (`FD-V41`) |
 | `defaultRoute` | one of `routes` — what an edge with no `route` carries. **Not necessarily the first** |
 | `settingsSchema` | optional — what a gate's `settings` must satisfy, in the built-in subset; absent means UNCHECKED (P18 decision 3). `FD-V40` applies it |
-| `keyResolvedRoutes` | optional, **v0.25** — the routes on which the gate's KEY PATH resolved, a subset of `routes` without repeats, refused by **`FD-V39`'s second clause** like every other malformed member of this interface (one predicate, `gateTypeProblem`, reported at the gate that names the type). **The one guarantee a route can make that the library can act on**, because `settings.key` is the one thing the driver resolves on a gate's behalf: a type naming a route here says *when I return this, that path was there*, and the wiring check refines what leaves the gate on it (below). Absent means the type makes NO guarantee, which is what every type said before v0.25. **PRESENCE only** — whether a resolved key is a USABLE key is the type's judgement (`distinct` wants a string or a finite number) and nothing static derives it. `distinct` declares `['first', 'duplicate']`, read off its own `fn`, whose first statement sends every other case to `nokey` |
+| `keyResolvedRoutes` | optional, **v0.25** — the routes on which the gate's KEY PATH resolved, a subset of `routes` without repeats, refused by **`FD-V39`'s second clause** like every other malformed member of this interface (one predicate, `gateTypeProblem`, reported at the gate that names the type). **The one guarantee a route can make that the library can act on**, because `settings.key` is the one thing the driver resolves on a gate's behalf: a type naming a route here says *when I return this, that path was there*, and the wiring check refines what leaves the gate on it (below). Absent means the type makes NO guarantee, which is what every type said before v0.25. **PRESENCE only** — whether a resolved key is a USABLE key is the type's judgement (`distinct` wants a string or a finite number) and nothing static derives it. `distinct` declares `['first', 'duplicate']`, read off its own `fn`, whose first statement sends every other case to `nokey`. **Since v0.26 it is read in the refusing direction too**: where the arriving schema FORBIDS the key path, the route it names can never be taken and the arc leaving on it is `no` |
 | `fn(ctx)` | the decision, synchronous: handed `{ key, input, settings, memory }` — `settings.key` resolved over the value that reached the gate, that value, the gate's settings, and the gate's memory — and returning one of `routes`. **Called by the driver where a branch enters the gate, since v0.24** — and once more at `start()` for an ENTRY gate, against a throwaway memory, for `FD-R4` alone, so a type is the pure function of its context Q9 asks every decision to be |
 
 **A type is CODE, not a document entry** — `fn` is a function, which a JSON registry cannot carry, so a
@@ -1502,8 +1516,8 @@ of an arc is what `FD-C1`, `JP-R11` and `JP-R12` say the consumer receives, as a
 
 | verdict | means |
 |---|---|
-| `fits` | every value the producer's schema admits, the consumer's `inputSchema` accepts — P19 fact 3's relation over the twelve constraining keywords (`examples` is read by nothing, ADR 0056 rule 1), promoted from the declaration's harness verbatim, with its ONE stated leniency: a key the consumer describes and does not require, which an open producer does not name, is read as never emitted — because an author who leaves an output schema open means *there are keys I do not describe*, not *the keys you describe may hold anything* |
-| `no` | it does not, and no transform is declared; the reason names the path and the keyword, in the words the twelve controls print (`$.confidence: consumer bounds maximum 1, producer declares no maximum`) |
+| `fits` | every value the producer's schema admits, the consumer's `inputSchema` accepts — P19 fact 3's relation over the twelve constraining keywords (`examples` is read by nothing, ADR 0056 rule 1), promoted from the declaration's harness verbatim, with its ONE stated leniency: a key the consumer describes and does not require, which an open producer does not name, is read as never emitted, because an author who leaves an output schema open means *there are keys I do not describe*, not *the keys you describe may hold anything*. **And its ONE scope, v0.26** ([W100](../doc/work-items/w100-what-a-key-path-must-satisfy.md)): a key the PRODUCER REQUIRES is not read as never emitted, because `required` says that key IS emitted and the leniency's own premise is refuted by the same schema. It is read where the producer is OPEN at that key: a producer that is CLOSED still reads `fits`, because a closed schema requiring a key it does not describe admits no value at all, so no run can falsify that `fits` — the CLOSED shape is `keyPathRefusal`'s question, not this guard's (W100's conformity reader, F5; the row said *its ONE scope* TWICE until W101's found it, one of the two sentences having been added by the fix for that very finding). *Measured before the scope*: a producer requiring `series` and describing nothing read **`fits`** against a consumer describing `series` as an object, for the value `{ name: "n", series: 42 }` that the producer's schema ACCEPTS and the consumer's REFUSES — a `fits` the run can falsify. A required-and-undescribed key is a shape v0.25's refinement is the first thing here that manufactures from an ordinary flow, which is why the scope arrived with it |
+| `no` | it does not, and no transform is declared; **or the arc leaves a GATE by a key-resolved route whose key path the producer FORBIDS, which is `no` whatever the consumer declares** — a refusal is about whether the route is ever taken, so it outranks the transform and `needs` roads rather than being a fit judgement they replace (v0.26, W100: both its readers measured the same arc as `unchecked` under a declared `transform` and, on one road, as `fits`). The reason names the path and the keyword, in the words the twelve controls print (`$.confidence: consumer bounds maximum 1, producer declares no maximum`) |
 | `transform-passes` | the consumer declares a `transform`; it is run by the language's WORKER half (imported by its URL, never an engine) on a SAMPLE of the producer side — the first declared `examples` entry, else the generator's witness (`src/definition/witness.ts`, P19 fact 5) — and every result satisfies the consumer's `inputSchema`. **The verdict names the sample's SOURCE and, where the producer is a region or a map, its ARITY** ([Q301](../doc/open-questions.md), [Q263](../doc/open-questions.md)): a transform's result changes type with the arity, and a witness is not a proof — a sample that passes is *the sample passed*, never *fits* (P19 prediction 2) |
 | `transform-fails` | the transform threw on that sample, or its result fails the consumer's `inputSchema` — the message or the finding in the reason |
 | `unchecked` | a side declares no schema (P18 decision 3, *absent means UNCHECKED*), a type, worker or language the registry lacks, or a transform with no sample to run on — named, never a throw, because a report is what an author reads |
@@ -1522,6 +1536,24 @@ the value is the one that reached the gate — a gate has no worker, so it is ne
 nothing — and where the gate's type declares this route **key-resolved**, the SCHEMA gains `required` along
 the gate's own key path, at every step, because the run cannot take that route unless the path was there.
 A gate routing into a join carries its branch's key into the record as the node before it would.
+
+**And a KEY PATH the arriving schema FORBIDS makes that arc `no`** (v0.26,
+[W100](../doc/work-items/w100-what-a-key-path-must-satisfy.md)): the question is per STEP and about the
+CONTAINER, because that is what `readKeyPath` is — each segment an OWN key of a PLAIN object, and a missing
+key, a `null`, an ARRAY mid-path or a primitive `undefined`. So a step whose declared types cannot include
+`object` is refused (`name.id` where the producer calls `name` a string, or `tags.0`, since no index is read),
+and so is a step a CLOSED object does not name (`sereis.id` at `$`, or `series.slug` where `series` is closed
+over `id` and `title`) — while a step an OPEN object does not name forbids NOTHING, which is the same leniency
+the `fits` row states. **The LEAF's type is never read**: `readKeyPath` returns whatever the path ends on, and
+*which leaf values count as a key* is the type's judgement ([ADR 0068](../doc/decisions/0068-a-route-guarantees-what-its-type-declares-and-the-library-derives-it-from-the-key-path.md)
+rule 3), so a path ending on an array is fine here and `nokey` at run time. The reason names the gate, the key,
+the STEP, the schema's own word for it and the ROUTE that can never be taken. **And the check can call a route
+unreachable only where the TYPE says what the route means**, so a type declaring no `keyResolvedRoutes` gets no
+key-path verdict at all — ADR 0068 rule 1's *nothing is inferred from a type that declares nothing*, in the
+refusing direction, and the stated limit of this half. **What a wrong key path costs is a run that does
+nothing**: measured on real workers, a misspelled key sends EVERY branch to `nokey`, dispatches NO
+per-series task where the correct key dispatches one per series, runs fewer tasks — and reports
+**`completed`**, which is why the answer is a static verdict rather than a run-time refusal.
 
 The ROUTE an arc carries is the edge's `route`, or the type's `defaultRoute` where the edge declares none —
 resolved through the type rather than treated as a route of its own, because a type's default may be a route
@@ -1546,7 +1578,7 @@ shipped L6 corpus at W73's declaration, fourteen of fifteen task-to-task edges f
 input schema to meet) and NINE arcs of the other shapes did not — seven of them one dropped bound
 flowing through six map items and one `needs` — which P19 fact 3 could not see because it counted one shape. Held by `test/definition/wiring.test.ts`:
 the twelve controls as fixtures, the wiring fixture corpus (section 7) with a positive case per
-verdict, the L6 corpus's census as an EQUALITY (62 fit, 1 `no` — `map-no-array`'s `FD-R2`, predicted — 5
+verdict, the L6 corpus's census as an EQUALITY (73 fit, 1 `no` — `map-no-array`'s `FD-R2`, predicted — 5
 transform-passes, 2 transform-fails, 8 unchecked, every arc shape reached), and both enumerations
 above held to this document both ways.
 

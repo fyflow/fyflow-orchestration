@@ -211,6 +211,8 @@ const DECLARED_CASES: readonly string[] = [
   'a gate that declares no key and no settings: the type is handed no key and `{}`, and the element records no key',
   'a type writing into the KEY it was handed moves nothing downstream and nothing recorded',
   'an ENTRY gate reads a CLASS instance as a clone carries it — the type, the record and a resume all see the same key',
+  // W100's, and the reason `checkWiring`'s key-path verdict says what it says.
+  'a key path that resolves NOWHERE routes every branch to the type`s unresolved route and the run COMPLETES — P25 prediction 4, the pair',
   'every case this suite declares actually ran — a deleted case fails naming itself',
 ];
 
@@ -726,13 +728,65 @@ suite(SUITE, (test) => {
       'and a resume from its checkpoint regenerates the same run — not refused `diverged` at 0');
   });
 
+  test('a key path that resolves NOWHERE routes every branch to the type`s unresolved route and the run COMPLETES — P25 prediction 4, the pair', () => {
+    // **What a MISCONFIGURED key path costs at run time, and it is the last clause of every key-path verdict
+    // `checkWiring` prints** — [W100](../../doc/work-items/w100-what-a-key-path-must-satisfy.md), P25
+    // prediction 4, whose scope column says the static half only was measured. `readKeyPath` gives `undefined`
+    // for a path no value carries, `distinct`'s first statement sends that to `nokey`, and `nokey` is wired to
+    // an `end` — so nothing refuses anything and the run reports `completed`.
+    //
+    // **The PAIR is two runs of ONE flow differing in the gate's `key` alone**, so no literal stands in for the
+    // difference and collapsing the pair is a failure rather than a smaller case (rule 8's fourth requirement
+    // on the set). One transposition is the whole of the edit.
+    const keyed = (key: string): FlowDefinition => {
+      const f = JSON.parse(JSON.stringify(MAPPED())) as FlowDefinition;
+      (f.nodes.find((n) => n.id === 'dedupe') as unknown as { settings: Record<string, unknown> }).settings = { key };
+      return f;
+    };
+    const run = (key: string) => {
+      const h = harness(keyed(key));
+      h.driver.start({});
+      for (const st of MAPPED_SCRIPT) h.scheduler.settle(st.settle, 'done', st.result);
+      settleSetups(h);
+      const gated = h.gated();
+      const routes: Record<string, number> = {};
+      for (const g of gated) routes[g.route] = (routes[g.route] ?? 0) + 1;
+      return {
+        outcome: fold(h.driver.foldInputs()).outcome,
+        routes,
+        // ABSENT rather than `undefined`: ADR 0067 says the recorded key is absent where nothing resolved,
+        // and an own-key read is what tells that from a key whose VALUE is undefined.
+        keysSeen: [...new Set(gated.map((g) => (Object.prototype.hasOwnProperty.call(g, 'key') ? JSON.stringify(g.key) : 'ABSENT')))].sort(),
+        setups: h.ids().filter((i) => i.includes(':setup:')).length,
+        dispatched: h.ids().length,
+      };
+    };
+    // The right key, derived from FILES: three series over five files, so three `first` and two `duplicate`,
+    // and a `setup` task for each `first`.
+    const right = run('series');
+    equal([right.outcome, right.routes, right.keysSeen, right.setups],
+      ['completed', { first: 3, duplicate: 2 }, ['"A"', '"B"', '"C"'], 3],
+      'the control: every file keyed, one `first` per series, a per-series task for each');
+    // The wrong key: `readKeyPath` reads an own key of a plain object, `seires` is not one on any of these
+    // results, so every branch is handed `undefined` and `distinct` routes it `nokey`.
+    const wrong = run('seires');
+    equal([wrong.outcome, wrong.routes, wrong.keysSeen, wrong.setups],
+      ['completed', { nokey: 5 }, ['ABSENT'], 0],
+      'one transposition: 5 of 5 to nokey, NO key ever resolved, ZERO per-series tasks — and the run still COMPLETES');
+    // **The difference, asserted** — so a pair collapsed to two identical runs fails here rather than
+    // shrinking into a case that says nothing.
+    ok(right.setups > 0 && wrong.setups === 0, `the pair differs in the work DONE: ${right.setups} per-series tasks against ${wrong.setups}`);
+    ok(right.dispatched > wrong.dispatched, `and in how many tasks ran at all: ${right.dispatched} against ${wrong.dispatched}`);
+    ok(right.outcome === wrong.outcome, 'and in NOTHING a run outcome can show — which is why a static verdict is what catches it');
+  });
+
   test('every case this suite declares actually ran — a deleted case fails naming itself', () => {
     const ran = collected().filter((s) => s.suite === SUITE).flatMap((s) => s.cases.map((c) => c.name)).sort();
     const declared = [...DECLARED_CASES].sort();
     equal(declared.filter((n) => !ran.includes(n)), [], 'a declared case did not run');
     equal(ran.filter((n) => !declared.includes(n)), [], 'a case ran that was not declared at its call site');
     equal(ran.length, DECLARED_CASES.length, 'and the COUNT beside the membership, which catches a duplicated name');
-    equal(DECLARED_CASES.length, 19, 'and the declared list is NINETEEN, written down — a case deleted from BOTH places fails here');
+    equal(DECLARED_CASES.length, 20, 'and the declared list is TWENTY — nineteen of W93`s and W100`s one — written down, so a case deleted from BOTH places fails here');
   });
 });
 

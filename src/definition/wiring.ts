@@ -27,7 +27,12 @@
  * verbatim in shape — one arm added to clause 4 for the map record below — and its ONE stated
  * leniency is kept and named**: an OPEN producer (no
  * `additionalProperties: false`) that does not name a key the consumer DESCRIBES but does not
- * REQUIRE is read as never emitting it. Read strictly — *the producer may put anything there* —
+ * REQUIRE is read as never emitting it — **unless the producer itself REQUIRES that key**, which is
+ * the leniency's ONE scope, added at v0.26 by [W100](../../doc/work-items/w100-what-a-key-path-must-satisfy.md)
+ * (its conformity reader, F4: this sentence was unqualified and the paragraph below did not mention
+ * the scope either). `required` refutes the leniency's own premise — *the producer is read as never
+ * emitting it* cannot be said of a key the producer guarantees — so a consumer describing a key the
+ * producer requires and describes nothing about is `no` rather than lenient. Read strictly — *the producer may put anything there* —
  * every open output schema into a consumer with an optional typed property is `no`, which is what
  * the check said of `typed`'s echoed items into `rank` while the strict reading was tried at W73's
  * build; an author who leaves an output schema open means *there are keys I do not describe*, not
@@ -54,6 +59,16 @@
  * WORKER half, imported here by its module URL — a URL, never the engine's bare specifier, so
  * `RT-R12` holds and this module loads no engine of its own. A witness is not a proof, and a
  * sample that passes is reported as *the sample passed*, never as *fits*.
+ *
+ * **A GATE's arc carries what reached it REFINED by what its ROUTE guarantees, and a KEY PATH the
+ * producer FORBIDS makes that arc `no`** — [ADR 0068](../../doc/decisions/0068-a-route-guarantees-what-its-type-declares-and-the-library-derives-it-from-the-key-path.md)
+ * and its refusing half ([W99](../../doc/work-items/w99-what-a-route-guarantees.md),
+ * [W100](../../doc/work-items/w100-what-a-key-path-must-satisfy.md)). A route the gate's type calls
+ * key-resolved gains `required` along the gate's own key path (`requireAlong`); a path no value the
+ * producer admits can carry means that route is never taken, which `keyPathRefusal` names. An OPEN
+ * producer that says nothing at a step forbids nothing and is left alone — the same leniency `fits`
+ * states, one question over, **and with the same scope: a step the producer REQUIRES is not read as
+ * never carried.** That scope is W100's, and it is what made `fits`'s `'is open there'` arm dead.
  *
  * Pure over data except the one `import()` of an adapter's worker half, which is async and is why
  * `checkWiring` returns a Promise; no `node:` import, no clock (`RT-R3`, `RT-R4`).
@@ -196,8 +211,27 @@ export function fits(P: JsonSchema, C: JsonSchema, path = '$'): { verdict: 'fits
           continue;
         }
         if (p.additionalProperties === false) continue;            // producer never emits k
-        if (!creq.includes(k)) continue;                           // consumer does not need k; the producer is read as not emitting it (the leniency)
-        return { verdict: 'no', why: `${path}.${k}: consumer describes it, producer is open there` };
+        // **The leniency, and its ONE scope — a key the producer REQUIRES is not read as never
+        // emitted** (v0.26, [W100](../../doc/work-items/w100-what-a-key-path-must-satisfy.md)). The
+        // leniency's own argument is *an author who leaves an output schema open means "there are keys
+        // I do not describe"*; a schema that REQUIRES a key has said that key IS emitted, so its own
+        // `required` refutes the premise. Measured on the shipped tree before the guard: a producer
+        // requiring `series` and describing nothing, against a consumer DESCRIBING `series` as an
+        // object and not requiring it, read **`fits`** — for the value `{ name: "n", series: 42 }`,
+        // which the producer's schema ACCEPTS and the consumer's REFUSES. *A `fits` the run can
+        // falsify is the unsafe kind.* **W99's `requireAlong` is the first thing here that
+        // manufactures that shape from an ordinary flow** — it adds `required` along a gate's key path
+        // and describes no step it did not find — which is why the scope lands in this item and not in
+        // P19's.
+        if (!creq.includes(k) && !preq.has(k)) continue;            // consumer does not need k; the producer is read as not emitting it (the leniency)
+        // **One reason, because only one case reaches here** — W100's conformity reader, F1. This return read
+        // `producer ${preq.has(k) ? 'requires it and describes nothing' : 'is open there'}`, and the guard above
+        // made the second arm UNREACHABLE: `!preq.has(k)` now implies `creq.includes(k)`, which returned at the
+        // `consumer requires "k", producer does not guarantee it` clause several lines up. Verified over all four
+        // combinations of the two `required` lists — not one reaches it — and the string was quoted by three
+        // documents, which is `CLAUDE.md`'s own *declared and dead* hazard. *This item is what killed it: before the
+        // scope the guard was `if (!creq.includes(k)) continue;` and the arm fired for a key required by BOTH.*
+        return { verdict: 'no', why: `${path}.${k}: consumer describes it, producer requires it and describes nothing` };
       }
       const r = fits(pp[k]!, cp[k]!, `${path}.${k}`);
       if (r.verdict !== 'fits') return r;
@@ -388,6 +422,85 @@ class Wiring {
     return go(schema, 0) as JsonSchema;
   }
 
+  /**
+   * **Why the arriving schema FORBIDS a gate's key path, or `null`** — v0.26,
+   * [W100](../../doc/work-items/w100-what-a-key-path-must-satisfy.md), the other half of
+   * [ADR 0068](../../doc/decisions/0068-a-route-guarantees-what-its-type-declares-and-the-library-derives-it-from-the-key-path.md)
+   * read in the refusing direction: a route can only promise that a path RESOLVED if the path is one
+   * the producer can emit.
+   *
+   * **The question is per STEP and about the CONTAINER, because that is what `readKeyPath` is** —
+   * the DRIVER's own resolution (`src/definition/validate.ts`, W93), where each segment is an OWN key
+   * of a PLAIN object and a missing key, a `null`, an array mid-path or a primitive is `undefined`.
+   * So two shapes forbid a step and the third is a silence:
+   *
+   * - **its declared types cannot include `object`** — `name.id` where the producer calls `name` a
+   *   string. No value the schema admits carries the path.
+   * - **it can be an object, is `additionalProperties: false`, and does not name the step** —
+   *   `sereis.id`, or `series.slug` where `series` is closed over `id` and `title`.
+   * - **it can be an object, does not name the step, and is OPEN** — `null`, which is `fits`'s own
+   *   leniency one question over: the producer may emit it, so nothing is forbidden and nothing is
+   *   claimed. P25 stop-and-ask (b)'s *rather than a false alarm*.
+   *
+   * **The LEAF's type is never read** (ADR 0068 rule 3): `readKeyPath` returns whatever the path ends
+   * on, and *which leaf values count as a key* is the type's judgement — `distinct` wants a string or
+   * a finite number and no static tool derives that. So a key path ending on a property the producer
+   * calls an array is fine here and `nokey` at run time.
+   *
+   * **What it costs to be wrong is the reason's last clause, and it is MEASURED rather than reasoned**
+   * (W100's declaration step, `dev-dist/w100/d2.ts`, P25 prediction 4): `tv-ingest` on real workers
+   * with the key misspelled routes **7 of 7** branches to `nokey`, dispatches **ZERO** `setupSeries`
+   * tasks against the correct key's three, runs 22 tasks instead of 25 — and reports **`completed`**.
+   * Every rung this repository has is green on a flow that did none of the work it exists for.
+   */
+  private keyPathRefusal(schema: JsonSchema, key: string, gateId: string, route: string): string | null {
+    const steps = key.split('.');
+    let s = schema as Record<string, unknown>;
+    const because = (at: string, detail: string): string =>
+      `gate "${gateId}" is keyed on "${key}", which the producer's schema FORBIDS at ${at}: ${detail} — so route "${route}" can never be taken, ` +
+      // **What follows says what the check KNOWS, and no more** — BOTH readers, independently (the conformity
+      // reader's F7 and the adequacy reader's F14). This read *and a run routes every branch by another route
+      // and completes having done none of the work past this gate*: `tv-ingest`'s measured behaviour written as
+      // a claim about every flow. Two ways it can be false. The unresolved route may be wired to an `end` whose
+      // outcome is not `completed` (`test/driver/gate.test.ts` wires one to `dropped`), so the run need not
+      // complete; and the work past the gate ON that route IS done — what is skipped is the work on the
+      // key-resolved routes. The adequacy reader found a third, sharper one: a worker whose returned value its
+      // own declared `outputSchema` refuses can carry the path, so `distinct` really does route `first` and the
+      // run really does the work — the class `examples/flows/nonconforming.flow.json` ships on purpose, whose
+      // census comment is *a wiring check reads two SCHEMAS and never a value*. Every other verdict in this
+      // module hedges a run-time consequence (`FD-R2`'s says *at run time*); this one did not.
+      'and a run may route every branch by another route, doing none of the work this gate guards';
+    for (let i = 0; i < steps.length; i++) {
+      const here = steps[i]!;
+      const at = i === 0 ? '$' : `$.${steps.slice(0, i).join('.')}`;
+      const ts = typesOf(s);
+      if (!ts.includes('object')) return because(at, `the schema calls it ${ts.join('|')}, and a key path reads an own key of a plain object`);
+      const props = (s.properties ?? {}) as Record<string, unknown>;
+      // **`own`, never a bare read** — `FD-V16`'s charset admits `toString` and `__proto__` as key-path
+      // segments, so a bare `here in props` would call a prototype key DESCRIBED and walk into a native
+      // function ([Q411](../../doc/open-questions.md), W99's conformity reader, F1 — its third and fourth site).
+      if (!own(props, here)) {
+        if (s.additionalProperties === false) {
+          const named = Object.keys(props);
+          return because(at, `the schema forbids every key it does not name (additionalProperties: false) and it names ${named.length ? named.join(', ') : 'no property'}`);
+        }
+        return null;                                               // OPEN and silent: it may emit it
+      }
+      const next = props[here];
+      // **UNREACHABLE by construction, and kept as a total function's last arm** — both readers asked for this
+      // line to be justified or dropped (the conformity reader's F8, the adequacy reader's F13, which measured
+      // `s = (next ?? {}) as …` in its place at ZERO and classified it semantically equivalent). Two reasons it
+      // cannot fire: `schemaProblem` refuses a non-object `properties` entry at construction, so no `new Driver`
+      // reaches here with one; and were one to arrive, `typesOf` of a non-object answers all seven types, its
+      // `.properties` is `undefined` and `own({}, here)` is false, so the NEXT iteration returns `null` anyway.
+      // No JSON-expressible schema distinguishes the two, which is why the adequacy reader's probe is a declared
+      // ceiling rather than a hole. It stays because this function's contract is *never throw on any schema*.
+      if (!isPlainObject(next)) return null;                       // not a schema this can read; say nothing
+      s = next;
+    }
+    return null;
+  }
+
   /** The key path a gate resolves, or `''` where it names none — `settings.key` is the one setting the library reads. */
   private keyOf(gate: GateNode): string {
     const k = (gate.settings as Record<string, unknown> | undefined)?.key;
@@ -433,12 +546,27 @@ class Wiring {
       // Three ways it does not apply, each a silence rather than a guess: a type that declares no
       // `keyResolvedRoutes` (every type before v0.25), a gate that names no `key`, and a route the type
       // does not call key-resolved. In all three the arrival passes through exactly as it did before.
+      //
+      // **And a key path the arriving schema FORBIDS makes this arc `no`** (v0.26, W100): a route can
+      // only promise that a path resolved if the path is one the producer can emit, so the refinement
+      // is preceded by the question `keyPathRefusal` asks. It is set as `refused`, which is the shape
+      // a map's `over` over a key the producer never emits already uses — so a consumer declaring a
+      // TRANSFORM reads the same reason under `unchecked`, because `no` is defined as *does not fit,
+      // and no transform is declared*.
       else if (kind === 'gate') {
         const gate = this.byId.get(from) as GateNode;
         const key = this.keyOf(gate);
         const resolved = key !== '' && route !== undefined
           && (this.gateTypes.get(gate.type)?.keyResolvedRoutes ?? []).includes(route);
-        for (const a of this.arrivals(from)) raw.push(resolved ? { ...a, schema: this.requireAlong(a.schema, key) } : { ...a });
+        for (const a of this.arrivals(from)) {
+          if (!resolved || a.schema === undefined) { raw.push({ ...a }); continue; }
+          const refused = this.keyPathRefusal(a.schema, key, gate.id, route!);
+          // Explicit fields rather than a spread with `schema: undefined`: an arrival that carries a
+          // schema AND a `refused` reason would run the consumer's transform on a sample from a road
+          // no run takes.
+          if (refused !== null) { raw.push({ shape: a.shape, producer: a.producer, ...(a.through ? { through: a.through } : {}), refused }); continue; }
+          raw.push({ ...a, schema: this.requireAlong(a.schema, key) });
+        }
       }
       else raw.push(this.record(this.byId.get(from) as JoinNode));
     }
@@ -498,6 +626,14 @@ class Wiring {
       const shapes = from.map((x) => x.shape);
       // An undeclared arriving node is named BEFORE two declared ones are compared — the reader found the
       // message reading *whose outputs differ* of a pair where one declared nothing (W73's conformity reader, 17).
+      // **What this road does NOT do is refine or refuse, and that is a stated silence** — W100's adequacy
+      // reader, F16. This walk reads `this.arrivals(gate.id)` for a gate, which is what arrives AT the gate
+      // unrefined, so neither W99's `required` refinement nor W100's key-path refusal applies to a gate wired
+      // into a JOIN: measured, both the right key and a forbidden one give `record fits`. `spec/` licenses it —
+      // *the record is what the node before it would carry* — and the `?? 'declares nothing'` below would then
+      // say that of a producer with a perfectly good schema, because `From` is a `Pick` that cannot see
+      // `refused`. Left as it is, named rather than fixed, because refining a record is a question about
+      // `JP-R12`'s shape and not about a key path.
       const bad = shapes.findIndex((s) => s.schema === undefined);
       if (bad >= 0) return { ...base, unchecked: `branch "${b}" of "${region.fanoutId}" arrives at "${j.id}" from "${from[bad]!.node.id}", which ${shapes[bad]!.unchecked ?? 'declares nothing'}` };
       const first = shapes[0]!;
@@ -550,6 +686,10 @@ class Wiring {
   /** `FD-C1`'s table over one arrival: the object `needs` describes, schema and sample alike. */
   private composed(a: Arrival, needs: Readonly<Record<string, unknown>>): Arrival {
     const base = { shape: 'needs' as const, producer: a.producer, ...(a.through ? { through: a.through } : {}) };
+    // A refused arrival stays REFUSED through composition (W100's conformity reader, F2): the refusal says
+    // this arc is never traversed, which no `needs` can change. Before this clause the `"."` road turned it
+    // into an `unchecked` below and a road naming another node dropped it entirely, reading `fits`.
+    if (a.refused !== undefined) return { ...base, refused: a.refused };
     const props: Record<string, JsonSchema> = {}; const required: string[] = []; const sample: Record<string, unknown> = {};
     let source: SampleSource = 'example';
     const arity = a.sample?.arity;
@@ -623,7 +763,16 @@ export async function checkWiring(registry: WiringRegistry, flow: FlowDefinition
       : consumer === undefined ? `"${node.id}" (type "${node.type}", worker "${type.worker}") declares no inputSchema` : undefined;
     for (const a of w.arrivals(node.id)) {
       const v: WiringVerdict = { consumer: node.id, shape: a.shape, producer: a.producer, ...(a.through ? { through: a.through } : {}), kind: 'unchecked', why: '' };
-      if (a.refused !== undefined && node.transform === undefined) { v.kind = 'no'; v.why = a.refused; verdicts.push(v); continue; }
+      // **A refusal is about the ROUTE and not about the FIT, so it outranks every other road here** —
+      // W100's conformity reader, F2. This read `a.refused !== undefined && node.transform === undefined`,
+      // which made the same arc `unchecked` the moment its consumer declared a transform: measured on
+      // documents `validateDefinition` accepts, plain was `no`, `transform` and `needs: {"v": "."}` were
+      // `unchecked`, and `needs: {"v": "produce"}` was **`fits`** with the reason gone altogether (a
+      // fourth configuration the reader did not reach). `keyPathRefusal` says *no value this producer
+      // admits can carry this key path*, so the key-resolved route is never taken — and a transform runs
+      // on a value that only exists if it is taken, while `needs` composes one for the same reason. So the
+      // refusal is checked FIRST, and `composed` carries it rather than downgrading it.
+      if (a.refused !== undefined) { v.kind = 'no'; v.why = a.refused; verdicts.push(v); continue; }
       if (a.schema === undefined) { v.why = a.unchecked ?? a.refused ?? 'no schema on the producer side'; verdicts.push(v); continue; }
       if (node.transform === undefined) {
         if (consumer === undefined) { v.why = consumerWhy!; verdicts.push(v); continue; }

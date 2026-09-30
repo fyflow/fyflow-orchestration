@@ -597,6 +597,13 @@ const LATE_SUITES = [
   'W93 — what a GATE does in a run: the arm, the memory, the recorded decision, FD-R5, resume',
   'W93 — a consumer`s GATE types reach every driver the runtime starts or resumes, and a malformed one is refused where the runtime is built',
   'W99 — what a ROUTE guarantees: the type declares it, the library derives it from the key path',
+  // W100 — what a KEY PATH must satisfy: the refusing half of ADR 0068, in `test/definition/wiring.test.ts`.
+  'W100 — what a KEY PATH must satisfy: a path the producer FORBIDS is `no`, and what it says nothing about is a silence',
+  // W101 — the SECOND OBSERVER of `AGENTS.md` section 20's authoring session, in
+  // `test/definition/gate-session.test.ts`: its adequacy reader made all nine of that section's guards
+  // TAUTOLOGIES at `check:docs` EXIT 0, so the session's claims are asserted here as well, from the
+  // declarations `examples/getting-started/quota-registry.ts` holds and the snippet imports.
+  'W101 — the authoring session`s own verdicts, from the declarations the session imports',
 ];
 
 suite('L1 — every suite this tree declares actually RAN', (test) => {
@@ -662,10 +669,26 @@ suite('L1 — every suite this tree declares actually RAN', (test) => {
     equal(count('W99 — what a ROUTE guarantees: the type declares it, the library derives it from the key path'), 6,
       'test/definition/wiring.test.ts registers W99`s six cases');
   });
+  // **W100's suite, counted the same way** — SEVEN cases: six as declared plus the one both readers bought
+  // (a refusal survives every shape the consumer past the gate declares — the conformity reader's F2 and the
+  // adequacy reader's F6, which is also where the code's verdict ORDER changed).
+  test('W100`s suite still REGISTERS the seven cases it declares — an emptied suite fails here', () => {
+    const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
+    equal(count('W100 — what a KEY PATH must satisfy: a path the producer FORBIDS is `no`, and what it says nothing about is a silence'), 7,
+      'test/definition/wiring.test.ts registers W100`s seven cases — six declared, one the readers added');
+  });
+
+  // **W101's suite, counted the same way** — SIX cases. It is the session's second observer, so an
+  // emptied suite would leave the reference's nine guards bound by `X4`'s presence test alone.
+  test('W101`s suite still REGISTERS the six cases it declares — an emptied suite fails here', () => {
+    const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
+    equal(count('W101 — the authoring session`s own verdicts, from the declarations the session imports'), 6,
+      'test/definition/gate-session.test.ts registers W101`s six cases');
+  });
   // **W93's two suites, counted the same way and for the same reason** — a suite emptied of its cases is still a suite.
   test('W93`s two suites still REGISTER the cases they declare — an emptied suite fails here', () => {
     const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
-    equal(count('W93 — what a GATE does in a run: the arm, the memory, the recorded decision, FD-R5, resume'), 19, 'test/driver/gate.test.ts registers its nineteen cases');
+    equal(count('W93 — what a GATE does in a run: the arm, the memory, the recorded decision, FD-R5, resume'), 20, 'test/driver/gate.test.ts registers its nineteen cases and W100`s one');
     equal(count('W93 — a consumer`s GATE types reach every driver the runtime starts or resumes, and a malformed one is refused where the runtime is built'), 4,
       'test/scheduler/runtime.test.ts registers W93`s four');
   });
