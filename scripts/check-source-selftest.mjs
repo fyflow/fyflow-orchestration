@@ -415,8 +415,8 @@ const PROBES = [
     mutate: (t) => t.replace('npm run check:docs && ', 'npm run check:docsX && '),
   },
   {
-    name: 'the selftests runner dropped from the chain — one edit unreaches seven entries',
-    half: 'pkg', check: 'S12', also: ['S11'],
+    name: 'the selftests runner dropped from the chain — one edit unreaches eight entries',
+    half: 'pkg', check: 'S13', also: ['S11'],
     // **W39's own change, provoked.** Since
     // [ADR 0039](../doc/decisions/0039-the-gate-climbs-the-ladder-and-the-self-tests-run-concurrently.md)
     // the seven `:selftest` entries are not in the chain: `S11` reaches them through
@@ -431,6 +431,15 @@ const PROBES = [
     // conformity reader re-derived it: `S11 (7)`, `S12 (1)`, 8 failures. The seven
     // plain `check:*` entries stay in the chain, which is the whole point of the
     // reachability split.)*
+    //
+    // **ADR 0070 (W103) moved which clause says so, and the probe is UNCHANGED.**
+    // `gate` no longer ends in the runner; `gate:full` does, so this one edit now
+    // strips the composed entry instead and the answer is `S13` (the composed list it
+    // declares) plus `S11` (the eight `:selftest` entries reachable by nothing) where
+    // it used to be `S12` plus `S11`. Measured: `wanted [S11,S12], got [S11,S13]`.
+    // *The probe still unreaches every self-test in one edit, which is what it is for;
+    // only the clause that owns the list changed, and rule 7 (c) is what made that
+    // visible instead of letting a green set hide a moved subject.*
     mutate: (t) => t.replace(' && npm run selftests"', '"'),
   },
   {

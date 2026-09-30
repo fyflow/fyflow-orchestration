@@ -3013,6 +3013,23 @@ can fail, which is **not a level of section 4** and which this table did not bud
 [P8](plans/p8-what-can-be-deleted-with-the-gate-green.md) and
 [P9](plans/p9-when-a-check-stops-checking-what-notices.md) it cost approximately nothing. **That, and
 not a budget overrun, is the answer to *nobody decided this***: there was no row to be over.
+
+**And since [ADR 0070](decisions/0070-the-local-gate-is-the-ladder-and-proving-the-checks-can-fail-belongs-to-ci.md) the fourth row has an answer rather than a
+budget: it is not on the local gate at all.** `npm run gate` is the LADDER — fifteen entries,
+ADR 0039's order — and `npm run gate:full` is the ladder plus `selftests`, which CI runs on
+every commit. [W103](work-items/w103-the-local-gate-is-the-ladder.md) measured the split at
+**245 s against 1326 s**, so the self-tests were **84%** of the 1571 s a person waited for, and
+`check:docs:selftest` alone was **1298.9 s — 98% of the self-test wall**, six lanes running
+concurrently behind their slowest one. *Nothing is deleted and no bound is lowered*; the proof
+moved to where nobody is waiting, which is the thing
+[P11](plans/p11-what-should-the-gate-prove.md)'s retro refused for want of a CI that now
+exists. **The cost of that is stated in the ADR and belongs here too**: `S11` and `G4` read the
+MANIFEST, so they see a `gate:full` composing both halves and cannot see whether anything ever
+ran it — if the workflow is disabled the proof is simply unrun, and `npm run gate:full` is the
+one command that takes it back. **The *plan gate* row above is now UNMEASURED rather than met**
+([Q427](open-questions.md)): the same ladder read 245 s where that row records 18.6 s, and this
+tree cannot separate the suite's growth from a machine whose `cmd /c exit` ranged 27 ms to
+8 649 ms in one session.
 *(ADR 0039 refused its candidate (a) partly on the ground that 516 s was **5.7x** the 90 s budget — a
 comparison across this line, since 488.9 s of that 516 was self-test. The refusal survives on its
 other grounds and the ADR is corrected in place.)*

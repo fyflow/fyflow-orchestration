@@ -642,11 +642,19 @@ export async function selfTest(root) {
     ghost.scripts['check:ghost'] = 'node scripts/check-ghost.mjs';
     writeFileSync(join(dir, 'pkg-ghost.json'), JSON.stringify(ghost));
     // **`G4`'s chain half.** The runner entry stays in `scripts` and leaves the chain,
-    // which is the one shape that makes all seven `:selftest` entries unreachable in a
-    // single edit — and the shape `S12` catches on ITS declared list and `G3` cannot
+    // which is the one shape that makes all eight `:selftest` entries unreachable in a
+    // single edit — and the shape `S13` catches on ITS declared list and `G3` cannot
     // catch on a list derived from disk.
+    //
+    // **The chain it leaves is `gate:full`, not `gate` — ADR 0070 (W103).** This
+    // fixture read `scripts.gate` and that entry no longer names the runner, so the
+    // mutation matched nothing, the fixture was byte-equal to the real manifest and the
+    // probe reported `exited 0, wanted [G3,G4], got []`. *A probe whose subject moves
+    // does not fail loudly on its own; it goes quiet, and rule 7 (c)'s declared SET is
+    // what turned the silence into a red line.*
     const norunner = structuredClone(real);
-    norunner.scripts.gate = norunner.scripts.gate.replace(' && npm run selftests', '');
+    norunner.scripts['gate:full'] = (norunner.scripts['gate:full'] ?? '')
+      .replace(' && npm run selftests', '');
     writeFileSync(join(dir, 'pkg-norunner.json'), JSON.stringify(norunner));
     const planonly = structuredClone(real);
     planonly.scripts.selftests = `${planonly.scripts.selftests} --plan`;

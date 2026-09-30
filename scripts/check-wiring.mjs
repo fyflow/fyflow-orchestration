@@ -361,7 +361,18 @@ if (pkg) {
  * rather than *spelled in this string*, and **`G4` below is what makes the second
  * disjunct true rather than assumed.**
  */
-const CHAIN = (pkg?.scripts?.gate ?? '').split('&&').map((p) => p.trim().replace(/^npm run /, ''));
+// **ADR 0070 (W103): reachability is a property of the FULL chain, not of `gate`.**
+// `gate` is the ladder and `gate:full` is the ladder plus `selftests`, so a check or a
+// `:selftest` entry is *reached by the gate* when `gate:full` reaches it. Parsed one
+// level deep: `gate:full`'s own parts, with the `gate` part replaced by `gate`'s.
+// **If `gate:full` is missing this list is EMPTY**, which is the honest answer rather
+// than a fallback to `gate` — `G4` then reports that nothing names the runner, and
+// `G3` that no check is reachable, which is exactly what a deleted `gate:full` means.
+const partsOf = (name) => (pkg?.scripts?.[name] ?? '')
+  .split('&&')
+  .map((p) => p.trim().replace(/^npm run /, ''))
+  .filter((p) => p !== '');
+const CHAIN = partsOf('gate:full').flatMap((n) => (n === 'gate' ? partsOf('gate') : [n]));
 const RUNNER_RE = /scripts\/run-selftests\.mjs/;
 const CHAIN_RUNS_SELFTESTS = CHAIN.some((n) => RUNNER_RE.test(pkg?.scripts?.[n] ?? ''));
 const gateRuns = (n) => CHAIN.includes(n) || (CHAIN_RUNS_SELFTESTS && n.endsWith(':selftest'));

@@ -75,5 +75,9 @@ jobs:
       - name: Playwright chromium
         run: npx playwright install --with-deps chromium
 
-      - name: npm run gate
-        run: npm run gate
+      # `gate:full` is the ladder AND the self-tests (ADR 0070). The local `gate` is
+      # the ladder alone, because the self-tests are ~93% of its wall clock and a
+      # human waiting on them was paying that to prove the checks can fail. CI is
+      # where that proof belongs: nobody is watching, and it runs on every commit.
+      - name: npm run gate:full
+        run: npm run gate:full

@@ -536,7 +536,7 @@ for (const p of exampleSources()) {
   }
 }
 
-// --- S11: every `check:*` script is reachable from `npm run gate` -------------
+// --- S11: every `check:*` script is reachable from `npm run gate:full` --------
 // **A check nobody runs is a check that does not exist**, and until W16 nothing
 // said so. Its adequacy reader measured the cost on the newest one: removing
 // `check:policies` from the `gate` chain, removing `check:policies:selftest`, and
@@ -554,6 +554,11 @@ for (const p of exampleSources()) {
   const scripts = pkg.scripts ?? {};
   const gate = scripts.gate ?? '';
   if (!gate) fail('S11', `${PKG_PATH} has no \`gate\` script`);
+  if (!(scripts['gate:full'] ?? '').trim()) {
+    fail('S11', `${PKG_PATH} has no \`gate:full\` script, so nothing reaches the \`:selftest\` ` +
+      'entries — ADR 0070 splits the ladder from the self-tests and `gate:full` is what composes ' +
+      'them; without it the checks are never proved able to fail');
+  }
   // **"Run by the gate" stopped being "named in `scripts.gate`" at
   // [ADR 0039](../doc/decisions/0039-the-gate-climbs-the-ladder-and-the-self-tests-run-concurrently.md).**
   // The `:selftest` entries (seven then, eight since W72) left the `&&` chain for one entry that derives them
@@ -569,13 +574,31 @@ for (const p of exampleSources()) {
   // chain; `G4` asks the runner for its plan and compares it to this manifest both
   // ways, including each entry's COMMAND. Without `G4` this line is a tautology: every
   // `:selftest` entry is "reachable" because the runner claims to run all of them.
-  const chain = gate.split('&&').map((s) => s.trim().replace(/^npm run /, ''));
+  // **ADR 0070 (W103): the chain this reads is `gate:full`, not `gate`.** The local
+  // gate is the LADDER and `gate:full` is the ladder plus `selftests`, because the
+  // self-tests were ~93% of the gate`s wall clock against a product-facing half of
+  // 18-28 s. Nothing about reachability changed: this clause means *reachable*, which
+  // its own heading has always said, and the thing it is reachable FROM is now one
+  // entry further out. **Read one level deep**, so `gate`s own fifteen entries still
+  // count; if `gate:full` is missing the list is EMPTY and every check is reported
+  // unreachable, which is what a deleted `gate:full` means rather than a reason to
+  // fall back to `gate` and report green.
+  //
+  // **This clause is the FOURTH that binds the chain and W103 found only three by
+  // reading.** S12, S13 and `G4` were all edited before this one fired, on eight
+  // `:selftest` entries at once — the check catching its own author, which is what
+  // `S11` was written for: *a check outside the gate is a check that does not exist.*
+  const partsOf = (name) => (scripts[name] ?? '')
+    .split('&&')
+    .map((s) => s.trim().replace(/^npm run /, ''))
+    .filter((s) => s !== '');
+  const chain = partsOf('gate:full').flatMap((n) => (n === 'gate' ? partsOf('gate') : [n]));
   const runsSelftests = chain.some((n) => /scripts\/run-selftests\.mjs/.test(scripts[n] ?? ''));
   const gateRuns = (n) => chain.includes(n) || (runsSelftests && n.endsWith(':selftest'));
   for (const [name, cmd] of Object.entries(scripts)) {
     if (!name.startsWith('check:')) continue;
     if (!gateRuns(name)) {
-      fail('S11', `${PKG_PATH} declares "${name}" and \`npm run gate\` does not run it — ` +
+      fail('S11', `${PKG_PATH} declares "${name}" and \`npm run gate:full\` does not run it — ` +
         'a check outside the gate is a check that does not exist' +
         (name.endsWith(':selftest') && !runsSelftests
           ? '. Since ADR 0039 the `:selftest` entries are reached through the entry that runs ' +
@@ -703,7 +726,14 @@ const GATE_CHAIN = [
   'test:browser',
   'test:l6',
   'test:l6:deno',
-  'selftests',
+  // **ADR 0070 (W103): the runner is NOT in this chain.** `gate` is the ladder and
+  // nothing else; `gate:full` is the ladder plus `selftests`, and that is what CI
+  // runs. The reason is measured rather than argued: the self-tests are ~93% of the
+  // gate's wall clock and the whole product-facing half is 18-28 s, so a human's
+  // local loop paid a 29-minute tax to prove the CHECKS can fail. Adding `selftests`
+  // back here is caught by `S12` against this list, and `gate:full` losing either
+  // part is caught by `S13` below — the reachability the seven `:selftest` entries
+  // have is `G4`'s, and it now binds `gate:full`.
 ];
 
 /**
@@ -743,6 +773,17 @@ const COMPOSED = [
     name: 'lint',
     split: 'ws',
     parts: ['deno', 'lint', 'src/', 'test/', 'examples/', 'index.ts'],
+  },
+  // **ADR 0070 (W103).** `gate:full` is the only thing that reaches the self-test
+  // runner, so dropping either part is what makes the split unsafe: losing
+  // `npm run gate` runs the self-tests over a tree no ladder checked, and losing
+  // `npm run selftests` means NOTHING anywhere proves the checks can fail. `G4`
+  // refuses the second from the other side, by requiring exactly one entry of the
+  // full chain to name the runner; this row refuses both by NAME.
+  {
+    name: 'gate:full',
+    split: '&&',
+    parts: ['npm run gate', 'npm run selftests'],
   },
 ];
 
