@@ -1,6 +1,6 @@
 # Workflow
 
-**Status:** v0.25 - **run to completion TWENTY-FOUR times**, by [P1](plans/p1-what-satisfies-a-join.md),
+**Status:** v0.25 - **run to completion TWENTY-FIVE times**, by [P1](plans/p1-what-satisfies-a-join.md),
 [P2](plans/p2-the-non-success-half-on-a-real-scheduler.md),
 [P3](plans/p3-a-consumer-reference-the-gate-keeps-true.md),
 [P4](plans/p4-the-drivers-lifetime-and-the-handles-it-gives-out.md),
@@ -23,10 +23,15 @@
 [P21](plans/p21-what-a-run-time-schema-check-buys-and-what-it-costs.md) and
 [P22](plans/p22-what-a-regions-identity-is.md) and
 [P23](plans/p23-what-a-run-needs-to-outlive-its-process.md) and
-[P24](plans/p24-what-a-node-may-remember-across-a-runs-branches.md)
+[P24](plans/p24-what-a-node-may-remember-across-a-runs-branches.md) and
+[P25](plans/p25-what-a-route-guarantees-about-the-value-it-carries.md)
 **Read this before starting any work item.** *(The status line read "seven times" and listed P1-P7
 until P9's retro: **P8 ran this document to completion and adopted none of its proposals**, which is
-section 6 pass 3 rule 1's expected verdict and is not the same as not having run it.)* Paths are relative to the repo root unless they are
+section 6 pass 3 rule 1's expected verdict and is not the same as not having run it. **P25 is the
+SECOND, and it is the sharper instance**: the two clauses its largest defects point at — v0.20's
+tautology clause and v0.23's selection clause — each already NAME their remedy, and in both cases
+the author ran the diagnostic half and not the remedial one. Seven refused, two of them drafted by
+that retro and then measured as already written. Its occurrences are in the two tables below.)* Paths are relative to the repo root unless they are
 markdown links.
 
 **v0.3 is P1's retro acting on itself.** This document was inherited from
@@ -249,6 +254,9 @@ asserted. It adopts **one** change and refuses **seven**, all in
    | [W84](work-items/w84-what-a-regions-identity-is.md) | a region's collection, by instance; the instance, by its opener's path | instances settled in DISPATCH ORDER; every instance at ONE path segment | the opener's FIRST instance read in place of the right one: **0**; the instance path truncated to its first segment: **0 at every rung** |
    | [W85](work-items/w85-what-a-nested-region-carries-and-how-it-ends.md) | a branch-exit event and `JP-R10`'s emission, by instance | both parks in instance 0; every region `JP-R10` names with ONE instance | filed under the opener's FIRST opened instance: **0 at five sites** — in the item written to discharge W84's finding ([Q353](open-questions.md)) |
    | [W86](work-items/w86-score-each-item-then-fan-out-per-item.md) | `arrivals`, by instance, on real workers | what a FIFO pool gives: each window closed before the next opens ([Q358](open-questions.md)) | with the ARRANGED overlap removed, keying by the opener alone costs **1 where it costs 3** and by the first instance **0 where it costs 2**, each counted ABOVE what removing the overlap costs by itself |
+
+   | [W99](work-items/w99-what-a-route-guarantees.md) (P25) | how many steps the refinement must ADD | the fixture's producer already declared the nested `required`, so the only step to add was the ROOT | the walk bound at ONE STEP (`i >= steps.length` → `i >= 1`): **0 / 0** |
+   | [W100](work-items/w100-what-a-key-path-must-satisfy.md) (P25) | the step a reason NAMES, as the whole PREFIX | every key in the tree and in the corpus at MOST TWO segments | `at` as the LAST SEGMENT: **0**. **This one had already moved off the named default** — the table carries a two-segment key — and the wrong selection still coincided, because at two segments `$.owner` is both the prefix of `owner.ident` and its last segment. *Moving one position off the default is not the same as exceeding the last position at which the candidate EXPRESSIONS agree, and that point is a property of the expressions rather than of the type.* Closed by a three-segment row. P25's retro drafted a fifth amendment for this and REFUSED it at one occurrence, on P23's regress ground |
 
    **The mechanism is why it generalises rather than a fourth item.** A WELL-FORMED wrong selection —
    the first instance, the first segment, `values()[0]` — is the one that COINCIDES with the right
@@ -2194,7 +2202,8 @@ Rules:
    | | the deliverable | what it cost to make its claims vacuous |
    |---|---|---|
    | [W74](work-items/w74-the-assists-and-the-exit-artifact.md) | `AGENTS.md` section 15, **P19's exit artifact**, executed by `check:docs` | all **eight** guards replaced with conditions that keep every variable live and cannot fail, in `AGENTS.md` AND `README.md` (which `X8` holds byte-equal): **`check:docs` EXIT 0, all eight checks `ok`, 27 `run` snippets counted**. With the first candidate transform also changed to the already-correct one, the section stops demonstrating the miswire-then-repair arc at all and is still green. *Re-measured at P19's retro on the tree that ships; it reproduces* |
-   | [W31](work-items/w31-the-self-list-check-policies-never-had.md) | `check-policies-selftest.mjs`'s own verdict | `if (caught !== PROBES.length)` deleted — **0**, and no other `SELF` entry could reach it, because every other one breaks a LIST and this breaks the VERDICT OVER a list |
+   | [W101](work-items/w101-the-authoring-session-wiring-a-gate-before-it-runs.md) | `AGENTS.md` section 20, **P25's exit artifact**, executed by `check:docs` | **NINE guards, singly and ALL NINE AT ONCE, at EXIT 0** — and TWO of its five steps deletable whole. `x !== x` and `includes('')` are outside `X4`'s two tests, and `RUN_FLOOR` counts SNIPPETS. **Its Verification table had handed this clause to its adequacy reader by NAME, and the section shipped its first cut with no second observer at all** — the remedy below, three plans after it was written. Closed by moving every declaration into `examples/getting-started/quota-registry.ts` and asserting the same verdicts from `test/definition/gate-session.test.ts`, after which the reader's ONE surviving probe of sixty-two is caught at both rungs |
+| [W31](work-items/w31-the-self-list-check-policies-never-had.md) | `check-policies-selftest.mjs`'s own verdict | `if (caught !== PROBES.length)` deleted — **0**, and no other `SELF` entry could reach it, because every other one breaks a LIST and this breaks the VERDICT OVER a list |
 
    **The argument for generality is the mechanism rather than a third item.** `X4`'s clause is *every
    `run` snippet executes, and asserts something*, and *asserts something* is measured as **contains a
