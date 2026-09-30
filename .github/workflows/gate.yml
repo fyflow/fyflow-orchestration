@@ -1,0 +1,79 @@
+# The gate, on every commit.
+#
+# `npm run gate` is ONE step on purpose. It is a sixteen-entry `&&` chain that
+# climbs the ladder in order (ADR 0039), and `S12` in scripts/check-source.mjs
+# asserts that chain's membership AND its order against package.json, both ways.
+# Splitting it into sixteen CI steps would put a second copy of that list in a
+# file `S12` cannot see — rule 8 obligation (e)'s third shape, a LIST that is a
+# claim about another list, bound to nothing. So the chain stays in the manifest
+# and this workflow runs it whole and reads its exit code.
+#
+# Nothing here pipes a rung (doc/workflow.md section 4): the step's own exit
+# status is the predicate, and a line of its output is never the predicate.
+
+name: gate
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+# A superseded commit's gate is worth nothing and costs 20+ minutes.
+concurrency:
+  group: gate-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    # Locally the whole chain is 390-460 s on twenty cores; a four-core runner
+    # with `selftests` running seven self-tests concurrently is the long pole.
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # `.node-version` is the single source of truth for the Node major, and
+      # `engines` says >=22. Read the file rather than restating the number.
+      - name: Node from .node-version
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      # Deno is needed by FOUR entries and one of them is the chain's first:
+      # `lint` is `deno lint`, plus `test:deno`, `typecheck:deno` and
+      # `test:l6:deno`.
+      #
+      # The version is READ from `.deno-version` rather than written here, so the
+      # pin has one source. `D3` in scripts/check-scheduler.mjs exists because
+      # the SCHEDULER's version living in two places is a live hazard; Deno's own
+      # version lived in none until this file, and a literal here would have made
+      # this file the second place the moment anyone wrote it down again.
+      #
+      # It is read in a step of its own rather than through a `deno-version-file`
+      # input, so the wiring is visible in the log and does not depend on an
+      # input this action may or may not support at a given major.
+      - name: Read .deno-version
+        id: deno
+        run: echo "version=$(cat .deno-version)" >> "$GITHUB_OUTPUT"
+
+      - name: Deno from .deno-version
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: ${{ steps.deno.outputs.version }}
+
+      - name: Install (lockfile exact)
+        run: npm ci
+
+      # `test:browser` launches chromium only (scripts/run-browser-tests.mjs:68);
+      # firefox and webkit are `test:browser:all`, which the gate does not run.
+      - name: Playwright chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: npm run gate
+        run: npm run gate
