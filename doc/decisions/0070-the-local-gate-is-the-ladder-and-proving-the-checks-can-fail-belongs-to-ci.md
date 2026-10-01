@@ -84,6 +84,18 @@ ADR 0039 explicitly did not decide.
 3. **`check:docs:selftest` is the next thing to look at, not the split.** At 1298.9 s it is 98% of the
    self-test wall; halving the other seven would move the total by a few per cent.
 
+   **DISCHARGED by [W104](../work-items/w104-the-snippet-loop-runs-concurrently.md)**, which made
+   `check-docs`' own snippet loop concurrent at a declared width of eight: the lane is **1096 s ->
+   624 s** (`check:docs` itself 9314 ms -> 4574 ms), measured before and after on one tree with the
+   bands not overlapping. Derived from consequence 2's per-lane figures — this ADR's wall is CI's to
+   measure and W104 did not re-run it — the self-test wall becomes **~649 s against 1324 s** and
+   `gate:full` **~894 s against 1571 s**. **The sentence above stays true and its margin narrowed**:
+   `check:docs:selftest` is still the binding lane, now at 624 s against `check:markdown:selftest`'s
+   477.3, so what that second lane caps is the NEXT halving rather than this one. Beyond 477 s the
+   group stops moving and a further 2x on this lane is worth ~1.3x on the wall.
+   *(The 1298.9 s and 98% above are W103's own measurement and are left as it took them; the figures
+   here are W104's.)*
+
 4. **ADR 0039's own argument is unharmed.** It chose ORDER and CONCURRENCY as the two properties nobody
    had ever chosen, and both stand. What it did not choose — whether a human should wait for the
    concurrent half at all — is what this decides.

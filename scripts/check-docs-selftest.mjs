@@ -45,13 +45,32 @@
 // ~170 s and the gate at ~325 s, which is [Q133](../doc/open-questions.md)'s trade
 // and not an item's to spend unremarked.
 //
-// **`check-docs.mjs` has 17 clauses: 14 `fail()` sites and 3 ways the report can
-// lie.** Seven are graded below. **The other TEN are named here** — and this list
-// was WRONG when W29 first wrote it, which is the defect this whole item exists to
-// refuse. It said *"six"*, omitting two, and the same six were copied into four more
-// documents; W29's conformity reader found it by the arithmetic the file itself
-// supplies. **A stated cap that undercounts reads as coverage exactly as a silent
-// one does.**
+// **`check-docs.mjs` has 58 clauses: 55 `fail()` sites and 3 ways the report can
+// lie** — and this headline said *"17 clauses: 14 `fail()` sites"* until
+// [W104](../doc/work-items/w104-the-snippet-loop-runs-concurrently.md) counted them.
+// **It was W29's count and the check has quadrupled since**: `X6` arrived at W46, `X7`
+// at W65, `X8` at W69 and W70, `X9` at W86, `X10` and `X11` at W96 — so the number was
+// stale by **33 sites**, in the paragraph whose own subject is a stated cap that
+// undercounts. *A census that narrates its own correctness and is never re-derived is
+// `doc/workflow.md` section 1 rule 5's writing clause in a `scripts/` file.* It had
+// already been wrong once, at W29, when it said *"six"* ungraded and omitted two, and
+// the same six were copied into four more documents.
+//
+// **The scope of what W104 re-took is stated rather than implied**: the SITE count, by
+// `grep -c "fail('X"`, is 55 across eleven ids (X1 4, X2 2, X3 2, **X4 13**, X5 1, X6 5,
+// X7 5, X8 9, X9 4, X10 4, X11 6), and 47 of them predate W104. The `META` list below
+// is **28** entries and the coverage bound it carries is per **ID**, not per site, so
+// every id has at least one grading and *which sites* are graded is the question this
+// list answers — for the sites named below and for no others. Re-deriving that for all
+// 55 is an audit and W104 did not take it; what follows is the list as it stood plus
+// W104's own eight.
+//
+// *(**And this very paragraph shipped at 53 / X4 11 for the length of one reader pass**,
+// because W104 counted its own sites BEFORE adding the second-source clause and never
+// re-took the number — its conformity reader caught it at 54, and acting on both readers'
+// findings took it to 55. The same defect the paragraph is about, in the item correcting
+// it, twice: `doc/workflow.md` section 1 rule 5's WHEN clause is the answer and the
+// procedure is to run the grep on the tree that SHIPS.)*
 //
 //   X1  the unclosed-fence refusal           probe: an unclosed fence
 //   X1  the no-snippets-at-all vacuity guard probe: a reference with no snippets at all
@@ -60,12 +79,34 @@
 //   X4  the process.exit() refusal           probe: the process.exit() snippet
 //   X4  the `if (false)` refusal             probe: the wrapped assertions
 //   X4  the snippet-does-not-RUN report      probe: a snippet that stops producing its result
+//   X4  the DEADLINE report                  probe: a snippet that never exits (W104)
 //   X4  the RUN_FLOOR ratchet                probe: a whole `run` snippet deleted
 //   X3  the `tsc failed:` fallback           covered jointly by the X3 entry below
 //   report  a row deleted from the `checks` array — reachable by `agree`, not graded
 //   X10 the MISSING-FILES refusal            **NO PROBE CAN REACH IT** — every probe writes the files it stages (W96)
 //   X11 the MISSING-INDEX refusal            **NO PROBE CAN REACH IT** — ditto (W96)
 //   X11 the EMPTY-DIRECTORY vacuity guard    **NO PROBE CAN REACH IT** — the directory is always the tree's own (W96)
+//
+// **W104's five remaining clauses are UNREACHABLE BY ANY PROBE and the reason is about
+// the FACT rather than about the observer**, which is `doc/workflow.md` rule 8's own
+// test for whether a declared ceiling is honest: every probe here mutates the
+// REFERENCE, and these are properties of the pool that executes it.
+//
+//   X4  the COULD-NOT-SPAWN report           a probe would need `process.execPath` to be gone
+//   X4  the membership clause (every `run` snippet got a verdict, exactly once)
+//   X4  its SECOND SOURCE (the verdict count against the extractor's own `run`-block count)
+//   X4  the peak-concurrency clause (the pool reached its declared width)
+//   X4  the overlap clause (the recorded times agree the children were concurrent)
+//   X4  the REPORT-against-RUN relation (the failures emitted match the failing seats)
+//   X4  the width FLOOR — held a third time by the bound in `selfTest` below, which reads
+//       `X4_WIDTH` and `X4_WIDTH_FLOOR` out of the check's source
+//
+// *(The second-source clause was missing from this list and from the count above, for the
+// one reason: it was added after both were written. W104's conformity reader, finding 1 —
+// one cause, both symptoms.)*
+//
+// All five are bound by W104's rule 8 set, which edits `check-docs.mjs` rather than the
+// reference, and the Record names the cost of each.
 //
 // **One of those ten is a different kind and is called out rather than listed
 // quietly.** `check-docs.mjs`'s missing-document refusal is ungraded **and
@@ -304,6 +345,44 @@ const PROBES = [
     // + X8 since W69: this mutates the FIRST ```ts run fence, which is the getting-started snippet, and X8 sees AGENTS.md`s copy differ from README`s — measured, not assumed.
     also: ['X8'],
     mutate: (t) => t.replace(/^.*\bthrow new Error\(.*$/gm, ''),
+  },
+  {
+    // **The DEADLINE, which is `X4`'s fourth shape and had no observer at all** —
+    // [W104](../doc/work-items/w104-the-snippet-loop-runs-concurrently.md). `X4` tells four things
+    // apart: a snippet that THROWS (exit 1 with a stack), one that calls `process.exit(n)`, one the
+    // deadline KILLS (`status === null`, `signal` set) and one that cannot be spawned at all. The
+    // first two have probes above; the fourth is reachable by nothing, because `spawn` failing means
+    // `process.execPath` is gone. This is the third, and it is the branch W104 added a message for,
+    // on [Q425](../doc/open-questions.md): nine sub-second snippets were killed under load and
+    // reported as *the snippet does not run*, a sentence about the snippet that was about the clock.
+    //
+    // **It costs ~26 s, once, and WHAT IT BUYS IS NOT WHAT THIS COMMENT FIRST CLAIMED.** The snippet
+    // is held for the full 30 s deadline while the other 31 finish, so this probe's `check-docs` run
+    // is ~30 s rather than ~4.6 s — about 4% of the lane W104 takes from 1096 s to 624 s.
+    //
+    // It said *without this the whole branch could be deleted at 50/50 and 28/28*, and **W104's
+    // adequacy reader measured that false**: with this probe in place, `} else if (r.status === null
+    // && r.signal) {` replaced by `if (false)` leaves `check:docs` at zero failures and this probe at
+    // `ran: yes, outcome: caught`, because the deadline arm and the plain arm report under the SAME id
+    // and emit the SAME number of failures. The branch is deletable at 51/51. W104's own ceiling
+    // `a6b` says exactly that; this comment said the opposite, in the file that exists to refuse the
+    // class. *The message is bound by W104's rule 8 set at a rung that reads the failure LINE, and by
+    // nothing here.*
+    //
+    // **What it does buy, measured, is that the DEADLINE EXISTS.** Delete `timeout: X4_DEADLINE_MS`
+    // from the `spawn` options and this probe's document never exits — no exit in 75 s at the
+    // `check:docs` rung, so in the lane it is killed by `runOne`'s 300 s timeout and reported
+    // not-caught. That is a clause with no other observer anywhere, and it is the honest reason to
+    // keep paying the 26 s.
+    //
+    // Anchored on a TOP-LEVEL declaration in section 7's snippet, which `X8` does not pair (the
+    // string occurs once in `AGENTS.md` and not at all in `README.md`), so the declared set is `X4`
+    // alone. The snippet's own assertions still run and still pass; the interval is what stops it
+    // exiting afterwards, so this probe reaches the deadline and nothing else.
+    name: 'a `run` snippet that never exits, so the deadline kills it — X4`s THIRD verdict, and the one Q425 is about',
+    check: 'X4',
+    mutate: (t) => t.replace('let parked: string | null = null;',
+      'let parked: string | null = null;\nsetInterval(() => {}, 1_000);'),
   },
   {
     name: 'a `run` snippet that calls process.exit() ahead of its assertions',
@@ -623,7 +702,9 @@ const RAN = (out) => /^(All checks passed|\d+ failure\(s\)\.)/m.test(out);
 // `X9`'s probe and raised the floor to the count it ships (Q102's ratchet: the item that adds one
 // raises it, and it goes stale toward WEAKNESS in silence otherwise).
 // **50 since W96**, which added X10's twelve probes and X11's four.
-const MIN_PROBES = 50;
+// **51 since [W104](../doc/work-items/w104-the-snippet-loop-runs-concurrently.md)**, which added the
+// DEADLINE probe — `X4`'s third verdict, which had no observer of any kind before it.
+const MIN_PROBES = 51;
 
 /** The same floor for `META`, and for the same reason. */
 // **21 since W86**, which gave `X9`'s comparison clause a grading — the coverage bound below is
@@ -815,6 +896,47 @@ export async function selfTest(root) {
   // `doc/workflow.md` rule 8's fourth obligation as it was being applied here.
   {
     const src = readFileSync(join(root, 'scripts', 'check-docs.mjs'), 'utf8');
+    // **`X4`'s pool width and its own floor, read out of the check and held HERE** —
+    // [W104](../doc/work-items/w104-the-snippet-loop-runs-concurrently.md). The check
+    // runs its `run` snippets through a pool and fails if the width is below the floor
+    // it declares, which catches the width being lowered and **cannot catch the FLOOR
+    // being lowered with it** — the two are literals in one file and so two edits in
+    // one diff ([Q217](../doc/open-questions.md)). This is the third edit, in another
+    // file: measured, `X4_WIDTH = 1` is `check:docs` EXIT 0 at the pre-W104 wall clock
+    // with all 51 probes below still caught, because a serial pool computes the same
+    // verdicts more slowly. `README_SNIPPET_FLOOR`'s recorded gap, closed for this one.
+    //
+    // **The floor this holds is EIGHT and it shipped as TWO** — W104's adequacy reader,
+    // BLOCKING: a floor of two against a width of eight passes here, passes in the check,
+    // and gives back half the saving (width 2 is 5964 ms against width 8's 4344, +37%).
+    // So the value held here is the width itself, which is what `RUN_FLOOR` and
+    // `README_SNIPPET_FLOOR` do, and a deliberate retune is three edits in two files.
+    //
+    // **What it does NOT reach is the width being made INERT rather than smaller.** Both
+    // literals can stay at 8 while `pump`'s own condition is narrowed; that is two edits
+    // in `check-docs.mjs` and the clauses there are what catch it. This bound reads the
+    // declaration and never the behaviour, which is stated rather than implied.
+    //
+    // **And no probe below can reach it** — every probe mutates the REFERENCE and this is
+    // a property of the check's own source, so the header's list names it. *(The reason
+    // first written here was that a bound over a `CHECK_DOCS_SCRIPT` mutant would fire on
+    // every `META` entry; W104's adequacy reader measured that false — none of the 28
+    // mutants touches `X4_WIDTH`. The simpler reason is the right one: the mutants are
+    // deliberately broken and are not the shipping configuration, and the path this reads
+    // is exactly the script `npm run check:docs` runs.)*
+    {
+      const w = /^const X4_WIDTH = (\d+);$/m.exec(src);
+      const f = /^const X4_WIDTH_FLOOR = (\d+);$/m.exec(src);
+      if (!w || !f || Number(f[1]) < 8 || Number(w[1]) < Number(f[1])) {
+        console.log('check-docs self-test — `X4`\'s pool width and floor, as check-docs.mjs declares them: ' +
+          `width ${w ? w[1] : 'not declared where this reads it'}, floor ${f ? f[1] : 'not declared where this reads it'}.`);
+        console.log('  FAIL  the `run` snippets are not executed concurrently at the width W104 measured, ' +
+          'or the floor that says so has been lowered with it. Half the saving goes at width 2 and all of ' +
+          'it at width 1, and every clause inside check-docs.mjs passes at either.');
+        rmSync(dir, { recursive: true, force: true });
+        return 1;
+      }
+    }
     const mutants = META.map(([, , m]) => { try { return m(src); } catch { return null; } });
     if (new Set(mutants).size !== META.length) {
       console.log(`check-docs self-test — ${META.length} meta entries, ` +

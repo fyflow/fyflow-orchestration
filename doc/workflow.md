@@ -3020,7 +3020,21 @@ ADR 0039's order — and `npm run gate:full` is the ladder plus `selftests`, whi
 every commit. [W103](work-items/w103-the-local-gate-is-the-ladder.md) measured the split at
 **245 s against 1326 s**, so the self-tests were **84%** of the 1571 s a person waited for, and
 `check:docs:selftest` alone was **1298.9 s — 98% of the self-test wall**, six lanes running
-concurrently behind their slowest one. *Nothing is deleted and no bound is lowered*; the proof
+concurrently behind their slowest one.
+
+**[W104](work-items/w104-the-snippet-loop-runs-concurrently.md) halved that lane and the row is
+updated rather than left to rot, which is what this item's own `Spec:` line obliges.** It made
+`check-docs`' snippet loop concurrent at a declared width of eight — `check:docs` **9314 ms ->
+4574 ms** and the lane **1096 s -> 624 s**, measured before and after on one tree with the bands
+not overlapping. Derived from ADR 0070's own per-lane figures, since `gate:full` is CI's to
+measure: the exclusive prefix is 25.2 s and the concurrent group becomes
+`max(624, 477.3, 125.1, 82.7, 53.8, 43.2)`, so the self-test wall is **~649 s against 1324 s** and
+`gate:full` **~894 s against 1571 s**. **`check:docs:selftest` is still the binding lane** at 624 s
+against `check:markdown:selftest`'s 477.3 — what that second lane caps is the NEXT halving, which
+would be worth only ~1.3x on the wall rather than another 2x. *A concurrency win hides behind its
+slowest lane, and halving the slowest moves the floor to the second.*
+
+*Nothing is deleted and no bound is lowered*; the proof
 moved to where nobody is waiting, which is the thing
 [P11](plans/p11-what-should-the-gate-prove.md)'s retro refused for want of a CI that now
 exists. **The cost of that is stated in the ADR and belongs here too**: `S11` and `G4` read the

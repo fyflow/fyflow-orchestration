@@ -22,7 +22,10 @@
 import { readFileSync, writeFileSync, mkdirSync, rmSync, existsSync, readdirSync } from 'node:fs';
 import { join, dirname, resolve, relative } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { spawnSync } from 'node:child_process';
+// `spawn` beside `spawnSync` since W104: the `run` snippets go through a bounded pool
+// of asynchronous children, and the two `tsc` invocations stay synchronous because
+// there are two of them and they are not what this check spends its time on.
+import { spawn, spawnSync } from 'node:child_process';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = join(ROOT, 'dev-dist', 'docs');
@@ -233,11 +236,313 @@ if (written.length) {
 }
 
 // X4 — every `run` snippet executes, and a non-zero exit is the snippet's failure.
-for (const w of written.filter((x) => x.tag === 'run')) {
-  const r = spawnSync(process.execPath, [join(OUT, w.name)], { cwd: ROOT, encoding: 'utf8', timeout: 30_000 });
-  if (r.status !== 0) {
-    const err = `${r.stderr ?? ''}`.trim().split('\n').slice(0, 4).join(' | ');
-    fail('X4', `AGENTS.md:${w.line} — the snippet does not run: ${err || `exit ${r.status}`}`);
+//
+// **CONCURRENT at a declared width since
+// [W104](../doc/work-items/w104-the-snippet-loop-runs-concurrently.md)**, and the one thing that
+// changed is this loop: `spawnSync` in a `for` became a bounded pool over asynchronous `spawn`.
+// The reason is [ADR 0070](../doc/decisions/0070-the-local-gate-is-the-ladder-and-proving-the-checks-can-fail-belongs-to-ci.md) —
+// `check:docs:selftest` runs this whole check **106 times** (50 probes, plus two runs for each of
+// 28 `META` entries), so it was **1096 s of CI's self-test wall**, and halving any other lane moves
+// the total by single digits.
+//
+// **Measured on the 32 snippets this tree ships, on a machine whose `node -e ''` is 49 ms**
+// ([Q180](../doc/open-questions.md)'s baseline is 54 ms, and [Q427](../doc/open-questions.md) is why
+// the reading is stated with the machine): sequentially this loop is **4911 ms**, and at pool width
+// 4 / 8 / 16 / 20 / 32 it is **1614 / 1201 / 1048 / 1082 / 1128 ms**. So the curve is already flat at
+// 8, width 16 buys a further 13%, and **20 and 32 are measurably WORSE than 16** on twenty cores.
+//
+// **Almost the whole loop is startup, which is why overlapping it works at all.** A noop `.ts` in
+// `dev-dist/docs` is 80 ms, one that imports `index.ts` and asserts nothing is 130 ms, and the median
+// snippet is ~150 ms — so **85% of what the pool overlaps is Node booting and loading this package**
+// and ~13% is the snippet doing its own work. That is also why `worker_threads` would buy a further
+// 1.75x by paying the import once, and they are **W106's** deliberately: the asynchronous restructure
+// moves ONE variable, sequential to concurrent, so any behaviour change is attributable to
+// concurrency alone. Doing both at once moves two.
+//
+// **Width 8 rather than the fastest 16, and the measurement that decides it is the one taken under
+// LOAD — which REVERSES the ranking above.** `npm run gate:full` runs `selftests`, which runs six
+// lanes at once, so the condition this lane actually ships in is a busy machine. Measured on this
+// check with eight CPU burners alongside, three runs each: width 1 **11606 ms**, width 8
+// **6017 ms**, width 16 **6469 ms** — so 16 wins by 9% idle and **loses by 7% under the load that
+// ships**, because the snippets are already oversubscribed and a wider pool only adds scheduling.
+// Per-snippet WALL also rises 1.7x at width 8 (251 -> 341 ms) against 2.6x at 16 (578 ms), which
+// matters because the deadline below is a fixed wall-clock cap, and CI's runner has FOUR cores,
+// where 16 is 4x oversubscribed and 8 is 2x.
+const X4_WIDTH = 8;
+// **A floor, because the deliverable is one integer edit from gone and the check is green without
+// it** — measured: `X4_WIDTH = 1` is `check:docs` EXIT 0 at 9084 ms, which is the pre-W104 9314 ms
+// back again, and all 51 of the self-test's probes still pass, because a serial pool computes the
+// same verdicts more slowly. [Q102](../doc/open-questions.md)'s shape, declared as `RUN_FLOOR` and
+// `README_SNIPPET_FLOOR` are.
+//
+// **AT the width and not below it, and W104's adequacy reader is why.** This shipped at **2**, with a
+// comment claiming it was declared the way those two floors are — and it was not: `RUN_FLOOR` is 32
+// against 32 actual and `README_SNIPPET_FLOOR` is 8 against 8, both sitting AT the current value and
+// raised by the item that moves it. A floor of 2 against a width of 8 answers *not literally
+// sequential*, which is not what this check claims. Measured by that reader, three reps round-robin:
+// **width 1 7451 ms, width 2 5964 ms, width 8 4344 ms** — so `X4_WIDTH = 2` was `check:docs` EXIT 0,
+// the self-test's bound EXIT 0, every probe still caught, and **half the saving gone** (+37% idle,
+// +32% under three real concurrent self-test lanes, +45% under twenty burners; roughly +170 s on a
+// 624 s lane). **Its limit is `RUN_FLOOR`'s**: the width and this floor are two edits in one diff
+// ([Q217](../doc/open-questions.md)), which is why `check-docs-selftest.mjs` reads BOTH out of this
+// file and holds the floor itself — the third edit, in another file.
+const X4_WIDTH_FLOOR = 8;
+if (X4_WIDTH < X4_WIDTH_FLOOR) {
+  fail('X4', `the \`run\` snippets are executed through a pool ${X4_WIDTH} wide and the floor is ` +
+    `${X4_WIDTH_FLOOR}. Lowering the width is how this item's whole deliverable leaves, and every ` +
+    'other clause here passes at any width: the verdicts are the same and only the wall clock moves');
+}
+// **Unchanged at 30 s, and the headroom is measured rather than assumed**: the slowest snippet is
+// 251 ms sequentially and 341 ms at this width, so the cap is ~88x the worst case the pool produces.
+// Scaling it with the width was considered and refused — a hung snippet would then cost eight minutes,
+// and [Q425](../doc/open-questions.md)'s own row calls a scaled timeout the dearer road.
+//
+// **What W104 does change is the MESSAGE, which is the cheapest fix that row names.** Q425 is three
+// readings of one check over 32 snippets that never moved — 15 s, then 639 s, then 563 s — in which
+// NINE sub-second snippets were killed at the cap and reported as *the snippet does not run*: a
+// sentence about the snippet that was really about the clock. A `status` of `null` is the deadline and
+// not the snippet; a failure to spawn at all is a third thing that today renders as the same
+// `exit null`; and saying which costs the two branches below. **Concurrency is what makes it no
+// longer optional**, because the pool adds its own 1.7x to whatever the machine is already doing.
+const X4_DEADLINE_MS = 30_000;
+const runnable = written.filter((x) => x.tag === 'run');
+{
+  // Each child's verdict is recorded **at its own index**, never pushed, so the mapping from child to
+  // snippet is positional and cannot drift with the completion order — which is the hazard W104's
+  // declaration names first: several children are in flight at once, and `X4`'s detail lines are what
+  // the self-test's gradings read.
+  const seats = new Array(runnable.length).fill(null);
+  let peak = 0;
+  await new Promise((settle) => {
+    // **Zero `run` snippets must not hang.** The probe *a reference with no snippets at all* produces
+    // exactly that, so the pool settles before it waits for anything.
+    if (runnable.length === 0) { settle(); return; }
+    let next = 0, live = 0, closed = 0;
+    const pump = () => {
+      while (live < X4_WIDTH && next < runnable.length) {
+        const at = next++;
+        const w = runnable[at];
+        const t0 = Date.now();
+        live++;
+        if (live > peak) peak = live;
+        let err = '', settledHere = false;
+        // **`error` and `close` BOTH fire for a child that could not be spawned, and the guard is what
+        // makes the FIRST verdict win** — measured on this platform rather than inferred, because
+        // W104's two readers disagreed about it and both reasoned from the answer: a nonexistent
+        // executable gives `error(ENOENT)` at 3.3 ms and then `close(-4058, null)` at 4.1 ms, two
+        // settling events for one child.
+        //
+        // *Its stated consequence was the one thing it CANNOT be*: this closure captures `at` and `w`,
+        // so a second call rewrites the SAME snippet's seat and never another's — W104's conformity
+        // reader. What it really stops is the counting. Without it `closed` increments twice per
+        // child, so `settle()` runs at the sixteenth of thirty-two with half the seats still null;
+        // `live` decrements twice, so `pump` exceeds the declared width; and the ENOENT verdict is
+        // overwritten by `exit -4058`, which is the useless half of the pair. **That makes removing it
+        // a RACE rather than a failure**, which is why W104's adequacy reader measured one run as
+        // *identical* and concluded the guard was inert — a racy probe is worse than one that fails.
+        const finish = (status, signal, spawnError) => {
+          if (settledHere) return;
+          settledHere = true;
+          seats[at] = { name: w.name, line: w.line, status, signal, spawnError, err, t0, t1: Date.now() };
+          live--;
+          if (++closed === runnable.length) settle(); else pump();
+        };
+        const ch = spawn(process.execPath, [join(OUT, w.name)], {
+          cwd: ROOT,
+          // stdout is DRAINED and discarded, as `spawnSync`'s captured buffer was: a piped stream
+          // nothing reads fills and **blocks the child**, which is a hazard the synchronous form did
+          // not have. Measured in isolation by W104's adequacy reader: an undrained pipe completes at
+          // 70 KB and **deadlocks at 200 KB**; the worst snippet here writes 708 bytes, so the drain
+          // has a ~100x margin and no live case. `stdin: 'ignore'` is the same hazard reversed.
+          //
+          // **The one behaviour `spawnSync` had and this does not** is its implicit 1 MiB `maxBuffer`:
+          // on exceeding it the synchronous form KILLED the child with SIGTERM and set
+          // `error.code = 'ENOBUFS'`, which the old code rendered as `exit null` — so a chatty snippet
+          // used to be reported as a timeout. This drains without limit instead. Both readers raised
+          // it independently; it is a change in the right direction and it is recorded rather than
+          // left for someone to find.
+          stdio: ['ignore', 'pipe', 'pipe'],
+          timeout: X4_DEADLINE_MS,
+        });
+        ch.stdout.on('data', () => {});
+        // **Decoded as UTF-8 on the stream and not by `+=` on a Buffer** — W104's conformity reader:
+        // `err += d` coerces each chunk separately, so a multi-byte character straddling a chunk
+        // boundary mojibakes where `spawnSync(..., { encoding: 'utf8' })` decoded the whole buffer.
+        ch.stderr.setEncoding('utf8');
+        ch.stderr.on('data', (d) => { err += d; });
+        ch.on('error', (e) => finish(null, null, e.code ?? e.message));
+        ch.on('close', (code, signal) => finish(code, signal, undefined));
+      }
+    };
+    pump();
+  });
+  // **Reported in SOURCE order and never in completion order**, so neither the report a human reads
+  // nor the failure list a probe's set equality reads depends on how the pool happened to schedule.
+  // `doc/workflow.md` rule 8 obligation (f) answered by construction rather than by luck.
+  const emittedBefore = failures.length;
+  for (const r of seats) {
+    if (r === null || r.status === 0) continue;
+    const err = `${r.err ?? ''}`.trim().split('\n').slice(0, 4).join(' | ');
+    if (r.spawnError !== undefined) {
+      fail('X4', `AGENTS.md:${r.line} — the snippet could not be spawned at all (${r.spawnError}), ` +
+        'which is this check`s own machinery rather than the snippet');
+    } else if (r.status === null && r.signal) {
+      // **The clock, NAMED** — Q425. The elapsed time and the deadline are both printed, so a reader
+      // can see whether the snippet was slow or the machine was, without this check guessing.
+      //
+      // **A SIGNAL is required, which is the branch ORDER made local** — W104's adequacy reader. The
+      // three arms are tried in order and the order is asserted by nothing, so with the arm above
+      // disabled a 15 ms spawn failure read *killed by no signal after 15 ms against a 30 s deadline*:
+      // a sentence naming a deadline it never reached and contradicting itself in six words. A kill
+      // carries a signal on both platforms this ships to (measured: Windows reports `SIGTERM` for
+      // Node's own `timeout`), so requiring one sends anything else to the plain arm below.
+      fail('X4', `AGENTS.md:${r.line} — the snippet did not exit: killed by ${r.signal} ` +
+        `after ${r.t1 - r.t0} ms against a ${X4_DEADLINE_MS / 1000} s deadline, with up to ${X4_WIDTH} ` +
+        `snippet(s) running at once${err ? ` | ${err}` : ''}`);
+    } else {
+      fail('X4', `AGENTS.md:${r.line} — the snippet does not run: ${err || `exit ${r.status}`}`);
+    }
+  }
+  // **The REPORT half is bound to the RUN half, and the restructure is why it has to be** — W104's
+  // adequacy reader, BLOCKING. Before W104 one `for` both spawned and reported, so a bound on the
+  // loop was a bound on both; W104 split them, and all five clauses below read `seats` rather than
+  // what was EMITTED from it. Measured: `for (const r of seats.slice(0, 1))` is `check:docs` EXIT 0
+  // **on a reference whose snippet throws**, with the note printed and every clause below green —
+  // the item's own argument for the membership clause (*the sequential `for` was self-bounding; a
+  // pool can under-run*) applying verbatim to the half it was not applied to.
+  //
+  // It matters more since [ADR 0070](../doc/decisions/0070-the-local-gate-is-the-ladder-and-proving-the-checks-can-fail-belongs-to-ci.md)
+  // than it would have before: `npm run gate` carries no `:selftest` entry, so a clause whose only
+  // observer is a probe is invisible to the local ladder and lives in CI alone
+  // ([Q431](../doc/open-questions.md)). This is a relation between the two halves, in the check.
+  {
+    const emitted = failures.length - emittedBefore;
+    const failing = seats.filter((r) => r !== null && r.status !== 0).length;
+    if (emitted !== failing) {
+      fail('X4', `the pool recorded ${failing} failing snippet(s) and the report above emitted ` +
+        `${emitted} failure(s). The loop that RUNS and the loop that REPORTS are separate since W104, ` +
+        'and this is the only thing that notices the second one stopping');
+    }
+  }
+  // **The pool runs EVERY `run` snippet, EXACTLY ONCE** — `doc/workflow.md` rule 8 obligation (d),
+  // and it is a hole this change CREATES rather than one it inherits. The sequential `for` was
+  // self-bounding; a pool can under-run, and `RUN_FLOOR` above counts the snippets EXTRACTED rather
+  // than the ones executed, so a pool that ran eight of thirty-two would be green at every other
+  // clause here. Set equality against the names the writer produced, **with the count beside it**,
+  // because a seat filled twice is invisible to a set and a seat left empty is invisible to a count.
+  //
+  // **And POSITIONALLY, which the sorted comparison alone does not reach** — W104's own author pass,
+  // and it is the hazard the item's declaration names first. `seats[closed]` in place of `seats[at]`
+  // fills every seat exactly once with the right snippet's own name and line, so the SET and the
+  // COUNT are both unmoved and only the report's ORDER becomes the completion order: measured, that
+  // mutation cost ZERO at `check:docs` and at all 51 probes. Comparing seat `i` to snippet `i` is
+  // what makes the mapping an assertion rather than a convention — and it is also what makes
+  // obligation (f) hold by construction below rather than by a comment saying it does.
+  const wanted = runnable.map((w) => w.name).sort();
+  const reported = seats.filter(Boolean).map((r) => r.name).sort();
+  const skipped = wanted.filter((n) => !reported.includes(n));
+  // **And the count a SECOND way, from `all` rather than from `written`** — obligation (c)'s procedure
+  // run on this clause's own values, and it found a hole: re-sourcing `wanted` from the seats makes
+  // the comparison above the pool against itself, and the under-run at `a1` then costs ZERO. `all` is
+  // the blocks the extractor parsed and `written` is the subset a separate loop wrote files for, so
+  // this is a different array produced by different code — the same expression `RUN_FLOOR` reads
+  // below, which is this file's established derivation of *how many snippets should run*.
+  const runBlocks = all.filter((x) => x.tag === 'run').length;
+  // **BOTH fields the seat carries, not just the name** — W104's adequacy reader, BLOCKING. Two
+  // values are handed in (`name` and `line`) and the report prints the LINE, which is the mapping as
+  // a HUMAN reads it; comparing the name alone left `line: runnable[0].line` at `check:docs` EXIT 0,
+  // and on a reference whose snippet at line 946 throws it reported **`AGENTS.md:77`** — the right
+  // verdict against the wrong snippet, with the self-test's probe still reading `outcome: caught`
+  // because the gradings read the id SET and the report ROWS and never the line. *W90's handed-on
+  // value compared on two fields of four, one plan on.*
+  const misseated = seats.findIndex((r, i) => r !== null &&
+    (r.name !== runnable[i].name || r.line !== runnable[i].line));
+  if (reported.length !== wanted.length || reported.join('\n') !== wanted.join('\n') || misseated >= 0) {
+    // Two arms and not three: a third, *its seats are not the snippets that were written*, was
+    // UNREACHABLE and said so ungrammatically — an empty `skipped` forces every seat non-null, which
+    // forces both the set and the length equal, so the condition cannot be true with `misseated < 0`.
+    // W104's conformity reader.
+    const which = skipped.length
+      ? `${skipped.join(', ')} never ran`
+      : `seat ${misseated} holds ${seats[misseated].name} at line ${seats[misseated].line} where ` +
+        `snippet ${misseated} is ${runnable[misseated].name} at line ${runnable[misseated].line}, ` +
+        'so a verdict is attributed to the wrong snippet';
+    fail('X4', `the pool returned a verdict for ${reported.length} of ${wanted.length} \`run\` ` +
+      `snippet(s) — ${which}. Every other clause here is about the snippets that DID run, so this is ` +
+      'the only thing that notices one the pool skipped or mis-seated');
+  }
+  if (reported.length !== runBlocks) {
+    fail('X4', `the pool returned ${reported.length} verdict(s) and the extractor found ${runBlocks} ` +
+      '`run` block(s). This is the clause above`s second source, from a different array: with only one, ' +
+      're-sourcing it from the pool makes the comparison the pool against itself');
+  }
+  // **And it ran them CONCURRENTLY, which is this item's whole deliverable and would otherwise be
+  // held by nothing** — obligation (b)'s tautology clause. Lowering `X4_WIDTH` and narrowing `pump`'s
+  // own condition each serialise the pool, and both are green at every other clause here and at all
+  // 51 of the self-test's probes, because a serial pool computes the same verdicts more slowly.
+  //
+  // **TWO expressions, and the second is a PROVENANCE guard rather than a second detector** — and the
+  // comment here claimed otherwise until W104's two readers took it apart from opposite ends. The
+  // honest account, measured:
+  //
+  //   * `live` is incremented before `spawn` and decremented in `finish`, and `[t0, t1]` brackets
+  //     exactly that interval, so **`overlap >= peak` always** — therefore the overlap clause can
+  //     never fire on a tree where the peak clause passes (conformity reader). It is not a second
+  //     chance to catch a serial pool.
+  //   * What it DOES catch is a mutated counter: forcing `peak = X4_WIDTH` and serialising the pool
+  //     is caught by **overlap alone**. That is obligation (c)'s own purpose and it is why there are
+  //     two (adequacy reader, measured).
+  //   * Both are the PARENT's bookkeeping. `t0` is read two statements above `peak` and `t1` in the
+  //     parent's `finish`; **no child reports its own clock.** The proof is that with every child
+  //     failing to spawn — not one snippet running — the note still printed *9 by the snippets' own
+  //     clocks*. So they are siblings in one apparatus, which is `doc/workflow.md` v0.16's clause,
+  //     and the words no longer claim more than that.
+  //
+  // **Each clause derives its own expectation**, because sharing one was the hole: with `expectedPeak`
+  // the right-hand side of both, narrowing `pump` AND re-pointing `expectedPeak` — two edits in ONE
+  // file — was `check:docs` EXIT 0 with the note printing *pool 8 wide — peak 1 in flight* and the
+  // cross-file bound passing, since that bound reads the two literals and not whether they are used.
+  // Two derivations of one formula is [Q217](../doc/open-questions.md)'s shape and is the cost;
+  // what it buys is that the mutation now needs three edits and the peak clause reads `X4_WIDTH`
+  // itself. **Neither is a clock BUDGET** — that would be [Q179](../doc/open-questions.md)'s error,
+  // since wall time here is not reproducible — they are relations that hold at any speed, because
+  // `pump` spawns `min(width, n)` children synchronously before the event loop can deliver a `close`.
+  if (runnable.length > 0 && peak !== Math.min(X4_WIDTH, runnable.length)) {
+    fail('X4', `the pool held ${peak} snippet(s) in flight at its peak, where a declared width of ` +
+      `${X4_WIDTH} over ${runnable.length} snippet(s) must reach ${Math.min(X4_WIDTH, runnable.length)}. ` +
+      'A pool that serialises itself is this clause`s subject: the saving is gone and every other ' +
+      'check here passes');
+  }
+  // The second derivation, over the timestamps the PARENT recorded around each child rather than over
+  // its counter. A FLOOR and not an equality: `Date.now()` is millisecond-grained, so children opening
+  // and closing within one millisecond read as overlapping — and the tie-break puts every open before
+  // every close, so **k simultaneous closes inflate this by k and not by one**, which is what the
+  // comment claimed until W104's conformity reader derived the sort. Measured: 9 against a peak of 8
+  // in 5 of 5 runs at width 8, and 2 against 1 at width 1.
+  const expectedOverlap = Math.min(X4_WIDTH, runnable.length);
+  const overlap = (() => {
+    const edges = [];
+    for (const r of seats) { if (r) { edges.push([r.t0, 1], [r.t1, -1]); } }
+    edges.sort((a, b) => a[0] - b[0] || b[1] - a[1]);
+    let n = 0, hi = 0;
+    for (const [, d] of edges) { n += d; if (n > hi) hi = n; }
+    return hi;
+  })();
+  if (runnable.length > 0 && overlap < expectedOverlap) {
+    fail('X4', `the start and end times recorded around each child overlap ${overlap} deep, where a ` +
+      `declared width of ${X4_WIDTH} over ${runnable.length} snippet(s) must reach ${expectedOverlap} ` +
+      '— so the children did not run at the same time, whatever the pool`s own counter says');
+  }
+  // **Printed whether or not the clauses above passed, because it used to go silent exactly when
+  // something was wrong** — W104's adequacy reader. Its guard required no skipped snippet and both
+  // concurrency clauses satisfied, so the one artifact a person would read to see whether the pool
+  // worked was absent in every case where it had not. [Q100](../doc/open-questions.md)'s class says
+  // nothing reads this line, which is the honest half; a diagnostic that disappears under the
+  // condition it diagnoses is the other.
+  if (runnable.length) {
+    console.log(`note: X4 ran ${runnable.length} \`run\` snippet(s) through a pool ${X4_WIDTH} wide — ` +
+      `peak ${peak} in flight by the pool's count and ${overlap} by the times recorded around them, ` +
+      `each with a ${X4_DEADLINE_MS / 1000} s deadline.`);
   }
 }
 
