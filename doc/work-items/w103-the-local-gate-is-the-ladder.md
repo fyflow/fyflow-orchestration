@@ -26,8 +26,11 @@ takes this long."* The complaint is right and the measurement says where it is r
 
 ## What it is
 
-**`npm run gate` is the ladder; `npm run gate:full` is the ladder plus the self-tests, and CI runs that
-on every commit.** [ADR 0070](../decisions/0070-the-local-gate-is-the-ladder-and-proving-the-checks-can-fail-belongs-to-ci.md)
+**`npm run gate` is the ladder; `npm run gate:full` is the ladder plus the self-tests, and CI runs that.**
+*(This said **on every commit**, which was true of the tree this item shipped and stopped being true on
+2026-10-02, when the maintainer asked for the workflow to be a MANUAL trigger — `workflow_dispatch`
+alone. A declared exception on this file, taken by the change that made the sentence false rather than
+left for whoever reads it next, which is `doc/workflow.md` section 1 rule 5's third direction.)* [ADR 0070](../decisions/0070-the-local-gate-is-the-ladder-and-proving-the-checks-can-fail-belongs-to-ci.md)
 is the decision and carries the argument. Nothing is deleted, no probe is dropped and no bound is
 lowered — the same thing ADR 0039 could say when it reordered the chain.
 

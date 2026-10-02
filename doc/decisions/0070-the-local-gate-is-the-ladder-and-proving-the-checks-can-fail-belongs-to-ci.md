@@ -78,7 +78,14 @@ ADR 0039 explicitly did not decide.
    means.
 
 4. **Nothing is deleted and no bound is lowered.** All eight self-tests, every probe and every grading
-   still run, on every commit, in CI — the same property ADR 0039 preserved when it reordered the chain.
+   still run in CI — the same property ADR 0039 preserved when it reordered the chain. *(This rule read
+   **on every commit** until 2026-10-02, when the maintainer asked for `.github/workflows/gate.yml` to be
+   a MANUAL trigger: `workflow_dispatch` alone, no `push` and no `pull_request`. The rule's substance
+   stands — nothing is deleted, no bound is lowered, and `gate:full` still runs all eight — but its
+   AUTOMATIC half is gone, so what this ADR moved off the local ladder is now something a person chooses
+   to run rather than something that happens. Rule 2's reason, *CI is where that proof belongs: nobody is
+   watching, and it runs on every commit*, has lost its second clause; consequence 2 below already prices
+   exactly this case and is now the live reading rather than a hypothetical one.)*
 
 ## Consequences
 
