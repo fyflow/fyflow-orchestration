@@ -326,7 +326,7 @@ suite('W73 — constructed shapes: needs, a fan-out`s record, a map`s arity, the
     const rr = (await checkWiring(r, mk('R', plain))).verdicts.find((v) => v.consumer === 'out')!;
     equal(rr.kind, 'no', 'requiring the key of a branch with no visible exit');
     ok(rr.why.includes('consumer requires "1", producer does not guarantee it'), rr.why);
-    const leaves = mk('R', [{ id: 'r', kind: 'task', type: 'A', edges: [{ when: 'go', to: 'gone' }, { to: 'join' }] }, { id: 'gone', kind: 'end', outcome: 'left' }]);
+    const leaves = mk('R', [{ id: 'r', kind: 'task', type: 'A', edges: [{ when: { predicate: 'go' }, to: 'gone' }, { to: 'join' }] }, { id: 'gone', kind: 'end', outcome: 'left' }]);
     equal((await checkWiring(r, leaves)).verdicts.find((v) => v.consumer === 'out')!.kind, 'no', 'and of one that can');
   });
 
@@ -372,7 +372,11 @@ suite('W73 — constructed shapes: needs, a fan-out`s record, a map`s arity, the
     // added `gated-map.flow.json`**: `identify` (the map's item), `setup` (THROUGH the gate — the arc out of it, so
     // the arc into the gate) and `publish` (the join's record); the entry has none. Before W92 taught the check
     // the kind, `setup`'s arc was not in the report at all — 58, and nothing here would have said so.
-    equal(total, 59, 'the L4 corpus`s 59 arcs');
+    // 59 until W108 added `declared-predicate.flow.json` (v0.27, a `when` that is DATA): five nodes,
+    // four of them tasks, and nine arcs — three edges out of `ingest` and four out of `score` to two
+    // distinct targets, plus `review` and `publish`. A corpus census is a claim about the corpus and
+    // moves with it; what it BINDS is that every arc got a verdict.
+    equal(total, 68, 'the L4 corpus`s 68 arcs');
   });
 
   test('a map`s record is BUILT with the branch-path marker: a successor naming "0" as a number is `no`, naming it as an object fits, naming `confidence` is never met (rule 8 probe s4 survived until this existed)', async () => {

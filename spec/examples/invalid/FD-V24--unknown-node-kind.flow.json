@@ -5,7 +5,7 @@
   "nodes": [
     { "id": "score", "kind": "task", "type": "ScoreWorker", "edges": [ { "to": "pick" } ] },
     { "id": "pick",  "kind": "decision", "edges": [
-        { "when": "isLowConfidence", "to": "review" },
+        { "when": { "predicate": "isLowConfidence" }, "to": "review" },
         { "to": "done" }
     ] },
     { "id": "review", "kind": "end", "outcome": "needs-review" },

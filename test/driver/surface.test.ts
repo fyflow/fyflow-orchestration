@@ -120,10 +120,10 @@ suite('the region guards — no region event escapes a non-region path', (test) 
       flowId: 'outside-end', version: 1, entry: 'ingest',
       nodes: [
         { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [
-          { when: 'isLowConfidence', to: 'dropped' }, { to: 'split' }] },
+          { when: { predicate: 'isLowConfidence' }, to: 'dropped' }, { to: 'split' }] },
         { id: 'split', kind: 'fanout', branches: ['a', 'b'] },
         { id: 'a', kind: 'task', type: 'ScoreWorker', edges: [
-          { when: 'isLowConfidence', to: 'dropped' }, { to: 'j' }] },
+          { when: { predicate: 'isLowConfidence' }, to: 'dropped' }, { to: 'j' }] },
         { id: 'b', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'j' }] },
         { id: 'dropped', kind: 'end', outcome: 'dropped' },
         { id: 'j', kind: 'join', of: 'split', edges: [{ to: 'done' }] },
@@ -498,7 +498,7 @@ suite('regionOf on a nested flow — the driver reads the INNERMOST region', (te
       { id: 'inner', kind: 'fanout', branches: ['scoreC', 'scoreD'] },
       // The exit: a decision edge out of the inner region to an `end` inside it.
       { id: 'scoreC', kind: 'task', type: Object.keys(reg.nodeTypes)[0]!,
-        edges: [{ to: 'bail', when: 'always' }, { to: 'innerJoin' }] },
+        edges: [{ to: 'bail', when: { predicate: 'always' } }, { to: 'innerJoin' }] },
       { id: 'scoreD', kind: 'task', type: Object.keys(reg.nodeTypes)[0]!, edges: [{ to: 'innerJoin' }] },
       { id: 'bail', kind: 'end', outcome: 'completed' },
       { id: 'innerJoin', kind: 'join', of: 'inner', edges: [{ to: 'outerJoin' }] },
@@ -559,9 +559,9 @@ suite('a dead inner join, and what it does to the branch it sits in', (test) => 
     const innerNodes = [
       { id: 'inner', kind: 'fanout', branches: ['scoreC', 'scoreD'] },
       { id: 'scoreC', kind: 'task', type: Object.keys(reg.nodeTypes)[0]!,
-        edges: [{ when: 'always', to: 'bail' }, { to: 'innerJoin' }] },
+        edges: [{ when: { predicate: 'always' }, to: 'bail' }, { to: 'innerJoin' }] },
       { id: 'scoreD', kind: 'task', type: Object.keys(reg.nodeTypes)[0]!,
-        edges: [{ when: 'always', to: 'bail' }, { to: 'innerJoin' }] },
+        edges: [{ when: { predicate: 'always' }, to: 'bail' }, { to: 'innerJoin' }] },
     ];
     const nodes = [
       ...(innerFirst ? innerNodes : outerNodes),
@@ -646,13 +646,13 @@ suite('a dead inner join, and what it does to the branch it sits in', (test) => 
       { id: 'b', kind: 'task', type: Object.keys(reg.nodeTypes)[0]!, edges: [{ to: 'mid' }] },
       { id: 'mid', kind: 'fanout', branches: ['c', 'd'] },
       { id: 'c', kind: 'task', type: Object.keys(reg.nodeTypes)[0]!,
-        edges: [{ when: 'always', to: 'gone' }, { to: 'midJoin' }] },
+        edges: [{ when: { predicate: 'always' }, to: 'gone' }, { to: 'midJoin' }] },
       { id: 'd', kind: 'task', type: Object.keys(reg.nodeTypes)[0]!, edges: [{ to: 'inner' }] },
       { id: 'inner', kind: 'fanout', branches: ['e', 'f'] },
       { id: 'e', kind: 'task', type: Object.keys(reg.nodeTypes)[0]!,
-        edges: [{ when: 'always', to: 'gone' }, { to: 'innerJoin' }] },
+        edges: [{ when: { predicate: 'always' }, to: 'gone' }, { to: 'innerJoin' }] },
       { id: 'f', kind: 'task', type: Object.keys(reg.nodeTypes)[0]!,
-        edges: [{ when: 'always', to: 'gone' }, { to: 'innerJoin' }] },
+        edges: [{ when: { predicate: 'always' }, to: 'gone' }, { to: 'innerJoin' }] },
       { id: 'gone', kind: 'end', outcome: 'branch-abandoned' },
       { id: 'innerJoin', kind: 'join', of: 'inner', edges: [{ to: 'midJoin' }] },
       { id: 'midJoin', kind: 'join', of: 'mid', edges: [{ to: 'outerJoin' }] },
@@ -693,9 +693,9 @@ suite('a dead inner join, and what it does to the branch it sits in', (test) => 
     const nodes = [
       { id: 'split', kind: 'fanout', branches: ['x', 'y'] },
       { id: 'x', kind: 'task', type: Object.keys(reg.nodeTypes)[0]!,
-        edges: [{ when: 'always', to: 'bail' }, { to: 'collect' }] },
+        edges: [{ when: { predicate: 'always' }, to: 'bail' }, { to: 'collect' }] },
       { id: 'y', kind: 'task', type: Object.keys(reg.nodeTypes)[0]!,
-        edges: [{ when: 'always', to: 'bail' }, { to: 'collect' }] },
+        edges: [{ when: { predicate: 'always' }, to: 'bail' }, { to: 'collect' }] },
       { id: 'bail', kind: 'end', outcome: 'branch-abandoned' },
       { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'done' }] },
       { id: 'done', kind: 'end', outcome: 'completed' },

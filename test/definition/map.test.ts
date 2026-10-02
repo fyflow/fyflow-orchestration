@@ -378,7 +378,7 @@ suite('map — the region maths is UNCHANGED (spec/flow-definition.md section 4)
       task('ingest', 'split', { type: 'IngestWorker' }),
       mapNode('split', 'items', 'score'),
       { id: 'score', kind: 'task', type: 'ScoreWorker', edges: [
-        { when: 'isLowConfidence', to: 'publish' },
+        { when: { predicate: 'isLowConfidence' }, to: 'publish' },
         { to: 'collect' },
       ] } as unknown as FlowNode,
       join('collect', 'split', 'publish'),
@@ -413,7 +413,7 @@ suite('map — the region maths is UNCHANGED (spec/flow-definition.md section 4)
     // `region-entered-from-outside` shape. Acyclic for the same reason as above.
     const v22 = doc([
       { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [
-        { when: 'isLowConfidence', to: 'score' },
+        { when: { predicate: 'isLowConfidence' }, to: 'score' },
         { to: 'split' },
       ] } as unknown as FlowNode,
       mapNode('split', 'items', 'score'),

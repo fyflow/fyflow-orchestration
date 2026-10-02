@@ -13,7 +13,7 @@
 
     { "id": "classify", "kind": "task", "type": "Prompt",
       "settings": { "prompt": "Classify the text; report confidence." },
-      "edges": [{ "when": "isLowConfidence", "to": "review" }, { "to": "collect" }] },
+      "edges": [{ "when": { "predicate": "isLowConfidence" }, "to": "review" }, { "to": "collect" }] },
 
     { "id": "review", "kind": "task", "type": "GpuModel", "pool": "prompt-big",
       "settings": { "prompt": "Classify carefully." },

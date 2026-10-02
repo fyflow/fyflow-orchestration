@@ -38,9 +38,9 @@ suite('the end-node exemptions — three shapes the corpus does not hold', (test
       nodes: [
         { id: 'split', kind: 'fanout', branches: ['a', 'b'] },
         { id: 'a', kind: 'task', type: 'ScoreWorker', edges: [
-          { when: 'isLowConfidence', to: 'dropped' }, { to: 'j' }] },
+          { when: { predicate: 'isLowConfidence' }, to: 'dropped' }, { to: 'j' }] },
         { id: 'b', kind: 'task', type: 'ScoreWorker', edges: [
-          { when: 'isLowConfidence', to: 'dropped' }, { to: 'j' }] },
+          { when: { predicate: 'isLowConfidence' }, to: 'dropped' }, { to: 'j' }] },
         { id: 'dropped', kind: 'end', outcome: 'dropped' },
         { id: 'j', kind: 'join', of: 'split', edges: [{ to: 'done' }] },
         { id: 'done', kind: 'end', outcome: 'completed' },
@@ -54,7 +54,7 @@ suite('the end-node exemptions — three shapes the corpus does not hold', (test
       nodes: [
         { id: 'split', kind: 'fanout', branches: ['a', 'b'] },
         { id: 'a', kind: 'task', type: 'ScoreWorker', edges: [
-          { when: 'isLowConfidence', to: 'done' }, { to: 'j' }] },
+          { when: { predicate: 'isLowConfidence' }, to: 'done' }, { to: 'j' }] },
         { id: 'b', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'j' }] },
         { id: 'j', kind: 'join', of: 'split', edges: [{ to: 'publish' }] },
         { id: 'publish', kind: 'task', type: 'PublishWorker', edges: [{ to: 'done' }] },
@@ -68,10 +68,10 @@ suite('the end-node exemptions — three shapes the corpus does not hold', (test
       flowId: 'outside-end', version: 1, entry: 'ingest',
       nodes: [
         { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [
-          { when: 'isLowConfidence', to: 'dropped' }, { to: 'split' }] },
+          { when: { predicate: 'isLowConfidence' }, to: 'dropped' }, { to: 'split' }] },
         { id: 'split', kind: 'fanout', branches: ['a', 'b'] },
         { id: 'a', kind: 'task', type: 'ScoreWorker', edges: [
-          { when: 'isLowConfidence', to: 'dropped' }, { to: 'j' }] },
+          { when: { predicate: 'isLowConfidence' }, to: 'dropped' }, { to: 'j' }] },
         { id: 'b', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'j' }] },
         { id: 'dropped', kind: 'end', outcome: 'dropped' },
         { id: 'j', kind: 'join', of: 'split', edges: [{ to: 'done' }] },

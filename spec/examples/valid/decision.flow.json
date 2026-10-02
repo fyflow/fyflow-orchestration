@@ -4,7 +4,7 @@
   "entry": "score",
   "nodes": [
     { "id": "score", "kind": "task", "type": "ScoreWorker", "edges": [
-        { "when": "isLowConfidence", "to": "review" },
+        { "when": { "predicate": "isLowConfidence" }, "to": "review" },
         { "to": "publish" }
     ] },
     { "id": "review",   "kind": "task", "type": "ReviewWorker",  "edges": [ { "to": "reviewed" } ] },

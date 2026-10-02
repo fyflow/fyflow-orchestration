@@ -1,0 +1,13 @@
+{
+  "flowId": "predicate-op-outside-the-subset",
+  "version": 1,
+  "entry": "score",
+  "nodes": [
+    { "id": "score", "kind": "task", "type": "ScoreWorker", "edges": [
+        { "when": { "path": "outcome.result.label", "op": "matches", "value": "^lo" }, "to": "review" },
+        { "to": "done" }
+    ] },
+    { "id": "review", "kind": "end", "outcome": "needs-review" },
+    { "id": "done",   "kind": "end", "outcome": "completed" }
+  ]
+}

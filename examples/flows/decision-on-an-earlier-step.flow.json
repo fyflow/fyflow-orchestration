@@ -5,7 +5,7 @@
   "nodes": [
     { "id": "ingest",  "kind": "task", "type": "IngestWorker", "edges": [ { "to": "tally" } ] },
     { "id": "tally",   "kind": "task", "type": "TallyWorker",  "edges": [
-        { "when": "earlierWasLowConfidence", "to": "review", "needs": { "earlier": "ingest" } },
+        { "when": { "predicate": "earlierWasLowConfidence" }, "to": "review", "needs": { "earlier": "ingest" } },
         { "to": "publish" }
     ] },
     { "id": "review",  "kind": "task", "type": "PublishWorker", "edges": [ { "to": "publish" } ] },

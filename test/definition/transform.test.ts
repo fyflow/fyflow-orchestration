@@ -151,7 +151,7 @@ suite('FD-V35, FD-V36 and FD-V37 — what a node may DO to its input, every clau
         ['a number', 5], ['a string', 'confidence'], ['an array', ['path', 'confidence']], ['null', null],
         ['no expr', { lang: 'path' }], ['no lang', { expr: 'confidence' }],
         ['lang not a string', { lang: 5, expr: 'confidence' }], ['expr not a string', { lang: 'path', expr: ['confidence'] }],
-        ['a third key', { lang: 'path', expr: 'confidence', when: 'always' }],
+        ['a third key', { lang: 'path', expr: 'confidence', when: { predicate: 'always' } }],
       ];
       ok(MALFORMED.length >= 5 && new Set(MALFORMED.map(([l]) => l)).size === MALFORMED.length, 'the malformed list is non-empty and its labels distinct');
       for (const [label, v] of MALFORMED) {

@@ -155,7 +155,7 @@ const skippedRegion = (publishEdges: unknown[]): FlowDefinition =>
     flowId: 'edge-reference-past-a-skipped-region', version: 1, entry: 'ingest',
     nodes: [
       { id: 'ingest', kind: 'task', type: 'IngestWorker',
-        edges: [{ when: 'isHighConfidence', to: 'split' }, { to: 'regroup' }] },
+        edges: [{ when: { predicate: 'isHighConfidence' }, to: 'split' }, { to: 'regroup' }] },
       { id: 'split', kind: 'map', over: 'items', branch: 'score' },
       { id: 'score', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'collect' }] },
       { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'regroup' }] },
@@ -258,8 +258,8 @@ suite('L2 — FD-C3: what a decision sees', (test) => {
         { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'score' }] },
         {
           id: 'score', kind: 'task', type: 'ScoreWorker', edges: [
-            { when: 'isLowConfidence', to: 'review', needs: { earlier: 'ingest' } },
-            { when: 'isHighConfidence', to: 'publish' },
+            { when: { predicate: 'isLowConfidence' }, to: 'review', needs: { earlier: 'ingest' } },
+            { when: { predicate: 'isHighConfidence' }, to: 'publish' },
             { to: 'done' },
           ],
         },
@@ -300,7 +300,7 @@ suite('L2 — FD-C3: what a decision sees', (test) => {
         { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'score' }] },
         {
           id: 'score', kind: 'task', type: 'ScoreWorker', edges: [
-            { when: 'isLowConfidence', to: 'review', needs: { earlier: 'ingest' } },
+            { when: { predicate: 'isLowConfidence' }, to: 'review', needs: { earlier: 'ingest' } },
             { to: 'publish' },
           ],
         },
@@ -334,8 +334,8 @@ suite('L2 — FD-C3: what a decision sees', (test) => {
         { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'score' }] },
         {
           id: 'score', kind: 'task', type: 'ScoreWorker', edges: [
-            { when: 'isLowConfidence', to: 'review', needs: { earlier: 'ingest' } },
-            { when: 'isHighConfidence', to: 'publish', needs: { earlier: 'ingest' } },
+            { when: { predicate: 'isLowConfidence' }, to: 'review', needs: { earlier: 'ingest' } },
+            { when: { predicate: 'isHighConfidence' }, to: 'publish', needs: { earlier: 'ingest' } },
             { to: 'done' },
           ],
         },
@@ -379,7 +379,7 @@ suite('L2 — FD-C3: what a decision sees', (test) => {
         { id: 'score', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'check' }] },
         {
           id: 'check', kind: 'task', type: 'MergeWorker', edges: [
-            { when: 'isLowConfidence', to: 'review', needs: { mine: 'score' } },
+            { when: { predicate: 'isLowConfidence' }, to: 'review', needs: { mine: 'score' } },
             { to: 'collect' },
           ],
         },
@@ -427,8 +427,8 @@ suite('L2 — FD-C3: what a decision sees', (test) => {
         { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'publish' }] },
         {
           id: 'publish', kind: 'task', type: 'PublishWorker', edges: [
-            { when: 'isLowConfidence', to: 'review', needs: { all: ['score'], up: 'ingest' } },
-            { when: 'isHighConfidence', to: 'review', needs: { all: ['score'] } },
+            { when: { predicate: 'isLowConfidence' }, to: 'review', needs: { all: ['score'], up: 'ingest' } },
+            { when: { predicate: 'isHighConfidence' }, to: 'review', needs: { all: ['score'] } },
             { to: 'done' },
           ],
         },
@@ -505,8 +505,8 @@ suite('L2 — FD-C3: what a decision sees', (test) => {
         { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'score' }] },
         {
           id: 'score', kind: 'task', type: 'ScoreWorker', edges: [
-            { when: 'isLowConfidence', to: 'review', needs: { earlier: 'ingest' } },
-            { when: 'isHighConfidence', to: 'publish' },
+            { when: { predicate: 'isLowConfidence' }, to: 'review', needs: { earlier: 'ingest' } },
+            { when: { predicate: 'isHighConfidence' }, to: 'publish' },
             { to: 'done' },
           ],
         },
@@ -545,8 +545,8 @@ suite('L2 — FD-C3: what a decision sees', (test) => {
     // cost **0**, because over-calling is not observable in a value. *What is
     // observable is calling it for the wrong edge*, and this is what says so.
     const def = pastArity([
-      { when: 'isLowConfidence', to: 'audit' },
-      { when: 'isHighConfidence', to: 'audit', needs: { f: ['score'] } },
+      { when: { predicate: 'isLowConfidence' }, to: 'audit' },
+      { when: { predicate: 'isHighConfidence' }, to: 'audit', needs: { f: ['score'] } },
       { to: 'gather' },
     ]);
     equal(validateDefinition(def, { predicates: reg.predicates, workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools }), [],
@@ -585,7 +585,7 @@ suite('L2 — FD-C3: what a decision sees', (test) => {
     // the map region skipped, which is `FD-R3`'s remaining shape one rule across
     // ([Q218](../../doc/open-questions.md)).
     const def = pastArity([
-      { when: 'isLowConfidence', to: 'audit', needs: { f: ['score?'] } },
+      { when: { predicate: 'isLowConfidence' }, to: 'audit', needs: { f: ['score?'] } },
       { to: 'gather' },
     ]);
     equal(validateDefinition(def, { predicates: reg.predicates, workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools }), [],
@@ -613,7 +613,7 @@ suite('L2 — FD-C3: what a decision sees', (test) => {
     // `FD-C4`'s array row needs a target that ran NOWHERE, which is what the empty
     // array now means at this site.
     const skipped = skippedRegion([
-      { when: 'isLowConfidence', to: 'audit', needs: { f: ['score?'] } },
+      { when: { predicate: 'isLowConfidence' }, to: 'audit', needs: { f: ['score?'] } },
       { to: 'gather' },
     ]);
     equal(
@@ -634,7 +634,7 @@ suite('L2 — FD-C3: what a decision sees', (test) => {
     ok('f' in seenSkip, 'present, so a predicate reading ctx.needs.f gets an array either way');
     // And the ONE form at this site, where the key must be gone rather than empty.
     const one = pastArity([
-      { when: 'isLowConfidence', to: 'audit', needs: { g: 'regroup?' } },
+      { when: { predicate: 'isLowConfidence' }, to: 'audit', needs: { g: 'regroup?' } },
       { to: 'gather' },
     ]);
     equal(validateDefinition(one, { predicates: reg.predicates, workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools }), [],
@@ -661,13 +661,13 @@ suite('L2 — FD-C3: what a decision sees', (test) => {
       nodes: [
         {
           id: 'ingest', kind: 'task', type: 'IngestWorker',
-          edges: [{ when: 'isHighConfidence', to: 'flag' }, { to: 'skip' }],
+          edges: [{ when: { predicate: 'isHighConfidence' }, to: 'flag' }, { to: 'skip' }],
         },
         { id: 'flag', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'publish' }] },
         { id: 'skip', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'publish' }] },
         {
           id: 'publish', kind: 'task', type: 'PublishWorker', edges: [
-            { when: 'isLowConfidence', to: 'review', needs: { f: 'flag?' } },
+            { when: { predicate: 'isLowConfidence' }, to: 'review', needs: { f: 'flag?' } },
             { to: 'done' },
           ],
         },
@@ -702,7 +702,7 @@ suite('L2 — FD-C3: what a decision sees', (test) => {
     // this fixture brings its own — and the SHIPPED-policy control below is what
     // makes it a statement about the edge site rather than about the policy.
     const def = fanoutJoinEdge([
-      { when: 'isLowConfidence', to: 'audit', needs: { f: 'scoreA' } },
+      { when: { predicate: 'isLowConfidence' }, to: 'audit', needs: { f: 'scoreA' } },
       { to: 'done' },
     ]);
     equal(validateDefinition(def, { predicates: reg.predicates, workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools }), [],
@@ -753,7 +753,7 @@ suite('L2 — FD-C3: what a decision sees', (test) => {
  * one. This is the declaration that makes that a typecheck failure, and it is at
  * module scope so it costs no test case.
  */
-const TYPED_EDGE: Edge = { when: 'isLowConfidence', to: 'review', needs: { earlier: 'ingest' } };
+const TYPED_EDGE: Edge = { when: { predicate: 'isLowConfidence' }, to: 'review', needs: { earlier: 'ingest' } };
 
 suite('L1 — FD-V26 on an EDGE: the grammar, minus one form', (test) => {
   test('the Edge TYPE admits a `needs`, which every other fixture here casts past', () => {
@@ -768,7 +768,7 @@ suite('L1 — FD-V26 on an EDGE: the grammar, minus one form', (test) => {
       { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'score' }] },
       {
         id: 'score', kind: 'task', type: 'ScoreWorker', edges: [
-          { when: 'isLowConfidence', to: 'review', needs },
+          { when: { predicate: 'isLowConfidence' }, to: 'review', needs },
           { to: 'publish' },
         ],
       },
@@ -879,8 +879,8 @@ suite('L1 — FD-V26 on an EDGE: the grammar, minus one form', (test) => {
         { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'score' }] },
         {
           id: 'score', kind: 'task', type: 'ScoreWorker', edges: [
-            { when: 'isLowConfidence', to: 'review', needs: { ok: 'ingest' } },
-            { when: 'isHighConfidence', to: 'publish', needs: { bad: 'nowhere-at-all' } },
+            { when: { predicate: 'isLowConfidence' }, to: 'review', needs: { ok: 'ingest' } },
+            { when: { predicate: 'isHighConfidence' }, to: 'publish', needs: { bad: 'nowhere-at-all' } },
             { to: 'done' },
           ],
         },

@@ -4,7 +4,7 @@
   "entry": "ingest",
   "nodes": [
     { "id": "ingest",  "kind": "task",   "type": "IngestWorker", "edges": [
-        { "when": "isLowConfidence", "to": "scoreA" },
+        { "when": { "predicate": "isLowConfidence" }, "to": "scoreA" },
         { "to": "split" }
     ] },
     { "id": "split",   "kind": "fanout", "branches": [ "scoreA", "scoreB" ] },

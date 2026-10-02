@@ -141,7 +141,7 @@ suite('FD-R1 — eligible edges exist and none matches: the run fails loudly', (
     // function directly rather than by contorting a driver into an invalid state.
     const node = {
       id: 'score', kind: 'task' as const, type: 'ScoreWorker',
-      edges: [{ when: 'isLowConfidence', to: 'review' }, { when: 'isHighConfidence', to: 'publish' }],
+      edges: [{ when: { predicate: 'isLowConfidence' }, to: 'review' }, { when: { predicate: 'isHighConfidence' }, to: 'publish' }],
     };
     // **A context PER EDGE since W42** — `FD-C3`. `selectEdge` takes a builder, not
     // a `DecisionContext`, because each edge declares its own `needs`. Here every

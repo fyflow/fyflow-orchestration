@@ -45,7 +45,12 @@ Measured on `85ee05c`, node 24.20.0, `jsonata` 2.2.2 as installed.
 reused.** `expr.evaluate()` returns a `[object Promise]`, and the expression object's whole surface is
 `evaluate, assign, registerFunction, ast, errors` — no sync entry. `selectEdge` is a **synchronous pure
 function** whose own comment says *"it is a function and routing stays pure"*, and `src/driver/driver.ts`
-holds **2** occurrences of `async`/`await` in ~2000 lines. So a declared expression cannot be evaluated
+holds **ZERO** occurrences of `async`/`await` in code. *(This read **2** occurrences *in ~2000 lines*
+until W108's declaration step re-took it: the file holds **ONE** occurrence and it is inside a COMMENT —
+the sentence at `driver.ts:3033` about a language's evaluator being async — so the count in code is zero,
+and the file is **3730** lines of which **1159** are code, this repository's `src/` being majority comment
+by house style. **The conclusion is unchanged and STRONGER**: there is nothing to make async around.)*
+So a declared expression cannot be evaluated
 where a decision is made without making routing async, which reaches
 [ADR 0014](../decisions/0014-the-driver-produces-the-folds-ordered-input-sequence.md)'s ordered
 fold-input sequence. *That is why ADR 0051 put transforms in the worker wrapper, and it is why a
@@ -67,6 +72,21 @@ And the ROOTS are not only `result`: measured by occurrence, `ctx.outcome.result
 `ctx.needs.*` 8. *A subset written from the three in `examples/` would have been one third of what the
 tree already asks for* — which is `doc/workflow.md` rule 8 obligation (a)'s shapes clause, firing on a
 plan's facts rather than on an item's probes.
+
+> **RE-TAKEN A THIRD TIME at [W108](../work-items/w108-a-predicate-is-data.md)'s declaration step, and
+> this fact is wrong in three places while its conclusion survives twice over.** The table above counts
+> **eight** instances; the tree holds **TEN predicate bodies over ELEVEN sites**, and the two it misses
+> are an equality on the `outcome.result` root (`scenarios.ts:221`, `result.bail === true`, where the
+> table's only equality example is on `needs`) and **a NEGATION — `resume.test.ts:84`, `(ctx) => !isHigh(ctx)`,
+> a shape the table does not list.** The ROOT counts are text occurrences across whole FILES and are
+> dominated by assertion sites in one test file; by predicate BODY they are **`ctx.needs` 5,
+> `ctx.outcome.result` 4, `ctx.outcome.taskId` 1** — so *the roots are not only `result`* holds and its
+> ordering is the other way round. And *path, compare, literal* is a REDUCTION of the three `typeof x ===
+> 'number' && x < t` bodies rather than a reading of them: measured over 1800 contexts the reduction is
+> exact at **1800 / 1800**, and it is exact **because the comparison is TYPE-STRICT**, which nothing in
+> this plan says. W108's declaration step has the measurements and the two consequences — the negation is
+> expressible only when a comparison may carry a `default`, and a type-strict form **disagrees with
+> `isHigh` on `{score: "9"}`**, where the JS body coerces.
 
 **Fact 3 — the built-in-set precedent exists TWICE and the node-type one does not.** `src/definition/`
 declares exactly `BUILT_IN_GROUP_TYPES` (the scheduler's three) and `BUILT_IN_GATE_TYPES` (`distinct`).

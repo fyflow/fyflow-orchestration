@@ -8,7 +8,7 @@
     { "id": "shard",    "kind": "task", "type": "Shard",  "edges": [ { "to": "perShard" } ] },
     { "id": "perShard", "kind": "map",  "over": "shards", "branch": "grade" },
     { "id": "grade",    "kind": "task", "type": "ScoreWorker",
-      "edges": [ { "when": "isLowScore", "to": "recheck" }, { "to": "gather" } ] },
+      "edges": [ { "when": { "predicate": "isLowScore" }, "to": "recheck" }, { "to": "gather" } ] },
     { "id": "recheck",  "kind": "task", "type": "SecondPass", "edges": [ { "to": "gather" } ] },
     { "id": "gather",   "kind": "join", "of": "perShard", "edges": [ { "to": "collect" } ] },
     { "id": "collect",  "kind": "join", "of": "perWord",  "edges": [ { "to": "publish" } ] },

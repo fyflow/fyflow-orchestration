@@ -1,0 +1,28 @@
+{
+  "flowId": "declared-predicate",
+  "version": 1,
+  "entry": "ingest",
+  "nodes": [
+    { "id": "ingest", "kind": "task", "type": "IngestWorker", "edges": [
+        { "when": { "path": "outcome.result.confidence", "op": "lt", "value": 0.5 }, "to": "score" },
+        { "when": { "path": "outcome.result.tags", "op": "gt", "value": 0, "length": true, "default": [] }, "to": "score" },
+        { "when": { "path": "outcome.taskId", "op": "startsWith", "value": "r1:ingest:" }, "to": "score" },
+        { "to": "publish" }
+    ] },
+    { "id": "score", "kind": "task", "type": "ScoreWorker", "edges": [
+        { "when": { "all": [
+            { "path": "outcome.result.score", "op": "gte", "value": 50 },
+            { "path": "needs.earlier.flagged", "op": "eq", "value": true }
+        ] }, "to": "review", "needs": { "earlier": "ingest" } },
+        { "when": { "any": [
+            { "path": "outcome.result.score", "op": "lte", "value": 10, "default": 0 },
+            { "path": "outcome.result.label", "op": "ne", "value": "clean" }
+        ] }, "to": "review" },
+        { "when": { "predicate": "isLowConfidence" }, "to": "review" },
+        { "to": "publish" }
+    ] },
+    { "id": "review", "kind": "task", "type": "ReviewWorker", "edges": [ { "to": "publish" } ] },
+    { "id": "publish", "kind": "task", "type": "PublishWorker", "edges": [ { "to": "done" } ] },
+    { "id": "done", "kind": "end", "outcome": "completed" }
+  ]
+}

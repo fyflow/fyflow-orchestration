@@ -205,7 +205,7 @@ const shapes: FlowDefinition = {
       workerGroups: ['gpu'],                             // must be a group the registry declares
       edges: [
       { on: ['failed'], to: 'quarantine' },   // eligible only when the task failed
-      { when: 'isLowConfidence', to: 'review' }, // guarded by a registered predicate
+      { when: { predicate: 'isLowConfidence' }, to: 'review' }, // guarded by a registered predicate
       { to: 'publish' },                      // the default: no `on`, no `when`
     ] },
     { id: 'review',  kind: 'task', type: 'ReviewWorker', edges: [{ to: 'publish' }] },
@@ -247,7 +247,7 @@ if (!noGroups.some((f) => f.rule === 'FD-V31' && f.at === 'score')) {
 | `gate` | `type: '<gate type>'`, optional `settings`, and `edges` of `{ to, route? }` — routes the branch that reaches it and hands on what reached it. `settings.key` is a dotted key path over that value (`series.id`; no index). **Not run by any driver yet** | its `type` is not a registered gate type (`FD-V39`); its `settings` are not a plain object its type's schema accepts, or its `key` is not a key path (`FD-V40`); a route is unwired, wired twice, or not its type's, or a gate edge carries `when`, `on` or `needs` (`FD-V41`) — and `route` on any other node's edge is `FD-V41` too |
 
 **A `task` node must have an edge that can be taken when it succeeds.** A node whose only edge is
-`{ when: 'p', to: 'x' }` is refused at construction — it is the mistake the format most invites, and
+`{ when: { predicate: 'p' }, to: 'x' }` is refused at construction — it is the mistake the format most invites, and
 `FD-V7` is what catches it.
 
 **`end.outcome` is a string you choose.** The library never reads it. What the *run* is called is a
@@ -371,7 +371,7 @@ const ifItRan = (ref: string): FlowDefinition => ({
   flowId: 'publish-either-way', version: 1, entry: 'decide',
   nodes: [
     { id: 'decide', kind: 'task', type: 'ScoreWorker', edges: [
-      { when: 'isLowConfidence', to: 'review' },
+      { when: { predicate: 'isLowConfidence' }, to: 'review' },
       { to: 'publish' },
     ] },
     { id: 'review', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'publish' }] },
@@ -447,7 +447,7 @@ if (!rules.includes('FD-V2') || !rules.includes('FD-V32')) {
 }
 ```
 
-There are **37 refusals** over the id range `FD-V1` … `FD-V41` *(34 over `FD-V1` … `FD-V38` until W92 added the gate's three; 35 over `FD-V1` … `FD-V37` until W65 retired `workerType` and with it `FD-V5` and `FD-V34`, adding `FD-V38`; 32 over `FD-V1` … `FD-V34` until W61 added the three transform rules; 29 over `FD-V1` … `FD-V31` until W59 added the three node-type rules — and this sentence stood at 29 twelve lines below the table W59 rewrote, until its conformity reader read the two together)*, each with a failing example in
+There are **41 refusals** over the id range `FD-V1` … `FD-V45` *(37 over `FD-V1` … `FD-V41` until W108 made a predicate DATA and added the four a `when` needs; 34 over `FD-V1` … `FD-V38` until W92 added the gate's three; 35 over `FD-V1` … `FD-V37` until W65 retired `workerType` and with it `FD-V5` and `FD-V34`, adding `FD-V38`; 32 over `FD-V1` … `FD-V34` until W61 added the three transform rules; 29 over `FD-V1` … `FD-V31` until W59 added the three node-type rules — and this sentence stood at 29 twelve lines below the table W59 rewrote, until its conformity reader read the two together)*, each with a failing example in
 `spec/examples/invalid/`. Four ids in that range are **deliberately absent** and have no rule behind
 them: `FD-V14`, which never existed; **`FD-V15`, retired when nested fan-out became
 expressible**; and **`FD-V5` and `FD-V34`, retired with `workerType`** at v0.19 (section 13). The ids are never renumbered, so it is safe to assert on them. The full
@@ -462,6 +462,85 @@ to get right (`ADR 0003`). Do not add it.
 
 ## 4. Decisions and predicates
 
+**A `when` is an object, and it is either a registered NAME or a DECLARED comparison.** Since v0.27
+([ADR 0074](doc/decisions/0074-a-predicate-is-a-registered-name-or-a-declared-comparison-over-the-context.md))
+a flow document can say what a branch depends on without any code at all, which is what lets a UI or
+an agent emit a complete flow. A name still works and is what a predicate that COMPUTES uses.
+
+```ts run
+import { validateDefinition, type FlowDefinition } from 'fyflow-orchestration';
+
+// A `when` is EXACTLY ONE of three shapes, told apart by which keys it carries.
+const flow: FlowDefinition = {
+  flowId: 'declared', version: 1, entry: 'score',
+  nodes: [
+    { id: 'score', kind: 'task', type: 'ScoreWorker', edges: [
+      // 1. a COMPARISON — a key path over the context, an operator, a literal.
+      { when: { path: 'outcome.result.confidence', op: 'lt', value: 0.5 }, to: 'review' },
+      // 2. a flat GROUP — `all` or `any`, whose members are comparisons.
+      { when: { any: [
+        { path: 'outcome.result.score', op: 'gte', value: 90 },
+        // `default` stands in where the path does not resolve. It is what `?? 0` is, and it
+        // is what makes `lte` the negation of `gt` — without it BOTH are false when absent.
+        { path: 'outcome.result.retries', op: 'gt', value: 2, default: 0 },
+      ] }, to: 'review' },
+      // 3. a registered NAME — for anything the subset cannot say.
+      { when: { predicate: 'needsAHuman' }, to: 'review' },
+      { to: 'publish' },
+    ] },
+    { id: 'review', kind: 'task', type: 'ReviewWorker', edges: [{ to: 'done' }] },
+    { id: 'publish', kind: 'task', type: 'PublishWorker', edges: [{ to: 'done' }] },
+    { id: 'done', kind: 'end', outcome: 'completed' },
+  ],
+};
+const registry = {
+  predicates: ['needsAHuman'],
+  workers: { flow: { url: 'worker.js' } },
+  nodeTypes: { ScoreWorker: { worker: 'flow' }, ReviewWorker: { worker: 'flow' }, PublishWorker: { worker: 'flow' } },
+};
+if (validateDefinition(flow, registry).length !== 0) throw new Error('the three shapes are all valid');
+
+// **Every refusal is at CONSTRUCTION, with the key it is about.** Four rules:
+const refuse = (when: unknown) => validateDefinition(
+  { ...flow, nodes: flow.nodes.map((n) => n.id === 'score' ? { ...n, edges: [{ when, to: 'review' }, { to: 'publish' }] } : n) } as FlowDefinition,
+  registry).map((f) => f.rule);
+
+// FD-V42 — the bare STRING that was the form until v0.27, and the message names the migration.
+if (refuse('needsAHuman')[0] !== 'FD-V42') throw new Error('a bare string is FD-V42');
+// FD-V43 — a path whose first segment is neither `outcome` nor `needs` would resolve to
+// nothing in SILENCE, so it is refused rather than answered.
+if (refuse({ path: 'result.confidence', op: 'lt', value: 0.5 })[0] !== 'FD-V43') throw new Error('a rootless path is FD-V43');
+// FD-V44 — the seven operators are a CLOSED set and one outside it is named.
+if (refuse({ path: 'outcome.result.name', op: 'matches', value: '^a' })[0] !== 'FD-V44') throw new Error('an unknown operator is FD-V44');
+// FD-V45 — a group is FLAT, and a member naming a registered predicate could be IMPURE.
+if (refuse({ all: [{ any: [{ path: 'outcome.result.a', op: 'eq', value: 1 }] }] })[0] !== 'FD-V45') throw new Error('nesting is FD-V45');
+```
+
+| | |
+|---|---|
+| `path` | a key path over the context, **rooted at `outcome` or `needs`** — `outcome.result.x`, `outcome.taskId`, `needs.earlier.flag`. No array index, no wildcard, no expression |
+| `op` | one of `eq`, `ne`, `lt`, `lte`, `gt`, `gte`, `startsWith`, and **nothing else** |
+| `value` | a scalar: `null`, a boolean, a finite number or a string |
+| `default` | optional — what is compared when the path does not resolve **or resolves to `null`**, which is exactly `??`. Without it an absent path is **no match**, and a resolved `null` is compared as the scalar it is |
+| `length` | optional `true` — compare the LENGTH of an array or a string, after `default` |
+
+**Three things to know before you write one.**
+**A comparison between kinds is no match, never a coercion** — `{ op: 'lt', value: 50 }` is false
+against the string `"9"` where JavaScript's `<` would say true.
+**An absent path is no match for every operator, including `ne`** — so `ne` does not mean *the key
+is missing or different*; add a `default` if that is what you want, and a `default` covers a key
+holding `null` as well as a missing one.
+**Write a negation as the complementary operator** — `gte` for *not* `lt` — and know its scope:
+that holds over NUMBERS, and over an absent path where you declared a `default`. Over a value an
+ordering operator cannot compare, a string or a boolean, **both it and its complement are false**.
+`startsWith` has no complement here at all.
+**A declared predicate CANNOT be impure.** There is no clock, no random source and no way to name
+anything but the context, so re-evaluating it over the same log gives the same answer. A registered
+name has no such guarantee — which is the trade, and why a regular expression, a date window or a
+lookup stays a name.
+
+### A registered NAME, which is what the subset cannot say
+
 **An edge names a predicate; it does not carry one.** The definition stays data, and an unknown name
 fails at construction rather than mid-run.
 
@@ -470,7 +549,7 @@ import { eligibleEdges, selectEdge, type FlowNode, type Predicate } from 'fyflow
 
 const node: FlowNode = {
   id: 'score', kind: 'task', type: 'ScoreWorker',
-  edges: [{ when: 'isLowConfidence', to: 'review' }, { to: 'publish' }],
+  edges: [{ when: { predicate: 'isLowConfidence' }, to: 'review' }, { to: 'publish' }],
 };
 
 const isLowConfidence: Predicate = (ctx) => {
@@ -532,7 +611,7 @@ const flow: FlowDefinition = {
     { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'score' }] },
     { id: 'score', kind: 'task', type: 'ScoreWorker', edges: [
       // this edge's predicate can see `ingest`; the default edge below sees `{}`
-      { when: 'flaggedEarlier', to: 'review', needs: { earlier: 'ingest' } },
+      { when: { predicate: 'flaggedEarlier' }, to: 'review', needs: { earlier: 'ingest' } },
       { to: 'publish' },
     ] },
     { id: 'review', kind: 'task', type: 'ReviewWorker', edges: [{ to: 'publish' }] },
@@ -563,7 +642,7 @@ const withSelf = {
   ...flow,
   nodes: flow.nodes.map((n) =>
     n.id === 'score'
-      ? { ...n, edges: [{ when: 'flaggedEarlier', to: 'review', needs: { x: '.' } }, { to: 'publish' }] }
+      ? { ...n, edges: [{ when: { predicate: 'flaggedEarlier' }, to: 'review', needs: { x: '.' } }, { to: 'publish' }] }
       : n),
 } as FlowDefinition;
 const findings = validateDefinition(withSelf, registry);
@@ -848,7 +927,7 @@ const flow: FlowDefinition = {
   flowId: 'decide', version: 1, entry: 'ingest',
   nodes: [
     { id: 'ingest',   kind: 'task', type: 'Tag', settings: { label: 'ingest' },
-      edges: [{ when: 'isLowConfidence', to: 'review' }, { to: 'split' }] },
+      edges: [{ when: { predicate: 'isLowConfidence' }, to: 'review' }, { to: 'split' }] },
     { id: 'review',   kind: 'task', type: 'Tag', settings: { label: 'review' },   edges: [{ to: 'done' }] },
     { id: 'split',    kind: 'fanout', branches: ['enrich', 'classify'] },
     { id: 'enrich',   kind: 'task', type: 'Tag', settings: { label: 'enrich' },   edges: [{ to: 'collect' }] },

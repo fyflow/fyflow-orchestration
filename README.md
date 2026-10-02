@@ -140,7 +140,7 @@ const flow: FlowDefinition = {
   flowId: 'decide', version: 1, entry: 'ingest',
   nodes: [
     { id: 'ingest',   kind: 'task', type: 'Tag', settings: { label: 'ingest' },
-      edges: [{ when: 'isLowConfidence', to: 'review' }, { to: 'split' }] },
+      edges: [{ when: { predicate: 'isLowConfidence' }, to: 'review' }, { to: 'split' }] },
     { id: 'review',   kind: 'task', type: 'Tag', settings: { label: 'review' },   edges: [{ to: 'done' }] },
     { id: 'split',    kind: 'fanout', branches: ['enrich', 'classify'] },
     { id: 'enrich',   kind: 'task', type: 'Tag', settings: { label: 'enrich' },   edges: [{ to: 'collect' }] },

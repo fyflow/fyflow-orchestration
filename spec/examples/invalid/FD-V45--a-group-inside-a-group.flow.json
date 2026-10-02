@@ -1,0 +1,16 @@
+{
+  "flowId": "a-group-inside-a-group",
+  "version": 1,
+  "entry": "score",
+  "nodes": [
+    { "id": "score", "kind": "task", "type": "ScoreWorker", "edges": [
+        { "when": { "all": [
+            { "path": "outcome.result.confidence", "op": "lt", "value": 0.5 },
+            { "any": [ { "path": "needs.earlier.flagged", "op": "eq", "value": true } ] }
+        ] }, "to": "review" },
+        { "to": "done" }
+    ] },
+    { "id": "review", "kind": "end", "outcome": "needs-review" },
+    { "id": "done",   "kind": "end", "outcome": "completed" }
+  ]
+}

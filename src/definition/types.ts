@@ -49,6 +49,119 @@ export type Reference = string | readonly [string];
  */
 export type Needs = Readonly<Record<string, Reference>>;
 
+/**
+ * **The seven operators a declared predicate may use, and no others** — `FD-V44`,
+ * [ADR 0074](../../doc/decisions/0074-a-predicate-is-a-registered-name-or-a-declared-comparison-over-the-context.md).
+ * The enumeration is CLOSED and an operator outside it is refused BY NAME at construction, which is
+ * [ADR 0053](../../doc/decisions/0053-the-schema-validator-is-a-built-in-subset-and-a-keyword-outside-it-is-refused.md)'s
+ * shape and is what stops this becoming a bad expression language one shape at a time.
+ *
+ * **The six COMPARISONS are closed under negation OVER THE VALUES THEY CAN COMPARE** — `eq`/`ne`,
+ * `lt`/`gte`, `gt`/`lte` — which is what lets `!p` be written as `p` with the complementary operator
+ * rather than needing a `not` combinator, and a `not` would open the nesting P26 decision 3 refuses.
+ * **The scope is the whole of the claim**: `eq`/`ne` complement over every value, and the four
+ * ORDERING operators complement over numbers and over an absent path with a `default` — on a value
+ * they cannot compare, a string or a boolean or an array, BOTH are false, because the comparison is
+ * type-strict and no `default` fires on a path that resolved. W108's conformity reader (1) measured
+ * that and the sentence said *closed* flatly. **`startsWith` is not closed at all**, and a negated
+ * prefix is one of the things that stays a registered name.
+ *
+ * *(`ne` and `gte` have no instance anywhere in this tree — W108's declaration step measured ten
+ * predicate bodies and they use `lt`, `gt`, `lte`, `eq` and `startsWith`. They are here for the
+ * closure above, and their cases are CONSTRUCTED rather than found, which rule 8's *construct the
+ * case that makes each guard fire* asks to be said rather than left looking covered.)*
+ */
+export const PREDICATE_OPS = ['eq', 'ne', 'lt', 'lte', 'gt', 'gte', 'startsWith'] as const;
+export type PredicateOp = typeof PREDICATE_OPS[number];
+
+/** The two roots a predicate's key path may start at — the two members of `DecisionContext`, and no other. */
+export const PREDICATE_ROOTS = ['outcome', 'needs'] as const;
+
+/**
+ * **What a declared comparison may compare AGAINST** — a scalar, and nothing else (`FD-V44`).
+ * Every one of the ten predicate bodies in this tree compares to one (`0.5`, `50`, `true`,
+ * `'r1:publish:'`, `0`), and admitting an object would need a deep-equality semantics with no
+ * instance and no obvious right answer for `NaN`, key order or a prototype.
+ */
+export type PredicateScalar = null | boolean | number | string;
+
+/** A registered predicate NAME, resolved against the registry at instantiation (`FD-V4`). */
+export interface PredicateName {
+  predicate: string;
+}
+
+/**
+ * **One comparison over the decision's own context** — `FD-V43` owns the path and `FD-V44` the
+ * operator and the value.
+ */
+export interface PredicateLeaf {
+  /**
+   * A KEY PATH over the `DecisionContext` itself, read by `readKeyPath` — the same resolution a
+   * gate's `settings.key` gets, measured unchanged at this scope. **Its first segment is `outcome`
+   * or `needs` and nothing else** (`FD-V43`), because a first segment that is neither resolves to
+   * `undefined` in silence and a typo would be a wrong key rather than a refusal.
+   */
+  path: string;
+  op: PredicateOp;
+  /** The literal compared against. Required — there is no operator here that takes one operand. */
+  value: PredicateScalar;
+  /**
+   * **What is compared when the path does not resolve, or resolves to `null`.** Absent is NO MATCH
+   * by default; where this is declared it is substituted instead — which is `?? 0` and `?? []`
+   * **including their nullish half**, two of the measured shapes. *(It stood in for `undefined`
+   * alone until both of W108's readers found the same hole: `readKeyPath` returns a terminal `null`
+   * as a resolved value, so on a null-valued key `gt` and `lte` were BOTH false and the declared
+   * form was not `??`. Where NO default is declared a resolved `null` stays `null`, so `eq null`
+   * still holds.)*
+   *
+   * **It is what makes the comparisons closed under negation over the values they can compare** —
+   * without it both `x > t` and `x <= t` are false for an absent path and no pair complements.
+   * **Over a value an ordering operator CANNOT compare — a string, a boolean, an array — both are
+   * still false and no `default` changes that**, because the comparison is type-strict and the path
+   * resolved; that is the closure's scope and W108's conformity reader (1) is why it is written
+   * down here rather than left to be inferred from the type-strict rule two paragraphs up.
+   */
+  default?: PredicateScalar | readonly PredicateScalar[];
+  /**
+   * **Compare the LENGTH of an array or a string, not the value** — `(needs.f ?? []).length > 0`.
+   * Applied AFTER `default` is substituted and before the comparison; anything that is neither an
+   * array nor a string is NO MATCH. Exactly `true` or absent (`FD-V44`).
+   */
+  length?: true;
+}
+
+/**
+ * **A FLAT group — `all` or `any`, and its members are LEAVES.** Nesting is refused by name
+ * (`FD-V45`), and so is a `{ predicate }` member: a group holding a registered name could be
+ * impure, which would falsify the one thing a declared predicate guarantees over a function
+ * ([Q9](../../doc/open-questions.md)).
+ *
+ * **A two-member UNION rather than one interface with two optional keys, so that `{}` and
+ * `{ all, any }` fail at L0** — W108's conformity reader (16) measured that
+ * `interface PredicateGroup { all?; any? }` makes `when: {}` and `when: { all: [], any: [] }`
+ * compile at `tsc --strict` EXIT 0, so `FD-V42`'s and `FD-V45`'s cheapest observer was the
+ * validator and not the typechecker. The union costs **ZERO** on all five typecheck lanes. **Its
+ * limit, stated**: a union admits a property declared by ANY member, so
+ * `{ predicate, path, op, value }` — two shapes at once — still compiles and is caught only by
+ * `FD-V42`. A type closes one direction ([Q196](../../doc/open-questions.md), W43).
+ */
+export type PredicateGroup =
+  | { all: readonly PredicateLeaf[]; any?: never }
+  | { any: readonly PredicateLeaf[]; all?: never };
+
+/**
+ * **What a `when` IS** — `FD-V42`, [ADR 0074](../../doc/decisions/0074-a-predicate-is-a-registered-name-or-a-declared-comparison-over-the-context.md):
+ * exactly one of three object shapes, told apart by which keys are present.
+ *
+ * **A bare STRING is REFUSED**, and that is the maintainer's answer to W108's stop-and-ask (b),
+ * taken against the recommendation: one uniform shape, at the cost of a BREAKING change the
+ * migration MADE in **102 sites over 38 files**. *(The declaration's survey found **105 sites over
+ * 41 files**, which is the wider scope — it counts `doc/**`, deliberately left as history, and the
+ * `.md` prose. One measurement with two scopes was reported as two measurements until W108's
+ * conformity reader (6) re-took both.)*
+ */
+export type When = PredicateName | PredicateLeaf | PredicateGroup;
+
 export interface Edge {
   /** Target node id. Required (FD-V23). */
   to: string;
@@ -57,8 +170,12 @@ export interface Edge {
    * no `on` routes successes and nothing else (ADR 0004 rule 1).
    */
   on?: RoutableState[];
-  /** Predicate name, resolved against the registry at instantiation (FD-V4). */
-  when?: string;
+  /**
+   * **A registered NAME or a DECLARED comparison, and always an object** — `FD-V42`,
+   * [ADR 0074](../../doc/decisions/0074-a-predicate-is-a-registered-name-or-a-declared-comparison-over-the-context.md).
+   * *(This was `when?: string` until v0.27; the name road is now `{ predicate: "<name>" }`.)*
+   */
+  when?: When;
   /**
    * **What this edge's PREDICATE sees, beyond its node's outcome** — `FD-C3`, and
    * [ADR 0041](../../doc/decisions/0041-a-decision-sees-its-nodes-outcome-and-whatever-its-own-edge-declares.md),
@@ -661,7 +778,7 @@ export interface Registry {
  * legitimately violate more than one rule.
  */
 export interface Finding {
-  /** `FD-V1` … `FD-V41`. Never renumbered, so it is safe to assert on. */
+  /** `FD-V1` … `FD-V45`. Never renumbered, so it is safe to assert on. */
   rule: string;
   /** Node id, edge index, or document-level `null`. */
   at: string | null;

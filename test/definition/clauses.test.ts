@@ -59,7 +59,7 @@ suite('FD-V7 — every clause, none shadowing another', (test) => {
 
   test('no default edge for a state some edge opts into', () => {
     fires('FD-V7', 'no bare edge among those eligible for "done"',
-      doc([task('a', [{ when: 'isLowConfidence', to: 'z' }, { when: 'isHighConfidence', to: 'z' }]), end('z')]));
+      doc([task('a', [{ when: { predicate: 'isLowConfidence' }, to: 'z' }, { when: { predicate: 'isHighConfidence' }, to: 'z' }]), end('z')]));
   });
 
   test('more than one default edge for the same state', () => {
@@ -70,7 +70,7 @@ suite('FD-V7 — every clause, none shadowing another', (test) => {
     // This is the clause FD-V7's corpus case could never exercise: there, `bare`
     // was empty, so the "not last" comparison was reached only via `undefined`.
     fires('FD-V7', 'the bare edge precedes a guarded one',
-      doc([task('a', [{ to: 'z' }, { when: 'isLowConfidence', to: 'z' }]), end('z')]));
+      doc([task('a', [{ to: 'z' }, { when: { predicate: 'isLowConfidence' }, to: 'z' }]), end('z')]));
   });
 
   test('a join node with more than one edge', () => {
@@ -91,7 +91,7 @@ suite('FD-V7 — every clause, none shadowing another', (test) => {
       { id: 'j', kind: 'join', of: 'f', edges: [edge] },
       end('z'),
     ]);
-    fires('FD-V7', 'join edge carries `when`', withKey({ when: 'isLowConfidence', to: 'z' }));
+    fires('FD-V7', 'join edge carries `when`', withKey({ when: { predicate: 'isLowConfidence' }, to: 'z' }));
     fires('FD-V7', 'join edge carries `on`', withKey({ on: ['done'], to: 'z' }));
   });
 });

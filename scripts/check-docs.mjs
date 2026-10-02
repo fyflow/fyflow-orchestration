@@ -714,7 +714,11 @@ if (written.length) {
 // Q102's ratchet, SEEDED in P24's declaration and declared in W94's exceptions table before the snippet was written.
 // **32 since [W101](../doc/work-items/w101-the-authoring-session-wiring-a-gate-before-it-runs.md)**, whose
 // section 20 is an authoring session for a GATE — raised in the commit that adds the snippet.
-const RUN_FLOOR = 32;
+// **Raised 32 -> 33 by [W108](../doc/work-items/w108-a-predicate-is-data.md)**, which added section 4's
+// DECLARED-predicate snippet — the three shapes of a `when` validated together, and all four of
+// `FD-V42`-`FD-V45` thrown on, including the bare STRING that was the form until v0.27. Q102's
+// ratchet, declared in that item's exceptions table before the snippet was written.
+const RUN_FLOOR = 33;
 {
   // **Only when the document parsed.** A count over a reference whose fences are
   // malformed or untagged is true of the parse and says nothing about coverage —

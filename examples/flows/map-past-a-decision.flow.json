@@ -4,7 +4,7 @@
   "entry": "ingest",
   "nodes": [
     { "id": "ingest",   "kind": "task", "type": "SplitWorker",
-      "edges": [ { "when": "isLowConfidence", "to": "split" }, { "to": "rank" } ] },
+      "edges": [ { "when": { "predicate": "isLowConfidence" }, "to": "split" }, { "to": "rank" } ] },
     { "id": "split",    "kind": "map",  "over": "items",              "branch": "score" },
     { "id": "score",    "kind": "task", "type": "ScoreWorker",  "edges": [ { "to": "collect" } ] },
     { "id": "collect",  "kind": "join", "of": "split",                "edges": [ { "to": "rank" } ] },

@@ -303,6 +303,14 @@ if (!existsSync(REG)) {
   // names an entry in registry.json's `languages`. What the expression SAYS is `FD-V36`'s and needs
   // the language's compiler, which is ladder L4's.
   const langs = new Set(reg.languages ?? []);
+  /**
+   * **The registered NAME a `when` carries, or `null` where it carries none** — v0.27, W108.
+   * One expression for both clauses below, so the valid corpus and the `FD-V4` fixture cannot
+   * read the same key two ways.
+   */
+  const whenName = (w) =>
+    (typeof w === 'object' && w !== null && typeof w.predicate === 'string') ? w.predicate : null;
+
   for (const name of readdirSync(VALID_DIR)) {
     const doc = parsed.get(join(VALID_DIR, name));
     for (const n of doc?.nodes ?? []) {
@@ -312,9 +320,14 @@ if (!existsSync(REG)) {
         fail('C7', `valid/${name}: pool ${JSON.stringify(n.pool)} is not an instance of type ${JSON.stringify(n.type)} in registry.json`);
       if (n.kind === 'task' && n.transform !== undefined && !langs.has(n.transform?.lang))
         fail('C7', `valid/${name}: transform.lang ${JSON.stringify(n.transform?.lang)} is not in registry.json`);
+      // **A `when` is an OBJECT since v0.27 (W108, ADR 0074), and only ONE of its three shapes
+      // names a predicate.** This read `preds.has(e.when)` on the string form; a declared
+      // comparison or a group names nothing, so asking the registry about it reported
+      // `predicate "[object Object]" is not in registry.json` on a CORRECT document — measured
+      // RED at W108's declaration step, before the grammar was written.
       for (const e of n.edges ?? [])
-        if (e.when !== undefined && !preds.has(e.when))
-          fail('C7', `valid/${name}: predicate "${e.when}" is not in registry.json`);
+        if (whenName(e.when) !== null && !preds.has(whenName(e.when)))
+          fail('C7', `valid/${name}: predicate "${whenName(e.when)}" is not in registry.json`);
     }
   }
   // and the two refusal cases must name things the registry does NOT have
@@ -322,7 +335,7 @@ if (!existsSync(REG)) {
   for (const name of existsSync(invDir) ? readdirSync(invDir) : []) {
     const doc = parsed.get(join(invDir, name));
     if (name.startsWith('FD-V4--')) {
-      const names = (doc?.nodes ?? []).flatMap(n => (n.edges ?? []).map(e => e.when)).filter(Boolean);
+      const names = (doc?.nodes ?? []).flatMap(n => (n.edges ?? []).map(e => whenName(e.when))).filter(w => w !== null);
       if (!names.some(w => !preds.has(w))) fail('C7', `invalid/${name} names no predicate absent from registry.json`);
     }
     // W59: `FD-V32` is the refusal about the fourth set, and its case must name a type the

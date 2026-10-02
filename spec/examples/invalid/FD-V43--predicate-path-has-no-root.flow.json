@@ -1,0 +1,13 @@
+{
+  "flowId": "predicate-path-has-no-root",
+  "version": 1,
+  "entry": "score",
+  "nodes": [
+    { "id": "score", "kind": "task", "type": "ScoreWorker", "edges": [
+        { "when": { "path": "result.confidence", "op": "lt", "value": 0.5 }, "to": "review" },
+        { "to": "done" }
+    ] },
+    { "id": "review", "kind": "end", "outcome": "needs-review" },
+    { "id": "done",   "kind": "end", "outcome": "completed" }
+  ]
+}

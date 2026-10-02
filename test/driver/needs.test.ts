@@ -27,7 +27,7 @@ import { validateDefinition, violatedRules } from '../../src/definition/validate
 import { allRegions, buildGraph } from '../../src/definition/regions.ts';
 import { liveToken } from '../../src/fold/policies.ts';
 import { fold } from '../../src/fold/run-state.ts';
-import type { FlowDefinition } from '../../src/definition/types.ts';
+import type { Edge, FlowDefinition } from '../../src/definition/types.ts';
 import type { JoinPolicy } from '../../src/driver/policy.ts';
 
 const EX = `${ROOT}spec/examples`;
@@ -711,8 +711,8 @@ suite('L2 — FD-R3: a reference the run did not produce', (test) => {
   const pastDecision = async () => {
     const base = JSON.parse(JSON.stringify(await load('valid/map-over-region-output.flow.json'))) as FlowDefinition;
     const ingest = base.nodes.find((n) => n.id === 'ingest') as unknown as
-      { edges: { to: string; when?: string }[] };
-    ingest.edges = [{ when: 'isLowConfidence', to: 'split' }, { to: 'rank' }];
+      { edges: Edge[] };
+    ingest.edges = [{ when: { predicate: 'isLowConfidence' }, to: 'split' }, { to: 'rank' }];
     const rank = base.nodes.find((n) => n.id === 'rank') as unknown as
       { needs: Record<string, unknown> };
     rank.needs = { scores: ['score?'] };
@@ -1379,10 +1379,10 @@ suite('L2 — FD-C4: a conditional reference, when the target produced nothing',
     // `ingest` decides: down the map region, or straight to `publish`, which reads
     // `score` — a node the second road never enters.
     const ingest = base.nodes.find((n) => n.id === 'ingest') as unknown as
-      { edges: { to: string; when?: string }[] };
+      { edges: Edge[] };
     const publish = base.nodes.find((n) => n.id === 'publish') as unknown as
       { needs: Record<string, unknown> };
-    ingest.edges = [{ when: 'isLowConfidence', to: 'split' }, { to: 'publish' }];
+    ingest.edges = [{ when: { predicate: 'isLowConfidence' }, to: 'split' }, { to: 'publish' }];
     publish.needs = { own: '.', scored: ['score?'] };
     equal(
       violatedRules(validateDefinition(base, {

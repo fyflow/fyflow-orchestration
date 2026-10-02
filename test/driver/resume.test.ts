@@ -64,7 +64,7 @@ const MAIN = {
   flowId: 'resume-main', version: 3, entry: 'ingest',
   nodes: [
     { id: 'ingest', kind: 'task', type: 'T', edges: [{ to: 'gate' }] },
-    { id: 'gate', kind: 'task', type: 'T', edges: [{ when: 'isHigh', to: 'pre' }, { to: 'low' }] },
+    { id: 'gate', kind: 'task', type: 'T', edges: [{ when: { predicate: 'isHigh' }, to: 'pre' }, { to: 'low' }] },
     { id: 'pre', kind: 'task', type: 'T', edges: [{ to: 'fan' }] },
     { id: 'fan', kind: 'fanout', branches: ['a1', 'b', 'c'] },
     { id: 'a1', kind: 'task', type: 'T', edges: [{ to: 'a2' }] },

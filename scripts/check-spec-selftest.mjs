@@ -394,7 +394,7 @@ const PROBES = [
     name: 'a valid flow naming a predicate the registry does not have',
     check: 'C7',
     apply: (spec) => edit(join(spec, 'examples', 'valid', 'decision.flow.json'),
-      (t) => t.replace('"when": "isLowConfidence"', '"when": "noSuchPredicate"')),
+      (t) => t.replace('"when": { "predicate": "isLowConfidence" }', '"when": { "predicate": "noSuchPredicate" }')),
   },
   {
     name: 'a valid flow naming an unknown type AND an unknown predicate — TWO C7 clauses under ONE id',
@@ -412,7 +412,7 @@ const PROBES = [
     // `C1`'s one.
     apply: (spec) => edit(join(spec, 'examples', 'valid', 'fanout-join.flow.json'),
       (t) => t.replace('"type": "IngestWorker"', '"type": "NoSuchType"')
-        .replace('{ "to": "split" }', '{ "when": "noSuchPredicate", "to": "split" }')),
+        .replace('{ "to": "split" }', '{ "when": { "predicate": "noSuchPredicate" }, "to": "split" }')),
   },
   {
     name: 'FD-V4`s case naming only predicates the registry DOES have',

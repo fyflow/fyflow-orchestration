@@ -7,7 +7,7 @@
     { "id": "split",   "kind": "fanout", "branches": [ "scoreA", "scoreB" ] },
     { "id": "scoreA",  "kind": "task",   "type": "ScoreWorker",  "edges": [ { "to": "collect" } ] },
     { "id": "scoreB",  "kind": "task",   "type": "ScoreWorker",  "edges": [
-        { "when": "isLowConfidence", "to": "abandoned" },
+        { "when": { "predicate": "isLowConfidence" }, "to": "abandoned" },
         { "to": "collect" }
     ] },
     { "id": "abandoned", "kind": "end",  "outcome": "branch-abandoned" },

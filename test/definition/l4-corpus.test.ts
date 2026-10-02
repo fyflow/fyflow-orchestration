@@ -402,6 +402,10 @@ const SUITES = [
 
 /** The rest of the census, split only so neither literal is unreadably long. */
 const LATE_SUITES = [
+  // W108 — `FD-V42`-`FD-V45`, the subset and the absent rule, in `test/definition/predicate.test.ts`
+  // and `test/driver/predicate.test.ts`.
+  'W108 — a predicate is DATA: FD-V42 to FD-V45, the subset, and the absent rule',
+  'W108 — a DECLARED predicate ROUTES, with no predicate registered at all',
   // W57 — ADR 0048 rule 5 at L1, in `test/driver/surface.test.ts`.
   'ADR 0048 rule 5 — createTask: the option is honoured, and the default is exactly new FyflowTask(config)',
   // W58 — `FD-V30`, `FD-V31` and the passthrough, in `test/definition/task-config.test.ts` and
@@ -684,6 +688,19 @@ suite('L1 — every suite this tree declares actually RAN', (test) => {
     const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
     equal(count('W101 — the authoring session`s own verdicts, from the declarations the session imports'), 6,
       'test/definition/gate-session.test.ts registers W101`s six cases');
+  });
+  // **W108's two suites, counted the same way** — and this is the counter-measure W88 and W89 built
+  // that W108 did not take: it added its rows to the census above and NOT a case count, so both of
+  // its suites were emptiable for ZERO. Measured by its adequacy reader (4): replacing the body of
+  // each with a single `ok(true)` left `npm test` at EXIT 0 with 0 FAIL lines and 1453 assertions
+  // against 1477 — the whole 24-case delta gone in silence, because **a census over SUITE names is
+  // satisfied by an empty suite**, which this file's own header says in those words.
+  test('W108`s two suites still REGISTER the cases they declare — an emptied suite fails here', () => {
+    const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
+    equal(count('W108 — a predicate is DATA: FD-V42 to FD-V45, the subset, and the absent rule'), 20,
+      'test/definition/predicate.test.ts registers W108`s grammar-and-evaluator cases');
+    equal(count('W108 — a DECLARED predicate ROUTES, with no predicate registered at all'), 7,
+      'test/driver/predicate.test.ts registers W108`s routing cases at ladder L2');
   });
   // **W93's two suites, counted the same way and for the same reason** — a suite emptied of its cases is still a suite.
   test('W93`s two suites still REGISTER the cases they declare — an emptied suite fails here', () => {

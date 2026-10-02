@@ -6,7 +6,7 @@
     { "id": "ingest",  "kind": "task",   "type": "IngestWorker", "edges": [ { "to": "split" } ] },
     { "id": "split",   "kind": "fanout", "branches": [ "scoreA", "flaky" ] },
     { "id": "scoreA",  "kind": "task",   "type": "ScoreWorker",  "edges": [
-        { "when": "isLowConfidence", "to": "abandoned" },
+        { "when": { "predicate": "isLowConfidence" }, "to": "abandoned" },
         { "to": "collect" }
     ] },
     { "id": "flaky",   "kind": "task",   "type": "ReviewWorker", "optional": true, "edges": [

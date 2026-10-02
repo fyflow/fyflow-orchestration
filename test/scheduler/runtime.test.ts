@@ -165,7 +165,7 @@ suite('W66 — createRuntime builds from a document: pools, groups and the drive
     const guarded = {
       flowId: 'g', version: 1, entry: 'a',
       nodes: [
-        { id: 'a', kind: 'task', type: 'Scorer', settings: { factor: 1 }, edges: [{ when: 'isHigh', to: 'done' }, { to: 'done' }] },
+        { id: 'a', kind: 'task', type: 'Scorer', settings: { factor: 1 }, edges: [{ when: { predicate: 'isHigh' }, to: 'done' }, { to: 'done' }] },
         { id: 'done', kind: 'end', outcome: 'completed' },
       ],
     } as unknown as FlowDefinition;
@@ -574,7 +574,7 @@ suite('W66 — every option start forwards, and every member the runtime exposes
   const guarded = (extra: Record<string, unknown> = {}): FlowDefinition => ({
     flowId: 'r', version: 1, entry: 'a',
     nodes: [
-      { id: 'a', kind: 'task', type: 'T', ...extra, edges: [{ when: 'high', to: 'done' }, { to: 'done' }] },
+      { id: 'a', kind: 'task', type: 'T', ...extra, edges: [{ when: { predicate: 'high' }, to: 'done' }, { to: 'done' }] },
       { id: 'done', kind: 'end', outcome: 'completed' },
     ],
   }) as unknown as FlowDefinition;

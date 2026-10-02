@@ -1,6 +1,6 @@
 # spec/flow-definition — the flow definition format
 
-**Status:** v0.26 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.27 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2** acted on the first spec-conformity pass
 (ADR 0004, and `region(F)` made computable). **v0.3** acted on the second, which found that `FD-V19`
 had reintroduced the v0.1 defect class under a new id — a refusal rule rejecting the valid corpus.
@@ -334,6 +334,34 @@ at all, and the run reports **`completed`** (P25 prediction 4). The same item SC
 check's one stated leniency, which W99's refinement is the first thing here that could defeat. **No rule id is
 added and the count stays 37** — this refuses no document and stops no run; it is a verdict an author reads.
 
+**v0.27 makes a PREDICATE DATA, and it is the first version to BREAK every existing document**
+([P26](../doc/plans/p26-what-a-flow-can-say-without-code.md),
+[ADR 0074](../doc/decisions/0074-a-predicate-is-a-registered-name-or-a-declared-comparison-over-the-context.md),
+[W108](../doc/work-items/w108-a-predicate-is-data.md)). A `when` was a STRING naming a function registered in
+code, so the reference was data and the logic was not, and that was the last thing a flow document could not
+say for itself. **A `when` is now always an OBJECT**, exactly one of three shapes: `{ predicate }`, a registered
+name; a COMPARISON, `{ path, op, value, default?, length? }`, over the decision's own context; or a FLAT group,
+`{ all }` or `{ any }`, whose members are comparisons. Section 3 gains the grammar, section 5 gains
+**`FD-V42`** (the form and its keys), **`FD-V43`** (the key path and its two roots), **`FD-V44`** (the operator
+enumeration and the literal it admits) and **`FD-V45`** (a group's members), and **`FD-V4` keeps its id and its
+sentence with only the SPELLING moved** — a name absent from the registry, written `{ "predicate": "x" }`.
+**The bare string is REFUSED**: that is the maintainer's answer to W108's stop-and-ask (b), taken against the
+recommendation, and it cost a migration of **102 sites in 38 files** measured at that item's declaration step.
+*(The package stays `0.6.0` here and moves at W110's close, on W84/W85/W86's precedent.)*
+
+**Three things the subset says, each a decision rather than an observation, and each measured over 1800
+contexts against the ten predicate bodies this tree already has** (W108's declaration step). **Comparisons are
+TYPE-STRICT** — a comparison between kinds is NO MATCH and never a coercion, which reproduces all three of the
+tree's `typeof x === 'number' && x < t` bodies EXACTLY and differs from one unguarded body on a string, in
+`FD-V30`'s own direction. **An absent path is NO MATCH, and a comparison may declare a `default`** substituted
+in its place — which is `?? 0` and `?? []`, two of the measured shapes, and **it is what makes the six
+comparisons closed under negation**, because without it both `x > t` and `x <= t` are false for an absent path
+and no pair of operators complements. **And the enumeration is CLOSED**: an operator outside it is refused BY
+NAME at construction, which is ADR 0053's shape and is what stops this becoming a bad expression language one
+shape at a time — a predicate that COMPUTES stays a registered name.
+So this document now holds **41 refusals** — `FD-V1` … `FD-V45` less `FD-V5`, `FD-V14`, `FD-V15`
+and `FD-V34` — and it is the number `check-spec` prints as *C4 covered 41 definition refusals*.
+
 **Binds:** [ADR 0002](../doc/decisions/0002-a-flow-definition-is-data-and-a-predicate-is-registered-by-name.md)
 (the graph is data; a predicate is a name; an unknown name fails at instantiation) and
 [ADR 0004](../doc/decisions/0004-a-non-success-outcome-routes-only-where-an-edge-opts-in-and-user-action-suspends.md)
@@ -366,7 +394,7 @@ instances — anything that does not survive `JSON.parse(JSON.stringify(x))` is 
 ## 2. Node kinds
 
 Six. There is **no `decision` node kind** — a decision is a property of an edge, which is
-ADR 0002 rule 2 taken literally (`when: "isLowConfidence"`). **A decision WITH MEMORY is a node**, and
+ADR 0002 rule 2 taken literally (`when: { predicate: "isLowConfidence" }`). **A decision WITH MEMORY is a node**, and
 that is the sixth kind, `gate` (v0.23, below): its memory is one per gate per run, so it belongs to a
 node and not to an edge, and a predicate is asked to be pure ([Q9](../doc/open-questions.md)) where a
 gate's whole job is to remember.
@@ -419,7 +447,7 @@ exactly inverted for the resolution road, which only non-optional nodes can take
 ### `retryPolicy` and `workerGroups` — what a node says about its own task — v0.16
 
 ```json
-{ "id": "score", "kind": "task", "workerType": "ScoreWorker",
+{ "id": "score", "kind": "task", "type": "ScoreWorker",
   "retryPolicy": { "maxRetries": 1, "backoffMs": 250 }, "workerGroups": [ "gpu" ],
   "edges": [ { "to": "publish" } ] }
 ```
@@ -870,18 +898,30 @@ does per key ([Q379](../doc/open-questions.md)).
 ## 3. Edges, decisions, and which outcomes route
 
 ```json
-{ "id": "score", "kind": "task", "workerType": "ScoreWorker", "optional": true, "edges": [
+{ "id": "score", "kind": "task", "type": "Scorer", "optional": true, "edges": [
     { "on": ["failed"], "to": "quarantine" },
-    { "when": "isLowConfidence", "to": "review" },
+    { "when": { "path": "outcome.result.confidence", "op": "lt", "value": 0.5 }, "to": "review" },
     { "to": "publish" }
 ] }
 ```
+
+*(This snippet read `"workerType": "ScoreWorker"` until v0.27 — a key **retired at v0.19** with
+[ADR 0054](../doc/decisions/0054-every-task-node-names-a-type-and-a-type-is-a-derivation-to-pool-options.md),
+so section 3's opening example had shown a shape `FD-V17` refuses for eight versions. Corrected in
+passing by W108, which owns this document and was editing the table under it. **And THREE snippets
+carried it, not one**: section 2's `retryPolicy` subsection and section 3's `needs` subsection did
+too, 150 lines either side of this note — W108's conformity reader (13), which is
+`doc/workflow.md` section 1 rule 5's withdrawn-claim clause exactly, *search for the phrase rather
+than correcting where you found it*, on an item that had just written the correction down. Nothing
+compares a snippet in `spec/` to the grammar the same document declares: `check:docs` executes
+`AGENTS.md`'s and `README.md`'s fences and reaches no `spec/**` file
+([Q449](../doc/open-questions.md)).)*
 
 | Edge key | | |
 |---|---|---|
 | `to` | required | a node id |
 | `on` | optional, default `["done"]` | the terminal states this edge is eligible for. Values: `"done"`, `"failed"` (`FD-V18`) |
-| `when` | optional | a predicate name. An edge without one is the default for its eligible states |
+| `when` | optional, **an OBJECT since v0.27** | a registered name `{ predicate }`, a COMPARISON `{ path, op, value, default?, length? }`, or a FLAT group `{ all }` or `{ any }` — the subsection below, `FD-V42`-`FD-V45`. An edge without one is the default for its eligible states. *(It was a bare predicate-name STRING until v0.27, and a string is now refused by `FD-V42` with the object form in the message.)* |
 | `needs` | optional, v0.12 | **what this edge's PREDICATE sees**, under `ctx.needs` — `FD-C3` below. Same grammar as a node's `needs`, **minus the `"."` form** (`FD-V26`). An edge with no `when` may carry one and no predicate ever reads it |
 | `route` | optional, v0.23, **a GATE's edges only** | which of the gate type's routes this edge carries; absent means the type's DEFAULT route. On any other node's edge it is refused, and a gate's edge carries `to` and `route` and nothing else (`FD-V41`) — section 2's `gate` subsection. **The routing rules below are a `task`'s and a `join`'s**; a gate's edge is chosen by the route its type returns |
 
@@ -897,10 +937,11 @@ does per key ([Q379](../doc/open-questions.md)).
 1. A node's **effective outcome** ([spec/outcome-record.md](outcome-record.md) section 7) supplies a
    `terminalState`, which selects the **eligible** edges — those whose `on` contains it (ADR 0004
    rules 1-2). Eligibility is checked before anything else.
-2. Among the eligible edges, **in declaration order**, the first whose `when` predicate returns true
-   is taken. Later edges are not evaluated. An edge with no `when` always passes.
-3. `when` is resolved against the predicate registry at instantiation, never at routing time
-   (ADR 0002 rule 3). An unknown name is an instantiation error (`FD-V4`).
+2. Among the eligible edges, **in declaration order**, the first whose `when` answers true is taken.
+   Later edges are not evaluated. An edge with no `when` always passes.
+3. A `when` is held to its GRAMMAR at instantiation, never at routing time (ADR 0002 rule 3) —
+   `FD-V42`-`FD-V45` — and where it names a registered predicate that name is resolved against the
+   registry at the same moment. An unknown name is an instantiation error (`FD-V4`).
 4. A predicate receives a single `DecisionContext` argument and returns a boolean. It carries
    **`outcome`** — always the node's effective outcome, one shape whether the node settled or was
    resolved — and, since v0.12, **`needs`**: what **this edge** declared, or `{}`. *(This rule read
@@ -908,8 +949,125 @@ does per key ([Q379](../doc/open-questions.md)).
    [Q8](../doc/open-questions.md); adding a field later is additive rather than a signature change"*.
    **It was additive and the sentence was right about that**; what it did not predict is that the
    field would be declared on the EDGE — see `FD-C3`.)*
-5. A predicate is pure (ADR 0002 rule 4). Purity is not enforced by this document;
-   [Q9](../doc/open-questions.md) is about the mechanism.
+5. A predicate is pure (ADR 0002 rule 4). **For a registered NAME purity is not enforced by this
+   document** and [Q9](../doc/open-questions.md) is about the mechanism; **for a DECLARED predicate
+   it is enforced by construction** — the subset has no clock, no random source, no I/O and no way
+   to name anything but the context, so a declared predicate CANNOT be impure. That is strictly
+   stronger than Q9's measured result for a function, where evaluating twice caught 1 impurity shape
+   of 4 and was flaky on `Math.random()`.
+
+### `when` — a registered NAME or a DECLARED comparison — v0.27
+
+[ADR 0074](../doc/decisions/0074-a-predicate-is-a-registered-name-or-a-declared-comparison-over-the-context.md),
+answering [Q444](../doc/open-questions.md), under
+[P26](../doc/plans/p26-what-a-flow-can-say-without-code.md).
+
+```json
+{ "when": { "predicate": "isLowConfidence" }, "to": "review" }
+{ "when": { "path": "outcome.result.confidence", "op": "lt", "value": 0.5 }, "to": "review" }
+{ "when": { "all": [
+    { "path": "outcome.result.score", "op": "gte", "value": 50 },
+    { "path": "needs.earlier.flagged", "op": "eq", "value": true }
+] }, "to": "review" }
+```
+
+**A `when` is an object and is exactly ONE of three shapes, told apart by which keys are present**
+(`FD-V42`). An object marking none of them, or more than one, is refused; so is a key the shape it
+marks does not declare, which is `FD-V30`'s and `FD-V37`'s reading — *the evaluator reads exactly
+these, so a key beside them is a typo that would mean something quietly*.
+
+| shape | marked by | carries | |
+|---|---|---|---|
+| a registered **NAME** | `predicate` | `predicate` and nothing else | the name road, unchanged since P1 except for its spelling. Resolved against the registry at instantiation (`FD-V4`) |
+| a **COMPARISON** | `path` or `op` | `path`, `op`, `value` required; `default` and `length` optional | one question about the decision's own context |
+| a flat **GROUP** | `all` or `any` | one of `all`, `any`, and nothing else | a non-empty array of COMPARISONS. **Nesting is refused by name** and so is a member naming a registered predicate (`FD-V45`) |
+
+**Why a group's member may not be a NAME**, which is the one restriction that needs an argument
+rather than a precedent: a group holding a function could be impure, and that would falsify the only
+thing a declared predicate guarantees over a registered one (rule 5 above). A predicate that must
+mix the two is a registered name that calls both.
+
+**The PATH is a key path over the `DecisionContext` itself** (`FD-V43`), resolved by the same
+`readKeyPath` a gate's `settings.key` gets — dot-separated object keys, each in `FD-V16`'s charset,
+**no array index, no wildcard, no expression**. Its **first segment is `outcome` or `needs` and
+nothing else**, and a root alone names no value:
+
+| | |
+|---|---|
+| `outcome.result.confidence` | the node's effective outcome, `OR-R9` — the same record a registered predicate reads under `ctx.outcome` |
+| `outcome.taskId`, `outcome.terminalState`, `outcome.attempts` | the driver's own fields on that record. **No schema describes them**, which is why a wiring verdict over a predicate's path is not this version's |
+| `needs.earlier.flagged` | what THIS EDGE's `needs` composed, `FD-C3` — `{}` where the edge declares none, so every path under it is absent |
+| `outcome`, `needs` | **refused**: a root is a container and a comparison against it could only ever be no match |
+| `outcom.result.x`, `result.confidence` | **refused**: a first segment that is neither root would resolve to nothing in silence, which is a wrong key rather than a question |
+
+**The OPERATORS are a CLOSED enumeration of seven** (`FD-V44`), and one outside it is refused by
+name — ADR 0053's shape, and what keeps this from becoming a bad expression language one shape at a
+time. A predicate that COMPUTES — a regular expression, a date window, a lookup, a negated prefix —
+stays a registered name, and that boundary is this paragraph rather than a surprise.
+
+| | |
+|---|---|
+| `eq`, `ne` | against any scalar, by `===` |
+| `lt`, `lte`, `gt`, `gte` | against a **number** |
+| `startsWith` | against a **string** |
+
+**The six comparisons are closed under negation OVER THE VALUES THEY CAN COMPARE** — `eq`/`ne`,
+`lt`/`gte`, `gt`/`lte` — so `not p` is written as `p` with the complementary operator and no `not`
+combinator is needed; a combinator would open the nesting a group refuses. **`startsWith` is not
+closed at all**, so a negated prefix is one of the things that stays a name.
+
+> **The scope is part of the claim, and this sentence said *closed* flatly until W108's conformity
+> reader measured it.** `eq` and `ne` complement over every value. The four ORDERING operators
+> complement over **numbers**, and over a path that does not resolve where the comparison declares a
+> `default`. **Over a value they cannot compare — a string, a boolean, an array, a resolved `null`
+> with no default — BOTH are false**, because the comparison is type-strict and no `default` fires
+> on a path that resolved. Measured: `score` holding `"9"` is `gt 0.5` false and `lte 0.5` false.
+> So *write `gte` as the negation of `lt`* is sound where the producer's values are numbers and is
+> not a general identity — which the type-strict rule above already implies and which two paragraphs
+> stating it separately managed to contradict.
+
+**`value` is a SCALAR** — `null`, a boolean, a finite number or a string — and nothing else.
+Admitting an object would need a deep-equality semantics with no instance in this tree and no
+obvious right answer for `NaN`, key order or a prototype.
+
+> **A comparison between kinds is NO MATCH and never a coercion.** `{ "path": "outcome.result.score",
+> "op": "lt", "value": 50 }` is false where the value is the string `"9"`, where JS `<` would coerce
+> and answer true. This is `FD-V30`'s own argument — *a string `maxRetries` retries by coercion* —
+> one rule over, and it is **measured**: over 1800 contexts a type-strict form reproduces all three
+> of this tree's `typeof x === 'number' && x < t` predicates exactly, and differs from one unguarded
+> body on exactly that string.
+
+**An ABSENT path is NO MATCH, and `default` is what a comparison may put in its place.** A path that
+does not resolve — a missing key, `null` or an array mid-path, a primitive, a class instance — gives
+`undefined`, and a comparison against it is false whichever operator it uses. Where the comparison
+declares `default`, that value is substituted instead, **before `length` is taken**.
+
+**A path that resolves to `null` takes the `default` too**, so the substitution is exactly what `??`
+does. Where a comparison declares NO `default`, a resolved `null` stays `null` and is compared as
+the scalar it is — so `{ "op": "eq", "value": null }` holds, which a blanket *null is no match*
+would have broken.
+
+> **`default` is what makes the comparisons closed under negation over the values they can compare,
+> and that is why it is in the grammar rather than left out as a convenience.** Without it both
+> `score > 0.5` and `score <= 0.5` are false for an absent `score`, so **no pair of operators
+> complements** and the negation of a comparison has no declared form. With `default: 0` the pair
+> partitions, over an absent path and over a null-valued one alike.
+>
+> **Its nullish half is BOTH of W108's readers' shared finding, reached from opposite ends**, and
+> until they did this paragraph said *the pair is exact* without the scope above and *it is `?? 0`*
+> while the substitution fired on `undefined` alone. On a key holding `null` the pair was BOTH
+> false, so the declared form did not reproduce `(r?.score ?? 0) > 0.5`'s negation — the one shape
+> the `default` key exists for. *A measurement that covers `null` on one root and not on the root
+> the feature uses has not covered `null`.*
+
+**`length: true` compares the LENGTH of an array or a string**, applied after `default` and before
+the comparison; a value that is neither has no length and is no match. It is exactly `true` or
+absent — there is no *compare the value, not its length* to ask for — and with it the `value` is a
+number and the operator is not `startsWith`.
+
+| | |
+|---|---|
+| `FD-C7` | **What a DECLARED predicate reads, and what it may do.** Exactly the `DecisionContext` `FD-C3` describes, through one key path per comparison, by `readKeyPath`'s own resolution. It reads nothing else: there is no clock, no random source, no I/O, no registry lookup and no reference to another node. **So its answer is a pure function of the fold's own inputs**, and re-evaluating it over the same log gives the same answer — which is `doc/concept.md` section 5's invariant made true by construction rather than by convention. Test: at ladder L1 that each operator, the absent rule, `default` and `length` answer what this section says over a table of values including absent, `null`, wrong-type and boundary; and at ladder L2 that a flow whose only `when` is declared routes both ways on one definition and two payloads, with **no predicate registered at all**. | **[W108](../doc/work-items/w108-a-predicate-is-data.md)** |
 
 **What the edge CARRIES, as opposed to which edge is taken — v0.10.** Routing above decides *which*;
 this is the other half and until v0.10 no document in `spec/` stated it, which is the gap
@@ -927,7 +1085,7 @@ answering [Q11](../doc/open-questions.md) **in general**, with
 [Q166](../doc/open-questions.md) and [Q165](../doc/open-questions.md) as its cases.
 
 ```json
-{ "id": "score", "kind": "task", "workerType": "ScoreWorker",
+{ "id": "score", "kind": "task", "type": "ScoreWorker",
   "needs": { "item": ".", "run": "ingest" },
   "edges": [ { "to": "collect" } ] }
 ```
@@ -1163,7 +1321,7 @@ resolving to `undefined`.
 answering [Q8](../doc/open-questions.md).
 
 ```json
-{ "when": "isLowConfidence", "to": "review", "needs": { "earlier": "ingest" } }
+{ "when": { "predicate": "isLowConfidence" }, "to": "review", "needs": { "earlier": "ingest" } }
 ```
 
 **Same grammar, same aiming rules, minus the `"."` form.** A reference on an edge is a node id or a
@@ -1837,7 +1995,7 @@ C4 fails if one is missing.
 | `FD-V1` | two nodes share an `id` |
 | `FD-V2` | an edge's `to`, a `join`'s `of`, a `fanout`'s `branches` entry, or a `map`'s `branch` names a node that does not exist |
 | `FD-V3` | `entry` names a node that does not exist, or names a `join` or an `end` |
-| `FD-V4` | an edge's `when` names a predicate absent from the registry |
+| `FD-V4` | an edge's `when` **names** a predicate absent from the registry — the `{ predicate }` shape alone, asked only once `FD-V42` has passed, on `FD-V36`'s precedent that an unknown language has no compiler to ask. **The id and the sentence are P1's and only the SPELLING moved at v0.27**: a name is written `{ "predicate": "x" }`, and a COMPARISON or a GROUP names nothing, so this rule has nothing to ask of either |
 | `FD-V5` | **Nothing. Retired at v0.19 with `workerType`, and the id is now deliberately absent** — a held id with no rule behind it, so a gap in the sequence is not read as a rule someone lost ([ADR 0054](../doc/decisions/0054-every-task-node-names-a-type-and-a-type-is-a-derivation-to-pool-options.md), [W65](../doc/work-items/w65-the-registry-document-and-a-node-type-is-a-derivation.md)). It refused *a `task`'s `workerType` that is not a key in the scheduler's `workerPools`*; since v0.19 a task names a node TYPE, whose default pool exists by construction, and the question this rule asked is `FD-V32`'s |
 | `FD-V6` | a `join`'s `of` does not name a `fanout` **or a `map`**, or a `fanout` **or a `map`** has zero or more than one `join` naming it |
 | `FD-V7` | a `task` node has no `edges`; or no edge of a `task` node is eligible for `done`; or, for some terminal state any of its edges opts into, the eligible edges for that state contain no edge lacking `when`, contain more than one, or the one lacking `when` is not last among them. **A `join` node** is rejected unless it has exactly one edge, carrying neither `when` nor `on` |
@@ -1875,6 +2033,10 @@ C4 fails if one is missing.
 | `FD-V39` | a `gate`'s `type` names **no registered gate type** — none of the built-ins and none the registry's `gateTypes` adds — or names one that **is not a `GateType`**, or one **registered twice** (a built-in and the registry's) — v0.23, section 2's `gate` subsection, [ADR 0066](../doc/decisions/0066-a-gate-is-a-decision-with-memory-that-names-a-registered-type-and-wires-every-route-exactly-once.md). **Two readings of one fix**, on `FD-V32`'s precedent: the name or the registry. A malformed or colliding type is the REGISTRY's mistake and is refused at construction by name (`GateTypeRefused`, `NameCollision`); reached here directly, it is reported on the gate that names it, as `FD-V36` reports a `compile` that is not a function. Case: `spec/examples/invalid/FD-V39--gate-type-not-registered.flow.json` |
 | `FD-V40` | a `gate`'s `settings` is **not a plain object**; its **`key` is not a KEY PATH** — dot-separated object keys, each in `FD-V16`'s charset, no index, no wildcard, no expression (P24 stop-and-ask (d)) — checked on every gate that declares `key`, because the library resolves it; or its type's **`settingsSchema` refuses** the settings, `{}` when absent, asked once `FD-V39` passed. v0.23. **Its own id rather than a clause of `FD-V33`**, whose subject is a node TYPE's worker: an author fixes this in the gate's own settings, and the key grammar is the library's rather than a schema's — the subset has no `pattern`. Case: `spec/examples/invalid/FD-V40--gate-key-path-with-an-index.flow.json` — `files[0].series` |
 | `FD-V41` | **the `route` key and a gate's wiring** — v0.23: a gate's edge **names a route its type does not declare**; a route the type declares has **no edge** or **more than one**, an edge with no `route` counting for the DEFAULT route and never for every route (both asked once `FD-V39` passed — a document alone cannot know a type's routes); a gate's edge carries **`when`, `on` or `needs`**, or a `route` that is not a string; or **an edge of any node that is not a `gate` carries `route`**. **One rule owns the key on every edge**, `FD-V26`'s precedent for `needs`, so `FD-V17`'s key table does not move; and a gate's edge carrying only `to` and `route` is `FD-V7`'s precedent for a join's edge carrying neither `when` nor `on`. **Why every route is wired rather than a drop being an omission**: a route a type grows later would be dropped in silence by every flow that had omitted it (P24 decision 4). Case: `spec/examples/invalid/FD-V41--a-declared-route-with-no-edge.flow.json` — `distinct`'s `duplicate` unwired |
+| `FD-V42` | **a `when` is not one of the three SHAPES, or carries a key its shape does not declare** — v0.27, section 3's `when` subsection. Not an object (a bare STRING is this clause, with the object form in the message); an object marking **none** of `predicate` / `path`-or-`op` / `all`-or-`any`; one marking **more than one**; a `predicate` that is not a string; a comparison **missing** `path`, `op` or `value`; or any shape carrying a key beside its own — `FD-V30`'s and `FD-V37`'s reading, because the evaluator reads exactly these and a key beside them would be read by nothing. Case: `spec/examples/invalid/FD-V42--when-is-a-bare-string.flow.json` |
+| `FD-V43` | **a comparison's `path` is not a key path, or does not start at a ROOT a decision can see** — v0.27. Not a string, or outside `FD-V16`'s charset as dot-separated segments (no array index, no wildcard, no expression); a **first segment other than `outcome` or `needs`**, which would resolve to nothing in silence and so is a wrong key rather than a question; or a **root alone**, which names a container no comparison can be true of. The resolution is `readKeyPath`'s, the DRIVER's own — measured unchanged at this scope, because `ctx.outcome`, `ctx.outcome.result` and the FROZEN `ctx.needs` are all plain objects. Case: `spec/examples/invalid/FD-V43--predicate-path-has-no-root.flow.json` |
+| `FD-V44` | **a comparison's `op` is outside the closed enumeration, or its `value` is one the operator cannot compare** — v0.27. An `op` that is not one of `eq, ne, lt, lte, gt, gte, startsWith`, refused BY NAME with the enumeration in the message (ADR 0053's shape); a `value` that is not a SCALAR; a number operator against a non-number or `startsWith` against a non-string, **because a comparison between kinds is no match and never a coercion**; a `length` that is not exactly `true`; a `length` with a non-number `value` or with `startsWith`; or a `default` that is neither a scalar nor an array of scalars, or that has no length where `length` measures it. Case: `spec/examples/invalid/FD-V44--predicate-op-outside-the-subset.flow.json` |
+| `FD-V45` | **a GROUP is not a non-empty array of COMPARISONS** — v0.27. Both `all` and `any`; a group that is not an array or is empty (an empty group is *always true* or *always false* written as a question); a member that is not an object, or that marks none of the shapes; a member that is itself a **group**, because a group is FLAT and nesting is refused rather than evaluated; or a member naming a **registered predicate**, because a group holding a function could be impure and that is the one thing a declared predicate guarantees over a registered one. A member's own `path`, `op` and `value` are `FD-V43`'s and `FD-V44`'s, and its own SHAPE — a missing or undeclared key, or an object marking more than one shape — is `FD-V42`'s, wherever the comparison sits; `FD-V45` owns only what makes it not a comparison at all. Case: `spec/examples/invalid/FD-V45--a-group-inside-a-group.flow.json` |
 
 **`FD-V19`'s second clause is derived rather than stated.** *"One branch entry is reachable from
 another"* needs no rule of its own: `FD-V9` requires every branch entry to be a `task`, and a branch
@@ -1979,6 +2141,7 @@ instantiation, and instantiation is a driver action. Hand-written, never generat
 | `typed.flow.json` | **a node TYPE, in all FOUR shapes `FD-C5` enumerates** — v0.17, [W59](../doc/work-items/w59-what-a-node-type-is.md). `type: "Scorer"` on the top-level entry (`ingest`, declaring **no** `settings`, so the `{}` default the validator sees is in the corpus), on the **branch task of a `map`** (`rank`, `settings: { factor: 100 }` — per INSTANCE, the envelope wrapping each instance's own item under `JP-R11`), on a task inside a `fanout` branch (`scoreA`, `settings: { factor: 10 }`, beside `scoreB`, a `ScoreWorker` — a former bare pool, a type like any other since v0.19 — so two types sit in one region), and on a **join's successor** (`publish`, `settings: { factor: 1 }`, whose `input` is `JP-R12`'s collection — the fourth kind, which no suite instantiated until W59's adequacy reader found a driver handing it `{}` cost zero). `Scorer` is a document-declared type in `registry.json` whose worker `scorer` carries the `settingsSchema` `FD-V33` applies and whose `settings` defaults (`factor: 1`) merge under each node's — so the entry's absent settings are the defaults road, in the corpus (v0.19). **Validated at L4 and never RUN**: what two typed nodes of one type with different settings do on real workers is `examples/flows/typed.flow.json` and `typed-regions.flow.json` at ladder L6 |
 | `pooled.flow.json` | **a node on a NAMED pool instance of its type, and one on the default by name** — v0.19, [W65](../doc/work-items/w65-the-registry-document-and-a-node-type-is-a-derivation.md). `score` is a `Scorer` on `pool: "scorer-fast"`, an instance `registry.json` declares under `pools` with its own config merged over the type's; `publish` is a `Scorer` on `pool: "Scorer"`, the default instance stated explicitly, which `FD-V38` accepts. The pair `FD-V38` refuses is `spec/examples/invalid/FD-V38--pool-not-an-instance-of-the-type.flow.json`, the same instance named by a node of another type. **Validated at L4 and never RUN** |
 | `transformed.flow.json` | **a TRANSFORM, on all FOUR shapes `FD-C5` enumerates** — v0.18, [W61](../doc/work-items/w61-what-a-transform-is.md). `transform` in the fake language `path` on the top-level entry (`ingest`, `document`), on the **branch task of a `map`** (`rank`, `confidence` — its own item under `JP-R11`), on a task inside a `fanout` branch that declares `needs` (`scoreA`, `run.config` — what `needs` composed, the kind `typed.flow.json` does not carry), and on a **join's successor** (`publish`, `$settings.factor` — reading the binding rather than the collection, so the corpus shows `$settings`). `path` is in `registry.json` under `languages` and resolves to the test fixture's adapter in `test/definition/corpus-types.ts`, as `Scorer`'s validator does. **Validated at L4 and never RUN**: what a transform does on real workers is W63's exit artifact |
+| `declared-predicate.flow.json` | **a `when` that is DATA, in all three shapes and over all three roots** — v0.27, [W108](../doc/work-items/w108-a-predicate-is-data.md). `ingest` carries three COMPARISONS reaching the two things an `outcome` root holds: `outcome.result.confidence` with `lt` and `outcome.result.tags` with `length` and a `default` of `[]` read the worker's own result, and `outcome.taskId` with `startsWith` reads a DRIVER field, which no schema describes. *(This cell read *one per root the grammar admits*, and the grammar admits two roots — `outcome` and `needs` — of which all three of `ingest`'s are the first. W108's conformity reader, 12.)* `score` carries an **`all`** group whose two members read `outcome.result` and `needs.earlier` (the edge declaring `needs: {"earlier": "ingest"}`, so `FD-C3`'s projection is one of the roots a group reads), an **`any`** group carrying `lte` with a `default` and `ne`, and a registered **NAME** beside both — so the two roads sit on one node and the default edge is last, which is `FD-V7`. **All SEVEN operators appear** — `lt`, `gt`, `startsWith` on `ingest`, then `gte` and `eq` in the `all` group and `lte` and `ne` in the `any` one — so the enumeration is instantiated whole in one document. *(This cell said *six of the seven*, and the L1 clause that reads it carried an escape for `ne` that was a tautology for `ne` alone. W108's conformity reader, 11, and its adequacy reader, 8.)* **Validated at L4 and never RUN**: what a declared predicate ROUTES is `test/driver/predicate.test.ts` at ladder L2, on a flow with **no predicate registered at all** |
 | `gated-map.flow.json` | **a GATE, v0.23** — [W92](../doc/work-items/w92-what-a-gate-is.md). The maintainer's ingest (P24): a `map` over `files` whose one branch identifies each file and reaches `dedupe`, a `distinct` gate keyed by the KEY PATH `series.id`, whose DEFAULT route (an edge with no `route`) opens the per-series `setup` and whose `duplicate` and `nokey` routes DROP to two `end` nodes inside the region, one per route so the graph stays local. Every route wired exactly once. **Validated at L4, and RUN at L2 since v0.24**: `new Driver` refused a flow holding a gate until W93, and `test/driver/needs.test.ts` asserted THAT refusal on this document where it runs every other region-bearing one — so W93's lift failed that assertion on its first run, and the document joined that census as a row. What a gate does on real workers is W94's exit artifact |
 
 **This table and the directory are compared BOTH WAYS, and that is v0.8's addition rather than a

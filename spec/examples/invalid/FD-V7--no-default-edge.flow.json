@@ -4,8 +4,8 @@
   "entry": "score",
   "nodes": [
     { "id": "score", "kind": "task", "type": "ScoreWorker", "edges": [
-        { "when": "isLowConfidence", "to": "review" },
-        { "when": "isHighConfidence", "to": "publish" }
+        { "when": { "predicate": "isLowConfidence" }, "to": "review" },
+        { "when": { "predicate": "isHighConfidence" }, "to": "publish" }
     ] },
     { "id": "review",  "kind": "end", "outcome": "needs-review" },
     { "id": "publish", "kind": "end", "outcome": "completed" }

@@ -15,6 +15,7 @@
  * ADR 0002 rule 3: this runs in full, at instantiation, before any task is queued.
  */
 import type { Edge, Finding, FlowDefinition, FlowNode, GateContext, GateType, GateTypes, JsonSchema, LanguageAdapter, Languages, NodeTypeEntry, NodeTypes, Pools, Registry, Transform, WorkerEntry, Workers } from './types.ts';
+import { PREDICATE_OPS, PREDICATE_ROOTS } from './types.ts';
 import { describeFindings, findings, schemaProblem } from './schema.ts';
 import { allRegions, buildGraph, certainlySettled } from './regions.ts';
 
@@ -326,6 +327,188 @@ export function gateTypeCollisions(x: GateTypes | undefined): string[] {
   if (x === undefined) return [];
   const names = x instanceof Map ? [...(x as ReadonlyMap<string, GateType>).keys()] : Object.keys(x);
   return names.filter((n) => Object.prototype.hasOwnProperty.call(BUILT_IN_GATE_TYPES, n)).sort();
+}
+
+// ---- a PREDICATE that is DATA — v0.27 (W108, ADR 0074) ----
+
+/**
+ * **The keys each of the three `when` shapes carries, and no others** — `FD-V42`, on `FD-V30`'s and
+ * `FD-V37`'s precedent (`RETRY_POLICY_KEYS`, `TRANSFORM_KEYS`): the evaluator reads exactly these, so
+ * a key beside them would be carried and read by nothing. Exported so a test can compare them to
+ * `spec/flow-definition.md` section 3's own tables, which is obligation (e)'s third shape — *a list is
+ * a claim about another list* — on the tables this item adds.
+ */
+export const PREDICATE_NAME_KEYS: readonly string[] = ['predicate'];
+export const PREDICATE_LEAF_KEYS: readonly string[] = ['path', 'op', 'value', 'default', 'length'];
+export const PREDICATE_LEAF_REQUIRED: readonly string[] = ['path', 'op', 'value'];
+export const PREDICATE_GROUP_KEYS: readonly string[] = ['all', 'any'];
+
+/** Which of the three shapes an object is, by the key that marks it — or `null` for none, `'ambiguous'` for more than one. */
+function predicateShapeOf(o: Record<string, unknown>): 'name' | 'leaf' | 'group' | 'ambiguous' | null {
+  const marks: ('name' | 'leaf' | 'group')[] = [];
+  if ('predicate' in o) marks.push('name');
+  if ('path' in o || 'op' in o) marks.push('leaf');
+  if ('all' in o || 'any' in o) marks.push('group');
+  if (marks.length === 0) return null;
+  if (marks.length > 1) return 'ambiguous';
+  return marks[0]!;
+}
+
+const isScalar = (v: unknown): v is null | boolean | number | string =>
+  v === null || typeof v === 'boolean' || typeof v === 'string' || (typeof v === 'number' && Number.isFinite(v));
+
+const scalarName = (v: unknown): string =>
+  v === null ? 'null'
+    : Array.isArray(v) ? 'an array'
+      // **A non-finite number prints its VALUE**, because `typeof NaN` is `number` and the message
+      // beside it says *a FINITE number* — so the refusal read as if it had accepted (W108's
+      // conformity reader, 19).
+      : (typeof v === 'number' && !Number.isFinite(v)) ? String(v)
+        : typeof v;
+
+/** The operators whose operand must be a NUMBER, and the one whose operand must be a STRING. */
+const NUMERIC_OPS: ReadonlySet<string> = new Set(['lt', 'lte', 'gt', 'gte']);
+const STRING_OPS: ReadonlySet<string> = new Set(['startsWith']);
+
+/**
+ * **Why a LEAF is not a comparison, or `null`** — `FD-V43`'s path clause and `FD-V44`'s operator and
+ * value clauses, in one place so the validator and any later reader share one definition of *well
+ * formed*. Returns the rule id with the message, because one value spans two rules and reporting it
+ * under one of them would make the other's fixture a lie.
+ */
+function leafProblem(o: Record<string, unknown>, where: string): { rule: string; message: string } | null {
+  const extra = Object.keys(o).filter((k) => !PREDICATE_LEAF_KEYS.includes(k));
+  if (extra.length) {
+    return { rule: 'FD-V42', message: `${where} carries ${extra.map((k) => JSON.stringify(k)).join(', ')}, which a comparison does not declare; it is { ${PREDICATE_LEAF_KEYS.join(', ')} }` };
+  }
+  for (const k of PREDICATE_LEAF_REQUIRED) {
+    if (!(k in o)) return { rule: 'FD-V42', message: `${where} is missing required key "${k}"; a comparison is { ${PREDICATE_LEAF_KEYS.join(', ')} } with ${PREDICATE_LEAF_REQUIRED.join(', ')} required` };
+  }
+  // ---- FD-V43: the key path, and its ROOT ----
+  const path = o.path;
+  if (typeof path !== 'string' || !KEY_PATH_RE.test(path)) {
+    return { rule: 'FD-V43', message: `${where} path ${JSON.stringify(path)} is not a key path — dot-separated object keys, each [A-Za-z0-9_-]{1,64}; no array index, no wildcard, no expression` };
+  }
+  const root = path.split('.')[0]!;
+  if (!(PREDICATE_ROOTS as readonly string[]).includes(root)) {
+    return { rule: 'FD-V43', message: `${where} path ${JSON.stringify(path)} starts at ${JSON.stringify(root)}, which a decision cannot see — a predicate's roots are ${PREDICATE_ROOTS.map((r) => JSON.stringify(r)).join(' and ')}, and any other first segment would resolve to nothing in silence` };
+  }
+  if (path.split('.').length < 2) {
+    return { rule: 'FD-V43', message: `${where} path ${JSON.stringify(path)} is a root alone and names no value — ${JSON.stringify(root)} is a container, so a comparison against it could only ever be no match` };
+  }
+  // ---- FD-V44: the operator, the literal, and the two modifiers ----
+  const op = o.op;
+  if (typeof op !== 'string' || !(PREDICATE_OPS as readonly string[]).includes(op)) {
+    return { rule: 'FD-V44', message: `${where} op ${JSON.stringify(op)} is not one of ${PREDICATE_OPS.join(', ')} — the enumeration is closed, and a predicate that computes stays a registered name` };
+  }
+  if (o.length !== undefined && o.length !== true) {
+    return { rule: 'FD-V44', message: `${where} length is ${JSON.stringify(o.length)}; it is exactly true or absent — there is no "compare the value, not its length" to ask for` };
+  }
+  const takesLength = o.length === true;
+  if (!isScalar(o.value)) {
+    return { rule: 'FD-V44', message: `${where} value is ${scalarName(o.value)}; a comparison compares against a SCALAR — null, a boolean, a finite number or a string` };
+  }
+  if (takesLength && typeof o.value !== 'number') {
+    return { rule: 'FD-V44', message: `${where} compares a length against ${JSON.stringify(o.value)}; a length is a number` };
+  }
+  if (!takesLength && NUMERIC_OPS.has(op) && typeof o.value !== 'number') {
+    return { rule: 'FD-V44', message: `${where} op "${op}" compares against ${JSON.stringify(o.value)}, which is not a number — the ordering operators are numeric, and a comparison between kinds is no match rather than a coercion` };
+  }
+  if (STRING_OPS.has(op) && typeof o.value !== 'string') {
+    return { rule: 'FD-V44', message: `${where} op "${op}" compares against ${JSON.stringify(o.value)}, which is not a string` };
+  }
+  if (takesLength && STRING_OPS.has(op)) {
+    return { rule: 'FD-V44', message: `${where} takes a length and uses "${op}"; a length is a number and has no prefix` };
+  }
+  if ('default' in o) {
+    const d = o.default;
+    const okDefault = Array.isArray(d) ? d.every(isScalar) : isScalar(d);
+    if (!okDefault) {
+      return { rule: 'FD-V44', message: `${where} default is ${scalarName(d)}; it is a scalar, or an array of scalars where \`length\` measures it` };
+    }
+    if (takesLength && !(Array.isArray(d) || typeof d === 'string')) {
+      return { rule: 'FD-V44', message: `${where} takes a length and its default is ${JSON.stringify(d)}, which has none — the default stands in for the value BEFORE the length is taken` };
+    }
+    // **And the converse, which this message claimed and the code did not enforce** (W108's
+    // conformity reader, 17): an ARRAY default with no `length` is compared against a SCALAR, so
+    // it can never match and the comparison is permanently false wherever the path is absent —
+    // a silent no-match, which is `FD-R2`'s class and the one thing this grammar exists to refuse.
+    if (!takesLength && Array.isArray(d)) {
+      return { rule: 'FD-V44', message: `${where} default is an array and the comparison takes no \`length\`, so it would be compared against a scalar and could never match — an array default is for \`length: true\`` };
+    }
+  }
+  return null;
+}
+
+/**
+ * **Why a `when` is not a predicate, or `null`** — `FD-V42` (the form and its keys), `FD-V43` (a
+ * leaf's key path) and `FD-V45` (a group's members), in one place so the validator, the driver and
+ * the tests cannot disagree about what a predicate IS.
+ * [ADR 0074](../../doc/decisions/0074-a-predicate-is-a-registered-name-or-a-declared-comparison-over-the-context.md).
+ *
+ * **A registered NAME is a shape here and its REGISTRY lookup is not** — that stays `FD-V4`, which
+ * has owned *an edge's `when` names a predicate absent from the registry* since P1 and whose only
+ * change at v0.27 is where the name is written.
+ */
+export function predicateProblem(v: unknown): { rule: string; message: string } | null {
+  if (typeof v !== 'object' || v === null || Array.isArray(v)) {
+    return {
+      rule: 'FD-V42',
+      message: `when is ${scalarName(v)}; it is an object — a registered name { predicate }, a comparison { ${PREDICATE_LEAF_KEYS.join(', ')} }, or a flat group { all } or { any }` +
+        (typeof v === 'string' ? `. A bare string was the form until v0.27; write { "predicate": ${JSON.stringify(v)} }` : ''),
+    };
+  }
+  const o = v as Record<string, unknown>;
+  const shape = predicateShapeOf(o);
+  if (shape === null) {
+    return { rule: 'FD-V42', message: `when carries ${Object.keys(o).map((k) => JSON.stringify(k)).join(', ') || 'no keys'} and matches none of the three shapes — { predicate }, { ${PREDICATE_LEAF_KEYS.join(', ')} }, or { all } or { any }` };
+  }
+  if (shape === 'ambiguous') {
+    return { rule: 'FD-V42', message: `when carries ${Object.keys(o).map((k) => JSON.stringify(k)).join(', ')} and matches more than one shape — a name, a comparison and a group are told apart by which keys are present, so an object may mark only one` };
+  }
+  if (shape === 'name') {
+    const extra = Object.keys(o).filter((k) => !PREDICATE_NAME_KEYS.includes(k));
+    if (extra.length) return { rule: 'FD-V42', message: `when names a predicate and also carries ${extra.map((k) => JSON.stringify(k)).join(', ')}; the name form is { predicate } and nothing else` };
+    if (typeof o.predicate !== 'string') return { rule: 'FD-V42', message: `when predicate is ${scalarName(o.predicate)}; it is the name of a registered predicate` };
+    return null;
+  }
+  if (shape === 'leaf') return leafProblem(o, 'when');
+  // ---- FD-V45: a FLAT group, whose members are LEAVES ----
+  const extra = Object.keys(o).filter((k) => !PREDICATE_GROUP_KEYS.includes(k));
+  if (extra.length) return { rule: 'FD-V42', message: `when is a group and also carries ${extra.map((k) => JSON.stringify(k)).join(', ')}; a group is { all } or { any } and nothing else` };
+  if ('all' in o && 'any' in o) return { rule: 'FD-V45', message: 'when carries both "all" and "any"; a group is one or the other, because a document that says both says neither' };
+  const which = 'all' in o ? 'all' : 'any';
+  const members = o[which];
+  if (!Array.isArray(members) || members.length === 0) {
+    return { rule: 'FD-V45', message: `when ${which} is ${Array.isArray(members) ? 'empty' : scalarName(members)}; it is a non-empty array of comparisons — an empty group is "always true" or "always false" written as a question` };
+  }
+  for (let i = 0; i < members.length; i++) {
+    const m: unknown = members[i];
+    const at = `when ${which}[${i}]`;
+    if (typeof m !== 'object' || m === null || Array.isArray(m)) {
+      return { rule: 'FD-V45', message: `${at} is ${scalarName(m)}; a group's members are comparisons` };
+    }
+    const ms = predicateShapeOf(m as Record<string, unknown>);
+    if (ms === 'group') {
+      return { rule: 'FD-V45', message: `${at} is a group; a group is FLAT and its members are comparisons — nesting is refused rather than evaluated` };
+    }
+    if (ms === 'name') {
+      return { rule: 'FD-V45', message: `${at} names a registered predicate; a group's members are comparisons — a group holding a function could be impure, which is the one thing a declared predicate guarantees over a registered one` };
+    }
+    if (ms === null || ms === 'ambiguous') {
+      return { rule: 'FD-V45', message: `${at} carries ${Object.keys(m as object).map((k) => JSON.stringify(k)).join(', ') || 'no keys'} and is not a comparison` };
+    }
+    const p = leafProblem(m as Record<string, unknown>, at);
+    if (p) return p;
+  }
+  return null;
+}
+
+/** Every registered predicate NAME a `when` reaches, so `FD-V4` can be asked of each — `[]` for a declared one. */
+export function predicateNamesIn(v: unknown): string[] {
+  if (typeof v !== 'object' || v === null || Array.isArray(v)) return [];
+  const o = v as Record<string, unknown>;
+  return typeof o.predicate === 'string' ? [o.predicate] : [];
 }
 
 /**
@@ -876,8 +1059,21 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
           add('FD-V18', at, `on must be a non-empty array of distinct "done"/"failed", got ${JSON.stringify(on)}`);
         }
       }
-      if (ed?.when !== undefined && (typeof ed.when !== 'string' || !preds.has(ed.when))) {
-        add('FD-V4', at, `when names "${String(ed.when)}", which is not a registered predicate`);
+      // ---- the `when`: its SHAPE (`FD-V42`-`FD-V45`) and, for the name form alone, its REGISTRY
+      // lookup (`FD-V4`) — v0.27, W108, ADR 0074.
+      //
+      // **`FD-V4` keeps its id and its sentence and only the SPELLING moved**: it has refused *an
+      // edge's `when` names a predicate absent from the registry* since P1, and a name is now written
+      // `{ "predicate": "x" }`. The shape is asked FIRST and the lookup only where the shape held, on
+      // `FD-V36`'s precedent (an unknown language has no compiler to ask): an object that is not a
+      // predicate at all has no name to look up, and reporting both would make `FD-V42`'s fixture
+      // name two rules.
+      if (ed?.when !== undefined) {
+        const problem = predicateProblem(ed.when);
+        if (problem) add(problem.rule, at, problem.message);
+        else for (const name of predicateNamesIn(ed.when)) {
+          if (!preds.has(name)) add('FD-V4', at, `when names "${name}", which is not a registered predicate`);
+        }
       }
       // ---- FD-V41's per-edge half: the `route` key, owned everywhere (v0.23, W92) ----
       // On `FD-V26`'s precedent for `needs`: one rule owns the key's whole shape on every edge. A `route` off a

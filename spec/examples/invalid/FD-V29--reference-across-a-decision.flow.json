@@ -5,7 +5,7 @@
   "nodes": [
     { "id": "ingest",  "kind": "task", "type": "IngestWorker", "edges": [ { "to": "decide" } ] },
     { "id": "decide",  "kind": "task", "type": "ScoreWorker",  "edges": [
-        { "when": "isLowConfidence", "to": "flag" },
+        { "when": { "predicate": "isLowConfidence" }, "to": "flag" },
         { "to": "publish" }
     ] },
     { "id": "flag",    "kind": "task", "type": "ReviewWorker", "edges": [ { "to": "publish" } ] },

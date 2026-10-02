@@ -5,7 +5,7 @@
   "nodes": [
     { "id": "extract", "kind": "task", "type": "ExtractWorker", "optional": true, "edges": [
         { "on": [ "failed" ], "to": "quarantine" },
-        { "when": "isLowConfidence", "to": "review" },
+        { "when": { "predicate": "isLowConfidence" }, "to": "review" },
         { "to": "publish" }
     ] },
     { "id": "review",     "kind": "task", "type": "ReviewWorker",  "edges": [ { "to": "reviewed" } ] },

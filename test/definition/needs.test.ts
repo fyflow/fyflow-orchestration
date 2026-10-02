@@ -490,7 +490,7 @@ suite('L1 — FD-V29: an unconditional reference names a node that MUST have run
     doc([
       {
         id: 'ingest', kind: 'task', type: 'IngestWorker',
-        edges: [{ when: 'isLowConfidence', to: 'flag' }, { to: 'skip' }],
+        edges: [{ when: { predicate: 'isLowConfidence' }, to: 'flag' }, { to: 'skip' }],
       },
       { id: 'flag', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'publish' }] },
       { id: 'skip', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'publish' }] },
@@ -583,13 +583,13 @@ suite('L1 — FD-V29: an unconditional reference names a node that MUST have run
       doc([
         {
           id: 'ingest', kind: 'task', type: 'IngestWorker',
-          edges: [{ when: 'isLowConfidence', to: 'flag' }, { to: 'skip' }],
+          edges: [{ when: { predicate: 'isLowConfidence' }, to: 'flag' }, { to: 'skip' }],
         },
         { id: 'flag', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'publish' }] },
         { id: 'skip', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'publish' }] },
         {
           id: 'publish', kind: 'task', type: 'PublishWorker',
-          edges: [{ when: 'isHighConfidence', to: 'done', needs }, { to: 'done' }],
+          edges: [{ when: { predicate: 'isHighConfidence' }, to: 'done', needs }, { to: 'done' }],
         },
         { id: 'done', kind: 'end', outcome: 'completed' },
       ]);
@@ -617,13 +617,13 @@ suite('L1 — FD-V29: an unconditional reference names a node that MUST have run
       doc([
         {
           id: 'ingest', kind: 'task', type: 'IngestWorker',
-          edges: [{ when: 'isLowConfidence', to: 'd' }, { to: 'a' }],
+          edges: [{ when: { predicate: 'isLowConfidence' }, to: 'd' }, { to: 'a' }],
         },
         { id: 'd', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'c' }] },
         { id: 'c', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'publish' }] },
         {
           id: 'a', kind: 'task', type: 'ScoreWorker',
-          edges: [{ when: 'isLowConfidence', to: 'm' }, { to: 'n' }],
+          edges: [{ when: { predicate: 'isLowConfidence' }, to: 'm' }, { to: 'n' }],
         },
         { id: 'm', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'publish' }] },
         { id: 'n', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'publish' }] },

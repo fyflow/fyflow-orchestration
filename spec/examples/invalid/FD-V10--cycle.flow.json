@@ -4,7 +4,7 @@
   "entry": "score",
   "nodes": [
     { "id": "score", "kind": "task", "type": "ScoreWorker", "edges": [
-        { "when": "isLowConfidence", "to": "retry" },
+        { "when": { "predicate": "isLowConfidence" }, "to": "retry" },
         { "to": "done" }
     ] },
     { "id": "retry", "kind": "task", "type": "ScoreWorker", "edges": [ { "to": "score" } ] },
