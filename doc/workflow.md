@@ -3026,13 +3026,41 @@ concurrently behind their slowest one.
 updated rather than left to rot, which is what this item's own `Spec:` line obliges.** It made
 `check-docs`' snippet loop concurrent at a declared width of eight — `check:docs` **9314 ms ->
 4574 ms** and the lane **1096 s -> 624 s**, measured before and after on one tree with the bands
-not overlapping. Derived from ADR 0070's own per-lane figures, since `gate:full` is CI's to
-measure: the exclusive prefix is 25.2 s and the concurrent group becomes
-`max(624, 477.3, 125.1, 82.7, 53.8, 43.2)`, so the self-test wall is **~649 s against 1324 s** and
-`gate:full` **~894 s against 1571 s**. **`check:docs:selftest` is still the binding lane** at 624 s
-against `check:markdown:selftest`'s 477.3 — what that second lane caps is the NEXT halving, which
-would be worth only ~1.3x on the wall rather than another 2x. *A concurrency win hides behind its
-slowest lane, and halving the slowest moves the floor to the second.*
+not overlapping.
+
+**It then DERIVED a wall from ADR 0070's per-lane table, and
+[W105](work-items/w105-the-scratch-directory-is-namespaced.md) measured that table wrong in two
+entries.** W104 wrote *the exclusive prefix is 25.2 s, so the self-test wall is ~649 s against 1324*.
+Re-measured end to end, `npm run selftests` **EXIT 0, 8/8 ok**, on the tree W105 starts from:
+
+| lane | ADR 0070 | measured | |
+|---|---|---|---|
+| `check:docs:selftest` | 1298.9 s | **608.2 s** | W104's halving, confirmed |
+| `check:source:selftest` | 82.7 s | **578.4 s** | **7.0x** |
+| `check:markdown:selftest` | 477.3 s | 418.1 s | |
+| `check:wiring:selftest` | 3.0 s | **228.2 s** | **76x** — a lane that EXITED AT ITS CONTROL |
+| the four others | 125.1 / 53.8 / 43.2 / 22.2 | 84.4 / 42.8 / 25.1 / 14.9 | |
+| **the WALL** | 1324 s / ~649 derived | **851.3 s**, 2000.1 s serial-equivalent | |
+
+**The 3.0 s is the sharp one: that lane did not run.** W103's own finding 3 records why — a leftover
+`dev-dist/check-wiring-stub-27708.mjs` glob-matched `check-*.mjs`, `G3` saw a check the manifest never
+declares, and `check-wiring-selftest.mjs` returns at its control. *A lane that fails fast still reports
+a wall clock, and a per-lane table has no column for whether the lane ran.*
+
+**So `check:docs:selftest` is the binding lane by five percent and not by a factor** — 608.2 s against
+`check:source:selftest`'s 578.4 — and halving it again is worth about **30 s**, not another 2x.
+*A concurrency win hides behind its slowest lane; this one has two.*
+
+**And a per-lane wall measured in one concurrency arrangement does not predict the wall in another**,
+which is the error all three derivations here have now made. W105 retired one exclusivity marker
+([ADR 0072](decisions/0072-a-scratch-path-carries-its-process-and-a-self-test-that-shares-the-tree-says-so.md)),
+predicted 623 s from these same figures, and measured **789.7 s and 1069.7 s** over two runs — which
+straddle the 851.3 s above, so **no wall claim survives**. What is reproducible is the
+serial-equivalent: **2000.1 s over six concurrent lanes against 2750.8 s and 3925.2 s over seven**, so
+the seventh lane costs every other lane a third to half of its own time. The runner sizes its pool in
+LANES while each lane spawns a deep process tree, so seven lanes commit the machine many times over
+([Q433](open-questions.md)). **CI has FOUR cores**, where the pool caps at four; `gate:full` is CI's to
+measure and this does not change that.
 
 *Nothing is deleted and no bound is lowered*; the proof
 moved to where nobody is waiting, which is the thing

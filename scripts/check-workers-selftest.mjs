@@ -286,6 +286,26 @@ export async function selfTest(ROOT) {
   const dir = join(ROOT, 'dev-dist', `workers-selftest-${process.pid}`);
   rmSync(dir, { recursive: true, force: true });
   mkdirSync(dir, { recursive: true });
+  /**
+   * **[Q426](../doc/open-questions.md)'s class, in the one of eight self-tests W105 listed in its `Owns`
+   * block and did not touch — its conformity reader, BLOCKING.** The path already carried the pid, so
+   * this file looked done; what it had no cover for is the ABORT path, which is the half output (1)
+   * names. The only removals were before the `mkdirSync` above and one line before the single `return`,
+   * and the rule 7 (b) guard below THROWS — `probe "..." changed nothing` propagates through
+   * `check-workers.mjs`'s bare `await selfTest(ROOT)` and left the directory behind. *A per-process path
+   * is not a removal, and an item whose subject is the first can ship without the second.*
+   */
+  process.on('exit', () => rmSync(dir, { recursive: true, force: true }));
+  /**
+   * **[Q426](../doc/open-questions.md)'s class, in the one of eight self-tests W105 listed in its `Owns`
+   * block and did not touch — its conformity reader, BLOCKING.** The path already carried the pid, so
+   * this file looked done; what it had no cover for is the ABORT path, which is the half output (1)
+   * names. The only removals were before the `mkdirSync` above and one line before the single `return`,
+   * and the rule 7 (b) guard below THROWS — `probe "..." changed nothing` propagates through
+   * `check-workers.mjs`'s bare `await selfTest(ROOT)` and left the directory behind. *A per-process path
+   * is not a removal, and an item whose subject is the first can ship without the second.*
+   */
+  process.on('exit', () => rmSync(dir, { recursive: true, force: true }));
   const original = readFileSync(join(ROOT, REGISTRY), 'utf8');
   const checkText = readFileSync(join(ROOT, CHECK), 'utf8');
   const env = (registry, extra = {}) => ({ ...process.env, CHECK_WORKERS_REGISTRY: registry, CHECK_WORKERS_BASE: join(ROOT, BASE), CHECK_WORKERS_ROOT: ROOT, ...extra });

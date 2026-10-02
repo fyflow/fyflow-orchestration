@@ -156,7 +156,7 @@
 // reader measured it.
 
 import { readFileSync, writeFileSync, mkdirSync, rmSync } from 'node:fs';
-import { join, dirname, resolve } from 'node:path';
+import { join, dirname, resolve, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
@@ -868,9 +868,38 @@ export async function selfTest(root) {
     ['l6', 'CHECK_DOCS_L6', readFileSync(join(root, 'examples', 'l6.ts'), 'utf8'), '-l6.ts'],
     ['adrIndex', 'CHECK_DOCS_ADR_INDEX', readFileSync(join(root, 'doc', 'decisions', 'README.md'), 'utf8'), '-adr.md'],
   ];
-  const dir = join(root, 'dev-dist', 'docs-selftest');
+  // **Per PROCESS, and removed on the way out including on the abort path — W105.** `dev-dist/` is one
+  // flat namespace and this was a FIXED path inside it, `rmSync`d on entry: a META child runs this same
+  // function, so a fixed name has the child delete the parent's fixtures underneath it, and two top-level
+  // runs do the same to each other ([Q182](../doc/open-questions.md)).
+  //
+  // The `rmSync` stays and is now load-bearing for a DIFFERENT reason: Windows recycles pids, so a
+  // directory left by a killed run can be inherited by a live one. Measured at W105 — nine leaked
+  // directories, every one reporting its pid as alive — which is also why reaping by liveness is not
+  // the answer and deleting on entry is.
+  const dir = join(root, 'dev-dist', `docs-selftest-${process.pid}`);
   rmSync(dir, { recursive: true, force: true });
   mkdirSync(dir, { recursive: true });
+  // **`process.on('exit')` rather than a `finally`, because this function returns from fifteen places
+  // and each one carries its own `rmSync(dir)` today.** An `exit` handler covers all fifteen plus the
+  // one road none of them covers — a throw — which is [Q323](../doc/open-questions.md)'s class and
+  // exactly how W103's finding 3 left its stub behind. `SIGKILL` leaks this one directory, which is the
+  // stated limit: *one path per killed run, not one per probe*, and that is what nesting buys.
+  process.on('exit', () => rmSync(dir, { recursive: true, force: true }));
+  /**
+   * **The RELATIVE spelling, DERIVED rather than written a second time — W105.** The probes hand the
+   * check a relative path in `CHECK_DOCS_DOC`, and that path was a separate template literal naming
+   * `dev-dist/docs-selftest/` by hand. Two sources for one directory: pid one and not the other, and
+   * the child reads a directory nothing staged into — which is hazard 5's shape and W38's adequacy
+   * reader's empty directory printing `ok`.
+   */
+  const relDir = relative(root, dir).replace(/\\/g, '/');
+  // **The flat `.meta-*` mutants are registered too.** Each is written and removed per entry inside a
+  // `finally`, so at most one is alive at a time and a kill leaks one FILE beside the one directory —
+  // but a throw between the write and the `finally` used to leave it, and a leftover `.mjs` in
+  // `dev-dist/` is W103's finding 3's exact shape.
+  process.on('exit', () => { for (const p of metaMutants) rmSync(p, { force: true }); });
+  const metaMutants = new Set();
 
   // **The script under test.** `CHECK_DOCS_SCRIPT` is how the META pass points this
   // same suite at a deliberately broken copy of it. Without it there was no way to
@@ -977,7 +1006,7 @@ export async function selfTest(root) {
   /** One probe, run once. Shared by the main pass and single-probe mode so the two cannot drift. */
   const runOne = (i, probe) => {
     const declared = [probe.check, ...(probe.also ?? [])].sort();
-    const rel = `dev-dist/docs-selftest/${String(i).padStart(2, '0')}.md`;
+    const rel = `${relDir}/${String(i).padStart(2, '0')}.md`;
     const mutated = probe.mutate(doc);
     const readmeMutated = probe.readme ? probe.readme(readme) : null;
     const extras = EXTRA.filter(([k]) => probe[k]).map(([k, envName, text, suffix]) => ({ envName, text, suffix, out: probe[k](text) }));
@@ -1110,7 +1139,15 @@ export async function selfTest(root) {
         'on the first of several and the entry does not say which');
       continue;
     }
-    const path = join(root, 'dev-dist', `.meta-docs-${String(i).padStart(2, '0')}.mjs`);
+    // **FLAT, with the pid in the NAME — and a rung is what corrected this, W105.** A `.meta-*` mutant
+    // is a copy of the CHECK, which derives `ROOT = resolve(dirname(self), '..')`, so it must sit
+    // exactly one directory below the repository root; W105 first nested it beside the fixtures on the
+    // reasoning that a mutant is depth-free, and that is true only of a `.self-*` mutant, which is a copy
+    // of this SELFTEST module and receives `ROOT` as a parameter. Nested, the copy reads `dev-dist/` as
+    // its tree: `check:spec:selftest` reported **29/29 graded, 0 by the named probe, 29 by the corpus**,
+    // which is this file's own *the harness broke rather than the check* clause firing exactly as written.
+    const path = join(root, 'dev-dist', `.meta-docs-${process.pid}-${String(i).padStart(2, '0')}.mjs`);
+    metaMutants.add(path);
     writeFileSync(path, broken);
     try {
       const r = spawnSync(process.execPath, [join(root, 'scripts', 'check-docs.mjs'), '--self-test'],

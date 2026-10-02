@@ -186,6 +186,13 @@ agreeing to **under 1%**.
 
 **And the wall this is actually about, DERIVED from ADR 0070's own per-lane figures** — `gate:full` is
 CI's to measure and W104 did not re-run it: the exclusive prefix is 25.2 s and the concurrent group
+*(**both halves of this derivation are WRONG, and [W105](w105-the-scratch-directory-is-namespaced.md)
+measured them**: ADR 0070's 3.0 s for `check:wiring:selftest` is a lane that EXITED AT ITS CONTROL, so
+the prefix is **243.1 s**, and `check:source:selftest`'s 82.7 s is **578.4 s**. The wall is **851.3 s**
+end to end rather than the ~649 derived below, and `check:docs:selftest` is **71%** of it rather than
+96%. The halving this item measured stands; what does not is a wall derived from a table with two bad
+entries. Corrected here as well as in `doc/workflow.md`, because an item's own file is where a status is
+read from.)*
 becomes `max(624, 477.3, 125.1, 82.7, 53.8, 43.2)`, so the self-test wall is **~649 s against 1324 s**
 (2.04x) and `gate:full` **~894 s against 1571 s** (1.76x). **`check:docs:selftest` is STILL the
 binding lane** at 624 s against `check:markdown:selftest`'s 477.3 — what that second lane caps is the

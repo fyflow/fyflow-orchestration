@@ -798,9 +798,24 @@ const RELOCATE_FROM = "from './check-markdown.mjs'";
 const RELOCATE_TO = "from '../scripts/check-markdown.mjs'";
 
 export async function selfTest(root) {
-  const dir = join(root, 'dev-dist', 'spec-selftest');
+  // **Per PROCESS, and removed on the way out including on the abort path — W105.** `dev-dist/` is one
+  // flat namespace and this was a FIXED path inside it, `rmSync`d on entry, so a child running this same
+  // function deleted its parent's fixtures and two top-level runs did the same to each other
+  // ([Q182](../doc/open-questions.md)). The `rmSync` stays, and is now load-bearing for a different
+  // reason: Windows recycles pids, so a directory a killed run left can be inherited by a live one.
+  // **`process.on('exit')` rather than a `finally`**, because this function returns from many places and
+  // the one road none of their `rmSync` calls covers is a THROW — which is how W103's finding 3 left its
+  // stub behind. `SIGKILL` leaks this one directory: *one path per killed run, not one per probe*.
+  const dir = join(root, 'dev-dist', `spec-selftest-${process.pid}`);
   rmSync(dir, { recursive: true, force: true });
   mkdirSync(dir, { recursive: true });
+  process.on('exit', () => rmSync(dir, { recursive: true, force: true }));
+  // **The flat `.meta-*` mutants are registered too.** Each is written and removed per entry inside a
+  // `finally`, so at most one is alive at a time and a kill leaks one FILE beside the one directory —
+  // but a throw between the write and the `finally` used to leave it, and a leftover `.mjs` in
+  // `dev-dist/` is W103's finding 3's exact shape.
+  process.on('exit', () => { for (const p of metaMutants) rmSync(p, { force: true }); });
+  const metaMutants = new Set();
 
   const script = process.env.CHECK_SPEC_SCRIPT ?? join(root, 'scripts', 'check-spec.mjs');
   // A `META` child runs against a deliberately broken check, so it must not grade
@@ -1027,7 +1042,15 @@ export async function selfTest(root) {
         'with the clause');
       continue;
     }
-    const path = join(root, 'dev-dist', `.meta-spec-${String(i).padStart(2, '0')}.mjs`);
+    // **FLAT, with the pid in the NAME — and a rung is what corrected this, W105.** A `.meta-*` mutant
+    // is a copy of the CHECK, which derives `ROOT = resolve(dirname(self), '..')`, so it must sit
+    // exactly one directory below the repository root; W105 first nested it beside the fixtures on the
+    // reasoning that a mutant is depth-free, and that is true only of a `.self-*` mutant, which is a copy
+    // of this SELFTEST module and receives `ROOT` as a parameter. Nested, the copy reads `dev-dist/` as
+    // its tree: `check:spec:selftest` reported **29/29 graded, 0 by the named probe, 29 by the corpus**,
+    // which is this file's own *the harness broke rather than the check* clause firing exactly as written.
+    const path = join(root, 'dev-dist', `.meta-spec-${process.pid}-${String(i).padStart(2, '0')}.mjs`);
+    metaMutants.add(path);
     writeFileSync(path, broken.replace(RELOCATE_FROM, RELOCATE_TO));
     try {
       const r = spawnSync(process.execPath, [join(root, 'scripts', 'check-spec.mjs'), '--self-test'],

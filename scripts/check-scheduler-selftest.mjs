@@ -139,7 +139,7 @@
 // `AGENTS.md` snippet) was type resolution instead. Running alone is the conservative
 // superset of all four and costs 13 s.
 import { readFileSync, writeFileSync, mkdirSync, rmSync, cpSync, existsSync, lstatSync, symlinkSync, unlinkSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
 const PKG = 'package.json';
@@ -506,12 +506,18 @@ const INSTALL_PROBES = [
     check: 'D1', notRun: ['D2', 'D4', 'D5'],
     // The accident, as a probe: a junction here is what a recursive delete
     // follows out of this repository and into another one.
-    apply: (root, dir, stash) => {
-      rmSync(dir, { recursive: true, force: true });
-      writeFileSync(join(root, 'dev-dist', 'sched-selftest', 'note.txt'), 'link probe');
-      const target = join(root, 'dev-dist', 'sched-selftest');
+    // **`pkgDir` rather than `dir`, because the parameter SHADOWED the scratch directory and W105's
+    // first edit bound to the wrong one** — `join(dir, 'note.txt')` wrote into
+    // `node_modules/fyflow-scheduler`, which this probe has just deleted, and the suite died with
+    // `ENOENT` rather than reporting. The junction's TARGET is the scratch directory and its LOCATION is
+    // the install directory; one name for both is how that went unnoticed. The scratch directory arrives
+    // as the fourth argument because the probes are module-scope literals and it is local to `selfTest`.
+    apply: (root, pkgDir, stash, scratch) => {
+      rmSync(pkgDir, { recursive: true, force: true });
+      writeFileSync(join(scratch, 'note.txt'), 'link probe');
+      const target = scratch;
       try {
-        symlinkSync(target, dir, 'junction');
+        symlinkSync(target, pkgDir, 'junction');
       } catch {
         // **A skip here is a probe passing for the wrong reason**, so it is
         // reported as one. The first version of this probe reached this branch
@@ -822,9 +828,28 @@ const META = [
 ];
 
 export async function selfTest(root) {
-  const dir = join(root, 'dev-dist', 'sched-selftest');
+  // **Per PROCESS, and removed on the way out including on the abort path — W105.** `dev-dist/` is one
+  // flat namespace and this was a FIXED path inside it, `rmSync`d on entry, so a child running this same
+  // function deleted its parent's fixtures and two top-level runs did the same to each other
+  // ([Q182](../doc/open-questions.md)). The `rmSync` stays, and is now load-bearing for a different
+  // reason: Windows recycles pids, so a directory a killed run left can be inherited by a live one.
+  // **`process.on('exit')` rather than a `finally`**, because this function returns from many places and
+  // the one road none of their `rmSync` calls covers is a THROW — which is how W103's finding 3 left its
+  // stub behind. `SIGKILL` leaks this one directory: *one path per killed run, not one per probe*.
+  const dir = join(root, 'dev-dist', `sched-selftest-${process.pid}`);
   rmSync(dir, { recursive: true, force: true });
   mkdirSync(dir, { recursive: true });
+  process.on('exit', () => rmSync(dir, { recursive: true, force: true }));
+  // The RELATIVE spelling, DERIVED rather than written a second time — W105. Two sources for one
+  // directory means pid one and not the other, and a child then reads a path nothing staged into,
+  // which is hazard 5's shape and W38's adequacy reader's empty directory printing `ok`.
+  const relDir = relative(root, dir).replace(/\\/g, '/');
+  // **The flat `.meta-*` mutants are registered too.** Each is written and removed per entry inside a
+  // `finally`, so at most one is alive at a time and a kill leaks one FILE beside the one directory —
+  // but a throw between the write and the `finally` used to leave it, and a leftover `.mjs` in
+  // `dev-dist/` is W103's finding 3's exact shape.
+  process.on('exit', () => { for (const p of metaMutants) rmSync(p, { force: true }); });
+  const metaMutants = new Set();
 
   // **The script under test.** `CHECK_SCHEDULER_SCRIPT` is how the META pass points
   // this same suite at a deliberately broken copy of it. Without it there was no
@@ -1146,9 +1171,9 @@ export async function selfTest(root) {
     if (probe.dts !== undefined) {
       // A `.d.ts` fixture, written from ADR 0029's surface claim rather than copied
       // out of the installed package (`doc/workflow.md` section 5 rule 4).
-      let relPath = 'dev-dist/sched-selftest/absent.d.ts';
+      let relPath = `${relDir}/absent.d.ts`;
       if (probe.dts !== null) {
-        relPath = `dev-dist/sched-selftest/${String(i).padStart(2, '0')}.d.ts`;
+        relPath = `${relDir}/${String(i).padStart(2, '0')}.d.ts`;
         writeFileSync(join(root, relPath), probe.dts);
       }
       r = run({ ...process.env, CHECK_SCHEDULER_DTS: relPath });
@@ -1167,7 +1192,7 @@ export async function selfTest(root) {
       const pkgDir = ctx.pkgDir;
       let skipped = false;
       try {
-        skipped = probe.apply(root, pkgDir, ctx.stash) === 'skipped';
+        skipped = probe.apply(root, pkgDir, ctx.stash, dir) === 'skipped';
         if (!skipped) r = run(process.env);
       } finally {
         // A junction has to be unlinked rather than deleted through, which is the
@@ -1336,7 +1361,15 @@ export async function selfTest(root) {
         'than the one this entry names, so its verdict is about a set of clauses and not a clause');
       continue;
     }
-    const path = join(root, 'dev-dist', `.meta-sched-${String(i).padStart(2, '0')}.mjs`);
+    // **FLAT, with the pid in the NAME — and a rung is what corrected this, W105.** A `.meta-*` mutant
+    // is a copy of the CHECK, which derives `ROOT = resolve(dirname(self), '..')`, so it must sit
+    // exactly one directory below the repository root; W105 first nested it beside the fixtures on the
+    // reasoning that a mutant is depth-free, and that is true only of a `.self-*` mutant, which is a copy
+    // of this SELFTEST module and receives `ROOT` as a parameter. Nested, the copy reads `dev-dist/` as
+    // its tree: `check:spec:selftest` reported **29/29 graded, 0 by the named probe, 29 by the corpus**,
+    // which is this file's own *the harness broke rather than the check* clause firing exactly as written.
+    const path = join(root, 'dev-dist', `.meta-sched-${process.pid}-${String(i).padStart(2, '0')}.mjs`);
+    metaMutants.add(path);
     writeFileSync(path, broken);
     try {
       const r = spawnSync(process.execPath, [join(root, 'scripts', 'check-scheduler.mjs'), '--self-test'],

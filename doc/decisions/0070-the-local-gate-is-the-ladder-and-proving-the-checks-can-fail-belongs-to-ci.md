@@ -17,7 +17,18 @@ ADR 0039 explicitly did not decide.
    `npm run selftests` is **1326 s wall, 2106 s serial-equivalent over 6 lanes**. The self-tests are
    **84% of the 1571 s a human used to wait for**, and the ratio is the point rather than either number.
 
-2. **One lane is almost the whole of it.** Per lane, same run: `check:docs:selftest` **1298.9 s**,
+2. **One lane is almost the whole of it.** *(**Two figures in this paragraph were WRONG and
+   [W105](../work-items/w105-the-scratch-directory-is-namespaced.md) measured them**, which is why
+   `doc/decisions/**` is in the record step. **`check:wiring:selftest` 3.0 s is 228.2 s** — 3.0 s is the
+   cost of that lane EXITING AT ITS CONTROL, which is this item's own **finding 3**: the leftover
+   `dev-dist/check-wiring-stub-27708.mjs` glob-matched `check-*.mjs`, `G3` reported a check the manifest
+   never declares, and `check-wiring-selftest.mjs` returns `done(1)` immediately. *A lane that fails fast
+   still reports a wall clock, and a per-lane table has no column for whether the lane ran.* And
+   **`check:source:selftest` 82.7 s is 578.4 s**, 7.0x. Re-measured end to end, `npm run selftests`
+   EXIT 0, 8/8 ok: 608.2 / 578.4 / 418.1 / 228.2 / 84.4 / 42.8 / 25.1 / 14.9 s, **wall 851.3 s**, 2000.1 s
+   serial-equivalent. So **`check:docs:selftest` is 71% of the wall and not 98%**, and
+   `check:source:selftest` is within 5% of it — the binding lane by five percent rather than by a factor,
+   which makes the sentence below about ADR 0039 true of a narrower gap than it claims.)* Per lane, same run: `check:docs:selftest` **1298.9 s**,
    `check:markdown:selftest` 477.3 s, `check:spec:selftest` 125.1 s, `check:source:selftest` 82.7 s,
    `check:workers:selftest` 53.8 s, `check:policies:selftest` 43.2 s, `check:scheduler:selftest` 22.2 s,
    `check:wiring:selftest` 3.0 s. **`check:docs:selftest` alone is 98% of the 1324 s wall**, because six

@@ -754,6 +754,26 @@ export async function selfTest(root) {
   // founding case — a repair that could not fail — landing on the repair itself.
   if (!shared) rmSync(base, { recursive: true, force: true });
   mkdirSync(base, { recursive: true });
+  /**
+   * **[Q426](../doc/open-questions.md), and this one line is the whole of it — W105.** `base` is created
+   * UNCONDITIONALLY, three lines up, and every one of the eleven removals below is guarded on `!shared`:
+   * so **every child that inherits a fixture leaked exactly one empty directory**, and this file spawns
+   * one child per META entry and one per SELF entry. Measured at W105's declaration step: **112 directories
+   * per `npm run selftests` run, every one `markdown-selftest-<pid>`, zero removed** — 231 had accumulated
+   * on this tree and 12 574 at P25's retro, which could not complete its own confirming gate because of it.
+   *
+   * **The guard was right about the FIXTURE and wrong about the directory.** `shared` says *reuse my
+   * parent's copy of the repository rather than making my own*, and when it is set `tree` is the parent's
+   * path, OUTSIDE this child's `base` — so removing `base` never touches a fixture this process does not
+   * own. That is why one unguarded handler is the fix and the eleven guarded `rmSync`es can stay as they
+   * are: they remove the same path earlier, which is correct and now also redundant.
+   *
+   * **`process.on('exit')` rather than a twelfth `rmSync`**, because the road none of the eleven covers is
+   * a THROW — the abort path, which is [Q323](../doc/open-questions.md)'s class and how W103's finding 3
+   * left its stub behind. `SIGKILL` still leaks this one directory, and that is the stated limit rather
+   * than an oversight: *one path per killed run, not one per probe*.
+   */
+  process.on('exit', () => rmSync(base, { recursive: true, force: true }));
   const tree = shared ?? join(base, 'tree');
 
   // **The fixture is a copy of the real tree**, because a link points at whatever
@@ -1004,8 +1024,14 @@ export async function selfTest(root) {
         .replace("for (const d of linkResult.deadAnchors) fail('C5', d);", '');
       path = join(base, `.meta-spec-${i}.mjs`);
       if (broken === specSource) { console.log(`  FAIL  ${name} — the mutation matched nothing`); continue; }
-      // check-spec derives ROOT from its own location, so the copy must sit one
-      // directory below the repository root. dev-dist is gitignored; scripts/ is not.
+      // **This mutant is under NO depth constraint, and the comment here said the opposite — W105.**
+      // `check-spec.mjs` does derive `ROOT` from its own location, so a copy that is RUN must sit one
+      // directory below the repository root; this copy is never run from where it is written. It is
+      // handed to the child as `CHECK_MARKDOWN_SPEC_SCRIPT`, and that child READS it and writes the text
+      // into its own fixture at `tree/scripts/check-spec.mjs` (see `specScript` above), where the root is
+      // the fixture. `base` has been two directories deep since W25 put the pid in it, so the stated
+      // constraint was already violated by the line it was written above and nothing ever failed.
+      // *A constraint quoted from a sibling file is a claim about this one.*
       writeFileSync(path, broken);
       let v = { ok: false, why: '' };
       try {

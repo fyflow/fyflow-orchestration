@@ -5,7 +5,7 @@
 **Item:** [W39](../work-items/w39-what-the-gate-proves-and-what-it-costs.md) —
 [P11](../plans/p11-what-should-the-gate-prove.md), *what should the gate prove, and what is it
 actually proving?*
-**Supersedes:** nothing. **Amends:** the `Owns` of `package.json`'s `gate` entry, which is P8's and
+**Supersedes:** nothing. **Superseded in part 2026-10-01 by [ADR 0072](0072-a-scratch-path-carries-its-process-and-a-self-test-that-shares-the-tree-says-so.md) — the exclusive SET loses `check:wiring:selftest`, because the fixed `dev-dist/` paths its staged copies wrote now carry `process.pid`. Rule 3's MECHANISM, the order and the concurrency all stand; three sentences below are corrected in place.** **Amends:** the `Owns` of `package.json`'s `gate` entry, which is P8's and
 has had one shape since W1.
 
 ## Context
@@ -257,7 +257,7 @@ node process starts                  2611           4466       +71.0%   determin
 before either reader reported, the table read **318.2 s — a 38.3% saving**, and the **twelve** blocking
 findings the two readers made between them cost **75 s** of it — 38% of the 197.9 s the arrangement
 had bought, every second of it inside
-`check:wiring:selftest`, which is one of the two exclusive entries and therefore **entirely on the
+`check:wiring:selftest`, which WAS one of the two exclusive entries (ADR 0072 retired its marker; `check:scheduler:selftest` is now the only one) and therefore **entirely on the
 critical path**. That entry has gone **65.5 s → 96.7 s → ~200 s**, and **502 → 765 → 2264 process
 starts**, to buy `G4` and then `G5`; the clause itself costs 1.3 s. **[Q176](../open-questions.md) at
 a factor of 150**, inside the decision that cites it: *a check's price is what it costs to run
@@ -320,9 +320,21 @@ comparison mixes a fix to the instrument with a change to the tree, and says so.
 
 **What an author now owes.** A new check still owes `package.json` two entries and `scripts/` two
 files — that is `G3`, unchanged. **What is new is that a self-test which touches anything outside its
-own `dev-dist/` subtree owes the `SELFTEST-EXCLUSIVE:` marker**, and nothing can check that for you:
+own `dev-dist/` subtree owes that marker**, and nothing can check that for you:
 `G4` binds the runner to the marker, and **the marker to nothing**. Its absence is a flake with no
 obvious cause, which is precisely what [Q148](../open-questions.md) predicted and what this ADR
 measured twice. [Q181](../open-questions.md), and [Q182](../open-questions.md) for the other half —
-`dev-dist/` holds fixed paths (`dev-dist/docs`, and `.self-NN.mjs` written by **two** self-tests
-under one name until this item renamed them) and nothing derives a per-check namespace.
+`dev-dist/` held fixed paths (`dev-dist/docs`, and `.self-NN.mjs` written by **two** self-tests
+under one name until this item renamed them) and nothing derived a per-check namespace.
+
+*(**Both halves moved on 2026-10-01 —
+[ADR 0072](0072-a-scratch-path-carries-its-process-and-a-self-test-that-shares-the-tree-says-so.md),
+[W105](../work-items/w105-the-scratch-directory-is-namespaced.md).** Every scratch path under
+`dev-dist/` now carries `process.pid`, so the fixed paths are gone and the per-check namespace is
+derived; and **`G6`** in `check-wiring.mjs` binds HALF of what this paragraph says nothing can check —
+a path construction that does not carry the pid is refused, with its exceptions declared and compared
+both ways. What is still unbound is the sentence as written: a self-test that touches something
+**outside `dev-dist/` altogether**, which is `check:scheduler:selftest` and `node_modules`, still
+declares that in prose and nothing checks it. The flake this paragraph predicts was MEASURED there —
+a `check:docs` loop beside that entry is 4 of 5 green. [Q181](../open-questions.md) stays open on that
+residue.)*

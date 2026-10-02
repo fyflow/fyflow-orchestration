@@ -28,7 +28,32 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { spawn, spawnSync } from 'node:child_process';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const OUT = join(ROOT, 'dev-dist', 'docs');
+/**
+ * **Per PROCESS, and [Q182](../doc/open-questions.md) is why — W105.** This was `dev-dist/docs` at a
+ * fixed path, `rmSync`d on every run, so **two concurrent `check-docs` bodies destroyed each other**.
+ * That is not hypothetical and it is not only about running this check twice: `check-wiring-selftest.mjs`
+ * stages every `scripts/check-*.mjs` flat into `dev-dist/` and runs those copies with their dispatch
+ * falsified, so a staged copy reaches THIS body and deleted the real run's snippets underneath it —
+ * which is half of why that self-test had to carry a `SELFTEST-EXCLUSIVE:` marker and run alone.
+ * Q182's own row says relocating the staging would not fix it, *because the copies it runs are the
+ * real checks and they write the real paths*: this line is the path.
+ *
+ * **The pid, not a random token**, because a stale directory from a killed run must be reusable rather
+ * than accumulate — Windows recycles pids freely (measured at W105: nine leaked directories all
+ * reported their pid as live), so the `rmSync` below is what makes reuse safe and is not tidying.
+ */
+const OUT = join(ROOT, 'dev-dist', `docs-${process.pid}`);
+/**
+ * **Removed on the way out, INCLUDING on the abort path.** `process.on('exit')` rather than a
+ * `finally`: this check reports from the top level and leaves by `process.exit` in several places as
+ * well as by falling off the end, and an `exit` handler covers all of them plus an uncaught throw.
+ * `rmSync` is synchronous, which is what makes it legal here.
+ *
+ * What it does NOT cover is `SIGKILL`, and that is the stated limit rather than an oversight: the
+ * honest target W105 set is *a killed run leaks ONE path, not one per snippet*, which nesting buys
+ * and no handler can.
+ */
+process.on('exit', () => rmSync(OUT, { recursive: true, force: true }));
 // `CHECK_DOCS_DOC` exists for `--self-test` below and for nothing else: the probes
 // need to run this script against a deliberately broken copy of the reference.
 const DOCS = [process.env.CHECK_DOCS_DOC || 'AGENTS.md'];
@@ -220,15 +245,32 @@ if (written.length) {
   // rather than through `npx`, which on Windows is a `.cmd` shim that `spawnSync`
   // reports as a non-zero exit with no output — a failure indistinguishable from a
   // real one, which is the shape this repository keeps finding.
+  //
+  // **The config is WRITTEN, and `OUT` being per-process is why — W105.**
+  // `tsconfig.docs.json`'s own `include` is a fixed `dev-dist/docs/*.ts`, and a tracked file cannot
+  // name a directory whose name carries this process's pid. So the options stay where W57 put them
+  // and only `include` is overridden, in a config inside `OUT`: **one source for the compiler flags,
+  // which is the thing that must not drift**, and `extends` resolves `tsconfig.docs.json`'s own
+  // `"./tsconfig.json"` relative to that file rather than to this one. `X5` below has written its
+  // config this way since W57 and this is the same shape, one lib set over.
+  const cfg = join(OUT, 'tsconfig.x3.json');
+  writeFileSync(cfg, JSON.stringify({
+    extends: relative(OUT, join(ROOT, 'tsconfig.docs.json')).replace(/\\/g, '/'),
+    include: ['*.ts'],
+  }));
   const tsc = spawnSync(
     process.execPath,
-    [join(ROOT, 'node_modules', 'typescript', 'bin', 'tsc'), '-p', join(ROOT, 'tsconfig.docs.json')],
+    [join(ROOT, 'node_modules', 'typescript', 'bin', 'tsc'), '-p', cfg],
     { cwd: ROOT, encoding: 'utf8' },
   );
   if (tsc.status !== 0) {
     const out = `${tsc.stdout ?? ''}${tsc.stderr ?? ''}`.trim();
     for (const line of out.split('\n').filter((l) => l.includes('error TS')).slice(0, 12)) {
-      const m = /docs[\\/](\d+)-line(\d+)\./.exec(line);
+      // `docs[^\\/]*` since W105: the directory is `docs-<pid>`, so an anchor reading `docs/` matches
+      // nothing and every error would be reported as a raw `tsc` line instead of as `AGENTS.md:<line>`.
+      // Loud rather than silent — the clause still fails — but it loses the one thing that makes the
+      // failure readable, which is what a path anchor costs when the path becomes derived.
+      const m = /docs[^\\/]*[\\/](\d+)-line(\d+)\./.exec(line);
       fail('X3', m ? `AGENTS.md:${m[2]} — ${line.split('): ').slice(1).join('): ') || line}` : line);
     }
     if (!out.includes('error TS')) fail('X3', `tsc failed: ${out.slice(0, 300)}`);

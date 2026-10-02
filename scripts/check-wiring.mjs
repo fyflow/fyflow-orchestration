@@ -44,7 +44,7 @@
 // which is `doc/workflow.md` v0.11's own subject twice inside the item written to
 // close its neighbour — and the reason the self-test opens with a control.
 
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmdirSync, rmSync, writeFileSync } from 'node:fs';
 
 /** A literal newline, so the anchor below is not written as an escape in prose. */
 const NL = '\n';
@@ -75,7 +75,7 @@ if (process.argv.includes('--self-test')) {
 const failures = [];
 const fail = (check, msg) => failures.push(`${check}: ${msg}`);
 /** Which checks actually executed — the `NOT RUN` state W5's finding asks for. */
-const ran = { G1: false, G2: false, G3: false, G4: false, G5: false };
+const ran = { G1: false, G2: false, G3: false, G4: false, G5: false, G6: false };
 
 const PKG_PATH = process.env.CHECK_WIRING_PKG ?? 'package.json';
 const SCRIPTS = process.env.CHECK_WIRING_SCRIPTS
@@ -152,8 +152,39 @@ if (pkg && !NESTED) {
   // `ERR_MODULE_NOT_FOUND` and the clause reported them as not routing, **a harness
   // defect wearing the verdict of a finding**, which is `doc/workflow.md` v0.11's
   // own subject inside the clause written to close its neighbour.
-  const stub = join(ROOT, 'dev-dist', `check-wiring-stub-${process.pid}.mjs`);
-  mkdirSync(dirname(stub), { recursive: true });
+  //
+  // **And in a DIRECTORY rather than flat, which is W103's finding 3 — W105.** The pid made the stub
+  // unique and left it a direct child of `dev-dist/`, where it **glob-matches `check-*.mjs`**. A gate
+  // killed mid-run left `dev-dist/check-wiring-stub-27708.mjs` behind, `check-wiring-selftest.mjs`
+  // stages its copies into that same flat directory and points this check at it with
+  // `CHECK_WIRING_SCRIPTS`, so `G3` saw a check the manifest never declares and **the self-test's
+  // CONTROL went red** — after which every verdict below it was a fact about the harness, and the real
+  // probe failure underneath was invisible until a human removed the file. One directory deep is what
+  // takes the stub out of that glob; the stub itself is a mutant of a SELFTEST module and the dispatch
+  // hands it `ROOT`, so unlike a mutant of a CHECK it is under no depth constraint.
+  const stubDir = join(ROOT, 'dev-dist', `wiring-${process.pid}`);
+  const stub = join(stubDir, 'stub.mjs');
+  mkdirSync(stubDir, { recursive: true });
+  // **Removed on the abort path too, and the old `rmSync` below was not.** It sat after the loop, so a
+  // `fail()` that threw — or a 60 s timeout killing this process — left the file for the next run to
+  // trip over, which is exactly how finding 3 happened. `process.on('exit')` covers the throw and
+  // every `process.exit` road; `SIGKILL` leaks this one directory, which is the stated limit.
+  process.on('exit', () => {
+    rmSync(stubDir, { recursive: true, force: true });
+    // **And PRUNE the intermediate, because `ROOT` is not always the repository root — W105's adequacy
+    // reader, who found `dev-dist/dev-dist` on the author's own tree, empty, out of a COMPLETED EXIT 0
+    // lane.** `check-wiring-selftest.mjs`'s META pass writes its mutant inside
+    // `dev-dist/wiring-selftest-<pid>/`, so that copy's `ROOT = resolve(dirname(self), '..')` is
+    // `<root>/dev-dist` — and `mkdirSync(..., { recursive: true })` then creates
+    // `dev-dist/dev-dist/wiring-<pid>`, of which the line above removes only the leaf. **The mechanism
+    // PRE-DATES W105** (`mkdirSync(dirname(stub))` did the same at HEAD and `rmSync(stub)` removed a
+    // file, leaving the directory) — but it is [Q426](../doc/open-questions.md)'s shape, in the clause
+    // this item added to close Q426, so it is this item's to fix. `rmdirSync` rather than `rmSync`
+    // deliberately: it fails when the directory is not empty, which is the case where something real
+    // lives there and must not be deleted — W105's hazard 4, *a self-test that deletes the wrong path is
+    // worse than one that leaks*.
+    try { rmdirSync(join(ROOT, 'dev-dist')); } catch { /* not empty, or not ours: leave it */ }
+  });
   writeFileSync(stub, `export async function selfTest() { return ${SENTINEL}; }\n`);
 
   for (const name of Object.keys(pkg.scripts ?? {})) {
@@ -193,7 +224,7 @@ if (pkg && !NESTED) {
         `are all still there. Measured in all six at P11's declaration`);
     }
   }
-  rmSync(stub, { force: true });
+  rmSync(stubDir, { recursive: true, force: true });
 
   const skipped = owed.filter((n) => !tested.includes(n));
   if (skipped.length) {
@@ -664,12 +695,229 @@ if (pkg && existsSync(join(SCRIPTS, 'run-selftests.mjs'))) {
   }
 }
 
+// G6 — **a scratch path under `dev-dist/` carries the PROCESS, and the exceptions are declared.**
+//
+// **Why a clause and not a convention — [Q181](../doc/open-questions.md), W105.** Before this item
+// `dev-dist/` was one flat namespace with fixed paths: `check-docs.mjs` wrote `dev-dist/docs` and
+// `rmSync`d it on every run, five self-tests wrote fixed fixture directories, and two files had once
+// written their mutants to **the same path**. Nothing said any of it. The measurement, taken at W105
+// with `check:wiring:selftest` running concurrently against a `check:docs` loop: on the fixed path
+// **19 of 96** victim runs were green, every red one `ENOENT … dev-dist/docs/tsconfig.dom.json`; with
+// the path per-process, **61 of 61**. *A latent path collision is invisible until the day it is not.*
+//
+// **And it is what makes retiring an exclusivity marker safe** ([ADR 0072](../doc/decisions/0072-a-scratch-path-carries-its-process-and-a-self-test-that-shares-the-tree-says-so.md)).
+// That marker was the insurance against exactly this, and Q181's complaint is that the marker is bound
+// to nothing. Q181's own row proposes a grep — *a path under `dev-dist/` that is not derived from
+// `process.pid`* — and this is that grep, with its exceptions named instead of left to a heuristic.
+//
+// **TOTAL rather than narrow, and W105's adequacy reader is the reason.** The first version required a
+// line to match `/join\([^)]*'dev-dist'/`, and that reader added the exact fixed path this clause exists
+// to refuse in FIVE ordinary spellings, every one `check:wiring` EXIT 0 with zero `G6` failures:
+// `join(resolve(ROOT), 'dev-dist', …)` (because `[^)]*` cannot cross the `)` of a nested call),
+// `resolve(ROOT, "dev-dist", …)`, `ROOT + "/dev-dist/…"`, `join(ROOT, "dev" + "-dist", …)`, and the same
+// `join` with the literal merely DOUBLE-QUOTED — which nothing would have caught, since
+// `npm run lint` is `deno lint src/ test/ examples/ index.ts` and **nothing lints `scripts/` at all**.
+// It also narrowed the pid predicate from `process.pid` to `process` and to `pid` for zero, because all
+// five probes key on the same shape.
+//
+// So the subject is now **every occurrence of the TEXT `dev-dist`**, in every `scripts/*.mjs` rather than
+// in `check-*.mjs` alone, and what must carry `process.pid` is the enclosing STATEMENT rather than the
+// line — which is the other half that reader measured: a second statement on the same line, a trailing
+// comment mentioning `process.pid`, and a new fixed path appended beside a declared exception all rode in
+// at EXIT 0, because `t.includes(…)` is a test on a whole trimmed line.
+//
+// **Its one named limit**: `dev-dist` SPLIT across a concatenation (`'dev-' + 'dist'`) is invisible, and
+// deliberately so — this file and `check-wiring-selftest.mjs` both split it on purpose, because a literal
+// that quotes the pattern it searches for is a false match for itself ([Q178](../doc/open-questions.md),
+// which this clause reproduced twice before it worked). A check cannot both use the trick and refuse it.
+if (existsSync(SCRIPTS)) {
+  ran.G6 = true;
+  /**
+   * **The sites that may name a SHARED path, each with the reason it cannot carry a pid.** Compared BOTH
+   * WAYS: a site that is not declared fails, and a declaration whose line is gone fails too, because a
+   * permission with no subject is one the next author inherits.
+   *
+   * `D` is spelled in halves for the reason in the header.
+   */
+  const D = 'dev-';
+  const SHARED_SCRATCH = [
+    // `stage()`'s copies, and the constraint is measured: a staged script derives
+    // `ROOT = resolve(dirname(self), '..')` and `check-spec.mjs` imports `./check-markdown.mjs`, so one
+    // directory below the repository root with its siblings beside it is the only arrangement that works
+    // — the three attempts at the top of this file. [Q182](../doc/open-questions.md) says relocating them
+    // would not have helped anyway, *because the copies it runs are the real checks and they write the
+    // real paths*, which is the half W105 fixed instead.
+    ['check-wiring-selftest.mjs', `const to = join(root, '${D}dist', f);`, 'stage() writes the copies FLAT'],
+    ['check-wiring-selftest.mjs', `const stray = (staged) => readdirSync(join(root, '${D}dist'))`,
+      'and reads that directory back to NAME a file a killed run left in it — W103 finding 3'],
+    ['check-wiring-selftest.mjs', `"process.env.CHECK_SELFTESTS_SCRIPTS ?? join(ROOT, '${D}dist')"),`,
+      'a probe literal: the text of a mutation, not a path this file opens'],
+    ['check-wiring-selftest.mjs', `CHECK_WIRING_SCRIPTS: '${D}dist'`,
+      'an environment VALUE naming the staging directory, not a path construction — two sites'],
+    // The directory-SKIP lists. `dev-dist` here is a name to step OVER, not a path to write.
+    ['check-markdown.mjs', `name === '${D}dist'`, 'a directory NAME the walk skips'],
+    // **This clause's own PRUNE, and `G6` caught it on the run after it was written** — which is the
+    // mechanism working rather than an inconvenience. The intermediate directory it removes is the
+    // SHARED one by definition, so it cannot carry a pid; `rmdirSync` refuses a non-empty directory,
+    // which is what keeps it from being a deletion of somebody else's facts.
+    ['check-wiring.mjs', `rmdirSync(join(ROOT, '${D}dist'));`,
+      'the prune of the intermediate directory a nested ROOT creates — shared by definition, and `rmdirSync` refuses it when non-empty'],
+    // **A markdown code span inside a failure message**, which the preceded-by-a-quote rule cannot tell
+    // from a path literal, because a code span opens with a backtick exactly as a template literal does.
+    // Declared rather than special-cased: a rule that tried to tell them apart would be a rule about
+    // English.
+    ['check-wiring.mjs', `two self-tests wrote \`${D}dist/.self-NN.mjs\``,
+      'a markdown code span in this clause`s own failure text, not a path it opens'],
+    ['check-markdown-selftest.mjs', `name === '${D}dist'`, 'two probe literals that mutate that walk'],
+    // **The browser bundle's ARTIFACTS, which must be FIXED** — W105's adequacy reader, finding 9, which
+    // measured that this clause's universe was `check-*.mjs` and that these four were outside it.
+    // `run-browser-tests.mjs` reads `dev-dist/browser/tests.js` back by name in a SEPARATE process, so a
+    // per-process path would mean the runner cannot find what the builder wrote. They are OUTPUTS rather
+    // than scratch, and that distinction is the reason rather than an excuse for them.
+    ['build-browser-tests.mjs', `mkdirSync(join(ROOT, '${D}dist'), { recursive: true })`,
+      'the bundle output root, read back by run-browser-tests.mjs in another process'],
+    ['build-browser-tests.mjs', `const corpusModule = join(ROOT, '${D}dist', 'corpus.generated.js');`,
+      'a generated input to the bundle, named in the generated entry'],
+    ['build-browser-tests.mjs', `const generated = join(ROOT, '${D}dist', 'browser-entry.generated.ts');`,
+      'the generated entry esbuild is pointed at'],
+    ['build-browser-tests.mjs', `outfile: join(ROOT, '${D}dist', 'browser', 'tests.js'),`,
+      'the bundle itself'],
+    ['run-browser-tests.mjs', `const BUNDLE = join(ROOT, '${D}dist', 'browser', 'tests.js');`,
+      'the other end of the pair above: the runner reads what the builder wrote'],
+  ];
+  const used = new Set();
+  const NEEDLE = `${D}dist`;
+  /**
+   * **The enclosing STATEMENT, which is the window the pid must appear in.** Scanning back to the
+   * previous `;`, `{`, `}` or line start and forward to the next `;` or line end is what makes a second
+   * statement on the same line, and a trailing comment, into different windows — both of which rode in at
+   * EXIT 0 when this read the whole trimmed line.
+   */
+  const statementAt = (src, at) => {
+    let a = at; while (a > 0 && !';{}\n'.includes(src[a - 1])) a -= 1;
+    let b = at; while (b < src.length && !';\n'.includes(src[b])) b += 1;
+    // **Include the terminating `;`.** Without it an anchor written the way the line reads — with its
+    // semicolon — matches nothing, and the both-ways clause then reports every entry as a permission
+    // with no subject. Four of twelve did on this clause's first run with the window in place.
+    return src.slice(a, src[b] === ';' ? b + 1 : b);
+  };
+  /**
+   * **The sites, read LINE BY LINE with the block-comment state tracked — and a GLOB is why.** The first
+   * version asked, for each occurrence, whether the nearest block-comment OPENER before it came after the
+   * nearest CLOSER. A glob literal — a star, a star, a slash, a star — carries the opener and never the
+   * closer, so every occurrence after one in the same file read as COMMENTED.
+   * `build-browser-tests.mjs` has one, so all four of its real sites went invisible and their four
+   * declared exceptions reported as permissions with no subject — the both-ways clause catching the
+   * DETECTOR rather than the tree. *A detector written over a whole file is defeated by any construct
+   * that looks like its opener.* (And the first draft of this very comment closed itself by quoting the
+   * closer, which is the same defect one layer out.)
+   *
+   * A comment here is a line whose trimmed form starts with a line comment, a star, or a block opener,
+   * or any line between a block opener and the line that closes it — this codebase's only such shape.
+   */
+  const sitesIn = (src) => {
+    const out = [];
+    let inBlock = false;
+    for (const raw of src.split(NL)) {
+      const trimmed = raw.trim();
+      if (inBlock) { if (trimmed.includes('*/')) inBlock = false; continue; }
+      if (trimmed.startsWith('/*')) { if (!trimmed.includes('*/')) inBlock = true; continue; }
+      if (trimmed.startsWith('//') || trimmed.startsWith('*')) continue;
+      for (let i = raw.indexOf(NEEDLE); i !== -1; i = raw.indexOf(NEEDLE, i + 1)) {
+        // **A PATH occurrence BEGINS at a quote or at a slash; prose does not.** `join(ROOT, 'dev-dist'`,
+        // `"dev-dist"`, a backtick segment and `ROOT + "/dev-dist/x"` all qualify — four of the five
+        // spellings W105's adequacy reader got past the first version — while *outside dev-dist/ and runs
+        // concurrently* does not, because a sentence puts a SPACE before the word. The fifth spelling,
+        // `'dev-' + 'dist'`, is the named limit in the header: this file uses that trick on purpose and
+        // cannot both use it and refuse it.
+        if (!"'\"`/".includes(raw[i - 1] ?? ' ')) continue;
+        // **The enclosing STATEMENT, not the line.** A second statement on the same line, and a trailing
+        // comment that mentions `process.pid`, both rode in at EXIT 0 when this read the whole trimmed
+        // line — that reader's finding 2. The terminating `;` is included, or an anchor written the way
+        // the line reads misses it.
+        let a = i; while (a > 0 && !';{}'.includes(raw[a - 1])) a -= 1;
+        let b = i; while (b < raw.length && raw[b] !== ';') b += 1;
+        out.push(raw.slice(a, raw[b] === ';' ? b + 1 : b).trim());
+      }
+    }
+    return out;
+  };
+
+  const sites = [];
+  // **Every `.mjs`, EXCEPT dot-prefixed ones — W105's adequacy reader, finding 9, and its consequence.**
+  // Widening the universe from `check-*.mjs` to every `.mjs` is what brings `build-browser-tests.mjs`'s
+  // four fixed paths and `run-selftests.mjs` inside the clause. It also brings the HARNESS's own mutant
+  // copies in, because `check-wiring-selftest.mjs` points this check at a staging directory that holds
+  // them: a copy of this file under another NAME has all of its sites and none of its declared
+  // exceptions, which match on the filename — so the META control came back `wanted [G1,G2], got
+  // [G1,G2,G6]`, a verdict about the harness. A leading dot is this repository's own convention for a
+  // mutant (`.meta-*`, `.self-*`, `.probe-*`) and no file in `scripts/` carries one, so excluding them
+  // costs nothing in the configuration that ships and takes the harness's artefacts out of the scan.
+  for (const f of readdirSync(SCRIPTS).filter((n) => n.endsWith('.mjs') && !n.startsWith('.')).sort()) {
+    for (const stmt of sitesIn(readFileSync(join(SCRIPTS, f), 'utf8'))) sites.push([f, stmt]);
+  }
+  for (const [f, stmt] of sites) {
+    const declared = SHARED_SCRATCH.find(([file, line]) => file === f && stmt.includes(line));
+    if (declared) {
+      used.add(declared);
+      // **A declared site that has STOPPED needing the exception fails too**, which is the direction a
+      // list of permissions never has: if the statement now carries the pid the entry is spent, and the
+      // next fixed path added beside it would be covered by an exception written for something else.
+      if (/\bprocess\.pid\b/.test(stmt)) {
+        fail('G6', `scripts/${f} declares \`${declared[1]}\` as a SHARED scratch path and that statement ` +
+          'now carries `process.pid`. The exception is spent — delete the entry in `SHARED_SCRATCH` ' +
+          'rather than leaving a permission nothing needs');
+      }
+      continue;
+    }
+    if (!/\bprocess\.pid\b/.test(stmt)) {
+      fail('G6', `scripts/${f} names dev-${'dist'} in a statement that does not carry \`process.pid\`: ` +
+        `\`${stmt.slice(0, 110)}\`. That directory is ONE namespace shared by every check, every ` +
+        'self-test and every child they spawn, and a fixed path there is a collision nothing reports: ' +
+        'W105 measured a `check:docs` loop at 19 of 96 green beside `check:wiring:selftest` on a fixed ' +
+        '`dev-dist/docs`, against 61 of 61 per-process. Derive it from `process.pid` and remove it in a ' +
+        "`process.on('exit')` handler, or declare it in `SHARED_SCRATCH` above with the reason it cannot");
+    }
+  }
+  for (const entry of SHARED_SCRATCH) {
+    if (used.has(entry)) continue;
+    fail('G6', `\`SHARED_SCRATCH\` declares \`${entry[1]}\` in scripts/${entry[0]} and no such statement ` +
+      'is there. The list is compared BOTH WAYS on purpose — an exception for a line that moved is a ' +
+      'permission with no subject, and the next author to touch that file inherits it');
+  }
+  /**
+   * **And no two files may build the same scratch NAME**, which is this row's original defect:
+   * `check-source-selftest.mjs` and `check-policies-selftest.mjs` both wrote `dev-dist/.self-NN.mjs`,
+   * found by READING, and ADR 0039's three concurrent passes never happened to collide on it. A pid makes
+   * two PROCESSES safe and does nothing about two files in one process's tree.
+   *
+   * **The pid is NORMALISED rather than used as a prefix terminator** — W105's adequacy reader, which
+   * put the pid FIRST (`` `${process.pid}-shared` ``) in two files at once and got EXIT 0, because the
+   * prefix was then empty and the clause skipped it.
+   */
+  const byName = new Map();
+  for (const [f, stmt] of sites) {
+    for (const m of stmt.matchAll(/`([^`]*\$\{process\.pid\}[^`]*)`/g)) {
+      const key = m[1].replace(/\$\{process\.pid\}/g, '<pid>');
+      if (!byName.has(key)) byName.set(key, new Set());
+      byName.get(key).add(f);
+    }
+  }
+  for (const [name, files] of byName) {
+    if (files.size > 1) {
+      fail('G6', `[${[...files].sort().join(', ')}] all build \`${name}\` under dev-${'dist'}/. One ` +
+        'process writing two files to one name is what the pid cannot see, and it is this clause`s own ' +
+        'founding defect: two self-tests wrote `dev-dist/.self-NN.mjs` and only a reader noticed');
+    }
+  }
+}
 const checks = [
   ['G1', ran.G1, 'G1 every :selftest script routes --self-test to a self-test'],
   ['G2', ran.G2, 'G2 and its DEFAULT self-test is its own, reached with no override set'],
   ['G3', ran.G3, 'G3 and the manifest owes it two entries, derived from disk both ways'],
   ['G4', ran.G4, 'G4 and the gate RUNS every one of them, which the runner is asked'],
   ['G5', ran.G5, 'G5 and the runner`s DEFAULT behaviour is its own, which G4 cannot observe'],
+  ['G6', ran.G6, 'G6 and a scratch path under dev-dist/ carries its PROCESS, exceptions declared'],
 ];
 console.log(`wiring check — ${Object.keys(pkg?.scripts ?? {}).filter((n) => n.endsWith(':selftest')).length} :selftest entries\n`);
 for (const [id, didRun, label] of checks) {

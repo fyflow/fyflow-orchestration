@@ -54,23 +54,52 @@
 //
 // **Every mutation is written to a COPY; the tree is never touched.**
 //
-// SELFTEST-EXCLUSIVE: `stage()` writes every `scripts/check-*.mjs` into `dev-dist/`
-// FLAT — the one directory every other self-test uses for scratch — and then runs
-// those copies with their dispatch falsified, so a staged `check-docs.mjs` reaches the
-// real `check-docs` body and `rmSync`s `dev-dist/docs`, and a staged `check-spec.mjs`
-// whose override read is removed launches the **whole** `check-spec` self-test, which
-// deletes and rebuilds `dev-dist/spec-selftest`. **Both were measured rather than
-// argued** ([ADR 0039](../doc/decisions/0039-the-gate-climbs-the-ladder-and-the-self-tests-run-concurrently.md)):
-// running the seven concurrently, `check:docs:selftest` reported an `X4` probe
-// uncaught and another tripping `[X1,X4]`, and `check:spec:selftest` reported *the
-// mutant did not run: this is a crash, not a detection* — **a harness fault wearing
-// the verdict of a finding, which is what `doc/workflow.md` v0.11 is about**, arriving
-// from a *neighbouring process* rather than from this one. Isolated: `check:spec:selftest`
-// beside `check:wiring` (the plain check) is green and beside `check:wiring:selftest`
-// is red. `dev-dist/` is a shared namespace and nothing said so.
+// **This file CARRIED the exclusivity marker and no longer does — W105,
+// [ADR 0072](../doc/decisions/0072-a-scratch-path-carries-its-process-and-a-self-test-that-shares-the-tree-says-so.md),
+// which supersedes that part of
+// [ADR 0039](../doc/decisions/0039-the-gate-climbs-the-ladder-and-the-self-tests-run-concurrently.md).**
+// The marker is one line in this comment and `run-selftests.mjs` reads it, `G4` derives the same set,
+// and nothing is written here about it in a form either of them can see — which is deliberate, because
+// a sentence that spells the token out re-arms the thing it is explaining ([Q178](../doc/open-questions.md)'s
+// hazard, one file across).
+//
+// **What it was for.** `stage()` writes every `scripts/check-*.mjs` into `dev-dist/` FLAT — the one
+// directory every other self-test used for scratch — and then runs those copies with their dispatch
+// falsified. So a staged `check-docs.mjs` reached the real `check-docs` body and `rmSync`d the fixed
+// `dev-dist/docs`, and a staged `check-spec.mjs` whose override read is removed launches the **whole**
+// `check-spec` self-test, which deleted and rebuilt the fixed `dev-dist/spec-selftest`. Running the
+// seven concurrently, ADR 0039 saw `check:docs:selftest` report an `X4` probe uncaught and another
+// tripping `[X1,X4]`, and `check:spec:selftest` report *the mutant did not run: this is a crash, not a
+// detection* — **a harness fault wearing the verdict of a finding, arriving from a NEIGHBOURING
+// process**, which is what `doc/workflow.md` v0.11 is about.
+//
+// **Why it is gone.** Both victims were FIXED PATHS, and W105 made every scratch path under `dev-dist/`
+// carry its process — `check-docs.mjs` writes `docs-<pid>`, `check-spec-selftest.mjs` writes
+// `spec-selftest-<pid>`, and `G6` in `check-wiring.mjs` refuses a new one that does not.
+// [Q182](../doc/open-questions.md) had already said relocating THIS file's staging would not have
+// helped, *because the copies it runs are the real checks and they write the real paths*; the real
+// paths are what moved.
+//
+// **Measured from both sides, with this file running concurrently against a `check:docs` loop and
+// `check:spec:selftest`**: on the fixed paths **19 of 96** victim runs were green, every red one
+// `ENOENT … dev-dist/docs/tsconfig.dom.json`; per-process, **61 of 61**. The control is the point —
+// the arrangement that proves nothing collides now is the arrangement that went red before.
+//
+// **What `stage()` still shares, and why it is safe.** The staged copies stay FLAT, because each
+// derives `ROOT = resolve(dirname(self), '..')` and `check-spec.mjs` imports `./check-markdown.mjs`:
+// one directory below the repository root with its siblings beside it is the only arrangement that
+// works, which `check-wiring.mjs`'s header records over three attempts. They are written and unstaged
+// per probe, registered for removal on the abort path, and `G6` declares those three sites as the
+// exceptions they are. A file a KILLED run leaves there is now NAMED by the control below rather than
+// turning it red with a message about a dispatch — W103's finding 3.
+//
+// **`check:scheduler:selftest` keeps its marker, and that was measured too, not assumed**: it deletes
+// `node_modules/fyflow-scheduler`, which is process-wide whatever any scratch path is named, and a
+// `check:docs` loop beside it is **4 of 5** green — a one-in-five flake with no obvious cause, which is
+// precisely what [Q181](../doc/open-questions.md) says an absent marker produces.
 
 import { readFileSync, readdirSync, writeFileSync, mkdirSync, rmSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, sep } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
 /**
@@ -179,16 +208,26 @@ const G3_PROBES = [
  * **The unreadable-manifest arm, which no staged script can reach** — the conformity
  * reader found it documented as an input and exercised by nothing. `CHECK_WIRING_PKG`
  * is the only way in, so this probe carries an `env` rather than a mutation, and it is
- * the one probe whose report rows must ALL read `NOT RUN`: with no manifest there are
- * no entries, so no clause runs and every row says so.
+ * the one probe whose MANIFEST-GATED report rows must read `NOT RUN`: with no manifest there are
+ * no entries, so none of those clauses runs and every one of their rows says so.
+ *
+ * **It declares WHICH rows, and `G6` is why — W105.** This read `notRun: true`, meaning *all of
+ * them*, and `G6` reads the scripts DIRECTORY rather than the manifest: it runs, reports `ok`, and
+ * the probe came back *the report row disagrees with the failures*. **The expectation was what was
+ * wrong, not the clause.** Gating `G6` on a readable `package.json` would invent a dependency in
+ * order to satisfy a probe, and it would mean a scratch-path collision goes unreported on exactly
+ * the trees where someone is already editing the manifest. So the list is enumerated, which also
+ * makes the next clause's author choose: a new `G` is manifest-gated and belongs in this list, or it
+ * is not and does not, and `agree` will not let it be neither.
  */
 const PKG_PROBE = [{
   name: 'package.json cannot be parsed, so there are no entries to check',
   file: null,
   check: 'G1',
-  // **The one probe whose report rows must ALL read `NOT RUN`**, declared here so
-  // that a `NOT RUN` row is a disagreement for every other probe.
-  notRun: true,
+  // **The rows that must read `NOT RUN`**, declared here so that a `NOT RUN` row is a
+  // disagreement for every other probe. `G6` is absent deliberately: it is not gated on the
+  // manifest and must still report.
+  notRun: ['G1', 'G2', 'G3', 'G4', 'G5'],
   env: (dir) => ({ CHECK_WIRING_PKG: `${dir}/broken-package.json` }),
   mutate: (t) => t,
 }];
@@ -410,6 +449,12 @@ const G4_PROBES = [
     name: 'the runner reads its markers from the wrong directory by default',
     file: 'run-selftests.mjs',
     check: 'G5',
+    // **`G6` co-fires, and it is DECLARED rather than discovered — W105.** The mutation writes a
+    // `dev-dist` path into `run-selftests.mjs` that carries no pid, which is exactly what `G6` refuses;
+    // once `G6`'s universe became every `.mjs` rather than `check-*.mjs`, this probe trips both. Two
+    // clauses, one mutation, and the failure COUNT is what tells them apart — W29's co-firing, which
+    // rule 7 (c)'s set equality turned from a silent pass into a declared pair.
+    also: ['G6'],
     mutate: (t) => t.replace("process.env.CHECK_SELFTESTS_SCRIPTS ?? join(ROOT, 'scripts')",
       "process.env.CHECK_SELFTESTS_SCRIPTS ?? join(ROOT, 'dev-dist')"),
   },
@@ -451,10 +496,120 @@ const G4_PROBES = [
   },
 ];
 
-const PROBES = [...G1_PROBES, ...G1_ONLY, ...G2_PROBES, ...G3_PROBES, ...G4_PROBES, ...PKG_PROBE];
+/**
+ * `G6` — **a scratch path under `dev-dist/` carries its PROCESS.** One probe per clause, each
+ * declaring `G6` alone: none of these touches a dispatch, a manifest or the runner, so a probe that
+ * also trips `G1`-`G5` is malformed and rule 7 (c)'s set equality is what says so.
+ *
+ * **The subject is a STAGED copy**, which is what makes these probes possible at all: `stage()` writes
+ * every `scripts/check-*.mjs` into the staging directory and `CHECK_WIRING_SCRIPTS` points the check
+ * there, so `G6` reads the mutated file exactly as it reads the real one.
+ *
+ * **Every literal below splits `dev-dist`, and the control went RED for want of it** —
+ * [Q178](../doc/open-questions.md) for the third and fourth time in this item. `G6` reads source TEXT,
+ * so a probe that writes the text it searches for turns THIS file into a site: the control reported
+ * `check-wiring-selftest.mjs builds a path under dev-dist/ that does not carry process.pid` against the
+ * probe literal two lines down, and two more as duplicate NAMES. **And the vacuity is the sharper half**:
+ * `SHARED_SCRATCH`'s both-ways clause asks whether its anchor still exists in the file, and the probe
+ * written to remove that anchor CONTAINED it — so probe `the anchor no longer exists` would have passed
+ * while proving nothing, which is rule 7 (b)'s vacuity reached through the check's own subject rather
+ * than through the mutation. Splitting the token fixes the detection and the vacuity together, because
+ * both of `G6`'s readings key on the same `join(... 'dev-dist' ...)` test.
+ */
+const DD = `dev-${'dist'}`;
+const G6_PROBES = [
+  {
+    // **The clause itself: a fixed path, which is what every one of these was before W105.** Measured
+    // from both sides at this item's build — a `check:docs` loop beside `check:wiring:selftest` is 19 of
+    // 96 green on a fixed `dev-dist/docs` and 61 of 61 per-process.
+    name: 'a check writes a FIXED path under dev-dist/',
+    file: 'check-docs.mjs',
+    check: 'G6',
+    mutate: (t) => t.replace(`const OUT = join(ROOT, '${DD}', \`docs-\${process.pid}\`);`,
+      `const OUT = join(ROOT, '${DD}', 'docs');`),
+  },
+  {
+    // **A self-test's fixture directory, which is the shape five of the eight had.** A different file
+    // from the probe above, because `G6` loops over the directory and a clause bound at one file is a
+    // clause about that file.
+    name: 'a self-test writes a FIXED fixture directory under dev-dist/',
+    file: 'check-spec-selftest.mjs',
+    check: 'G6',
+    mutate: (t) => t.replace(`const dir = join(root, '${DD}', \`spec-selftest-\${process.pid}\`);`,
+      `const dir = join(root, '${DD}', 'spec-selftest');`),
+  },
+  {
+    // **Two files, one NAME — the defect [Q182](../doc/open-questions.md) was raised for.**
+    // `check-source-selftest.mjs` and `check-policies-selftest.mjs` both wrote `dev-dist/.self-NN.mjs`;
+    // it was found by READING, and ADR 0039's three concurrent passes never happened to collide on it.
+    // A pid makes two PROCESSES safe and says nothing about two files inside one.
+    name: 'two self-tests build the same scratch NAME',
+    file: 'check-policies-selftest.mjs',
+    check: 'G6',
+    mutate: (t) => t.replace('`policies-selftest-${process.pid}`', '`spec-selftest-${process.pid}`'),
+  },
+  {
+    // **A declared exception that has STOPPED being needed.** The direction a permission list never has:
+    // if the line now carries the pid, the entry is a permission with no subject, and the next fixed path
+    // added beside it is covered by an exception written for something else.
+    name: 'a SHARED_SCRATCH site now carries the pid and the exception is left standing',
+    file: 'check-wiring-selftest.mjs',
+    check: 'G6',
+    mutate: (t) => t.replace(`      const to = join(root, '${DD}', f);`,
+      `      const to = join(root, '${DD}', \`\${process.pid}-\${f}\`);`),
+  },
+  {
+    // **A declared exception whose LINE is gone**, the other direction of the same list. The mutation
+    // moves the construction into a helper, so the path is still built and the anchor is not there —
+    // a refactor, which is the shape that actually happens.
+    name: 'a SHARED_SCRATCH anchor no longer exists in the file it names',
+    file: 'check-wiring-selftest.mjs',
+    check: 'G6',
+    mutate: (t) => t.replace(`      const to = join(root, '${DD}', f);`,
+      '      const to = stagedPath(f);'),
+  },
+  {
+    // **A path keyed on something that merely CONTAINS `process`**, which is what makes the predicate's
+    // PRECISION load-bearing — W105's adequacy reader, which narrowed `process.pid` to `process` and to
+    // `pid` for ZERO against all five of the probes below, because every real site contains all three.
+    // `process.ppid` is a well-formed wrong selection the type admits: `/\bprocess\.pid\b/` refuses this
+    // line and `/\bprocess\b/` accepts it, so the two predicates DIFFER here and nowhere else in the
+    // tree. *A shape covered at its default instance is a shape visited, not a shape discriminated* —
+    // v0.23's clause, applied to a predicate rather than to a key.
+    name: 'a scratch path keyed on process.ppid, which is not this process',
+    file: 'check-docs.mjs',
+    check: 'G6',
+    mutate: (t) => t.replace(`const OUT = join(ROOT, '${DD}', \`docs-\${process.pid}\`);`,
+      `const OUT = join(ROOT, '${DD}', \`docs-\${process.ppid}\`);`),
+  },
+];
+
+/**
+ * **The `G6` probes BY NAME, because `MIN_PROBES` is a count and a count is not a membership**
+ * (`doc/workflow.md` v0.14). W105's adequacy reader deleted the fifth `G6` probe and ran the lane to
+ * completion: **`39 probes`, `39/39 probes caught`, `14/14 graded`, `6/6 bounded`, EXIT 0** — because
+ * `MIN_PROBES` was 39 against 40, the file-coverage bound is already satisfied by `G1_PROBES` and the
+ * `ALL_CHECKS` bound by the other four. **Nothing counted them.** Deleting the two-files-one-name probe
+ * would have left that clause with no observer at all, and the fifth is the one this item's own Record
+ * calls nearly vacuous — i.e. the likeliest for a later author to drop.
+ *
+ * Set equality, both ways, so a renamed probe fails naming itself and a sixth added without a line here
+ * fails too — which is `ROW_KEYS`' shape in `examples/l6.ts`, one directory over.
+ */
+const G6_NAMES = [
+  'a check writes a FIXED path under dev-dist/',
+  'a self-test writes a FIXED fixture directory under dev-dist/',
+  'two self-tests build the same scratch NAME',
+  'a SHARED_SCRATCH site now carries the pid and the exception is left standing',
+  'a SHARED_SCRATCH anchor no longer exists in the file it names',
+  'a scratch path keyed on process.ppid, which is not this process',
+];
+
+const PROBES = [...G1_PROBES, ...G1_ONLY, ...G2_PROBES, ...G3_PROBES, ...G4_PROBES, ...PKG_PROBE,
+  ...G6_PROBES];
 
 /** Vacuous at zero, which is the floor `check-policies-selftest.mjs` taught. */
-const MIN_PROBES = 34;
+const MIN_PROBES = 41;
 const MIN_META = 14;
 const MIN_SELF = 6;
 
@@ -463,7 +618,7 @@ const MIN_SELF = 6;
 // failure lines invisible to the parse, so a probe declaring `[G4,G5]` reported
 // `got [G4]` while `G5` was failing in the same output. W36 hit this adding `D6`;
 // W39 hit it adding `G5`, one item later, in the file that records it.
-const ALL_CHECKS = ['G1', 'G2', 'G3', 'G4', 'G5'];
+const ALL_CHECKS = ['G1', 'G2', 'G3', 'G4', 'G5', 'G6'];
 
 /**
  * **The mutations `check-wiring.mjs` itself is run against**, each naming the probe
@@ -527,6 +682,38 @@ const META = [
 ];
 
 /**
+ * **Apply a mutation and report how many of its `.replace` calls MATCHED NOTHING.**
+ *
+ * `mutated === src` is rule 7 (b) over the whole file, and a compound defeats it: W105 moved the
+ * `PROBES` declaration onto two lines, two `SELF` entries below pinned it on one, and both reported
+ * **`exited 0: the mutation costs nothing`** — `MIN_PROBES` had been lowered and `PROBES` had not been
+ * emptied, so the entry ran, changed the file, and proved something narrower than its own name. *A
+ * vacuity guard over the whole file cannot see half a compound.*
+ *
+ * **It instruments `String.prototype.replace` for the duration of the call**, which is cheaper and more
+ * general than restructuring every entry into a list of pairs: it holds for any compound written later,
+ * and it reads what the mutation DID rather than what its author says it does. The patch is restored in
+ * a `finally`; a `.replace` that legitimately replaces a string with itself would count as a miss, and
+ * no entry here does that.
+ */
+const applyMutation = (mutate, src) => {
+  const real = String.prototype.replace;
+  let misses = 0;
+  // eslint-disable-next-line no-extend-native
+  String.prototype.replace = function patched(from, to) {
+    const out = real.call(this, from, to);
+    if (out === String(this)) misses += 1;
+    return out;
+  };
+  try {
+    const out = mutate(src);
+    return { out, misses };
+  } finally {
+    String.prototype.replace = real;
+  }
+};
+
+/**
  * **The mutations of THIS FILE, each of which must stop it exiting 0.** W31's
  * `SELF` shape. The child runs the whole probe pass against the real check with
  * `CHECK_WIRING_NESTED_SELF` set, so it grades neither `META` nor `SELF` — the
@@ -547,14 +734,16 @@ const SELF = [
         '  mutate: (t) => t,'),
     (out) => { const m = /(\d+)\/(\d+) probes caught/.exec(out); return !!m && m[1] !== m[2]; }],
   ['MIN_PROBES is lowered and PROBES emptied',
-    (t) => t.replace('const MIN_PROBES = 34;', 'const MIN_PROBES = 0;')
-      .replace('const PROBES = [...G1_PROBES, ...G1_ONLY, ...G2_PROBES, ...G3_PROBES, ...G4_PROBES, ...PKG_PROBE];', 'const PROBES = [];')],
+    (t) => t.replace('const MIN_PROBES = 41;', 'const MIN_PROBES = 0;')
+      .replace('const PROBES = [...G1_PROBES, ...G1_ONLY, ...G2_PROBES, ...G3_PROBES, ...G4_PROBES, ...PKG_PROBE,'
+        + NL + '  ...G6_PROBES];', 'const PROBES = [];')],
   ['MIN_PROBES is lowered, PROBES emptied, and the per-check coverage bound removed',
-    (t) => t.replace('const MIN_PROBES = 34;', 'const MIN_PROBES = 0;')
-      .replace('const PROBES = [...G1_PROBES, ...G1_ONLY, ...G2_PROBES, ...G3_PROBES, ...G4_PROBES, ...PKG_PROBE];', 'const PROBES = [];')
+    (t) => t.replace('const MIN_PROBES = 41;', 'const MIN_PROBES = 0;')
+      .replace('const PROBES = [...G1_PROBES, ...G1_ONLY, ...G2_PROBES, ...G3_PROBES, ...G4_PROBES, ...PKG_PROBE,'
+        + NL + '  ...G6_PROBES];', 'const PROBES = [];')
       .replace('    if (missing.length) {', '    if (false) {')],
   ['ALL_CHECKS is emptied, so no probe can trip anything',
-    (t) => t.replace("const ALL_CHECKS = ['G1', 'G2', 'G3', 'G4', 'G5'];", 'const ALL_CHECKS = [];')],
+    (t) => t.replace("const ALL_CHECKS = ['G1', 'G2', 'G3', 'G4', 'G5', 'G6'];", 'const ALL_CHECKS = [];')],
   ['CHECKS repeats one name instead of naming eight',
     (t) => t.replace("const CHECKS = ['spec', 'source', 'wiring', 'markdown', 'scheduler', 'policies', 'docs', 'workers'];",
       "const CHECKS = ['spec', 'source', 'spec', 'source', 'spec', 'source', 'spec', 'source'];")],
@@ -592,10 +781,18 @@ const verdict = (probe, r) => {
   // for. The forced-`ok` META entry breaks this either way.
   const rowOf = (x) => (new RegExp(`NOT RUN\\s+${x}`).test(out) ? 'notrun'
     : new RegExp(`FAIL\\s+${x}`).test(out) ? 'fail' : 'ok');
-  const agree = ALL_CHECKS.every((x) => (probe.notRun
+  // **`probe.notRun` is a LIST of the rows that must read `NOT RUN`, and the rest are judged as
+  // usual.** It was a boolean until W105, when `G6` arrived with a different gate — see `PKG_PROBE`.
+  // Written so a clause named in the list is required to be `notrun` AND one left out is required
+  // not to be: a row that stops running is as much a defect as one that starts.
+  const agree = ALL_CHECKS.every((x) => (probe.notRun?.includes(x)
     ? rowOf(x) === 'notrun'
     : rowOf(x) === (tripped.includes(x) ? 'fail' : 'ok')));
-  return { out, declared, tripped, refused, why, agree };
+  // **`fails` is the failure COUNT, and it is the projection an id SET cannot see** — W29,
+  // [Q146](../doc/open-questions.md). Two clauses can report one id, so disabling either leaves the set
+  // alone and moves only the count. The META pass below compares it against the control's.
+  const fails = (out.match(/^ {2}G\d: /gm) ?? []).length;
+  return { out, declared, tripped, refused, why, agree, fails };
 };
 
 export async function selfTest(root) {
@@ -607,6 +804,24 @@ export async function selfTest(root) {
   const dir = join(root, 'dev-dist', `wiring-selftest-${process.pid}`);
   rmSync(dir, { recursive: true, force: true });
   mkdirSync(dir, { recursive: true });
+  /**
+   * **`done()` removes `dir` from every RETURN and nothing covered a THROW — W105.** This file already
+   * nests its scratch per process, which is the half [Q182](../doc/open-questions.md) asks for; what it
+   * did not have is the abort path. `process.on('exit')` covers a throw and every `process.exit` road,
+   * and it also reaps `stage()`'s FLAT files below, which are the ones that cannot nest.
+   *
+   * `SIGKILL` leaks this directory and, if it lands between a `stage()` and its `unstage`, up to 19
+   * `dev-dist/check-*.mjs`. That residue is now NAMED by the control rather than left to produce a
+   * mystery — see `stray()`.
+   */
+  const stagedNow = new Set();
+  /** The flat `.meta-wiring-*` copies, which cannot nest — see the note at `copy` in the META pass. */
+  const metaMutants = new Set();
+  process.on('exit', () => {
+    rmSync(dir, { recursive: true, force: true });
+    for (const f of stagedNow) rmSync(f, { force: true });
+    for (const f of metaMutants) rmSync(f, { force: true });
+  });
 
   const script = join(root, 'scripts', 'check-wiring.mjs');
   // **A `SELF` child grades neither `META` nor `SELF`.** There was a second variable
@@ -695,10 +910,41 @@ export async function selfTest(root) {
       }
       writeFileSync(to, text);
       staged.push(to);
+      stagedNow.add(to);
     }
     return staged;
   };
-  const unstage = (staged) => { for (const f of staged ?? []) rmSync(f, { force: true }); };
+  const unstage = (staged) => {
+    for (const f of staged ?? []) { rmSync(f, { force: true }); stagedNow.delete(f); }
+  };
+
+  /**
+   * **Every `dev-dist/check-*.mjs` this run did not stage — W103's finding 3, given a name.**
+   *
+   * `stage()` writes flat into `dev-dist/` because each staged script derives `ROOT` from its own
+   * location and `check-spec.mjs` imports `./check-markdown.mjs`, so one directory below the repository
+   * root with its siblings present is the only arrangement that works — measured over three attempts and
+   * recorded in `check-wiring.mjs`'s header. What that costs is that **a file a killed run left behind is
+   * indistinguishable from a file this run staged**, and `CHECK_WIRING_SCRIPTS` points the check at the
+   * whole directory: a gate killed mid-run left `dev-dist/check-wiring-stub-27708.mjs`, `G3` reported a
+   * check the manifest never declares, and the CONTROL below went red saying *the control did not run
+   * clean* — true, and about the harness. The real probe failure underneath it was invisible until a human
+   * removed the file by hand.
+   *
+   * W105 moved that stub into a directory, so the known producer is gone; this is the general case, and it
+   * is a READING rather than a deletion.
+   *
+   * **Its SCOPE, because `stage()` writes more than this reads** — W105's conformity reader. `stage()`
+   * stages every `scripts/*.mjs`, which is **19** files, and this glob matches `check-*.mjs`, which is
+   * **16** of them: `build-browser-tests.mjs`, `run-browser-tests.mjs` and `run-selftests.mjs` left behind
+   * by a killed run are outside what this names. They do no harm — `G3` reads `check-*.mjs` too, so a
+   * leftover non-check is not a check the manifest fails to declare — but the sentence above would
+   * otherwise claim more than the glob does. Removing a `check-*.mjs` nobody here wrote would be a self-test
+   * deleting a path it does not own, which is the one thing W105's hazard 4 forbids.
+   */
+  const stray = (staged) => readdirSync(join(root, 'dev-dist'))
+    .filter((n) => /^check-.*\.mjs$/.test(n))
+    .filter((n) => !(staged ?? []).some((f) => f.endsWith(`${sep}${n}`)));
 
   const runProbe = (probe, against = script) => {
     const staged = stage(probe.file ? probe : null);
@@ -755,6 +1001,21 @@ export async function selfTest(root) {
       console.log(`  FAIL  no probe touches ${missing.join(', ')} — a floor counts probes and says ` +
         'nothing about which checks they reach.');
       return done(1);
+    }
+    // **`G6`'s probes, by NAME and both ways** — see `G6_NAMES`. The count below cannot see one leave.
+    {
+      const got = PROBES.filter((p) => p.check === 'G6').map((p) => p.name).sort();
+      const want = [...G6_NAMES].sort();
+      const missing = want.filter((n) => !got.includes(n));
+      const extra = got.filter((n) => !want.includes(n));
+      if (missing.length || extra.length) {
+        console.log(`  FAIL  the \`G6\` probes are [${got.join(' | ')}] and \`G6_NAMES\` declares ` +
+          `[${want.join(' | ')}]` +
+          `${missing.length ? ` — missing: ${missing.join(', ')}` : ''}` +
+          `${extra.length ? ` — undeclared: ${extra.join(', ')}` : ''}. A probe can leave without the ` +
+          'count getting shorter, and each of these is the only observer of one clause.');
+        return done(1);
+      }
     }
     const declared = new Set(PROBES.flatMap((p) => [p.check, ...(p.also ?? [])]));
     const unprobed = ALL_CHECKS.filter((x) => !declared.has(x));
@@ -814,8 +1075,20 @@ export async function selfTest(root) {
       return done(1);
     }
     if (!RAN(`${r.stdout ?? ''}${r.stderr ?? ''}`) || r.status !== 0) {
+      // **The residue is NAMED here, and W103's finding 3 is why.** The sentence below is right and said
+      // nothing about the cause; one `readdirSync` turns the commonest cause into the first line a reader
+      // sees, so the next person does not spend the verdicts underneath it looking for a defect in a check.
+      const left = stray(staged);
       console.log(`  FAIL  the control did not run clean (exit ${r.status}) — every verdict below ` +
-        'would be a fact about the harness rather than about the check.');
+        'would be a fact about the harness rather than about the check.' +
+        (left.length
+          ? ` **dev-dist/ holds ${left.length} check-*.mjs this run did not stage: ${left.join(', ')}.** ` +
+            'stage() writes flat into that directory because a staged script derives its own ROOT, so a ' +
+            'file a KILLED run left behind is one `CHECK_WIRING_SCRIPTS` points the check at, and `G3` ' +
+            'reports it as a check the manifest never declares — W103 finding 3, Q323\'s class. Remove ' +
+            'them and re-run; they are left alone here because deleting a path this file did not write is ' +
+            'worse than naming it.'
+          : ''));
       return done(1);
     }
     console.log(`  ok    the control: ${staged.length} files staged unmutated, runs, and is not graded\n`);
@@ -841,6 +1114,36 @@ export async function selfTest(root) {
     console.log('  FAIL  two META entries produce the same mutation; the count says nothing.');
     return done(1);
   }
+  /** The control's own failure count, which the entries below are compared against. */
+  let controlFails = -1;
+  /**
+   * **The CONTROL for THIS pass, and it is the thing that was missing — W105's adequacy reader.**
+   * v0.11 requires a harness to carry a control; the PROBES pass has one (`stage(null)` must run clean
+   * and must not be graded) and this pass had only distinctness and `mutated === src`. An UNMUTATED copy,
+   * driven through the same `runProbe` the entries use, must come back **NOT noticed** — because nothing
+   * is broken, so the probe must still catch what it declares. When the copy's `ROOT` was wrong, this
+   * control's verdict was `noticed`, which is how a pass can grade fourteen mutations of a check it never
+   * ran against. *A control that fails here means every verdict below it is a fact about the harness.*
+   */
+  {
+    const probe = PROBES.find((p) => p.name === META[0][1]);
+    const ctl = join(root, 'dev-dist', `.meta-wiring-${process.pid}-control.mjs`);
+    metaMutants.add(ctl);
+    writeFileSync(ctl, src);
+    const v = runProbe(probe, ctl);
+    rmSync(ctl, { force: true });
+    const noticed = v.vacuous || !v.refused || !v.agree;
+    controlFails = v.fails;
+    if (noticed) {
+      console.log(`  FAIL  the control: an UNMUTATED copy of check-wiring.mjs is graded as NOTICED ` +
+        `(${v.why ?? ''} ${JSON.stringify(v.tripped ?? [])} against ${JSON.stringify(v.declared ?? [])}). ` +
+        'Nothing is broken, so the probe must still catch what it declares — every verdict below would be ' +
+        'a fact about the harness rather than about the check.');
+      return done(1);
+    }
+    console.log(`  ok    the control: an unmutated copy is NOT graded as noticed${NL}`);
+  }
+
   let ungraded = 0;
   for (const [k, [label, probeName, mutate]] of META.entries()) {
     const probe = PROBES.find((p) => p.name === probeName);
@@ -855,7 +1158,20 @@ export async function selfTest(root) {
       ungraded++;
       continue;
     }
-    const copy = join(dir, `check-wiring-${k}.mjs`);
+    // **FLAT in `dev-dist/`, dot-prefixed, per-pid — and this was TWO DIRECTORIES DEEP, which made
+    // every grading in this pass hollow.** W105's adequacy reader, BLOCKING. A copy of `check-wiring.mjs`
+    // derives `ROOT = resolve(dirname(self), '..')`, so one written inside
+    // `dev-dist/wiring-selftest-<pid>/` has `ROOT = <root>/dev-dist`: `PKG_PATH` resolves to
+    // `dev-dist/package.json`, which is not there, so the mutant reported `G1: … is unreadable`, its
+    // `tripped` set was `[G1]` against a declared `[G1,G2]`, and `noticed` came back TRUE **for a reason
+    // that has nothing to do with the mutation**. Measured by that reader with an UNMUTATED copy: also
+    // graded `noticed`. *So `14/14 graded` was satisfied by a copy that was never broken* — and the fix
+    // is the depth rule this very item established, applied to the lane that establishes it.
+    //
+    // Dot-prefixed because a `check-*.mjs` in `dev-dist/` is what `G3` reads as a check the manifest
+    // never declares and what `stray()` reports — W103's finding 3, which is the other half of this item.
+    const copy = join(root, 'dev-dist', `.meta-wiring-${process.pid}-${k}.mjs`);
+    metaMutants.add(copy);
     writeFileSync(copy, mutated);
     // **Run the probe the entry names AGAINST THE BROKEN COPY.** The first version
     // set an env variable here and let `selfTest` read it — which does nothing, because
@@ -863,9 +1179,19 @@ export async function selfTest(root) {
     // the REAL check and both came back STILL CAUGHT: a harness defect reading as the
     // strongest verdict this file can print. The copy is an argument now.
     const v = runProbe(probe, copy);
-    const noticed = v.vacuous || !v.refused || !v.agree;
+    // **`caught` is not terminal — it asks one more question, and this file needed it.** W105's adequacy
+    // reader measured that this pass graded 14 of 14 while every mutant was unable to read the manifest;
+    // with that fixed, TWO entries came back STILL CAUGHT — `G1 stops counting the entries it skipped`
+    // and `G2 stops counting the entries it never read`. Both are MASKING in W29's sense: the probe's own
+    // mutation trips the same id through the ROUTING clause, so disabling the COUNTING clause leaves the
+    // id set identical and moves only the number of failures. [Q146](../doc/open-questions.md)'s
+    // discriminator, which `check-scheduler-selftest.mjs` has carried since W29 and this file did not.
+    const byCount = v.fails !== controlFails;
+    const noticed = v.vacuous || !v.refused || !v.agree || byCount;
     if (!noticed) ungraded++;
-    console.log(`  ${noticed ? 'ok  ' : 'FAIL'}  ${label}${noticed ? '' : ' — STILL CAUGHT against a check that does not check'}`);
+    console.log(`  ${noticed ? 'ok  ' : 'FAIL'}  ${label}`
+      + (noticed ? (byCount && v.refused && v.agree ? ` (by the failure COUNT, ${controlFails} -> ${v.fails}, which the id set cannot see)` : '')
+        : ' — STILL CAUGHT against a check that does not check'));
   }
   console.log(`\n${META.length - ungraded}/${META.length} graded.`);
 
@@ -885,9 +1211,21 @@ export async function selfTest(root) {
   }
   let unbounded = 0;
   for (const [k, [label, mutate, evidence]] of SELF.entries()) {
-    const mutated = mutate(selfSrc);
+    const { out: mutated, misses } = applyMutation(mutate, selfSrc);
     if (mutated === selfSrc) {
       console.log(`  FAIL  ${label} — the mutation matched nothing`);
+      unbounded++;
+      continue;
+    }
+    // **And EVERY half of it matched** — see `applyMutation`. An entry whose second `.replace` lands
+    // nowhere still changes the file, so the guard above passes and the entry grades a mutation it did
+    // not make. W105 shipped exactly that for two entries and the lane said `exited 0: the mutation
+    // costs nothing`, which is a true sentence about the wrong subject.
+    if (misses > 0) {
+      console.log(`  FAIL  ${label} — ${misses} of this mutation's \`replace\` calls matched NOTHING, ` +
+        'so the file changed and the entry is about a different mutation from the one it names. Re-anchor ' +
+        'it: a literal pinned to a declaration someone has since reformatted is rule 7 (b) at the half ' +
+        'a whole-file comparison cannot see');
       unbounded++;
       continue;
     }

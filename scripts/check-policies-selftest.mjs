@@ -223,7 +223,7 @@
 // reader still has to look at.
 
 import { readFileSync, writeFileSync, mkdirSync, rmSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
 const SPEC = 'spec/join-policy.md';
@@ -788,9 +788,25 @@ const verdict = (probe, r) => {
 };
 
 export async function selfTest(root) {
-  const dir = join(root, 'dev-dist', 'policies-selftest');
+  // **Per PROCESS, and removed on the way out including on the abort path — W105.** `dev-dist/` is one
+  // flat namespace and this was a FIXED path inside it, `rmSync`d on entry, so a child running this same
+  // function deleted its parent's fixtures and two top-level runs did the same to each other
+  // ([Q182](../doc/open-questions.md)). The `rmSync` stays, and is now load-bearing for a different
+  // reason: Windows recycles pids, so a directory a killed run left can be inherited by a live one.
+  // **`process.on('exit')` rather than a `finally`**, because this function returns from many places and
+  // the one road none of their `rmSync` calls covers is a THROW — which is how W103's finding 3 left its
+  // stub behind. `SIGKILL` leaks this one directory: *one path per killed run, not one per probe*.
+  const dir = join(root, 'dev-dist', `policies-selftest-${process.pid}`);
   rmSync(dir, { recursive: true, force: true });
   mkdirSync(dir, { recursive: true });
+  process.on('exit', () => rmSync(dir, { recursive: true, force: true }));
+  // The RELATIVE spelling, DERIVED rather than written a second time — W105.
+  const relDir = relative(root, dir).replace(/\\/g, '/');
+  // **The flat `.meta-*` mutants are registered too**: each is written and removed per entry inside a
+  // `finally`, so at most one is alive, but a throw between the two used to leave an `.mjs` in
+  // `dev-dist/` — W103's finding 3's exact shape.
+  const metaMutants = new Set();
+  process.on('exit', () => { for (const p of metaMutants) rmSync(p, { force: true }); });
 
   const source = { spec: readFileSync(join(root, SPEC), 'utf8'), src: readFileSync(join(root, SRC), 'utf8') };
   const ext = { spec: 'md', src: 'ts' };
@@ -817,7 +833,7 @@ export async function selfTest(root) {
       console.log(`  ABORT  no probe is named "${only}"`);
       return 3;
     }
-    const rel = `dev-dist/policies-selftest/only.${ext[probe.half]}`;
+    const rel = `${relDir}/only.${ext[probe.half]}`;
     const mutated = probe.mutate(source[probe.half]);
     if (mutated === source[probe.half]) { console.log('  ABORT  the mutation matched nothing'); return 3; }
     writeFileSync(join(root, rel), mutated);
@@ -969,7 +985,7 @@ export async function selfTest(root) {
   console.log(`check-policies self-test — ${PROBES.length} probes\n`);
   let caught = 0;
   for (const [i, probe] of PROBES.entries()) {
-    const rel = `dev-dist/policies-selftest/${String(i).padStart(2, '0')}.${ext[probe.half]}`;
+    const rel = `${relDir}/${String(i).padStart(2, '0')}.${ext[probe.half]}`;
     const mutated = probe.mutate(source[probe.half]);
     if (mutated === source[probe.half]) {
       console.log(`  FAIL  ${probe.check}  ${probe.name} — the mutation matched nothing`);
@@ -1020,7 +1036,13 @@ export async function selfTest(root) {
     // `scripts/*.mjs` flat into `dev-dist/`, so a stray `.meta-NN.mjs` here became a
     // `dev-dist/.meta-NN.mjs` — which is `check-source-selftest.mjs`'s own mutant path,
     // and wiring deletes what it stages.
-    const rel = join(root, 'dev-dist', `.meta-policies-${String(i).padStart(2, '0')}.mjs`);
+    // **FLAT, with the pid in the NAME.** A `.meta-*` mutant is a copy of the CHECK, which derives
+    // `ROOT = resolve(dirname(self), '..')`, so it must sit exactly one directory below the repository
+    // root — W105 nested three of these and `check:spec:selftest` reported *29 of 29 graded by the
+    // CORPUS*, its own *the harness broke rather than the check* clause. A `.self-*` mutant is a copy of
+    // this SELFTEST module, which the dispatch hands `ROOT`, and nests.
+    const rel = join(root, 'dev-dist', `.meta-policies-${process.pid}-${String(i).padStart(2, '0')}.mjs`);
+    metaMutants.add(rel);
     writeFileSync(rel, broken);
     let ok = false, why = '';
     try {
@@ -1109,7 +1131,18 @@ export async function selfTest(root) {
   // impossible to ship again.
   // **Named for this check** — see the same note in `check-source-selftest.mjs`:
   // both wrote `.self-NN.mjs`, and ADR 0039 runs them at the same time.
-  const selfPath = (i) => join(root, 'dev-dist', `.self-policies-${String(i).padStart(2, '0')}.mjs`);
+  // Inside `dir` since W105: a `.self-*` mutant is a copy of this SELFTEST module, which the
+  // dispatch hands `ROOT`, so it is under no depth constraint.
+  // **`mkdirSync` here, and a non-terminal `rmSync(dir)` between the two passes is why — W105.** The
+  // META pass removes `dir` when it is done with the fixtures and the SELF pass then runs; before this
+  // item the `.self-*` mutants were flat in `dev-dist/`, which always exists, so the ordering never
+  // mattered. Nested, it does, and the lane said so by name rather than quietly: `ENOENT` on the SELF
+  // control. Creating it here rather than removing the intervening cleanup keeps that cleanup's own
+  // meaning — the fixtures go as soon as nothing needs them.
+  const selfPath = (i) => {
+    mkdirSync(dir, { recursive: true });
+    return join(dir, `.self-policies-${String(i).padStart(2, '0')}.mjs`);
+  };
   const runSelfChild = (path) => {
     const r = spawnSync(process.execPath, ['--input-type=module', '-e', RUNNER],
       { cwd: root, encoding: 'utf8', timeout: 900_000,

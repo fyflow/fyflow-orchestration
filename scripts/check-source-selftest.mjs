@@ -1162,9 +1162,28 @@ const SELF = [
 ];
 
 export async function selfTest(root) {
-  const dir = join(root, 'dev-dist', 'source-selftest');
+  // **Per PROCESS, and removed on the way out including on the abort path — W105.** `dev-dist/` is one
+  // flat namespace and this was a FIXED path inside it, `rmSync`d on entry, so a child running this same
+  // function deleted its parent's fixtures and two top-level runs did the same to each other
+  // ([Q182](../doc/open-questions.md)). The `rmSync` stays, and is now load-bearing for a different
+  // reason: Windows recycles pids, so a directory a killed run left can be inherited by a live one.
+  // **`process.on('exit')` rather than a `finally`**, because this function returns from many places and
+  // the one road none of their `rmSync` calls covers is a THROW — which is how W103's finding 3 left its
+  // stub behind. `SIGKILL` leaks this one directory: *one path per killed run, not one per probe*.
+  const dir = join(root, 'dev-dist', `source-selftest-${process.pid}`);
   rmSync(dir, { recursive: true, force: true });
   mkdirSync(dir, { recursive: true });
+  process.on('exit', () => rmSync(dir, { recursive: true, force: true }));
+  // The RELATIVE spelling, DERIVED rather than written a second time — W105. `stem` named
+  // `dev-dist/source-selftest/` by hand and `tree` built the same directory a third way with its
+  // own `join`: three sources for one path, so namespacing any one of them alone is a child
+  // reading a directory nothing staged into.
+  const relDir = relative(root, dir).replace(/\\/g, '/');
+  // **The flat `.meta-*` mutants are registered too**: each is written and removed per entry inside a
+  // `finally`, so at most one is alive, but a throw between the two used to leave an `.mjs` in
+  // `dev-dist/` — W103's finding 3's exact shape.
+  const metaMutants = new Set();
+  process.on('exit', () => { for (const p of metaMutants) rmSync(p, { force: true }); });
 
   // **The script under test.** `CHECK_SOURCE_SCRIPT` is how the META pass points
   // this same suite at a deliberately broken copy of it; a `check`-half probe
@@ -1288,13 +1307,13 @@ export async function selfTest(root) {
    * found a second in `check-policies-selftest.mjs` on its first run.**
    */
   const runOne = (i, probe) => {
-    const stem = `dev-dist/source-selftest/${String(i).padStart(2, '0')}`;
+    const stem = `${relDir}/${String(i).padStart(2, '0')}`;
     // **The third half, added by W30: a copy of the PUBLISHED TREE.** `S4` and `S7`
     // loop over `published()`, so neither the manifest half nor the check half can
     // reach them — the probe has to hand this script a different `src/` and
     // `index.ts`. `CHECK_SOURCE_SRC` is that handle and it is inert when unset.
     if (probe.half === 'src') {
-      const tree = join(root, 'dev-dist', 'source-selftest', `tree-${String(i).padStart(2, '0')}`);
+      const tree = join(dir, `tree-${String(i).padStart(2, '0')}`);
       rmSync(tree, { recursive: true, force: true });
       mkdirSync(tree, { recursive: true });
       cpSync(join(root, 'src'), join(tree, 'src'), { recursive: true });
@@ -1350,7 +1369,10 @@ export async function selfTest(root) {
       // gitignored, so an interrupted run there leaves untracked files in the
       // directory `doc/workflow.md` section 7 rule 2's by-hand `git status` audit
       // reads. W24's conformity reader's finding; `dev-dist/` costs nothing.
-      run = join(root, 'dev-dist', `.probe-${String(i).padStart(2, '0')}.mjs`);
+      // FLAT, with the pid in the NAME — a copy of `check-source.mjs`, so it is depth-bound; see
+      // the note beside the `.meta-*` path below.
+      run = join(root, 'dev-dist', `.probe-${process.pid}-${String(i).padStart(2, '0')}.mjs`);
+      metaMutants.add(run);
       writeFileSync(run, mutated);
     }
     let r;
@@ -1480,7 +1502,13 @@ export async function selfTest(root) {
         continue;
       }
     }
-    const path = join(root, 'dev-dist', `.meta-${String(i).padStart(2, '0')}.mjs`);
+    // **FLAT, with the pid in the NAME.** A `.meta-*` mutant is a copy of the CHECK, which derives
+    // `ROOT = resolve(dirname(self), '..')`, so it must sit exactly one directory below the repository
+    // root — W105 nested three of these and `check:spec:selftest` reported *29 of 29 graded by the
+    // CORPUS*, its own *the harness broke rather than the check* clause. A `.self-*` mutant is a copy of
+    // this SELFTEST module, which the dispatch hands `ROOT`, and nests.
+    const path = join(root, 'dev-dist', `.meta-${process.pid}-${String(i).padStart(2, '0')}.mjs`);
+    metaMutants.add(path);
     writeFileSync(path, broken);
     let ok = false, why = '';
     try {
@@ -1549,7 +1577,14 @@ export async function selfTest(root) {
     // mutant, which is a grading about the wrong file and prints nothing to say so.
     // Found by reading rather than by a run; the three concurrent passes W39 measured
     // never happened to overlap on it, which is the whole reason it is worth fixing.
-    const path = join(root, 'dev-dist', `.self-source-${String(i).padStart(2, '0')}.mjs`);
+    // Inside `dir` since W105: a `.self-*` mutant is a copy of this SELFTEST module and the
+    // dispatch passes it `ROOT`, so it is under no depth constraint.
+    //
+    // **`mkdirSync` beside it**, because a non-terminal `rmSync(dir)` on the probe path can have removed
+    // the directory by now and a flat path could never notice — the defect the policies lane reported as
+    // `ENOENT` on its SELF control.
+    mkdirSync(dir, { recursive: true });
+    const path = join(dir, `.self-source-${String(i).padStart(2, '0')}.mjs`);
     writeFileSync(path, broken);
     let ok = false, why = '';
     try {
