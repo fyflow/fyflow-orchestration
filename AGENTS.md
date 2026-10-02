@@ -2688,8 +2688,15 @@ which is the Node reading — W82's conformity reader, finding 12.)*
 The worker below is
 [`examples/getting-started/drift.ts`](examples/getting-started/drift.ts) and it has **both** shapes
 in one return value, neither of which is a mistake anybody would call out in review. Everything here
-runs on every `npm run gate`, and the same snippet is in `README.md`, held byte-equal by
-`check-docs`'s `X8`.
+runs on every `npm run gate`. *(This sentence also said **and the same snippet is in `README.md`,
+held byte-equal by `check-docs`'s `X8`** until
+[W107](doc/work-items/w107-the-readme-is-for-a-person-who-will-use-the-library.md), which gave the
+three root documents one audience each
+([ADR 0073](doc/decisions/0073-the-readme-is-for-a-person-the-reference-is-for-an-agent.md)) and took
+this section's pairing out with the README section it mirrored. `X8` pairs three sections now — 2, 5
+and 15 — and each of those three still carries this claim and still earns it. Found by W107's
+conformity reader: the item edited every other document the change reaches and not this one, which is
+the document ADR 0073 designates as the agent's reference, about the mechanism the item changed.)*
 
 ```ts run
 import { createRuntime } from 'fyflow-orchestration/scheduler';

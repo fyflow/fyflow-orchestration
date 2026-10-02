@@ -856,11 +856,6 @@ const README_SNIPPETS = [
   { readme: 'Getting started', agents: '2. Getting started — a flow and its runtime from two documents' },
   { readme: 'A flow that decides', agents: 'The same on the RUNTIME — a decision, a fan-out and a join on real workers' },
   { readme: 'Checking a flow before it runs', agents: '15. What a schema buys an AUTHOR — an authoring session' },
-  { readme: 'Checking a result after it ran', agents: '16. What a schema buys a RUN — holding a result to the schema its worker declares' },
-  { readme: 'Fanning out per item', agents: '17. Fanning out PER ITEM — a region inside a `map` region' },
-  { readme: 'Saving and resuming a run', agents: '18. Saving a run and RESUMING it — append the events, resume from them' },
-  { readme: 'Remembering across branches', agents: '19. What a node may REMEMBER across branches — a gate' },
-  { readme: 'Wiring a gate before it runs', agents: '20. What a ROUTE buys an AUTHOR — wiring a gate before it runs' },
 ];
 // **5 since [W86](../doc/work-items/w86-score-each-item-then-fan-out-per-item.md)**, which added
 // section 17's pair — Q102's ratchet, and that item's adequacy reader (finding 16) is what noticed
@@ -873,7 +868,20 @@ const README_SNIPPETS = [
 // `RUN_FLOOR`'s self-test probe**: W101's adequacy reader (F12) lowered it to 7 and `check:docs:selftest` was
 // EXIT 0 at 50/50 and 28/28, where lowering `RUN_FLOOR` is CAUGHT by name. A declared CEILING, and
 // [Q102](../doc/open-questions.md)'s shape on one of two floors that carry it.
-const README_SNIPPET_FLOOR = 8;
+// **3 since [W107](../doc/work-items/w107-the-readme-is-for-a-person-who-will-use-the-library.md), and it
+// went DOWN, which is the only time that has happened to a floor here.** A ratchet lowered is how a
+// deliverable leaves ([Q102](../doc/open-questions.md)), so this is legitimate only because the thing
+// being counted CHANGED: [ADR 0073](../doc/decisions/0073-the-readme-is-for-a-person-the-reference-is-for-an-agent.md)
+// says `README.md` is for a PERSON who will use the library and `AGENTS.md` is the extensive reference,
+// where `X8` was built when the README was the showcase and mirrored all eight of its sections. Five
+// pairings were removed with their sections; the three that remain are the basic usage the README now
+// claims to carry. *A floor that falls needs a decision above it, not a comment beside it.*
+//
+// **The residue, measured and unfixed**: W101's adequacy reader (F12) lowered this floor to 7 and
+// `check:docs:selftest` was EXIT 0 at 50/50 and 28/28, where lowering `RUN_FLOOR` is CAUGHT by name. So
+// nothing stops the next author lowering it again for a worse reason, and this item did not close that —
+// [Q439](../doc/open-questions.md).
+const README_SNIPPET_FLOOR = 3;
 /** The README's text above its first `## ` heading, which is a section for X8's purposes. */
 const README_OPENING = '(the opening, above the first ## heading)';
 {
@@ -883,6 +891,27 @@ const README_OPENING = '(the opening, above the first ## heading)';
   if (README_SNIPPETS.length < README_SNIPPET_FLOOR) {
     fail('X8', `X8 pairs ${README_SNIPPETS.length} README snippet(s) and README_SNIPPET_FLOOR is ${README_SNIPPET_FLOOR} — ` +
       'a README section and its entry in README_SNIPPETS are two edits in one diff, and this floor is the third');
+  }
+  // **And the entries are DISTINCT on both sides, which is what makes the floor a floor — W107's
+  // adequacy reader.** The floor counts `README_SNIPPETS.length` and nothing said the entries differ,
+  // so a pairing DUPLICATED takes the length back over the floor for free: that reader deleted
+  // `## Checking a flow before it runs` from the README whole — 6538 bytes, one of the three examples
+  // [ADR 0073](../doc/decisions/0073-the-readme-is-for-a-person-the-reference-is-for-an-agent.md)
+  // decision 4 names as this document's content — replaced its pairing with a copy of the first, and
+  // measured `check:docs` EXIT 0, `check:markdown` EXIT 0 and **all forty-seven self-test probes still
+  // caught**, because no probe anchors on the third pairing. *Nothing needed to lower the floor.*
+  // This is `X11`'s own `duplicated` clause one check along, bought by W96's adequacy reader for the
+  // same reason — three kept pairings get the bound forty-one ADR rows already have. The `agents` side
+  // is held too, because two pairings naming ONE snippet is caught today only by the byte comparison
+  // happening to differ, which is a property of the documents rather than of the list.
+  for (const [side, label] of [['readme', 'README.md heading'], ['agents', `${DOCS[0]} heading`]]) {
+    const names = README_SNIPPETS.map((p) => p[side]);
+    const dupes = [...new Set(names.filter((n, i) => names.indexOf(n) !== i))];
+    if (dupes.length > 0) {
+      fail('X8', `X8's README_SNIPPETS names the same ${label} twice — ${dupes.map((d) => `"${d}"`).join(', ')} — ` +
+        `so ${README_SNIPPET_FLOOR === names.length ? 'the floor is satisfied' : 'the count is inflated'} by a ` +
+        'duplicate and a section that left the README is held by nothing');
+    }
   }
   if (rmText === null) {
     fail('X8', `${README} cannot be read, so its snippets have nothing to be compared to`);
@@ -923,21 +952,50 @@ const README_OPENING = '(the opening, above the first ## heading)';
     };
     const listed = new Set(README_SNIPPETS.map((p) => p.readme));
     let compared = 0;
+    // **`reached` records a VERDICT per pairing, on every exit path — W107, and the position is the
+    // whole of it.** The first cut counted successful comparisons (`compared`); the second pushed at
+    // the TOP of the loop body. Both were defeated, each by its own reader, and the two defeats are
+    // what fixed the position:
+    //
+    //   * `compared === README_SNIPPETS.length` fired BESIDE every `continue` below, so four `META`
+    //     entries read STILL CAUGHT — and guarding it with *fire only if nothing else did* converted
+    //     W29's detectable CO-FIRING (2 failure lines -> 1) into `D5`'s undetectable MASKING (1 -> 1),
+    //     which the conformity reader measured with W29's own line-count discriminator. Every path
+    //     that skips `compared++` also calls `fail`, so `compared < length` IS *some clause fired*,
+    //     whichever way its `fail` was neutered.
+    //   * a push at the top of the body cannot see a body that does not EXECUTE. The adequacy reader
+    //     inserted one `continue` after it and got `ok X8` at EXIT 0 with zero fences compared; adding
+    //     `compared++` beside it printed *compared 3 … both ways* with nothing compared at all. A
+    //     one-line window, between the record and the first clause.
+    //
+    // A record on each exit path has neither hole: a neutered `fail` still reaches its own push, so
+    // each clause stays isolated, and an early exit anywhere reaches none of them.
+    //
+    // **DECLARED CEILING — the five sites are a list nothing binds, and the direction is why this is
+    // the trade taken.** Delete one push and that path reports a SPURIOUS SECOND `X8` line; the
+    // conformity reader refused the shape for that reason (Q217 times five). But a missing push is
+    // reachable only on a tree where that clause is already firing, so its whole cost is a duplicate
+    // line on a tree that is already RED — noise, and never a silent pass. The window it replaces was
+    // a silent total bypass of everything `X8` exists to do. *An unbound list that can only add noise
+    // to a failure is a smaller hazard than a one-line window that turns the check off.*
+    const reached = [];
     // (i) every listed heading carries EXACTLY ONE fence, and it is the snippet the pair NAMES.
     for (const pair of README_SNIPPETS) {
       const s = sections.find((x) => x.title === pair.readme);
-      if (!s) { fail('X8', `${README} has no "## ${pair.readme}" heading (X8's README_SNIPPETS names it)`); continue; }
+      if (!s) { fail('X8', `${README} has no "## ${pair.readme}" heading (X8's README_SNIPPETS names it)`); reached.push(pair.readme); continue; }
       const bodies = fencesIn(s.text);
-      if (bodies.length === 0) { fail('X8', `${README} has no \`\`\`ts fence under its "## ${pair.readme}" heading`); continue; }
+      if (bodies.length === 0) { fail('X8', `${README} has no \`\`\`ts fence under its "## ${pair.readme}" heading`); reached.push(pair.readme); continue; }
       if (bodies.length > 1) {
         fail('X8', `${README} carries ${bodies.length} \`\`\`ts fences under "## ${pair.readme}" and X8 pairs it with ONE — ` +
           `every fence under a listed heading is compared, so give the second its own heading and its own entry`);
+        reached.push(pair.readme);
         continue;
       }
       const theirs = agUnder.get(pair.agents);
       if (!theirs || theirs.length !== 1) {
         fail('X8', `X8 pairs "## ${pair.readme}" with ${DOCS[0]}'s "${pair.agents}", which carries ` +
           `${theirs ? theirs.length : 0} \`\`\`ts run fences and must carry exactly one`);
+        reached.push(pair.readme);
         continue;
       }
       if (bodies[0] !== theirs[0]) {
@@ -946,6 +1004,7 @@ const README_OPENING = '(the opening, above the first ## heading)';
           `"${pair.agents}" in ${DOCS[0]} — they first differ at snippet line ${d.line + 1}: ` +
           `${JSON.stringify(d.mine.slice(0, 70))} against ${JSON.stringify(d.theirs.slice(0, 70))}`);
       } else compared++;
+      reached.push(pair.readme);
     }
     // (ii) no ```ts fence anywhere else in the README — including above its first heading.
     for (const s of sections) {
@@ -962,6 +1021,24 @@ const README_OPENING = '(the opening, above the first ## heading)';
           'spell it ```ts under a listed heading, or it is a README example nothing holds (X1\'s reason, one document across)');
       }
     });
+    // **And EVERY pairing reached a verdict — W107.** The positions the records sit at, and the two
+    // defeats that put them there, are above the loop. This is the clause they serve: a membership
+    // rather than a count, per rule 8 obligation (d)'s *a count is not a membership*, so the failure
+    // NAMES the pairing that got no verdict.
+    //
+    // **Declared ceiling**: both sides derive from `README_SNIPPETS`, so re-sourcing `reached` to it is
+    // vacuous by construction — Q216's *both ways is a DIRECTION, not an observer count* — and what is
+    // asserted is that the loop reached what the list declares, which is one list by design. The
+    // conformity reader measured that re-sourcing AND narrowing the loop together is EXIT 0, so the
+    // probe that narrows the loop holds this clause's PRESENCE and not its SOURCING; no second source
+    // exists, because any counter over this loop derives from the same list.
+    const unreached = [...listed].filter((t) => !reached.includes(t));
+    if (unreached.length > 0 || reached.length !== README_SNIPPETS.length) {
+      fail('X8', `X8 declares ${README_SNIPPETS.length} README pairing(s) and ${reached.length} reached a verdict` +
+        `${unreached.length ? `, leaving ${unreached.map((t) => `"${t}"`).join(' and ')} with none` : ''} — ` +
+        'every pairing must reach one of this clause\'s arms, and a loop narrowed to a prefix of the list, ' +
+        'or short-circuited before its first arm, compares nothing and otherwise says nothing');
+    }
     if (compared === README_SNIPPETS.length) {
       console.log(`note: X8 compared ${compared} README snippet(s) — ` +
         `${README_SNIPPETS.map((p) => `"${p.readme}" to "${p.agents}"`).join(', ')} — ` +
@@ -1052,10 +1129,9 @@ const EXAMPLES_README = process.env.CHECK_DOCS_EXAMPLES || join('examples', 'REA
 const L6_FILE = process.env.CHECK_DOCS_L6 || join('examples', 'l6.ts');
 {
   const L6P = join(ROOT, L6_FILE);
-  const RMP = join(ROOT, README);
   const EXP = join(ROOT, EXAMPLES_README);
-  if (!existsSync(L6P) || !existsSync(RMP) || !existsSync(EXP)) {
-    fail('X10', 'examples/l6.ts, README.md or examples/README.md is missing, so the L6 counts cannot be compared');
+  if (!existsSync(L6P) || !existsSync(EXP)) {
+    fail('X10', 'examples/l6.ts or examples/README.md is missing, so the L6 counts cannot be compared');
   } else {
     const l6 = readFileSync(L6P, 'utf8');
     const total = /^const DECLARED_TOTAL = (\d+);$/m.exec(l6);
@@ -1064,25 +1140,47 @@ const L6_FILE = process.env.CHECK_DOCS_L6 || join('examples', 'l6.ts');
       fail('X10', 'examples/l6.ts declares no DECLARED_TOTAL or DECLARED_RUNS where X10 looks for them');
     } else {
       const want = { assertions: Number(total[1]), runs: Number(runs[1]) };
-      const rm = readFileSync(RMP, 'utf8');
       const ex = readFileSync(EXP, 'utf8');
       // [document, text, the copy's name, its anchored sentence, which group is the assertion count]
       const COPIES = [
-        ['README.md', rm, 'status paragraph', /\*\*plus (\d+) assertions across (\d+) runs against a real/, 'ar'],
-        ['README.md', rm, 'ladder table', /a real scheduler, \*\*(\d+) runs, (\d+) assertions\*\*/, 'ra'],
         ['examples/README.md', ex, 'paragraph under the two commands', /run the same \*\*(\d+) assertions over (\d+) real runs\*\*/, 'ar'],
         ['examples/README.md', ex, '`l6.ts` row', /\| \[`l6\.ts`\]\(l6\.ts\) \| \*\*the gate\.\*\* \*\*(\d+) real runs, (\d+) assertions\*\*/, 'ra'],
       ];
+      // **`X10` carries `X8`'s own defect and W107 edited this block without applying its own fix —
+      // its adequacy reader.** `COPIES` had no floor of any kind and `compared` gated only the `note`,
+      // so narrowing the loop to `COPIES.slice(0, 1)` was EXIT 0 with the note line simply absent, and
+      // DELETING an entry was EXIT 0 with the note cheerfully printing *compared 1 copies*. W107 took
+      // this list from four entries to two ([ADR 0073](../doc/decisions/0073-the-readme-is-for-a-person-the-reference-is-for-an-agent.md)
+      // decision 5 records that reduction as deliberate) and added nothing to stop the next one, which
+      // is [Q171](../doc/open-questions.md)'s row — these counts going stale — reachable by deletion.
+      // So: a floor on the list, and a verdict per entry on every exit path, which is `X8`'s shape
+      // above for the reasons stated there.
+      const COPIES_FLOOR = 2;
+      if (COPIES.length < COPIES_FLOOR) {
+        fail('X10', `X10 holds ${COPIES.length} copy/copies of the L6 counts and COPIES_FLOOR is ${COPIES_FLOOR} — ` +
+          'a copy and its entry here are two edits in one diff, and this floor is the third');
+      }
       let compared = 0;
+      const verdicts = [];
       for (const [doc, text, name, re, order] of COPIES) {
         const m = re.exec(text);
-        if (!m) { fail('X10', `${doc}'s ${name} — the sentence carrying the current L6 counts — is not where X10 looks for it`); continue; }
+        if (!m) {
+          fail('X10', `${doc}'s ${name} — the sentence carrying the current L6 counts — is not where X10 looks for it`);
+          verdicts.push(name);
+          continue;
+        }
         const said = order === 'ar' ? { assertions: Number(m[1]), runs: Number(m[2]) } : { assertions: Number(m[2]), runs: Number(m[1]) };
         compared++;
         if (said.assertions !== want.assertions || said.runs !== want.runs) {
           fail('X10', `${doc}'s ${name} says ${said.assertions} assertions over ${said.runs} runs, and examples/l6.ts ` +
             `declares ${want.assertions} over ${want.runs}`);
         }
+        verdicts.push(name);
+      }
+      if (verdicts.length !== COPIES.length) {
+        fail('X10', `X10 holds ${COPIES.length} copy/copies of the L6 counts and ${verdicts.length} reached a verdict — ` +
+          'every entry in COPIES must reach one, and a loop narrowed to a prefix of it, or short-circuited ' +
+          'before its first arm, compares nothing and otherwise says nothing');
       }
       if (compared === COPIES.length) {
         console.log(`note: X10 compared ${compared} copies of the L6 counts against examples/l6.ts's ` +
@@ -1136,7 +1234,7 @@ const checks = [
   'X7 AGENTS.md`s refusal count IS spec/flow-definition.md section 5`s row count, and its range end the highest row',
   'X8 every ```ts fence in README.md IS the executed AGENTS.md snippet its section NAMES, byte for byte, both ways',
   'X9 the version README.md tells a consumer to expect IS the version both manifests carry',
-  'X10 every current copy of the L6 counts in README.md and examples/README.md IS what examples/l6.ts declares',
+  'X10 every current copy of the L6 counts in examples/README.md IS what examples/l6.ts declares',
   'X11 doc/decisions/README.md indexes EXACTLY the ADRs on disk, both ways',
 ];
 const runCount = written.filter((x) => x.tag === 'run').length;

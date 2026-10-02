@@ -265,7 +265,12 @@ const PROBES = [
     // **Digits only, and the META pass is why**: W94's first cut wrote `9.9.9-never`, which X9's `[0-9]+.[0-9]+.[0-9]+`
     // does not match — so the probe tripped the *sentence is not where X9 looks* clause instead of the comparison, and
     // the META grading below read it STILL CAUGHT with the comparison disabled. A probe firing for another reason.
-    readme: (t) => t.replace(/\*\*The manifests read `[^`]+`/, '**The manifests read `9.9.9`'),
+    // **Anchored on what `X9` READS, not on the formatting around it — W107.** This matched
+    // `/\*\*The manifests read/`, and the README's version sentence stopped being bold when that
+    // document became a consumer's rather than a status page: the probe went dead while `X9` itself
+    // stayed green, because `X9`'s own pattern never required the bold. *A probe anchored on a
+    // document's formatting is a probe about the formatting.*
+    readme: (t) => t.replace(/The manifests read `[^`]+`/, 'The manifests read `9.9.9`'),
   },
   // --- X7: AGENTS.md's refusal count against spec/flow-definition.md section 5's rows — W65 (`d4`) ---
   // **COUNT-AGNOSTIC since W92**, which moved the count 34 -> 37 and the range end V38 -> V41: both probes were
@@ -316,19 +321,24 @@ const PROBES = [
     name: 'an indented fence, ditto',
     check: 'X1',
     // + X8 since W69: this mutates the FIRST ```ts run fence, which is the getting-started snippet, and X8 sees AGENTS.md`s copy differ from README`s — measured, not assumed.
+    // **Unmoved by [W107](../doc/work-items/w107-the-readme-is-for-a-person-who-will-use-the-library.md)**, which
+    // took `X8` from eight pairings to three: the FIRST fence is section 2's and that pairing is one of the
+    // three kept, so this probe still trips both. The probe below, which mutates the LAST fence, is the one
+    // that moved. *W107 first put this note on the wrong one of the two and the declared SET said so.*
     also: ['X8'],
     mutate: (t) => t.replace('```ts run', '   ```ts run'),
   },
   {
     name: 'an unclosed fence',
     check: 'X1',
-    // + X8 since W74: the LAST closing fence in the reference is now section 15's — section 17's since W86, section 18's
-    // since W90 and section 20's since W101, and section 19's from W94 until then, each also a snippet X8 pairs, so the declared set is unmoved — and that
-    // snippet is one X8 PAIRS — so removing it leaves the pairing with no `run` fence under the
-    // heading it names. MEASURED, not assumed: this probe read `[X1,X8]` against its declared
-    // `[X1]` on W74's first confirming run, which is rule 7 (c) discriminating exactly as it is
-    // meant to, in a GATE ENTRY. Before W74 the last fence was section 14's, which X8 does not pair.
-    also: ['X8'],
+    // **`[X1]` alone since [W107](../doc/work-items/w107-the-readme-is-for-a-person-who-will-use-the-library.md),
+    // and this clause has now moved in BOTH directions.** It mutates the LAST closing fence in the
+    // reference. From W74 to W101 that fence belonged to a section `X8` PAIRS — 15's, then 17's, 18's,
+    // 19's, 20's — so removing it left a pairing with no `run` fence and the probe tripped `[X1,X8]`;
+    // P19's retro records it going red in a GATE ENTRY when the set still said `[X1]`. W107 took `X8` from
+    // eight pairings to three, section 20's among those dropped, so the last fence is unpaired again and
+    // the set is `[X1]` — which is where it was before W74. *A declared set that depends on which sections
+    // are paired is a claim about the pairing list, and rule 7 (c) reported the change both times.*
     // The LAST closing fence in the file, so the unclosed block runs to EOF.
     mutate: (t) => t.slice(0, t.lastIndexOf('```')) + t.slice(t.lastIndexOf('```') + 3),
   },
@@ -476,10 +486,21 @@ const PROBES = [
     },
   },
   {
-    name: 'README.md gains a ```ts fence under a heading X8`s list does not name, both listed headings intact — the other direction alone',
+    name: 'README.md gains a ```ts fence under a heading X8`s list does not name, in its LAST section — the other direction alone',
     check: 'X8',
     mutate: (t) => t,
-    readme: (r) => r.replace('## The idea\n', '## A second example nothing holds\n\n```ts\nconsole.log(1);\n```\n\n## The idea\n'),
+    // **Anchored on the README's LAST heading, and W107's adequacy reader is why.** This probe and the
+    // near-spelling one below anchored on `## The idea`, which in the pre-W107 README was line 935 of
+    // 1102 — so the section walk they bound had to reach ~85% of the document. W107 re-pointed them at
+    // `## Install`, line 23 of 311, and that reader measured the consequence: the section loop narrows
+    // to `sections.slice(0, 2)` and clause (iii)'s line scan to the first 30 of 311 lines, both with
+    // this lane GREEN. *The re-anchoring was recorded as a repair and was also an unrecorded reduction
+    // in what the probe BOUNDS.* Anchored at the last section the bound is the whole document again, at
+    // no cost, which is what the unclosed-fence probe already does deliberately on `AGENTS.md` by
+    // taking `lastIndexOf`. The old form also replaced `## Install` with `## The idea` — a heading the
+    // new README does not contain, carried over from the old anchor — so it deleted a real heading and
+    // inserted a phantom one while still tripping its clause.
+    readme: (r) => r.replace('## Licence\n', '## A second example nothing holds\n\n```ts\nconsole.log(1);\n```\n\n## Licence\n'),
   },
   {
     // Sections are cut AT `## ` headings, so the README's OPENING — its title, its status line, the
@@ -487,14 +508,24 @@ const PROBES = [
     name: 'README.md gains a ```ts fence ABOVE its first heading, where no section reached',
     check: 'X8',
     mutate: (t) => t,
-    readme: (r) => r.replace('## Getting started\n', '```ts\nconsole.log(2);\n```\n\n## Getting started\n'),
+    // **Anchored on the README's FIRST heading, and W107 moved which one that is.** The point of this
+    // probe is a fence in the OPENING - above every heading - which is the one place `X8` reaches only
+    // through its `README_OPENING` section seed, because clause (iii) catches near spellings and not a
+    // well-formed ```ts. It anchored on `## Getting started` while that was first; W107 put `## Install`
+    // above it, so the inserted fence landed at the END of the Install section instead - an UNLISTED
+    // heading, which clause (ii) catches on its own. The META entry for the seed then read STILL CAUGHT:
+    // *a sibling clause covering for the one under test*, which is W29's masking, produced by moving a
+    // heading in another document.
+    readme: (r) => r.replace('## Install\n', '```ts\nconsole.log(2);\n```\n\n## Install\n'),
   },
   {
     // `X1`'s reason, one document across: a near spelling skips in silence, and `X1` reads `DOCS`.
-    name: 'README.md gains a ```typescript fence, which X8`s ```ts comparison cannot see — the near-spelling clause alone',
+    name: 'README.md gains a ```typescript fence in its LAST section, which X8`s ```ts comparison cannot see — the near-spelling clause alone',
     check: 'X8',
     mutate: (t) => t,
-    readme: (r) => r.replace('## The idea\n', '## A near spelling\n\n```typescript\nconsole.log(3);\n```\n\n## The idea\n'),
+    // Anchored at the LAST heading for the reason above: clause (iii) scans every line of the README,
+    // and a fixture near the top lets that scan be narrowed to the first thirty with this lane green.
+    readme: (r) => r.replace('## Licence\n', '## A near spelling\n\n```typescript\nconsole.log(3);\n```\n\n## Licence\n'),
   },
   {
     name: 'README.md carries a SECOND ```ts fence under "## Getting started", which X8 pairs with ONE snippet',
@@ -530,18 +561,6 @@ const PROBES = [
   // one each for the two clauses that say a subject is not where X10 looks. Each moves its number by ONE and reads
   // whatever the sentence says, so the next L6 change re-anchors nothing (X7's precedent since W92).
   {
-    name: 'README.md`s status paragraph states an L6 assertion count one above what l6.ts declares',
-    check: 'X10',
-    mutate: (t) => t,
-    readme: (r) => r.replace(/\*\*plus (\d+) assertions across/, (_m, n) => `**plus ${Number(n) + 1} assertions across`),
-  },
-  {
-    name: 'README.md`s ladder table states an L6 run count one above what l6.ts declares',
-    check: 'X10',
-    mutate: (t) => t,
-    readme: (r) => r.replace(/a real scheduler, \*\*(\d+) runs,/, (_m, n) => `a real scheduler, **${Number(n) + 1} runs,`),
-  },
-  {
     name: 'examples/README.md`s paragraph under the two commands states an assertion count one below l6.ts`s',
     check: 'X10',
     mutate: (t) => t,
@@ -560,10 +579,16 @@ const PROBES = [
     l6: (s) => s.replace(/^const DECLARED_RUNS = (\d+);$/m, (_m, n) => `const DECLARED_RUNS = ${Number(n) + 1};`),
   },
   {
-    name: 'README.md`s status paragraph reworded so X10 cannot find the copy it holds',
+    // **Added by [W107](../doc/work-items/w107-the-readme-is-for-a-person-who-will-use-the-library.md),
+    // because the clause it observes had NO probe left.** `X10`'s `if (!m)` arm - *the sentence carrying the
+    // current counts is not where X10 looks for it* - was observed only by a README-side probe, and W107 took
+    // README.md out of `X10`'s subjects. Removing a subject removes its probes, and a clause whose only
+    // observer was among them is left asserting nothing: *a coverage reduction is not the same as a smaller
+    // universe, and this one had to be measured rather than assumed.*
+    name: 'examples/README.md`s paragraph reworded so X10 cannot find the copy it holds',
     check: 'X10',
     mutate: (t) => t,
-    readme: (r) => r.replace('**plus ', '**and also '),
+    examples: (r) => r.replace('run the same **', 'run the very same **'),
   },
   {
     name: 'examples/l6.ts stops declaring its run count where X10 reads it',
@@ -592,24 +617,6 @@ const PROBES = [
   // position (`doc/workflow.md` v0.23). Each probe below puts a CORRECT figure in the loose shape AHEAD of the copy and makes
   // the copy itself stale, so a strict anchor fails and a loose one reads the decoy and passes. The two runs-first copies
   // move their ASSERTION count, which no probe above did (M5: that half was compared by nothing).
-  {
-    name: 'a correct decoy ahead of README.md`s status paragraph, whose own assertion count is stale — the anchor, not the first match',
-    check: 'X10',
-    mutate: (t) => t,
-    readme: (r) => {
-      const m = /\*\*plus (\d+) assertions across (\d+) runs/.exec(r);
-      return `<!-- ${m[1]} assertions across ${m[2]} runs -->\n` + r.replace(m[0], `**plus ${Number(m[1]) + 1} assertions across ${m[2]} runs`);
-    },
-  },
-  {
-    name: 'a correct decoy ahead of README.md`s ladder table, whose own ASSERTION count is stale',
-    check: 'X10',
-    mutate: (t) => t,
-    readme: (r) => {
-      const m = /a real scheduler, \*\*(\d+) runs, (\d+) assertions\*\*/.exec(r);
-      return `<!-- **${m[1]} runs, ${m[2]} assertions** -->\n` + r.replace(m[0], `a real scheduler, **${m[1]} runs, ${Number(m[2]) + 1} assertions**`);
-    },
-  },
   {
     name: 'a correct decoy ahead of examples/README.md`s paragraph, whose own run count is stale',
     check: 'X10',
@@ -704,7 +711,18 @@ const RAN = (out) => /^(All checks passed|\d+ failure\(s\)\.)/m.test(out);
 // **50 since W96**, which added X10's twelve probes and X11's four.
 // **51 since [W104](../doc/work-items/w104-the-snippet-loop-runs-concurrently.md)**, which added the
 // DEADLINE probe — `X4`'s third verdict, which had no observer of any kind before it.
-const MIN_PROBES = 51;
+// **47 since [W107](../doc/work-items/w107-the-readme-is-for-a-person-who-will-use-the-library.md)**,
+// which took `README.md` out of `X10`'s subjects: FOUR of that clause's twelve probes were about the
+// two count copies the README carried and went with them, and one was re-pointed at
+// `examples/README.md` because it was the sole observer of the *cannot find the copy* arm.
+// **EIGHT remain** — both `examples/README.md` copies, both directions, the missing declaration, two
+// decoys and the re-pointed one — so the clause is still probed from both ends; what shrank is its
+// UNIVERSE, not its coverage, and `X10`'s own label says so now.
+// *(This read **46** above a literal of 47, and **Seven remain** beside a list of eight, for as long as
+// W107's readers took to read it: the Record's `51 -> 46 -> 47` describes a middle state the diff does
+// not show, because one entry was edited in place rather than deleted and re-added. Both readers found
+// it independently — the stale number in the sentence whose whole job is to say what the floor counts.)*
+const MIN_PROBES = 47;
 
 /** The same floor for `META`, and for the same reason. */
 // **21 since W86**, which gave `X9`'s comparison clause a grading — the coverage bound below is
@@ -754,7 +772,7 @@ const META = [
     'AGENTS.md`s "The same on the RUNTIME" heading is renamed, so the pair X8 declares has no snippet',
     (t) => t.replace('        fail(\'X8\', `X8 pairs', '        if (0) fail(\'X8\', `X8 pairs')],
   ['X8`s other direction disabled — a ```ts fence under an unlisted heading, which is half of `both ways`',
-    'README.md gains a ```ts fence under a heading X8`s list does not name, both listed headings intact — the other direction alone',
+    'README.md gains a ```ts fence under a heading X8`s list does not name, in its LAST section — the other direction alone',
     (t) => t.replace('      if (listed.has(s.title)) continue;', '      if (true) continue;')],
   // The OPENING is its own mechanism, not its own clause: (ii) reaches it only because the section
   // list begins with it. Deleting that one element puts the README's first screen back outside
@@ -764,7 +782,7 @@ const META = [
     (t) => t.replace('const sections = [{ title: README_OPENING, text: rmText.slice(0, heads.length ? heads[0].index : rmText.length) }];',
       'const sections = [];')],
   ['X8`s near-spelling clause disabled, so a ```typescript example in the README is held by nothing',
-    'README.md gains a ```typescript fence, which X8`s ```ts comparison cannot see — the near-spelling clause alone',
+    'README.md gains a ```typescript fence in its LAST section, which X8`s ```ts comparison cannot see — the near-spelling clause alone',
     (t) => t.replace("      if (NEAR_FENCE.test(line) && line.trim() !== '```ts') {", '      if (false) {')],
   ['X1`s near-fence refusal disabled, so a variant spelling silently drops a snippet',
     'a fence spelled ```typescript, which the extractor would otherwise skip in silence',
@@ -812,11 +830,19 @@ const META = [
   // W96: X10's three reachable clauses and X11's four, each named for the probe that trips it alone. X10's missing-files
   // clause and X11's missing-index and empty-directory clauses are UNREACHABLE by any probe and named in the header.
   ['X10`s comparison clause disabled, so a copy of the L6 counts can drift from what l6.ts declares in silence',
-    'README.md`s status paragraph states an L6 assertion count one above what l6.ts declares',
+    // Re-pointed by W107, which took README.md out of X10's subjects: the probe this named went with it.
+    'examples/README.md`s paragraph under the two commands states an assertion count one below l6.ts`s',
     (t) => t.replace('        if (said.assertions !== want.assertions || said.runs !== want.runs) {', '        if (false) {')],
   ['X10`s cannot-find-the-copy clause disabled, so a reworded sentence drops out of the comparison in silence',
-    'README.md`s status paragraph reworded so X10 cannot find the copy it holds',
-    (t) => t.replace("        if (!m) { fail('X10',", "        if (!m) { if (0) fail('X10',")],
+    // Re-pointed by W107 at a probe it had to ADD: this clause's only observer was a README-side probe,
+    // and with README out of X10's subjects the clause had none at all.
+    'examples/README.md`s paragraph reworded so X10 cannot find the copy it holds',
+    // Re-anchored again by W107's own repair: this clause was a one-line `if (!m) { fail(...); continue; }`
+    // and became a block when the per-entry verdict record landed between the fail and the continue, so
+    // the old anchor matched nothing and the lane SAID SO rather than grading a mutation that never
+    // happened — rule 7 (b) firing on the author's own edit. The `if (0)` leaves the record reached, so
+    // the clause stays isolated from the verdict clause below it.
+    (t) => t.replace("          fail('X10', `${doc}'s ${name} — the sentence", "          if (0) fail('X10', `${doc}'s ${name} — the sentence")],
   ['X10`s cannot-find-the-declaration clause disabled, so a renamed DECLARED_RUNS compares nothing',
     'examples/l6.ts stops declaring its run count where X10 reads it',
     (t) => t.replace("      fail('X10', 'examples/l6.ts declares no", "      if (0) fail('X10', 'examples/l6.ts declares no")],
@@ -962,6 +988,57 @@ export async function selfTest(root) {
         console.log('  FAIL  the `run` snippets are not executed concurrently at the width W104 measured, ' +
           'or the floor that says so has been lowered with it. Half the saving goes at width 2 and all of ' +
           'it at width 1, and every clause inside check-docs.mjs passes at either.');
+        rmSync(dir, { recursive: true, force: true });
+        return 1;
+      }
+    }
+    // **`X8`'s and `X10`'s per-pairing VERDICT records, bound STRUCTURALLY — W107's two readers.**
+    // Both found the same thing from opposite ends and the second is why this is here rather than in a
+    // comment: the clause asserting that every pairing reached a verdict **could be deleted outright and
+    // this whole lane was EXIT 0 at 47/47 and 28/28**, because no probe can reach it (every probe mutates
+    // a DOCUMENT and this is a property of the check's own source) and no `META` entry anchored on it.
+    // `MIN_META` counts entries and the coverage bound is per ID, where `X8` already had nine. So the
+    // item's central repair had no observer in the shipping lane at all — [Q431](../doc/open-questions.md)'s
+    // shape, in the clause written to close a gate-visible hole.
+    //
+    // **And it binds the FIVE SITES, which the first draft declared as a ceiling and did not have to.**
+    // The record sits on every exit path of the pairing loop, so the conformity reader's objection was
+    // that deleting one push is caught by nothing (Q217 times five). It is caught here: every `continue`
+    // in that loop must be preceded by a push, and the loop must end with one. *An unbound list one file
+    // over is a bound list.* `X4_WIDTH`'s block above is the precedent and the reason is the same one —
+    // the path this reads is exactly the script `npm run check:docs` runs, and the mutants are
+    // deliberately broken and are not that configuration. There is no Q178 hazard: the strings below
+    // describe `check-docs.mjs` and this file is not what they are searched in.
+    {
+      const loop = src.slice(src.indexOf('for (const pair of README_SNIPPETS) {'), src.indexOf('// (ii) no ```ts fence'));
+      const pushes = [...loop.matchAll(/reached\.push\(pair\.readme\);/g)].length;
+      const continues = [...loop.matchAll(/\bcontinue;/g)].length;
+      const unguarded = [...loop.matchAll(/\bcontinue;/g)]
+        .filter((m) => !/reached\.push\(pair\.readme\);\s*$/.test(loop.slice(0, m.index)));
+      const tail = /reached\.push\(pair\.readme\);\s*\}\s*$/.test(loop);
+      const copies = /^      const COPIES_FLOOR = (\d+);$/m.exec(src);
+      const bad = [];
+      if (loop.length < 100) bad.push('the pairing loop is not where this reads it');
+      if (pushes !== continues + 1) bad.push(`${pushes} verdict record(s) against ${continues} continue(s) — one per exit path plus the tail`);
+      if (unguarded.length > 0) bad.push(`${unguarded.length} continue(s) leave the loop with no verdict recorded`);
+      if (!tail) bad.push('the loop does not end by recording a verdict, so the comparison arms reach none');
+      // **And the CLAUSE that reads them, which the first cut of this bound did not assert.** Measured:
+      // with the records in place and the clause replaced by `if (false)`, every count above agrees and
+      // this block was EXIT 0 — the records are the evidence and the clause is what reports it, so a
+      // bound on one is not a bound on the other. *The hole the author's own repair had, one file over,
+      // in the bound written to close it.*
+      if (!/!reached\.includes\(/.test(src) || !/reached\.length !== README_SNIPPETS\.length/.test(src)) {
+        bad.push('X8 no longer compares the recorded verdicts against README_SNIPPETS, so the records are kept and read by nothing');
+      }
+      if (!/verdicts\.length !== COPIES\.length/.test(src)) {
+        bad.push('X10 no longer compares its recorded verdicts against COPIES');
+      }
+      if (!copies || Number(copies[1]) < 2) bad.push(`X10's COPIES_FLOOR is ${copies ? copies[1] : 'not declared where this reads it'}`);
+      if (bad.length > 0) {
+        console.log('check-docs self-test — `X8`\'s per-pairing verdict records, as check-docs.mjs declares them: ' +
+          `${pushes} record(s), ${continues} continue(s), tail ${tail ? 'present' : 'ABSENT'}.`);
+        console.log(`  FAIL  ${bad.join('; ')}. A pairing that reaches no verdict is a pairing nothing compared, ` +
+          'and `X8` reported `ok … both ways` with zero fences compared before this was bound (W107).');
         rmSync(dir, { recursive: true, force: true });
         return 1;
       }
