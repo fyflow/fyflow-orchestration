@@ -513,6 +513,13 @@ class Wiring {
     if (!n || n.kind !== 'task') return { why: `${nodeId} is not a task` };
     const t = this.types.get(n.type);
     if (!t) return { why: `type "${n.type}" of "${nodeId}" is not in the registry` };
+    // **A type that only transforms names NO worker (ADR 0075), and the reason has to say so.**
+    // Measured at W109's declaration step: without this clause the arc reads *worker "<envelope>" of
+    // type "Transform" is not in the registry*, which sends an author to the registry to add a worker
+    // the type is defined not to have. The schemas are the WORKER's, so such a type declares none —
+    // which is why every arc leaving one is `unchecked` ([Q446](../../doc/open-questions.md)) and why
+    // `sampledOutput` in `assist.ts` exists.
+    if (t.worker === undefined) return { why: `"${nodeId}" is of type "${n.type}", which only TRANSFORMS — it names no worker, so it declares no ${kind}` };
     const w = this.workers.get(t.worker);
     if (!w) return { why: `worker "${t.worker}" of type "${n.type}" is not in the registry` };
     const s = w[kind];
@@ -757,8 +764,12 @@ export async function checkWiring(registry: WiringRegistry, flow: FlowDefinition
   for (const node of flow.nodes) {
     if (node.kind !== 'task') continue;
     const type = types.get(node.type);
-    const consumer = type ? workers.get(type.worker)?.inputSchema : undefined;
+    // The consuming side's schema, and the reason it has none. A type that only transforms names no
+    // worker (ADR 0075), so its clause comes FIRST — before the one about a worker the registry lacks,
+    // which is false of it.
+    const consumer = type?.worker === undefined ? undefined : workers.get(type.worker)?.inputSchema;
     const consumerWhy = !type ? `type "${node.type}" of "${node.id}" is not in the registry`
+      : type.worker === undefined ? `"${node.id}" is of type "${node.type}", which only TRANSFORMS — it names no worker, so it declares no inputSchema`
       : !workers.get(type.worker) ? `worker "${type.worker}" of type "${node.type}" is not in the registry`
       : consumer === undefined ? `"${node.id}" (type "${node.type}", worker "${type.worker}") declares no inputSchema` : undefined;
     for (const a of w.arrivals(node.id)) {

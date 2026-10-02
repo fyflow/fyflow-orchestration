@@ -447,7 +447,7 @@ if (!rules.includes('FD-V2') || !rules.includes('FD-V32')) {
 }
 ```
 
-There are **41 refusals** over the id range `FD-V1` … `FD-V45` *(37 over `FD-V1` … `FD-V41` until W108 made a predicate DATA and added the four a `when` needs; 34 over `FD-V1` … `FD-V38` until W92 added the gate's three; 35 over `FD-V1` … `FD-V37` until W65 retired `workerType` and with it `FD-V5` and `FD-V34`, adding `FD-V38`; 32 over `FD-V1` … `FD-V34` until W61 added the three transform rules; 29 over `FD-V1` … `FD-V31` until W59 added the three node-type rules — and this sentence stood at 29 twelve lines below the table W59 rewrote, until its conformity reader read the two together)*, each with a failing example in
+There are **42 refusals** over the id range `FD-V1` … `FD-V46` *(41 over `FD-V1` … `FD-V45` until W109 shipped the first BUILT-IN node type and added `FD-V46`, which refuses a node of a type that only transforms and declares no `transform`; 37 over `FD-V1` … `FD-V41` until W108 made a predicate DATA and added the four a `when` needs; 34 over `FD-V1` … `FD-V38` until W92 added the gate's three; 35 over `FD-V1` … `FD-V37` until W65 retired `workerType` and with it `FD-V5` and `FD-V34`, adding `FD-V38`; 32 over `FD-V1` … `FD-V34` until W61 added the three transform rules; 29 over `FD-V1` … `FD-V31` until W59 added the three node-type rules — and this sentence stood at 29 twelve lines below the table W59 rewrote, until its conformity reader read the two together)*, each with a failing example in
 `spec/examples/invalid/`. Four ids in that range are **deliberately absent** and have no rule behind
 them: `FD-V14`, which never existed; **`FD-V15`, retired when nested fan-out became
 expressible**; and **`FD-V5` and `FD-V34`, retired with `workerType`** at v0.19 (section 13). The ids are never renumbered, so it is safe to assert on them. The full
@@ -1878,8 +1878,11 @@ const pools = Object.keys(runtime.pools).sort();
 await runtime.shutdown();
 
 if (state.outcome !== 'completed') throw new Error(`expected completed, got ${state.outcome}`);
-// One pool per type instance, keyed by the name the document uses — that is what a node's `type` names.
-if (pools.join() !== 'Ingest,Publish') throw new Error(`pools: ${pools.join()}`);
+// One pool per type instance, keyed by the name the document uses — that is what a node's `type` names
+// — **and one more for every BUILT-IN node type**, which is `Transform` and nothing else today
+// (section 13). The built-ins come LAST, so adding one never renumbers yours; a `WorkerManager` that
+// never receives a task spawns no thread, measured at W109.
+if (pools.join() !== 'Ingest,Publish,Transform') throw new Error(`pools: ${pools.join()}`);
 // And the group the document declared was built and is the scheduler's, keyed as declared.
 if (Object.keys(runtime.groups).join() !== 'gate') throw new Error(`groups: ${Object.keys(runtime.groups).join()}`);
 ```
@@ -2214,10 +2217,49 @@ undeclared key, and a worker written for it reads under `input` what it read as 
 
 | | | |
 |---|---|---|
-| `type` | **required** | the name of an entry in `nodeTypes` whose `worker` the registry's `workers` declares (`FD-V32`, both clauses). A task with no `type` is `FD-V23` |
+| `type` | **required** | the name of an entry in `nodeTypes` whose `worker` the registry's `workers` declares (`FD-V32`, both clauses) — **or a BUILT-IN type, which no document declares and which names no worker** (`Transform`, below). A task with no `type` is `FD-V23` |
 | `pool` | optional | the name of an instance in the registry's `pools` whose `type` is this node's (`FD-V38`); absent, the type's DEFAULT instance. The type's own name is that default, stated explicitly |
 | `settings` | optional | a plain JSON object which — with the type's `settings` defaults merged UNDER it — the worker's **`settingsSchema`** accepts (`FD-V33`); **absent means the defaults alone**, `{}` when the type declares none, and the schema sees that. A schema is JSON Schema in the built-in subset (ADR 0053): a keyword outside it is refused at construction, never ignored |
 | `transform` | optional | `{ lang, expr }`: an expression, in a language the registry's **`languages`** set names, applied to the node's input BEFORE its worker sees it — below. `lang` unregistered is `FD-V35`, `expr` the language refuses is `FD-V36`, not `{ lang, expr }` is `FD-V37` |
+
+### The one node type the library ships: a node that only TRANSFORMS
+
+**`Transform` is a built-in node type, it names NO worker, and its task is its own `transform`** —
+`spec/flow-definition.md` v0.28,
+[ADR 0075](doc/decisions/0075-a-node-that-only-transforms-is-a-built-in-type-with-no-inner-worker.md),
+[W109](doc/work-items/w109-a-node-that-only-transforms.md). Write `{ "kind": "task", "type":
+"Transform", "transform": { "lang": …, "expr": … } }` and the node reshapes its input with no worker
+module, no worker entry and no node type of yours. **It is merged at every READ and stored in no
+registry**, so a flow may name it against a registry that declares no `nodeTypes` at all — which is what
+lets a document a tool EMITS carry a reshaping step without carrying code for it. Name your own type
+`Transform` and the registry refuses it by name, on every road: a built-in is never replaced. **It names no LANGUAGE**: `lang` is the
+node's, exactly as it is on any `transform`, so the adapter stays yours and no engine ships with the
+library.
+
+**Use it last, and the reason is a cost.** A computation belongs at the cheapest tier that can hold it:
+
+| tier | where it goes | what it costs |
+|---|---|---|
+| **selection** — *I need a value from another node* | **`needs`** on the consuming node (section 3) | **no task at all** |
+| **computation feeding a worker** — *reshape what THIS worker reads* | **`transform`** on that worker's own node | **no extra task** |
+| **computation with no consuming node** — *reshape for a join, a decision, an `end`* | **a `Transform` node** | **a real task**: measured at **+1 dispatch, +4 clones and +2 log records** per node, and inside a `map`, N of them |
+
+Measured on a real `FyflowScheduler` at W109: a `map` whose branch is a `Transform` node feeding a
+worker runs **1.93x** the same `map` with the transform on the worker's own node, inline at N = 128,
+and a flat **~1.47x** threaded. *A reshaping task node is what
+[ADR 0040](doc/decisions/0040-what-a-node-can-reach-is-the-runs-own-outputs-and-a-node-id-names-them-relative-to-a-branch-path.md)
+and [ADR 0051](doc/decisions/0051-a-transform-is-a-declared-expression-in-a-registered-language-applied-in-the-types-worker-wrapper.md)
+exist to remove, so this is an escape hatch rather than a default — the ADR says so in those words.*
+
+**Three things to know before you use one.** A node of this type with **no `transform` is refused at
+construction** by `FD-V46`, because the alternative is a task that returns what it was given. It
+**takes `settings`**, bound as `$settings` in the expression exactly as on any transform, so one type is
+reusable across flows. And **every arc LEAVING it is `unchecked`**: it declares no `outputSchema`
+because it has no worker, so section 15's authoring feedback cannot judge what comes next. What you get
+instead is a SAMPLE — `sampledOutput(registry, flow, nodeId)` returns the shape the node emitted on the
+producer's own example, the sample it came from, and the departing verdicts, which it returns rather
+than hides because a sample is evidence about one input and `fits` is a claim about every input
+([Q446](doc/open-questions.md)).
 
 **What EVERY task's worker receives is the ENVELOPE `{ settings, input }`** — `FD-C5`. `settings`
 is the node's effective settings — the merged object — as its own copy; **`input` is the value this

@@ -340,8 +340,14 @@ export interface PoolSpec {
  * routing in the driver.
  */
 export interface NodeTypeDefinition {
-  /** A key into the registry document's `workers`. Fixed per type. */
-  readonly worker: string;
+  /**
+   * A key into the registry document's `workers`. Fixed per type. **ABSENT on a BUILT-IN type that
+   * only transforms** (ADR 0075): such a type has no inner worker, so its pool loads the envelope
+   * alone and `run()` returns the transform's own result. A CONSUMER's type must name one —
+   * `checkNodeTypeShape` refuses a worker-less entry that is not a built-in, because an omitted
+   * `worker` would otherwise become a transform-only type by accident.
+   */
+  readonly worker?: string;
   /** Fixed per type; an instance may not override it. Absent means the scheduler's default and the options bag omits the key (fact 5's rule applied to `inline`). */
   readonly inline?: boolean;
   /** The knobs an INSTANCE may set — the input to the derivation, checked before `pool()` is called. Absent means unchecked. */
@@ -364,7 +370,8 @@ export interface NodeTypeDefinition {
  * instance's `config` merges shallowly over `config`; every other field is copied as declared.
  */
 export interface NodeTypeDeclaration {
-  worker: string;
+  /** As `NodeTypeDefinition.worker`: absent only on a built-in that only transforms (ADR 0075). */
+  worker?: string;
   inline?: boolean;
   config?: unknown;
   pool?: Readonly<Omit<PoolSpec, 'config' | 'groups'>>;
@@ -452,7 +459,8 @@ export interface ResolvedPool {
   /** The node type's name. */
   type: string;
   definition: NodeTypeDefinition;
-  worker: WorkerEntry;
+  /** Absent exactly when the type names no worker — a built-in that only transforms (ADR 0075). */
+  worker?: WorkerEntry;
   /** The instance config the derivation was given. */
   config: unknown;
   /** What the derivation returned, held to `PoolSpec`'s shape and the worker's `configSchema`. */
@@ -778,7 +786,7 @@ export interface Registry {
  * legitimately violate more than one rule.
  */
 export interface Finding {
-  /** `FD-V1` … `FD-V45`. Never renumbered, so it is safe to assert on. */
+  /** `FD-V1` … `FD-V46`. Never renumbered, so it is safe to assert on. */
   rule: string;
   /** Node id, edge index, or document-level `null`. */
   at: string | null;

@@ -46,8 +46,30 @@ import type { Transform } from '../definition/types.ts';
 
 /** The pool config the bootstrap helper writes for a typed pool: the inner worker, ITS config, and the languages its nodes transform in. */
 export interface EnvelopePoolConfig {
-  /** Module URL of the type's real worker; its default export is the class. `WorkerEntry.url`, resolved through the type's `worker` name (W65). */
-  worker: string;
+  /**
+   * Module URL of the type's real worker; its default export is the class. `WorkerEntry.url`, resolved
+   * through the type's `worker` name (W65).
+   *
+   * **ABSENT for a type that only TRANSFORMS** —
+   * [ADR 0075](../../doc/decisions/0075-a-node-that-only-transforms-is-a-built-in-type-with-no-inner-worker.md),
+   * W109. Such a type names no worker, so there is no inner class to load and `run()` returns the
+   * node's own `transform` evaluated over the value it received. The key is OMITTED rather than set to
+   * `undefined`, because `poolOptionsOf` writes only what it has to say and an absent key is what
+   * survives the clone into a thread.
+   */
+  worker?: string;
+  /**
+   * **Present and `true` exactly for a type that only TRANSFORMS** (ADR 0075 rule 4), written by
+   * `poolOptionsOf` when the type names no worker.
+   *
+   * **Why a MARKER and not the absence of `worker`.** An absent `worker` is also what a malformed
+   * pool config has, and `setup()` has refused that by name since v0.17 — *the pool config names no
+   * worker URL*. Reading the absence as a SHAPE would turn every such defect into a node that
+   * silently returns its input, which is the conflation this file's own `setup()` refuses one
+   * construct along. So the transform-only pool DECLARES itself and an empty config stays an error:
+   * the two states are told apart by what is present, never by what is missing.
+   */
+  transformOnly?: true;
   /** The inner worker's own constructor argument — the instance's derived `config` (`NodeTypeDeclaration.config` for the default instance). */
   config?: unknown;
   /**
@@ -153,6 +175,16 @@ export default class EnvelopeWorker {
   private readonly workerContext: unknown;
   private inner: InnerWorker | null = null;
   /**
+   * **Set by `setup()` when the pool config names no worker — a type that only TRANSFORMS** (ADR 0075).
+   * It is a SEPARATE field from `inner === null` on purpose, and that is the whole of this arm's
+   * correctness: `inner` is null before `setup()` and after `teardown()` too, which are LIFECYCLE
+   * states `run()` has refused by name since v0.17, so reading the absence off `inner` would turn
+   * *run() before setup()* into *return the input untouched* — a run that silently hands a worker's
+   * successor the wrong value instead of failing the task. Measured at W109's declaration step: before
+   * this item BOTH of those states threw, and neither was an arm.
+   */
+  private noInner = false;
+  /**
    * The worker half of each language the pool config names, loaded in `setup()` — or the reason
    * it did not load, REMEMBERED so that `run()` can fail the task with it (the maintainer's call,
    * see `setup()`).
@@ -189,6 +221,21 @@ export default class EnvelopeWorker {
    * language that did load, still runs on this worker.
    */
   async setup(): Promise<void> {
+    // **`transformOnly: true` is a type that only TRANSFORMS** (ADR 0075): nothing is imported,
+    // `inner` stays null, and `run()` returns the transform's result. The two keys are mutually
+    // exclusive and the contradiction is refused rather than resolved — a config carrying both says
+    // two different things about what runs the task, and silently preferring either is how a pool
+    // would run the wrong one of them.
+    if (this.cfg?.transformOnly === true) {
+      if (this.cfg.worker !== undefined) {
+        throw new Error(`envelope worker: the pool config says transformOnly AND names worker ${brief(this.cfg.worker)} — a type either has an inner worker or only transforms`);
+      }
+      this.noInner = true;
+      for (const [name, url] of Object.entries(this.cfg.languages ?? {})) {
+        this.langs.set(name, await this.loadLanguage(name, url));
+      }
+      return;
+    }
     if (typeof this.cfg?.worker !== 'string' || this.cfg.worker.length === 0) {
       throw new Error(`envelope worker: the pool config names no worker URL — got ${brief(this.cfg)}`);
     }
@@ -226,10 +273,21 @@ export default class EnvelopeWorker {
    * received, with the node's settings bound as `$settings`, and the third key is consumed here.
    */
   async run(payload: unknown, context?: unknown): Promise<unknown> {
-    if (this.inner === null) throw new Error('envelope worker: run() before setup() — the inner worker is not loaded');
+    if (this.inner === null && !this.noInner) throw new Error('envelope worker: run() before setup() — the inner worker is not loaded');
     const env = unpackEnvelope(payload);
+    if (this.noInner) {
+      // **A type that only transforms**: the transform IS the whole task, so a node of one that
+      // declares none would be an expensive identity — `FD-V46` refuses that at `new Driver`, which is
+      // why this throw has no case a valid document can reach and is here anyway: the payload is
+      // whatever reached the pool, and a hand-built one is not a validated one.
+      if (env.transform === undefined) {
+        throw new NotAnEnvelope('typed pool: this pool`s type names no worker, so the envelope must carry a transform — ' +
+          'there is nothing else for the task to do (FD-V46 refuses such a node at construction)');
+      }
+      return await this.transform(env.transform, env.input, env.settings);
+    }
     const input = env.transform === undefined ? env.input : await this.transform(env.transform, env.input, env.settings);
-    return await this.inner.run({ settings: env.settings, input }, context);
+    return await this.inner!.run({ settings: env.settings, input }, context);
   }
 
   /** Evaluates one declared transform; every failure is a `TransformFailed` naming what failed and why. */
@@ -270,6 +328,10 @@ export default class EnvelopeWorker {
   async teardown(): Promise<void> {
     await this.inner?.teardown?.();
     this.inner = null;
+    // Reset with the rest, so a torn-down worker is in its CONSTRUCTED state and not in the
+    // transform-only one — otherwise `run()` after `teardown()` would take the no-inner arm instead of
+    // the refusal, which is the same conflation `setup()`'s comment is about.
+    this.noInner = false;
     this.langs.clear();
     this.compiled.clear();
   }

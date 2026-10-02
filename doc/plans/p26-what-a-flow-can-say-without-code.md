@@ -92,10 +92,32 @@ plan's facts rather than on an item's probes.
 declares exactly `BUILT_IN_GROUP_TYPES` (the scheduler's three) and `BUILT_IN_GATE_TYPES` (`distinct`).
 There is **no `BUILT_IN_NODE_TYPES`**, so W109 adds the set as well as its first member.
 
+> **RE-TAKEN at [W109](../work-items/w109-a-node-that-only-transforms.md)'s declaration step: CONFIRMED,
+> and it misses a THIRD set whose existence changes the shape of the member W109 adds.**
+> `src/scheduler/runtime.ts:119` declares **`BUILT_IN_GROUP_FACTORIES`**, so the group-type precedent is
+> **TWO-PART** — the NAME and the SCHEMA in `src/definition/registry.ts`, whose own comment says *what
+> this module needs of them is the NAME … and the SCHEMA, and both are data*, while the thing that
+> CONSTRUCTS lives in the scheduler sub-path. A built-in NODE type has the same split, and its scheduler
+> half already exists: `ENVELOPE_WORKER_URL` at `src/scheduler/bootstrap.ts:57`, the script **every**
+> typed pool loads. *The fact's one-set reading is right about what is missing and understates what the
+> precedent looks like.*
+
 **Fact 4 — the envelope worker is already most of W109.** `src/scheduler/envelope-worker.ts` ships, it
 evaluates the node's `transform` in `run()`, and its field is **already** `private inner: InnerWorker | null = null`.
 `setup()` imports `this.cfg.worker` and throws if the default export is not a class. So *no inner worker*
 is an arm in a file that exists, not a new worker.
+
+> **RE-TAKEN at W109's declaration step, and this fact's CONCLUSION is FALSE in the direction that
+> matters.** The field is nullable exactly as stated. But *no inner worker* is **not an arm**: measured one
+> refusal at a time, `setup()` with no `worker` in the pool config THROWS *the pool config names no worker
+> URL*, `setup()` with `worker: ""` throws the same clause, and `run()` with `inner === null` THROWS *run()
+> before setup() — the inner worker is not loaded*. **The null is a LIFECYCLE state — before `setup()`,
+> after `teardown()` — and two shipped refusals forbid it as a configuration.** The arm has to be BUILT;
+> the field's type merely does not stand in the way. *And three further layers refuse a worker-less type
+> before the envelope is ever reached — `FD-V32`, `resolveRegistry`'s `WorkerMissing` (two clauses) and
+> `checkWiring`'s `schemaOf` reason — with `derivePool`, `poolOptionsOf` and `bootstrap` all taking the
+> worker as required.* W109's declaration step has the table and the stop-and-ask the maintainer answered
+> on it.
 
 **Fact 5 — a language-agnostic built-in type is REQUIRED, not stylistic.** `S14` in
 `scripts/check-source.mjs` fails any file outside `src/jsonata/**` that reaches `jsonata`, by the bare
@@ -115,6 +137,18 @@ most** — on the node a UI is most likely to emit.
 W74 built the sample-and-diff loop that runs an adapter's worker half on the producer's example; so a
 transform node's output can be SAMPLED even though it cannot be declared. *The feedback exists and is
 not wired to this case.*
+
+> **Facts 6 and 7 RE-TAKEN at W109's declaration step: 6 CONFIRMED to the word, and 7 is STRONGER than
+> it is written.** Run on a node whose worker declares neither schema, with a transform, the arc LEAVING
+> reads `unchecked` with *"b" (type "B", worker "bare") declares no outputSchema* — fact 6 exactly. And
+> the arc INTO it reads *declares no inputSchema — **the transform ran and nothing holds its result***
+> with **`sample.result` POPULATED**. So the feedback does not merely exist unwired: **`checkWiring`
+> already runs the transform on this exact case, already computes the produced value, and already says
+> in words that nothing holds it.** `tryTransform` returns the verdicts whose `consumer` is the node
+> asked about, so asking it about the transform node hands back the produced shape and asking it about
+> the node downstream hands back fact 6's bare `unchecked`. *W109's output (4) is a PRESENTATION of a
+> value the check computes today — smaller than declared, and its claim correspondingly narrower, which
+> is why prediction 4 stands.*
 
 ## Decisions
 
@@ -140,6 +174,18 @@ not wired to this case.*
    feeding a worker** → `transform` on that node, no extra task; **computation with no consuming node** →
    this type, which costs a real dispatch, an `OR-R2` clone and a log record — and inside a `map`, N of
    them, against W34's measured 2207 ms for a clone per branch at N = 1000.
+
+   > **MEASURED at W109's declaration step, and the COUNT in this sentence is wrong while its argument
+   > gets stronger.** Two arms over one `map` computing the same N values, on a real `FyflowScheduler`,
+   > warmed up, median of three, counts asserted steady: per item a tier-three node costs **+1 dispatch,
+   > +4 CLONES and +2 log records**, identical at N = 4, 32 and 128. The four clones are named —
+   > `OR-R2`'s at the listener, the one `runtime.start` installs on every run ([Q320](../open-questions.md)'s,
+   > paid again), the edge hop's, and the extra dispatch's envelope `settings`. **And the two pool modes
+   > answer differently**: inline the ratio RISES with N — 1.26x / 1.73x / 1.93x — toward the 2x doubling
+   > the task count predicts, because there the driver's own work IS the cost; threaded it is **FLAT at
+   > 1.50x / 1.46x / 1.47x**, because a thread pool's per-task cost is dominated by what it amortises.
+   > *W34's 2207 ms is a clone per BRANCH over a 117 KiB payload and is a different quantity, which is why
+   > W109 was told to measure rather than cite it.*
 
 5. **The three things the maintainer was asked to decide, answered as recommended (2026-10-02):**
    (a) the sampled output shape is an **explicit deliverable** of W109 and not a happy accident — fact 7's
@@ -167,6 +213,49 @@ not wired to this case.*
 | 2 | W108 moves no existing flow and no existing predicate | the name road is untouched (decision 1); `FD-C3`'s edge `needs` is unchanged | a grammar key colliding with `when`'s current string form, which W108's declaration step must re-take |
 | 3 | **the REACH** — a UI can emit a complete flow for sequence, decision, fan-out, join, selection and computation with zero code but domain workers | nothing in this repository has ever authored a flow without code, so this is untested | W110 finding a shape it cannot express without a function, which is the artifact's job to try |
 | 4 | fact 6's `unchecked` is the plan's largest residue and W109 does not remove it | `produced()`'s one road, measured | a declared `outputSchema` on the type turning out to be expressible, which decision 5 (a) deliberately does not attempt |
+
+## Record
+
+**W108 is DONE (ADR 0074) and W109 is DONE (ADR 0075). W110 is next, and it is the exit artifact.**
+Read every status from the item's own file, never from this one.
+
+| | |
+|---|---|
+| **W108** | a predicate is DATA — [ADR 0074](../decisions/0074-a-predicate-is-a-registered-name-or-a-declared-comparison-over-the-context.md), `spec/flow-definition.md` **v0.27**, `FD-V42`-`FD-V45`, **41 refusals**. BREAKING: the bare-string `when` is retired, 102 sites in 38 files |
+| **W109** | a node that only transforms — [ADR 0075](../decisions/0075-a-node-that-only-transforms-is-a-built-in-type-with-no-inner-worker.md), `spec/flow-definition.md` **v0.28**, **`FD-V46`**, **42 refusals**. `BUILT_IN_NODE_TYPES` with one member, `Transform`, merged at every READ and stored in no registry |
+| **W110** | the exit artifact: a flow a UI could have emitted, on real workers in both L6 runtimes. **L6 MOVES** |
+
+**What the two items did to this plan's own facts.** Every one of the seven was re-taken and **FIVE
+were corrected in place** — facts 1 and 2 by W108, facts 3, 4 and 7 by W109, with fact 6 confirmed to
+the word. The two that matter most:
+
+- **Fact 4's CONCLUSION was false in the direction that mattered.** *No inner worker is an arm in a
+  file that exists* — measured, `setup()` with no `worker` THROWS and `run()` with `inner === null`
+  THROWS, both by name since v0.17, so the null is a LIFECYCLE state and the arm had to be built. Three
+  further layers refused a worker-less type before the envelope was reached.
+- **Fact 3 was right about what was missing and understated the PRECEDENT.** `BUILT_IN_GROUP_FACTORIES`
+  is a third built-in set the fact does not name, so the group-type precedent is TWO-PART — and
+  `ResolvedRegistry` has no `gateTypes` field at all, which is the half of the gate-type precedent
+  W109's first cut did not follow and which cost 80 of this repository's own tests to see.
+
+**Decision 4's cited cost was wrong and the direction helps.** It priced a tier-three node at *a
+dispatch, an `OR-R2` clone and a log record* against W34's 2207 ms; measured on a real
+`FyflowScheduler` at three arities, it is **+1 dispatch, +4 CLONES and +2 log records** per node — one
+of the four being [Q320](../open-questions.md)'s, paid again — rising to **1.93x** of a tier-two run
+inside a `map` at N = 128 inline and flat at **1.47x** threaded. *The two pool modes answer
+differently, and W34's figure is a clone per BRANCH over a 117 KiB payload, a different quantity.*
+
+**Predictions so far: 1 CONFIRMED VACUOUSLY, 2 REVERSED, 4 CONFIRMED; 3 is W110's.** Prediction 1 —
+the subset needs no composition beyond flat `all`/`any` — is confirmed by a tree that needs no
+composition at all, so W110 is what tests it. **Prediction 2 was reversed by a DECISION rather than by
+its named mechanism** (W108: the condition it names did not fire and the prediction is false anyway,
+because the maintainer's answer to stop-and-ask (b) retired the string form). **Prediction 4 is
+CONFIRMED and W109 built the function that makes it legible**: `sampledOutput` returns the departing
+verdicts — still `unchecked` — beside the sampled shape, so [Q446](../open-questions.md)'s residue
+cannot be read as removed by the item that was most likely to be read that way.
+
+**Reserved and spent so far: W108 and W109 of W108-W111; Q444-Q455 of Q444-Q458; ADR 0074 and 0075,
+both TAKEN.** Q455 is reserved and unused.
 
 ## Out
 

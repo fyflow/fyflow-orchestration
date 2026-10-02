@@ -19,10 +19,11 @@
  */
 import { equal, ok, readText, ROOT, suite } from '../harness.ts';
 import { typesFor } from '../registry-fixture.ts';
-import { effectiveSettings, NODE_KEYS_DECLARED, settingsProblem, validateDefinition, violatedRules } from '../../src/definition/validate.ts';
+import { BUILT_IN_NODE_TYPES, effectiveSettings, NODE_KEYS_DECLARED, nodeTypeCollisions, nodeTypesOf, onlyTransforms, settingsProblem, validateDefinition, violatedRules } from '../../src/definition/validate.ts';
 import type { FlowDefinition, JsonSchema, NodeTypeEntry, Registry, RegistryDocument, WorkerEntry } from '../../src/definition/types.ts';
 import { shapesOf, typedNode } from './task-shapes.ts';
 import { corpusRegistry } from './corpus-types.ts';
+import { PATH_LANGUAGE } from '../scheduler/fake-language.ts';
 
 /** The corpus scorer's `settingsSchema` — a literal here, asserted equal to `registry.json`'s below (a list is a claim about another list). */
 // Since W72 (ADR 0056) the corpus's schema carries an `examples` — an annotation the value check
@@ -128,13 +129,25 @@ suite('FD-V32 — type is REQUIRED and names a registered node type whose worker
       ok(detail.includes('names worker "scorer"') && detail.includes('"ranker"'), `the detail says the worker is what is missing, and what is declared: ${detail}`);
       refusedEverywhere('FD-V32', at, build({ type: 'Scorer' }), { ...registry, workers: undefined }, 'and workers ABSENT means EMPTY — every type then names a worker the registry lacks');
     });
-    test(`${shape}: ABSENT registry nodeTypes means EMPTY — every type is unregistered, naming that`, () => {
+    test(`${shape}: ABSENT registry nodeTypes means the BUILT-INS ALONE — v0.28, and the refusal names them`, () => {
+      // **The reading MOVED at v0.28** (W109, ADR 0075): `nodeTypesOf` merges `BUILT_IN_NODE_TYPES`
+      // first, so absent is the built-ins and not EMPTY — `gateTypesOf`'s reading, which this is now
+      // the twin of. A consumer's type is still unregistered against such a registry, which is what
+      // the three refusals below assert; what changed is that the DETAIL names what IS registered,
+      // and the only thing registered is the built-in. *This case asserted `no node types` until
+      // v0.28 and that sentence is now false of every registry there is.*
       const omitted: Registry = { predicates: registry.predicates, groups: registry.groups, workers: registry.workers };
-      // Every task node names a type, so a registry with none refuses EVERY task of the shape — the node under test among them.
+      // Every task node names a type, so a registry with no consumer types refuses EVERY task of the shape.
       const detail = refusedEverywhere('FD-V32', at, build({ type: 'Scorer' }), omitted, 'type = "Scorer" against a registry with no nodeTypes key');
-      ok(detail.includes('no node types'), `says the registry declares none: ${detail}`);
+      ok(detail.includes('"Transform"'), `names the built-in as what IS registered: ${detail}`);
+      ok(!detail.includes('no node types'), `and no longer claims the registry declares none: ${detail}`);
       refusedEverywhere('FD-V32', at, build({ type: 'Scorer' }), { ...omitted, nodeTypes: {} }, 'and against an EMPTY nodeTypes object');
       refusedEverywhere('FD-V32', at, build({ type: 'Scorer' }), { ...omitted, nodeTypes: new Map() }, 'and against an EMPTY nodeTypes Map');
+      // The built-in is accepted on THIS shape against the ordinary registry — the nested shapes carry
+      // other tasks whose types `omitted` lacks, so the *no nodeTypes at all* claim is the test below,
+      // on a flow of one node, where it is the whole of what is asserted.
+      accepted(build({ type: 'Transform', transform: { lang: 'path', expr: '$' } }),
+        { ...registry, languages: { path: PATH_LANGUAGE } }, `the BUILT-IN type at ${at}`);
     });
     test(`${shape}: a registered type is accepted, with settings and without, as an object or as a Map, and with a Map of workers`, () => {
       accepted(build({ type: 'Scorer', settings: { factor: 2 } }), registry, 'type = "Scorer", settings = {factor: 2}');
@@ -157,6 +170,155 @@ suite('FD-V32 — type is REQUIRED and names a registered node type whose worker
       equal(rules, ['FD-V17', 'FD-V23'], `the old spelling alone is the undeclared key AND the missing one: ${rules.join(', ')}`);
     });
   }
+});
+
+suite('W109 — the BUILT-IN node type: nameable with no nodeTypes declared, and FD-V46 when it has nothing to do', (test) => {
+  // **The claim a UI rests on**: a flow may name `Transform` against a registry that declares no
+  // `nodeTypes` AT ALL, so the document a UI emits carries no node type for its reshaping step — which
+  // is the whole reason `nodeTypesOf` merges the built-ins (ADR 0075 rule 5). A LANGUAGE is still the
+  // consumer's: `FD-V46` requires the node to declare a `transform` and `FD-V35` requires its `lang`
+  // to be registered, so the TYPE is free and the engine is not (ADR 0075 rule 4, P26 fact 5).
+  const oneNode = (node: Record<string, unknown>): FlowDefinition => ({
+    flowId: 'one', version: 1, entry: 'only',
+    nodes: [{ id: 'only', kind: 'task', ...node, edges: [{ to: 'done' }] }, { id: 'done', kind: 'end', outcome: 'completed' }],
+  } as unknown as FlowDefinition);
+  const bare = (nodeTypes?: unknown): Registry =>
+    ({ predicates: new Set<string>(), groups: new Set<string>(), workers: {}, languages: { path: PATH_LANGUAGE }, ...(nodeTypes === undefined ? {} : { nodeTypes }) }) as unknown as Registry;
+  const T = { type: 'Transform', transform: { lang: 'path', expr: '$' } };
+
+  test('a flow naming the built-in validates against a registry with NO nodeTypes, an empty object and an empty Map — and with NO workers either', () => {
+    for (const [what, reg] of [['no nodeTypes key', bare()], ['an empty object', bare({})], ['an empty Map', bare(new Map())]] as const) {
+      accepted(oneNode(T), reg, `the built-in against ${what}`);
+    }
+  });
+
+  test('FD-V46 — a node of the built-in with NO transform is refused alone, naming the two cheaper tiers', () => {
+    const findings = validateDefinition(oneNode({ type: 'Transform' }), bare());
+    equal(violatedRules(findings), ['FD-V46'], `FD-V46 alone — reported: ${violatedRules(findings).join(', ') || '(accepted)'}`);
+    equal(findings.map((f) => f.at), ['only'], 'at the node that declares no transform');
+    const d = findings[0]!.detail;
+    ok(d.includes('only transforms') && d.includes('names no worker'), `says what the type is: ${d}`);
+    ok(d.includes('CONSUMES') && d.includes('needs'), `and names the two cheaper tiers — ADR 0075 rule 1: ${d}`);
+  });
+
+  test('FD-V46 fires on the built-in and on NOTHING ELSE — every other type in the corpus registry declares a worker', () => {
+    // The discriminating pair: the same node, one `transform` apart, and the same node on a type that
+    // HAS a worker, which must stay accepted with no transform. Without the second half `FD-V46` could
+    // be widened to every typed node and this suite would not notice.
+    accepted(oneNode(T), bare(), 'the built-in WITH a transform');
+    accepted(oneNode({ type: 'Scorer', settings: { factor: 1 } }), { ...registry, languages: { path: PATH_LANGUAGE } }, 'an ordinary type with NO transform');
+    equal(violatedRules(validateDefinition(oneNode({ type: 'Transform' }), bare())), ['FD-V46'], 'and the built-in WITHOUT one is refused');
+  });
+
+  test('the SET itself: its members, and the one member`s whole definition — the observer five files say is here', () => {
+    // **This is the assertion `l4-corpus.test.ts`, `runtime.test.ts`, `bootstrap.test.ts`,
+    // `registry.test.ts` and `examples/l6.ts` all point at in the same sentence** — *"the literal
+    // `'Transform'` is asserted against this list in node-type.test.ts's W109 suite"* — and until
+    // W109's adequacy reader (F4) it did not exist: `BUILT_IN_NODE_TYPES` appeared in this file only
+    // inside a comment, and adding a second member cost ZERO at `npm test` because all five censuses
+    // derive their expectation from the thing under test. The literal is here now, so a built-in added
+    // without those censuses moving is red HERE rather than absorbed there.
+    equal(Object.keys(BUILT_IN_NODE_TYPES), ['Transform'], 'one built-in node type, named Transform');
+    // **ADR 0075 rule 3 states the type's entire content as ABSENCES** — no worker, no config, no
+    // inline, no groups, no retryPolicy — and the adequacy reader (F8) added four of them for zero.
+    // Asserting the whole entry is one claim that covers every absence the rule enumerates, including
+    // the two that are BEHAVIOURAL: a `retryPolicy` would change every Transform task's retry budget,
+    // and `settings` defaults are merged UNDER every such node's settings, so `$settings.injected`
+    // would be bound in every expression.
+    equal(BUILT_IN_NODE_TYPES.Transform, {}, 'and its whole definition is that it names NOTHING — ADR 0075 rule 3`s five absences, as one value');
+    ok(Object.isFrozen(BUILT_IN_NODE_TYPES) && Object.isFrozen(BUILT_IN_NODE_TYPES.Transform), 'both frozen — a consumer holding the registry cannot edit the library`s own type');
+  });
+
+  test('`onlyTransforms` is the PROPERTY and not the NAME — a worker-less type that is NOT a built-in', () => {
+    // **ADR 0075 rule 2 says the test every layer applies is the PROPERTY** — *not a comparison
+    // against a list of built-in names* — and the adequacy reader (F5) substituted a name test at
+    // both call sites for ZERO, because no fixture anywhere had a worker-less type that is not the
+    // built-in. One exists here: the VALIDATOR is handed such a registry directly, which is the
+    // road `AGENTS.md` section 12's hand-built `Driver` takes, and `FD-V46` must fire on it.
+    const reg = bare({ Mine: {} as NodeTypeEntry });
+    equal(violatedRules(validateDefinition(oneNode({ type: 'Mine' }), reg)), ['FD-V46'],
+      'FD-V46 fires on a worker-less CONSUMER type — the property, not the name');
+    accepted(oneNode({ type: 'Mine', transform: { lang: 'path', expr: '$' } }), reg, 'and one WITH a transform is accepted');
+    // The other half of the discrimination: `FD-V32`'s worker clause is skipped for the same reason,
+    // so a worker-less type is not reported as naming a worker the registry lacks.
+    ok(!violatedRules(validateDefinition(oneNode({ type: 'Mine', transform: { lang: 'path', expr: '$' } }), reg)).includes('FD-V32'),
+      'and FD-V32`s worker clause does not fire on it either — the same property, read once');
+    // And `onlyTransforms` itself, on each shape it ranges over.
+    equal([onlyTransforms({} as NodeTypeEntry), onlyTransforms({ worker: 'w' } as NodeTypeEntry), onlyTransforms(undefined)],
+      [true, false, false], 'true for a type naming no worker, false for one that does and for none at all');
+  });
+
+  test('a node type named as a BUILT-IN is refused on BOTH roads — `checkRegistry` and `resolveRegistry`, in all three directions', async () => {
+    // **Both of W109's readers found this from opposite ends** (conformity 6, adequacy F2), and it was
+    // the pair's shared subject. `resolveRegistry` refused the document and the `code` roads; the
+    // VALIDATOR road did not, so a consumer's worker-backed `Transform` validated with ZERO findings
+    // and constructed a `Driver` — `nodeTypesOf` replaces the VALUE and keeps the key, so their
+    // definition was silently discarded and their worker would never have run. `checkRegistry` calls
+    // `nodeTypeCollisions` now, which is what `checkGateTypes` has always done for a gate type.
+    const { resolveRegistry: rr, checkRegistry: cr, NameCollision } = await import('../../src/definition/registry.ts');
+    const W = { w: { url: 'test://w' } };
+    const threw = (f: () => unknown): string => { try { f(); return ''; } catch (e) { return `${(e as Error).constructor.name}: ${(e as Error).message}`; } };
+
+    const viaCheck = threw(() => cr({ workers: W, nodeTypes: { Transform: { worker: 'w' } } }));
+    ok(viaCheck.startsWith('NameCollision'), `checkRegistry — the hand-built Driver's road: ${viaCheck || '(ACCEPTED)'}`);
+    ok(viaCheck.includes('never replaced') && viaCheck.includes('discarded in silence'),
+      `and it says what would otherwise happen: ${viaCheck}`);
+    const viaDoc = threw(() => rr({ workers: W, nodeTypes: { Transform: { worker: 'w' } } }));
+    ok(viaDoc.startsWith('NameCollision'), `resolveRegistry, the DOCUMENT road: ${viaDoc || '(ACCEPTED)'}`);
+    const viaCode = threw(() => rr({ workers: W }, { nodeTypes: { Transform: { worker: 'w', pool: () => ({}) } } }));
+    ok(viaCode.startsWith('NameCollision'), `resolveRegistry, the CODE road: ${viaCode || '(ACCEPTED)'}`);
+    // The CONTROL: a name that is NOT a built-in passes all three, so the clauses above are about the
+    // collision and not about any `nodeTypes` entry at all.
+    equal([threw(() => cr({ workers: W, nodeTypes: { Mine: { worker: 'w' } } })),
+      threw(() => rr({ workers: W, nodeTypes: { Mine: { worker: 'w' } } }))], ['', ''],
+      'CONTROL: an ordinary name is accepted on both roads');
+    ok(NameCollision !== undefined, 'and the class is the one the registry already uses for one-name-two-definitions');
+    // `nodeTypeCollisions` both ways, which nothing referenced before this case (adequacy reader, F2).
+    equal(nodeTypeCollisions({ Transform: {} as NodeTypeEntry, Mine: {} as NodeTypeEntry }), ['Transform'], 'the helper names the colliding entry and nothing else');
+    equal(nodeTypeCollisions(undefined), [], 'and absent is no collision');
+  });
+
+  test('`nodeTypesOf` MERGES: the built-in wins a collision reached directly, and keeps the consumer`s POSITION', () => {
+    // **The adequacy reader's R1 and the author's `d1`, both of which survived at ZERO.** Two claims
+    // the merge makes and nothing observed: *a built-in is never replaced* (its tie-break), and *the
+    // consumer's entries come FIRST so adding a built-in never renumbers their pools* (its order).
+    // Both are reachable here — `validateDefinition` takes a `Registry` straight from a consumer, so
+    // this road is not behind `checkRegistry`'s collision refusal.
+    const own = { Transform: { worker: 'w' } as NodeTypeEntry, Mine: { worker: 'w' } as NodeTypeEntry };
+    equal(nodeTypesOf(own).get('Transform'), {},
+      'the BUILT-IN definition wins — the consumer`s entry is discarded, which is why the collision is refused where a registry is BUILT');
+    equal([...nodeTypesOf(own).keys()], ['Transform', 'Mine'],
+      'and it keeps the consumer`s POSITION — `Map.set` on an existing key replaces the value and does not move it');
+    equal([...nodeTypesOf({ Mine: {} as NodeTypeEntry }).keys()], ['Mine', 'Transform'],
+      'with no collision the built-ins are APPENDED — so adding one never renumbers a consumer`s pools (ADR 0075 rule 5)');
+    equal([...nodeTypesOf(undefined).keys()], ['Transform'], 'and absent is the built-ins ALONE');
+    equal([...nodeTypesOf(new Map([['Mine', {} as NodeTypeEntry]])).keys()], ['Mine', 'Transform'], 'a Map reads the same way as an object');
+  });
+
+  test('a CONSUMER`s worker-less type is refused on BOTH roads too — the one clause between a typo and a silent identity node', async () => {
+    // **`checkNodeTypeShape` is called from two places and only one had a case** (adequacy reader, F3):
+    // loosening the `checkRegistry` call site cost ZERO, after which a worker-less consumer type
+    // validated with zero findings at `new Driver` — which is the reading that clause's own comment
+    // calls *how a typo becomes a silent identity node*.
+    const { resolveRegistry: rr, checkRegistry: cr } = await import('../../src/definition/registry.ts');
+    const threw = (f: () => unknown): string => { try { f(); return ''; } catch (e) { return (e as Error).message; } };
+    for (const [road, f] of [['checkRegistry', () => cr({ workers: { w: { url: 'test://w' } }, nodeTypes: { Mine: {} as never } })],
+      ['resolveRegistry', () => rr({ workers: { w: { url: 'test://w' } }, nodeTypes: { Mine: {} as never } })]] as const) {
+      const m = threw(f);
+      ok(m.includes('names no worker'), `${road} refuses it: ${m || '(ACCEPTED)'}`);
+      ok(m.includes('Transform'), `${road}'s message names the built-in that DOES only transform: ${m}`);
+    }
+    // And the built-in is accepted on both, which is what makes the clause about the consumer.
+    equal([threw(() => cr({ nodeTypes: {} })), threw(() => rr({ nodeTypes: {} }))], ['', ''],
+      'CONTROL: the built-in itself passes both roads — it is merged, and the clause exempts it');
+  });
+  test('the built-in is REFUSED a worker, and a consumer type is refused WITHOUT one — the two directions of ADR 0075 rule 2', async () => {
+    const { resolveRegistry: rr } = await import('../../src/definition/registry.ts');
+    let threw = '';
+    try { rr({ workers: { w: { url: 'test://w' } }, nodeTypes: { Mine: {} as never } }); } catch (e) { threw = (e as Error).message; }
+    ok(threw.includes('names no worker'), `a consumer's worker-less type is still refused: ${threw || '(accepted)'}`);
+    ok(threw.includes('Transform'), `and the message names the built-in that does only transform: ${threw}`);
+  });
 });
 
 suite('FD-V33 — settings is a plain object the worker`s settingsSchema accepts, with the type`s defaults merged under, every clause, on every shape', (test) => {

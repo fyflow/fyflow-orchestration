@@ -318,3 +318,128 @@ suite('W61 — a transform on a REAL pool, inline and threaded: the transformed 
     equal([...DROVE].sort(), [...BACKENDS].sort(), 'the backends driven are exactly the backends declared');
   });
 });
+
+// ---------------------------------------------------------------------------------------------
+// W109 — the NO-INNER arm: a type that only TRANSFORMS, on a REAL pool.
+// ADR 0075 rules 2 and 4. `transformOnly: true` is what the pool config carries for such a type and
+// is what `setup()` keys off; `worker` is absent. The two are mutually exclusive and the
+// contradiction is refused.
+//
+// **Obligation (e) lives here**, and the item's own "What to be careful of" 5 names the two probes:
+// what happens when the no-inner road is taken by a pool that HAS an inner worker, and the reverse.
+// Both are cases below, because a flag read off the wrong field is exactly how a pool runs the wrong
+// thing in silence — `inner === null` is also the state BEFORE setup and AFTER teardown, which
+// `run()` has refused by name since v0.17.
+const ONLY_CFG = { transformOnly: true as const, languages: { path: PATH_WORKER_URL } };
+/**
+ * **W109's OWN record of what it drove** — the adequacy reader (F6). `DROVE` is module-level and the
+ * `[...DROVE] === [...BACKENDS]` case lives in the W61 suite, whose cases run BOTH modes before these
+ * do, so narrowing this suite's loop to `BACKENDS.slice(0, 1)` cost ZERO: W61's clause was satisfied
+ * whatever W109 drove. That matters more here than it did at W61, because THREADED is the only road on
+ * which the pool config crosses a `structuredClone` into a worker thread — which is the reason
+ * `EnvelopePoolConfig.worker`'s own doc comment gives for omitting the key rather than setting it
+ * `undefined`.
+ */
+const DROVE_109 = new Set<string>();
+const drive109 = async (backend: string, payload: unknown, optional: boolean): Promise<Settled> => {
+  DROVE_109.add(backend);
+  return await drive(backend, payload, optional, ONLY_CFG as never);
+};
+
+suite('W109 — a type that only TRANSFORMS: the transform IS the task, on a real pool and on the class', (test) => {
+  test(`the transform's own result is what the task returns — no inner worker, no envelope around it; backends: ${BACKENDS.join(', ')}`, async () => {
+    for (const backend of BACKENDS) {
+      const r = await drive109(backend, { settings: {}, input: { confidence: 0.9, items: ['a'] }, transform: { lang: 'path', expr: 'confidence' } }, true);
+      equal(r.state, 'done', `${backend}: settled done (${JSON.stringify(r)})`);
+      // **The RESULT is the evaluation and NOT `{ settings, input }`** — the discriminating assertion.
+      // With an inner worker the same payload returns a `Seen`; here it returns the value itself, so
+      // an arm that fell through to the inner road would fail on the SHAPE and not only on a count.
+      equal(r.result, 0.9, `${backend}: the task's result IS the transform's result`);
+      const deeper = await drive109(backend, { settings: { factor: 3 }, input: { a: { b: [1, 2] } }, transform: { lang: 'path', expr: 'a.b' } }, true);
+      equal(deeper.result, [1, 2], `${backend}: and whatever the expression yields, structure included`);
+      const fromSettings = await drive109(backend, { settings: { factor: 7 }, input: { ignored: true }, transform: { lang: 'path', expr: '$settings.factor' } }, true);
+      equal(fromSettings.result, 7, `${backend}: $settings is bound here too — ADR 0075 rule 3's \`settings\`, P26 decision 5 (c)`);
+    }
+  });
+
+  test(`a transform that FAILS is still the TASK's failure, by both of P17 decision 5's roads; backends: ${BACKENDS.join(', ')}`, async () => {
+    for (const backend of BACKENDS) {
+      const failing = { settings: {}, input: { a: 5 }, transform: { lang: 'path', expr: 'a.b' } };
+      const opt = await drive109(backend, failing, true);
+      const req = await drive109(backend, failing, false);
+      ok(opt.error !== undefined && opt.error.includes('transform failed') && opt.error.includes('[P0002]'),
+        `${backend}: TransformFailed's message, unchanged by there being no inner worker — ${opt.error}`);
+      if (backend === 'class') {
+        equal([opt.state, req.state], ['threw', 'threw'], `${backend}: the wrapper throws from run()`);
+      } else {
+        equal([opt.state, req.state], ['failed', 'user_action'], `${backend}: optional failed, non-optional parked — the same two roads`);
+      }
+    }
+  });
+
+  test(`an envelope with NO transform is refused by name — FD-V46's run-time twin, which a valid document cannot reach; backends: ${BACKENDS.join(', ')}`, async () => {
+    for (const backend of BACKENDS) {
+      const r = await drive109(backend, { settings: {}, input: { a: 1 } }, true);
+      const msg = r.error ?? '';
+      ok(msg.includes('names no worker') && msg.includes('must carry a transform'),
+        `${backend}: the refusal says what is missing and why there is nothing else to do — ${msg || JSON.stringify(r)}`);
+      ok(msg.includes('FD-V46'), `${backend}: and names the rule that makes this unreachable from a valid document — ${msg}`);
+    }
+  });
+
+  // ---- obligation (e): the WIRING of the arm, from both sides ----
+  test('the arm is keyed off `transformOnly` and NOT off the absence of `worker` — an empty config is still the refusal it was', async () => {
+    // **The probe the item's careful-point 5 asks for, second direction.** If the arm keyed off
+    // `!('worker' in cfg)` then `{}` — a malformed pool config — would become a transform-only pool
+    // and every such defect would silently return its input. Measured here as the refusal it is.
+    let err = '';
+    try { const w = new EnvelopeWorker({} as never); await w.setup(); } catch (e) { err = (e as Error).message; }
+    ok(err.includes('names no worker URL'), `an EMPTY pool config is a malformed config, not a transform-only one — ${err || '(setup returned)'}`);
+    for (const bad of [{ worker: '' }, { worker: 5 as never }, { worker: null as never }]) {
+      let e2 = '';
+      try { const w = new EnvelopeWorker(bad as never); await w.setup(); } catch (e) { e2 = (e as Error).message; }
+      ok(e2.includes('names no worker URL'), `${JSON.stringify(bad)} is refused, not read as a shape — ${e2 || '(setup returned)'}`);
+    }
+  });
+
+  test('the two keys are MUTUALLY EXCLUSIVE: a config carrying both is refused rather than resolved', async () => {
+    // **Obligation (e), first direction**: the no-inner road taken by a config that HAS an inner
+    // worker. Silently preferring either key is how a pool runs the wrong one of the two things its
+    // config names, so the contradiction is a refusal.
+    let err = '';
+    try { const w = new EnvelopeWorker({ transformOnly: true, worker: INNER_URL } as never); await w.setup(); } catch (e) { err = (e as Error).message; }
+    ok(err.includes('transformOnly') && err.includes('either has an inner worker or only transforms'),
+      `both keys is a refusal naming both — ${err || '(setup returned)'}`);
+  });
+
+  test('run() before setup() and after teardown() are STILL refused on a transform-only pool — the lifecycle states the arm must not absorb', async () => {
+    // The null `inner` is reachable three ways and only ONE of them is this arm. Before `setup()` the
+    // flag is false, so the refusal stands; `teardown()` resets it, so it stands again afterwards.
+    const before = new EnvelopeWorker(ONLY_CFG as never);
+    let e1 = '';
+    try { await before.run({ settings: {}, input: 1, transform: { lang: 'path', expr: '$' } }); } catch (e) { e1 = (e as Error).message; }
+    ok(e1.includes('run() before setup()'), `before setup: the v0.17 refusal, not the arm — ${e1 || '(ran)'}`);
+
+    const w = new EnvelopeWorker(ONLY_CFG as never);
+    await w.setup();
+    equal(await w.run({ settings: {}, input: { a: 2 }, transform: { lang: 'path', expr: 'a' } }), 2, 'and after setup it takes the arm');
+    await w.teardown();
+    let e2 = '';
+    try { await w.run({ settings: {}, input: { a: 2 }, transform: { lang: 'path', expr: 'a' } }); } catch (e) { e2 = (e as Error).message; }
+    ok(e2.includes('run() before setup()'), `after teardown: refused again, because teardown resets the flag — ${e2 || '(ran)'}`);
+  });
+
+  test('every backend BACKENDS names was driven by THIS suite — a per-suite set, because the module-level one is satisfied by W61`s cases', () => {
+    equal([...DROVE_109].sort(), [...BACKENDS].sort(), 'the backends W109 drove are exactly the backends declared');
+  });
+
+  test('the DISCRIMINATING PAIR: one payload, two configs, and what makes them differ is asserted', () => {
+    // Whatever makes a pair differ is itself a claim (rule 8's requirement on the set). The pair is
+    // `CFG` against `ONLY_CFG`, and what it turns on is exactly one key each: `worker` against
+    // `transformOnly`. Collapsing it — giving ONLY_CFG a worker, or CFG none — must be a failure and
+    // not a smaller suite, which the two refusal cases above are.
+    equal(Object.keys(CFG).sort(), ['languages', 'worker'], 'the inner-worker config names a worker and no marker');
+    equal(Object.keys(ONLY_CFG).sort(), ['languages', 'transformOnly'], 'the transform-only config names the marker and no worker');
+    equal((ONLY_CFG as { worker?: unknown }).worker, undefined, 'and the two never both name a worker — the refusal above is what holds that');
+  });
+});

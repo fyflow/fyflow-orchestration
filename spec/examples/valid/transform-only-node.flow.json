@@ -1,0 +1,13 @@
+{
+  "flowId": "transform-only-node",
+  "version": 1,
+  "entry": "score",
+  "nodes": [
+    { "id": "score",   "kind": "task", "type": "ScoreWorker", "edges": [ { "to": "reshape" } ] },
+    { "id": "reshape", "kind": "task", "type": "Transform",
+      "transform": { "lang": "path", "expr": "confidence" },
+      "edges": [ { "to": "publish" } ] },
+    { "id": "publish", "kind": "task", "type": "PublishWorker", "edges": [ { "to": "done" } ] },
+    { "id": "done",    "kind": "end",  "outcome": "completed" }
+  ]
+}

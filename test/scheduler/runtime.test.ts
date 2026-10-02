@@ -29,6 +29,27 @@ import type { ResourceGroup } from 'fyflow-scheduler';
 import { emptyState, fold, isTerminal, step } from '../../src/fold/run-state.ts';
 import type { FoldInput, RunState } from '../../src/fold/run-state.ts';
 import type { FlowDefinition, RegistryCode, RegistryDocument } from '../../src/definition/types.ts';
+import { BUILT_IN_NODE_TYPES } from '../../src/definition/validate.ts';
+/**
+ * **`BUILT_INS` is ADDED to the pool and type expectations below rather than written into them** —
+ * v0.28, [W109](../../doc/work-items/w109-a-node-that-only-transforms.md): `nodeTypesOf` merges the
+ * library's own node types, so every registry holds them and every type's default pool instance is
+ * built, which these sets see. **The built-in's PRESENCE is not what they claim** — their claim is
+ * *one pool per DECLARED type, nothing added and nothing dropped* — so deriving the addition keeps
+ * them about that, and the literal `'Transform'` is asserted where the merge IS the claim, in
+ * `test/definition/node-type.test.ts`'s W109 suite.
+ */
+const BUILT_INS = Object.keys(BUILT_IN_NODE_TYPES);
+/**
+ * **The pools a CONSUMER's registry asked for** — every pool whose config names an inner worker. A
+ * built-in node type names none (ADR 0075), so its pool config carries `transformOnly: true` and no
+ * `worker`; the claims below are about what a DOCUMENT declares, and this is what keeps them about
+ * that rather than about how many types the library happens to ship. The built-in's own pool is the
+ * subject of the W109 cases at the end of this file.
+ */
+const consumerPools = <T extends { options: { config?: unknown } }>(pools: readonly T[]): T[] =>
+  pools.filter((p) => (p.options.config as { worker?: unknown } | undefined)?.worker !== undefined);
+
 
 /** A group object with every member `GROUP_MEMBERS` names — a PLAIN object, deliberately: `EventTarget` is not required (fact 2, measured). */
 const goodGroup = (id: string): Record<string, unknown> => ({
@@ -105,18 +126,18 @@ suite('W66 — createRuntime builds from a document: pools, groups and the drive
   test('the minimum document: one pool per instance keyed as declared, the group created, nothing else', () => {
     const s = seams();
     const r = createRuntime(DOC, {}, { createPool: s.createPool, createScheduler: s.createScheduler });
-    equal(Object.keys(r.pools).sort(), ['Scorer', 'scorer-fast'], 'the type`s default instance under its own name, plus the named one');
+    equal(Object.keys(r.pools).sort(), ['Scorer', 'scorer-fast', ...BUILT_INS].sort(), 'the type`s default instance under its own name, plus the named one and the built-ins');
     equal(Object.keys(r.groups), ['gpu'], 'one group object, keyed as the document declares it');
-    equal(s.pools.length, 2, 'two pools built');
+    equal(consumerPools(s.pools).length, 2, 'two pools built from the document');
     ok(s.pools.every((p) => p.url === ENVELOPE_WORKER_URL), 'every pool loads the package`s envelope worker, not the type`s own');
     equal(s.built.length, 1, 'one scheduler, over those pools and groups');
-    equal(Object.keys(s.built[0]!.pools).sort(), ['Scorer', 'scorer-fast'], 'the scheduler holds them by key');
+    equal(Object.keys(s.built[0]!.pools).sort(), ['Scorer', 'scorer-fast', ...BUILT_INS].sort(), 'the scheduler holds them by key');
   });
 
   test('fact 3 on the runtime`s own pools: two instances over ONE worker url are two pools, with different derived configs', () => {
     const s = seams();
     createRuntime(DOC, {}, { createPool: s.createPool, createScheduler: s.createScheduler });
-    const configs = s.pools.map((p) => (p.options.config as { worker: string; config: unknown }));
+    const configs = consumerPools(s.pools).map((p) => (p.options.config as { worker: string; config: unknown }));
     equal([...new Set(configs.map((c) => c.worker))], ['https://example.test/w.js'], 'one worker url');
     equal(configs.map((c) => JSON.stringify(c.config)).sort(),
       [JSON.stringify({ role: 'typed' }), JSON.stringify({ role: 'typed', fast: true })].sort(),
@@ -179,7 +200,7 @@ suite('W66 — createRuntime builds from a document: pools, groups and the drive
     byHand.start({ x: 1 });
     equal(fake.added.map((t) => t.id), ['by-hand:a:-:0'], 'a Driver built by hand from runtime.registry validates AND dispatches the flow');
     equal([...(withPredicate.registry.predicates as ReadonlyMap<string, unknown>).keys()], ['isHigh'], 'predicates are the FUNCTIONS, keyed by the name the document declared');
-    equal(Object.keys(r.registry.nodeTypes as object).sort(), ['Scorer'], 'the types');
+    equal(Object.keys(r.registry.nodeTypes as object).sort(), ['Scorer'], 'the types — the built-ins are merged at every READ and stored in no registry (ADR 0075 rule 5)');
     equal(Object.keys(r.registry.pools as object), ['scorer-fast'], 'the NAMED instances only — a type`s default needs no entry, its key being the type`s name');
     ok((r.registry.workers as Record<string, { url: string }>).w!.url === 'https://example.test/w.js', 'the workers, with their urls resolved');
   });
@@ -198,7 +219,7 @@ suite('W66 — decision 7: a relative worker url resolves against the consumer`s
     const declared = (DOC.workers as unknown as Record<string, Record<string, unknown>>).w!;
     equal(Object.keys(entry).sort(), Object.keys(declared).sort(), 'the entry carries every key it declared');
     equal(entry.settingsSchema, declared.settingsSchema, 'its settingsSchema among them — the schema FD-V33 applies');
-    ok(s.pools.every((p) => (p.options.config as { worker: string }).worker === 'https://example.test/app/workers/w.js'), 'and that is what every pool loads');
+    ok(consumerPools(s.pools).every((p) => (p.options.config as { worker: string }).worker === 'https://example.test/app/workers/w.js'), 'and that is what every pool loads');
   });
 
   test('a relative url with NO base is a RuntimeError naming the worker and the fix — `new URL` on its own throws (fact 8)', () => {
@@ -300,7 +321,7 @@ suite('W66 — decision 4: the group factories, and what a created group is held
     const r = createRuntime(edited((d) => { d.groups.gpu = { type: 'Custom', config: {} }; }), code, { createPool: s.createPool, createScheduler: s.createScheduler });
     ok(!(r.groups.gpu instanceof EventTarget), 'the object is not an EventTarget');
     equal((r.groups.gpu as unknown as { id: string }).id, 'gpu', 'and it is what the scheduler holds, keyed by the document`s key');
-    equal(s.pools.length, 2, 'and both of the document`s instances were built');
+    equal(consumerPools(s.pools).length, 2, 'and both of the document`s instances were built');
   });
 
   test('TWO members missing are named in ONE refusal, not just the first — ADR 0055 rule 1 (the conformity reader, finding 9)', () => {
@@ -476,7 +497,7 @@ suite('W66 — decision 13: the languages a pool carries come from the FLOWS, an
   test('a type some node of which transforms gets the adapter`s WORKER url in its pool config; with no flows, no pool carries one', () => {
     const withFlows = seams();
     createRuntime(withLang, code, { createPool: withFlows.createPool, createScheduler: withFlows.createScheduler, flows: [TRANSFORMING] });
-    for (const p of withFlows.pools) {
+    for (const p of consumerPools(withFlows.pools)) {
       equal(Object.keys((p.options.config as { languages?: object }).languages ?? {}), ['path'], 'every instance of the transforming type carries the adapter`s worker url');
     }
     const noFlows = seams();
@@ -669,10 +690,10 @@ suite('W66 — every option start forwards, and every member the runtime exposes
   test('F20, F21: resolved and scheduler are what they say — the two members with no reader', () => {
     const s = seams();
     const r = createRuntime(ROUTED, { predicates: { high } }, { createPool: s.createPool, createScheduler: s.createScheduler });
-    equal([...r.resolved.nodeTypes.keys()], ['T'], 'resolved carries what the document MEANT, before anything was built');
+    equal([...r.resolved.nodeTypes.keys()].sort(), ['T'], 'resolved carries what the document MEANT, before anything was built');
     equal([...r.resolved.pools.keys()].sort(), ['T', 'T-slow'], 'including the default instance the document never names');
     equal([...r.resolved.predicates], ['high'], 'and the names it declared');
-    equal(Object.keys((r.scheduler as unknown as { workerPools: object }).workerPools).sort(), ['T', 'T-slow'],
+    equal(Object.keys((r.scheduler as unknown as { workerPools: object }).workerPools).sort(), ['T', 'T-slow', ...BUILT_INS].sort(),
       'and scheduler is the one holding this runtime pools — shared across its runs (decision 10)');
   });
 
@@ -755,7 +776,7 @@ suite('W66 — a runtime on REAL pools: a document in, a completed run out', (te
     await runtime.shutdown();
 
     equal(state.outcome, 'completed', 'the run the document describes completed on real workers');
-    equal(poolKeys, ['Ingest', 'Publish'], 'one real pool per type instance, keyed by the type`s name');
+    equal(poolKeys, ['Ingest', 'Publish', ...BUILT_INS].sort(), 'one real pool per type instance, keyed by the type`s name, plus the built-ins');
     equal(groupKeys, ['gate'], 'and the group the document declared is the scheduler`s, keyed as declared');
     ok(typeof real?.scriptUrl === 'string' && real.scriptUrl.endsWith('/envelope-worker.ts'),
       `every real pool loads the package's envelope worker: ${real?.scriptUrl}`);

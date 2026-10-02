@@ -120,14 +120,89 @@ const asSet = (x: ReadonlySet<string> | readonly string[]): ReadonlySet<string> 
   x instanceof Set ? x : new Set(x as readonly string[]);
 
 /**
- * **The registry's node types as ONE shape** — a `Map` or a plain object in, a `Map` out, and
- * `undefined` is EMPTY (`Registry.nodeTypes`' own doc comment; the same reading `groups` has).
- * Shared by the validator and the driver so the two cannot read the option differently.
+ * **The one node type the library ships: a node that ONLY transforms** —
+ * [ADR 0075](../../doc/decisions/0075-a-node-that-only-transforms-is-a-built-in-type-with-no-inner-worker.md),
+ * [W109](../../doc/work-items/w109-a-node-that-only-transforms.md), and the third built-in SET here
+ * after `BUILT_IN_GROUP_TYPES` (`registry.ts`) and `BUILT_IN_GATE_TYPES` (below).
+ *
+ * **It names NO worker, and that is the whole of its definition.** A typed pool's script is the
+ * package's own envelope worker whatever the type (`ENVELOPE_WORKER_URL`), and that worker loads an
+ * inner class from `EnvelopePoolConfig.worker`; with no worker named there is no inner class, so
+ * `run()` returns the node's own `transform` evaluated over the value it received. Everything else a
+ * node type may say is absent on purpose: no `inline` (the scheduler's default, as `NodeTypeDeclaration`
+ * says of an absent one), no `config` (there is no constructor to hand one to), no `groups` and no
+ * `retryPolicy` (a consumer who wants either declares a named pool INSTANCE of this type, or a node's
+ * own `retryPolicy`).
+ *
+ * **It names a LANGUAGE nowhere, which is why it costs no dependency** — `lang` is the node's, exactly
+ * as `transform` has been since ADR 0051, so the adapter stays the consumer's and `S14`/ADR 0052 rule 4
+ * are untouched. A built-in JSONata type would ship a 242 KB engine to every consumer and turn `S14`
+ * red (P26 fact 5).
+ *
+ * **The name is capitalised because the corpus's type names are** — `Scored`, `Bounded`, `GpuModel` —
+ * and because it must read apart from the node KEY beside it: `{ type: 'Transform', transform: { lang,
+ * expr } }`. W109's stop-and-ask (b).
+ */
+export const BUILT_IN_NODE_TYPES: Readonly<Record<string, NodeTypeEntry>> = Object.freeze({
+  Transform: Object.freeze({}) as NodeTypeEntry,
+});
+
+/**
+ * **The registry's node types as ONE shape: the consumer's, then the BUILT-INS APPENDED** — a `Map` or
+ * a plain object in, a `Map` out, and absent is the built-ins ALONE. *(This read *the BUILT-INS, then
+ * the consumer's — `gateTypesOf`'s reading exactly*, which states the order backwards and claims a
+ * parity the code comment below contradicts four lines on: the ORDER differs from `gateTypesOf` and
+ * the difference is load-bearing. W109's conformity reader, 8.)* The five callers (the validator, the driver, the wiring check, `resolveRegistry` and `bootstrap`) all go
+ * through here, so none of them can disagree about what `Transform` is.
+ *
+ * **A consumer entry named as a built-in is NOT merged** — the built-in stays, and the collision is
+ * refused by `checkRegistry`, which is BOTH the road `resolveRegistry` takes and the road a hand-built
+ * `Driver` takes. *(This said *or, reached here directly, by `FD-V32`'s own message on the node that
+ * names it*, and `FD-V32` CANNOT fire — precisely because the built-in won the merge, so its worker
+ * clause is skipped by `onlyTransforms`. Measured by both of W109's readers from opposite ends: a
+ * consumer's worker-backed `Transform` validated with ZERO findings and constructed. `checkRegistry`
+ * calls `nodeTypeCollisions` now, on `checkGateTypes`' precedent.)*
+ *
+ * *(Until v0.28 this returned the consumer's alone and `undefined` was EMPTY; the reading moved because
+ * `Transform` has to be nameable by a flow whose registry declares no `nodeTypes` at all.)*
  */
 export function nodeTypesOf(x: NodeTypes | undefined): ReadonlyMap<string, NodeTypeEntry> {
-  if (x === undefined) return new Map();
-  if (x instanceof Map) return x as ReadonlyMap<string, NodeTypeEntry>;
-  return new Map(Object.entries(x as Readonly<Record<string, NodeTypeEntry>>));
+  // **The consumer's entries FIRST and the built-ins appended, which is where this differs from
+  // `gateTypesOf`.** A node type's name is its DEFAULT pool instance's key (ADR 0054), so this order
+  // is the order a consumer reads its own types in; `gateTypesOf` merges built-ins first because a
+  // gate type builds nothing. `Map.set` on a key already present keeps its POSITION and replaces its
+  // VALUE, so the built-in WINS a collision reached here directly — the order moves and the rule
+  // does not. **Both halves are asserted in `test/definition/node-type.test.ts`'s W109 suite**, and
+  // until they were, prepending here cost ZERO: `bootstrap` filters by name into three loops of its
+  // own, so POOL-creation order is that function's and not this one's. *(An earlier version of this
+  // comment claimed this map's order IS pool-creation order, which over-claims by one function.)*
+  const own = x === undefined ? [] : x instanceof Map ? [...(x as ReadonlyMap<string, NodeTypeEntry>)] : Object.entries(x as Readonly<Record<string, NodeTypeEntry>>);
+  const out = new Map<string, NodeTypeEntry>(own);
+  for (const [name, t] of Object.entries(BUILT_IN_NODE_TYPES)) out.set(name, t);
+  return out;
+}
+
+/** The consumer's node-type names that collide with a built-in — refused, never merged (`nodeTypesOf`). `gateTypeCollisions`' twin. */
+export function nodeTypeCollisions(x: NodeTypes | undefined): string[] {
+  if (x === undefined) return [];
+  const names = x instanceof Map ? [...(x as ReadonlyMap<string, NodeTypeEntry>).keys()] : Object.keys(x);
+  return names.filter((n) => Object.prototype.hasOwnProperty.call(BUILT_IN_NODE_TYPES, n)).sort();
+}
+
+/**
+ * **A node type that only transforms is one that names no worker** — ADR 0075 rule 2. The property and
+ * not the NAME, so every layer asks the same question of the entry it holds rather than comparing
+ * against a list of built-in names. **Its two callers are `FD-V32`, which skips its worker clause for
+ * such a type, and `FD-V46`, which requires a `transform` on every node of one** — and that is the
+ * whole of them. *(The first draft of this comment enumerated `derivePool` and `bootstrap` as callers,
+ * and ADR 0075 rule 2 said the question is asked *in one way in six places*; measured, this function
+ * has exactly TWO call sites and the other layers each write `worker === undefined` INLINE — the same
+ * question, not the same expression. W109's conformity reader (7) and its adequacy reader (F5, K5).)*
+ * **Only a built-in may be one**, which `checkNodeTypeShape` is what enforces — an omitted `worker` on
+ * a consumer's type stays a refusal, and that clause is the only thing between the two readings.
+ */
+export function onlyTransforms(t: NodeTypeEntry | undefined): boolean {
+  return t !== undefined && (t as { worker?: unknown }).worker === undefined;
 }
 
 /** **The registry's workers as ONE shape** — v0.19, `nodeTypesOf`'s reading: `undefined` is EMPTY. */
@@ -783,9 +858,20 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
         // instance since v0.19: every type has a default instance, built from its own config.)*
         const type = nodeTypes.get(nd.type);
         if (type === undefined) {
+          // The `no node types` arm is GONE: since v0.28 `nodeTypesOf` always returns at least the
+          // built-ins, so it could never render — measured with `nodeTypes: undefined`, the detail reads
+          // *(the registry declares "Transform")*. W109's conformity reader, 14, which is finding 1's
+          // withdrawn reading from the other side.
           add('FD-V32', where, `type "${nd.type}" is not a registered node type` +
-            (nodeTypes.size ? ` (the registry declares ${[...nodeTypes.keys()].sort().map((x) => `"${x}"`).join(', ')})` : ' (the registry declares no node types)'));
-        } else if (typeof type.worker !== 'string' || !workers.has(type.worker)) {
+            ` (the registry declares ${[...nodeTypes.keys()].sort().map((x) => `"${x}"`).join(', ')})`);
+        } else if (!onlyTransforms(type) && (typeof type.worker !== 'string' || !workers.has(type.worker))) {
+          // **A type that names NO worker is EXEMPT from this clause since v0.28** — ADR 0075: it is a
+          // built-in that only transforms, so *a type with no worker cannot run* is false of it. The
+          // test is `onlyTransforms`, the PROPERTY, not a comparison against the built-in names: a
+          // consumer's type with an omitted `worker` never reaches here, because
+          // `checkNodeTypeShape` refuses it at `resolveRegistry`, and a registry reached directly
+          // carries whatever its author put in it. **What such a node must declare instead is
+          // `FD-V46`'s**, below.
           add('FD-V32', where, `type "${nd.type}" is registered but names worker ${JSON.stringify(type.worker)}, which the registry's workers does not declare` +
             (workers.size ? ` (it declares ${[...workers.keys()].sort().map((x) => `"${x}"`).join(', ')})` : ' (it declares none)') + ' — a type with no worker cannot run');
         }
@@ -836,6 +922,22 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
             if (problem !== null) add('FD-V36', where, `transform.expr ${JSON.stringify(t.expr)} is refused by "${t.lang}": ${problem}`);
           }
         }
+      }
+      // ---- FD-V46: a node whose type only TRANSFORMS must say what it transforms ----
+      // `spec/flow-definition.md` section 5, v0.28 (W109), ADR 0075 rule 3 and P26 decision 5 (b).
+      // A type with no worker has nothing to run BUT the transform, so a node of one that declares
+      // none would dispatch a real task, pay a clone and a log record, and hand its successor the
+      // value it was given — an EXPENSIVE IDENTITY, which is the alternative the maintainer refused.
+      //
+      // **Its own id rather than a clause of `FD-V37`**, on `FD-V28`'s stated precedent that a
+      // different fix earns a different id (W109's stop-and-ask (d)): `FD-V37` refuses a `transform`
+      // that is MALFORMED and this refuses one that is MISSING, so one rule would say two opposite
+      // things and its fixture's name would describe half of it. Reported only once the type is
+      // registered — an unregistered type is `FD-V32`'s and has no worker to be absent.
+      if (typeof nd.type === 'string' && nd.transform === undefined && onlyTransforms(nodeTypes.get(nd.type))) {
+        add('FD-V46', where, `type "${nd.type}" only transforms — it names no worker, so a node of it with no \`transform\` ` +
+          'would dispatch a task that returns what it was given. Declare a `transform`, or move the computation onto the node that CONSUMES the value ' +
+          '(a `transform` there costs no extra task) or into that node`s `needs` if it is a selection');
       }
       // ---- FD-V30: what a node says about its task's RETRIES ----
       // `spec/flow-definition.md` section 2, v0.16 (W58). Its own id rather than a clause of

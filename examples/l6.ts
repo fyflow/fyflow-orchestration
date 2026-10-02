@@ -5454,7 +5454,7 @@ const CROSS_ROW_SUBJECTS = [
   // W65
   'retried under a policy of its OWN',
   // W67
-  'one per named instance, both ways',
+  'one per named instance PLUS one per built-in, both ways',
   'at least one NAMED instance exists',
   'differs from the document ON DISK in exactly `inline`',
   'the sample flow runs from two DOCUMENTS',
@@ -9176,6 +9176,11 @@ if (rowCosts.length !== EXPECTED.length) {
         'two readings of one fact, so neither can be a literal standing in for the other',
         WORKER_LISTS.groupIds, declaredBySchedulers);
     }
+    // **The node types the LIBRARY ships, as a LITERAL here** — v0.28, W109. `examples/l6.ts` reads the
+    // package through `index.ts` as a consumer does and does not import `src/`, so the list is written
+    // down; `test/definition/node-type.test.ts`'s W109 suite holds the same literal to
+    // `BUILT_IN_NODE_TYPES` itself, so a built-in added without these clauses moving is red there.
+    const BUILT_IN_NODE_TYPES_L6: readonly string[] = ['Transform'];
     // (2b) **Obligation (e) on `Registry.nodeTypes`, both ways, read from the SCHEDULER — W59.**
     //     Three readings of one registry, none a literal beside another: the types the L6 flows
     //     NAME (the documents), the types the driver was HANDED (`NODE_TYPES`, the object the
@@ -9201,19 +9206,31 @@ if (rowCosts.length !== EXPECTED.length) {
       // applied against the union, so a clause written over `REGISTRY_DOCUMENT.nodeTypes` alone
       // would call the sample's own class type unregistered.
       const registryTypes = [...new Set(reports.flatMap((r) => r.registryTypes))].sort();
+      // **This clause needs NO exemption for the built-ins, and that is ADR 0075 rule 5 paying off.**
+      // They are merged at every READ and stored in no registry, exactly as a gate type is, so the
+      // registry the DRIVER was handed carries the consumer's types alone and *registered and used by
+      // nothing* is about a consumer's type again. **The POOLS clause below is where they do show** —
+      // `bootstrap` builds one for every type `nodeTypesOf` returns. *(This clause carried a
+      // subtraction and a control for it while `resolveRegistry` stored them; the storage went, and
+      // with it the need. No L6 flow names one: a `Transform` node on real workers is W110's.)*
+      const builtInTypes = [...BUILT_IN_NODE_TYPES_L6].sort();
       check('cross-row', 'the node TYPES the L6 flows name are the types the registry holds, both ways — a type registered and used by nothing, or named and unregistered, is red',
         [...namedTypes].sort(), registryTypes);
       check('cross-row', 'and the types the registry holds, read from the DOCUMENT`s own bytes plus the classes the code supplies, are the ones the driver was handed — two readings of one registry',
         [...WORKER_LISTS.types, ...WORKER_LISTS.classTypes].sort(), registryTypes);
+      // **No third clause for *the built-ins are stored in no registry*, because the two above already
+      // say it**: a stored built-in would be in `registryTypes` and in neither `namedTypes` nor the
+      // document's own lists, so BOTH go red. A clause entailed by its neighbours is a fourth claim
+      // (`doc/workflow.md` v0.21's test), and L6's counts are W110's to move.
       const reported = [...new Set(reports.flatMap((r) => r.schedulerPools))].sort();
       // **One per TYPE plus one per NAMED instance, both ways — W67.** Until this item every pool
       // was a type's DEFAULT instance and the two lists were the same list; `prompt-big` is the
       // first named instance this rung has ever built, so the expected set is the types UNION the
       // document's `pools` keys, and a named instance nobody declared — or a declared one no pool
       // was built for — is red here. Both halves are read from the document's own bytes.
-      check('cross-row', 'and the pools the scheduler REPORTS are exactly one per type PLUS one per named instance, both ways — ' +
-        'the runtime builds every type`s default under the type`s name and every `pools` entry under its own',
-        reported, [...WORKER_LISTS.types, ...WORKER_LISTS.classTypes, ...WORKER_LISTS.namedPools].sort());
+      check('cross-row', 'and the pools the scheduler REPORTS are exactly one per type PLUS one per named instance PLUS one per built-in, both ways — ' +
+        'the runtime builds every type`s default under the type`s name, every `pools` entry under its own, and the library`s own types last',
+        reported, [...WORKER_LISTS.types, ...WORKER_LISTS.classTypes, ...WORKER_LISTS.namedPools, ...builtInTypes].sort());
       assertThat('cross-row', 'and at least one NAMED instance exists — the control, because a document with no `pools` section makes the clause above a restatement of the one before it',
         WORKER_LISTS.namedPools.length > 0, 'the document declares no named pool instance');
       // **The discriminating PAIR is a claim** (rule 8's fourth requirement on the set): the two

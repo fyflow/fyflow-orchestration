@@ -29,6 +29,23 @@ import {
 } from '../../src/definition/registry.ts';
 import type { GroupType, NodeTypeDeclaration, NodeTypeDefinition, PoolSpec, RegistryCode, RegistryDocument } from '../../src/definition/types.ts';
 import { PATH_LANGUAGE } from '../scheduler/fake-language.ts';
+/**
+ * **The pool and type expectations below are UNMOVED by [W109](../../doc/work-items/w109-a-node-that-only-transforms.md),
+ * and that is the design correction's own observable.** `ResolvedRegistry` stores a built-in node
+ * type no more than it stores a gate type — `nodeTypesOf` merges them at every READ — so what
+ * `resolveRegistry` hands back still holds exactly the DECLARED types and exactly one pool per
+ * declared type instance. Their claim is *nothing added and nothing dropped*, and it is about the
+ * document.
+ *
+ * *The first cut merged at read AND stored, and these sets were widened by a derivation off
+ * `BUILT_IN_NODE_TYPES` to absorb it. Storing them made `checkRegistry` — which runs on a raw
+ * registry and on a resolved one — unable to tell a consumer's collision from the library's own
+ * entry, and refused eighty of this repository's tests; the revert left that derivation stranded
+ * with this comment still claiming it was added, which `deno lint` is what caught.* The literal
+ * `'Transform'` is asserted where the merge IS the claim, in `test/definition/node-type.test.ts`'s
+ * W109 suite, against `BUILT_IN_NODE_TYPES` itself — two different claims, each bound where it
+ * belongs, and re-sourcing either to the other would be a tautology (obligation (c)'s limit).
+ */
 
 // ---- P18's minimum sample, verbatim from the plan ------------------------------------------------
 
@@ -117,8 +134,8 @@ suite('the minimum sample resolves — the document, the class, the custom group
     const r = resolveRegistry(SAMPLE, c);
     equal([...r.workers.keys()].sort(), ['fetch', 'prompt'], 'workers');
     equal([...r.groups.keys()].sort(), ['budget', 'gpu', 'vendor'], 'groups');
-    equal([...r.nodeTypes.keys()].sort(), ['Fetch', 'GpuModel', 'Prompt'], 'node types: two from the document, one from code');
-    equal([...r.pools.keys()].sort(), ['Fetch', 'GpuModel', 'Prompt', 'prompt-big'], 'pools: a default instance per type under the type`s name, plus the named one');
+    equal([...r.nodeTypes.keys()].sort(), ['Fetch', 'GpuModel', 'Prompt'], 'node types: two from the document, one from code — and NOT the built-ins, which `nodeTypesOf` merges at every read and `ResolvedRegistry` stores no more than it stores a gate type (ADR 0075 rule 5)');
+    equal([...r.pools.keys()].sort(), ['Fetch', 'GpuModel', 'Prompt', 'prompt-big'], 'pools: a default instance per type under the type`s name, plus the named one — a built-in`s pool is `bootstrap``s, which reads through nodeTypesOf');
     equal([...r.predicates], ['isLowConfidence'], 'predicates by name');
     equal([...r.languages.keys()], ['jsonata'], 'languages by name');
     ok(r.languages.get('jsonata') === PATH_LANGUAGE, 'the adapter is the one supplied, by reference');
@@ -238,7 +255,7 @@ suite('both SHAPES of a node type, every field of both interfaces, under one cla
 
 suite('every construction-time refusal, by name — a document that trips it and the sample that does not', (test) => {
   test('the sample resolves clean — the control every refusal below is measured against', () => {
-    ok(resolveRegistry(SAMPLE, code()).pools.size === 4, 'clean');
+    equal(resolveRegistry(SAMPLE, code()).pools.size, 4, 'clean — the sample`s four');
   });
   test('WorkerMissing: a type naming a worker the document lacks, a type with no worker, and a worker with no url', () => {
     refused(edited((d) => { d.nodeTypes!.Prompt!.worker = 'nope'; }), WorkerMissing, ['"Prompt"', '"nope"', '"fetch"', '"prompt"']);

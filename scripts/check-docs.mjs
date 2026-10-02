@@ -827,6 +827,67 @@ const RUN_FLOOR = 33;
   }
 }
 
+// X6b — W109's TIER-THREE cost figures, the same two documents and the same both-ways rule
+//
+// **The adequacy reader's F11.** `1.93x`, `~1.47x`, `+4 clones` and `+2 log records` are in
+// `spec/flow-definition.md`'s v0.28 paragraph, `AGENTS.md` section 13's tier table,
+// `doc/decisions/0075-*.md` and the work item — four copies — and nothing compared any two:
+// editing the spec's `1.93x` to `9.31x` left `check:docs` at **EXIT 0, all checks passed**. That
+// is `X6`'s own founding measurement one decision later, which is why this is `X6`'s clause and
+// not a new id.
+//
+// **The ADR's and the item's copies are HISTORICAL and deliberately not compared**, exactly as
+// ADR 0040's are above: a decision's record is what it was made on. What must agree is the
+// normative document and the consumer reference, because both are read as CURRENT.
+//
+// **By SET and BOTH WAYS**, as above. The figures compared are the RATIOS (`N.NNx`) and the
+// per-item COUNTS (`+N <noun>`), because those are the four an author acts on.
+{
+  const SPEC = join(ROOT, 'spec', 'flow-definition.md');
+  const AG = join(ROOT, DOCS[0]);
+  /** Every `N.NNx` ratio and every `+N clones|log records|dispatch` count in a slice, de-duplicated. */
+  const figuresIn = (text, from, to) => {
+    const a = text.indexOf(from);
+    const b = a < 0 ? -1 : text.indexOf(to, a);
+    if (a < 0 || b < 0) return null;
+    const slice = text.slice(a, b);
+    const out = [
+      ...(slice.match(/\d+\.\d+x/g) ?? []),
+      ...(slice.match(/\+\d+ (?:dispatch|clones?|log records?)/g) ?? []),
+    ];
+    return out.length ? [...new Set(out)].sort() : null;
+  };
+  if (!existsSync(SPEC) || !existsSync(AG)) {
+    fail('X6', 'spec/flow-definition.md or AGENTS.md is missing, so the tier-three cost figures cannot be compared');
+  } else {
+    const spec = figuresIn(readFileSync(SPEC, 'utf8'),
+      '**The type is the ESCAPE HATCH and not the default', '**Binds:**');
+    const agents = figuresIn(readFileSync(AG, 'utf8'),
+      '**Use it last, and the reason is a cost.**', '**Three things to know before you use one.**');
+    if (spec === null) {
+      fail('X6', 'spec/flow-definition.md`s v0.28 tier paragraph is not where X6 looks for it');
+    } else if (agents === null) {
+      fail('X6', 'AGENTS.md section 13`s tier table is not where X6 looks for it');
+    } else {
+      const missing = agents.filter((x) => !spec.includes(x));
+      const extra = spec.filter((x) => !agents.includes(x));
+      if (missing.length) {
+        fail('X6', `AGENTS.md quotes tier-three figure(s) ${missing.join(', ')}, which spec/flow-definition.md's ` +
+          `v0.28 paragraph does not — it has ${spec.join(', ')}`);
+      }
+      if (extra.length) {
+        fail('X6', `spec/flow-definition.md's v0.28 paragraph states ${extra.join(', ')}, which AGENTS.md ` +
+          `section 13 does not quote — it has ${agents.join(', ')}`);
+      }
+      if (!missing.length && !extra.length) {
+        console.log(`note: X6 also compared ${spec.length} tier-three cost figure(s) between ` +
+          'spec/flow-definition.md`s v0.28 paragraph and AGENTS.md section 13, both ways — four documents ' +
+          'carried them and nothing compared any two (W109`s adequacy reader, F11).');
+      }
+    }
+  }
+}
+
 // X8 — every ```ts fence in README.md IS the EXECUTED AGENTS.md snippet its section NAMES
 //
 // **Copies of EXECUTED programs, held equal** — W69 for one snippet, W70 for every one, on X6's

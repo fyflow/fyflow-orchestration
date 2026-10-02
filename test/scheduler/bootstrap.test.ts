@@ -20,9 +20,21 @@ import { WorkerManager } from 'fyflow-scheduler';
 import type { ResourceGroup, WorkerManagerOptions } from 'fyflow-scheduler';
 import { bootstrap, BootstrapError, ENVELOPE_WORKER_URL, EnvelopeWorker, NotAnEnvelope, transformLanguagesByType, unpackEnvelope } from '../../src/scheduler/index.ts';
 import { canonical } from '../../src/definition/schema.ts';
-import { NameMissing, RegistryError, WorkerMissing } from '../../src/definition/registry.ts';
+import { NameMissing, poolOptionsOf, RegistryError, WorkerMissing } from '../../src/definition/registry.ts';
 import type { FlowDefinition, LanguageAdapter, NodeTypeDeclaration, NodeTypeDefinition, NodeTypeEntry, PoolSpec, WorkerEntry } from '../../src/definition/types.ts';
 import { PATH_LANGUAGE } from './fake-language.ts';
+import { BUILT_IN_NODE_TYPES } from '../../src/definition/validate.ts';
+/**
+ * **`BUILT_INS` is ADDED to the pool and type expectations below rather than written into them** —
+ * v0.28, [W109](../../doc/work-items/w109-a-node-that-only-transforms.md): `nodeTypesOf` merges the
+ * library's own node types, so every registry holds them and every type's default pool instance is
+ * built, which these sets see. **The built-in's PRESENCE is not what they claim** — their claim is
+ * *one pool per DECLARED type, nothing added and nothing dropped* — so deriving the addition keeps
+ * them about that, and the literal `'Transform'` is asserted where the merge IS the claim, in
+ * `test/definition/node-type.test.ts`'s W109 suite.
+ */
+const BUILT_INS = Object.keys(BUILT_IN_NODE_TYPES);
+
 
 /** A group object as the scheduler duck-types it — what the helper is handed and hands back. */
 const group = (id: string): ResourceGroup => ({ id } as unknown as ResourceGroup);
@@ -52,10 +64,10 @@ suite('W59 — bootstrap: one pool per type keyed by its name, the groups both w
   test('one pool per type, keyed by the type`s name, both ways — obligation (e) on Registry.nodeTypes against the pools', () => {
     const { built, createPool } = recorder();
     const out = bootstrap(REG, GROUPS, { createPool });
-    equal(Object.keys(out.workerPools).sort(), Object.keys(TYPES).sort(), 'the pool keys ARE the type names — nothing added, nothing dropped');
-    equal(built.length, Object.keys(TYPES).length, 'and the factory was called exactly once per type');
+    equal(Object.keys(out.workerPools).sort(), [...Object.keys(TYPES), ...BUILT_INS].sort(), 'the pool keys ARE the type names, plus the built-ins — nothing else added, nothing dropped');
+    equal(built.length, Object.keys(TYPES).length + BUILT_INS.length, 'and the factory was called exactly once per type, the built-ins among them');
     ok(Object.keys(TYPES).length >= 3, 'over three types, so a loop narrowed to one is visible');
-    equal(Object.keys(out.derived).sort(), Object.keys(TYPES).sort(), 'and what each was derived as is handed back, keyed the same');
+    equal(Object.keys(out.derived).sort(), [...Object.keys(TYPES), ...BUILT_INS].sort(), 'and what each was derived as is handed back, keyed the same');
   });
 
   test('every pool loads the ENVELOPE worker, with the worker entry`s URL and the DERIVED config inside its pool config', () => {
@@ -98,7 +110,7 @@ suite('W59 — bootstrap: one pool per type keyed by its name, the groups both w
   test('a NAMED pool instance is a second pool keyed by its name, its config merged over the type`s — the identity derivation, twice', () => {
     const { built, createPool } = recorder();
     const out = bootstrap({ ...REG, pools: { 'scorer-big': { type: 'Scorer', config: { role: 'typed', size: 'big' } } } }, GROUPS, { createPool });
-    equal(Object.keys(out.workerPools).sort(), ['Plain', 'Ranker', 'Scorer', 'scorer-big'], 'the default instances and the named one');
+    equal(Object.keys(out.workerPools).sort(), ['Plain', 'Ranker', 'Scorer', 'scorer-big', ...BUILT_INS].sort(), 'the default instances, the named one and the built-ins');
     const big = built[Object.keys(out.workerPools).indexOf('scorer-big')]!;
     equal(big.options.config, { worker: 'test://scorer.ts', config: { role: 'typed', size: 'big' } }, 'the instance`s config merged over the type`s');
     equal(big.options.maxThreads, 2, 'the type`s pool fields, copied');
@@ -114,7 +126,7 @@ suite('W59 — bootstrap: one pool per type keyed by its name, the groups both w
     };
     const { built, createPool } = recorder();
     const out = bootstrap({ workers: WORKERS, nodeTypes: { Gpu: gpu }, pools: { 'gpu-big': { type: 'Gpu', config: { role: 'big' } } } }, { gpu: group('gpu') }, { createPool });
-    equal(Object.keys(out.workerPools).sort(), ['Gpu', 'gpu-big'], 'the default and the named instance');
+    equal(Object.keys(out.workerPools).sort(), ['Gpu', 'gpu-big', ...BUILT_INS].sort(), 'the default, the named instance and the built-ins');
     equal(built[0]!.options.maxThreads, 4, 'the default through the class`s own config');
     equal(built[1]!.options.maxThreads, 1, 'the named instance through its own');
     equal(built[1]!.options.inline, false, 'inline is the TYPE`s, on every instance');
@@ -358,7 +370,7 @@ suite('W61 — bootstrap writes a language`s worker URL into a typed pool`s conf
   test('direction two is NOT a refusal, and says so: an adapter given that no node names is an inert registry entry, unlike a group', () => {
     const { built, createPool } = recorder();
     const out = bootstrap(REG, GROUPS, { createPool, languages: LANGS, flows: [FLOW] });
-    equal(Object.keys(out.workerPools).sort(), Object.keys(TYPES).sort(), 'built, with `other` given and named by nothing');
+    equal(Object.keys(out.workerPools).sort(), [...Object.keys(TYPES), ...BUILT_INS].sort(), 'built, with `other` given and named by nothing');
     ok(built.every((b) => !JSON.stringify(b.options.config).includes('other-language')), 'and the unnamed adapter reaches no pool');
   });
 
@@ -369,7 +381,7 @@ suite('W61 — bootstrap writes a language`s worker URL into a typed pool`s conf
     equal([...declared.keys()].sort(), ['Ranker', 'Scorer'], 'two types transform across the two flows');
     equal([...declared.get('Ranker')!], ['other'], 'Ranker in `other`, from the second flow');
     for (const [name, t] of Object.entries(TYPES)) {
-      const cfg = byWorker(built, WORKERS[t.worker]!.url).options.config as { languages?: Record<string, string> };
+      const cfg = byWorker(built, WORKERS[t.worker!]!.url).options.config as { languages?: Record<string, string> };
       const written = Object.keys(cfg.languages ?? {}).sort();
       const wanted = [...(declared.get(name) ?? [])].sort();
       equal(written, wanted, `${name}: the languages written are exactly the languages its nodes declare`);
@@ -377,6 +389,100 @@ suite('W61 — bootstrap writes a language`s worker URL into a typed pool`s conf
     }
     equal(transformLanguagesByType([]).size, 0, 'no flows, no languages');
     const map = bootstrap(REG, GROUPS, { createPool: recorder().createPool, languages: new Map(Object.entries(LANGS)), flows: [FLOW] });
-    equal(Object.keys(map.workerPools).sort(), Object.keys(TYPES).sort(), 'a Map-shaped languages registry bootstraps as an object does');
+    equal(Object.keys(map.workerPools).sort(), [...Object.keys(TYPES), ...BUILT_INS].sort(), 'a Map-shaped languages registry bootstraps as an object does');
+  });
+});
+
+suite('W109 — the pool config the library BUILDS for a transform-only type, and what the arm READS', (test) => {
+  // **The adequacy reader's central finding (F1): the two halves of the marker were bound to each
+  // other by NOTHING.** `poolOptionsOf` WRITES `transformOnly` and `EnvelopeWorker.setup()` READS it,
+  // and `transformOnly` appeared in no assertion anywhere — only in `transform.test.ts`'s own
+  // HAND-WRITTEN `ONLY_CFG` literal. So dropping the marker, and renaming it, each cost ZERO at
+  // `npm test` AND at `typecheck` (the literal is `as WorkerManagerOptions`), after which the library
+  // itself produces the config `setup()`'s own v0.17 clause calls malformed. These cases are the
+  // producing side; `transform.test.ts`'s W109 suite is the consuming side.
+
+  test('`poolOptionsOf` with NO worker url writes the MARKER and no `worker` key — and with one, the reverse', () => {
+    const withUrl = poolOptionsOf({}, true, 'u', { path: 'p' });
+    const noUrl = poolOptionsOf({}, true, undefined, { path: 'p' });
+    // Both halves, as whole values rather than as spot checks — a key list alone would not see a
+    // marker written beside a worker (which is the contradiction `setup()` refuses).
+    equal(withUrl.config, { worker: 'u', config: undefined, languages: { path: 'p' } }, 'an inner worker: the url, and NO marker');
+    equal(noUrl.config, { transformOnly: true, config: undefined, languages: { path: 'p' } }, 'none: the MARKER, and no worker key');
+    ok(!('transformOnly' in (withUrl.config as object)), 'the marker is absent rather than false when there IS a worker');
+    ok(!('worker' in (noUrl.config as object)), 'and `worker` is ABSENT rather than undefined — an absent key is what survives the clone into a thread');
+    // The pair is a claim: what makes the two differ is exactly one key each, read from the values.
+    const keys = (o: unknown) => Object.keys(o as object).sort();
+    equal([keys(withUrl.config), keys(noUrl.config)], [['config', 'languages', 'worker'], ['config', 'languages', 'transformOnly']],
+      'one key each is what the pair turns on');
+  });
+
+  test('`bootstrap` writes that config for the BUILT-IN and the worker config for everything else — the producing side of the arm', () => {
+    const { built, createPool } = recorder();
+    const out = bootstrap({ workers: WORKERS, nodeTypes: { Scorer: { worker: 'scorer' } } }, {}, { createPool });
+    const cfg = (key: string) => {
+      const i = Object.keys(out.workerPools).indexOf(key);
+      ok(i >= 0, `a pool was built for ${key}`);
+      return built[i]!.options.config as Record<string, unknown>;
+    };
+    equal(cfg('Transform').transformOnly, true, 'the built-in`s pool config carries the marker');
+    ok(!('worker' in cfg('Transform')), 'and names no inner worker');
+    equal(cfg('Scorer').worker, WORKERS.scorer!.url, 'a consumer`s type carries its worker`s url');
+    ok(!('transformOnly' in cfg('Scorer')), 'and no marker');
+    // Every pool loads the ENVELOPE script either way — that is what makes the marker the only
+    // discriminator inside it.
+    equal([...new Set(built.map((b) => b.url))], [ENVELOPE_WORKER_URL], 'both pools load the package`s own envelope script');
+  });
+
+  test('the built-in`s pool carries the LANGUAGES it needs, because it ALWAYS transforms — and a consumer`s type only where a node of it does', () => {
+    // The adequacy reader's T4: inserting `if (builtIn(name)) continue;` into the `languagesFor` loop
+    // cost ZERO, and the one type that always transforms was then built with no engine — every task
+    // on it failing *language "path" is not loaded in this pool*. The flows name a `Transform` node,
+    // so the loop must reach it.
+    const flow = {
+      flowId: 'f', version: 1, entry: 'score',
+      nodes: [
+        { id: 'score', kind: 'task', type: 'Scorer', edges: [{ to: 'reshape' }] },
+        { id: 'reshape', kind: 'task', type: 'Transform', transform: { lang: 'path', expr: 'x' }, edges: [{ to: 'done' }] },
+        { id: 'done', kind: 'end', outcome: 'completed' },
+      ],
+    } as unknown as FlowDefinition;
+    const { built, createPool } = recorder();
+    const out = bootstrap({ workers: WORKERS, nodeTypes: { Scorer: { worker: 'scorer' } } }, {},
+      { createPool, flows: [flow], languages: { path: PATH_LANGUAGE } });
+    const at = (key: string) => built[Object.keys(out.workerPools).indexOf(key)]!.options.config as { languages?: Record<string, string> };
+    equal(Object.keys(at('Transform').languages ?? {}), ['path'], 'the built-in`s pool carries the adapter`s worker url');
+    equal(at('Transform').languages!.path, PATH_LANGUAGE.worker, 'and it IS the adapter`s own worker half');
+    equal(Object.keys(at('Scorer').languages ?? {}), [], 'CONTROL: a consumer`s type whose nodes do not transform carries none');
+  });
+
+  test('a NAMED pool instance of the built-in builds, and is refused by NAME when its type is unknown — the road ADR 0075 rule 3 blesses', () => {
+    // **W109's conformity reader (3): this CRASHED with an unnamed `TypeError`.** The named-instance
+    // loop read `derived[inst.type]!.definition`, and this item's own pool ordering made `derived`
+    // incomplete there, so a named instance of a built-in dereferenced `undefined` — on the one road
+    // ADR 0075 rule 3 names. It reads the definition from `types` now.
+    const { built, createPool } = recorder();
+    const out = bootstrap({ workers: WORKERS, nodeTypes: { Scorer: { worker: 'scorer' } }, pools: { 'reshape-big': { type: 'Transform', config: { n: 1 } } } }, {}, { createPool });
+    equal(Object.keys(out.workerPools).sort(), ['Scorer', 'Transform', 'reshape-big'], 'the two defaults and the named instance');
+    const named = built[Object.keys(out.workerPools).indexOf('reshape-big')]!.options.config as Record<string, unknown>;
+    equal(named.transformOnly, true, 'a named instance of the built-in carries the marker too');
+    equal(named.config, { n: 1 }, 'and the instance`s own config');
+    ok(!('worker' in named), 'and still no inner worker');
+  });
+
+  test('the ORDER is asserted UNSORTED — ADR 0075 rule 5`s *not cosmetic*, which nothing observed', () => {
+    // **Both readers found this unbound** (conformity 10, adequacy F10): every pool assertion in the
+    // tree sorts its keys, including the two whose own comments assert the order, so *the built-ins
+    // come LAST, so adding one never renumbers a consumer's pools* had no observer at all. This is
+    // the only unsorted one.
+    const { createPool } = recorder();
+    const out = bootstrap({
+      workers: WORKERS,
+      nodeTypes: { Zed: { worker: 'scorer' }, Alpha: { worker: 'ranker' } },
+      pools: { inst: { type: 'Zed' } },
+    }, {}, { createPool });
+    equal(Object.keys(out.workerPools), ['Zed', 'Alpha', 'inst', 'Transform'],
+      'the consumer`s types in DECLARED order, then its named instances, then the library`s own — unsorted, so prepending a built-in is red here');
+    equal(Object.keys(out.derived), ['Zed', 'Alpha', 'inst', 'Transform'], 'and `derived` agrees, key for key and position for position');
   });
 });

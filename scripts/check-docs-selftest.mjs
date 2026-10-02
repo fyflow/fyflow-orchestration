@@ -57,8 +57,11 @@
 // the same six were copied into four more documents.
 //
 // **The scope of what W104 re-took is stated rather than implied**: the SITE count, by
-// `grep -c "fail('X"`, is 55 across eleven ids (X1 4, X2 2, X3 2, **X4 13**, X5 1, X6 5,
-// X7 5, X8 9, X9 4, X10 4, X11 6), and 47 of them predate W104. The `META` list below
+// `grep -c "fail('X"`, is **64** across eleven ids (X1 4, X2 2, X3 2, **X4 13**, X5 1,
+// **X6 10**, X7 5, **X8 11**, X9 4, **X10 6**, X11 6). *(This read **55** with X6 at 5, X8 at 9
+// and X10 at 4 — W104's figures, and it was stale by FIVE before W109 added four X6 sites of its
+// own: a count in a comment beside the list it describes, which is the defect the paragraph above
+// records at W29 and which nothing here compares. Re-derived by the `grep` this sentence names.)* The `META` list below
 // is **28** entries and the coverage bound it carries is per **ID**, not per site, so
 // every id has at least one grading and *which sites* are graded is the question this
 // list answers — for the sites named below and for no others. Re-deriving that for all
@@ -250,6 +253,32 @@ const PROBES = [
     check: 'X6',
     mutate: (t) => t.replace('the `?` suffix costs nothing (**617.4 ms**)',
       'the `?` suffix costs nothing (**617.4 ms**, and once **99.9 ms**)'),
+  },
+  // --- X6's W109 clause: the TIER-THREE cost figures, same two documents, same both-ways rule ---
+  //
+  // **Negative-tested at birth** (rule 7 (a)), and both DIRECTIONS, for the reason the three probes
+  // above give: changing a figure trips both clauses at once, so a probe that ADDS one the spec does
+  // not have is what separates them. Its live case was real — the clause went red on its first run,
+  // because the spec's paragraph carried `1.93x` alone where AGENTS.md carried all four.
+  {
+    name: 'a tier-three RATIO in AGENTS.md that spec/flow-definition.md does not state',
+    check: 'X6',
+    mutate: (t) => t.replace('runs **1.93x** the same `map`', 'runs **9.31x** the same `map`'),
+  },
+  {
+    name: 'a tier-three COUNT in AGENTS.md that the spec does not state — the per-item deltas an author acts on',
+    check: 'X6',
+    mutate: (t) => t.replace('**+1 dispatch, +4 clones and +2 log records**', '**+1 dispatch, +9 clones and +2 log records**'),
+  },
+  {
+    name: 'AGENTS.md quotes an EXTRA tier-three figure the spec does not have — the `missing` direction alone',
+    check: 'X6',
+    mutate: (t) => t.replace('a flat **~1.47x** threaded.', 'a flat **~1.47x** threaded, and once **8.88x**.'),
+  },
+  {
+    name: 'AGENTS.md section 13`s tier table moved, so X6`s W109 clause cannot find its own subject',
+    check: 'X6',
+    mutate: (t) => t.replace('**Use it last, and the reason is a cost.**', '**Use it last — the reason is a cost.**'),
   },
   // --- X9: the version README.md tells a consumer to expect, against both manifests — W86 (`h1`) ---
   // **A README-side probe, because X9's subject is the README sentence.** The `mutate` is the

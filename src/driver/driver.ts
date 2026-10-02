@@ -1423,7 +1423,10 @@ export class Driver {
         const n = this.graph.byId.get(node);
         if (!n || n.kind !== 'task') continue;
         const type = this.nodeTypes.get(n.type);
-        const worker = type === undefined ? undefined : this.workers.get(type.worker);
+        // A type that only transforms names no worker (ADR 0075), so there are no schemas to hold a
+        // boundary to — the `undefined` falls through to the `schema === undefined` skip below, which is
+        // the same road a worker declaring no `inputSchema` already takes.
+        const worker = type?.worker === undefined ? undefined : this.workers.get(type.worker);
         const schema = worker?.inputSchema;
         if (schema === undefined) continue;
         const received = this.compose(n, value, new Map());
@@ -1680,7 +1683,7 @@ export class Driver {
     if (resolvedAs === 'done' && this.opts.validateBoundaries !== false) {
       const n = this.graph.byId.get(nodeId);
       const type = n?.kind === 'task' ? this.nodeTypes.get(n.type) : undefined;
-      const schema = type === undefined ? undefined : this.workers.get(type.worker)?.outputSchema;
+      const schema = type?.worker === undefined ? undefined : this.workers.get(type.worker)?.outputSchema;
       if (schema !== undefined) {
         const fs = findings(schema, value.result ?? null);
         if (fs.length) {
@@ -2004,9 +2007,12 @@ export class Driver {
     const n = this.graph.byId.get(nodeId);
     if (n?.kind !== 'task') return;
     const type = this.nodeTypes.get(n.type);
-    const worker = type === undefined ? undefined : this.workers.get(type.worker);
+    // `workerName` is kept so the report below can name it without an assertion: a schema exists only
+    // where a worker does, and a type that only transforms has neither (ADR 0075).
+    const workerName = type?.worker;
+    const worker = workerName === undefined ? undefined : this.workers.get(workerName);
     const schema = worker?.outputSchema;
-    if (schema === undefined) return;
+    if (schema === undefined || workerName === undefined) return;
     // **The check must not be able to STOP the run, and unguarded it CAN** — W80's conformity
     // reader, finding 1, measured on four shapes. `findings`' `enum` and `const` clauses are the
     // ONLY two of ADR 0053's thirteen keywords that call `canonical`, and `canonical` is the only
@@ -2033,7 +2039,7 @@ export class Driver {
       taskId: record.taskId,
       nodeId,
       type: n.type,
-      worker: type!.worker,
+      worker: workerName,
       findings: fs,
       message:
         `NonconformingResult: the result of "${record.taskId}" (node "${nodeId}", type "${n.type}") does not satisfy its ` +

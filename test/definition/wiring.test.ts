@@ -376,7 +376,7 @@ suite('W73 — constructed shapes: needs, a fan-out`s record, a map`s arity, the
     // four of them tasks, and nine arcs — three edges out of `ingest` and four out of `score` to two
     // distinct targets, plus `review` and `publish`. A corpus census is a claim about the corpus and
     // moves with it; what it BINDS is that every arc got a verdict.
-    equal(total, 68, 'the L4 corpus`s 68 arcs');
+    equal(total, 70, 'the L4 corpus`s 70 arcs — 68 until W109 added transform-only-node.flow.json, whose two arcs are both unchecked — the one INTO it, because the CONSUMING side (the transform-only node) declares no inputSchema, and the one LEAVING it, because the PRODUCING side (the same node) declares no outputSchema (Q446). This comment gave the producer`s reason for the arc into it; W109`s conformity reader, 15');
   });
 
   test('a map`s record is BUILT with the branch-path marker: a successor naming "0" as a number is `no`, naming it as an object fits, naming `confidence` is never met (rule 8 probe s4 survived until this existed)', async () => {

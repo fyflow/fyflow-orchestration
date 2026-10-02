@@ -48,7 +48,7 @@
  */
 import type { JsonSchema } from './schema.ts';
 import type { FlowDefinition, FlowNode, WorkerEntry } from './types.ts';
-import { checkWiring, type WiringOptions, type WiringRegistry, type WiringVerdict } from './wiring.ts';
+import { checkWiring, type WiringOptions, type WiringRegistry, type WiringSample, type WiringVerdict } from './wiring.ts';
 
 // ---- (1) path enumeration ----------------------------------------------------------------------
 
@@ -168,6 +168,144 @@ export async function tryTransform(
   });
   const report = await checkWiring(registry, { ...flow, nodes }, options);
   return report.verdicts.filter((v) => v.consumer === nodeId);
+}
+
+// ---- (2b) the SAMPLED OUTPUT of a node that only transforms ---------------------------------------
+
+/**
+ * **A schema INFERRED from ONE value** — its TYPE SHAPE in ADR 0053's subset: the types it carries, the
+ * keys it had, and nothing about its values. Evidence about one input and never a declaration, which is
+ * the whole caveat `sampledOutput` carries. *(This said *the narrowest schema of the subset that the
+ * value satisfies, and no narrower*, and the superlative is false: `{ const: 7 }` is in the subset, `7`
+ * satisfies it and `8` does not, so it is strictly narrower than the `{ type: 'integer' }` this returns.
+ * W109's conformity reader, 9. What the function IS — a sound shape inference — is what the rest of
+ * this comment describes.)*
+ *
+ * The rules, so a reader need not infer them: a plain object becomes `type: 'object'` with every own
+ * key REQUIRED and `additionalProperties: false`, because this value had exactly those keys; an array
+ * becomes `type: 'array'` with `items` inferred from its FIRST element, and an empty one carries no
+ * `items` at all; `null` is `type: 'null'`; a whole number is `integer` and any other number is
+ * `number`. **`undefined` has no schema in the subset and returns `undefined`** — a transform that
+ * evaluates to nothing is not a failure (ADR 0051), so the absence has to be sayable here too.
+ *
+ * It is deliberately NOT a generaliser: an array of mixed types reports its first element's shape, and
+ * `sampledOutput`'s own wording is what stops that being read as a guarantee. A UI showing this must
+ * show it as *what the sample produced*.
+ */
+export function schemaOfValue(v: unknown): JsonSchema | undefined {
+  if (v === undefined) return undefined;
+  if (v === null) return { type: 'null' };
+  if (Array.isArray(v)) {
+    const first = v.length ? schemaOfValue(v[0]) : undefined;
+    return { type: 'array', ...(first !== undefined ? { items: first } : {}) } as JsonSchema;
+  }
+  switch (typeof v) {
+    case 'string': return { type: 'string' };
+    case 'boolean': return { type: 'boolean' };
+    case 'number': return { type: Number.isInteger(v) ? 'integer' : 'number' } as JsonSchema;
+    case 'object': {
+      const properties: Record<string, JsonSchema> = {};
+      const required: string[] = [];
+      for (const k of Object.keys(v as object)) {
+        const sub = schemaOfValue((v as Record<string, unknown>)[k]);
+        if (sub === undefined) continue;                   // an own key holding `undefined` describes nothing
+        properties[k] = sub;
+        required.push(k);
+      }
+      return { type: 'object', ...(required.length ? { required } : {}), properties, additionalProperties: false } as JsonSchema;
+    }
+    default: return undefined;                             // a function or a symbol: outside the subset
+  }
+}
+
+/** What a node PRODUCES, as far as a sample can say — `sampledOutput`'s answer. */
+export interface SampledOutput {
+  /** The node asked about. */
+  node: string;
+  /**
+   * The sample its transform ran on and what came out — `WiringSample`, W73's own, with the source
+   * (a declared `examples` or the generator's witness) and the arity where the producer is a region.
+   * Absent when no sample could be built on the producing side.
+   */
+  sample?: WiringSample;
+  /** `schemaOfValue(sample.result)` — the shape of the one value this sample produced. */
+  schema?: JsonSchema;
+  /**
+   * **The verdicts on the arcs LEAVING this node, which are still `unchecked`** — and they are
+   * returned rather than elided on purpose. [Q446](../../doc/open-questions.md) is the residue: a
+   * sample is evidence about one input and `fits` is a claim about every input, so nothing here turns
+   * an arc green. P26 prediction 4 says this item does not remove that, and a function whose caller
+   * can read the residue off its own return value cannot be read as having removed it.
+   */
+  leaving: WiringVerdict[];
+  /** Why there is no sample, or no schema for its result. Absent when both are present. */
+  why?: string;
+}
+
+/**
+ * **The SHAPE a node emits, sampled** —
+ * [ADR 0075](../../doc/decisions/0075-a-node-that-only-transforms-is-a-built-in-type-with-no-inner-worker.md)
+ * rule 6, [W109](../../doc/work-items/w109-a-node-that-only-transforms.md), P26 decision 5 (a).
+ *
+ * **The hole it fills.** Every arc leaving a node with no `outputSchema` is `unchecked`, and a node of
+ * a type that only transforms has no worker and therefore no schemas at all — so P19's authoring
+ * feedback goes dark exactly on the node a UI is most likely to emit (P26 fact 6, re-measured at
+ * W109's declaration step). A transform-only node cannot DECLARE what it produces, and this is what it
+ * can show instead.
+ *
+ * **It is a WIRING of `tryTransform` and computes nothing of its own**, which is fact 7 read exactly:
+ * `checkWiring` already runs the transform on the producer's sample, already puts the result in
+ * `WiringSample.result`, and already says in words that *the transform ran and nothing holds its
+ * result*. Measured at W109's declaration step — that string is the verdict's own `why` today. What
+ * was missing was a function that asks the question an AUTHOR asks (*what does this node emit*) rather
+ * than the question a check asks (*does what arrives fit*), and that reports the residue beside the
+ * answer. Pass a `transform` to ask about a candidate; pass nothing to ask about the one the node
+ * declares.
+ *
+ * A node id that names no task, or one with no arcs into it, returns `leaving: []` and a `why` — an
+ * authoring tool reports.
+ */
+export async function sampledOutput(
+  registry: WiringRegistry,
+  flow: FlowDefinition,
+  nodeId: string,
+  transform?: CandidateTransform,
+  options: WiringOptions = {},
+): Promise<SampledOutput> {
+  // ONE report answers both halves where no candidate is given; with a candidate, the arcs INTO the
+  // node are the candidate's and the arcs LEAVING are the shipped flow's, because a candidate is a
+  // question and not an edit.
+  const report = await checkWiring(registry, flow, options);
+  const into = transform === undefined
+    ? report.verdicts.filter((v) => v.consumer === nodeId)
+    : await tryTransform(registry, flow, nodeId, transform, options);
+  const leaving = report.verdicts.filter((v) => v.producer === nodeId);
+  // **`kind` is read, and that is a repair.** This selected on `'result' in sample` alone — and
+  // `WiringSample.result`'s own doc comment is *what it produced, OR THE FAILURE'S MESSAGE*. So on a
+  // `transform-fails` verdict this returned the shape of the ERROR TEXT as the node's output: measured
+  // with a language whose `evaluate` throws, `{ schema: { type: 'string' } }` for the message `"boom"`,
+  // with no `why`, to an authoring UI whose whole purpose is to show what the node emits. W109's
+  // conformity reader, 4 — the one case the item's own *this is the claim easiest to make falsely*
+  // note did not guard. A failed transform produced NOTHING, so it reports the failure instead.
+  const failed = into.find((v) => v.kind === 'transform-fails');
+  const withResult = into.find((v) => v.kind !== 'transform-fails' && v.sample !== undefined && 'result' in (v.sample as object));
+  if (withResult === undefined) {
+    const why = into.length === 0
+      ? `"${nodeId}" has no arcs into it — nothing arrives, so there is no sample to transform (an entry node's value is the run's payload)`
+      : (failed ?? into[0]!).why;
+    // A FAILED transform's sample is returned — the value it was handed and the message it threw —
+    // because that is what an author needs to see; what is withheld is the SCHEMA, because a schema
+    // here would be the shape of an error string presented as the node's output.
+    return { node: nodeId, leaving, why, ...(failed?.sample !== undefined ? { sample: failed.sample } : {}) };
+  }
+  const sample = withResult.sample!;
+  const schema = schemaOfValue(sample.result);
+  return {
+    node: nodeId, sample, leaving,
+    ...(schema !== undefined
+      ? { schema }
+      : { why: `the transform produced ${sample.result === undefined ? 'undefined' : typeof sample.result}, which the schema subset cannot describe` }),
+  };
 }
 
 // ---- (3) the generated signature -----------------------------------------------------------------

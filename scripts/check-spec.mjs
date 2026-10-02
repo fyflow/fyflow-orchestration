@@ -296,7 +296,14 @@ if (!existsSync(REG)) {
   // `type` is the node's (`FD-V38`). `groups` is deliberately not read here (W58): it needs
   // `FD-V31`'s per-entry logic, which is ladder L4's; and what a type's WORKER or SCHEMA says is the
   // registry resolver's, at L4 too.
-  const nts = new Set(Object.keys(reg.nodeTypes ?? {}));
+  // **The BUILT-IN node types are nameable by a flow and are in NO registry document** - v0.28
+  // (W109, ADR 0075): `nodeTypesOf` merges them, so `Transform` resolves against a registry that
+  // declares no `nodeTypes` at all, which is the whole point of the merge. The list is a LITERAL here
+  // rather than imported, because this script reads the tree as TEXT and importing `src/` would make
+  // the check a consumer of the thing it checks; `test/definition/node-type.test.ts` holds the literal
+  // to `BUILT_IN_NODE_TYPES` both ways, so a built-in added without this line failing is caught there.
+  const BUILT_IN_NODE_TYPES = ['Transform'];
+  const nts = new Set([...Object.keys(reg.nodeTypes ?? {}), ...BUILT_IN_NODE_TYPES]);
   const pools = reg.pools ?? {};
   const poolOk = (n) => n.pool === undefined || n.pool === n.type || (pools[n.pool] !== undefined && pools[n.pool].type === n.type);
   // `languages` since W61 (v0.18): a typed task may declare `transform: { lang, expr }`, and `lang`

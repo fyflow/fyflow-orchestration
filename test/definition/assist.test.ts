@@ -19,8 +19,8 @@
  */
 import { equal, ok, readText, ROOT, suite } from '../harness.ts';
 import {
-  describePaths, pathsOf, PATH_TYPES, signatureOf, signaturesOf, TS_TYPE_NAMES, tryTransform, tsTypeOf,
-  type SchemaPath,
+  describePaths, pathsOf, PATH_TYPES, sampledOutput, schemaOfValue, signatureOf, signaturesOf,
+  TS_TYPE_NAMES, tryTransform, tsTypeOf, type SchemaPath,
 } from '../../src/definition/assist.ts';
 import { findings, SCHEMA_KEYWORDS, SCHEMA_TYPES, schemaProblem, type JsonSchema } from '../../src/definition/schema.ts';
 import { checkWiring } from '../../src/definition/wiring.ts';
@@ -450,5 +450,207 @@ suite('W74 — signatureOf: the SHAPE, as text, and the file it generated', (tes
     equal(text.split('\n').filter((l) => /[:=]\s*undefined/.test(l)), [], 'no keyword fell through to a bare `undefined`');
     ok(!text.includes('[object Object]'), 'and none to a stringified object');
     ok(text.includes('"inputType": "array" | "null"'), 'while the string "undefined" survives inside an enum, as `typed` declares it');
+  });
+});
+
+suite('W109 — sampledOutput: the shape a transform-only node emits, and the residue it reports beside it', (test) => {
+  // **On the WIRING corpus, whose workers declare schemas — and that choice is the point.** The first
+  // cut of this suite used `spec/examples/registry.json` and the arcs came back `unchecked` there
+  // because NOTHING in that corpus declares a schema, so the claim *the arc leaving a transform-only
+  // node is unchecked* was true of every arc in the document and said nothing about the node. Here
+  // `Scored` declares an `outputSchema` and `Text` an `inputSchema`, so an `unchecked` verdict on the
+  // arc LEAVING `reshape` is attributable to `reshape` alone — the consuming side has a schema and the
+  // producing side is the thing with none.
+  const SCORED_OUT = (wiringDoc.workers as unknown as Record<string, { outputSchema?: JsonSchema }>).scored!.outputSchema!;
+  const flow = (expr: string): FlowDefinition => ({
+    flowId: 'transform-only', version: 1, entry: 'score',
+    nodes: [
+      { id: 'score', kind: 'task', type: 'Scored', edges: [{ to: 'reshape' }] },
+      { id: 'reshape', kind: 'task', type: 'Transform', transform: { lang: 'path', expr }, edges: [{ to: 'title' }] },
+      { id: 'title', kind: 'task', type: 'Text', edges: [{ to: 'done' }] },
+      { id: 'done', kind: 'end', outcome: 'completed' },
+    ],
+  } as unknown as FlowDefinition);
+
+  test('schemaOfValue: the narrowest schema of the subset that ONE value satisfies, and `undefined` has none', () => {
+    // Every expected value written from ADR 0053's subset, never from the function's output.
+    equal(schemaOfValue(undefined), undefined, 'undefined has no schema in the subset — a transform may evaluate to nothing (ADR 0051)');
+    equal(schemaOfValue(null), { type: 'null' }, 'null is its own type');
+    equal(schemaOfValue('x'), { type: 'string' }, 'a string');
+    equal(schemaOfValue(true), { type: 'boolean' }, 'a boolean');
+    equal(schemaOfValue(3), { type: 'integer' }, 'a WHOLE number is integer — the narrowest of the two');
+    equal(schemaOfValue(3.5), { type: 'number' }, 'and any other number is number');
+    equal(schemaOfValue([]), { type: 'array' }, 'an EMPTY array carries no items — one value says nothing about them');
+    equal(schemaOfValue([1, 2]), { type: 'array', items: { type: 'integer' } }, 'and a non-empty one takes its FIRST element');
+    equal(schemaOfValue({ a: 1, b: 'x' }),
+      { type: 'object', required: ['a', 'b'], properties: { a: { type: 'integer' }, b: { type: 'string' } }, additionalProperties: false },
+      'an object: every own key REQUIRED and nothing else allowed, because this value had exactly those keys');
+    equal(schemaOfValue({ a: undefined }), { type: 'object', properties: {}, additionalProperties: false },
+      'an own key holding undefined describes nothing, so it is neither a property nor required');
+    equal(schemaOfValue(() => 1), undefined, 'a function is outside the subset');
+    // Every schema it emits is one the subset ACCEPTS — a relation rather than a restatement, and
+    // `schemaProblem` is `schema.ts`'s rather than this function's.
+    for (const v of [null, 'x', true, 3, 3.5, [], [1], { a: 1 }, { a: { b: [null] } }]) {
+      equal(schemaProblem(schemaOfValue(v)!), null, `the schema for ${JSON.stringify(v)} is INSIDE the subset`);
+    }
+    // And it accepts the value it was inferred from, which is what "satisfies" means.
+    for (const v of [null, 'x', true, 3, 3.5, [1, 2], { a: 1, b: 'x' }]) {
+      equal(findings(schemaOfValue(v)!, v), [], `and it accepts ${JSON.stringify(v)} — the value it came from`);
+    }
+  });
+
+  test('the sampled shape, DERIVED from the producer`s own schema before any output is read', async () => {
+    // `Scored`'s outputSchema declares `label: string` and `confidence: number`, and `reshape` picks
+    // `label`. So the sample's result is whatever the declared example (or the witness) holds at that
+    // key, and its SHAPE is the one that key's schema names. Both derived here from the document.
+    const props = (SCORED_OUT as { properties?: Record<string, JsonSchema> }).properties ?? {};
+    equal((props.label as { type?: string }).type, 'string', 'the producer declares `label` a string — the fixture`s expression picks it');
+    const out = await sampledOutput(wiringRegistry as never, flow('label'), 'reshape');
+    equal(out.node, 'reshape', 'the node asked about');
+    ok(out.sample !== undefined, `a sample was built on the producing side — ${out.why ?? ''}`);
+    equal(out.schema, { type: 'string' }, 'and the sampled shape is a string, which is what the producer`s schema says of that key');
+    equal(out.schema, schemaOfValue(out.sample!.result), 'the schema IS schemaOfValue of the sampled result — one road, stated');
+    equal(findings(props.label!, out.sample!.result), [], 'the sampled value satisfies the producer`s own schema for the key it came from');
+    equal(out.sample!.source, 'example', 'from the producer`s DECLARED example — `scored` carries one (Q301)');
+    equal(out.why, undefined, 'and nothing is unexplained');
+  });
+
+  test('OUTPUT 4`s CLAIM: the arcs LEAVING are still `unchecked`, with a consumer that DOES declare a schema', async () => {
+    // **The strongest claim in this item and the easiest to make falsely.** A sample is evidence about
+    // ONE input; `fits` is a claim about every input. [Q446] is the residue and P26 prediction 4 says
+    // this item does not remove it — so the function RETURNS the departing verdicts and this asserts
+    // they are unchanged. The CONTROL for its vacuity is `title`: it declares an `inputSchema`, so if
+    // `reshape` declared an `outputSchema` this arc would be judged, and the `unchecked` is therefore
+    // attributable to the transform-only node rather than to a schema-free corpus.
+    const f = flow('label');
+    const out = await sampledOutput(wiringRegistry as never, f, 'reshape');
+    ok(out.leaving.length > 0, 'there IS an arc leaving the node — a zero would make the clause below vacuous');
+    equal(out.leaving.map((v) => v.kind), out.leaving.map(() => 'unchecked'),
+      `every arc leaving the transform-only node is unchecked — got ${JSON.stringify(out.leaving.map((v) => [v.consumer, v.kind]))}`);
+    equal(out.leaving.map((v) => v.consumer), ['title'], 'and it is the arc into the consuming node');
+    // The CONTROL: the same consumer, judged `fits` when the producer DOES declare an output schema.
+    // Without this the claim is satisfied by a corpus in which nothing is ever checked.
+    const direct: FlowDefinition = {
+      flowId: 'direct', version: 1, entry: 'score',
+      nodes: [
+        { id: 'score', kind: 'task', type: 'Scored', edges: [{ to: 'title' }] },
+        { id: 'title', kind: 'task', type: 'Text', transform: { lang: 'path', expr: 'label' }, edges: [{ to: 'done' }] },
+        { id: 'done', kind: 'end', outcome: 'completed' },
+      ],
+    } as unknown as FlowDefinition;
+    const control = (await checkWiring(wiringRegistry as never, direct)).verdicts.filter((v) => v.consumer === 'title');
+    equal(control.map((v) => v.kind), ['transform-passes'],
+      'CONTROL: the same consumer and the same expression, one node fewer, is JUDGED — so the unchecked above is the transform-only node`s and not the corpus`s');
+    // The REASON names the type rather than a missing worker — the misleading message W109 replaced.
+    const why = out.leaving[0]!.why;
+    ok(why.includes('only TRANSFORMS') && why.includes('names no worker'),
+      `the reason names what the type IS, not a worker the registry lacks — ${why}`);
+    ok(!why.includes('is not in the registry'),
+      `and does NOT send an author to add a worker the type is defined not to have — ${why}`);
+    // Independent of this function: the same verdict read straight off the check.
+    const report = await checkWiring(wiringRegistry as never, f);
+    equal(report.verdicts.filter((v) => v.producer === 'reshape').map((v) => v.kind), ['unchecked'],
+      'and checkWiring says the same on its own — the claim is the check`s, not this reading`s');
+  });
+
+  test('a CANDIDATE transform is answered without editing the flow, and the two candidates DIFFER', async () => {
+    // The discriminating pair: two expressions over one document, so no literal can stand in for the
+    // evaluation. `label` is a string and `confidence` a number in the producer's own schema.
+    const f = flow('label');
+    const asString = await sampledOutput(wiringRegistry as never, f, 'reshape', { lang: 'path', expr: 'label' });
+    const asNumber = await sampledOutput(wiringRegistry as never, f, 'reshape', { lang: 'path', expr: 'confidence' });
+    equal(asString.schema, { type: 'string' }, 'the candidate picking `label` emits a string');
+    equal(asNumber.schema, { type: 'number' }, 'the candidate picking `confidence` emits a number');
+    ok(JSON.stringify(asString.schema) !== JSON.stringify(asNumber.schema),
+      'and the two candidates do not agree — collapsing this pair would leave the evaluation unasserted');
+    // The flow is not mutated: asking about a candidate leaves the document's own answer alone.
+    equal((await sampledOutput(wiringRegistry as never, f, 'reshape')).schema, { type: 'string' },
+      'the document`s own transform still answers for itself — a candidate is a question, not an edit');
+    equal((f.nodes.find((n) => n.id === 'reshape') as unknown as { transform?: unknown }).transform,
+      { lang: 'path', expr: 'label' }, 'and the node is unchanged');
+  });
+
+  test('a FAILED transform reports the failure and withholds a schema — it emitted nothing', async () => {
+    // **W109's conformity reader (4).** `WiringSample.result` is *what it produced, OR THE FAILURE'S
+    // MESSAGE*, and `sampledOutput` selected on `'result' in sample` alone — so on `transform-fails`
+    // it returned the shape of the ERROR TEXT as the node's output. Measured: `{ type: 'string' }` for
+    // the message. An authoring UI, which is this function's whole purpose, would have shown it.
+    const bad = await sampledOutput(wiringRegistry as never, flow('label.x'), 'reshape');
+    equal(bad.schema, undefined, 'no schema — a node that threw emitted nothing to describe');
+    ok(bad.why !== undefined && bad.why.includes('threw'), `the reason is the failure: ${bad.why}`);
+    // The substring is taken from the failure this actually prints — the language's own CODE is on the
+    // verdict's `why` and the MESSAGE is on `sample.result`, which is the field this reads.
+    ok(bad.sample !== undefined && typeof bad.sample.result === 'string' && bad.sample.result.includes('cannot read "x" of string'),
+      `and the sample still carries what it was handed and what it threw: ${JSON.stringify(bad.sample)}`);
+    equal(bad.sample!.value, { label: 'alpha', confidence: 0.5 }, 'the value it was handed is the producer`s declared example');
+    // The CONTROL, so the clause above is about the FAILURE and not about this expression: the same
+    // node and a working expression gives a schema and no reason.
+    const good = await sampledOutput(wiringRegistry as never, flow('label'), 'reshape');
+    equal([good.schema, good.why], [{ type: 'string' }, undefined], 'CONTROL: a working expression gives a schema and no reason');
+    // And the verdict kind is what discriminates them, read off the check rather than inferred.
+    const kinds = async (expr: string) => (await checkWiring(wiringRegistry as never, flow(expr))).verdicts
+      .filter((v) => v.consumer === 'reshape').map((v) => v.kind);
+    equal([await kinds('label.x'), await kinds('label')], [['transform-fails'], ['unchecked']],
+      'the check calls one transform-fails and the other unchecked — which is the field this function reads');
+  });
+
+  test('a transform that evaluates to NOTHING has no schema and SAYS so — the other documented residue', async () => {
+    // The adequacy reader (F9): `SampledOutput.why` documents two reasons and only one was exercised,
+    // and deleting the second cost ZERO. Its trigger is the most likely authoring mistake there is —
+    // a mis-typed key path, which W61's own suite calls silent because an adapter cannot tell a typo
+    // from an intended absence.
+    const typo = await sampledOutput(wiringRegistry as never, flow('lbael'), 'reshape');
+    equal(typo.schema, undefined, 'a mis-typed key path yields undefined, which the subset cannot describe');
+    ok(typo.why !== undefined && typo.why.includes('produced undefined') && typo.why.includes('subset'),
+      `and it says which of the two reasons it is: ${typo.why}`);
+    ok(typo.sample !== undefined, 'while still returning the sample it ran on');
+    // The OBJECT arm of `schemaOfValue`, reached THROUGH the feature rather than on a direct call —
+    // which is what a reshaping node actually emits (the reader's coverage note).
+    const whole = await sampledOutput(wiringRegistry as never, flow('$'), 'reshape');
+    equal(whole.schema, {
+      type: 'object', required: ['label', 'confidence'],
+      properties: { label: { type: 'string' }, confidence: { type: 'number' } },
+      additionalProperties: false,
+    }, 'and `$` emits the producer`s whole value — the object arm, through the feature');
+  });
+
+  test('the reason on the arc INTO a transform-only node names the TYPE too — the copy a wiring author meets first', async () => {
+    // The adequacy reader (F7): the reason exists in TWO copies in `wiring.ts`, and only the one on
+    // the arc LEAVING was asserted. Reverting the other to the pre-W109 *worker "<envelope>" ... is not
+    // in the registry* cost ZERO — and it is the arc an author wiring a reshaping step meets FIRST.
+    const into = (await checkWiring(wiringRegistry as never, flow('label'))).verdicts.filter((v) => v.consumer === 'reshape');
+    equal(into.map((v) => v.kind), ['unchecked'], 'the arc into it is unchecked — it declares no inputSchema either');
+    const why = into[0]!.why;
+    ok(why.includes('only TRANSFORMS') && why.includes('names no worker'),
+      `and the reason names what the type IS: ${why}`);
+    ok(!why.includes('is not in the registry'), `not a worker the registry lacks: ${why}`);
+    ok(why.includes('the transform ran and nothing holds its result'),
+      `and it says the transform RAN — which is what makes the sampled shape available at all: ${why}`);
+  });
+
+  test('a node with NO arcs into it, and one that names no task, each report rather than throw', async () => {
+    const f = flow('label');
+    const entry = await sampledOutput(wiringRegistry as never, f, 'score');
+    ok(entry.sample === undefined && entry.why !== undefined && entry.why.includes('no arcs into it'),
+      `the ENTRY node has nothing arriving, so there is no sample to transform — ${entry.why ?? JSON.stringify(entry)}`);
+    equal(entry.leaving.length, 1, 'and its departing arc is still reported');
+    const nobody = await sampledOutput(wiringRegistry as never, f, 'no-such-node');
+    equal([nobody.leaving.length, nobody.sample], [0, undefined], 'a node id that names nothing returns no arcs and no sample');
+    ok(nobody.why !== undefined, 'with a reason — an authoring tool reports');
+    // **An EMPTY `leaving` is a node nothing consumes, not a node whose arcs are fine** — the
+    // adequacy reader (F13): the suite's own `ok(out.leaving.length > 0)` shows the zero is the
+    // vacuity case for the claim, and it was never exercised. Here it is: a transform-only node whose
+    // only edge goes to an `end` has a schema, a sample and no departing arc at all.
+    const toEnd: FlowDefinition = {
+      flowId: 'to-end', version: 1, entry: 'score',
+      nodes: [
+        { id: 'score', kind: 'task', type: 'Scored', edges: [{ to: 'reshape' }] },
+        { id: 'reshape', kind: 'task', type: 'Transform', transform: { lang: 'path', expr: 'label' }, edges: [{ to: 'done' }] },
+        { id: 'done', kind: 'end', outcome: 'completed' },
+      ],
+    } as unknown as FlowDefinition;
+    const terminal = await sampledOutput(wiringRegistry as never, toEnd, 'reshape');
+    equal(terminal.leaving.length, 0, 'no arc LEAVES a node whose successor is an `end` — there is no consumer to judge');
+    equal(terminal.schema, { type: 'string' }, 'and the sampled shape is still there, which is what makes the zero distinguishable from a failure');
   });
 });

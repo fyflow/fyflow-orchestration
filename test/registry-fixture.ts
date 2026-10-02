@@ -27,7 +27,8 @@ export function typesFor(
   }
   for (const [n, e] of Object.entries(extra)) {
     t[n] = e;
-    w[e.worker] ??= { url: `test://${e.worker}` };
+    // A type that only TRANSFORMS names no worker (ADR 0075), so there is none to invent for it.
+    if (e.worker !== undefined) w[e.worker] ??= { url: `test://${e.worker}` };
   }
   return { workers: w, nodeTypes: t };
 }

@@ -17,7 +17,18 @@
  * adjusting either (`spec/README.md` rule 2).
  */
 import { collected, equal, listDir, ok, readText, ROOT, suite } from '../harness.ts';
-import { validateDefinition, violatedRules } from '../../src/definition/validate.ts';
+import { BUILT_IN_NODE_TYPES, validateDefinition, violatedRules } from '../../src/definition/validate.ts';
+
+/**
+ * **The node types the LIBRARY ships** - v0.28, [W109](../../doc/work-items/w109-a-node-that-only-transforms.md),
+ * [ADR 0075](../../doc/decisions/0075-a-node-that-only-transforms-is-a-built-in-type-with-no-inner-worker.md).
+ * `nodeTypesOf` merges them, so every registry holds them and no registry DOCUMENT declares them; the
+ * censuses below add them where they count what resolves and exempt them where they count what the
+ * document declares. The literal `'Transform'` is asserted against this list in
+ * `test/definition/node-type.test.ts`'s W109 suite, so a built-in added without these clauses moving is
+ * caught there rather than absorbed here.
+ */
+const BUILT_INS = Object.keys(BUILT_IN_NODE_TYPES);
 import { resolveRegistry } from '../../src/definition/registry.ts';
 import type { FlowDefinition, Registry } from '../../src/definition/types.ts';
 import { CORPUS_LANGUAGES, corpusRegistry, type CorpusRegistryDocument } from './corpus-types.ts';
@@ -202,7 +213,7 @@ suite('L4 — every valid example validates clean', (test) => {
     // every schema in the subset, every type's worker present, every pool's type present, every
     // group an instance of a built-in, every named predicate and language supplied.
     const r = resolveRegistry(registryDoc, { predicates: registryDoc.predicates, languages: CORPUS_LANGUAGES });
-    equal([...r.nodeTypes.keys()].sort(), Object.keys(registryDoc.nodeTypes).sort(), 'every declared type resolves');
+    equal([...r.nodeTypes.keys()].sort(), Object.keys(registryDoc.nodeTypes).sort(), 'every declared type resolves — and the built-ins are NOT stored, being merged at every read (ADR 0075 rule 5)');
     equal([...r.pools.keys()].sort(), [...Object.keys(registryDoc.nodeTypes), ...Object.keys(registryDoc.pools)].sort(), 'a default instance per type, plus the named instances');
     equal([...r.groups.keys()].sort(), Object.keys(registryDoc.groups).sort(), 'every group resolves to a built-in factory');
     ok(Object.keys(registryDoc.pools).length > 0, 'and the corpus declares at least one named instance, so the pools half is not vacuous');
@@ -220,13 +231,24 @@ suite('L4 — every valid example validates clean', (test) => {
       }
     }
     // Types: every type a valid flow names is declared, and every declared type is named by some valid flow.
-    equal([...namedTypes].filter((t) => !(t in registryDoc.nodeTypes)), [], 'a valid flow names a type the document does not declare');
+    // A valid flow may name a BUILT-IN type, which no registry DOCUMENT declares (v0.28, ADR 0075
+    // rule 5) — that is the whole point of the merge, and `transform-only-node.flow.json` is the case.
+    // The other direction is unchanged: a type the document declares and no flow names is still a defect.
+    equal([...namedTypes].filter((t) => !(t in registryDoc.nodeTypes) && !BUILT_INS.includes(t)), [],
+      'a valid flow names a type that is neither the document`s nor a built-in');
+    equal([...namedTypes].filter((t) => BUILT_INS.includes(t)), ['Transform'],
+      'and the corpus DOES exercise the built-in — the clause above would be satisfied by a corpus that never named one');
     equal(Object.keys(registryDoc.nodeTypes).filter((t) => !namedTypes.has(t)), [], 'the document declares a type no valid flow names');
     // Named pools, the same, and each named where the node's type is the pool's.
     equal([...namedPools].filter((p) => !(p in registryDoc.pools)), [], 'a valid flow names a pool the document does not declare');
     equal(Object.keys(registryDoc.pools).filter((p) => !namedPools.has(p)), [], 'the document declares a named instance no valid flow uses');
     // Workers: every type's worker exists, and every worker is some type's.
-    const workersNamed = new Set(Object.values(registryDoc.nodeTypes).map((t) => t.worker));
+    // `t.worker` is optional since v0.28 — a type that only TRANSFORMS names none (ADR 0075) — so the
+    // census is over the types that DO name one. The corpus declares no worker-less type of its own:
+    // `Transform` is a BUILT-IN and is not in this document, which the clause below asserts.
+    const workersNamed = new Set(Object.values(registryDoc.nodeTypes).map((t) => t.worker).filter((w): w is string => w !== undefined));
+    equal(Object.values(registryDoc.nodeTypes).filter((t) => t.worker === undefined).length, 0,
+      'every node type the corpus DOCUMENT declares names a worker — a worker-less type is a built-in and is declared in code');
     equal([...workersNamed].filter((w) => !(w in registryDoc.workers)), [], 'a type names a worker the document does not declare');
     equal(Object.keys(registryDoc.workers).filter((w) => !workersNamed.has(w)), [], 'the document declares a worker no type names');
     ok(namedTypes.size > 0 && namedPools.size > 0 && workersNamed.size > 0, 'none of the three sets is empty');
@@ -402,6 +424,12 @@ const SUITES = [
 
 /** The rest of the census, split only so neither literal is unreadably long. */
 const LATE_SUITES = [
+  // W109 — the BUILT-IN node type and `FD-V46`, in `test/definition/node-type.test.ts`; the no-inner
+  // arm on real pools, in `test/scheduler/transform.test.ts`.
+  'W109 — the BUILT-IN node type: nameable with no nodeTypes declared, and FD-V46 when it has nothing to do',
+  'W109 — a type that only TRANSFORMS: the transform IS the task, on a real pool and on the class',
+  'W109 — sampledOutput: the shape a transform-only node emits, and the residue it reports beside it',
+  'W109 — the pool config the library BUILDS for a transform-only type, and what the arm READS',
   // W108 — `FD-V42`-`FD-V45`, the subset and the absent rule, in `test/definition/predicate.test.ts`
   // and `test/driver/predicate.test.ts`.
   'W108 — a predicate is DATA: FD-V42 to FD-V45, the subset, and the absent rule',
@@ -701,6 +729,20 @@ suite('L1 — every suite this tree declares actually RAN', (test) => {
       'test/definition/predicate.test.ts registers W108`s grammar-and-evaluator cases');
     equal(count('W108 — a DECLARED predicate ROUTES, with no predicate registered at all'), 7,
       'test/driver/predicate.test.ts registers W108`s routing cases at ladder L2');
+  });
+  // **W109's suite, counted the same way — BOTH HALVES from the start.** W108 took the census row and
+  // not the count, and its adequacy reader emptied both of its suites for ZERO; the obligation that
+  // followed is this item's to discharge at its declaration rather than at its review.
+  test('W109`s suite still REGISTERS the cases it declares — an emptied suite fails here', () => {
+    const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
+    equal(count('W109 — the BUILT-IN node type: nameable with no nodeTypes declared, and FD-V46 when it has nothing to do'), 9,
+      'test/definition/node-type.test.ts registers W109`s nine grammar cases — four declared, five the readers bought');
+    equal(count('W109 — a type that only TRANSFORMS: the transform IS the task, on a real pool and on the class'), 8,
+      'test/scheduler/transform.test.ts registers W109`s eight real-pool cases — seven declared, plus the per-suite backend set');
+    equal(count('W109 — sampledOutput: the shape a transform-only node emits, and the residue it reports beside it'), 8,
+      'test/definition/assist.test.ts registers W109`s eight sampled-output cases — five declared, three the readers bought');
+    equal(count('W109 — the pool config the library BUILDS for a transform-only type, and what the arm READS'), 5,
+      'test/scheduler/bootstrap.test.ts registers W109`s five producing-side cases, which the adequacy reader`s F1 bought whole');
   });
   // **W93's two suites, counted the same way and for the same reason** — a suite emptied of its cases is still a suite.
   test('W93`s two suites still REGISTER the cases they declare — an emptied suite fails here', () => {

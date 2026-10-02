@@ -45,8 +45,8 @@
  */
 import { WorkerManager } from 'fyflow-scheduler';
 import type { ResourceGroup, WorkerManagerOptions } from 'fyflow-scheduler';
-import type { FlowDefinition, Languages, NodeTypes, Pools, ResolvedPool, TaskNode, Workers } from '../definition/types.ts';
-import { languagesOf, nodeTypesOf, poolsOf, workersOf } from '../definition/validate.ts';
+import type { FlowDefinition, Languages, NodeTypeEntry, NodeTypes, Pools, ResolvedPool, TaskNode, Workers } from '../definition/types.ts';
+import { BUILT_IN_NODE_TYPES, languagesOf, nodeTypesOf, poolsOf, workersOf } from '../definition/validate.ts';
 import { checkRegistry, ConfigRefused, derivePool, groupsNamedBy, isDerivation, nodeTypeFromDeclaration, poolOptionsOf, TypeDefaultRefused } from '../definition/registry.ts';
 
 /**
@@ -136,14 +136,32 @@ export function bootstrap(
   // `configSchema`, every group it names present in `groups` (direction one), and decision 9's
   // refusal of a resident group beside `idleTimeout: 0`.
   const derived: Record<string, ResolvedPool> = {};
-  for (const [name, entry] of types) {
+  // **The consumer's types, then its named instances, then the library's OWN types** — v0.28, W109.
+  // The order is deliberate and the reason is not cosmetic: this is the order pools are CREATED in, so
+  // appending the built-ins last means **adding a built-in node type never renumbers a consumer's
+  // pools**. Anything reading a pool by position — the scheduler's own `stats`, a dashboard, a test —
+  // sees the consumer's first and in its declared order, whatever the library ships.
+  const one = (name: string, typeName: string, entry: NodeTypeEntry, config: unknown, refuse: typeof TypeDefaultRefused): void => {
     const def = isDerivation(entry) ? entry : nodeTypeFromDeclaration(entry);
-    derived[name] = derivePool(name, name, def, workers.get(def.worker)!, def.config, groupKeys, TypeDefaultRefused);
-  }
+    derived[name] = derivePool(name, typeName, def, def.worker === undefined ? undefined : workers.get(def.worker), config, groupKeys, refuse);
+  };
+  const builtIn = (n: string): boolean => Object.prototype.hasOwnProperty.call(BUILT_IN_NODE_TYPES, n);
+  for (const [name, entry] of types) if (!builtIn(name)) one(name, name, entry, (isDerivation(entry) ? entry : nodeTypeFromDeclaration(entry)).config, TypeDefaultRefused);
   for (const [key, inst] of named) {
-    const def = derived[inst.type]!.definition;
-    derived[key] = derivePool(key, inst.type, def, workers.get(def.worker)!, (inst as { config?: unknown }).config, groupKeys, ConfigRefused);
+    // **The definition comes from `types` and NOT from `derived`, and that is a repair.** This read
+    // `derived[inst.type]!.definition`, which was sound while one loop built every type's default
+    // before this one ran; appending the built-ins last (see above) made `derived` incomplete HERE, so
+    // a named instance of a BUILT-IN dereferenced `undefined` and threw an unnamed `TypeError` — on the
+    // one road ADR 0075 rule 3 blesses by name (*a consumer who wants any of those declares a named
+    // pool INSTANCE of it*), where every other registry defect in this file is a named error.
+    // W109's conformity reader, 3. The assertion is sound: `checkRegistry` ran at the top of this
+    // function and refuses a named pool whose `type` is not a node type (`PoolTypeMissing`), over the
+    // same merged map `types` is.
+    const entry = types.get(inst.type)!;
+    const def = isDerivation(entry) ? entry : nodeTypeFromDeclaration(entry);
+    derived[key] = derivePool(key, inst.type, def, def.worker === undefined ? undefined : workers.get(def.worker), (inst as { config?: unknown }).config, groupKeys, ConfigRefused);
   }
+  for (const [name, entry] of types) if (builtIn(name)) one(name, name, entry, (isDerivation(entry) ? entry : nodeTypeFromDeclaration(entry)).config, TypeDefaultRefused);
   // Direction two: every group object given is named by some pool.
   const namedByPools = new Set<string>();
   for (const p of Object.values(derived)) for (const g of groupsNamedBy(p.spec)) namedByPools.add(g);
@@ -179,7 +197,10 @@ export function bootstrap(
   const createPool = options.createPool ?? defaultCreatePool;
   const workerPools: Record<string, WorkerManager> = {};
   for (const [key, p] of Object.entries(derived)) {
-    workerPools[key] = createPool(ENVELOPE_WORKER_URL, poolOptionsOf(p.spec, p.definition.inline, p.worker.url, languagesFor.get(p.type)));
+    // **`p.worker` is absent exactly when the type only transforms** (ADR 0075): the pool still loads
+    // the envelope — every typed pool does — and its config carries no inner worker url, so
+    // `EnvelopeWorker.setup()` loads nothing and `run()` returns the transform's own result.
+    workerPools[key] = createPool(ENVELOPE_WORKER_URL, poolOptionsOf(p.spec, p.definition.inline, p.worker?.url, languagesFor.get(p.type)));
   }
   return { workerPools, resourceGroups: { ...groups }, derived };
 }
