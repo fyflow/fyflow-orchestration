@@ -756,6 +756,21 @@ if (existsSync(SCRIPTS)) {
       'an environment VALUE naming the staging directory, not a path construction — two sites'],
     // The directory-SKIP lists. `dev-dist` here is a name to step OVER, not a path to write.
     ['check-markdown.mjs', `name === '${D}dist'`, 'a directory NAME the walk skips'],
+    // **The same shape in a second file — [W112](../doc/work-items/w112-the-budget-the-check-and-the-floors.md)'s
+    // content digest.** `check-budget-selftest.mjs` walks the tree to hash it and steps OVER this
+    // directory by name; it cannot carry a pid, because the thing being skipped is every
+    // process's scratch space and not this one's. Everything that file WRITES there does carry
+    // one, which is what the exception is narrow about: the clause below pins the skip
+    // expression, so a path CONSTRUCTION in the same file is still refused.
+    ['check-budget-selftest.mjs', `name === '${D}dist'`, 'a directory NAME the digest walk skips'],
+    // **A READ of the directory rather than a path written into it**, which is `stray()`'s own
+    // exception one file over: this lists `dev-dist` to NAME the harness's own residue by pid, so a
+    // pid in the statement would defeat the thing it is for. Everything that file WRITES there
+    // carries one. *It was introduced by the clause that watches for leaks and caught by `G6` on the
+    // next run* — [Q178](../doc/open-questions.md)'s shape, which `check-wiring.mjs` has recorded
+    // twice about itself.
+    ['check-budget-selftest.mjs', `const flat = readdirSync(join(root, '${D}dist'))`,
+      'a READ of the shared directory, to name this run`s own residue — the pid is in what it looks for'],
     // **This clause's own PRUNE, and `G6` caught it on the run after it was written** — which is the
     // mechanism working rather than an inconvenience. The intermediate directory it removes is the
     // SHARED one by definition, so it cannot carry a pid; `rmdirSync` refuses a non-empty directory,

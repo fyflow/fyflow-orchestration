@@ -214,16 +214,32 @@ function isMarkdownFile(abs) {
  * rather than reporting them, so `check-spec.mjs` can label them `C5` and this file
  * can label them `M1` / `M2`.
  *
- * The counts — `files`, `links`, `anchored` — are returned so a caller can refuse a
- * **vacuous pass**: a scan that read no files, or found no links, has not checked
- * anything, and P6's retro's lesson is that a derivation which cannot classify its
- * input must say so loudly rather than return a value. *(The docstring named a field
+ * The counts — `files`, `links`, `anchored`, `sources` — are returned so a caller can
+ * refuse a **vacuous pass**: a scan that read no files, or found no links, has not
+ * checked anything, and P6's retro's lesson is that a derivation which cannot classify
+ * its input must say so loudly rather than return a value. *(The docstring named a field
  * `counted` that has never existed; W25's conformity reader.)* **`M3` uses them and
  * `C5` does not**, which is a gap the lift did not carry across — [Q137](../doc/open-questions.md).
+ *
+ * **`sources` — the number of documents that CARRY at least one relative link — is
+ * [W112](../doc/work-items/w112-the-budget-the-check-and-the-floors.md)'s, and it is what `M4`
+ * counts instead of `links`.** *(It is incremented BEFORE the dead-link `continue`, so it counts
+ * documents that carry a link rather than ones the walk successfully RESOLVED one from. The
+ * failure message says `carried`, which is right; the first cut of this docstring said *resolved*,
+ * which overstates it by however many dead links there are — zero today. W112's conformity
+ * reader.)*
+ * [ADR 0076](../doc/decisions/0076-a-vacuity-floor-counts-what-a-prose-cut-cannot-move.md) has
+ * the argument; the mechanical reason it exists is that `links` counts repeated
+ * CITATIONS and `M4`'s own message says its job is *"`M1` is vacuous below that"*. What
+ * makes `M1` non-vacuous is how much of the corpus it resolved links from, and a prose
+ * cut removes citations rather than documents.
  */
 export function resolveLinks(files, root) {
   const dead = [], deadAnchors = [];
   let links = 0, anchored = 0;
+  // A document counts once however many links it carries, so this is a SET rather than
+  // a counter: `M4`'s whole property is that it does not move when a citation goes.
+  const sources = new Set();
   const cache = new Map();
   const anchorsFor = (abs) => {
     if (!cache.has(abs)) {
@@ -239,6 +255,7 @@ export function resolveLinks(files, root) {
       const target = m[1];
       if (/^[a-z][a-z0-9+.-]*:/i.test(target)) continue;   // external scheme
       links++;
+      sources.add(p);
       const hash = target.indexOf('#');
       const path = hash < 0 ? target : target.slice(0, hash);
       // **`decodeURIComponent` THROWS on a bare `%`** — `](#100%-done)` is a
@@ -271,7 +288,7 @@ export function resolveLinks(files, root) {
       }
     }
   }
-  return { dead, deadAnchors, files: files.length, links, anchored };
+  return { dead, deadAnchors, files: files.length, links, anchored, sources: sources.size };
 }
 
 // --- run as a script: doc/**, spec/** and the root markdown -------------------
@@ -553,7 +570,93 @@ if (r.files < 142) fail('M3', `only ${r.files} markdown file(s) were scanned, so
 // removed **93 / 5291**. So `M4`'s window is `(5291, 7159]` and 6225 is its MIDPOINT, W80's rule. **`M3` is NOT
 // retuned**: its margin is 5 files and it has not fired, and W80's *a ratchet moved before it fires is moved for no
 // reason* holds for it. [Q142](../doc/open-questions.md) for the tenth time, and the second declared in advance.
-if (r.links < 6225) fail('M4', `only ${r.links} relative link(s) were found; M1 is vacuous below that`);
+//
+// **`M4` STOPS COUNTING LINK INSTANCES AT [W112](../doc/work-items/w112-the-budget-the-check-and-the-floors.md),
+// and 6225 -> 120 is a RE-POINTING rather than a retune** —
+// [ADR 0076](../doc/decisions/0076-a-vacuity-floor-counts-what-a-prose-cut-cannot-move.md). Every
+// retune above moved a number inside a window; this changes which quantity the window is over,
+// because **no number existed that was valid both before and after P27's cuts.** Measured at W112's
+// declaration step on this tree and on a simulated post-cut tree (the register reduced to 418
+// one-line rows, `CLAUDE.md` minus its `Current state` block, this document's twin minus its version
+// blocks, `doc/README.md` minus its long status paragraphs):
+//
+//                        whole tree   - doc/decisions   - decisions+plans
+//   links, today              8052             7418                5969      window (5969, 7418]
+//   links, post-cut           5496             4862                3413      window (3413, 4862]
+//
+// **The two windows are DISJOINT**, so a literal cannot span them, and deeper fixtures
+// (`- work-items`, `- the three big directories`) and `distinct (source, target) pairs` were all
+// measured and stay disjoint. *P27 decision 3 assumed the floors could be re-pointed ahead of the
+// cut; for a VALUE they cannot, which is that plan's own prediction-2 reversal arriving at the item
+// asked to find it.*
+//
+// What does span them is the count of documents the walk resolved a link FROM, which is what `M4`'s
+// own message has always said its job is — `M1` is vacuous when it resolved links from little of the
+// corpus, not when it walked few repeated citations, and **a prose cut removes citations rather than
+// documents**:
+//
+//                        whole tree   - doc/decisions   - decisions+plans
+//   sources, today             176              134                 107      window (107, 134]
+//   sources, post-cut          175              133                 106      window (106, 133]
+//                                                                            shared (107, 133], 26 wide
+//
+// *(Taken at W112's declaration step. On the tree the item SHIPS they read 178 / 135 / 108, because
+// its own documents carry links; 120 is inside that window too, with 12 of headroom below and 15
+// above. The today row's own window is `(107, 134]` and the first cut of this table labelled it
+// with the SHARED one — W112's conformity reader.)*
+//
+// 120 is near the middle of the shared window, which is W80's rule for a two-sided one. The
+// one-document drift (176 -> 175) is a document losing its LAST link, which is signal. **Every
+// existing probe, fixture and declared set is unchanged**, which is the test that this is a
+// re-pointing and not a weakening: `check:markdown:selftest` is green on both trees.
+if (r.sources < 120) fail('M4', `only ${r.sources} document(s) carried a relative link, of ` +
+  `${r.files} scanned; M1 is vacuous below that`);
+// **`M6` — `sources` is strictly fewer than `files`, and W112's ADEQUACY READER is why this clause
+// exists.** `M4`'s re-pointing had NO OBSERVER ANYWHERE: `sources: sources.size` re-sourced to
+// `sources: files.length` cost **ZERO** — `check:markdown` EXIT 0, both `removes` probes `caught`,
+// the self-test EXIT 0 at 37/37 and 37/37 — and the reader then built a post-cut tree and measured
+// that it cannot discriminate either (`174/131/104` against `183/137/109`, identical verdict sets).
+// The mechanism: on all three fixtures the two counts differ by at most FIVE (183/178, 137/135,
+// 109/108) while the floor sits twelve or more away from the nearer, so **no fixture can separate
+// them** and `M4` was a duplicate of `M3` at a lower floor.
+//
+// *The claim that "every existing probe, fixture and declared set is unchanged, which is the test
+// that this is a re-pointing and not a weakening", is exactly why nothing could see it* — the
+// reader's sentence, and it is obligation (c)'s LIMIT: a clause with one observer, re-sourced, is
+// indistinguishable from the thing it replaced.
+//
+// So the observer is a RELATION over the derivation rather than another count, which is v0.21's
+// answer to the same shape: **the walk must resolve links from FEWER documents than it scans.**
+// Under the substitution the two are equal by construction and this fires on the real tree with no
+// probe at all — *you can name the tree on which it fails and `M4` still passes*, which is v0.22's
+// test for a control. **A NEW ID rather than a second clause under `M4`**, because rule 7 (c)
+// compares the SET of ids and W25's adequacy reader measured what sharing one costs: three bounds
+// under `M3` were each replaceable by `if (false)` for zero, since any probe tripping one satisfied
+// a declaration of the other two.
+//
+// Its own durability is measured rather than hoped: the gap is **5** today and **6** post-cut, and
+// three of the five are `TEMPLATE.md` files — `doc/decisions/`, `doc/plans/` and `doc/work-items/` —
+// which carry no link by their nature, so the gap cannot close while the templates exist.
+if (r.sources >= r.files) {
+  fail('M6', `the walk scanned ${r.files} document(s) and resolved a relative link from ` +
+    `${r.sources} of them. M4 counts documents that CARRY a link and M3 counts documents SCANNED; ` +
+    'equal counts mean M4 has been re-sourced to the file list and is a duplicate of M3 at a lower ' +
+    'floor. The gap is the documents carrying no relative link, of which three are TEMPLATE.md');
+}
+// **`M5` is UNCHANGED at 60, and W112 measured that it CANNOT be re-pointed yet.** Its only probe
+// empties `doc/open-questions.md`'s anchors, and **440 of the corpus's 473 anchored links are that
+// document's `](#live)` and `](#resolved)` self-links, resolving to exactly TWO distinct anchors.**
+// So **W113**, the register cut, deletes this probe's subject —
+// [ADR 0073](../doc/decisions/0073-the-readme-is-for-a-person-the-reference-is-for-an-agent.md)
+// consequence 2's shape, *removing a subject removed its probes* — after which the probe strips
+// nothing and the whole tree stays at 28: the probe needs `28 < floor` and the check needs
+// `28 >= floor`. Four alternatives were measured at W112 and all four fail (distinct anchors move by
+// 2 when the register is emptied; documents-carrying-an-anchor puts the floor at <= 1; re-pointing
+// the probe at `doc/scheduler-upstream.md` leaves 458 of 473 today; giving probe 2 `M5` needs
+// `floor > 455` today and `<= 28` after). **So the obligation is W113's and it is MEASURED rather
+// than discovered**: post-cut the corpus carries **28 anchored links over 7 documents**, the largest
+// holder is `doc/scheduler-upstream.md` at **15 anchored / 10 distinct**, and `M5`'s floor lands in
+// **`(13, 15]`** with its probe re-pointed there.
 if (r.anchored < 60) fail('M5', `only ${r.anchored} link(s) carry an anchor; M2 is vacuous below that`);
 
 const checks = [
@@ -562,9 +665,13 @@ const checks = [
   'M3 the walk covers the tree',
   'M4 the tree carries links to check',
   'M5 the links carry anchors to check',
+  'M6 M4 counts something M3 does not',
 ];
-console.log(`markdown check — ${r.files} documents, ${r.links} relative links, ` +
-  `${r.anchored} of them anchored\n`);
+// `sources` is printed because it is what `M4` now reads, and a floor whose quantity is not in the
+// report is a floor a reader cannot check the check against — W107's `compared` defect, which was
+// *a value computed and never read*.
+console.log(`markdown check — ${r.files} documents, ${r.links} relative links in ` +
+  `${r.sources} of them, ${r.anchored} links anchored\n`);
 for (const c of checks) {
   const id = c.slice(0, c.indexOf(' '));
   const bad = failures.filter((f) => f.startsWith(id + ':'));

@@ -721,6 +721,23 @@ const GATE_CHAIN = [
   // at ~1 s, ahead of `check:docs` (6.5 s, twenty-six executed snippets) and behind `check:wiring`.
   'check:workers',
   'check:docs',
+  // **[W112](../doc/work-items/w112-the-budget-the-check-and-the-floors.md): the SIXTEENTH entry,
+  // and it goes LAST of the checks rather than first despite being the cheapest.** ADR 0039's
+  // cheapest-first rule is about getting a verdict sooner, and this one reads three `statSync`
+  // sizes. **Its cost is INDISTINGUISHABLE from the two cheapest entries rather than below them**,
+  // which W112's conformity reader measured over three runs each — `check:budget` 351/369/501 ms,
+  // `check:scheduler` 441/460/531, `check:policies` 372/446 — with the within-check spread larger
+  // than the between-check difference, which is [Q179](../doc/open-questions.md)'s band. *(The first
+  // cut of this comment said `~0.1 s, cheaper than check:scheduler's 0.09 by a hair`, which is not
+  // cheaper, and ADR 0076 consequence 4 said "despite being the cheapest". Both withdrawn; the
+  // placement argument below never depended on either.)*
+  // It sits here because the ordering rule's PURPOSE is that a failure arrives early and **this
+  // check cannot fail for a reason the others would have caught**: it measures the always-read
+  // set's bytes, which no other clause reads. Putting it first would move a
+  // budget breach ahead of a type error, and a type error is the one a reader can act on.
+  // *A cheapest-first rule over entries that can substitute for each other says nothing about
+  // an entry that can substitute for none of them.*
+  'check:budget',
   'test',
   'test:deno',
   'test:browser',

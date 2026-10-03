@@ -1839,9 +1839,22 @@ Four rules that make the loop worth having:
    not the record.
 4. **Say what you skipped.** A skipped check reported as passed makes the whole ladder worthless.
 5. **The record step's files are part of finishing an item, not exceptions to its `Owns`.** Those
-   **six** and no others: the plan's Record, `doc/README.md`, `CLAUDE.md`, `README.md`,
+   **FIVE** and no others: the plan's Record, `doc/README.md`, `README.md`,
    **`doc/open-questions.md`**, and **`doc/decisions/**`**. **Anything else outside `Owns` is
    declared.**
+
+   **`CLAUDE.md` LEFT this list on 2026-10-03 —
+   [ADR 0077](decisions/0077-an-item-does-not-write-its-status-into-claude-md.md), the maintainer's
+   decision at [W112](work-items/w112-the-budget-the-check-and-the-floors.md)'s record step.** An
+   item does not write its status there. The file was **556 KB and 93% `Current state`** against a
+   25 KB budget ([P27](plans/p27-what-a-register-row-is.md) decision 1), and this rule was what filled
+   it: the record step added 8497, 8263, 5430, 4515, 5265, 3624 and 5522 bytes at the seven most
+   recent items. **And the entry was never the source** — the clause immediately below has said since
+   v0.9 that a status is read from the item's own file and never from an index, so this rule obliged
+   an item to write a copy and then told the next reader not to trust it. *Removing it removes a copy,
+   not information.* `npm run state` is the derivation that replaces it (P27 decision 5, W114's to
+   ship); until then the item file is the source, which is where the next clause already points.
+   `doc/README.md` is deliberately unchanged and is [Q466](open-questions.md), for W115.
 
    **And a claim about another item's status is read from that item's own file, never from an index.**
    `doc/README.md`, `CLAUDE.md` and a plan's Record all describe items they do not own, and all three

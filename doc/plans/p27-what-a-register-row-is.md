@@ -9,7 +9,8 @@ Items:    W112 (the BUDGET, the check that holds it, and the three floors re-poi
 Reserves: W112-W115 — all four issued — Q459-Q473, ADR 0076-0077 (0077 expected skipped)
 Baseline: plans to p26, work items to w110, ADRs to 0075, register to Q458. The always-read set is
           2,405,936 bytes / ~601,000 tokens. L1-L5 56 / 1516, L6 2435 / 161, check:spec 7 / 72 / 132,
-          check:markdown 181 documents / 8055 links / 473 anchored, census 349 / 273 / 1 / 75
+          check:markdown 181 documents / 8052 links / 473 anchored, census 349 / 273 / 1 / 75
+          (8055 was wrong; re-taken by W112 at this plan's own commit)
 Declared: 2026-10-03 on `d287dc1`
 ```
 
@@ -79,7 +80,7 @@ the prose those sections genuinely need — the ladder, the three passes, the ta
    is created**, because an archive file is a document `M3` counts and a habit this register has
    re-ballooned from once already. A cut thing keeps a one-line index entry and its commit.
 3. **`M3`, `M4` and `M5` are re-pointed BEFORE anything is cut, and that is W112's first act.** They
-   are high-water marks — `files >= 142` against 181, `links >= 6225` against **8055**,
+   are high-water marks — `files >= 142` against 181, `links >= 6225` against **8052**,
    `anchored >= 60` against 473 — so **a 23% prose cut turns `M4` red on correct work.** They exist so
    `M1` and `M2` cannot go vacuous, which needs *enough links to check*, not *more than last time*.
    **This lowers three ratchets and is therefore ADR 0076 rather than a comment** —
@@ -159,7 +160,7 @@ record of why an assertion is shaped as it is.
 | | prediction | the scope it rests on | what would reverse it |
 |---|---|---|---|
 | **1** | **the REACH** — the always-read set reaches 80 KB with nothing lost that a reader needs, judged by the ladder and both reader passes | nothing. W107 did this for ONE document at 83%; this asks it of five at ~97%, and no plan has cut a document that another document is told to read before every item | an item finding a paragraph with no home and no reader who can do without it. **W114 is where that is likeliest**, because the `Current state` block is the only written record of some measurements |
-| **2** | `check:markdown` stays **green through every cut**, because decision 3 re-points the floors first | the three floors, measured at 181 / 8055 / 473 against 142 / 6225 / 60 | a fourth counting ratchet nobody enumerated. **W112's job is to find it**, and `RUN_FLOOR`, `README_SNIPPET_FLOOR`, `X10`'s L6 figures and `X7`'s cross-document counts are the candidates |
+| **2** | `check:markdown` stays **green through every cut**, because decision 3 re-points the floors first | the three floors, measured at 181 / **8052** / 473 against 142 / 6225 / 60 — and **`M4` no longer counts links at all**: [W112](../work-items/w112-the-budget-the-check-and-the-floors.md) re-pointed it to documents that CARRY a link, floor **120**, because the before-and-after windows for a link count are DISJOINT ([ADR 0076](../decisions/0076-a-vacuity-floor-counts-what-a-prose-cut-cannot-move.md)) | a fourth counting ratchet nobody enumerated. **W112's job is to find it**, and `RUN_FLOOR`, `README_SNIPPET_FLOOR`, `X10`'s L6 figures and `X7`'s cross-document counts are the candidates |
 | **3** | the register's 418 rows fit in **one line each** without losing what a row is for | P27's first declaration: 17% of open rows state a closing condition and 75% have no owner, so **most rows carry less content than their length implies** | a row whose question cannot be stated in a sentence. The five vocabulary rows — Q102 cited in 67 files, Q142 in 59, Q19 in 45, Q179 in 40, Q9 in 35 — are the test |
 | **5** | **removing a copied figure lets a CHECK go too**, so `scripts/**` shrinks with the documents rather than growing to police them | decision 4's count: 14 of 57 clause ids compare two copies, and `X7`, `X8`, `X9`, `X10`, `X11` and `C8` have no subject once the second copy is gone | a clause whose two copies are both load-bearing for a different reason — `X8` is the candidate, because it pairs README prose with an EXECUTED snippet, so one side is a test |
 | **4** | **no rung of L0-L6 moves** across the whole plan | the cuts are prose; `spec/` is untouched and no assertion reads a status paragraph | any check that reads a document's prose. `check:spec`'s `C4` counts refusals in `spec/`, which this plan does not touch; `X7` and `X10` compare counts across documents it does |

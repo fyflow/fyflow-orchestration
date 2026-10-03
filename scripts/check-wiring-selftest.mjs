@@ -103,14 +103,19 @@ import { join, sep } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
 /**
- * The eight checks whose dispatch `G1` and `G2` test (seven until W72's `check-workers`) — **declared here and compared
- * to `package.json` inside the run, both ways and for distinctness.**
+ * The nine checks whose dispatch `G1` and `G2` test (seven until W72's `check-workers`, eight until
+ * [W112](../doc/work-items/w112-the-budget-the-check-and-the-floors.md)'s `check-budget`) — **declared
+ * here and compared to `package.json` inside the run, both ways and for distinctness.**
  *
  * W38's adequacy reader: with the list a bare literal, `['spec','source','spec',
  * 'source','spec','source']` costs **zero** — six entries, two distinct, `MIN_PROBES`
  * satisfied, four checks unprobed. `S12`'s shape, one file over.
+ *
+ * **It fired BY NAME on W112's new entry**, which is the fourth clause to do so on one gate addition
+ * after `S12`, `G6` and this one's own both-ways comparison: *a check added to the gate and not to
+ * this list is a check nothing here probes.*
  */
-const CHECKS = ['spec', 'source', 'wiring', 'markdown', 'scheduler', 'policies', 'docs', 'workers'];
+const CHECKS = ['spec', 'source', 'wiring', 'markdown', 'scheduler', 'policies', 'docs', 'workers', 'budget'];
 
 /** A literal newline, so the anchors below are not written as escapes in prose. */
 const NL = '\n';
@@ -744,11 +749,17 @@ const SELF = [
       .replace('    if (missing.length) {', '    if (false) {')],
   ['ALL_CHECKS is emptied, so no probe can trip anything',
     (t) => t.replace("const ALL_CHECKS = ['G1', 'G2', 'G3', 'G4', 'G5', 'G6'];", 'const ALL_CHECKS = [];')],
-  ['CHECKS repeats one name instead of naming eight',
-    (t) => t.replace("const CHECKS = ['spec', 'source', 'wiring', 'markdown', 'scheduler', 'policies', 'docs', 'workers'];",
-      "const CHECKS = ['spec', 'source', 'spec', 'source', 'spec', 'source', 'spec', 'source'];")],
+  // **Both entries below were pinned to the LITERAL and W112 moved it**, which is
+  // `check-markdown`'s own lesson three times over: *a mutation pinned to a magic number is
+  // unmutatable the moment the number is right to change*. Here it is a magic LIST rather than a
+  // number, and the fix is the same — match the declaration's shape rather than its contents.
+  ['CHECKS repeats one name instead of naming nine',
+    // `.` rather than a negated newline class, because `.` already excludes a newline in
+    // a JS regex and writing the class is how a real newline got into this literal once.
+    (t) => t.replace(/const CHECKS = \['spec',.*\];/,
+      "const CHECKS = ['spec', 'source', 'spec', 'source', 'spec', 'source', 'spec', 'source', 'spec'];")],
   ['CHECKS drops a check the manifest has an entry for',
-    (t) => t.replace("'docs', 'workers'];", "'docs'];")],
+    (t) => t.replace(/, 'budget'\];/, '];')],
 ];
 
 // **What a `SELF` list buys nothing against here, stated rather than padded around.**
@@ -919,7 +930,9 @@ export async function selfTest(root) {
   };
 
   /**
-   * **Every `dev-dist/check-*.mjs` this run did not stage — W103's finding 3, given a name.**
+   * **Every non-mutant `dev-dist/*.mjs` this run did not stage — W103's finding 3, given a name.**
+   * *(It read `check-*.mjs` until [W112](../doc/work-items/w112-the-budget-the-check-and-the-floors.md),
+   * which is [Q459](../doc/open-questions.md); the paragraph below has the measurement.)*
    *
    * `stage()` writes flat into `dev-dist/` because each staged script derives `ROOT` from its own
    * location and `check-spec.mjs` imports `./check-markdown.mjs`, so one directory below the repository
@@ -934,16 +947,32 @@ export async function selfTest(root) {
    * W105 moved that stub into a directory, so the known producer is gone; this is the general case, and it
    * is a READING rather than a deletion.
    *
-   * **Its SCOPE, because `stage()` writes more than this reads** — W105's conformity reader. `stage()`
-   * stages every `scripts/*.mjs`, which is **19** files, and this glob matches `check-*.mjs`, which is
-   * **16** of them: `build-browser-tests.mjs`, `run-browser-tests.mjs` and `run-selftests.mjs` left behind
-   * by a killed run are outside what this names. They do no harm — `G3` reads `check-*.mjs` too, so a
-   * leftover non-check is not a check the manifest fails to declare — but the sentence above would
-   * otherwise claim more than the glob does. Removing a `check-*.mjs` nobody here wrote would be a self-test
-   * deleting a path it does not own, which is the one thing W105's hazard 4 forbids.
+   * **Its SCOPE was `check-*.mjs` until [W112](../doc/work-items/w112-the-budget-the-check-and-the-floors.md),
+   * and [Q459](../doc/open-questions.md) is what that cost** — handed to P27's declaration by P26's retro.
+   * W105's conformity reader recorded the gap and judged it harmless: *`G3` reads `check-*.mjs` too, so a
+   * leftover non-check is not a check the manifest fails to declare.* That is true of `G3` and false of the
+   * CONTROL, which is the clause this reading serves. **W108 left six `w108-*.mjs` harness modules in
+   * `dev-dist/`; three named that directory with no `process.pid`, `G6` refused them the moment the control
+   * pointed `CHECK_WIRING_SCRIPTS` there, and the lane died at 3.1 s against a wall
+   * [ADR 0072](../doc/decisions/0072-a-scratch-path-carries-its-process-and-a-self-test-that-shares-the-tree-says-so.md)
+   * measures at 228 s — with this reading unable to NAME a single one of them.** The control said *the
+   * control did not run clean*, which was true and said nothing about which file to remove; a human found
+   * them at W110 because its brief asked for `gate:full` by name.
+   *
+   * So the universe is every `.mjs`, which is what `stage()` writes and therefore what a killed run can
+   * leave. It is still a READING rather than a deletion — removing a file nobody here wrote is what W105's
+   * hazard 4 forbids — and it still subtracts what this run staged, so the only thing it ever names is
+   * residue.
    */
+  // **Dotted names are EXCLUDED, and leaving them in was a false positive W112 introduced.**
+  // Widening the glob to every `.mjs` made this able to name another lane's LIVE mutants —
+  // `.meta-*`, `.self-*`, `.probe-*`, `.budget-*` — as though they were residue. `G6`'s own scan
+  // filters `!n.startsWith('.')` for exactly that reason, and this reading exists to explain `G6`'s
+  // refusals, so **its universe is now `G6`'s rather than `G3`'s**: every `.mjs` that is not a
+  // mutant. That is what [Q459](../doc/open-questions.md) wanted — `G6` could REFUSE a file this
+  // could not NAME.
   const stray = (staged) => readdirSync(join(root, 'dev-dist'))
-    .filter((n) => /^check-.*\.mjs$/.test(n))
+    .filter((n) => /\.mjs$/.test(n) && !n.startsWith('.'))
     .filter((n) => !(staged ?? []).some((f) => f.endsWith(`${sep}${n}`)));
 
   const runProbe = (probe, against = script) => {
@@ -1082,12 +1111,15 @@ export async function selfTest(root) {
       console.log(`  FAIL  the control did not run clean (exit ${r.status}) — every verdict below ` +
         'would be a fact about the harness rather than about the check.' +
         (left.length
-          ? ` **dev-dist/ holds ${left.length} check-*.mjs this run did not stage: ${left.join(', ')}.** ` +
+          ? ` **dev-dist/ holds ${left.length} .mjs file(s) this run did not stage: ${left.join(', ')}.** ` +
             'stage() writes flat into that directory because a staged script derives its own ROOT, so a ' +
             'file a KILLED run left behind is one `CHECK_WIRING_SCRIPTS` points the check at, and `G3` ' +
             'reports it as a check the manifest never declares — W103 finding 3, Q323\'s class. Remove ' +
             'them and re-run; they are left alone here because deleting a path this file did not write is ' +
-            'worse than naming it.'
+            'worse than naming it. **`G6` scans every `.mjs` in that directory** (its loop filters on ' +
+            '`.endsWith(\'.mjs\')`), so a leftover that is not a `check-*` can be REFUSED by `G6` while ' +
+            'being unnamed here — which is what Q459 was, and why this reading\'s universe is now the ' +
+            'same as `G6`\'s rather than `G3`\'s.'
           : ''));
       return done(1);
     }
@@ -1168,8 +1200,12 @@ export async function selfTest(root) {
     // graded `noticed`. *So `14/14 graded` was satisfied by a copy that was never broken* — and the fix
     // is the depth rule this very item established, applied to the lane that establishes it.
     //
-    // Dot-prefixed because a `check-*.mjs` in `dev-dist/` is what `G3` reads as a check the manifest
-    // never declares and what `stray()` reports — W103's finding 3, which is the other half of this item.
+    // Dot-prefixed because an UNDOTTED `.mjs` in `dev-dist/` is what `G6` scans, what `G3` reads as a
+    // check the manifest never declares when it matches `check-*`, and what `stray()` reports — W103's
+    // finding 3, which is the other half of this item. *(The `stray()` half of that sentence named
+    // `check-*.mjs` until W112 widened the glob, which made it wrong in the other direction until the
+    // dot exclusion went in beside it — so the reason this dot is here is now `G6`'s scan rather than
+    // `stray()`'s, and it always was.)*
     const copy = join(root, 'dev-dist', `.meta-wiring-${process.pid}-${k}.mjs`);
     metaMutants.add(copy);
     writeFileSync(copy, mutated);

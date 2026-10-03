@@ -507,8 +507,18 @@ const META = [
     'a link to a file that does not exist', (t) => t.replace("for (const d of r.dead) fail('M1', d);", "for (const d of []) fail('M1', d);")],
   ['M2 disabled',
     'a cross-file anchor that resolves to no heading', (t) => t.replace("for (const d of r.deadAnchors) fail('M2', d);", "for (const d of []) fail('M2', d);")],
+  // **Anchor-agnostic since [W112](../doc/work-items/w112-the-budget-the-check-and-the-floors.md),
+  // and it was the LAST of the three still pinned to its literal.** `M4`'s was made agnostic at
+  // W33 and `M3`'s at W42, both with the same sentence above them — *a mutation pinned to a magic
+  // number is unmutatable the moment the number is right to change* — and this one was left behind
+  // for nine retunes. W112 measured that `M5`'s floor must move at W113 (the register's cut deletes
+  // this probe's SUBJECT, so the floor lands in `(13, 15]` with the probe re-pointed at
+  // `doc/scheduler-upstream.md`), which would have made this entry report *"the mutation matched
+  // nothing"* and graded a live floor as unmutatable. **Third instance of one defect, found before
+  // it fired rather than by it firing.**
   ['M5`s anchored floor disabled — the entry name said M3 until W28, and it edits r.anchored',
-    'the anchor-carrying links all removed, so M2 would pass on nothing', (t) => t.replace('if (r.anchored < 60)', 'if (false)')],
+    'the anchor-carrying links all removed, so M2 would pass on nothing',
+    (t) => t.replace(/if \(r\.anchored < \d+\)/, 'if (false)')],
   ['M1 and M2 swapped, so every count still matches and no set does',
     'a link to a file that does not exist',
     (t) => t.replaceAll("fail('M1'", "fail('MX'").replaceAll("fail('M2'", "fail('M1'").replaceAll("fail('MX'", "fail('M2'")],
@@ -564,7 +574,14 @@ const META = [
     // now, at P10's declaration and again here. Rule 7 (b) firing correctly, and
     // [Q142](../doc/open-questions.md)'s own sentence: *a mutation pinned to a magic
     // number is unmutatable the moment the number is right to change.*
-    (t) => t.replace(/if \(r\.links < \d+\) fail\('M4'/, "if (false) fail('M4'")],
+    //
+    // **The FIELD moved at [W112](../doc/work-items/w112-the-budget-the-check-and-the-floors.md)**,
+    // from `r.links` to `r.sources`, so agnostic-about-the-NUMBER was not enough: this is agnostic
+    // about the field too. `M4` counts documents that carry a link now
+    // ([ADR 0076](../doc/decisions/0076-a-vacuity-floor-counts-what-a-prose-cut-cannot-move.md)),
+    // and an anchor still pinned to `r.links` would have reported *"the mutation matched nothing"* —
+    // rule 7 (b) firing correctly, exactly as the pinned literal did twice before.
+    (t) => t.replace(/if \(r\.\w+ < \d+\) fail\('M4'/, "if (false) fail('M4'")],
   ['AGENTS.md dropped from the root file list',
     'a dead link in AGENTS.md — the file Q121 named, and it could leave the walk',
     (t) => t.replace("  ...['README.md', 'AGENTS.md', 'CLAUDE.md']", "  ...['README.md', 'CLAUDE.md']")],
