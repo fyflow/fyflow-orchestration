@@ -1,6 +1,6 @@
 # Workflow
 
-**Status:** v0.25 - **run to completion TWENTY-FIVE times**, by [P1](plans/p1-what-satisfies-a-join.md),
+**Status:** v0.26 - **run to completion TWENTY-SIX times**, by [P1](plans/p1-what-satisfies-a-join.md),
 [P2](plans/p2-the-non-success-half-on-a-real-scheduler.md),
 [P3](plans/p3-a-consumer-reference-the-gate-keeps-true.md),
 [P4](plans/p4-the-drivers-lifetime-and-the-handles-it-gives-out.md),
@@ -24,7 +24,8 @@
 [P22](plans/p22-what-a-regions-identity-is.md) and
 [P23](plans/p23-what-a-run-needs-to-outlive-its-process.md) and
 [P24](plans/p24-what-a-node-may-remember-across-a-runs-branches.md) and
-[P25](plans/p25-what-a-route-guarantees-about-the-value-it-carries.md)
+[P25](plans/p25-what-a-route-guarantees-about-the-value-it-carries.md) and
+[P26](plans/p26-what-a-flow-can-say-without-code.md)
 **Read this before starting any work item.** *(The status line read "seven times" and listed P1-P7
 until P9's retro: **P8 ran this document to completion and adopted none of its proposals**, which is
 section 6 pass 3 rule 1's expected verdict and is not the same as not having run it. **P25 is the
@@ -111,6 +112,104 @@ prediction about rule 8 is answered and is **false**.
    ([ADR 0029](decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)).
    The dependency edge that made the junction seem necessary is gone; **the rule still said nothing
    about the removal**, which is the part that did the damage.
+
+**v0.26 is [P26](plans/p26-what-a-flow-can-say-without-code.md)'s retro, and its central finding is
+that `npm run gate:full` had been RED for TWO ITEMS and nothing in the loop could see it — which is
+[ADR 0070](decisions/0070-the-local-gate-is-the-ladder-and-proving-the-checks-can-fail-belongs-to-ci.md)
+consequence 2 measured rather than predicted.** P26 asked *what can a flow DOCUMENT say without
+code?* — answered by
+[ADR 0074](decisions/0074-a-predicate-is-a-registered-name-or-a-declared-comparison-over-the-context.md)
+(a predicate is a registered NAME or a declared comparison over the context, and the bare-string
+`when` is retired),
+[ADR 0075](decisions/0075-a-node-that-only-transforms-is-a-built-in-type-with-no-inner-worker.md) (a
+node that only transforms is a built-in type with no inner worker) and an exit artifact in which two
+JSON documents a UI could have emitted run on real workers in both L6 runtimes. It adopts **three**
+changes and refuses **five**, all in
+[P26's own Retro](plans/p26-what-a-flow-can-say-without-code.md#retro).
+
+1. **Section 4 gains: an item's CONFIRMING gate is `npm run gate:full`, not `npm run gate`.** The
+   clause and its measurement are in section 4. The short form: ADR 0070 took the self-tests off the
+   ladder for a real saving and **priced this exact case in its own consequence 2**, W103 then made
+   CI a manual trigger, and the result is that **W108 and W109 both shipped with the proof unrun and
+   both were red** — W109 by duplicating two `X6` probe anchors (ONE occurrence each on `HEAD~1`,
+   TWO on `HEAD`, by `git show`), W108 by leaving six harness modules in `dev-dist/` that `G6`
+   refuses. *A rule FOLLOWED that did not work*, section 6 pass 3 rule 3's sharpest kind, and the
+   counter-measure is **13 minutes once per item** against a `gate` of 245 s.
+
+2. **Rule 8's requirement on the HARNESS gains: a declared ceiling is reported BY ID, and whatever
+   re-runs the set reads that LIST and never the COUNT.** v0.14 says every declared survivor is RUN
+   and v0.17 dates it; **neither says where the set comes from**, and the count is the figure every
+   downstream document quotes. **Two occurrences, two items.**
+
+   | item | what the count said | what the list said |
+   |---|---|---|
+   | [W108](work-items/w108-a-predicate-is-data.md) | *declared ceilings 10* | **ELEVEN named**, because `e9` came back `CEILING(CRASH)` and the tally counts it under crashes. The arithmetic is consistent and the figure **omits a declared ceiling whose verdict is *it never ran*** — and `10` is what W108's Record, `CLAUDE.md`, `doc/README.md` and P26's Record all carry |
+   | [W110](work-items/w110-a-flow-a-ui-could-have-emitted.md) | *3 against declaration* | the grader compared `got === expect` with `got` never taking the string `ceiling`, so **a correct ceiling could not be graded as declared** — three of them, on the first full pass |
+
+   **This retro's own re-run is the clause in one sentence: it worked only because it extracted the
+   ids from each harness's SOURCE rather than trusting the number.** Doing so found 23 declared
+   ceilings where the three Records sum to 22.
+
+3. **Section 6 gains: an item that belongs to NO PLAN appends its own overlap measurement.** The list
+   had stood at `W101 4` for four plans' worth of items and was **six short**; three of the six
+   (W104, W105, W107) have no retro, so the list could not be completed by construction. **W107's
+   overlap is recorded nowhere at all** and is carried as unrecorded rather than guessed.
+
+**REFUSED, five, each with a measurement.**
+
+1. **A `doc/` check, for the TWENTY-FIFTH time — and for the first time the standing refusal has an
+   OWNER rather than an argument.** P26's instances are the usual English class: W109's five files
+   citing an assertion that lived in a comment, W110's six files citing Q456-Q458 before those rows
+   existed, a P17 quotation that is literally P14's. **But one of them is machine-comparable**, and it
+   is the one a check could have caught: the register's own headline read *342 questions, 267 open*
+   against a measured **346 / 270 / 1 / 75** for the whole of W110. That class is
+   [P27](plans/p27-what-a-register-row-is.md)'s `check:questions`, declared and not yet built, so the
+   refusal stands with the work assigned rather than with the hole restated.
+2. **An `Owns` pre-declaration rule, for the THIRTEENTH time — and the trend is the argument.**
+   Undeclared exceptions across P26 ran **24, 11, 7**, falling with each item, against seeded tables
+   that got better each time; and not one of W110's seven was predictable from a file SET — two were
+   a corpus census and an expiry-dated sentence in `spec/`, three were one maintainer answer, one was
+   a browser fixture, and one was a probe W109 had made ambiguous. *A rule naming files cannot
+   predict an exception created by the CONTENT of a change.*
+3. **A rule that a harness's ABORT must undo what it applied — because v0.17 already says exactly
+   that.** W108's harness checked each anchor against the current text (so it aborted, correctly) and
+   then did not restore; its own digest clause REPORTED the moved tree. *A rule that was BROKEN means
+   someone was careless and the counter-measure already exists*, which is pass 3 rule 3's other half.
+4. **A rule obliging an item to re-run a predecessor's ceilings when it moves their ANCHORS.** One
+   occurrence — W110 moved `d4`'s and `d5`'s anchors in two files it edited — and v0.17's clause
+   reaches a moved VALUE rather than a moved anchor, so the gap is real. It is refused because the
+   failure mode is **loud**: rule 7 (b) aborts the probe at the next re-run and names the file, which
+   is what happened here. *An obligation is worth its cost when the alternative is silence, and this
+   alternative is an abort in a report the retro reads anyway.*
+5. **A rule that a harness's own output must not land inside the tree it digests.** One occurrence,
+   and it is **this retro's**, not an item's — three runs reporting *THE TREE MOVED* with zero dirty
+   tracked paths. Recorded in full above instead, because a retro ruling on its own slip at one
+   occurrence is the shape section 6 pass 3 rule 1 exists to discourage.
+
+**Name the rung — FIFTY-TWO defects across the three items' own lists (14 / 27 / 11), and SEVEN name
+a rung that FIRED.** Classified by reading each entry's own attribution: **twenty-two were found by a
+READER**, seven by a rung, **six by rule 8's own set**, and seventeen by the author or a re-read. All
+seven rung firings were read correctly at the first opportunity. *The ratio is P24's and P25's again:
+the readers are the mechanism, and the ladder is what stops the product regressing rather than what
+finds the defects.*
+
+**The ceiling re-run: 23 declared, 20 HELD, 1 CRASH, 2 ABORTS, ZERO catches, ZERO against
+declaration**, in an isolated copy at `2eab1c4`, one item at a time from a clean tree, each with its
+own control — three controls, all clean. The crash is W108's `e9`, which came back `CEILING(CRASH)`
+in its own item too, so it has never been a demonstrated ceiling. **The two aborts are the finding**:
+`d4` and `d5` anchor in `test/definition/wiring.test.ts` and `scripts/check-docs.mjs`, two files
+**W110 edited** — so rule 7 (b) refused them rather than passing them, which is the guard working.
+v0.17's dated-ceiling clause says *the item that moves the VALUE re-runs it*; W110 moved the
+**ANCHOR**, which that clause does not reach, and **a rule for it is refused below** because the
+failure mode is an abort rather than a pass.
+
+**And this retro contaminated its own first measurement, which is recorded rather than hidden.** It
+redirected each harness's log into the tree that harness DIGESTS, so all three runs report *THE TREE
+MOVED* while `git status` shows **zero** dirty tracked paths — the digest is reading the retro's own
+output. Its first pass also ran the three sets back-to-back without restoring between them, and
+W108's abort left `test/definition/l4-corpus.test.ts` modified; it was restored before the hunk was
+captured, so **that one cannot be attributed with confidence** and is reported as unattributed.
+*P15's *downstream of the first's apparatus*, in the retro that quotes it.*
 
 **v0.25 is [P24](plans/p24-what-a-node-may-remember-across-a-runs-branches.md)'s retro, and its central
 finding is that section 5 rule 5 was FOLLOWED by the item that asserted a fan-out's completion order twice — and that the
@@ -1958,6 +2057,31 @@ is **four occurrences across three plans** — W42 twice, W50, W54 — and every
 author reading a LINE because the rung's output was too long to read whole.
 
 > **So: a rung is RUN, never PIPED. Redirect it to a file and read `$?` in the same command.**
+
+**AND AN ITEM'S CONFIRMING GATE IS `npm run gate:full`, NOT `npm run gate` — P26's retro, and it is
+the sharpest kind of finding, a rule FOLLOWED that did not work.**
+[ADR 0070](decisions/0070-the-local-gate-is-the-ladder-and-proving-the-checks-can-fail-belongs-to-ci.md)
+took the self-tests off the ladder on a measurement nobody disputes — 245 s against 1326 s — and
+**priced this exact case in its own consequence 2**: *a commit can be pushed with the proof unrun, and
+`S11` and `G4` cannot see it, because they read the MANIFEST.* Then
+[W103](work-items/w103-the-local-gate-is-the-ladder.md)'s own correction made the workflow a
+`workflow_dispatch` trigger, so nothing runs them unless a person does.
+
+**Measured over P26: TWO items shipped with `npm run gate` green and `gate:full` RED, and neither
+could have seen it.** [W109](work-items/w109-a-node-that-only-transforms.md) gave `X6` a second
+comparison and thereby duplicated two probe anchors — `git show` puts `if (missing.length) {` and
+`if (extra.length) {` at ONE occurrence each on `HEAD~1` and TWO on `HEAD` — so two `X6` META probes
+aborted under rule 7 (b); and [W108](work-items/w108-a-predicate-is-data.md) left six harness modules
+in `dev-dist/`, three of them naming that directory with no `process.pid`, which `G6` refuses the
+moment `check:wiring:selftest`'s control points `CHECK_WIRING_SCRIPTS` there — and its control died
+at **3.1 s** against a lane ADR 0072 measures at 228 s. **Both were found at
+[W110](work-items/w110-a-flow-a-ui-could-have-emitted.md), and only because its brief asked for
+`gate:full` by name**, which is not a mechanism.
+
+> **It costs 761.7 s wall against 2650.3 s serial-equivalent over seven lanes, ONCE per item**, where
+> `npm run gate` is 245 s. That is the whole price of the only rung that reads the checks' own proofs.
+> **A `gate` that is green says the product works; it says nothing about whether anything could have
+> noticed if it did not**, and the eight `:selftest` lanes are the only thing that does.
 >
 > ```bash
 > npm run gate > gate.log 2>&1; echo "GATE EXIT=$?"
@@ -2078,7 +2202,7 @@ Rules:
    | | a provocation is evidence only when it **fires**, and only when it fires **for the reason it names** | v0.10, P9's retro |
    | | whatever makes a **discriminating PAIR differ** is itself a claim, and the set breaks it | **v0.13, P12's retro** |
    | | **and on the HARNESS that applies the break:** | |
-   | | it carries a **control** — a probe that changes nothing comes back clean — and the **restore is asserted**, bytes compared back rather than assumed; **and every declared survivor is RUN, against the rung its own reason names**; **and every EDIT's anchor is checked against the CURRENT text, an abort undoes what it applied, and the tree is held still by a content DIGEST**; **and a set-equal-literal ceiling is DATED — the item that moves the value re-runs it**; **and it asserts the ENVIRONMENT its rungs need**; **and its GRADER is controlled — a probe whose right verdict is CRASH and one whose right verdict is WRONG-REASON, each graded on every pass, the reason matched on its clause's own failure line** | v0.11, P10's retro; **the ceiling clause v0.14, P13's retro; the per-edit and dated-ceiling clauses v0.17, P16's retro; the environment clause v0.19, P18's retro; the grader clause v0.24, P23's retro** |
+   | | it carries a **control** — a probe that changes nothing comes back clean — and the **restore is asserted**, bytes compared back rather than assumed; **and every declared survivor is RUN, against the rung its own reason names**; **and every EDIT's anchor is checked against the CURRENT text, an abort undoes what it applied, and the tree is held still by a content DIGEST**; **and a set-equal-literal ceiling is DATED — the item that moves the value re-runs it**; **and a declared ceiling is reported BY ID, so whatever re-runs the set reads that LIST and never the COUNT**; **and it asserts the ENVIRONMENT its rungs need**; **and its GRADER is controlled — a probe whose right verdict is CRASH and one whose right verdict is WRONG-REASON, each graded on every pass, the reason matched on its clause's own failure line** | v0.11, P10's retro; **the ceiling clause v0.14, P13's retro; the per-edit and dated-ceiling clauses v0.17, P16's retro; the environment clause v0.19, P18's retro; the grader clause v0.24, P23's retro; **the by-id clause v0.26, P26's retro** |
 
    The three founding cases:
    - W4 - the join's `null` payload could become `{}` and survive 251 assertions.
@@ -2833,7 +2957,20 @@ W13 4 of 24, W14 4 of ~26, W17 3 of ~31, W18 2, W19 4 of 18, W28 4, W29 1, W30 2
 W33 2, W34 2, W36 1, W39 4, W41 1 of 116, W42 2 of 61, W43 2 of 39, W45 2, W46 2, W47 2,
 W49 2, W50 2, W51 1, W53 2, W54 4, W55 2, W57 0, W58 1, W59 1, W61 1, W62 1, W63 1,
 W65 2, W66 2, W67 1, *W69 1, W70 0, W71 2*, W72 1, W73 1, W74 1, **W76 2, W77 2, W78 2**,
-**W80 2, W81 3, W82 1, W86 2**, **W88 2, W89 2, W90 1**, **W92 1, W93 1, W94 2**, **W96 1, W97 1, W98 3**, **W99 2, W100 4, W101 4**.
+**W80 2, W81 3, W82 1, W86 2**, **W88 2, W89 2, W90 1**, **W92 1, W93 1, W94 2**, **W96 1, W97 1, W98 3**, **W99 2, W100 4, W101 4**, **W104 6, W105 3, W107 (NOT RECORDED), W108 2, W109 2, W110 4**.
+
+*(**The last six were appended by P26's retro, and the list had stood at `W101 4` for FOUR plans'
+worth of items.** W109's Record found it four short and W110's six; this retro is the first thing with
+the standing to append. **W107's overlap is recorded NOWHERE** — not in its own file, not in
+`CLAUDE.md`, not in `doc/README.md` — so it is carried as unrecorded rather than guessed, and
+W108's published ordinal is short by three, which W109 measured. **And three of the six belong to NO
+PLAN**, which is why the rule below exists.)*
+
+**An item that belongs to no plan APPENDS ITS OWN overlap measurement to the list above — P26's
+retro.** Only a retro appends, and W104, W105 and W107 have no retro, so the list **cannot be complete
+by construction**: three measurements were taken, published in their own files, and had no mechanism
+to reach the one place the ordinal is derived from. *The counter-measure is not a new check — it is
+one line in the record step of an item that has no plan behind it.*
 
 *(**The last three were appended at P23's retro — and the retro's own prompt named TWO of them**, W89's
 and W90's, because W90's Record said *W89's fifty-fifth is not yet in the list* and did not say that

@@ -285,6 +285,116 @@ needed.** Q455 is reserved and unused and is NOT reused. **W111 is still a row a
 it** — derived by grep off the tree, never from this sentence. The next plan starts at **W112,
 Q459** and **ADR 0076**.
 
+
+## Retro
+
+**Run 2026-10-03 on `2eab1c4`. THREE changes adopted, FIVE refused, and `doc/workflow.md` is
+[v0.26](../workflow.md).** The central finding is that **`npm run gate:full` had been RED for TWO
+ITEMS and nothing in the loop could see it** — which is
+[ADR 0070](../decisions/0070-the-local-gate-is-the-ladder-and-proving-the-checks-can-fail-belongs-to-ci.md)
+consequence 2 measured rather than predicted, and section 6 pass 3 rule 3's sharpest kind: *a rule
+FOLLOWED that did not work*.
+
+That ADR took the self-tests off the ladder on a saving nobody disputes (245 s against 1326 s) and
+**priced this exact case in its own consequence 2** — *a commit can be pushed with the proof unrun,
+and `S11` and `G4` cannot see it, because they read the MANIFEST* — after which W103's own correction
+made the CI workflow a `workflow_dispatch` trigger. The consequence arrived two items later and in
+both directions at once:
+
+| lane | what was red | since | why `npm run gate` could not see it |
+|---|---|---|---|
+| `check:docs:selftest` | two `X6` META probes ABORTED — *the mutation matched MORE THAN ONCE* | **W109**, which gave `X6` a second comparison and duplicated both anchors: `git show` puts `if (missing.length) {` and `if (extra.length) {` at ONE occurrence each on `HEAD~1` and TWO on `HEAD` | the lane is not in the chain |
+| `check:wiring:selftest` | the CONTROL died at **3.1 s**, against a lane [ADR 0072](../decisions/0072-a-scratch-path-carries-its-process-and-a-self-test-that-shares-the-tree-says-so.md) measures at 228 s | **W108**, which left six harness modules in `dev-dist/`; three name that directory with no `process.pid`, which `G6` refuses once the control points `CHECK_WIRING_SCRIPTS` there | same, and `stray()` globs `check-*.mjs` so it could not NAME the residue |
+
+**Both were found at W110, and only because its brief asked for `gate:full` by name** — which is a
+person, not a mechanism. So an item's confirming gate is `gate:full` now: **761.7 s wall against
+2650.3 s serial-equivalent over seven lanes, once per item.**
+
+### Name the rung
+
+**FIFTY-TWO defects across the three items' own numbered lists (14 / 27 / 11), and SEVEN name a rung
+that FIRED.** Classified by reading each entry's own attribution rather than by grepping it — two
+attempts at a classifier gave 9 and then 5 for the same text, which is why the number below is read:
+
+| what found it | count |
+|---|---|
+| a **READER** | **22** |
+| the author, or a re-read | 17 |
+| **rule 8's own set** (a grader control, a crash, a mis-declared probe) | 6 |
+| **a RUNG that fired** | **7** |
+
+**All seven rung firings were read correctly at the first opportunity.** The ratio is P24's and P25's
+again: *the readers are the mechanism that finds defects, and the ladder is what stops the product
+regressing.* W109's list is numbered to 28 with **26 missing**, a slip in its own Record; the count
+above takes its 27 entries.
+
+### The ceiling re-run
+
+**23 declared, 20 HELD, 1 CRASH, 2 ABORTS, ZERO catches, ZERO against declaration** — in an isolated
+copy at `2eab1c4`, **one item at a time from a clean tree, each with its own control**, three controls
+all clean.
+
+| item | declared | held | the rest |
+|---|---|---|---|
+| [W108](../work-items/w108-a-predicate-is-data.md) | **11** | 8 | `e9` CRASH (as in its own item — it has never been a demonstrated ceiling); `d4` and `d5` ABORT |
+| [W109](../work-items/w109-a-node-that-only-transforms.md) | 6 | **6** | — |
+| [W110](../work-items/w110-a-flow-a-ui-could-have-emitted.md) | 6 | **6** | — |
+
+**The two aborts are the finding**: `d4` and `d5` anchor in `test/definition/wiring.test.ts` and
+`scripts/check-docs.mjs`, two files **W110 edited**. Rule 7 (b) refused them rather than passing them,
+which is the guard working; v0.17's dated-ceiling clause reaches a moved VALUE and not a moved ANCHOR,
+and a rule for that is refused in v0.26 because an abort is loud.
+
+**And the 11 is why change 2 exists.** W108's own report NAMES eleven and its tally line reads
+*declared ceilings 10*, because `e9` is counted under crashes — so the figure W108's Record,
+`CLAUDE.md`, `doc/README.md` and this plan's Record all carry omits a declared ceiling whose verdict
+is *it never ran*. **This re-run worked only because it read the ids out of each harness's source
+rather than trusting the number**, and doing so found 23 where the three Records sum to 22.
+
+### Predictions, and the ledger
+
+**All four predictions have a verdict and they are in this plan's Record above**: 1 CONFIRMED
+VACUOUSLY, 2 REVERSED by a DECISION rather than by its named mechanism, **3 (the REACH) CONFIRMED
+with its scope narrowed TWICE by the item that met it**, 4 CONFIRMED. Prediction 3's reversal column
+told W110 to go and look, and it found two narrowings — no language ships with the library, and a
+comparison reads one path against one literal — neither of which is a function.
+
+**W111 CLOSED unissued** (no `w111-*` file exists), **Q455 reserved and UNUSED and therefore SPENT**
+and not reused, **ADR 0074 and 0075 both TAKEN**. Q444-Q458 are all used except Q455. **The next plan
+starts at W112, Q459 and ADR 0076** — derived by grep off the tree, never from this sentence, and it
+is [P27](p27-what-a-register-row-is.md), already declared.
+
+**Reader passes: six, none empty, overlaps 2, 2, 4** — W108, W109, W110 — and this retro **appends
+six entries** to `doc/workflow.md` section 6's list, which had stood at `W101 4` for four plans' worth
+of items. **W107's overlap is recorded NOWHERE** and is carried as unrecorded; W108's published
+ordinal is short by three, which W109 measured. Three of the six belong to no plan, which is change 3.
+
+**Census CONFIRMED at 349 / 273 / 1 / 75**, measured at W110 two ways with 349 of 349 in exactly one
+cluster cell. **The retro raises no question** and hands three findings to P27's declaration instead:
+the widened `stray()` glob, the stale *62 of 76* premise in `check-markdown-selftest.mjs` (the corpus
+carries **473 anchored links over 181 documents**), and the `check:questions` clause that would have
+caught the register's own stale headline.
+
+**[Q142](../open-questions.md) measured BEFORE this retro's edits and it does NOT fire**: `M3`'s floor
+is `< 142`, probe 1's fixture (the tree minus `doc/decisions`) is **137** and the whole tree **182**,
+so the margin is **five files** and a retro adds no document. **It is PREDICTED to fire at P27's
+FOURTH item document**, every one of which lands outside `doc/decisions`.
+
+### The confirming gate
+
+**`npm run gate:full` — RAN, EXIT 0, ZERO lines beginning `FAIL`, 8/8 self-test lanes ok**, against digest **`efe1c50f4f5e51b4`** over 455 files, IDENTICAL at both ends. 778.2 s wall against 2721.2 s serial-equivalent over seven lanes; `check:docs:selftest` 762.0 s and `check:source:selftest` 730.0 s are the binding pair. **This retro runs the gate its own change ADOPTS**, on the argument that v0.19 was earned by a clause followed in the writing and not in the running — adopting a confirming-gate rule and then not paying for it would be that defect at its first opportunity. *The only edit after this run is this paragraph.*
+
+### What this retro got wrong about itself
+
+**It contaminated its own first measurement and the record says so.** It redirected each harness's log
+into the tree that harness DIGESTS, so all three runs report *THE TREE MOVED* while `git status` shows
+**zero** dirty tracked paths — the digest is reading the retro's own output. Its first pass also ran
+the three sets back-to-back without restoring between them, and W108's abort left
+`test/definition/l4-corpus.test.ts` modified; **it was restored before the hunk was captured, so that
+one is reported as unattributed rather than explained.** *P15's* downstream of the first's apparatus*,
+in the retro that cites it.*
+
+
 ## Out
 
 **Gate TYPES stay code.** A gate is memory plus routes plus a key path
