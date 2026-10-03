@@ -97,11 +97,15 @@ paragraph that is never written turns nothing red, and `check:budget` gets green
    arguably its job in a way it is not `CLAUDE.md`'s, and that distinction is worth deciding rather
    than assuming. **[Q466](../open-questions.md)**, for W115.
 
-5. **It resolves nothing about the budget's membership.** `check:budget` holds three paths bound to
-   three paths in a self-test, with no authority in any document, and a FOURTH always-read document
-   is still instructed inside `CLAUDE.md` itself — `doc/open-questions.md` is read before every work
-   item, ~71 KB this budget does not count ([Q465](../open-questions.md)). That instruction is
-   W113's to withdraw.
+5. **It resolves nothing about the budget's membership, and the FOURTH document it names has since
+   stopped being one.** `check:budget` holds three paths bound to three paths in a self-test, with no
+   authority in any document — that half of [Q465](../open-questions.md) stands. The other half does
+   not: this consequence read *a FOURTH always-read document is still instructed inside `CLAUDE.md`
+   itself — `doc/open-questions.md` is read before every work item*, and
+   [W113](../work-items/w113-the-register-is-a-reference.md) withdrew that instruction at every site
+   that asserted it ([P27](../plans/p27-what-a-register-row-is.md) decision 1), leaving the register
+   a reference nobody is told to read. *The sentence named the item that would falsify it, which is
+   the direction `doc/workflow.md` v0.15's third clause asks for.*
 
 6. **What this does not do is make the convention checkable.** An item that writes a status
    paragraph into `CLAUDE.md` after this decision turns nothing red, exactly as one that omitted it

@@ -6,7 +6,10 @@ Items:    W112 (the BUDGET, the check that holds it, and the three floors re-poi
           W113 (doc/open-questions.md: 693 KB -> a one-line register),
           W114 (CLAUDE.md: 556 KB -> its own 37 KB of guidance),
           W115 (the exit artifact: doc/README.md and doc/workflow.md, and the budget MET)
-Reserves: W112-W115 — all four issued — Q459-Q473, ADR 0076-0077 (0077 expected skipped)
+Reserves: W112-W115 — all four issued — Q459-Q473, ADR 0076-**0078**
+          (0077 was expected SKIPPED and was TAKEN at W112; 0078 is W113's and extends this
+          block by grep on W86's precedent, by the maintainer's answer to that item's one
+          stop-and-ask. Q459-Q471 used; Q472-Q473 remain)
 Baseline: plans to p26, work items to w110, ADRs to 0075, register to Q458. The always-read set is
           2,405,936 bytes / ~601,000 tokens. L1-L5 56 / 1516, L6 2435 / 161, check:spec 7 / 72 / 132,
           check:markdown 181 documents / 8052 links / 473 anchored, census 349 / 273 / 1 / 75
@@ -144,8 +147,8 @@ root documents one audience each and took `README.md` from **1,101 lines / 117,3
 
 | | |
 |---|---|
-| **W112** | **the budget, the check, and the floors — ADR 0076.** `npm run check:budget`: the always-read set, named as a list, under its declared ceiling, with the per-file figures printed so a reader sees which document is spending. `M3`/`M4`/`M5` re-pointed from high-water marks to what makes `M1` and `M2` non-vacuous. **Nothing is cut in this item** — it makes cutting possible without turning the gate red, which is decision 3 |
-| **W113** | **`doc/open-questions.md`: 693 KB -> a 71 KB one-line register that is no longer required reading.** One line per row — id, the question in a sentence, status, owner, closing condition — and the 418 essays go to git. **It is first of the three cuts because it is the biggest single file and the least entangled**: P27's first declaration measured that **every anchor into it targets a HEADING and no citation anywhere points at a ROW** (417 `](#live)`, 34 `](#resolved)`, zero external anchors), so rows may go without breaking one reference. It also retires the *read before every work item* instruction, which decision 1 withdraws |
+| **W112** | **DONE.** The budget, the check, and the floors — ADR 0076.** `npm run check:budget`: the always-read set, named as a list, under its declared ceiling, with the per-file figures printed so a reader sees which document is spending. `M3`/`M4`/`M5` re-pointed from high-water marks to what makes `M1` and `M2` non-vacuous. **Nothing is cut in this item** — it makes cutting possible without turning the gate red, which is decision 3 |
+| **W113** | **DONE.** `doc/open-questions.md` is **70,254 bytes from 721,528 — a 10.3x cut**, 362 rows one line each, and a REFERENCE rather than required reading. **ADR 0078** and **`M7`/`M8`**: the register is a table, and it is one row per question — the clause this item NARROWED corpus-wide and its adequacy reader priced scoped, at zero. Its finding is that `18eee73` deleted the `## Resolved` table's header and delimiter on 2026-09-02, so **the whole Resolved half rendered as literal pipes for 31 days and 100 commits** with `check:markdown` green — found by BOTH readers and invisible to this item's own instrument, which assumed a header width for a section with no header. Census **362 / 282 / 1 / 79**; Q131, Q135 and Q215 RESOLVED; Q467-Q471 raised. Readers 86 values / 21 disagreed and 39 mutations / 13 real holes, **overlap 7 with the priming caveat**. *Read every status from the item's own file.* |
 | **W114** | **`CLAUDE.md`: 556 KB -> 25 KB.** The `Current state` block goes to git; what stays is the orientation, the invariant, the working rules, the scheduler facts, the environment and git — 37 KB today, so **decision 4 has to take a third of what remains**, which is where the 251 copied figures are. **Its one hard part is that the block is the only place some facts are written down** — W107's demonstration, per paragraph. It also ships **`npm run state`** (decision 5) and the two preconditions it needs: a uniform `**Status:` line in all 92 item files and a uniform `Question:` line in the plan headers |
 | **W115** | **the exit artifact: `doc/README.md` and `doc/workflow.md`, and the BUDGET MET.** A session's whole required reading, measured, under 80 KB, with `check:budget` green and every rung of the ladder unmoved |
 

@@ -75,7 +75,15 @@ const MIN_SELF = 14;
 // can return early.* What is NOT the limit is the clauses themselves: each of the five
 // is bound by a planted case above, so emptying the list to weaken ONE of them is
 // caught whatever this floor says.
-const MIN_SOURCE = 7;
+const MIN_SOURCE = 8;
+
+/**
+ * The CONTROL probe's own stdout, captured so a `SOURCE` clause can assert what the check PRINTS
+ * rather than what its source TEXT contains. W113's adequacy reader made the `note:` line
+ * unreachable with `if (0 > 1)` and measured `source: 7/7 held` with zero note lines printed — a
+ * text-presence clause cannot see a line that is present and never reached.
+ */
+let CONTROL_OUTPUT = '';
 // **A `corpus` grading is a PASS and that is [Q150](../doc/open-questions.md)** — W30
 // measured it in `check-spec`, where dropping one relocation made 21 mutants non-inert
 // and the file exited 0 reporting *0 noticed by the named probe, 21 by the corpus*. A
@@ -114,13 +122,13 @@ const PROBES = [
   // that is what makes each of these `[B2]` alone rather than `[B2,B3]`.
   {
     name: 'CLAUDE.md one byte over its own ceiling, the others tiny',
-    check: 'B2', sizes: { 'CLAUDE.md': 586_001, 'doc/workflow.md': 100, 'doc/concept.md': 100 },
-    says: 'CLAUDE.md is 586001 bytes and its ceiling is 586000',
+    check: 'B2', sizes: { 'CLAUDE.md': 575_023, 'doc/workflow.md': 100, 'doc/concept.md': 100 },
+    says: 'CLAUDE.md is 575023 bytes and its ceiling is 575022',
   },
   {
     name: 'doc/workflow.md one byte over its own ceiling, the others tiny',
-    check: 'B2', sizes: { 'CLAUDE.md': 100, 'doc/workflow.md': 310_001, 'doc/concept.md': 100 },
-    says: 'doc/workflow.md is 310001 bytes and its ceiling is 310000',
+    check: 'B2', sizes: { 'CLAUDE.md': 100, 'doc/workflow.md': 309_691, 'doc/concept.md': 100 },
+    says: 'doc/workflow.md is 309691 bytes and its ceiling is 309690',
   },
   {
     name: 'doc/concept.md one byte over its own ceiling, the others tiny',
@@ -131,8 +139,8 @@ const PROBES = [
   // --- B3: the SET against the total, with every member legal -------------------
   {
     name: 'every member AT its ceiling, so the set exceeds the total and no member does',
-    check: 'B3', sizes: { 'CLAUDE.md': 586_000, 'doc/workflow.md': 310_000, 'doc/concept.md': 20_000 },
-    says: 'the always-read set is 916000 bytes and TOTAL_CEILING is 907590',
+    check: 'B3', sizes: { 'CLAUDE.md': 575_022, 'doc/workflow.md': 309_690, 'doc/concept.md': 20_000 },
+    says: 'the always-read set is 904712 bytes and TOTAL_CEILING is 897741',
   },
 
   // --- B1: the set is there -----------------------------------------------------
@@ -167,8 +175,8 @@ const PROBES = [
   {
     name: 'CLAUDE.md over its ceiling AND the set over its total — the compound',
     check: 'B2', also: ['B3'],
-    sizes: { 'CLAUDE.md': 586_001, 'doc/workflow.md': 310_000, 'doc/concept.md': 20_000 },
-    says: 'CLAUDE.md is 586001 bytes and its ceiling is 586000',
+    sizes: { 'CLAUDE.md': 575_023, 'doc/workflow.md': 309_690, 'doc/concept.md': 20_000 },
+    says: 'CLAUDE.md is 575023 bytes and its ceiling is 575022',
   },
 
   // --- B4: the declaration's own consistency ------------------------------------
@@ -178,13 +186,15 @@ const PROBES = [
   {
     name: 'TOTAL_CEILING declared ABOVE the per-file ceilings` sum — slack B2 cannot see',
     check: 'B4', sizes: 'real',
-    declare: (t) => t.replace('const TOTAL_CEILING = 907_590;', 'const TOTAL_CEILING = 999_999;'),
-    says: 'TOTAL_CEILING is 999999 and the per-file ceilings sum to 916000',
+    // Agnostic about the value, for the reason `check-markdown`'s META entries are: W113 moved
+    // every ceiling here and a pinned literal would have reported *the mutation matched nothing*.
+    declare: (t) => t.replace(/const TOTAL_CEILING = [\d_]+;/, 'const TOTAL_CEILING = 999_999;'),
+    says: 'TOTAL_CEILING is 999999 and the per-file ceilings sum to 904712',
   },
   {
     name: 'TOTAL_CEILING declared BELOW the total target — the budget already met',
     check: 'B4', also: ['B3'], sizes: 'real',
-    declare: (t) => t.replace('const TOTAL_CEILING = 907_590;', 'const TOTAL_CEILING = 70_000;'),
+    declare: (t) => t.replace(/const TOTAL_CEILING = [\d_]+;/, 'const TOTAL_CEILING = 70_000;'),
     says: 'TOTAL_CEILING is 70000 and TOTAL_TARGET is 78848',
   },
   {
@@ -216,7 +226,7 @@ const GRADER_CONTROLS = [
     // and `wrong-reason` is the only verdict left.
     name: 'GRADER CONTROL — trips B2 as declared, with a reason the check never prints',
     expect: 'wrong-reason', check: 'B2',
-    sizes: { 'CLAUDE.md': 586_001, 'doc/workflow.md': 100, 'doc/concept.md': 100 },
+    sizes: { 'CLAUDE.md': 575_023, 'doc/workflow.md': 100, 'doc/concept.md': 100 },
     says: 'CLAUDE.md is 999999 bytes and its ceiling is 42',
   },
   {
@@ -342,18 +352,25 @@ const SELF = [
   // W31's compound device with the polarity the other direction: *what a SELF list buys
   // nothing against is a weakening whose case does not exist*, and the counter-measure
   // is to supply the case.
+  // **Both of these were pinned to a ceiling LITERAL and both reported *the mutation costs
+  // nothing* the moment [W113](../doc/work-items/w113-the-register-is-a-reference.md) lowered the
+  // ceilings** — rule 7 (b) firing correctly, in the file whose own `SOURCE` clause is about a
+  // ceiling that must stay a literal. They are agnostic about the VALUE now, for the reason
+  // `check-markdown`'s META entries have been since W33.
   ['a probe DECLARING the wrong id with the right count — what setsEqual catches',
-    (t) => t.replace("    check: 'B2', sizes: { 'CLAUDE.md': 586_001, 'doc/workflow.md': 100, 'doc/concept.md': 100 },",
-      "    check: 'B1', sizes: { 'CLAUDE.md': 586_001, 'doc/workflow.md': 100, 'doc/concept.md': 100 },")],
+    (t) => t.replace(/ {4}check: 'B2', sizes: \{ 'CLAUDE\.md': [\d_]+,/,
+      "    check: 'B1', sizes: { 'CLAUDE.md': 575_023,")],
   ['a probe whose staging changes NOTHING — what rule 7 (b) catches',
-    (t) => t.replace("    check: 'B3', sizes: { 'CLAUDE.md': 586_000, 'doc/workflow.md': 310_000, 'doc/concept.md': 20_000 },",
+    (t) => t.replace(/ {4}check: 'B3', sizes: \{[^}]*\},/,
       "    check: 'B3', sizes: { 'CLAUDE.md': 'real', 'doc/workflow.md': 'real', 'doc/concept.md': 'real' },")],
   ['a META mutation that is NOT INERT on the untouched tree — what MAX_CORPUS catches',
     (t) => t.replace("    (t) => t.replace(/if \\(n > m\\.ceiling\\) \\{/, 'if (false) {')],",
       "    (t) => t.replace(/if \\(n > m\\.ceiling\\) \\{/, 'if (true) {')],")],
   ['the CONTROL probe made to trip something — what the control`s own verdict catches',
+    // 999_999 rather than a figure near a ceiling: this must exceed CLAUDE.md's ceiling however
+    // far W114 lowers it, and a number chosen just above today's goes stale with the next cut.
     (t) => t.replace("    check: null, sizes: 'real',",
-      "    check: null, sizes: { 'CLAUDE.md': 586_001, 'doc/workflow.md': 100, 'doc/concept.md': 100 },")],
+      "    check: null, sizes: { 'CLAUDE.md': 999_999, 'doc/workflow.md': 100, 'doc/concept.md': 100 },")],
   ['a GRADER control declaring the wrong expected verdict — what grading the grader catches',
     (t) => t.replace("    expect: 'crash', check: 'B2', sizes: 'real',", "    expect: 'caught', check: 'B2', sizes: 'real',")],
   ['a probe naming a reason the check never prints — what the reason check catches',
@@ -485,6 +502,45 @@ const SOURCE = [
       if (!/measured\s+ceiling\s+target/.test(src.replace(/ +/g, ' '))) {
         bad.push('the table header naming measured, ceiling and target is gone');
       }
+      return bad.length ? bad.join('; ') : null;
+    }],
+  // **A text-presence clause cannot see a line that is PRESENT and never REACHED** — W113's
+  // adequacy reader, finding 5. Prefixing the `note:` statement with `if (0 > 1)` left
+  // `check:budget` EXIT 0 with **zero `note:` lines printed** and this file at `source: 7/7`, so
+  // ADR 0076 decision 5's *only* mitigation for a ceiling drifting toward weakness was defeated by
+  // one token. The clause above is the right shape for *the line exists*; this one is the only
+  // shape for *the line is printed*, and the control's captured output is the one place to read it.
+  ['the CONTROL run actually PRINTS the note and the table header',
+    (src) => {
+      if (!CONTROL_OUTPUT) return 'the control has not run yet, so nothing here is observed';
+      const bad = [];
+      if (!/\nnote: the ceiling is .* above the target/.test(CONTROL_OUTPUT)) {
+        bad.push('the control run printed no `note:` line — the text can be present and ' +
+          'unreachable, and a printed line\'s only property is that it is printed');
+      }
+      if (!/measured\s+ceiling\s+target/.test(CONTROL_OUTPUT.replace(/ +/g, ' '))) {
+        bad.push('the control run printed no per-file table header');
+      }
+      for (const m of [...src.matchAll(/^\s*path: '([^']+)',/gm)].map((x) => x[1])) {
+        if (!CONTROL_OUTPUT.includes(m)) bad.push(`the control run did not print a row for ${m}`);
+      }
+      return bad.length ? bad.join('; ') : null;
+    }],
+  // **The road the ceilings clause above cannot see: an ASSIGNMENT.** That clause reads the
+  // DECLARATION, and W113's adequacy reader derived one ceiling at run time with a single
+  // statement — `SET[0].ceiling = statSync(...).size + 4_096;` — measuring `source: 7/7 held` and
+  // `ok B2` with `CLAUDE.md` 200 KB over. `check-budget.mjs` freezes its members now, so the
+  // assignment THROWS; this clause is the second observer, because a throw is a CRASH and rule 8
+  // refuses a crash as a detection.
+  ['no ceiling is assigned after the set is declared, and the set is frozen',
+    (src) => {
+      const bad = [];
+      if (!/\]\.map\(Object\.freeze\);/.test(src)) {
+        bad.push('SET is not frozen member by member, so one statement can derive a ceiling from ' +
+          'the size it bounds and every clause here stays green');
+      }
+      const writes = [...src.matchAll(/^(?!\s*(?:\/\/|\*)).*\b(?:SET\s*\[\s*\d+\s*\]|\bm)\.(?:ceiling|target)\s*=[^=]/gm)];
+      if (writes.length) bad.push(`${writes.length} assignment(s) to a ceiling or target after declaration`);
       return bad.length ? bad.join('; ') : null;
     }],
   ['every declared member is one of the always-read set`s paths',
@@ -840,7 +896,7 @@ export async function selfTest(root) {
     if (useScript !== script) rmSync(useScript, { force: true });
     const v = verdict(probe, r, staged);
     if (v.outcome === 'caught') caught++;
-    else if (v.outcome === 'clean') cleanControls++;
+    else if (v.outcome === 'clean') { cleanControls++; CONTROL_OUTPUT = v.out ?? ''; }
     else {
       failures.push(`${probe.name} — ${v.outcome}` +
         (v.got ? `, wanted [${[probe.check, ...(probe.also ?? [])].filter(Boolean).sort()}], got [${v.got}]` : '') +

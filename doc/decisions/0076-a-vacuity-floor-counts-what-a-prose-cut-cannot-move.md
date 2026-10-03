@@ -168,6 +168,18 @@ arriving at the item asked to find it.*
    **`(13, 15]`** with its probe re-pointed there. *That is what an item which cuts nothing is for —
    the floor W113 would have met as a red gate is a declared line in its own file.*
 
+   *(**That window is EMPTY on the tree the cut produced, and the FOURTH alternative above is what
+   W113 TOOK** —
+   [ADR 0078](0078-a-vacuity-floors-window-is-a-property-of-the-probe-suite.md). Re-measured there,
+   in a staged copy with a control: **35** anchored whole-tree, **17** after `−decisions−plans` and
+   **20** after stripping upstream, so while probe 2 must stay quiet the window is `(20, 17]` — and
+   the same arithmetic empties it for every quantity and both subjects, which is why re-pointing
+   what `M5` COUNTS the way decision 1 re-pointed `M4` would not have helped either. The figures
+   here were taken at `9906c35`, before this item's own document edits. **The refusal of alternative
+   4 was sound on the PRE-cut tree** — it needed `floor > 455` then — and *a refused alternative is
+   re-priced by the item that changes the tree it was priced on*. With probe 2 declaring `M5` the
+   window is `(20, 35]` and the floor is **28**.)*
+
    **And W113 inherits a SECOND dead probe, which W112's conformity reader found and this decision
    first named only `M5`'s**: `check-markdown-selftest.mjs`'s `M2` probe on `doc/open-questions.md`
    mutates `](#live)`, and its own comment calls it the only probe for the same-file-anchor form —
@@ -402,9 +414,15 @@ arriving at the item asked to find it.*
     never evaluated on a correct tree — measured in both directions, and recorded rather than guarded
     ([Q464](../open-questions.md)). And **the always-read set is three paths bound only to three more
     paths in the self-test**, with no authority in any document: a commit adding a FOURTH always-read
-    document is invisible to `B1`-`B4`, and `CLAUDE.md` itself still instructs a reader that
-    `doc/open-questions.md` is read before every work item — ~71 KB this budget does not count. That
-    instruction is W113's to withdraw and the gap is [Q465](../open-questions.md).
+    document is invisible to `B1`-`B4`. **The fourth document this named is no longer one**:
+    [W113](../work-items/w113-the-register-is-a-reference.md) withdrew the instruction that
+    `doc/open-questions.md` is read before every work item, in that file's own preamble, in
+    `CLAUDE.md` at both sites that asserted it and in `doc/README.md`
+    ([P27](../plans/p27-what-a-register-row-is.md) decision 1) — so the ~71 KB this budget does not
+    count is a reference nobody is told to read. **The MEMBERSHIP half of
+    [Q465](../open-questions.md) stands**: `B1`-`B4` still bind three paths to three more paths in a
+    self-test, with no authority in any document, so a FIFTH always-read document would be invisible
+    to them for exactly the same reason.
 
 15. **Two of this item's own measurements were contaminated and both are recorded rather than
     explained away.** The item's Verification table claimed the floors were green *"on a simulated

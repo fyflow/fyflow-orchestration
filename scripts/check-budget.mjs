@@ -63,34 +63,85 @@ const fail = (check, msg) => failures.push(`${check}: ${msg}`);
  * tested). Below the sum, each member may breathe within its own ceiling while the SET
  * may not grow past one allowance, and both clauses have cases.
  *
- * **The allowance is for the record step.** `CLAUDE.md` is a record-step file
- * (`doc/workflow.md` section 1 rule 5), so finishing this very item grows it, and a
- * ceiling pinned at the measurement would be red by the time the item was recorded. It
- * is granted ONCE to the total rather than three times, so the set cannot grow by three
+ * **The allowance was for the record step and is not any more, which is a claim this file
+ * made about itself and got wrong within a day.** It read *"`CLAUDE.md` is a record-step
+ * file (`doc/workflow.md` section 1 rule 5), so finishing this very item grows it"* —
+ * and `CLAUDE.md` LEFT that list at W112, by
+ * [ADR 0077](../doc/decisions/0077-an-item-does-not-write-its-status-into-claude-md.md)
+ * decision 1, in the same item that wrote the sentence. **No member of this set is a
+ * record-step file now**, so finishing an item grows the set by nothing:
+ * [W113](../doc/work-items/w113-the-register-is-a-reference.md)'s record step writes to
+ * the register, `doc/README.md`, `README.md`, `doc/decisions/**` and its own file, and
+ * not one of them is measured here.
+ *
+ * **So the allowance is 4,096 bytes and it is for an ordinary edit** — a hazard note in
+ * `CLAUDE.md`, a clause in `doc/workflow.md` at a retro — rather than for a ritual. It is
+ * granted ONCE to the total and once per member, so the set cannot grow by three
  * allowances while every member stays inside its own.
+ *
+ * **The allowance is written INTO each literal rather than named as a constant, and the clause
+ * that made that necessary is the right one.** W113's first cut wrote `570_926 + ALLOWANCE`, and
+ * `check:budget:selftest`'s source clause *every ceiling is an integer LITERAL, never derived from
+ * the measurement it bounds* refused it. Widening that clause to admit `<number> + <identifier>`
+ * would admit `statSync(join(ROOT, 'CLAUDE.md')).size + 4_096`, which is the exact expression
+ * ADR 0076 consequence 10 records getting past its predecessor — so the arithmetic is in the
+ * comments and the value on the line is a number. *A clause that cannot read an expression's
+ * meaning is right to refuse every expression.*
  */
 const SET = [
   {
     path: 'CLAUDE.md',
-    // measured 569,698 at W112's declaration step; W114 takes it to its target.
-    ceiling: 586_000,
+    // 569,698 at W112's declaration step; **570,926 on the tree
+    // [W113](../doc/work-items/w113-the-register-is-a-reference.md) ships** — it GREW by 1,228,
+    // which is the one place that item adds anything to this set: the paragraph withdrawing
+    // *read before every work item* (P27 decision 1) and the correction beside the sentence that
+    // asserted it. W114 takes this file to its target.
+    // 570,926 measured + the 4,096 allowance. The arithmetic is ABOVE the line and not beside
+    // it: the clause that reads these spans to the END OF THE LINE on purpose (ADR 0076
+    // consequence 10 — a comma-free bypass), so a trailing comment reads as a derivation.
+    ceiling: 575_022,
     target: 25 * 1024,
   },
   {
     path: 'doc/workflow.md',
-    // measured 304,465. Only a RETRO edits this file, and P27's is W115's successor
-    // rather than part of any item here, so the slack is small and deliberate.
-    ceiling: 310_000,
+    // 304,465 at W112's declaration step; **305,594 since**, from that item's own ADR 0077
+    // edit to section 1 rule 5. Untouched by W113. Only a RETRO edits this file, and P27's is
+    // W115's successor rather than part of any item here, so the slack is small and deliberate.
+    // 305,594 measured + the 4,096 allowance.
+    ceiling: 309_690,
     target: 35 * 1024,
   },
   {
     path: 'doc/concept.md',
     // measured 17,125, which is already inside its 17,408-byte target — the only member
-    // of the set that is, and P27 decision 1 says so.
+    // of the set that is, and P27 decision 1 says so. **This one does NOT move at W113**:
+    // 17,125 + ALLOWANCE is 21,221, which is ABOVE the ceiling it already has, and a ceiling
+    // only ever moves down. The existing 20,000 is a tighter allowance than the other two get.
     ceiling: 20_000,
     target: 17 * 1024,
   },
-];
+].map(Object.freeze);
+
+// **FROZEN, because a ceiling can be DERIVED at RUN TIME and the source clause cannot see it.**
+// [ADR 0076](../doc/decisions/0076-a-vacuity-floor-counts-what-a-prose-cut-cannot-move.md)
+// decision 5 calls a ceiling derived from the size it bounds *"the one way this check can be made
+// worthless without a clause going red"*, and consequence 10 records W112's adequacy reader doing
+// it by rewriting the DECLARATIONS — after which that item widened the source pattern to the end
+// of the line and asserted the count of ceilings found.
+//
+// **The road that clause cannot see is a statement.** W113's adequacy reader inserted ONE line —
+// `SET[0].ceiling = statSync(join(ROOT, 'CLAUDE.md')).size + 4_096;` — and measured `check:budget`
+// EXIT 0, `check:budget:selftest` EXIT 0 at 12/12 probes, grader 4/4 and **`source: 7/7 bound(s)
+// held`**. Then it grew `CLAUDE.md` by 200 KB and the report printed a ceiling of 756.9 KiB with
+// **`ok B2 every member is inside its own ceiling`**; only `B3` fired, on the set's 4,096 bytes of
+// headroom. Re-measured here, both halves, before this freeze went in.
+//
+// **W113 is what made it byte-equivalent**: that item set `CLAUDE.md`'s ceiling to exactly
+// `measured + ALLOWANCE`, so the derivation and the literal agree today and no output differs.
+// *A clause that reads a declaration is blind to an assignment, and the thing that closes that is
+// not a better pattern — it is making the object unassignable.* `Object.freeze` in a module (ESM
+// is always strict) makes the assignment THROW, so the road is refused rather than detected, and
+// a `SOURCE` clause below refuses the shape in the text as the second observer.
 
 /**
  * **The floor on the list, and it is the only non-vacuity guard a CEILING check can
@@ -105,10 +156,15 @@ const SET = [
  */
 const MIN_MEMBERS = 3;
 
-// The set measured 891,288 bytes at W112's declaration step, plus ONE record-step
-// allowance of 16,302. Strictly below the per-file ceilings' sum of 916,000, for the
-// reason the `SET` docstring gives.
-const TOTAL_CEILING = 907_590;
+// 891,288 at W112's declaration step with a 16,302 allowance, giving 907,590.
+// **893,645 on the tree W113 ships, plus ONE `ALLOWANCE`** — and the allowance shrank from
+// 16,302 to 4,096 because ADR 0077 took the record step out of this set entirely, which the
+// `SET` docstring above records as a claim this file got wrong about itself. Strictly below the
+// per-file ceilings' sum, for the reason that docstring gives, and **4,849 bytes lower than
+// W112's**: a cut item lowers this to its own measurement, and W113's measurement of the set is
+// HIGHER than W112's by 2,357, because this item cuts a document the set does not contain.
+// 893,645 measured + the 4,096 allowance.
+const TOTAL_CEILING = 897_741;
 const TOTAL_TARGET = 77 * 1024;  // P27 decision 1's 77 KB, and the per-file targets sum to it
 
 // --- B1: the set is there -----------------------------------------------------

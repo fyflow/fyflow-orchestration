@@ -1667,7 +1667,7 @@ trying to act on it:
   **aborting** kind P6's retro asked for — split rows on unescaped pipes and found that **`Q119` and
   `Q71` render their Status and Owner columns wrong**: Q119's Status shows `regions` and its Owner
   shows `^2) with the inner call doubled…`, with the real `open` / `no owner` dropped off the row. In
-  the file read before every work item. **The register is now 92 questions — 58 open, 2 deferred, 32
+  the register, which was read before every work item until W113 withdrew that. **The register was 92 questions — 58 open, 2 deferred, 32
   resolved**, and the standing *"59 open"* was the right total under the wrong noun.
 
 **[W24](doc/work-items/w24-the-gates-own-wiring.md) is DONE, [Q126](doc/open-questions.md) is
@@ -2506,8 +2506,11 @@ live item in an upstream register that had nothing left to raise.**
 **And one of our own register entries was wrong, which is the newest failure mode here.**
 [Q43](doc/open-questions.md) said *"`regions` already records `{0: arrived, 1: exited}`, so the
 information is present"*. It does not: **both policies produce that identical value**, which is
-exactly what `RN-R6` guarantees. Found by trying to act on it. `doc/open-questions.md` is read before
-every work item and **checked by nothing**.
+exactly what `RN-R6` guarantees. Found by trying to act on it. `doc/open-questions.md` is **checked
+by nothing**. *(This read *"is read before every work item and checked by nothing"* until
+[W113](doc/work-items/w113-the-register-is-a-reference.md) withdrew the first half —
+[P27](doc/plans/p27-what-a-register-row-is.md) decision 1. The register is a reference; see the
+working rules below.)*
 
 **W5's two review passes — run as two readers, per W4's proposal — found ~35 things between them,
 and every one is acted on.** Three are worth carrying:
@@ -2881,6 +2884,18 @@ now one of its homes.** `spec/run-state.md` section 5 tabulates **four**: three 
 what its own inputs could not supply, and the fourth is [Q43](doc/open-questions.md) — a register
 entry, written by a reader, saying the data was already there when it was not. `spec/` has a
 conformity pass; **the register has nothing.**
+
+**`doc/open-questions.md` is a REFERENCE and is NOT read before every work item.** Read the row you
+need, the way you read `spec/`. It is **one line per question** since
+[W113](doc/work-items/w113-the-register-is-a-reference.md) — id, the question or the finding, status,
+owner, and a closing condition where the row states one — and every row's long body is in `git`.
+*(This document asserted the opposite until 2026-10-03, in a sentence W5 wrote about
+[Q43](doc/open-questions.md): *"`doc/open-questions.md` is read before every work item and checked
+by nothing"*. The second half still holds. The first was true when 92 rows fitted on a page and had
+not been literally followable for months at 357 rows and 721,528 bytes —
+[P27](doc/plans/p27-what-a-register-row-is.md) decision 1 withdraws it, and
+[Q465](doc/open-questions.md) is the half of this that remains: the budget `check:budget` holds names
+three documents and nothing in any document says which they are.)*
 
 **A wish for `fyflow-scheduler` goes in [doc/scheduler-upstream.md](doc/scheduler-upstream.md), not
 into a workaround comment.** Every item states what we do without it — an item with no workaround is

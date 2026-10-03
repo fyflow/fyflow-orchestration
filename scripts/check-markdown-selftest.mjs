@@ -401,9 +401,19 @@ const PROBES = [
     mutate: (t) => t.replace('# Documentation index', '# Documentation index\n'),
   },
   {
-    name: 'doc/decisions AND doc/plans removed — the LINK floor, with the anchors left alone',
-    file: README, check: 'M1', also: ['M3', 'M4'],
+    name: 'doc/decisions AND doc/plans removed — the LINK floor, and since W113 the ANCHOR floor too',
+    file: README, check: 'M1', also: ['M3', 'M4', 'M5'],
     removes: ['doc/decisions', 'doc/plans'],
+    // **`M5` joined this set at [W113](../doc/work-items/w113-the-register-is-a-reference.md), and
+    // the sentence below it — *the anchors are untouched, because all 78 live in `doc/`'s top
+    // level* — stopped being true when the register's 440 self-links went.** Measured on the tree
+    // W113 ships: this fixture leaves **17 of 35** anchored, because `doc/plans` holds 12 and
+    // `doc/workflow.md`'s five all point INTO it. That is not a side effect to be tolerated: it is
+    // **the only reason a floor for `M5` exists at all**, since the upper edge of every candidate
+    // window is `min(whole, probe 1, probe 2)` and probe 2's 17 sat below what stripping the
+    // largest holder leaves. `check-markdown.mjs` carries the arithmetic beside the floor. *A
+    // fixture's declared set is a claim about what the fixture DOES, and a prose cut three
+    // directories away changed it.*
     // **41 files / 1357 links / 94 anchored, re-measured at W30's close** — and this
     // probe reported `wanted [M1,M3,M4], got [M1,M3]` again, for the second plan
     // running, because W30's own Record and index paragraphs pushed the fixture's link
@@ -416,7 +426,12 @@ const PROBES = [
     // [Q142](../doc/open-questions.md) is not fixed by retuning it — the window is
     // two-sided by construction — and the mitigation is the direction: it fails
     // LOUDLY, in the gate, naming the probe and the expected set: the anchors are untouched, because
-    // all 78 live in `doc/`'s top level. So this probe fires `M4` and the one above
+    // all 78 live in `doc/`'s top level **— which stopped being true at W113, when the register's
+    // 440 self-links went: this fixture now leaves 17 of 35 anchored and DECLARES `M5` because of
+    // it. The sentence survived ten lines below the paragraph that withdrew it, in a file that
+    // item edited, which is `doc/workflow.md` section 1 rule 5's third clause exactly — a WITHDRAWN
+    // claim is SEARCHED FOR, not merely corrected where it was found. Both of W113's readers found
+    // it.** So this probe fires `M4` and the one above
     // does not, and that difference is what makes the link floor independently
     // observable — the first version removed `doc/`'s top level instead, which took
     // the anchors with it and left the link count at 1247, above the floor. Declared
@@ -427,13 +442,25 @@ const PROBES = [
 
   {
     name: 'the anchor-carrying links all removed, so M2 would pass on nothing',
-    file: 'doc/open-questions.md', check: 'M5',
-    // **Wrong at birth.** It first emptied `doc/scheduler-upstream.md`, which holds
-    // 14 of the corpus's 76 anchored links — leaving 62, well above M3's floor of 20,
-    // so the run stayed green and the probe reported `wanted [M3], got []`. The
-    // register is where the anchors are: 62 of 76.
-    // Emptying the subject rather than the checker: with every `#` target gone the
-    // corpus drops under M3's anchored floor and M2 becomes true of the walk.
+    file: UPSTREAM, check: 'M5',
+    // **Wrong at birth, then right for four plans, then wrong again — and the subject has now moved
+    // BACK to where it started.** It first emptied `doc/scheduler-upstream.md`, which held 14 of the
+    // corpus's 76 anchored links — leaving 62, well above the floor, so the run stayed green and the
+    // probe reported `wanted [M3], got []`. The register was where the anchors were: 440 of 473 by
+    // W112's measurement, all of them its own `](#live)` and `](#resolved)` self-links.
+    //
+    // **[W113](../doc/work-items/w113-the-register-is-a-reference.md) cut the register to one line
+    // per row, so it carries TWO anchors and this probe's subject was gone** — exactly what
+    // [ADR 0076](../doc/decisions/0076-a-vacuity-floor-counts-what-a-prose-cut-cannot-move.md)
+    // decision 3 predicted and handed over. Upstream is the largest remaining holder at **15 of 35**,
+    // so stripping it takes the corpus to 20 against a floor of 28 and `M5` fires. What that ADR did
+    // NOT predict is that the fixture below would have to declare `M5` for any floor to exist at all;
+    // the arithmetic is in `check-markdown.mjs` beside the floor.
+    //
+    // Emptying the subject rather than the checker: with every `#` target gone from the document
+    // that holds most of them, the corpus drops under the anchored floor and `M2` becomes true of
+    // the walk. `](.)` is a link to a directory, which `resolveLinks` skips rather than resolving,
+    // so this probe moves `anchored` alone and trips neither `M1` nor `M2`.
     mutate: (t) => t.replace(/\]\(#[a-z0-9-]+\)/g, '](.)'),
   },
 
@@ -512,7 +539,10 @@ const META = [
   // W33 and `M3`'s at W42, both with the same sentence above them — *a mutation pinned to a magic
   // number is unmutatable the moment the number is right to change* — and this one was left behind
   // for nine retunes. W112 measured that `M5`'s floor must move at W113 (the register's cut deletes
-  // this probe's SUBJECT, so the floor lands in `(13, 15]` with the probe re-pointed at
+  // this probe's SUBJECT, so the floor moves. **That ADR's window `(13, 15]` is EMPTY on the tree
+  // the cut produced and W113 re-derived it as `(20, 35]`, floor 28** — the arithmetic is beside
+  // the floor in `check-markdown.mjs`. This comment stated the superseded window until W113's
+  // adequacy reader found it, in the file that item owns and edited. Re-pointed at
   // `doc/scheduler-upstream.md`), which would have made this entry report *"the mutation matched
   // nothing"* and graded a live floor as unmutatable. **Third instance of one defect, found before
   // it fired rather than by it firing.**
@@ -568,7 +598,14 @@ const META = [
     // and would have graded a live floor as unmutatable. [Q142](../doc/open-questions.md).
     (t) => t.replace(/if \(r\.files < \d+\) fail\('M3'/, "if (false) fail('M3'")],
   ['M4`s link floor disabled',
-    'doc/decisions AND doc/plans removed — the LINK floor, with the anchors left alone',
+    // **The probe's NAME moved at [W113](../doc/work-items/w113-the-register-is-a-reference.md) and
+    // this entry ABORTED on it** — `no probe is named "…with the anchors left alone"`, in the
+    // confirming lane, because that fixture gained `M5` in its declared set and its name said the
+    // anchors were untouched. **Rule 7 (b) firing correctly for the third time on this one entry**,
+    // and in a third delimiter: the two comments below are about a mutation pinned to a magic NUMBER
+    // and to a magic FIELD, and a probe reference is a magic NAME. The mutation itself is agnostic
+    // about the floor's value and its field, and was pinned to the probe's prose.
+    'doc/decisions AND doc/plans removed — the LINK floor, and since W113 the ANCHOR floor too',
     // **Anchor-agnostic since W33.** Pinned to the literal this reported *"the
     // mutation matched nothing"* every time the floor was right to change — twice
     // now, at P10's declaration and again here. Rule 7 (b) firing correctly, and
@@ -953,6 +990,20 @@ export async function selfTest(root) {
       return 1;
     }
     const v = runOne(probe);
+    // **A rule 7 (b) abort returns no `declared`, and single-probe mode used to CRASH on it** —
+    // `TypeError: Cannot read properties of undefined (reading 'filter')`. It exits non-zero, so
+    // it is noticed; it is noticed by a CRASH rather than a verdict, which is exactly what rule
+    // 8's requirement on the set refuses. **W113 is the item that made 7 (b) load-bearing here**,
+    // because it re-pointed `M5`'s probe to a document whose anchors the regex might not match,
+    // and its adequacy reader reached the crash by pointing that probe at `doc/workflow.md`. The
+    // main pass has always handled this (it prints `v.msg`); only this branch did not.
+    if (v.declared === undefined) {
+      console.log('  ran: no');
+      console.log('  outcome: matched-nothing');
+      console.log(`  FAIL  ${(probe.check ?? '{}').padEnd(2)}  ${probe.name}  — ${v.msg}`);
+      if (!shared) rmSync(base, { recursive: true, force: true });
+      return 1;
+    }
     // **`outcome:` is the fact the parent grades on, and it exists because reading
     // the EXIT CODE cannot distinguish a detection from NOISE.** `refused` is
     // computed with full set equality here and was then collapsed to a boolean the
