@@ -216,7 +216,7 @@ not wired to this case.*
 
 ## Record
 
-**W108 is DONE (ADR 0074), W109 is DONE (ADR 0075) and [W110](../work-items/w110-a-flow-a-ui-could-have-emitted.md) is DONE, so P26 is COMPLETE pending its retro.** *(This read *W110 is next, and it is the exit artifact* until W110's record step — a claim with an expiry date, corrected by the item that expired it.)* The artifact is `examples/flows/ui-emitted.flow.json` and `examples/ui-registry.json` on a real `FyflowScheduler` in BOTH L6 runtimes, **L6 2176 / 154 → 2435 / 161**, the package **`0.7.0`**, and **prediction 3 CONFIRMED with two narrowings measured**.
+**W108 is DONE (ADR 0074), W109 is DONE (ADR 0075) and [W110](../work-items/w110-a-flow-a-ui-could-have-emitted.md) is DONE, and **P26 is COMPLETE and RETRO'D** — the retro is below, and `doc/workflow.md` is v0.26.** *(This read *COMPLETE pending its retro* for the hour between W110's record step and the retro that followed it, and the retro did not correct the sentence it was invalidating — found by a script trying to DERIVE this plan's status from its own file, which is the one road section 1 rule 5 permits.)* *(This read *W110 is next, and it is the exit artifact* until W110's record step — a claim with an expiry date, corrected by the item that expired it.)* The artifact is `examples/flows/ui-emitted.flow.json` and `examples/ui-registry.json` on a real `FyflowScheduler` in BOTH L6 runtimes, **L6 2176 / 154 → 2435 / 161**, the package **`0.7.0`**, and **prediction 3 CONFIRMED with two narrowings measured**.
 Read every status from the item's own file, never from this one.
 
 | | |
