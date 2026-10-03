@@ -86,8 +86,31 @@ occurrences in code).
 
 3. **`BUILT_IN_NODE_TYPES` has one member, `Transform`, and its whole definition is that it names
    nothing.** No `worker`, no `config` (there is no constructor to hand one to), no `inline` (the
-   scheduler's default, as an absent one always means), no `groups`, no `retryPolicy`. A consumer who
-   wants any of those declares a named pool INSTANCE of it, or a `retryPolicy` on the node.
+   scheduler's default, as an absent one always means), no `groups`, no `retryPolicy`.
+
+   > **This rule's last sentence read *a consumer who wants any of those declares a named pool
+   > INSTANCE of it, or a `retryPolicy` on the node*, and W110's declaration step measured it wrong in
+   > TWO ways.** First, the road itself: `checkRegistry` — what `new Driver` runs — ACCEPTED a named
+   > instance of `Transform`, while `resolveRegistry`, which is what `createRuntime` runs, refused it
+   > `PoolTypeMissing: pool "reshape-big" names type "Transform", which is not a node type`, **a
+   > message false against `nodeTypesOf`, which returns it.** The two roads disagreed about one
+   > document — W109's finding 2's class one rule along and in the opposite direction, the runtime
+   > road being too STRICT where the validator road had been too lenient. **The maintainer's answer to
+   > W110's stop-and-ask (b) was to fix the code, AGAINST that item's recommendation**: the named-pool
+   > loop resolves its `type` against a MERGED map now, the built-ins are STORED nowhere still (rule 5
+   > is untouched), and `bootstrap`'s own named-instance loop already read the merged map after W109's
+   > repair. Measured: zero cost at L1-L5 — it is a widening — so the clause is bound by
+   > `test/definition/registry.test.ts`'s own case on BOTH roads rather than by the suite's count.
+   >
+   > **Second, and NOT fixed: of the four absences above, a named instance reaches exactly ONE.**
+   > `INSTANCE_KEYS` is `['type', 'config']`, so measured one at a time: `config` **ACCEPTED**;
+   > `inline`, `groups`, `pool` and `retryPolicy` each `UndeclaredKey: pool "reshape-big" carries
+   > undeclared key "…"; it declares type, config`. A `retryPolicy` on the NODE does work, as the
+   > sentence separately said. **So `inline` and `groups` are reachable by NO road a consumer can
+   > write** — and the only other road, declaring their own worker-less type, is `WorkerMissing` by
+   > rule 2, deliberately. A transform-only node runs in the scheduler's default realm and holds no
+   > resource group, and nothing a consumer writes changes that. [Q457](../open-questions.md).
+
    **`FD-V46`** refuses a node of such a type that declares no `transform`, because the alternative is
    an expensive identity — P26 decision 5 (b), and its own id rather than a clause of `FD-V37` on
    `FD-V28`'s stated precedent that a different fix earns a different id.

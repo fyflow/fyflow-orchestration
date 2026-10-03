@@ -477,6 +477,11 @@ const LATE_SUITES = [
   'W73 — fits(P, C): P19 fact 3`s relation, its twelve controls as fixtures, its stated leniency and the map record',
   'W73 — the two enumerations are the spec`s tables, both ways',
   'W73 — the wiring fixture corpus IS what section 7 says it is, and every verdict kind is reached',
+  // **W110's second observer of `AGENTS.md` section 21's first two guards** — its adequacy reader
+  // (F5) made all five of that section's guards tautologies at `check:docs` EXIT 0, and the two
+  // about the EMPTY registry had no observer anywhere else. BOTH HALVES from the start here: this
+  // row and the case count below, which is the counter-measure W108 took half of.
+  'W110 — the UI-emitted documents validate with an EMPTY predicate registry: section 21`s first two guards, at L1',
   'W73 — the L6 corpus census, as an EQUALITY, and every arc shape reached',
   'W73 — constructed shapes: needs, a fan-out`s record, a map`s arity, the witness road, provenance',
   'FD-R4 at START — the payload is held to the first task(s) it reaches, once, and a refusal leaves the driver unstarted',
@@ -743,6 +748,22 @@ suite('L1 — every suite this tree declares actually RAN', (test) => {
       'test/definition/assist.test.ts registers W109`s eight sampled-output cases — five declared, three the readers bought');
     equal(count('W109 — the pool config the library BUILDS for a transform-only type, and what the arm READS'), 5,
       'test/scheduler/bootstrap.test.ts registers W109`s five producing-side cases, which the adequacy reader`s F1 bought whole');
+  });
+  // **W110's suites, counted the same way — and the SECOND of the two is the conformity reader's 8.**
+  // The maintainer's answer to this item's stop-and-ask (b) changed `src/definition/registry.ts` so a
+  // named pool instance may name a BUILT-IN type, and that change costs **ZERO** at L6 (no artifact row
+  // names such an instance) and **ZERO** at every other rung: its only observer is one case in
+  // `test/definition/registry.test.ts`, whose suite had **no case count**, so deleting that case left
+  // `npm test` green at 1512 and the fix unobserved at every rung. That is W108's own finding — *both of
+  // this item's suites EMPTIABLE for zero, because the census is over suite NAMES and an empty suite is
+  // still a suite* — and this item's own exceptions table named the remedy and did not take it.
+  test('W110`s two suites still REGISTER the cases they declare — an emptied suite fails here', () => {
+    const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
+    equal(count('W110 — the UI-emitted documents validate with an EMPTY predicate registry: section 21`s first two guards, at L1'), 2,
+      'test/definition/wiring.test.ts registers W110`s two L1 cases — the second observer of section 21`s first two guards');
+    equal(count('every construction-time refusal, by name — a document that trips it and the sample that does not'), 15,
+      'test/definition/registry.test.ts registers the refusal cases INCLUDING W110`s named-pool-instance one, which is the only ' +
+      'observer of the `resolveRegistry` change the maintainer took and which cost 0 everywhere else');
   });
   // **W93's two suites, counted the same way and for the same reason** — a suite emptied of its cases is still a suite.
   test('W93`s two suites still REGISTER the cases they declare — an emptied suite fails here', () => {

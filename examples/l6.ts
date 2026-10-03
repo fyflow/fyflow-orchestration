@@ -154,11 +154,20 @@ import {
   // here to the types the flows name, to the pools the scheduler reports, and to the document's
   // own bytes read back off disk.
   REGISTRY_DOCUMENT, PREDICATES,
+  // W110: the DERIVED UI document a row runs, so the clause that bounds the derivation can read it.
+  uiRegistryDocumentFor,
   // W63: the ONE languages object the helper wrote pool configs from and every driver was handed —
   // compared here to the languages the flows NAME, both ways.
   LANGUAGES,
+  // **W110 — P26's exit artifact.** `UI_REGISTRY_DOCUMENT` is the second document, read here for
+  // the clause that says it declares NO predicates and that its worker and type entries are the
+  // shared document's; `UI_NAMED_PREDICATES` is the one name the paired flow needs, and the only
+  // predicate FUNCTION this artifact reaches.
+  UI_REGISTRY_DOCUMENT, UI_NAMED_PREDICATES,
   type ForeignTask, type PairFacts, type Retention, type RunReport,
 } from './run-flow.ts';
+/** W110: a row may carry its own predicate registry, so `Expectation` needs the type. */
+import type { Predicate } from '../index.ts';
 // **W63, through the sub-path's ENTRY — the one path the reaches-past-index clause below exempts by
 // name.** The helper's own reading of which types transform in which languages, compared on every
 // L6 definition to a derivation this file makes without it, so the function the pools were built
@@ -301,6 +310,13 @@ import fanOutPerItem from './flows/fan-out-per-item.flow.json' with { type: 'jso
 // file of each series opens the per-series work and every other file ends at an `end`
 // ([W94](../doc/work-items/w94-a-tv-series-ingest-through-a-gate-on-real-workers.md)).
 import tvIngest from './flows/tv-ingest.flow.json' with { type: 'json' };
+// **W110 — P26's EXIT ARTIFACT, and the two documents are a PAIR.** `ui-emitted.flow.json` is a
+// complete flow whose only code is the domain workers; `ui-emitted-named.flow.json` is that document
+// with ONE edge's `when` replaced by `{ "predicate": "weakAndPlural" }` and nothing else changed.
+// The cross-row block asserts that the difference is still exactly that one edge, because whatever
+// makes a pair differ is itself a claim (`doc/workflow.md` rule 8's fourth requirement on the set).
+import uiEmitted from './flows/ui-emitted.flow.json' with { type: 'json' };
+import uiEmittedNamed from './flows/ui-emitted-named.flow.json' with { type: 'json' };
 import failureEdge from '../spec/examples/valid/failure-edge.flow.json' with { type: 'json' };
 
 /**
@@ -399,6 +415,26 @@ interface Expectation {
    */
   payload: { confidence?: number; text?: string; url?: string; files?: readonly TvFile[] };
   threaded: boolean;
+  /**
+   * **This row runs `examples/ui-registry.json` rather than `examples/registry.json`** — W110, and
+   * P26's exit artifact is the only thing that sets it.
+   *
+   * The UI document declares the four workers `ui-emitted.flow.json` names and **no predicates**,
+   * which is what makes `predicates` below able to be EMPTY: `createRuntime` compares the document's
+   * names and the code's functions **both ways**, so an empty registry is unreachable against a
+   * document that declares three. Measured at W110's declaration step, all four combinations.
+   */
+  uiRegistry?: true;
+  /**
+   * **The predicate registry THIS row runs with** — the seam W67 left for *a row that wants a
+   * different predicate set*, and until W110 nothing used it (that item's own Record says so).
+   *
+   * **The artifact's rows are what it is for, in both directions**: `ui-emitted`'s four rows pass
+   * an EMPTY map and the cross-row block asserts it was empty, and `ui-emitted-named`'s two pass a
+   * map of exactly ONE name. Omitted, a row gets the shared three — so a row that forgets the key
+   * does not quietly get an empty registry.
+   */
+  predicates?: ReadonlyMap<string, Predicate>;
   /**
    * **Which POOL each named task actually ran on, read off `scheduler.tasks` — W67.**
    *
@@ -1189,6 +1225,111 @@ const NOTED = {
 /** What a `Scorer` returns when its `needs` composed `{ run }` and its transform selected `run` — ingest's whole result, items echoed. */
 const SCORED = (confidence: number, factor: number) => ({
   keys: ['input', 'settings'], extraKeys: [], settingsKeys: ['factor'], confidence, factor, score: Math.round(confidence * factor), retried: false, items: ITEMS_ABC,
+});
+
+/**
+ * **W110 — P26's EXIT ARTIFACT: a flow a UI could have emitted, and the ONLY code it reaches is the
+ * domain workers and the language adapter the library itself ships.**
+ *
+ * ```
+ * intake    SplitWorker   -> { confidence, items: [ {word, confidence}, … ] }    SEQUENCE
+ * each      map over "items", branch "rate"                                     FAN-OUT, run-time arity
+ * rate      ScoreWorker   -> { confidence, score: round(confidence * 100) }      its own item, JP-R11
+ * gather    join of "each" -> { "0": {…}, "1": {…} }                            JOIN, JP-R12
+ * rollup    Transform      needs { joined: ".", cfg: "intake" }                  SELECTION + TIER-3 COMPUTATION
+ *           all[ weak eq true, n gte 2 ] -> remediate                            DECISION, a GROUP
+ *           any[ n eq 1, weak eq false ] -> publish
+ *           (default)                    -> stalled                              a tripwire, never reached
+ * remediate WeighWorker    transform reshapes rollup's output into { item, run }  TIER-2 COMPUTATION
+ *           score lt 20 -> escalated ; -> done
+ * publish   PublishWorker -> { published, joinPayload: rollup's output }
+ * ```
+ *
+ * **What makes it the artifact rather than another transform row**: there is no predicate FUNCTION,
+ * no reshaping WORKER, no gate type, no custom group type and no node-type class — `predicates` is
+ * an EMPTY Map on all four of this document's rows and the cross-row block says so — and the whole
+ * registry is `examples/ui-registry.json`, which declares four workers, four types and `languages`.
+ *
+ * **The TIER-THREE node is REQUIRED and not chosen**, which is the one thing about this flow worth
+ * reading twice. A `transform` transforms its node's INPUT and a decision reads its node's OUTPUT,
+ * so a computation feeding a DECISION cannot be a tier-two transform on the consuming node — which
+ * is what [ADR 0075](../doc/decisions/0075-a-node-that-only-transforms-is-a-built-in-type-with-no-inner-worker.md)
+ * rule 1's tier table means by *reshape for … a decision*. Move `rollup`'s transform onto `publish`
+ * and the decision cannot see `total` at all. **All three tiers are in this one flow**: `needs` on
+ * `rollup` is tier one, `remediate`'s own transform is tier two, `rollup` is tier three.
+ *
+ * **And the decision depends on TWO of the run's own values**, which a comparison cannot say: the
+ * subset reads ONE path and compares it to ONE literal, so *is the mean below the threshold the run
+ * carries* is not a comparison and neither is any arithmetic. W110's declaration step measured all
+ * four spellings of a path-as-value — two refused by `FD-V44`, one refused for its KIND, and
+ * `{ op: "eq", value: "needs.cfg.threshold" }` **ACCEPTED as a literal string**
+ * ([Q456](../doc/open-questions.md)). The route around it is data: `rollup` computes `weak` and the
+ * `when` reads `outcome.result.weak`.
+ */
+const UI = uiEmitted as unknown as FlowDefinition;
+/**
+ * **The PAIR's other half** — the same document with `rollup`'s FIRST `when` replaced by
+ * `{ "predicate": "weakAndPlural" }`, and nothing else changed. Generated from `UI`'s own bytes, so
+ * the difference is one edit by construction; the cross-row block asserts it is still one, and that
+ * the two route IDENTICALLY on the payloads that route both ways. **That is P26 prediction 3's
+ * answer as a measurement**: the data road reproduces a registered function, and the row that uses
+ * the function is what stops the comparison being vacuous.
+ *
+ * Its second decision stays a declared `any` group, so **this document carries BOTH roads** — which
+ * is W110's output (2), and the reason the name road is shown alive rather than merely possible.
+ */
+const UIN = uiEmittedNamed as unknown as FlowDefinition;
+
+/** An empty predicate registry, written once so the four rows that use it cannot disagree about it. */
+const NO_PREDICATES: ReadonlyMap<string, Predicate> = new Map();
+
+/**
+ * **The node types the LIBRARY ships, as a LITERAL here** — v0.28, W109, and **HOISTED to module
+ * scope by W110** because a second clause needs it. `examples/l6.ts` reads the package through
+ * `index.ts` as a consumer does and does not import `src/`, so the list is written down;
+ * `test/definition/node-type.test.ts`'s W109 suite holds the same literal to `BUILT_IN_NODE_TYPES`
+ * itself, so a built-in added without these clauses moving is red there — **checked rather than
+ * cited** at W110's declaration step, because W109's finding 6 was five files naming an observer
+ * that did not exist ([Q453](../doc/open-questions.md)).
+ *
+ * **It was declared INSIDE the (2b) block until W110**, where the pools clause could see it and the
+ * `documentTypes` clause three hundred lines up could not — which is why that clause went red the
+ * moment a flow named a built-in and had no way to say so.
+ */
+const BUILT_IN_NODE_TYPES_L6: readonly string[] = ['Transform'];
+
+/** What `SplitWorker` returns for a text — one item per word, each carrying `min(1, word.length / 10)`. */
+const uiItems = (text: string): { word: string; confidence: number }[] => {
+  const seen = new Map<string, { word: string; confidence: number }>();
+  return text.split(' ').filter((w) => w.length > 0).map((word) => {
+    const hit = seen.get(word);
+    if (hit) return hit;
+    const made = { word, confidence: Math.min(1, word.length / 10) };
+    seen.set(word, made);
+    return made;
+  });
+};
+/**
+ * **What `rollup`'s transform computes, DERIVED from the two workers' own arithmetic** — not read
+ * off a run. `ScoreWorker` returns `round(confidence * 100)` for the item it was handed, so the
+ * scores are a function of the WORDS and the `weak` verdict is a function of the words AND the
+ * payload's own confidence, which is the two-path comparison.
+ */
+const uiRollup = (confidence: number, text: string) => {
+  const scores = uiItems(text).map((i) => Math.round(i.confidence * 100));
+  const n = scores.length;
+  const total = scores.reduce((a, b) => a + b, 0);
+  const mean = total / n;
+  return { n, total, mean, weak: mean < confidence * 100 };
+};
+/**
+ * **What `WeighWorker` returns on the `remediate` road** — and this is output (3)'s whole point:
+ * every field is a function of what the TRANSFORM produced. `keys` is the transform's own output
+ * shape read back by the worker, `confidence` is `mean / 100`, and `score` is computed FROM it, so
+ * a wrong transform gives a wrong score and a different key set rather than an absent one.
+ */
+const uiRemediated = (mean: number) => ({
+  keys: ['item', 'run'], extraKeys: [], word: 'mean', confidence: mean / 100, score: Math.round((mean / 100) * 1 * 100),
 });
 
 const EXPECTED: Expectation[] = [
@@ -3656,6 +3797,215 @@ const EXPECTED: Expectation[] = [
     why: 'W94 — the same flow with `identify` on THREADS at equal work: whatever order the pool delivers, exactly one ' +
       'file per series opens it and every file gets its thumbnail. No winner and no order is asserted',
   },
+
+  // ---------------------------------------------------------------------------------------------
+  // **W110 — P26's EXIT ARTIFACT. Six rows over TWO documents, and the second document exists so
+  // that the first one's claim can be falsified.**
+  //
+  // The four `ui-emitted` rows reach every road the flow has and every member of both groups is
+  // load-bearing on a payload no other row covers:
+  //
+  //   | | payload | rollup | which member decides |
+  //   |---|---|---|---|
+  //   | A | 0.9 / "alpha beta" | n 2, mean 45, weak TRUE  | `all`'s FIRST  -> remediate -> done |
+  //   | B | 0.2 / "alpha beta" | n 2, mean 45, weak FALSE | `any`'s SECOND -> publish |
+  //   | C | 0.9 / "alpha"      | n 1, mean 50, weak TRUE  | **`all`'s SECOND** -> publish — the first member alone would have sent it to `remediate` |
+  //   | D | 0.9 / "a b"        | n 2, mean 10, weak TRUE  | remediate's own `lt 20` -> escalated |
+  //
+  // **A and B differ in ONE payload field**, and the decision between them depends on BOTH the
+  // join's mean and the run's own confidence — the two-path comparison the subset cannot say,
+  // computed by the tier-three node. **C is what makes the `all` group's second member a claim**
+  // rather than decoration: at one item it is the only thing standing between `weak: true` and the
+  // `remediate` road. Nothing in this tree exercised `all` or `any` before this row
+  // ([ADR 0074](../doc/decisions/0074-a-predicate-is-a-registered-name-or-a-declared-comparison-over-the-context.md)
+  // consequence 5 says so), so these are the group's first instances on real workers.
+  //
+  // **`stalled` is never reached on any of the six**, which `pathEnds` says per row. It is a
+  // TRIPWIRE and is called one rather than a control: it fires when a group is wrong, and the claim
+  // it would make non-vacuous is its own.
+  {
+    key: 'ui-emitted / P26 — a flow a UI could have emitted: an EMPTY predicate registry, a declared group, and a reshaping step with no code',
+    definition: UI, policyId: 'live-token', payload: { confidence: 0.9, text: 'alpha beta' }, threaded: false,
+    uiRegistry: true, predicates: NO_PREDICATES,
+    outcome: 'completed',
+    regionId: 'each',
+    // `intake` settles; the map opens two instances in index order (`JP-R5`); `gather` fires and
+    // `rollup` goes; its `all` group matches and `remediate` goes.
+    dispatched: ['r56:intake:-:0', 'r56:rate:0:0', 'r56:rate:1:0', 'r56:rollup:-:0', 'r56:remediate:-:0'],
+    joined: true,
+    settled: { '0': 'arrived', '1': 'arrived' },
+    branchEvents: { '0': ['branch.opened', 'branch.arrived'], '1': ['branch.opened', 'branch.arrived'] },
+    pathEnds: [{ reason: 'end', at: 'done' }],
+    nodeResults: {
+      'r56:intake:-:0': { confidence: 0.9, items: uiItems('alpha beta') },
+      'r56:rate:0:0': { confidence: 0.5, score: 50 },
+      'r56:rate:1:0': { confidence: 0.4, score: 40 },
+      'r56:rollup:-:0': uiRollup(0.9, 'alpha beta'),
+      'r56:remediate:-:0': uiRemediated(45),
+    },
+    // **The built-in's own pool ran it** — `node.pool ?? node.type`, read off `scheduler.tasks`, so
+    // this is the one observer that says the `Transform` type's pool is what the task went to and
+    // not some pool a document declared. No L6 row has ever named a built-in node type.
+    poolOfTask: { 'r56:rollup:-:0': 'Transform', 'r56:remediate:-:0': 'WeighWorker' },
+    why: 'W110 — P26`s exit artifact. One flow, no predicate function, no reshaping worker, no gate type: ' +
+      '`needs` selects (tier 1), a Transform node computes the two-path comparison a comparison cannot say ' +
+      '(tier 3), a declared `all` group routes on its result, and `remediate``s own transform reshapes that ' +
+      'result into what WeighWorker reads (tier 2). `RunOptions.predicates` is EMPTY and the cross-row block ' +
+      'asserts it was',
+  },
+  {
+    key: 'ui-emitted / the SAME document at a lower confidence — `weak` is FALSE, so the `any` group`s second member routes it to publish',
+    definition: UI, policyId: 'live-token', payload: { confidence: 0.2, text: 'alpha beta' }, threaded: false,
+    uiRegistry: true, predicates: NO_PREDICATES,
+    outcome: 'completed',
+    regionId: 'each',
+    dispatched: ['r57:intake:-:0', 'r57:rate:0:0', 'r57:rate:1:0', 'r57:rollup:-:0', 'r57:publish:-:0'],
+    joined: true,
+    settled: { '0': 'arrived', '1': 'arrived' },
+    branchEvents: { '0': ['branch.opened', 'branch.arrived'], '1': ['branch.opened', 'branch.arrived'] },
+    pathEnds: [{ reason: 'end', at: 'done' }],
+    nodeResults: {
+      'r57:intake:-:0': { confidence: 0.2, items: uiItems('alpha beta') },
+      'r57:rate:0:0': { confidence: 0.5, score: 50 },
+      'r57:rate:1:0': { confidence: 0.4, score: 40 },
+      'r57:rollup:-:0': uiRollup(0.2, 'alpha beta'),
+      // **The transform`s output, echoed whole by a worker on the OTHER road** — a second observer
+      // of the same value, which is what keeps output (3) from resting on `remediate` alone.
+      'r57:publish:-:0': { published: true, joinPayload: uiRollup(0.2, 'alpha beta') },
+    },
+    why: 'W110 — A`s pair, and the ONE field that differs is the payload`s confidence. The scores are identical ' +
+      '(a word`s confidence is its length), the mean is identical, and `weak` flips — so the decision is a ' +
+      'function of BOTH the join`s mean and the run`s own value, which is what no comparison can express',
+  },
+  {
+    key: 'ui-emitted / ONE item — `weak` is still TRUE and the `all` group`s SECOND member is what routes it to publish',
+    definition: UI, policyId: 'live-token', payload: { confidence: 0.9, text: 'alpha' }, threaded: false,
+    uiRegistry: true, predicates: NO_PREDICATES,
+    outcome: 'completed',
+    regionId: 'each',
+    dispatched: ['r58:intake:-:0', 'r58:rate:0:0', 'r58:rollup:-:0', 'r58:publish:-:0'],
+    joined: true,
+    settled: { '0': 'arrived' },
+    branchEvents: { '0': ['branch.opened', 'branch.arrived'] },
+    pathEnds: [{ reason: 'end', at: 'done' }],
+    nodeResults: {
+      'r58:intake:-:0': { confidence: 0.9, items: uiItems('alpha') },
+      'r58:rate:0:0': { confidence: 0.5, score: 50 },
+      'r58:rollup:-:0': uiRollup(0.9, 'alpha'),
+      'r58:publish:-:0': { published: true, joinPayload: uiRollup(0.9, 'alpha') },
+    },
+    why: 'W110 — the row that makes the `all` group`s second member a CLAIM. `weak` is TRUE here, so the first ' +
+      'member alone would route to `remediate`; `n gte 2` is false at one item and the `any` group`s FIRST ' +
+      'member then routes it to publish. Both groups decide a different row, in both directions',
+  },
+  {
+    key: 'ui-emitted / low scores — remediate`s OWN declared decision routes it to a second `end`, on the value its transform produced',
+    definition: UI, policyId: 'live-token', payload: { confidence: 0.9, text: 'a b' }, threaded: false,
+    uiRegistry: true, predicates: NO_PREDICATES,
+    outcome: 'completed',
+    regionId: 'each',
+    dispatched: ['r59:intake:-:0', 'r59:rate:0:0', 'r59:rate:1:0', 'r59:rollup:-:0', 'r59:remediate:-:0'],
+    joined: true,
+    settled: { '0': 'arrived', '1': 'arrived' },
+    branchEvents: { '0': ['branch.opened', 'branch.arrived'], '1': ['branch.opened', 'branch.arrived'] },
+    // **The one row that ends anywhere but `done`** — and the value it turns on is the one
+    // `remediate`'s own tier-two transform computed, so a wrong transform moves this `at`.
+    pathEnds: [{ reason: 'end', at: 'escalated' }],
+    nodeResults: {
+      'r59:intake:-:0': { confidence: 0.9, items: uiItems('a b') },
+      'r59:rate:0:0': { confidence: 0.1, score: 10 },
+      'r59:rate:1:0': { confidence: 0.1, score: 10 },
+      'r59:rollup:-:0': uiRollup(0.9, 'a b'),
+      'r59:remediate:-:0': uiRemediated(10),
+    },
+    why: 'W110 — two one-letter words, so the mean is 10 and `remediate``s own `score lt 20` fires. It is the ' +
+      'second declared decision in the flow and the only row that reaches `escalated`, and what it reads is a ' +
+      'field WeighWorker computed from the transform`s output',
+  },
+  {
+    key: 'ui-emitted-named / the SAME flow with the group replaced by a REGISTERED NAME — one predicate registered, and the routing is identical to A',
+    definition: UIN, policyId: 'live-token', payload: { confidence: 0.9, text: 'alpha beta' }, threaded: false,
+    uiRegistry: true, predicates: UI_NAMED_PREDICATES,
+    outcome: 'completed',
+    regionId: 'each',
+    dispatched: ['r60:intake:-:0', 'r60:rate:0:0', 'r60:rate:1:0', 'r60:rollup:-:0', 'r60:remediate:-:0'],
+    joined: true,
+    settled: { '0': 'arrived', '1': 'arrived' },
+    branchEvents: { '0': ['branch.opened', 'branch.arrived'], '1': ['branch.opened', 'branch.arrived'] },
+    pathEnds: [{ reason: 'end', at: 'done' }],
+    nodeResults: {
+      'r60:intake:-:0': { confidence: 0.9, items: uiItems('alpha beta') },
+      'r60:rate:0:0': { confidence: 0.5, score: 50 },
+      'r60:rate:1:0': { confidence: 0.4, score: 40 },
+      'r60:rollup:-:0': uiRollup(0.9, 'alpha beta'),
+      'r60:remediate:-:0': uiRemediated(45),
+    },
+    why: 'W110 — output (2): this document carries BOTH roads, one `when` a registered name and one a declared ' +
+      '`any` group. It is A`s document with exactly one edge changed, and it routes identically — which is ' +
+      'P26 prediction 3`s answer as a measurement rather than a sentence',
+  },
+  {
+    key: 'ui-emitted-named / the name road at the lower confidence — the registered function answers FALSE where the group did',
+    definition: UIN, policyId: 'live-token', payload: { confidence: 0.2, text: 'alpha beta' }, threaded: false,
+    uiRegistry: true, predicates: UI_NAMED_PREDICATES,
+    outcome: 'completed',
+    regionId: 'each',
+    dispatched: ['r61:intake:-:0', 'r61:rate:0:0', 'r61:rate:1:0', 'r61:rollup:-:0', 'r61:publish:-:0'],
+    joined: true,
+    settled: { '0': 'arrived', '1': 'arrived' },
+    branchEvents: { '0': ['branch.opened', 'branch.arrived'], '1': ['branch.opened', 'branch.arrived'] },
+    pathEnds: [{ reason: 'end', at: 'done' }],
+    nodeResults: {
+      'r61:intake:-:0': { confidence: 0.2, items: uiItems('alpha beta') },
+      'r61:rate:0:0': { confidence: 0.5, score: 50 },
+      'r61:rate:1:0': { confidence: 0.4, score: 40 },
+      'r61:rollup:-:0': uiRollup(0.2, 'alpha beta'),
+      'r61:publish:-:0': { published: true, joinPayload: uiRollup(0.2, 'alpha beta') },
+    },
+    why: 'W110 — the pair`s other half on the name road, so the agreement is over payloads that route BOTH ways ' +
+      'rather than over one. A predicate that returned a constant would be red on one of these two',
+  },
+  {
+    /**
+     * **THREADED, and it is the adequacy reader's F9.** The six rows above are all `threaded: false`, so
+     * `uiRegistryDocumentFor` writes `inline: true` into the two types whose `inline` the document leaves
+     * unsaid — and the `"maxThreads": 2` they declare was reached by no row at all. The reader measured
+     * row A flipped to threads GREEN at 2390, so the axis was never taken rather than broken.
+     *
+     * **What it buys is not a second reading of the same values.** Threaded is the ONLY road on which a
+     * pool's config crosses a `structuredClone` into a worker thread, which is the reason ADR 0075 rule 4
+     * gives for WRITING the `transformOnly` marker rather than letting an absent `worker` speak — and
+     * W109's finding 22 is that its own threaded arm was unobserved for exactly this reason. So this row
+     * runs the tier-three node's pool config across that boundary on real threads, and the `map` at
+     * run-time arity dispatches two instances into a pool two wide instead of one.
+     *
+     * **Same payload as row A, same expected values** — the realm is the only thing that differs, which
+     * is what makes it a pair rather than a seventh claim. If a threaded pool answered differently, this
+     * row is red on the values and not on a realm field nothing reads.
+     */
+    key: 'ui-emitted / THREADED — the same payload as the first row, with the pool config crossing a clone into a real thread',
+    definition: UI, policyId: 'live-token', payload: { confidence: 0.9, text: 'alpha beta' }, threaded: true,
+    uiRegistry: true, predicates: NO_PREDICATES,
+    outcome: 'completed',
+    regionId: 'each',
+    dispatched: ['r62:intake:-:0', 'r62:rate:0:0', 'r62:rate:1:0', 'r62:rollup:-:0', 'r62:remediate:-:0'],
+    joined: true,
+    settled: { '0': 'arrived', '1': 'arrived' },
+    branchEvents: { '0': ['branch.opened', 'branch.arrived'], '1': ['branch.opened', 'branch.arrived'] },
+    pathEnds: [{ reason: 'end', at: 'done' }],
+    nodeResults: {
+      'r62:intake:-:0': { confidence: 0.9, items: uiItems('alpha beta') },
+      'r62:rate:0:0': { confidence: 0.5, score: 50 },
+      'r62:rate:1:0': { confidence: 0.4, score: 40 },
+      'r62:rollup:-:0': uiRollup(0.9, 'alpha beta'),
+      'r62:remediate:-:0': uiRemediated(45),
+    },
+    poolOfTask: { 'r62:rollup:-:0': 'Transform', 'r62:remediate:-:0': 'WeighWorker' },
+    why: 'W110 — the adequacy reader`s F9: every other artifact row is inline, so the `maxThreads: 2` the UI ' +
+      'document declares was reached by nothing and the tier-three node`s pool config never crossed a clone into ' +
+      'a thread, which is the one road ADR 0075 rule 4`s marker exists for. Same payload and same values as the ' +
+      'first row, so the realm is the only difference',
+  },
 ];
 
 // --- assertions ---------------------------------------------------------------
@@ -4069,7 +4419,11 @@ for (const [i, e] of EXPECTED.entries()) {
       policy: POLICIES[e.policyId],
       runId: `r${i + 1}`,
       payload: e.payload,
-      predicates,
+      // **The row's own registry where it declares one, the shared three otherwise** — W110, and
+      // the default matters: a row that forgets the key gets the three rather than an empty map,
+      // so the empty case has to be asked for. `??` is nullish, so an EMPTY Map passes through.
+      predicates: e.predicates ?? predicates,
+      ...(e.uiRegistry === true ? { uiRegistry: true as const } : {}),
       threaded: e.threaded,
       resolveOnSuspend: e.resolveOnSuspend,
       refuseAtStart: e.refuseAtStart?.payload,
@@ -5263,6 +5617,13 @@ const ROW_KEYS: readonly string[] = [
   'tv-ingest / arranged LAST-first — the last file of each series reaches the gate first, so the first to ARRIVE is neither the lowest index nor the first dispatched',
   'tv-ingest / arranged FIRST-first (the pair) — the same files in index order, so a DIFFERENT file opens each series and the count is the same',
   'tv-ingest / threaded, equal work — the pool decides the order and exactly one file per series still opens it',
+  'ui-emitted / P26 — a flow a UI could have emitted: an EMPTY predicate registry, a declared group, and a reshaping step with no code',
+  'ui-emitted / the SAME document at a lower confidence — `weak` is FALSE, so the `any` group`s second member routes it to publish',
+  'ui-emitted / ONE item — `weak` is still TRUE and the `all` group`s SECOND member is what routes it to publish',
+  'ui-emitted / low scores — remediate`s OWN declared decision routes it to a second `end`, on the value its transform produced',
+  'ui-emitted-named / the SAME flow with the group replaced by a REGISTERED NAME — one predicate registered, and the routing is identical to A',
+  'ui-emitted-named / the name road at the lower confidence — the registered function answers FALSE where the group did',
+  'ui-emitted / THREADED — the same payload as the first row, with the pool config crossing a clone into a real thread',
 ];
 
 /**
@@ -5573,6 +5934,26 @@ const CROSS_ROW_SUBJECTS = [
   'CONTROL: the K = 1 re-dispatch of each flow is the DOCUMENT`s',
   'CONTROL: the fresh runtime RAN every task its scheduler held',
   'CONTROL: the sweep is EVERY kill point, counted from a second source',
+  // **W110 — THIRTEEN subjects, one per clause of P26's exit artifact's block, and BOTH READERS
+  // found their absence from opposite ends.** The conformity reader grepped this array (178 entries,
+  // none W110's); the adequacy reader (F1) DELETED the whole block for **two integer edits** —
+  // `CROSS_ROW` 236 -> 226 and `DECLARED_TOTAL` 2390 -> 2380 — at **exit 0 with nothing named**, and
+  // a single clause for the same price. That is W47's own finding reproduced by the mechanism built
+  // for it, sixty lines under the comment that records the lesson. v0.18's extension — *a membership
+  // names the CONTROLS beside its claims* — is why the control is listed too.
+  'the predicate registry each artifact row`s driver was handed',
+  'the names each document`s own `when`s cite',
+  'the two artifact documents differ in the ONE `when`',
+  'the DECLARED road dispatches these exact node sequences',
+  'and the NAME road dispatches the same exact sequences',
+  'W110 CONTROL: and those two payloads route DIFFERENTLY',
+  'no artifact row ended at `stalled`',
+  'the UI registry document declares exactly these three sections',
+  'and exactly these four workers and four types, as a LITERAL',
+  'every one of those entries is BYTE-EQUAL to the shared document`s',
+  'the artifact`s registry declares no groups, no group types, no classes',
+  'is in NO registry the driver was handed, while every artifact row`s registry',
+  'the UI document the rows RUN is the file on disk',
 ];
 
 /**
@@ -5795,6 +6176,22 @@ async function workerListsAsync(): Promise<{
   };
 }
 const WORKER_LISTS = await workerListsAsync();
+
+/**
+ * **`examples/registry.json` parsed from its OWN BYTES — W110, and it is a different SOURCE rather
+ * than a second expression over one object.**
+ *
+ * The UI document duplicates four worker entries and four type entries, and the clause that says the
+ * duplication cannot drift compared BOTH sides to `UI_REGISTRY_DOCUMENT` in its first cut — so
+ * `"workers": {}` passed both sides (the conformity reader, 10) and re-sourcing the expected side to
+ * the same import passed too (the adequacy reader, F4). `REGISTRY_DOCUMENT` is the IMPORT the runtime
+ * was built from; this is the file. v0.13's correction to obligation (e)'s third shape: *a both-ways
+ * comparison is worth having; what it is not is a second observer.*
+ */
+const SHARED_ON_DISK = JSON.parse(await readManifest('./registry.json')) as {
+  workers?: Record<string, unknown>;
+  nodeTypes?: Record<string, unknown>;
+};
 
 /**
  * A registry derived from a document's OWN task nodes — one document-form type per name it uses,
@@ -8700,7 +9097,28 @@ const PER_PLAIN_ROW = 22;
 // per-series consumer's own requirement beside it (ADR 0068; its adequacy reader, F4 and F5).
 // **+2 since W97 — W98**: the dispatch-order derivation's own census — `RN-R27`'s three relations counted apart — and
 // its CONTROL on two constructed sequences, which is what the census itself had none of (its adequacy reader, B1).
-const CROSS_ROW = 220;
+// **+16 since W99 — W110, P26's EXIT ARTIFACT, and the sixteen split 10 + 6.** TEN are its own block: the predicate
+// registry each row's driver was handed against the names its document cites, with the control that exactly one name
+// was registered SOMEWHERE; the two documents differing in the ONE `when`; the two roads' dispatch sequences, with the
+// control that the shared payloads route differently from each other; the `stalled` tripwire unreached; the UI
+// document's key set and its entries against the shared document's, both ways; its empty groups/pools; and `Transform`
+// in no registry the driver was handed. **The other SIX are not this item's clause at all** — W43's *a row declaring a
+// NODE-level `needs` declares what every task it dispatched returned* iterates over EXPECTED, and all six artifact rows
+// declare one on `rollup`, so each adds one.
+// **+8 more after BOTH READERS, so +24 in total, and the eight are REPAIRS rather than new claims.** Clause (1) gained a
+// second reading (the document's own `when`s, a different object from the registry); clause (3) became TWO literal
+// comparisons where it was one derived equality; clause (5) became THREE (the section list, a four-and-four key literal,
+// and byte-equality against `registry.json`'s own bytes) where it was two; and clause (7) is NEW — the DERIVED document
+// against the file at BOTH settings of the knob, six assertions because each setting checks the diff set plus the two
+// types whose `inline` the file leaves unsaid. **Every one of the eight exists because a reader measured the clause it
+// replaces at ZERO.** Derived: with the block rewritten the run read **2386** against a derived **2378**, so +8.
+// *(An earlier version of this comment said *the first run read 2378 against a derived 2362, and 2378 - 2362 = 16*. That
+// arithmetic cannot be reconstructed from the shipped tree — 2176 + 198 = 2374, not 2362 — because the per-row figure at
+// that moment was 186 and the rows gained twelve assertions afterwards. The conformity reader's 20: self-consistent at
+// the time and unverifiable now, which is why the live sentence states only the figures this tree produces.)*
+// **+2 for the SEVENTH row, which the adequacy reader's F9 bought**: the threaded row's own pair clause (the inline
+// row's sequence on the same payload), and one more from W43's per-row `needs` clause, which iterates over EXPECTED.
+const CROSS_ROW = 246;
 const base = (shape: string) => (shape === 'region' ? PER_REGION_ROW : PER_PLAIN_ROW);
 for (const [key, shape, cost, extras] of rowCosts) {
   if (cost !== base(shape) + extras) {
@@ -9101,9 +9519,21 @@ if (rowCosts.length !== EXPECTED.length) {
     // Since W65 every task node names a TYPE and every pool is one of the registry's types, so the
     // three-way agreement W47 wrote for `workerType` is over `type` — read from the source text here
     // and from the object the driver was handed in (2b) below.
-    check('cross-row', 'every type the flows L6 runs name is a registry type, and every registry type is named ' +
-      'by one of them — the registry is not a list bound to nothing',
-      [...documentTypes].sort(), [...WORKER_LISTS.types, ...WORKER_LISTS.classTypes].sort());
+    //
+    // **The expected side gained the BUILT-INS at W110, and the reason is a THIRD namespace rather
+    // than a looser clause.** A node type's name comes from one of three places since v0.28
+    // ([ADR 0075](../doc/decisions/0075-a-node-that-only-transforms-is-a-built-in-type-with-no-inner-worker.md)
+    // rule 5): the document's `nodeTypes`, the classes `code` supplies, and `BUILT_IN_NODE_TYPES`,
+    // which is merged at every READ and declared by no document. This clause read the first two, so
+    // it went RED on this item's first run naming `Transform` as an unregistered type —
+    // **W109's own comment predicted exactly that** (*No L6 flow names one: a `Transform` node on
+    // real workers is W110's*), and the figure is 2 of the 7 failures that run produced.
+    //
+    // **It is still both ways and still a MEMBERSHIP**: a built-in the flows never name is red here
+    // as a consumer's unused type would be, which is what keeps the addition from being a widening.
+    check('cross-row', 'every type the flows L6 runs name is a registry type or a BUILT-IN, and every one of those ' +
+      'is named by one of them — the registry is not a list bound to nothing, and the library`s own types are a third namespace',
+      [...documentTypes].sort(), [...WORKER_LISTS.types, ...WORKER_LISTS.classTypes, ...BUILT_IN_NODE_TYPES_L6].sort());
     // **W67: the pair that replaced `ROLES` against the switch.** A worker entry names a URL and a
     // module has to be at it — so the document's worker urls and the modules on disk are the two
     // halves, compared both ways. A key with no module is a task that fails to load; a module no
@@ -9176,11 +9606,6 @@ if (rowCosts.length !== EXPECTED.length) {
         'two readings of one fact, so neither can be a literal standing in for the other',
         WORKER_LISTS.groupIds, declaredBySchedulers);
     }
-    // **The node types the LIBRARY ships, as a LITERAL here** — v0.28, W109. `examples/l6.ts` reads the
-    // package through `index.ts` as a consumer does and does not import `src/`, so the list is written
-    // down; `test/definition/node-type.test.ts`'s W109 suite holds the same literal to
-    // `BUILT_IN_NODE_TYPES` itself, so a built-in added without these clauses moving is red there.
-    const BUILT_IN_NODE_TYPES_L6: readonly string[] = ['Transform'];
     // (2b) **Obligation (e) on `Registry.nodeTypes`, both ways, read from the SCHEDULER — W59.**
     //     Three readings of one registry, none a literal beside another: the types the L6 flows
     //     NAME (the documents), the types the driver was HANDED (`NODE_TYPES`, the object the
@@ -9206,16 +9631,20 @@ if (rowCosts.length !== EXPECTED.length) {
       // applied against the union, so a clause written over `REGISTRY_DOCUMENT.nodeTypes` alone
       // would call the sample's own class type unregistered.
       const registryTypes = [...new Set(reports.flatMap((r) => r.registryTypes))].sort();
-      // **This clause needs NO exemption for the built-ins, and that is ADR 0075 rule 5 paying off.**
-      // They are merged at every READ and stored in no registry, exactly as a gate type is, so the
-      // registry the DRIVER was handed carries the consumer's types alone and *registered and used by
-      // nothing* is about a consumer's type again. **The POOLS clause below is where they do show** —
-      // `bootstrap` builds one for every type `nodeTypesOf` returns. *(This clause carried a
-      // subtraction and a control for it while `resolveRegistry` stored them; the storage went, and
-      // with it the need. No L6 flow names one: a `Transform` node on real workers is W110's.)*
+      // **The built-ins are stored in no registry (ADR 0075 rule 5), so `registryTypes` does NOT
+      // carry them and the flows now DO** — W110, and the asymmetry is the decision's own observable
+      // rather than an exemption. `registryTypes` is what the DRIVER was handed, which is the
+      // document's types union the classes `code` supplied; a built-in is merged at every READ and
+      // stored nowhere, exactly as a gate type is. So the moment an L6 flow names one, the two sides
+      // differ by exactly the built-ins — which is what this clause now says, both ways.
+      //
+      // *(It needed no exemption at W109 and W109's own comment said why: no L6 flow named one, and
+      // *a `Transform` node on real workers is W110's*. This is that item. The clause that carried a
+      // subtraction while `resolveRegistry` STORED them is gone for good — the storage went at W109's
+      // finding 3, and what is added here is the other direction.)*
       const builtInTypes = [...BUILT_IN_NODE_TYPES_L6].sort();
-      check('cross-row', 'the node TYPES the L6 flows name are the types the registry holds, both ways — a type registered and used by nothing, or named and unregistered, is red',
-        [...namedTypes].sort(), registryTypes);
+      check('cross-row', 'the node TYPES the L6 flows name are the types the registry holds PLUS the library`s own, both ways — a type registered and used by nothing, or named and unregistered, is red, and a built-in STORED in the registry is red too',
+        [...namedTypes].sort(), [...registryTypes, ...builtInTypes].sort());
       check('cross-row', 'and the types the registry holds, read from the DOCUMENT`s own bytes plus the classes the code supplies, are the ones the driver was handed — two readings of one registry',
         [...WORKER_LISTS.types, ...WORKER_LISTS.classTypes].sort(), registryTypes);
       // **No third clause for *the built-ins are stored in no registry*, because the two above already
@@ -10220,13 +10649,232 @@ if (rowCosts.length !== EXPECTED.length) {
     // *(A `rows` term compared `orderCensus.length` against `EXPECTED.length` until W98's own rule 8 pass 3: re-sourcing
     // the left side to `EXPECTED.length` SURVIVED, and row completeness is `ROW_KEYS`' job two hundred lines down, by set
     // equality AND order. A decorative term in a control is worse than no term: it reads as a claim.)*
+    // **W110 moved two of the three and the arithmetic is DERIVED rather than pasted.** Its SEVEN rows
+    // dispatch 5, 5, 4, 5, 5, 5 and 5 ids and every pair in them is FIXED, so they add
+    // `sum k(k-1)/2 = 10+10+6+10+10+10+10 = 66` pairs; SIX of those are the two map instances of the
+    // six rows that have two, dispatched in ONE turn in the data's order; the other **60** are the
+    // run's own causality (`intake` triggers the region, the join is a barrier, `rollup` triggers its
+    // successor). So `turn` 177 -> 183 and `byCausality` 764 -> 824 — **and `free` is UNMOVED at 264**,
+    // which is the claim worth reading: the artifact's rows assert no pair the run does not fix, and
+    // the adequacy reader's F8 confirmed it the other way — each worker delayed past its peers through
+    // `uiRegistryDocumentFor`, one at a time, all four GREEN.
+    // *(815 / 182 for the six rows this item first shipped; the seventh is the THREADED one its
+    // adequacy reader's F9 bought, and it adds 10 pairs of which 1 is a turn.)*
     { byCausality: chain + barrier, turn, free },
-    { byCausality: 764, turn: 177, free: 264 });
+    { byCausality: 824, turn: 183, free: 264 });
   // Its CONTROL, on two constructed sequences no run produces (above): the census's claim passes on this tree and this
   // fails on any `fixes` that answers one relation everywhere, or none.
   check('cross-row', 'W98 CONTROL: and the derivation answers two CONSTRUCTED sequences correctly — three dispatches in ' +
     'ONE turn are the document`s order, and two turns opened by settlements that RACED fix their own chains and nothing across',
     dispatchOrderControl(), { oneTurn: ['turn', 'turn', 'turn'], racing: ['chain', 'chain', null] });
+}
+
+/**
+ * **W110 — what P26's EXIT ARTIFACT claims, as cross-row clauses, because every one of them is a
+ * claim about the SET of rows rather than about any one of them.**
+ *
+ * The four `ui-emitted` rows each assert their own dispatches, results and path end; none of them
+ * can say *and the registry was empty*, *and the two documents differ in one edge*, or *and the two
+ * roads agree* — those are properties of the rows together, which is what this layer is for.
+ *
+ * **EVERY CLAIM HERE IS ASSERTED AGAINST A LITERAL, PER ARM, AND THAT IS BOTH READERS' FINDING.**
+ * The first cut wrote each claim as *OBSERVED equals DERIVED* with a control over the observed side,
+ * and that is the exact class `doc/workflow.md` v0.21 exists for: the adequacy reader re-sourced
+ * clause (1)'s expected side to `uiReports[i]!.predicateNames` and clause (3)'s to `roadsOf(nameRows)`
+ * and both came back **GREEN at 2390 with their controls still green**, because a control reading the
+ * observed side is exactly as true after a re-source as before. **They pass v0.22's test and fail
+ * v0.21's** — there IS a tree on which each control fails and its claim passes, and neither fails
+ * where its claim is VACUOUS. **Identity is not available here**: every operand is freshly built and
+ * the values are equal STRINGS ([Q447](../doc/open-questions.md)), which is
+ * [W80](../doc/work-items/w80-what-a-run-time-result-check-is.md)'s own situation — and its answer is
+ * the one taken here, *a LITERAL for each arm*. A re-sourced list cannot equal a literal that names
+ * the other arm's value.
+ *
+ * **The subjects are in `CROSS_ROW_SUBJECTS`, one per clause, and that is the other shared finding.**
+ * The conformity reader grepped the array and found none of this item's; the adequacy reader deleted
+ * the whole block for **two integer edits** — `CROSS_ROW` 236 -> 226 and `DECLARED_TOTAL` 2390 -> 2380
+ * — at **exit 0 with nothing named**. That is W47's finding reproduced by the mechanism built for it,
+ * sixty lines under the comment that records the lesson.
+ */
+{
+  const uiRows = EXPECTED.filter((e) => e.uiRegistry === true);
+  const uiReports = uiRows.map((e) => reports[EXPECTED.indexOf(e)]!);
+  const dataRows = uiRows.filter((e) => e.definition === UI);
+  const nameRows = uiRows.filter((e) => e.definition === UIN);
+
+  // (1) **The predicate registry the DRIVER was handed, per run, against a LITERAL per arm** —
+  //     output (1), and careful-point 1's *an unused empty map proves nothing*. `predicateNames` is
+  //     `runtime.registry.predicates`'s own keys; the expected side is a LITERAL naming which arm
+  //     each row is in, so re-sourcing either side to the other leaves a list that cannot equal it.
+  check('cross-row', 'W110: the predicate registry each artifact row`s driver was handed — EMPTY on all four ' +
+    '`ui-emitted` rows and exactly one name on both `ui-emitted-named` rows, as a LITERAL per arm, so output (1) ' +
+    'is a reading of the runtime rather than a sentence about an option',
+    uiRows.map((e, i) => [e.definition.flowId, uiReports[i]!.predicateNames] as const),
+    [
+      ['ui-emitted', []], ['ui-emitted', []], ['ui-emitted', []], ['ui-emitted', []],
+      ['ui-emitted-named', ['weakAndPlural']], ['ui-emitted-named', ['weakAndPlural']],
+      // the THREADED row, which is `ui-emitted` again and therefore empty again
+      ['ui-emitted', []],
+    ] as unknown as readonly (readonly [string, string[]])[]);
+  // And the DOCUMENT's own `when`s cite exactly those names, which is the second reading: the
+  // registry a driver was handed and the names a flow may use are two different objects, and
+  // `FD-V4` is applied between them. Read from the DEFINITION, so neither side is the other's source.
+  const namedByDocument = (d: FlowDefinition): string[] => [...new Set(d.nodes.flatMap((n) =>
+    ((n as { edges?: { when?: { predicate?: unknown } }[] }).edges ?? [])
+      .map((x) => x.when?.predicate).filter((p): p is string => typeof p === 'string')))].sort();
+  check('cross-row', 'W110: and the names each document`s own `when`s cite are those same lists — the registry the ' +
+    'driver holds and the names the flow may use are two objects, and a flow naming one the registry lacks is `FD-V4`',
+    uiRows.map((e) => namedByDocument(e.definition)),
+    [[], [], [], [], ['weakAndPlural'], ['weakAndPlural'], []]);
+
+  // (2) **The two documents differ in EXACTLY ONE edge's `when`** — rule 8's fourth requirement on
+  //     the set: whatever makes a discriminating pair differ is itself a claim.
+  //
+  //     **It needs no control and here is why, rather than being called one** (v0.21's test): its
+  //     expected side is a LITERAL of four specific leaf paths, not a second derived list, so the
+  //     vacuous version — comparing `[]` to `[]` — fails against a non-empty literal. The adequacy
+  //     reader measured the provenance direction too: `b = leaves(UIN)` re-sourced to `leaves(UI)`
+  //     costs **1**. *Its stated LIMIT is the index collapse*: `.replace(/\.\d+\./g, '.N.')` folds
+  //     every array index, so a change to any OTHER `all`-member's `path`, `op` or `value` lands on
+  //     the same four paths and is invisible here — the conformity reader's 14. What catches that is
+  //     the per-row routing, which is where a changed comparison moves a road.
+  const leaves = (v: unknown, path = ''): [string, unknown][] =>
+    v !== null && typeof v === 'object'
+      ? Object.entries(v as Record<string, unknown>).flatMap(([k, x]) => leaves(x, `${path}.${k}`))
+      : [[path, v]];
+  const a = new Map(leaves(UI)), b = new Map(leaves(UIN));
+  const differing = [...new Set([...a.keys(), ...b.keys()])]
+    .filter((k) => JSON.stringify(a.get(k)) !== JSON.stringify(b.get(k)))
+    .map((k) => k.replace(/\.\d+\./g, '.N.'))
+    .filter((k) => k !== '.flowId');
+  check('cross-row', 'W110: the two artifact documents differ in the ONE `when` and in nothing else but their flowId — ' +
+    'the pair`s own difference, asserted, so collapsing it is a failure rather than a smaller suite',
+    [...new Set(differing)].sort(),
+    ['.nodes.N.edges.N.when.all.N.op', '.nodes.N.edges.N.when.all.N.path', '.nodes.N.edges.N.when.all.N.value',
+      '.nodes.N.edges.N.when.predicate'].sort());
+
+  // (3) **The two roads, each against a LITERAL node sequence** — output (2) and P26 prediction 3's
+  //     answer as a measurement. The first cut compared `roadsOf(dataRows)` to `roadsOf(nameRows)`,
+  //     and the adequacy reader re-sourced the left side to the right for ZERO with the control
+  //     green. A literal per payload refuses that: the DECLARED road and the NAME road must each
+  //     dispatch this exact sequence, so the two agreeing is a consequence of both matching the
+  //     literal rather than the claim itself.
+  const roadsOf = (rows: Expectation[]) => rows.map((e) => {
+    const r = reports[EXPECTED.indexOf(e)]!;
+    return [JSON.stringify(e.payload), r.dispatched.map((t) => t.split(':').slice(1).join(':')).join(' ')] as const;
+  });
+  const SHARED_ROADS = [
+    ['{"confidence":0.9,"text":"alpha beta"}', 'intake:-:0 rate:0:0 rate:1:0 rollup:-:0 remediate:-:0'],
+    ['{"confidence":0.2,"text":"alpha beta"}', 'intake:-:0 rate:0:0 rate:1:0 rollup:-:0 publish:-:0'],
+  ] as const;
+  const shared = new Set(nameRows.map((e) => JSON.stringify(e.payload)));
+  check('cross-row', 'W110: the DECLARED road dispatches these exact node sequences on the payloads the two documents ' +
+    'share — a LITERAL, so the agreement below is two matches rather than one list compared with itself',
+    roadsOf(dataRows.filter((e) => !e.threaded && shared.has(JSON.stringify(e.payload)))), SHARED_ROADS);
+  // **And the THREADED row dispatches the FIRST of those sequences too** — the adequacy reader's F9,
+  // and the reason it is a pair rather than a seventh claim: the realm is the only thing that differs,
+  // so a threaded pool answering differently is red on the SEQUENCE here and on the values in the row.
+  check('cross-row', 'W110: and the THREADED row dispatches the inline row`s own sequence on the same payload — the ' +
+    'pool config crosses a clone into a real thread and nothing about the run moves',
+    roadsOf(dataRows.filter((e) => e.threaded === true)), [SHARED_ROADS[0]]);
+  check('cross-row', 'W110: and the NAME road dispatches the same exact sequences — the subset reproduces a registered ' +
+    'function, which is P26 prediction 3`s answer rather than its assertion',
+    roadsOf(nameRows), SHARED_ROADS);
+  // The CONTROL survives, and what it is for has narrowed: with both sides literal, *they agree* is
+  // no longer the claim, so this says the two payloads are not two copies of one answer — which is
+  // what makes the pair a discriminator rather than a repetition.
+  assertThat('cross-row', 'W110 CONTROL: and those two payloads route DIFFERENTLY from each other, so the pair ' +
+    'discriminates rather than repeating one answer',
+    new Set(SHARED_ROADS.map(([, road]) => road)).size === SHARED_ROADS.length,
+    `the shared payloads produced ${new Set(SHARED_ROADS.map(([, road]) => road)).size} distinct sequences for ${SHARED_ROADS.length} payloads`);
+
+  // (4) **The `stalled` tripwire was never reached** — the third edge of `rollup`, taken when neither
+  //     group matches. **It is a TRIPWIRE and not a control, and the adequacy reader confirmed why**:
+  //     over `weak` x `n >= 1` the two groups are EXHAUSTIVE, so no payload this flow admits can
+  //     reach `stalled` and the only thing that sends a run there is a broken transform or a broken
+  //     group. The claim it would make non-vacuous is its own, which is v0.21's test answered
+  //     honestly rather than dressed up.
+  check('cross-row', 'W110: no artifact row ended at `stalled` — the third edge of `rollup` exists so that a wrong group ' +
+    'is a NAMED end rather than a fall-through, and it is a tripwire rather than a control',
+    uiReports.flatMap((r) => r.state.pathEnds.filter((p) => p.at === 'stalled')), []);
+
+  // (5) **The UI registry document, against the FILE'S OWN BYTES and against LITERALS** — obligation
+  //     (e)'s third shape, with v0.13's correction applied. The first cut keyed BOTH sides off
+  //     `UI_REGISTRY_DOCUMENT`'s own key sets, so `"workers": {}` passed both (the conformity
+  //     reader) and re-sourcing the expected side to the same import passed too (the adequacy
+  //     reader's F4). Now: the key sets are LITERALS, and the entries are compared to the shared
+  //     document read from `registry.json`'s own BYTES by `uiRegistryBytes` below — a different
+  //     SOURCE, not a second expression over one object.
+  check('cross-row', 'W110: the UI registry document declares exactly these three sections and no `predicates` key — ' +
+    'the file`s own bytes, which is why an EMPTY registry is reachable at all',
+    Object.keys(UI_REGISTRY_DOCUMENT).sort(), ['languages', 'nodeTypes', 'workers']);
+  check('cross-row', 'W110: and exactly these four workers and four types, as a LITERAL — so a section emptied or a ' +
+    'key added is red here rather than passing on two sides of one object',
+    [Object.keys(UI_REGISTRY_DOCUMENT.workers ?? {}).sort(), Object.keys(UI_REGISTRY_DOCUMENT.nodeTypes ?? {}).sort()],
+    [['publish', 'score', 'split', 'weigh'], ['PublishWorker', 'ScoreWorker', 'SplitWorker', 'WeighWorker']]);
+  check('cross-row', 'W110: and every one of those entries is BYTE-EQUAL to the shared document`s, read from ' +
+    '`registry.json``s own bytes — so the duplication cannot drift and `check:workers`, which reads only the shared ' +
+    'document, covers both',
+    [
+      Object.keys(UI_REGISTRY_DOCUMENT.workers ?? {}).sort().map((k) => JSON.stringify((UI_REGISTRY_DOCUMENT.workers ?? {})[k])),
+      Object.keys(UI_REGISTRY_DOCUMENT.nodeTypes ?? {}).sort().map((k) => JSON.stringify((UI_REGISTRY_DOCUMENT.nodeTypes ?? {})[k])),
+    ],
+    [
+      Object.keys(UI_REGISTRY_DOCUMENT.workers ?? {}).sort().map((k) => JSON.stringify(SHARED_ON_DISK.workers?.[k])),
+      Object.keys(UI_REGISTRY_DOCUMENT.nodeTypes ?? {}).sort().map((k) => JSON.stringify(SHARED_ON_DISK.nodeTypes?.[k])),
+    ]);
+
+  // (6) **The artifact reaches NO code but the domain workers and the language adapter** — the one
+  //     narrowing P26 prediction 3 needs, asserted rather than described.
+  check('cross-row', 'W110: the artifact`s registry declares no groups, no group types, no classes and no named pool ' +
+    'instances — so the whole of what a code-free flow costs in TypeScript is the LANGUAGE adapter the library itself ships',
+    {
+      groups: Object.keys((UI_REGISTRY_DOCUMENT as { groups?: object }).groups ?? {}),
+      pools: Object.keys((UI_REGISTRY_DOCUMENT as { pools?: object }).pools ?? {}),
+      languages: (UI_REGISTRY_DOCUMENT as { languages?: readonly string[] }).languages ?? [],
+    },
+    { groups: [], pools: [], languages: ['jsonata'] });
+  // And the built-in is in NO registry the driver was handed while a pool of that name ran the
+  // tier-three node. **The non-emptiness term is the conformity reader's**: `[false] x 6` against
+  // `[false] x 6` passes on an EMPTY `registryTypes` exactly as on a correct one, so the LITERAL
+  // beside it is what says the registry was read at all.
+  check('cross-row', 'W110: and `Transform` is in NO registry the driver was handed, while every artifact row`s registry ' +
+    'holds exactly the four types its document declares — ADR 0075 rule 5 from the artifact`s side, with the ' +
+    'registry asserted non-empty so `includes` on `[]` cannot pass for it',
+    uiReports.map((r) => r.registryTypes),
+    uiRows.map(() => ['PublishWorker', 'ScoreWorker', 'SplitWorker', 'WeighWorker']));
+
+  // (7) **The DERIVED document the rows actually ran, against the file on disk** — the adequacy
+  //     reader's F6. `uiRegistryDocumentFor` writes TWO keys and its docstring claimed both were
+  //     *asserted the same way* `registryDocumentFor`'s one override is. They were not: deleting the
+  //     `inline` write cost **ZERO**, because clause (5) reads the raw import and no clause read the
+  //     derived object at all. This is `registryDocumentFor`'s own clause one document over — the
+  //     derived document compared to the file key by key, with `inline` the ONLY admitted difference
+  //     and in the direction the row asked for.
+  for (const threaded of [false, true]) {
+    const derived = uiRegistryDocumentFor(threaded, new Map());
+    const diffs: string[] = [];
+    for (const k of new Set([...Object.keys(UI_REGISTRY_DOCUMENT), ...Object.keys(derived)])) {
+      if (k === 'nodeTypes') continue;
+      if (JSON.stringify((UI_REGISTRY_DOCUMENT as Record<string, unknown>)[k]) !== JSON.stringify((derived as Record<string, unknown>)[k])) diffs.push(k);
+    }
+    for (const [name, t] of Object.entries(derived.nodeTypes ?? {})) {
+      const onDisk = (UI_REGISTRY_DOCUMENT.nodeTypes ?? {})[name] as Record<string, unknown> | undefined;
+      for (const f of new Set([...Object.keys(onDisk ?? {}), ...Object.keys(t)])) {
+        if (JSON.stringify((onDisk ?? {})[f]) !== JSON.stringify((t as Record<string, unknown>)[f])) diffs.push(`${name}.${f}`);
+      }
+      // and the override's VALUE is the one the row asked for, not merely present
+      if (onDisk?.inline === undefined) {
+        check('cross-row', `W110: and \`${name}\`'s derived \`inline\` is the row's own knob at threaded=${threaded} — ` +
+          'the value and not merely the key, which is what *asserted the same way* has to mean',
+          (t as { inline?: unknown }).inline, !threaded);
+      }
+    }
+    check('cross-row', `W110: the UI document the rows RUN is the file on disk with \`inline\` written into the types that ` +
+      `declare none and NOTHING else, at threaded=${threaded} — \`registryDocumentFor\`'s own clause, which this ` +
+      'function\'s docstring claimed and did not have (its adequacy reader, F6)',
+      [...new Set(diffs)].sort(), ['ScoreWorker.inline', 'WeighWorker.inline']);
+  }
 }
 
 const EXPECTED_TOTAL =
@@ -10437,14 +11085,26 @@ check('cross-row', 'every cross-row SUBJECT this file declares was asserted abou
 // census was still a `console.log`.)*
 // **2172 since W97**: +1 cross-row, block (2h)'s arrangement, and +2 on P22's row, which compares `recheck` as a set and
 // asserts the overlap beside it (the `unorderedDispatch` pair). No run moved.
-const DECLARED_TOTAL = 2176;
+// **2176 until W110 — P26's EXIT ARTIFACT, and +214 over SIX new runs.** The split is DERIVED and it reconciles to the
+// assertion: **+198 per-row** and **+16 cross-row**, which is 214. All six rows are region-shaped (each declares
+// `regionId: 'each'`), so the base is `6 x PER_REGION_ROW = 144`, and the declared extras are **54** — 29 `nodeResults`
+// entries, 11 `branchEvents` paths, 6 `pathEnds`, 2 `poolOfTask`, and **6 for `arrivedInRun`**, one per row, which is
+// the term a hand count misses. 144 + 54 = 198. The cross-row sixteen are ten of this item's own and six from W43's
+// per-row `needs` clause, which iterates over EXPECTED — see `CROSS_ROW`. **160 runs, from 154.**
+// **2390 for the hours between the first green run and both readers' reports**; **2398** once the block was rewritten
+// with a literal per arm (`CROSS_ROW` 236 -> 244, no row and no run touched); **2435 / 161** with the SEVENTH row, the
+// THREADED one the adequacy reader's F9 bought — **+37**, DERIVED: one region-shaped row at `PER_REGION_ROW` (24) plus
+// its eleven declared extras (five `nodeResults`, two `branchEvents`, one `pathEnds`, two `poolOfTask`, one
+// `arrivedInRun`) is **35**, and `CROSS_ROW` 244 -> 246 is the other **2**. *(This read +36 and nine extras for the
+// hour between the row landing and the arithmetic being re-taken; 2398 + 35 + 2 = 2435 is what the run says.)* *Both readers' edits are checked in as rule-8 probes rather than described here.*
+const DECLARED_TOTAL = 2435;
 // **And the RUN count, declared outright beside it — W96.** It was printed on every gate run and written nowhere, so the
 // copies of it in `README.md` and `examples/README.md` had nothing to be compared against: `check-docs`' `X10` reads
 // BOTH declarations and holds each current copy to them ([Q171](../doc/open-questions.md), named by P20's retro and built
 // by none of the four plans after it). Checked here the way `DECLARED_TOTAL` is — a mismatch is a named failure and NOT a
 // counted assertion, so neither number moves the other — though, like `DECLARED_TOTAL`'s own guard, a mismatch run prints
 // a total one higher, because the report adds `failures.length` (W96's adequacy reader).
-const DECLARED_RUNS = 154;
+const DECLARED_RUNS = 161;
 if (passed + failures.length !== DECLARED_TOTAL) {
   failures.push(
     'gate\n      the assertion count is not the number this file declares outright\n' +

@@ -361,6 +361,26 @@ export function derivePool(
  * check (`derivePool`), where it constructs the pool. The `groups` a document type declares are the
  * driver's own `FD-V31` check, as at v0.17, and are not repeated here.
  */
+/**
+ * **What a pool instance's `type` MAY name, as a message** — v0.29, W110, and the verb is the point.
+ *
+ * Both `PoolTypeMissing` sites said *the registry declares …* over a list that `nodeTypesOf` has
+ * appended the built-ins to — so the message claimed a document declares `Transform`, which
+ * [ADR 0075](../../doc/decisions/0075-a-node-that-only-transforms-is-a-built-in-type-with-no-inner-worker.md)
+ * rules 1 and 5 say no document ever does, and the *(the registry declares none)* arm was DEAD because
+ * the list is never empty. W110's conformity reader (9): the first fix changed the LIST and left the
+ * verb, which made it the mirror of the defect it was written for.
+ *
+ * The two halves are named apart, so an author reads which names are theirs to add and which are the
+ * library's and cannot be.
+ */
+function poolTypeNames(consumer: readonly string[]): string {
+  const own = [...consumer].filter((n) => !Object.prototype.hasOwnProperty.call(BUILT_IN_NODE_TYPES, n)).sort();
+  const built = Object.keys(BUILT_IN_NODE_TYPES).sort().map(q).join(', ');
+  return ` (a \`type\` may name one of the registry's node types${own.length ? ` — ${own.map(q).join(', ')}` : ', and it declares none'}` +
+    ` — or a built-in, which is ${built} and which no registry document declares)`;
+}
+
 export function checkRegistry(reg: { workers?: Workers; nodeTypes?: NodeTypes; pools?: Pools; gateTypes?: GateTypes }): void {
   // **The gate types first, v0.23 (W92)** — a consumer's, beside the built-ins. Every entry of a kind before
   // the next kind is read (this module's rule), so the refusal names the first defect.
@@ -399,10 +419,13 @@ export function checkRegistry(reg: { workers?: Workers; nodeTypes?: NodeTypes; p
   for (const [key, p] of poolsOf(reg.pools)) {
     if (!isPlainObject(p)) throw new UndeclaredKey(key, `pool ${q(key)} is not an object`);
     noUndeclared('pool', key, p as unknown as Record<string, unknown>, INSTANCE_KEYS);   // P2: an inert `maxThreads` on an instance, refused as the resolver refuses it
-    if (types.has(key)) throw new NameCollision(key, `pool ${q(key)} is named as node type ${q(key)} is — a type's name is its DEFAULT instance's key, so a named instance may not take it`);
+    // **The message names a BUILT-IN as the library's** — v0.29, W110's conformity reader (19): `types` is
+    // the MERGED map, so a pool called `Transform` has always reached this clause and got the generic
+    // sentence, where W109's three `NameCollision` messages each say whose name it is.
+    if (types.has(key)) throw new NameCollision(key, `pool ${q(key)} is named as node type ${q(key)} is — a type's name is its DEFAULT instance's key, so a named instance may not take it` + (key in BUILT_IN_NODE_TYPES ? ` — and ${q(key)} is a BUILT-IN node type, so that name is the library's and no registry document declares it` : ''));
     if (typeof p?.type !== 'string' || !types.has(p.type)) {
-      throw new PoolTypeMissing(key, `pool ${q(key)} names type ${JSON.stringify(p?.type)}, which is not a node type` +
-        (types.size ? ` (the registry declares ${[...types.keys()].sort().map(q).join(', ')})` : ' (the registry declares none)'));
+      throw new PoolTypeMissing(key, `pool ${q(key)} names type ${JSON.stringify(p?.type)}, which is not a node type`
+        + poolTypeNames([...types.keys()]));
     }
   }
 }
@@ -543,11 +566,43 @@ export function resolveRegistry(doc: RegistryDocument, code: RegistryCode = {}):
     if (!isPlainObject(raw)) throw new UndeclaredKey(key, `pool ${q(key)} is not an object`);
     noUndeclared('pool', key, raw, INSTANCE_KEYS);
     const inst = raw as unknown as PoolInstance;
-    if (nodeTypes.has(key)) throw new NameCollision(key, `pool ${q(key)} is named as node type ${q(key)} is — a type's name is its DEFAULT instance's key, so a named instance may not take it`);
-    const def = typeof inst.type === 'string' ? nodeTypes.get(inst.type) : undefined;
+    if (nodeTypes.has(key) || key in BUILT_IN_NODE_TYPES) throw new NameCollision(key, `pool ${q(key)} is named as node type ${q(key)} is — a type's name is its DEFAULT instance's key, so a named instance may not take it` + (key in BUILT_IN_NODE_TYPES ? ` — and ${q(key)} is a BUILT-IN node type, so that name is the library's and no registry document declares it` : ''));
+    // **A named instance may name a BUILT-IN type, and this lookup is MERGED where `nodeTypes` is
+    // not** — v0.29, [W110](../../doc/work-items/w110-a-flow-a-ui-could-have-emitted.md), and it is
+    // the maintainer's answer to that item's stop-and-ask (b), taken AGAINST the recommendation.
+    //
+    // [ADR 0075](../../doc/decisions/0075-a-node-that-only-transforms-is-a-built-in-type-with-no-inner-worker.md)
+    // rule 3 blesses the road BY NAME — *a consumer who wants any of those declares a named pool
+    // INSTANCE of it* — and W110's declaration step measured that the two roads DISAGREED about one
+    // document: `checkRegistry` ACCEPTS it, because its `types` is `nodeTypesOf(reg.nodeTypes)` and
+    // therefore merged, while this loop read the document's types alone and answered
+    // `PoolTypeMissing: … "Transform", which is not a node type` — **a message false against
+    // `nodeTypesOf`, which returns it.** That is W109's finding 2's class one rule along and in the
+    // opposite direction: there the validator road was too LENIENT about a collision, here the
+    // runtime road was too STRICT about an instance.
+    //
+    // **The built-ins are still STORED nowhere** (rule 5, and W109's finding 3 is what it cost to
+    // learn): `nodeTypes` above is the consumer's types alone, so `checkRegistry` can still tell a
+    // consumer's collision from the library's own entry. What this adds is a LOOKUP, and the
+    // instance it derives lands in `pools` — which is exactly what `createRuntime` passes on to
+    // `bootstrap`, whose own named-instance loop reads the MERGED map already (W109's repair) and
+    // which builds every built-in's DEFAULT pool last. So a built-in's default is still built in
+    // one place and a named instance of it in one place.
+    const builtInEntry = typeof inst.type === 'string' && inst.type in BUILT_IN_NODE_TYPES
+      ? BUILT_IN_NODE_TYPES[inst.type]!
+      : undefined;
+    const builtIn = builtInEntry === undefined
+      ? undefined
+      : isDerivation(builtInEntry) ? builtInEntry : nodeTypeFromDeclaration(builtInEntry);
+    const def = (typeof inst.type === 'string' ? nodeTypes.get(inst.type) : undefined) ?? builtIn;
     if (def === undefined) {
-      throw new PoolTypeMissing(key, `pool ${q(key)} names type ${JSON.stringify(inst.type)}, which is not a node type` +
-        (nodeTypes.size ? ` (the registry declares ${[...nodeTypes.keys()].sort().map(q).join(', ')})` : ' (the registry declares none)'));
+      // The enumeration names what a `type` MAY be, which since v0.29 is the consumer's types and
+      // the library's own — a message listing only the document's would send an author to add an
+      // entry for a built-in that is never declared. **The two halves are named APART**, because the
+      // first fix folded them into one list under *the registry declares*, which is false of a
+      // built-in and left an unreachable empty-list arm beside it (the conformity reader's 9).
+      throw new PoolTypeMissing(key, `pool ${q(key)} names type ${JSON.stringify(inst.type)}, which is not a node type`
+        + poolTypeNames([...nodeTypes.keys()]));
     }
     pools.set(key, derivePool(key, inst.type, def, def.worker === undefined ? undefined : workers.get(def.worker), inst.config, groupKeys, ConfigRefused));
   }

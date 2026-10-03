@@ -718,7 +718,11 @@ if (written.length) {
 // DECLARED-predicate snippet — the three shapes of a `when` validated together, and all four of
 // `FD-V42`-`FD-V45` thrown on, including the bare STRING that was the form until v0.27. Q102's
 // ratchet, declared in that item's exceptions table before the snippet was written.
-const RUN_FLOOR = 33;
+// **Raised 33 -> 34 by [W110](../doc/work-items/w110-a-flow-a-ui-could-have-emitted.md)**, whose section 21
+// is **P26's exit artifact as a reference section**: a whole flow validated with NO predicate registered
+// and the `unchecked` residue of a transform-only node asserted rather than described. Raised in the
+// commit that adds the snippet.
+const RUN_FLOOR = 34;
 {
   // **Only when the document parsed.** A count over a reference whose fences are
   // malformed or untagged is true of the parse and says nothing about coverage —

@@ -3550,3 +3550,168 @@ A verdict carries **no `route` field** ([Q410](doc/open-questions.md)), so which
 read from the reason a refusal gives rather than from the report's shape — which is why step 3 asserts
 the reason and not the order. And a type that declares **no** `keyResolvedRoutes` is asked no question
 about its key path at all — which is step 4's control, and the reason the declaration is worth writing.
+
+## 21. A flow a UI could have emitted — what a document can say without code
+
+**Sections 4 and 13 gave you the two halves: a `when` that may be DATA and a built-in type that only
+transforms. This is what they add up to.** A flow document plus a registry document, and the only
+TypeScript is the domain workers and one import of the language adapter the library itself ships.
+
+**What that covers**, which is [P26](doc/plans/p26-what-a-flow-can-say-without-code.md) prediction 3
+and [W110](doc/work-items/w110-a-flow-a-ui-could-have-emitted.md)'s to answer:
+
+| what a flow has to say | how, in data | what it costs in code |
+|---|---|---|
+| **sequence** | `edges: [{ to }]` | nothing |
+| **fan-out** at run-time arity | a `map` over a key | nothing |
+| **join** | a `join` naming its opener | nothing |
+| **selection** — give this node that node's output | `needs` on the consuming node (tier 1) | nothing |
+| **decision** | a `when`: a comparison or a flat `all`/`any` group | nothing |
+| the same decision, when the question is **outside the subset** | a `when` naming a **registered predicate** | **a function** — this is the half that is not data, which is P26's own framing |
+| **the join policy** a run is started with | nothing in the document: it is an argument to `runtime.start`, defaulted to `live-token` | the library's own, or a consumer's |
+| **computation feeding a worker** | `transform` on that worker's own node (tier 2) | the **language adapter** |
+| **computation feeding a DECISION or a join** | a `Transform` node (tier 3) | the **language adapter** |
+
+**Two narrowings, both measured, because the table above is the interesting part and the honest part
+is underneath it.**
+
+1. **Every `transform` names a `lang`, and no language ships registered.** `Registry.languages` is
+   EMPTY when absent, so a transform against a registry naming none is `FD-V35`. The adapter is the
+   library's own sub-path — `import { jsonata } from 'fyflow-orchestration/jsonata'` — so it is one
+   import and one object entry with no logic in it, but it is not nothing and it is not a domain
+   worker. **A flow that only SELECTS needs no adapter; a flow that COMPUTES does.**
+2. **A comparison reads ONE path and compares it to ONE literal.** It cannot name a second path and
+   it cannot do arithmetic, so *is the mean below the threshold this run carries* is not a comparison.
+   **The route around it is data**: a tier-three `Transform` node computes the answer and the `when`
+   reads `outcome.result.<field>`. That is what the flow below does, and it is the one place the
+   three-tier rule's *reshape for … a decision* is load-bearing rather than advisory — a `transform`
+   transforms its node's INPUT and a decision reads its node's OUTPUT, so moving the computation onto
+   the consuming node would leave the decision unable to see it.
+
+> **A comparison whose `value` is meant to be a path is NOT refused** — `{ "op": "eq", "value":
+> "needs.cfg.threshold" }` is a perfectly good string comparison against the literal text, and it is
+> false for ever. The grammar catches a wrong ROOT (`FD-V43`) and nothing catches this
+> ([Q456](doc/open-questions.md)). Write the literal, or compute the comparison in a `Transform` node.
+
+> **This flow is `examples/flows/ui-emitted.flow.json` and this registry is
+> `examples/ui-registry.json`, with the SCHEMAS reduced to what these three verdicts turn on.** The
+> nodes, the edges, the `needs`, both transforms and both groups are the shipped document's; the
+> worker entries carry two schemas each instead of the corpus's full set, because the point here is
+> which arcs are checked and not what the corpus declares. **Nothing compares the two copies** — a
+> check would have to hold a TypeScript literal against a JSON document, where `X8` has byte-equality
+> to work with and this has none — so they are two copies and this sentence is what says so
+> ([Q458](doc/open-questions.md)). The shipped pair is what ladder L6 RUNS, on real workers, in both
+> runtimes; this is what a reader can read.
+
+```ts run
+import { checkWiring, validateDefinition, type FlowDefinition, type Registry } from 'fyflow-orchestration';
+// **The ONE import that is code**, and it is the library's own sub-path rather than anything you write.
+import { jsonata } from 'fyflow-orchestration/jsonata';
+
+// ---- the flow a UI emits. No predicate names it, and nothing here is a function. ----
+const flow: FlowDefinition = {
+  flowId: 'ui-emitted', version: 1, entry: 'intake',
+  nodes: [
+    { id: 'intake', kind: 'task', type: 'SplitWorker', edges: [{ to: 'each' }] },
+    { id: 'each', kind: 'map', over: 'items', branch: 'rate' },
+    { id: 'rate', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'gather' }] },
+    { id: 'gather', kind: 'join', of: 'each', edges: [{ to: 'rollup' }] },
+    // TIER THREE — the computation a comparison cannot express, as a node with NO worker.
+    {
+      id: 'rollup', kind: 'task', type: 'Transform',
+      needs: { joined: '.', cfg: 'intake' },
+      transform: {
+        lang: 'jsonata',
+        expr: '( $s := [joined.*.score]; { "n": $count($s), "total": $sum($s), "mean": $sum($s) / $count($s), '
+          + '"weak": ($sum($s) / $count($s)) < (cfg.confidence * 100) } )',
+      },
+      edges: [
+        // A flat GROUP, and both members decide: `weak` on one payload, `n` at one item.
+        { when: { all: [{ path: 'outcome.result.weak', op: 'eq', value: true }, { path: 'outcome.result.n', op: 'gte', value: 2 }] }, to: 'remediate' },
+        { when: { any: [{ path: 'outcome.result.n', op: 'eq', value: 1 }, { path: 'outcome.result.weak', op: 'eq', value: false }] }, to: 'publish' },
+        // The third edge is a TRIPWIRE: a wrong group lands at a named `end` rather than falling through.
+        { to: 'stalled' },
+      ],
+    },
+    // TIER TWO — a transform on the node whose worker consumes it, so no extra task.
+    {
+      id: 'remediate', kind: 'task', type: 'WeighWorker',
+      transform: { lang: 'jsonata', expr: '{ "item": { "word": "mean", "confidence": mean / 100 }, "run": { "confidence": 1 } }' },
+      edges: [{ when: { path: 'outcome.result.score', op: 'lt', value: 20 }, to: 'escalated' }, { to: 'done' }],
+    },
+    { id: 'publish', kind: 'task', type: 'PublishWorker', edges: [{ to: 'done' }] },
+    { id: 'escalated', kind: 'end', outcome: 'escalated-to-a-person' },
+    { id: 'stalled', kind: 'end', outcome: 'no-branch-matched' },
+    { id: 'done', kind: 'end', outcome: 'completed' },
+  ],
+};
+
+// ---- the registry it names. `Transform` is NOT in it: a built-in is merged at every read. ----
+const registry: Registry = {
+  // **EMPTY, and that is the claim.** A declared `when` resolves nothing against this.
+  predicates: [],
+  workers: {
+    split: {
+      url: './split.ts',
+      outputSchema: {
+        type: 'object', required: ['confidence', 'items'],
+        properties: {
+          confidence: { type: 'number' },
+          // The ITEM's own shape, so the arc into the map is checked — without it that arc is
+          // `unchecked` for a reason that has nothing to do with the transform node.
+          items: { type: 'array', items: { type: 'object', required: ['word', 'confidence'], properties: { word: { type: 'string' }, confidence: { type: 'number' } } } },
+        },
+      },
+    },
+    score: {
+      url: './score.ts',
+      inputSchema: { type: 'object', properties: { word: { type: 'string' }, confidence: { type: 'number' } } },
+      outputSchema: { type: 'object', required: ['score'], properties: { score: { type: 'number' } } },
+    },
+    weigh: { url: './weigh.ts', inputSchema: { type: 'object', properties: { item: { type: 'object' }, run: { type: 'object' } } } },
+    publish: { url: './publish.ts' },
+  },
+  nodeTypes: {
+    SplitWorker: { worker: 'split' }, ScoreWorker: { worker: 'score' },
+    WeighWorker: { worker: 'weigh' }, PublishWorker: { worker: 'publish' },
+  },
+  // The one thing that is code: the adapter for the language the transforms name.
+  languages: { jsonata },
+};
+
+const findings = validateDefinition(flow, registry);
+console.log(findings.length);                               // 0
+if (findings.length !== 0) throw new Error(`a UI-emitted flow validates with NO predicate registered: ${JSON.stringify(findings)}`);
+
+// **The registry really is empty** — an unused empty map would prove nothing (W110's careful-point 1).
+if ((registry.predicates as readonly string[]).length !== 0) throw new Error('no predicate is registered anywhere');
+
+// ---- and what the author gets told about the wiring, which is where the residue is ----
+const report = await checkWiring(registry, flow);
+console.log(report.counts);                                 // { fits: 1, no: 0, ..., unchecked: 3 }
+// `intake -> rate` is the one arc neither end of which is the transform node, and it FITS.
+const leaving = report.verdicts.filter((v) => v.producer === 'rollup').map((v) => v.kind);
+console.log(leaving);                                        // [ 'unchecked', 'unchecked' ]
+if (leaving.length !== 2 || leaving.some((v) => v !== 'unchecked')) {
+  throw new Error(`both arcs LEAVING the transform-only node are unchecked — it declares no outputSchema, which is Q446: ${JSON.stringify(leaving)}`);
+}
+// The arc INTO it is unchecked for the mirror reason — no inputSchema — so the residue is THREE arcs.
+if (report.counts.unchecked !== 3) throw new Error(`three arcs touch the node and all three are unchecked: ${report.counts.unchecked}`);
+// And the arcs that do not touch it are checked as any other arc is, so the residue is LOCAL to the node.
+if (report.counts.fits !== 1 || report.counts.no !== 0) throw new Error(`the rest of the flow is checked as usual: ${JSON.stringify(report.counts)}`);
+```
+
+**What the check cannot tell you here, said rather than left to be discovered.** Every arc LEAVING a
+transform-only node is `unchecked`, because the node declares no `outputSchema` and a sample is
+evidence about one input where `fits` is a claim about every input
+([Q446](doc/open-questions.md), and [ADR 0075](doc/decisions/0075-a-node-that-only-transforms-is-a-built-in-type-with-no-inner-worker.md)
+rule 6 is why it is not inferred). `sampledOutput` in the assists gives you the shape the node
+actually emitted on the producer's own example, with those verdicts beside it — so the residue is
+reported rather than hidden. And a declared predicate's PATH is checked against no schema at all, so
+a path naming a key the producer cannot emit answers *no match* for ever (ADR 0074 consequence 6).
+
+> **A `Transform` node's realm and its groups are the scheduler's default and nothing else.** The
+> built-in declares no `inline`, no `groups` and no `pool`, and a named pool instance carries only
+> `type` and `config` — so of the four things ADR 0075 rule 3 lists, a named instance reaches
+> `config`, a `retryPolicy` goes on the NODE, and `inline` and `groups` are reachable by no road a
+> consumer can write ([Q457](doc/open-questions.md)). Measured at W110.

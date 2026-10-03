@@ -1,0 +1,48 @@
+{
+  "flowId": "ui-emitted",
+  "version": 1,
+  "entry": "intake",
+  "nodes": [
+    { "id": "intake", "kind": "task", "type": "SplitWorker", "edges": [{ "to": "each" }] },
+
+    { "id": "each", "kind": "map", "over": "items", "branch": "rate" },
+
+    { "id": "rate", "kind": "task", "type": "ScoreWorker", "edges": [{ "to": "gather" }] },
+
+    { "id": "gather", "kind": "join", "of": "each", "edges": [{ "to": "rollup" }] },
+
+    { "id": "rollup", "kind": "task", "type": "Transform",
+      "needs": { "joined": ".", "cfg": "intake" },
+      "transform": {
+        "lang": "jsonata",
+        "expr": "( $s := [joined.*.score]; { \"n\": $count($s), \"total\": $sum($s), \"mean\": $sum($s) / $count($s), \"weak\": ($sum($s) / $count($s)) < (cfg.confidence * 100) } )"
+      },
+      "edges": [
+        { "when": { "all": [
+          { "path": "outcome.result.weak", "op": "eq", "value": true },
+          { "path": "outcome.result.n", "op": "gte", "value": 2 }
+        ] }, "to": "remediate" },
+        { "when": { "any": [
+          { "path": "outcome.result.n", "op": "eq", "value": 1 },
+          { "path": "outcome.result.weak", "op": "eq", "value": false }
+        ] }, "to": "publish" },
+        { "to": "stalled" }
+      ] },
+
+    { "id": "remediate", "kind": "task", "type": "WeighWorker",
+      "transform": {
+        "lang": "jsonata",
+        "expr": "{ \"item\": { \"word\": \"mean\", \"confidence\": mean / 100 }, \"run\": { \"confidence\": 1 } }"
+      },
+      "edges": [
+        { "when": { "path": "outcome.result.score", "op": "lt", "value": 20 }, "to": "escalated" },
+        { "to": "done" }
+      ] },
+
+    { "id": "publish", "kind": "task", "type": "PublishWorker", "edges": [{ "to": "done" }] },
+
+    { "id": "escalated", "kind": "end", "outcome": "escalated-to-a-person" },
+    { "id": "stalled", "kind": "end", "outcome": "no-branch-matched" },
+    { "id": "done", "kind": "end", "outcome": "completed" }
+  ]
+}

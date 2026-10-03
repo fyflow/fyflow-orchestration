@@ -843,7 +843,9 @@ const META = [
   // than a better grading.
   ['X6`s `AGENTS quotes what the spec does not` direction disabled',
     'AGENTS.md quotes an EXTRA figure the spec does not have — the `missing` direction alone',
-    (t) => t.replace('      if (missing.length) {', '      if (false) {')],
+    (t) => t.replace(
+      '      const extra = spec1000.filter((x) => !agents.includes(x));\n      if (missing.length) {',
+      '      const extra = spec1000.filter((x) => !agents.includes(x));\n      if (false) {')],
   // W86 (`h1`): X9's comparison clause. The guard above the `fail` is what is disabled, so
   // `idAt` reads the next `fail('X9'` after the divergence and the coverage bound sees the id.
   ['X9`s comparison clause disabled', 'README.md tells a consumer the manifests read a version they do not',
@@ -855,7 +857,9 @@ const META = [
     (t) => t.replace('      if (Number(said[2]) !== top) fail', '      if (false) fail')],
   ['X6`s `the spec states what AGENTS does not quote` direction disabled — the other way',
     'a cost figure spec/flow-definition.md states that AGENTS.md drops — the OTHER direction',
-    (t) => t.replace('      if (extra.length) {', '      if (false) {')],
+    (t) => t.replace(
+      "          `section 3's table does not — it has ${spec1000.join(', ')}`);\n      }\n      if (extra.length) {",
+      "          `section 3's table does not — it has ${spec1000.join(', ')}`);\n      }\n      if (false) {")],
   // W96: X10's three reachable clauses and X11's four, each named for the probe that trips it alone. X10's missing-files
   // clause and X11's missing-index and empty-directory clauses are UNREACHABLE by any probe and named in the header.
   ['X10`s comparison clause disabled, so a copy of the L6 counts can drift from what l6.ts declares in silence',

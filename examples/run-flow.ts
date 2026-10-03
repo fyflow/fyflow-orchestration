@@ -75,6 +75,16 @@ import type {
 // consumer could copy. What is left in this module is the code that is genuinely theirs: the
 // predicates (`l6.ts`'s), a custom group type and a custom node-type class.
 import registryDocument from './registry.json' with { type: 'json' };
+// **The SECOND registry document, and it is the other half of W110's artifact** — P26's exit
+// artifact is *a flow a UI could have emitted*, and a UI emits the registry it picks from as well
+// as the flow. This one declares the four workers and four types `ui-emitted.flow.json` names,
+// `languages`, and **nothing else**: no predicates, no groups, no group types, no classes, no named
+// pool instances. It exists rather than being derived from the document above for a MEASURED
+// reason — `createRuntime` compares the document's predicate NAMES and the code's supplied
+// FUNCTIONS both ways, so `RunOptions.predicates` can only be EMPTY against a document that
+// declares none, and `examples/registry.json` declares three (and a custom group TYPE, which is
+// code by P18 decision 7). W110's stop-and-ask (c).
+import uiRegistryDocument from './ui-registry.json' with { type: 'json' };
 
 /**
  * **The registry DOCUMENT this rung runs, and the ONE thing this harness does to it** — W67, and it
@@ -238,6 +248,40 @@ export const PREDICATES: ReadonlyMap<string, Predicate> = new Map<string, Predic
 ]);
 
 /**
+ * **W110's predicate, and it exists so that the DATA road can be shown to REPRODUCE it** — P26's
+ * exit artifact, and the only reason this function is here.
+ *
+ * It answers exactly what `ui-emitted.flow.json`'s first decision answers as DATA:
+ *
+ * ```json
+ * { "all": [ { "path": "outcome.result.weak", "op": "eq",  "value": true },
+ *            { "path": "outcome.result.n",    "op": "gte", "value": 2    } ] }
+ * ```
+ *
+ * `ui-emitted-named.flow.json` is that document with that one `when` replaced by
+ * `{ "predicate": "weakAndPlural" }` and nothing else changed, and the two are run over the same
+ * payloads with the claim that they route IDENTICALLY. **The difference is ASSERTED and not
+ * by-construction** — this sentence said *generated from it, so the difference is one edit by
+ * construction*, and nothing in the shipped tree regenerates it (its conformity reader, 13): the two
+ * files were written by one script once, the paired one is expanded JSON where the artifact is
+ * compact, and what holds them to one difference is `examples/l6.ts`'s own clause over their LEAVES. **That is prediction 3's answer as a measurement rather than
+ * as a sentence**: the subset reproduces a registered function on the payloads that route both
+ * ways, and the row that uses the function is the one that proves the comparison is not vacuous.
+ *
+ * **It is deliberately written the way an author would write it rather than the way the subset
+ * evaluates it** — a guard on each read, `=== true`, `>= 2` — because a body that mirrored
+ * `evalLeaf` would be a sensor corroborating itself.
+ */
+export const weakAndPlural: Predicate = (ctx) => {
+  const r = ctx.outcome.result as { weak?: unknown; n?: unknown } | null;
+  return r?.weak === true && typeof r?.n === 'number' && r.n >= 2;
+};
+
+/** The ONE name `ui-emitted-named.flow.json` needs, and the whole of what its registry declares. */
+export const UI_NAMED_PREDICATES: ReadonlyMap<string, Predicate> =
+  new Map<string, Predicate>([['weakAndPlural', weakAndPlural]]);
+
+/**
  * **A CUSTOM resource group type — P18 decision 4, and the sample's `budget`.**
  *
  * A group type is `{ configSchema?, create(config, key) }` and the three the scheduler ships are
@@ -384,6 +428,66 @@ export function buildRuntime(
   delayMs?: number,
 ): Runtime {
   return createRuntime(registryDocumentFor(threaded, delayMs), codeFor(predicates), {
+    base: import.meta.url,
+    flows,
+  });
+}
+
+/**
+ * **The UI-emitted registry DOCUMENT a row runs, and what this harness does to it** — W110, and it
+ * is `registryDocumentFor`'s shape with one more thing it may write and one it may not.
+ *
+ * Two keys, and both are the pair's own difference rather than configuration:
+ *
+ *   - **`inline`, on the types whose `inline` the document leaves unsaid** — identical to
+ *     `registryDocumentFor`'s one override, for the same reason and asserted the same way;
+ *   - **`predicates`, and ONLY where a name is supplied.** This is what makes the empty case
+ *     reachable at all: `createRuntime` compares the document's names and the code's functions
+ *     **both ways**, so an empty map against a document declaring a name is `NameMissing` and a
+ *     supplied name the document omits is a `RuntimeError`. Writing the names FROM the map is what
+ *     keeps the two halves from drifting here, and `l6.ts` asserts the document on disk declares
+ *     **none** — so the empty row's registry is empty because the FILE says so, not because this
+ *     function chose to say nothing.
+ *
+ * **What it may NOT write is a group, a group type, a class or a named pool instance**, because the
+ * artifact's whole claim is that none of those is needed: the only code it reaches is the domain
+ * workers and the LANGUAGE adapter, which is the library's own sub-path (`fyflow-orchestration/jsonata`)
+ * and the one narrowing P26 prediction 3 needs — every `transform` names a `lang`, `Registry.languages`
+ * is EMPTY when absent, and nothing ships a built-in language, so `FD-V35` refuses a transform that
+ * names one nobody supplied. Measured at W110's declaration step.
+ */
+export const UI_REGISTRY_DOCUMENT: RegistryDocument = uiRegistryDocument as unknown as RegistryDocument;
+
+export function uiRegistryDocumentFor(
+  threaded: boolean,
+  predicates: ReadonlyMap<string, Predicate>,
+): RegistryDocument {
+  const doc = UI_REGISTRY_DOCUMENT;
+  const nodeTypes: Record<string, NodeTypeDeclaration> = {};
+  for (const [name, t] of Object.entries(doc.nodeTypes ?? {})) {
+    const inline = (t as NodeTypeDeclaration).inline === undefined ? { inline: !threaded } : {};
+    nodeTypes[name] = { ...(t as NodeTypeDeclaration), ...inline };
+  }
+  const named = [...predicates.keys()].sort();
+  return { ...doc, nodeTypes, ...(named.length ? { predicates: named } : {}) };
+}
+
+/**
+ * **A runtime from the UI-emitted document, and the code it supplies is the LANGUAGE and whatever
+ * predicate the row names** — W110, and the contrast with `codeFor` above is the artifact.
+ *
+ * `codeFor` supplies four things P18 decision 7 keeps as code: the predicates, a custom group TYPE,
+ * a custom node-type CLASS and a language adapter. **This supplies one and a half** — the adapter,
+ * which is the library's own, and a predicate map that is EMPTY on the artifact's own row. There is
+ * no `groupTypes` and no `nodeTypes`, so a consumer reading this call sees the whole of what a
+ * code-free flow costs in TypeScript.
+ */
+export function buildUiRuntime(
+  flows: readonly FlowDefinition[],
+  predicates: ReadonlyMap<string, Predicate> = new Map(),
+  threaded = false,
+): Runtime {
+  return createRuntime(uiRegistryDocumentFor(threaded, predicates), { predicates, languages: LANGUAGES }, {
     base: import.meta.url,
     flows,
   });
@@ -669,6 +773,22 @@ export interface RunReport {
    */
   registryTypes: readonly string[];
   /**
+   * **The predicate NAMES the driver was handed, read off `runtime.registry.predicates` — W110.**
+   *
+   * `runtime.registry` is *exactly the object this runtime hands its own drivers* (P18 decision 14),
+   * so this is the registry `FD-V4` was applied against and the one `selectEdge` looked a name up in.
+   * **It exists because P26's exit artifact claims the registry is EMPTY**, and
+   * [W67](../doc/work-items/w67-a-flow-from-documents-on-real-workers.md)'s own `Record` says the
+   * seam for a row's own predicate set was never used before: *nothing does today*. An empty map that
+   * is merely never consulted proves nothing, which is W110's careful-point 1, so the row asserts the
+   * registry's CONTENTS.
+   *
+   * **It is read off the RUNTIME and not off the document**, deliberately: the cross-row block
+   * compares it to `examples/ui-registry.json`'s own bytes, which declare no `predicates` at all, so
+   * the two sides are a runtime object and a file and neither is the other's source.
+   */
+  predicateNames: readonly string[];
+  /**
    * **What every pool the runtime BUILT was built with, read off the scheduler — W67, P18 fact 7.**
    *
    * A `WorkerManager` exposes `inline`, `maxThreads`, `idleTimeout`, `groups`, `residentGroups` and
@@ -857,6 +977,22 @@ export interface RunOptions {
   runId?: string;
   payload: unknown;
   predicates?: ReadonlyMap<string, Predicate>;
+  /**
+   * **Run from `examples/ui-registry.json` rather than from `examples/registry.json`** — W110, and
+   * it is the seam P26's exit artifact needs.
+   *
+   * The two documents are not interchangeable and a row cannot be given a choice of the WRONG one:
+   * the UI document declares only the four workers `ui-emitted.flow.json` names, so any other flow
+   * is `FD-V32` against it. **What the flag buys is that `predicates` can be an EMPTY map** —
+   * measured, `createRuntime` compares the document's names and the code's functions both ways, so
+   * an empty registry is only reachable against a document that declares none, and the shared one
+   * declares three.
+   *
+   * **A row that sets it and names a predicate gets exactly the names it supplied**, written into
+   * the document by `uiRegistryDocumentFor`; the file on disk declares none, which `l6.ts` asserts
+   * from the file's own bytes.
+   */
+  uiRegistry?: true;
   /**
    * **Every type's `delayMs` OVERRIDDEN, and only `examples/retention.ts` passes it.** Omitted — which
    * is what every L6 row does — each type's delay is the DOCUMENT's, including the four-times one a
@@ -1445,7 +1581,19 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
 
   // **ONE call, from a DOCUMENT — W67.** Everything below reads the runtime's scheduler exactly as
   // it read a hand-built one; what changed is that nothing here builds a pool, a group or a driver.
-  const runtime = opts.runtime ?? buildRuntime(opts.threaded === true, [definition], opts.predicates ?? PREDICATES, opts.delayMs);
+  // **Two documents, one call each** — W110. `uiRegistry` rows run `examples/ui-registry.json` and
+  // supply exactly the predicates they declare (an EMPTY map on the artifact's own row); every other
+  // row runs `examples/registry.json` and the three it declares. `opts.predicates ?? PREDICATES` is
+  // deliberately NOT the default on the UI road: `??` is nullish, so an empty Map passes through it
+  // unchanged, but defaulting to the shared three would make the empty case unreachable by accident.
+  // **The `?? new Map()` itself is UNREACHABLE from `examples/l6.ts`, and that is measured** — every
+  // artifact row passes `predicates` explicitly, so replacing it with `?? PREDICATES` costs ZERO (its
+  // adequacy reader, F11). It is kept because it is the DEFAULT a consumer calling `buildUiRuntime`
+  // with no predicates gets, which is the ordinary case for a code-free flow; what no rung observes is
+  // the default rather than the behaviour.
+  const runtime = opts.runtime ?? (opts.uiRegistry === true
+    ? buildUiRuntime([definition], opts.predicates ?? new Map(), opts.threaded === true)
+    : buildRuntime(opts.threaded === true, [definition], opts.predicates ?? PREDICATES, opts.delayMs));
   const scheduler = runtime.scheduler;
   const ownsScheduler = opts.runtime === undefined;
 
@@ -2100,6 +2248,8 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
       Object.entries(runtime.groups).map(([key, g]) => [key, (g as unknown as { id?: unknown }).id as string]),
     ),
     registryTypes: Object.keys(runtime.registry.nodeTypes ?? {}).sort(),
+    // W110: the registry `FD-V4` was applied against. A `Map` on every road `createRuntime` takes.
+    predicateNames: [...((runtime.registry.predicates ?? new Map()) as ReadonlyMap<string, unknown>).keys()].sort(),
     derivedPools,
     poolOfTask,
     poolLanguages,

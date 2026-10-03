@@ -347,7 +347,7 @@ enumeration and the literal it admits) and **`FD-V45`** (a group's members), and
 sentence with only the SPELLING moved** — a name absent from the registry, written `{ "predicate": "x" }`.
 **The bare string is REFUSED**: that is the maintainer's answer to W108's stop-and-ask (b), taken against the
 recommendation, and it cost a migration of **102 sites in 38 files** measured at that item's declaration step.
-*(The package stays `0.6.0` here and moves at W110's close, on W84/W85/W86's precedent.)*
+*(The package stayed `0.6.0` at this version and moved to `0.7.0` at [W110](../doc/work-items/w110-a-flow-a-ui-could-have-emitted.md)'s close, on W84/W85/W86's precedent — present tense here until that item, which is section 1 rule 5's third direction on a sentence naming the item that expires it.)*
 
 **Three things the subset says, each a decision rather than an observation, and each measured over 1800
 contexts against the ten predicate bodies this tree already has** (W108's declaration step). **Comparisons are

@@ -100,6 +100,23 @@ const fixtures = [
   // it is caught by an equality against the document rather than by a floor.
   // 18 files, ~69 KiB.
   ...walk(join(ROOT, 'examples', 'flows'), (n) => n.endsWith('.json')),
+  // **A REGISTRY document, and it is the first one here** — [W110](../doc/work-items/w110-a-flow-a-ui-could-have-emitted.md).
+  // The line above globs `examples/flows/**`, so W110's two flow documents came in free and its
+  // REGISTRY did not: `test/definition/wiring.test.ts` validates both documents against
+  // `examples/ui-registry.json`, which is the only place *an EMPTY predicate registry* exists as a
+  // document rather than as a sentence, and it is the second observer for `AGENTS.md` section 21's
+  // first two guards.
+  //
+  // **This is the SEVENTH time a suite reading a file outside `spec/examples/` has reached this
+  // list, and the SECOND time the gate is what said so** — W77's three were missed because
+  // `npm run test:browser:all` was read by grepping its count line. Here the lane was RUN and its
+  // exit code read, so the confirming gate came back `EXIT 1` with **2 FAIL lines in chromium**
+  // while node and deno were green at 1516 — which also caught a claim in W110's own Record, where
+  // *56 files / 1516 assertions in three runtimes* had been taken from `npm test` ALONE, the node
+  // lane. *A figure quoted for three runtimes from one lane's output is v0.12's second question —
+  // was what it RAN what it CLAIMS — about a number rather than about a check.* The read is inside
+  // a `test()`, so the failure mode is W33's better one: two named tests rather than the bundle.
+  join(ROOT, 'examples', 'ui-registry.json'),
   // **The GENERATED signature file, and it is the first `.ts` entry here** — W74. The recipe's
   // whole claim is that `examples/getting-started/session-types.ts` IS what `signatureOf` emits
   // from the session registry's schemas, and `test/definition/assist.test.ts` holds the two

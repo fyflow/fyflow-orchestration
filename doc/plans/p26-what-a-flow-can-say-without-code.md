@@ -216,7 +216,7 @@ not wired to this case.*
 
 ## Record
 
-**W108 is DONE (ADR 0074) and W109 is DONE (ADR 0075). W110 is next, and it is the exit artifact.**
+**W108 is DONE (ADR 0074), W109 is DONE (ADR 0075) and [W110](../work-items/w110-a-flow-a-ui-could-have-emitted.md) is DONE, so P26 is COMPLETE pending its retro.** *(This read *W110 is next, and it is the exit artifact* until W110's record step — a claim with an expiry date, corrected by the item that expired it.)* The artifact is `examples/flows/ui-emitted.flow.json` and `examples/ui-registry.json` on a real `FyflowScheduler` in BOTH L6 runtimes, **L6 2176 / 154 → 2435 / 161**, the package **`0.7.0`**, and **prediction 3 CONFIRMED with two narrowings measured**.
 Read every status from the item's own file, never from this one.
 
 | | |
@@ -245,7 +245,8 @@ of the four being [Q320](../open-questions.md)'s, paid again — rising to **1.9
 inside a `map` at N = 128 inline and flat at **1.47x** threaded. *The two pool modes answer
 differently, and W34's figure is a clone per BRANCH over a 117 KiB payload, a different quantity.*
 
-**Predictions so far: 1 CONFIRMED VACUOUSLY, 2 REVERSED, 4 CONFIRMED; 3 is W110's.** Prediction 1 —
+**Predictions: 1 CONFIRMED VACUOUSLY, 2 REVERSED, 3 CONFIRMED with its SCOPE narrowed twice, 4
+CONFIRMED — all four have a verdict.** Prediction 1 —
 the subset needs no composition beyond flat `all`/`any` — is confirmed by a tree that needs no
 composition at all, so W110 is what tests it. **Prediction 2 was reversed by a DECISION rather than by
 its named mechanism** (W108: the condition it names did not fire and the prediction is false anyway,
@@ -254,8 +255,35 @@ CONFIRMED and W109 built the function that makes it legible**: `sampledOutput` r
 verdicts — still `unchecked` — beside the sampled shape, so [Q446](../open-questions.md)'s residue
 cannot be read as removed by the item that was most likely to be read that way.
 
-**Reserved and spent so far: W108 and W109 of W108-W111; Q444-Q455 of Q444-Q458; ADR 0074 and 0075,
-both TAKEN.** Q455 is reserved and unused.
+**Prediction 3, the plan's one REACH prediction, is CONFIRMED — and its reversal column told W110 to
+go and try, which is what [P15](p15-what-a-run-retains-and-what-a-result-may-be.md)'s retro settled a
+reversal clause is for.** The column said *W110 finding a shape it cannot express without a function,
+which is the artifact's job to try*. It found **two**, and neither is a function:
+
+1. **A `transform` always names a `lang` and no language ships with the library.** `Registry.languages`
+   is EMPTY when absent, and `S14` with
+   [ADR 0052](../decisions/0052-a-second-dependency-is-declared-where-its-one-sub-path-is-reached.md)
+   rule 4 keep every engine out of `src/`, so the adapter is a consumer's IMPORT even though the
+   library publishes it as `fyflow-orchestration/jsonata`. **The prediction's own words — *zero code
+   but domain workers* — are therefore false as written**, and W110's `Outputs` row (1) is corrected
+   in place to *the domain workers AND the adapter the library itself ships*. One line of a consumer's
+   registry, and it is the whole of the gap.
+2. **A comparison reads ONE path and compares it to ONE literal.** So *is the mean below the threshold
+   the run carries* is not a comparison and neither is any arithmetic — and a `value` MEANT as a path
+   is accepted as a literal string and is false for ever ([Q456](../open-questions.md)). **The route
+   around it is DATA**: W110's `rollup` is a tier-three `Transform` node computing `weak`, and the
+   `when` reads `outcome.result.weak`. So the reach holds at the cost of a NODE rather than of a
+   function, which is ADR 0075's three-tier rule doing precisely what it was written for.
+
+*A reach prediction confirmed with its scope narrowed twice is worth more than one confirmed flat*,
+because both narrowings were measured by the item whose job was to look for them, and each one names a
+road the library already has.
+
+**Reserved and spent: W108, W109 and W110 of W108-W111; Q444-Q458 of Q444-Q458, ALL FIFTEEN used
+except Q455; ADR 0074 and 0075, both TAKEN and NO ADR at W110 — none was expected and none was
+needed.** Q455 is reserved and unused and is NOT reused. **W111 is still a row and the retro closes
+it** — derived by grep off the tree, never from this sentence. The next plan starts at **W112,
+Q459** and **ADR 0076**.
 
 ## Out
 

@@ -27,6 +27,7 @@ import {
   POOL_SPEC_KEYS, poolOptionsOf, poolSpecProblem, PoolTypeMissing, RegistryError, resolveRegistry, SchemaRefused, TypeDefaultRefused,
   UndeclaredKey, WORKER_KEYS, WorkerMissing, CHECKED_WORKER_SCHEMAS, checkRegistry,
 } from '../../src/definition/registry.ts';
+import { BUILT_IN_NODE_TYPES } from '../../src/definition/validate.ts';
 import type { GroupType, NodeTypeDeclaration, NodeTypeDefinition, PoolSpec, RegistryCode, RegistryDocument } from '../../src/definition/types.ts';
 import { PATH_LANGUAGE } from '../scheduler/fake-language.ts';
 /**
@@ -268,6 +269,69 @@ suite('every construction-time refusal, by name — a document that trips it and
   test('PoolTypeMissing: a pool naming a type nobody registered, and a pool with no type', () => {
     refused(edited((d) => { d.pools!['prompt-big']!.type = 'Nope'; }), PoolTypeMissing, ['"prompt-big"', '"Nope"', '"Fetch"', '"GpuModel"', '"Prompt"']);
     refused(edited((d) => { delete d.pools!['prompt-big']!.type; }), PoolTypeMissing, ['"prompt-big"']);
+    // **And the enumeration names the BUILT-INS too** — v0.29, W110. Before the fix below this
+    // message listed the document's types alone, which would send an author to declare an entry for
+    // a type that is never declared. Asserted as the WHOLE sorted list rather than by membership, so
+    // a built-in dropped from it is red here and not merely unsaid.
+    const e = refused(edited((d) => { d.pools!['prompt-big']!.type = 'Nope'; }), PoolTypeMissing, ['"Transform"']);
+    const listed = [...e.message.matchAll(/"([A-Za-z][A-Za-z0-9]*)"/g)].map((m) => m[1]!).filter((n) => n !== 'Nope' && n !== 'prompt-big');
+    equal(listed.sort(), ['Fetch', 'GpuModel', 'Prompt', ...Object.keys(BUILT_IN_NODE_TYPES)].sort(),
+      'the enumeration is the consumer`s types AND the library`s own, both');
+  });
+
+  /**
+   * **A named pool INSTANCE of a BUILT-IN node type — the road
+   * [ADR 0075](../../doc/decisions/0075-a-node-that-only-transforms-is-a-built-in-type-with-no-inner-worker.md)
+   * rule 3 blesses BY NAME, and v0.29 is where the runtime road agrees with the driver's.**
+   *
+   * [W110](../../doc/work-items/w110-a-flow-a-ui-could-have-emitted.md)'s declaration step measured
+   * the two roads DISAGREEING about one document: `checkRegistry` — what `new Driver` runs — accepted
+   * it, because its types are `nodeTypesOf(reg.nodeTypes)` and therefore merged, while
+   * `resolveRegistry` refused `PoolTypeMissing: … "Transform", which is not a node type`, **a message
+   * false against `nodeTypesOf`, which returns it.** The maintainer's answer to that item's
+   * stop-and-ask (b) was to fix the code rather than the ADR, AGAINST the item's recommendation.
+   *
+   * **Both roads are asserted here, because one of them passing is what the defect looked like.**
+   * Reverting the lookup leaves `checkRegistry` green and this is the only thing that says so.
+   */
+  test('a named pool instance of a BUILT-IN type resolves, on BOTH roads, and is still stored nowhere', () => {
+    const withInstance = edited((d) => { d.pools!['reshape-big'] = { type: 'Transform', config: {} }; });
+    const r = resolveRegistry(withInstance, code());
+    ok(r.pools.has('reshape-big'), 'resolveRegistry derived the named instance of the built-in');
+    equal(r.pools.get('reshape-big')!.type, 'Transform', 'and it carries the type it names');
+    equal(r.pools.get('reshape-big')!.worker, undefined, 'with NO worker — a type that only transforms names none (ADR 0075 rule 2)');
+    // The DRIVER's road, which accepted it throughout — the control for the clause above. Its
+    // `nodeTypes` is the UNION a driver is handed (`driver.ts` passes `opts.nodeTypes`, and the
+    // runtime builds it from `resolved.nodeTypes`), so the sample's CLASS goes in beside the
+    // document's two; handing it the document's alone makes `prompt-big` the refusal instead and
+    // says nothing about the built-in.
+    checkRegistry({
+      predicates: [], workers: withInstance.workers,
+      nodeTypes: { ...withInstance.nodeTypes, GpuModel: code().gpu },
+      pools: withInstance.pools, groups: Object.keys(withInstance.groups ?? {}),
+    } as never);
+    ok(true, 'checkRegistry accepts the same document — the two roads agree');
+    // **And ADR 0075 rule 5 is UNTOUCHED**: a lookup is not a store, so the resolved registry still
+    // carries the consumer's types alone. This is what let `checkRegistry` tell a consumer's
+    // collision from the library's own entry, and it cost W109 eighty tests to learn.
+    ok(!r.nodeTypes.has('Transform'), 'and the built-in is in `resolved.nodeTypes` no more than a gate type is');
+    equal([...r.pools.keys()].filter((k) => Object.prototype.hasOwnProperty.call(BUILT_IN_NODE_TYPES, k)), [],
+      'nor is its DEFAULT instance — `bootstrap` builds that, reading through `nodeTypesOf`');
+    // A pool TAKING a built-in's name is still the collision it was, on this road as on the other —
+    // **and the message NAMES it as the library's**, which the generic clause did not (W110's
+    // conformity reader, 19: the three `NameCollision` messages W109 added each say so and the one a
+    // consumer meets first did not).
+    const col = refused(edited((d) => { d.pools!.Transform = { type: 'Fetch' }; }), NameCollision, ['"Transform"', 'DEFAULT instance']);
+    ok(col.message.includes('BUILT-IN'), `and it says the name is the library's: ${col.message}`);
+    // **The arm that was DEAD, now reachable** — W110's conformity reader (9). The first fix folded the
+    // consumer's types and the built-ins into one list under *the registry declares*, so the list was
+    // never empty and the *declares none* arm had no case; the verb is *a `type` may name* now and the
+    // two halves are apart, so a registry with no types of its own reaches it.
+    const none = refused({ workers: {}, pools: { big: { type: 'Nope' } } } as unknown as RegistryDocument,
+      PoolTypeMissing, ['and it declares none', '"Transform"'], { predicates: new Map() } as RegistryCode,
+      'a registry declaring NO node types of its own');
+    ok(!none.message.includes('the registry declares "Transform"'),
+      `and it does NOT say a document declares the built-in, which ADR 0075 rules 1 and 5 say none does: ${none.message}`);
   });
   test('ConfigRefused: a named instance`s config against its class`s schema, and its DERIVED config against the worker`s', () => {
     const e = refused(edited((d) => { d.pools!['prompt-big']!.config = { model: 'huge' }; }), ConfigRefused, ['"prompt-big"', 'GpuModel', 'not one of']);

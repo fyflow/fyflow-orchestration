@@ -132,8 +132,21 @@ on `59e4ad6`):
    prediction 3 and [W110](../work-items/w110-a-flow-a-ui-could-have-emitted.md)'s to answer.
 
 2. **Every existing document breaks, and the package moves at W110's close**, not here — W84/W85/W86
-   and W92/W93/W94's precedent, where the breaking shape ships across a plan's items and the
-   manifest moves once with `README.md` naming every break.
+   and W92/W93/W94's precedent, where the breaking shape ships across a plan's items and the manifest
+   moves once. *(This cell ended *with `README.md` naming every break*, and that was already false
+   when it was written: [ADR 0073](0073-the-readme-is-for-a-person-the-reference-is-for-an-agent.md)
+   deleted README's three break blockquotes four items earlier, and W110 measured the word *break* at
+   **zero occurrences** in that file. The claim was standing in **SEVENTEEN** places, of which EIGHT
+   were present-tense claims about what that file holds (four in `CLAUDE.md`, three in `doc/README.md`
+   and this cell) and NINE are records of what a past item DELIVERED, on trees where README did name
+   those breaks (P18, P22 twice, W67, W86 twice, W90, W94 twice). **This cell is the one that
+   mattered**, because it was an instruction to the item that had to act on it. *(W110 first recorded
+   the total as nine and then as twelve; seventeen is what the union of three phrasings finds once
+   newlines are collapsed — two of the nine WRAP across lines and a single-line regex cannot see
+   them. Its own Record carries the correction and the mechanism.)* **The maintainer's answer to W110's
+   stop-and-ask (a) is that the breaks are named in the ADRs and in that item's Record**, on ADR
+   0073's own ground: README has one audience and carries no correction archaeology, and nothing is
+   published. Section 21 of `AGENTS.md` is where a consumer meets the new shape.)*
 
 3. **The subset will be asked to grow, and the refusal is the deliverable as much as the subset is.**
    An operator outside the seven is refused by name with the enumeration in the message, so the
@@ -149,10 +162,20 @@ on `59e4ad6`):
    strong as the code and the claim about it is as strong as Q9's, until something reads the source.
    [Q450](../open-questions.md).
 
-5. **Nothing in this tree exercises `all` or `any`.** Not one of the ten bodies is a conjunction of
-   two paths — the three that look like one collapse to a single leaf under rule 6 — so the group
-   cases are **CONSTRUCTED** rather than found, and `ne` and `gte` have no instance either and exist
-   for rule 7's closure. Said here rather than left looking covered.
+5. **Nothing in this tree exercised `all` or `any` at v0.27.** Not one of the ten bodies is a
+   conjunction of two paths — the three that look like one collapse to a single leaf under rule 6 — so
+   the group cases were **CONSTRUCTED** rather than found, and `ne` and `gte` had no instance either
+   and existed for rule 7's closure. Said here rather than left looking covered.
+
+   > **`all`, `any` and `gte` have their first real instances since
+   > [W110](../work-items/w110-a-flow-a-ui-could-have-emitted.md)** — P26's exit artifact, on real
+   > workers in both L6 runtimes, and each member of each group decides a payload no other row covers
+   > (`weak` one way, `n gte 2` at ONE item, and `any`'s two members the other two). **What still has
+   > no L6 instance is `ne`, `lt` on a declared path, `lte`, `startsWith`, `length` and `default`** —
+   > `lt` occurs once, on `remediate`'s own edge. Named rather than left looking covered, which is
+   > what this consequence is for; W110's conformity reader (11) found it standing four cells under
+   > consequence 2, which that item corrected in the same pass. *An item corrects a count where it is
+   > looking and not where it is not.*
 
 6. **A declared predicate's path is not checked against any schema.** `checkWiring` says nothing
    about it, so a path naming a key the producer cannot emit is accepted and answers *no match* for

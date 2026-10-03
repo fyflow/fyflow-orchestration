@@ -18,7 +18,7 @@ The scheduler runs tasks. This library decides **which task runs next, and why**
 `fyflow-scheduler` has no dependency graph of its own, so sequence, decision, fan-out and join are
 built here rather than wrapped from below. See [doc/concept.md](doc/concept.md) for the reasoning.
 
-**Not published yet; no version has been released.** The manifests read `0.6.0`.
+**Not published yet; no version has been released.** The manifests read `0.7.0`.
 
 ## Install
 

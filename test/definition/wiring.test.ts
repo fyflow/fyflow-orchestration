@@ -210,14 +210,69 @@ suite('W73 — the wiring fixture corpus IS what section 7 says it is, and every
   });
 });
 
+/**
+ * **W110 — the SECOND OBSERVER of what `AGENTS.md` section 21 asserts, because that section is an
+ * assertion and its first two guards had none.**
+ *
+ * Section 21 is P26's exit artifact as a reference section, executed by `check:docs`. Its adequacy
+ * reader made **all five** of its guards tautologies AT ONCE — every variable live, every `throw`
+ * textually present, no `if (false)` — and `check:docs` was **EXIT 0**, because `X4`'s three tests
+ * are *contains a `throw`*, *no `process.exit()`* and *no `if (false)`*, and `RUN_FLOOR` counts
+ * SNIPPETS. That is obligation (b)'s tautology clause at its **fourth consecutive exit artifact**
+ * after W74's eight guards and W101's nine.
+ *
+ * **Guards 3-5 already had a second observer and guards 1-2 had none.** The `unchecked` residue is
+ * counted by the census below (`unchecked: 14` over 30 flows); *a UI-emitted flow validates with NO
+ * predicate registered* and *the registry really is empty* were asserted in `AGENTS.md` and nowhere
+ * else, because `examples/flows/**` is reached by `validateDefinition` in no L1-L5 suite — only by
+ * that census and by `result-value.test.ts`'s `needs` count, neither of which validates. **W101's
+ * remedy is a second observer rather than a better guard**, and this is it: the same two claims, over
+ * the document the artifact actually ships, at ladder L1.
+ */
+suite('W110 — the UI-emitted documents validate with an EMPTY predicate registry: section 21`s first two guards, at L1', (test) => {
+  const load = async (n: string) => JSON.parse(await readText(`${ROOT}examples/flows/${n}`)) as FlowDefinition;
+  /** The registry the artifact runs, as the VALIDATOR takes it — read from the document's own bytes. */
+  const uiRegistry = async () => {
+    const d = JSON.parse(await readText(`${ROOT}examples/ui-registry.json`)) as {
+      workers?: Record<string, unknown>; nodeTypes?: Record<string, unknown>;
+    };
+    return { predicates: [], workers: d.workers, nodeTypes: d.nodeTypes, languages: { jsonata } } as unknown as Parameters<typeof checkWiring>[0];
+  };
+
+  test('`ui-emitted.flow.json` validates with ZERO findings against a registry whose `predicates` is EMPTY', async () => {
+    const reg = await uiRegistry();
+    equal((reg as unknown as { predicates: readonly string[] }).predicates, [],
+      'the registry really is empty — an unused empty map proves nothing, which is W110`s careful-point 1');
+    const findings = validateDefinition(await load('ui-emitted.flow.json'), reg as never);
+    equal(findings.map((f) => `${f.rule}: ${f.detail}`), [],
+      'a whole flow — sequence, map, join, needs, a Transform node, two declared groups and two comparisons — with no predicate registered');
+  });
+
+  test('and the PAIRED document needs exactly ONE name, so the empty case is a property of the DOCUMENT', async () => {
+    const reg = await uiRegistry();
+    const named = await load('ui-emitted-named.flow.json');
+    // **The CONTROL for the clause above, and it is a different value rather than a second reading**:
+    // against the SAME empty registry the paired document is refused BY NAME, so *validates with no
+    // predicate registered* is a claim about `ui-emitted.flow.json` and not about the registry shape.
+    const refused = validateDefinition(named, reg as never);
+    equal(refused.map((f) => f.rule), ['FD-V4'],
+      'FD-V4, and only it — the one `when` that names a predicate, against a registry that supplies none');
+    ok(refused[0]!.detail.includes('weakAndPlural'), `the refusal NAMES it: ${refused[0]!.detail}`);
+    // And with the one name declared it validates, which is the other arm.
+    const withName = { ...(reg as unknown as Record<string, unknown>), predicates: ['weakAndPlural'] };
+    equal(validateDefinition(named, withName as never).map((f) => f.rule), [],
+      'with the name declared it validates — so the pair differs in the registry it needs and not only in a `when`');
+  });
+});
+
 suite('W73 — the L6 corpus census, as an EQUALITY, and every arc shape reached', (test) => {
   const flowsDir = `${ROOT}examples/flows`;
   const registry = { workers: l6Registry.workers, nodeTypes: l6Registry.nodeTypes, languages: { jsonata } } as unknown as Parameters<typeof checkWiring>[0];
   const options = { workerHalf: { jsonata: compileExpression } };
   let reports: WiringReport[] = [];
-  test('the census: 73 fit, 1 no, 5 transform-passes, 2 transform-fails, 8 unchecked over 28 flows', async () => {
+  test('the census: 75 fit, 1 no, 5 transform-passes, 2 transform-fails, 14 unchecked over 30 flows', async () => {
     const names = (await listDir(flowsDir)).filter((n) => n.endsWith('.flow.json')).sort();
-    ok(names.length === 28, `28 L6 flows, got ${names.length}`);
+    ok(names.length === 30, `30 L6 flows, got ${names.length}`);
     reports = [];
     for (const n of names) reports.push(await checkWiring(registry, JSON.parse(await readText(`${flowsDir}/${n}`)) as FlowDefinition, options));
     const counts: Record<VerdictKind, number> = { 'fits': 0, 'no': 0, 'transform-passes': 0, 'transform-fails': 0, 'unchecked': 0 };
@@ -246,7 +301,14 @@ suite('W73 — the L6 corpus census, as an EQUALITY, and every arc shape reached
     // `distinct` declares `first` and `duplicate` key-resolved, so what leaves the gate on the default route carries
     // `series` required and the arc FITS. *This census is where that is a number instead of a sentence, in both
     // directions — it carried the false `no` as a number for one plan and it carries the fix as one now.*
-    equal(counts, { 'fits': 73, 'no': 1, 'transform-passes': 5, 'transform-fails': 2, 'unchecked': 8 }, 'the L6 census');
+    // **+2 fits, +6 unchecked and +2 flows at W110** — P26's exit artifact, `ui-emitted.flow.json` and its
+    // paired `ui-emitted-named.flow.json`, each **1 fit and 3 unchecked**. **The six unchecked are
+    // [Q446](../../doc/open-questions.md)'s residue as a NUMBER**, which is the one thing this census is
+    // for: a transform-only node declares neither schema, so the arc INTO it and both arcs LEAVING it are
+    // unchecked in every flow that has one — and the ONE fit per flow is `intake -> rate`, the only arc
+    // neither end of which is that node, which is what says the residue is LOCAL to it rather than general.
+    // *The census carried W99's fix as a number; it carries this item's residue as one.*
+    equal(counts, { 'fits': 75, 'no': 1, 'transform-passes': 5, 'transform-fails': 2, 'unchecked': 14 }, 'the L6 census');
     // The one `no` is the FD-R2 prediction — map-no-array's `over: "rows"` on a producer that never emits it.
     const no = reports.flatMap((r) => r.verdicts.filter((v) => v.kind === 'no'));
     equal(no.map((v) => `${v.through ?? v.producer}:${v.consumer}`), ['split:score'], 'the one no');
