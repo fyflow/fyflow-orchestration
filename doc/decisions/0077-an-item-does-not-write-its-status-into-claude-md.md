@@ -44,8 +44,20 @@ paragraph that is never written turns nothing red, and `check:budget` gets green
 
 ## Decision
 
-1. **An item does not write its status into `CLAUDE.md`.** The record step's files are **FIVE**: the
-   plan's Record, `doc/README.md`, `README.md`, `doc/open-questions.md` and `doc/decisions/**`.
+1. **An item does not write its status into `CLAUDE.md`.** ~~The record step's files are **FIVE**:
+   the plan's Record, `doc/README.md`, `README.md`, `doc/open-questions.md` and
+   `doc/decisions/**`.~~
+
+   **FOUR since [W115](../work-items/w115-the-exit-artifact-and-the-budget-met.md): the plan's
+   Record, `README.md`, `doc/open-questions.md` and `doc/decisions/**`.** `doc/README.md` left the
+   list by the maintainer's answer to [Q466](../open-questions.md) — the question consequence 4
+   below raises and explicitly leaves to a person rather than to the item — and the answer is
+   recorded in W115's stop-and-ask (a) and in [P27](../plans/p27-what-a-register-row-is.md)'s
+   Record, which is where section 1 rule 3 requires a decision to be. *The cell is struck here
+   rather than rewritten, on the precedent decision 3 below sets for
+   [ADR 0073](0073-the-readme-is-for-a-person-the-reference-is-for-an-agent.md) decision 1: a
+   superseded cell is struck where it stands, because an index that contradicts the document it
+   indexes does so on precisely the sentence that was just corrected.*
 
 2. **What replaces it is what the rule already named: the item's own file** — and, once
    [W114](../work-items/) ships it, **`npm run state`**, which P27 decision 5 prototyped at 60 lines

@@ -225,6 +225,21 @@ arriving at the item asked to find it.*
    this item's own record-step paragraph — is granted ONCE to the set rather than three times, so the
    set cannot grow by three allowances while every member stays inside its own.
 
+   *(**BOTH HALVES OF THAT SENTENCE ARE FALSE SINCE
+   [W115](../work-items/w115-the-exit-artifact-and-the-budget-met.md), and it is arithmetic rather
+   than carelessness.** When the LAST member comes inside its target, decision 4's own two bounds
+   on the total — at or below the per-file sum, at or above the target — meet decision 5's
+   ratchet, which holds a met member's ceiling at its target. The three numbers then collapse:
+   `sumCeilings == TOTAL_CEILING == TOTAL_TARGET == 78,848`. **So the total is EQUAL to the sum,
+   the allowance is ZERO, and `B3` has lost the case `B2` cannot reach** — which is the clause
+   with no instance of its own that this check's first cut was corrected for, arriving from the
+   opposite direction. The maintainer was asked and chose to DECLARE it rather than amend this
+   decision: `B3` keeps a probe as a declared compound and regains its own case the moment any
+   member is un-met. **What a member has to spend is now target-minus-measurement** — 1,846, 264
+   and 283 bytes — and `check:budget` prints those three figures in place of a distance that is
+   permanently zero. [Q479](../open-questions.md), and W115's adequacy reader found the same
+   claim still standing in `check-budget.mjs`'s own `SET` docstring.)*
+
 5. **A ceiling's vacuity is *nothing to measure*, not *too little to check*, so the guard is a
    membership rather than a floor on the quantity.** A floor passes when there is too little to
    check; a ceiling passes when there is NOTHING — an emptied list, or a member renamed on disk,

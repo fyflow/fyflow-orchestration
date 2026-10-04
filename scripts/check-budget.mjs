@@ -55,13 +55,18 @@ const fail = (check, msg) => failures.push(`${check}: ${msg}`);
  * stated in a unit nobody fixed is two budgets. The report prints KiB for a reader and
  * compares bytes.
  *
- * **Each member has its own ceiling AND the set has a total, and the total is STRICTLY
- * BELOW their sum.** That is not tidiness: the first cut of this check set the total to
- * the sum exactly, which made `B3` unreachable — a total breach then implied a per-file
- * breach, so `B3` could never fire alone and was a clause with no instance of its own
- * (rule 8 obligation (a): a clause the set cannot provoke is a clause nobody has
- * tested). Below the sum, each member may breathe within its own ceiling while the SET
- * may not grow past one allowance, and both clauses have cases.
+ * **Each member has its own ceiling AND the set has a total, and until W115 the total was
+ * STRICTLY BELOW their sum.** That was not tidiness: the first cut of this check set the total to
+ * the sum exactly, which made `B3` unreachable — a total breach then implied a per-file breach, so
+ * `B3` could never fire alone and was a clause with no instance of its own (rule 8 obligation (a):
+ * a clause the set cannot provoke is a clause nobody has tested).
+ *
+ * **It is EQUAL to their sum again now, and this time by arithmetic rather than by carelessness.**
+ * With every member inside its target, `B4` bounds `TOTAL_CEILING` from both sides onto
+ * `TOTAL_TARGET` and `B5` bounds each ceiling to its target, so the three numbers collapse.
+ * **So `B3` has lost its own case and the `b3` probe declares a compound** — stated here as well
+ * as at `TOTAL_CEILING`, because this is the paragraph that supplies `B3`'s justification and the
+ * adequacy reader found it still asserting the opposite. [Q479](../doc/open-questions.md).
  *
  * **The allowance was for the record step and is not any more, which is a claim this file
  * made about itself and got wrong within a day.** It read *"`CLAUDE.md` is a record-step
@@ -74,10 +79,13 @@ const fail = (check, msg) => failures.push(`${check}: ${msg}`);
  * the register, `doc/README.md`, `README.md`, `doc/decisions/**` and its own file, and
  * not one of them is measured here.
  *
- * **So the allowance is 4,096 bytes and it is for an ordinary edit** — a hazard note in
- * `CLAUDE.md`, a clause in `doc/workflow.md` at a retro — rather than for a ritual. It is
- * granted ONCE to the total and once per member, so the set cannot grow by three
- * allowances while every member stays inside its own.
+ * **And the allowance is now ZERO, which is what a MET budget means.** It was 4,096 bytes for an
+ * ordinary edit — a hazard note in `CLAUDE.md`, a clause in `doc/workflow.md` at a retro — while
+ * any member was still over its target. W115 brought the last one inside, and ceiling, target and
+ * the per-file sum then collapse onto one number: **each member has only target-minus-measurement
+ * to spend**, which is 1,846, 219 and 283 bytes. Anyone who needs more must cut as much as they
+ * write. *The sentence this replaced said the allowance was 4,096 and was false the moment the
+ * budget was met.*
  *
  * **The allowance is written INTO each literal rather than named as a constant, and the clause
  * that made that necessary is the right one.** W113's first cut wrote `570_926 + ALLOWANCE`, and
@@ -92,10 +100,11 @@ const SET = [
   {
     path: 'CLAUDE.md',
     // **23,160 on the tree [W114](../doc/work-items/w114-claude-md-is-guidance-and-npm-run-state-is-the-index.md)
-    // ships, from 570,963 — a 24.7x cut**, and this is the FIRST member of the set to MEET its
+    // ships, from 570,963 — a 24.7x cut**, and **23,754 since W115's record-step correction took
+    // the record step's list to FOUR in this file**. This was the FIRST member of the set to MEET its
     // target. So the ceiling is the TARGET rather than `measured + ALLOWANCE`: 23,160 + 4,096 is
     // 27,256, which is ABOVE 25,600, and a ceiling above a met target permits un-meeting it. The
-    // allowance here is the 2,440 bytes between the measurement and the target, which is an
+    // allowance here is the 1,846 bytes between the measurement and the target, which is an
     // ordinary edit's worth and is tighter than the other two members get — W113's reasoning
     // for `doc/concept.md`, applied to a member that has now arrived.
     // 25 * 1024, written as a literal for the reason below.
@@ -104,11 +113,25 @@ const SET = [
   },
   {
     path: 'doc/workflow.md',
-    // 304,465 at W112's declaration step; **305,594 since**, from that item's own ADR 0077
-    // edit to section 1 rule 5. Untouched by W113. Only a RETRO edits this file, and P27's is
-    // W115's successor rather than part of any item here, so the slack is small and deliberate.
-    // 305,594 measured + the 4,096 allowance.
-    ceiling: 309_690,
+    // **35,621 on the tree [W115](../doc/work-items/w115-the-exit-artifact-and-the-budget-met.md)
+    // ships, from 305,643 — an 8.6x cut**, and this is the LAST member of the set to MEET its
+    // target. So the ceiling is the TARGET, and here that is not a preference: **the declaration
+    // space admits exactly ONE value.** `B4` requires `TOTAL_CEILING <= sumCeilings` and
+    // `TOTAL_CEILING >= TOTAL_TARGET`, so `sumCeilings >= 78,848` and this ceiling must be at
+    // least 35,840; `B5` requires a MET member's ceiling to sit at or below its target, so it must
+    // be at most 35,840. Brute-forced at W115's declaration step over every value in 1..400,000 for
+    // staged sizes of 35,840, 35,000, 30,000 and 20,000: **one legal ceiling and one legal total, in
+    // all four.** *So W112's obligation (d) — "lower the ceiling to your own post-cut measurement" —
+    // is not satisfiable at the last member, and W114's setting of `CLAUDE.md`'s ceiling to its
+    // target was the same arithmetic one member early.*
+    //
+    // **The 4,096-byte allowance ceases to exist when the last member arrives, and that is the
+    // honest cost.** Ceiling, target and the per-file sum all collapse onto one number, so the
+    // headroom here is target-minus-measurement: **219 bytes.** A retro that appends a clause must
+    // cut as much as it writes — which is what a met budget means, stated here rather than
+    // discovered by a red gate (ADR 0076 decision 5, and `doc/concept.md`'s 283 bytes).
+    // 35 * 1024, the target, written as a literal for the reason the SET docstring gives.
+    ceiling: 35_840,
     target: 35 * 1024,
   },
   {
@@ -127,6 +150,43 @@ const SET = [
     target: 17 * 1024,
   },
 ].map(Object.freeze);
+
+/**
+ * **The membership and the allocation, declared BY NAME — `B6` and `B7`, and both are a reader's
+ * finding rather than a precaution.** W115's adequacy reader could run no rung, so both were derived
+ * and both were then CONFIRMED by running them:
+ *
+ *   * `SET` staged as `[doc/concept.md, doc/workflow.md, doc/concept.md]` — `CLAUDE.md` simply
+ *     absent from the always-read set — came back **EXIT 0 with zero failures and a reported total of
+ *     52,730 bytes**. `B1` compares `SET.length` to `MIN_MEMBERS` and three is three; `B3` is
+ *     guarded by `sizes.size === SET.length` and the `Map` de-duplicates to two, so **`B3` was
+ *     skipped in silence as well.** *A count is not a membership* — obligation (d)'s own named
+ *     failure ([Q217](../doc/open-questions.md)), inside the check that enforces the budget.
+ *   * `B4` compares only the SUM of the targets, so the ALLOCATION was free. Targets of
+ *     **1 / 1 / 75 KiB** still sum to 78,848; with the ceilings at 876,800 and `TOTAL_CEILING`
+ *     matching, every clause is green and **the always-read set may grow to 876,800 bytes** — back
+ *     to roughly P27's 893,682 starting point. The smallest instance is a 1 KiB swap between
+ *     `CLAUDE.md` and `doc/concept.md`, which takes `doc/concept.md` over its target and so
+ *     un-arms `B5` on it. **W115 section 4 brute-forced the CEILING with the targets held fixed and
+ *     concluded *exactly one legal value*; that is true of the ceiling and the allocation has a
+ *     continuum.** ADR 0076 decision 5 names a derived ceiling as *"the one way this check can be
+ *     made worthless without a clause going red"*; this was a second way, using nothing but integer
+ *     literals and `N * 1024` products, and it was larger.
+ *
+ * **Its limit is [Q217](../doc/open-questions.md)'s and is stated rather than closed**: these are
+ * literals in the same file as the `SET` they bind, so a member and its declaration are two edits
+ * in one diff. What they buy is that the two edits must AGREE — and the second observer is in
+ * another file, where `check-budget-selftest.mjs`'s `SOURCE` clauses read this declaration's own
+ * TEXT rather than running it, which is obligation (e)'s *read the default declaration*.
+ */
+const DECLARED_PATHS = Object.freeze(['CLAUDE.md', 'doc/workflow.md', 'doc/concept.md']);
+/** Reads the pair in one place, so neither `B6` loop shares a line with the other. */
+const DECLARED_TARGETS_UNDECLARED = (k) => DECLARED_PATHS.indexOf(k) < 0;
+const DECLARED_TARGETS = Object.freeze({
+  'CLAUDE.md': 25 * 1024,
+  'doc/workflow.md': 35 * 1024,
+  'doc/concept.md': 17 * 1024,
+});
 
 // **FROZEN, because a ceiling can be DERIVED at RUN TIME and the source clause cannot see it.**
 // [ADR 0076](../doc/decisions/0076-a-vacuity-floor-counts-what-a-prose-cut-cannot-move.md)
@@ -162,15 +222,31 @@ const SET = [
  */
 const MIN_MEMBERS = 3;
 
-// 891,288 at W112's declaration step with a 16,302 allowance; 893,645 at W113's.
-// **345,928 on the tree W114 ships, plus ONE `ALLOWANCE`** — a **2.6x** drop in the always-read
-// set, and the first time this number has moved DOWN by a cut rather than up by a record step.
-// `CLAUDE.md` is 23,160 of it; `doc/workflow.md`'s 305,643 is now 88% of the set and is W115's.
-// Strictly below the per-file ceilings' sum (355,290), for the reason the `SET` docstring gives,
-// and the per-file headroom sums to 9,362 against this 4,096, so `B3` keeps a case `B2` cannot
-// reach.
-// 345,928 measured + the 4,096 allowance.
-const TOTAL_CEILING = 350_024;
+// 891,288 at W112's declaration step; 893,645 at W113's; 345,928 at W114's.
+// **76,500 on the tree W115 ships — the BUDGET MET**, from 893,682 at the start of
+// [P27](../doc/plans/p27-what-a-register-row-is.md), an **11.7x** drop across its four items.
+// `CLAUDE.md` 23,754, `doc/workflow.md` 35,621, `doc/concept.md` 17,125.
+//
+// *These four figures and the three above them were each stale by the time W115 shipped, and the
+// conformity reader found all five sites. They were right when written and my own later fixes
+// moved two of the members — `CLAUDE.md` +594 for its record-step correction, `doc/workflow.md`
+// net −16. **That is section 1 rule 5's WHEN direction, and the FOURTH time this check has
+// carried a stale figure of its own** (ADR 0076 consequences 1 and 13). What a reader should
+// trust is the report: every number here is printed on every run, which is the only reason a
+// comment may carry one at all.*
+//
+// **This is pinned to exactly one value and no longer carries an allowance**, for the reason the
+// `doc/workflow.md` ceiling comment gives: with every member's ceiling at its target,
+// `sumCeilings == TOTAL_TARGET`, and `B4` bounds this number from both sides onto that one
+// figure. **So it is NOT strictly below the per-file sum any more, and `B3` loses the case `B2`
+// cannot reach** — the defect the `SET` docstring records fixing in this check's first cut,
+// arriving from the opposite direction because the budget was MET rather than because the total was
+// set carelessly. The maintainer was asked and chose to DECLARE it rather than amend
+// [ADR 0076](../doc/decisions/0076-a-vacuity-floor-counts-what-a-prose-cut-cannot-move.md)
+// decision 4: `B3` keeps a probe as a compound and regains its own case the moment any member is
+// UN-met, which is what a fourth member would do. [Q479](../doc/open-questions.md).
+// 77 * 1024, which is both the sum of the ceilings and the sum of the targets.
+const TOTAL_CEILING = 78_848;
 const TOTAL_TARGET = 77 * 1024;  // P27 decision 1's 77 KB, and the per-file targets sum to it
 
 // --- B1: the set is there -----------------------------------------------------
@@ -190,6 +266,17 @@ for (const m of SET) {
   // `statSync().size` rather than reading the file: this check costs ~0.1 s and the
   // bytes on disk are what a session pays for, not the characters after decoding.
   sizes.set(m.path, st.size);
+}
+// **And `B1` fails when the loop did not REACH every member, not only when a member it visited
+// was unreadable** — W115's adequacy reader. Narrowing the loop above left `doc/concept.md`
+// unmeasured and the check printed `MISSING` in its row, `TOTAL ... met`, and **EXIT 0**: a
+// member absent from `sizes` merely trips `B3`'s `sizes.size === SET.length` guard, which
+// DISABLES that clause in silence rather than failing. That is the same guard shape `B6` was
+// added to close, in the one direction `B6` does not cover.
+if (sizes.size !== SET.length) {
+  fail('B1', `the set declares ${SET.length} member(s) and only ${sizes.size} were measured — `
+    + 'a member the loop never reached is not reported by the clauses above, and it silently '
+    + 'disables B3, whose guard compares exactly these two numbers');
 }
 
 // --- B2: each member is inside its own ceiling ---------------------------------
@@ -237,8 +324,17 @@ if (sumTargets !== TOTAL_TARGET) {
 // bound. A universal `ceiling <= target` cannot be the rule: `doc/workflow.md` is 298 KiB against a
 // 35 KiB target and is W115's to cut. **The rule is that MEETING a target is a RATCHET** — once a
 // member is inside its target, its ceiling may not sit above it, so the budget cannot be un-met by
-// raising a number. It has a live case the moment anyone tries, and it is vacuous for a member that
-// has not arrived, which is stated rather than hidden.
+// raising a number.
+//
+// **The counter-example this clause rested on NO LONGER EXISTS, and W115's conformity reader
+// found it.** The reasoning above read *a universal `ceiling <= target` cannot be the rule:
+// `doc/workflow.md` is 298 KiB against a 35 KiB target and is W115's to cut* — and W115 cut it,
+// so **all three members are met and the universal rule and this one now agree on every member
+// of the set.** `B5` is kept in its conditional form rather than universalised, for one measured
+// reason: a FOURTH member joining the set un-met would need a ceiling above its target while it
+// is being cut, which is the whole shape of P27's four items, and the universal rule would refuse
+// that. *So the clause is right and its argument is dated: it has no live case on this tree, and
+// its only instances are declaration edits — which is why its probe mutates the declaration.*
 for (const m of SET) {
   const n = sizes.get(m.path);
   if (n === undefined) continue;
@@ -246,6 +342,64 @@ for (const m of SET) {
     fail('B5', `${m.path} is ${n} bytes and has MET its ${m.target}-byte target, and its ceiling ` +
       `is ${m.ceiling} — above the target. A met target is a ratchet: lower the ceiling to the ` +
       'target, or the budget can be un-met by raising a number rather than by writing one');
+  }
+}
+
+// --- B6: the set is the DECLARED MEMBERSHIP, compared both ways -----------------
+// A count cannot see a duplicate, a substitution, or a member that left while another arrived
+// twice. This compares the declared paths to `SET`'s, in both directions and with multiplicity.
+const setPaths = SET.map((m) => m.path);
+// **The two DECLARATIONS are compared to each other first, and until W115's adequacy reader
+// nothing did.** `B6` reads `DECLARED_PATHS` and `B7` reads `DECLARED_TARGETS`; a path present in
+// the first and absent from the second made `B7` skip that member in SILENCE while `B6` stayed
+// correctly quiet — so `B7`'s own `continue` comment, *B6 has already reported an undeclared
+// member*, was false for exactly the case the guard exists for. Measured: dropping one key left
+// `check:budget` EXIT 0 with `B7` dead for that member. *This is obligation (d)'s own clause — a
+// control must fail where its claim is VACUOUS, not only where its subject is ABSENT.*
+for (const p of DECLARED_PATHS) {
+  if (!(p in DECLARED_TARGETS)) {
+    fail('B6', `${p} is in DECLARED_PATHS and has no DECLARED_TARGETS entry — B7 reads the `
+      + 'second list and would skip that member in silence, so the two declarations are '
+      + 'compared to each other before either is compared to SET');
+  }
+}
+for (const k of Object.keys(DECLARED_TARGETS)) {
+  // `k` rather than `p`, and `.indexOf` rather than `.includes`, DELIBERATELY: written as
+  // `if (!DECLARED_PATHS.includes(p))` this line is byte-identical to the undeclared-member
+  // loop below, and a META mutation pinned to that text then hits whichever comes first. It did:
+  // the entry for the loop below graded STILL CAUGHT on its first run. **That is W109's defect
+  // at P26 — a second comparison duplicating two probe anchors — and the reason ADR 0070
+  // consequence 2 made `gate:full` an item's confirming gate.** *A mutation pinned to text two
+  // clauses share is pinned to neither.*
+  if (DECLARED_TARGETS_UNDECLARED(k)) {
+    fail('B6', `${k} has a DECLARED_TARGETS entry and is not in DECLARED_PATHS`);
+  }
+}
+for (const p of DECLARED_PATHS) {
+  const n = setPaths.filter((q) => q === p).length;
+  if (n !== 1) {
+    fail('B6', `${p} is a declared member of the always-read set and appears ${n} time(s) in SET — ` +
+      'the membership is a LIST of names, not a count: a duplicate hides a member that left, and ' +
+      'B3 is skipped in silence when the two differ');
+  }
+}
+for (const p of setPaths) {
+  if (!DECLARED_PATHS.includes(p)) {
+    fail('B6', `SET declares ${p}, which is not in DECLARED_PATHS — P27 decision 1 decides the ` +
+      'membership, so a member may not be added here without being declared there');
+  }
+}
+
+// --- B7: each member's TARGET is its own decided figure ------------------------
+// `B4` binds only the SUM, which left the allocation free: measured at W115, targets of 1/1/75 KiB
+// sum to the same 78,848 and relax the whole budget 11x with every clause green.
+for (const m of SET) {
+  const want = DECLARED_TARGETS[m.path];
+  if (want === undefined) continue;        // B6 has already reported an undeclared member
+  if (m.target !== want) {
+    fail('B7', `${m.path}'s target is ${m.target} and P27 decision 1 decides ${want} — the SUM of ` +
+      'the targets is not the budget: moving allowance between members un-arms B5 on whichever one ' +
+      'goes over, and B4 cannot see it because the sum is unchanged');
   }
 }
 
@@ -264,11 +418,18 @@ const CHECKS = [
   'B3 the set as a whole is inside the total ceiling',
   'B4 the ceilings and the targets are one budget',
   'B5 a member that has MET its target keeps its ceiling at or below it',
+  'B6 the set is exactly the declared membership, compared both ways',
+  "B7 each member's target is the figure P27 decision 1 decides for it",
 ];
 
 const kib = (n) => `${(n / 1024).toFixed(1)}`;
+// **The ROOT is named, because nothing observed it** — W115's adequacy reader, obligation (e)'s
+// *is what it ran what SHIPS*. `CHECK_BUDGET_ROOT` repoints the measurement at a copy, which is how
+// `--self-test` breaks each clause without touching the real tree; with the root unprinted, a gate
+// run with that variable set in the environment measured a copy and its output was indistinguishable
+// from a run against the repository. One interpolation closes it.
 console.log(`budget check — the always-read set is ${SET.length} document(s), ` +
-  `${measured} bytes (${kib(measured)} KiB)\n`);
+  `${measured} bytes (${kib(measured)} KiB), measured at ${MEASURE_ROOT}\n`);
 console.log('  document                 measured      ceiling       target    over target by');
 for (const m of SET) {
   const n = sizes.get(m.path);
@@ -283,8 +444,17 @@ console.log(`  ${'TOTAL'.padEnd(22)} ${(kib(measured) + ' KiB').padStart(11)} ` 
 // **The distance is printed rather than merely available.** It is what goes stale
 // toward weakness if the ceiling is never lowered, and the only thing that makes that
 // drift visible is a reader seeing it on every gate run.
-console.log(`\nnote: the ceiling is ${kib(TOTAL_CEILING - TOTAL_TARGET)} KiB above the target, ` +
-  'and only ever moves DOWN — each cut item lowers it to its own measurement\n');
+// **This note's second half was advice W115 then proved unsatisfiable, and the adequacy reader
+// found it still printing.** *Each cut item lowers it to its own measurement* was right for
+// every item but the LAST: once the final member is inside its target, `B4` and `B5` pin the
+// ceiling to the target exactly, so there is no measurement left to lower it to. The distance
+// is now permanently 0.0 KiB, and what a reader needs instead is the per-member HEADROOM —
+// the number that can still go stale toward weakness, which is why ADR 0076 decision 5 asks
+// for a printed one at all.
+const headroom = SET.map((m) => `${m.path} ${m.target - (sizes.get(m.path) ?? m.target)}`).join(', ');
+console.log(`\nnote: the ceiling is ${kib(TOTAL_CEILING - TOTAL_TARGET)} KiB above the target and ` +
+  'only ever moves DOWN. Where a target is MET the two are EQUAL and the headroom is all there ' +
+  `is to spend: ${headroom} byte(s)\n`);
 
 for (const c of CHECKS) {
   const id = c.slice(0, 2);

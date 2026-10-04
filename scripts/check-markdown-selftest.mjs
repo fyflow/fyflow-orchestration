@@ -114,8 +114,24 @@ const PROBES = [
     file: README, check: 'M1',
     // Q121's own five originals were links to real files under old names. This
     // repository renames work items, which is the argument for the clause at all.
-    mutate: (t) => t.replace('](work-items/w24-the-gates-own-wiring.md)',
-      '](work-items/w24-the-gate-wiring.md)'),
+    //
+    // **RE-ANCHORED at W115, and it is the SECOND time this file has lost a probe to a prose cut
+    // three directories away.** This mutated `](work-items/w24-the-gates-own-wiring.md)`, which
+    // lived in `doc/README.md`'s `## Current state` block — deleted by
+    // [W115](../doc/work-items/w115-the-exit-artifact-and-the-budget-met.md) under
+    // [Q466](../doc/open-questions.md) — so the mutation matched NOTHING and rule 7 (b) aborted the
+    // lane at 36/37 while `npm run check:markdown` itself stayed green. **The FINDING is
+    // [Q482](../doc/open-questions.md)** — *a probe anchored on a document's PROSE is dated by
+    // whoever edits that prose* — and Q466 is only what authorised the cut; W115's conformity
+    // reader found this comment citing the cause where the finding belongs.
+    // [ADR 0073](../doc/decisions/0073-the-readme-is-for-a-person-the-reference-is-for-an-agent.md)
+    // consequence 2's shape (*removing a subject removed its probes*), which
+    // [ADR 0076](../doc/decisions/0076-a-vacuity-floor-counts-what-a-prose-cut-cannot-move.md)
+    // decision 3 handed forward as an obligation after counting **30 probes in this file anchored
+    // on link text inside documents P27 cuts**. *A probe anchored on a document's PROSE is dated by
+    // whoever edits that prose, and the anchor is the dating.*
+    mutate: (t) => t.replace('](work-items/w37-the-scheduler-pin-moves-to-0-5-2.md)',
+      '](work-items/w37-the-scheduler-pin.md)'),
   },
   {
     name: 'a link one directory too shallow — AGENTS.md`s original defect shape',
@@ -338,10 +354,31 @@ const PROBES = [
       '# Documentation index\n\n~~~\n[label](../no-such-file.md)\n~~~\n'),
   },
   {
-    name: 'a dead link inside a fence INDENTED in a list item — must trip nothing',
-    file: README, check: null,
+    name: 'a dead link AFTER a fence INDENTED in a list item — the indented CLOSER keeps it visible',
+    file: README, check: 'M1',
+    // **RE-SHAPED at W115, because the dead link sat INSIDE the fence and the entry below could
+    // no longer discriminate.** With it inside, the probe declared `check: null` and its META
+    // entry relied on the mutation blanking the REST of `doc/README.md` — opener to EOF, since an
+    // indented closer stops being recognised — so that enough links disappeared to trip a FLOOR.
+    // **That observer was the 517 KB of `## Current state`**, and
+    // [W115](../doc/work-items/w115-the-exit-artifact-and-the-budget-met.md) deleted it under
+    // [Q482](../doc/open-questions.md), the finding; [Q466](../doc/open-questions.md) is what
+    // authorised the cut. At 50 KB the file's links all vanish and **no floor
+    // moves**, because `M4` counts SOURCE DOCUMENTS since W112 and `M3` counts files — so the
+    // entry graded *STILL CAUGHT*: the probe behaving exactly as declared against a check that
+    // had stopped checking. [ADR 0073](../doc/decisions/0073-the-readme-is-for-a-person-the-reference-is-for-an-agent.md)
+    // consequence 2's shape, and the SECOND probe in this file W115 had to repair.
+    //
+    // **So the link moves OUTSIDE the fence, where the closer is what makes it visible.**
+    // Unmutated the indented closer is recognised, the link is not blanked and `M1` FIRES —
+    // measured on the shipped tree, one failure naming `../no-such-file.md`. Mutated, the
+    // blanking runs to EOF, the link goes with it and `M1` falls quiet, which is `disappeared`.
+    // *The probe now has an observer in both directions and none of it depends on how many links
+    // one document happens to carry* — which is
+    // [ADR 0076](../doc/decisions/0076-a-vacuity-floor-counts-what-a-prose-cut-cannot-move.md)
+    // decision 1's criterion applied to a PROBE instead of to a floor.
     mutate: (t) => t.replace('# Documentation index',
-      '# Documentation index\n\n- an item:\n\n  ```\n  [label](../no-such-file.md)\n  ```\n'),
+      '# Documentation index\n\n- an item:\n\n  ```\n  fenced, and no link in here\n  ```\n\n  [label](../no-such-file.md)\n'),
   },
   {
     name: 'a CODE-SPAN heading after a fenced block — the newline half of length preservation',
@@ -644,7 +681,7 @@ const META = [
     'a dead link inside a ~~~ FENCE — must trip nothing',
     (t) => t.replace('(```+|~~~+)', '(```+)')],
   ['blankCode stops allowing an INDENTED closing fence',
-    'a dead link inside a fence INDENTED in a list item — must trip nothing',
+    'a dead link AFTER a fence INDENTED in a list item — the indented CLOSER keeps it visible',
     (t) => t.replace('^[ \\t]*\\2[^\\n]*$/gm', '^\\2[^\\n]*$/gm')],
   ['blankCode stops preserving newlines',
     'a CODE-SPAN heading after a fenced block — the newline half of length preservation',

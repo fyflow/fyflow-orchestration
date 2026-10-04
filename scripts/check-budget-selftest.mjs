@@ -52,7 +52,7 @@ const NODE_MAJOR = Number(process.versions.node.split('.')[0]);
 const MIN_NODE_MAJOR = 24;
 
 // --- the floors on this file's own lists ---------------------------------------
-const MIN_PROBES = 13;
+const MIN_PROBES = 18;   // AT the list's length; W115's adequacy reader deleted one for zero
 // **`MIN_META` and `MIN_SELF` sit AT their lists' lengths, not one below.** W112's adequacy reader
 // measured what the slack bought: one `META` entry deletable for zero (the `B1` isFile half — the
 // probe's own comment calls it *the LENIENT direction* — because the coverage bound only asks that
@@ -60,8 +60,8 @@ const MIN_PROBES = 13;
 // deletable for zero which then **compounded**: that deletion plus `MAX_CORPUS = 99` was also EXIT 0,
 // so the single free slot bought a second weakening. *A floor one below its list is a permission to
 // delete the entry nobody has named.*
-const MIN_META = 11;
-const MIN_SELF = 14;
+const MIN_META = 18;   // AT the list's length; it carried TWO of slack, and had since W112
+const MIN_SELF = 15;   // AT the list's length, and W115 adds the SOURCE entry below
 // **`SOURCE` gets a floor for the same reason `PROBES` and `META` have one, and the
 // reason it was added LAST is the finding.** Emptying it removed five guards whose
 // CASES do not exist on a correct tree, so the child stayed green and the entry read
@@ -75,7 +75,12 @@ const MIN_SELF = 14;
 // can return early.* What is NOT the limit is the clauses themselves: each of the five
 // is bound by a planted case above, so emptying the list to weaken ONE of them is
 // caught whatever this floor says.
-const MIN_SOURCE = 8;
+const MIN_SOURCE = 10;   // AT the list's length. **It was 9 against 10 and the deletable entry
+// was the SOLE observer of `B6`'s and `B7`'s declarations** — W115's adequacy reader deleted it
+// for zero and composed that with a dropped `DECLARED_TARGETS` key for a fully green self-test
+// with `B7` silently skipping `doc/workflow.md`. *A list with a count floor, no content bound and
+// no `SELF` entry for one entry leaving is the least-guarded list in the file, and this one holds
+// every clause no tree and no mutation can reach.*
 
 /**
  * The CONTROL probe's own stdout, captured so a `SOURCE` clause can assert what the check PRINTS
@@ -127,8 +132,8 @@ const PROBES = [
   },
   {
     name: 'doc/workflow.md one byte over its own ceiling, the others tiny',
-    check: 'B2', sizes: { 'CLAUDE.md': 100, 'doc/workflow.md': 309_691, 'doc/concept.md': 100 },
-    says: 'doc/workflow.md is 309691 bytes and its ceiling is 309690',
+    check: 'B2', sizes: { 'CLAUDE.md': 100, 'doc/workflow.md': 35_841, 'doc/concept.md': 100 },
+    says: 'doc/workflow.md is 35841 bytes and its ceiling is 35840',
   },
   {
     name: 'doc/concept.md one byte over its own ceiling, the others tiny',
@@ -136,11 +141,26 @@ const PROBES = [
     says: 'doc/concept.md is 17409 bytes and its ceiling is 17408',
   },
 
-  // --- B3: the SET against the total, with every member legal -------------------
+  // --- B3: the SET against the total, and it has NO CASE OF ITS OWN once the budget is MET -----
+  // **`B3` fired alone until W115 and cannot any more, because the budget ARRIVED.** `B4` bounds
+  // `TOTAL_CEILING` from both sides and `B5` bounds a MET member's ceiling to its target, so with
+  // all three members inside their targets `sumCeilings == TOTAL_CEILING == TOTAL_TARGET` — and
+  // then `measured > TOTAL_CEILING` implies some member is over its own ceiling. Searched at
+  // W115's declaration step over every staging of the three on an 8-byte grid: **no staging keeps
+  // all three inside their ceilings while the set exceeds 78,848.** That is the `SET` docstring's
+  // own *clause with no instance of its own*, arriving from the other direction.
+  //
+  // So this probe declares the COMPOUND, and it is kept rather than deleted because `B3` regains
+  // its own case the moment a member is UN-met — which is what a fourth member of the set would do.
+  // **It is also the discriminating half of a PAIR**: the `B2` probe above stages the same member
+  // one byte over its ceiling with its neighbours TINY and is `[B2]` alone, and this one stages
+  // them AT their ceilings and is `[B2,B3]`. *The difference between the two is `B3`'s whole
+  // remaining subject, which is why both are here.* [Q479](../doc/open-questions.md).
   {
-    name: 'every member AT its ceiling, so the set exceeds the total and no member does',
-    check: 'B3', sizes: { 'CLAUDE.md': 25_600, 'doc/workflow.md': 309_690, 'doc/concept.md': 17_408 },
-    says: 'the always-read set is 352698 bytes and TOTAL_CEILING is 350024',
+    name: 'doc/workflow.md one byte over with the others AT their ceilings, so the SET exceeds its total too',
+    check: 'B3', also: ['B2'],
+    sizes: { 'CLAUDE.md': 25_600, 'doc/workflow.md': 35_841, 'doc/concept.md': 17_408 },
+    says: 'the always-read set is 78849 bytes and TOTAL_CEILING is 78848',
   },
 
   // --- B5: a MET target bounds its own ceiling ---------------------------------
@@ -152,10 +172,77 @@ const PROBES = [
   // with the ceiling still far above — which is the real case, a member arriving at its
   // target before anyone lowers its ceiling. That is exactly what `doc/concept.md` had been
   // doing since before P27 was declared, and it is how this clause found it on its first run.
+  // **A SIZE probe reached `B5` until W115 and cannot any more.** Every member's ceiling is now its
+  // target, so `ceiling > target` is false for all three and no tree can make it true. The clause
+  // is about the DECLARATION, so the probe mutates the declaration — which is where `B4`'s three
+  // probes already live. 40,960 is above the 35,840 target, and raising a ceiling only raises
+  // `sumCeilings`, so `B4` stays silent and this is `[B5]` alone.
   {
-    name: 'doc/workflow.md staged INSIDE its target while its ceiling is still above it',
+    name: 'doc/workflow.md staged INSIDE its target with its ceiling DECLARED above it',
     check: 'B5', sizes: { 'CLAUDE.md': 100, 'doc/workflow.md': 100, 'doc/concept.md': 100 },
-    says: 'doc/workflow.md is 100 bytes and has MET its 35840-byte target, and its ceiling is 309690',
+    declare: (t) => t.replace('    ceiling: 35_840,', '    ceiling: 40_960,'),
+    says: 'doc/workflow.md is 100 bytes and has MET its 35840-byte target, and its ceiling is 40960',
+  },
+
+  // --- B6: the MEMBERSHIP, both ways —------------------------------------------
+  // **Two probes, one per direction, because `B6` is two loops and obligation (d) asks of every
+  // list whether one entry can LEAVE as well as whether one can arrive.** The clause exists
+  // because `B1` counted the set: W115's adequacy reader derived, and this item then CONFIRMED
+  // by running it, that `[concept, workflow, concept]` dropped `CLAUDE.md` out of the
+  // always-read set for **EXIT 0, zero failures and a reported total of 52,730 bytes** — and
+  // took `B3` with it, through the `sizes.size === SET.length` guard, in silence.
+  {
+    // An UNDECLARED member, and `.node-version` is chosen for its size: a member added here
+    // enters the TOTAL, so a large one trips `B3` as well and the probe stops being `[B6]`
+    // alone. `target: 0` keeps `sumTargets` at `TOTAL_TARGET` so `B4` stays quiet, and keeps the
+    // member UN-met so `B5` does too.
+    // **It is `[B1,B6]` and not `[B6]` alone, measured rather than intended.** This file stages
+    // only the three `SET_PATHS` into its scratch tree, so a fourth member names a path that is
+    // not there and `B1` reports it first. Declaring the compound is the honest reading; making
+    // it `[B6]` alone would need the harness to stage a path the set does not declare.
+    name: 'a FOURTH member nobody declared, which B1 sees as absent and B6 as undecided',
+    check: 'B6', also: ['B1'], sizes: 'real',
+    declare: (t) => t.replace('].map(Object.freeze);',
+      "  { path: '.node-version', ceiling: 400_000, target: 0 },\n].map(Object.freeze);"),
+    says: 'which is not in DECLARED_PATHS',
+  },
+  {
+    // **The reader's exact exploit, checked back in as a probe** — v0.8's requirement that an
+    // author re-run the set with the readers' own edits. It is a COMPOUND and declared as one:
+    // the slot that held `CLAUDE.md` now holds `doc/concept.md` with `CLAUDE.md`'s ceiling and
+    // target, so `B6` fires twice (one member missing, one duplicated) and `B7` once (that
+    // slot's target is not the figure decided for `doc/concept.md`).
+    // `[B1,B6,B7]` since W115's second round: the duplicate makes `sizes.size` 2 against a
+    // `SET.length` of 3, which the new `B1` clause reports. **[Q474](../doc/open-questions.md) a
+    // FIFTH time in one item** — a clause added to a check becomes a site of every probe that
+    // stages its subject, and this item has now widened five declared sets of its own.
+    name: 'CLAUDE.md replaced by a SECOND doc/concept.md — the duplicate that hid a missing member',
+    check: 'B6', also: ['B7', 'B1'], sizes: 'real',
+    declare: (t) => t.replace("    path: 'CLAUDE.md',", "    path: 'doc/concept.md',"),
+    says: 'appears 2 time(s) in SET',
+  },
+
+  {
+    // **The two declarations against each other** — the reader's finding 2. Dropping one key is
+    // EXIT 0 before `B6` compares them, with `B7` dead for that member and nothing saying so.
+    name: 'one DECLARED_TARGETS key dropped, so B7 would skip that member in silence',
+    check: 'B6', sizes: 'real',
+    declare: (t) => t.replace("  'doc/workflow.md': 35 * 1024,\n", ''),
+    says: 'has no DECLARED_TARGETS entry',
+  },
+
+  // --- B7: the ALLOCATION, not the sum —---------------------------------------------
+  // **`B4` bound only the SUM, so the allocation was free.** Confirmed by running it: targets of
+  // 1/1/75 KiB sum to the same 78,848, and with the ceilings at 876,800 every clause was green
+  // while the always-read set could grow to **876,800 bytes**. This probe is the SMALLEST
+  // instance — a 1 KiB swap — because the smallest is the one a future item would reach for,
+  // and it leaves `B4` silent by construction.
+  {
+    name: 'one KiB moved from CLAUDE.md`s target to doc/concept.md`s, so the SUM is unchanged',
+    check: 'B7', sizes: 'real',
+    declare: (t) => t.replace('    target: 25 * 1024,', '    target: 26 * 1024,')
+      .replace('    target: 17 * 1024,', '    target: 16 * 1024,'),
+    says: 'the SUM of the targets is not the budget',
   },
 
   // --- B1: the set is there -----------------------------------------------------
@@ -190,7 +277,7 @@ const PROBES = [
   {
     name: 'CLAUDE.md over its ceiling AND the set over its total — the compound',
     check: 'B2', also: ['B3'],
-    sizes: { 'CLAUDE.md': 25_601, 'doc/workflow.md': 309_690, 'doc/concept.md': 17_408 },
+    sizes: { 'CLAUDE.md': 25_601, 'doc/workflow.md': 35_840, 'doc/concept.md': 17_408 },
     says: 'CLAUDE.md is 25601 bytes and its ceiling is 25600',
   },
 
@@ -204,7 +291,7 @@ const PROBES = [
     // Agnostic about the value, for the reason `check-markdown`'s META entries are: W113 moved
     // every ceiling here and a pinned literal would have reported *the mutation matched nothing*.
     declare: (t) => t.replace(/const TOTAL_CEILING = [\d_]+;/, 'const TOTAL_CEILING = 999_999;'),
-    says: 'TOTAL_CEILING is 999999 and the per-file ceilings sum to 352698',
+    says: 'TOTAL_CEILING is 999999 and the per-file ceilings sum to 78848',
   },
   {
     name: 'TOTAL_CEILING declared BELOW the total target — the budget already met',
@@ -213,8 +300,13 @@ const PROBES = [
     says: 'TOTAL_CEILING is 70000 and TOTAL_TARGET is 78848',
   },
   {
+    // **`B7` turned this probe against its own declared set, which is
+    // [Q474](../doc/open-questions.md)'s SECOND occurrence** — *a clause added to a check becomes
+    // a SITE of every probe that stages its subject.* W114 raised that row when `B5` did the same
+    // to four probes here. Moving `17 * 1024` to `18 * 1024` moves the ALLOCATION, which is
+    // precisely what `B7` pins, so the compound is correct and is declared.
     name: 'one per-file target moved, so the targets and TOTAL_TARGET are two budgets',
-    check: 'B4', sizes: 'real',
+    check: 'B4', also: ['B7'], sizes: 'real',
     declare: (t) => t.replace('    target: 17 * 1024,', '    target: 18 * 1024,'),
     says: 'the per-file targets sum to 79872 and TOTAL_TARGET is 78848',
   },
@@ -304,7 +396,7 @@ const META = [
     'doc/workflow.md one byte over its own ceiling, the others tiny',
     (t) => t.replace('for (const m of SET) {\n  const n = sizes.get(m.path);', 'for (const m of SET.slice(0, 1)) {\n  const n = sizes.get(m.path);')],
   ['B3`s comparison disabled',
-    'every member AT its ceiling, so the set exceeds the total and no member does',
+    'doc/workflow.md one byte over with the others AT their ceilings, so the SET exceeds its total too',
     (t) => t.replace(/if \(sizes\.size === SET\.length && measured > TOTAL_CEILING\) \{/, 'if (false) {')],
   ['B4`s per-file-sum clause disabled',
     'TOTAL_CEILING declared ABOVE the per-file ceilings` sum — slack B2 cannot see',
@@ -313,12 +405,33 @@ const META = [
     'TOTAL_CEILING declared BELOW the total target — the budget already met',
     (t) => t.replace(/if \(TOTAL_CEILING < TOTAL_TARGET\) \{/, 'if (false) {')],
   ['B5`s comparison disabled — a MET target stops bounding its ceiling',
-    'doc/workflow.md staged INSIDE its target while its ceiling is still above it',
+    'doc/workflow.md staged INSIDE its target with its ceiling DECLARED above it',
     (t) => t.replace('if (n <= m.target && m.ceiling > m.target) {', 'if (false) {')],
   ['B5`s loop narrowed to the first member — the LOOP BOUND, and `CLAUDE.md` can never trip B5',
-    'doc/workflow.md staged INSIDE its target while its ceiling is still above it',
+    'doc/workflow.md staged INSIDE its target with its ceiling DECLARED above it',
     (t) => t.replace('for (const m of SET) {\n  const n = sizes.get(m.path);\n  if (n === undefined) continue;\n  if (n <= m.target && m.ceiling > m.target) {',
       'for (const m of SET.slice(0, 1)) {\n  const n = sizes.get(m.path);\n  if (n === undefined) continue;\n  if (n <= m.target && m.ceiling > m.target) {')],
+  ['B6`s declared-member loop disabled — a member may LEAVE while another arrives twice',
+    'CLAUDE.md replaced by a SECOND doc/concept.md — the duplicate that hid a missing member',
+    (t) => t.replace('  const n = setPaths.filter((q) => q === p).length;\n  if (n !== 1) {',
+      '  const n = setPaths.filter((q) => q === p).length;\n  if (false) {')],
+  ['B6`s undeclared-member loop disabled — a member may be ADDED without being decided',
+    'a FOURTH member nobody declared, which B1 sees as absent and B6 as undecided',
+    (t) => t.replace('  if (!DECLARED_PATHS.includes(p)) {', '  if (false) {')],
+  ['B6`s cross-declaration clause disabled — the two lists stop being compared to each other',
+    'one DECLARED_TARGETS key dropped, so B7 would skip that member in silence',
+    (t) => t.replace('  if (!(p in DECLARED_TARGETS)) {', '  if (false) {')],
+  ['B7`s loop narrowed to the first member — the LOOP BOUND, which had no entry of its own',
+    'one KiB moved from CLAUDE.md`s target to doc/concept.md`s, so the SUM is unchanged',
+    // **`slice(1, 2)`, the MIDDLE member, and not `slice(0, 1)`.** The named probe moves the
+    // targets of members 0 and 2, so narrowing to member 0 leaves `B7` firing and the entry
+    // graded STILL CAUGHT. W115's adequacy reader predicted it: *no `B7` probe exercises index
+    // 1*. Visiting only the member the probe does NOT break is the one narrowing it can see.
+    (t) => t.replace('for (const m of SET) {\n  const want = DECLARED_TARGETS[m.path];',
+      'for (const m of SET.slice(1, 2)) {\n  const want = DECLARED_TARGETS[m.path];')],
+  ['B7`s comparison disabled — the allocation goes free again at a constant sum',
+    'one KiB moved from CLAUDE.md`s target to doc/concept.md`s, so the SUM is unchanged',
+    (t) => t.replace('  if (m.target !== want) {', '  if (false) {')],
   ['B4`s target-sum clause disabled',
     'one per-file target moved, so the targets and TOTAL_TARGET are two budgets',
     (t) => t.replace(/if \(sumTargets !== TOTAL_TARGET\) \{/, 'if (false) {')],
@@ -353,6 +466,11 @@ const SELF = [
   // `[\s\S]*?\n`, which is minimal to the FIRST newline, so it deleted the entry's
   // opening line and left its body stranded — a syntax error, which the harness
   // correctly reported as *the mutant did not run: this is a crash, not a detection*.
+  // **`SOURCE` had no entry here and was the only list without one** — W115's adequacy reader,
+  // which deleted entry 4 for zero. The floor is AT the length now, so one leaving is caught by
+  // the count; this entry is what proves the count is read.
+  ['one SOURCE entry deleted',
+    (t) => t.replace(/\n  \['the declared membership and allocation agree[\s\S]*?\n    \}\],/, '')],
   ['one META entry deleted',
     (t) => t.replace(/  \['B3`s comparison disabled',[\s\S]*?\],\n/, '')],
   ['META emptied, and MIN_META lowered with it',
@@ -383,8 +501,10 @@ const SELF = [
     (t) => t.replace(/ {4}check: 'B2', sizes: \{ 'CLAUDE\.md': [\d_]+,/,
       "    check: 'B1', sizes: { 'CLAUDE.md': 575_023,")],
   ['a probe whose staging changes NOTHING — what rule 7 (b) catches',
-    (t) => t.replace(/ {4}check: 'B3', sizes: \{[^}]*\},/,
-      "    check: 'B3', sizes: { 'CLAUDE.md': 'real', 'doc/workflow.md': 'real', 'doc/concept.md': 'real' },")],
+    // Re-anchored at W115: the `B3` probe's `check:` and `sizes:` are on two lines now, because
+    // that clause has no case of its own once the budget is MET and the probe declares a compound.
+    (t) => t.replace(/ {4}sizes: \{ 'CLAUDE\.md': 25_600,[^}]*\},/,
+      "    sizes: { 'CLAUDE.md': 'real', 'doc/workflow.md': 'real', 'doc/concept.md': 'real' },")],
   ['a META mutation that is NOT INERT on the untouched tree — what MAX_CORPUS catches',
     (t) => t.replace("    (t) => t.replace(/if \\(n > m\\.ceiling\\) \\{/, 'if (false) {')],",
       "    (t) => t.replace(/if \\(n > m\\.ceiling\\) \\{/, 'if (true) {')],")],
@@ -485,6 +605,40 @@ const SOURCE = [
       return `derived rather than declared: ${bad.join(', ')} — a ceiling computed from the ` +
         'size it bounds passes on every tree for ever';
     }],
+  // **The second observer for `B6` and `B7`, and it is in ANOTHER FILE reading the declaration's
+  // TEXT rather than running it** — obligation (e)'s *read the default declaration rather than
+  // running it*. Without this, `DECLARED_PATHS` and `DECLARED_TARGETS` are literals two lines
+  // from the `SET` they bind, and a member plus its declaration are two edits in one diff
+  // ([Q217](../doc/open-questions.md)). This file's own `SET_PATHS` is an independent copy of the
+  // membership, so the two are compared BOTH WAYS; and the targets are asserted to be the
+  // `N * 1024` figures P27 decision 1 decides, which is what makes moving allowance between
+  // members a source change rather than a number change.
+  ['the declared membership and allocation agree with this file`s own copy',
+    (src) => {
+      const m = /const DECLARED_PATHS = Object\.freeze\(\[([^\]]*)\]\)/.exec(src);
+      if (!m) return 'DECLARED_PATHS is not declared where this reads it';
+      const declared = [...m[1].matchAll(/'([^']+)'/g)].map((x) => x[1]);
+      const missing = SET_PATHS.filter((p) => !declared.includes(p));
+      const extra = declared.filter((p) => !SET_PATHS.includes(p));
+      if (missing.length || extra.length) {
+        return `DECLARED_PATHS and this file's SET_PATHS disagree: missing ${missing.join(', ')}` +
+          `; extra ${extra.join(', ')}`;
+      }
+      const want = { 'CLAUDE.md': 25, 'doc/workflow.md': 35, 'doc/concept.md': 17 };
+      const bad = [];
+      const tm = /const DECLARED_TARGETS = Object\.freeze\(\{([\s\S]*?)\}\)/.exec(src);
+      if (!tm) return 'DECLARED_TARGETS is not declared where this reads it';
+      const got = [...tm[1].matchAll(/'([^']+)':\s*(\d+) \* 1024/g)];
+      if (got.length !== SET_PATHS.length) {
+        return `DECLARED_TARGETS declares ${got.length} N * 1024 target(s) and the set has ` +
+          `${SET_PATHS.length} member(s) — a grep that cannot find its subject reports no ` +
+          'offenders for the same reason an empty check passes';
+      }
+      for (const [, path, kib] of got) {
+        if (want[path] !== Number(kib)) bad.push(`${path} at ${kib} KiB, decided ${want[path]}`);
+      }
+      return bad.length ? `the allocation has moved: ${bad.join('; ')}` : null;
+    }],
   ['the set declares as many members as MIN_MEMBERS requires',
     (src) => {
       const n = [...src.matchAll(/^\s*path: '/gm)].length;
@@ -542,6 +696,15 @@ const SOURCE = [
       }
       if (!/measured\s+ceiling\s+target/.test(CONTROL_OUTPUT.replace(/ +/g, ' '))) {
         bad.push('the control run printed no per-file table header');
+      }
+      // **The ROOT, added at W115 by its adequacy reader's finding 5.** `MEASURE_ROOT` was named
+      // nowhere in the output, so a run with `CHECK_BUDGET_ROOT` set in the environment measured a
+      // COPY and its report was indistinguishable from one against the repository — obligation
+      // (e)'s *is what it ran what SHIPS*, answered by nothing. The banner interpolates it now,
+      // and this is what stops the interpolation being deleted for zero.
+      if (!/measured at \S/.test(CONTROL_OUTPUT)) {
+        bad.push('the control run named no ROOT: the banner must say which tree it measured, or a ' +
+          'run against a copy is indistinguishable from a run against the repository');
       }
       for (const m of [...src.matchAll(/^\s*path: '([^']+)',/gm)].map((x) => x[1])) {
         if (!CONTROL_OUTPUT.includes(m)) bad.push(`the control run did not print a row for ${m}`);

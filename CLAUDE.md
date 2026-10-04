@@ -41,9 +41,12 @@ derives.* [P27](doc/plans/p27-what-a-register-row-is.md) *decisions 2, 4 and 5 a
 the command. The history is `git`.*
 
 **An item does NOT write its status into this file** —
-[ADR 0077](doc/decisions/0077-an-item-does-not-write-its-status-into-claude-md.md). The record step is
-five files and this is not one of them: the plan's Record, `doc/README.md`, `README.md`,
-`doc/open-questions.md` and `doc/decisions/**`.
+[ADR 0077](doc/decisions/0077-an-item-does-not-write-its-status-into-claude-md.md) — **nor into
+[doc/README.md](doc/README.md)**, which left the record step at
+[W115](doc/work-items/w115-the-exit-artifact-and-the-budget-met.md) by the maintainer's answer to
+[Q466](doc/open-questions.md), the question ADR 0077 consequence 4 raised. **The record step is
+FOUR files and neither of these is one of them**: the plan's Record, `README.md`,
+`doc/open-questions.md` and `doc/decisions/**`. `npm run state` is where the state of the work is.
 
 ## The fact that reframes the whole repo
 
@@ -86,12 +89,15 @@ that depends on fan-out completion order.
 ## How work is done
 
 **[doc/workflow.md](doc/workflow.md) — read it before starting any work item.** It carries the
-procedure in sections 1-8 and, above them, one block per version recording the retro that earned each
-clause. **Nothing about it is summarised here**: it is in the same required-reading set as this file,
+procedure in sections 1-8, and BELOW them a version index and a REFUSAL LEDGER — one line per
+repeatedly-refused proposal, with the ordinal that document states for it. **The 159,779 bytes of
+per-version argument that used to sit above those sections are in each plan's Record and in
+`git`**, by [P27](doc/plans/p27-what-a-register-row-is.md) stop-and-ask (b): the arguments were
+kept to stop a rule being re-litigated and the same proposals came back with them present, a
+`doc/` check twenty-five times. **Nothing about it is summarised here**: it is in the same required-reading set as this file,
 so a summary would be a second copy of a document you are about to open — and the summary this
 section carried was measurably stale, reading *ten* overlap measurements and a *1-4* band where
-section 6's band is **0-4** over many times ten. *(That section states its own total twice and
-inconsistently, which is why the total is not repeated here.)*
+section 6's band is **0-4** over fifty-nine measurements.
 
 ```
 concept -> plan -> work items -> verify (ladder, spec conformity, retro) -> record
