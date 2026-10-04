@@ -91,15 +91,15 @@ const fail = (check, msg) => failures.push(`${check}: ${msg}`);
 const SET = [
   {
     path: 'CLAUDE.md',
-    // 569,698 at W112's declaration step; **570,926 on the tree
-    // [W113](../doc/work-items/w113-the-register-is-a-reference.md) ships** — it GREW by 1,228,
-    // which is the one place that item adds anything to this set: the paragraph withdrawing
-    // *read before every work item* (P27 decision 1) and the correction beside the sentence that
-    // asserted it. W114 takes this file to its target.
-    // 570,926 measured + the 4,096 allowance. The arithmetic is ABOVE the line and not beside
-    // it: the clause that reads these spans to the END OF THE LINE on purpose (ADR 0076
-    // consequence 10 — a comma-free bypass), so a trailing comment reads as a derivation.
-    ceiling: 575_022,
+    // **23,160 on the tree [W114](../doc/work-items/w114-claude-md-is-guidance-and-npm-run-state-is-the-index.md)
+    // ships, from 570,963 — a 24.7x cut**, and this is the FIRST member of the set to MEET its
+    // target. So the ceiling is the TARGET rather than `measured + ALLOWANCE`: 23,160 + 4,096 is
+    // 27,256, which is ABOVE 25,600, and a ceiling above a met target permits un-meeting it. The
+    // allowance here is the 2,440 bytes between the measurement and the target, which is an
+    // ordinary edit's worth and is tighter than the other two members get — W113's reasoning
+    // for `doc/concept.md`, applied to a member that has now arrived.
+    // 25 * 1024, written as a literal for the reason below.
+    ceiling: 25_600,
     target: 25 * 1024,
   },
   {
@@ -113,11 +113,17 @@ const SET = [
   },
   {
     path: 'doc/concept.md',
-    // measured 17,125, which is already inside its 17,408-byte target — the only member
-    // of the set that is, and P27 decision 1 says so. **This one does NOT move at W113**:
-    // 17,125 + ALLOWANCE is 21,221, which is ABOVE the ceiling it already has, and a ceiling
-    // only ever moves down. The existing 20,000 is a tighter allowance than the other two get.
-    ceiling: 20_000,
+    // measured 17,125, inside its 17,408-byte target, and until W114 the only member of the
+    // set that was. **It moves at W114 because `B5` FIRED ON IT** on that clause's first run:
+    // a ceiling of 20,000 sits **2,592 bytes above a MET target**, so the budget could be
+    // un-met for this file by writing into it. W113 left the 20,000 calling it *a tighter
+    // allowance than the other two get*, which was true and was not the test — the test is
+    // whether a met target can be un-met by raising a number, and it could.
+    // **The honest cost is that the headroom is now 283 bytes.** A member inside its target has
+    // only target-minus-measurement to spend, and anyone who needs more must cut as much as they
+    // write. That is what a budget is; it is stated here rather than discovered by a red gate.
+    // 17 * 1024, the target, written as a literal for the reason the SET docstring gives.
+    ceiling: 17_408,
     target: 17 * 1024,
   },
 ].map(Object.freeze);
@@ -156,15 +162,15 @@ const SET = [
  */
 const MIN_MEMBERS = 3;
 
-// 891,288 at W112's declaration step with a 16,302 allowance, giving 907,590.
-// **893,645 on the tree W113 ships, plus ONE `ALLOWANCE`** — and the allowance shrank from
-// 16,302 to 4,096 because ADR 0077 took the record step out of this set entirely, which the
-// `SET` docstring above records as a claim this file got wrong about itself. Strictly below the
-// per-file ceilings' sum, for the reason that docstring gives, and **4,849 bytes lower than
-// W112's**: a cut item lowers this to its own measurement, and W113's measurement of the set is
-// HIGHER than W112's by 2,357, because this item cuts a document the set does not contain.
-// 893,645 measured + the 4,096 allowance.
-const TOTAL_CEILING = 897_741;
+// 891,288 at W112's declaration step with a 16,302 allowance; 893,645 at W113's.
+// **345,928 on the tree W114 ships, plus ONE `ALLOWANCE`** — a **2.6x** drop in the always-read
+// set, and the first time this number has moved DOWN by a cut rather than up by a record step.
+// `CLAUDE.md` is 23,160 of it; `doc/workflow.md`'s 305,643 is now 88% of the set and is W115's.
+// Strictly below the per-file ceilings' sum (355,290), for the reason the `SET` docstring gives,
+// and the per-file headroom sums to 9,362 against this 4,096, so `B3` keeps a case `B2` cannot
+// reach.
+// 345,928 measured + the 4,096 allowance.
+const TOTAL_CEILING = 350_024;
 const TOTAL_TARGET = 77 * 1024;  // P27 decision 1's 77 KB, and the per-file targets sum to it
 
 // --- B1: the set is there -----------------------------------------------------
@@ -224,6 +230,25 @@ if (sumTargets !== TOTAL_TARGET) {
     `${TOTAL_TARGET} — two statements of one budget`);
 }
 
+// --- B5: a member that has MET its target keeps its ceiling at or below that target ------
+// **Nothing compared a member to its TARGET, and W114's adequacy reader measured the cost**: with
+// `CLAUDE.md` cut to 23,160 its ceiling could be lowered to 40,960 — *above* the 25,600 target —
+// and every clause here passed, so *under the 25 KB budget* was a report string rather than a
+// bound. A universal `ceiling <= target` cannot be the rule: `doc/workflow.md` is 298 KiB against a
+// 35 KiB target and is W115's to cut. **The rule is that MEETING a target is a RATCHET** — once a
+// member is inside its target, its ceiling may not sit above it, so the budget cannot be un-met by
+// raising a number. It has a live case the moment anyone tries, and it is vacuous for a member that
+// has not arrived, which is stated rather than hidden.
+for (const m of SET) {
+  const n = sizes.get(m.path);
+  if (n === undefined) continue;
+  if (n <= m.target && m.ceiling > m.target) {
+    fail('B5', `${m.path} is ${n} bytes and has MET its ${m.target}-byte target, and its ceiling ` +
+      `is ${m.ceiling} — above the target. A met target is a ratchet: lower the ceiling to the ` +
+      'target, or the budget can be un-met by raising a number rather than by writing one');
+  }
+}
+
 // --- report -------------------------------------------------------------------
 if (process.argv.includes('--self-test')) {
   const mod = process.env.CHECK_BUDGET_SELFTEST ?? join(ROOT, 'scripts', 'check-budget-selftest.mjs');
@@ -238,6 +263,7 @@ const CHECKS = [
   'B2 every member is inside its own ceiling',
   'B3 the set as a whole is inside the total ceiling',
   'B4 the ceilings and the targets are one budget',
+  'B5 a member that has MET its target keeps its ceiling at or below it',
 ];
 
 const kib = (n) => `${(n / 1024).toFixed(1)}`;

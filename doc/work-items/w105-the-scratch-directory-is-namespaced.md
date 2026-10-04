@@ -1,5 +1,7 @@
 # W105 — The scratch directory is namespaced
 
+**Status:** done — see the Record. An item outside any plan.
+
 ```
 Spec: NONE expected — no rule moves.
 Owns: scripts/check-docs-selftest.mjs, scripts/check-markdown-selftest.mjs,

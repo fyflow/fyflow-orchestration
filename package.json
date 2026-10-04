@@ -81,6 +81,7 @@
     "test:browser:all": "npm run build:browser-tests && node scripts/run-browser-tests.mjs chromium firefox webkit",
     "test:l6": "node examples/l6.ts",
     "test:l6:deno": "deno run --import-map=examples/deno-import-map.json --allow-read --allow-net --allow-env examples/l6.ts",
+    "state": "node scripts/state.mjs",
     "gate:full": "npm run gate && npm run selftests",
     "selftests": "node scripts/run-selftests.mjs",
     "gate": "npm run lint && npm run typecheck && npm run check:scheduler && npm run check:policies && npm run check:spec && npm run check:source && npm run check:markdown && npm run check:wiring && npm run check:workers && npm run check:docs && npm run check:budget && npm run test && npm run test:deno && npm run test:browser && npm run test:l6 && npm run test:l6:deno"

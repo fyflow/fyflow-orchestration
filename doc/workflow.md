@@ -1020,7 +1020,7 @@ old. It adopts **three** changes and refuses **five**.
    PROVOCATION, where an exit code cannot tell a detection from a crash. The two directions are
    opposite and this document stated only one of them: *to call a rung green the exit code is
    NECESSARY; to call a provocation caught it is NOT SUFFICIENT.* **And the sentence already existed
-   in the wrong document** — `CLAUDE.md` has carried *the exit code is the predicate and a FAIL count
+   in the wrong document** — `CLAUDE.md` CARRIED, until W114 cut it, *the exit code is the predicate and a FAIL count
    is a secondary signal* since v0.12, is read before every item, and W50 reproduced it two plans
    later in a THIRD secondary signal nobody had named. A procedure belongs in the procedure document.
 
@@ -1762,7 +1762,7 @@ and wrote that explanation into the register, into this document and into a comm
 rows have status cells. The line is now right again, and the correction is recorded in place rather
 than the wrong version being deleted.
 
-**The lesson is narrower than the class and it generalises.** `CLAUDE.md` records P4 getting this
+**The lesson is narrower than the class and it generalises.** `CLAUDE.md` RECORDED, until W114 cut it, P4 getting this
 same line wrong three times *"by chaining a derivation instead of stating a predicate"*, and P5's
 answer was to make it state one. That was right and it is **not sufficient**: the predicate was
 correct and the **evaluation** of it was not. A derivation that runs is not a derivation that is
@@ -2056,7 +2056,7 @@ the seven checks print and `lint` does not.
 > crash, from noise, or from a sibling covering for the clause, which is section 5 rule 8's *read the
 > failure LINES* and [Q138](open-questions.md).
 
-**The sentence existed and was in the wrong document.** `CLAUDE.md` has carried *the exit code is the
+**The sentence existed and was in the wrong document.** `CLAUDE.md` CARRIED, until W114 cut it, *the exit code is the
 predicate and a FAIL count is a secondary signal* since v0.12 and is read before every item; W50
 reproduced it two plans later, in a THIRD secondary signal nobody had named, and **both** its readers
 found it independently. A procedure belongs in the procedure document.
@@ -2835,7 +2835,7 @@ Rules:
    here it is underneath every measurement at once — and *a harness that does not pin the runtime it
    MEASURES reports the environment as the product.* **One occurrence, and the argument is the
    mechanism**, which is how obligation (c)'s LIMIT and P15's *independent* clause were both taken; the
-   evidence that an author does not reach it from the axis alone is that `CLAUDE.md` has carried
+   evidence that an author does not reach it from the axis alone is that `CLAUDE.md` CARRIED
    *Node 16 is what a bare `node` resolves to here* since W5 — measured, `git log -S` over that file —
    and it still cost four probes, in a harness written 115 commits later.
 

@@ -1,8 +1,24 @@
 # W_ — <one line, what this item delivers>
 
-**Status:** todo | in progress | in review | done
+**Status:** todo | in progress | in review | done | reserved
 **Plan:** `[P_](../plans/p_-<slug>.md)` — a real link once the plan exists; left as literal text
 here so a link checker does not chase the placeholder
+
+**The status is the FIRST WORD of that line and `npm run state` reads it** — one of the five above,
+and everything after a dash separator is prose a person reads. `reserved` is the fifth and is not
+decoration: four items were reserved and never issued, which `doc/workflow.md` section 3 calls
+*skipped, never reissued*, and none of the other four words is true of them. W114 shipped that
+derivation, and **the line is now read by something other than a person**: it was missing from seven
+item files and disagreed with its own file's Record in six more, all thirteen found by running it.
+
+*`W114` is written here as bare text rather than as a link, for the same reason the `**Plan:**`
+placeholder above is — and for a second reason that cost a self-test lane. This document is one of
+the FIVE in the tree that carry no relative link, and the other four all sit inside `doc/decisions`
+or `doc/plans`, which is exactly what `check-markdown`'s second `removes` probe strips. A real link
+here closes `M6`'s gap in that probe's tree, so the probe reports `[M1,M3,M4,M5,M6]` against its
+declared `[M1,M3,M4,M5]` and `check:markdown:selftest` exits 1 — while `check:markdown` itself stays
+green. `M6`'s own durability argument says the gap "cannot close while the templates exist"; it
+closes if a template gains a link.*
 
 ```
 Spec:       spec/<file>.md section _        (or: none - this item defines it)

@@ -1,6 +1,6 @@
 # W5 — One real fan-out flow on a real scheduler, and the input sequence that lets a real run be folded
 
-**Status:** in review - built, gated in five runtimes (L0-L5) and two (L6), **both review passes run and every finding acted on**. What remains is the commit
+**Status:** done — built, gated in five runtimes (L0-L5) and two (L6), **both review passes run and every finding acted on**, and committed. *(This read `in review` with *"what remains is the commit"* until 2026-10-03, when `npm run state` — which reads this line — reported it. The commit landed and [P1](../plans/p1-what-satisfies-a-join.md) is complete. [W114](w114-claude-md-is-guidance-and-npm-run-state-is-the-index.md))*
 **Plan:** [P1](../plans/p1-what-satisfies-a-join.md) — **this item closes it**
 
 ```

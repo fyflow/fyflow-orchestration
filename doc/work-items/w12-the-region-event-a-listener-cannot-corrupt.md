@@ -1,6 +1,6 @@
 # W12 — The region event a listener cannot corrupt
 
-**Status:** **in review** - built, gate green, both readers owed
+**Status:** done — built, gate green, both readers RUN and every finding acted on. *(This read `in review ... both readers owed` until 2026-10-03, while this file's own Record read *"built, both readers run, every finding acted on, gate re-run"*. Found by `npm run state`. [W114](w114-claude-md-is-guidance-and-npm-run-state-is-the-index.md))*
 **Plan:** [P4](../plans/p4-the-drivers-lifetime-and-the-handles-it-gives-out.md) — the first of its
 three items, and the only one with nothing to decide
 

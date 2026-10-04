@@ -1,6 +1,6 @@
 # W112 — the budget, the check that holds it, and the three floors re-pointed
 
-**Status:** in progress
+**Status:** done — see the Record, which reads `Status: DONE`. *(This read `in progress` until 2026-10-03, when `npm run state` — the derivation this item ships, and this line's only machine reader — reported it. [W114](w114-claude-md-is-guidance-and-npm-run-state-is-the-index.md))*
 **Plan:** [P27](../plans/p27-what-a-register-row-is.md)
 
 ```

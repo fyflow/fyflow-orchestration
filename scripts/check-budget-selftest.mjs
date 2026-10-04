@@ -122,8 +122,8 @@ const PROBES = [
   // that is what makes each of these `[B2]` alone rather than `[B2,B3]`.
   {
     name: 'CLAUDE.md one byte over its own ceiling, the others tiny',
-    check: 'B2', sizes: { 'CLAUDE.md': 575_023, 'doc/workflow.md': 100, 'doc/concept.md': 100 },
-    says: 'CLAUDE.md is 575023 bytes and its ceiling is 575022',
+    check: 'B2', sizes: { 'CLAUDE.md': 25_601, 'doc/workflow.md': 35_841, 'doc/concept.md': 100 },
+    says: 'CLAUDE.md is 25601 bytes and its ceiling is 25600',
   },
   {
     name: 'doc/workflow.md one byte over its own ceiling, the others tiny',
@@ -132,15 +132,30 @@ const PROBES = [
   },
   {
     name: 'doc/concept.md one byte over its own ceiling, the others tiny',
-    check: 'B2', sizes: { 'CLAUDE.md': 100, 'doc/workflow.md': 100, 'doc/concept.md': 20_001 },
-    says: 'doc/concept.md is 20001 bytes and its ceiling is 20000',
+    check: 'B2', sizes: { 'CLAUDE.md': 100, 'doc/workflow.md': 35_841, 'doc/concept.md': 17_409 },
+    says: 'doc/concept.md is 17409 bytes and its ceiling is 17408',
   },
 
   // --- B3: the SET against the total, with every member legal -------------------
   {
     name: 'every member AT its ceiling, so the set exceeds the total and no member does',
-    check: 'B3', sizes: { 'CLAUDE.md': 575_022, 'doc/workflow.md': 309_690, 'doc/concept.md': 20_000 },
-    says: 'the always-read set is 904712 bytes and TOTAL_CEILING is 897741',
+    check: 'B3', sizes: { 'CLAUDE.md': 25_600, 'doc/workflow.md': 309_690, 'doc/concept.md': 17_408 },
+    says: 'the always-read set is 352698 bytes and TOTAL_CEILING is 350024',
+  },
+
+  // --- B5: a MET target bounds its own ceiling ---------------------------------
+  // **`B5` is about the DECLARATION and a SIZE probe reaches it anyway**, which is worth
+  // saying because the first reading was that it could not. The clause fires when a member is
+  // inside its target AND its ceiling is above that target; `CLAUDE.md` and `doc/concept.md`
+  // now have ceiling == target, so neither can ever trip it. **`doc/workflow.md` can**: its
+  // ceiling is 309,690 against a 35,840 target, so staging it tiny makes it MEET the target
+  // with the ceiling still far above — which is the real case, a member arriving at its
+  // target before anyone lowers its ceiling. That is exactly what `doc/concept.md` had been
+  // doing since before P27 was declared, and it is how this clause found it on its first run.
+  {
+    name: 'doc/workflow.md staged INSIDE its target while its ceiling is still above it',
+    check: 'B5', sizes: { 'CLAUDE.md': 100, 'doc/workflow.md': 100, 'doc/concept.md': 100 },
+    says: 'doc/workflow.md is 100 bytes and has MET its 35840-byte target, and its ceiling is 309690',
   },
 
   // --- B1: the set is there -----------------------------------------------------
@@ -175,8 +190,8 @@ const PROBES = [
   {
     name: 'CLAUDE.md over its ceiling AND the set over its total — the compound',
     check: 'B2', also: ['B3'],
-    sizes: { 'CLAUDE.md': 575_023, 'doc/workflow.md': 309_690, 'doc/concept.md': 20_000 },
-    says: 'CLAUDE.md is 575023 bytes and its ceiling is 575022',
+    sizes: { 'CLAUDE.md': 25_601, 'doc/workflow.md': 309_690, 'doc/concept.md': 17_408 },
+    says: 'CLAUDE.md is 25601 bytes and its ceiling is 25600',
   },
 
   // --- B4: the declaration's own consistency ------------------------------------
@@ -189,7 +204,7 @@ const PROBES = [
     // Agnostic about the value, for the reason `check-markdown`'s META entries are: W113 moved
     // every ceiling here and a pinned literal would have reported *the mutation matched nothing*.
     declare: (t) => t.replace(/const TOTAL_CEILING = [\d_]+;/, 'const TOTAL_CEILING = 999_999;'),
-    says: 'TOTAL_CEILING is 999999 and the per-file ceilings sum to 904712',
+    says: 'TOTAL_CEILING is 999999 and the per-file ceilings sum to 352698',
   },
   {
     name: 'TOTAL_CEILING declared BELOW the total target — the budget already met',
@@ -226,7 +241,7 @@ const GRADER_CONTROLS = [
     // and `wrong-reason` is the only verdict left.
     name: 'GRADER CONTROL — trips B2 as declared, with a reason the check never prints',
     expect: 'wrong-reason', check: 'B2',
-    sizes: { 'CLAUDE.md': 575_023, 'doc/workflow.md': 100, 'doc/concept.md': 100 },
+    sizes: { 'CLAUDE.md': 25_601, 'doc/workflow.md': 35_841, 'doc/concept.md': 100 },
     says: 'CLAUDE.md is 999999 bytes and its ceiling is 42',
   },
   {
@@ -249,7 +264,7 @@ const GRADER_CONTROLS = [
     // *the check did not run* from *the check crashed*.
     name: 'GRADER CONTROL — the banner removed, so the check runs and cannot be seen to: did-not-run',
     expect: 'did-not-run', check: 'B2',
-    sizes: { 'CLAUDE.md': 586_001, 'doc/workflow.md': 100, 'doc/concept.md': 100 },
+    sizes: { 'CLAUDE.md': 40_961, 'doc/workflow.md': 35_841, 'doc/concept.md': 100 },
     declare: (t) => t.replace('console.log(`budget check — the always-read set is', 'console.log(`BANNER REMOVED — the always-read set is'),
   },
 ];
@@ -297,6 +312,13 @@ const META = [
   ['B4`s total-target clause disabled',
     'TOTAL_CEILING declared BELOW the total target — the budget already met',
     (t) => t.replace(/if \(TOTAL_CEILING < TOTAL_TARGET\) \{/, 'if (false) {')],
+  ['B5`s comparison disabled — a MET target stops bounding its ceiling',
+    'doc/workflow.md staged INSIDE its target while its ceiling is still above it',
+    (t) => t.replace('if (n <= m.target && m.ceiling > m.target) {', 'if (false) {')],
+  ['B5`s loop narrowed to the first member — the LOOP BOUND, and `CLAUDE.md` can never trip B5',
+    'doc/workflow.md staged INSIDE its target while its ceiling is still above it',
+    (t) => t.replace('for (const m of SET) {\n  const n = sizes.get(m.path);\n  if (n === undefined) continue;\n  if (n <= m.target && m.ceiling > m.target) {',
+      'for (const m of SET.slice(0, 1)) {\n  const n = sizes.get(m.path);\n  if (n === undefined) continue;\n  if (n <= m.target && m.ceiling > m.target) {')],
   ['B4`s target-sum clause disabled',
     'one per-file target moved, so the targets and TOTAL_TARGET are two budgets',
     (t) => t.replace(/if \(sumTargets !== TOTAL_TARGET\) \{/, 'if (false) {')],
@@ -370,11 +392,11 @@ const SELF = [
     // 999_999 rather than a figure near a ceiling: this must exceed CLAUDE.md's ceiling however
     // far W114 lowers it, and a number chosen just above today's goes stale with the next cut.
     (t) => t.replace("    check: null, sizes: 'real',",
-      "    check: null, sizes: { 'CLAUDE.md': 999_999, 'doc/workflow.md': 100, 'doc/concept.md': 100 },")],
+      "    check: null, sizes: { 'CLAUDE.md': 999_999, 'doc/workflow.md': 35_841, 'doc/concept.md': 100 },")],
   ['a GRADER control declaring the wrong expected verdict — what grading the grader catches',
     (t) => t.replace("    expect: 'crash', check: 'B2', sizes: 'real',", "    expect: 'caught', check: 'B2', sizes: 'real',")],
   ['a probe naming a reason the check never prints — what the reason check catches',
-    (t) => t.replace("    says: 'doc/concept.md is 20001 bytes and its ceiling is 20000',",
+    (t) => t.replace("    says: 'doc/concept.md is 17409 bytes and its ceiling is 17408',",
       "    says: 'doc/concept.md is 1 byte and its ceiling is 2',")],
   ['a SET member this file does not expect — what the SOURCE membership bound catches',
     (t) => t.replace("const SET_PATHS = ['CLAUDE.md', 'doc/workflow.md', 'doc/concept.md'];",

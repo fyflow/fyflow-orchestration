@@ -33,7 +33,17 @@ status the tail duplicated.
    |---|---|---|
    | `README.md` | a **person** who will USE the library | what it is, install, a few usage examples, how to run the tests, where to read more |
    | `AGENTS.md` | an **agent** USING the library | the extensive reference — every snippet extracted and TYPECHECKED by the gate, and the 32 of 38 tagged `run` also EXECUTED |
-   | `CLAUDE.md` | an **agent** DEVELOPING the library | the guidelines, the hazards, the state of the work |
+   | `CLAUDE.md` | an **agent** DEVELOPING the library | the guidelines, the hazards, ~~the state of the work~~ |
+
+   **The third term was struck on 2026-10-03 by
+   [ADR 0077](0077-an-item-does-not-write-its-status-into-claude-md.md) decision 3**, and
+   [W114](../work-items/w114-claude-md-is-guidance-and-npm-run-state-is-the-index.md) is what makes
+   the cell unambiguously false: that file's `## Current state` block — 532,021 bytes, 93.2% of it —
+   is gone, and the state of the work is `npm run state`. *This ADR gave each root document one
+   AUDIENCE and did not ask what that audience could not do without, which is
+   [P27](../plans/p27-what-a-register-row-is.md) decision 1's question; the strike is recorded here
+   rather than left to a reader to infer from a later ADR, because W114's conformity reader found the
+   cell still asserting it after the thing it describes had been deleted.*
 
 2. **`README.md` carries no repo status.** No plan history, no work-item ids in prose, no counts that
    track the suite, and no correction archaeology. What it may carry about the project's state is what

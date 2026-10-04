@@ -1,6 +1,6 @@
 # W6 — The non-success rows at ladder L6, and the harness's inbound step
 
-**Status:** in review - built, both readers run, every finding acted on and the gate re-run. What remains is the commit
+**Status:** done — built, both readers run, every finding acted on, the gate re-run and committed. *(This read `in review` with *"what remains is the commit"* until 2026-10-03, when `npm run state` reported it. [P2](../plans/p2-the-non-success-half-on-a-real-scheduler.md) is complete and retro'd. [W114](w114-claude-md-is-guidance-and-npm-run-state-is-the-index.md))*
 **Plan:** [P2](../plans/p2-the-non-success-half-on-a-real-scheduler.md) — this item is the whole of it
 
 ```

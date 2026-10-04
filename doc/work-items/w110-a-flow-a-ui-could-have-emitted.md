@@ -1,5 +1,8 @@
 # W110 — A flow a UI could have emitted
 
+**Status:** done — see the Record.
+**Plan:** [P26](../plans/p26-what-a-flow-can-say-without-code.md)
+
 ```
 Spec: NONE expected — an exit artifact writes no rule, so `spec/flow-definition.md` stays v0.28
       and `C4` stays at 42. If an `FD-V` turns out to be needed, W99's lesson applies first — an

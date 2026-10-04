@@ -1,6 +1,6 @@
 # P13 — When is a declared reference refused, and what does it cost?
 
-**Status:** IN PROGRESS — declared 2026-09-10 after
+**Status:** complete and retro'd — this file's own Retro section reads `P13'S RETRO IS RUN` and W47 is DONE. *(This read `IN PROGRESS` with *"W47 is outstanding"* until 2026-10-04, found by W114's readers. This plan has no `## Retro` HEADING — its retro is prose — which is why `npm run state`'s structural clause cannot see it and a person had to.)* Declared 2026-09-10 after
 [P12](p12-what-a-node-receives-and-what-a-decision-sees.md) closed and `doc/workflow.md` reached
 [v0.13](../workflow.md). **W45 and W46 are DONE**; W47 is outstanding.
 **It is a PRODUCT plan, and it is the second in a row** — the first back-to-back pair since P1-P2.

@@ -1,5 +1,7 @@
 # W107 — The README is for a person who will use the library
 
+**Status:** done — see the Record. An item outside any plan.
+
 ```
 Spec: NONE expected — no rule moves.
 Owns: README.md, scripts/check-docs.mjs, scripts/check-docs-selftest.mjs,

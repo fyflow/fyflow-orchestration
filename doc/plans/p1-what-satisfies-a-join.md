@@ -1,6 +1,6 @@
 # P1 — What satisfies a join
 
-**Status:** **complete, pending W5's spec-conformity pass.** All five work items are built. The question is answered - [ADR 0003](../decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md), **live tokens** - and W5 ran it on a real scheduler in two runtimes: `p1-routed-away` completes under `live-token` and is **`stuck`** under `arrival-count`, with `publish` never dispatched. Three more ADRs came out of W5 (0013-0015) and five of the plan's carried questions closed
+**Status:** complete — all five work items built, and [W5](../work-items/w5-one-real-fan-out-flow-on-a-real-scheduler.md)'s spec-conformity pass RUN. *(This read **"complete, pending W5's spec-conformity pass"** until 2026-10-04. W5's own header had recorded both review passes as run since P1 closed; W114 corrected that header's `in review` to `done`, and this line is the claim that correction falsified. Found by W114's readers.)* The question is answered - [ADR 0003](../decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md), **live tokens** - and W5 ran it on a real scheduler in two runtimes: `p1-routed-away` completes under `live-token` and is **`stuck`** under `arrival-count`, with `publish` never dispatched. Three more ADRs came out of W5 (0013-0015) and five of the plan's carried questions closed
 **Question this plan answers:** *When a decision inside a fan-out branch routes that branch away
 from its join, does expected-arrival counting actually break — and does live-token accounting
 actually survive it?*

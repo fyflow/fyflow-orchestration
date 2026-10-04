@@ -1,5 +1,8 @@
 # W109 — A node that only transforms
 
+**Status:** done — see the Record.
+**Plan:** [P26](../plans/p26-what-a-flow-can-say-without-code.md)
+
 ```
 Spec: spec/flow-definition.md — the built-in node type, and the refusal of one declaring no
       `transform`. spec/runtime-targets.md if the envelope's contract moves.

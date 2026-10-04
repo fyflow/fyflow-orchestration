@@ -1,5 +1,7 @@
 # W104 — The snippet loop runs concurrently
 
+**Status:** done — see the Record. An item outside any plan.
+
 ```
 Spec: NONE expected — no rule moves. `doc/workflow.md` section 8's budget prose carries
       the number if it changes.

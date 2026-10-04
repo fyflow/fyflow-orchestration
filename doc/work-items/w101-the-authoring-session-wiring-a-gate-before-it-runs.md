@@ -1,6 +1,6 @@
 # W101 — the authoring session: wiring a gate before it runs
 
-**Status:** **in progress** — declared 2026-09-30 on the tree [W100](w100-what-a-key-path-must-satisfy.md)
+**Status:** done — 2026-09-30; see the Record. *(This read `in progress` until 2026-10-03, while this file's own Record read `DONE 2026-09-30, and it is P25's EXIT ARTIFACT`. Found by `npm run state`. [W114](w114-claude-md-is-guidance-and-npm-run-state-is-the-index.md))* Declared 2026-09-30 on the tree [W100](w100-what-a-key-path-must-satisfy.md)
 ships ([W99](w99-what-a-route-guarantees.md) and W100 both DONE; highest W on disk 100; the register's
 live table gives Q417, with W100's Q418-Q419 reserved-and-unused and therefore SPENT; `ls doc/decisions`
 gives 0068). **Reserves Q420-Q424** — P25's block, and the plan expects **W102 unused and ADR 0069

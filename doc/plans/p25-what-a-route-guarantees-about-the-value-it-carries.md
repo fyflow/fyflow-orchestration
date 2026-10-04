@@ -1,6 +1,6 @@
 # P25 — What a ROUTE guarantees about the value it carries
 
-**Status:** **DECLARED** 2026-09-29 on `787d8fc` ([W98](../work-items/w98-what-a-row-may-assert-about-a-dispatch-order.md),
+**Status:** complete and retro'd — see the Record, which reads `COMPLETE 2026-09-30, three items, all DONE`, and the Retro below it. *(This read `DECLARED` until 2026-10-04, when `npm run state`'s agreement clause reported it: a plan carrying a `## Retro` whose Status does not say complete is the unambiguous case, and this was its ONLY live instance. BOTH of W114's readers found it independently — the conformity reader by deriving the state from this file, the adequacy reader by inverting the preference and watching the right answer appear.)* Declared 2026-09-29 on `787d8fc` ([W98](../work-items/w98-what-a-row-may-assert-about-a-dispatch-order.md),
 pushed), with P1-P24 complete and retro'd, `doc/workflow.md` [v0.25](../workflow.md), and three items outside
 any plan since P24's retro ([W96](../work-items/w96-the-counts-and-the-index-a-check-can-compare-and-q394.md),
 [W97](../work-items/w97-obligation-f-across-ladder-l6.md), W98) all DONE. **Both stop-and-asks ANSWERED the

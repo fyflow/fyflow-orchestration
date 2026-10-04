@@ -1,6 +1,6 @@
 # W100 — what a KEY PATH must satisfy, and what a run does when it satisfies nothing
 
-**Status:** **in progress** — declared 2026-09-29 on `e06fa68` ([W99](w99-what-a-route-guarantees.md),
+**Status:** done — 2026-09-30; see the Record. *(This read `in progress` until 2026-10-03, while this file's own Record read `DONE 2026-09-30`. Found by `npm run state`. [W114](w114-claude-md-is-guidance-and-npm-run-state-is-the-index.md))* Declared 2026-09-29 on `e06fa68` ([W99](w99-what-a-route-guarantees.md),
 pushed), before any file under `Owns` was edited.
 **Plan:** [P25](../plans/p25-what-a-route-guarantees-about-the-value-it-carries.md) — *what does a gate's
 ROUTE guarantee about the value it carries, and what must its KEY PATH satisfy for that guarantee to exist?*

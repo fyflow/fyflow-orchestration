@@ -1,5 +1,7 @@
 # W103 — The local gate is the ladder
 
+**Status:** done — 2026-09-30; see the Record. An item outside any plan.
+
 ```
 Spec: NONE — no rule moves. `doc/workflow.md` section 8's budget table gains the row ADR 0070 fills.
 Owns: package.json, scripts/check-source.mjs, scripts/check-source-selftest.mjs,

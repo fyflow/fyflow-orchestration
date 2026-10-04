@@ -1,5 +1,8 @@
 # W108 — A predicate is data
 
+**Status:** done — see the Record.
+**Plan:** [P26](../plans/p26-what-a-flow-can-say-without-code.md)
+
 ```
 Spec: spec/flow-definition.md — a `when` may be a declared PREDICATE, and the FD-V family that
       refuses one. Version bump expected; the refusal count MOVES.
