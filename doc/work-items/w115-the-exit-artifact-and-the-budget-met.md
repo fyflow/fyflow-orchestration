@@ -367,7 +367,7 @@ which is why it is not deleted.
 
 ### The arithmetic the budget rests on
 
-**The brief handed this item the sum `23,160 + 35,840 + 17,125 = 76,125` to verify before starting, and it verifies — as arithmetic. It is not the budget.** `35,840` is `doc/workflow.md`'s TARGET and the other two terms are MEASUREMENTS, so the figure is a mixed predicate: **the measured set is 23,160 + 35,576 + 17,125 = 75,890**, which is what `check:budget` prints, and the difference of 264 is exactly that file's headroom. *This is [Q469](../open-questions.md)'s hazard inside the section whose whole subject is Q469, and the adequacy reader found it. The item verified the sum as given rather than asking what its terms were.* The honest statement, re-taken on the tree this item ships: the three targets sum to **78,848**, the shipped set measures **76,500** — `CLAUDE.md` 23,754, `doc/workflow.md` 35,621, `doc/concept.md` 17,125 — and what each member has to spend is target-minus-measurement, **1,846, 219 and 283 bytes**, which `check:budget` prints in place of a distance that is permanently zero. *This paragraph has now been re-taken TWICE: it first said 76,125 with a ceiling mixed into a sum of measurements, then 75,890, which acting on the readers made stale by 610 — `CLAUDE.md` +594 for its record-step correction and `doc/workflow.md` net −16. Section 1 rule 5's **when** direction is the clause, the conformity reader found it twice, and the figure a reader should trust is the one `check:budget` prints.*
+**The brief handed this item the sum `23,160 + 35,840 + 17,125 = 76,125` to verify before starting, and it verifies — as arithmetic. It is not the budget.** `35,840` is `doc/workflow.md`'s TARGET and the other two terms are MEASUREMENTS, so the figure is a mixed predicate: **the measured set is 23,160 + 35,576 + 17,125 = 75,890**, which is what `check:budget` prints, and the difference of 264 is exactly that file's headroom. *This is [Q469](../open-questions.md)'s hazard inside the section whose whole subject is Q469, and the adequacy reader found it. The item verified the sum as given rather than asking what its terms were.* The honest statement, re-taken on the tree this item ships: the three targets sum to **78,848**, the shipped set measures **76,500** — `CLAUDE.md` 23,754, `doc/workflow.md` 35,638, `doc/concept.md` 17,125 — and what each member has to spend is target-minus-measurement, **1,846, 219 and 283 bytes**, which `check:budget` prints in place of a distance that is permanently zero. *This paragraph has now been re-taken TWICE: it first said 76,125 with a ceiling mixed into a sum of measurements, then 75,890, which acting on the readers made stale by 610 — `CLAUDE.md` +594 for its record-step correction and `doc/workflow.md` net −16. Section 1 rule 5's **when** direction is the clause, the conformity reader found it twice, and the figure a reader should trust is the one `check:budget` prints.*
 
 ## 5. What stays, and the two ledgers
 
@@ -497,7 +497,7 @@ to re-take.
 
 **Status: the BUDGET IS MET.** `check:budget` reports every member of the always-read set inside its
 own target and the set inside the total: **76,500 bytes against 78,848**, from **893,682** at P27's
-declaration — an **11.7x** drop, and P27's exit artifact. `doc/workflow.md` is **35,621 from
+declaration — an **11.7x** drop, and P27's exit artifact. `doc/workflow.md` is **35,638 from
 305,643**, an 8.6x cut; `doc/README.md` is **51,320 from 538,088**, a 10.5x cut, and out of the
 record step, which is now **FOUR** files. The check carries **seven** clauses where it carried five.
 
@@ -505,7 +505,7 @@ record step, which is now **FOUR** files. The check carries **seven** clauses wh
 
 | | before | after |
 |---|---|---|
-| `doc/workflow.md` | 305,643 / 3,380 lines | **35,621** — 219 bytes under its 35,840 target |
+| `doc/workflow.md` | 305,643 / 3,380 lines | **35,638** — 202 bytes under its 35,840 target |
 | its version blocks (L1-1801) and adapted-from table | 159,779 + 22,898 | **deleted to `git`**, replaced by a version INDEX and the REFUSAL LEDGER |
 | its live sections 1-8 | 122,966 | about **32,000**, by stop-and-ask (b)'s mandate |
 | `doc/README.md` | 538,088 / 3,181 lines | **51,320** |
@@ -824,6 +824,35 @@ reports a **1.91x** wrong-owner separation over the live-sections cut against th
 and neither could reconstruct the other's predicate. Both agree the screen is too thin to carry the
 claim — 38 tokens over 26 paragraphs, 56 over 116 owners — which is the conclusion either figure
 supports, so the reconciliation is left open rather than resolved by picking one.
+
+### A false claim this item introduced, found while briefing the next unit
+
+**The shipped section 6 said *the ORDINAL is that count: fifty-nine, so the next is the SIXTIETH*,
+and that was wrong by fourteen.** The pre-cut section stated **three** inconsistent figures for one
+thing — *Measured **sixty-five** times now:*, a list of **71** entries, and *__fifty-nine__
+measurements* — which is exactly what `CLAUDE.md`'s note meant by *that section states its own total
+twice and inconsistently*, a note this item also removed. **The cut kept the SMALLEST of the three
+and then made it load-bearing** by adding *so the next is the SIXTIETH*.
+
+**Derived instead:** the list carried **71** entries, W113 and W114 published the **seventy-second**
+and **seventy-third** by counting it, which reconciles at 71 + 2 = 73, and W115's two reader pairs
+make **75**. So the next is the seventy-sixth. *[Q469](../open-questions.md)'s shape — picking one of
+three inherited figures and building on it — and the repository's most common defect, a written claim
+nobody ran, introduced by the item whose own §2 is about that hazard.*
+
+**And correcting it cost more than the budget had.** The first correction was 574 bytes against 219
+of headroom and the patch script's own guard refused to write it, so the number went into the
+document and this paragraph went here. *That is the trap this item built, working as designed: a met
+budget means a correction must cut as much as it writes, and the place for archaeology is the file
+with no budget.*
+
+*Every measured byte figure in this file has now been re-taken FIVE times, the last by this
+item's own 17-byte correction of the overlap total. **`check-budget.mjs`'s comments no longer
+carry any of them** — P27 decision 4 applied to the class that kept firing: the check prints the
+measurement, the ceiling, the target and the per-member headroom on every run, so a comment has
+no business holding a copy. Only the DECIDED numbers stay there, which move by decision rather
+than by editing. This file keeps its figures because an item's Record is a historical claim
+scoped to the tree it shipped, which is what section 1 rule 5 asks of one.*
 
 ### Questions
 

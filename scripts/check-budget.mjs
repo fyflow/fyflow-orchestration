@@ -83,7 +83,7 @@ const fail = (check, msg) => failures.push(`${check}: ${msg}`);
  * ordinary edit — a hazard note in `CLAUDE.md`, a clause in `doc/workflow.md` at a retro — while
  * any member was still over its target. W115 brought the last one inside, and ceiling, target and
  * the per-file sum then collapse onto one number: **each member has only target-minus-measurement
- * to spend**, which is 1,846, 219 and 283 bytes. Anyone who needs more must cut as much as they
+ * to spend**, and the report prints that per member. Anyone who needs more must cut as much as they
  * write. *The sentence this replaced said the allowance was 4,096 and was false the moment the
  * budget was met.*
  *
@@ -100,11 +100,11 @@ const SET = [
   {
     path: 'CLAUDE.md',
     // **23,160 on the tree [W114](../doc/work-items/w114-claude-md-is-guidance-and-npm-run-state-is-the-index.md)
-    // ships, from 570,963 — a 24.7x cut**, and **23,754 since W115's record-step correction took
-    // the record step's list to FOUR in this file**. This was the FIRST member of the set to MEET its
+    // ships, from 570,963 — a 24.7x cut**, and it grew again at W115, which took the record step's
+    // list to FOUR in this file. This was the FIRST member of the set to MEET its
     // target. So the ceiling is the TARGET rather than `measured + ALLOWANCE`: 23,160 + 4,096 is
     // 27,256, which is ABOVE 25,600, and a ceiling above a met target permits un-meeting it. The
-    // allowance here is the 1,846 bytes between the measurement and the target, which is an
+    // allowance here is whatever the report prints between the measurement and the target, an
     // ordinary edit's worth and is tighter than the other two members get — W113's reasoning
     // for `doc/concept.md`, applied to a member that has now arrived.
     // 25 * 1024, written as a literal for the reason below.
@@ -113,8 +113,9 @@ const SET = [
   },
   {
     path: 'doc/workflow.md',
-    // **35,621 on the tree [W115](../doc/work-items/w115-the-exit-artifact-and-the-budget-met.md)
-    // ships, from 305,643 — an 8.6x cut**, and this is the LAST member of the set to MEET its
+    // **cut from 305,643 to about 35.6 KiB by
+    // [W115](../doc/work-items/w115-the-exit-artifact-and-the-budget-met.md) — an 8.6x cut**, and
+    // this is the LAST member of the set to MEET its
     // target. So the ceiling is the TARGET, and here that is not a preference: **the declaration
     // space admits exactly ONE value.** `B4` requires `TOTAL_CEILING <= sumCeilings` and
     // `TOTAL_CEILING >= TOTAL_TARGET`, so `sumCeilings >= 78,848` and this ceiling must be at
@@ -127,7 +128,7 @@ const SET = [
     //
     // **The 4,096-byte allowance ceases to exist when the last member arrives, and that is the
     // honest cost.** Ceiling, target and the per-file sum all collapse onto one number, so the
-    // headroom here is target-minus-measurement: **219 bytes.** A retro that appends a clause must
+    // headroom here is target-minus-measurement, which the report prints. A retro that adopts a clause must
     // cut as much as it writes — which is what a met budget means, stated here rather than
     // discovered by a red gate (ADR 0076 decision 5, and `doc/concept.md`'s 283 bytes).
     // 35 * 1024, the target, written as a literal for the reason the SET docstring gives.
@@ -223,17 +224,19 @@ const DECLARED_TARGETS = Object.freeze({
 const MIN_MEMBERS = 3;
 
 // 891,288 at W112's declaration step; 893,645 at W113's; 345,928 at W114's.
-// **76,500 on the tree W115 ships — the BUDGET MET**, from 893,682 at the start of
-// [P27](../doc/plans/p27-what-a-register-row-is.md), an **11.7x** drop across its four items.
-// `CLAUDE.md` 23,754, `doc/workflow.md` 35,621, `doc/concept.md` 17,125.
+// **The BUDGET IS MET since W115**, from 893,682 bytes at the start of
+// [P27](../doc/plans/p27-what-a-register-row-is.md) — roughly an 11.7x drop across its four items.
 //
-// *These four figures and the three above them were each stale by the time W115 shipped, and the
-// conformity reader found all five sites. They were right when written and my own later fixes
-// moved two of the members — `CLAUDE.md` +594 for its record-step correction, `doc/workflow.md`
-// net −16. **That is section 1 rule 5's WHEN direction, and the FOURTH time this check has
-// carried a stale figure of its own** (ADR 0076 consequences 1 and 13). What a reader should
-// trust is the report: every number here is printed on every run, which is the only reason a
-// comment may carry one at all.*
+// *This comment used to name all three members' measured sizes and the set's total, and it was
+// STALE FIVE TIMES in W115 alone — four found by that item's conformity reader and the fifth
+// caused by its own 17-byte correction of an unrelated figure. The cause is structural: **every
+// edit to a budgeted document dates every prose copy of its size**, and W115 edited
+// `doc/workflow.md` six times. So the measured figures are GONE from this file's comments and
+// only the DECIDED ones remain — the targets, which are P27 decision 1's and move by decision
+// rather than by editing. **`check:budget` prints the measurement, the ceiling, the target and
+// the per-member headroom on every run**, which is P27 decision 4: a fact the tree COMPUTES is
+// not written down. Section 1 rule 5's WHEN direction, answered by deleting the copy instead of
+// re-taking it for a sixth time.*
 //
 // **This is pinned to exactly one value and no longer carries an allowance**, for the reason the
 // `doc/workflow.md` ceiling comment gives: with every member's ceiling at its target,

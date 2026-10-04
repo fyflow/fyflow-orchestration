@@ -329,7 +329,7 @@ was about a tree that no longer existed. The retro that adopted this broke it wi
 and its Record's numbers are taken with the tree still.**
 
 **Why two readers rather than one asking both questions. The number to carry is the ABSOLUTE one:
-two readers produce 0-4 shared findings, whatever the item's size** — **fifty-nine measurements**,
+two readers produce 0-4 shared findings, whatever the item's size** — **seventy-five measurements**,
 and P6 declares the question **settled and closed to re-litigation**. *The fraction is noise: it has
 read 8% to 17% across items from a one-line fix to the largest surface change here, and W41's
 **1 of 116** is the largest denominator ever recorded and did not move the numerator.*
@@ -338,10 +338,10 @@ read 8% to 17% across items from a one-line fix to the largest surface change he
 list of claims the author was least sure of and came in at ZERO; W113's **seven**, the highest
 ever, came from two briefs naming the same obligations and the same specifics; **W114 deliberately
 differed its two and got three**.* So the overlap measures the briefs as much as the readers.
-**It counts measurements TAKEN, not items reviewed, and the ORDINAL is that count: fifty-nine, so
-the next is the SIXTIETH.** *The per-item list is in `git`; this clause said the ordinal is
-derived by counting it until W115 cut it, and P12's three items each got it wrong by two when
-there was a list to count.* **An item that belongs to no plan APPENDS ITS OWN measurement**
+**It counts measurements TAKEN, not items reviewed, and the ORDINAL is that count: seventy-five,
+so the next is the SEVENTY-SIXTH.** *The per-item list is in `git`, and the total had to be
+DERIVED: the pre-cut section stated three figures for it and W115 first carried the smallest
+forward. Its Record has the reconciliation.* **An item that belongs to no plan APPENDS ITS OWN measurement**
 (v0.26, P26), and what it appends is the new total.
 
 **An overlap is a shared SUBJECT; the two findings on it need not be the same finding** — *W78's
