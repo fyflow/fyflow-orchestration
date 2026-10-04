@@ -1,18 +1,16 @@
 # Workflow
 
-**Status:** v0.26 — **run to completion TWENTY-SIX times**, by P1 through P26, two of which adopted
+**Status:** v0.27 — **run to completion TWENTY-SEVEN times**, by P1 through P27, two of which adopted
 nothing (P8 and P25), which is section 6 pass 3 rule 1's expected verdict rather than a failure to
 run it. **Read this before starting any work item.** Paths are relative to the repo root unless they
 are markdown links.
 
 *This file was **305,643 bytes** until
-[W115](work-items/w115-the-exit-artifact-and-the-budget-met.md) and is now inside
-[P27](plans/p27-what-a-register-row-is.md) decision 1's **35 KB** budget, enforced by
-`npm run check:budget`. What went was the **version blocks** — 52%, one retro's whole argument
-each — and the **adapted-from table**. **P27 stop-and-ask (b) took that on a measurement**: the
-arguments were kept to stop a rule being re-litigated, and the same proposals came back with them
-present. What does the job is the refusal ledger at the end; the arguments are in each plan's
-Record and in `git`.*
+[W115](work-items/w115-the-exit-artifact-and-the-budget-met.md) cut it to
+[P27](plans/p27-what-a-register-row-is.md) decision 1's budget, which `npm run check:budget`
+enforces. The version blocks and the adapted-from table went whole, and **sections 1-8 lost 74%
+of themselves**; what replaces the arguments is the ledger below. That item's Record and `git`
+carry the rest.*
 
 ## 1. The loop
 
@@ -55,17 +53,17 @@ Five rules that make the loop worth having:
    **`CLAUDE.md` left this list at W112 and `doc/README.md` at W115**, both by the maintainer —
    [ADR 0077](decisions/0077-an-item-does-not-write-its-status-into-claude-md.md) and
    [Q466](open-questions.md). **An item does not write its status into either.** *The record step
-   added 8497, 8263, 5430, 4515, 5265, 3624 and 5522 bytes at seven consecutive items, against a
-   25 KB budget for one of them.* **And the entry was never the source** — the first row below has
-   said since v0.9 that a status is read from the item's own file, so the rule obliged an item to
-   write a copy and then told the next reader not to trust it. **`npm run state` replaced it.**
+   was filling `CLAUDE.md` faster than its whole budget, by a per-commit margin ADR 0077 records.*
+   **And the entry was never the source** — the first row below has said since v0.9 that a status is
+   read from the item's own file, so the rule obliged an item to write a copy and then told the next
+   reader not to trust it. **`npm run state` replaced it.**
 
    **Four directions on one rule, every one earned by a conformity reader:**
 
    | | the clause | what earned it |
    |---|---|---|
    | **read** | a status is **read from that item's own file, never from an index** — and that is **ANY copy, including your own** | an index twice said *reader-passes outstanding* about passes that had run, and the second time REPRODUCED into a fourth document |
-   | **write** | a claim **states the scope it was MEASURED at**, never the scope you believe | W30 measured five checks and wrote *all five* into six documents. **Both authors generalised without saying so** |
+   | **write** | a claim **states the scope it was MEASURED at**, never the scope you believe | W30 measured five checks and wrote *all five* into six documents. **Its author generalised without saying so** |
    | **when** | a measured number is **RE-TAKEN on the tree the item ships** | W39 published its headline from code-complete. **No rung covers a Record's numbers** |
    | **un-write** | a **WITHDRAWN claim is SEARCHED FOR**, and where it is an item's own ID the procedure is a **grep** | W46's four withdrawn claims survived in a file it edited in the same commit. `W33` returned 19 hits in eight files; `W42` zero — *no false positives, silence when there is nothing* |
 
@@ -142,11 +140,8 @@ it must run: **L0-L5 in all three** — L0 alone catches a `node:` import before
 **L7 once**. **A rung reported green without saying which runtimes it ran in ran in one.**
 
 **A rung reported GREEN means its command EXITED 0. A line of its output is never the predicate** —
-v0.15, P14. *Four occurrences, three plans, every one an author reading a LINE because the output
-was too long to read whole: two `GATE EXIT=1`s with zero `FAIL` lines, one with its Record's gate
-row already written green; an author who read `Checked 49 files`, which `deno lint` prints either
-way, as a pass; and W54, which broke this clause one plan later while quoting it, by piping a rung
-whose count line prints BEFORE the failures.* Since
+v0.15, P14. *Four occurrences, three plans, each an author reading a LINE because the output was
+too long to read whole — and W54 broke this clause one plan later while quoting it.* Since
 [ADR 0039](decisions/0039-the-gate-climbs-the-ladder-and-the-self-tests-run-concurrently.md) `lint`
 is the chain's FIRST entry, a chain failing there runs nothing after it — and `FAIL` is a word the
 checks print and `lint` does not.
@@ -174,7 +169,7 @@ consequence 2**. *Two of P26's items shipped with `gate` green and `gate:full` R
 only because its brief asked for `gate:full` by name — which is not a mechanism. It fired again at
 W114.*
 
-> It costs about **760 s wall, 2730 s serial-equivalent over eight lanes, ONCE per item**. **A
+> It costs **about a quarter of an hour over eight lanes, ONCE per item**. **A
 > green `gate` says the product works; it says nothing about whether anything could have noticed
 > if it did not.** **Do not start one over a tree with a known red lane** — fix the lane, re-run
 > it alone, then pay for the gate once, on the final tree.
@@ -263,6 +258,7 @@ Rules:
    | **(c)** | **break the PROVENANCE of every value an assertion reads** — the source expression and nothing else | v0.8, P6; v0.9, P7 |
    | | its **LIMIT**: when the compound probe is green, **count the observers** — *a sensor cannot corroborate itself* | v0.13, P12 |
    | | ***independent*** excludes the first's apparatus — *W55's second observer measured the first's instrument* | v0.16, P15 |
+   | | where the instrument is INSIDE what it measures, ask what the first observer **RETAINS** and **drop it once read** | v0.16, P15 |
    | **(d)** | **break the LOOP BOUNDS** — one entry out, the whole list out, and does anything COUNT it from elsewhere | v0.9, P7 |
    | | a **count is not a membership**; the layer names its MEMBERS — *one integer let the same deletion out three times* ([Q217](open-questions.md)) | v0.14, P13 |
    | | a membership names the **CONTROLS** beside its claims — *W63 left out its two and L6 compared `[]` to `[]`* | v0.18, P17 |
@@ -318,7 +314,7 @@ placed a junction there so `tsc` would ignore a sibling checkout, and
 **The rule's silence about the removal is the part that did the damage.** So: **copy** the
 dependencies rather than linking them; **verify** green in the copy first, so a red result is the
 reader's finding and not the copy's; and **scan for links before `--force` anything** —
-`find <copy> -type l`, and on Windows `-Attributes ReparsePoint`. If either is non-empty, stop.
+`find <copy> -type l`, and on Windows `gci -Recurse -Force -Attributes ReparsePoint`. If either is non-empty, stop.
 
 **And while a reader is reading, the AUTHOR's tree holds still** — v0.15, P14, and the other half
 of the paragraph above: rule 8's set mutates the tree by construction. *Two occurrences, two
@@ -329,20 +325,20 @@ was about a tree that no longer existed. The retro that adopted this broke it wi
 and its Record's numbers are taken with the tree still.**
 
 **Why two readers rather than one asking both questions. The number to carry is the ABSOLUTE one:
-two readers produce 0-4 shared findings, whatever the item's size** — **seventy-five measurements**,
-and P6 declares the question **settled and closed to re-litigation**. *The fraction is noise: it has
-read 8% to 17% across items from a one-line fix to the largest surface change here, and W41's
-**1 of 116** is the largest denominator ever recorded and did not move the numerator.*
+two readers produce 0-4 shared findings, whatever the item's size** — **fifty-nine measurements**,
+and P6 declares the question **settled and closed to re-litigation**. *The fraction is noise: W41's
+**1 of 116** is the largest denominator recorded and did not move the numerator.*
 
 **The caveat travels with the number: a SHARED PRIMING moves it.** *W31 gave both readers the same
 list of claims the author was least sure of and came in at ZERO; W113's **seven**, the highest
 ever, came from two briefs naming the same obligations and the same specifics; **W114 deliberately
 differed its two and got three**.* So the overlap measures the briefs as much as the readers.
-**It counts measurements TAKEN, not items reviewed, and the ORDINAL is that count: seventy-five,
-so the next is the SEVENTY-SIXTH.** *The per-item list is in `git`, and the total had to be
-DERIVED: the pre-cut section stated three figures for it and W115 first carried the smallest
-forward. Its Record has the reconciliation.* **An item that belongs to no plan APPENDS ITS OWN measurement**
-(v0.26, P26), and what it appends is the new total.
+**The band's denominator is NOT the ordinal, and conflating them is how the band went false** —
+three measurements are outside it (6, 6, 7) and each had a shared priming. **It counts measurements
+TAKEN, not items reviewed, and the ORDINAL is that count: seventy-seven, so the next is the
+SEVENTY-EIGHTH.** *The per-item list is in `git`; P27's Retro has the reconciliation, and W112 is
+why three published ordinals were short by one.* **An item's RECORD states its own overlap — its own
+file, always legal — and only a retro carries the total forward** (v0.26; v0.27).
 
 **An overlap is a shared SUBJECT; the two findings on it need not be the same finding** — *W78's
 two readers called one line dangerous and inert, and both were right about its two halves.* **And
@@ -412,7 +408,7 @@ The loop has to be seconds or the discipline above stops being run.
 | Plan gate (L0-L6) | < 90 s | **L0-L5 in all three**, L6 per [Q33](open-questions.md) |
 | **Proving the checks can fail** | **no budget has ever been set** | **not a rung**, and this table had no row for it until P11 |
 
-**The first three are MET and always have been; the fourth is what a person waits for.** What made
+**The first two are MET and always have been; the fourth is what a person waits for.** What made
 `npm run gate` 393 s was proving the checks can fail — not a level of section 4, and never
 budgeted, because before P8 and P9 it cost approximately nothing. *That, and not an overrun, is
 the answer to* nobody decided this.
@@ -426,8 +422,8 @@ MANIFEST** — they see a `gate:full` composing both halves and cannot see wheth
 
 **And a per-lane wall measured in one arrangement does not predict the wall in another** — three
 derivations here have made that error, one from a lane that EXITED AT ITS CONTROL and still
-reported a wall clock. **What is reproducible is the serial-equivalent**, because the runner sizes
-its pool in LANES while each lane spawns a deep process tree ([Q433](open-questions.md)). **The
+reported a wall clock. **Neither is reproducible** - the runner sizes its pool in LANES while each
+lane spawns a deep process tree, so it over-commits the machine ([Q433](open-questions.md)). **The
 *plan gate* row is UNMEASURED rather than met** ([Q427](open-questions.md)).
 
 **The three-runtime requirement lands on the plan gate, not on the edit loop**: L0-L5 are pure
@@ -452,9 +448,8 @@ v0.22 [P21](plans/p21-what-a-run-time-schema-check-buys-and-what-it-costs.md#ret
 v0.23 [P22](plans/p22-what-a-regions-identity-is.md#retro) ·
 v0.24 [P23](plans/p23-what-a-run-needs-to-outlive-its-process.md#retro) ·
 v0.25 [P24](plans/p24-what-a-node-may-remember-across-a-runs-branches.md#retro) ·
-v0.26 [P26](plans/p26-what-a-flow-can-say-without-code.md#retro)
-
-*P8 and P25 ran this document to completion and adopted nothing, so no version is theirs.*
+v0.26 [P26](plans/p26-what-a-flow-can-say-without-code.md#retro) ·
+v0.27 [P27](plans/p27-what-a-register-row-is.md#retro)
 
 ## The refusal ledger
 
@@ -465,10 +460,10 @@ than restating it.** *The count is of REFUSALS, not of mentions.*
 
 | the proposal | refused | the standing ground |
 |---|---|---|
-| **A check over `doc/`** — prose held true by a script | **25 times**, P2-P26 | both mechanisms are worse than the problem, and [P27](plans/p27-what-a-register-row-is.md) decision 4 answers it from the other side: **a fact the tree COMPUTES is not written down** |
+| **A check over `doc/`** — prose held true by a script | **26 times**, P2-P27 | both mechanisms are worse than the problem, and [P27](plans/p27-what-a-register-row-is.md) decision 4 answers it from the other side: **a fact the tree COMPUTES is not written down**. *P27 measured the always-read set deletable to **58 bytes** with `gate` green; the sharp version is the CLOSURE and is [Q489](open-questions.md)* |
 | **An `Owns` pre-declaration rule / `check-owns.mjs`** | **13 times**, P2-P26 | three miscounts were caused by the record-step list being WRONG, and naming the missing file fixed it with no script. It returns on a miscount with the list correct |
-| **A ladder LEVEL for the evidence** | 4 times, P12-P15 | answered from the other side by [ADR 0070](decisions/0070-the-local-gate-is-the-ladder-and-proving-the-checks-can-fail-belongs-to-ci.md): not a rung, and not on the local gate |
-| **The dated-ceiling HAND-OFF** | **3 times**, P18-P21 | one miss against one hit, and the retro catches it in one command |
+| **A ladder LEVEL for the evidence** | 4 times, P11-P14 | answered from the other side by [ADR 0070](decisions/0070-the-local-gate-is-the-ladder-and-proving-the-checks-can-fail-belongs-to-ci.md): not a rung, and not on the local gate |
+| **The dated-ceiling HAND-OFF**, and **keeping the harness so the re-run has a subject** | **4 times**, P18-P20, P27 | the ground CHANGED: *the retro catches it in one command* needs a harness, and at P27 none survived — **0 of 28** declared ceilings re-runnable. It stands on the YIELD, **5 catches in 72** and falling (2/11, 2/23, 1/14, 0/24), with the in-item re-run doing the work ([Q486](open-questions.md)) |
 | **A fourth list below `CROSS_ROW_SUBJECTS`** | twice, P13-P14 | three iterations each closed one layer further out ([Q217](open-questions.md)) |
 | **A corpus census pinned as a LITERAL outside its corpus** | twice, P21-P22 | a second number a human writes is not a second floor |
 | **A LEVEL for the gate itself**; **a finished item's file having no owner** | once each, P10-P11 | the second was narrowed into pass 3 rule 6 — *the narrower of the two is taken* |
@@ -476,4 +471,5 @@ than restating it.** *The count is of REFUSALS, not of mentions.*
 
 *Each row's full pricing is in that plan's Record. The ordinals are this file's own claims about
 itself, re-measured at W115: **three of fact 8's four refusal figures do not reproduce under any
-predicate — 22, 18 and 15 against 23, 63 and 14 — and the ordinals do.***
+predicate — 22, 18 and 15 against 23, 63 and 14 — and the ordinals do. **Two plan RANGES did
+not; P27's retro fixed both.***

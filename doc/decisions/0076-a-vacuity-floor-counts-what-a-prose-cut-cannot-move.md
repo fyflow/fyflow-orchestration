@@ -208,7 +208,10 @@ arriving at the item asked to find it.*
    budget; each cut item lowers the ceiling to its own post-cut measurement and W115 lands it on
    target. **W112 cuts nothing, so a check enforcing the target would be red by 11x on correct
    work**, which is why stop-and-ask (c)'s own answer says what it does: it *"refuses a commit that
-   grows the required reading."*
+   grows the required reading."* *(**The clause above — *each cut item lowers the ceiling to its own
+   post-cut measurement* — is NOT satisfiable at the last member**, which is this plan's own *what it
+   taught* item 1 and [Q479](../open-questions.md). The ceilings ship AT the targets and `B5` is what
+   holds them there. Struck here by P27's retro.)*
 
    | | measured | ceiling | target |
    |---|---|---|---|
@@ -237,7 +240,8 @@ arriving at the item asked to find it.*
    decision: `B3` keeps a probe as a declared compound and regains its own case the moment any
    member is un-met. **What a member has to spend is now target-minus-measurement** — 1,846, 264
    and 283 bytes — and `check:budget` prints those three figures in place of a distance that is
-   permanently zero. [Q479](../open-questions.md), and W115's adequacy reader found the same
+   permanently zero. *(The middle term was 264 at the moment it was written and the check is the only
+   honest home for it: P27 decision 4, which is why these figures left `check-budget.mjs`'s comments.)* [Q479](../open-questions.md), and W115's adequacy reader found the same
    claim still standing in `check-budget.mjs`'s own `SET` docstring.)*
 
 5. **A ceiling's vacuity is *nothing to measure*, not *too little to check*, so the guard is a

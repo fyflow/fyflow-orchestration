@@ -17,8 +17,7 @@ gap in it had blocked a fix.
 
 **The list and [P27](../plans/p27-what-a-register-row-is.md) decision 1 cannot both hold.**
 `CLAUDE.md` is **556 KB and 93% `Current state`**, its budget is **25 KB**, and the thing filling it
-is this rule: measured over recent items, the record step added **8497, 8263, 5430, 4515, 5265, 3624
-and 5522 bytes** — W112's conformity reader took those figures to test whether `check:budget`'s
+is this rule: measured over recent commits, the record step added **8497, 8263, 5430, 4515, 5265 and 3624 bytes at six items, and 5522 at P26's RETRO** *(`b6366ce`, 564,176 -> 569,698; re-derived over all 135 commits that touch the file at P27's retro, where the seven had been called seven consecutive items. W103's own record step added 3167)* — W112's conformity reader took those figures to test whether `check:budget`'s
 allowance was adequate. W112's own record step added **2502 bytes**, deliberately at the low end, and
 it is still 10% of the file's entire future budget spent on one item's status.
 
@@ -123,4 +122,4 @@ paragraph that is never written turns nothing red, and `check:budget` gets green
    paragraph into `CLAUDE.md` after this decision turns nothing red, exactly as one that omitted it
    turned nothing red before — the clause that would catch it is a `doc/` check reading English, which
    this repository has refused twenty-five times. *The enforcement is that the record step's list is
-   five names long, and the list is read by a person.*
+   four names long, and the list is read by a person.* *(This read FIVE until P27's retro, against decision 1's own struck cell — an index contradicting the document it indexes on precisely the sentence that was corrected, inside one file.)*

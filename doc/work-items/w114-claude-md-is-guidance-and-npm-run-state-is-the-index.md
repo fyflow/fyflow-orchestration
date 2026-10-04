@@ -590,6 +590,7 @@ by grep on W86's and W113's precedent, by the maintainer's answer to stop-and-as
 | **(b)** | **Is `npm run state` a gate entry, and if not, what proves it still works?** It is a derivation with no verdict, so a gate entry would print 25 lines nobody reads and cost an edit to `GATE_CHAIN`. But a derivation that replaces a document section and then breaks leaves no index at all, and `S11` cannot see it — the name does not start with `check:`. Three roads: **(i)** not a gate entry, and the script ASSERTS ITS OWN DERIVATIONS — at least 27 plans, at least 94 items, every next id > 0, every count non-empty — exiting 1 otherwise, so a person's own run is the control; **(ii)** a gate entry, +1 to `GATE_CHAIN` and `S12`'s declared list; **(iii)** a `state:selftest`, which is a third self-test lane on a 790 s wall for a 60-line script | **(i) — NOT a gate entry, and the script asserts its own derivations.** As recommended: the cheapest thing that cannot report an empty index as a full one, and the only one of the three whose cost on the gate is zero |
 | **(c)** | **Does `## How work is done` keep ANY version summary?** The 21 are a second copy of a document in the same always-read set, and the copy is measurably stale. Priced: **keep none** (−18,943, and the pointer does the work); **keep v0.26 only** (−18,113, so a reader sees the newest change without opening the file); **keep a one-line ledger of all 21** (−17,700, which is P27 fact 8's own answer, but the ledger it describes is `doc/workflow.md`'s and is W115's to build) | **KEEP NONE.** As recommended |
 
-## Record
-
-*To be filled at the record step.*
+*(This file carried a SECOND `## Record` heading here, still reading "to be filled at the record
+step", below the filled one above — in the item that found NINE files whose header contradicted their
+own Record, and present on a tree whose `gate:full` was EXIT 0. Removed by P27's retro under pass 3
+rule 6. No rung reads an item file's structure: `M7` and `M8` are scoped to the register by name.)*

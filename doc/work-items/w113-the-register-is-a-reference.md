@@ -479,7 +479,7 @@ away and its adequacy reader priced back in.
 
 ### What broke
 
-**Thirty defects. The two largest were found by the two readers from opposite ends of one question,
+**Twenty-nine defects. The two largest were found by the two readers from opposite ends of one question,
 the sharpest single finding is one that BOTH found and that neither W112 nor this item's own
 instrument could see, and the LAST one this item found in its own new text.**
 
