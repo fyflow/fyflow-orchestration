@@ -725,7 +725,23 @@ if (r.sources >= r.files) {
 // at 35, probe 2 fires at 17 and says so, and `M5`'s own probe fires at 20. *An alternative refused
 // on the tree before a cut is not refused on the tree after it, and the ADR's figures were the
 // pre-cut ones.*
-if (r.anchored < 28) fail('M5', `only ${r.anchored} link(s) carry an anchor; M2 is vacuous below that`);
+//
+// **28 -> 72 at [W120](../doc/work-items/w120-the-glossary-points-and-never-defines.md), whose
+// `doc/glossary.md` carries one anchored link per row in `doc/`'s top level, which no `removes`
+// probe cuts** — [ADR 0080](../doc/decisions/0080-the-glossary-points-and-never-defines.md)
+// consequence 4, amending ADR 0078 decision 1's number and nothing else in it. Measured on W120's
+// tree in staged copies, with a control adding one dead link that must turn `M1` red (it did):
+//
+//   anchored     whole   probe 1   probe 2   strip upstream
+//   before          35        35        15               20
+//   after           83        76        56               68
+//
+// **The window did NOT just shift; it narrowed, from `(20, 35]` to `(68, 76]`.** 48 rows arrived
+// everywhere, but 7 of them point into `doc/decisions`, and a link into a cut directory is dead and
+// is not counted, so probe 1 gains 41 where `M5`'s own probe gains 48. 72 is the midpoint. **Every
+// future glossary row pointing at an ADR narrows it by one more**, and a row pointing at `spec/` or
+// `doc/workflow.md` moves both edges together.
+if (r.anchored < 72) fail('M5', `only ${r.anchored} link(s) carry an anchor; M2 is vacuous below that`);
 
 // --- M7 / M8 LEFT at W116 ---------------------------------------------------------------
 //

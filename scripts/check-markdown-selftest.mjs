@@ -537,6 +537,11 @@ const PROBES = [
     // so stripping it takes the corpus to 20 against a floor of 28 and `M5` fires. What that ADR did
     // NOT predict is that the fixture below would have to declare `M5` for any floor to exist at all;
     // the arithmetic is in `check-markdown.mjs` beside the floor.
+    // *(**Both figures and *"the document that holds most of them"* stopped being true at
+    // [W120](../doc/work-items/w120-the-glossary-points-and-never-defines.md)**: `doc/glossary.md`
+    // holds 48 of 83 anchored links, so stripping upstream takes the corpus to **68 against a floor
+    // of 72**. The probe still fires, because the window is `(68, 76]` — but it no longer empties the
+    // largest holder; the glossary is. Corrected in place by that item.)*
     //
     // Emptying the subject rather than the checker: with every `#` target gone from the document
     // that holds most of them, the corpus drops under the anchored floor and `M2` becomes true of
