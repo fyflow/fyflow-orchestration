@@ -116,7 +116,14 @@ import { spawnSync } from 'node:child_process';
  * after `S12`, `G6` and this one's own both-ways comparison: *a check added to the gate and not to
  * this list is a check nothing here probes.*
  */
-const CHECKS = ['spec', 'source', 'wiring', 'markdown', 'scheduler', 'policies', 'docs', 'workers', 'budget', 'register'];
+const CHECKS = ['spec', 'source', 'wiring', 'markdown', 'scheduler', 'policies', 'docs', 'workers', 'budget', 'register', 'lookup'];
+/**
+ * **The script a `:selftest` entry runs — `check-<name>.mjs`, except W119's `lookup`**, which is not a
+ * check and runs `scripts/lookup.mjs --self-test` ([W119](../doc/work-items/w119-the-lookup.md)'s
+ * stop-and-ask 1). It fired BY NAME here on W119's `gate:full`, the fifth clause to do so on one gate
+ * addition, and the fix is to name the file rather than to leave the new entry unprobed.
+ */
+const fileOf = (c) => (c === 'lookup' ? 'lookup.mjs' : `check-${c}.mjs`);
 
 /** A literal newline, so the anchors below are not written as escapes in prose. */
 const NL = '\n';
@@ -125,8 +132,8 @@ const NL = '\n';
 const DISPATCH = "if (process.argv.includes('--self-test')) {";
 
 const G1_PROBES = CHECKS.map((c) => ({
-  name: `check-${c}.mjs stops routing --self-test`,
-  file: `check-${c}.mjs`,
+  name: `${fileOf(c)} stops routing --self-test`,
+  file: fileOf(c),
   check: 'G1',
   // **Declares BOTH, because this mutation genuinely breaks both properties** —
   // a falsified condition is not the verbatim dispatch `G2` requires, so the two
@@ -760,9 +767,10 @@ const SELF = [
     (t) => t.replace(/const CHECKS = \['spec',.*\];/,
       "const CHECKS = ['spec', 'source', 'spec', 'source', 'spec', 'source', 'spec', 'source', 'spec'];")],
   // Re-anchored at [W116](../doc/work-items/w116-a-question-is-a-file.md), whose `register` is the
-  // list's last name now — the same magic-LIST pin W112 moved, moved again by the next gate entry.
+  // list's last name now — the same magic-LIST pin W112 moved, moved again by the next gate entry —
+  // and again at W119, whose `lookup` is.
   ['CHECKS drops a check the manifest has an entry for',
-    (t) => t.replace(/, 'register'\];/, '];')],
+    (t) => t.replace(/, 'lookup'\];/, '];')],
 ];
 
 // **What a `SELF` list buys nothing against here, stated rather than padded around.**
@@ -1028,7 +1036,7 @@ export async function selfTest(root) {
   // removal, which is why both `SELF` entries below fire.
   {
     const files = new Set(PROBES.map((p) => p.file).filter(Boolean));
-    const missing = CHECKS.map((c) => `check-${c}.mjs`).filter((f) => !files.has(f));
+    const missing = CHECKS.map(fileOf).filter((f) => !files.has(f));
     if (missing.length) {
       console.log(`  FAIL  no probe touches ${missing.join(', ')} — a floor counts probes and says ` +
         'nothing about which checks they reach.');

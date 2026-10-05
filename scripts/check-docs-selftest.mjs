@@ -58,7 +58,7 @@
 //
 // **The scope of what W104 re-took is stated rather than implied**: the SITE count, by
 // `grep -c "fail('X"`, is **64** across eleven ids (X1 4, X2 2, X3 2, **X4 13**, X5 1,
-// **X6 10**, X7 5, **X8 11**, X9 4, **X10 6**, X11 6). *(This read **55** with X6 at 5, X8 at 9
+// **X6 10**, X7 5, **X8 11**, X9 4, **X10 6**, X11 6 — and `X11`, with its six, RETIRED at W119 by ADR 0081). *(This read **55** with X6 at 5, X8 at 9
 // and X10 at 4 — W104's figures, and it was stale by FIVE before W109 added four X6 sites of its
 // own: a count in a comment beside the list it describes, which is the defect the paragraph above
 // records at W29 and which nothing here compares. Re-derived by the `grep` this sentence names.)* The `META` list below
@@ -87,8 +87,6 @@
 //   X3  the `tsc failed:` fallback           covered jointly by the X3 entry below
 //   report  a row deleted from the `checks` array — reachable by `agree`, not graded
 //   X10 the MISSING-FILES refusal            **NO PROBE CAN REACH IT** — every probe writes the files it stages (W96)
-//   X11 the MISSING-INDEX refusal            **NO PROBE CAN REACH IT** — ditto (W96)
-//   X11 the EMPTY-DIRECTORY vacuity guard    **NO PROBE CAN REACH IT** — the directory is always the tree's own (W96)
 //
 // **W104's five remaining clauses are UNREACHABLE BY ANY PROBE and the reason is about
 // the FACT rather than about the observer**, which is `doc/workflow.md` rule 8's own
@@ -625,21 +623,6 @@ const PROBES = [
     mutate: (t) => t,
     l6: (s) => s.replace(/^const DECLARED_RUNS = /m, 'const DECLARED_RUN_COUNT = '),
   },
-  // ---- X11: doc/decisions/README.md against the ADRs on disk, both ways — W96 ----
-  // X11 shipped with NO live case (the index was 37 / 37 at W96's declaration), so these two are the whole of its
-  // evidence — P8's retro: a check written for a defect you just fixed has no live case.
-  {
-    name: 'doc/decisions/README.md drops the row for ADR 0067, which is on disk — the unindexed direction',
-    check: 'X11',
-    mutate: (t) => t,
-    adrIndex: (x) => x.split('\n').filter((l) => !l.startsWith('| [0067](')).join('\n'),
-  },
-  {
-    name: 'doc/decisions/README.md gains a row for an ADR that is not on disk — the phantom direction',
-    check: 'X11',
-    mutate: (t) => t,
-    adrIndex: (x) => x.replace(/^(\| \[0067\]\()/m, '| [0099](0099-a-decision-nobody-wrote.md) | nothing | — | 2026-09-26 |\n$1'),
-  },
   // ---- X10's ANCHORS, bound — W96's adequacy reader (M2-M5) ----
   // Every current copy was also the FIRST number of its shape in its file, so an anchor loosened to the bare numbers read
   // the same copy and every probe above stayed refused: the wrong selection coinciding with the right one at the default
@@ -670,18 +653,6 @@ const PROBES = [
     check: 'X10',
     mutate: (t) => t,
     l6: (s) => s.replace(/^const DECLARED_TOTAL = (\d+);$/m, (_m, n) => `const DECLARED_TOTAL = ${Number(n) + 1};`),
-  },
-  {
-    name: 'doc/decisions/README.md indexes ADR 0067 twice',
-    check: 'X11',
-    mutate: (t) => t,
-    adrIndex: (x) => x.replace(/^(\| \[0067\]\(.*)$/m, '$1\n$1'),
-  },
-  {
-    name: 'doc/decisions/README.md names ADR 0067`s row by the number 0068',
-    check: 'X11',
-    mutate: (t) => t,
-    adrIndex: (x) => x.replace('| [0067](0067-', '| [0068](0067-'),
   },
 ];
 
@@ -751,13 +722,18 @@ const RAN = (out) => /^(All checks passed|\d+ failure\(s\)\.)/m.test(out);
 // W107's readers took to read it: the Record's `51 -> 46 -> 47` describes a middle state the diff does
 // not show, because one entry was edited in place rather than deleted and re-added. Both readers found
 // it independently — the stale number in the sentence whose whole job is to say what the floor counts.)*
-const MIN_PROBES = 47;
+// **43 since [W119](../doc/work-items/w119-the-lookup.md)**, which retired `X11`
+// ([ADR 0081](../doc/decisions/0081-the-adr-index-is-generated-and-x11-leaves-with-it.md)) and its four
+// probes with it: lowered by exactly the four that left, so the floor still counts every other probe
+// it counted.
+const MIN_PROBES = 43;
 
 /** The same floor for `META`, and for the same reason. */
 // **21 since W86**, which gave `X9`'s comparison clause a grading — the coverage bound below is
 // what required one, by deriving `ALL_CHECKS` from `check-docs.mjs`'s own `checks` array.
 // **28 since W96**, X10's three reachable clauses and X11's four.
-const MIN_META = 28;
+// **24 since W119**, which retired `X11` and its four entries (ADR 0081).
+const MIN_META = 24;
 
 /**
  * **The mutations `check-docs.mjs` itself is run against**, one per check id plus
@@ -860,8 +836,8 @@ const META = [
     (t) => t.replace(
       "          `section 3's table does not — it has ${spec1000.join(', ')}`);\n      }\n      if (extra.length) {",
       "          `section 3's table does not — it has ${spec1000.join(', ')}`);\n      }\n      if (false) {")],
-  // W96: X10's three reachable clauses and X11's four, each named for the probe that trips it alone. X10's missing-files
-  // clause and X11's missing-index and empty-directory clauses are UNREACHABLE by any probe and named in the header.
+  // W96: X10's three reachable clauses (and X11's four, retired at W119 by ADR 0081), each named for the probe that trips
+  // it alone. X10's missing-files clause is UNREACHABLE by any probe and named in the header.
   ['X10`s comparison clause disabled, so a copy of the L6 counts can drift from what l6.ts declares in silence',
     // Re-pointed by W107, which took README.md out of X10's subjects: the probe this named went with it.
     'examples/README.md`s paragraph under the two commands states an assertion count one below l6.ts`s',
@@ -879,16 +855,6 @@ const META = [
   ['X10`s cannot-find-the-declaration clause disabled, so a renamed DECLARED_RUNS compares nothing',
     'examples/l6.ts stops declaring its run count where X10 reads it',
     (t) => t.replace("      fail('X10', 'examples/l6.ts declares no", "      if (0) fail('X10', 'examples/l6.ts declares no")],
-  ['X11`s unindexed direction disabled — an ADR on disk the index does not name',
-    'doc/decisions/README.md drops the row for ADR 0067, which is on disk — the unindexed direction',
-    (t) => t.replace("    if (unindexed.length) fail('X11',", "    if (false) fail('X11',")],
-  ['X11`s phantom direction disabled — an index row naming an ADR not on disk',
-    'doc/decisions/README.md gains a row for an ADR that is not on disk — the phantom direction',
-    (t) => t.replace("    if (phantom.length) fail('X11',", "    if (false) fail('X11',")],
-  ['X11`s duplicate-row clause disabled', 'doc/decisions/README.md indexes ADR 0067 twice',
-    (t) => t.replace('    if (duplicated.length) fail(', '    if (false) fail(')],
-  ['X11`s row-number clause disabled', 'doc/decisions/README.md names ADR 0067`s row by the number 0068',
-    (t) => t.replace('    if (misnumbered.length) fail(', '    if (false) fail(')],
   // (b) the report block. **These two are why the `agree` projection exists**, and
   // it was measured before it was written: with the verdict loop forced to `ok`,
   // every probe still reported `wanted [X2] got [X2] exit 1` and passed. A mutation
@@ -921,11 +887,10 @@ export async function selfTest(root) {
   // same way and handed to the check as `CHECK_DOCS_README` — one direction of a both-ways
   // comparison needs a mutation on each side (W69).
   const readme = readFileSync(join(root, 'README.md'), 'utf8');
-  // W96: X10's and X11's subjects, staged the same way — `examples`, `l6` and `adrIndex` beside `readme`.
+  // W96: X10's subjects, staged the same way — `examples` and `l6` beside `readme` (`adrIndex` left with X11 at W119).
   const EXTRA = [
     ['examples', 'CHECK_DOCS_EXAMPLES', readFileSync(join(root, 'examples', 'README.md'), 'utf8'), '-examples.md'],
     ['l6', 'CHECK_DOCS_L6', readFileSync(join(root, 'examples', 'l6.ts'), 'utf8'), '-l6.ts'],
-    ['adrIndex', 'CHECK_DOCS_ADR_INDEX', readFileSync(join(root, 'doc', 'decisions', 'README.md'), 'utf8'), '-adr.md'],
   ];
   // **Per PROCESS, and removed on the way out including on the abort path — W105.** `dev-dist/` is one
   // flat namespace and this was a FIXED path inside it, `rmSync`d on entry: a META child runs this same

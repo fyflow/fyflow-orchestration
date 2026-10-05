@@ -756,6 +756,14 @@ if (existsSync(SCRIPTS)) {
       'an environment VALUE naming the staging directory, not a path construction — two sites'],
     // The directory-SKIP lists. `dev-dist` here is a name to step OVER, not a path to write.
     ['check-markdown.mjs', `name === '${D}dist'`, 'a directory NAME the walk skips'],
+    // **[W119](../doc/work-items/w119-the-lookup.md)'s `refs`, the same shape a third time**: the walk
+    // steps OVER every process's scratch space by name, because its whole-tree copies are a second,
+    // weeks-old answer. And the self-test's fixture tree carries a directory of that NAME inside its
+    // own pid-named stage, which is the thing the skip is proved against — a fixture path, not a
+    // scratch path this file opens at the repository's root.
+    ['lookup.mjs', `name === '${D}dist'`, 'a directory NAME the refs walk skips'],
+    ['check-lookup-selftest.mjs', `'${D}dist/old/copy.md': 'Q17 in a stale whole-tree copy`,
+      'a FIXTURE path inside the self-test`s pid-named stage: the directory refs must skip'],
     // **The same shape in a second file — [W112](../doc/work-items/w112-the-budget-the-check-and-the-floors.md)'s
     // content digest.** `check-budget-selftest.mjs` walks the tree to hash it and steps OVER this
     // directory by name; it cannot carry a pid, because the thing being skipped is every
