@@ -1,6 +1,6 @@
 # W120 — The glossary points at a definition and never makes one
 
-**Status:** in review — built to its gate and the conformity reader RAN: nothing blocking, four defects not yet acted on. See the Record
+**Status:** done — the conformity reader ran, the fix round acted on its four defects, and `gate:full` exited 0; see the Record
 **Plan:** [P28](../plans/p28-what-can-be-looked-up-instead-of-read.md)
 
 ```
@@ -31,7 +31,7 @@ before the first edit (`doc/workflow.md` section 7 rule 2):
 
 | file | why |
 |---|---|
-| `scripts/check-markdown.mjs` | `M5`'s anchored-link floor, 28. Every glossary row carries an anchored link in `doc/`'s top level, which no `removes` probe cuts, so the glossary raises the whole tree, probe 1, probe 2 and `M5`'s own probe by the same count, and 28 leaves the window `M5`'s probe and probe 2 need. Measured before the first edit, in staged copies: whole tree 584 / 5,269 links / 191 sources / **35** anchored, probe 1 146 / 144 / **35**, probe 2 117 / 116 / **15**, `M5`'s probe **20**. `M3` (362) and `M4` (120) do not move: one document and one source arrive in every fixture, and probe 2's 116 sources become 117, still below 120. ADR 0079 consequence 7 is the precedent; ADR 0080 amends ADR 0078 decision 1, whose number this is |
+| `scripts/check-markdown.mjs` | `M5`'s anchored-link floor, 28. Every glossary row carries an anchored link in `doc/`'s top level, which no `removes` probe cuts, so the glossary raises the whole tree, probe 1, probe 2 and `M5`'s own probe, and 28 leaves the window `M5`'s probe and probe 2 need. *(This said* by the same count *— the prediction made here before the first edit. Measured after it: **48 / 41 / 41 / 48**, because the 7 ADR-pointing rows are dead links in the two probes that cut `doc/decisions`. Corrected at W120's fix round, 2026-10-05, the conformity reader's D3.)* Measured before the first edit, in staged copies: whole tree 584 / 5,269 links / 191 sources / **35** anchored, probe 1 146 / 144 / **35**, probe 2 117 / 116 / **15**, `M5`'s probe **20**. `M3` (362) and `M4` (120) do not move: one document and one source arrive in every fixture, and probe 2's 116 sources become 117, still below 120. ADR 0079 consequence 7 is the precedent; ADR 0080 amends ADR 0078 decision 1, whose number this is |
 | `doc/decisions/README.md` | a row for ADR 0080 in the hand-kept index, or `check-docs`' `X11` goes red. Inside rule 5's `doc/decisions/**`, so not strictly an exception — named because the index leaves at W119 |
 | `scripts/check-markdown-selftest.mjs` | **LATE — not named before the first edit.** One comment beside `M5`'s probe said, in the present tense, that stripping `doc/scheduler-upstream.md` *"takes the corpus to 20 against a floor of 28"* and empties *"the document that holds most of them"*; this item's floor made both false. Found by the withdrawn-claim grep (section 1 rule 5), corrected in place with a dated note. No probe, META entry or code line changed |
 
@@ -61,9 +61,9 @@ before the first edit (`doc/workflow.md` section 7 rule 2):
 
 ## Record
 
-**Status: built to its gate; the conformity reader RAN and its four defects are NOT YET ACTED ON**
-— they wait for the maintainer, and the commit carrying this Record carries them. Everything here ran on the uncommitted tree over
-`839d83a` — no sha yet.
+**Status: built to its gate; the conformity reader RAN, and its four defects were acted on at the fix round**
+— the maintainer asked for it on 2026-10-05, after W119; the first commit carried them unacted. Everything here ran on the uncommitted tree over
+`839d83a`, committed as `629bd8b`; the fix round's rows ran over `6705ff7`.
 
 **Files changed.** Owns: `doc/glossary.md`, `doc/questions/q508.md`-`q511.md`,
 `doc/decisions/0080-the-glossary-points-and-never-defines.md`, this file. Exceptions, declared above
@@ -90,6 +90,9 @@ moved — the exceptions table says what and why. Nothing else: `git diff --name
 | CR bytes | **0** in every file this item wrote or edited | `tr -cd '\r'` counted per file over `git diff --name-only` and the untracked files |
 | **`npm run gate:full`, the CONFIRMING gate** | **RAN ONCE, EXIT 0** | in this checkout, Node v24.20.0, on the final tree with only this row unwritten and the tree held still: **1,222 s**; selftests **1,083.9 s wall** over 9 lanes, 4,044.8 s serial-equivalent, 10/10 ok. `check:register:selftest` 1,070.0 s, the slowest lane; `check:markdown:selftest` 567.2 s, 42/42 caught, META 41/41 (30 / 11, as above). `check:markdown` in the ladder: 590 documents, 5,332 links in 193, 83 anchored. The word `FAIL` occurs 12 times in the log, each inside a passing test's name; 0 failing lines |
 | conformity reader | **RAN** (a fresh-context agent, spec first — P28 decision 4, the declaration, ADR 0080 — then each target section read BEFORE its row's line; it edited nothing) | **no BLOCKING row; 48 rows read, the format contract held on all 48, coverage of Outputs (1) complete, Q509-Q511 confirmed undefined in all three homes, Q508's counts re-measured and matching.** **Four DEFECTs, NOT YET ACTED ON**: **D1** the `fold input` row lists ADR 0014 rule 1's six kinds as though exhaustive, and the current spec adds `regionEntered`, `resumed` and `gated` (`src/fold/run-state.ts`) — faithful to its target, false of the product; **D2** decision 6 below says the 7 ADR-pointing rows raise *every fixture but probe 1* — probe 2 cuts `doc/decisions` too (+41, not +48; the window arithmetic is unaffected); **D3** the exceptions table's *by the same count* and ADR 0080 consequence 4's *rise together* — the pre-edit prediction, never corrected: measured 48 / 41 / 41 / 48; **D4** ADR 0080 decision 2's *the only home the process vocabulary has* — 5 of 23 PROCESS rows point at ADRs. **NOTEs**: N1 `quiescent point`'s sentence sits under a `> ###` heading that `M2` does not see, and whether GitHub anchors it is unverified; N2 P28 decision 4 still names only `spec/` and ADRs and carries no amendment notice; N3 Q508 attributes a `Gate:` line to `doc/workflow.md` section 1 rule 1, which says only *verification gate*; N4 `confirming gate` is a fourth gate-bearing row Q508 does not mention; N5 the `check:markdown` row's 5,328 links was not re-taken (5,332 on the final tree). Weaker lines, still OK: `effective outcome`'s condition, `run state`'s *driver's own*, the item-gate sense (borderline *not a definition*), `Owns`, `probe`'s *one provocation*. **Its overlap is not measurable**: one reader |
+| **FIX ROUND** — the four DEFECTs, asked for by the maintainer on 2026-10-05, after W119 was committed | **done**, each in a file this item owns, each correction left visible and dated | **D1** the `fold input` row's sense is reworded to its target's own non-exhaustive terms — ADR 0014 rule 1's *in the order it happened* and rule 4's *the log plus the routing facts no record carries* — so it no longer lists six kinds as though they were all; its link is unchanged. **D2** decision 6 below now says both probes cut `doc/decisions` (+41 each) and the whole tree and `M5`'s probe gain 48; **D3** the exceptions table and ADR 0080 consequence 4 carry the measured 48 / 41 / 41 / 48 beside the old *by the same count* / *rise together*; **D4** ADR 0080 decision 2 says 18 of the 23 PROCESS rows point at `doc/workflow.md` and 5 at ADRs (counted with `npm run term -- --where domain=PROCESS --fields defined-at --format json`). **No window, floor or link moved**, so `M5` cannot see any of it, and nothing holds a sense line (ADR 0080 consequence 1) — so there is no check to break and watch: the evidence is the withdrawn-claim grep, every old phrase now found only inside its correction note or the reader's row. **The NOTEs N1-N5 are not acted on** — the maintainer asked for the four defects |
+| FIX — `check:markdown`, `check:register`, `term -- "fold input"` | **RAN, EXIT 0 each** | 592 documents, 5,263 links in 194, **83 anchored — unmoved**; R6 read 49 ADRs, R7 137 ids; the row parses as one PRODUCT term with its link |
+| **FIX — `npm run gate:full`, the CONFIRMING gate** | **RAN, EXIT 0**, 1,301 s | on the fix round's final tree with only this row unwritten and the tree held still; selftests **11/11 ok**, 1,161.1 s wall over 10 lanes, 5,024.0 s serial-equivalent, `check:register:selftest` 1,147.1 s the slowest; `check:markdown` in the ladder 592 documents, 5,263 links in 194, 83 anchored. `FAIL` occurs 12 times in the log, each inside a passing test's name; 0 failing lines |
 
 **Outputs — what was actually built.**
 
@@ -127,9 +130,12 @@ moved — the exceptions table says what and why. Nothing else: `git diff --name
    *fan-out*; `vacuity floor`, not *floor*; `Owns` and `Reserves`, the declaration fields.
 6. **`M5`'s floor 28 -> 72, recorded as an amendment of ADR 0078 decision 1** (ADR 0080 consequence
    4) rather than a silent retune, since that decision states the number. **The window narrowed from
-   15 wide to 8**: probe 1 cuts `doc/decisions`, a link into a cut directory is dead and not counted,
-   so the 7 rows pointing at ADRs raise every fixture but probe 1. Each future ADR-pointing row
-   narrows it by one more; the arithmetic is beside the floor.
+   15 wide to 8**: both `removes` probes cut `doc/decisions`, a link into a cut directory is dead and
+   not counted, so the 7 rows pointing at ADRs raise the whole tree and `M5`'s own probe (+48) and
+   neither probe (+41 each). Each future ADR-pointing row narrows it by one more; the arithmetic is
+   beside the floor. *(This read* raise every fixture but probe 1 *until W120's fix round, 2026-10-05
+   — its conformity reader's D2: probe 2 cuts `doc/decisions` too. The window, `(68, 76]`, was
+   computed from the measured figures and does not move.)*
 
 **The term counts, measured before citing them.** `git grep -oiw gate` — case-insensitive, whole
 word, tracked files only, so `dev-dist/` is excluded twice over. At `aa43cb3`: **229** under
