@@ -1,6 +1,6 @@
 # W118 — Every question link points at its question, and the live instructions follow
 
-**Status:** in review
+**Status:** done
 **Plan:** [P28](../plans/p28-what-can-be-looked-up-instead-of-read.md)
 
 ```
@@ -99,15 +99,18 @@ as plain text and each sentence is unchanged.
 | Clause | Verdict | Notes |
 |---|---|---|
 | (a) the zero-match scan | **RAN** | the predicate above returns **0**, and so does the observer's |
-| (b) per-file counts, independent observer | **RAN** | `dev-dist/w118-27644/observe.sh`, which uses `git grep` over the working tree, not the rewrite's walk. Q-texted links of any target **3,627 -> 3,619**; into `open-questions.md` **3,602 -> 0**; into `questions/q<N>.md` with text id = target id **20 -> 3,614**; mismatched **0 -> 0**. Per file, *any* is equal and *matching* = before's *matching* + *into the register*, in every file **except P11, P12 and P13, by exactly −4, −2 and −2**, the unlinked ids |
+| (b) per-file counts, independent observer | **RAN** | `dev-dist/w118-27644/observe.sh`, which uses `git grep` over the working tree, not the rewrite's walk. Q-texted links of any target **3,627 -> 3,619**; into `open-questions.md` **3,602 -> 0**; into `questions/q<N>.md` with text id = target id **20 -> 3,614**; mismatched **0 -> 0**. Per file, *any* is equal and *matching* = before's *matching* + *into the register*, in every file **except P11, P12 and P13, by exactly −4, −2 and −2**, the unlinked ids. *Re-taken after the fix round: **3,621** any target, **3,616** matching, 0 mismatched. The +2 on each is `CLAUDE.md`'s new example link and this Record's Q484 link, both added after the first reading — conformity N1* |
 | (c) `refs-count` for every question | **RAN, byte-identical** | `npm run q -- --fields id,refs-count --where status~e --include-icebox --format json`, 393 records, before and after `cmp` equal: no rewrite touched text |
 | (d) line endings | **RAN** | every changed file is `i/lf w/lf`, and **0** CR bytes in every one of them |
 | (e) control | **RAN** | `dev-dist/w118-27644/control.sh`: `spec/task-id.md`'s first question link (`q86`) pointed at `q99999.md` made `check:markdown` **EXIT 1** with exactly one failure, `M1: spec/task-id.md links to ../doc/questions/q99999.md, which does not exist`. Restored, sha256 equal, **EXIT 0** |
-| `check:markdown`, `check:budget`, `check:spec`, `check:register`, `check:source`, `check:wiring`, `check:policies`, `check:scheduler`, `check:workers`, `lint` | **RAN, EXIT 0 each**, alone | `check:markdown` reads 592 documents / **5,255** links (5,263 − 8 unlinked) / 194 sources / 83 anchored |
+| `check:markdown`, `check:budget`, `check:spec`, `check:register`, `check:source`, `check:wiring`, `check:policies`, `check:scheduler`, `check:workers`, `lint` | **RAN, EXIT 0 each**, alone | `check:markdown` read 592 documents / 5,255 links (5,263 − 8 unlinked) / 194 sources / 83 anchored before the Record's own links. *At `9f56f9f` it read 5,256, and after the fix round **5,258**: the 2 links `doc/README.md`'s row gained* |
 | `typecheck`, `check:docs` | **RAN, EXIT 0 each** | the product did not move. Of `AGENTS.md`'s 49 links, 3 sit in comments in an executed snippet |
 | `check:markdown:selftest`, the re-anchored probe's file, alone | **RAN, EXIT 0** | 42/42 probes caught, 7/7 META bounded, 371 s. Before re-anchoring, the old anchor `](doc/open-questions.md)` matched **0** times in `AGENTS.md`. The new one, `](doc/questions/q`, matches 47 lines |
 | `gate:full` | **RAN ONCE, EXIT 0**, 1,519 s | on the final tree, with `git diff`'s sha256 taken before and compared after: unchanged. The ladder includes both L6 runtimes, and the selftests were **11/11 ok**, 1,359 s wall over 10 lanes. *This row is the only edit made after the gate. It is a doc-only line in this file; `check:markdown` was re-run on it below* |
-| conformity reader | **NOT RUN** | a separate fresh agent, afterwards |
+| conformity reader | **RAN** on `9f56f9f`, a fresh subagent | **no blocking finding.** Its own transform of `880221b` is byte-identical to the shipped files in 257 of 260; the other 3 are Outputs (2)-(3) and the probe re-anchor. **D1, defect:** `doc/README.md`'s two register rows still described `open-questions.md` as the register. This Record had excused them, and the excuse contradicted this item's own `Owns`. Fixed below. **N1:** two Record figures predated the author's later edits (5,255; 3,614). Re-taken below. **N2:** the stub's own *once W119 lands* sentence went unnamed; it is named below. **N3:** Q168/Q169, a judgement the maintainer confirmed: plain text. **N4:** the cut of `CLAUDE.md`'s historical parenthetical about the register, inside `Owns` and not a defect |
+| adequacy reader | **RAN** on `9f56f9f`, in an archive copy outside the repository (0 links when it was removed) | 30 mutants of the WORK. **CAUGHT:** a wrong depth and a dead `q<N>` target in `doc/`, `spec/`, `AGENTS.md` and `CLAUDE.md` (M1, and `C5` in spec/), a Q168 re-link, and the re-anchored probe both ways: anchor reverted, and every link removed from `AGENTS.md` (rule 7 (b), *matched nothing*). **SURVIVED:** (1) a wrong depth or dead target in the **534** rewritten links M1 does not walk: 325 in `.ts` comments, 193 in `scripts/*.mjs`, 16 in `examples/README.md`. (2) A text/target mismatch to an existing question, anywhere. (3) A link reverted to the stub, anywhere. (4) CRLF. (5) A link-text edit, which only `refs` sees, and `refs` is in no gate. (6) The prose of Outputs (2)-(4), a declared survivor under the ledger's *a check over `doc/`*. Its own resolver over every tracked file: **0 dead, 0 mismatched, 0 on the stub** |
+| fix round | **RAN** | D1 and N1-N2 acted on below. **The maintainer chose to CORRECT THE CLAIM, not add a check, for survivors (1)-(5), and no question was raised.** *The declaration's* Tests *say* M1 resolves every rewritten link*. That is true of the **3,060** in walked markdown. The **534** were resolved once, by the observer and by the adequacy reader's resolver, and nothing re-runs them. D1 is prose, so breaking it is survivor (6), the ledger's refused check, and no rung can be shown to see it |
+| `gate:full` after the fix round | **RAN ONCE, EXIT 0**, 2,946 s | on the fix-round tree, `git diff`'s sha256 unchanged across the run; selftests **11/11 ok**, 2,620 s wall. *That is twice the first run's wall on the same lanes; the cause was not isolated (Q433's over-commit is the standing candidate).* This row and the status line are the only edits after it, and `check:markdown` was re-run on them |
 
 **The floors, measured in staged copies** (`dev-dist/w118-27644/floors.sh`: documents / links /
 sources / anchored, and the failing set). The *before* copy is `git archive 880221b`. *After* is
@@ -145,19 +148,28 @@ length-neutral or shorter for every id below 1000.
 this file, 262 distinct. **The two sets are equal**: no file outside `Owns`, no file in it
 untouched, nothing untracked. The record step touched nothing.
 
-**The withdrawn-claim grep.** `git grep open-questions` outside `dev-dist/` leaves 73 files, and in
-none is it a live instruction to open the register to find a question. **Not rewritten, and named:**
+**The withdrawn-claim grep.** `git grep open-questions` outside `dev-dist/` leaves 73 files. After
+the fix round, none of them holds a live instruction to open the register to find a question.
 
-- `doc/README.md`'s `## Reading order` and `## Document status` rows for `open-questions.md`, both
-  of which still describe it as *the register*. That file already names them as stale and defers
-  them to [Q484](../questions/q484.md), and P28 *Out* limits prose changes to the live
-  instructions.
-- `doc/questions/README.md` still reads *until the lookup lands (W119), the file name is the
-  lookup*. It is stale since W119, and it is a record-step file this item had no reason to write.
+- **`doc/README.md`'s `## Reading order` and `## Document status` rows were FIXED in the fix
+  round**, conformity D1. The first cut of this Record left them and argued that P28 *Out* limits
+  prose to the live instructions, but this item's `Owns` names `doc/README.md` as one. It also said
+  that file already names them as stale. It names only their COUNTS ([Q484](../questions/q484.md)).
+  Following W115's precedent on that question, the POINTER halves were fixed: both rows now name
+  `questions/` as the register and the stub as a pointer. The stale count of 179 stays, as Q484
+  names it.
+- **Named, not fixed**, because neither file is this item's: `doc/questions/README.md` still reads
+  *until the lookup lands (W119), the file name is the lookup*, and the stub `doc/open-questions.md`
+  carries the same claim (*once W119 lands … until then*). Both are stale since W119.
 - Every other hit is historical prose, a comment, or a non-Q-texted link that lands on the stub.
   `doc/README.md`'s `[open-questions.md](open-questions.md)` is one of these, and it is now the
   subject of `check-markdown-selftest`'s *one directory too shallow* probe.
 
 **Questions raised**: none. **Q502-Q504 are unused.**
 
-**Overlap**: not measured. There is no adequacy reader in this item's gate.
+**Overlap: 1.** Both readers re-counted the observer's 3,614 as 3,616: conformity N1, and the
+adequacy reader's *small discrepancy*. The declared gate named one reader; the maintainer asked for
+both.
+
+**Q168 and Q169**: the maintainer confirmed after the readers that plain text was what *remove the
+reference* meant.
