@@ -45,6 +45,11 @@ Reserves:   Q502-Q504
 - Historical prose that names `doc/open-questions.md` as text — P28 *Out*. *W113 cut
   `doc/open-questions.md`* stays true of its day.
 - `dev-dist/`, `node_modules/`, `.git/`.
+- **Links inside a question's FRONT MATTER** — added after W116's conformity reader. Four cells
+  copied verbatim carry links written relative to the old register (`](#live)` in q481, q490 and
+  q492; `](decisions/0077-…)` in q466). Rewriting them breaks W116's verbatim round-trip, and
+  `check-markdown` skips front matter (ADR 0079), so nothing checks them either way. They stay as
+  copied; the scan in *Tests* excludes front matter and says so.
 
 ## Verification
 

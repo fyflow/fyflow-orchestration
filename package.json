@@ -67,6 +67,8 @@
     "check:workers:selftest": "node scripts/check-workers.mjs --self-test",
     "check:budget": "node scripts/check-budget.mjs",
     "check:budget:selftest": "node scripts/check-budget.mjs --self-test",
+    "check:register": "node scripts/check-register.mjs",
+    "check:register:selftest": "node scripts/check-register.mjs --self-test",
     "lint": "deno lint src/ test/ examples/ index.ts",
     "typecheck:node": "tsc -p tsconfig.node.json",
     "typecheck:browser": "tsc -p tsconfig.browser.json",
@@ -84,7 +86,7 @@
     "state": "node scripts/state.mjs",
     "gate:full": "npm run gate && npm run selftests",
     "selftests": "node scripts/run-selftests.mjs",
-    "gate": "npm run lint && npm run typecheck && npm run check:scheduler && npm run check:policies && npm run check:spec && npm run check:source && npm run check:markdown && npm run check:wiring && npm run check:workers && npm run check:docs && npm run check:budget && npm run test && npm run test:deno && npm run test:browser && npm run test:l6 && npm run test:l6:deno"
+    "gate": "npm run lint && npm run typecheck && npm run check:scheduler && npm run check:policies && npm run check:spec && npm run check:source && npm run check:markdown && npm run check:wiring && npm run check:workers && npm run check:docs && npm run check:budget && npm run check:register && npm run test && npm run test:deno && npm run test:browser && npm run test:l6 && npm run test:l6:deno"
   },
   "engines": {
     "node": ">=22"

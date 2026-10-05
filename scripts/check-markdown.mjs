@@ -100,6 +100,33 @@ export function blankCode(text) {
 }
 
 /**
+ * **YAML front matter blanked, LENGTH-PRESERVING — a field is DATA, not a link.**
+ * [W116](../doc/work-items/w116-a-question-is-a-file.md) moved the register into
+ * `doc/questions/q<N>.md`, one front-matter block per question with every cell copied VERBATIM, and
+ * four cells carry a link written relative to the OLD register: `](#live)` three times and
+ * `](decisions/0077-…)` once. From `doc/questions/` they resolve to nothing — and rewriting them would
+ * break the verbatim copy the round-trip holds. **A front-matter value is printed by a lookup as text
+ * and is never rendered as a link**, so it is not this check's subject;
+ * [ADR 0079](../doc/decisions/0079-a-register-is-files-with-front-matter-and-its-index-is-derived.md).
+ *
+ * Only a block that OPENS the file counts — a `---` first line and the FIRST `---` line after it,
+ * never the last, so a thematic break in the body does not move the fence down over the links above
+ * it. **It applies to EVERY scanned file, not only `doc/questions/`** (W116's conformity reader): no
+ * other document opened with `---` when this was written, and one that later opens with a thematic
+ * break would lose its links up to the next `---` — the reach this narrowing costs, stated rather
+ * than found. **An opening `---` with no closing one is NOT front matter and nothing is blanked**: the
+ * whole file stays in the walk, which is the direction that can only report too much — W116's
+ * adequacy reader blanked the whole of such a file for 155 links gone and a green self-test.
+ */
+export function blankFrontMatter(text) {
+  if (!text.startsWith('---\n')) return text;
+  const close = text.indexOf('\n---\n', 3);
+  const end = close >= 0 ? close + 4 : (text.endsWith('\n---') ? text.length : -1);
+  if (end < 0) return text;
+  return text.slice(0, end).replace(/[^\n]/g, ' ') + text.slice(end);
+}
+
+/**
  * **The slug rule, and it is the centre of this check.** GitHub lowercases the
  * heading's rendered text, drops everything that is not a letter, a digit, an
  * underscore, a hyphen or whitespace, and replaces **each** whitespace character
@@ -250,7 +277,7 @@ export function resolveLinks(files, root) {
   const rel = (p) => relative(root, p).replace(/\\/g, '/');
 
   for (const p of files) {
-    const text = blankCode(readFileSync(p, 'utf8'));
+    const text = blankCode(blankFrontMatter(readFileSync(p, 'utf8')));
     for (const m of text.matchAll(LINK)) {
       const target = m[1];
       if (/^[a-z][a-z0-9+.-]*:/i.test(target)) continue;   // external scheme
@@ -446,7 +473,24 @@ for (const d of r.deadAnchors) fail('M2', d);
 // `M3`'s margin to ZERO exactly as W97's record step predicted ([Q142](../doc/open-questions.md)): 123 files against a floor
 // of 123. The midpoint of its window `(123, 162]` on the tree W98 ships, from a scratch-copy measurement — W80's rule, and
 // W92's precedent for `M4`. Probe 1 still fires (123 < 142) and the whole tree still passes (162).
-if (r.files < 142) fail('M3', `only ${r.files} markdown file(s) were scanned, so M1 and M2 are ` +
+// **142 -> 362 at [W116](../doc/work-items/w116-a-question-is-a-file.md), and both `removes` probes
+// now cut `doc/questions` as well.** Two findings at once. First, the lane was ALREADY RED on
+// `4eac349`: P28's declaration wrote six documents outside both cut directories and probe 1 read
+// **146** files against 142 — `wanted [M1,M3], got [M1]`, [Q142](../doc/open-questions.md) for the
+// twelfth time, found by measuring this item's baseline. Second, W116 writes **384** files into a
+// directory neither probe cut, so retuning the floor alone would have bought a window `(530, 579]` —
+// 49 wide, drained by every question raised from then on, since each is now a document. **Cutting
+// `doc/questions` in both fixtures takes the register's growth out of the lower edge entirely**:
+// measured on this tree in a staged copy, whole tree **579** files, probe 1 (decisions + questions
+// cut) **146**, probe 2 (decisions + plans + questions) **117**. 362 is the midpoint of `(146, 579]`
+// — W80's rule — leaving 216 documents of headroom below and 217 above, and the whole tree only
+// grows. *A floor sitting at the size of the one directory it does not cut would be a different
+// mistake; this one sits above everything but the register.*
+// **And the reach it gives up, stated** (W116's conformity reader): at 362 against a whole tree of
+// 579, `M3` is mostly a check that `doc/questions/` is WALKED — about 216 other documents could
+// leave the walk and this floor would not see it. What sees those is `M1`, whose links into a
+// document that left go dead, and `M4`, which counts the documents that carry a link.
+if (r.files < 362) fail('M3', `only ${r.files} markdown file(s) were scanned, so M1 and M2 are ` +
   'true of the walk rather than of the tree');
 // **1200 -> 1350 at P9's declaration, 1350 -> 1530 by W30, and both times because
 // ordinary work closed the window from below.** [Q142](../doc/open-questions.md).
@@ -683,188 +727,18 @@ if (r.sources >= r.files) {
 // pre-cut ones.*
 if (r.anchored < 28) fail('M5', `only ${r.anchored} link(s) carry an anchor; M2 is vacuous below that`);
 
-// --- M7 / M8: the register is a TABLE, and it is one row per question ----------
+// --- M7 / M8 LEFT at W116 ---------------------------------------------------------------
 //
-// **These exist because W113's adequacy reader priced the clause the item had refused.** That item
-// measured a CORPUS-WIDE table check at 20 content-dropping rows in 10 documents — 8 of them
-// outside its reach — and narrowed its own `Outputs` row to a measurement. The reader measured the
-// one thing the item never priced: **scoped to `doc/open-questions.md` the count is ZERO**, so a
-// clause over that file alone is non-vacuous on a tree where a row is broken and clean on this
-// one, which is v0.22's test for a control — *you can name the tree on which it fails while its
-// claim passes*. The item narrowed a corpus-wide clause and did not price the scoped one.
-//
-// **The SUBJECT is one file, declared by name, and that is a reduction recorded as one.** `X10`'s
-// single subject after [ADR 0073](../doc/decisions/0073-the-readme-is-for-a-person-the-reference-is-for-an-agent.md)
-// decision 5 is the precedent. Extending it to the corpus is [Q407](../doc/open-questions.md),
-// which carries the 49-in-22 figure; what stops it today is twenty rows nobody has fixed.
-//
-// What each refuses, and the row of the register that is each one's own case:
-//   `M7`  a table row whose cell count EXCEEDS its header's, so GFM discards the excess — Q131,
-//         three mechanisms and seven rows, all three RESOLVED by W113's rewrite; a row that does
-//         not open and close with a pipe, which is Q87's table TERMINATION (Q135); and a blank
-//         line inside a table, which is Q442 and which hid the largest instance of all.
-//   `M8`  one row per question and no duplicate, which is what a register IS — and it is the only
-//         thing that sees a RE-BALLOON, because HEAD's register carried 427 row lines over 357
-//         ids and this clause reads that as 70 duplicates. P27 decision 2's own worry is *a habit
-//         this register has re-ballooned from once already*, and the reader measured the restore
-//         of HEAD's 721,528 bytes as nine-checks-green.
-//         It also asserts both HEADINGS, which were the one thing W113's cut had to preserve and
-//         whose only observer was a nav link feeding one probe's rule 7 (b) guard — obligation
-//         (c)'s LIMIT, at one observer, named by that reader.
-//
-// **A fenced block is not a table**, so fences are blanked first; `blankCode` blanks code SPANS,
-// and a row is cut on `|` BEFORE inline code is parsed (W30), so an unescaped pipe inside a code
-// span splits the row exactly as one outside it does — which is Q215, the third mechanism.
-// A row is cut on every UNESCAPED pipe, including inside a code span.
-const ROW_SPLIT = /(?<!\\)\|/;
-
-/**
- * GFM pairs a backtick RUN of length n with the next run of exactly n; an unpaired run is literal.
- * Blanking the paired spans leaves the inline text, where `*` and `**` must balance — and leaves a
- * backtick behind exactly when a run was never closed.
- */
-function blankSpans(s) {
-  let out = '', i = 0;
-  while (i < s.length) {
-    if (s[i] !== '`') { out += s[i++]; continue; }
-    let n = 0;
-    while (s[i + n] === '`') n++;
-    let j = i + n, close = -1;
-    while (j < s.length) {
-      if (s[j] === '`') {
-        let m = 0;
-        while (s[j + m] === '`') m++;
-        if (m === n) { close = j; break; }
-        j += m;
-      } else j++;
-    }
-    if (close === -1) { out += '`'.repeat(n); i += n; continue; }
-    out += ' '.repeat(close + n - i);
-    i = close + n;
-  }
-  return out;
-}
-
-/**
- * **A floor, and it is a ratchet that never needs lowering — which is the opposite of
- * [Q102](../doc/open-questions.md)'s hazard.** A register row is never deleted, because an id is
- * never reused (`doc/workflow.md` section 3), so this count is monotonically non-decreasing: a
- * floor set below today's is valid for ever and only ever moves UP, by choice rather than by
- * obligation.
- *
- * 357 rows ship at W113 and the floor is 350. **The first cut was 200, and W113's adequacy reader's
- * edit B6 — one hundred rows deleted — survived it**, because 257 is still above 200. A floor with
- * 157 rows of slack is a floor against nothing. Seven rows of slack is what a reader needs to not
- * trip it while editing, and **a deletion of one to seven rows is a declared ceiling**: no
- * expression here can see it, because the ids ARE the source and there is no second list to
- * compare against. An equality would be a ratchet every item that raises a question must bump,
- * which is the shape this repository refuses.
- */
-const REGISTER_ROW_FLOOR = 350;
-const REGISTER = 'doc/open-questions.md';
-{
-  const abs = join(SCAN_ROOT, REGISTER);
-  const raw = existsSync(abs) ? readFileSync(abs, 'utf8').split('\n') : null;
-  if (!raw) {
-    fail('M7', `${REGISTER} is not readable, and M7 and M8 are true of nothing without it`);
-  } else {
-    let inFence = false;
-    const lines = raw.map((l) => {
-      if (/^\s*(```|~~~)/.test(l)) { inFence = !inFence; return ''; }
-      return inFence ? '' : l;
-    });
-    let width = null, tables = 0;
-    for (let i = 0; i < lines.length; i++) {
-      const l = lines[i];
-      if (!/^\s*\|/.test(l)) { width = null; continue; }
-      const cells = l.split(ROW_SPLIT);
-      const opens = cells[0].trim() === '';
-      const closes = cells[cells.length - 1].trim() === '';
-      const n = opens && closes ? cells.length - 2 : cells.length - 1;
-      if (width === null) {
-        // **A header whose first cell is a question ID is not a header — it is a row that lost its
-        // table**, which is what a blank line or a paragraph in the middle of one produces. This
-        // predicate is what catches Q442's shape, and the first cut of this clause missed it: it
-        // looked for a blank line followed by a pipe line, and a PARAGRAPH between the two made the
-        // detection go quiet. W113's adequacy reader, edit B4. *A break is visible at the row that
-        // is being read as a header, not at the blank line that caused it.*
-        if (/^Q\d+$/.test((cells[1] || '').trim())) {
-          fail('M7', `${REGISTER}:${i + 1} this row is being read as a table HEADER, because the ` +
-            'table above it was ended by a blank line or a paragraph — so it and every row below ' +
-            'it render as a paragraph of literal pipes');
-        }
-        // **A header is `| Q | … |` and a DELIMITER row follows it, and this clause is §10's own
-        // predicate.** `18eee73` deleted both from the register's `## Resolved` section on
-        // 2026-09-02 and the whole Resolved half rendered as literal pipes for 31 days and 100
-        // commits — the largest render defect in this file's history, which no cell-count clause
-        // can see, because without a delimiter there is no header to count against. W113's own
-        // rule-8 set found the other half: mangling a header LINE leaves the delimiter row serving
-        // as the header, and the rows' widths still match it, so that was invisible too.
-        else if (!/^\s*\|[\s:|-]+\|\s*$/.test(lines[i + 1] ?? '')) {
-          fail('M7', `${REGISTER}:${i + 1} this table's header is not followed by a delimiter row, ` +
-            'so GFM renders the whole table as a paragraph of literal pipes — and no cell-count ' +
-            'clause can see it, because there is no header to count against');
-        } else if ((cells[1] || '').trim() !== 'Q') {
-          fail('M7', `${REGISTER}:${i + 1} a table header's first column is ` +
-            `"${(cells[1] || '').trim().slice(0, 20)}" and every table here is keyed by \`Q\``);
-        }
-        width = n; tables++;
-        continue;
-      }
-      if (/^\s*\|[\s:|-]+\|\s*$/.test(l)) continue;
-      if (!opens || !closes) {
-        fail('M7', `${REGISTER}:${i + 1} a table row does not open AND close with a pipe, which ` +
-          'ends the table — every row below it renders as a paragraph');
-      } else if (n !== width) {
-        // **Both directions, and only because the subject is THIS file.** More cells than the
-        // header means GFM DISCARDS the excess, which is Q131; FEWER means a declared column
-        // renders empty, which is how `Closes when` could go missing in silence. Corpus-wide the
-        // second direction is 28 rows and the clause would be red; here both are ZERO.
-        fail('M7', `${REGISTER}:${i + 1} a row has ${n} cells against a header of ${width}` +
-          (n > width
-            ? `, so GFM DISCARDS ${n - width} of them — escape the pipes with \\| , including inside code spans`
-            : `, so ${width - n} declared column(s) render EMPTY`));
-      }
-      // **Inline markup that does not balance swallows the rest of the ROW.** GFM pairs a backtick
-      // RUN with the next run of the same length, so a stray backtick standing in for an
-      // apostrophe opens a span that eats the cells after it — seven rows of HEAD's register did
-      // exactly that, by a delimiter Q131 does not name. W113's adequacy reader, edit B13.
-      const bare = blankSpans(l);
-      if (bare.includes('`')) {
-        fail('M7', `${REGISTER}:${i + 1} a backtick run in this row is never closed, so a code ` +
-          'span swallows the cells after it — a backtick standing in for an apostrophe is the usual cause');
-      } else if ((bare.match(/\*\*/g) || []).length % 2) {
-        fail('M7', `${REGISTER}:${i + 1} a bold run in this row is never closed`);
-      } else if ((bare.replace(/\*\*/g, '').match(/\*/g) || []).length % 2) {
-        fail('M7', `${REGISTER}:${i + 1} an italic run in this row is never closed`);
-      }
-    }
-    if (tables < 2) {
-      fail('M7', `${REGISTER} carries ${tables} table(s); M7 is vacuous below two and the ` +
-        'register has one per cluster plus Resolved');
-    }
-    // M8: one row per question, both headings present
-    const ids = [...readFileSync(abs, 'utf8').matchAll(/^\|\s*(Q\d+)\s*\|/gm)].map((m) => m[1]);
-    const seen = new Set(), dupes = new Set();
-    for (const id of ids) { if (seen.has(id)) dupes.add(id); seen.add(id); }
-    if (dupes.size) {
-      fail('M8', `${REGISTER} carries ${ids.length} row(s) for ${seen.size} question(s) — ` +
-        `${[...dupes].slice(0, 6).join(', ')}${dupes.size > 6 ? ' and more' : ''} appear twice. ` +
-        'One line per question is what the register IS, and two rows for one id is the shape a ' +
-        're-balloon takes: HEAD carried 427 row lines over 357 ids');
-    }
-    if (ids.length < REGISTER_ROW_FLOOR) {
-      fail('M8', `${REGISTER} carries ${ids.length} row(s) and the floor is ${REGISTER_ROW_FLOOR} — ` +
-        'M7 is true of nothing below that, and a register with no rows is not a register');
-    }
-    for (const h of ['## Live', '## Resolved']) {
-      if (!raw.includes(h)) {
-        fail('M8', `${REGISTER} has no "${h}" heading. Every anchored link into this file resolves ` +
-          'to one of those two and to no row, which is the whole of what W113\'s cut had to preserve');
-      }
-    }
-  }
-}
+// **They held the register's TABLES and its one-row-per-question shape, and at
+// [W116](../doc/work-items/w116-a-question-is-a-file.md) the register stopped being a table.** One
+// file per question removes both subjects: there is no table to break, and a question deleted and
+// not yet COMMITTED is a file missing against `HEAD`, which `check:register`'s `R4` sees where
+// `M8`'s floor said of itself that *a deletion of one to seven rows is a declared ceiling*. A
+// COMMITTED deletion is beyond `R4` too — its ceiling is in `check-register.mjs` and Q493.
+// [ADR 0079](../doc/decisions/0079-a-register-is-files-with-front-matter-and-its-index-is-derived.md)
+// amends [ADR 0078](../doc/decisions/0078-a-vacuity-floors-window-is-a-property-of-the-probe-suite.md),
+// which added them; `git show 4eac349:scripts/check-markdown.mjs` has their text. *They had no probe
+// in `check-markdown-selftest.mjs` to take with them — zero occurrences of either id there.*
 
 const checks = [
   'M1 every relative link resolves to a file that exists',
@@ -873,8 +747,6 @@ const checks = [
   'M4 the tree carries links to check',
   'M5 the links carry anchors to check',
   'M6 M4 counts something M3 does not',
-  'M7 the register is a table',
-  'M8 the register is one row per question',
 ];
 // `sources` is printed because it is what `M4` now reads, and a floor whose quantity is not in the
 // report is a floor a reader cannot check the check against — W107's `compared` defect, which was

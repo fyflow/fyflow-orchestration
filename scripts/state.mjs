@@ -218,22 +218,51 @@ const spentItems = spent(LEDGER.itemSpent);
 const spentQs = spent(LEDGER.qSpent);
 const skippedAdrs = spent(LEDGER.adrSkipped);
 
-// --- the register, parsed by CELL COUNT ---------------------------------------
+// --- the register, ONE FILE PER QUESTION ----------------------------------------
 /**
- * The five cluster tables are `Q | Question or finding | Status | Owner | Closes when` and
- * `## Resolved` is `Q | Cluster | Question | What resolved it`, so the width tells a live
- * row from a resolved one with nothing else to read. A header or delimiter row has no `Q<n>`
- * in its first cell and is skipped by that test rather than by its position.
+ * **The register is `doc/questions/q<N>.md` since
+ * [W116](../doc/work-items/w116-a-question-is-a-file.md)**, and this read the old table's rows by
+ * CELL COUNT until then. Now a question is live exactly when its `status` is not `resolved`, and
+ * `icebox` is the fourth word — counted on its own line, because the lookup hides it and a count
+ * that folded it into `open` would hide it here too.
+ *
+ * **Its own reader, not `check-register.mjs`'s**: the one field these counts need is `status:`,
+ * read off the front matter's own line. A derivation that imported the check's parser would be one
+ * observer of the folder rather than two — obligation (c)'s LIMIT.
  */
-const register = read('doc/open-questions.md');
-const regRows = [...register.matchAll(/^\|(.*)\|[ \t]*$/gm)]
-  .map((m) => m[1].split('|').map((s) => s.trim()))
-  .filter((c) => /^(?:\[)?Q\d+/.test(c[0]));
-const live = regRows.filter((c) => c.length === 5);
-const resolved = regRows.filter((c) => c.length === 4);
-const qIds = regRows.map((c) => parseInt(c[0].match(/\d+/)[0], 10));
-const openRows = live.filter((c) => /^open\b/i.test(plain(c[2]))).length;
-const deferredRows = live.filter((c) => /deferred/i.test(plain(c[2]))).length;
+const QUESTION_DIR = 'doc/questions';
+// **A file that cannot be read is a REFUSAL with its name, not a stack trace** — W116's adequacy
+// reader put a DIRECTORY named `q9002.md` in the folder and this died of `EISDIR`.
+const unreadableQs = [];
+const questions = listing(QUESTION_DIR, /^q\d+\.md$/).map((f) => {
+  let text = '';
+  try { text = read(`${QUESTION_DIR}/${f}`); } catch { unreadableQs.push(f); }
+  const fm = /^---\n([\s\S]*?)\n---(?:\n|$)/.exec(text);
+  const m = fm ? /^status: *"?([a-z]+)"? *$/m.exec(fm[1]) : null;
+  return { id: idOf(f), status: m ? m[1] : null };
+});
+/**
+ * **A SECOND ROUTE to the folder, sharing nothing with the first** — its own `readdirSync`, its own
+ * name test, no `listing()`. W116's adequacy reader narrowed `listing`'s pattern to `/^q(?!49)\d+/`
+ * and this script printed *next free Q490* at EXIT 0 — an id already issued — because the old
+ * second route (`idsSane`) read the SAME `qIds` the first route had already narrowed: one observer
+ * counted twice, obligation (c)'s LIMIT. Every entry but the README is a question or a defect, so
+ * the count must agree, and the highest number on disk must sit below the next free id.
+ */
+let rawQuestionNames = [];
+try { rawQuestionNames = readdirSync(join(TREE, QUESTION_DIR)).filter((n) => n !== 'README.md'); }
+catch { rawQuestionNames = []; }
+const rawMaxQ = rawQuestionNames.reduce((a, n) => {
+  const m = /(\d+)/.exec(n);
+  return m ? Math.max(a, Number(m[1])) : a;
+}, 0);
+const byStatus = (s) => questions.filter((q) => q.status === s).length;
+const resolvedCount = byStatus('resolved');
+const liveCount = questions.length - resolvedCount;
+const qIds = questions.map((q) => q.id);
+const openRows = byStatus('open');
+const deferredRows = byStatus('deferred');
+const iceboxRows = byStatus('icebox');
 
 const maxOf = (xs) => (xs.length ? Math.max(...xs) : 0);
 const nextFree = (max, taken) => { let n = max + 1; while (taken.has(n)) n++; return n; };
@@ -275,9 +304,10 @@ const counts = [
   ['plans', planFiles.length],
   ['work items', itemFiles.length],
   ['decisions', adrFiles.length],
-  ['register rows', regRows.length],
-  ['  of those, live / resolved', `${live.length} / ${resolved.length}`],
+  ['register questions (doc/questions/)', questions.length],
+  ['  of those, live / resolved', `${liveCount} / ${resolvedCount}`],
   ['  of the live, open / deferred', `${openRows} / ${deferredRows}`],
+  ['  of the live, iceboxed', iceboxRows],
   ['ladder L6 assertions (examples/l6.ts)', L6_TOTAL],
   ['ladder L6 real runs (examples/l6.ts)', L6_RUNS],
   ['package version (package.json / deno.json)', `${pkg.version} / ${deno.version}`],
@@ -299,13 +329,24 @@ const ASSERTIONS = [
   ['plan files found', plans.length, 20, 'plans'],
   ['item files found', items.length, 80, 'items'],
   ['decision files found', adrFiles.length, 40, 'decisions'],
-  ['register rows parsed', regRows.length, 300, 'register'],
-  ['register rows in a LIVE cluster table', live.length, 200, 'register'],
-  ['register rows in the Resolved table', resolved.length, 50, 'register'],
-  ['register rows reading `open`', openRows, 200, 'register'],
-  // a RELATION rather than a floor: every live row is open or deferred, so a status cell
-  // that changes shape is caught where a floor of 200 would absorb 27 of them silently.
-  ['live rows that are open or deferred', openRows + deferredRows, live.length, 'register'],
+  ['register question files read', questions.length, 300, 'register'],
+  ['questions that are live (not resolved)', liveCount, 200, 'register'],
+  ['questions that are resolved', resolvedCount, 50, 'register'],
+  ['questions reading `open`', openRows, 200, 'register'],
+  // a RELATION rather than a floor: every live question is open, deferred or iceboxed, so a
+  // status line that changes shape is caught where a floor of 200 would absorb it silently —
+  // and an unreadable `status:` line counts as live and as none of the three.
+  ['live questions that are open, deferred or iceboxed', openRows + deferredRows + iceboxRows, liveCount, 'register'],
+  // **The second route, and each comparison is a floor at the OTHER route's figure**, so the first
+  // route reading fewer than the directory holds, or a next id at or below an id on disk, is red.
+  ['question files read, against every entry the folder holds read a second way',
+    questions.length, rawQuestionNames.length, 'register'],
+  ['question files that are readable files' +
+    (unreadableQs.length ? ` — NOT: ${unreadableQs.join(', ')}` : ''),
+    questions.length - unreadableQs.length, questions.length, 'register'],
+  ['question files whose `status:` line parses', questions.filter((q) => q.status !== null).length,
+    questions.length, 'register'],
+  ['the next free Q, against the highest number on disk read a second way', next.q, rawMaxQ + 1, 'register'],
   // **An EQUALITY against the derived count, not a floor, and that is what rule 8 found.**
   // With a floor of 20 the title fallback could be DELETED for nothing: 22 plans declare a
   // question line and 22 >= 20, so the five identified only by their title left no trace.
