@@ -7,7 +7,7 @@ item: W77
 raised-by: Q293, P20
 supersedes: ""
 amends: ""
-resolves: ""
+resolves: Q37
 ---
 
 # ADR 0058 — `runtime.start` returns a completion handle the RUNTIME keeps, and it resolves rather than rejects

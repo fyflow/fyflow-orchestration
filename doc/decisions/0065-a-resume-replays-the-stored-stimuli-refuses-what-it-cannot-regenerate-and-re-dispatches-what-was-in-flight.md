@@ -7,7 +7,7 @@ item: W89
 raised-by: P23, Q15, Q364
 supersedes: ""
 amends: ""
-resolves: ""
+resolves: Q38
 ---
 
 # ADR 0065 — A resume replays the stored stimuli through the routing that produced them, refuses what it cannot regenerate, and re-dispatches what was in flight
