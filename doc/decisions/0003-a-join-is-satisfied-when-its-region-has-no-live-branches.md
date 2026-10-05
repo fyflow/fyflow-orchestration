@@ -1,6 +1,17 @@
+---
+id: ADR 0003
+title: "A join is satisfied when its region has no live branches, not when N branches have arrived"
+status: accepted
+date: "2026-08-30"
+item: W4
+raised-by: Q4, P1
+supersedes: ""
+amends: ""
+resolves: Q4
+---
+
 # ADR 0003 — A join is satisfied when its region has no live branches, not when N branches have arrived
 
-**Date:** 2026-08-30
 **Status:** accepted — **two false statements corrected in place**, 2026-08-30 and 2026-08-31; see
 *Correction* and *Correction 2*. **Rule 5 is superseded by
 [ADR 0025](0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md)**, which

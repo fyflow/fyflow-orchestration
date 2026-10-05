@@ -1,8 +1,17 @@
+---
+id: ADR 0072
+title: "A scratch path carries its process, and a self-test that shares the tree says so"
+status: accepted
+date: "2026-10-01"
+item: W105
+raised-by: ""
+supersedes: ADR 0039 rule 3 in part
+amends: ""
+resolves: Q426
+---
+
 # ADR 0072 — A scratch path carries its process, and a self-test that shares the tree says so
 
-**Status:** accepted
-**Date:** 2026-10-01
-**Item:** [W105](../work-items/w105-the-scratch-directory-is-namespaced.md)
 **Supersedes:** part of [ADR 0039](0039-the-gate-climbs-the-ladder-and-the-self-tests-run-concurrently.md)
 — rule 3's exclusive SET, not its mechanism
 

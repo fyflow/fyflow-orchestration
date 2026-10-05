@@ -1,7 +1,17 @@
+---
+id: ADR 0065
+title: "A resume replays the stored stimuli through the routing that produced them, refuses what it cannot regenerate, and re-dispatches what was in flight"
+status: accepted
+date: "2026-09-24"
+item: W89
+raised-by: P23, Q15, Q364
+supersedes: ""
+amends: ""
+resolves: ""
+---
+
 # ADR 0065 — A resume replays the stored stimuli through the routing that produced them, refuses what it cannot regenerate, and re-dispatches what was in flight
 
-**Date:** 2026-09-24
-**Status:** accepted
 **Raised by:** [P23](../plans/p23-what-a-run-needs-to-outlive-its-process.md) decisions 6, 7, 9 and 10 and
 stop-and-asks (a)-(c), taken by [W89](../work-items/w89-what-resuming-is.md); [Q15](../open-questions.md)'s
 second half, [Q364](../open-questions.md)

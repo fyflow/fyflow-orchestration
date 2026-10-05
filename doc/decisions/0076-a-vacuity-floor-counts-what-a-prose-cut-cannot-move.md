@@ -1,8 +1,17 @@
+---
+id: ADR 0076
+title: "A vacuity floor counts what the churn it guards against cannot move, and the always-read set has a ceiling that only goes down"
+status: accepted
+date: "2026-10-03"
+item: W112
+raised-by: ""
+supersedes: ""
+amends: ""
+resolves: ""
+---
+
 # ADR 0076 — A vacuity floor counts what the churn it guards against cannot move, and the always-read set has a ceiling that only goes down
 
-**Status:** accepted
-**Date:** 2026-10-03
-**Item:** [W112](../work-items/w112-the-budget-the-check-and-the-floors.md)
 **Supersedes:** nothing. **Amends:** what `check-markdown`'s `M4` takes as its subject, and adds
 `check:budget` as the gate chain's sixteenth entry.
 

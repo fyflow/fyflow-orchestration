@@ -1,6 +1,17 @@
+---
+id: ADR 0013
+title: "`fyflow-scheduler` is a **development** dependency, reached from the working tree next door, and the published library depends on it not at all"
+status: accepted
+date: "2026-08-30"
+item: W5
+raised-by: Q51, P1
+supersedes: ""
+amends: ""
+resolves: ""
+---
+
 # ADR 0013 — `fyflow-scheduler` is a **development** dependency, reached from the working tree next door, and the published library depends on it not at all
 
-**Date:** 2026-08-30
 **Status:** accepted — **rules 3 and 5 superseded 2026-08-31 by
 [ADR 0029](0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)**,
 after both registries began carrying 0.3.0. **Rules 1, 2 and 6 superseded 2026-09-11 by

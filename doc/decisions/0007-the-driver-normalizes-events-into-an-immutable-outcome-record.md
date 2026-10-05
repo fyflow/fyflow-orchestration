@@ -1,7 +1,17 @@
+---
+id: ADR 0007
+title: "The driver normalizes every scheduler event into an immutable outcome record"
+status: accepted
+date: "2026-08-30"
+item: ""
+raised-by: Q31
+supersedes: ""
+amends: ""
+resolves: ""
+---
+
 # ADR 0007 — The driver normalizes every scheduler event into an immutable outcome record
 
-**Date:** 2026-08-30
-**Status:** accepted
 **Raised by:** Q31, reading `../fyflow-scheduler/RESOURCE_EVENTS_PLAN.md` §11
 
 > **Id note.** 0003-0006 are reserved by [P1](../plans/p1-what-satisfies-a-join.md) and 0003 is held

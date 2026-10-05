@@ -1,6 +1,17 @@
+---
+id: ADR 0027
+title: "An inbound task id that does not parse was minted by no driver: report it, do not stop the run"
+status: accepted
+date: "2026-09-02"
+item: W18
+raised-by: Q86, P6
+supersedes: ADR 0023 rule 2
+amends: ""
+resolves: ""
+---
+
 # ADR 0027 — An inbound task id that does not parse was minted by no driver: report it, do not stop the run
 
-**Date:** 2026-09-02
 **Status:** accepted — **supersedes [ADR 0023](0023-an-inbound-settlement-is-this-runs-only-if-this-driver-dispatched-it.md)
 rule 2 and retires the first of that ADR's two preconditions**
 **Raised by:** [Q86](../open-questions.md), decided by

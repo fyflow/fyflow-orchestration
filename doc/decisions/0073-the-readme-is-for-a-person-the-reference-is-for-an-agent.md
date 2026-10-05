@@ -1,8 +1,17 @@
+---
+id: ADR 0073
+title: "The README is for a person, the reference is for an agent, and CLAUDE.md is for an agent working on the library"
+status: accepted
+date: "2026-10-02"
+item: W107
+raised-by: ""
+supersedes: ""
+amends: ""
+resolves: ""
+---
+
 # ADR 0073 — The README is for a person, the reference is for an agent, and CLAUDE.md is for an agent working on the library
 
-**Status:** accepted
-**Date:** 2026-10-02
-**Item:** [W107](../work-items/w107-the-readme-is-for-a-person-who-will-use-the-library.md)
 **Supersedes:** nothing. **Amends:** what `check-docs`' `X8` and `X10` take as their subject.
 
 ## Context

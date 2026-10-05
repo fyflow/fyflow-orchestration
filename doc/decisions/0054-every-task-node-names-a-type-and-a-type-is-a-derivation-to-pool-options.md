@@ -1,6 +1,17 @@
+---
+id: ADR 0054
+title: "Every task node names a TYPE, and a type is a derivation to pool options"
+status: accepted
+date: "2026-09-15"
+item: W65
+raised-by: P18
+supersedes: ""
+amends: ADR 0049; ADR 0051
+resolves: ""
+---
+
 # ADR 0054 — Every task node names a TYPE, and a type is a derivation to pool options
 
-**Date:** 2026-09-15
 **Status:** accepted — answers the second of [P18](../plans/p18-a-flow-and-its-runtime-from-documents-alone.md)'s
 two decisions, *what a task node says about the thing that runs it, and what a node type IS*, on that
 plan's decisions 1, 2, 4, 5, 9, 12 and 14. **Amends [ADR 0049](0049-a-node-type-is-a-registry-entry-and-its-worker-receives-an-envelope.md)**:

@@ -1,7 +1,17 @@
+---
+id: ADR 0067
+title: "A gate runs in the driver, its memory is the driver's, and its decision is recorded"
+status: accepted
+date: "2026-09-25"
+item: W93
+raised-by: P24
+supersedes: ADR 0066 rule 7
+amends: ""
+resolves: ""
+---
+
 # ADR 0067 — A gate runs in the driver, its memory is the driver's, and its decision is recorded
 
-**Status:** accepted 2026-09-25
-**Item:** [W93](../work-items/w93-what-a-gate-does-in-a-run.md)
 **Plan:** [P24](../plans/p24-what-a-node-may-remember-across-a-runs-branches.md) — *what may a node
 REMEMBER across a run's branches?*
 **Supersedes:** [ADR 0066](0066-a-gate-is-a-decision-with-memory-that-names-a-registered-type-and-wires-every-route-exactly-once.md)

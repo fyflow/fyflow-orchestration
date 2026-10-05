@@ -1,6 +1,17 @@
+---
+id: ADR 0052
+title: "A second dependency is declared where its one sub-path is reached"
+status: accepted
+date: "2026-09-13"
+item: W62
+raised-by: P17
+supersedes: ""
+amends: ""
+resolves: ""
+---
+
 # ADR 0052 — A second dependency is declared where its one sub-path is reached
 
-**Date:** 2026-09-13
 **Status:** accepted — answers the half of [P17](../plans/p17-what-a-node-may-do-to-its-input-before-its-worker-sees-it.md)'s
 question [ADR 0051](0051-a-transform-is-a-declared-expression-in-a-registered-language-applied-in-the-types-worker-wrapper.md)
 left open: how the engine behind the first language adapter is DECLARED, and by whom it is loaded.

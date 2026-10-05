@@ -1,6 +1,17 @@
+---
+id: ADR 0015
+title: "A run whose join can no longer fire is `stuck`, the fold is what decides it, and `regions` did not already hold the data"
+status: accepted
+date: "2026-08-30"
+item: W5
+raised-by: Q43, Q42, P1
+supersedes: ""
+amends: ""
+resolves: ""
+---
+
 # ADR 0015 — A run whose join can no longer fire is `stuck`, the fold is what decides it, and `regions` did not already hold the data
 
-**Date:** 2026-08-30
 **Status:** accepted — **one clause corrected in place, 2026-08-30**, see *Correction*
 **Raised by:** [Q43](../open-questions.md) and [Q42](../open-questions.md), taken by
 [W5](../work-items/w5-one-real-fan-out-flow-on-a-real-scheduler.md) under

@@ -1,8 +1,16 @@
-# ADR 0002 — A flow definition is data, and a predicate is registered by name
+---
+id: ADR 0002
+title: "A flow definition is data, and a predicate is registered by name"
+status: accepted
+date: "2026-08-30"
+item: ""
+raised-by: Q2
+supersedes: ""
+amends: ""
+resolves: ""
+---
 
-**Date:** 2026-08-30
-**Status:** accepted
-**Raised by:** Q2
+# ADR 0002 — A flow definition is data, and a predicate is registered by name
 
 ## Context
 

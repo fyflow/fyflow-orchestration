@@ -1,8 +1,16 @@
-# ADR 0022 — A `Driver` takes its run at construction, and `start()` takes only the payload
+---
+id: ADR 0022
+title: "A `Driver` takes its run at construction, and `start()` takes only the payload"
+status: accepted
+date: "2026-08-31"
+item: W13
+raised-by: P4, Q53
+supersedes: ""
+amends: ""
+resolves: Q53
+---
 
-**Date:** 2026-08-31
-**Status:** accepted
-**Raised by:** W13 / [P4](../plans/p4-the-drivers-lifetime-and-the-handles-it-gives-out.md) / [Q53](../open-questions.md)
+# ADR 0022 — A `Driver` takes its run at construction, and `start()` takes only the payload
 
 ## Context
 

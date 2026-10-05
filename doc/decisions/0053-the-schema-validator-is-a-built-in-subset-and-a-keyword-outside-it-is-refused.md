@@ -1,6 +1,17 @@
+---
+id: ADR 0053
+title: "The schema validator is a built-in subset, and a keyword outside it is refused"
+status: accepted
+date: "2026-09-15"
+item: W65
+raised-by: P18
+supersedes: ""
+amends: ""
+resolves: ""
+---
+
 # ADR 0053 — The schema validator is a built-in subset, and a keyword outside it is refused
 
-**Date:** 2026-09-15
 **Status:** accepted — answers the first of [P18](../plans/p18-a-flow-and-its-runtime-from-documents-alone.md)'s
 two decisions, *what validates the schemas a registry document declares*, on that plan's decisions 3
 and 8 and its fact 1. **The choice — a built-in SUBSET over a dependency — is the maintainer's, taken

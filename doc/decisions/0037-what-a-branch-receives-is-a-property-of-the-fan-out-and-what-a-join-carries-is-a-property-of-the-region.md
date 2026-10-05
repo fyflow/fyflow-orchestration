@@ -1,7 +1,17 @@
+---
+id: ADR 0037
+title: "What a branch receives is a property of the fan-out; what a satisfied join carries is a property of the region"
+status: accepted
+date: "2026-09-07"
+item: W34
+raised-by: Q36, Q11, Q154, P10
+supersedes: ""
+amends: ""
+resolves: ""
+---
+
 # ADR 0037 — What a branch receives is a property of the fan-out; what a satisfied join carries is a property of the region
 
-**Date:** 2026-09-07
-**Status:** accepted
 **Raised by:** [Q36](../open-questions.md), with [Q11](../open-questions.md) narrowed to the fan-out
 edge and [Q154](../open-questions.md), decided by
 [W34](../work-items/w34-what-a-branch-receives-and-what-a-join-carries.md) under

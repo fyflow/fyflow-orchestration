@@ -1,7 +1,17 @@
+---
+id: ADR 0044
+title: "A reference is visible when two paths agree on the regions that contain both of them"
+status: accepted
+date: "2026-09-10"
+item: W49
+raised-by: Q206, P14
+supersedes: ""
+amends: ""
+resolves: ""
+---
+
 # ADR 0044 — A reference is visible when two paths agree on the regions that contain both of them
 
-**Date:** 2026-09-10
-**Status:** accepted
 **Raised by:** [Q206](../open-questions.md), decided by
 [W49](../work-items/w49-what-a-reference-across-sibling-regions-means.md) under
 [P14](../plans/p14-what-a-reference-means-when-two-regions-arities-are-independent.md)

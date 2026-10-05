@@ -1,8 +1,17 @@
+---
+id: ADR 0079
+title: "A register is a folder of files with front matter, and its index is derived"
+status: accepted
+date: "2026-10-04"
+item: W116
+raised-by: P28
+supersedes: ""
+amends: ADR 0078
+resolves: ""
+---
+
 # ADR 0079 — A register is a folder of files with front matter, and its index is derived
 
-**Status:** accepted
-**Date:** 2026-10-04
-**Item:** [W116](../work-items/w116-a-question-is-a-file.md)
 **Raised by:** [P28](../plans/p28-what-can-be-looked-up-instead-of-read.md) decisions 1 and 3
 **Supersedes:** nothing. **Amends:**
 [ADR 0078](0078-a-vacuity-floors-window-is-a-property-of-the-probe-suite.md) — the `M7` and `M8`

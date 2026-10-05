@@ -1,7 +1,17 @@
+---
+id: ADR 0025
+title: "The zero-arrival join is reportable, under a third policy id; arrival-counting is not repaired"
+status: accepted
+date: "2026-08-31"
+item: W16
+raised-by: Q24, P5, W15
+supersedes: ADR 0003 rule 5
+amends: ""
+resolves: ""
+---
+
 # ADR 0025 — The zero-arrival join is reportable, under a third policy id; arrival-counting is not repaired
 
-**Date:** 2026-08-31
-**Status:** accepted
 **Raised by:** [Q24](../open-questions.md), decided by
 [W16](../work-items/w16-the-decision-and-what-it-ships.md) under
 [P5](../plans/p5-a-third-and-fourth-policy-or-repairs-of-the-first-two.md), on

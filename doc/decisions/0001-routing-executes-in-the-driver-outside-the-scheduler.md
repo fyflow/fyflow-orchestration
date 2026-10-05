@@ -1,8 +1,16 @@
-# ADR 0001 — Routing executes in the driver, outside the scheduler
+---
+id: ADR 0001
+title: "Routing executes in the driver, outside the scheduler"
+status: accepted
+date: "2026-08-30"
+item: ""
+raised-by: Q1
+supersedes: ""
+amends: ""
+resolves: ""
+---
 
-**Date:** 2026-08-30
-**Status:** accepted
-**Raised by:** Q1
+# ADR 0001 — Routing executes in the driver, outside the scheduler
 
 ## Context
 

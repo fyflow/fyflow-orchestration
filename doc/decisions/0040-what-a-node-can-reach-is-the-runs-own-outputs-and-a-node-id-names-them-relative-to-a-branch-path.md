@@ -1,7 +1,17 @@
+---
+id: ADR 0040
+title: "What a node can reach is the run's own outputs, and a node id names them relative to a branch path"
+status: accepted
+date: "2026-09-09"
+item: W41
+raised-by: Q11, Q166, Q165, Q164, P12
+supersedes: ""
+amends: ""
+resolves: ""
+---
+
 # ADR 0040 — What a node can reach is the run's own outputs, and a node id names them relative to a branch path
 
-**Date:** 2026-09-09
-**Status:** accepted
 **Raised by:** [Q11](../open-questions.md) **in general**, with [Q166](../open-questions.md),
 [Q165](../open-questions.md) and [Q164](../open-questions.md) as its cases, decided by
 [W41](../work-items/w41-what-a-node-can-reach-and-what-names-it.md) under

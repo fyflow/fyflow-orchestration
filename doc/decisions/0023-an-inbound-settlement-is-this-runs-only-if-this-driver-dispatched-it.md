@@ -1,9 +1,19 @@
+---
+id: ADR 0023
+title: "An inbound settlement is this run's only if this driver dispatched its task id"
+status: accepted
+date: "2026-08-31"
+item: W13
+raised-by: P4, Q72
+supersedes: ""
+amends: ""
+resolves: ""
+---
+
 # ADR 0023 — An inbound settlement is this run's only if this driver dispatched its task id
 
-**Date:** 2026-08-31
 **Status:** accepted — **rule 1 corrected and two preconditions added in place, 2026-08-31**, see *Correction*.
 **Rule 2 SUPERSEDED 2026-09-02 by [ADR 0027](0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md)**, which retires the first of those two preconditions with it. Rules 1 and 3-6 stand
-**Raised by:** W13 / [P4](../plans/p4-the-drivers-lifetime-and-the-handles-it-gives-out.md) / [Q72](../open-questions.md)
 
 ## Context
 
