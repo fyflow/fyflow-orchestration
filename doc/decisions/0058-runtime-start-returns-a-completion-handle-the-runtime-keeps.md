@@ -12,14 +12,14 @@ resolves: ""
 
 # ADR 0058 — `runtime.start` returns a completion handle the RUNTIME keeps, and it resolves rather than rejects
 
-**Raised by:** [Q293](../open-questions.md), taken by [W77](../work-items/w77-what-start-returns.md)
+**Raised by:** [Q293](../questions/q293.md), taken by [W77](../work-items/w77-what-start-returns.md)
 under [P20](../plans/p20-what-the-runtime-owes-a-consumer.md)
 
 ## Context
 
 [P18](../plans/p18-a-flow-and-its-runtime-from-documents-alone.md) decision 10 made `runtime.start`
 hand back a **started** `Driver`, and the only way to learn that the run had ENDED was to append
-every `onFoldInput` and re-fold until `isTerminal`. [Q293](../open-questions.md) called that *"eight
+every `onFoldInput` and re-fold until `isTerminal`. [Q293](../questions/q293.md) called that *"eight
 lines a consumer copies"*.
 
 **P20's declaration measured both halves of that row and both were wrong, one in the direction that
@@ -44,7 +44,7 @@ it is the same window"*. Measured on a real `FyflowScheduler`: exactly **one** f
 before `start` returns — W67's number, reproduced — so the window is real; and a `.then` attached
 **fifty macrotask turns after the run was over** still receives `completed`. **A promise RETAINS its
 resolution, and the window is precisely what a promise is immune to.**
-[Q289](../open-questions.md) is about a CLOSURE that needs the `driver` binding, which `done` gives
+[Q289](../questions/q289.md) is about a CLOSURE that needs the `driver` binding, which `done` gives
 nothing to, and it stays open.
 
 **What survives of the objection is the *second observer* half**, and that is what this decision has
@@ -55,7 +55,7 @@ to answer without reopening
 
 1. **`runtime.start` returns a `RunHandle` — `{ driver, done }` — and this is BREAKING.**
    The package moves `0.2.0` → `0.3.0` in **both** manifests, which is
-   [Q279](../open-questions.md)'s answer as a procedure and
+   [Q279](../questions/q279.md)'s answer as a procedure and
    [ADR 0048](0048-the-scheduler-is-a-declared-dependency-reached-by-one-bare-specifier.md)/[W67](../work-items/w67-a-flow-from-documents-on-real-workers.md)'s
    precedent for a bump taken for a reason.
 2. **The RUNTIME keeps the fold; the driver never learns one exists.** ADR 0014 spends a paragraph
@@ -140,7 +140,7 @@ for the resolution — correct, and a trap, and the reference now has somewhere 
    resolution. The honest residue is that a consumer who kept **no** completion machinery at all now
    pays one copy they did not — **and one `structuredClone` per settlement they did not either**,
    since `freezeInput` clones only when an `onFoldInput` is present and `start` now always installs
-   one, which is a second unconditional deep copy beside `OR-R2`'s. [Q320](../open-questions.md).
+   one, which is a second unconditional deep copy beside `OR-R2`'s. [Q320](../questions/q320.md).
 4. **A consumer's `onFoldInput` throwing stops the run**, and `done` reports that as `stopped` with
    the consumer's own message in `stoppedBy`. That is behaviour this decision INHERITS rather than
    introduces — the driver has always called `onFoldInput` unguarded and `OR-R10` has always caught a

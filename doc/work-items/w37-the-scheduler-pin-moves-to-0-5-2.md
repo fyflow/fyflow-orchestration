@@ -196,7 +196,7 @@ fetch**. Its stated premise is *both runtimes reach that same version*.
 **That is the third instance in three items of one shape**: W35 found `D6` binding a command's
 runtime and resolution but not its FILE; W36 found `D3` binding its inputs but not its PREMISE; this
 is the declared version bound but not its REACHABILITY. **Nothing was silent** — the gate went red on
-`test:l6:deno` — and what was misleading was six green rows above it. [Q173](../open-questions.md).
+`test:l6:deno` — and what was misleading was six green rows above it. [Q173](../questions/q173.md).
 
 **Waiting was chosen over `--min-dep-age=0`, by the maintainer.** The control was doing its job,
 nothing was broken at 0.5.1, and disabling a supply-chain protection to save a day is a bad trade.
@@ -216,7 +216,7 @@ to install. **`D7` is this item's answer** and it was not in the declaration.
 **3. `deno.lock` had accumulated across two pin moves.** Three `@fyflow/scheduler` entries — 0.3.0,
 0.5.1, 0.5.2 — two of them dead trust anchors, one left by W36. Nothing in the gate opens that file.
 Regenerated rather than hand-edited; the 0.5.2 integrity hash is byte-identical, so the cleanup
-dropped dead entries and changed nothing trusted. [Q174](../open-questions.md).
+dropped dead entries and changed nothing trusted. [Q174](../questions/q174.md).
 
 **4. I reproduced W36's own central defect within the hour.** Its Record says the live/historical
 split *"leaked twelve times, every one a NEIGHBOUR of a line changed correctly"*. Correcting
@@ -280,7 +280,7 @@ never *does a wrong one*. Measured, all at **cost 0**:
   code block** — and a historical parenthetical quoting the old sentence verbatim is the *likely*
   edit at the next bump, not an adversarial one;
 - three more documents that STATE the pin — `README.md`, `doc/concept.md`, `examples/README.md` —
-  which `D7` did not bind and which [Q175](../open-questions.md) had miscalled *citations*.
+  which `D7` did not bind and which [Q175](../questions/q175.md) had miscalled *citations*.
 
 And it **failed** when a correct statement was reworded (a comma to an em dash). *Green when the pin
 was wrong, red when it was right.* Rewritten to **capture and compare**: each site declares a pattern
@@ -329,5 +329,5 @@ was the only item this repository has ever raised upstream, and it was fixed the
 halves, plus a second instance of the first that our report had not found. That is a fact about how
 much of the list was worth raising rather than about how responsive upstream is.
 
-**Questions raised.** [Q173](../open-questions.md), [Q174](../open-questions.md),
-[Q175](../open-questions.md).
+**Questions raised.** [Q173](../questions/q173.md), [Q174](../questions/q174.md),
+[Q175](../questions/q175.md).

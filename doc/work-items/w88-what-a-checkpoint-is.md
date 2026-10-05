@@ -70,9 +70,9 @@ Reserves:   Q366-Q370, ADR 0064
 
 | # | re-take | measured | what it corrects |
 |---|---|---|---|
-| 1 | `dev-dist/p23/replay.ts`, re-run unchanged | reproduces the plan's numbers **exactly** — 1275 starts, 180 drivers, 169 exact, 673 prefixes, 616 / 616 payloads, 2015 events | **nothing about the conclusion, and the SAMPLE is a third of what fact 1 says.** The spike wraps `Driver.prototype.start` and pushes onto `captured` while its exit handler iterates `captured` with `for…of` — so every replay driver it starts is itself captured, up to six per flow, and replayed again. **L6 starts 62 drivers, not 1275.** Re-run with capture stopped at L6's end (`dev-dist/w88/replay-fixed.ts`): **61 captured over 30 flows, 57 reproduce exactly, 324 prefixes, 261 / 261 dispatched payloads equal, 998 events all clone exactly, all eight kinds present**; the other four are the two `FD-R4` refusals (replayed identically) and the two `OR-R6` stops. P23 fact 1's *"nine refused by `FD-R4`"* is two, and fact 5's *"22 runs / 147"* is 13 / 46. [Q366](../open-questions.md) |
+| 1 | `dev-dist/p23/replay.ts`, re-run unchanged | reproduces the plan's numbers **exactly** — 1275 starts, 180 drivers, 169 exact, 673 prefixes, 616 / 616 payloads, 2015 events | **nothing about the conclusion, and the SAMPLE is a third of what fact 1 says.** The spike wraps `Driver.prototype.start` and pushes onto `captured` while its exit handler iterates `captured` with `for…of` — so every replay driver it starts is itself captured, up to six per flow, and replayed again. **L6 starts 62 drivers, not 1275.** Re-run with capture stopped at L6's end (`dev-dist/w88/replay-fixed.ts`): **61 captured over 30 flows, 57 reproduce exactly, 324 prefixes, 261 / 261 dispatched payloads equal, 998 events all clone exactly, all eight kinds present**; the other four are the two `FD-R4` refusals (replayed identically) and the two `OR-R6` stops. P23 fact 1's *"nine refused by `FD-R4`"* is two, and fact 5's *"22 runs / 147"* is 13 / 46. [Q366](../questions/q366.md) |
 | 2 | every read of the start payload in `src/driver/driver.ts` | THREE, all inside `start()`: `boundaryTargets(this.def, payload)` (`FD-R4`), `compose` through `enter`, and `enter` itself — kept nowhere after `start()` returns, and in no record | confirms fact 2; the header must carry it and the driver must keep it |
-| 3 | `structuredClone` over the `FoldInput` UNION — one element per kind in a `Record<FoldInput['kind'], FoldInput>` (`dev-dist/w88/kinds.ts`) | **8 of 8 round-trip**, including `Map`, `Set`, `Date`, `BigInt` and `-0` in a result — **and the harness's own `deepEqual` calls a class instance EQUAL to its clone** (control: `deepEqual(structuredClone({r: new K()}), {r: new K()})` is `true`, the prototype gone) | the item's observer cannot be `equal`: a round trip judged with it is blind to `OR-R11`'s lossy shapes. [Q367](../open-questions.md) |
+| 3 | `structuredClone` over the `FoldInput` UNION — one element per kind in a `Record<FoldInput['kind'], FoldInput>` (`dev-dist/w88/kinds.ts`) | **8 of 8 round-trip**, including `Map`, `Set`, `Date`, `BigInt` and `-0` in a result — **and the harness's own `deepEqual` calls a class instance EQUAL to its clone** (control: `deepEqual(structuredClone({r: new K()}), {r: new K()})` is `true`, the prototype gone) | the item's observer cannot be `equal`: a round trip judged with it is blind to `OR-R11`'s lossy shapes. [Q367](../questions/q367.md) |
 | 4 | which `DRIVER_FIELDS` lists a new private field reaches | `test/driver/retention.test.ts` (owned) and `examples/l6.ts` (seeded row, **fired**); `examples/run-flow.ts` walks by EXCLUSION (`NOT_RUN_STATE`), so a WALKED field needs no edit there; `examples/retention.ts` carries no list | the seeded row named three files and one fires — below |
 | 5 | *(added)* copy against reference, P23 fact 6's run (`dev-dist/w88/copy-cost.ts`) | at 10 000 tasks: `foldInputs()` **22 / 24 / 61 ms** at 16 B / 1 KiB / 16 KiB, holding one more copy while kept; a reference **0.1-0.3 ms**; the `v8.serialize` a store pays **19 / 22 / 113 ms** | the COPY — ADR 0064 rule 4 |
 | 6 | *(added)* events reaching `onFoldInput` before `start()` returns, over L6 (`dev-dist/w88/before-return.ts`) | **1 on 59 starts, 5 on one (a nested map at the entry), 0 on the two refused** | `RunHandle.header` arrives AFTER the first events, so a store keys by POSITION — ADR 0064 consequence 1 |
@@ -116,7 +116,7 @@ began, which is later than the plan asks.*
 | `examples/l6.ts` | the byte walk's `DRIVER_FIELDS` gains `header`, WALKED — the only L6 failure the new field cost | **yes** — seeded row 1 |
 | `examples/run-flow.ts` | — | seeded, **not needed**: it walks by exclusion, so a walked field is invisible to it |
 | `examples/retention.ts` | — | seeded, **not needed**: it carries no list of the driver's fields |
-| `AGENTS.md` | §9's executed error-class snippet ENUMERATES the root's `Error` subclasses ([Q101](../open-questions.md)), so `NotStarted` went red at `X4`; and §8's *`runtime.start` returns `{ driver, done }`* was incomplete | **the FILE yes, the REASON no** — seeded for `RunHandle`'s literals (Q348), which fired nothing; the enumeration was seeded for W89 |
+| `AGENTS.md` | §9's executed error-class snippet ENUMERATES the root's `Error` subclasses ([Q101](../questions/q101.md)), so `NotStarted` went red at `X4`; and §8's *`runtime.start` returns `{ driver, done }`* was incomplete | **the FILE yes, the REASON no** — seeded for `RunHandle`'s literals (Q348), which fired nothing; the enumeration was seeded for W89 |
 | `scripts/build-browser-tests.mjs` | — | seeded conditionally, **not needed**: no new suite reads a `spec/**` document the bundle does not inline |
 | `doc/plans/p23-what-a-run-needs-to-outlive-its-process.md` | fact 1's and fact 5's numbers, and the seeded table's W88 rows, corrected in place | **no** |
 
@@ -157,8 +157,8 @@ runtimes**, which is the declared result.
 
 | | what | rung |
 |---|---|---|
-| 1 | **P23 fact 1's sample was two-thirds the harness's own replays** — 1275 starts where L6 makes 62 ([Q366](../open-questions.md)) | none; the declaration step's re-take |
-| 2 | **the harness's `deepEqual` calls a class instance EQUAL to its clone** ([Q367](../open-questions.md)) | none; re-take 3's control |
+| 1 | **P23 fact 1's sample was two-thirds the harness's own replays** — 1275 starts where L6 makes 62 ([Q366](../questions/q366.md)) | none; the declaration step's re-take |
+| 2 | **the harness's `deepEqual` calls a class instance EQUAL to its clone** ([Q367](../questions/q367.md)) | none; re-take 3's control |
 | 3 | my own `kinds.ts` probe used a constructor PARAMETER PROPERTY | node's type stripping, `ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX` — `RT-R9`'s trap, read correctly |
 | 4 | **the environment, twice**: a bare `node` resolved to 16 in my own shell; and the rule 8 harness's environment assertion fired on its FIRST run, because a bash spawned from Python here has no fnm on PATH | the environment clause, both times, before any probe ran — it now pins node by its install directory |
 | 5 | a test claimed the entry node receives the caller's own value on a flow whose entry composes `"."`, which CLONES | the suite, on its first run |
@@ -210,7 +210,7 @@ found were CLAIMS and the red L0. **Adequacy: 32 mutations, 7 survivors, 6 block
 its non-blocking classifications wrong (F8). **Overlap 2** — `typecheck:tests` red, and the runtime
 position never on a second run — **the FIFTY-FOURTH measurement**, inside the 0-4 band, both
 unprimed, and both readers ran concurrently on separate copies with the author's tree held still at
-`1f6450ba66aecf6b` until both had reported ([Q363](../open-questions.md)'s answer, followed).
+`1f6450ba66aecf6b` until both had reported ([Q363](../questions/q363.md)'s answer, followed).
 
 ### What this taught
 
@@ -227,8 +227,8 @@ unprimed, and both readers ran concurrently on separate copies with the author's
 
 ### Questions raised
 
-[Q366](../open-questions.md) (a facts harness capturing its own calls — owner W89, for fact 4's
-harness) and [Q367](../open-questions.md) (the harness's `equal` is prototype-blind). **Q368-Q370
+[Q366](../questions/q366.md) (a facts harness capturing its own calls — owner W89, for fact 4's
+harness) and [Q367](../questions/q367.md) (the harness's `equal` is prototype-blind). **Q368-Q370
 unused and not reused. ADR 0064 taken.** Census **288 / 226 / 1 / 61**, all 288 in exactly one
 cluster cell, ten wide rows refused by the parser by id and classified by hand.
 
@@ -243,4 +243,4 @@ cluster cell, ten wide rows refused by the parser by id and classified by hand.
   `checkpoint()` makes — a `stopped` run checkpoints like any other, and refusing its RESUME is W89's;
 - the first events arrive before the handle, so a store keys by position — a stored prefix is a
   prefix by POSITION, which is the prefix check P23 decision 9 names;
-- [Q366](../open-questions.md): re-take `dev-dist/p23/kill-resume.ts` rather than inherit fact 4.
+- [Q366](../questions/q366.md): re-take `dev-dist/p23/kill-resume.ts` rather than inherit fact 4.

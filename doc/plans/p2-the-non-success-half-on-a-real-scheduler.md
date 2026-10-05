@@ -67,7 +67,7 @@ Measured with a worker returning `{ fn: () => 1 }`:
 
 So the same worker bug produces **two different failures** depending on a pool option the flow author
 does not control, and `OR-R6` can only be exercised inline. Neither `spec/outcome-record.md` nor
-ADR 0007 says this. It is [Q61](../open-questions.md), and it sets the refusal row's shape.
+ADR 0007 says this. It is [Q61](../questions/q61.md), and it sets the refusal row's shape.
 
 ## Scope
 
@@ -87,14 +87,14 @@ ADR 0007 says this. It is [Q61](../open-questions.md), and it sets the refusal r
 
 - **New features.** P2 adds no capability. Every rule it exercises is already specified and already
   implemented; what is missing is evidence from a real scheduler.
-- **[Q24](../open-questions.md), [Q6](../open-questions.md), [Q12](../open-questions.md)** — the
+- **[Q24](../questions/q24.md), [Q6](../questions/q6.md), [Q12](../questions/q12.md)** — the
   policy refinements, nested fan-out and map-style fan-out. Each is its own plan; this one is
   deliberately not a feature plan.
-- **The browser at L6** ([Q52](../open-questions.md)) — unchanged and still open.
-- **[Q53](../open-questions.md)** — narrowing `Driver`'s multi-run surface. It is W3's public API and
+- **The browser at L6** ([Q52](../questions/q52.md)) — unchanged and still open.
+- **[Q53](../questions/q53.md)** — narrowing `Driver`'s multi-run surface. It is W3's public API and
   it is not what this plan is about.
 - **A second `spec/` example flow.** Whether `spec/examples/` should carry behaviour fixtures is
-  [Q44](../open-questions.md), which now has two occurrences and is not settled by adding a third.
+  [Q44](../questions/q44.md), which now has two occurrences and is not settled by adding a third.
 
 ## The known design problem, stated before it is hit
 
@@ -239,7 +239,7 @@ Two changes, and the first is the mechanism rule 3 demands rather than a restate
 ### Findings deliberately left as findings
 
 - **`doc/` is upstream of every check and is checked by nothing.** Third and fourth sightings: W5's
-  [Q43](../open-questions.md) was a false register entry; `doc/README.md` claimed W5's and W6's
+  [Q43](../questions/q43.md) was a false register entry; `doc/README.md` claimed W5's and W6's
   readers were outstanding when all four had run; `examples/l6.ts`'s header said *"Twelve real runs"*
   at thirteen. **Not made a rule**, because the two candidate mechanisms are both worse than the
   problem: a doc-freshness linter would check spelling of facts it cannot verify, and a rule saying

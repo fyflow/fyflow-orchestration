@@ -30,18 +30,18 @@ own file, never from this line (`doc/workflow.md` section 1 rule 5).
 > mechanism**. `N` is per-region; an outer region's `branches` is unchanged by nesting; and when an
 > inner join fires it enters the outer join carrying the inner fanout's own path, which **is** the
 > outer branch's arrival ([W21](../work-items/w21-the-branch-path-is-a-path.md)'s
-> [Q114](../open-questions.md) fix). Measured over **four depth-2 rows × the four matrix columns:
+> [Q114](../questions/q114.md) fix). Measured over **four depth-2 rows × the four matrix columns:
 > every one of the sixteen cells equals the corresponding depth-1 cell**, `describe`s included — so
 > `arrival-count` **joins** on an all-arriving nested flow, which is the shape the refusal would have
 > forbidden. Its depth-2 hangs are its depth-1 hangs at a second region.
 > **Three consequences.** Scope item 5 is struck and there is **no `JP-R*` refusal and no
 > construction refusal**; the matrix's **declared-empty cells do not arise**, so
-> [Q100](../open-questions.md) does not reach a third file; and W22's size worry below is answered by
+> [Q100](../questions/q100.md) does not reach a third file; and W22's size worry below is answered by
 > measurement rather than by the decomposition the plan proposed. **What ADR 0030 actually rules on
 > moved**: the only depth-2 behaviour that is not a depth-1 behaviour one level down is what an inner
 > join's verdict does to the outer branch — see W22.
 
-**Question this plan answers:** [Q6](../open-questions.md) — *if a branch itself fans out, does the
+**Question this plan answers:** [Q6](../questions/q6.md) — *if a branch itself fans out, does the
 outer join wait for the grandchildren?*
 
 **Exit artifact:** **a nested fan-out running end to end on a real scheduler, with the outer join
@@ -79,7 +79,7 @@ document.***
 | **The LOOKUP is not, and it fails silently** | `Driver.regionOf(nodeId)` is `this.regions.find((r) => r.members.has(nodeId))`, over `allRegions`, which returns regions in **node-declaration order**. With nesting a node is in **two** regions and `.find` returns whichever `fanout` appears first in the file. **No test can see this today**, because `FD-V15` refuses the only input that would distinguish them. It is the plan's central defect and it is one line |
 | **The dotted `branchPath` has never been produced by this library** | `parseTaskId` accepts `'1.0'` and `branchIndices` splits it, but **`buildTaskId` cannot emit one**: its parameter is `branchIndex: number \| null`. The grammar is asymmetric, `spec/task-id.md` calls the shape *"forward-looking"*, and **the reserved half is reachable only by hand-writing a string** |
 | **Nothing pushes a segment, and two sites read only the first** | `Driver.branchPathFor(nodeId, inherited)` returns `inherited` unchanged — there is no code path that lengthens a path. `driver.ts:646` and `driver.ts:757` both take `branchPath.split('.')[0]`, the **outermost** index only, which is correct at depth 1 and wrong at depth 2 |
-| **The fold and the policy interface need little or nothing** | `RunState.regions` is a **flat map keyed by `regionId`**, `settled` is keyed by `branchPath` **strings**, and `Region.branches` is per-region. All three already carry depth 2 without a shape change. `step()`'s per-input copying is unchanged by nesting; the fold's quadratic ([Q19](../open-questions.md)) is a node-count question and depth 2 does not move it |
+| **The fold and the policy interface need little or nothing** | `RunState.regions` is a **flat map keyed by `regionId`**, `settled` is keyed by `branchPath` **strings**, and `Region.branches` is per-region. All three already carry depth 2 without a shape change. `step()`'s per-input copying is unchanged by nesting; the fold's quadratic ([Q19](../questions/q19.md)) is a node-count question and depth 2 does not move it |
 | **A policy-dependent refusal CANNOT be an `FD-V*` rule, and the precedent for where it goes is three lines away** | `validateDefinition(doc, registry)` takes `{ workerTypes, predicates }` and **does not know the policy**, so `FD-V*` cannot express *"invalid under arrival-counting"* without changing the validator's public signature. **`driver.ts:370` already throws `MissingJoinPolicy` at construction on exactly this shape** — a refusal that reads the definition and the policy together, before `start()`. **This moved the refusal from W20's document to W22's** |
 
 ## The decision that is NOT taken before fan-out
@@ -110,7 +110,7 @@ arriving one level down.
 declared-empty cells**. Nine rows × four columns has never had a cell that is *"refused"* rather than
 a result, and `test/matrix/**` renders a table that a reader takes as exhaustive. **How a refusal
 renders in that table is W22's problem and it is named here rather than left to the first draft** —
-[Q100](../open-questions.md) is what happens to a rendered artifact nobody asserts on.
+[Q100](../questions/q100.md) is what happens to a rendered artifact nobody asserts on.
 
 ## Scope
 
@@ -128,16 +128,16 @@ renders in that table is W22's problem and it is named here rather than left to 
 
 **Out** — named rather than left implicit, with where it goes instead
 
-- **Map-style fan-out** ([Q12](../open-questions.md)). A dotted path admits it and this plan does not
-  build it. It is also where the fold's quadratic ([Q19](../open-questions.md)) would start to
+- **Map-style fan-out** ([Q12](../questions/q12.md)). A dotted path admits it and this plan does not
+  build it. It is also where the fold's quadratic ([Q19](../questions/q19.md)) would start to
   matter, and that is a different plan's measurement.
-- **Convergent branches**, `FD-V19` and `FD-V22` ([Q27](../open-questions.md)). Adjacent restrictions
+- **Convergent branches**, `FD-V19` and `FD-V22` ([Q27](../questions/q27.md)). Adjacent restrictions
   in the same family; lifting one is not lifting three.
 - **Unbounded depth as a *tested* claim.** The grammar admits any depth and the code should not care,
   but the matrix and L6 are run at **depth 2**. An item that claims depth 3 works owes a row.
-- **Per-join policies** ([Q5](../open-questions.md)). Nesting makes *"one policy per run"* feel
+- **Per-join policies** ([Q5](../questions/q5.md)). Nesting makes *"one policy per run"* feel
   wrong, and it is not this plan's question — one policy per run stays.
-- **[Q19](../open-questions.md)'s scale measurement.** Named because W21 is where it would surface,
+- **[Q19](../questions/q19.md)'s scale measurement.** Named because W21 is where it would surface,
   and refused because a curve is not this plan's exit artifact.
 
 ## Work items
@@ -161,7 +161,7 @@ and W19 demonstrate.
 
 **W21's declaration names a FORK it does not close, and that is deliberate.** Both arms mint the same
 ids; they differ in whether a node's `branchPath` is **threaded** through `enter()` or **derived**
-from the graph. Threading is local and leaves [Q114](../open-questions.md) needing the first mutable
+from the graph. Threading is local and leaves [Q114](../questions/q114.md) needing the first mutable
 per-run map added to the driver since W3; deriving makes `spec/task-id.md` section 1's *"a property
 of the node"* literally true, dissolves Q114, and wants a function in **W20's** file. The item
 measures both before choosing. **P7's ADR block holds nothing for it** — 0030 is W22's and 0031 was
@@ -176,12 +176,12 @@ the obvious cut is the refusal into its own item, and it is named here so it is 
 
 | Q | | Owner |
 |---|---|---|
-| [Q6](../open-questions.md) | is a join transitive over nested fan-out | **W22** — closed by ADR 0030, whichever way it goes |
-| [Q90](../open-questions.md) | `ID-R4` tier 2 has no L6 coverage | **candidate for W23.** P6's retro ruled it a work item rather than a plan, and its instrument — `ForeignTask` in `examples/run-flow.ts` — is W23's file. **The marginal cost is a string**, and the *against* case is untouched: injecting a task the driver did not mint is a scenario no consumer produces on purpose. W23's declaration rules |
-| [Q107](../open-questions.md) | `ID-R5` at L6 sees `task.completed` and nothing else | **candidate for W23**, same file. Needs a worker role that fails fast enough to keep W19's ordering determinate |
-| [Q108](../open-questions.md) | ADR 0027's `context.spawnTask()` producer is demonstrated nowhere | **no owner.** It needs a worker that spawns, which runs into [ADR 0001](../decisions/0001-routing-executes-in-the-driver-outside-the-scheduler.md) rule 2 and needs its framing decided first. **Not W23's by default** |
-| [Q5](../open-questions.md) | per-join configurable policies | **no owner, and nesting makes it louder.** `spec/join-policy.md` section 5 already lists it beside Q6; this plan answers one and not the other |
-| [Q23](../open-questions.md), [Q27](../open-questions.md) | `FD-V13`, `FD-V19`, `FD-V22` — the other liftable restrictions | **no owner.** Named so that lifting `FD-V15` is not read as lifting the family |
+| [Q6](../questions/q6.md) | is a join transitive over nested fan-out | **W22** — closed by ADR 0030, whichever way it goes |
+| [Q90](../questions/q90.md) | `ID-R4` tier 2 has no L6 coverage | **candidate for W23.** P6's retro ruled it a work item rather than a plan, and its instrument — `ForeignTask` in `examples/run-flow.ts` — is W23's file. **The marginal cost is a string**, and the *against* case is untouched: injecting a task the driver did not mint is a scenario no consumer produces on purpose. W23's declaration rules |
+| [Q107](../questions/q107.md) | `ID-R5` at L6 sees `task.completed` and nothing else | **candidate for W23**, same file. Needs a worker role that fails fast enough to keep W19's ordering determinate |
+| [Q108](../questions/q108.md) | ADR 0027's `context.spawnTask()` producer is demonstrated nowhere | **no owner.** It needs a worker that spawns, which runs into [ADR 0001](../decisions/0001-routing-executes-in-the-driver-outside-the-scheduler.md) rule 2 and needs its framing decided first. **Not W23's by default** |
+| [Q5](../questions/q5.md) | per-join configurable policies | **no owner, and nesting makes it louder.** `spec/join-policy.md` section 5 already lists it beside Q6; this plan answers one and not the other |
+| [Q23](../questions/q23.md), [Q27](../questions/q27.md) | `FD-V13`, `FD-V19`, `FD-V22` — the other liftable restrictions | **no owner.** Named so that lifting `FD-V15` is not read as lifting the family |
 
 ## A note on ids
 
@@ -193,7 +193,7 @@ W10 here would make P2's Record false.
 never reissued**. Q111 is P5's retro's, taken outside every block on ADR 0029's precedent.
 
 **ADR ids resume at 0030.** P6 reserved 0027-0028 and used 0027, so **0028 is skipped**. **0026 stays
-held for [Q97](../open-questions.md)** — P5 reserved it for the `stuck` conflation and deliberately
+held for [Q97](../questions/q97.md)** — P5 reserved it for the `stuck` conflation and deliberately
 did not take it, and this plan does not take it either.
 
 ## Record
@@ -230,7 +230,7 @@ it* is this rule's own recurring lesson, and it is why change 2 exists as well.
 
 #### 2. The provenance obligation was right and could not be instantiated from what it said
 
-**[Q112](../open-questions.md) has been corrected four times across three items**, and **three of
+**[Q112](../questions/q112.md) has been corrected four times across three items**, and **three of
 those were an author repeating a correction a reader had made to them one item earlier**:
 
 | | the correction |
@@ -262,14 +262,14 @@ from an index**. W23 reported a count to a human that was wrong because it read 
 work. One occurrence, with the argument rule 2 asks for: the rule names indexes because indexes are
 where the failure had been seen; **the mechanism is reading a derived claim instead of deriving it**,
 and an author's own summary is the copy most likely to be trusted. P7's second instance is the
-register, which described [Q117](../open-questions.md)'s failure incorrectly in **two successive
+register, which described [Q117](../questions/q117.md)'s failure incorrectly in **two successive
 items**, in the file read before every one of them.
 
 #### 5. What did NOT change, and one thing that is the next plan's
 
 **Rule 7 (c) is unexercised for the fifth plan**, and P7 declined **two** checks —
-[Q121](../open-questions.md) (dead links in `doc/**` and `AGENTS.md`, which `check-spec`'s C5 already
-does for `spec/**`) and [Q126](../open-questions.md) (a runtime droppable from the gate chain for 0
+[Q121](../questions/q121.md) (dead links in `doc/**` and `AGENTS.md`, which `check-spec`'s C5 already
+does for `spec/**`) and [Q126](../questions/q126.md) (a runtime droppable from the gate chain for 0
 failures). **Both were declined for the same reason: `scripts/**` and `package.json` are in nobody's
 `Owns`.** That is v0.7 change 3's shape — *a gap that blocks a fix rather than hiding an edit* — twice
 in one plan. **It is not a workflow rule; it is a plan's scope**, and the next plan that wants either
@@ -298,14 +298,14 @@ this file are for.
 Of the sixteen blocking findings, **L0-L6 caught none** — every one came from a reader, which is P1's
 central measurement holding for a seventh plan. Two are worth naming against a rung: the **rendered
 L6 table printing P7's exit artifact as a region-free run** is L7's, and it was found by a reader
-reading L6's code rather than by a person looking at the table — [Q100](../open-questions.md) in a
+reading L6's code rather than by a person looking at the table — [Q100](../questions/q100.md) in a
 fifth file. And **a valid definition that hangs** (W21) is L2's and was reachable there; nothing
 drove a `Driver` through a nested flow until the item that built one.
 
 
 ### W22 — the plan's question is answered, and the plan's own decision was wrong
 
-**[Q6](../open-questions.md) is closed by [ADR 0030](../decisions/0030-a-join-is-transitive-and-a-dead-join-ends-the-branch-it-sits-in.md):
+**[Q6](../questions/q6.md) is closed by [ADR 0030](../decisions/0030-a-join-is-transitive-and-a-dead-join-ends-the-branch-it-sits-in.md):
 a join is transitive over nested fan-out, for every policy, and it needed no mechanism.** Sixteen
 cells — four depth-2 rows × four columns — each reproducing the depth-1 row of the same shape.
 
@@ -327,7 +327,7 @@ depth 1, and at depth 2 a `JP-R5` violation. `JP-R10`.
    no probe of the first kind reaches one. Not v0.7's two obligations and not v0.8's third — a loop
    bound is not a value with a source, it is the shape of the set the values live in. **W15's
    column-deletion finding is arguably the second occurrence.**
-2. **[Q112](../open-questions.md)'s correction did not survive one item.** W21's reader established
+2. **[Q112](../questions/q112.md)'s correction did not survive one item.** W21's reader established
    that *a provenance probe changes the source expression and nothing else*; W22's author edited the
    projection alongside the source **three times** and read three passes as findings. Third
    consecutive item in which the author's account of v0.8's provenance obligation needed correcting,
@@ -342,11 +342,11 @@ depth 1, and at depth 2 a `JP-R5` violation. `JP-R10`.
 over branches it never opened.** Ladder L6 is **489 assertions, 23 row labels, 25 real runs**, from
 373 / 19 / 21 — and the **first dotted task ids any rung above L2 has asserted**, nine of them.
 Three rows on one flow give ADR 0030's three answers; a fourth, on a suspend variant, exists because
-reverting [Q117](../open-questions.md)'s fix cost **0 assertions** without it.
+reverting [Q117](../questions/q117.md)'s fix cost **0 assertions** without it.
 
 **Two findings for the retro, and the second is a rule.**
 
-1. **[Q112](../open-questions.md)'s correction failed a fourth time, and rule 8's founding case
+1. **[Q112](../questions/q112.md)'s correction failed a fourth time, and rule 8's founding case
    fired inside rule 8's own procedure for the third consecutive plan.** The author's first
    provenance probe was `x && y` — which evaluates a source and discards it, changing nothing — and
    the author's *fix* for the adequacy reader's blocking provenance finding recorded the value **from
@@ -373,13 +373,13 @@ has not run.**
 
 **Deriving beat threading.** `branchPathOf` is total over the valid corpus and agrees with the
 threaded value on every depth-1 flow, so replacing the threading changed **no existing id**. It
-closed [Q114](../open-questions.md) with **no new state** — a join's successor's path is the path its
+closed [Q114](../questions/q114.md) with **no new state** — a join's successor's path is the path its
 region sits at, and a region's fanout is a node. Both `split('.')[0]` sites are **gone** rather than
 fixed, and `dispatch` lost its `branchPath` parameter entirely: it took a path and immediately
 reduced it to the outermost index, so the caller threaded a value the callee threw away.
 
 **One of the fork's stated costs was wrong** and the decision stands anyway —
-[Q119](../open-questions.md): the walk is O(depth × |regions|²) with a doubled inner call, not the
+[Q119](../questions/q119.md): the walk is O(depth × |regions|²) with a doubled inner call, not the
 O(depth) this plan priced. None of the reasons it was chosen depended on the cost.
 
 **Three findings for the retro.**
@@ -390,7 +390,7 @@ O(depth) this plan priced. None of the reasons it was chosen depended on the cos
    in**. Five late exceptions. **The failure is not the `Tests:` line; it is that an item's `Owns`
    was written from its title rather than from its plan row.** Two occurrences, two items, different
    causes, one symptom.
-2. **[Q112](../open-questions.md) needed correcting for the second item running, both times by the
+2. **[Q112](../questions/q112.md) needed correcting for the second item running, both times by the
    adequacy reader, and both times about how the obligation is INSTANTIATED.** W20 corrected
    *"expected-side probes prove nothing"*; W21 corrected *"a source choice cannot be proved by a
    single-file probe"* with a counterexample at 1 failure — substituting **only the source
@@ -429,7 +429,7 @@ central claim held.
    `src/definition/**`"* without saying **where** — so the item had **no file it was allowed to test
    in**, and both test files are late exceptions. It noticed by running the audit before the Record
    rather than after, which is the only reason it is a finding and not a miscount.
-2. **v0.8's provenance obligation was refined by its own first outing** — [Q112](../open-questions.md).
+2. **v0.8's provenance obligation was refined by its own first outing** — [Q112](../questions/q112.md).
    It does not distinguish breaking the **actual** side of an assertion from the **expected** side,
    and the second always survives. Three of six provenance probes survived and **none was a hole**;
    the three that caught all broke the input or the declared value. **First rule in that document to
@@ -439,7 +439,7 @@ central claim held.
 on. Reverting `Driver.regionOf` to `.find` cost **nothing**: every probe against the region maths was
 caught by its own tests, and the driver's one-line delegation — what P7 called *the plan's central
 defect* — was held down by no assertion, because nothing drove a `Driver` through a nested flow.
-Closing it produced [Q113](../open-questions.md): `regionOf` is read on **three** paths only, and
+Closing it produced [Q113](../questions/q113.md): `regionOf` is read on **three** paths only, and
 `branch.arrived`/`branch.opened` use keyed lookups — so innermost resolution is load-bearing on the
 **non-success paths only**, which is why the defect survived four plans, and which **W22 needs before
 its declaration rather than inside it**.

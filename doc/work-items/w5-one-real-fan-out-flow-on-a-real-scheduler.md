@@ -67,7 +67,7 @@ dependency on `fyflow-scheduler` at all**: no `dependencies` block in `package.j
 map in `deno.json`. That was deliberate — W3's `SchedulerLike` is structural precisely so the driver
 could be gated without one — and W5 is the first thing that needs the real library.
 
-It was settled first, as [Q51](../open-questions.md) →
+It was settled first, as [Q51](../questions/q51.md) →
 **[ADR 0013](../decisions/0013-the-scheduler-is-a-development-dependency-reached-from-the-working-tree.md)**.
 Four things were measured rather than assumed, and **each contradicted something this repository
 had written down or was assuming**:
@@ -99,12 +99,12 @@ than in a comment.
    fake scheduler; this is the same claim with `FyflowScheduler`, `FyflowTask`, `WorkerManager` and
    a real worker in the loop.
 
-2. **The every-node-settles assertion** ([Q32](../open-questions.md)). Every id in
+2. **The every-node-settles assertion** ([Q32](../questions/q32.md)). Every id in
    `Driver.dispatchedIds()` has a non-`null` `effectiveOutcomeOf()`. Cheap insurance since 0.3.0's
    `_failOrphanedTask` rather than the validity gate it was written as — and it is the assertion that
    would catch a task the scheduler accepted and never settled, which no fixture can reach.
 
-3. **[Q41](../open-questions.md) — the ordered `FoldInput` sequence, and ADR 0014.**
+3. **[Q41](../questions/q41.md) — the ordered `FoldInput` sequence, and ADR 0014.**
    `spec/run-state.md` section 6 names this *"W5's to wire"*. `FoldInput` has five variants and
    **`pathEnded` has no producer anywhere**: the driver reports a path ending at an `end` node only
    as a *region* event, and only inside a region; outside one it reports nothing at all. Records
@@ -120,7 +120,7 @@ than in a comment.
    drain), or sample `stats`, or sleep — all three are the race, and the third is how a green L6 gets
    written that proves nothing.
 
-4. **[Q43](../open-questions.md) and [Q42](../open-questions.md) — `stuck` as a run outcome, and
+4. **[Q43](../questions/q43.md) and [Q42](../questions/q42.md) — `stuck` as a run outcome, and
    ADR 0015.** Run state today calls a permanently stuck run **`completed`**. The `arrival-count`
    cell above is that statement made about a real run this item has in hand, which is the strongest
    motivation available and is why this is fixed here rather than recorded again.
@@ -134,18 +134,18 @@ than in a comment.
    until the claim is unobservable.
 
    Placing that fact, and the predicate that reads it, **in the fold** is also
-   [Q42](../open-questions.md)'s *"where does the stuck-join predicate live"* answered: not on
+   [Q42](../questions/q42.md)'s *"where does the stuck-join predicate live"* answered: not on
    `Driver` (W3's scope forbids growing the driver's copy of run truth), not re-derived by every
    consumer, and not left in a test. What remains of Q42 after this is an *ergonomics* question and
    is re-scoped in the Record rather than closed silently.
 
-5. **[Q33](../open-questions.md) — L6 runs in Node 24 and Deno, not in the browser.** The register's
+5. **[Q33](../questions/q33.md) — L6 runs in Node 24 and Deno, not in the browser.** The register's
    leaning was *"Node only for P1"* and its stated reason was *"a real worker file per runtime (`.ts`
    for Deno, `.js` for Node and the browser)"*. **That premise is false at Node 24** — measured, S9 —
    so one `.ts` worker file serves both and Deno costs a two-line import map. A leaning whose
    argument has been falsified is not a decision to inherit. The browser is genuinely expensive
    (Playwright, the worker as a separate bundle asset, a page to serve it from) and is
-   [Q52](../open-questions.md).
+   [Q52](../questions/q52.md).
 
    **L6 living in `examples/**` rather than in `test/**` is what makes the browser exclusion
    structural** rather than a note: `scripts/build-browser-tests.mjs` globs `test/**/*.test.ts`, so a
@@ -171,23 +171,23 @@ than in a comment.
 
 **Out** — named rather than left implicit, with where it goes instead
 
-- **The browser at L6.** [Q52](../open-questions.md), raised by this item from Q33's other half. Not
+- **The browser at L6.** [Q52](../questions/q52.md), raised by this item from Q33's other half. Not
   deferred silently: the cost is stated there.
-- **[Q44](../open-questions.md) — what `spec/examples/` is for.** W5 runs three corpus flows
+- **[Q44](../questions/q44.md) — what `spec/examples/` is for.** W5 runs three corpus flows
   unmodified and adds none, which is *evidence* for the current answer rather than a settlement of
   it. Sharpened in the Record; still W5's owner line in the register, and still open.
-- **[Q45](../open-questions.md) — two fan-outs sharing one `end`.** Not a shape either W5 flow has.
+- **[Q45](../questions/q45.md) — two fan-outs sharing one `end`.** Not a shape either W5 flow has.
   W4's `test/matrix/region-shapes.test.ts` covers the behaviour; whether `spec/` should say anything
   is untouched.
-- **[Q24](../open-questions.md) — `JP-R7` and `JP-R8`.** The live question after ADR 0003 and
+- **[Q24](../questions/q24.md) — `JP-R7` and `JP-R8`.** The live question after ADR 0003 and
   explicitly **not** this item's. Neither refinement is built, and the `all-exit` row that motivates
   `JP-R8` is not one of the six runs.
-- **[Q36](../open-questions.md) — what a satisfied join carries downstream.** It carries `null`; the
+- **[Q36](../questions/q36.md) — what a satisfied join carries downstream.** It carries `null`; the
   real runs record that faithfully. A real run is not evidence about what it *should* carry.
-- **[Q37](../open-questions.md) — who polls `joinStatusOf`, and how often.** Q42's fix removes the
+- **[Q37](../questions/q37.md) — who polls `joinStatusOf`, and how often.** Q42's fix removes the
   need to poll for the *stuck* answer specifically; who watches a *live* run is a different question
   and is untouched.
-- **[Q19](../open-questions.md) — performance at scale.** Two branches, six runs. P1's scope says a
+- **[Q19](../questions/q19.md) — performance at scale.** Two branches, six runs. P1's scope says a
   number at modest width, and W5 reports wall-clock per run as an observation, not a benchmark.
 - **Flow-level retry, cancellation, durability, nested fan-out, map-style fan-out.** All out of P1
   by its own Scope.
@@ -233,11 +233,11 @@ both assert on, and a fix that needs those suites rewritten is a fix that has ou
 
 | Case | | Covered by W5 |
 |---|---|---|
-| A branch routed away from its join ([Q4](../open-questions.md)) | **yes, and for real** — `p1-routed-away` at low confidence, under both policies. W4 proved the claim against a fake; this is the same claim with a real `addTask` |
-| `user_action` ([Q17](../open-questions.md)) | **no, and deliberately.** Reaching it needs a non-optional task out of retries, so a run that is *designed* to fail twice; W4 covers the flow-level behaviour in three rows and `resolve()` has no scheduler in its path. **Named because silence is not an answer** — and it means `awaiting_action` is not exercised at L6 |
-| No matching decision edge ([Q10](../open-questions.md)) | **no.** `FD-V7` refuses the shape at instantiation and `FD-R1` is W3's, at L2. No W5 flow can reach it |
-| A duplicate task id ([Q13](../open-questions.md)) | **partially, and this is the first time it is real.** `ID-R1` refuses before `addTask`, so no run reaches a collision — but L6 is the only rung where the ids the driver mints are handed to the scheduler's actual task map, which is what `spec/task-id.md` section 2's correctness argument is about. W5 asserts the six runs' ids are distinct and well-formed and that the scheduler settled each one |
-| Nested fan-out ([Q6](../open-questions.md)) | **not applicable** — refused by `FD-V15`; no `branchPath` here is deeper than one element |
+| A branch routed away from its join ([Q4](../questions/q4.md)) | **yes, and for real** — `p1-routed-away` at low confidence, under both policies. W4 proved the claim against a fake; this is the same claim with a real `addTask` |
+| `user_action` ([Q17](../questions/q17.md)) | **no, and deliberately.** Reaching it needs a non-optional task out of retries, so a run that is *designed* to fail twice; W4 covers the flow-level behaviour in three rows and `resolve()` has no scheduler in its path. **Named because silence is not an answer** — and it means `awaiting_action` is not exercised at L6 |
+| No matching decision edge ([Q10](../questions/q10.md)) | **no.** `FD-V7` refuses the shape at instantiation and `FD-R1` is W3's, at L2. No W5 flow can reach it |
+| A duplicate task id ([Q13](../questions/q13.md)) | **partially, and this is the first time it is real.** `ID-R1` refuses before `addTask`, so no run reaches a collision — but L6 is the only rung where the ids the driver mints are handed to the scheduler's actual task map, which is what `spec/task-id.md` section 2's correctness argument is about. W5 asserts the six runs' ids are distinct and well-formed and that the scheduler settled each one |
+| Nested fan-out ([Q6](../questions/q6.md)) | **not applicable** — refused by `FD-V15`; no `branchPath` here is deeper than one element |
 
 ## Record
 
@@ -248,7 +248,7 @@ a row that does not name its runtimes ran in one.
 |---|---|---|---|
 | L0 | **RAN** — pass | **Node, Deno; nothing at L0 runs in a browser** | `check-spec` (8), `check-source` (**10** — `S7`-`S10` are new, all negative-tested), `check-scheduler` (5, new, all negative-tested), `deno lint` over `src/ test/ examples/ index.ts`, `tsc` × **5** configs, `deno check`, `deno publish --dry-run`. **The runtimes column is corrected**: the first version of this row said *"Node, browser, Deno"*, and three of L0's clauses are Node-only tooling by construction while nothing at L0 runs in a browser at all. `RT-R1`'s own standard applied to `RT-R1`'s own row |
 | L1-L5 | **RAN** — pass | **all five** — node 24, deno 2.9.6, chromium, firefox, webkit | **288 assertions**, identical in all five; the browser runner asserts the parity rather than assuming it. 257 were W1-W4's, 31 are W5's across two new suites |
-| **L6** | **RAN** — pass | **node 24 and deno 2.9.6** | **118 assertions**, **eight** real runs, ~100 ms each. Not the browser — [Q33](../open-questions.md) answered as `RT-R10`, remainder [Q52](../open-questions.md) |
+| **L6** | **RAN** — pass | **node 24 and deno 2.9.6** | **118 assertions**, **eight** real runs, ~100 ms each. Not the browser — [Q33](../questions/q33.md) answered as `RT-R10`, remainder [Q52](../questions/q52.md) |
 | mutation | **RAN, three times** | Node | W5's own sweep: 19, 2 survivors. **The review's: 148, 38 survivors, 10 blocking.** The re-sweep after acting on both: 12 targeted mutations, **0 survivors** |
 | **spec-conformity** | **RAN** — **3 blocking, 9 defects, 7 notes** | n/a | fresh context, spec first and code second. It re-derived all six L6 rows independently before opening `examples/l6.ts` and agreed with every cell |
 | **test adequacy** | **RAN** — **10 blocking, 3 defects, ~12 notes** | n/a | a second reader on *"would these tests have noticed"*, by mutation, in an isolated git worktree |
@@ -327,7 +327,7 @@ statement ADR 0015 exists to remove, through the class's own declared surface.
 was too wide and W3's suite said so**: it refused a same-id restart too, which took away `ID-R1`'s
 only direct test — W3 provokes a duplicate dispatch by starting the same run twice. Narrowed to
 different ids only; two runs sharing an id collide on every task id anyway. What is *not* fixed is
-that the public surface still says a driver serves many runs — [Q53](../open-questions.md).
+that the public surface still says a driver serves many runs — [Q53](../questions/q53.md).
 
 **3. `RT-R10` and ADR 0013 rule 6 claimed a mechanism that did not exist — found by both readers,
 independently, and both measured it.** *"L6 lives in `examples/**` … so nothing that imports a
@@ -398,7 +398,7 @@ state reaching it is mid-turn or a fixture carrying no `pathEnded`.
 
 **10. Two reachable branches of `withOutcome` had no test. [adequacy]** `RN-R10` uses `some`, and
 `some` and `every` differ only when a run has **more than one region** with different `joined` values
-— the two-sequential-fan-outs shape of [Q45](../open-questions.md). And section 3's
+— the two-sequential-fan-outs shape of [Q45](../questions/q45.md). And section 3's
 nothing-dispatched clause is reachable via a **fan-out entry**, which `FD-V3` permits: every
 `branch.opened` precedes the first dispatch, so without the clause that state is `stuck` and
 `isTerminal`, and an L6 harness would declare such a run finished before it started. `fold([])`
@@ -468,7 +468,7 @@ resolve from a git worktree**, which every future reviewer of this repository wi
   `spec/run-state.md` section 5's first three instances were a spec written by its implementer; Q43
   is the fourth and it is a **register entry written by a reader**, in the document every work item
   reads before it starts. `spec/` has a pass; `doc/open-questions.md` has nothing. **For the retro.**
-- **A leaning's argument is worth checking before its conclusion.** [Q33](../open-questions.md)
+- **A leaning's argument is worth checking before its conclusion.** [Q33](../questions/q33.md)
   leaned *Node only for P1* because *"L6 needs a real worker file per runtime"*. One command showed
   that false at Node 24, and the answer flipped to Node **and** Deno.
 - **Three things this repository believed were wrong and each was one command away** — *"not yet
@@ -494,7 +494,7 @@ Q51, Q52 and **Q53** from the reserved block; **Q54-Q60 are skipped, never reiss
 | Q52 | Must ladder L6 run in the **browser** before release? The half of Q33 W5 does not answer | W5 |
 | Q53 | **`Driver`'s public surface says it serves many runs and `ID-R3` says it serves one** | the spec-conformity pass |
 
-[Q44](../open-questions.md) gained its **second occurrence**: W5 needed a flow the corpus cannot
+[Q44](../questions/q44.md) gained its **second occurrence**: W5 needed a flow the corpus cannot
 express — an `optional` branch node with no `on: ["failed"]` edge — and defined it in
 `examples/flows/` exactly as W4 defined one in `test/matrix/`. The register row predicted *"a gap
 that will be re-found by every later item"*, and it was, by the next one.
@@ -511,7 +511,7 @@ distinction worth repeating.
   out of retries while non-optional; W4 covers the flow-level behaviour in three rows and `resolve()`
   has no scheduler in its path. So the one run-state outcome a human is involved in has never been
   seen on a real scheduler.
-- **[Q53](../open-questions.md)** — the driver's surface still says it serves many runs. Narrowing it
+- **[Q53](../questions/q53.md)** — the driver's surface still says it serves many runs. Narrowing it
   is a change to W3's public API and this item had already widened its `Owns` seven times.
 - **The empty-set assertions and the unasserted harness knobs**, listed above.
 - **A regex cannot close `S7` completely.** A specifier built at run time survives it, and the check

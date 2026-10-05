@@ -20,7 +20,7 @@ Owns:       src/driver/**, src/fold/**, src/definition/**, spec/**, test/**,
             snippets carry `RegionEvent`/`FoldInput` LITERALS that no typecheck lane
             reads, which `check:docs` does and which the `Gate:` line below does not
             name. The edits are the CHURN: no L6 row, snippet or reference is added
-            and L6 is UNMOVED ([Q348](../open-questions.md))
+            and L6 is UNMOVED ([Q348](../questions/q348.md))
 Inputs:     P22 decisions 1-6 and facts 1, 2 and 3, EACH RE-TAKEN on this tree before anything is
             edited; `dev-dist/spike-nested-map/` as the fact base and `dev-dist/p22/` as the
             re-take; ADR 0036 (a branch path inside a map is a property of the DISPATCH), `ID-R6`,
@@ -80,7 +80,7 @@ block's declared exceptions. **Out** below says *any L6 row, and the reference* 
 half STANDS — L6 is UNMOVED at 1724 / 58 and no row, snippet or reference is added. What the
 exceptions buy is the SHAPE errors, which are the churn: the `Owns` block and Scope In 5
 contradicted each other as declared, and nobody could have satisfied both.
-[Q348](../open-questions.md).)*
+[Q348](../questions/q348.md).)*
 
 **Out** — named rather than left implicit, with where each goes instead
 
@@ -95,7 +95,7 @@ contradicted each other as declared, and nobody could have satisfied both.
   asymmetry is the finding**: the latch's TOO-STRONG direction *is* bound — `firedHas` returning
   true when ANY instance has fired costs **3** at L1 — and its too-weak direction is bound by
   nothing, because no shipped policy settles a join before every branch is terminal. That is
-  [Q95](../open-questions.md)'s precondition one key deeper. **W85 is where it is driven.**
+  [Q95](../questions/q95.md)'s precondition one key deeper. **W85 is where it is driven.**
 - **Any L6 row, and the reference.** W86's. **L6 UNMOVED here**, and that is the declared result:
   an item that changes an identity and moves a rung of real runs has not kept `regionId`'s value.
 - **The package version.** P22 stop-and-ask (b) is **ANSWERED `0.4.0` at W86's close**, on W77's
@@ -105,7 +105,7 @@ contradicted each other as declared, and nobody could have satisfied both.
   SHIPPED tree, measured by the spike with no patch. W85 asserts it under nesting.
 - **Any change to what a join CARRIES.** Decision 5. The spike went looking and found none; if this
   item finds one, that is a correction to the plan and is recorded as one.
-- **[Q206](../open-questions.md)** — sibling regions nested inside ONE map region, and a region's
+- **[Q206](../questions/q206.md)** — sibling regions nested inside ONE map region, and a region's
   collection reachable by no reference. Declared OUT by the plan and not reached here.
 
 ## What the declaration step must re-take before anything is edited
@@ -147,10 +147,10 @@ How each clause of `Gate:` is run. Commands named, each RUN and redirected, neve
 | **adequacy reader** | isolated copy. Its first target is ADR 0062's own sentence: *`regionId` never changes value for any existing flow.* Second: whether the two-level carrier is bound at ONE depth, which is W76's shape and the direction an author picks by default |
 | **re-run at `<sha>`** | rule 8's set re-run with both readers' exact edits checked in |
 
-**Routing cases this item covers** (`doc/workflow.md` section 7): a **nested fan-out** ([Q6](../open-questions.md))
+**Routing cases this item covers** (`doc/workflow.md` section 7): a **nested fan-out** ([Q6](../questions/q6.md))
 is the shape the corpus already holds and this item must not move — `nested`, `nested-fanout` and
 `nested-map` all keep their event streams byte-identical, which is decision 3's own test. A
-**duplicate task id** ([Q13](../open-questions.md)) is the failure mode the refusal exists to
+**duplicate task id** ([Q13](../questions/q13.md)) is the failure mode the refusal exists to
 prevent and the one the key must now prevent instead: two instances of one opener at one key is
 `ID-R1` naming a duplicate, which is the symptom, and the declaration step's fixture must make the
 CAUSE observable. **Not applicable here**: a branch routed away from its join (Q4), `user_action`
@@ -167,8 +167,8 @@ paths are driven.
 | L1-L5, three runtimes | **RAN, EXIT 0 — 46 files / 1302 assertions** in node 24.20.0, deno 2.9.6 and chromium, parity asserted | from 46 / 1295. **34 failures paid**, not the plan's thirty-two |
 | check:spec | **RAN, EXIT 0 — 7 / 61 / 108, UNMOVED** | the declaration step's re-take row 5 said it would not move, because the refusal carried no rule id; `check:spec:selftest` EXIT 0. `C8` green on three bumped version rows |
 | L6 UNMOVED | **RAN, EXIT 0 — 1724 assertions over 58 real runs in BOTH runtimes, UNMOVED** | the assertion about ADR 0062 rule 3, not a formality. The adequacy reader's p1a — moving `regionId`'s value at the one emit funnel — costs **139 at L6 and 58 at L1-L5**, and the L6 catches include `fanout-join` under two policies, which are PRE-W84 flows |
-| check:docs | **RAN, EXIT 0 — 34 snippets: 28 run, 6 check, UNMOVED** | **not in the declared `Gate:` line, and it had to be**: `AGENTS.md`'s executed snippets carry `RegionEvent`/`FoldInput` literals that no typecheck lane reads, measured at 5 sites in 2 snippets ([Q348](../open-questions.md)) |
-| check:markdown | **RAN, EXIT 0**; self-test EXIT 0, 7 / 7 bounded, 37 / 37 probes | **[Q142](../open-questions.md) measured BEFORE the record step and does NOT fire**: `M3`'s cut tree is 110 files against a floor of 123 — margin **13**, and the one document this item adds lands in `doc/decisions/`, which probe 1 CUTS — and `M4`'s is 4677 links against 5270, margin **593**. P18's retro fired at a margin of 31 |
+| check:docs | **RAN, EXIT 0 — 34 snippets: 28 run, 6 check, UNMOVED** | **not in the declared `Gate:` line, and it had to be**: `AGENTS.md`'s executed snippets carry `RegionEvent`/`FoldInput` literals that no typecheck lane reads, measured at 5 sites in 2 snippets ([Q348](../questions/q348.md)) |
+| check:markdown | **RAN, EXIT 0**; self-test EXIT 0, 7 / 7 bounded, 37 / 37 probes | **[Q142](../questions/q142.md) measured BEFORE the record step and does NOT fire**: `M3`'s cut tree is 110 files against a floor of 123 — margin **13**, and the one document this item adds lands in `doc/decisions/`, which probe 1 CUTS — and `M4`'s is 4677 links against 5270, margin **593**. P18's retro fired at a margin of 31 |
 | conformity reader | **RAN — 16 findings, 6 blocking** | **its central obligation came back with ZERO disagreements on the VALUES**: it implemented the region sets and `branchPath` from `spec/` alone, derived every instance key on paper for the corpus's six nested regions, the three `examples/flows` nested documents, the two `spec/examples/valid` ones and the new fixture, and not one differed from what the tree produces. Every disagreement it found was in a SENTENCE — three surviving statements of the WITHDRAWN refusal (plus two it did not name), the churn figure stale by 3 sites and 2 files, and an `Owns` block that could not hold its own `Outputs` row. It also caught that L1-L5 was 1299 and not the 1296 the author had recorded |
 | adequacy reader | **RAN — 47 mutations, 17 survivors, 12 findings, 5 blocking** | **its second named target SURVIVED**: the two-level carrier was bound at ONE SEGMENT. Also: ADR 0062 rule 4's `map`-in-`map` half had no driver fixture; `regionEntered`'s per-instance dedup had none; the interleaving test's ORDER was load-bearing and unasserted; two guards were emptiable for zero. Its FIRST named target did not survive. All five closed, and its **exact edits are checked in as probes** — all six fire |
 | re-run at `<sha>` | **RAN — 38 probes, 32 caught, 6 declared ceilings each RUN, 0 UNDECLARED survivors, 0 crashes, 0 aborts, 0 against declaration** | control green at every rung, tree held still by a content DIGEST identical at both ends. The AUTHOR pass first read SIX undeclared survivors: four real (closed) and **two that were the PROBES** — one whose mutation was semantically equivalent by construction, one that moved both sides of an equality |
@@ -186,7 +186,7 @@ rung was RUN and redirected rather than piped.
 stop-and-ask (b) requires: `0.4.0` lands at W86's close, so W84 and W85 ship the breaking shape with
 the version unmoved. **Three declared exceptions, all found at the declaration step**:
 `examples/l6.ts`, `examples/run-flow.ts` and `AGENTS.md` — see the `Owns` block and
-[Q348](../open-questions.md). **Zero undeclared.**
+[Q348](../questions/q348.md). **Zero undeclared.**
 
 **Outputs — what was actually built.**
 
@@ -204,22 +204,22 @@ the version unmoved. **Three declared exceptions, all found at the declaration s
 `c2` re-sourced a key to the region's JOIN id — and a region's join is never a member of that region,
 so the two expressions agree by CONSTRUCTION; `d3` moved both sides of an equality. The four real
 ones: the collection's read and its RELEASE were both unobservable because every test settled
-instances SEQUENTIALLY ([Q349](../open-questions.md)); `RN-R10`'s quantification over instances had
+instances SEQUENTIALLY ([Q349](../questions/q349.md)); `RN-R10`'s quantification over instances had
 no fold with one instance joined and another not; and the `RN-R6` cross-policy walk could be narrowed
-back to openers, whose obvious repair is RED for a reason of its own ([Q350](../open-questions.md)).
+back to openers, whose obvious repair is RED for a reason of its own ([Q350](../questions/q350.md)).
 
 **The churn is LOUD, and not at L0 — P22 prediction 1 REVERSES by its own stated condition.**
 Measured one for one: **8 of the 34 L1-L5 failures are in FOUR files no typechecker names**.
 `Record<string, T>` has an OPEN index signature, so `regions['split'].joined` on the two-level type
 still TYPES as `RegionRun` and evaluates to `undefined`. It goes red at L0 only where the result is
-constrained ([Q346](../open-questions.md)). Its sharpest form is a CAST that restates the shape it
+constrained ([Q346](../questions/q346.md)). Its sharpest form is a CAST that restates the shape it
 reaches into: both retention observers declared `Map<fanoutId, Map<branchPath, payload>>` themselves
-and compiled clean against their own stale restatement ([Q347](../open-questions.md)).
+and compiled clean against their own stale restatement ([Q347](../questions/q347.md)).
 
 **A gate line drawn from the same list as an `Owns` block.** `AGENTS.md` is W86's and carries five
 sites no typecheck lane reads; `check:docs` is the rung that sees them and is not in this item's
 `Gate:` line — so **W84 as declared could have shipped a gate entry red with its own gate green**
-([Q348](../open-questions.md)).
+([Q348](../questions/q348.md)).
 
 **What this taught.**
 
@@ -241,12 +241,12 @@ into one key, one join becomes unreachable, and a run in which every task settle
 *The spike measured depth three and the item shipped no observer for it, which is the difference
 between a fact being MEASURED and a claim being BOUND.*
 
-**Questions raised.** [Q346](../open-questions.md) (a `Record<string, T>`'s open index signature
-makes a new LEVEL invisible to a typechecker), [Q347](../open-questions.md) (a cast that restates the
-shape it reaches into compiles against its own restatement), [Q348](../open-questions.md) (an `Owns`
+**Questions raised.** [Q346](../questions/q346.md) (a `Record<string, T>`'s open index signature
+makes a new LEVEL invisible to a typechecker), [Q347](../questions/q347.md) (a cast that restates the
+shape it reaches into compiles against its own restatement), [Q348](../questions/q348.md) (an `Owns`
 block that cannot hold its own `Outputs` row, and a `Gate` line drawn from the same list),
-[Q349](../open-questions.md) (an eager release hides the key it is keyed by),
-[Q350](../open-questions.md) (`RN-R6`'s premise fails under nesting and only a red rung says so),
-[Q351](../open-questions.md) (a prose enumeration written by a reader goes stale and nothing binds
-it). **[Q160](../open-questions.md) and [Q156](../open-questions.md) are RESOLVED.** Census
+[Q349](../questions/q349.md) (an eager release hides the key it is keyed by),
+[Q350](../questions/q350.md) (`RN-R6`'s premise fails under nesting and only a red rung says so),
+[Q351](../questions/q351.md) (a prose enumeration written by a reader goes stale and nothing binds
+it). **[Q160](../questions/q160.md) and [Q156](../questions/q156.md) are RESOLVED.** Census
 **272 / 211 / 2 / 59**.

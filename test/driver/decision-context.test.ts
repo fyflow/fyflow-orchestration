@@ -3,7 +3,7 @@
  * no scheduler. [W42](../../doc/work-items/w42-what-a-decision-sees.md) under
  * [P12](../../doc/plans/p12-what-a-node-receives-and-what-a-decision-sees.md),
  * [ADR 0041](../../doc/decisions/0041-a-decision-sees-its-nodes-outcome-and-whatever-its-own-edge-declares.md),
- * answering [Q8](../../doc/open-questions.md).
+ * answering [Q8](../../doc/questions/q8.md).
  *
  * **A predicate is a pure function of a `DecisionContext`, so the whole of `FD-C3` is
  * reachable at this rung** — no worker, no thread, no timer, which is
@@ -103,14 +103,14 @@ function harness(
  *
  * Until v0.13 the three tests below used *a decision routed around the target*, and
  * `FD-V29` refuses that document at instantiation now — which is
- * [Q187](../../doc/open-questions.md)'s whole point. **They then used two `map`
+ * [Q187](../../doc/questions/q187.md)'s whole point. **They then used two `map`
  * regions over different keys, and W50 took that road away too**:
  * [ADR 0044](../../doc/decisions/0044-a-reference-is-visible-when-two-paths-agree-on-the-regions-that-contain-both-of-them.md)
  * makes a reader in a SIBLING region see ALL of the target's outputs, so this
  * document now RESOLVES at every arity and is used below as a **control** rather
  * than as an `FD-R3` case. What reaches `FD-R3` is `fanoutJoinEdge` with an eager
  * policy, and what reaches `FD-C4`'s array row is `skippedRegion`.
- * [Q218](../../doc/open-questions.md).
+ * [Q218](../../doc/questions/q218.md).
  *
  * `spec/examples/valid/reference-past-a-map-arity.flow.json` is the same shape at the
  * NODE site, in the corpus. This one is constructed because the corpus flow puts the
@@ -173,7 +173,7 @@ const skippedRegion = (publishEdges: unknown[]): FlowDefinition =>
 /**
  * **`fanout-join` with the reference on an EDGE** — W50, and it is `FD-R3`'s ONE
  * remaining road at this site: a join policy firing before a branch entry has
- * settled ([Q218](../../doc/open-questions.md)).
+ * settled ([Q218](../../doc/questions/q218.md)).
  */
 const fanoutJoinEdge = (publishEdges: unknown[]): FlowDefinition =>
   ({
@@ -192,7 +192,7 @@ const fanoutJoinEdge = (publishEdges: unknown[]): FlowDefinition =>
     ],
   } as unknown as FlowDefinition);
 
-/** Satisfied on the first ARRIVAL, whatever else is live — [Q97](../../doc/open-questions.md)'s shape. */
+/** Satisfied on the first ARRIVAL, whatever else is live — [Q97](../../doc/questions/q97.md)'s shape. */
 const eagerPolicy: JoinPolicy<{ arrived: number }> = {
   id: 'eager-any-arrival',
   open: () => ({ arrived: 0 }),
@@ -583,7 +583,7 @@ suite('L2 — FD-C3: what a decision sees', (test) => {
     // identical and the assertion would pass because nothing distinguishes them.
     // **What still gives `[]` is a target that ran NOWHERE** — the same run, with
     // the map region skipped, which is `FD-R3`'s remaining shape one rule across
-    // ([Q218](../../doc/open-questions.md)).
+    // ([Q218](../../doc/questions/q218.md)).
     const def = pastArity([
       { when: { predicate: 'isLowConfidence' }, to: 'audit', needs: { f: ['score?'] } },
       { to: 'gather' },
@@ -698,7 +698,7 @@ suite('L2 — FD-C3: what a decision sees', (test) => {
     // reading past the first's arity, and
     // [ADR 0044](../../doc/decisions/0044-a-reference-is-visible-when-two-paths-agree-on-the-regions-that-contain-both-of-them.md)
     // makes that resolve. `FD-R3`'s remaining road is a join **policy** firing
-    // before a branch entry has settled ([Q218](../../doc/open-questions.md)), so
+    // before a branch entry has settled ([Q218](../../doc/questions/q218.md)), so
     // this fixture brings its own — and the SHIPPED-policy control below is what
     // makes it a statement about the edge site rather than about the policy.
     const def = fanoutJoinEdge([
@@ -850,7 +850,7 @@ suite('L1 — FD-V26 on an EDGE: the grammar, minus one form', (test) => {
     // **A literal, and the ceiling is stated rather than hidden.** W41's adequacy
     // reader showed that a number beside its own list falls to a compound edit that
     // narrows both — and `doc/workflow.md` section 5 rule 8's own procedure calls
-    // that a REWRITE whose survival says nothing ([Q112](../../doc/open-questions.md)).
+    // that a REWRITE whose survival says nothing ([Q112](../../doc/questions/q112.md)).
     // What this catches is the SINGLE edit, which is what a later reader tidying the
     // file actually does; what it does not catch is the compound, and W41 moved its
     // equivalent bound into `spec/` because there the compound has to edit the

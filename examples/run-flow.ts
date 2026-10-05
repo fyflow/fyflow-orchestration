@@ -115,7 +115,7 @@ import uiRegistryDocument from './ui-registry.json' with { type: 'json' };
  *
  * **Measured at W67's declaration step, because a knob with no assertion deserves a number**:
  * forcing every such type inline — which is what dropping the knob would do — costs **ZERO** L6
- * failures. That is [Q99](../doc/open-questions.md)'s *a knob held down by no assertion* with a
+ * failures. That is [Q99](../doc/questions/q99.md)'s *a knob held down by no assertion* with a
  * figure. It is kept because what it buys is that the fan-out pool is a real THREAD on the rows that
  * ask for one, which is the one place two tasks are in flight at once and therefore where a dispatch
  * race or an id collision would show — and W51 measured that it changes dispatch order 12/12.
@@ -218,7 +218,7 @@ export const isLowConfidence: Predicate = (ctx) => {
  *
  * **`ctx.needs` is frozen, and that is a DRIVER-level decision rather than an ADR rule** — the freeze
  * is W42's adequacy reader's and lives in `src/driver/driver.ts` beside `EMPTY_NEEDS`. This predicate
- * reads and does not write, which is what a predicate is for; [Q9](../doc/open-questions.md) is
+ * reads and does not write, which is what a predicate is for; [Q9](../doc/questions/q9.md) is
  * untouched and still declined.
  */
 export const earlierWasLowConfidence: Predicate = (ctx) => {
@@ -232,7 +232,7 @@ export const earlierWasLowConfidence: Predicate = (ctx) => {
  * and 1000 over one input), so a threshold on the score is what lets ONE payload route one branch
  * away and keep the other: at 0.9 both arrive (90, 900), at 0.4 one is routed away (40 is below 50,
  * 400 is not), at 0.04 both are (4, 40). Three payloads, three arities, one predicate —
- * [Q263](../doc/open-questions.md)'s three shapes reached from the definition's own decision edges
+ * [Q263](../doc/questions/q263.md)'s three shapes reached from the definition's own decision edges
  * rather than from three flow documents.
  */
 export const isLowScore: Predicate = (ctx) => {
@@ -415,7 +415,7 @@ export function codeFor(predicates: ReadonlyMap<string, Predicate>): RegistryCod
  *
  * `base` is this module's own URL, so the document's relative worker urls (`./workers/ingest.ts`)
  * resolve beside it — decision 7, and the reason the runtime cannot guess it is that inside a bundle
- * `import.meta.url` is the bundle ([Q261](../doc/open-questions.md)).
+ * `import.meta.url` is the bundle ([Q261](../doc/questions/q261.md)).
  *
  * `flows` is every definition this runtime will run, because pools are built ONCE and a language
  * adapter's worker half reaches a typed pool through that pool's config (W61): the same type carries
@@ -500,7 +500,7 @@ export function buildUiRuntime(
  * only observable.
  *
  * **A footprint is REPORTED; what is ASSERTED is the RELATION** — this item's own
- * `Tests:` line, and [Q179](../doc/open-questions.md) is why: a byte count is a
+ * `Tests:` line, and [Q179](../doc/questions/q179.md) is why: a byte count is a
  * property of one run on one machine, and the rule is about *which structures hold a
  * result and for how long*. So the two ENTRY counts below are what `examples/l6.ts`
  * asserts, and the two BYTE counts are what `examples/retention.ts` prints.
@@ -550,7 +550,7 @@ export interface Retention {
    * KiB on every row while twenty-six aliasing assertions passed against nothing, and
    * the reconstruction stayed *strictly larger* than the end because an empty map is
    * still a few bytes. **Two counts of one thing is what discriminates**, and it is a
-   * relation rather than a byte figure ([Q179](../doc/open-questions.md)).
+   * relation rather than a byte figure ([Q179](../doc/questions/q179.md)).
    */
   snapshotEntries: number;
   /**
@@ -602,7 +602,7 @@ export interface RunReport {
    */
   settledByScheduler: readonly string[];
   log: readonly LogRecord[];
-  /** Observed, not asserted on. [Q19](../doc/open-questions.md) wants a number and this is not it. */
+  /** Observed, not asserted on. [Q19](../doc/questions/q19.md) wants a number and this is not it. */
   wallMs: number;
   /**
    * **Which of the two ended the wait.** `'run-state'` means `isTerminal(state)`
@@ -1131,7 +1131,7 @@ export interface ForeignTask {
   payload?: unknown;
   /**
    * **Passed through to the scheduler, and it is what `task.failed` needs** —
-   * [Q107](../doc/open-questions.md), taken by
+   * [Q107](../doc/questions/q107.md), taken by
    * [W23](../doc/work-items/w23-a-nested-flow-on-real-workers.md).
    *
    * `ID-R5` at L6 had only ever been reached from `task.completed`, because every
@@ -1146,7 +1146,7 @@ export interface ForeignTask {
 /**
  * **Two runs, two `Driver`s, ONE scheduler, on real workers — P4's exit artifact.**
  *
- * The pairing [Q72](../doc/open-questions.md) named and
+ * The pairing [Q72](../doc/questions/q72.md) named and
  * [ADR 0023](../doc/decisions/0023-an-inbound-settlement-is-this-runs-only-if-this-driver-dispatched-it.md)
  * closed. Before W13 this corrupted both runs **silently**: each driver received
  * the other's settlements, `run-a:publish:-:0` was dispatched twice under two
@@ -1240,7 +1240,7 @@ export async function runPair(
   // that structural rather than hoped for.** `runFlow` is synchronous up to its
   // first `await`, so both drivers attach their listeners before any timer fires,
   // and the worker's own `delayMs` means nothing can settle inside this turn.
-  // **NOT all on one pool since [Q107](../doc/open-questions.md)**, and the
+  // **NOT all on one pool since [Q107](../doc/questions/q107.md)**, and the
   // sentence this replaces was true of five of the six. It read: *"The pool these
   // go to is `IngestWorker` — `maxThreads: 1`, `inline` — so a task queued first
   // is dispatched first and settles first, and the ordering is produced by queue
@@ -1350,13 +1350,13 @@ export interface PairFacts {
  * **The ONE reach into the driver's private state, named once** — W55, and it is
  * `test/driver/retention.test.ts`'s reach at ladder L6.
  *
- * [Q233](../doc/open-questions.md) is the record of why it has to be a reach:
+ * [Q233](../doc/questions/q233.md) is the record of why it has to be a reach:
  * [ADR 0046](../doc/decisions/0046-a-run-retains-what-its-tasks-returned-and-a-region-releases-its-collection-when-its-join-becomes-terminal.md)
  * rule 1 is a statement about what a run HOLDS and **no public surface can observe
  * it** — `snapshot()` and `foldInputs()` both return the log, and the region
  * collections `RN-R13`'s second term is about are reachable from neither, which is
  * that rule's own point. W53 measured both alternatives and refused both: a public
- * accessor enlarges the surface for a test's convenience ([Q53](../doc/open-questions.md)
+ * accessor enlarges the surface for a test's convenience ([Q53](../doc/questions/q53.md)
  * — *a redundant surface is read as a permissive one*), and a byte measurement needs
  * `v8.serialize`, which exists in two of the five runtimes.
  *
@@ -1445,7 +1445,7 @@ const walkOf = (d: Driver): { walked: string[]; skipped: string[] } => {
 /**
  * **`v8.serialize`, loaded once and never assumed.** It is in **two** of the five
  * runtimes — node and deno, through `node:v8`, and in none of the three browsers
- * ([Q233](../doc/open-questions.md), corrected there from *one*). Ladder L6 runs in
+ * ([Q233](../doc/questions/q233.md), corrected there from *one*). Ladder L6 runs in
  * exactly those two, so it is available at both L6 rungs and at neither browser one.
  */
 let serializeFn: ((v: unknown) => { length: number }) | null | undefined;
@@ -1514,7 +1514,7 @@ export async function retainedBytes(d: Driver, extra: readonly unknown[] = []): 
  * to nothing.**
  *
  * **It asserts the RELATION and never the bytes** — this item's own `Tests:` line, and
- * [Q179](../doc/open-questions.md) is why. On a run that COMPLETED,
+ * [Q179](../doc/questions/q179.md) is why. On a run that COMPLETED,
  * [ADR 0046](../doc/decisions/0046-a-run-retains-what-its-tasks-returned-and-a-region-releases-its-collection-when-its-join-becomes-terminal.md)
  * rule 3 says the collection is gone and `JP-R12` says one entry was recorded per
  * branch that arrived. The two BYTE clauses are relations too: a serializer this rung
@@ -1905,7 +1905,7 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
             // rejection rather than as a result. The harness's whole design is
             // that a failure is *reported*; this is that, applied to itself.
             //
-            // **`branchIndices`, not `Number` — [Q117](../doc/open-questions.md),
+            // **`branchIndices`, not `Number` — [Q117](../doc/questions/q117.md),
             // fixed by [W23](../doc/work-items/w23-a-nested-flow-on-real-workers.md).**
             // This read `Number(branchPath)`, which is right at depth 1 and wrong
             // in two different ways below it. At depth 2 `Number('1.0')` is **1**,

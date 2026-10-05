@@ -13,7 +13,7 @@
  * **Rule 8 obligation (a), the SHAPES**: `pathsOf` is instantiated on every one of the thirteen
  * keywords and on all seven types, on both nesting roads (`properties` and `items`), and on the two
  * shapes the SUBSET REFUSES that `checkWiring` derives — a fan-out's record and a map's
- * `additionalProperties: <schema>` with its `branchKeys` marker (W74 fact A, [Q306](../../doc/open-questions.md)).
+ * `additionalProperties: <schema>` with its `branchKeys` marker (W74 fact A, [Q306](../../doc/questions/q306.md)).
  * **Obligation (d)**: the keyword list, the type list and the generated file are each held to their
  * other half both ways, and the discriminating pair asserts what makes its two halves DIFFER.
  */

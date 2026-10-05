@@ -3,7 +3,7 @@
  * REFUSED at construction naming the keyword** —
  * [ADR 0053](../../doc/decisions/0053-the-schema-validator-is-a-built-in-subset-and-a-keyword-outside-it-is-refused.md),
  * [P18](../../doc/plans/p18-a-flow-and-its-runtime-from-documents-alone.md) decision 8 and fact 1,
- * [Q278](../../doc/open-questions.md), [W65](../../doc/work-items/w65-the-registry-document-and-a-node-type-is-a-derivation.md).
+ * [Q278](../../doc/questions/q278.md), [W65](../../doc/work-items/w65-the-registry-document-and-a-node-type-is-a-derivation.md).
  *
  * A worker entry in the registry document declares up to four schemas (`configSchema`,
  * `settingsSchema`, `inputSchema`, `outputSchema`); a group type declares one; a node-type class may

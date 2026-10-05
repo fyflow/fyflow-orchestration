@@ -21,11 +21,11 @@ accepted, **the exit artifact exists on real workers**, and the retro made
 > ADR 0027's blast radius and removes the second site the against-case was assumed to be true at.**
 > This is the fifth plan running to find a row wrong by trying to act on it, and the first where the
 > wrong rows are the **plan's own prose** rather than the register's.
-**Question this plan answers:** [Q86](../open-questions.md) — *is a task id that does not **parse**
+**Question this plan answers:** [Q86](../questions/q86.md) — *is a task id that does not **parse**
 a defect that stops the run, or a task that is not ours?* And with it the two things
 [ADR 0023](../decisions/0023-an-inbound-settlement-is-this-runs-only-if-this-driver-dispatched-it.md)
-shipped as prose rather than as code: [Q87](../open-questions.md)'s error message, and
-[Q95](../open-questions.md)'s unexercised latch.
+shipped as prose rather than as code: [Q87](../questions/q87.md)'s error message, and
+[Q95](../questions/q95.md)'s unexercised latch.
 **Exit artifact:** **a scheduler carrying a task this library did not mint, with two drivers running
 flows on it, and both runs completing** — which is the topology ADR 0023 blessed and which
 ~~today~~ **until ADR 0027** stopped **every driver on that scheduler**. **W18 built it over a fake
@@ -65,9 +65,9 @@ is the fifth.*
 |---|---|
 | ~~**`InvalidTaskId` has three producers and Q86 is about ONE of them.** This is the fact that changes the plan~~ **CORRECTED at declaration — see the header. The conclusion survives; two thirds of the evidence does not** | ~~`buildTaskId` raises it **outbound**, on ids we mint ourselves (`src/driver/ids.ts`, six distinct refusals)~~ — **two refusals, not six** — a defect in our own id scheme, and nothing here touches it. `parseTaskId` raises it at ~~**two**~~ **four** call sites: `Driver.resolve()` (`driver.ts:380`), ~~where the **consumer** supplies the id~~ — **which is UNREACHABLE with an unparseable id, because `isSuspended` returns `false` on line 379** — `onEventOrThrow` (`driver.ts:476`), where the **scheduler** does, and **`src/fold/run-state.ts:154` and `:179`, which this row does not name at all**. **Only the listener is Q86's**, and that half stands. ~~An unparseable id handed to `resolve()` is unambiguously the caller's defect — they invented it — and must keep stopping the run.~~ **It does not stop the run today; it returns `false`.** **The register and P5's ruling both read as though there were one site** — and this row, written to correct them, was wrong in the other direction |
 | **three assertions pin the current behaviour, not one** | `test/driver/lifetime.test.ts:120-121` (the one P5's ruling cites), `lifetime.test.ts:360`, and `test/driver/fold-inputs.test.ts:215`. Two files, both W3's and W13's. **A passing test written on purpose is the cost of reversing this**, which is what makes Q86 a decision rather than a bug |
-| **`AGENTS.md` does not mention `InvalidTaskId` at all** | zero occurrences, while `MissingJoinPolicy`, `DuplicateTaskId` and `MultipleRuns` are each documented and executed. **The reference documents three refusal classes and not the fourth** — which is [Q84](../open-questions.md)'s shape exactly, the omission P3's conformity reader called *"a claim by omission it does not defend"*. Whichever way ADR 0027 goes, the reference gains a row |
+| **`AGENTS.md` does not mention `InvalidTaskId` at all** | zero occurrences, while `MissingJoinPolicy`, `DuplicateTaskId` and `MultipleRuns` are each documented and executed. **The reference documents three refusal classes and not the fourth** — which is [Q84](../questions/q84.md)'s shape exactly, the omission P3's conformity reader called *"a claim by omission it does not defend"*. Whichever way ADR 0027 goes, the reference gains a row |
 | **Q87's sentence recommends the violation, verbatim** | `MultipleRuns`' message is `'Construct a second Driver; ADR 0023 makes that safe on the same scheduler.'` It does **not** say *with a different run id*. A caller re-running the same workload constructs a second `Driver` and the obvious id is the one they already have |
-| ~~**[Q95](../open-questions.md) is not dead code — it is one stub away from a `DuplicateTaskId`**~~ **CORRECTED by W18 — the precondition half stands, the `DuplicateTaskId` is the WRONG LATCH.** `settleJoin` has **two** `firedJoins.add` calls: the `unsatisfiable` branch, which is W15's G1 and the actual survivor (deleting it costs **0 of 386**), and the `satisfied` branch, which the quorum policy below exercises and which is **already covered** (deleting it costs 1 assertion, and the `DuplicateTaskId` is what its absence produces). The unsatisfiable exit routes nowhere, so it can produce no such refusal. **What it produces is a second `joinSettled(fired: false)`, or — with a policy that says `unsatisfiable` and later `satisfied` — a join routed out of after being declared dead, taking `RunState.outcome` from `stuck` to `completed` silently.** Expected values come from `spec/join-policy.md` section 4 | The register implies a policy that reports `unsatisfiable` early. **It is any policy that settles a join before every branch is terminal.** Measured with a three-line quorum policy (`satisfied` on the first arrival): on the `resumed` row it settles at input 8 of 15 and `branch.suspended(1) branch.resumed(1) branch.arrived(1)` follow it. **With the latch deleted the trailing arrival re-enters `settleJoin`, the join routes a second time, and the run dies** — `DuplicateTaskId: "r1:publish:-:0" was already dispatched in run "r1"`. Across all forty current cells (ten rows × four policies) **zero** region events follow a join settling, because every policy we have satisfies only when all branches are terminal |
+| ~~**[Q95](../questions/q95.md) is not dead code — it is one stub away from a `DuplicateTaskId`**~~ **CORRECTED by W18 — the precondition half stands, the `DuplicateTaskId` is the WRONG LATCH.** `settleJoin` has **two** `firedJoins.add` calls: the `unsatisfiable` branch, which is W15's G1 and the actual survivor (deleting it costs **0 of 386**), and the `satisfied` branch, which the quorum policy below exercises and which is **already covered** (deleting it costs 1 assertion, and the `DuplicateTaskId` is what its absence produces). The unsatisfiable exit routes nowhere, so it can produce no such refusal. **What it produces is a second `joinSettled(fired: false)`, or — with a policy that says `unsatisfiable` and later `satisfied` — a join routed out of after being declared dead, taking `RunState.outcome` from `stuck` to `completed` silently.** Expected values come from `spec/join-policy.md` section 4 | The register implies a policy that reports `unsatisfiable` early. **It is any policy that settles a join before every branch is terminal.** Measured with a three-line quorum policy (`satisfied` on the first arrival): on the `resumed` row it settles at input 8 of 15 and `branch.suspended(1) branch.resumed(1) branch.arrived(1)` follow it. **With the latch deleted the trailing arrival re-enters `settleJoin`, the join routes a second time, and the run dies** — `DuplicateTaskId: "r1:publish:-:0" was already dispatched in run "r1"`. Across all forty current cells (ten rows × four policies) **zero** region events follow a join settling, because every policy we have satisfies only when all branches are terminal |
 | **so Q95 needs a stub, not a feature** | which is this repository's own rule, already written down for the seam's other exit: *"a seam with two exits and one reachable needs a stub, not a real run"*. `test/driver/` already carries two such policies (`driver.test.ts:389`, `fold-inputs.test.ts:176`) |
 
 **What the measurement changed.** Q86 reads as *"reverse a refusal"* and P5's ruling weighed it that
@@ -113,7 +113,7 @@ options are on the table with their costs measured, not that one of them wins.
 2. **Whatever ADR 0027 ships**, with `spec/outcome-record.md`'s `OR-R10` amended if the decision
    touches it and its rationale stated.
 3. **Q87's one-line message defect** — `MultipleRuns` must not recommend the violation.
-4. **[Q95](../open-questions.md) closed with a stub**: an early-settling policy in `test/driver/**`
+4. **[Q95](../questions/q95.md) closed with a stub**: an early-settling policy in `test/driver/**`
    that makes the `at most once` latch load-bearing, with the `DuplicateTaskId` above as the
    assertion.
 5. **`AGENTS.md` gains `InvalidTaskId`**, whichever way ADR 0027 goes — the reference documents three
@@ -128,14 +128,14 @@ options are on the table with their costs measured, not that one of them wins.
   detect it (`SchedulerLike` is two methods by ADR 0013 rule 1), and the alternative is a
   `WeakMap<SchedulerLike, Set<runId>>` — **the first mutable module-level state in `src/`**. Only the
   *message* is a defect.
-- **[Q90](../open-questions.md)** — `ID-R4` tier 2's missing L6 coverage. Adjacent and not this
+- **[Q90](../questions/q90.md)** — `ID-R4` tier 2's missing L6 coverage. Adjacent and not this
   plan's question; it needs an **injected** task, which is a different experiment.
-- **[Q93](../open-questions.md)** — resolved in place by P5 rather than carried here.
-- **[Q92](../open-questions.md)** — deferred by P5, and it is a `test/matrix/**` question.
-- **[Q7](../open-questions.md)** — whether a join may time out. The quorum stub W19 writes is **not**
+- **[Q93](../questions/q93.md)** — resolved in place by P5 rather than carried here.
+- **[Q92](../questions/q92.md)** — deferred by P5, and it is a `test/matrix/**` question.
+- **[Q7](../questions/q7.md)** — whether a join may time out. The quorum stub W19 writes is **not**
   a proposal to ship one; a policy that settles early is the *instrument*, and shipping one is a
   feature question this plan does not take.
-- **[Q20](../open-questions.md)/[Q34](../open-questions.md)** — whether a run id is global, and
+- **[Q20](../questions/q20.md)/[Q34](../questions/q34.md)** — whether a run id is global, and
   portable id generation. Q87 interacts with both and neither is settled by fixing a sentence.
 
 ## Work items
@@ -173,11 +173,11 @@ file, so `doc/workflow.md` section 7 rule 2 is satisfied by the declaration rath
 
 | Q | | Owner |
 |---|---|---|
-| [Q86](../open-questions.md) | is an unparseable id a defect or a foreign task | **W18** — closed by ADR 0027, whichever way it goes |
-| [Q87](../open-questions.md) | run ids unique across drivers on one scheduler | **W18 for the message sentence only.** The enforcement half stays a precondition and this plan says so in Scope/Out rather than leaving it to a reader |
-| [Q95](../open-questions.md) | the `at most once` latch is unexercised | **W18**, closed with a stub |
-| [Q84](../open-questions.md)'s shape, unnumbered here | `AGENTS.md` documents three refusal classes and not `InvalidTaskId` | **W18**, and it is a consequence of ADR 0027 rather than a question |
-| [Q90](../open-questions.md) | `ID-R4` tier 2 has no L6 coverage | still no owner. **W19 is the nearest thing to a home it has had** — it builds a scheduler carrying foreign tasks — and the register should be re-read when W19 is declared in detail |
+| [Q86](../questions/q86.md) | is an unparseable id a defect or a foreign task | **W18** — closed by ADR 0027, whichever way it goes |
+| [Q87](../questions/q87.md) | run ids unique across drivers on one scheduler | **W18 for the message sentence only.** The enforcement half stays a precondition and this plan says so in Scope/Out rather than leaving it to a reader |
+| [Q95](../questions/q95.md) | the `at most once` latch is unexercised | **W18**, closed with a stub |
+| [Q84](../questions/q84.md)'s shape, unnumbered here | `AGENTS.md` documents three refusal classes and not `InvalidTaskId` | **W18**, and it is a consequence of ADR 0027 rather than a question |
+| [Q90](../questions/q90.md) | `ID-R4` tier 2 has no L6 coverage | still no owner. **W19 is the nearest thing to a home it has had** — it builds a scheduler carrying foreign tasks — and the register should be re-read when W19 is declared in detail |
 
 ## A note on ids
 
@@ -227,7 +227,7 @@ say so.**
 **rule**-written half found the one code-level survivor: L6 injected a colon-free id only, so
 narrowing tier 0 by the shape of the id restored ADR 0023 rule 2 for six of seven shapes with the
 gate green. The **`Outputs`**-written half found that output (4) is unachievable in a markdown file
-and only partly achieved in `l6.ts` ([Q100](../open-questions.md), two more occurrences). **Neither
+and only partly achieved in `l6.ts` ([Q100](../questions/q100.md), two more occurrences). **Neither
 found either of the adequacy reader's two BLOCKING survivors**, and both of those were the same
 thing: **the provenance of a harness value.** A latched flag standing in for *"both drivers were
 attached"*, whose guard could be deleted with all 370 green; and an assertion whose **source** could
@@ -251,7 +251,7 @@ run rather than reporting a pass.**
 ninth time. Each arrived from a different direction, and one of the four — **tier 0's `event` field
 taking one value at L6** — was found by both from routes with nothing in common: the conformity
 reader from ADR 0027's *Consequences*, the adequacy reader from a mutation. It is
-[Q107](../open-questions.md).
+[Q107](../questions/q107.md).
 
 ### W18 — what it decided, and the two things about the METHOD worth carrying
 
@@ -290,7 +290,7 @@ whose reason is that no check was worth building** rather than that none was pos
 that adds an `AGENTS.md` snippet to raise it. W18 added one, the floor went stale, and the self-test
 probe written to catch a deleted snippet **passed** at 14 - 1 = 13. The file is in nobody's `Owns` and
 is not a record-step file. `doc/workflow.md` v0.7 answered the `spec/README.md` case by making it an
-`Owns` question; **whether the same answer fits a check script is [Q102](../open-questions.md)**.
+`Owns` question; **whether the same answer fits a check script is [Q102](../questions/q102.md)**.
 **The occurrence to carry is the direction of the failure**: a ratchet left un-raised does not fail
 loudly, it silently stops ratcheting, and the only thing that noticed was a probe the item was not
 obliged to run.
@@ -426,7 +426,7 @@ on its one real use (W16), and a requirement on new checks cannot fire in a plan
 - **The two-reader split is settled and closed to re-litigation.** Ten overlap measurements — 1, 2, 3,
   3, 3, 3, 3, 4, 4, 4 — none outside the band, across items from a one-line fix to the largest surface
   change here. W19's four arrived from four different directions, and one of them (`ID-R5` at L6
-  seeing `task.completed` and nothing else, [Q107](../open-questions.md)) was reached by both readers
+  seeing `task.completed` and nothing else, [Q107](../questions/q107.md)) was reached by both readers
   from routes with nothing in common.
 - **The ladder is unchanged, and section 4's warning about L6 earned itself twice in one plan.** The
   two items sit on opposite sides of it by declaration: **W18's gate EXCLUDES L6** — its whole surface
@@ -460,7 +460,7 @@ unchanged reasoning.**
 | defect this plan produced | which rung should have caught it |
 |---|---|
 | tier 0 narrowable by the shape of an id, all 370 green | **L6** — and it did, once the row injected an id per refusal. The first version reached one of five |
-| `ID-R5` at L6 exercised on one event name | **L6**, and it still does not — [Q107](../open-questions.md), reported with the reason it was not built |
+| `ID-R5` at L6 exercised on one event name | **L6**, and it still does not — [Q107](../questions/q107.md), reported with the reason it was not built |
 | the latched `listenersAtFirstSettlement`, and the swappable ordering source | **none.** Both are provenance, both were found by a reader, and that is the whole of change 1 |
 | ADR 0027's producer table missing a producer | **none, and correctly** — L0-L6 are commands, and *"does this table enumerate what your code demonstrates"* is not one. Section 4's own list already names *a false claim in `doc/`* as a conformity-pass defect class |
 | the census line's broken derivation | **none, and refused for the sixth time** |
@@ -469,7 +469,7 @@ unchanged reasoning.**
 
 Three things, each with its cost now measured rather than estimated:
 
-1. **[Q90](../open-questions.md) — `ID-R4` tier 2 has no L6 coverage, and the instrument now exists.**
+1. **[Q90](../questions/q90.md) — `ID-R4` tier 2 has no L6 coverage, and the instrument now exists.**
    Its stated ground for having no home was that *"a real scheduler produces one only if something
    **injects** it — which no L6 row does"*. One now does: `ForeignTask.id` reaches the scheduler
    verbatim, and `pc:notanode:-:0` parses, reaches tier 2 and is `UndispatchedTask`. **The marginal
@@ -478,11 +478,11 @@ Three things, each with its cost now measured rather than estimated:
    is now the whole of the argument — injecting a task the driver did not mint is a scenario no
    consumer produces on purpose, so the row would test the refusal rather than the system. **P7
    decides on that argument, not on the cost.**
-2. **[Q107](../open-questions.md) and [Q108](../open-questions.md)** — the two halves of ADR 0027 that
+2. **[Q107](../questions/q107.md) and [Q108](../questions/q108.md)** — the two halves of ADR 0027 that
    nothing executes. Q107 needs a worker role that fails fast enough to keep W19's ordering
    determinate; Q108 needs a worker that calls `context.spawnTask()`, which runs into ADR 0001 rule 2
    and therefore needs its framing decided before it is written.
-3. **[Q100](../open-questions.md) gained a sub-case that is not fixable where it sits.** *"Counts
+3. **[Q100](../questions/q100.md) gained a sub-case that is not fixable where it sits.** *"Counts
    derived rather than typed"* is **unachievable** in a markdown file, so `examples/README.md`'s three
    numbers cannot be made self-checking without a check that reads them. That is the first time this
    register row has had a concrete mechanism attached to it.

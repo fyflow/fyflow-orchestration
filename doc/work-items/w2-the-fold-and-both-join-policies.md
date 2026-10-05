@@ -43,28 +43,28 @@ Reserves:   Q41-Q45, ADR 0008-0009
 1. **`spec/run-state.md`** — the fifth document `spec/README.md` has marked *"not written — W2"*
    since W1. What a run holds, what a join is waiting on, and **the terminal outcomes, which are
    more than `done` and `failed`**: `user_action` is the fifth state
-   ([Q17](../open-questions.md)), a suspended run is neither finished nor failed, and
-   [Q25](../open-questions.md) asks whether that vocabulary belongs here or in the definition.
+   ([Q17](../questions/q17.md)), a suspended run is neither finished nor failed, and
+   [Q25](../questions/q25.md) asks whether that vocabulary belongs here or in the definition.
 2. **The fold** — `(log) => RunState`, pure. No clock, no scheduler, no IO, no mutation.
 3. **Both join policies**, `arrival-count` and `live-token`, **verbatim from
    `spec/join-policy.md` section 3** and pinned by `JP-R7`/`JP-R8`.
 4. **Ladder L3** — fold the same log twice and deep-compare. This is the rung that catches map
    ordering, a `Date.now()` in the fold, and hidden state, and it is the reason `OR-R5` exists.
-5. **[Q14](../open-questions.md), answered with evidence** — is run state a fold, and of whose log.
+5. **[Q14](../questions/q14.md), answered with evidence** — is run state a fold, and of whose log.
    It is the last of `doc/concept.md` section 6's four leanings still only a leaning.
 
 **Out** — named rather than left implicit, with where it goes instead
 
 - **The driver.** Done, `src/driver/**` is W3's. W2 reads the log W3 writes and never calls it.
 - **The join/failure matrix.** W4, gate L0-L5. W2 supplies the two policies; **W4 runs them against
-  each other and answers [Q4](../open-questions.md)**, and a work item that reports a winner has
+  each other and answers [Q4](../questions/q4.md)**, and a work item that reports a winner has
   skipped the plan.
-- **A third or fourth policy.** [Q24](../open-questions.md) — the decrementing arrival counter and
+- **A third or fourth policy.** [Q24](../questions/q24.md) — the decrementing arrival counter and
   the arrivals-aware live-token — are built **after** W4, under their own ids, if its result makes
   them interesting.
-- **What a satisfied join carries downstream** ([Q36](../open-questions.md)). It carries `null`
+- **What a satisfied join carries downstream** ([Q36](../questions/q36.md)). It carries `null`
   today; changing that is a spec change and a driver change, and neither is W2's.
-- **Durability** ([Q15](../open-questions.md)). If the fold holds, writing the log down is additive
+- **Durability** ([Q15](../questions/q15.md)). If the fold holds, writing the log down is additive
   — which is the whole argument for it, and is not the same as doing it.
 - **A real scheduler.** W5, L6.
 
@@ -97,11 +97,11 @@ shuffled-but-append-equivalent log producing the same answer for `OR-R5`.
 
 | | |
 |---|---|
-| **`JP-R7` / `JP-R8`** | **The two one-line refinements that would answer Q4 by accident.** Decrementing `arrival-count`'s `N` on `branch.exited` makes it survive P1's case; requiring `live-token` to have seen an arrival gives it a graceful answer on the all-exited row. Both are [Q24](../open-questions.md), both are built after W4, and **either one written here returns "the two policies are equivalent" as a passing test** |
+| **`JP-R7` / `JP-R8`** | **The two one-line refinements that would answer Q4 by accident.** Decrementing `arrival-count`'s `N` on `branch.exited` makes it survive P1's case; requiring `live-token` to have seen an arrival gives it a graceful answer on the all-exited row. Both are [Q24](../questions/q24.md), both are built after W4, and **either one written here returns "the two policies are equivalent" as a passing test** |
 | **the arrival-shaped stub** | W3's third conformity pass found every one of its seam tests using an arrival-counting stub, so **every one asked only the question `arrival-count` can answer** — and a one-line regression that made `live-token` behave like `arrival-count` survived a green suite in five runtimes. A fold test suite built the same way has the same blind spot |
 | **`OR-R5`** | the log is ordered by **append**. Two settlements can share a millisecond, and `schedulerTimestamp` is the scheduler's clock while `observedAt` is ours |
 | **`OR-R8`** | the effective outcome is **derived**. A fold that appends it makes the log contain its own conclusions |
-| **Q14 is a question, not a formality** | if run state turns out **not** to be a fold, that is a real result and it changes [ADR 0004](../decisions/0004-a-non-success-outcome-routes-only-where-an-edge-opts-in-and-user-action-suspends.md) rule 6, [Q15](../open-questions.md) and W3's `resolve()`. Report the conflict (`spec/README.md` rule 2) rather than bending the fold to preserve the leaning |
+| **Q14 is a question, not a formality** | if run state turns out **not** to be a fold, that is a real result and it changes [ADR 0004](../decisions/0004-a-non-success-outcome-routes-only-where-an-edge-opts-in-and-user-action-suspends.md) rule 6, [Q15](../questions/q15.md) and W3's `resolve()`. Report the conflict (`spec/README.md` rule 2) rather than bending the fold to preserve the leaning |
 
 ### The named routing cases
 
@@ -109,11 +109,11 @@ shuffled-but-append-equivalent log producing the same answer for `OR-R5`.
 
 | Case | | Covered by W2 |
 |---|---|---|
-| A branch routed away from its join ([Q4](../open-questions.md)) | **both policies see it; neither is judged** | `branch.exited` reaches both. Which answer is right is W4's |
-| `user_action` ([Q17](../open-questions.md)) | **yes** — it is a run-level outcome, which is `spec/run-state.md`'s subject |
-| No matching decision edge ([Q10](../open-questions.md)) | **not applicable** — routing is W3's, and the fold sees only its result |
-| A duplicate task id ([Q13](../open-questions.md)) | **not applicable** — `ID-R1` refuses it before the log is written |
-| Nested fan-out ([Q6](../open-questions.md)) | **refused upstream** by `FD-V15`; the policies are written so a deeper `branchPath` needs no change |
+| A branch routed away from its join ([Q4](../questions/q4.md)) | **both policies see it; neither is judged** | `branch.exited` reaches both. Which answer is right is W4's |
+| `user_action` ([Q17](../questions/q17.md)) | **yes** — it is a run-level outcome, which is `spec/run-state.md`'s subject |
+| No matching decision edge ([Q10](../questions/q10.md)) | **not applicable** — routing is W3's, and the fold sees only its result |
+| A duplicate task id ([Q13](../questions/q13.md)) | **not applicable** — `ID-R1` refuses it before the log is written |
+| Nested fan-out ([Q6](../questions/q6.md)) | **refused upstream** by `FD-V15`; the policies are written so a deeper `branchPath` needs no change |
 
 ## Record
 

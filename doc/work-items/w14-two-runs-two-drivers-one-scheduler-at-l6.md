@@ -67,9 +67,9 @@ meet it halfway through (*"the known design problem, stated before it is hit"*).
 - **Two runs of *different* definitions.** One flow, two runs is the pairing Q72 is about. Two
   definitions adds a variable and answers nothing extra.
 - **Scale.** Two, not two hundred. Whether a scheduler shared by many drivers has a throughput or
-  retention problem is [Q19](../open-questions.md)/[Q20](../open-questions.md), and it is not
+  retention problem is [Q19](../questions/q19.md)/[Q20](../questions/q20.md), and it is not
   answered by a row.
-- **The browser at L6** — [Q52](../open-questions.md), unchanged and still open.
+- **The browser at L6** — [Q52](../questions/q52.md), unchanged and still open.
 
 ## Verification
 
@@ -112,7 +112,7 @@ pristine checkout:
 |---|---|
 | the whole `ID-R4` guard removed — the pre-W13 driver | **RED, 5** → now **8** |
 | tier 1 only removed | **RED, 7** |
-| tier 2 only removed | **GREEN** — [Q90](../open-questions.md), and correct |
+| tier 2 only removed | **GREEN** — [Q90](../questions/q90.md), and correct |
 
 **And the five mutations that survived the first version, now red:**
 

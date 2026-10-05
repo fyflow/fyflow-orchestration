@@ -290,7 +290,7 @@ returning silently, UNREACHABLE (`FD-V41` wires every declared route and `FD-R5`
 
 | # | what | caught by |
 |---|---|---|
-| 1 | a memory kept by the PROCESS resumes WRONG, in silence, when the kill precedes the first decision | a RUN at the declaration step (row 1b) — **no rung; `RN-R20`'s own blind tail** ([Q386](../open-questions.md)) |
+| 1 | a memory kept by the PROCESS resumes WRONG, in silence, when the kill precedes the first decision | a RUN at the declaration step (row 1b) — **no rung; `RN-R20`'s own blind tail** ([Q386](../questions/q386.md)) |
 | 2 | the fold THREW on an unknown kind (`TypeError` at `input.record`) | a RUN at the declaration step, before the arm existed |
 | 3 | `RN-R17`'s every-kind `Record` refused the new kind | L0, `typecheck:tests`, exit 2 — as the census predicted |
 | 4 | four L1 failures on the first run: W92's refusal case, `needs.test.ts`' refusal row, `DRIVER_FIELDS`, W76's pin | L1, BY NAME — every one predicted, the two refusal assertions being the lift's designed expiry |
@@ -346,7 +346,7 @@ conformity reader by a class instance and the grammar, the adequacy reader by a 
 
 ### Questions
 
-**Raised: [Q386](../open-questions.md)** (a decision's memory kept outside the driver resumes wrong, in silence, past the
-stored events — the shipped gate cannot, a predicate with closure memory can) and **[Q387](../open-questions.md)** (an entry
+**Raised: [Q386](../questions/q386.md)** (a decision's memory kept outside the driver resumes wrong, in silence, past the
+stored events — the shipped gate cannot, a predicate with closure memory can) and **[Q387](../questions/q387.md)** (an entry
 gate's type is asked twice at `start()`). **Q388-Q390 unused and not reused.** Census **301 / 235 / 1 / 65**, by W92's parser,
 which first reproduced HEAD's **299 / 233 / 1 / 65**; every id in exactly one cluster cell.

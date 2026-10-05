@@ -59,7 +59,7 @@ paragraph that is never written turns nothing red, and `check:budget` gets green
 
    **FOUR since [W115](../work-items/w115-the-exit-artifact-and-the-budget-met.md): the plan's
    Record, `README.md`, `doc/open-questions.md` and `doc/decisions/**`.** `doc/README.md` left the
-   list by the maintainer's answer to [Q466](../open-questions.md) — the question consequence 4
+   list by the maintainer's answer to [Q466](../questions/q466.md) — the question consequence 4
    below raises and explicitly leaves to a person rather than to the item — and the answer is
    recorded in W115's stop-and-ask (a) and in [P27](../plans/p27-what-a-register-row-is.md)'s
    Record, which is where section 1 rule 3 requires a decision to be. *The cell is struck here
@@ -116,11 +116,11 @@ paragraph that is never written turns nothing red, and `check:budget` gets green
    overlooked. It is 517 KB of the same material, it is W115's, and the maintainer named `CLAUDE.md`.
    The argument above applies to it in full — it is the *documentation index*, so an index entry is
    arguably its job in a way it is not `CLAUDE.md`'s, and that distinction is worth deciding rather
-   than assuming. **[Q466](../open-questions.md)**, for W115.
+   than assuming. **[Q466](../questions/q466.md)**, for W115.
 
 5. **It resolves nothing about the budget's membership, and the FOURTH document it names has since
    stopped being one.** `check:budget` holds three paths bound to three paths in a self-test, with no
-   authority in any document — that half of [Q465](../open-questions.md) stands. The other half does
+   authority in any document — that half of [Q465](../questions/q465.md) stands. The other half does
    not: this consequence read *a FOURTH always-read document is still instructed inside `CLAUDE.md`
    itself — `doc/open-questions.md` is read before every work item*, and
    [W113](../work-items/w113-the-register-is-a-reference.md) withdrew that instruction at every site

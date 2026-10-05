@@ -82,14 +82,14 @@ status the tail duplicated.
 4. **`X8` pairs THREE README sections rather than eight**, and `README_SNIPPET_FLOOR` goes 8 -> 3.
    The three are the basic usage decision 1 gives the README: getting started, a flow that decides,
    and checking a flow before it runs. **This LOWERS a ratchet**, which
-   [Q102](../open-questions.md) exists to make visible and which this repository treats as *how a
+   [Q102](../questions/q102.md) exists to make visible and which this repository treats as *how a
    deliverable leaves* — so it is recorded here rather than in a comment, and it is legitimate only
    because decision 1 changes what the floor COUNTS. The mechanism is untouched: every fence the
    README still carries is byte-equal to an executed `AGENTS.md` snippet, both ways.
 
 5. **`X10` loses `README.md` as a subject**, leaving `examples/README.md` as its only one. This is a
    REDUCTION in that clause's coverage and is recorded as one, not as tidying: `X10` exists because
-   [Q171](../open-questions.md) is the row about those counts going stale, and README was one of the
+   [Q171](../questions/q171.md) is the row about those counts going stale, and README was one of the
    two places it was built to watch. Decision 2 is why — a count that tracks the suite is status.
 
 ## Consequences
@@ -178,7 +178,7 @@ status the tail duplicated.
 10. **What is NOT fixed.** W101's adequacy reader measured that lowering `README_SNIPPET_FLOOR` is
    **not caught** by `check:docs:selftest`, where lowering `RUN_FLOOR` is caught by name. So nothing
    stops the next author lowering it again for a worse reason than decision 4's.
-   [Q439](../open-questions.md), raised rather than closed, because the fix is a probe in a 730 s lane
+   [Q439](../questions/q439.md), raised rather than closed, because the fix is a probe in a 730 s lane
    and this item's subject is the document — though W107's adequacy reader names a cheaper road that
    does not pay the lane: a source-text bound of the kind this self-test already runs on `X4_WIDTH`,
    which is the device the verdict records are bound by in consequence 5.
@@ -191,4 +191,4 @@ status the tail duplicated.
     probe reads any README sentence except the version sentence, so the lane does not see it either.
     Decisions 1 and 2 are therefore a contract a person keeps, not one a check keeps, and the thing
     that would keep it is a `doc/`-style check this repository has refused twenty-four times.
-    [Q443](../open-questions.md).
+    [Q443](../questions/q443.md).

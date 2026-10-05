@@ -120,7 +120,7 @@ const NON_EMPTY = Object.freeze(['id', 'title', 'status', 'cluster']);
 /**
  * **`R5`'s floor: 383 is the count W116 migrated, and it only ever moves UP.** A question is never
  * deleted, so this is valid for ever at any later day's count; raising it is a choice, never an
- * obligation, which is the opposite of [Q102](../doc/open-questions.md)'s hazard.
+ * obligation, which is the opposite of [Q102](../doc/questions/q102.md)'s hazard.
  */
 const QUESTION_FLOOR = 383;
 const NAME = /^q([1-9][0-9]*)\.md$/;

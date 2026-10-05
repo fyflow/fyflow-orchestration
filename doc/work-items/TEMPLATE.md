@@ -89,5 +89,5 @@ typecheck covered.*
 **What this taught.** *What changes in the spec, the plan, or `doc/workflow.md` - or "nothing",
 which is a legitimate answer.*
 
-**Questions raised.** *Q ids from the reserved block, with one line each. They also go in
-`doc/open-questions.md`.*
+**Questions raised.** *Q ids from the reserved block, with one line each. Each is also a file,
+`doc/questions/q<N>.md`, written as that folder's README says.*

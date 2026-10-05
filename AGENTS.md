@@ -163,7 +163,7 @@ a wire.
 > **`map` is the fifth, and since [W33](doc/work-items/w33-a-map-at-run-time-arity.md) a `Driver`
 > RUNS one.** It is a valid definition since `spec/flow-definition.md` v0.8 —
 > [ADR 0036](doc/decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md),
-> answering [Q12](doc/open-questions.md): a `fanout` declares N branches known at authoring time, a
+> answering [Q12](doc/questions/q12.md): a `fanout` declares N branches known at authoring time, a
 > `map` declares **one** and a run opens N instances of it, N coming from the value the map node
 > receives. `over` is a **key name** on that value and must resolve to an array, or the run stops
 > with an `UnresolvedMapArity` naming the node and the key; an empty array is a lawful map of zero
@@ -182,11 +182,11 @@ a wire.
 >
 > *(This paragraph read **"every instance receives the whole value the map node received rather than
 > its own item, and a satisfied join still carries `null`"** until W34, which is where
-> [Q11](doc/open-questions.md) and [Q36](doc/open-questions.md) were deliberately held so the rule
+> [Q11](doc/questions/q11.md) and [Q36](doc/questions/q36.md) were deliberately held so the rule
 > would be written from cases rather than from a mechanism.)*
 >
 > **This paragraph is the minimum that is not false and is not the feature write-up.** It read
-> *"NOTHING DISPATCHES ONE YET"* until W33, which is [Q157](doc/open-questions.md)'s second
+> *"NOTHING DISPATCHES ONE YET"* until W33, which is [Q157](doc/questions/q157.md)'s second
 > occurrence: no [P10](doc/plans/p10-is-fan-out-one-feature-or-two.md) item owns this file, W35 is
 > the natural owner, and W33 took it as a declared late exception to keep the reference true.
 
@@ -284,7 +284,7 @@ node that says nothing, and it is what the whole of this section above describes
 
 **`needs` is how a node asks for something else** —
 [ADR 0040](doc/decisions/0040-what-a-node-can-reach-is-the-runs-own-outputs-and-a-node-id-names-them-relative-to-a-branch-path.md),
-answering [Q11](doc/open-questions.md). It is an optional object on a `task` or a `map`, mapping the
+answering [Q11](doc/questions/q11.md). It is an optional object on a `task` or a `map`, mapping the
 keys of the payload you want to **declared references**. *(Since v0.12 an **edge** may carry one too,
 and it says what that edge's PREDICATE sees rather than what a worker receives — section 4.)* A node that declares one receives **exactly**
 that object and nothing else — there is no wrapper and no reserved key.
@@ -591,7 +591,7 @@ that.
 By default a predicate sees **only its own node's outcome**. *Route to review if an earlier step
 flagged low confidence* was not expressible until v0.12 —
 [ADR 0041](doc/decisions/0041-a-decision-sees-its-nodes-outcome-and-whatever-its-own-edge-declares.md),
-answering [Q8](doc/open-questions.md).
+answering [Q8](doc/questions/q8.md).
 
 **An edge may carry `needs`, and its predicate sees the result under `ctx.needs`.** Same grammar as
 a node's (section 3) — a node id, or a one-element array holding one — **minus `"."`**, which an edge
@@ -879,7 +879,7 @@ if (settledOrder.join() !== 'scoreB,scoreA') throw new Error(`settled ${settledO
    `Object.keys` would not even return in that order, because JavaScript re-orders integer-like keys
    ahead of string ones. W34's conformity reader.)*
 
-*(This section read **"`null`, currently … this is [Q36](doc/open-questions.md) and it is open"**
+*(This section read **"`null`, currently … this is [Q36](doc/questions/q36.md) and it is open"**
 until [ADR 0037](doc/decisions/0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md).
 The argument for the `null` was real and is unchanged — which branch finishes last is genuinely
 non-deterministic — and what answered it is that carrying **all** the arrivals keyed by branch is not
@@ -1381,7 +1381,7 @@ reported, which is why the rule is about the stack:
 | `driver.checkpoint()` before `start()` | throws `NotStarted` — there is no run, and no entry payload to put in a header (`RN-R14`) |
 | `driver.resume(checkpoint)` or `runtime.resume(flow, checkpoint)` with an entry payload that is not structured-cloneable | throws the platform's `DataCloneError` before anything is replayed — the driver unstarted, and on a runtime no run id spent (`RN-R15`) |
 | `driver.checkpoint()` on a driver whose resume was refused | throws `NotStarted` — a refused resume leaves the driver SPENT and deaf to its scheduler, with no run to checkpoint (`RN-R23`) — **except** a resume refused `stopped` because its replay regenerated a stop in the lost tail: that driver keeps the STOPPED run, and its checkpoint is one a store may take. *(This row said `NotStarted` without the exception until W90 read it against `RN-R23`.)* |
-| `driver.resume(checkpoint)` or `runtime.resume(flow, checkpoint)` on a checkpoint it will not resume | throws `ResumeRefused`, whose `reason` is `format`, `run`, `flow`, `stopped` or `diverged` and whose `index` names the position for the last two — nothing is handed to a scheduler ([ADR 0065](doc/decisions/0065-a-resume-replays-the-stored-stimuli-refuses-what-it-cannot-regenerate-and-re-dispatches-what-was-in-flight.md)). `resume()` on a driver that already started or resumed throws `MultipleRuns` (`ID-R3`). **On a runtime, a refusal DURING the replay spends the run id there** — the driver exists and cannot be detached, so that runtime answers the id with `RunIdInUse` from then on; one refused by its header spends nothing ([Q371](doc/open-questions.md), section 18) |
+| `driver.resume(checkpoint)` or `runtime.resume(flow, checkpoint)` on a checkpoint it will not resume | throws `ResumeRefused`, whose `reason` is `format`, `run`, `flow`, `stopped` or `diverged` and whose `index` names the position for the last two — nothing is handed to a scheduler ([ADR 0065](doc/decisions/0065-a-resume-replays-the-stored-stimuli-refuses-what-it-cannot-regenerate-and-re-dispatches-what-was-in-flight.md)). `resume()` on a driver that already started or resumed throws `MultipleRuns` (`ID-R3`). **On a runtime, a refusal DURING the replay spends the run id there** — the driver exists and cannot be detached, so that runtime answers the id with `RunIdInUse` from then on; one refused by its header spends nothing ([Q371](doc/questions/q371.md), section 18) |
 
 `MultipleRuns` is thrown by a second `start()`: a driver's sequence and join state carry no run id,
 so a second run would silently merge into the first. **One driver, one run** — and the run id is a
@@ -1451,7 +1451,7 @@ whose `catch` rethrows anything that is not an `InvalidTaskId` — is the shape 
 and **W18 shipped it and then measured that its assertions could all be deleted with the gate
 green**: `check-docs`' `X4a` asks whether a `run` snippet contains a `throw`, and the helper's own
 rethrow answered yes on the assertions' behalf. The general weakness is
-[Q104](doc/open-questions.md); here the snippet simply does not give `X4a` a `throw` that is not
+[Q104](doc/questions/q104.md); here the snippet simply does not give `X4a` a `throw` that is not
 an assertion.
 
 ```ts check
@@ -1517,11 +1517,11 @@ that teaches the opposite — W82's conformity reader, finding 2.)*
 
 *(This paragraph read *"`UnresolvedBranchPath` is the tenth class, and it belongs to a feature nothing
 dispatches yet … no `Driver` opens one"* until W33, which is the item that made it run.
-[Q157](doc/open-questions.md) is the gap behind both edits: no
+[Q157](doc/questions/q157.md) is the gap behind both edits: no
 [P10](doc/plans/p10-is-fan-out-one-feature-or-two.md) item owns this file, and W35 is the natural
 owner of describing the feature rather than merely not lying about it.)*
 
-**And the list is checked against the PACKAGE, not against itself** — [Q101](doc/open-questions.md).
+**And the list is checked against the PACKAGE, not against itself** — [Q101](doc/questions/q101.md).
 Until W18 this snippet imported eight classes, mapped them to `.name`, and compared the result to a
 literal it also contained. That is a closed list agreeing with a copy of itself: it was executed by
 `npm run gate`, it **omitted `InvalidTaskId`** — exported from the package root the whole time — and
@@ -1607,7 +1607,7 @@ After a refusal the run is **stopped**: nothing routes for it again, and its sta
 - **Assuming `joinStatusOf().describe` is yours.** It is whatever **your** policy's `describe()`
   returned. The two shipped policies return a fresh object; a policy that returns its own state hands
   you that state, and writing to it changes what the join decides. Return a copy from `describe()`
-  — [Q82](doc/open-questions.md).
+  — [Q82](doc/questions/q82.md).
 
 The first half of that is executed rather than asserted:
 
@@ -1642,14 +1642,14 @@ const HANDLES = ['onFoldInput', 'onRegionEvent', 'snapshot', 'foldInputs'];
 // not, until W76: `StartOptions` is a `Pick` of the driver's options, and of the driver's twenty
 // (eighteen when W76 wrote this; `onNonconformingResult` is ADR 0060's, W80's; `gateTypes` ADR 0067's, W93's)
 // this was the one no `createRuntime` consumer could reach at all, which is
-// [Q297](doc/open-questions.md). **The previous version of this snippet asserted the opposite and
+// [Q297](doc/questions/q297.md). **The previous version of this snippet asserted the opposite and
 // passed a CAST**, because that was the only way to try; there is no cast now, and the two counts
 // below are what changed. *The reason it went unnoticed for so long is that the snippet which
 // asserted it built its own `Driver`, and a reference that constructs its own driver can
 // demonstrate options its readers have no way to pass.*
 //
 // **What a consumer gets is the driver's own event, already frozen** (`OR-R7`,
-// [Q73](doc/open-questions.md)) — nothing is copied or re-frozen at the runtime seam, which is why
+// [Q73](doc/questions/q73.md)) — nothing is copied or re-frozen at the runtime seam, which is why
 // the freeze is asserted here on the road a consumer actually uses rather than inferred from the
 // driver's own test.
 let regionEvents = 0;
@@ -1686,7 +1686,7 @@ console.log(frozen, regionEvents, [...new Set(regionKinds)].sort());
 // all four handles true, then 4, then [ 'branch.arrived', 'branch.opened' ]
 
 // **Where each claim below is observed a SECOND time**, because every guard in an executed snippet
-// is bound by its own PRESENCE and by nothing else ([Q310](doc/open-questions.md)) — W76's adequacy
+// is bound by its own PRESENCE and by nothing else ([Q310](doc/questions/q310.md)) — W76's adequacy
 // reader made all six guards and all four `isFrozen` readings vacuous at once with `check:docs` at
 // exit 0. The four freeze claims are re-asserted per element in `test/driver/outbound.test.ts` and
 // `test/driver/fold-inputs.test.ts`; the region-event count, kinds and freeze ACROSS THE RUNTIME
@@ -1801,7 +1801,7 @@ if (!stoppedRun.stoppedBy?.startsWith('UncloneableResult')) throw new Error(`sto
 
 | not available | instead |
 |---|---|
-| flow-level **retry** — re-dispatching a NODE under a new attempt, possibly routing elsewhere | **task-level retry IS built** since [W58](doc/work-items/w58-what-a-node-says-about-its-own-task.md): declare `retryPolicy` on the node (section 3) and the scheduler retries inside the same task id, reported on the record's `attempts`. Re-dispatching the node is [Q16](doc/open-questions.md)'s other half and the task id's fourth segment, and nothing mints one |
+| flow-level **retry** — re-dispatching a NODE under a new attempt, possibly routing elsewhere | **task-level retry IS built** since [W58](doc/work-items/w58-what-a-node-says-about-its-own-task.md): declare `retryPolicy` on the node (section 3) and the scheduler retries inside the same task id, reported on the record's `attempts`. Re-dispatching the node is [Q16](doc/questions/q16.md)'s other half and the task id's fourth segment, and nothing mints one |
 | **cancellation** | nothing. The scheduler cannot cancel a queued task either |
 | **durability** — resuming a run after a restart | nothing. The fold is designed to make it additive; it is not built |
 | **nested fan-out** — a branch that fans out again | **built, and the join over it is settled.** `FD-V15` is retired; a task inside a nested region is dispatched at its whole dotted `branchPath` (`r1:scoreC:1.0:0`); and every policy in section 5 is **transitive** — each region answers exactly as it would if it were not nested ([ADR 0030](doc/decisions/0030-a-join-is-transitive-and-a-dead-join-ends-the-branch-it-sits-in.md)). One thing to know: if an inner join is reported through `onUnsatisfiableJoin`, the outer branch containing it **ends** rather than waiting, so the outer join may still fire and its successor may run — and once that work settles the run folds to `stuck`, because a region that never fired is what `stuck` reads. **Fold too early and you will see `running`.** The four matrix rows and the join seam are tested at **depth 2**; the dead-join cascade is asserted at depth 3, and nothing else about depth 3 is a tested claim |
@@ -1812,7 +1812,7 @@ if (!stoppedRun.stoppedBy?.startsWith('UncloneableResult')) throw new Error(`sto
 
 **On that last row.** Flow structure is invisible to the *scheduler*, so a UI wired only to a
 scheduler cannot show which node a run is at, which branch it took, or what a join is waiting on.
-That is [Q21](doc/open-questions.md), and it is about the scheduler's stream, not about this
+That is [Q21](doc/questions/q21.md), and it is about the scheduler's stream, not about this
 library — **this library does expose all three.** `onFoldInput` is the push half of `foldInputs()`,
 so you can fold incrementally and see a run finish without polling; `onRegionEvent` reports branches
 opening, arriving, exiting, suspending and resuming; `joinStatusOf()` answers what a join is waiting
@@ -2072,7 +2072,7 @@ something other than a plain `FyflowTask`.
 configuration most consumers have: `FyflowScheduler extends EventTarget`, so with the DOM lib in
 scope — TypeScript's default when `lib` is unset — its `addEventListener` was not assignable to
 `SchedulerLike`'s, and this section told you to write `scheduler as unknown as SchedulerLike`. That
-was [Q71](doc/open-questions.md), a defect in our type and not in yours, and it is closed:
+was [Q71](doc/questions/q71.md), a defect in our type and not in yours, and it is closed:
 `SchedulerLike`'s listener parameter is `object`, which is what makes the real class satisfy it,
 and every snippet in this document is typechecked under the DOM lib by `npm run check:docs`.
 
@@ -2084,7 +2084,7 @@ below that it does not, so the old advice is right for that range and wrong for 
 called the reference stale for nine days and then for one more, in the document above the sentence
 `D7` was built around.)* **Not the browser**: nothing there executes TypeScript, so
 a browser build needs the worker emitted as a bundled `.js` asset. `RT-R10` — ladder L6 runs in Node
-and Deno and not in the browser, and the browser rung is [Q52](doc/open-questions.md).
+and Deno and not in the browser, and the browser rung is [Q52](doc/questions/q52.md).
 
 **Pin the scheduler at 0.5.2.** This library's listener boundary is written against **0.3.0
 semantics, which neither 0.5.1 nor 0.5.2 changes**: `task.progress`'s detail changed shape at 0.3.0 (the id is
@@ -2259,7 +2259,7 @@ because it has no worker, so section 15's authoring feedback cannot judge what c
 instead is a SAMPLE — `sampledOutput(registry, flow, nodeId)` returns the shape the node emitted on the
 producer's own example, the sample it came from, and the departing verdicts, which it returns rather
 than hides because a sample is evidence about one input and `fits` is a claim about every input
-([Q446](doc/open-questions.md)).
+([Q446](doc/questions/q446.md)).
 
 **What EVERY task's worker receives is the ENVELOPE `{ settings, input }`** — `FD-C5`. `settings`
 is the node's effective settings — the merged object — as its own copy; **`input` is the value this
@@ -2492,7 +2492,7 @@ against its output schema, which is an authoring-time check and never a driver b
 adapter's optional `check` hook is the door left for the rest. A transform on a
 `map`'s `over`, on an edge or on a decision is refused, with the reasons in ADR 0051. The validator runs at construction and
 nowhere else: the driver holds your definition by reference, so a document you mutate after
-`new Driver` is dispatched as mutated, for every key ([Q259](doc/open-questions.md)). Every one of
+`new Driver` is dispatched as mutated, for every key ([Q259](doc/questions/q259.md)). Every one of
 the twenty-five worked flows in [`examples/`](examples/README.md) runs typed on a real scheduler
 since v0.19 — three of them with a declared `transform` (section 14), one at three arities, one
 whose transforms fail, and P18's own sample reducing a join's record for the node after it.
@@ -2544,14 +2544,14 @@ built-ins the walk can observe, nothing else differs between two evaluations of 
 `$eval`**, for a different reason: it re-compiles its
 argument at RUN time, so a syntax error inside it would be a task failure carrying the engine's
 `D3120` that `FD-V36` never saw, and a transform is declared text refused at construction
-([Q265](doc/open-questions.md)). Each throws naming itself and the task fails with
+([Q265](doc/questions/q265.md)). Each throws naming itself and the task fails with
 `TransformFailed [UNBOUND]`; a computed key is read with `$lookup`, which recompiles nothing. **And the worker receives plain JSON values**: JSONata marks the
 arrays it builds with an own `sequence` property that survives `structuredClone` across a thread and
 that a deep-equal sees; the adapter strips it at every depth.
 
 **Two things about JSONata itself that decide how you write a reduction.** A path over a join's
 record changes TYPE with the region's arity — `*.score` is an array at two matching branches, the
-scalar at one, absent at zero ([Q263](doc/open-questions.md)) — so a reduction is written over the
+scalar at one, absent at zero ([Q263](doc/questions/q263.md)) — so a reduction is written over the
 array form, `$sum([*.score])`, which is `0` for a join nothing reached. And a misspelt key is silent:
 `input.scroe` evaluates to `undefined` with no error, and the worker receives `undefined`, where
 `$sum("a")` is loud (`T0412`). Only a syntax error is refused at construction.
@@ -2612,7 +2612,7 @@ specifier there but the bare `jsonata`. An npm consumer installs one 834 KiB pac
 dependencies of its own, whether or not they ever import the sub-path; a Deno consumer's
 `deno.json` resolves the mapping; a bundler includes the engine only in a bundle that imports the
 sub-path. **A bundled worker is your asset**: inside a bundle `import.meta.url` is the bundle's own
-URL ([Q261](doc/open-questions.md)), so `jsonata.worker` — like the envelope worker itself — has to be
+URL ([Q261](doc/questions/q261.md)), so `jsonata.worker` — like the envelope worker itself — has to be
 served beside your bundle as a module of its own for a pool's thread to load it.
 
 ---
@@ -2729,14 +2729,14 @@ if (after.counts.no !== 0) throw new Error('and the flow that ran has no unwired
 statically over the twelve constraining keywords of the subset. `transform-passes` is a statement
 about ONE VALUE — the producer's first declared example, or a generated witness where it declares
 none — and the verdict carries which it ran on and, over a region, the ARITY the sample had, because
-a transform's result changes type with the arity ([Q263](doc/open-questions.md)). **A witness is not
+a transform's result changes type with the arity ([Q263](doc/questions/q263.md)). **A witness is not
 a proof**, and the reference says *the sample passed* rather than *fits* for exactly that reason.
 Two more the check knows and a document cannot say: an OPEN producer is read as never emitting a key
 it does not name **unless it REQUIRES that key**, which is a stated leniency and its one scope
-([Q305](doc/open-questions.md); the scope is W100's, and `required` is what refutes the leniency's own
+([Q305](doc/questions/q305.md); the scope is W100's, and `required` is what refutes the leniency's own
 premise); and a join successor's
 record is the check's own knowledge, because the subset cannot spell *any key, each of shape S*
-([Q306](doc/open-questions.md)).
+([Q306](doc/questions/q306.md)).
 
 **One document per verdict** lives in [`spec/examples/wiring/`](spec/examples/wiring/), each named
 by the verdict it earns — `fits`, `no`, `transform-passes`, `transform-fails` and `unchecked`, the
@@ -2758,7 +2758,7 @@ W74's conformity reader, from the author's own scratchpad output.)* Neither hold
 `minimum`, a `maxLength` or a `minItems`: **a type catches the shape, and `npm run check:workers` —
 which RUNS each worker on its declared example and validates what came back — is what catches the
 rest.** Even that sees one value: a bound the code does not keep past the example is invisible to it
-and visible at every consumer the wiring check reads ([Q302](doc/open-questions.md)).
+and visible at every consumer the wiring check reads ([Q302](doc/questions/q302.md)).
 ---
 
 ## 16. What a schema buys a RUN — holding a result to the schema its worker declares
@@ -2803,7 +2803,7 @@ the clone. `spec/outcome-record.md` section 4 carries the figures with the metho
 is a ratio rather than a millisecond, deliberately, and the reason is visible in the one number
 `examples/l6.ts` PRINTS: over every settlement that rung makes, the same two values read about twice
 as dear in Node as in Deno. **A single figure would be a property of a machine**
-([Q179](doc/open-questions.md), [Q335](doc/open-questions.md)). (This paragraph said "about a third",
+([Q179](doc/questions/q179.md), [Q335](doc/questions/q335.md)). (This paragraph said "about a third",
 which is the Node reading — W82's conformity reader, finding 12.)*
 
 The worker below is
@@ -2914,7 +2914,7 @@ if (same.outcome !== state.outcome || shape(same) !== shape(state)) {
 **Where the two halves of this are proved, and it is not here.** Every guard in the snippet above
 can be made a tautology with `npm run check:docs` at exit 0 — `X4` counts a `throw` textually and
 refuses `if (false)` by name, and neither reaches `found.length !== found.length`
-([Q310](doc/open-questions.md), measured on this section by W82's adequacy reader). **What holds the
+([Q310](doc/questions/q310.md), measured on this section by W82's adequacy reader). **What holds the
 two claims is `examples/l6.ts`**, which runs the same two shapes as two separate workers on a real
 `FyflowScheduler` in both runtimes — `nonconforming — eleven words` and its control at two words,
 where the bound is kept and the clone's loss is reported anyway — and holds the check-ON run against
@@ -3204,17 +3204,17 @@ await third.shutdown();
   those ids, and `state.resumes`.
 - **A re-run task gets a FRESH retry budget.** The log records a task's `attempts` only when it
   SETTLES, so the attempts a task spent before the crash are recorded nowhere — measured: a task with
-  a budget of two attempts ran THREE times across one kill ([Q365](doc/open-questions.md)).
+  a budget of two attempts ran THREE times across one kill ([Q365](doc/questions/q365.md)).
 - **A task PARKED for a person is not in flight.** It stays parked, the resumed run is
   `awaiting_action`, and `resolve()` on the RESUMED driver completes it (section 7).
 - **The check sees only what you STORED.** The stored events must be a prefix of what the replay
   regenerates, and the first position where they are not is refused `diverged` — so a predicate or a
   flow you changed is caught where the stored run's road crosses it, and NOT where that road lies
   past your last event: there the resumed run takes the new road silently
-  ([Q372](doc/open-questions.md)). Change a flow, change its `version`.
+  ([Q372](doc/questions/q372.md)). Change a flow, change its `version`.
 - **The store is TRUSTED for what the resume feeds.** A stored settlement's result and a stored
   person's resolution are replayed as stored — nothing can check they are what the process saw
-  ([Q374](doc/open-questions.md)). A store you do not trust is a store you should not resume from.
+  ([Q374](doc/questions/q374.md)). A store you do not trust is a store you should not resume from.
 - **`ResumeRefused` names its `reason`**: `format` (not a checkpoint this version writes), `run` (the
   header's run is not the driver's), `flow` (another flow id or `version` — there is no migration),
   `stopped` and `diverged` — the last two with the `index` of the position. **A STOPPED run is not
@@ -3224,7 +3224,7 @@ await third.shutdown();
   free; refused during its replay, the runtime built a driver, and a driver cannot be detached from its
   scheduler — so that runtime refuses the id with `RunIdInUse` from then on, as it refuses any id a
   driver of it holds, a finished run's included. Resume on a fresh runtime
-  ([Q371](doc/open-questions.md)).
+  ([Q371](doc/questions/q371.md)).
 - **`shutdown()` is not a kill.** It DRAINS: measured in node and deno, a run one settlement in
   completes inside it, while a retry waiting on its backoff never runs. It waits while tasks are RUNNING
   and for at most five seconds, so a run with longer work in flight, or only queued or blocked tasks, is
@@ -3379,23 +3379,23 @@ if (stopped.outcome !== 'stopped' || kinds.join() !== 'UndeclaredRoute' || stopp
 
 - **Test the COUNT, never the winner.** On an inline pool the first file to reach a gate is almost always the
   first file in the list, so a test that names it passes for the wrong reason and fails the day a pool is threaded
-  ([Q379](doc/open-questions.md)). If a test must show that *first to arrive* is not *first in the list*, ARRANGE
+  ([Q379](doc/questions/q379.md)). If a test must show that *first to arrive* is not *first in the list*, ARRANGE
   the arrival order — `examples/l6.ts` does it with the files' sizes, on a pool as wide as the map — and assert
   what the arrangement did beside the claim.
 - **The memory is per RUN, not per region instance.** A gate inside a nested `map` remembers across every outer
   item; there is no per-season scope. It forgets at the run's end — deduplicating across RUNS is your store's job.
 - **A gate's type must be the PURE function of its context** a decision predicate is asked to be
-  ([Q9](doc/open-questions.md)): a resume replays every stored decision through `fn` to rebuild the memory, and a
+  ([Q9](doc/questions/q9.md)): a resume replays every stored decision through `fn` to rebuild the memory, and a
   type that answered differently the second time is refused `diverged`. An ENTRY gate's type is also asked once more
   at `start()`, against an empty throwaway memory, to hold the payload to the target it chooses (`FD-R4`,
-  [Q387](doc/open-questions.md)).
+  [Q387](doc/questions/q387.md)).
 - **Keep your gate's memory in the gate.** A decision predicate that remembers in a closure looks like a gate and is
   not one: its memory lives in your process, a resume cannot rebuild it, and a run killed before its first decision
-  resumes WRONG in silence ([Q386](doc/open-questions.md)).
+  resumes WRONG in silence ([Q386](doc/questions/q386.md)).
 - **`checkWiring` reads a route's GUARANTEE, where its type declares one.** A gate type may name the routes on
   which its key path resolved — `distinct` names `first` and `duplicate` — and what leaves the gate on such a
   route is what arrived with `required` added along the gate's key path, at every step. So a worker after `first`
-  that REQUIRES the key `fits`. *It read `no` there until v0.25, which is [Q391](doc/open-questions.md) and is
+  that REQUIRES the key `fits`. *It read `no` there until v0.25, which is [Q391](doc/questions/q391.md) and is
   [ADR 0068](doc/decisions/0068-a-route-guarantees-what-its-type-declares-and-the-library-derives-it-from-the-key-path.md).*
 - **A route that guarantees something else guarantees nothing a check can use.** A type declaring no
   `keyResolvedRoutes`, a gate naming no `key`, and a route the type does not name each pass the value through
@@ -3403,7 +3403,7 @@ if (stopped.outcome !== 'stopped' || kinds.join() !== 'UndeclaredRoute' || stopp
   judgement (`distinct` wants a string or a finite number, and no static tool derives that).
 
 **`0.6.0` is BREAKING in four ways, all of them for code that enumerates or matches.** `FlowNode` has a SIXTH kind,
-`GateNode` ([Q381](doc/open-questions.md)), so a `switch` exhaustive over `node.kind` no longer compiles;
+`GateNode` ([Q381](doc/questions/q381.md)), so a `switch` exhaustive over `node.kind` no longer compiles;
 `FoldInput` has a new kind, `gated`, so one exhaustive over `input.kind` no longer compiles either; `RunState` has a
 new cell, `gated`, so a `RunState` you construct needs it; and a `route` key on the edge of a node that is not a gate
 was refused as `FD-V17` and is refused as `FD-V41` — the same document refused under another rule id, so code
@@ -3543,10 +3543,10 @@ if (Object.values(wrong.nodes).some((n) => n.nodeId === 'report')) throw new Err
 
 **What the check does NOT say, each measured rather than assumed.** An **entry gate** takes no verdict at
 all — it has no arc, so a key path misspelled there is caught by nothing this report carries
-([Q416](doc/open-questions.md)). A gate wired into a **join** is neither refined nor refused, because a
-join's record is built from what arrived AT the gate ([Q415](doc/open-questions.md)). A container declared
-by `enum` or `const` rather than by `properties` can forbid a step in silence ([Q417](doc/open-questions.md)).
-A verdict carries **no `route` field** ([Q410](doc/open-questions.md)), so which route an arc left by is
+([Q416](doc/questions/q416.md)). A gate wired into a **join** is neither refined nor refused, because a
+join's record is built from what arrived AT the gate ([Q415](doc/questions/q415.md)). A container declared
+by `enum` or `const` rather than by `properties` can forbid a step in silence ([Q417](doc/questions/q417.md)).
+A verdict carries **no `route` field** ([Q410](doc/questions/q410.md)), so which route an arc left by is
 read from the reason a refusal gives rather than from the report's shape — which is why step 3 asserts
 the reason and not the order. And a type that declares **no** `keyResolvedRoutes` is asked no question
 about its key path at all — which is step 4's control, and the reason the declaration is worth writing.
@@ -3591,7 +3591,7 @@ is underneath it.**
 > **A comparison whose `value` is meant to be a path is NOT refused** — `{ "op": "eq", "value":
 > "needs.cfg.threshold" }` is a perfectly good string comparison against the literal text, and it is
 > false for ever. The grammar catches a wrong ROOT (`FD-V43`) and nothing catches this
-> ([Q456](doc/open-questions.md)). Write the literal, or compute the comparison in a `Transform` node.
+> ([Q456](doc/questions/q456.md)). Write the literal, or compute the comparison in a `Transform` node.
 
 > **This flow is `examples/flows/ui-emitted.flow.json` and this registry is
 > `examples/ui-registry.json`, with the SCHEMAS reduced to what these three verdicts turn on.** The
@@ -3600,7 +3600,7 @@ is underneath it.**
 > which arcs are checked and not what the corpus declares. **Nothing compares the two copies** — a
 > check would have to hold a TypeScript literal against a JSON document, where `X8` has byte-equality
 > to work with and this has none — so they are two copies and this sentence is what says so
-> ([Q458](doc/open-questions.md)). The shipped pair is what ladder L6 RUNS, on real workers, in both
+> ([Q458](doc/questions/q458.md)). The shipped pair is what ladder L6 RUNS, on real workers, in both
 > runtimes; this is what a reader can read.
 
 ```ts run
@@ -3704,7 +3704,7 @@ if (report.counts.fits !== 1 || report.counts.no !== 0) throw new Error(`the res
 **What the check cannot tell you here, said rather than left to be discovered.** Every arc LEAVING a
 transform-only node is `unchecked`, because the node declares no `outputSchema` and a sample is
 evidence about one input where `fits` is a claim about every input
-([Q446](doc/open-questions.md), and [ADR 0075](doc/decisions/0075-a-node-that-only-transforms-is-a-built-in-type-with-no-inner-worker.md)
+([Q446](doc/questions/q446.md), and [ADR 0075](doc/decisions/0075-a-node-that-only-transforms-is-a-built-in-type-with-no-inner-worker.md)
 rule 6 is why it is not inferred). `sampledOutput` in the assists gives you the shape the node
 actually emitted on the producer's own example, with those verdicts beside it — so the residue is
 reported rather than hidden. And a declared predicate's PATH is checked against no schema at all, so
@@ -3714,4 +3714,4 @@ a path naming a key the producer cannot emit answers *no match* for ever (ADR 00
 > built-in declares no `inline`, no `groups` and no `pool`, and a named pool instance carries only
 > `type` and `config` — so of the four things ADR 0075 rule 3 lists, a named instance reaches
 > `config`, a `retryPolicy` goes on the NODE, and `inline` and `groups` are reachable by no road a
-> consumer can write ([Q457](doc/open-questions.md)). Measured at W110.
+> consumer can write ([Q457](doc/questions/q457.md)). Measured at W110.

@@ -111,13 +111,13 @@ driver does. Stated rather than left silent.
 | Clause | Verdict | Runtimes | Notes |
 |---|---|---|---|
 | L0 | **RAN** — pass | Node, Deno | `check-spec` (8), `check-source` (10), `check-scheduler` (5), **`check-docs` (16 snippets: 12 `run`, 4 `check`, 0 untagged — was 15/11/4)**, `check-docs-selftest` (**12/12**), `deno lint`, `tsc` × 6 configs, `deno check`, `deno publish --dry-run` |
-| **X5 — the DOM lib pass** | **RAN** — reported | Node | **1 of 16**, `AGENTS.md:743`, unchanged in count. [Q71](../open-questions.md); it fails the gate if it ever exceeds one, and the snippet this item added does **not** fail under the DOM lib |
+| **X5 — the DOM lib pass** | **RAN** — reported | Node | **1 of 16**, `AGENTS.md:743`, unchanged in count. [Q71](../questions/q71.md); it fails the gate if it ever exceeds one, and the snippet this item added does **not** fail under the DOM lib |
 | L1 | **RAN** — pass | **all five** — Node 24, Deno, chromium, firefox, webkit | **301 assertions, was 288.** `test/driver/outbound.test.ts` is **13 assertions in 5 suites** |
 | **rule 8 — the provocations** | **RAN** — **11 of 12 red**, plus the reference snippet | Node | table below. **The first set of five was incomplete and both readers proved it** |
 | L2-L6 | **RAN** — pass, and not this item's gate | all five; L6 in two | 219 at L6 in Node and Deno, unchanged |
 | **conformity reader** | **RAN** — **0 blocking, 5 defect, 5 note** | n/a | derived the outbound contract from `OR-R7` + ADR 0014 **before opening the code**, and that derivation is what found the biggest finding |
 | **adequacy reader** | **RAN** — **40 edits, 36 scored, 11 survivors, 4 blocking** | n/a | mutations chosen by walking the rule ids. Caught and corrected **its own** harness bug mid-pass — an empty filter argument silently re-ran one file instead of sixteen — and rescored before reporting |
-| re-run after acting on both | **RAN** — pass | all five, both L6 runtimes | `npm run gate` exit 0. Plus **15 consecutive `node test/runner.ts` runs** for [Q83](../open-questions.md) |
+| re-run after acting on both | **RAN** — pass | all five, both L6 runtimes | `npm run gate` exit 0. Plus **15 consecutive `node test/runner.ts` runs** for [Q83](../questions/q83.md) |
 
 **Rule 8 — the provocations, and the readers' verdict on them.** The first set was five edits run
 against **one file** (`node test/runner.ts outbound`), and both readers falsified what was concluded
@@ -178,7 +178,7 @@ original provocations remove freezing *wholesale*; the adequacy reader's three r
 run) and `matrix-two-regions` (the only fixture whose fan-out is not called `split`) — both W4's,
 imported rather than copied, so they cannot drift from the flows L5 runs.
 
-**4. [Q82](../open-questions.md) is the one that could actually bite a consumer.**
+**4. [Q82](../questions/q82.md) is the one that could actually bite a consumer.**
 `joinStatusOf().describe` returns whatever the policy returned, verbatim. `JP-R1` makes `describe`
 *"the only way its contents leave"*, so a policy returning its own state is the natural
 implementation — and the adequacy reader measured a caller flipping a join from `waiting` to
@@ -186,7 +186,7 @@ implementation — and the adequacy reader measured a caller flipping a join fro
 **Not fixed**: it is a decision about where the obligation sits (the driver, or `JP-R1`) and about a
 cost on a path a UI would poll. Raised, and `AGENTS.md` §10 now warns about it.
 
-**5. [Q83](../open-questions.md) — an unreproducible red gate.** The conformity reader's *first*
+**5. [Q83](../questions/q83.md) — an unreproducible red gate.** The conformity reader's *first*
 `npm run gate` failed with four failures in `seam-paths.test.ts` and an **uncaught** `policy exploded`
 escaping `policy.step`. Three further gates by that reader, five by this author and **15 consecutive
 `node test/runner.ts` runs** are all green at 301. Raised rather than dismissed: the runner imports

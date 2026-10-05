@@ -1,7 +1,7 @@
 # P5 — A third and fourth policy, or repairs of the first two?
 
 **Status:** **COMPLETE and retro'd.** Three items, six reader passes, `doc/workflow.md` at **v0.7**
-**Question this plan answers:** [Q24](../open-questions.md) — *are `JP-R7` and `JP-R8` a third and
+**Question this plan answers:** [Q24](../questions/q24.md) — *are `JP-R7` and `JP-R8` a third and
 fourth join policy, or repairs of the first two?* The sub-question that decides it, and the one the
 measurements below make visible: **should the policy this library tells you to pass be able to say
 why a join can never fire?**
@@ -17,7 +17,7 @@ row: the `all-exit` shape on real workers**, which L6 has never had and which is
 ## Why this plan, and why now
 
 **Nothing has gained a capability since P1.** P2 added none by declaration, P3 was documentation,
-P4 was defects. [Q24](../open-questions.md) is the live **feature** question and
+P4 was defects. [Q24](../questions/q24.md) is the live **feature** question and
 [ADR 0003](../decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md) names it as
 the first thing a reader of that ADR should look at — *"that objection is now spent"*.
 
@@ -76,7 +76,7 @@ So what is fixed before fan-out is the **evidence and its shape**, not the answe
 |---|---|
 | **adopting `JP-R8` changes a run that completes today** | on `all-exit`, shipped `live-token` fires the join and the flow runs on to `completed`. Under the refinement that run is `stuck`. **That is a behaviour change to the blessed policy**, not an added capability, and it is the whole substance of the decision — whether a run in which every branch was abandoned is a run that finished |
 | **and it puts a clause in one column the other cannot have** | ADR 0003 rule 2 keeps `arrival-count` shipped *"for as long as both columns can be run"*, and `arrival-count` is structurally unable to return `unsatisfiable` — that is its section 3 definition. `JP-R8` inside `live-token` is the asymmetry `JP-R8` was written to forbid, **at a moment when the comparison it would have distorted is over.** Whether "the comparison is over" is enough is ADR 0025's to argue, not to assume |
-| **a fourth policy costs a name, not a mechanism** | the alternative to refining `live-token` is shipping the refinement beside it under its own id, which `JP-R8` already prescribes if it is built at all. It keeps `live-token` byte-identical and hands the choice to the application — and it is [Q5](../open-questions.md)'s per-join-configuration question arriving through the back door, which ADR 0003 called premature *"until Q24 produces a second policy that does not hang"*. It now might |
+| **a fourth policy costs a name, not a mechanism** | the alternative to refining `live-token` is shipping the refinement beside it under its own id, which `JP-R8` already prescribes if it is built at all. It keeps `live-token` byte-identical and hands the choice to the application — and it is [Q5](../questions/q5.md)'s per-join-configuration question arriving through the back door, which ADR 0003 called premature *"until Q24 produces a second policy that does not hang"*. It now might |
 
 ## Which files this plan takes over, and why
 
@@ -115,19 +115,19 @@ out to need a change, that is a finding for the Record and its own item — the 
 
 **Out** — named rather than left implicit, with where it goes instead
 
-- **[Q86](../open-questions.md) and [Q87](../open-questions.md).** P4's retro leaves the ruling to
+- **[Q86](../questions/q86.md) and [Q87](../questions/q87.md).** P4's retro leaves the ruling to
   this plan and the ruling is below; **neither is folded in.** Folding a driver fix into a
   join-policy plan is how P4 shipped them as prose on its own last day.
-- **[Q36](../open-questions.md)** — what a satisfied join carries downstream. It is `null` and stays
+- **[Q36](../questions/q36.md)** — what a satisfied join carries downstream. It is `null` and stays
   `null`; a policy that declines to fire carries nothing either way.
-- **[Q5](../open-questions.md)'s remainder** — per-join policy configuration. If ADR 0025 ships a
+- **[Q5](../questions/q5.md)'s remainder** — per-join policy configuration. If ADR 0025 ships a
   fourth policy, that question gets sharper and it is still not this plan's.
-- **[Q37](../open-questions.md)** — that `joinStatusOf` is a poll, and `onUnsatisfiableJoin` is
+- **[Q37](../questions/q37.md)** — that `joinStatusOf` is a poll, and `onUnsatisfiableJoin` is
   optional so a consumer who omits it learns nothing. **Measured here, recorded, not fixed**: it is a
   driver-surface question and this plan does not take `src/driver/**`.
-- **[Q6](../open-questions.md)** (nested fan-out) and **[Q12](../open-questions.md)** (map-style
+- **[Q6](../questions/q6.md)** (nested fan-out) and **[Q12](../questions/q12.md)** (map-style
   fan-out) — the other two feature candidates. `FD-V15` still refuses nested fan-out.
-- **[Q71](../open-questions.md)** — `SchedulerLike` under the DOM lib. `X5` reports it every run and
+- **[Q71](../questions/q71.md)** — `SchedulerLike` under the DOM lib. `X5` reports it every run and
   fails if it worsens; out by declaration for the second plan running.
 
 ## Work items
@@ -149,10 +149,10 @@ decision being written from the argument in this document.
 
 | Q | | Owner |
 |---|---|---|
-| [Q24](../open-questions.md) | third and fourth policy, or repairs | **W16** — closed by ADR 0025, whichever way it goes. **Its "repairs only the row P1 named" clause is corrected first**, in the register (done) and in ADR 0003 (W16) |
-| [Q7](../open-questions.md) | can a join time out | still open, and **narrower after this plan than before**: if a shipped policy can return `unsatisfiable`, one more class of stuck join is reportable without a clock. W16 will have an opinion it is not entitled to record as an answer |
-| [Q37](../open-questions.md) | who asks whether a join is stuck, and how often | still open. W15 measures that `onUnsatisfiableJoin` is optional and `joinStatusOf` is a poll; **neither item fixes it**, because `src/driver/**` is not taken over |
-| [Q5](../open-questions.md) | is the policy per-join configurable | still open, and ADR 0003 made it conditional on this plan's outcome |
+| [Q24](../questions/q24.md) | third and fourth policy, or repairs | **W16** — closed by ADR 0025, whichever way it goes. **Its "repairs only the row P1 named" clause is corrected first**, in the register (done) and in ADR 0003 (W16) |
+| [Q7](../questions/q7.md) | can a join time out | still open, and **narrower after this plan than before**: if a shipped policy can return `unsatisfiable`, one more class of stuck join is reportable without a clock. W16 will have an opinion it is not entitled to record as an answer |
+| [Q37](../questions/q37.md) | who asks whether a join is stuck, and how often | still open. W15 measures that `onUnsatisfiableJoin` is optional and `joinStatusOf` is a poll; **neither item fixes it**, because `src/driver/**` is not taken over |
+| [Q5](../questions/q5.md) | is the policy per-join configurable | still open, and ADR 0003 made it conditional on this plan's outcome |
 
 ## The ruling on Q86 and Q87, which P4's retro refused to make about itself
 
@@ -173,9 +173,9 @@ an apology is a property of a defect.*** Applied, they come apart:
 
 | | |
 |---|---|
-| **[Q87](../open-questions.md) — run ids unique across drivers on one scheduler — is a genuine precondition** | Two runs sharing an id **are the same run** by the library's own naming; there is no semantics for it to have. The consumer can audit it in their own two lines of code, which is what makes it a precondition rather than a hazard. **And the only in-library enforcement is disproportionate**: `SchedulerLike` is two methods by [ADR 0013](../decisions/0013-the-scheduler-is-a-development-dependency-reached-from-the-working-tree.md) rule 1, so no driver can ask who else is subscribed, and the alternative is a `WeakMap<SchedulerLike, Set<runId>>` — **which would be the first mutable module-level state in `src/`**. Measured: every module-level binding in `src/` today is an immutable constant. Buying detection of a mistake visible in the consumer's own source, at that price, is not obviously right. **Prose was right for the enforcement half** |
-| **but one sentence of it is an apology, and it is in shipped code** | `MultipleRuns`' message reads *"Construct a second Driver; ADR 0023 makes that safe on the same scheduler."* It does **not** say *with a different run id*. A caller re-running the same workload constructs a second `Driver` and the obvious id is the one they already have — so the library's own error message recommends the violation. **That is [Q72](../open-questions.md)'s defect class reproduced by P4's own fix for Q72**, and it costs one sentence |
-| **[Q86](../open-questions.md) — the scheduler carries only flow tasks — is an apology, not a precondition** | The design does not require it. ADR 0023 already decides ownership from the task id alone, and `buildTaskId` is the only minter — so *"does not parse ⇒ cannot be ours"* follows from the design already taken. The precondition exists to protect a **choice** (keep `InvalidTaskId` attributable at the scheduler edge), not the design. **And unlike Q87 the consumer cannot audit it**: *"carry only flow tasks"* is a claim about everything else on that scheduler, including code the flow author does not own. A precondition nobody can check is a hazard with better manners |
+| **[Q87](../questions/q87.md) — run ids unique across drivers on one scheduler — is a genuine precondition** | Two runs sharing an id **are the same run** by the library's own naming; there is no semantics for it to have. The consumer can audit it in their own two lines of code, which is what makes it a precondition rather than a hazard. **And the only in-library enforcement is disproportionate**: `SchedulerLike` is two methods by [ADR 0013](../decisions/0013-the-scheduler-is-a-development-dependency-reached-from-the-working-tree.md) rule 1, so no driver can ask who else is subscribed, and the alternative is a `WeakMap<SchedulerLike, Set<runId>>` — **which would be the first mutable module-level state in `src/`**. Measured: every module-level binding in `src/` today is an immutable constant. Buying detection of a mistake visible in the consumer's own source, at that price, is not obviously right. **Prose was right for the enforcement half** |
+| **but one sentence of it is an apology, and it is in shipped code** | `MultipleRuns`' message reads *"Construct a second Driver; ADR 0023 makes that safe on the same scheduler."* It does **not** say *with a different run id*. A caller re-running the same workload constructs a second `Driver` and the obvious id is the one they already have — so the library's own error message recommends the violation. **That is [Q72](../questions/q72.md)'s defect class reproduced by P4's own fix for Q72**, and it costs one sentence |
+| **[Q86](../questions/q86.md) — the scheduler carries only flow tasks — is an apology, not a precondition** | The design does not require it. ADR 0023 already decides ownership from the task id alone, and `buildTaskId` is the only minter — so *"does not parse ⇒ cannot be ours"* follows from the design already taken. The precondition exists to protect a **choice** (keep `InvalidTaskId` attributable at the scheduler edge), not the design. **And unlike Q87 the consumer cannot audit it**: *"carry only flow tasks"* is a claim about everything else on that scheduler, including code the flow author does not own. A precondition nobody can check is a hazard with better manners |
 
 **So the disposition, and it is deliberately not "P5 does it":**
 
@@ -232,8 +232,8 @@ belong to this plan rather than to the item:**
    assertions passing — and drops `exit-last` from four failures to none on the `exited` path. It is
    `doc/workflow.md` section 5 rule 8's own case, one item late: **W6's repair could not fail, and
    rule 8 was adopted after W6 shipped.** Closed by `Expectation.joinSettledBy`; the residue is
-   [Q99](../open-questions.md).
-3. **[Q100](../open-questions.md) is W15's renderer finding in a second file, which is section 6 pass
+   [Q99](../questions/q99.md).
+3. **[Q100](../questions/q100.md) is W15's renderer finding in a second file, which is section 6 pass
    3 rule 2's bar.** W15's four-column render was a script the gate never executes and survived seven
    mutations; L6's table **is** executed and **nothing asserts a character of it**. W17 found it the
    way L7 is supposed to be found — by a person reading the output — and what it found was a
@@ -255,7 +255,7 @@ provocation was the weaker half of a pair and there was no way to see that from 
 
 **Progress.** **[W16](../work-items/w16-the-decision-and-what-it-ships.md) is built and gated and
 its readers have since run and every finding is acted on.** [ADR 0025](../decisions/0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md)
-answers [Q24](../open-questions.md) and **the two rules got different answers**: `JP-R8`'s refinement
+answers [Q24](../questions/q24.md) and **the two rules got different answers**: `JP-R8`'s refinement
 is **adopted** as a third policy under its own id, `live-token-requiring-arrival`; `JP-R7`'s is
 **refused**. `live-token` and `arrival-count` are byte-identical, so ADR 0003 rules 1-4 stand, and
 **not one of the 36 matrix cells changed** — `node test/matrix/render.ts` is byte-identical across the
@@ -290,7 +290,7 @@ to this plan rather than to the item:**
    undeclared file. W16 also found `doc/decisions/README.md`'s index missing **ADR 0022 and 0023**
    entirely, and `spec/README.md` dragged in unavoidably by `check-spec`'s `C8` whenever a spec
    version bumps. **Three files the mechanism cannot see**; the fix is the same one P4 made.
-5. **[Q94](../open-questions.md) was resolved by refusing the paste it proposed.** ADR 0003's table
+5. **[Q94](../questions/q94.md) was resolved by refusing the paste it proposed.** ADR 0003's table
    stays at two columns and now says why — it is the evidence *that* decision was made from, and
    rewriting it to four would make a 2026-08-30 decision appear to rest on 2026-08-31 evidence. The
    four-column table is in ADR 0025, and **its 36 cells were verified against `runCell` once,
@@ -302,7 +302,7 @@ files), **both readers run and every finding acted on** — 4 defects and 5 bloc
 with **1 overlap**. It took **no decision and wrote no spec**, which was the fan-out gate. Its full
 Record is in the item; **four things belong to this plan rather than to it**:
 
-1. **[Q91](../open-questions.md) is evidence W16 is entitled to and did not have.** `JP-R7`'s variant
+1. **[Q91](../questions/q91.md) is evidence W16 is entitled to and did not have.** `JP-R7`'s variant
    fires a join **zero branches reached** on `all-exit` — `need` decremented to 0 against an empty
    `arrived` — which is the exact cost [ADR 0003](../decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md)
    records for `live-token` and the exact thing `JP-R8` removes. **The refinements are not merely
@@ -310,7 +310,7 @@ Record is in the item; **four things belong to this plan rather than to it**:
    this plan was declared from did not show it. ADR 0025 has to rule on that, and the plan's
    *"adopting `JP-R8` and refusing `JP-R7` is the outcome the measurements point at"* now has a
    second, independent reason — which is exactly why W16 *"is not entitled to inherit it"*.
-2. **[Q94](../open-questions.md) is W16's and is one paste.** ADR 0003 carries a hand-copied
+2. **[Q94](../questions/q94.md) is W16's and is one paste.** ADR 0003 carries a hand-copied
    **two**-column matrix; `test/matrix/render.ts` now emits four. The divergence arrived because the
    artifact was extended, not because anyone edited the ADR.
 3. ~~**Rule 7 (c) is still unexercised, for the third plan running.**~~ **Answered by W16**, which
@@ -321,7 +321,7 @@ Record is in the item; **four things belong to this plan rather than to it**:
 4. **P4's retro prediction 1 has its first answer and it is not the predicted one.** The prediction
    was that rule 8's *write to the rule* form would produce **fewer reader survivors in the
    provocation family**. W15's author set was **not** narrow in the old direction — it was complete on
-   the rules and found the one code-level survivor ([Q95](../open-questions.md)) — and both readers
+   the rules and found the one code-level survivor ([Q95](../questions/q95.md)) — and both readers
    still found blocking gaps, because **every probe written to a rule mutates something the suite
    reads, and neither of the things W15 CREATED was read by the suite**. The renderer was a script
    the gate never executes; the variants were promoted to columns without inheriting a single
@@ -369,7 +369,7 @@ file. Carried here as they were written, so the answers can be read against the 
 `doc/workflow.md` is **v0.7**: five changes adopted, two refusals, and two things confirmed unchanged
 that were live questions coming in.*
 
-**The plan's own question is answered and the answer held.** [Q24](../open-questions.md) →
+**The plan's own question is answered and the answer held.** [Q24](../questions/q24.md) →
 [ADR 0025](../decisions/0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md),
 two rules, two different answers. The exit artifact is complete: the matrix at **four columns, 36
 cells**, and ladder L6's `all-exit` row on real workers under every shipped policy — **342 assertions

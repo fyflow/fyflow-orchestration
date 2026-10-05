@@ -27,7 +27,7 @@ load-bearing one and is untouched" from 2026-08-31 to 2026-09-11 — and for a f
 decided on", which this document's own fact 4 and its Consequences cost 1 contradict; W57's
 conformity reader.)*
 The title of this document is now historical: the scheduler is a **registry** dependency — **two clauses corrected in place, 2026-08-30**, see *Correction*
-**Raised by:** [Q51](../open-questions.md), taken by [W5](../work-items/w5-one-real-fan-out-flow-on-a-real-scheduler.md)
+**Raised by:** [Q51](../questions/q51.md), taken by [W5](../work-items/w5-one-real-fan-out-flow-on-a-real-scheduler.md)
 under [P1](../plans/p1-what-satisfies-a-join.md)
 
 ## Context
@@ -42,7 +42,7 @@ Four facts constrain the choice. All four were measured on 2026-08-30 rather tha
 
 ### 1. The pinned version is on no registry
 
-[Q3](../open-questions.md) pins **0.3.0**. `CLAUDE.md` and `doc/README.md` say it is *"not yet
+[Q3](../questions/q3.md) pins **0.3.0**. `CLAUDE.md` and `doc/README.md` say it is *"not yet
 published to npm"*, which is true and incomplete — **both registries carry the package, and both
 top out at 0.2.1**:
 
@@ -105,7 +105,7 @@ worker fails with `Unknown file extension \".ts\"`"*. Measured at Node 24.20.0, 
 parameter types, a return type, an `interface` and `import type` runs **both** `inline: true` and
 `inline: false`. Deno runs the same file.
 
-That matters here because it removes the premise [Q33](../open-questions.md)'s leaning rested on —
+That matters here because it removes the premise [Q33](../questions/q33.md)'s leaning rested on —
 *"a real worker file per runtime"* — and lets **one** worker file serve Node and Deno. Also
 [S9](../scheduler-upstream.md).
 
@@ -155,7 +155,7 @@ had no rung.
    the pin, and that `dist/node/index.js` is **not older than any file in the sibling's own
    `deno.json` publish allowlist**. It fails with the command to run — `npm run build` in
    `../fyflow-scheduler`.
-6. **The browser reaches the scheduler not at all.** L6 does not run there ([Q33](../open-questions.md)),
+6. **The browser reaches the scheduler not at all.** L6 does not run there ([Q33](../questions/q33.md)),
    and L6 lives in `examples/**`, which `scripts/build-browser-tests.mjs`'s
    `test/**/*.test.ts` glob does not reach. **`S9` is what makes that structural** — see the
    *Correction* below, because the first version of this rule claimed the glob itself was the
@@ -192,7 +192,7 @@ would typecheck, it would pass every existing check, and it would end
 [ADR 0001](0001-routing-executes-in-the-driver-outside-the-scheduler.md)'s separation quietly — a
 driver that can construct a scheduler is a driver that will. Rule 2's `S7` is what refuses it.
 
-**What it does not decide.** Which runtimes L6 runs in — that is [Q33](../open-questions.md),
+**What it does not decide.** Which runtimes L6 runs in — that is [Q33](../questions/q33.md),
 answered separately by W5 with the cost this ADR measured. And whether the JSR/npm asymmetry should
 change our own release story (`spec/runtime-targets.md` section 5): we publish to both, the sibling
 publishes to both, and only its *newest* version is missing from both. Nothing here is evidence for

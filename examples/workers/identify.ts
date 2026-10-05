@@ -9,7 +9,7 @@
  *
  * **`msPerMB` is an ARRANGEMENT and it is declared as one**, on `shard.ts`' precedent: identifying a file takes time
  * proportional to its size, so the row decides the order branches REACH the gate by the sizes it declares.
- * [Q379](../../doc/open-questions.md) is why this exists: on an inline pool, *first to arrive* IS *lowest index*, so a
+ * [Q379](../../doc/questions/q379.md) is why this exists: on an inline pool, *first to arrive* IS *lowest index*, so a
  * row that did not arrange the order could not tell a gate that keeps the first ARRIVAL from one that keeps the first
  * ITEM. **And the pool must be as wide as the map** — W94's declaration measured a serial pool running identify in
  * dispatch order whatever the delays, so `examples/registry.json` gives `Identify` eight threads.

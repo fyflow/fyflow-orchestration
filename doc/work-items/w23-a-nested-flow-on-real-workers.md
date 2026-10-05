@@ -36,13 +36,13 @@ Inputs:     W21's derived `branchPath` and the widened `buildTaskId`
 Outputs:    (1) **a nested flow on real workers**, both runtimes, with the
                 outer join firing over branches it never opened — P7's exit
                 artifact;
-            (2) **[Q117](../open-questions.md) fixed**: the harness's inbound
+            (2) **[Q117](../questions/q117.md) fixed**: the harness's inbound
                 `resolve()` step mints a silently wrong id on a nested flow;
             (3) **the L6 harness reports every region of a run, not one** —
                 today it hard-codes the literal `'split'`;
             (4) **the first dotted task id L6 has ever asserted**;
-            (5) a ruling, with evidence, on whether [Q90](../open-questions.md)
-                and [Q107](../open-questions.md) are taken here;
+            (5) a ruling, with evidence, on whether [Q90](../questions/q90.md)
+                and [Q107](../questions/q107.md) are taken here;
             (6) `examples/README.md` describing the new row.
 Depends on: W22, and hard: without `JP-R10` a nested run whose inner join dies
             leaves an outer branch with no terminal event, and the row that
@@ -67,7 +67,7 @@ Gate:       **L0-L6, and L6 in BOTH runtimes** — this is the one item of P7
 Reserves:   Q126-Q130, ADR — none. P7's block is exhausted and this item takes
             no decision; if one turns out to be needed it takes 0032 on
             ADR 0029's precedent and says so. (0026 stays held for
-            [Q97](../open-questions.md); 0028 and 0031 are skipped.)
+            [Q97](../questions/q97.md); 0028 and 0031 are skipped.)
 ```
 
 **Q ids start at Q126.** P7 reserved Q112-Q120 and all nine are spent; W22 took Q121-Q124 outside that
@@ -82,7 +82,7 @@ what it has to build**, and one of them corrects a register row for the second t
 
 | | measured |
 |---|---|
-| **[Q117](../open-questions.md) is real, and its description has been wrong twice** | `examples/run-flow.ts:619`: `buildTaskId(runId, at, Number(branchPath), 0)`. **W21's declaration said this yields `NaN`; it does not** — `Number('1.0')` is **1**, so at depth 2 it mints `r*:node:1:0`, a **well-formed id for a different task**, and `resolve()` refuses it as not-suspended (`RS-R1`) — a *reported* failure that names the wrong cause. At depth 3 `Number('1.1.0')` **is** `NaN`, and since W21's `INDEX` test `buildTaskId` **throws** — from a call site **outside** the surrounding `try`, inside a `queueMicrotask`, so it surfaces as an **unhandled rejection** rather than as a harness failure. The fix is `branchIndices(branchPath)`, already the exact inverse of the widened `buildTaskId` and already exported from the package root; the call also moves **inside** the `try` |
+| **[Q117](../questions/q117.md) is real, and its description has been wrong twice** | `examples/run-flow.ts:619`: `buildTaskId(runId, at, Number(branchPath), 0)`. **W21's declaration said this yields `NaN`; it does not** — `Number('1.0')` is **1**, so at depth 2 it mints `r*:node:1:0`, a **well-formed id for a different task**, and `resolve()` refuses it as not-suspended (`RS-R1`) — a *reported* failure that names the wrong cause. At depth 3 `Number('1.1.0')` **is** `NaN`, and since W21's `INDEX` test `buildTaskId` **throws** — from a call site **outside** the surrounding `try`, inside a `queueMicrotask`, so it surfaces as an **unhandled rejection** rather than as a harness failure. The fix is `branchIndices(branchPath)`, already the exact inverse of the widened `buildTaskId` and already exported from the package root; the call also moves **inside** the `try` |
 | **The L6 harness assumes ONE region per run, and the assumption is a string literal in 18 places** | `report.state.regions['split']` — `examples/l6.ts`, eighteen occurrences across the per-row checks and the cross-row blocks. **Every existing L6 flow names its fanout `split`**, so nothing has ever distinguished *"the region"* from *"the region called split"*. `Expectation`'s `regionId`, `joined`, `settled`, `regionSuspended` and `branchEvents` are all singular with it. **This is W22's `Cell` finding one rung up**, and it is the bulk of this item's work |
 | **L6 has never asserted a dotted task id** | Zero matches for `r<n>:<node>:<i>.<j>:` anywhere in `examples/l6.ts`. The grammar has reserved the shape since P1, W21 made the driver mint it, and **no rung above L2 has ever seen one**. A nested row's `dispatched` list is the first |
 | **`branchIndices` needs no new export** | `index.ts` is twelve `export *` lines and `src/driver/ids.ts` is one of them, so the Q117 fix adds nothing to the public surface — which is what makes it a harness fix rather than a library change |
@@ -92,12 +92,12 @@ what it has to build**, and one of them corrects a register row for the second t
 
 **In**
 
-1. **[Q117](../open-questions.md)**, fixed and asserted — the resolve step mints the id the driver
+1. **[Q117](../questions/q117.md)**, fixed and asserted — the resolve step mints the id the driver
    minted.
 2. **The harness reports every region**, so a row can declare two.
 3. **A nested flow in `examples/flows/`**, and the row that runs it — P7's exit artifact.
 4. **The depth-1 rows unchanged**, asserted rather than assumed.
-5. **A ruling on [Q90](../open-questions.md) and [Q107](../open-questions.md)** — P7 names both as
+5. **A ruling on [Q90](../questions/q90.md) and [Q107](../questions/q107.md)** — P7 names both as
    candidates for this item, and a candidate declined needs a reason.
 6. **`examples/README.md`**.
 
@@ -106,16 +106,16 @@ what it has to build**, and one of them corrects a register row for the second t
 - **Any decision.** ADR 0030 is W22's and this item demonstrates it. **If the demonstration falsifies
   it, the decision is corrected in place** — `doc/workflow.md` v0.7 change 3 exists for exactly that,
   and [W19](w19-a-task-we-did-not-mint-on-a-real-scheduler.md) is the occurrence that earned it.
-- **[Q108](../open-questions.md)** — ADR 0027's `context.spawnTask()` producer. It needs a worker that
+- **[Q108](../questions/q108.md)** — ADR 0027's `context.spawnTask()` producer. It needs a worker that
   spawns, which runs into [ADR 0001](../decisions/0001-routing-executes-in-the-driver-outside-the-scheduler.md)
   rule 2 and needs its framing decided first. **Not this item's**, on P7's own reading.
 - **Depth 3 at L6.** The matrix and the driver seam run at depth 2 and ADR 0030's cascade is asserted
   at depth 3 in `test/driver/**`. A third level on real workers is a fourth region, more roles and a
   longer arrangement, and it would be the only depth-3 claim in the repository that costs a minute of
-  wall clock. [Q113](../open-questions.md)'s untested `fromRegion` site and
-  [Q124](../open-questions.md)'s rename map both want a depth-3 row; **both want it at L2**, which is
+  wall clock. [Q113](../questions/q113.md)'s untested `fromRegion` site and
+  [Q124](../questions/q124.md)'s rename map both want a depth-3 row; **both want it at L2**, which is
   cheaper and is where their subjects live.
-- **[Q121](../open-questions.md)-[Q124](../open-questions.md)**, W22's four. None is `examples/**`'s.
+- **[Q121](../questions/q121.md)-[Q124](../questions/q124.md)**, W22's four. None is `examples/**`'s.
 
 ## Verification
 
@@ -163,10 +163,10 @@ classified by a second route.**
 | Declared output | Exists | What would fail without it |
 |---|---|---|
 | **(1)** a nested flow on real workers, both runtimes | yes — **four** rows on two flows | Routing the inner join elsewhere: **THREW**. Deleting a row: **3**. **Deleting all four and editing the total: 0 until this item's last day** — the reader's finding, now **2** |
-| **(2)** [Q117](../open-questions.md) fixed | yes — `branchIndices`, and the call moved inside the `try` | Reverting it: **4** — and **0** until the fourth row existed. Rule 8's founding case in this item's own output |
+| **(2)** [Q117](../questions/q117.md) fixed | yes — `branchIndices`, and the call moved inside the `try` | Reverting it: **4** — and **0** until the fourth row existed. Rule 8's founding case in this item's own output |
 | **(3)** the harness reports every region | yes — `otherRegions`, and 3 of the 18 `'split'` literals were the ones that mattered | Reading `'split'` again: **12**. Ignoring `otherRegions`: **6**. A region leaving a row: **2** |
 | **(4)** the first dotted ids above L2 | yes — **9 of them**, across four rows | Declaring one without its inner segment: **1**. Truncating the path in the driver: **36** |
-| **(5)** a ruling on [Q90](../open-questions.md) and [Q107](../open-questions.md) | yes — **Q107 taken** (one boolean), **Q90 declined with a measurement that corrects P7's stated cost** | Reverting `ForeignTask.optional`: **2** |
+| **(5)** a ruling on [Q90](../questions/q90.md) and [Q107](../questions/q107.md) | yes — **Q107 taken** (one boolean), **Q90 declined with a measurement that corrects P7's stated cost** | Reverting `ForeignTask.optional`: **2** |
 | **(6)** `examples/README.md` | yes — **and it carried three false claims, two written by this item** | **Nothing.** No check reads it, which is the class six retros have refused to mechanise |
 
 **`Owns` audit**, by hand, after the record step.
@@ -193,14 +193,14 @@ and **loop bounds** — the fourth is W22's finding and it is not yet a rule in 
 | C2 | the resolved expected side sourced from the recording | **SURVIVED — REDUNDANT.** A genuine source swap, but A1 still costs 4 with it applied |
 | C4 | the region-set check made self-comparing | **SURVIVED — REAL, worth exactly 1.** D2 costs 2 alone, 1 with C4 |
 | R2 | the resolve step's `at` sourced from the row | **SURVIVED — VACUOUS alone**, because both sources agree while the driver is right. **Its masking is what mattered**: the reader measured R3 at **0** with it applied; it is now **2** |
-| R4 | `test:l6:deno` dropped from the gate chain | **SURVIVED — REAL**, and it is `scripts/check-source.mjs`'s, outside `Owns`. [Q126](../open-questions.md) |
+| R4 | `test:l6:deno` dropped from the gate chain | **SURVIVED — REAL**, and it is `scripts/check-source.mjs`'s, outside `Owns`. [Q126](../questions/q126.md) |
 
 ## What broke
 
 **1. The rendered table — the one artifact L7 exists for — printed P7's exit artifact as a
 region-free run.** The per-row *assertions* were moved off the hard-coded `'split'`; the renderer was
 not, so all four nested rows showed `-` for join and branches, which is that renderer's spelling for
-*"entered no region"*. **[Q100](../open-questions.md)'s open question — whether a formatting bug can
+*"entered no region"*. **[Q100](../questions/q100.md)'s open question — whether a formatting bug can
 make the table say something FALSE rather than merely ugly — is answered `yes`, by the item that
 introduced it.** And the first fix hard-coded a width and **truncated `inner 1.0:exited 1.1:e`**,
 which is the same file's own recorded `KEY_W` defect, in the same file, on the same day. Both widths
@@ -218,7 +218,7 @@ same role at the same delay in the same pool — the configuration `joinSettledB
 **3. The suspend row's stated reason for its declared order was false, and it made an inert knob
 load-bearing.** It claimed the causal chain ordered the two branches; the chain constrains `reviewC`
 and says nothing about `scoreD`. What ordered them was `SETTLES_LAST`'s `delayMs * 4` — **which
-[Q99](../open-questions.md) records W17's adequacy reader measuring as INERT.** This item would have
+[Q99](../questions/q99.md) records W17's adequacy reader measuring as INERT.** This item would have
 made it load-bearing for the first time, silently, with the effect attributed to something else.
 
 **4. Two BLOCKING loop bounds, both of which delete an exit artifact for the cost of one number.**
@@ -274,10 +274,10 @@ to live first.
 
 ## Questions raised
 
-- **[Q126](../open-questions.md)** — `npm run gate`'s wiring is checked for `check:*` and nothing
+- **[Q126](../questions/q126.md)** — `npm run gate`'s wiring is checked for `check:*` and nothing
   else, so **a whole runtime can be dropped from the chain for 0 failures**. Measured. `S11`'s loop
   needs a named list of `test:*` entries; `scripts/**` is in nobody's `Owns`.
-- **[Q127](../open-questions.md)** — four coverage gaps the depth-2 rows expose and cannot close:
+- **[Q127](../questions/q127.md)** — four coverage gaps the depth-2 rows expose and cannot close:
   `opened` is asserted on no nested row; there is no cross-row block for them where every other exit
   artifact has one; `regionSuspended` cannot reach a nested region; and no nested row runs
   `arrival-count`, so ADR 0030 rule 1's claim for that policy has L5 coverage and no L6.

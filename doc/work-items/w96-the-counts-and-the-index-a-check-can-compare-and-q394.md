@@ -62,7 +62,7 @@ W95 was closed unissued, so this is **W96**.*
 - **Copies of the L6 counts in `CLAUDE.md`, `doc/README.md` and the plan and item files** — history-heavy index prose, under
   the standing `doc/`-check refusal's English class; X10 reads the two documents Q171 names, neither under `doc/`.
 - **A copy of the counts X10 does not know about** — a NEW sentence stating the counts is invisible to a check that finds
-  copies by anchor. Stated as the clause's limit rather than argued away ([Q217](../open-questions.md)'s regress).
+  copies by anchor. Stated as the clause's limit rather than argued away ([Q217](../questions/q217.md)'s regress).
 - **Obligation (f) across the rest of L6** — the next piece of work, not this one.
 
 ## What the declaration step re-took before anything was edited
@@ -77,7 +77,7 @@ W95 was closed unissued, so this is **W96**.*
 
 **And one thing found by reading, before a line was written**: the self-test's coverage bound `idAt` reads the id after a
 mutation with `fail\('(X\d)'` — ONE digit. `X10` and `X11` would be read as `X1`, so a META entry aimed at either would
-credit `X1` and the bound's *every id has a grading* would be satisfied by X1's own entries: [Q43](../open-questions.md)'s
+credit `X1` and the bound's *every id has a grading* would be satisfied by X1's own entries: [Q43](../questions/q43.md)'s
 class — a bound over ids that cannot see an id. Widened to `X\d+` in this item, and the widening is itself provoked.
 
 **Q142**: this item adds one document outside `doc/decisions` (this file), so `M3`'s margin goes 3 → 2 — predicted NOT to
@@ -107,8 +107,8 @@ fire.
 `README.md`'s status paragraph and ladder table, `examples/README.md`'s paragraph and `l6.ts` row — each found by its own
 anchored sentence, against `examples/l6.ts`' `DECLARED_TOTAL` and a new **`DECLARED_RUNS`** (guarded like its sibling, not a
 counted assertion). **`X11`**: `doc/decisions/README.md` against its directory, both ways, each ADR once and under its own
-number. **Q394**: the overlap control asserts its thumbnail-before-`identify` ARRANGEMENT beside it. [Q171](../open-questions.md)
-and [Q394](../open-questions.md) RESOLVED, [Q395](../open-questions.md) raised; Q396-Q399 unused and not reused. No ADR.
+number. **Q394**: the overlap control asserts its thumbnail-before-`identify` ARRANGEMENT beside it. [Q171](../questions/q171.md)
+and [Q394](../questions/q394.md) RESOLVED, [Q395](../questions/q395.md) raised; Q396-Q399 unused and not reused. No ADR.
 
 ### Gate — what ran
 
@@ -121,7 +121,7 @@ and [Q394](../open-questions.md) RESOLVED, [Q395](../open-questions.md) raised; 
 | conformity reader | RAN, isolated copy, tree still at `6893c29f19a3dc38` | 9 findings, 1 BLOCKING; ZERO disagreements on the VALUES |
 | adequacy reader | RAN, isolated copy | 16 mutations graded plus measurements; 13 survivors, 6 BLOCKING |
 | rule 8 | RAN, two passes | pass 1 **21 / 17 caught / 1 ceiling**; pass 2 with the readers' edits **31 / 26 / 2** — both grader controls right, 0 aborts, 0 against declaration, digest identical at both ends of each |
-| `npm run gate` | RAN, **`GATE EXIT=0`, ZERO `FAIL` lines** | content digest `a86265afa9721267` over 415 files IDENTICAL at both ends; spec 7 / 65 / 125, markdown 160 / 7393 / 413, docs 37 / 31 / 6, L1-L5 53 / 1423 in node, deno and chromium, L6 2069 / 154 in both. **`selftests` 1441.5 s wall against 1002.0 s at P24's retro** — the cost of this item's sixteen probes and seven gradings, almost all of it `check:docs:selftest` (~19 minutes alone, measured by its conformity reader), which is now the gate's longest entry: [Q133](../open-questions.md)'s trade, stated rather than spent unremarked. This row is the one edit made after the gate; `check:markdown` re-run over it |
+| `npm run gate` | RAN, **`GATE EXIT=0`, ZERO `FAIL` lines** | content digest `a86265afa9721267` over 415 files IDENTICAL at both ends; spec 7 / 65 / 125, markdown 160 / 7393 / 413, docs 37 / 31 / 6, L1-L5 53 / 1423 in node, deno and chromium, L6 2069 / 154 in both. **`selftests` 1441.5 s wall against 1002.0 s at P24's retro** — the cost of this item's sixteen probes and seven gradings, almost all of it `check:docs:selftest` (~19 minutes alone, measured by its conformity reader), which is now the gate's longest entry: [Q133](../questions/q133.md)'s trade, stated rather than spent unremarked. This row is the one edit made after the gate; `check:markdown` re-run over it |
 
 ### Outputs — what was actually built
 
@@ -140,7 +140,7 @@ and [Q394](../open-questions.md) RESOLVED, [Q395](../open-questions.md) raised; 
 | 1 | a moved README count passed `check:docs` at EXIT 0 — Q171's hole, live | a RUN at the declaration step |
 | 2 | two single-digit id assumptions: the self-test's `idAt` (`X\d`) and `check-docs`' report row (`c.slice(0, 2)`) | READING at the declaration step and the build — **and the first one's stated mechanism was FALSE**: the declaration said X10 would read as X1 and the bound pass in silence; the conformity reader measured that `fail('X10'` does not match at all, so the bound would have failed LOUDLY. Corrected here and in the code comment |
 | 3 | X10's copy names printed *README.md's the status paragraph* | the author, reading rule 8's `a4` failure line |
-| 4 | **two more present-tense copies of the L6 counts, both stale at 154, neither anchored** — `README.md`'s Examples cell (*fifty-three*) and the tail of `examples/README.md`'s `l6.ts` row (*54 row labels and 100 runs*) — Q171's class inside the item that closes it | the CONFORMITY reader — **no rung; BLOCKING**; both corrected, the first by no longer stating a number ([Q395](../open-questions.md)) |
+| 4 | **two more present-tense copies of the L6 counts, both stale at 154, neither anchored** — `README.md`'s Examples cell (*fifty-three*) and the tail of `examples/README.md`'s `l6.ts` row (*54 row labels and 100 runs*) — Q171's class inside the item that closes it | the CONFORMITY reader — **no rung; BLOCKING**; both corrected, the first by no longer stating a number ([Q395](../questions/q395.md)) |
 | 5 | **three of X10's four anchors loosenable for ZERO** — each current copy was also the first match of its shape, the default position (v0.23); the runs-first copies' assertion half and `DECLARED_TOTAL` compared by nothing | the ADEQUACY reader — **no rung; five BLOCKING**; closed by a DECOY probe per copy and a `DECLARED_TOTAL` probe |
 | 6 | **Q394's whole `arranged` field deletable with rule 8 green** — `f1` at 300 ms fires on `only` either way; at 70 ms `only` is unmoved and the field is the only observer, so `b4`'s stated reason (*only f1 can tell*) was false | the ADEQUACY reader — **no rung; BLOCKING as a harness finding**; `f3` and `f4` added, `b4`'s reason corrected, the ceiling declared |
 | 7 | X11 blind to a duplicated row (its note printed 38 against 37 and passed) and to a row under another ADR's number | the ADEQUACY reader — closed with two clauses, two probes, two gradings |
@@ -153,7 +153,7 @@ ends — the conformity reader by the copies X10 does not anchor, the adequacy r
 
 ### Questions
 
-**Resolved: [Q171](../open-questions.md)** and **[Q394](../open-questions.md)**. **Raised: [Q395](../open-questions.md)** —
+**Resolved: [Q171](../questions/q171.md)** and **[Q394](../questions/q394.md)**. **Raised: [Q395](../questions/q395.md)** —
 X10 holds the copies it anchors, and two unanchored ones existed the day it shipped. Census **305 / 235 / 1 / 69**, every id in
-exactly one cluster cell. [Q142](../open-questions.md): `M3` margin **2** before the record step, as the declaration predicted —
+exactly one cluster cell. [Q142](../questions/q142.md): `M3` margin **2** before the record step, as the declaration predicted —
 **the next plan's declaration, a plan and its first item, FIRES it**. The next plan starts at **W97, Q400 and ADR 0068**.

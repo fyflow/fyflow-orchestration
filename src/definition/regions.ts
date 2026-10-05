@@ -220,7 +220,7 @@ export function toRegion(sets: RegionSets): {
  * regions has one of their fanouts inside the other. **`end` nodes are exempt from
  * `FD-V22`** (`spec/flow-definition.md` section 2), so one `end` node may be shared
  * by two **sibling** regions that contain neither each other nor it exclusively —
- * [Q45](../../doc/open-questions.md)'s shape, two sequential fan-outs sharing one
+ * [Q45](../../doc/questions/q45.md)'s shape, two sequential fan-outs sharing one
  * `end`, which `validateDefinition` accepts today.
  *
  * **For that node there is no innermost region and this returns `undefined`
@@ -300,7 +300,7 @@ export function innermostRegionOf(
  * that forgets gets a throw rather than a compile error.
  *
  * **Keyed per region rather than taking one index**, so that whether a map may
- * contain a map — P10's *"not taken"*, [Q156](../../doc/open-questions.md) — needs no
+ * contain a map — P10's *"not taken"*, [Q156](../../doc/questions/q156.md) — needs no
  * signature change whichever way it lands. **It landed YES at
  * [W84](../../doc/work-items/w84-what-a-regions-identity-is.md)
  * ([ADR 0062](../../doc/decisions/0062-a-region-instance-is-its-opener-and-the-openers-own-branch-path.md))
@@ -426,7 +426,7 @@ export function regionChainOf(regions: RegionSets[], nodeId: string): string[] {
  * unrelated namespace.
  *
  * **Beyond that prefix there is nothing to compare, and comparing anyway is the
- * defect this function exists to remove.** [Q206](../../doc/open-questions.md): for
+ * defect this function exists to remove.** [Q206](../../doc/questions/q206.md): for
  * two SIBLING regions the prefix is empty, every segment belongs to an unrelated
  * namespace, and a predicate that compares by POSITION reports *visible* when two
  * indices minted in different regions happen to be equal. Measured on
@@ -605,7 +605,7 @@ export function branchIndexOf(regions: RegionSets[], nodeId: string): number | n
  * **Parking at `user_action` is INESSENTIAL and this comment said it was the
  * condition** — a branch entry that has simply not settled yet does it just as well,
  * with no `user_action` anywhere. W45's conformity reader. So `FD-V29` **removes cases from `FD-R3`'s reach and does not
- * replace it** ([Q97](../../doc/open-questions.md)), and an unsound acceptance
+ * replace it** ([Q97](../../doc/questions/q97.md)), and an unsound acceptance
  * degrades to today's behaviour.
  *
  * **Meaningless on a cyclic graph** and callers must guard: `FD-V10` is what makes
@@ -706,7 +706,7 @@ export function certainlySettled(g: Graph, doc: FlowDefinition): Map<string, Set
       // discussed lifting. And the clause is one expression over *whichever kind
       // opened the region* because `FD-V29` is one rule over both — writing the
       // `fanout` half alone would make the code say something narrower than the
-      // document does. [Q207](../../doc/open-questions.md).
+      // document does. [Q207](../../doc/questions/q207.md).
       const opener = openerOfJoin.get(id);
       if (opener !== undefined && reach.has(opener)) {
         for (const b of entriesOf.get(opener) ?? []) if (reach.has(b)) next.add(b);

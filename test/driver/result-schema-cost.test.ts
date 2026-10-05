@@ -4,7 +4,7 @@
  * a fake scheduler.
  *
  * `examples/settlement-cost.ts` is the measurement and it is deliberately **not** a gate entry: a
- * cost is a property of a machine ([Q179](../../doc/open-questions.md)), so a rung over one would
+ * cost is a property of a machine ([Q179](../../doc/questions/q179.md)), so a rung over one would
  * be a ratchet on hardware. **This file is what binds the two claims underneath it**, and it can,
  * because both are COUNTS rather than clocks:
  *
@@ -12,7 +12,7 @@
  *      consumer who supplies none pays for no check. Counted as *how many times the driver reads a
  *      worker's `outputSchema`*, which is the only observable there is: a check whose answer is
  *      discarded changes no record, no state and no dispatch, so nothing a run REPORTS can see it;
- *   2. **the handle** — [Q320](../../doc/open-questions.md)'s `+1 structuredClone per settled
+ *   2. **the handle** — [Q320](../../doc/questions/q320.md)'s `+1 structuredClone per settled
  *      task`. Counted by wrapping `structuredClone`, because P21's declaration step measured that
  *      nothing else can see a clone: BYTES give a clone and an alias the same length, and IDENTITY
  *      is confounded because `foldInputs()` is itself `Object.freeze(this.inputs.map(freezeInput))`

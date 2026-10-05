@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // **A link is a link and an anchor is an anchor** — ladder L0 over every tracked
-// markdown file. W25, and [Q121](../doc/open-questions.md).
+// markdown file. W25, and [Q121](../doc/questions/q121.md).
 //
 //   node scripts/check-markdown.mjs           node scripts/check-markdown.mjs --self-test
 //
@@ -43,7 +43,7 @@
 // that is correct). And a link inside an HTML comment is **not invisible at all** —
 // it is REPORTED, so it is a third false positive rather than a gap. This paragraph
 // listed it as "invisible, 0 occurrences"; W25's conformity reader ran it and it
-// fires. [Q136](../doc/open-questions.md).
+// fires. [Q136](../doc/questions/q136.md).
 //
 // **There is no `CHECK_MARKDOWN_ROOT`**, and there was one until W25's conformity
 // reader grepped for its setter and found none: the self-test copies this script
@@ -86,7 +86,7 @@ const IS_ENTRY = process.argv[1] !== undefined &&
  * Measured at W25's declaration: without this the scan reports **4 false positives
  * in three files** — two in `doc/open-questions.md`, one in `w22`, and
  * `doc/work-items/TEMPLATE.md`'s `../plans/p_-<slug>.md`, which is a **placeholder**
- * rather than an illustration of link syntax. [Q121](../doc/open-questions.md)
+ * rather than an illustration of link syntax. [Q121](../doc/questions/q121.md)
  * describes the phenomenon as illustrations only; it is wider than that and the fix
  * is the same. `C5` never needed it because `spec/` prose does not do either.
  */
@@ -246,7 +246,7 @@ function isMarkdownFile(abs) {
  * checked anything, and P6's retro's lesson is that a derivation which cannot classify
  * its input must say so loudly rather than return a value. *(The docstring named a field
  * `counted` that has never existed; W25's conformity reader.)* **`M3` uses them and
- * `C5` does not**, which is a gap the lift did not carry across — [Q137](../doc/open-questions.md).
+ * `C5` does not**, which is a gap the lift did not carry across — [Q137](../doc/questions/q137.md).
  *
  * **`sources` — the number of documents that CARRY at least one relative link — is
  * [W112](../doc/work-items/w112-the-budget-the-check-and-the-floors.md)'s, and it is what `M4`
@@ -356,7 +356,7 @@ for (const d of r.deadAnchors) fail('M2', d);
 // the floors were set to the degenerate extreme rather than to the tree.
 //
 // ~~**They are a MINIMUM nobody is obliged to raise, which is what keeps them out of
-// [Q102](../doc/open-questions.md)'s shape.** `RUN_FLOOR`'s defect was that adding a
+// [Q102](../doc/questions/q102.md)'s shape.** `RUN_FLOOR`'s defect was that adding a
 // snippet obliged an item to raise it, so it went stale in the direction of
 // weakness; adding a document here can only move these numbers up and away. Only a
 // corpus that SHRINKS by a third trips them, and a corpus shrinking by a third is
@@ -372,12 +372,12 @@ for (const d of r.deadAnchors) fail('M2', d);
 // the fixture into the floor. Measured: P9's declaration added one plan and three work
 // items, `doc/decisions removed` went from 46 files to **50** against a floor of `< 50`,
 // and **`npm run gate` exited 1** with two probes reporting `wanted [M1,M3], got [M1]`
-// and `wanted [M1,M3,M4], got [M1,M3]`. **So it IS [Q102](../doc/open-questions.md)'s
+// and `wanted [M1,M3,M4], got [M1,M3]`. **So it IS [Q102](../doc/questions/q102.md)'s
 // shape** — an item that adds documents is obliged to retune a constant in a file it
 // does not own — and it is **worse** than `RUN_FLOOR`'s, because the window is bounded
 // on both sides and the failure lands on the probes rather than on the check. The
 // difference that matters is the direction: `RUN_FLOOR` went stale **silently, toward
-// weakness**; this failed **loudly, in the gate**, naming both probes. [Q142](../doc/open-questions.md).
+// weakness**; this failed **loudly, in the gate**, naming both probes. [Q142](../doc/questions/q142.md).
 //
 // **Retuned from a measurement rather than from arithmetic on a comment**, with the
 // whole-tree and both fixture counts taken in one pass:
@@ -400,7 +400,7 @@ for (const d of r.deadAnchors) fail('M2', d);
 // renumbering, not allocation), so each bound gets one and each is probed on its own.
 // **50 -> 56 at P9's declaration, 56 -> 64 at P10's, and P10's is the first time
 // this window was measured BEFORE the documents landed rather than after the gate
-// went red.** [Q142](../doc/open-questions.md). P10's declaration adds five
+// went red.** [Q142](../doc/questions/q142.md). P10's declaration adds five
 // documents that survive BOTH removals — four work items, plus the plan file, which
 // only the `doc/plans` removal takes out — so the one-directory fixture went
 // **51 -> 56** against a floor of `< 56`, and probe 1 would have stopped firing
@@ -438,7 +438,7 @@ for (const d of r.deadAnchors) fail('M2', d);
 // Measured on a scratch copy outside the repository, after the declaration's documents
 // landed: whole tree **101 / 4255 / 211**, `doc/decisions` removed **78 / 3900 / 211**,
 // both removed **62 / 3109 / 211**. So `M3`'s window is `(78, 101]` and 90 is near its
-// middle. [Q142](../doc/open-questions.md), and the retune was **PREDICTED from the
+// middle. [Q142](../doc/questions/q142.md), and the retune was **PREDICTED from the
 // pre-edit counts** for the second time, which is the mitigation that row has.
 // **90 -> 107 at [P18](../doc/plans/p18-a-flow-and-its-runtime-from-documents-alone.md)'s
 // declaration, and it is the first retune PREDICTED from the count BEFORE the
@@ -449,7 +449,7 @@ for (const d of r.deadAnchors) fail('M2', d);
 // repository after the declaration's documents landed: whole tree **121 / 5199 / 263**,
 // `doc/decisions` removed **93 / 4758 / 263**, both removed **74 / 3808 / 263**. So
 // `M3`'s window is `(93, 121]` and 107 is near its middle; `M4` at 3960 is inside
-// `(3808, 4758]` and is untouched, and `M5` at 60 against 263. [Q142](../doc/open-questions.md)
+// `(3808, 4758]` and is untouched, and `M5` at 60 against 263. [Q142](../doc/questions/q142.md)
 // for the third plan running, and this is what a declared exception looks like: the
 // item's table names the file before the edit rather than after the gate goes red.
 // **107 -> 123 and 4450 -> 5270 at [W80](../doc/work-items/w80-what-a-run-time-result-check-is.md),
@@ -458,7 +458,7 @@ for (const d of r.deadAnchors) fail('M2', d);
 // removed **106 / 4449 / 296**. So `M3`'s window is `(106, 140]` and `M4`'s is `(4449, 6092]`.
 // **Each new floor is the MIDPOINT of its own window** — 123 and 5270 — which is what balances a
 // TWO-SIDED window; every earlier retune picked a number near the middle by eye and this one says
-// so. [Q142](../doc/open-questions.md) for the ninth time.
+// so. [Q142](../doc/questions/q142.md) for the ninth time.
 //
 // **The half worth recording is that W80 decided NOT to retune, and was right until it was not.**
 // With `M4` at margin **2** the item declined: `check:markdown:selftest` was 7/7 at exit 0, every
@@ -470,13 +470,13 @@ for (const d of r.deadAnchors) fail('M2', d);
 // measurement moved under it, which is exactly what a two-sided window does to anyone who leaves
 // it tight.*
 // **142 since [W98](../doc/work-items/w98-what-a-row-may-assert-about-a-dispatch-order.md)**, whose declaration document took
-// `M3`'s margin to ZERO exactly as W97's record step predicted ([Q142](../doc/open-questions.md)): 123 files against a floor
+// `M3`'s margin to ZERO exactly as W97's record step predicted ([Q142](../doc/questions/q142.md)): 123 files against a floor
 // of 123. The midpoint of its window `(123, 162]` on the tree W98 ships, from a scratch-copy measurement — W80's rule, and
 // W92's precedent for `M4`. Probe 1 still fires (123 < 142) and the whole tree still passes (162).
 // **142 -> 362 at [W116](../doc/work-items/w116-a-question-is-a-file.md), and both `removes` probes
 // now cut `doc/questions` as well.** Two findings at once. First, the lane was ALREADY RED on
 // `4eac349`: P28's declaration wrote six documents outside both cut directories and probe 1 read
-// **146** files against 142 — `wanted [M1,M3], got [M1]`, [Q142](../doc/open-questions.md) for the
+// **146** files against 142 — `wanted [M1,M3], got [M1]`, [Q142](../doc/questions/q142.md) for the
 // twelfth time, found by measuring this item's baseline. Second, W116 writes **384** files into a
 // directory neither probe cut, so retuning the floor alone would have bought a window `(530, 579]` —
 // 49 wide, drained by every question raised from then on, since each is now a document. **Cutting
@@ -493,7 +493,7 @@ for (const d of r.deadAnchors) fail('M2', d);
 if (r.files < 362) fail('M3', `only ${r.files} markdown file(s) were scanned, so M1 and M2 are ` +
   'true of the walk rather than of the tree');
 // **1200 -> 1350 at P9's declaration, 1350 -> 1530 by W30, and both times because
-// ordinary work closed the window from below.** [Q142](../doc/open-questions.md).
+// ordinary work closed the window from below.** [Q142](../doc/questions/q142.md).
 // Measured at W30's close: whole tree 67/1907/94, `doc/decisions` removed
 // 51/1709/94, `doc/decisions` and `doc/plans` removed **41/1357/94**. The floor has
 // to sit ABOVE the two-directory fixture and BELOW the one-directory fixture — the
@@ -513,7 +513,7 @@ if (r.files < 362) fail('M3', `only ${r.files} markdown file(s) were scanned, so
 // firing on an item whose subject is *checks that stop checking*.
 //
 // **1720 -> 2050 at [W33](../doc/work-items/w33-a-map-at-run-time-arity.md), and that
-// item added NO DOCUMENT** — which is an instance [Q142](../doc/open-questions.md)'s
+// item added NO DOCUMENT** — which is an instance [Q142](../doc/questions/q142.md)'s
 // row does not describe. Every earlier one was *an item that adds documents must
 // retune a constant in a file it does not own*; W33 added links to documents that
 // already existed (a spec rule, register rows, index paragraphs) and the
@@ -555,7 +555,7 @@ if (r.files < 362) fail('M3', `only ${r.files} markdown file(s) were scanned, so
 // 74 against a one-directory fixture of 69 it had **five files** of headroom, and
 // P13's own two remaining Records plus W47's item file would have spent them. *A
 // two-sided window is worth re-centring when you are already in the file* — the
-// alternative is paying [Q142](../doc/open-questions.md) twice in one plan, which
+// alternative is paying [Q142](../doc/questions/q142.md) twice in one plan, which
 // P12 did.
 //
 // **Both bounds RISE TOGETHER as prose is added**, and the gap between them is the
@@ -571,10 +571,10 @@ if (r.files < 362) fail('M3', `only ${r.files} markdown file(s) were scanned, so
 // `removes` probe cuts**. Counts are in the `M3` block above, taken once for both floors.
 // `M4`'s window is `(3109, 3900]` and 3490 is near its middle; `M5` is untouched at 60
 // against 211, for the eighth plan running, because no `removes` probe moves an anchored
-// count — every anchored link is in `doc/`'s top level. [Q142](../doc/open-questions.md).
+// count — every anchored link is in `doc/`'s top level. [Q142](../doc/questions/q142.md).
 // **3490 -> 3960 at [W58](../doc/work-items/w58-what-a-node-says-about-its-own-task.md)**, the
 // EIGHTH retune, and the first to be found by the GATE rather than predicted: P16's declaration
-// checked [Q142](../doc/open-questions.md) with a margin of 388 links over the two-directory
+// checked [Q142](../doc/questions/q142.md) with a margin of 388 links over the two-directory
 // fixture (3102 against 3490), and W58's spec subsection, register rows, Record and index
 // paragraphs took that fixture **3102 -> 3532** — every one of them a link-dense document under
 // `doc/` or `spec/`'s top level, which neither `removes` probe cuts. So the probe declaring
@@ -587,7 +587,7 @@ if (r.files < 362) fail('M3', `only ${r.files} markdown file(s) were scanned, so
 // **3960 -> 4450 at [P18](../doc/plans/p18-a-flow-and-its-runtime-from-documents-alone.md)'s
 // RETRO**, the NINTH retune and the SECOND consecutive one found by the GATE rather than
 // predicted — and the first found by a RETRO's own confirming gate, on a tree to which that
-// retro had added **no document at all**. That is [Q142](../doc/open-questions.md)'s window from
+// retro had added **no document at all**. That is [Q142](../doc/questions/q142.md)'s window from
 // its OTHER side: P18's declaration predicted and paid the FILE half (`M3` 90 -> 107, from a count
 // taken before a document was written) and left the LINK half alone, where the margin was
 // **31 links** — measured at W67's close, two-directory fixture **3929** against this floor of
@@ -613,7 +613,7 @@ if (r.files < 362) fail('M3', `only ${r.files} markdown file(s) were scanned, so
 // `wanted [M1,M3,M4], got [M1,M3]`. Whole tree **156 / 7159 / 386**, `doc/decisions` removed **118 / 6607**, both
 // removed **93 / 5291**. So `M4`'s window is `(5291, 7159]` and 6225 is its MIDPOINT, W80's rule. **`M3` is NOT
 // retuned**: its margin is 5 files and it has not fired, and W80's *a ratchet moved before it fires is moved for no
-// reason* holds for it. [Q142](../doc/open-questions.md) for the tenth time, and the second declared in advance.
+// reason* holds for it. [Q142](../doc/questions/q142.md) for the tenth time, and the second declared in advance.
 //
 // **`M4` STOPS COUNTING LINK INSTANCES AT [W112](../doc/work-items/w112-the-budget-the-check-and-the-floors.md),
 // and 6225 -> 120 is a RE-POINTING rather than a retune** —

@@ -74,7 +74,7 @@ concurrency win hides: ADR 0039 bought the win without anybody asking which lane
    unmutated check with `CHECK_WIRING_SCRIPTS: 'dev-dist'`, and `dev-dist/` held
    `check-wiring-stub-27708.mjs` — a staged stub left behind when a gate was killed mid-run earlier
    today, PID 27708 among the processes that kill named. It glob-matches `check-*.mjs`, so `G3` saw a
-   check the manifest never declares. [Q323](../open-questions.md)'s class: `unstage()` does not run
+   check the manifest never declares. [Q323](../questions/q323.md)'s class: `unstage()` does not run
    when the harness is killed, and the leftover is in the one directory the next control points at.
    Removed; the control then ran clean and the real probe failure above surfaced underneath it.
 
@@ -91,13 +91,13 @@ concurrency win hides: ADR 0039 bought the win without anybody asking which lane
 **Not claimed:** a clean before-and-after wall clock. This machine's process spawns ranged from
 **27 ms to 8 649 ms for `cmd /c exit`** inside one session, and one ladder-only run took **7534 s** in a
 bad window against **245 s** in a good one. Every number above was taken with `node -e ''` at 100 ms
-against [Q180](../open-questions.md)'s recorded 54 ms baseline, so the absolutes are roughly 2x
-inflated and **the RATIO is what this item claims**. [Q179](../open-questions.md)'s rule, at its limit.
+against [Q180](../questions/q180.md)'s recorded 54 ms baseline, so the absolutes are roughly 2x
+inflated and **the RATIO is what this item claims**. [Q179](../questions/q179.md)'s rule, at its limit.
 
 ## Record
 
-**DONE 2026-09-30.** ADR 0070 taken. Q133's cost half answered; [Q180](../open-questions.md) extended
-with the per-lane split and is now the largest remaining item; [Q427](../open-questions.md) raised —
+**DONE 2026-09-30.** ADR 0070 taken. Q133's cost half answered; [Q180](../questions/q180.md) extended
+with the per-lane split and is now the largest remaining item; [Q427](../questions/q427.md) raised —
 section 8's *< 90 s* budget for L0-L6 was measured at 18.6 s and this item's ladder is 245 s on a
 machine it cannot separate from the suite's own growth, so the budget needs re-taking somewhere
 healthy before anyone calls it breached or met.

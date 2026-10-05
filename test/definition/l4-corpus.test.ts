@@ -55,7 +55,7 @@ const load = async (rel: string) => JSON.parse(await readText(`${EX}/${rel}`)) a
  *
  * **Equality rather than a floor**, for `S12`'s reason in `scripts/check-source.mjs`: a
  * floor answers *are there at least N*, and `RUN_FLOOR` is the worked example of one
- * going stale in the direction of weakness ([Q102](../../doc/open-questions.md)). This
+ * going stale in the direction of weakness ([Q102](../../doc/questions/q102.md)). This
  * fails in both directions — a flow added with no row, and a row naming a flow that is
  * gone.
  *
@@ -111,7 +111,7 @@ suite('L4 — the corpus IS what spec/flow-definition.md section 7 says it is', 
     // broke. **Equality rather than a floor**, for `S12`'s reason in
     // `scripts/check-source.mjs`: a floor answers *are there at least N*, and
     // `RUN_FLOOR` is the worked example of one going stale toward weakness
-    // ([Q102](../../doc/open-questions.md)).
+    // ([Q102](../../doc/questions/q102.md)).
     //
     // **It had a live case the day it was written.** `nested-fanout.flow.json` was
     // added by [W20](../../doc/work-items/w20-what-a-nested-region-is.md) and never
@@ -185,7 +185,7 @@ suite('L4 — the corpus IS what spec/flow-definition.md section 7 says it is', 
     // shape**. `check-spec`'s `C4` bounds the DISK (a declared rule with no case
     // fails) and nothing bounded the WALK: `invalidNames.slice(1)` dropped 21 of 23
     // cases and the suite reported `all passed`, because its only bound was
-    // `length > 0` — `RUN_FLOOR`'s shape again ([Q102](../../doc/open-questions.md)).
+    // `length > 0` — `RUN_FLOOR`'s shape again ([Q102](../../doc/questions/q102.md)).
     const prefixes = [...invalidNames].map((n) => n.split('--')[0]!).sort();
     equal(
       declaredRules.expected.filter((r) => !prefixes.includes(r)),
@@ -313,7 +313,7 @@ suite('L4 — the corpus covers the refusals, and FD-V14 has no case', (test) =>
 });
 
 /**
- * **The suite census — [Q158](../../doc/open-questions.md), closed here.**
+ * **The suite census — [Q158](../../doc/questions/q158.md), closed here.**
  *
  * Found by [W41](../../doc/work-items/w41-what-a-node-can-reach-and-what-names-it.md)'s
  * adequacy reader, which renamed both of that item's `.test.ts` files out of the
@@ -329,7 +329,7 @@ suite('L4 — the corpus covers the refusals, and FD-V14 has no case', (test) =>
  * so the bound is over SUITE NAMES, it is one assertion, it works in all five
  * runtimes, and it is inside `test/definition/**`, which W41 owns. **Set equality
  * both ways**, for `S12`'s reason: a floor answers *are there at least N* and goes
- * stale toward weakness ([Q102](../../doc/open-questions.md)), while an equality
+ * stale toward weakness ([Q102](../../doc/questions/q102.md)), while an equality
  * fails when a suite disappears AND when one is added without a row here.
  *
  * **Read inside a `test()` body and not at module scope**, because the runner

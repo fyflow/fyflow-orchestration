@@ -19,14 +19,14 @@
  * branch task composing `"."` and transforming it must be evaluated once per ELEMENT, and an assist
  * that re-implemented the evaluation would have to rediscover that. Every verdict it returns is
  * therefore W73's, unchanged: *the sample passed*, never *fits*, with the sample's source and arity
- * on it ([Q301](../../doc/open-questions.md)).
+ * on it ([Q301](../../doc/questions/q301.md)).
  *
  * **`pathsOf` does NOT gate on `schemaProblem`, and that is a decision rather than an oversight**
  * (W74 fact A). ADR 0053 rule 5 puts that gate in front of `findings`, because a VALUE check may not
  * read a schema that might carry an unknown keyword. A READING tool is the other case: the shape an
  * author most needs to see is the one the subset CANNOT say — a map's `JP-R12` record, which
  * `checkWiring` derives as `additionalProperties: <schema>` with a `branchKeys` marker and which
- * `schemaProblem` refuses by name ([Q306](../../doc/open-questions.md)). Gating here would refuse
+ * `schemaProblem` refuses by name ([Q306](../../doc/questions/q306.md)). Gating here would refuse
  * exactly the join successor's author. So this module walks what the CHECK derives as well as what an
  * author may declare, and an unknown keyword is simply not read.
  *
@@ -94,7 +94,7 @@ function typeNames(s: Record<string, unknown>): string[] {
  * `properties` gives `$.k`; `items` gives `$[]`, once, because every element has the same schema in
  * the subset; a key named by `required` with no `properties` entry is still a path, typed `*`; and
  * `additionalProperties` holding a SCHEMA gives `$.*` — the map record's minted branch key, the one
- * shape no author can declare (the header, [Q306](../../doc/open-questions.md)).
+ * shape no author can declare (the header, [Q306](../../doc/questions/q306.md)).
  *
  * An open schema (no `type`) admits every type, so its `properties` and `items` are walked too: a
  * schema that says nothing is not a schema that says *nothing is there*.
@@ -232,7 +232,7 @@ export interface SampledOutput {
   schema?: JsonSchema;
   /**
    * **The verdicts on the arcs LEAVING this node, which are still `unchecked`** — and they are
-   * returned rather than elided on purpose. [Q446](../../doc/open-questions.md) is the residue: a
+   * returned rather than elided on purpose. [Q446](../../doc/questions/q446.md) is the residue: a
    * sample is evidence about one input and `fits` is a claim about every input, so nothing here turns
    * an arc green. P26 prediction 4 says this item does not remove that, and a function whose caller
    * can read the residue off its own return value cannot be read as having removed it.
@@ -326,7 +326,7 @@ const lit = (v: unknown): string => JSON.stringify(v);
  * the sentence P19 decision 9 asks the reference to carry rather than calling this enforcement. A
  * `minimum`, a `maxLength` and a `minItems` are all invisible here on purpose: no type system in
  * this language holds them, and pretending otherwise is the *ignored keyword* defect
- * ([Q278](../../doc/open-questions.md)) one layer out.
+ * ([Q278](../../doc/questions/q278.md)) one layer out.
  *
  * `examples` is an annotation and is not read (ADR 0056 rule 1). An OPEN object gets an index
  * signature, because a schema that does not say `additionalProperties: false` is saying *there are
@@ -378,7 +378,7 @@ function object(s: Record<string, unknown>, indent: string): string {
  * — W74's conformity reader (finding 10). Written as its own three-field interface this was a fourth
  * list beside `WorkerEntry`'s five fields and `WORKER_KEYS`' five names with nothing comparing them,
  * so a fifth schema kind would reach the entry and the refusal list and silently not reach the
- * generator ([Q217](../../doc/open-questions.md)'s shape, obligation (e)'s third). `configSchema` is
+ * generator ([Q217](../../doc/questions/q217.md)'s shape, obligation (e)'s third). `configSchema` is
  * deliberately NOT picked: a signature is what a worker's author writes `run()` against, and the
  * config is the pool's.
  */

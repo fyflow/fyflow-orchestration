@@ -93,7 +93,7 @@ try {
 // --- G1: every `:selftest` script ROUTES `--self-test` -------------------------
 //
 // **`S11` binds four things about `package.json` and none about what the SCRIPT
-// does with the flag** — [Q149](../doc/open-questions.md), and
+// does with the flag** — [Q149](../doc/questions/q149.md), and
 // [P11](../doc/plans/p11-what-should-the-gate-prove.md)'s declaration measured it
 // in all six: cut the four-line dispatch with a brace match so the file stays
 // valid, and the `:selftest` gate entry runs the plain check, **exits 0**, and the
@@ -121,7 +121,7 @@ try {
 // a dispatch that fired unconditionally would make `npm run check:spec` print a
 // self-test report instead of a spec report — visible in the gate's own output on
 // the first run, and fatal to that check's own probes, which run the plain check
-// and read what it prints. [Q149](../doc/open-questions.md)'s hole is the opposite:
+// and read what it prints. [Q149](../doc/questions/q149.md)'s hole is the opposite:
 // everything looks exactly as it should. *A clause is worth its cost in proportion
 // to how quiet its absence is.*
 // **`G1` does not run inside a child `G1` spawned, and without this line one probe
@@ -178,7 +178,7 @@ if (pkg && !NESTED) {
     // `<root>/dev-dist` — and `mkdirSync(..., { recursive: true })` then creates
     // `dev-dist/dev-dist/wiring-<pid>`, of which the line above removes only the leaf. **The mechanism
     // PRE-DATES W105** (`mkdirSync(dirname(stub))` did the same at HEAD and `rmSync(stub)` removed a
-    // file, leaving the directory) — but it is [Q426](../doc/open-questions.md)'s shape, in the clause
+    // file, leaving the directory) — but it is [Q426](../doc/questions/q426.md)'s shape, in the clause
     // this item added to close Q426, so it is this item's to fix. `rmdirSync` rather than `rmSync`
     // deliberately: it fails when the directory is not empty, which is the case where something real
     // lives there and must not be deleted — W105's hazard 4, *a self-test that deletes the wrong path is
@@ -240,7 +240,7 @@ if (pkg && !NESTED) {
 // **`G1` sets `CHECK_<NAME>_SELFTEST` on every run, and the gate never sets it —
 // so the one configuration the gate actually runs is the one configuration `G1`
 // never observes.** W38's adequacy reader, BLOCKING, and it is
-// [Q149](../doc/open-questions.md)'s hole living inside the check written to close
+// [Q149](../doc/questions/q149.md)'s hole living inside the check written to close
 // it. Measured: adding `if (process.env.CHECK_SPEC_SELFTEST)` around
 // `check-spec.mjs`'s `process.exit(await selfTest(ROOT))` leaves `check:wiring`
 // green, `check:wiring:selftest` at 6/6 and 2/2, and `check:source` green — while
@@ -465,7 +465,7 @@ if (pkg) {
 // them from this manifest and runs them concurrently.
 //
 // **That is obligation (e) reopened by the fix for obligation (e), one item after
-// [Q149](../doc/open-questions.md) was closed.** Before the change an entry leaving
+// [Q149](../doc/questions/q149.md) was closed.** Before the change an entry leaving
 // the gate was refused three times over — `S11` (it is a `check:*` and the chain does
 // not name it), `S12` (the declared ordered chain), `G3` (the disk-derived pair). All
 // three go quiet the moment the seven are not in the chain. What replaces them:
@@ -588,7 +588,7 @@ if (pkg) {
         // The exclusive set, computed here from the same authority the runner uses and
         // compared both ways. A second computation rather than a second source: what it
         // catches is the runner ceasing to read the marker, not the marker being wrong
-        // ([Q181](../doc/open-questions.md)).
+        // ([Q181](../doc/questions/q181.md)).
         const MARK = `SELFTEST-${'EXCLUSIVE'}:`;
         const wantAlone = owed.filter((e) => {
           const m = /scripts\/([\w.-]+)\.mjs/.exec(scripts[e] ?? '');
@@ -682,7 +682,7 @@ if (pkg && existsSync(join(SCRIPTS, 'run-selftests.mjs'))) {
   ];
   for (const [what, line] of REQUIRED) {
     // Anchored at a line start, because a literal that quotes the code it searches for
-    // is a false match for itself — [Q178](../doc/open-questions.md), found twice in
+    // is a false match for itself — [Q178](../doc/questions/q178.md), found twice in
     // one hour in this file at W38.
     const anchored = new RegExp(`^\\s*${line.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'm');
     if (!anchored.test(src)) {
@@ -697,7 +697,7 @@ if (pkg && existsSync(join(SCRIPTS, 'run-selftests.mjs'))) {
 
 // G6 — **a scratch path under `dev-dist/` carries the PROCESS, and the exceptions are declared.**
 //
-// **Why a clause and not a convention — [Q181](../doc/open-questions.md), W105.** Before this item
+// **Why a clause and not a convention — [Q181](../doc/questions/q181.md), W105.** Before this item
 // `dev-dist/` was one flat namespace with fixed paths: `check-docs.mjs` wrote `dev-dist/docs` and
 // `rmSync`d it on every run, five self-tests wrote fixed fixture directories, and two files had once
 // written their mutants to **the same path**. Nothing said any of it. The measurement, taken at W105
@@ -728,7 +728,7 @@ if (pkg && existsSync(join(SCRIPTS, 'run-selftests.mjs'))) {
 //
 // **Its one named limit**: `dev-dist` SPLIT across a concatenation (`'dev-' + 'dist'`) is invisible, and
 // deliberately so — this file and `check-wiring-selftest.mjs` both split it on purpose, because a literal
-// that quotes the pattern it searches for is a false match for itself ([Q178](../doc/open-questions.md),
+// that quotes the pattern it searches for is a false match for itself ([Q178](../doc/questions/q178.md),
 // which this clause reproduced twice before it worked). A check cannot both use the trick and refuse it.
 if (existsSync(SCRIPTS)) {
   ran.G6 = true;
@@ -744,7 +744,7 @@ if (existsSync(SCRIPTS)) {
     // `stage()`'s copies, and the constraint is measured: a staged script derives
     // `ROOT = resolve(dirname(self), '..')` and `check-spec.mjs` imports `./check-markdown.mjs`, so one
     // directory below the repository root with its siblings beside it is the only arrangement that works
-    // — the three attempts at the top of this file. [Q182](../doc/open-questions.md) says relocating them
+    // — the three attempts at the top of this file. [Q182](../doc/questions/q182.md) says relocating them
     // would not have helped anyway, *because the copies it runs are the real checks and they write the
     // real paths*, which is the half W105 fixed instead.
     ['check-wiring-selftest.mjs', `const to = join(root, '${D}dist', f);`, 'stage() writes the copies FLAT'],
@@ -775,7 +775,7 @@ if (existsSync(SCRIPTS)) {
     // exception one file over: this lists `dev-dist` to NAME the harness's own residue by pid, so a
     // pid in the statement would defeat the thing it is for. Everything that file WRITES there
     // carries one. *It was introduced by the clause that watches for leaks and caught by `G6` on the
-    // next run* — [Q178](../doc/open-questions.md)'s shape, which `check-wiring.mjs` has recorded
+    // next run* — [Q178](../doc/questions/q178.md)'s shape, which `check-wiring.mjs` has recorded
     // twice about itself.
     ['check-budget-selftest.mjs', `const flat = readdirSync(join(root, '${D}dist'))`,
       'a READ of the shared directory, to name this run`s own residue — the pid is in what it looks for'],

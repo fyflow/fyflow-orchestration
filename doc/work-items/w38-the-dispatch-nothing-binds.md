@@ -82,7 +82,7 @@ half of what its Record is evidence for.*
 - **What the gate should COST.** That is **W39** — literal text and not a link, because the file does not exist yet and `check-markdown`'s `M1` chases every relative link. *(It was a link for about a minute, and `M1` said so.)* It takes **ADR 0039**. This
   item makes the existing cost harder to delete by accident and takes no view on whether it should be
   paid.
-- **[Q158](../open-questions.md)** — a whole `*.test.ts` file renamed out of the runner's glob,
+- **[Q158](../questions/q158.md)** — a whole `*.test.ts` file renamed out of the runner's glob,
   noticed by nothing. It is the same class one directory across, it is in nobody's `Owns`, and P11
   declared it out by name.
 - **The other five checks' clause lists.** `S14` reads the manifest for WHICH scripts to test and the
@@ -92,7 +92,7 @@ half of what its Record is evidence for.*
 
 | Clause | How it is run |
 |---|---|
-| **L0** | `npm run lint`, `npm run typecheck` — **and neither reaches this item's two files.** `lint` is `deno lint src/ test/ examples/ index.ts` and no tsconfig `include` names `scripts/`, so the rung is true and says nothing about the deliverable. There are **four** `tsc` projects plus a `deno check`, declared in `COMPOSED` in the very file this item owns. W38's conformity reader; [Q177](../open-questions.md) |
+| **L0** | `npm run lint`, `npm run typecheck` — **and neither reaches this item's two files.** `lint` is `deno lint src/ test/ examples/ index.ts` and no tsconfig `include` names `scripts/`, so the rung is true and says nothing about the deliverable. There are **four** `tsc` projects plus a `deno check`, declared in `COMPOSED` in the very file this item owns. W38's conformity reader; [Q177](../questions/q177.md) |
 | **`G1`, `G2` and `G3` themselves** | `npm run check:wiring` |
 | **they can fail** | `npm run check:wiring:selftest` — 16 probes, 8 META gradings, 6 SELF entries |
 | **the amendment's own subject** | `npm run check:source`, `npm run check:source:selftest` — the entry the clause was moved OUT of, run to show what it costs now |
@@ -185,12 +185,12 @@ costs to run — it is what it costs to run multiplied by how often the thing ar
 
 | Clause | Verdict | Notes |
 |---|---|---|
-| L0 | **pass** | `deno lint` 45 files, four `tsc` projects and a `deno check` clean — **and none of them reaches `scripts/**`**, so this row says nothing about either file this item ships. [Q177](../open-questions.md) |
+| L0 | **pass** | `deno lint` 45 files, four `tsc` projects and a `deno check` clean — **and none of them reaches `scripts/**`**, so this row says nothing about either file this item ships. [Q177](../questions/q177.md) |
 | `check:wiring` | **pass** | `G1`, `G2` and `G3` over **7** `:selftest` entries — it covers itself — in **0.61 s** bare, **1.4 s** as the gate entry |
 | `check:wiring:selftest` | **pass** | **16/16 probes caught, 8/8 graded, 6/6 bounded**, control green, **66.3 s** |
 | `check:source` | **pass** | **0.88 s**; the clause is gone from it and `GATE_CHAIN` declares the two new entries |
 | `check:source:selftest` | **pass** | **78.1 s**, 34/34 — the entry the amendment is about, run to show what it costs now |
-| whole gate | **`GATE EXIT=0`, zero FAIL lines, 21 entries** | from 19. L1 unmoved at **21 files / 574** in five runtimes, L6 unmoved at **638 assertions / 31 real runs** in both — the declared result, since this item touches no `src/`, no `spec/` and no `examples/`. **The first run was `GATE EXIT=1` on [Q142](../open-questions.md)** — `M4`'s link floor, third consecutive plan, see the `Owns` audit |
+| whole gate | **`GATE EXIT=0`, zero FAIL lines, 21 entries** | from 19. L1 unmoved at **21 files / 574** in five runtimes, L6 unmoved at **638 assertions / 31 real runs** in both — the declared result, since this item touches no `src/`, no `spec/` and no `examples/`. **The first run was `GATE EXIT=1` on [Q142](../questions/q142.md)** — `M4`'s link floor, third consecutive plan, see the `Owns` audit |
 | conformity reader | 14 findings, **6 blocking** | |
 | adequacy reader | 28 mutations, 18 survivors, **6 blocking** | |
 | re-run after the readers | **8 provocations, 4 caught, 1 vacuous, 1 ceiling, 2 survivors — both closed** | |
@@ -204,7 +204,7 @@ costs to run — it is what it costs to run multiplied by how often the thing ar
 | **and the manifest's entries are derived from disk, both ways** | `G3` — **not declared; the adequacy reader** | the four manifest probes |
 | a uniform `CHECK_<NAME>_SELFTEST` override | seven dispatches, five of them new | `G1` could not be affordable — the alternative is a real self-test run per check |
 | probes, one per check | `scripts/check-wiring-selftest.mjs`, 16 / 8 / 6 | the floor, the per-check coverage bound and the `ALL_CHECKS` coverage bound |
-| [Q149](../open-questions.md) closed | — | — |
+| [Q149](../questions/q149.md) closed | — | — |
 
 **Two of the three clauses this item ships were not in its declaration, and both readers put them
 there.** `G1` is what was declared. `G2` exists because the adequacy reader's headline was that
@@ -213,7 +213,7 @@ the gate actually runs is the one configuration `G1` never observes** — verifi
 with `if (process.env.CHECK_SPEC_SELFTEST)` wrapped round `check-spec.mjs`'s exit, `check:wiring`
 printed *All checks passed*, `check:wiring:selftest` reported 6/6 and 2/2, and
 `npm run check:spec:selftest` printed the plain spec check at exit 0 with **18 probes never running**.
-**[Q149](../open-questions.md)'s hole, verbatim, inside the check written to close it.** `G3` exists
+**[Q149](../questions/q149.md)'s hole, verbatim, inside the check written to close it.** `G3` exists
 because both new gate entries were repointable at another script, and deletable outright, for **zero**
 failures — `S12` compares entry NAMES.
 
@@ -230,7 +230,7 @@ close its neighbour. Closed by putting the pid in the name.
 answered by running the check with no flag, which runs the check. **And the property is not silent**:
 an unconditional dispatch makes `npm run check:spec` print a self-test report instead of a spec
 report — visible in the gate's own output on the first run, and fatal to that check's own probes,
-which run the plain check and read what it prints. [Q149](../open-questions.md)'s hole is the
+which run the plain check and read what it prints. [Q149](../questions/q149.md)'s hole is the
 opposite. *A clause is worth its cost in proportion to how quiet its absence is.*
 
 **3. and 4. Two relocation strategies failed for two different reasons, and each taught a constraint.**
@@ -257,7 +257,7 @@ file can print.** Closed by passing the script under test as an argument.
 all three of its clauses against the file that defines them. **Then the probe written to test `G2` did
 the same thing**: `t.replace(DISPATCH, …)` rewrote the constant instead of the dispatch, so the probe
 ran a working check and reported it as SURVIVED — the direction that does not announce itself. Both
-closed by anchoring to a line start. **[Q178](../open-questions.md)**: W25's *a comment that quotes
+closed by anchoring to a line start. **[Q178](../questions/q178.md)**: W25's *a comment that quotes
 the code it explains makes that code unmutatable*, one layer out, where the literal **is** the code.
 
 **7. `G2`'s first exit clause passed the defect it was written for.** It flattened nested `{...}`
@@ -356,7 +356,7 @@ provoked, and nothing in this repository has ever treated either as one.**
   with the clause. Over-declaration rather than an undeclared edit, and the `Tests:` row was false
   until the conformity reader read it.
 - **Late: `scripts/check-markdown.mjs` and `scripts/check-markdown-selftest.mjs`, `M4`'s link floor
-  2050 -> 2400.** **[Q142](../open-questions.md), fourth retune, third consecutive plan**, and it
+  2050 -> 2400.** **[Q142](../questions/q142.md), fourth retune, third consecutive plan**, and it
   arrived exactly where it always does: `wanted [M1,M3,M4], got [M1,M3]` in the gate, after the item
   was otherwise finished. Measured on a scratch copy outside the repository — whole tree
   **78 / 2817 / 127**, `doc/decisions` removed **60 / 2564 / 127**, both removed **48 / 2061 / 127** —
@@ -374,5 +374,5 @@ provoked, and nothing in this repository has ever treated either as one.**
   absolute path. A staged copy now loads its self-test from `scripts/`, not from beside itself.
   Nothing depends on it today; the next staging harness will meet it.
 
-**Questions raised.** [Q176](../open-questions.md), [Q177](../open-questions.md),
-[Q178](../open-questions.md).
+**Questions raised.** [Q176](../questions/q176.md), [Q177](../questions/q177.md),
+[Q178](../questions/q178.md).

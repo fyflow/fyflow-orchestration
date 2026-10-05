@@ -39,7 +39,7 @@ work item **W96**; highest ADR **0067**.*
 
 **In**: Outputs (1)-(5). **Out**: a delay on a worker with no knob (the obligation's stated limit — `Echo` and `Scorer` have
 none, and are arranged by pool mode or not at all); widening a SERIAL pool (`maxThreads` 1), which is a different perturbation
-([Q358](../open-questions.md)'s) and is named here rather than folded in; `src/**`, `spec/**`, `test/**`.
+([Q358](../questions/q358.md)'s) and is named here rather than folded in; `src/**`, `spec/**`, `test/**`.
 
 ## Verification
 
@@ -53,7 +53,7 @@ their peers, and FIVE pool flips (the three threadable types by the row knob, `E
 and implied 25; the sweep's own header counted 26 once `Download`'s flip was added, and `Scorer` was never flipped — it has no
 knob and is inline; the conformity reader's finding 7.)* **It found FOUR asserted orders `spec/` does not fix and NONE in
 `src/`**, every one in `examples/l6.ts`; each is now order-free or asserts the arrangement it rests on. L6 **2072 assertions
-over 154 runs** in both runtimes, from 2069 / 154. [Q400](../open-questions.md)-[Q402](../open-questions.md) raised; Q403-Q404
+over 154 runs** in both runtimes, from 2069 / 154. [Q400](../questions/q400.md)-[Q402](../questions/q402.md) raised; Q403-Q404
 unused and not reused. No ADR.
 
 ### What the sweep found
@@ -64,7 +64,7 @@ unused and not reused. No ADR.
 | 2 | **W94's (2h): the resumed run identical to a run nobody killed, INCLUDING the post-cut winners** — a resume re-dispatches what was in flight, so arrivals after the cut are a fresh sample; identical only because `identify`'s 30 ms per MB dwarfs the re-dispatch skew | `Download` 300 ms, 2 of 2 in both runtimes, surviving the sort | the ARRANGEMENT asserted beside it — in every resumed run the files reach the gate in size order, a SUFFICIENT condition — with a constructed reversed input as its control |
 | 3 | **(2h)'s CONTROL term `rising`: stored LENGTHS rising from one kill point to the next** — each point a SEPARATE run | `Download` threaded, intermittently in both runtimes | removed; replaced by an order-free read of the STORE — each holds exactly K stimuli (the adequacy reader: `killedAt` alone let duplicate stores through, W94's finding 1 reopened) |
 | 4 | **P22's row ordered `recheck` against three `grade:1.x`** — dispatched by two branches' settlements | `ScoreWorker` threaded or delayed, both runtimes | `recheck` alone compared as a set (`unorderedDispatch`); the other nine keep their order |
-| 5 | **(2g)'s mid-step and quiescent cuts: *one step* only while `shard:1` settles a turn after `shard:0`** | the ADEQUACY reader, with a SPEED-UP (`Shard` 0 ms) — out of (f)'s reach as worded ([Q401](../open-questions.md)) | the arrangement's effect asserted inside the same check — the quiescent store holds two stimuli |
+| 5 | **(2g)'s mid-step and quiescent cuts: *one step* only while `shard:1` settles a turn after `shard:0`** | the ADEQUACY reader, with a SPEED-UP (`Shard` 0 ms) — out of (f)'s reach as worded ([Q401](../questions/q401.md)) | the arrangement's effect asserted inside the same check — the quiescent store holds two stimuli |
 
 **Every other red names an arrangement its row DECLARES** — `joinSettledBy`, P22's overlap (Q349, Q353), a kill *arranged*
 after a park, W19's hostile order, Q394's thumbnails, Q379's sizes — **or is a claim about pool mode itself** (the realm a
@@ -82,14 +82,14 @@ runtimes, every red of one of those two kinds (`dev-dist/w97/sweep-final.log`).
 | conformity reader | RAN, isolated copy | 9 findings, 0 BLOCKING; ZERO disagreements on the VALUES; two false claims in my own comment (the key goes in at dispatch; (2h) never red under the Score flip) |
 | adequacy reader | RAN, isolated copy | 86 invocations, 11 mutations; **3 BLOCKING** — the arrangement clause sortable for zero at `Download` 60 ms, duplicate stores through `killedAt`, and a SPEED-UP's order (N1) |
 | rule 8 | RAN, two passes | pass 1 **13 / 8 caught / 3 ceilings** after two re-declarations; pass 2 with the readers' edits **18 / 11 / 4 — 0 against declaration**, digest identical at both ends |
-| `npm run gate` | RAN, **`GATE EXIT=0`, ZERO `FAIL` lines** | content digest `3f28825ecaab9461` over 416 files IDENTICAL at both ends; spec 7 / 65 / 125, markdown 161 / 7417 / 415, docs 37 / 31 / 6, L1-L5 53 / 1423 in node, deno and chromium, L6 2072 / 154 in both. **`selftests` 1842.5 s wall against W96's 1441.5 s with NO self-test changed here** — 400 s of variance on an unchanged workload, [Q373](../open-questions.md)'s shape, and not this item's cost. This row is the one edit made after the gate; `check:markdown` re-run over it |
+| `npm run gate` | RAN, **`GATE EXIT=0`, ZERO `FAIL` lines** | content digest `3f28825ecaab9461` over 416 files IDENTICAL at both ends; spec 7 / 65 / 125, markdown 161 / 7417 / 415, docs 37 / 31 / 6, L1-L5 53 / 1423 in node, deno and chromium, L6 2072 / 154 in both. **`selftests` 1842.5 s wall against W96's 1441.5 s with NO self-test changed here** — 400 s of variance on an unchanged workload, [Q373](../questions/q373.md)'s shape, and not this item's cost. This row is the one edit made after the gate; `check:markdown` re-run over it |
 
 **Readers — overlap 1** (the rule 8 ceiling `a3`/p2b: the arrangement clause's single observer, reached as a claim and as a
-mutation). **Owns audit**: zero undeclared; `AGENTS.md`'s and P24's sentences left for [Q402](../open-questions.md).
+mutation). **Owns audit**: zero undeclared; `AGENTS.md`'s and P24's sentences left for [Q402](../questions/q402.md).
 
 ### Questions
 
-**Raised: [Q400](../open-questions.md)** (`unorderedDispatch` justifies by the row, not the ids), **[Q401](../open-questions.md)**
-(obligation (f) misses a speed-up and trusts one green sample — for P25's retro) and **[Q402](../open-questions.md)**. Census
-**308 / 238 / 1 / 69**. [Q142](../open-questions.md): `M3` margin **1** before the record step — **the next plan's declaration
+**Raised: [Q400](../questions/q400.md)** (`unorderedDispatch` justifies by the row, not the ids), **[Q401](../questions/q401.md)**
+(obligation (f) misses a speed-up and trusts one green sample — for P25's retro) and **[Q402](../questions/q402.md)**. Census
+**308 / 238 / 1 / 69**. [Q142](../questions/q142.md): `M3` margin **1** before the record step — **the next plan's declaration
 FIRES it on its first document.** The next plan starts at **W98, Q405 and ADR 0068**.

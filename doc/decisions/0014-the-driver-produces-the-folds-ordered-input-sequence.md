@@ -13,7 +13,7 @@ resolves: ""
 # ADR 0014 — The driver produces the fold's ordered input sequence, and it is the log with the routing facts interleaved
 
 **Status:** accepted — **one clause corrected in place, 2026-08-30**, see *Correction*
-**Raised by:** [Q41](../open-questions.md), taken by [W5](../work-items/w5-one-real-fan-out-flow-on-a-real-scheduler.md)
+**Raised by:** [Q41](../questions/q41.md), taken by [W5](../work-items/w5-one-real-fan-out-flow-on-a-real-scheduler.md)
 under [P1](../plans/p1-what-satisfies-a-join.md)
 
 ## Context
@@ -22,7 +22,7 @@ under [P1](../plans/p1-what-satisfies-a-join.md)
 
 > **Run state is a pure fold of an event log. The driver is the only thing with side effects.**
 
-[Q14](../open-questions.md) answered *whose* log — ours — and `spec/run-state.md` made the fold real.
+[Q14](../questions/q14.md) answered *whose* log — ours — and `spec/run-state.md` made the fold real.
 Then W2's own spec-conformity pass found that two of section 3's claims were not derivable from a log
 of settlements alone, and added `dispatched` and `pathEnded` as inputs so the claims stayed claims
 rather than being narrowed into unobservability. `FoldInput` ended up with five variants.
@@ -100,7 +100,7 @@ fold a prefix of a live run and get a defined answer.
    redundancy is **checked rather than trusted**, which is the least this repository accepts after
    four conformity passes found untested claims.
 2. **`onFoldInput` is a fifth callback on `DriverOptions`.** The surface is now five outbound edges
-   and one inbound. That is a lot for one class, and it is the shape [Q21](../open-questions.md)
+   and one inbound. That is a lot for one class, and it is the shape [Q21](../questions/q21.md)
    would replace with an event family if we ever become a source for `fyflow-react-components`.
 3. **A consumer can now hold something that looks like run truth and is not.** `foldInputs()` returns
    an ordered sequence with a `stopped` element in it; someone will read it directly instead of
@@ -115,9 +115,9 @@ The composition belongs to the **caller**, which is what `onFoldInput` is: the d
 caller decides what to do with it, and `fold` never learns that a driver exists.
 
 **What it does not decide.** Whether the sequence is what gets persisted
-([Q15](../open-questions.md)) — it is the obvious candidate and `RN-R2` is what would make it
+([Q15](../questions/q15.md)) — it is the obvious candidate and `RN-R2` is what would make it
 additive, but nothing here commits to it. Nor whether `foldInputs()` should be bounded
-([Q19](../open-questions.md)): it grows with the run, exactly as the log did, and this decision adds
+([Q19](../questions/q19.md)): it grows with the run, exactly as the log did, and this decision adds
 four element kinds to that growth without measuring it.
 
 ## Alternatives rejected

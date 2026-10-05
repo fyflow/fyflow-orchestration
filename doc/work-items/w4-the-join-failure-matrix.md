@@ -61,7 +61,7 @@ skipped if unused and never reissued.
 
 3. **A quiescence verdict per cell**, which is what makes a hang reportable. Computed from the
    driver's public surface only — every dispatched task has a record, no node is suspended, and the
-   join has not fired ⇒ **`stuck`**. This is [Q7](../open-questions.md)'s detection half, and it
+   join has not fired ⇒ **`stuck`**. This is [Q7](../questions/q7.md)'s detection half, and it
    needs no clock: quiescence is a decidable predicate over the log, so a timeout would only add a
    wall-clock guess on top of an already-certain answer. Whether a join may *also* time out is what
    W4 reports on.
@@ -81,14 +81,14 @@ skipped if unused and never reissued.
    Q5's cases and this item did not declare it. It is here because the test-adequacy pass measured a
    **silent hang** one line away — no throw, no `onRunFailure`, the second join simply never fires —
    in the same commit that published an ADR about attributing hangs. The shape itself is
-   [Q45](../open-questions.md). Widening a declaration mid-item is worse than not needing to; leaving
+   [Q45](../questions/q45.md). Widening a declaration mid-item is worse than not needing to; leaving
    this uncovered was worse than both.
 
 **Out** — named rather than left implicit, with where it goes instead
 
 - **Changing either policy.** If a row shows a policy behaving badly, that is the result. `JP-R7`
   and `JP-R8` exist precisely to stop W4 fixing what it is measuring.
-- **A per-join policy choice** ([Q5](../open-questions.md)'s remainder). P1 runs one policy per run
+- **A per-join policy choice** ([Q5](../questions/q5.md)'s remainder). P1 runs one policy per run
   so the matrix has two columns rather than a product; whether a *flow author* should choose is a
   question this item can only sharpen.
 - **Run-level outcome per cell.** That is `spec/run-state.md`'s and W2's. W4 uses the quiescence
@@ -118,11 +118,11 @@ skipped if unused and never reissued.
 
 | Case | | Covered by W4 |
 |---|---|---|
-| A branch routed away from its join ([Q4](../open-questions.md)) | **this is the item** | it is a row, in both columns, and ADR 0003 is written from it |
-| `user_action` ([Q17](../open-questions.md)) | **yes** — three rows: suspended-unresolved, resumed-to-`done`, resolved-to-`failed`. What a join does while a branch is suspended is the half Q17 left to W4 |
-| No matching decision edge ([Q10](../open-questions.md)) | **yes, inside a region** — that is `branch.lost`, and it is two rows. Outside a region it is `FD-R1`'s run failure and W3 covers it |
-| A duplicate task id ([Q13](../open-questions.md)) | **not applicable** — `ID-R1` refuses it before the log is written, and no matrix row reaches it |
-| Nested fan-out ([Q6](../open-questions.md)) | **refused upstream** by `FD-V15`. No `branchPath` in this matrix is deeper than one element |
+| A branch routed away from its join ([Q4](../questions/q4.md)) | **this is the item** | it is a row, in both columns, and ADR 0003 is written from it |
+| `user_action` ([Q17](../questions/q17.md)) | **yes** — three rows: suspended-unresolved, resumed-to-`done`, resolved-to-`failed`. What a join does while a branch is suspended is the half Q17 left to W4 |
+| No matching decision edge ([Q10](../questions/q10.md)) | **yes, inside a region** — that is `branch.lost`, and it is two rows. Outside a region it is `FD-R1`'s run failure and W3 covers it |
+| A duplicate task id ([Q13](../questions/q13.md)) | **not applicable** — `ID-R1` refuses it before the log is written, and no matrix row reaches it |
+| Nested fan-out ([Q6](../questions/q6.md)) | **refused upstream** by `FD-V15`. No `branchPath` in this matrix is deeper than one element |
 
 ## Record
 
@@ -184,7 +184,7 @@ same commit that published the ADR.
 
 `test/matrix/region-shapes.test.ts` covers it. **This is outside W4's declared scope** — the
 declaration says Q5's cases × two policies, and a region *shape* is a different axis. It was widened
-deliberately rather than deferred, and the shape itself is now [Q45](../open-questions.md).
+deliberately rather than deferred, and the shape itself is now [Q45](../questions/q45.md).
 
 **4. `a join fires at most once` could not fail** — found by both readers. Removing the `firedJoins`
 latch leaves the dispatch count at 1 anyway: the second `settleJoin` re-enters the join's edge,

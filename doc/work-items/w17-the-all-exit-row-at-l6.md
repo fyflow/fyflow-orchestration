@@ -100,8 +100,8 @@ item unconditional rather than a decoration on W16.
 
 - **Any change to `src/**` or `spec/**`.** By declaration, and by W14's precedent: a real scheduler
   disagreeing with the fake is a finding about the fake and goes in the Record.
-- **A browser L6.** [Q52](../open-questions.md), untouched. L6 is Node and Deno
-  ([Q33](../open-questions.md), `RT-R10`), and `examples/**` is deliberately outside `test/**` so the
+- **A browser L6.** [Q52](../questions/q52.md), untouched. L6 is Node and Deno
+  ([Q33](../questions/q33.md), `RT-R10`), and `examples/**` is deliberately outside `test/**` so the
   browser bundle's glob cannot pull a scheduler into a runtime L6 does not run in.
 - **Making the run's termination depend on a timer.** W5's finding: replacing the harness's
   termination predicate with `setTimeout(1)` left every assertion passing, because
@@ -152,8 +152,8 @@ show the row goes red, because W5's finding says that specific substitution is w
 
 | Clause | Verdict | Notes |
 |---|---|---|
-| L0 | **green, and it caught one of this item's own repairs** | `deno lint` over 42 files; five typecheck configs — node, browser, deno, tests, examples. `X5` reports **1 of 17** under the DOM lib, which is [Q71](../open-questions.md), expected, and fails the gate if it exceeds one. **The S1 and S2 fixes below left `declaredFinished` written and never read**, and `no-unused-vars` refused it — the rung climbing from L0 doing exactly what section 4 says, on a repair that had already been provoked at L6 and looked finished. Deleted; the flag was the second source of truth in person |
-| L1-L5 | **green, and untouched by this item** | **386 in node 24.20.0, deno 2.9.6 and chromium via `npm run gate`; firefox and webkit via `npm run test:browser:all`, which the gate does NOT run** — `scripts/run-browser-tests.mjs:68` defaults to chromium alone. Five runtimes is true and two of them are not established by the declared command, which W17's conformity reader raised as section 4's own *"a rung reported green without saying which runtimes it ran in"* one step removed. Unchanged from `047efbc`: W17 writes no `src/`, no `spec/` and no `test/`. *(386 counts `test()` cases, not `equal`/`ok` calls — [Q98](../open-questions.md); L6's 342 counts individual assertions. Different nouns, same word)* |
+| L0 | **green, and it caught one of this item's own repairs** | `deno lint` over 42 files; five typecheck configs — node, browser, deno, tests, examples. `X5` reports **1 of 17** under the DOM lib, which is [Q71](../questions/q71.md), expected, and fails the gate if it exceeds one. **The S1 and S2 fixes below left `declaredFinished` written and never read**, and `no-unused-vars` refused it — the rung climbing from L0 doing exactly what section 4 says, on a repair that had already been provoked at L6 and looked finished. Deleted; the flag was the second source of truth in person |
+| L1-L5 | **green, and untouched by this item** | **386 in node 24.20.0, deno 2.9.6 and chromium via `npm run gate`; firefox and webkit via `npm run test:browser:all`, which the gate does NOT run** — `scripts/run-browser-tests.mjs:68` defaults to chromium alone. Five runtimes is true and two of them are not established by the declared command, which W17's conformity reader raised as section 4's own *"a rung reported green without saying which runtimes it ran in"* one step removed. Unchanged from `047efbc`: W17 writes no `src/`, no `spec/` and no `test/`. *(386 counts `test()` cases, not `equal`/`ok` calls — [Q98](../questions/q98.md); L6's 342 counts individual assertions. Different nouns, same word)* |
 | L6 node 24 | **green** | **342 assertions, 19 real runs.** 240 at `047efbc`; the difference is four new rows, one new unconditional per-row check across all seventeen, five `joinSettledBy` declarations and **seven** cross-row assertions (`CROSS_ROW` 6 → 13). Hand-derived to 316, 336, 341 and 342 — each matched the run's first print |
 | L6 deno | **green** | **342 assertions, 19 real runs**, same table. Both L6 runtimes required and neither skipped (`doc/workflow.md` section 4) |
 | conformity reader | **run — 7 findings, 0 blocking, verdict *conforms*** | It re-derived every value in the four rows from `spec/` before opening the file and **matched field for field, zero divergences**, and reproduced 12 of the 13 Outputs-table provocations exactly. Findings acted on below |
@@ -166,7 +166,7 @@ repairs they were not: the gate's output was filtered through a `grep` whose pat
 `deno lint`'s failure line, so a red L0 was reported here as green. Section 1 rule 4 is about skipped
 checks; this is the same defect through a filter, and it is why the numbers above name the command
 that produced them.)* **L7 did not run as a separate pass and fired once anyway** — a person reading
-the table is what caught a truncated row key, which is [Q100](../open-questions.md).
+the table is what caught a truncated row key, which is [Q100](../questions/q100.md).
 
 | Declared output | Exists | What would fail without it |
 |---|---|---|
@@ -227,10 +227,10 @@ closed now, structurally** — see S1 below.
    Closed by `Expectation.joinSettledBy`, declared on the five rows whose order is arranged and
    deliberately **not** on `p1-routed-away`, where which branch settles the join is a genuine race
    and asserting it would be the flake section 5 rule 5 forbids.
-   **[Q99](../open-questions.md)** is the other three knobs, which are still unheld.
+   **[Q99](../questions/q99.md)** is the other three knobs, which are still unheld.
 3. **The human artifact named a run that does not exist.** A hard-coded 40-column key width truncated
    `p1-routed-away LOW / live-token-requiring-arrival` to `p1-routed-away LOW / live-token-requirin`.
-   The width is now derived from the keys. **[Q100](../open-questions.md)** is the class: nothing
+   The width is now derived from the keys. **[Q100](../questions/q100.md)** is the class: nothing
    asserts a character of that table, which is W15's renderer finding in a second file.
 
 **And one thing that was wrong before this item, fixed as a record step.** The register's cluster
@@ -457,8 +457,8 @@ any `Owns` block. This item reserved no ADR, so the gap is not exercised here an
 
 | Q | |
 |---|---|
-| **[Q99](../open-questions.md)** | The L6 harness's timing arrangement is a load-bearing test input that nothing asserts. One knob closed by `joinSettledBy`; `threaded`, `delayMs` and `inline` still have none, and the honest assertion for two of them may be an ordering property the spec does not fix |
-| **[Q100](../open-questions.md)** | Ladder L6's rendered table is a deliverable no assertion reads — W15's renderer finding in a second file, and therefore a **second occurrence** for P5's retro |
+| **[Q99](../questions/q99.md)** | The L6 harness's timing arrangement is a load-bearing test input that nothing asserts. One knob closed by `joinSettledBy`; `threaded`, `delayMs` and `inline` still have none, and the honest assertion for two of them may be an ordering property the spec does not fix |
+| **[Q100](../questions/q100.md)** | Ladder L6's rendered table is a deliverable no assertion reads — W15's renderer finding in a second file, and therefore a **second occurrence** for P5's retro |
 
 **No ADR, as declared.** Nothing here needed a decision: ADR 0025 is W16's, and this item ran its
 consequences on real workers.

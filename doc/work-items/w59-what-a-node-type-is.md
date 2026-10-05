@@ -84,7 +84,7 @@ Reserves:   Q259-Q262, ADR 0049
    worker receives `{ settings, input }`, where `input` is exactly what `needs` describes or the
    ordinary edge carries. An untyped node receives what it always has, with no wrapper and no
    reserved key. **`FD-C5` defines `input` as *the value this node receives*** and is refused any
-   wording that would close the door to [Q251](../open-questions.md)'s transform.
+   wording that would close the door to [Q251](../questions/q251.md)'s transform.
 4. **The bootstrap helper is a sub-path of this package**, legal since ADR 0048, and its
    `deno.json` allowlist entry is checked by `S6`. It is the one place in the published package that
    constructs a scheduler object; `src/driver/**` still constructs none, and `createTask`'s default
@@ -97,15 +97,15 @@ Reserves:   Q259-Q262, ADR 0049
 
 **Out** — named rather than left implicit, with where each goes instead
 
-- **A `transform` on a typed node** — P17's, [Q251](../open-questions.md). This item's only
+- **A `transform` on a typed node** — P17's, [Q251](../questions/q251.md). This item's only
   obligation to it is `FD-C5`'s wording.
 - **Input and output schemas, and edge compatibility** — P18's. A node type here says nothing
   about what its worker expects or returns.
-- **Per-variant pools** — the road not taken, [Q250](../open-questions.md). Recorded in ADR 0049
+- **Per-variant pools** — the road not taken, [Q250](../questions/q250.md). Recorded in ADR 0049
   with its cost; issuing it is W60's third condition.
-- **Node type versioning** — [Q249](../open-questions.md), raised here and not decided.
+- **Node type versioning** — [Q249](../questions/q249.md), raised here and not decided.
 - **A visual editor or `fyflow-react-components`' envelope** — `doc/concept.md` section 7 and
-  [Q21](../open-questions.md). The registry is what such a thing would consume; this item builds
+  [Q21](../questions/q21.md). The registry is what such a thing would consume; this item builds
   the registry and says nothing about a UI.
 - **`map-with-context`, `map-over-region-output` and every other corpus flow** — unchanged by name.
 
@@ -121,7 +121,7 @@ what a sub-path export and a typed task reach; the table is appended to if a lat
 | `scripts/check-spec-selftest.mjs` | rule 7: the two new `C7` `fail()` sites get a probe and a `META` entry each, and the header's site count moves |
 | `scripts/check-docs.mjs` | the new `AGENTS.md` section imports `fyflow-orchestration/scheduler`, and the extractor rewrites only the root specifier; the sub-path needs its own rewrite. `RUN_FLOOR` rises by one for the section's `run` snippet, on Q102's ratchet |
 | `scripts/check-docs-selftest.mjs` | rule 7: a probe for the sub-path rewrite |
-| `scripts/check-markdown.mjs` | **predicted, and it did NOT fire**: `M4`'s two-directory fixture was measured at **3537** against a floor of **3960** before any document was written, a margin of 423 links; W58 alone moved it by 430 with the same document shapes this item writes. On the final tree the fixture is **3591** — a margin of 369, this item having moved it by 54 — because its prose landed under `doc/work-items/` and `doc/decisions/`, which the probe cuts. The file was not edited; the row stays as the record of a prediction that was checked rather than assumed ([Q142](../open-questions.md)) |
+| `scripts/check-markdown.mjs` | **predicted, and it did NOT fire**: `M4`'s two-directory fixture was measured at **3537** against a floor of **3960** before any document was written, a margin of 423 links; W58 alone moved it by 430 with the same document shapes this item writes. On the final tree the fixture is **3591** — a margin of 369, this item having moved it by 54 — because its prose landed under `doc/work-items/` and `doc/decisions/`, which the probe cuts. The file was not edited; the row stays as the record of a prediction that was checked rather than assumed ([Q142](../questions/q142.md)) |
 | `spec/outcome-record.md` section 4 | **predicted, W58's first exception**: W54's suite re-derives the corpus split on every run, and this item's one corpus flow and two L6 flows move it |
 | `spec/run-state.md` section 7 | **predicted, W58's second exception**: the same count's third copy, in the present tense |
 
@@ -145,11 +145,11 @@ inside a `fanout` branch, and a typed `map` branch at arity three — the last b
 receives its own item as `input` under `JP-R11` and the envelope must wrap that, not the map node's
 value.
 
-**Routing coverage.** A nested fan-out ([Q6](../open-questions.md)) **is covered** by the
-fanout-branch shape. `user_action` ([Q17](../open-questions.md)) **is covered** by the retrying
+**Routing coverage.** A nested fan-out ([Q6](../questions/q6.md)) **is covered** by the
+fanout-branch shape. `user_action` ([Q17](../questions/q17.md)) **is covered** by the retrying
 typed node, whose role is non-optional. A branch routed away from its join
-([Q4](../open-questions.md)), no matching decision edge ([Q10](../open-questions.md)) and a
-duplicate task id ([Q13](../open-questions.md)) are **not applicable** — a type changes what a node
+([Q4](../questions/q4.md)), no matching decision edge ([Q10](../questions/q10.md)) and a
+duplicate task id ([Q13](../questions/q13.md)) are **not applicable** — a type changes what a node
 receives and what pool runs it, never an edge or an id.
 
 **Before this item is done it greps the tree for `W59`** outside `doc/` — at this declaration that
@@ -165,7 +165,7 @@ Started on `f329620` (W58's commit), tree clean, no other session in the tree (l
 write 08:03 against a commit at 08:10). `node dev-dist/p16/facts.mjs` under Node 24.20.0: **fact 2
 reproduced** (`workerGroups: ["nope"]` → `done`, `task.running, task.completed`, nothing blocked)
 and **fact 1 printed `retryPolicy,workerGroups,handleRejection,limitKey` as `unreachable` at exit 0**
-on a tree that reaches two of them — [Q253](../open-questions.md)'s fifth and sixth ways, exactly as
+on a tree that reaches two of them — [Q253](../questions/q253.md)'s fifth and sixth ways, exactly as
 W58 recorded them, not patched a seventh time. Section 5's highest id confirmed **`FD-V31`**, section
 3's **`FD-C4`**, so the new ids are `FD-V32`-`FD-V34` and `FD-C5`. `M4`'s two-directory fixture
 measured on a scratch copy before any document was written: **3537 against a floor of 3960**, a
@@ -210,7 +210,7 @@ restore. *(Author-pass numbers; re-taken after the readers at the foot of this t
 | adequacy reader | **37 mutations + 1 control / 20 caught / 12 vacuous as predicted / 4 BLOCKING**, in the isolated copy, green at start and at end | **None of the four was reached by the author's 93 probes**, and each is one direction the author's set never took. **B1**: the helper's both-ways group check had NO falsifier for the claim it exists for — every fixture had map key == the group object's own name, so a helper checking the inert NAME (ADR 0049 fact 2 says the scheduler reads the KEY) survived L1 AND L6; closed by a fixture whose key differs, and L6's type group is now registered under a key that is not its name. **B2**: `FD-C5` enumerates FOUR kinds of `input` and the suites instantiated three — a driver handing a typed JOIN SUCCESSOR `{}` instead of `JP-R12`'s collection cost 0 at L2 and L6 while the clean tree demonstrably produced the collection there; closed by a fourth shape in `task-shapes.ts`, both suites and the corpus flow (`publish` typed), **obligation (a)'s shapes clause on the rule's own enumeration, one shape past the three the item had chosen** — L1-L5 **835 → 858**. **B3**: the driver's construction loop over `nodeTypes` was bounded by one-entry fixtures; the malformed type is SECOND now. **B4**: ADR 0049 rule 5's second half — *the pure entry does not export the helper* — was bound by NOTHING: `export * from './src/scheduler/index.ts'` appended to `index.ts` was green at `check:source` (`S7` permits the bare specifier anywhere since ADR 0048), L1, lint, all five typechecks AND the browser bundle; closed by an L1 assertion over the root's exports. **Non-blocking, taken**: `ACCEPTED` bounded; an arrow-default fixture for the wrapper's prototype clause; a type whose `settings` is NOT a function refused at construction naming the TYPE rather than as *the validator THREW* on every node; the three map instances' inputs asserted distinct FROM THE RUN (+1 cross-row, **1281**). **Recorded**: a group is acquired once per ADMISSION and not per retry — measured on a threaded pool at `maxThreads: 2` with no retry, `acquired, released, acquired, task.running, released`, so **Q262's mechanism was wrong as first written** and the typed rows' `heldGroups` are a property of an inline pool with no contention; the envelope worker on a real thread at `maxThreads: 1` is green in BOTH runtimes; section 13's `check` snippet is deletable for zero (`RUN_FLOOR` counts `run` snippets only); the L2 pair's two halves are both the driver's; (2c)'s third clause reads a path SUFFIX; five vacuous clauses stated. **Overlap 1** — the `package.json` sub-path entry, reached from opposite ends (two layouts; a suffix-only clause) — the **thirty-fourth** measurement, inside the 0-4 band, neither reader primed |
 | re-run, tree held still | **103 probes: 88 caught, 1 control green, 10 declared ceilings each RUN, 1 threaded measurement, 3 revert measurements, 0 undeclared, 0 crashes, 0 against declaration, 1 abort re-anchored and then caught** | the author's 93 plus the readers' ten exact edits (`r1`-`r10`) — all eight adequacy edits CAUGHT by the test each forced, the threaded flip MEASURED at 1 as the reader found, the conformity finding DECLARED as the `doc/` limit it is. **`d2` ABORTED on the re-run**: its anchor was the L2 shapes array's tail, and the fourth shape moved it — rule 7 (b) firing correctly, the harness undoing what it had applied (digest unchanged), re-anchored on the new tail and caught. Digest `08f8313723a8844b over 274 files` before and after every batch |
 | revert costs, on the tree that ships | **W57: 88 · W58: 11 · W59: 11** | W59 rose 10 → 11: the new distinct-inputs clause reads the typed instances' results and goes red when the envelope is gone |
-| `npm run gate` | **GATE EXIT=0, zero lines beginning FAIL, 15 chain entries — on the FIRST run over the final tree** | redirected to `dev-dist/w59/gate.log` and read from `$?`; content digest **`610f08437f4d163f over 274 files`** before and after, identical. 32 / 858 in node, deno and chromium (firefox and webkit at 858 by `test:browser:all`, same directory); L6 **1281 / 0 in both runtimes**; spec 7 / 51 / 99; markdown 109 documents, 4866 relative links, 250 anchored; docs 25 / 20; **selftests 7/7 completed, 7 ok, 499.8 s wall** (Q179's band) — `check:markdown` **37/37, 7/7** (so [Q142](../open-questions.md) did NOT fire: on a scratch copy of the final tree the two-directory fixture is **3591 against 3960**, a margin of 369 — this item's link-dense prose landed in `doc/work-items/` and `doc/decisions/`, and the second `removes` probe cuts the latter), `check:docs` 19/19, `check:spec` 26/26 · 25/25, `check:source` 41/41, `check:scheduler` 41/41, `check:wiring`, `check:policies` 13/13. **`W59` outside `doc/`: 108 hits in 23 files, every one this item's own annotation or a record-step index line** (3 at `f329620`). Diff: 30 files changed, 1404 insertions, 129 deletions, plus 14 untracked, every one `i/lf w/lf`. This row and two index counts are the edits after the gate's digest |
+| `npm run gate` | **GATE EXIT=0, zero lines beginning FAIL, 15 chain entries — on the FIRST run over the final tree** | redirected to `dev-dist/w59/gate.log` and read from `$?`; content digest **`610f08437f4d163f over 274 files`** before and after, identical. 32 / 858 in node, deno and chromium (firefox and webkit at 858 by `test:browser:all`, same directory); L6 **1281 / 0 in both runtimes**; spec 7 / 51 / 99; markdown 109 documents, 4866 relative links, 250 anchored; docs 25 / 20; **selftests 7/7 completed, 7 ok, 499.8 s wall** (Q179's band) — `check:markdown` **37/37, 7/7** (so [Q142](../questions/q142.md) did NOT fire: on a scratch copy of the final tree the two-directory fixture is **3591 against 3960**, a margin of 369 — this item's link-dense prose landed in `doc/work-items/` and `doc/decisions/`, and the second `removes` probe cuts the latter), `check:docs` 19/19, `check:spec` 26/26 · 25/25, `check:source` 41/41, `check:scheduler` 41/41, `check:wiring`, `check:policies` 13/13. **`W59` outside `doc/`: 108 hits in 23 files, every one this item's own annotation or a record-step index line** (3 at `f329620`). Diff: 30 files changed, 1404 insertions, 129 deletions, plus 14 untracked, every one `i/lf w/lf`. This row and two index counts are the edits after the gate's digest |
 
 **Outputs — what was actually built.**
 
@@ -243,12 +243,12 @@ restore. *(Author-pass numbers; re-taken after the readers at the foot of this t
 3. **A retried task acquires its pool's group once per ATTEMPT.** The typed pair row expected
    `high` to have held `scorer` once and read `['scorer', 'scorer']` on its first run: the
    scheduler's retry re-enters admission. The row now expects two, with the reason beside it, and
-   it is [Q262](../open-questions.md) — the scheduler's reference does not say it.
+   it is [Q262](../questions/q262.md) — the scheduler's reference does not say it.
 4. **The bootstrap suite's browser run failed on a path that is true in Node and Deno and false in
    a bundle.** `ENVELOPE_WORKER_URL` ends in `/src/scheduler/envelope-worker.ts` where
    `import.meta.url` is the module's; in the browser bundle it is the bundle's, so the worker
    resolves beside the bundle. Narrowed to the file name, and recorded as
-   [Q261](../open-questions.md): a bundled consumer ships the envelope worker as a sibling asset.
+   [Q261](../questions/q261.md): a bundled consumer ships the envelope worker as a sibling asset.
 5. **`check-spec`'s `C7` was wrong about the corpus the moment `typed.flow.json` existed**: it read
    every valid task's `workerType` against `registry.json`, and a typed task has none. A declared
    exception before the file was written; `C7` gained a `type`-against-`nodeTypes` clause and an
@@ -332,8 +332,8 @@ restore. *(Author-pass numbers; re-taken after the readers at the foot of this t
   adequacy reader found bounds that were not there (a fixture, a shape, a loop, an export).
   Overlap 1, from opposite ends.
 
-**Questions raised.** [Q259](../open-questions.md) (the definition held by reference — the road a
-refused settings value takes to a worker), [Q260](../open-questions.md) (a type name colliding
-with a bare pool key), [Q261](../open-questions.md) (the envelope worker in a bundle),
-[Q262](../open-questions.md) (a group acquired once per attempt). [Q239](../open-questions.md)
+**Questions raised.** [Q259](../questions/q259.md) (the definition held by reference — the road a
+refused settings value takes to a worker), [Q260](../questions/q260.md) (a type name colliding
+with a bare pool key), [Q261](../questions/q261.md) (the envelope worker in a bundle),
+[Q262](../questions/q262.md) (a group acquired once per attempt). [Q239](../questions/q239.md)
 extended with the corpus split. **ADR 0049 taken; W60 not issued.**

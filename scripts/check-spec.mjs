@@ -49,7 +49,7 @@ if (process.argv.includes('--self-test')) {
   process.exit(await selfTest(ROOT));
 }
 
-// **`FD-C` is the ninth prefix and W41 added it** — [Q164](../doc/open-questions.md),
+// **`FD-C` is the ninth prefix and W41 added it** — [Q164](../doc/questions/q164.md),
 // resolved. `spec/flow-definition.md` has `FD-V` for a rule about what a DOCUMENT
 // may say and `FD-R` for one about what a RUN refuses, and until v0.11 it had none
 // for a rule about **what a run CARRIES**, so that contract lived in section 3 as
@@ -126,7 +126,7 @@ for (const [id, where] of declared) {
 // **And `RULE_PREFIXES` itself is bound to the documents, both ways** — W41. Rule 8
 // measured that dropping `FD-C` from that list costs **zero**: the two `FD-C` rules
 // then match neither pattern, so they are neither declared nor cited and every check
-// is silent. That is exactly [Q164](../doc/open-questions.md)`s defect — *a rule
+// is silent. That is exactly [Q164](../doc/questions/q164.md)`s defect — *a rule
 // declared, cited and checked by nothing* — surviving inside the fix for it, and it
 // is obligation (e)'s SECOND QUESTION on a product item: the list was bound to
 // nothing, so what the check RAN was not what `spec/` SHIPS.
@@ -198,7 +198,7 @@ for (const id of covered) {
  * 28 for zero** while this script printed 27 in the same terminal. The row already
  * carries a correction from W41's conformity reader for that exact defect, so this is
  * the second occurrence — and the count is derivable here in one expression, which is
- * the argument [Q102](../doc/open-questions.md) asks for before a floor becomes a
+ * the argument [Q102](../doc/questions/q102.md) asks for before a floor becomes a
  * binding.
  *
  * Both statements are compared, because they are two literals and either can drift
@@ -387,7 +387,7 @@ if (existsSync(README)) {
     // rows were unbound, and they were exactly the two documents the item that
     // found this had just bumped** — the clause binds least on the rows most likely
     // to be edited, which is the opposite of what a staleness check is for.
-    // [Q162](../doc/open-questions.md)'s class in a second check.
+    // [Q162](../doc/questions/q162.md)'s class in a second check.
     //
     // **Inert on the corpus**: all six columns were already correct, so this ships
     // with no live case and its evidence is its probe (`doc/workflow.md` section 5
@@ -437,7 +437,7 @@ for (const c of checks) {
   // expression W24 repaired in `check-source.mjs`, where `c.slice(0, 2)` read
   // `S10`-`S13` all as `S1`, so four rows printed one check's failure count and
   // their own never appeared. **W24 fixed its own copy and this sibling kept the
-  // defect**, which is [Q137](../doc/open-questions.md)'s shape — a lift moves an
+  // defect**, which is [Q137](../doc/questions/q137.md)'s shape — a lift moves an
   // implementation and does not move the guards the two sides needed differently —
   // one file across.
   //

@@ -1373,7 +1373,7 @@ suite('ADR 0030 — a region behaves the same whether or not it is nested', (tes
  * `render.ts` prints it and no `package.json` script executes `render.ts`, which
  * is exactly the hole W15's adequacy reader found seven surviving mutations in.
  * Four rows shown to nobody would be that defect with the halves swapped
- * ([Q100](../../doc/open-questions.md)).
+ * ([Q100](../../doc/questions/q100.md)).
  */
 suite('the depth-2 table renders, and the multi-region arm is executed', (test) => {
   const rows = nestedRows();
@@ -1734,7 +1734,7 @@ suite('L5 at a run-time arity — the matrix over a `map` region', (test) => {
  * **The map table renders, and it is asserted the way the depth-2 one is** —
  * [W34](../../doc/work-items/w34-what-a-branch-receives-and-what-a-join-carries.md).
  * `render.ts` is executed by no npm script, so a deliverable produced only there
- * is a deliverable nobody built ([Q100](../../doc/open-questions.md)); the whole
+ * is a deliverable nobody built ([Q100](../../doc/questions/q100.md)); the whole
  * render is a function this suite imports, and these five rows join the twelve
  * that were already checked.
  */

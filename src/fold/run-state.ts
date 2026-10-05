@@ -4,7 +4,7 @@
  * **Pure.** `fold(log)` reads nothing but `log`: no clock, no scheduler, no IO,
  * no module-level mutation, no memoisation across calls (`RN-R1`). That is what
  * ladder L3 checks by folding the same log twice and deep-comparing, and it is
- * what makes [Q14](../../doc/open-questions.md)'s answer an answer rather than a
+ * what makes [Q14](../../doc/questions/q14.md)'s answer an answer rather than a
  * restated leaning.
  */
 import type { LogRecord, OutcomeRecord } from '../driver/log.ts';
@@ -184,7 +184,7 @@ export interface GateDecision {
  * the driver routed out of the join.
  *
  * **`Driver.foldInputs()` is what produces this sequence** — ADR 0014, and
- * [Q41](../../doc/open-questions.md). Until W5 nothing did, and `pathEnded` in
+ * [Q41](../../doc/questions/q41.md). Until W5 nothing did, and `pathEnded` in
  * particular had no producer anywhere.
  */
 export type FoldInput =
@@ -477,7 +477,7 @@ function withOutcome(s: RunState): RunState {
   // Nothing is live and nothing waits on a person, so no further input can
   // arrive; if a region's join has not fired, nothing downstream of it ever will.
   // v0.2 reported that run as `completed`, which is the false statement
-  // [Q43](../../doc/open-questions.md) records and W5 measured on a real
+  // [Q43](../../doc/questions/q43.md) records and W5 measured on a real
   // scheduler.
   //
   // It sits BELOW `awaiting_action` and `running` because both mean the run can

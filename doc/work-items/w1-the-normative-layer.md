@@ -61,7 +61,7 @@ already know about, and says nothing about the work that arrives.**
    carry a predicate name **and the terminal states they are eligible for**, how a fan-out region is
    paired with its join, and twenty numbered validation refusals.
 2. **`spec/task-id.md`** — the scheduler task id scheme, its charset, its total parse, and the
-   duplicate-dispatch refusal. Settles [Q13](../open-questions.md).
+   duplicate-dispatch refusal. Settles [Q13](../questions/q13.md).
 3. **`spec/outcome-record.md`** — the field list that makes [ADR 0007](../decisions/0007-the-driver-normalizes-events-into-an-immutable-outcome-record.md)
    rule 1 checkable, given as `field <- source expression` so a reviewer can tell a compliant copy
    from a `{...e.detail}` spread by reading the field list alone.
@@ -79,7 +79,7 @@ already know about, and says nothing about the work that arrives.**
 
 - **The run-state shape.** `spec/README.md`'s table names three documents and one of them is *Run
   state*; W1 does not write it. What W2 and W3 must agree on is the *outcome log* and the *join
-  policy state*, and both are here. Run state proper is what [Q14](../open-questions.md) is about
+  policy state*, and both are here. Run state proper is what [Q14](../questions/q14.md) is about
   and **W2 is the item that tests it** — writing it here would put the answer in the spec before
   the item that checks it has run. `spec/README.md` is updated to say so.
 - **A validator.** W1 states the refusals and supplies the cases; the code that rejects them is
@@ -87,15 +87,15 @@ already know about, and says nothing about the work that arrives.**
   spec-conformity pass correctly read as nobody's — neither item's declared gate contained L4. ADR
   0002 rule 3 validates at instantiation and instantiation is a driver action, so it is W3's, and
   [P1](../plans/p1-what-satisfies-a-join.md)'s table now says so.
-- **Payload flow between nodes** ([Q11](../open-questions.md)) and **what a decision sees**
-  ([Q8](../open-questions.md)). The predicate signature is fixed as a single `DecisionContext`
+- **Payload flow between nodes** ([Q11](../questions/q11.md)) and **what a decision sees**
+  ([Q8](../questions/q8.md)). The predicate signature is fixed as a single `DecisionContext`
   argument whose *contents* are Q8's subject; P1 populates one field. Adding accumulated state
   later is additive rather than a signature change.
-- **Map-style fan-out** ([Q12](../open-questions.md)), **nested fan-out**
-  ([Q6](../open-questions.md)) and **convergent branches** ([Q27](../open-questions.md)). All three
+- **Map-style fan-out** ([Q12](../questions/q12.md)), **nested fan-out**
+  ([Q6](../questions/q6.md)) and **convergent branches** ([Q27](../questions/q27.md)). All three
   are refusals here (`FD-V15`, `FD-V19`) with the id scheme's branch-path segment left shaped to
   admit them without a format change.
-- **Flow-level retry** ([Q16](../open-questions.md)). The id carries an attempt segment from the
+- **Flow-level retry** ([Q16](../questions/q16.md)). The id carries an attempt segment from the
   first version so Q16 cannot force an id format change; P1 only ever emits `0`.
 - **Resolving a `user_action` node.** [ADR 0004](../decisions/0004-a-non-success-outcome-routes-only-where-an-edge-opts-in-and-user-action-suspends.md)
   rule 5 is explicit that this library does not obtain a human decision. W1 fixes the *record* a
@@ -160,11 +160,11 @@ one way, and would the example corpus have noticed a rule stated backwards.
 
 | Case | | Covered by W1 |
 |---|---|---|
-| A branch routed away from its join ([Q4](../open-questions.md)) | **yes, and it is the item's sharpest constraint** | `FD-V13`, the note under `FD-V14`, and `spec/examples/valid/p1-routed-away.flow.json`. The obvious rule *"every fan-out branch must reach its join"* would make P1's own case unauthorable, so it is **not** a rule — see the document |
-| `user_action` ([Q17](../open-questions.md)) | **detection only** | `OR-R3` — one record per settlement, keyed on `detail.state`. How it surfaces at flow level is W4's |
-| No matching decision edge ([Q10](../open-questions.md)) | **yes, answered** | `FD-V7` at instantiation, `FD-R1` as the runtime assertion |
-| A duplicate task id ([Q13](../open-questions.md)) | **yes, answered** | `spec/task-id.md`, `ID-R1`. The refusal test is W3's and is named there |
-| Nested fan-out ([Q6](../open-questions.md)) | **refused, deliberately** | `FD-V15`. The id scheme's branch-path segment admits it without a format change |
+| A branch routed away from its join ([Q4](../questions/q4.md)) | **yes, and it is the item's sharpest constraint** | `FD-V13`, the note under `FD-V14`, and `spec/examples/valid/p1-routed-away.flow.json`. The obvious rule *"every fan-out branch must reach its join"* would make P1's own case unauthorable, so it is **not** a rule — see the document |
+| `user_action` ([Q17](../questions/q17.md)) | **detection only** | `OR-R3` — one record per settlement, keyed on `detail.state`. How it surfaces at flow level is W4's |
+| No matching decision edge ([Q10](../questions/q10.md)) | **yes, answered** | `FD-V7` at instantiation, `FD-R1` as the runtime assertion |
+| A duplicate task id ([Q13](../questions/q13.md)) | **yes, answered** | `spec/task-id.md`, `ID-R1`. The refusal test is W3's and is named there |
+| Nested fan-out ([Q6](../questions/q6.md)) | **refused, deliberately** | `FD-V15`. The id scheme's branch-path segment admits it without a format change |
 
 ## Record
 
@@ -225,7 +225,7 @@ difference between those three groups is itself the finding.
    both properties explicit, and with a note saying why they are stated at all.
 6. **`branchPath` was undefined when two branch entries converge**, so two conformant drivers
    dispatch a shared node once or twice and the join sees a different arrival count. `FD-V19`
-   refuses convergence; [Q27](../open-questions.md) is whether to allow it.
+   refuses convergence; [Q27](../questions/q27.md) is whether to allow it.
 7. **`live-token` could fire while a branch was still running**, because nothing fixed the order of
    `branch.opened`. `JP-R5` now makes the opening order a **driver** obligation — deliberately not a
    change to either policy, since *"seed the count from `branches.length`"* would have repaired
@@ -275,7 +275,7 @@ soundness argument untrue).
   duplicate id produced one record and a vanished execution. The success path never resolves by id —
   `_dispatchTask` closes over the task object (`core/FyflowScheduler.ts:723-727`) — so **two**
   records land under one key. Correct citations, wrong inference. It had been copied verbatim into
-  [Q13](../open-questions.md)'s resolution, which is corrected too.
+  [Q13](../questions/q13.md)'s resolution, which is corrected too.
 - **`FD-V14` was stated in the form that does not hold.** *"A branch must be able to reach its
   join"* is true of `scoreB` in P1's own example, so that rule would forbid nothing. The rule that
   would have deleted the case is the **all-paths** form. The argument was right; the sentence was
@@ -365,7 +365,7 @@ stated in place, per `doc/decisions/README.md`. **ADR 0004 is different in kind*
 the driver *is* — it now accepts an inbound command — and no spec document could carry that without
 restating it three times.
 
-**Cross-repo.** ADR 0004 answers the *mechanism* half of [Q17](../open-questions.md), which
+**Cross-repo.** ADR 0004 answers the *mechanism* half of [Q17](../questions/q17.md), which
 `fyflow-react-components` carries as **their Q16** and still has open. `doc/README.md` calls
 answering a shared question differently in two repos *"a bug with two homes"*, so this is now theirs
 to reconcile with rather than a question both repos are still holding.

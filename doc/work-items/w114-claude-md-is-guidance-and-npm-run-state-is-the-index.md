@@ -49,7 +49,7 @@ Outputs:    (1) `CLAUDE.md` under P27 decision 1's 25 KB budget: the `Current st
             whose Status line contradicted their own Record**, which is section 1 rule 5's
             one named source for a status
             (5) the live paragraph W113 added to `## Working rules` SURVIVES — W113's
-            obligation (c), the closed half of [Q465](../open-questions.md)
+            obligation (c), the closed half of [Q465](../questions/q465.md)
             (6) `check:budget`'s `CLAUDE.md` ceiling and total lowered to this item's own
             post-cut measurement — W112's obligation (d), and the LAST act
 Depends on: W112 (the budget and the floors) and W113 (the register), both DONE. Neither
@@ -87,7 +87,7 @@ the block so that **the budget is reachable by deletion alone**.
 
 **Its hard part is not the deletion.** It is W107's demonstration — *what goes must be shown to have
 a home FIRST* — applied to 2,549 lines, with W113's correction in force: **a phrase search answers
-whether the WORDS have a home, not whether the FACT does** ([Q468](../open-questions.md)). Section 3
+whether the WORDS have a home, not whether the FACT does** ([Q468](../questions/q468.md)). Section 3
 is that demonstration, and it names the one region that has no home.
 
 ## 1. Section sizes, re-taken
@@ -113,7 +113,7 @@ ends in a newline and carries no CR).
 ## 2. Four of the handed-over figures are wrong, and three in the direction that matters
 
 **Before calling any of them wrong the predicate is stated and checked against the one the claim
-uses** — [Q469](../open-questions.md), where W113 called P27's *17%* wrong at *4%* using six
+uses** — [Q469](../questions/q469.md), where W113 called P27's *17%* wrong at *4%* using six
 phrasings, none of them the phrase the rows use, and P27 had been right.
 
 | figure | handed over | measured | the predicate, and why they differ |
@@ -121,14 +121,14 @@ phrasings, none of them the phrase the rows use, and P27 had been right.
 | `CLAUDE.md`'s size | 556 KB (P27) / 570,963 (brief) | **570,963 bytes** | P27's figure is 557.6 KiB read as KB and taken before W112's and W113's edits. The brief's is right |
 | the `Current state` block | 519 KB (P27) / 532,020 (brief) | **532,021 bytes**, L21-2569 | the brief is one byte low: it counts the region WITHOUT line 2569's terminator. The accounting that matters is `block + stays = total`, and 532,021 + 38,942 = 570,963 exactly |
 | what stays | 37 KB (P27) / 38,943 (brief) | **38,942 bytes** | the same one byte, from the other side |
-| **where decision 4's copied figures are** | *"about a third out of the 38,943 that remain, which is where P27 decision 4's copied figures are"* | **ZERO of them are in what stays. All 343 are in the block** | measured one class at a time over both regions, PER LINE: L1-L5 counts 193/0, census quadruples 75/0, `check:spec` triples 33/0, L6 assertion counts 34/0, refusal counts 8/0. Bare numbers are **3,990 in the block against 138 in what stays** — and under ONE predicate the densities are **3.5 per KiB in what stays against 7.4 across the file**, not the 8.6 this row first printed, which was P27's figure under P27's predicate set beside mine. *(The conformity reader found the mixed predicate — [Q469](../open-questions.md)'s hazard, one paragraph after this table cites it. The conclusion is unmoved and the comparison is now apples to apples. That reader's own census-quadruple figure of 74 is neither reading: it is **75** per line, **76** if a figure may span a line break.)* **So the 34% cut from what stays is NOT decision 4's class** — §5 says what it is |
+| **where decision 4's copied figures are** | *"about a third out of the 38,943 that remain, which is where P27 decision 4's copied figures are"* | **ZERO of them are in what stays. All 343 are in the block** | measured one class at a time over both regions, PER LINE: L1-L5 counts 193/0, census quadruples 75/0, `check:spec` triples 33/0, L6 assertion counts 34/0, refusal counts 8/0. Bare numbers are **3,990 in the block against 138 in what stays** — and under ONE predicate the densities are **3.5 per KiB in what stays against 7.4 across the file**, not the 8.6 this row first printed, which was P27's figure under P27's predicate set beside mine. *(The conformity reader found the mixed predicate — [Q469](../questions/q469.md)'s hazard, one paragraph after this table cites it. The conclusion is unmoved and the comparison is now apples to apples. That reader's own census-quadruple figure of 74 is neither reading: it is **75** per line, **76** if a figure may span a line break.)* **So the 34% cut from what stays is NOT decision 4's class** — §5 says what it is |
 | distinct `**Status:**` value shapes | FORTY | **50 raw / 9 normalised**, and **neither is 40** | predicate A (the raw value verbatim) is 50; predicate B (strip bold, take the text before the first dash) is 9. I could not construct a predicate that gives 40, and say so rather than adopting it |
 | what the `**Status:**` precondition COSTS | *"not ADD the line (7 files) but make its VALUE parseable (55+)"* | **7 files** | 55 is `87 − 32 bare `done``, which is predicate C. **A parse does not need a bare `done`; it needs a parseable LEADING TOKEN**, and under that predicate **74 of 87 already parse**. The 13 that do not split into **4** `reserved` — a fifth state the template did not declare, added to it — and **9** `**DONE** 2026-09-26 — see the Record`, whose separator is already THERE with the DATE between it and the word. *(This row said **7 + 9 = 16 files** and prescribed inserting a separator into the nine. They are byte-identical to `HEAD` on that line: matching the vocabulary as a word-boundary PREFIX is one expression in one file against rewriting nine items' prose, and `state.mjs`'s own docstring records the choice. **The conformity reader found the item still prescribing the abandoned road.**)* |
 | what the `Question:` precondition COSTS | *"6 of 27 parse"* | **ZERO files** | three predicates, not one: the fenced `Question:` line is **6**, `doc/plans/TEMPLATE.md`'s own `**Question this plan answers:**` is **16**, either is **22 of 27**, and the H1 TITLE carries it for the remaining **5** — so **27 of 27 identify with no plan file edited**. **So P27 decision 5's *"P25's did not parse"* is the prototype reading one of two declared shapes**: P25 uses the template's. *(This row said **5 files**. Writing a question line into P18 would have been the AUTHOR's question and not the plan's — that file states no question sentence anywhere — which is the one thing W107's method forbids, so the title became a third declared source and is MARKED as one in the output.)* |
 | `npm run state` | ABSENT | **ABSENT**, and the gate chain is **16 entries** | both right |
 | the tree | `gate` and `gate:full` EXIT 0; `check:markdown` 186 / 6830 in 181 / 35; `check:budget` 893,682 against 897,741 with `CLAUDE.md` at 575,022; `check:spec` 7 / 72 / 132; census 362 / 282 / 1 / 79 | **every one re-run and confirmed** | `check:budget` and `check:markdown` RUN and redirected at this declaration step, both EXIT 0, figures identical |
 
-**And the register's [Q465](../open-questions.md) row is stale by W113's own work**, which this item
+**And the register's [Q465](../questions/q465.md) row is stale by W113's own work**, which this item
 found by looking up the row obligation (c) names. It reads *"The always-read set is three paths bound
 to three more paths, and a FOURTH always-read document is invisible to the budget."* ADR 0077
 consequence 5 says the first half stands and **the second does not** — W113 withdrew the instruction
@@ -138,7 +138,7 @@ record-step file, so it is corrected there rather than here.
 
 ## 3. The home demonstration — W107's method, as W113 corrected it
 
-**The instrument was wrong twice before it was right, and both are [Q470](../open-questions.md)'s
+**The instrument was wrong twice before it was right, and both are [Q470](../questions/q470.md)'s
 class**, which is why the procedure is stated before the result.
 
 1. **v1 split the block on BLANK LINES.** The block has runs of five consecutive non-blank owner
@@ -207,8 +207,8 @@ gets **78.9%**, so the match is about the owner rather than about the corpus.
    changes, the defect counts, the ceiling re-run and the confirming gate, in fuller form.
 4. **The three live facts the block carries that are not a status**: *`npm run gate` runs
    `test:browser`, which is CHROMIUM ONLY* (in **24** other tracked `.md` files, including
-   `doc/README.md`); *the runner counts `test()` cases, not assertions* ([Q98](../open-questions.md)'s
-   own row); and *a register entry was wrong* ([Q43](../open-questions.md)'s resolved row,
+   `doc/README.md`); *the runner counts `test()` cases, not assertions* ([Q98](../questions/q98.md)'s
+   own row); and *a register entry was wrong* ([Q43](../questions/q43.md)'s resolved row,
    `spec/run-state.md` section 5, and `doc/workflow.md`'s v0.8 block).
 
 ### So the only thing with no written home is the ledger, and that is what `npm run state` derives
@@ -303,7 +303,7 @@ what was added rather than kept.)*
 **Out** — named, with where it goes instead
 
 - **`doc/README.md` and `doc/workflow.md`.** W115's, and `doc/README.md` is
-  [Q466](../open-questions.md). **`doc/workflow.md` section 1's loop diagram still says the record
+  [Q466](../questions/q466.md). **`doc/workflow.md` section 1's loop diagram still says the record
   step updates `CLAUDE.md`**, twenty lines above the rule that says it left the list — found here,
   reported, and NOT fixed, because that file is W115's.
 - **The `## Working rules` paragraph W113 added.** Obligation (c): it must survive, and it does.
@@ -351,7 +351,7 @@ Paths outside `Owns` and outside the record step's five:
 
 **Within the record step's five**: the plan's Record, `doc/README.md` (its *seven files in all, as
 `CLAUDE.md` counts them* — the new file counts nothing), `README.md`, `doc/open-questions.md`
-(including the stale [Q465](../open-questions.md) row §2 names) and `doc/decisions/**`
+(including the stale [Q465](../questions/q465.md) row §2 names) and `doc/decisions/**`
 (ADR 0073 decision 1's cell, which still gave `CLAUDE.md` *the state of the work*).
 
 ## Record
@@ -479,7 +479,7 @@ sharpest was found by BOTH readers from opposite ends.**
 14. **`counts` deleted whole**, and **three of the `ASSERTIONS` floors could leave** at 10 against
     20 — including both L6 floors. Closed by a SUBJECT MEMBERSHIP compared both ways rather than by
     raising the count, because raising it to the length is a ratchet every added assertion must bump
-    ([Q102](../open-questions.md)'s shape). **That fix then closed `d1`**, a ceiling this item had
+    ([Q102](../questions/q102.md)'s shape). **That fix then closed `d1`**, a ceiling this item had
     written off as Q217's unclosable regress.
 15. **`openRows` could be wrong by 27** under a floor of 200, and `deferredRows` had none. Closed by
     a RELATION: every live row is open or deferred.
@@ -507,7 +507,7 @@ sharpest was found by BOTH readers from opposite ends.**
     one of its 105 status blocks"* where §3 measured **104 of 105**; *"~21,000"* where the arithmetic
     is **19,999**; *"251 copies"* against §2's own **343**, now dropped because a count in a document
     is what decision 4 removes; and *"3.6 per KiB against the file's 8.6"* mixing my predicate with
-    P27's — **7.4 under one predicate**, which is [Q469](../open-questions.md)'s hazard one paragraph
+    P27's — **7.4 under one predicate**, which is [Q469](../questions/q469.md)'s hazard one paragraph
     after §2 cites it.
 22. **Three withdrawn claims survived elsewhere, and a FOURTH was this item's own to find.**
     `doc/README.md`'s *seven files in all, as `CLAUDE.md` counts them* (the new file counts nothing);
@@ -523,7 +523,7 @@ sharpest was found by BOTH readers from opposite ends.**
     five owners' tokens were scored against one owner's file and the coverage read **27%**. v2
     captured the owning directory WITHOUT its `doc/` prefix, so all 92 owner paths resolved to files
     that do not exist — **and the WRONG-OWNER control passed, because both sides were missing.** *A
-    control that compares two broken readings passes* ([Q470](../open-questions.md)). v3 refuses to
+    control that compares two broken readings passes* ([Q470](../questions/q470.md)). v3 refuses to
     report below a resolution floor.
 25. **Emphasis was stripped only at the ENDS**, so `**in progress** — declared …` yielded `in
     progress**`, and 28 of 95 item statuses were unparseable.
@@ -571,14 +571,14 @@ measurements in the band.
 measurement beside it: *"fifty separate lines" is 50 occurrences on 46 lines* — it is **50 lines
 carrying 104 occurrences**; and *census quadruples are 74* — **75** per line, **76** if a figure may
 span a line break, and 74 is neither. **And its N11 saved this item from a correction that corrects
-something already right** — [Q469](../open-questions.md)'s exact trap, which W113 recorded and which
+something already right** — [Q469](../questions/q469.md)'s exact trap, which W113 recorded and which
 this item had already walked into: I had *"three documents cite `1000s-10000s`"* down as wrong at six.
 Six documents contain the string and **all six also contain `FLOW_PLANNING`**, so co-occurrence cannot
 separate them; no predicate makes either number defensible, so the count is gone rather than picked.
 
 ### Questions
 
-**[Q472](../open-questions.md)-[Q478](../open-questions.md) raised**, extending P27's exhausted block
+**[Q472](../questions/q472.md)-[Q478](../questions/q478.md) raised**, extending P27's exhausted block
 by grep on W86's and W113's precedent, by the maintainer's answer to stop-and-ask (a).
 **No ADR** — also the maintainer's answer. Census to be confirmed at the record step.
 

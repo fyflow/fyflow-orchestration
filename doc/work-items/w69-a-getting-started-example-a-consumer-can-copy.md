@@ -104,7 +104,7 @@ Reserves:   Q293 (used). *Q294-Q295 were reserved here too and are W70's: that i
 - **A getting-started with a custom group or a class type.** That is `examples/flows/triage.flow.json`
   and `examples/run-flow.ts`, P18's exit artifact; README points at it.
 - **A completion promise on `Driver`.** There is none (measured: no such member on the class), so the
-  fold-poll in the snippet IS the API. Whether it should be is [Q293](../open-questions.md).
+  fold-poll in the snippet IS the API. Whether it should be is [Q293](../questions/q293.md).
 - **README.md's stale "What is here" cells** (23 refusals / `FD-V25`, 979 cases, 50 / 1502, 91
   documents / 3822 links — four numbers stale by several plans). *This bullet was NARROWED at the
   record step and this text is what it said before: `README.md` is in this item's `Owns`, the fix was
@@ -274,7 +274,7 @@ snippet it copies, and the AGENTS side must carry EXACTLY ONE `run` fence under 
 pairing that picks silently when a second fence appears is the same defect one layer along. Every
 fence in a section is located, the opening is a section, a listed heading must carry exactly one
 fence, and a NEAR spelling anywhere in the README is a failure. `README_SNIPPET_FLOOR` sits beside
-the list as [Q102](../open-questions.md)'s declared shape, because the list is a literal and a
+the list as [Q102](../questions/q102.md)'s declared shape, because the list is a literal and a
 section plus its entry are two edits in one diff — W69's adequacy reader measured exactly that diff
 green at `check:docs` AND `check:markdown`, and the floor is the third edit it now needs.
 
@@ -283,6 +283,6 @@ for the probe that trips THAT clause and no other — which is `X6`'s co-firing 
 applied to the clause that needed it next. `MIN_PROBES` 26 -> 33, `MIN_META` 10 -> 20. Measured
 after: **33 / 33 probes caught, 20 / 20 noticed, exit 0.**
 
-**Questions raised.** [Q293](../open-questions.md) — a `Driver` has no completion promise, so *the run
+**Questions raised.** [Q293](../questions/q293.md) — a `Driver` has no completion promise, so *the run
 is over* is eight lines a consumer copies from the README; sound by ADR 0014, and still the first
 thing every consumer writes.

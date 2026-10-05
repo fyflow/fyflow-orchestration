@@ -38,7 +38,7 @@ Reserves:   Q238-Q242, ADR 0047
 
 **In**
 
-1. **[Q22](../open-questions.md), decided.** Its row says *"what it now needs is a decision about the
+1. **[Q22](../questions/q22.md), decided.** Its row says *"what it now needs is a decision about the
    CONSTRAINT rather than a measurement"* — the measurement arrived with
    [W34](w34-what-a-branch-receives-and-what-a-join-carries.md) and P15 re-took it. The decision is
    whether *a result must be structured-cloneable* is a constraint on **workers** (declare it, refuse
@@ -48,7 +48,7 @@ Reserves:   Q238-Q242, ADR 0047
    1.54 ms**. The conclusion is unchanged and the ratio class holds; **every absolute is 2-5x lower**,
    because W34's were taken accumulated in one process and W46 later measured that at up to 4.4x.
    *A register row quoting an absolute is quoting a method*, and the method goes in the document on
-   [Q190](../open-questions.md)'s precedent.
+   [Q190](../questions/q190.md)'s precedent.
 3. **The silent lossy case, which no rule anywhere names.** Fact 7: `structuredClone` **refuses** a
    function, an object holding one, a `Symbol`, a `Promise` and a `WeakMap`; it **accepts** a plain
    object, a `Map`, a `Date`, a cyclic object — and **a class instance, which arrives as a plain
@@ -65,7 +65,7 @@ Reserves:   Q238-Q242, ADR 0047
 - **Taking the bound.** This item **prices** it. P15 decision 1 says a candidate that changes what a
   consumer reads belongs in an ADR with the surface named and is the maintainer's; the stop-and-ask
   list is where it goes.
-- **[Q186](../open-questions.md)'s threshold** — *how large is too large*.
+- **[Q186](../questions/q186.md)'s threshold** — *how large is too large*.
   [W46](w46-what-a-reference-costs-and-whether-anything-says-so.md) decided **nothing warns** and left
   it open deliberately. **Not reopened.** If this item's decision makes that row answerable, **say so
   in the Record rather than acting on it** — reopening a row whose status reads *decided* is section 6
@@ -73,7 +73,7 @@ Reserves:   Q238-Q242, ADR 0047
 - **Changing `OR-R2`'s deep copy or `OR-R6`'s refusal.** Prediction 3 says both stand. If the evidence
   says otherwise, that is a weakening of a `spec/` rule and it is on P15's stop-and-ask list.
 - **What a run retains** — W53's, and this item's `Depends on`.
-- **[Q9](../open-questions.md)** — predicate purity. The *"a worker must not retain what it returns"*
+- **[Q9](../questions/q9.md)** — predicate purity. The *"a worker must not retain what it returns"*
   alternative in Q22's own row is the shape Q9 already rejected as unenforceable; cited, not reopened.
 
 ## Verification
@@ -90,7 +90,7 @@ How each clause of `Gate:` is actually run. Name the commands.
 | adequacy reader | **in an isolated copy**, with the author's tree held still (section 6, v0.15) |
 
 **Routing coverage**: **not applicable**. This item touches the outcome-record boundary and the fold,
-and routes nothing. `user_action` ([Q17](../open-questions.md)) is the one exception worth naming —
+and routes nothing. `user_action` ([Q17](../questions/q17.md)) is the one exception worth naming —
 `OR-R2`'s guard is `terminalState === 'done' ? structuredClone(d.result) : null`, so a `user_action`
 settlement carries no result to clone, and the resolution path (`spec/outcome-record.md` section 6)
 deep-copies for the same reason. Both are asserted.
@@ -119,7 +119,7 @@ v0.15); the counts beside them are the secondary signal.
 | Declared output | Exists | What would fail without it |
 |---|---|---|
 | **(1) Q22 decided** | yes — **`OR-R11`**, and **no ADR** | Renumbering the rule row costs **1** `check:spec` `C2` failure; the version not reaching `spec/README.md` costs **1** `C8` |
-| **(2) the re-taken numbers with their METHOD** | yes, section 4 | **0.** Declared ceiling, and the item's own `Tests:` line says so — *a timing is not an assertion*. `X6` compares cost figures between `spec/flow-definition.md` and `AGENTS.md` and does **not** reach this document, so the new table has no cross-document binding of any kind ([Q242](../open-questions.md)) |
+| **(2) the re-taken numbers with their METHOD** | yes, section 4 | **0.** Declared ceiling, and the item's own `Tests:` line says so — *a timing is not an assertion*. `X6` compares cost figures between `spec/flow-definition.md` and `AGENTS.md` and does **not** reach this document, so the new table has no cross-document binding of any kind ([Q242](../questions/q242.md)) |
 | **(3) the silent lossy case written down** | yes — the 27-row boundary table, and `AGENTS.md` section 10 | Deleting a lossy row costs **1**; untagging the `AGENTS.md` snippet costs **1** `X4`; changing its subject to a literal costs **0** (ceiling, measured — see below) |
 | **(4) the price of the bound** | yes, section 4 | Changing the 14 / 124 / 89% split costs **1** — it is **derived from both corpora** by this item's own suite, not a literal |
 | **(5) the boundary asserted BOTH ways** | yes, 27 rows in five runtimes | One row leaving costs **2**; the whole list **an abort**; slicing the assert loop **1**; the suite renamed out of the glob **1**; a member leaving the census **1** |
@@ -131,8 +131,8 @@ section's own sentence broken inside the section.**
 
 **THE ENUMERATION DID NOT CLOSE.** *"Right on 14 of 14 shapes … and on none of the eight this
 document blesses"* — 8 + 4 is not 14, and **four documents carried four different sets**: section 4
-named eight faithful shapes, [Q22](../open-questions.md) ten, the harness ten again but a different
-ten, and [Q238](../open-questions.md) five lossy categories where the harness ran four. Worse, *"it
+named eight faithful shapes, [Q22](../questions/q22.md) ten, the harness ten again but a different
+ten, and [Q238](../questions/q238.md) five lossy categories where the harness ran four. Worse, *"it
 fires on every lossy one"* was **false against the table's own nested row**, two paragraphs from the
 sentence saying the detector is blind to exactly that. **And the suite's classifier WAS that blind
 predicate** — so the table and the suite disagreed, and the disagreement was invisible because the
@@ -156,7 +156,7 @@ run.** The answer is 5 / 11 / 11.
 **THE TWO PERCENTAGES WERE FALSE IN BOTH DIRECTIONS**, quoted from a single run. Re-taken as 21
 medians per reading, five readings at each of two payload sizes: **0.02-0.65%** and **23-60%**
 against the stated 0.04-0.52% and 27-55% — *the stated upper bounds sat below **every** N = 100
-reading*. [Q179](../open-questions.md), in the section whose own closing sentence is **quote the
+reading*. [Q179](../questions/q179.md), in the section whose own closing sentence is **quote the
 shape and the ratio, never the millisecond**. The bands are what reproduce; the readings do not.
 
 **`OR-R6` WAS STATED OF THE WHOLE BOUNDARY AND HOLDS ONLY AT THE LISTENER**, which is the sharpest
@@ -166,7 +166,7 @@ caller, **appends nothing, does not fail the run, and never reaches `onRunFailur
 `DataCloneError` is in neither section 6's enumeration of what reaches `OR-R10` nor `AGENTS.md`'s
 executed error-class snippet. **`OR-R12`** writes it down; the asymmetry is defended rather than
 removed (a settlement has nobody to throw to; a resolution is a synchronous call the consumer made),
-and whether the two should be unified is [Q241](../open-questions.md). `src/driver/**` is
+and whether the two should be unified is [Q241](../questions/q241.md). `src/driver/**` is
 [W53](w53-what-a-run-retains-that-nothing-reads.md)'s, so this records rather than changes.
 
 **`OR-R11` SAYS THE LOSS HAPPENS AT `OR-R2`'s CLONE AND NOTHING ASSERTED THAT.** There are **three**
@@ -209,7 +209,7 @@ consumer reference, reached by no check. Moved.
 **three** readers and not two — the third is `examples/l6.ts`, **ladder L6 asserting on it**, so
 taking the bound breaks L6 rows and the price is higher than stated; and `nodeOf(state, taskId)`
 reaches the package root through `index.ts`'s `export *`, so the surface is an accessor as well as a
-field. The `RUN_FLOOR` history block **skipped W42's 16 → 17**, so [Q102](../open-questions.md) has
+field. The `RUN_FLOOR` history block **skipped W42's 16 → 17**, so [Q102](../questions/q102.md) has
 fired **six** times and the file narrating it counted five. And *"P15 predicted the `AGENTS.md` half
 by name"* overstated the plan, which lists that file among three and predicts only `spec/README.md`.
 
@@ -243,17 +243,17 @@ document both describe a boundary, ask which of them computes the other's answer
 
 **Questions raised.**
 
-- **[Q238](../open-questions.md)** — a result's behaviour is lost at `OR-R2` and the loss is decidable
+- **[Q238](../questions/q238.md)** — a result's behaviour is lost at `OR-R2` and the loss is decidable
   cheaply at the TOP LEVEL, and the case a worker writes is NESTED, where it is not. P15 prediction
   3's stated reason is false; its conclusion holds on coverage and cost instead.
-- **[Q239](../open-questions.md)** — bounding `RunState.nodes[*].result` costs a VOCABULARY, not
+- **[Q239](../questions/q239.md)** — bounding `RunState.nodes[*].result` costs a VOCABULARY, not
   bytes, and both candidate encodings are already taken. Priced; the maintainer's to take.
-- **[Q240](../open-questions.md)** — the blanking factor is not a constant and this repository quoted
+- **[Q240](../questions/q240.md)** — the blanking factor is not a constant and this repository quoted
   one. 8.7x is a fixture; the true statement is that blanking removes the whole of every result.
-- **[Q241](../open-questions.md)** — `OR-R6` holds only at the listener; the resolution path throws a
+- **[Q241](../questions/q241.md)** — `OR-R6` holds only at the listener; the resolution path throws a
   bare `DataCloneError` to its caller. Written down as `OR-R12`; whether the two should be unified is
   open.
-- **[Q242](../open-questions.md)** — the new cost table in `spec/outcome-record.md` has **no**
+- **[Q242](../questions/q242.md)** — the new cost table in `spec/outcome-record.md` has **no**
   cross-document binding: `X6` compares `spec/flow-definition.md` and `AGENTS.md` only, and the
   harness the numbers come from is in the gitignored `dev-dist/`.
 
@@ -271,7 +271,7 @@ item.**
 |---|---|---|
 | `spec/README.md` | `C8` compares its version row against each document's own header, so bumping `outcome-record.md` to v0.9 forces it. **P15 predicted this one by name** | late |
 | `AGENTS.md` | `OR-R11` is *the one thing a worker author has to know*, and section 4 now says the consumer meets it there — so the sentence is only true if the snippet exists. Added as an **executed** snippet | late |
-| `scripts/check-docs.mjs` | `RUN_FLOOR` 17 → 18, forced by the snippet above. [Q102](../open-questions.md)'s obligation for the **sixth** recorded time | late |
+| `scripts/check-docs.mjs` | `RUN_FLOOR` 17 → 18, forced by the snippet above. [Q102](../questions/q102.md)'s obligation for the **sixth** recorded time | late |
 | `test/definition/l4-corpus.test.ts` | the suite census is set equality over suite names both ways, so two new suites must be named there in the same commit | late |
 | `spec/run-state.md` | one number this item's measurement made misleading — the `8.7x` factor, which is a property of one fixture. W53's document, corrected in place with the reason | late |
 | `scripts/build-browser-tests.mjs` | the browser bundle inlines fixtures by name, and this item's suite reads two it did not carry. **Forced by the gate going red**, not found by reading | late |
@@ -279,10 +279,10 @@ item.**
 **SIX late exceptions, zero undeclared.** **P15's `Owns` test is answered `AGENTS.md` YES,
 `spec/README.md` YES, `scripts/check-docs.mjs` YES** — all three, where W53 answered NO / YES / NO.
 *Over the plan's two product items that is no/yes/no and yes/yes/yes, so a pre-declaration rule naming
-all three would have been wrong twice on W53* ([Q157](../open-questions.md)), which is the fourth
+all three would have been wrong twice on W53* ([Q157](../questions/q157.md)), which is the fourth
 consecutive plan to measure that and the third to reach the same answer.
 
-**[Q142](../open-questions.md) re-measured on a scratch copy BEFORE the gate and does NOT fire**, for
+**[Q142](../questions/q142.md) re-measured on a scratch copy BEFORE the gate and does NOT fire**, for
 the third consecutive time. **Re-taken on the tree that ships** rather than mid-item — section 1 rule 5's WHEN clause, and the
 first reading was three commits early. Whole tree **102 / 4456 / 233**, `doc/decisions` removed
 **78 / 4080 / 233**, both removed **62 / 3282 / 233**, against floors `M3` 90, `M4` 3490 and `M5` 60. The
@@ -297,18 +297,18 @@ corrected at the record step. *Section 1 rule 5's third direction working exactl
 the item that falsifies a claim is not the item that wrote it.*
 
 **Census CONFIRMED for the FIFTEENTH plan running — 187 / 135 / 2 / 50**, from 182 / 131 / 2 / 49:
-five new ids and [Q22](../open-questions.md) moving from open to resolved. **44 ids in both tables**,
+five new ids and [Q22](../questions/q22.md) moving from open to resolved. **44 ids in both tables**,
 and both halves at **187 of 187 in exactly one cluster cell**, on P15's declaration parser unchanged.
 
-*(It read 186 / 134 and **four** new ids until W55's prompt was being written: **[Q242](../open-questions.md)
+*(It read 186 / 134 and **four** new ids until W55's prompt was being written: **[Q242](../questions/q242.md)
 was cited in five documents — this Record twice, the plan, `doc/README.md` and `CLAUDE.md` — and had
 NO ROW in the register.** A question raised in prose and declared nowhere, which is `FD-V`'s own
 cited-but-never-declared shape one layer out, and nothing reaches it: `M2` validates the `#live`
 anchor a Q link points at and nothing validates the Q ID. **And the census then ABORTED on the row
-that fixed it** — unescaped pipes inside a code span, [Q131](../open-questions.md)'s shape, in the row
+that fixed it** — unescaped pipes inside a code span, [Q131](../questions/q131.md)'s shape, in the row
 recording a missing binding. Both are the aborting parser earning its place for the fourth item
 running.)*
 
-**And with [Q19](../open-questions.md) closed by [W53](w53-what-a-run-retains-that-nothing-reads.md)
+**And with [Q19](../questions/q19.md) closed by [W53](w53-what-a-run-retains-that-nothing-reads.md)
 one item earlier, BOTH of the two oldest rows whose owner cell said *no owner — needs a measured
 run* are answered, in one plan.** They had said it since P1.

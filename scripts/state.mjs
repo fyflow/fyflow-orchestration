@@ -320,7 +320,7 @@ const counts = [
 /**
  * Each bound is a FLOOR well below today's reading rather than an equality, because an
  * equality here would be a ratchet every new plan, item, question and decision had to
- * bump — the shape [Q102](../doc/open-questions.md) describes. A floor cannot go stale
+ * bump — the shape [Q102](../doc/questions/q102.md) describes. A floor cannot go stale
  * toward weakness the way a ceiling can: ids are never reused, so these quantities only
  * grow. **What a floor cannot see is a plausible wrong number**, which is why the one
  * defect it missed is recorded in the header rather than guarded here.
@@ -390,7 +390,7 @@ const MIN_ASSERTIONS = 10;
  * assertions walked out past `DECLARED_TOTAL` three times in three plans). `MIN_ASSERTIONS`
  * catches an EMPTIED list; W114's adequacy reader showed it lets an individual floor leave for
  * nothing at 10 against twenty, and raising it to the length would be a ratchet every added
- * assertion must bump — [Q102](../doc/open-questions.md)'s shape. So every assertion
+ * assertion must bump — [Q102](../doc/questions/q102.md)'s shape. So every assertion
  * declares the SUBJECT it is about and the subjects are compared BOTH WAYS: a subject that
  * loses its last assertion is named, and a subject nobody asserts is refused.
  */

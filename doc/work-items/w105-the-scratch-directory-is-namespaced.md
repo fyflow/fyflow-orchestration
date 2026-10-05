@@ -34,25 +34,25 @@ Reserves: W105, Q433-Q437, ADR 0072 (expected SKIPPED unless the markers are ret
 
 **`dev-dist/` is one flat namespace with fixed paths, and three separate defects come out of it.**
 
-1. **[Q426](../open-questions.md), measured 2026-09-30**: `scripts/check-markdown-selftest.mjs:730`
+1. **[Q426](../questions/q426.md), measured 2026-09-30**: `scripts/check-markdown-selftest.mjs:730`
    builds `dev-dist/markdown-selftest-${process.pid}` and nothing removes it. **12 574 empty
    directories** had accumulated — 12 691 top-level entries where the useful count is 121, at roughly
    **117 per gate run**. Deleting them took **257 s**. Nothing reports it: the directories are empty,
    `dev-dist/` is gitignored so `git status` is silent, and every self-test passes.
-2. **[Q182](../open-questions.md)**: `check:wiring:selftest` stages every `scripts/check-*.mjs`
+2. **[Q182](../questions/q182.md)**: `check:wiring:selftest` stages every `scripts/check-*.mjs`
    **flat into `dev-dist/`** — the directory every other self-test uses for scratch — which is why it
    and `check:scheduler:selftest` carry `SELFTEST-EXCLUSIVE` markers and run alone.
 3. **W103's finding 3**: a gate killed mid-run left `dev-dist/check-wiring-stub-27708.mjs` behind,
    it glob-matched `check-*.mjs`, and the next `check:wiring:selftest` **control** went red —
    *every verdict below would be a fact about the harness rather than about the check*. The real probe
-   failure underneath it was invisible until the stub was removed. [Q323](../open-questions.md)'s class.
+   failure underneath it was invisible until the stub was removed. [Q323](../questions/q323.md)'s class.
 
 **One change pays three ways**, and a fourth is the prize: per-probe scratch is what would let a lane
 run its probes concurrently, which dwarfs anything W104 can win inside a single check.
 
 ## What to be careful of
 
-1. **[Q181](../open-questions.md) says the marker is bound to nothing** — removing it alone was
+1. **[Q181](../questions/q181.md) says the marker is bound to nothing** — removing it alone was
    measured at **zero** cost. `G4` derives the exclusive set from the markers and compares it to the
    runner's; if the markers go, that clause's subject goes with them, so this is a `check:wiring`
    edit and a probe, not a deletion.
@@ -76,7 +76,7 @@ run its probes concurrently, which dwarfs anything W104 can win inside a single 
 
 [P15](../plans/p15-what-a-run-retains-and-what-a-result-may-be.md) decision 5: re-run, never
 transcribe. Taken 2026-10-01 on `7868d91`, spawn health asserted first because
-[Q179](../open-questions.md) and [Q427](../open-questions.md) say a timing taken in a bad window
+[Q179](../questions/q179.md) and [Q427](../questions/q427.md) say a timing taken in a bad window
 measures Defender rather than the change: `node -e ""` through `spawnSync` is **47 / 50 / 48 / 48 /
 47 / 47 / 50 ms** against the ~54 ms this machine is recorded at, and `cmd /c exit` is **18–36 ms**
 against a session that has read 8 649 ms. A good window.
@@ -94,7 +94,7 @@ against a session that has read 8 649 ms. A good window.
 | the self-test WALL | 1324 s (W103), **~649 s derived** (W104) | **851.3 s**, 2000.1 s serial-equivalent, 6 lanes | |
 | the exclusive prefix | **25.2 s** | **243.1 s — 29% of the wall** | |
 | the binding lane's SHARE | **98%** (W103), 96% (W104 derived) | **71%** | |
-| [Q426](../open-questions.md)'s leak total | 12 574 directories | **332 top-level entries** — 231 `markdown-selftest-<pid>`, 6 `wiring-selftest-<pid>`, 95 real | |
+| [Q426](../questions/q426.md)'s leak total | 12 574 directories | **332 top-level entries** — 231 `markdown-selftest-<pid>`, 6 `wiring-selftest-<pid>`, 95 real | |
 | Q426's leak RATE | not stated | **112 per `selftests` run, every one `markdown-selftest`, ZERO removed** | |
 | `check:docs` | 4574 ms (W104) | 4166 / 4697 / 5151 ms | |
 
@@ -131,7 +131,7 @@ lanes against 20-way parallelism:
 
 > 14.9 + max(608.2, 578.4, 418.1, **228.2**, 84.4, 42.8, 25.1) = **623.1 s against 851.3 — 1.37x, 228 s off the critical path.**
 
-**[Q182](../open-questions.md)'s price was right and W103's prefix was the artefact.** That row says
+**[Q182](../questions/q182.md)'s price was right and W103's prefix was the artefact.** That row says
 `dev-dist/`'s shared namespace costs *"roughly 175 s of critical path"*; W104 inherited 25.2 s from
 ADR 0070 and derived a wall from it. Re-measured, the price is **228 s**. So the ordering inside this
 item is the reverse of its `Outputs` list: the namespacing is what makes the marker retirable, and the
@@ -165,7 +165,7 @@ by grep: of NINETEEN `scripts/*.mjs`, exactly one imports a sibling (`check-spec
 | `.meta-docs-NN`, `.meta-spec-NN`, `.meta-sched-NN`, `.meta-NN`, `.self-source-NN`, `.self-policies-NN` | SELFTEST mutants | no | inside that `dir` |
 | `.probe-NN.mjs` | a `check-source.mjs` copy | **YES** | stays flat, per-pid NAME |
 | `.meta-policies-NN.mjs` | a `check-policies.mjs` copy | **YES** | stays flat, per-pid NAME |
-| `stage()`'s 22 files | `check-*.mjs` copies, RUN | **YES** | stays flat — and [Q182](../open-questions.md) already says relocating it would not help, *because the copies it runs are the real checks and they write the real paths* |
+| `stage()`'s 22 files | `check-*.mjs` copies, RUN | **YES** | stays flat — and [Q182](../questions/q182.md) already says relocating it would not help, *because the copies it runs are the real checks and they write the real paths* |
 
 ### Correction 4 — five sites write the same path TWICE, and namespacing one of the two is silent breakage
 
@@ -173,7 +173,7 @@ by grep: of NINETEEN `scripts/*.mjs`, exactly one imports a sibling (`check-spec
 to the override: `` `dev-dist/docs-selftest/${i}.md` `` (docs), `` `dev-dist/policies-selftest/…` ``
 (twice), `` 'dev-dist/sched-selftest/absent.d.ts' `` and its sibling, and
 `` `dev-dist/source-selftest/${i}` `` plus a third `join` for `tree-NN`. **Two sources for one path**,
-which is [Q182](../open-questions.md)'s original defect (`.self-NN.mjs` written by two files) one
+which is [Q182](../questions/q182.md)'s original defect (`.self-NN.mjs` written by two files) one
 layer in: pid one and not the other and the child reads a directory nothing staged into, which is
 hazard 5's own shape and W38's adequacy reader's empty directory printing `ok`. Every one is derived
 from `dir` rather than re-spelled.
@@ -200,7 +200,7 @@ control, and they had different answers.
 
 | | before | after |
 |---|---|---|
-| [Q426](../open-questions.md), the leak, per `npm run selftests` run | **112 directories**, every one `markdown-selftest-<pid>`, zero removed | **0** |
+| [Q426](../questions/q426.md), the leak, per `npm run selftests` run | **112 directories**, every one `markdown-selftest-<pid>`, zero removed | **0** |
 | three concurrent `check-docs` bodies | **0 of 3 exited 0** — one `X4` with ten snippet failures, two `ENOTEMPTY` crashes | **3 of 3**, 7179 / 7258 / 7259 ms |
 | the one-child CONTROL, same tree | EXIT 0, 4469 ms | — |
 | `check:wiring:selftest` beside a `check:docs` loop and `check:spec:selftest` | **19 of 96** victims green, every red `ENOENT … dev-dist/docs/tsconfig.dom.json` | **61 of 61** |
@@ -208,7 +208,7 @@ control, and they had different answers.
 | residue after a whole `npm run selftests` | 112 | **0** |
 
 *The control is the point: the arrangement that proves nothing collides now is the arrangement that
-went red before.* [Q182](../open-questions.md)'s *a latent path collision is invisible until the day it
+went red before.* [Q182](../questions/q182.md)'s *a latent path collision is invisible until the day it
 is not* is the day it was not, and that row's own prescription — *a derived scratch path per check plus
 per process, and a clause that every write under `dev-dist/` goes through it* — is what shipped.
 
@@ -234,7 +234,7 @@ finding rather than modesty**: three end-to-end runs on this machine, twenty cor
 | *(excluded)* | *1069.7 s* | *3925.2 s* | *7 + 1* | ***7 ok — the lane under test EXITED 1*** |
 
 **The two COMPARABLE retired readings straddle the kept one**, so 851.3 s cannot be distinguished from
-either — **308 s** of spread across three comparable retired runs (747.7 / 789.7 / 1055.9) against a 62 s difference from the kept one, which is [Q179](../open-questions.md)'s band with a
+either — **308 s** of spread across three comparable retired runs (747.7 / 789.7 / 1055.9) against a 62 s difference from the kept one, which is [Q179](../questions/q179.md)'s band with a
 number on it.
 
 > **The fourth row is excluded and named, and leaving it IN was this item's own correction 1 reproduced
@@ -247,7 +247,7 @@ number on it.
 correct were wrong**: 14.9 + max(…) = 623 s assumes a lane's wall is independent of how many lanes run
 beside it, and the serial-equivalent — 2000 s against 2751 and 3925 — says it is not. The seventh lane
 costs every other lane **38% to 96%** of its own time, because the runner sizes its pool in LANES
-while each lane spawns a deep process tree ([Q433](../open-questions.md)). *The exclusive prefix was
+while each lane spawns a deep process tree ([Q433](../questions/q433.md)). *The exclusive prefix was
 accidentally a load governor and nobody chose it.*
 
 ### Output (4): probe concurrency is UNLOCKED, and it is a LOCAL-ONLY win
@@ -265,17 +265,17 @@ processes:
 
 **The GAIN is about 1.5x and the SHAPE OF THE CURVE DOES NOT REPRODUCE.** The first reading peaks at
 P = 4 and falls at P = 8; the second is flat within 8% and nominally best at P = 8, because the P = 1
-baseline alone moved 45% between them. *That is [Q179](../open-questions.md), and a peak read off one
+baseline alone moved 45% between them. *That is [Q179](../questions/q179.md), and a peak read off one
 pass is a claim about that pass* — which is the error this whole item is a catalogue of, so the peak is
 withdrawn rather than reported.
 
 **What DOES reproduce is the product's cost against a FIXED cap**: at P = 8 the check's own wall is
-**23.5 s and 34.0 s** against [Q425](../open-questions.md)'s **30 s per-SNIPPET deadline** — the same
+**23.5 s and 34.0 s** against [Q425](../questions/q425.md)'s **30 s per-SNIPPET deadline** — the same
 order of magnitude as the thing it is measured against, where at P = 1 it is 4.7-6.7 s. **And on CI's
 FOUR cores W104's width of eight is already 2x oversubscribed, so P = 1 is the limit there**: the win
 exists only where nobody is waiting, which is the opposite of what ADR 0070 moved the proof to CI for.
 **NOT SHIPPED**, on that, on the unreproducible curve and on W104's one-variable argument
-([Q435](../open-questions.md)).
+([Q435](../questions/q435.md)).
 
 **Output (4)'s own premise was false and is corrected**: `check:docs:selftest` is **71%** of the wall,
 not 98%, and `check:source:selftest` is within 5% of it — so the lane this output names as the place to
@@ -299,13 +299,13 @@ win is capped at ~30 s of saving by a lane nobody had measured.
 3. **A non-terminal `rmSync(dir)` between the META and SELF passes.** Invisible while `.self-*` was flat
    in `dev-dist/`, which always exists; nested, the SELF control died `ENOENT`. Closed by creating the
    directory where the `.self-*` path is built, which keeps the intervening cleanup's own meaning.
-4. **`G6` fired on ITSELF, twice, and the second time it made a probe VACUOUS.** [Q178](../open-questions.md)
+4. **`G6` fired on ITSELF, twice, and the second time it made a probe VACUOUS.** [Q178](../questions/q178.md)
    at its third and fourth occurrence: the `SHARED_SCRATCH` anchors quoted the pattern they search for,
    so the clause reported three failures against its own declaration list on its first run; then the five
    probes did the same and the control went red naming them. **The vacuity is the sharper half** — the
    probe written to assert *a declared exception's anchor no longer exists* CONTAINED that anchor, so it
    would have passed while proving nothing. Both closed by this repository's own idiom, splitting the
-   token, as `run-selftests.mjs` does for the marker. [Q436](../open-questions.md).
+   token, as `run-selftests.mjs` does for the marker. [Q436](../questions/q436.md).
 
 **And a fifth, which is the one worth carrying:** the two `SELF` entries that pin `PROBES` reported
 **`exited 0: the mutation costs nothing`** after I moved that declaration onto two lines.
@@ -313,7 +313,7 @@ win is capped at ~30 s of saving by a lane nobody had measured.
 matches and whose second does not changes the file and passes — **the entry ran, and graded a mutation
 it had not made.** Closed in that file by instrumenting `String.prototype.replace` for the duration of
 the call and counting the calls that matched nothing, which holds for any compound written later and
-reads what the mutation DID. **It is LIVE in the other seven self-tests** ([Q434](../open-questions.md)).
+reads what the mutation DID. **It is LIVE in the other seven self-tests** ([Q434](../questions/q434.md)).
 
 *Five defects, five rungs, and not one found by reading.* The two cheap lanes were run first on purpose
 and that is what made (1) and (3) cost minutes instead of a 608 s lane.
@@ -367,7 +367,7 @@ Obligation (f) has no instance: this item runs no worker and asserts no completi
 **The twelve reader probes are `r1`-`r12` and eleven are CAUGHT.** `r5` is the one survivor and it is a
 **DECLARED CEILING NAMED IN THE CLAUSE ITSELF**: `G6` searches for the text `dev-dist`, and this check
 and its self-test both SPLIT that token on purpose, because a literal quoting the pattern it searches
-for is a false match for itself ([Q178](../open-questions.md), which this clause reproduced twice before
+for is a false match for itself ([Q178](../questions/q178.md), which this clause reproduced twice before
 it worked). *A check cannot both use the trick and refuse it.*
 
 **Five probes ABORTED on the first final pass and all five were rule 7 (b) firing correctly** — their
@@ -387,7 +387,7 @@ the same pair that had to move together when `G6` was added.
 
 | file | why |
 |---|---|
-| `scripts/check-docs.mjs` | **`OUT` is the blocker**, and [Q182](../open-questions.md) says so: relocating the staging cannot help *because the copies it runs are the real checks and they write the real paths*. Output (4) is unmeasurable without it |
+| `scripts/check-docs.mjs` | **`OUT` is the blocker**, and [Q182](../questions/q182.md) says so: relocating the staging cannot help *because the copies it runs are the real checks and they write the real paths*. Output (4) is unmeasurable without it |
 | `scripts/check-wiring.mjs` | the stub is W103's finding 3, named in this item's own **Why**; and `G6` lives here. The `Owns` line gates this file on the markers being retired, and they are — but the stub fix was never conditional on that |
 | `tsconfig.docs.json` | its `include` was the fixed `dev-dist/docs/*.ts`; a tracked file cannot name a pid, so the glob widened and `X3` writes its own config extending it |
 | `doc/workflow.md` | section 8 carried a wall derived from the two figures this item measured wrong — W104's `Spec:` line set that precedent for its own number |

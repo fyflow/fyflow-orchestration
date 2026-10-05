@@ -102,16 +102,16 @@ written here because a policy question sounds like a matrix question.
 **Out** — named rather than left implicit, with where it goes instead
 
 - **What the join carries.** It stays **`null`**, deliberately: P10's decision 2 puts
-  [Q36](../open-questions.md) in **W34**, *after* this item runs, so the rule is written from cases
+  [Q36](../questions/q36.md) in **W34**, *after* this item runs, so the rule is written from cases
   rather than from a mechanism. **This item must not quietly pick a payload**, and `settleJoin` still
   taking no payload parameter is what keeps that visible.
-- **What a branch receives**, and [Q154](../open-questions.md)'s sibling aliasing. **W34.**
+- **What a branch receives**, and [Q154](../questions/q154.md)'s sibling aliasing. **W34.**
 - **The matrix.** `test/matrix/**` is W34's. This item asserts the policies directly, which is the
   half W15 found a rule-written set blind to.
 - **Real workers.** **W35.** Nothing here needs a scheduler, and if L2 is hard to write for a map
   *"the driver has reached for the scheduler somewhere it should not have"* (`doc/workflow.md`
   section 4) — **that is this item's first review question of itself.**
-- **[Q37](../open-questions.md)** — who asks whether a join is stuck. A map makes the poll no worse
+- **[Q37](../questions/q37.md)** — who asks whether a join is stuck. A map makes the poll no worse
   and no better.
 
 ## Exceptions declared
@@ -126,23 +126,23 @@ the plan's Record, `doc/README.md`, `CLAUDE.md`, `README.md`, `doc/open-question
 point and it is nearly double**, which is P10's retro's to judge. Two were found by running a check,
 five by the gate, and two by acting on a reader. **Seven of the nine are `scripts/**` or a `spec/**`
 document this item does not own** - P8's *"paths in nobody's `Owns`"* on a product plan, which is
-exactly [Q157](../open-questions.md)'s shape widened past `AGENTS.md`.
+exactly [Q157](../questions/q157.md)'s shape widened past `AGENTS.md`.
 
 | file | why | when |
 |---|---|---|
 | `spec/run-state.md` | **The `regionEntered` input is a change to this document, and the claim it makes true is one this document has made since v0.1.** Section 2's shape says `regions` holds *"one entry per fan-out region ENTERED"*, and every producer of an entry was a region EVENT — so *entered* and *opened at least one branch* were the same thing, because `FD-V9`'s floor makes a `fanout` open at least two. A map of zero items separates them and **is the only thing that can**. Measured before the fix: such a run appends nothing, `RN-R10` iterates nothing, and it folds to **`completed`** having reached no `end` node. Landed as **section 5's fifth row** — that table's whole subject is *what this document claimed that its own inputs could not supply* — and the document goes **v0.3 → v0.4** | **late** — after the N=0 measurement |
 | `spec/README.md` | `check-spec`'s **`C8`** makes the version row a consequence of any `spec/**` bump, and this item bumps **two** documents. **It fired for real** before the edit, naming `join-policy.md`. W32 had this file in its `Owns` for exactly this reason (W16's finding); P10's index row does not give it to W33 | **late** — after `C8` reported it |
-| `scripts/check-spec-selftest.mjs` | **Two `C8` probes are pinned to the literal `**Status:** v0.3` in `spec/run-state.md`**, which this item bumps. Probe 1 then matched nothing; probe 2 became a **no-op**, replacing v0.3 with v0.4 in a document already reading v0.4 — so it would have reported a disagreement it had not created. **Rule 7 (b) firing correctly rather than passing**, and [Q142](../open-questions.md)'s sentence one file across. Both made **version-agnostic** rather than re-pinned, so the next bump does not reproduce it. `scripts/**` is in nobody's `Owns` — P8's shape | **late** — after the gate reported `16/18 probes caught` |
+| `scripts/check-spec-selftest.mjs` | **Two `C8` probes are pinned to the literal `**Status:** v0.3` in `spec/run-state.md`**, which this item bumps. Probe 1 then matched nothing; probe 2 became a **no-op**, replacing v0.3 with v0.4 in a document already reading v0.4 — so it would have reported a disagreement it had not created. **Rule 7 (b) firing correctly rather than passing**, and [Q142](../questions/q142.md)'s sentence one file across. Both made **version-agnostic** rather than re-pinned, so the next bump does not reproduce it. `scripts/**` is in nobody's `Owns` — P8's shape | **late** — after the gate reported `16/18 probes caught` |
 | `scripts/check-policies-selftest.mjs` | The same class again: one `P1` probe is anchored on `` | `arrival-count` | `N` is fixed `` and this item re-sources that row. Re-anchored on the **id cell alone**, which is what the probe is about — renaming a row's id — measured to occur exactly once in the document. `scripts/**`, again in nobody's `Owns` | **late** — after the gate reported `1 FAILURE` under `check:policies:selftest` |
 | `spec/flow-definition.md` | **A SIXTH, and the document itself addressed the question to this item BY NAME.** Section 2's `map` subsection says *"what happens when `over` names a key that is absent, or holds something that is not an array, is a RUN-TIME question and **no rule id is reserved for it here**. It is W33's."* W33 built the refusal, gave it a class, tested it five ways - and shipped it with **no rule anywhere in `spec/`**, which `doc/workflow.md` section 1 rule 3 refuses by name: *a decision not in `spec/`, an ADR or a plan did not happen*. Found by the conformity reader. **`FD-R2`** is taken beside `FD-R1`, this document's own precedent for a rule about what a RUN does; **no `FD-V` changed and no node kind changed**, and the document goes **v0.8 -> v0.9** | **late** - after the conformity reader |
 | `scripts/build-browser-tests.mjs` | **A SEVENTH, and it is W32's exception reproducing on the same file for the same reason** - a suite reading a `spec/**` document the browser bundle does not inline. The adequacy reader's finding A5 forced a bind on `spec/join-policy.md` section 3's row text, and `npm run test:browser` then failed. **The failure mode was BETTER than W32's and that is the half worth recording**: W32's read was at MODULE SCOPE, so the throw happened while the bundle loaded and took **all twenty suites** down at `0 file(s), 1 assertion`; this read is inside a `test()`, so it failed **one** test naming its own path - `fixture not inlined in the browser bundle: spec/join-policy.md`, at 21 files / 553 assertions. Same defect, same check, and the difference is entirely WHERE the read happens | **late** - after `npm run test:browser` measured it red |
-| `scripts/check-markdown.mjs` and `scripts/check-markdown-selftest.mjs` | **AN EIGHTH AND NINTH - [Q142](../open-questions.md)'s two-sided window, in an instance its own row does not describe.** Every earlier occurrence is *an item that adds DOCUMENTS must retune a constant in a file it does not own*; **this item added no document**. It added **links** to documents that already existed - a spec rule, a section, register rows, index paragraphs - and the `doc/decisions + doc/plans removed` fixture rose **1507 to 1754**, past `M4`'s floor of **1720**. The probe went silent and the gate reported `wanted [M1,M3,M4], got [M1,M3]`. **So the obligation is on writing PROSE, which no item can avoid, rather than on adding FILES.** Retuned to **2050** from a fresh three-count measurement on a scratch copy outside the repository - whole tree **73 / 2419 / 119**, one directory removed **56 / 2205 / 119**, both removed **45 / 1754 / 119** - so the window is `(1754, 2419]`. `M3` at 64 was still inside `(56, 73]` and `M5` is fired by a probe no `removes` cut reaches, so **only `M4` moved**. **And its `META` entry went inert for the SECOND time** (rule 7 (b) firing correctly, as at P10's declaration), so it is now **anchor-agnostic** rather than re-pinned | **late** - after the gate reported `36/37 probes caught` |
-| `AGENTS.md` | **[Q157](../open-questions.md)'s SECOND occurrence, and it was predicted before it fired.** `index.ts` re-exports `src/driver/driver.ts` with `export *`, so `UnresolvedMapArity` reaches the package root and section 9's executed snippet enumerates every `Error` subclass the root exports — `X4` at `AGENTS.md:775`, exit 1. **And two other blocks became FALSE the moment a map ran**: §3's *"NOTHING DISPATCHES ONE YET"* and §9's *"no `Driver` opens one"*. The edit is the minimum that is not a lie — the class, and the two corrections — and is **not the feature write-up**, which Q157 gives to W35 | **late** — after `check:docs` reported it |
+| `scripts/check-markdown.mjs` and `scripts/check-markdown-selftest.mjs` | **AN EIGHTH AND NINTH - [Q142](../questions/q142.md)'s two-sided window, in an instance its own row does not describe.** Every earlier occurrence is *an item that adds DOCUMENTS must retune a constant in a file it does not own*; **this item added no document**. It added **links** to documents that already existed - a spec rule, a section, register rows, index paragraphs - and the `doc/decisions + doc/plans removed` fixture rose **1507 to 1754**, past `M4`'s floor of **1720**. The probe went silent and the gate reported `wanted [M1,M3,M4], got [M1,M3]`. **So the obligation is on writing PROSE, which no item can avoid, rather than on adding FILES.** Retuned to **2050** from a fresh three-count measurement on a scratch copy outside the repository - whole tree **73 / 2419 / 119**, one directory removed **56 / 2205 / 119**, both removed **45 / 1754 / 119** - so the window is `(1754, 2419]`. `M3` at 64 was still inside `(56, 73]` and `M5` is fired by a probe no `removes` cut reaches, so **only `M4` moved**. **And its `META` entry went inert for the SECOND time** (rule 7 (b) firing correctly, as at P10's declaration), so it is now **anchor-agnostic** rather than re-pinned | **late** - after the gate reported `36/37 probes caught` |
+| `AGENTS.md` | **[Q157](../questions/q157.md)'s SECOND occurrence, and it was predicted before it fired.** `index.ts` re-exports `src/driver/driver.ts` with `export *`, so `UnresolvedMapArity` reaches the package root and section 9's executed snippet enumerates every `Error` subclass the root exports — `X4` at `AGENTS.md:775`, exit 1. **And two other blocks became FALSE the moment a map ran**: §3's *"NOTHING DISPATCHES ONE YET"* and §9's *"no `Driver` opens one"*. The edit is the minimum that is not a lie — the class, and the two corrections — and is **not the feature write-up**, which Q157 gives to W35 | **late** — after `check:docs` reported it |
 
 **In `Owns` and NOT edited:** `src/driver/events.ts` and `src/driver/policy.ts`. Recorded rather
 than omitted, and it is a result: **a map needed no new region event and no change to the policy
 seam.** `spec/join-policy.md` section 2's six events describe a map's stream exactly as they describe
-a fanout's, and `Region` keeps its four fields — which is [Q159](../open-questions.md)'s answer
+a fanout's, and `Region` keeps its four fields — which is [Q159](../questions/q159.md)'s answer
 showing up as two untouched files.
 
 ## Verification
@@ -152,19 +152,19 @@ showing up as two untouched files.
 | **L0** | `npm run lint`, `npm run typecheck` |
 | **L1** | `npm run test`, `npm run test:deno`, `npm run test:browser` — unit tests over the policies and the fold. **chromium only** unless `test:browser:all` is named |
 | **L2** | `test/driver/**` — a fixture log in, an asserted node sequence and region-event stream out, **no scheduler**. The cheap rung and the important one |
-| **L3** | determinism — fold the same log twice and deep-compare. **[Q155](../open-questions.md) applies**: routing is already decided by the time the fold sees anything, so L3 here is a statement about the fold and not about the map's arity decision. Say so rather than reporting L3 green as though it covered it |
+| **L3** | determinism — fold the same log twice and deep-compare. **[Q155](../questions/q155.md) applies**: routing is already decided by the time the fold sees anything, so L3 here is a statement about the fold and not about the map's arity decision. Say so rather than reporting L3 green as though it covered it |
 | **`check:policies`** | `npm run check:policies` and `npm run check:policies:selftest` — **three clause ids, `P1`/`P2`/`P3`**, enforcing `JP-R9`. It goes red if `POLICIES` and `spec/join-policy.md` section 3 disagree either way, which is the exact hazard of an item that edits both. **Not a ladder rung** — see *"The gate line said L5"* above |
 | **L5** | **NOT CLIMBED — W34's.** `test/matrix/**`'s suites run inside `npm run test` regardless, so L5 is asserted here as a **regression that must not move**, and the Record reports it as such rather than as a rung this item covered |
 | **conformity** | spec first, code second |
 | **adequacy** | mutation in an isolated copy, walking the rule ids |
 
 **Routing cases** (`doc/workflow.md` section 5 rule 6): a branch **routed away from its join**
-([Q4](../open-questions.md)) is covered and is the case a map makes newly interesting, because the
-branches routed away are ones nothing declared. **`user_action`** ([Q17](../open-questions.md)) is
+([Q4](../questions/q4.md)) is covered and is the case a map makes newly interesting, because the
+branches routed away are ones nothing declared. **`user_action`** ([Q17](../questions/q17.md)) is
 covered — a suspended branch is still live and a map must not change that. A **duplicate task id**
-([Q13](../open-questions.md)) is covered at the dispatch layer, which is `ID-R1`'s refusal and the
-thing P10 fact 2 measured firing. A **nested fan-out** ([Q6](../open-questions.md)) is covered to the
-extent of not regressing ADR 0030. **No matching decision edge** ([Q10](../open-questions.md)) is
+([Q13](../questions/q13.md)) is covered at the dispatch layer, which is `ID-R1`'s refusal and the
+thing P10 fact 2 measured firing. A **nested fan-out** ([Q6](../questions/q6.md)) is covered to the
+extent of not regressing ADR 0030. **No matching decision edge** ([Q10](../questions/q10.md)) is
 **not applicable** — a map's arity is not a decision edge.
 
 **Rule 8, all five obligations, re-run after the readers with their edits checked in.** Two to
@@ -184,7 +184,7 @@ shapes here.
 | **L0** | **RAN - green** | `npm run lint` - 45 files, 0 findings. `npm run typecheck` - **all five projects**, exit 0 |
 | **L1** | **RAN - green in all FIVE runtimes** | **21 files / 553 cases**, from 20 / 517. node 24.20.0, deno 2.9.6, and - via **`npm run test:browser:all`** rather than the gate's chromium-only `test:browser` - chromium, firefox and webkit, each reporting *parity with node*. Sub-suites **derived by running the filter**, never subtracted: driver **8 / 193**, fold **5 / 124**, matrix **4 / 135**, definition **5 / 118** |
 | **L2** | **RAN - green** | `test/driver/map.test.ts` is new and is the bulk of it: a fixture log of outcomes in, an asserted node sequence and region-event stream out, **no scheduler**. The fake is `driver.test.ts`'s twelve-line one unchanged - **a map's arity comes from a settled outcome and a fixture log carries settled outcomes**, so the new feature cost this rung nothing, which is this item's answer to its own first review question |
-| **L3** | **RAN - green, and reported for what it covers** | Folding one log twice is deep-equal, over a prefix too. **[Q155](../open-questions.md) applies and is stated rather than glossed**: a `FoldInput` carries an outcome record and a region event, so routing is already decided before the fold sees anything - L3 here is a statement about the FOLD and **not** about the map's arity decision. A second case does what Q155's own *"what would close it"* names: **re-runs the DRIVER over one fixture log twice** and compares dispatches and region events, which folding one log twice structurally cannot reach |
+| **L3** | **RAN - green, and reported for what it covers** | Folding one log twice is deep-equal, over a prefix too. **[Q155](../questions/q155.md) applies and is stated rather than glossed**: a `FoldInput` carries an outcome record and a region event, so routing is already decided before the fold sees anything - L3 here is a statement about the FOLD and **not** about the map's arity decision. A second case does what Q155's own *"what would close it"* names: **re-runs the DRIVER over one fixture log twice** and compares dispatches and region events, which folding one log twice structurally cannot reach |
 | **`check:policies`** | **RAN - green** | `P1`, `P2`, `P3`, and `check:policies:selftest` at **14/14 bounded**. **It fired for real twice**: once when an explanatory table was placed above section 3's names table (the parser reads the FIRST table after the heading, and its own header says so), and once at `P1` when a probe renamed the row's id |
 | **L5** | **NOT CLIMBED - ran as a REGRESSION, and unmoved** | `test/matrix/**` is W34's. All four suites / 135 cases green and **not one of the 36 cells moved**, which is the load-bearing evidence that `arrival-count`'s re-sourcing is a re-sourcing and not `JP-R7`'s refinement. Reported as a rung this item did **not** climb - see *"The gate line said L5"* above |
 | **L6** | **NOT CLIMBED - and unmoved** | **489 assertions, 0 failed, in node and deno**, exactly as declared. W35's rung |
@@ -203,7 +203,7 @@ modified and 1 new, and it is **9 `Owns` + 6 record-step + 9 exceptions**, which
 | **`Owns`** | `src/driver/driver.ts`, `src/fold/policies.ts`, `src/fold/run-state.ts`, `spec/join-policy.md`, `test/driver/map.test.ts` (new), `test/driver/driver.test.ts`, `test/driver/outbound.test.ts`, `test/fold/fold-rules.test.ts`, `test/fold/policies.test.ts` |
 | **record step** | this file, plus `doc/open-questions.md`, `doc/README.md`, `CLAUDE.md`, `README.md` and the plan's Record |
 | **declared exceptions** | **NINE, all LATE**: `spec/run-state.md`, `spec/README.md`, `spec/flow-definition.md`, `scripts/check-spec-selftest.mjs`, `scripts/check-policies-selftest.mjs`, `scripts/build-browser-tests.mjs`, `scripts/check-markdown.mjs`, `scripts/check-markdown-selftest.mjs`, `AGENTS.md` |
-| **in `Owns` and NOT edited** | **`src/driver/events.ts` and `src/driver/policy.ts`.** Recorded rather than omitted, and it is a **result**: a map needed **no new region event and no change to the policy seam**. Section 2's six events describe a map's stream exactly as they describe a fanout's, and `Region` keeps its four fields - which is [Q159](../open-questions.md)'s answer showing up as two untouched files |
+| **in `Owns` and NOT edited** | **`src/driver/events.ts` and `src/driver/policy.ts`.** Recorded rather than omitted, and it is a **result**: a map needed **no new region event and no change to the policy seam**. Section 2's six events describe a map's stream exactly as they describe a fanout's, and `Region` keeps its four fields - which is [Q159](../questions/q159.md)'s answer showing up as two untouched files |
 
 **Outputs - what was actually built.**
 
@@ -267,7 +267,7 @@ one"* is what caught it - `npm run test:browser:all` was run rather than inferre
 NOTHING reads the region any more.** `liveToken` and `liveTokenRequiringArrival` are byte-unchanged.
 After `arrival-count`'s re-sourcing **not one shipped policy reads the `Region` it is opened with** -
 which showed up as `deno lint` reporting the `Region` import unused in `src/fold/policies.ts`. That
-is the strongest form of [Q159](../open-questions.md)'s answer: the interface need not say which node
+is the strongest form of [Q159](../questions/q159.md)'s answer: the interface need not say which node
 kind opened a region **because nothing reads the region**. P10 fact 3 measured two of three; it is now
 three of three.
 
@@ -276,7 +276,7 @@ definition item could not produce.** W32 answered yes for a definition item. Her
 produced `e3` (the fold's `regionEntered` arm present, correct and never entered - **31 cases**),
 `e2` (the map arm reached and unable to do anything - **22 cases**), `e5` (the manifest, caught by
 `S11` and **invisible to this item's own harness**, which invokes scripts directly rather than through
-npm - measured separately), and `e1`, which is [Q158](../open-questions.md) and still open. **The
+npm - measured separately), and `e1`, which is [Q158](../questions/q158.md) and still open. **The
 shape a driver item adds is a guard that RUNS and cannot reach its subject**, which is not what a
 self-test's wiring holes look like.
 
@@ -299,7 +299,7 @@ driver is keyed the same way** - `joinState`, `firedJoins`, `RegionEvent.regionI
 `regions` - and a `map` is the first construct in this library that enters one opener node **more than
 once in a run**. The definition layer's collapse was measured by W32 and decided the ADR; the driver
 layer's collapse was measured by W33's conformity reader and is refused here pending a decision on
-what a region's IDENTITY is ([Q160](../open-questions.md)). *The same fact, found twice, one layer
+what a region's IDENTITY is ([Q160](../questions/q160.md)). *The same fact, found twice, one layer
 apart, by two different readers.*
 
 **And the second finding is that a ruling written at one depth was wrong at both the others.**
@@ -320,7 +320,7 @@ of an item that edits both."* It compares the **id set**. The sentence that IS t
 `Outputs` row - the definition text - was bound by nothing, and reverting it left three checks and 543
 cases green. **A check that compares two halves does not necessarily compare the half you changed**,
 and the item had written the justification from the check's PURPOSE rather than from its clauses.
-[Q162](../open-questions.md).
+[Q162](../questions/q162.md).
 
 **Rule 8 - 43 provocations, 39 caught, 4 survivors, 0 aborted**, run four times: three in the author
 pass, each after acting on the previous, and once more after the readers with **twelve of their exact
@@ -328,7 +328,7 @@ edits checked in**. All twelve fire. The four survivors, each classified rather 
 
 | | why it survived |
 |---|---|
-| `e1` **still open** | the whole map suite renamed out of the runner's glob - **26 cases gone, exit 0, no line printed**. [Q158](../open-questions.md), `test/runner.ts` and `scripts/**` are in nobody's `Owns`, and W32's adequacy reader sharpened it: a suite BODY can `return` before registering a case, so counting files would not catch it |
+| `e1` **still open** | the whole map suite renamed out of the runner's glob - **26 cases gone, exit 0, no line printed**. [Q158](../questions/q158.md), `test/runner.ts` and `scripts/**` are in nobody's `Owns`, and W32's adequacy reader sharpened it: a suite BODY can `return` before registering a case, so counting files would not catch it |
 | `e5` **caught, by something outside this harness** | the manifest edit (`check:policies` no longer running its check) is invisible to a harness that invokes scripts directly. Measured separately through `check-source`: **`S11` fires**, naming both the entry and the substitution. Recorded as a limit of the harness rather than a hole in the item |
 | `e4` **VACUOUS, not a survivor** | `mapItems` called for its throw with the arity read from an identical expression beside it. The mutation changes **no observable**, and rule 8's own definition says a survivor is one only once a second route confirms the clause was reachable |
 | `b6` **a ceiling** | retitling a spec SECTION HEADING. No check opens a spec document's prose, which is `C4`'s own stated limit one document across, and the `Outputs` cell says so rather than the probe being dropped |
@@ -368,32 +368,32 @@ that breaks a VALUE**, and 23 of its 37 mutations were caught by the author's va
 **The sharpest single thing either reader found is that a closure can bound the LIST where the probe
 cuts the LOOP.** The author's `d4` mutated `[1, 3, 7]` to `[3]` and closed it with
 `equal(arities, [1, 3, 7])` - **a list compared to a copy of itself in the same snippet**, which is
-[Q101](../open-questions.md)'s shape, and which says nothing about how many entries the `for`
+[Q101](../questions/q101.md)'s shape, and which says nothing about how many entries the `for`
 consumed. `for (const n of arities.slice(0, 1))` then cost **0**. Three loops had it; the pattern that
 holds was already three tests away, in the `shapes` loop, which counts what it DID and compares that
 to the list. **Knowing the axis is not instantiating it**, which is rule 8's own recurring lesson.
 
 **Questions raised.**
 
-- **[Q160](../open-questions.md)** - a region's IDENTITY is its opener's node id, and a `map` makes one
+- **[Q160](../questions/q160.md)** - a region's IDENTITY is its opener's node id, and a `map` makes one
   opener reachable N times per run. **Refused at construction** by W33 rather than run wrong;
   un-refusing it means region identity becomes (opener, enclosing path), which changes what
   `RegionEvent.regionId` means and what the fold's `regions` is keyed by. Subsumes the mechanism
-  behind [Q156](../open-questions.md).
-- **[Q161](../open-questions.md)** - at N = 0 the driver must act on a fact **no policy can see**, which
+  behind [Q156](../questions/q156.md).
+- **[Q161](../questions/q161.md)** - at N = 0 the driver must act on a fact **no policy can see**, which
   sharpens the fourth-event question `spec/join-policy.md` section 5 rejected. For whoever answers
-  [Q97](../open-questions.md).
-- **[Q162](../open-questions.md)** - `check:policies` binds the policy id SET, and **nothing binds
+  [Q97](../questions/q97.md).
+- **[Q162](../questions/q162.md)** - `check:policies` binds the policy id SET, and **nothing binds
   section 3's definition TEXT**. Closed here for one row by a test; the class is open.
-- **[Q163](../open-questions.md)** - a policy's `describe` is observable **mid-burst** through
+- **[Q163](../questions/q163.md)** - a policy's `describe` is observable **mid-burst** through
   `onRegionEvent` + `joinStatusOf`, and `arrival-count`'s moved on a static region without any verdict
   moving.
-- **[Q142](../open-questions.md) gains a fourth instance rather than a new id**, because it is that
+- **[Q142](../questions/q142.md) gains a fourth instance rather than a new id**, because it is that
   row's mechanism reached by a road the row does not name: **an item that adds no document at all**
   still moved the fixture past `M4`'s floor, by writing prose. Recorded on Q142 rather than raised
   separately, and the `META` entry is now anchor-agnostic so the *"pinned to a magic number"* half
   does not recur.
 
-**All four of Q160-Q163 used.** **No ADR**: 0037 is W34's ([Q36](../open-questions.md)), and every
+**All four of Q160-Q163 used.** **No ADR**: 0037 is W34's ([Q36](../questions/q36.md)), and every
 decision here is a spec rule with its rationale stated in place, which `doc/decisions/README.md`
 prefers to a rule plus an ADR restating it.

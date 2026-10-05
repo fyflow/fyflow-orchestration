@@ -4,7 +4,7 @@
  * [ADR 0015](../../doc/decisions/0015-a-run-whose-join-can-no-longer-fire-is-stuck.md).
  *
  * **The first test is the one that matters**, and it is the assertion
- * [Q43](../../doc/open-questions.md)'s register entry claimed was unnecessary:
+ * [Q43](../../doc/questions/q43.md)'s register entry claimed was unnecessary:
  * *"`regions` already records `{0: arrived, 1: exited}`, so the information is
  * present."* Two sequences differing only in whether the join fired produce a
  * byte-identical `regions` apart from `joined` — so before that field existed,
@@ -232,7 +232,7 @@ suite('RN-R10 and RN-R12 — the reachable cases no test reached', (test) => {
     // region with different `joined` values — one join fired, another did not —
     // and swapping them survived every assertion until now. The shape is legal:
     // `FD-V15` refuses only NESTED fan-out, and `test/matrix/region-shapes.test.ts`
-    // runs two sequential fan-outs sharing one `end` ([Q45](../../doc/open-questions.md)).
+    // runs two sequential fan-outs sharing one `end` ([Q45](../../doc/questions/q45.md)).
     const region = (id: string, joined: boolean | null): FoldInput[] => [
       { kind: 'region', event: { type: 'branch.opened', regionId: id, regionPath: '-', branchPath: '0' } },
       { kind: 'region', event: { type: 'branch.arrived', regionId: id, regionPath: '-', branchPath: '0' } },

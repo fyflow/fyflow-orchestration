@@ -161,7 +161,7 @@ entry gate**, which is why a type must be the pure function of its context Q9 as
   clause keeps its dated `gate` exemption until W94's row runs one on real workers. *(It did: [W94](../work-items/w94-a-tv-series-ingest-through-a-gate-on-real-workers.md)'s
   rows turned the clause RED on their first run and the exemption was removed; L6 is 2069 / 154, and the package `0.6.0`.)*
 - **A new `FoldInput` kind is BREAKING for a consumer switching on `kind` exhaustively**, as `resumed` was —
-  the package moves at W94's close ([Q381](../open-questions.md)'s list names it with the node kind).
+  the package moves at W94's close ([Q381](../questions/q381.md)'s list names it with the node kind).
 - **`RN-R13` gains a FOURTH term**: each gate's memory, retained for the life of the run — P24 prediction 4,
   predicted before this item and confirmed by it.
 - **A checkpoint needs no new field** (P24 prediction 2): the memory is rebuilt by the replay ADR 0065

@@ -33,14 +33,14 @@ answered *what can a node reach* and *what does a decision see*; neither answere
 is refused**, and both of that question's live cases were raised by P12's own readers rather than by
 its authors.
 
-**[Q187](../open-questions.md) is the sharp one, and it is [ADR 0002](../decisions/0002-a-flow-definition-is-data-and-a-predicate-is-registered-by-name.md)
+**[Q187](../questions/q187.md) is the sharp one, and it is [ADR 0002](../decisions/0002-a-flow-definition-is-data-and-a-predicate-is-registered-by-name.md)
 rule 3's own argument failing against a rule written four days ago.** `FD-V27` requires
 **reachability** and not **dominance**, so a reference across a decision is accepted at instantiation
 and refused at run time — *on the one workload that takes the other branch*, which is the exact shape
 ADR 0002 rule 3 exists to prevent. **Reproduced at this declaration** (fact 1): zero findings, and
 then a run that dispatches two of four tasks and stops.
 
-**[Q186](../open-questions.md) is the other one and it is a cost rather than a refusal.**
+**[Q186](../questions/q186.md) is the other one and it is a cost rather than a refusal.**
 [ADR 0037](../decisions/0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md)
 measured *a clone of the whole payload per map instance* and **refused it as unaffordable for the
 feature that needed it**; `needs` makes exactly that clone available on request, per key, and
@@ -64,7 +64,7 @@ made on a measurement.
 were this declaration's own probes** — which breaks a streak of fourteen consecutive plans finding a
 row wrong by trying to act on it, and is recorded as the result rather than dressed up as one.
 
-**1. [Q187](../open-questions.md) reproduces exactly, in both directions.** The flow
+**1. [Q187](../questions/q187.md) reproduces exactly, in both directions.** The flow
 `ingest -> decide -{when}-> flag -> publish` / `decide -{default}-> publish`, with
 `publish` declaring `needs: {"f": "flag"}`:
 
@@ -99,9 +99,9 @@ none exists.)*
 > `FD-V28`'s own note calls *"a valid document"*. **The six written references are what six authors
 > happened to need; the admitted set is what the rule is about.** *A rule measured against the
 > references a corpus WRITES is measured against its authors' habits* —
-> [Q199](../open-questions.md).
+> [Q199](../questions/q199.md).
 
-**3. [Q186](../open-questions.md)'s cliff reproduces on the tree this plan starts from.** Timing the
+**3. [Q186](../questions/q186.md)'s cliff reproduces on the tree this plan starts from.** Timing the
 map's fan-out alone over a 1000-item payload:
 
 | what the branch entry declares | W41 | today |
@@ -114,14 +114,14 @@ map's fan-out alone over a 1000-item payload:
 **64x, and which node id the author typed is the whole of the difference.**
 
 **4. And an author cannot point at less than a NODE'S WHOLE RESULT, which is sharper than
-[Q186](../open-questions.md)'s row states it.** That row says *what an author points it at is what
+[Q186](../questions/q186.md)'s row states it.** That row says *what an author points it at is what
 costs*. **Found by getting this declaration's own fixture wrong**: the "small result" probe first
 named a node whose result **contained** the 1000 items, and it cost **562.6 ms** — the full cliff,
 from a key the author wrote in order to get something small. A reference names a node, so it carries
 everything that node returned. *The row is right and its consequence is one step further out than it
 says.*
 
-**5. [Q190](../open-questions.md) is CONFIRMED in both its shapes and is NOT this plan's.** An edge
+**5. [Q190](../questions/q190.md) is CONFIRMED in both its shapes and is NOT this plan's.** An edge
 with a `needs` and no `when` validates with **0 findings**; so does a `join`'s single exit edge, which
 `FD-V7` forbids from carrying a `when` at all. **Its status cell already reads *decided as ACCEPTED,
 and the decision is written down*** and its forcing condition — an author reporting it, or a third
@@ -138,30 +138,30 @@ reference table has **three** rows and none of them is conditional. *(A first pr
 
 **In**
 
-1. **[Q187](../open-questions.md)** — whether a reference whose target may not run is refused at
+1. **[Q187](../questions/q187.md)** — whether a reference whose target may not run is refused at
    instantiation, and if so how. **The fork is named and neither side is preferred here**: a
    **dominance rule** on `FD-V27`, or a **fourth reference form** that says *if it ran*.
-2. **[Q186](../open-questions.md)** — whether anything warns about a reference to a large value, or
+2. **[Q186](../questions/q186.md)** — whether anything warns about a reference to a large value, or
    whether the answer is that nothing should and the reason is written down.
 3. **The exit artifact**: the flow in the `Exit:` block above, on real workers, in both L6 runtimes.
 
 **Out** — named rather than left implicit, with where it goes instead
 
-- **[Q190](../open-questions.md)** — decided as ACCEPTED and recorded, fact 5. Reopening a decision
+- **[Q190](../questions/q190.md)** — decided as ACCEPTED and recorded, fact 5. Reopening a decision
   whose forcing condition has not occurred is what section 6 pass 3 rule 1 calls measuring your own
   output.
-- **[Q22](../open-questions.md)'s constraint decision.** A driver-side size guard for
-  [Q186](../open-questions.md) would have to answer *how large is too large*, which is Q22's question
+- **[Q22](../questions/q22.md)'s constraint decision.** A driver-side size guard for
+  [Q186](../questions/q186.md) would have to answer *how large is too large*, which is Q22's question
   and is unresolved. If W46 needs it, that is a **stop and ask the maintainer**, not a scope creep.
-- **[Q19](../open-questions.md)** — is retained state bounded. ADR 0040 makes it sharper and P12's
+- **[Q19](../questions/q19.md)** — is retained state bounded. ADR 0040 makes it sharper and P12's
   retro says so; it still needs a measured run at 1000s of workloads, which this repository does not
   have.
-- **[Q195](../open-questions.md)-[Q198](../open-questions.md)** — P12's evidence-layer questions. They
+- **[Q195](../questions/q195.md)-[Q198](../questions/q198.md)** — P12's evidence-layer questions. They
   are about how this repository tests, not about what the library does, and v0.13 has just acted on
   the three of them that had two occurrences.
-- **The gate** — [Q181](../open-questions.md), [Q182](../open-questions.md) and
-  [Q183](../open-questions.md) are live, unowned and not this plan's, for the second plan running.
-- **[Q165](../open-questions.md)'s reducer.** The flow that forced it runs without one.
+- **The gate** — [Q181](../questions/q181.md), [Q182](../questions/q182.md) and
+  [Q183](../questions/q183.md) are live, unowned and not this plan's, for the second plan running.
+- **[Q165](../questions/q165.md)'s reducer.** The flow that forced it runs without one.
 
 ## Decisions taken before fan-out
 
@@ -183,8 +183,8 @@ number.**
 
 | id | | owns |
 |---|---|---|
-| **W45** | *What a reference must be able to say.* [Q187](../open-questions.md), decided as **ADR 0042** from facts 1, 2 and 6 — a dominance rule on `FD-V27`, or a fourth reference form, and the evidence must include **a flow that a dominance rule would refuse and an author would want**, or record that none could be constructed. Builds whichever it takes, with the `spec/` rule and its id. | `src/definition/**`, `spec/flow-definition.md`, `spec/examples/**`, `test/definition/**`, `doc/decisions/0042-*.md`, and `src/driver/driver.ts` if a fourth form reaches the resolver |
-| **W46** | *What a reference costs, and whether anything says so.* [Q186](../open-questions.md) — **ADR 0043 only if something is built**; a recorded verdict that nothing should warn, with the reason, is the expected outcome and is a legitimate result. Fact 4 is its sharpest input. | `src/driver/driver.ts`, `spec/flow-definition.md` section 3, `test/driver/**`, `doc/decisions/0043-*.md` |
+| **W45** | *What a reference must be able to say.* [Q187](../questions/q187.md), decided as **ADR 0042** from facts 1, 2 and 6 — a dominance rule on `FD-V27`, or a fourth reference form, and the evidence must include **a flow that a dominance rule would refuse and an author would want**, or record that none could be constructed. Builds whichever it takes, with the `spec/` rule and its id. | `src/definition/**`, `spec/flow-definition.md`, `spec/examples/**`, `test/definition/**`, `doc/decisions/0042-*.md`, and `src/driver/driver.ts` if a fourth form reaches the resolver |
+| **W46** | *What a reference costs, and whether anything says so.* [Q186](../questions/q186.md) — **ADR 0043 only if something is built**; a recorded verdict that nothing should warn, with the reason, is the expected outcome and is a legitimate result. Fact 4 is its sharpest input. | `src/driver/driver.ts`, `spec/flow-definition.md` section 3, `test/driver/**`, `doc/decisions/0043-*.md` |
 | **W47** | *The blocked flow on real workers.* The exit artifact, in **both** L6 runtimes, with what reverting W45 costs measured in L6 failures. | `examples/**` |
 | **W48** | **reserved and expected unused**, on P9's, P11's and P12's precedent. A reserved id that is not spent is still not free. | — |
 
@@ -205,24 +205,24 @@ reach prediction can reverse **and** be wrong about its own evidence.
 |---|---|---|---|---|
 | 1 | derived | **A dominance rule refuses nothing that exists, so adopting it costs zero in the corpus.** Fact 2 measured it; this checks whether the inference survives the flows W45 writes | W45 | a corpus flow that dominance refuses and an author wants — which is exactly what W45's evidence is required to try to construct |
 | 2 | **reach** | **The answer is a FOURTH REFERENCE FORM and not a validator rule.** Fact 6 says the grammar cannot express *if it ran*, and a dominance rule refuses the flow rather than letting the author say what they mean — this is the reversible one | W45 | dominance expressing everything an author wants, which would make the fourth form a feature with no case behind it |
-| 3 | derived | **W46 takes NO ADR and records why.** Fact 4 says the cost is a property of what a node returns, so any guard must judge SIZE at run time, which is [Q22](../open-questions.md)'s unresolved question | W46 | a warning that needs no size judgement — most likely a static one about a reference into a map region, which the document already knows about |
+| 3 | derived | **W46 takes NO ADR and records why.** Fact 4 says the cost is a property of what a node returns, so any guard must judge SIZE at run time, which is [Q22](../questions/q22.md)'s unresolved question | W46 | a warning that needs no size judgement — most likely a static one about a reference into a map region, which the document already knows about |
 | 4 | **reach** | **`FD-V27` is not the only rule that moves.** If prediction 2 holds, `FD-V26` and section 3's reference **table** both grow — and that table's row count is a live bound in ~~three~~ **two** places: ~~`check-spec`,~~ W41's L1 census and [W43](../work-items/w43-the-two-blocked-flows-on-real-workers.md)'s L6 cross-row clause. *(**Corrected by [W45](../work-items/w45-what-a-reference-must-be-able-to-say.md) as a declared late exception on this file**, because leaving it would make the retro's verdict on this row false. `scripts/check-spec.mjs` contains the string `reference` **zero** times and has no clause over that table — measured by grepping the whole tree for the table's own header line, which finds `test/definition/needs.test.ts` and `examples/l6.ts` and nothing else. What `check-spec` DOES bound is the RULE census — `C2`, `C4`, `C6`, `C8` — which moves when a rule is added and is a different claim. `doc/workflow.md` section 6 pass 3 rule 6 covers a retro correcting an item's file; this is the other direction and it is taken as an exception rather than assumed.)* | W45 | a fourth form expressed without a table row — a modifier on an existing form rather than a new one, which would move `FD-V26` and leave the count alone |
 
 ## Open questions this plan carries
 
 | Q | | Owner |
 |---|---|---|
-| [Q187](../open-questions.md) | reachability is not dominance — **the plan's question** | **W45**, by ADR 0042 |
-| [Q186](../open-questions.md) | a reference to a large value is the refused quadratic on request | **W46**; closed or explicitly not |
-| [Q22](../open-questions.md) | must a node result be structured-cloneable — the constraint half | no owner — **named because W46 may need it and must stop rather than take it** |
-| [Q190](../open-questions.md) | an inert `needs` is accepted | no owner — **decided, and fact 5 confirms both shapes** |
-| [Q192](../open-questions.md) | the edge caller contributes one independent bound to `resolveReference` | no owner — W45 may move that expression and should say so |
+| [Q187](../questions/q187.md) | reachability is not dominance — **the plan's question** | **W45**, by ADR 0042 |
+| [Q186](../questions/q186.md) | a reference to a large value is the refused quadratic on request | **W46**; closed or explicitly not |
+| [Q22](../questions/q22.md) | must a node result be structured-cloneable — the constraint half | no owner — **named because W46 may need it and must stop rather than take it** |
+| [Q190](../questions/q190.md) | an inert `needs` is accepted | no owner — **decided, and fact 5 confirms both shapes** |
+| [Q192](../questions/q192.md) | the edge caller contributes one independent bound to `resolveReference` | no owner — W45 may move that expression and should say so |
 
 ## A note on ids
 
 **W44 is spent and unused** ([P12](p12-what-a-node-receives-and-what-a-decision-sees.md) reserved it
 and its retro closed it), so this plan starts at **W45**. ADR ids resume at **0042**; Q ids at
-**Q199**, with [Q168](../open-questions.md)-[Q169](../open-questions.md) remaining a gap, which is
+**Q199**, with Q168-Q169 remaining a gap, which is
 free.
 
 **The block is FIFTEEN, and that is the third measurement rather than caution.** P11 reserved five and
@@ -243,7 +243,7 @@ markdown    — 86 documents, 3471 relative links, 171 anchored
 register    — 155 questions, 107 open, 2 deferred, 46 resolved
 ```
 
-**[Q142](../open-questions.md) did NOT fire, and the headroom is recorded rather than assumed.** This
+**[Q142](../questions/q142.md) did NOT fire, and the headroom is recorded rather than assumed.** This
 declaration adds one document, to `doc/plans/` — which probe 2 REMOVES — so it moves the
 one-directory fixture and not the two-directory one. Measured on a scratch copy outside the
 repository: whole tree **87 / 3532 / 171**, `doc/decisions` removed **66 / 3218 / 171**, both removed
@@ -255,8 +255,8 @@ instance, *the obligation is on writing PROSE, not on adding FILES*.
 
 **Three things about those numbers.** `npm run gate` runs `test:browser`, which is **chromium only**;
 firefox and webkit need `test:browser:all`. **633 counts `test()` cases and 760 counts individual
-assertions ([Q98](../open-questions.md)) — they are never added.** And wall time is not reproducible
-here ([Q179](../open-questions.md)); the number above is one reading.
+assertions ([Q98](../questions/q98.md)) — they are never added.** And wall time is not reproducible
+here ([Q179](../questions/q179.md)); the number above is one reading.
 
 ## Record
 
@@ -325,7 +325,7 @@ exactly when its own measurement's scope is narrower than its wording.
 
 **2 is REVERSED, and in the way P12's retro named**: the answer is
 not a fourth form INSTEAD of a validator rule, it is **`FD-V29` and a `?` MODIFIER**, each of which
-makes the other affordable — [Q11](../open-questions.md)'s stack-not-a-fork, one plan on. **3 is
+makes the other affordable — [Q11](../questions/q11.md)'s stack-not-a-fork, one plan on. **3 is
 CONFIRMED with its reversal condition checked rather than assumed** — W46 took no ADR, and the
 static predicate that needs no size judgement was constructed, measured, and declined because it
 fires on 3 of 3 intended uses. **4 is CONFIRMED and the row was corrected before it could be
@@ -341,7 +341,7 @@ runs**, from 806 / 38; `spec/` and L1-L5 are unmoved, which is the declared resu
 `FD-V29` cost **ZERO** L6 failures before this item — because every reference L6 runs is either
 `"."`, certain, or written with a `?`, and **a document `FD-V29` refuses does not start**. *A rule
 whose whole effect is that a run never happens is invisible to a rung made of runs*
-([Q214](../open-questions.md)), and the scope is stated: **L6 was the only blind rung**, since the
+([Q214](../questions/q214.md)), and the scope is stated: **L6 was the only blind rung**, since the
 same deletion costs 7 at L1-L5 and fails `check-docs` `X4`. It now costs **3**. Reverting W45 whole
 is **12** — `FD-V29` 3, `FD-C4` 9 — with the `?` left unparsed stopping the run at `Driver`
 construction.
@@ -365,13 +365,13 @@ five more defects in the same pass. **ONE late exception, zero undeclared** — 
 item in three plans — and **it is `spec/README.md`, one of P13's three named files**, so the plan's test is answered
 `AGENTS.md` yes/yes/no, `spec/README.md` yes/yes/yes, `scripts/check-docs.mjs` no/yes/no — **an
 `Owns` pre-declaration rule would have been wrong twice on two of the three**
-([Q157](../open-questions.md)). **Census CONFIRMED for the THIRTEENTH plan running — 174 / 125 / 2 /
+([Q157](../questions/q157.md)). **Census CONFIRMED for the THIRTEENTH plan running — 174 / 125 / 2 /
 47**, 0 aborts, on a parser written from scratch that was wrong in three directions first and found
-a **fourth** register row rendering wrong ([Q215](../open-questions.md)). **Q213-Q217 used.**
+a **fourth** register row rendering wrong ([Q215](../questions/q215.md)). **Q213-Q217 used.**
 
 **[W46](../work-items/w46-what-a-reference-costs-and-whether-anything-says-so.md) is DONE, it takes
-NO ADR, and [Q186](../open-questions.md) is DECIDED and deliberately NOT CLOSED** —
-`spec/flow-definition.md` **v0.14**, section 3, on [Q190](../open-questions.md)'s precedent.
+NO ADR, and [Q186](../questions/q186.md) is DECIDED and deliberately NOT CLOSED** —
+`spec/flow-definition.md` **v0.14**, section 3, on [Q190](../questions/q190.md)'s precedent.
 **Prediction 3 is CONFIRMED and its reversal condition was checked rather than assumed.** `spec/` is
 unmoved at 7 / 43 / 89, L1-L5 is 656 in five runtimes, L6 unmoved at 806 / 38.
 
@@ -382,19 +382,19 @@ predicate is right, and it is declined because it fires on **3 of 3 intended use
 The third stated an absence where [ADR 0027](../decisions/0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md)'s
 *report* is an unweighed choice. **And the item's own headline method claim did not reproduce**: order
 costs nothing and **accumulation costs up to 4.4x**, so a one-process table measures its last row's
-position rather than its rows ([Q208](../open-questions.md)).
+position rather than its rows ([Q208](../questions/q208.md)).
 
 **Rule 8: 22 probes, 16 caught, 5 declared ceilings, 0 survivors, 0 aborts**; readers **16 / 8** and
 **22 mutations / 10 survivors / 8 blocking**, **overlap 2**, the twenty-fourth measurement. `X6` binds
 three copies of one cost table and produced three findings of its own, including a **closed allowlist
-that let a whole check id ship ungraded** ([Q209](../open-questions.md)). **FOUR late exceptions, zero
+that let a whole check id ship ungraded** ([Q209](../questions/q209.md)). **FOUR late exceptions, zero
 undeclared** — and **P13's `Owns` test is answered YES on all three files over the two items**
-([Q157](../open-questions.md)). **Census CONFIRMED — 169 / 120 / 2 / 47.** **Q208-Q212 used;
+([Q157](../questions/q157.md)). **Census CONFIRMED — 169 / 120 / 2 / 47.** **Q208-Q212 used;
 ADR 0043 SKIPPED.**
 
 **[W45](../work-items/w45-what-a-reference-must-be-able-to-say.md) is DONE, and
 [ADR 0042](../decisions/0042-a-reference-says-whether-it-is-conditional-and-the-bare-form-means-the-target-certainly-ran.md)
-answers [Q187](../open-questions.md): a reference says whether it is CONDITIONAL, and the bare form
+answers [Q187](../questions/q187.md): a reference says whether it is CONDITIONAL, and the bare form
 means the target certainly ran.** `spec/flow-definition.md` is **v0.13**; section 3's reference table
 gains **one row** — a `?` MODIFIER on either aimed form — and section 5 gains **`FD-V29`**, which
 refuses an *unconditional* reference a run can reach the declaring node without. `FD-C4` is what a
@@ -424,7 +424,7 @@ own stated precedent that a different fix earns a different id.
 *14 of 25 flows*, from a probe whose hard-coded registry dropped one corpus file — the symptom being
 two adjacent rows of one table saying 26 flows and 25 flows. W45's conformity reader re-derived every
 one; **`22` was the only survivor**, and the four properties the decision rests on are now an
-executable L1 suite rather than prose in three files. [Q199](../open-questions.md).
+executable L1 suite rather than prose in three files. [Q199](../questions/q199.md).
 
 **Rule 8: 50 probes, 46 caught, 3 declared ceilings, 0 survivors standing, 0 aborts**, run twice with
 **ten of the readers' exact edits** checked back in — and the re-run caught `Q102`'s shape **inside
@@ -433,9 +433,9 @@ the fix for a reader's finding about `Q102`'s shape**, twice. Readers **14 / 8 b
 both unprimed. **SIX late exceptions, zero undeclared** — and the answer to the test this plan set
 at its `Owns` note is **`AGENTS.md` yes, `spec/README.md` yes, `scripts/check-docs.mjs` NO**, while
 the two exceptions that cost real work are the ones this plan's own index row created
-([Q203](../open-questions.md)). **Census CONFIRMED for the TWELFTH plan running — 164 questions,
+([Q203](../questions/q203.md)). **Census CONFIRMED for the TWELFTH plan running — 164 questions,
 115 open, 2 deferred, 47 resolved**, and the parser aborted zero times on its first run and then
-found a defect in one of its own clauses ([Q204](../open-questions.md)).
+found a defect in one of its own clauses ([Q204](../questions/q204.md)).
 **Q199-Q207 used — the block extended by two at the Record. ADR 0042 taken.**
 
 **Retro.** *`doc/workflow.md` section 6 pass 3. It owes a verdict on each of the four predictions, on

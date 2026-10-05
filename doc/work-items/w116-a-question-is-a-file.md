@@ -103,7 +103,7 @@ precedent: its declaration named four and the fifth was the one that was red.
   (`](#live)` three times, `](decisions/0077-…)` once), written relative to the OLD register, and
   copied verbatim into a front-matter field they resolve to nothing. A field is data, not a link.
 - `M3`'s floor is retuned: 384 files arrive in a directory neither `removes` probe cuts, which is
-  [Q142](../open-questions.md)'s window from below for the twelfth time.
+  [Q142](../questions/q142.md)'s window from below for the twelfth time.
 - The `M2` same-file-anchor probe is re-pointed from the register, whose `](#live)` leaves with it,
   to `doc/scheduler-upstream.md`'s own S-id anchors.
 - **`M7` and `M8` have no self-test probes to delete** — `grep -c 'M7\|M8'` over

@@ -53,7 +53,7 @@ export interface Envelope {
  * and `MergeWorker` declare `delayMs: 20` against everyone else's `5`), where it was a
  * `SETTLES_LAST` set in the harness; `examples/l6.ts` reads the ratio off the document, so it is a
  * declared fact rather than a literal in two places. W17's adequacy reader measured the 4x inert and
- * [Q99](../../doc/open-questions.md) is the row; it is kept because the moment a pool becomes
+ * [Q99](../../doc/questions/q99.md) is the row; it is kept because the moment a pool becomes
  * threaded, dispatch order stops implying settle order.
  *
  * **`setup()` and `teardown()` are abstract on `BaseWorker` and omitting either is a compile

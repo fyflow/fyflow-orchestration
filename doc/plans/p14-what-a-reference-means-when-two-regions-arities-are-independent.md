@@ -12,9 +12,9 @@ unrelated namespaces.
 
 ## Why this plan, and why now
 
-**[Q206](../open-questions.md) is the only open row that says the library cannot express something an
-author would ordinarily want**, which is the position [Q12](../open-questions.md) held before P10 and
-[Q11](../open-questions.md)/[Q187](../open-questions.md) held before P12 and P13. It was found by
+**[Q206](../questions/q206.md) is the only open row that says the library cannot express something an
+author would ordinarily want**, which is the position [Q12](../questions/q12.md) held before P10 and
+[Q11](../questions/q11.md)/[Q187](../questions/q187.md) held before P12 and P13. It was found by
 [W45](../work-items/w45-what-a-reference-must-be-able-to-say.md)'s conformity reader, recorded in
 `spec/flow-definition.md` section 3 **with its measurement**, and left unowned for one stated reason:
 **the fix is either a fourth refusal or a change to the visibility predicate, and that predicate is
@@ -54,7 +54,7 @@ sibling pair (two regions, neither containing the other) occurs in
 and is three commits old. **Every one of the four is `map`/`map`; no `fanout` pair occurs anywhere.**
 
 **3. And the defect is ARITY-DEPENDENT, which is why `map-over-region-output` works and is
-celebrated.** That flow is the one [Q165](../open-questions.md) was closed by and the one P12's Record
+celebrated.** That flow is the one [Q165](../questions/q165.md) was closed by and the one P12's Record
 holds up for removing the coupling to branch numbering — and it carries the same sibling reference.
 It works because **`rank`'s `over` is the resolved `["score"]` itself**, so the two arities are equal
 *by construction* and the index-matched entry is exactly the one that instance wants. **So the
@@ -101,7 +101,7 @@ case.*
 
 **In**
 
-1. **[Q206](../open-questions.md)** — what a reference means when its target is in a sibling region,
+1. **[Q206](../questions/q206.md)** — what a reference means when its target is in a sibling region,
    decided as **ADR 0044**. Three candidates, none preferred here:
    - **(a) a fourth refusal.** A new `FD-V` refuses a reference whose target is in a region the reader
      is in a *sibling* of. Cheap, safe, keeps the KEY, and makes the reshaping node explicit rather
@@ -122,19 +122,19 @@ case.*
 
 **Out** — named rather than left implicit, with where each goes instead
 
-- **[Q19](../open-questions.md) and [Q22](../open-questions.md)** — bounded retention, and whether a
+- **[Q19](../questions/q19.md) and [Q22](../questions/q22.md)** — bounded retention, and whether a
   result must be structured-cloneable. They are the next plan's subject and they have three measured
   inputs waiting; taking them here would make this two plans.
-- **[Q186](../open-questions.md)'s threshold.** W46 decided *nothing warns* and left *how large is too
+- **[Q186](../questions/q186.md)'s threshold.** W46 decided *nothing warns* and left *how large is too
   large* open deliberately. Unchanged by this plan.
-- **[Q216](../open-questions.md) and [Q217](../open-questions.md)** — the retro's own two, about
+- **[Q216](../questions/q216.md) and [Q217](../questions/q217.md)** — the retro's own two, about
   observers and about membership lists. Both are process questions and P13's retro adopted their
   clauses; this plan RUNS those clauses rather than judging them.
-- **[Q214](../open-questions.md)** — a rule whose whole effect is that a run never happens. Recorded
+- **[Q214](../questions/q214.md)** — a rule whose whole effect is that a run never happens. Recorded
   by W47; a second instance is what would force anything, and this plan may supply one, which is
   prediction 4.
-- **The gate** ([Q181](../open-questions.md)-[Q183](../open-questions.md)) and
-  [Q165](../open-questions.md)'s reducer.
+- **The gate** ([Q181](../questions/q181.md)-[Q183](../questions/q183.md)) and
+  [Q165](../questions/q165.md)'s reducer.
 
 ## Decisions taken before fan-out
 
@@ -143,7 +143,7 @@ case.*
    ITEM's authority, not about the question. **W49 may take (b); it may not take it silently** — the
    ADR names the pair by id and says what moves.
 2. **Whatever is decided, `map-over-region-output` keeps working and its L6 row keeps its numbers.**
-   It is a corpus flow, [Q165](../open-questions.md)'s answer and a live L6 row scoring 4/8/12 from
+   It is a corpus flow, [Q165](../questions/q165.md)'s answer and a live L6 row scoring 4/8/12 from
    both declared keys. **A candidate that changes what its three instances receive is refused on that
    ground alone**, and the measurement is fact 3: the two arities there are equal by construction.
 3. **The evidence must include a sibling `fanout` pair.** Fact 5 says the two kinds behave oppositely
@@ -156,7 +156,7 @@ case.*
 
 | id | | owns |
 |---|---|---|
-| **W49** | *What a reference across sibling regions means.* [Q206](../open-questions.md), decided as **ADR 0044** from facts 1-5, with decision 2 as a hard constraint and decision 3 as the evidence clause. Writes the `spec/` rule and the definition half. | `src/definition/**`, `spec/flow-definition.md`, `spec/examples/**`, `test/definition/**`, `doc/decisions/0044-*.md` |
+| **W49** | *What a reference across sibling regions means.* [Q206](../questions/q206.md), decided as **ADR 0044** from facts 1-5, with decision 2 as a hard constraint and decision 3 as the evidence clause. Writes the `spec/` rule and the definition half. | `src/definition/**`, `spec/flow-definition.md`, `spec/examples/**`, `test/definition/**`, `doc/decisions/0044-*.md` |
 | **W50** | *What the run carries at independent arities.* The driver half and ladder L2 — what a reader receives, and what refuses when it cannot. **May be small or empty depending on W49's answer, and the plan says so rather than reserving work for it**: candidate (a) is a validator rule and moves no driver code. | `src/driver/**`, `test/driver/**`, `spec/flow-definition.md` |
 | **W51** | *The sibling-region flow on real workers.* The exit artifact, in **both** L6 runtimes, at INDEPENDENT arities, with what reverting W49 costs in L6 failures. | `examples/**` |
 | **W52** | **reserved and expected unused**, on P9's, P11's, P12's and P13's precedent. A reserved id that is not spent is still not free. | — |
@@ -182,17 +182,17 @@ measurement it rested on answered a narrower question than its own wording.
 | 1 | derived | **Candidate (a), a fourth refusal, cannot be written without an arity clause** — because it must refuse `reference-past-a-map-arity` and admit `map-over-region-output`, and the two differ only in whether `over` names the reference's own key | W49 | fact 3, measured on **the four sibling-region flows the two corpora contain** and on no constructed one | a static predicate that separates them without mentioning arity — most likely *the reader's `over` names this very key*, which is decidable from the document |
 | 2 | **reach** | **The answer is (c), making a region's COLLECTION referenceable, and not (a) or (b)** — because fact 4 says the author's natural spelling is already refused by `FD-V27` rather than by the rule they would read, and a collection is the only thing that is *all* of a region's outputs regardless of arity | W49 | fact 4, measured over **the eight spellings the grammar admits**, on one document at one arity pair; it says nothing about what a fourth target class costs | `JP-R12`'s collection being unavailable at the moment a reference resolves, or a join target making `FD-V27`'s reachability question undecidable |
 | 3 | derived | **W50 is SMALL: no driver code moves.** Facts 4 and 6 say the visible set is computed at one expression with two call sites, and candidates (a) and (c) are both about what a document may SAY | W50 | fact 6, measured by **counting declarations and call sites in `src/driver/driver.ts`**; it does not measure what a new target class would need at resolution time | candidate (b) winning, or (c) needing the collection at a moment the driver does not have it |
-| 4 | **reach** | **This plan supplies [Q214](../open-questions.md)'s second instance** — a rule whose whole effect is that a run never happens, invisible to L6 — because every candidate refuses at instantiation and W47 measured that a refused document does not start | W51 | W47's measurement, scoped to **ladder L6 and to `FD-V29`**; it is one occurrence and Q214's row says a second is what would force a rule | the decision landing as a run-time refusal (`FD-R`) rather than a validator rule, which L6 CAN see |
+| 4 | **reach** | **This plan supplies [Q214](../questions/q214.md)'s second instance** — a rule whose whole effect is that a run never happens, invisible to L6 — because every candidate refuses at instantiation and W47 measured that a refused document does not start | W51 | W47's measurement, scoped to **ladder L6 and to `FD-V29`**; it is one occurrence and Q214's row says a second is what would force a rule | the decision landing as a run-time refusal (`FD-R`) rather than a validator rule, which L6 CAN see |
 
 ## Open questions this plan carries
 
 | Q | | Owner |
 |---|---|---|
-| [Q206](../open-questions.md) | `FD-V28` asks a region question and resolution applies a path filter — **the plan's question** | **W49**, by ADR 0044 |
-| [Q27](../open-questions.md) | what a region's arity is a property of | read by W49; not owned |
-| [Q165](../open-questions.md) | the coupling to branch numbering, which fact 3 says was removed by making two numbers equal | read by W49; **not reopened** |
-| [Q214](../open-questions.md) | a refusal invisible to a rung made of runs | **W51**, as prediction 4 |
-| [Q216](../open-questions.md), [Q217](../open-questions.md) | the retro's two; this plan RUNS their clauses and does not judge them | every item |
+| [Q206](../questions/q206.md) | `FD-V28` asks a region question and resolution applies a path filter — **the plan's question** | **W49**, by ADR 0044 |
+| [Q27](../questions/q27.md) | what a region's arity is a property of | read by W49; not owned |
+| [Q165](../questions/q165.md) | the coupling to branch numbering, which fact 3 says was removed by making two numbers equal | read by W49; **not reopened** |
+| [Q214](../questions/q214.md) | a refusal invisible to a rung made of runs | **W51**, as prediction 4 |
+| [Q216](../questions/q216.md), [Q217](../questions/q217.md) | the retro's two; this plan RUNS their clauses and does not judge them | every item |
 
 ## A note on ids
 
@@ -225,7 +225,7 @@ next plan after this one starts at **W53** and at whatever id this plan's block 
 
 *Filled in at the join, after the work items are merged. One row per item as it lands.*
 
-**W49 is DONE and [ADR 0044](../decisions/0044-a-reference-is-visible-when-two-paths-agree-on-the-regions-that-contain-both-of-them.md) answers [Q206](../open-questions.md).** An output is visible to a
+**W49 is DONE and [ADR 0044](../decisions/0044-a-reference-is-visible-when-two-paths-agree-on-the-regions-that-contain-both-of-them.md) answers [Q206](../questions/q206.md).** An output is visible to a
 reader when their two branch paths **agree on the regions their two CHAINS share**, and *one path is
 a prefix of the other* is that rule's special case — candidate **(b)**, put to the maintainer with
 both candidates priced, as this plan's stop-and-ask list requires. `spec/flow-definition.md` is
@@ -238,7 +238,7 @@ rests on was wrong.**
 | # | verdict | |
 |---|---|---|
 | 1 | **REVERSED** | *Candidate (a) cannot be written without an arity clause.* Its own stated reversal condition — *a static predicate that separates them without mentioning arity* — is met, and by a different predicate than the one it guessed: not *the reader's `over` names this very key* but **the reader's REGION CHAIN**. The two flows do not differ in arity at all, which is fact 3 |
-| 2 | **REVERSED** | *The answer is (c), making a region's COLLECTION referenceable.* It is (b). The premise stands — the author's natural spelling really is refused by `FD-V27` rather than by the rule they would read — and it does not follow, because the missing spelling is a second, ADDITIVE gap rather than the cause of this one. [Q219](../open-questions.md) |
+| 2 | **REVERSED** | *The answer is (c), making a region's COLLECTION referenceable.* It is (b). The premise stands — the author's natural spelling really is refused by `FD-V27` rather than by the rule they would read — and it does not follow, because the missing spelling is a second, ADDITIVE gap rather than the cause of this one. [Q219](../questions/q219.md) |
 | 3 | **REVERSED** | *W50 is SMALL: no driver code moves.* Its stated reversal condition is *candidate (b) winning*, which it names. The driver is exactly where this lands |
 | 4 | W51's | untouched |
 
@@ -266,14 +266,14 @@ that no driver code would move; it is the largest of the three items so far.*
 **And L6 is BLIND to the decision, which is the thing to carry into W51.** All **11** aimed references
 in both corpora have a shared region depth of **zero** — every reader sits at `-` or reads a target at
 `-` — so `outputIsVisible` returns `true` without entering its loop for every reference L6 runs, and
-reverting the resolver costs **0 L6 failures** against 6 at L1-L5. **[Q214](../open-questions.md)'s
+reverting the resolver costs **0 L6 failures** against 6 at L1-L5. **[Q214](../questions/q214.md)'s
 shape in a second mechanism**, and prediction 4's subject arriving one item early: W47's was *a
 document the validator refuses never starts*; this is *a filter no run exercises*. **W51's exit
 artifact must add a flow whose shared depth is above zero, or a sibling pair**, or the plan's exit
 rung proves nothing about the plan's subject.
 
 **PREDICTION 4 IS CONFIRMED, and it is the one this plan could not have derived.** *This plan supplies
-[Q214](../open-questions.md)'s second instance — a rule whose whole effect is that a run never
+[Q214](../questions/q214.md)'s second instance — a rule whose whole effect is that a run never
 happens, invisible to L6.* It does, in a **different mechanism** from W47's: that was *a document the
 validator refuses never starts*; this is **a filter no run exercises**. W50 measured ladder L6 blind
 to ADR 0044 for a whole item — all eleven aimed references in both corpora at a shared region depth
@@ -339,7 +339,7 @@ pre-declaration rule**, and this is the second plan run as the test — `AGENTS.
 neither** and a rule naming them would have been wrong on both for W51. A **fourth list below
 `CROSS_ROW_SUBJECTS`** — refused at v0.14 as a prediction, and **P14 is the fourth iteration and did
 not add one**: W51 computed its cross-row clause from the row definitions and from the folded run
-instead, which is [Q217](../open-questions.md)'s regress stopping where a clause is DERIVED. And an
+instead, which is [Q217](../questions/q217.md)'s regress stopping where a clause is DERIVED. And an
 **obligation that an item re-run its plan's facts**, refused because it already exists in the
 template's `Inputs` row and is what worked here.
 

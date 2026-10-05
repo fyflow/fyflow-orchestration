@@ -13,8 +13,8 @@ resolves: ""
 # ADR 0065 — A resume replays the stored stimuli through the routing that produced them, refuses what it cannot regenerate, and re-dispatches what was in flight
 
 **Raised by:** [P23](../plans/p23-what-a-run-needs-to-outlive-its-process.md) decisions 6, 7, 9 and 10 and
-stop-and-asks (a)-(c), taken by [W89](../work-items/w89-what-resuming-is.md); [Q15](../open-questions.md)'s
-second half, [Q364](../open-questions.md)
+stop-and-asks (a)-(c), taken by [W89](../work-items/w89-what-resuming-is.md); [Q15](../questions/q15.md)'s
+second half, [Q364](../questions/q364.md)
 
 ## Context
 
@@ -30,9 +30,9 @@ What W89's declaration step re-took before deciding anything:
 | | measured | so |
 |---|---|---|
 | 1 | **The replay reproduces L6's own drivers** — 62 starts, 61 captured over 30 flows, **57 exactly**, at 324 prefix cuts, 261 / 261 dispatched payloads; the other four are two `FD-R4` refusals and two `OR-R6` stops | the settlements regenerate the rest, exactly — a replay needs no state beyond the log and the header |
-| 2 | **Kill and resume on real schedulers** — two flows, every kill point (`dev-dist/p23/kill-resume.ts`, read first for [Q366](../open-questions.md)'s shape: it wraps no prototype) | **14 of 14 complete identically** to a run nobody killed, re-dispatching 1-4 tasks at the same ids |
+| 2 | **Kill and resume on real schedulers** — two flows, every kill point (`dev-dist/p23/kill-resume.ts`, read first for [Q366](../questions/q366.md)'s shape: it wraps no prototype) | **14 of 14 complete identically** to a run nobody killed, re-dispatching 1-4 tasks at the same ids |
 | 3 | **Which tasks a resume runs again**, read independently of the harness's own `held − settled` | **29 re-dispatched, 0 settled in the stored events — and 14 of the 29 dispatched only in the REGENERATED tail**, at 8 of 14 kill points | the in-flight set is the REPLAY's at its end, not the stored prefix's — P23 prediction 2's wording was wrong and its substance held |
-| 4 | **What lives outside the log at a kill** — a spike on real schedulers | **a task with a budget of two attempts ran THREE times**; a `ConcurrentLimitGroup(1)` slot held at the kill is not carried, the re-dispatch acquiring the fresh runtime's; a parked task stays parked and `resolve()` on the resumed driver completes the run; a JSONata transform re-dispatched completes identically | the retry budget is real state outside the log ([Q365](../open-questions.md), measured); group slots and compiled transforms are a process's and are rebuilt |
+| 4 | **What lives outside the log at a kill** — a spike on real schedulers | **a task with a budget of two attempts ran THREE times**; a `ConcurrentLimitGroup(1)` slot held at the kill is not carried, the re-dispatch acquiring the fresh runtime's; a parked task stays parked and `resolve()` on the resumed driver completes the run; a JSONata transform re-dispatched completes identically | the retry budget is real state outside the log ([Q365](../questions/q365.md), measured); group slots and compiled transforms are a process's and are rebuilt |
 | 5 | **A finished run's driver still hears its run id** — two drivers on one scheduler under one id | the finished run's sequence GROWS after it completed | a run id stays in use for as long as a driver holds it, which is the runtime's life |
 
 ## Decision
@@ -68,7 +68,7 @@ What W89's declaration step re-took before deciding anything:
    the in-flight ids — `[]` when none — and the fold records it in `RunState.resumes`. A stored `resumed` is
    fed and checked against what is in flight in the replay there.
 9. **A run id is in use on a runtime from the moment a driver of it holds the id, for the runtime's life**
-   (`RN-R25`, [Q364](../open-questions.md)): `start` and `resume` naming one throw `RunIdInUse`, and the
+   (`RN-R25`, [Q364](../questions/q364.md)): `start` and `resume` naming one throw `RunIdInUse`, and the
    minted counter skips it.
 
 ## Consequences
@@ -77,14 +77,14 @@ What W89's declaration step re-took before deciding anything:
 with `runtime.resume(flow, { header, events })` and keeps appending: it is handed the lost tail and then
 the rest of the run at the positions it did not hold. A changed predicate, a changed definition under an
 unchanged version, or an entry payload that did not survive its clone is a named refusal at a position a
-consumer can inspect — [Q9](../open-questions.md)'s unenforced predicate purity becomes a refusal at the
+consumer can inspect — [Q9](../questions/q9.md)'s unenforced predicate purity becomes a refusal at the
 one moment it would matter (P23 decision 9).
 
 **What this makes hard, and the cost is real.**
 
 1. **At-least-once** (P23 decision 6): a task in flight at the kill may have finished in the process that
    is gone and runs again, and the log cannot say which. Workers must tolerate running twice.
-2. **A fresh retry budget** ([Q365](../open-questions.md), measured): a task that had spent its retries
+2. **A fresh retry budget** ([Q365](../questions/q365.md), measured): a task that had spent its retries
    in the process that is gone runs them all again.
 3. **The prefix check sees only what was stored.** A predicate that changed where the stored run's road
    lies past its stored events is not seen, and the resumed run takes the new road. Asserted as the

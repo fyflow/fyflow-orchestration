@@ -9,7 +9,7 @@
  * of this adapter.
  *
  * **What the browser can and cannot run, stated.** In the browser bundle `import.meta.url` is the
- * bundle's own URL ([Q261](../../doc/open-questions.md)), so `jsonata.worker` there names a module
+ * bundle's own URL ([Q261](../../doc/questions/q261.md)), so `jsonata.worker` there names a module
  * with no default export and nothing can `import()` the worker half by URL — not the conformance
  * suite, not the envelope worker. The registry half, the worker half reached as this module's
  * DEFAULT EXPORT, the shadows, the bindings and the engine itself all run in all five runtimes;

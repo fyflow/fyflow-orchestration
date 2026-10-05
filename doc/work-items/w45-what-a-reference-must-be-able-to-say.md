@@ -53,7 +53,7 @@ Reserves:   Q199-Q205, ADR 0042  (extended to Q207 at the Record)
 
 **In**
 
-1. **[Q187](../open-questions.md)**, decided as **ADR 0042**. P13's scope names the fork and prefers
+1. **[Q187](../questions/q187.md)**, decided as **ADR 0042**. P13's scope names the fork and prefers
    neither: a **dominance rule** on `FD-V27`, or a **fourth reference form** that says *if it ran*.
 2. **The evidence clause, which is P13 prediction 1's whole test.** The item must exhibit a flow a
    dominance rule would refuse and an author would want, or record that none could be constructed.
@@ -62,15 +62,15 @@ Reserves:   Q199-Q205, ADR 0042  (extended to Q207 at the Record)
 
 **Out** — named rather than left implicit, with where it goes instead
 
-- **[Q186](../open-questions.md)'s cost question** — **W46's**, and P13 decision 4 puts Q187 first
+- **[Q186](../questions/q186.md)'s cost question** — **W46's**, and P13 decision 4 puts Q187 first
   deliberately: if the answer is a fourth reference form, that form is where a size question would
   also have to live, so deciding the cost first would let it pick the grammar.
-- **[Q190](../open-questions.md)** — decided as ACCEPTED, both shapes confirmed at P13 fact 5.
-- **[Q192](../open-questions.md)** — the edge caller's one independent bound on `resolveReference`.
+- **[Q190](../questions/q190.md)** — decided as ACCEPTED, both shapes confirmed at P13 fact 5.
+- **[Q192](../questions/q192.md)** — the edge caller's one independent bound on `resolveReference`.
   This item **moves that expression** and says so in its Record rather than closing the row.
-- **[Q22](../open-questions.md)**, **[Q19](../open-questions.md)**, the gate
-  ([Q181](../open-questions.md)-[Q183](../open-questions.md)) and
-  [Q165](../open-questions.md)'s reducer — P13's `Out` list, unchanged.
+- **[Q22](../questions/q22.md)**, **[Q19](../questions/q19.md)**, the gate
+  ([Q181](../questions/q181.md)-[Q183](../questions/q183.md)) and
+  [Q165](../questions/q165.md)'s reducer — P13's `Out` list, unchanged.
 - **A new node kind** — P13 decision 3. Every candidate here is a property of a reference.
 - **`spec/join-policy.md`** — P13 decision 2. `JP-R5` is *read* below and not edited.
 
@@ -92,7 +92,7 @@ not, and the deciding fact is one nobody had taken.**
 > validate must say what it skipped* — and the symptom was in this table all along, two adjacent rows
 > saying 26 flows and 25 flows. **The four properties the decision rests on are now an executable L1
 > suite** rather than prose in three files, and the absolutes are deliberately not pinned
-> ([Q102](../open-questions.md)).
+> ([Q102](../questions/q102.md)).
 >
 > **And re-taking it found a second thing.** Once `FD-V29` ships, using the whole validator as the
 > admission test refuses **exactly** the certainty set, so it reports *certainty refuses 0* and the
@@ -116,7 +116,7 @@ certainty walk rests on `JP-R5` **and** on no policy firing a join while a branc
 the document. Constructed: a policy satisfied on the first arrival, `scoreA` parked, `scoreB`
 arriving — **`publish` is not dispatched and `UnresolvedReference` is reported.** So the rule
 **removes cases from `FD-R3`'s reach and does not replace it**, and an unsound acceptance degrades
-to today's behaviour rather than to something worse. [Q97](../open-questions.md).
+to today's behaviour rather than to something worse. [Q97](../questions/q97.md).
 
 **One thing P13's own file says is wrong, and trying to act on it is what found it.** Prediction 4
 reads *"that table's row count is a live bound in three places: `check-spec`, W41's L1 census, and
@@ -176,12 +176,12 @@ WHEN clause).
 | L1-L5, three runtimes | **RAN** | **24 files / 654 `test()` cases** in node 24.20.0, deno 2.9.6 and chromium, from 633. `npm run test:browser:all` was run because L1 moved and two `spec/**` fixtures were added: **654 in firefox and webkit too**, parity with node |
 | L4 | **RAN** | the corpus and section 7's table, both ways — `spec/examples/valid/` is 14 files, from 12 |
 | L6, both runtimes | **RAN** | **806 assertions over 38 real runs** in node and deno, from 760 / 36. Two rows added, and see the `Owns` exception below for why they are here rather than in W47 |
-| static checks | **RAN** | all seven green. `spec` **7 documents / 43 examples / 89 rules** from 7 / 40 / 87; `markdown` **89 documents / 3651 relative links / 178 anchored** from 87 / 3534 / 171. *(The link and anchor figures were 3583 / 171 at code-complete and are re-taken on the tree this item ships — this Record and the register rows are themselves prose that carries links. Section 1 rule 5's WHEN clause, on the numbers the clause exists for.)* **[Q142](../open-questions.md) did NOT fire**: `check:markdown:selftest` is 37/37 caught and 7/7 bounded, and both `removes` probes still trip their floors, so `M3` and `M4` need no retune |
+| static checks | **RAN** | all seven green. `spec` **7 documents / 43 examples / 89 rules** from 7 / 40 / 87; `markdown` **89 documents / 3651 relative links / 178 anchored** from 87 / 3534 / 171. *(The link and anchor figures were 3583 / 171 at code-complete and are re-taken on the tree this item ships — this Record and the register rows are themselves prose that carries links. Section 1 rule 5's WHEN clause, on the numbers the clause exists for.)* **[Q142](../questions/q142.md) did NOT fire**: `check:markdown:selftest` is 37/37 caught and 7/7 bounded, and both `removes` probes still trip their floors, so `M3` and `M4` need no retune |
 | conformity reader | **RAN** | **14 findings, 8 blocking.** Every one acted on; the numbers this item was argued from were wrong in four places and it re-derived all four |
 | adequacy reader | **RAN** | **41 mutations, 6 real survivors + 1 vacuous, 3 blocking.** Isolated copy at `../w45-adequacy`, verified green before it started and restored after; no symlinks and no reparse points, checked before and not assumed |
 | rule 8, author pass | **RAN** | 38 probes: control OK, 34 caught, 3 declared ceilings, **0 survivors standing, 0 aborts**. It found two real holes and both were closed before the readers saw the tree |
 | rule 8, re-run | **RAN** | **50 probes: control OK, 46 caught (one of them a named refusal at exit 1 with no failure line), 3 declared ceilings, 0 survivors standing, 0 aborts** — with **ten of the readers' exact edits checked back in**. The re-run earned its place twice: see *What broke*. *(**The three ceilings were NOT RUN, and P13's retro measured them** — `doc/workflow.md` section 6 pass 3 rule 6. This harness, W46's and W47's are one lineage and all three had a code path that executed nothing for a row declared `red: []`: the command list was empty and the verdict restated the declaration, which W47's conformity reader caught by TIMING a probe. Re-run: `b1-adr-deleted` and `c3-sawverdict-resourced` come back clean at `l1=0/exit0` and their reasons hold. **`e4-roles-list-unbound` does not.** It says *a member added to `ROLES` with no arm and no pool costs ZERO, at L6 and at typecheck* — true when written, and **[W47](w47-the-blocked-flow-on-real-workers.md) closed it**: the same mutation now costs **2 at L6**. Running it against L1, which is what this harness controls on, cannot see that, and it is why v0.14's clause names the rung. The count of ceilings is right; one of the three is now stale and says so here.)* |
-| gate | **RAN** | `npm run gate` — `GATE EXIT=0`, **zero lines beginning `FAIL`**, 15 chain entries. `selftests` **553.0 s wall / 1267.8 s serial-equivalent over 5 lanes**, against the control run's 416.1 / 762.3 at `a2c9325`. **No claim is made about the difference**: wall time here is not reproducible ([Q179](../open-questions.md), measured at a 32% spread on one entry alone), the serial-equivalent moved by more than the two probes this item adds could explain, and every self-test re-walks a tree that grew by six files and ~120 links. It is one reading |
+| gate | **RAN** | `npm run gate` — `GATE EXIT=0`, **zero lines beginning `FAIL`**, 15 chain entries. `selftests` **553.0 s wall / 1267.8 s serial-equivalent over 5 lanes**, against the control run's 416.1 / 762.3 at `a2c9325`. **No claim is made about the difference**: wall time here is not reproducible ([Q179](../questions/q179.md), measured at a 32% spread on one entry alone), the serial-equivalent moved by more than the two probes this item adds could explain, and every self-test re-walks a tree that grew by six files and ~120 links. It is one reading |
 
 **Outputs — what was actually built.**
 
@@ -287,7 +287,7 @@ that yields all of `score`'s outputs.** The cause is `FD-C1`'s prefix predicate,
 examples in section 3 are all ancestor/descendant; the fix is a fourth refusal or a change to the
 predicate, and the predicate is ADR 0040's KEY, which P13 decision 1 forbids this plan from
 reopening. Recorded with the measurement in section 3, in `FD-C1`'s `["n"]` row, in section 7's row
-for the flow, and as [Q206](../open-questions.md).
+for the flow, and as [Q206](../questions/q206.md).
 
 **`Owns` audit — 20 tracked files changed and 6 added, against a block of 6 paths plus section 1
 rule 5's six record-step files. SIX late exceptions, ZERO undeclared.** *(This table read FIVE and
@@ -309,7 +309,7 @@ set — the same shape as W16's stale count of a correct set.)*
 **So the answer to the test P13 set is: `AGENTS.md` and `spec/README.md` yes, `scripts/check-docs.mjs`
 no** — and the two that were needed were needed for the reason P12's retro predicted, while the
 exceptions that actually cost something were the two the plan's own index row created. That is
-[Q203](../open-questions.md) and it is the retro's to judge.
+[Q203](../questions/q203.md) and it is the retro's to judge.
 
 **Census re-derived, CONFIRMED for the TWELFTH plan running.** 155 / 107 / 2 / 46 before this item's
 rows and **164 / 115 / 2 / 47** after; 42 ids in both tables, from 41; **164 of 164 in exactly one
@@ -318,7 +318,7 @@ times on its first run**, the third time that has happened — and then its *exa
 clause aborted **twenty** times, correctly, because it counted Q ids in every cell of a cluster row
 and the third cell names them in prose. The **tenth** direction a parser of that file has been wrong
 in, the clause is now in the note, and it is the first time an abort found a defect in a CLAUSE while
-every count the parser had already produced was right. [Q204](../open-questions.md).
+every count the parser had already produced was right. [Q204](../questions/q204.md).
 
 **What this taught.**
 
@@ -326,7 +326,7 @@ every count the parser had already produced was right. [Q204](../open-questions.
 P13 fact 2 is a true measurement — dominance refuses 0 of the 6 — and *therefore adopting it costs
 zero* does not follow from it. The corpus admits 127 and dominance refuses 30. The admitted-set
 measure is one nested loop, no plan had used it before, and it is the whole of what turned a
-principle into a decision. [Q199](../open-questions.md).
+principle into a decision. [Q199](../questions/q199.md).
 
 **And the two candidates a register presents as a fork were halves of one mechanism, for the second
 time in two plans.** ADR 0040 found it for Q11's three candidates — *they are a stack, not a fork* —
@@ -335,21 +335,21 @@ gives the author something to write instead, and the form is more than an afford
 rule refuses the alternative. *When a register row names two options, the question worth asking first
 is whether either is sufficient alone.*
 
-**Questions raised.** [Q199](../open-questions.md)-[Q207](../open-questions.md), nine of the seven
+**Questions raised.** [Q199](../questions/q199.md)-[Q207](../questions/q207.md), nine of the seven
 reserved plus two — the block was extended by two at this Record, which is the fourth consecutive
-plan to extend. **[Q187](../open-questions.md) is RESOLVED** and [Q192](../open-questions.md) is amended rather than closed, which is what P13's *open questions this plan carries* table asked of it.
+plan to extend. **[Q187](../questions/q187.md) is RESOLVED** and [Q192](../questions/q192.md) is amended rather than closed, which is what P13's *open questions this plan carries* table asked of it.
 
 | Q | |
 |---|---|
-| [Q199](../open-questions.md) | a rule measured against what a corpus WRITES is measured against its authors' habits |
-| [Q200](../open-questions.md) | `FD-V29` is the first `FD-V` whose soundness rests on something the document does not contain |
-| [Q201](../open-questions.md) | a `?` written where nothing needed it is accepted and inert — Q190's shape, in a second rule |
-| [Q202](../open-questions.md) | `CROSS_ROW` is a literal whose right value depends on the number of ROWS, so it is not a constant |
-| [Q203](../open-questions.md) | P13's index row split `src/driver/driver.ts` from `test/driver/**` and `examples/**`, and the split could not hold |
-| [Q204](../open-questions.md) | a census parser can be right about the counts and wrong about *exactly one* |
-| [Q205](../open-questions.md) | a conditional reference cannot tell *did not run* from *ran and returned `null`* |
-| [Q206](../open-questions.md) | `FD-V28` asks a REGION question and resolution applies a PATH filter, and section 3 asserts they agree |
-| [Q207](../open-questions.md) | `certainlySettled`'s `map` arm is redundant today, by a rule this repository has discussed lifting |
+| [Q199](../questions/q199.md) | a rule measured against what a corpus WRITES is measured against its authors' habits |
+| [Q200](../questions/q200.md) | `FD-V29` is the first `FD-V` whose soundness rests on something the document does not contain |
+| [Q201](../questions/q201.md) | a `?` written where nothing needed it is accepted and inert — Q190's shape, in a second rule |
+| [Q202](../questions/q202.md) | `CROSS_ROW` is a literal whose right value depends on the number of ROWS, so it is not a constant |
+| [Q203](../questions/q203.md) | P13's index row split `src/driver/driver.ts` from `test/driver/**` and `examples/**`, and the split could not hold |
+| [Q204](../questions/q204.md) | a census parser can be right about the counts and wrong about *exactly one* |
+| [Q205](../questions/q205.md) | a conditional reference cannot tell *did not run* from *ran and returned `null`* |
+| [Q206](../questions/q206.md) | `FD-V28` asks a REGION question and resolution applies a PATH filter, and section 3 asserts they agree |
+| [Q207](../questions/q207.md) | `certainlySettled`'s `map` arm is redundant today, by a rule this repository has discussed lifting |
 
 **Reader overlap: 2 of 21, and it is the TWENTY-THIRD measurement** — derived by counting
 `doc/workflow.md` section 6's own list, which runs W4 … W43 and holds **22** entries. Inside the

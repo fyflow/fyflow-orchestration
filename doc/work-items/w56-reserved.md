@@ -26,4 +26,4 @@ Record:
    extrapolation** in a direction that changes what W53 decided.
 
 **Nothing else justifies issuing it.** An item that is *more of W53* is W53; an item that is *the
-follow-on* is [Q219](../open-questions.md)'s and belongs to the next plan.
+follow-on* is [Q219](../questions/q219.md)'s and belongs to the next plan.

@@ -16,7 +16,7 @@ lost. **It is paid** — [P2's retro](p2-the-non-success-half-on-a-real-schedule
 
 ## Why this plan
 
-[Q64](../open-questions.md): **nothing in this repository tells a consumer how to use the library.**
+[Q64](../questions/q64.md): **nothing in this repository tells a consumer how to use the library.**
 `README.md` is a pitch, `doc/` is a record of how the work was done, `spec/` is normative for *us*,
 and `examples/README.md` says in as many words that it is a gate rather than a starting point.
 `index.ts` exports **38 names** and no document walks a caller through instantiating a `Driver`.
@@ -66,7 +66,7 @@ outside.** The likely findings are about the surface, not the prose:
   will have to either explain or exclude, and exclusion is a claim about what is public.
 - `DriverOptions` requires `createTask`, `workerTypes` **and** `predicates` — a factory the consumer
   writes, plus a list the scheduler already has. A reference has to justify each or report it.
-- [Q53](../open-questions.md) is already open on `Driver`'s multi-run surface saying one thing while
+- [Q53](../questions/q53.md) is already open on `Driver`'s multi-run surface saying one thing while
   `ID-R3` says another. A reference cannot describe both.
 
 **If the reference is hard to write, that is the finding**, and it goes in the Record rather than
@@ -119,8 +119,8 @@ first.* A reference **can** be kept true by the gate, and the mechanism is stron
 sibling's transcription because the snippet in the document **is** the code that runs. What it keeps
 true is **about 16% of the document**, which is the number this plan will be remembered for. P3 also
 got what it predicted from the first half: writing the surface down from outside produced three
-`src/` defects ([Q71](../open-questions.md), [Q72](../open-questions.md),
-[Q73](../open-questions.md)) inside the item's own life, two of them from someone trying to *use* the
+`src/` defects ([Q71](../questions/q71.md), [Q72](../questions/q72.md),
+[Q73](../questions/q73.md)) inside the item's own life, two of them from someone trying to *use* the
 library rather than test it. **Nothing else in this repository does that.**
 
 **The cost the plan did not predict.** Three defects were absorbed by the prose rather than fixed:
@@ -147,9 +147,9 @@ output.
 | defect | rung that should have caught it |
 |---|---|
 | §2's flagship snippet wrote **three** records for one settlement and stopped its own run | **L1, and `check:docs` *is* that rung — it ran, and passed.** The snippet's assertion could not fail, because `ID-R1` refused the duplicate dispatches before `addTask` counted them. Rule 8's territory exactly |
-| [**Q72**](../open-questions.md) — two `Driver`s on one scheduler cross-route | **L2.** A fixture-log routing test with two drivers on one fake scheduler would have caught it in five seconds. **No test in this repository constructs two drivers**, so the rung existed and had no case pointed at it |
-| [**Q73**](../open-questions.md) — `onRegionEvent` hands out a live object | **L1.** `OR-R1`'s freezing is a unit test, and the other three outbound paths have one |
-| [**Q71**](../open-questions.md) — `SchedulerLike` unsatisfiable under the DOM lib | **L0, in a configuration that had no rung.** L0 typechecks *our* tree under *our* five tsconfigs; nothing typechecked our public types under a **consumer's**. `X5` is the fragment that now does, and it reports rather than fails |
+| [**Q72**](../questions/q72.md) — two `Driver`s on one scheduler cross-route | **L2.** A fixture-log routing test with two drivers on one fake scheduler would have caught it in five seconds. **No test in this repository constructs two drivers**, so the rung existed and had no case pointed at it |
+| [**Q73**](../questions/q73.md) — `onRegionEvent` hands out a live object | **L1.** `OR-R1`'s freezing is a unit test, and the other three outbound paths have one |
+| [**Q71**](../questions/q71.md) — `SchedulerLike` unsatisfiable under the DOM lib | **L0, in a configuration that had no rung.** L0 typechecks *our* tree under *our* five tsconfigs; nothing typechecked our public types under a **consumer's**. `X5` is the fragment that now does, and it reports rather than fails |
 | five false prose claims — *"24 refusals"*, *"no UI can show it"*, the throw/report split, *"one `.ts` worker serves … the browser"* | **none.** The unchecked-`doc/` class. Four of the five are now L0/L1, because W9 moved them into `run` snippets rather than into better sentences |
 | the 16% headline itself | **none.** The adequacy reader |
 | ` ```typescript `, ` ```TS ` and an indented fence each deleting a snippet from the gate in silence | **none — this is the instrument, not the product.** Rule 7's checked-in probes are the substitute, and they are what found it |

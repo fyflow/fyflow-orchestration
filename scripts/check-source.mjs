@@ -639,7 +639,7 @@ for (const p of exampleSources()) {
 
 // --- S12/S13: the gate's own chain, and the chains that chain composes --------
 // **`S11` guarded eight of the gate's fifteen entries and nothing guarded the rest**
-// — [Q126](../doc/open-questions.md), measured at W24's declaration. *(Both numbers
+// — [Q126](../doc/questions/q126.md), measured at W24's declaration. *(Both numbers
 // are of that moment and neither is of now: since
 // [ADR 0039](../doc/decisions/0039-the-gate-climbs-the-ladder-and-the-self-tests-run-concurrently.md)
 // the chain is **fifteen** entries, only **seven** of which are `check:*`, and the
@@ -663,7 +663,7 @@ for (const p of exampleSources()) {
 // **`S12` is a DECLARED SET compared BOTH WAYS, and it is equality rather than a
 // floor for a measured reason.** A floor is what `check-docs`' `RUN_FLOOR` is, and
 // `RUN_FLOOR` is the thing that went stale in the direction of weakness
-// ([Q102](../doc/open-questions.md)). A floor answers *are there at least N*;
+// ([Q102](../doc/questions/q102.md)). A floor answers *are there at least N*;
 // equality answers *are these exactly the ones*, and only the second fails when an
 // entry is **swapped** rather than removed.
 //
@@ -727,7 +727,7 @@ const GATE_CHAIN = [
   // sizes. **Its cost is INDISTINGUISHABLE from the two cheapest entries rather than below them**,
   // which W112's conformity reader measured over three runs each — `check:budget` 351/369/501 ms,
   // `check:scheduler` 441/460/531, `check:policies` 372/446 — with the within-check spread larger
-  // than the between-check difference, which is [Q179](../doc/open-questions.md)'s band. *(The first
+  // than the between-check difference, which is [Q179](../doc/questions/q179.md)'s band. *(The first
   // cut of this comment said `~0.1 s, cheaper than check:scheduler's 0.09 by a hair`, which is not
   // cheaper, and ADR 0076 consequence 4 said "despite being the cheapest". Both withdrawn; the
   // placement argument below never depended on either.)*

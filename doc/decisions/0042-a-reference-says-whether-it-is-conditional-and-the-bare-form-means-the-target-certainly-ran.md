@@ -12,13 +12,13 @@ resolves: ""
 
 # ADR 0042 — A reference says whether it is conditional, and the bare form means the target certainly ran
 
-**Raised by:** [Q187](../open-questions.md), decided by
+**Raised by:** [Q187](../questions/q187.md), decided by
 [W45](../work-items/w45-what-a-reference-must-be-able-to-say.md) under
 [P13](../plans/p13-when-is-a-declared-reference-refused.md)
 
 ## Context
 
-**[Q187](../open-questions.md) is
+**[Q187](../questions/q187.md) is
 [ADR 0002](0002-a-flow-definition-is-data-and-a-predicate-is-registered-by-name.md) rule 3's own
 argument failing against a rule written four days earlier.** `FD-V27` requires **reachability** and
 not **dominance**, so a reference across a decision that routes around its target is accepted at
@@ -75,7 +75,7 @@ refusal.*
 the rule can refuse an uncertain reference only because the form gives the author something to write
 instead, and the form is more than decoration only because the rule refuses the alternative. **That
 is [ADR 0040](0040-what-a-node-can-reach-is-the-runs-own-outputs-and-a-node-id-names-them-relative-to-a-branch-path.md)'s
-own finding about [Q11](../open-questions.md) one plan on** — the register presented three candidates
+own finding about [Q11](../questions/q11.md) one plan on** — the register presented three candidates
 as a fork and they were a stack — and it is the second time a P13-family question has turned out that
 way.
 
@@ -117,14 +117,14 @@ rest on.**
    | | why a validator cannot see it |
    |---|---|
    | **a reader whose branch path is comparable with none of the target's** | *did it run* and *is it on your path* are two questions, and `FD-V29` answers only the first. Two `map` regions over different keys: `FD-V29` correctly calls `score` certain for `publish`, and the third instance of the second region can see **neither** output of the first. **No custom policy** — `reference-past-a-map-arity.flow.json`, in the corpus |
-   | **a join policy firing BEFORE a branch entry has settled** | *the join fired, therefore every branch entry settled* is a property of the POLICY, and `validateDefinition` is not given one — `FD-V15`'s own note in the document. Measured: a policy satisfied on the first arrival, with `scoreA` **never settling**, dispatches the reader and `FD-R3` fires ([Q97](../open-questions.md)). *(This row said *"parked at `user_action`"* and so did four other statements of the limit; parking is INESSENTIAL, and W45's conformity reader measured it. The fixture is checked in at L2 with a shipped-policy control beside it — this arm had no observer at all when the ADR was written, which its adequacy reader found from the other side.)* |
+   | **a join policy firing BEFORE a branch entry has settled** | *the join fired, therefore every branch entry settled* is a property of the POLICY, and `validateDefinition` is not given one — `FD-V15`'s own note in the document. Measured: a policy satisfied on the first arrival, with `scoreA` **never settling**, dispatches the reader and `FD-R3` fires ([Q97](../questions/q97.md)). *(This row said *"parked at `user_action`"* and so did four other statements of the limit; parking is INESSENTIAL, and W45's conformity reader measured it. The fixture is checked in at L2 with a shipped-policy control beside it — this arm had no observer at all when the ADR was written, which its adequacy reader found from the other side.)* |
 
    So an unsound acceptance degrades to today's behaviour rather than to something worse, which is
    what makes rule 2 affordable to have got slightly wrong.
 
-## What this does to [Q187](../open-questions.md) and to P13's predictions
+## What this does to [Q187](../questions/q187.md) and to P13's predictions
 
-**[Q187](../open-questions.md) is ANSWERED, and both halves of its *against* case were wrong.** The
+**[Q187](../questions/q187.md) is ANSWERED, and both halves of its *against* case were wrong.** The
 row reads *"a dominance rule refuses valid flows whose every real workload takes the branch that
 produces the value"* — **that is not the flaw**; the flaw is that dominance refuses flows whose every
 run produces the value *by construction*, which is a fact about the graph and not about the workload.
@@ -139,7 +139,7 @@ measurement you already have checks your **reasoning**, and this one checked it 
 fact 2's *dominance refuses 0 of the 6* is a true measurement, and *therefore adopting dominance
 costs zero in the corpus* does not follow from it. The corpus admits 127 references and dominance
 refuses 30. **The plan's own reversal condition was the right one and it fires 22 times.**
-[Q199](../open-questions.md).
+[Q199](../questions/q199.md).
 
 **Prediction 2 is CONFIRMED on its conclusion and INCOMPLETE on its exclusion.** *The answer is a
 fourth reference form* — it is, and the form is load-bearing rather than an affordance. *And not a
@@ -184,12 +184,12 @@ which is sharper than the prediction; `FD-V26`, `FD-V28`, `FD-R3`, `FD-C1`'s tab
   contain.** Every other validation rule is a statement about the JSON; this one rests on `JP-R5` and
   on no shipped policy firing a join over a parked branch. It is written into the rule, it is
   measured, and `FD-R3` is the backstop — but a reader looking for *what does this validator assume*
-  now has one answer where before it had none. [Q200](../open-questions.md).
+  now has one answer where before it had none. [Q200](../questions/q200.md).
 - **An author can write `?` where nothing needed it**, and the reference then always resolves. It is
-  accepted, on [Q190](../open-questions.md)'s own precedent — `FD-V26` says what a reference IS and
+  accepted, on [Q190](../questions/q190.md)'s own precedent — `FD-V26` says what a reference IS and
   *is this suffix necessary* is a question about the graph, so refusing it would put a rule about
   utility inside a rule about a grammar. **The cost is that an author can write one and see nothing
-  happen**, which is why it is written down. [Q201](../open-questions.md).
+  happen**, which is why it is written down. [Q201](../questions/q201.md).
 - **Five reference forms where there were three, and two of them differ from another by one
   character.** `"review"` and `"review?"` are a keystroke apart and mean *the run stops* versus *the
   key is missing*, which are very different things to debug. The mitigation is that the wrong one of

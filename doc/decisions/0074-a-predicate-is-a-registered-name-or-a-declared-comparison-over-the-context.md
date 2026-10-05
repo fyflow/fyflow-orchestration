@@ -13,7 +13,7 @@ resolves: Q444
 # ADR 0074 — A predicate is a registered NAME or a DECLARED comparison over the context
 
 **Plan:** [P26](../plans/p26-what-a-flow-can-say-without-code.md)
-**Answers:** [Q444](../open-questions.md)
+**Answers:** [Q444](../questions/q444.md)
 **Spec:** [spec/flow-definition.md](../../spec/flow-definition.md) v0.27 — section 3's `when`
 subsection, `FD-C7`, and `FD-V42`-`FD-V45`
 
@@ -43,7 +43,7 @@ on `59e4ad6`):
    making routing async, which reaches
    [ADR 0014](0014-the-driver-produces-the-folds-ordered-input-sequence.md)'s ordered fold-input
    sequence. *That is why ADR 0051 put transforms in the worker wrapper, and it is why a subset is
-   NECESSARY rather than merely cheaper.* [Q251](../open-questions.md).
+   NECESSARY rather than merely cheaper.* [Q251](../questions/q251.md).
 2. **A predicate is not just a path, an operator and a literal.** Ten predicate bodies over eleven
    sites in this tree: three guarded by `typeof`, one with an absent-path **default**, one a
    **negation**, three equalities, one **array length**, one **string prefix** — and the roots are
@@ -86,7 +86,7 @@ on `59e4ad6`):
    segment is `outcome` or `needs`.** No separate `root` key: the measurement above says the
    resolution is free, and the first-segment refusal is the same clause either way. A root alone is
    refused, and any other first segment is refused **because it would resolve to nothing in
-   silence** — a wrong key rather than a question, which is [Q391](../open-questions.md)'s class.
+   silence** — a wrong key rather than a question, which is [Q391](../questions/q391.md)'s class.
 
 5. **The operator enumeration is CLOSED at seven and one outside it is refused BY NAME** — ADR 0053's
    shape. `eq`, `ne`, `lt`, `lte`, `gt`, `gte`, `startsWith`. **A predicate that COMPUTES — a regular
@@ -120,7 +120,7 @@ on `59e4ad6`):
 9. **A DECLARED predicate CANNOT be impure**, and that is by construction rather than by unbinding.
    W62 had to unbind `$now`, `$millis`, `$random`, `$shuffle` and `$eval` BY NAME; this subset simply
    has none of them, and no way to name anything but its own argument. **Strictly stronger than
-   [Q9](../open-questions.md)'s measured result for a function**, where evaluating twice caught one
+   [Q9](../questions/q9.md)'s measured result for a function**, where evaluating twice caught one
    impurity shape of four and was flaky on `Math.random()`.
 
 ## Alternatives, each priced
@@ -170,7 +170,7 @@ on `59e4ad6`):
    `Math.random()`, a module-level cell and the predicate registry passing **every rung at exit 0**,
    while one whose state actually MOVES an answer is caught in one failure. So the guarantee is as
    strong as the code and the claim about it is as strong as Q9's, until something reads the source.
-   [Q450](../open-questions.md).
+   [Q450](../questions/q450.md).
 
 5. **Nothing in this tree exercised `all` or `any` at v0.27.** Not one of the ten bodies is a
    conjunction of two paths — the three that look like one collapse to a single leaf under rule 6 — so
@@ -189,5 +189,5 @@ on `59e4ad6`):
 
 6. **A declared predicate's path is not checked against any schema.** `checkWiring` says nothing
    about it, so a path naming a key the producer cannot emit is accepted and answers *no match* for
-   ever — the shape [Q391](../open-questions.md) named for a gate, now reachable from a decision.
+   ever — the shape [Q391](../questions/q391.md) named for a gate, now reachable from a decision.
    The grammar catches a wrong ROOT and nothing catches a wrong LEAF.

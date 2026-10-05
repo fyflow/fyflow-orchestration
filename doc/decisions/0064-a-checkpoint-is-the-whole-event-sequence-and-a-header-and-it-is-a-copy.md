@@ -13,8 +13,8 @@ resolves: ""
 # ADR 0064 — A checkpoint is the run's whole event sequence and a header of what it cannot regenerate, handed out as a COPY, and every event has a position
 
 **Raised by:** [P23](../plans/p23-what-a-run-needs-to-outlive-its-process.md) decisions 2-5, taken by
-[W88](../work-items/w88-what-a-checkpoint-is.md); [Q15](../open-questions.md)'s first half and
-[Q21](../open-questions.md)'s stream half
+[W88](../work-items/w88-what-a-checkpoint-is.md); [Q15](../questions/q15.md)'s first half and
+[Q21](../questions/q21.md)'s stream half
 
 ## Context
 
@@ -29,7 +29,7 @@ What W88's declaration step re-took before deciding anything, on the tree it sta
 
 | | measured | so |
 |---|---|---|
-| 1 | **The sequence regenerates the run.** L6's own drivers — **62 starts over 30 flows**, 61 captured — replayed into fresh drivers on a fake scheduler, fed only their settlements: **57 reproduce exactly**, every event and every private structure, at 324 prefix cut points; the other four are two `FD-R4` refusals (the replay refuses identically) and two `OR-R6` stops. *(P23 fact 1 read 180 / 169 / 673; its harness iterated `captured` with `for…of` while its own replay drivers were pushed onto it. [Q366](../open-questions.md).)* | the settlements are sufficient; the whole sequence is what a live view also needs |
+| 1 | **The sequence regenerates the run.** L6's own drivers — **62 starts over 30 flows**, 61 captured — replayed into fresh drivers on a fake scheduler, fed only their settlements: **57 reproduce exactly**, every event and every private structure, at 324 prefix cut points; the other four are two `FD-R4` refusals (the replay refuses identically) and two `OR-R6` stops. *(P23 fact 1 read 180 / 169 / 673; its harness iterated `captured` with `for…of` while its own replay drivers were pushed onto it. [Q366](../questions/q366.md).)* | the settlements are sufficient; the whole sequence is what a live view also needs |
 | 2 | **The entry payload is in no record.** `start()` reads its argument three times — the `FD-R4` boundary walk, `compose`, and `enter` — and keeps it nowhere; **261 of 261** replayed dispatch payloads equal what the real scheduler was sent only because the replay began from the original payload | the header must carry it, and the driver must KEEP it |
 | 3 | **Every `FoldInput` kind round-trips `structuredClone`** — one constructed element per kind, keyed by `FoldInput['kind']`, and the corpus's 998 events, **all eight kinds present** — **and the harness's `deepEqual` cannot see a lost prototype**: a class instance and its clone compare EQUAL | the rule is `structuredClone`, and its observer cannot be `equal` |
 | 4 | **Copy against reference**, at 10 000 tasks: a copy (`foldInputs()`) costs **22 / 24 / 61 ms** at 16 B / 1 KiB / 16 KiB results and holds one more copy of the events while kept; a reference costs 0.1-0.3 ms and shares every result with the driver; the `v8.serialize` a store then pays is **19 / 22 / 113 ms** on either | the copy costs about what storing it costs |

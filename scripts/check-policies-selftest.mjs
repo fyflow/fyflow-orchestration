@@ -127,7 +127,7 @@
 //                                                               REFUSED, by the
 //                                                               `ran:` entry
 //   `tripped` re-sourced from the failure LINES to the report   0, and it is
-//   rows                                                        [Q147](../doc/open-questions.md)'s
+//   rows                                                        [Q147](../doc/questions/q147.md)'s
 //                                                               shape: the entries
 //                                                               then pass for a
 //                                                               reason they do not
@@ -351,7 +351,7 @@ const ALL_CHECKS = ['P1', 'P2', 'P3'];
  * well to a probe list that is not there at all.
  */
 /**
- * **W28: a META entry names the probe it must break** — [Q138](../doc/open-questions.md),
+ * **W28: a META entry names the probe it must break** — [Q138](../doc/questions/q138.md),
  * and this file is where the guard that came with it fired first.
  *
  * A grading was `r.status !== 0`. That cannot tell *the clause I broke was caught*
@@ -395,12 +395,12 @@ const MIN_SELF = 14;
  * every mutant non-inert reads as full coverage.** W30 measured that in
  * `check-spec-selftest.mjs`: one dropped line put all 21 entries there and the file
  * exited 0 saying *"0 noticed by the named probe, 21 by the corpus"*.
- * [Q150](../doc/open-questions.md), closed there and left live in the other four;
+ * [Q150](../doc/questions/q150.md), closed there and left live in the other four;
  * this is one of the four. Forcing every grading here to `corpus` reports
  * **`6/6 noticed — 0 by the named probe, 6 by the corpus`** at exit 0.
  *
  * **Raise this only with a measurement beside it.** A cap written above the observed
- * number is [Q102](../doc/open-questions.md)'s ratchet in a new place.
+ * number is [Q102](../doc/questions/q102.md)'s ratchet in a new place.
  */
 const MAX_CORPUS = 0;
 
@@ -475,7 +475,7 @@ const RUNNER =
  */
 /**
  * **Every entry names the PROBE it must break, and the grading runs that probe and
- * no other** — W28, [Q138](../doc/open-questions.md). Before this, an entry was
+ * no other** — W28, [Q138](../doc/questions/q138.md). Before this, an entry was
  * graded by re-running the whole suite and requiring a non-zero exit, which cannot
  * tell *the clause I broke was caught* from *something else went wrong*: measured
  * across `check-source`'s 20 and `check-markdown`'s 36 entries, the probe credited
@@ -545,7 +545,7 @@ const META = [
   //
   // **So the `names === null` clause has no META entry and cannot have one**, short
   // of a change to `check-policies.mjs` that this item does not own:
-  // [Q144](../doc/open-questions.md). This entry now takes P3's FLOOR clause, which
+  // [Q144](../doc/questions/q144.md). This entry now takes P3's FLOOR clause, which
   // is inert, does not crash, and has a probe of its own.
   ['P3`s floor clause disabled', (t) => t.replace('else if (names.length < 2) {', 'else if (false) {'),
     'section 3 left with a single row, which is under P3`s floor'],
@@ -573,7 +573,7 @@ const META = [
  *     catches* makes the run go GREEN, so *"must exit non-zero"* reads as *the floor
  *     did not fire* whether the guard was load-bearing or not. Asked the right way
  *     round it is: **with the guard in place, does the run go red?**
- *   - **Nothing can self-match.** [Q143](../doc/open-questions.md): four `SELF`
+ *   - **Nothing can self-match.** [Q143](../doc/questions/q143.md): four `SELF`
  *     entries in `check-source` quoted the guard they remove, and that quote sits
  *     EARLIER in the file than the guard, so `String.replace` edited the entry
  *     instead. `PROBES`, the floors and `META` all sit above `SELF` here, so a
@@ -646,7 +646,7 @@ const SELF = [
   // to DELETE this mutation as a `META` entry: `check-policies.mjs` ends with
   // ``All checks passed — ${names.join(', ')}``, reachable with `names === null`
   // exactly when this clause is disabled, so the mutant is inert on the clean tree
-  // and THROWS under its own probe — [Q144](../doc/open-questions.md), which records
+  // and THROWS under its own probe — [Q144](../doc/questions/q144.md), which records
   // the guard as live in several files and provoked in none. As a `SELF` entry it is
   // exactly right: with the guard live the run is `6/7 noticed` at exit 1, and
   // disabling EITHER half — the parent's `!ran` arm or the child's `RAN` producer —
@@ -695,11 +695,11 @@ const SELF = [
   // **This entry bounds TWO things and its first form bounded only one**, which is
   // W31's adequacy reader's finding. The `corpus` verdict has exactly one producer —
   // the inertness run — and disabling that producer cost **0**: `byCorpus` is then
-  // permanently zero, `MAX_CORPUS` is dead code, and [Q150](../doc/open-questions.md)
+  // permanently zero, `MAX_CORPUS` is dead code, and [Q150](../doc/questions/q150.md)
   // silently reopens. The first form could not see it, because with the inertness run
   // disabled the child still went red, by the OTHER route: the named probe came back
   // STILL CAUGHT. **The right verdict by the wrong route** —
-  // [Q147](../doc/open-questions.md)'s shape inside the entry written to close Q150.
+  // [Q147](../doc/questions/q147.md)'s shape inside the entry written to close Q150.
   //
   // The two-edit mutation below discriminates. It disables the clause the named probe
   // tests (so `P3` DISAPPEARS rather than staying caught) **and** makes `P1` fire on
@@ -791,7 +791,7 @@ export async function selfTest(root) {
   // **Per PROCESS, and removed on the way out including on the abort path — W105.** `dev-dist/` is one
   // flat namespace and this was a FIXED path inside it, `rmSync`d on entry, so a child running this same
   // function deleted its parent's fixtures and two top-level runs did the same to each other
-  // ([Q182](../doc/open-questions.md)). The `rmSync` stays, and is now load-bearing for a different
+  // ([Q182](../doc/questions/q182.md)). The `rmSync` stays, and is now load-bearing for a different
   // reason: Windows recycles pids, so a directory a killed run left can be inherited by a live one.
   // **`process.on('exit')` rather than a `finally`**, because this function returns from many places and
   // the one road none of their `rmSync` calls covers is a THROW — which is how W103's finding 3 left its
@@ -1093,7 +1093,7 @@ export async function selfTest(root) {
   if (noticed !== META.length) return 1;
   // **And a cap on how many may be corpus-backed.** `corpus` is a PASS, so without
   // this a harness bug that makes every mutant non-inert reads as full coverage —
-  // [Q150](../doc/open-questions.md). `MAX_CORPUS` is 0 because the measured count
+  // [Q150](../doc/questions/q150.md). `MAX_CORPUS` is 0 because the measured count
   // is 0, not because 0 is tidy.
   if (byCorpus > MAX_CORPUS) {
     console.log(`  FAIL  ${byCorpus} grading(s) passed as \`corpus\` and this file declares ` +
@@ -1124,7 +1124,7 @@ export async function selfTest(root) {
   // Every entry from the ABORT case onward then reported `0/6 noticed`, six times
   // *"the mutant did not run: this is a crash, not a detection"*, and the file
   // printed **`12/12 bounded` at exit 0** because a crashed child exits non-zero
-  // just as a fired floor does. **That is [Q138](../doc/open-questions.md)'s own
+  // just as a fired floor does. **That is [Q138](../doc/questions/q138.md)'s own
   // shape — an exit code cannot tell a detection from a crash — one layer further
   // out than the plan that exists to close it, inside the entries written to close
   // it.** The path fix is one word; the control run below is what makes it

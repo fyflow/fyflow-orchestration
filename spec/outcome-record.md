@@ -13,7 +13,7 @@ it reads is the value `OR-R2`'s clone produced, which is not the value the worke
 other rule moves, and `OR-R2`, `OR-R6`, `OR-R11` and `OR-R12` are byte-unchanged.**
 **v0.9 is [W54](../doc/work-items/w54-what-a-result-may-be-and-what-bounding-it-would-cost.md) under
 [P15](../doc/plans/p15-what-a-run-retains-and-what-a-result-may-be.md), and it ANSWERS
-[Q22](../doc/open-questions.md), open since P1.** Section 4 gains **`OR-R11`** — *a result is a
+[Q22](../doc/questions/q22.md), open since P1.** Section 4 gains **`OR-R11`** — *a result is a
 VALUE, not an OBJECT* — plus the three-way cloneability boundary, the re-taken `OR-R2` timings with
 their METHOD, the measured reason **nothing warns**, and the price of bounding
 `RunState.nodes[*].result`. **It corrects a FALSE sentence**: this document said `structuredClone`
@@ -125,7 +125,7 @@ record with a field named `state`, `payload`, `task` or `detail` is a review fin
 | `OR-R1` | **Every field is read inside the listener.** No `e`, no `e.detail`, and no object reachable from `e.detail` is retained past the listener's return. A shallow spread of `d` does not satisfy this rule. Test: settle a task, mutate the live `FyflowTask` after the listener returns — including `timestamp`, `result` and `error` — and assert every field of the written record is unchanged. **A `{...e.detail}` implementation must fail this test** | W3 |
 | `OR-R2` | **`result` is deep-copied with `structuredClone`.** It is the one field whose *value* is a reference the producer may still hold — see section 4. Test: an inline worker that returns an object and then mutates it, asserting the record is unchanged | W3 |
 | `OR-R3` | **Exactly one record per settlement, keyed on `d.state`.** `task.failed` with `d.state === 'user_action'` writes **nothing**; the `task.user_action` that follows for the same object writes the record. `task.failed` with `d.state === 'failed'` (an `optional` task) writes the record, and no `task.user_action` follows. Test: one optional and one non-optional task exhausting retries, asserting one record each and the right `terminalState` | W3 |
-| `OR-R4` | **`task.running` and `task.progress` produce no record of either kind.** They are not settlements and they are not resolutions. Whether the driver logs them at all, and in what shape, is [Q26](../doc/open-questions.md). Test: a task emitting progress, asserting the log length is 1 | W3 |
+| `OR-R4` | **`task.running` and `task.progress` produce no record of either kind.** They are not settlements and they are not resolutions. Whether the driver logs them at all, and in what shape, is [Q26](../doc/questions/q26.md). Test: a task emitting progress, asserting the log length is 1 | W3 |
 | `OR-R5` | **The log is ordered by append, never sorted by a timestamp.** Both stamps are `Date.now()` reads: two settlements can share a millisecond, and `schedulerTimestamp` is written by the scheduler while `observedAt` is written by us. Append order is the only total order we have, and the driver is what produces it (`doc/concept.md` section 5). Test: fold a log whose `schedulerTimestamp` order differs from its append order, asserting the fold follows append order | W2 |
 | `OR-R7` | **A resolution is appended, never applied.** Nothing outside the driver's inbound API writes to run state, and the fold derives the resumed path from the record alone. Test: fold a log containing a resolution twice and deep-compare, then assert the same run state is reached by folding from scratch | W2 |
 
@@ -179,7 +179,7 @@ than a documented exception, which is ADR 0007 rule 5's reasoning applied to a s
 2. **A hand-written fixture may therefore need non-JSON literals.** `doc/workflow.md` section 5
    rule 4 says fixtures are hand-written; it does not say they are JSON files, and outcome-log
    fixtures are TypeScript.
-3. **Durability ([Q15](../doc/open-questions.md)) needs its own encoding**, and `JSON.stringify` is
+3. **Durability ([Q15](../doc/questions/q15.md)) needs its own encoding**, and `JSON.stringify` is
    not it. This is a cost of the choice and it is recorded rather than discovered later.
 
 The rejected alternative was a JSON round-trip, which would make the record literally plain JSON and
@@ -201,7 +201,7 @@ logged, cannot be handed to a predicate deterministically, and could never be pe
 
 ### `OR-R11` — a result is a VALUE, not an OBJECT
 
-**Stated here for the first time, and it is [Q22](../doc/open-questions.md)'s real answer.** That row
+**Stated here for the first time, and it is [Q22](../doc/questions/q22.md)'s real answer.** That row
 asks whether *a result must be structured-cloneable* is a constraint on workers or on the driver, and
 the fork is the wrong shape: it is the driver's constraint — `OR-R2`, unchanged — and the question an
 author actually hits is not *may I return this* but **what arrives**.
@@ -271,7 +271,7 @@ driver cannot tell* — is FALSE.** It is declined on two measurements instead:
    [W46](../doc/work-items/w46-what-a-reference-costs-and-whether-anything-says-so.md) measured for a
    size walk and declined on the same ground. **The bands are what reproduce; the individual readings
    do not**, and a first version of this paragraph quoted narrower ones taken from a single run —
-   which is this section's own closing sentence broken inside this section. [Q179](../doc/open-questions.md).
+   which is this section's own closing sentence broken inside this section. [Q179](../doc/questions/q179.md).
 3. **And there is nothing for it to say that is not already this rule.** A report would fire on every
    correct use of a class as a transfer shape, which is the ordinary way to write a worker; it would
    be `OR-R11` restated once per settlement rather than a diagnosis, which is exactly W46's finding
@@ -300,7 +300,7 @@ rejected commands; this holds what a WORKER returned, per settlement, as a repor
 **What it BUYS, measured rather than argued.** A static wiring check reads two SCHEMAS and
 `scripts/check-workers.mjs` runs a worker on ONE declared example; neither sees a bound the
 producer's own code does not keep past its declared domain, which is
-[Q302](../doc/open-questions.md)'s shape and which every consumer's arc reports as a `fits`.
+[Q302](../doc/questions/q302.md)'s shape and which every consumer's arc reports as a `fits`.
 And the second half is unreachable by any authoring-time tool for a structural reason rather than an
 omission: **none of them holds a record**, so none can see what `OR-R2`'s clone left behind.
 
@@ -322,7 +322,7 @@ says nothing about this rule — W80's conformity reader, finding 8.)*
 
 ### What `OR-R2` costs, and the method the numbers were taken by
 
-**[Q190](../doc/open-questions.md)'s precedent: the measurement goes in the section, with the
+**[Q190](../doc/questions/q190.md)'s precedent: the measurement goes in the section, with the
 method.** Every figure below is **one case per process**, which is
 [W46](../doc/work-items/w46-what-a-reference-costs-and-whether-anything-says-so.md)'s settled method —
 that item measured accumulation in one process at up to **4.4x** and run order at **nothing**, so a
@@ -343,11 +343,11 @@ together; for a `fanout` over 278.2 KiB it is **linear in a number the document 
 **What reproduces and what does not, stated because a register row quoting an absolute is quoting a
 method.** The SHAPE reproduces exactly — linear for a `fanout`, quadratic for a `map` — and so does
 the ratio class, ~800x both times. **The ABSOLUTES do not**, even under the settled method:
-[Q22](../doc/open-questions.md)'s row quoted 1.50 / 2207.94 ms from
+[Q22](../doc/questions/q22.md)'s row quoted 1.50 / 2207.94 ms from
 [W34](../doc/work-items/w34-what-a-branch-receives-and-what-a-join-carries.md), taken accumulated in
 one process; P15's declaration re-took them at 0.64 / 516.77; this version reads 0.58 / 499.16, and
 the `fanout` row is **1.8x apart from P15's on the same fixture and the same method**. So
-[Q179](../doc/open-questions.md) binds harder than *one process versus many*: **quote the shape and
+[Q179](../doc/questions/q179.md) binds harder than *one process versus many*: **quote the shape and
 the ratio, never the millisecond.**
 
 ### What bounding `RunState.nodes[*].result` would cost — priced, not taken
@@ -391,17 +391,17 @@ real `FyflowScheduler`, where it is an ASSERTION**. So taking the bound breaks L
 materially different price from *two tests*. *(This paragraph said "two tests" until W54's conformity
 reader counted them.)* **And the surface is wider than the field**: `nodeOf(state, taskId)` is
 exported from `src/fold/run-state.ts` and reaches the package root through `index.ts`'s `export *`,
-so a consumer reaching a stored result has an accessor as well as a field — [Q101](../doc/open-questions.md)'s
-shape, and neither this section nor [Q239](../doc/open-questions.md) named it before.
+so a consumer reaching a stored result has an accessor as well as a field — [Q101](../doc/questions/q101.md)'s
+shape, and neither this section nor [Q239](../doc/questions/q239.md) named it before.
 
 **The evidence against is the vocabulary table above**, and it is a shape change rather than a flag.
 
-**Whether this constraint belongs on the driver or on workers is [Q22](../doc/open-questions.md), and
+**Whether this constraint belongs on the driver or on workers is [Q22](../doc/questions/q22.md), and
 it is ANSWERED: on the DRIVER, unchanged, with `OR-R11` as the half the fork did not name.**
 The alternative — declare it a contract that a worker must not retain what it returns — is cheaper
 and unenforceable, and this repo has already rejected that shape of answer once:
-[Q9](../doc/open-questions.md) says *"please write pure functions" is not a mechanism*. The cost is
-real and is now measured above rather than deferred. *(This paragraph read *"is [Q19](../doc/open-questions.md)'s
+[Q9](../doc/questions/q9.md) says *"please write pure functions" is not a mechanism*. The cost is
+real and is now measured above rather than deferred. *(This paragraph read *"is [Q19](../doc/questions/q19.md)'s
 to measure"*, corrected by [W53](../doc/work-items/w53-what-a-run-retains-that-nothing-reads.md)'s
 conformity reader, and then *"the cost is real"* with no number, corrected here.)*
 
@@ -430,7 +430,7 @@ visible and accepts the answer.
 | `resolvedAs` | `'done' \| 'failed'` | the terminal state the node is treated as having from here. Routing then runs under `spec/flow-definition.md` section 3 as though the node had settled that way |
 | `result` | structured-cloneable value \| `null` | `null` unless `resolvedAs` is `done`. Deep-copied on the way in, for the same reason as `OR-R2` |
 | `error` | string \| `null` | `null` unless `resolvedAs` is `failed` |
-| `actor` | string | opaque. The library never interprets it and never authenticates it ([Q29](../doc/open-questions.md)) |
+| `actor` | string | opaque. The library never interprets it and never authenticates it ([Q29](../doc/questions/q29.md)) |
 | `observedAt` | number | the driver's clock. There is **no** `schedulerTimestamp`: no scheduler was involved |
 
 **There is no `attempts`, `startTime`, `endTime` or `executionTime`.** A resolution is not an
@@ -445,7 +445,7 @@ shape.
 
 | id | | Test owed by |
 |---|---|---|
-| `OR-R12` | **A resolution whose value is not structured-cloneable throws out of `resolve()` to its caller** — a `DataCloneError`, not an `UncloneableResult` — and the run is **not** failed: nothing is appended, `OR-R10` does not fire, `onRunFailure` is not called, and the driver keeps routing. **The asymmetry is not arbitrary**: a settlement arrives from the scheduler with nobody to throw to, so `OR-R6` must turn it into a run failure; a resolution is a **synchronous call the consumer made**, and a throw reaches the one party that can fix it. **What is NOT decided here is whether the two should be the same** — the class differs, the reporting channel differs, and a `DataCloneError` is in neither section 6's enumeration of what reaches `OR-R10` nor `AGENTS.md`'s executed error-class snippet ([Q241](../doc/open-questions.md)). Test: at ladder L2, `resolve()` with an uncloneable value, asserting the throw, that no record was appended, that `onRunFailure` saw nothing, and that a later settlement still routes | **[W54](../doc/work-items/w54-what-a-result-may-be-and-what-bounding-it-would-cost.md)** |
+| `OR-R12` | **A resolution whose value is not structured-cloneable throws out of `resolve()` to its caller** — a `DataCloneError`, not an `UncloneableResult` — and the run is **not** failed: nothing is appended, `OR-R10` does not fire, `onRunFailure` is not called, and the driver keeps routing. **The asymmetry is not arbitrary**: a settlement arrives from the scheduler with nobody to throw to, so `OR-R6` must turn it into a run failure; a resolution is a **synchronous call the consumer made**, and a throw reaches the one party that can fix it. **What is NOT decided here is whether the two should be the same** — the class differs, the reporting channel differs, and a `DataCloneError` is in neither section 6's enumeration of what reaches `OR-R10` nor `AGENTS.md`'s executed error-class snippet ([Q241](../doc/questions/q241.md)). Test: at ladder L2, `resolve()` with an uncloneable value, asserting the throw, that no record was appended, that `onRunFailure` saw nothing, and that a later settlement still routes | **[W54](../doc/work-items/w54-what-a-result-may-be-and-what-bounding-it-would-cost.md)** |
 
 *(Found by W54's conformity reader, on this item's own subject: a sentence naming one boundary as
 though it were the whole boundary. `src/driver/**` is
@@ -455,12 +455,12 @@ writes the behaviour down and raises the question rather than changing it.)*
 | id | | Test owed by |
 |---|---|---|
 | `RS-R1` | **A resolution for a task that is not suspended is refused.** *Suspended* means the task's **last** record is an `outcome` with `terminalState: 'user_action'` — so a task already resolved is not suspended, and **a second resolution is refused like any other**. The record is not appended and the run is unaffected: this is a rejected command, not a run failure, because it comes from outside and a caller can retry. Test: resolve a `done` task, an unknown task id, and **a task that was already resolved** — asserting nothing is appended in all three. An implementation keyed on *"has a `user_action` record"* rather than *"last record is"* passes the first two and fails the third | W3 |
-| `RS-R2` | **A resolution supplies an outcome; it never re-dispatches the node.** *"Try that node again"* is flow-level retry, which is [Q16](../doc/open-questions.md) and out of P1's scope; *"send it somewhere else"* is a second routing mechanism competing with the definition. Both are [Q28](../doc/open-questions.md) | W3 |
+| `RS-R2` | **A resolution supplies an outcome; it never re-dispatches the node.** *"Try that node again"* is flow-level retry, which is [Q16](../doc/questions/q16.md) and out of P1's scope; *"send it somewhere else"* is a second routing mechanism competing with the definition. Both are [Q28](../doc/questions/q28.md) | W3 |
 | `RS-R3` | **`resolvedAs: 'failed'` routes exactly as an `optional` node's failure would** — through `on: ["failed"]` edges, or ending the path if none is eligible. A human declining the work and the flow handling a failure are the same downstream shape, deliberately. **Note this is the only road by which a non-`optional` node reaches an `on: ["failed"]` edge** (`spec/flow-definition.md` section 2) | W3 — it is a routing rule, and routing is `src/driver/**` |
 
 **`resolvedAs` has two values, not three.** A resolution cannot leave a node in `user_action`; that
 is what *not resolving it* is. And it cannot invent a fourth state, because the run-level outcome
-vocabulary is run state's ([Q25](../doc/open-questions.md)) rather than this record's.
+vocabulary is run state's ([Q25](../doc/questions/q25.md)) rather than this record's.
 
 ## 6. How a run terminates — corrected
 

@@ -40,7 +40,7 @@
 // exists for the self-test and for nothing else, on the pattern of
 // `CHECK_SOURCE_PKG`. **Three of `D5`'s four clauses were unreachable without it**
 // — unreadable, empty-parse and missing-exports — and the middle one is
-// [Q141](../doc/open-questions.md), which survived twelve green probes because no
+// [Q141](../doc/questions/q141.md), which survived twelve green probes because no
 // probe could supply a `.d.ts` the parse cannot read.
 
 import { existsSync, lstatSync, readFileSync } from 'node:fs';
@@ -50,7 +50,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 /**
- * The pin, in one place. [Q3](../doc/open-questions.md) — and there is **no
+ * The pin, in one place. [Q3](../doc/questions/q3.md) — and there is **no
  * changelog** upstream, so a bump here means re-reading its `AGENTS.md` section 6
  * rather than reading a diff. That reference ships inside the npm package, so it
  * is at `node_modules/fyflow-scheduler/AGENTS.md` rather than next door.
@@ -422,7 +422,7 @@ if (process.argv.includes('--self-test')) {
     // bindable as the two above, and each was measured moving to a wrong version for
     // **0** failures: the repository's front page, the concept document's own
     // constraint list, and the L6 README that states both halves of the two-road
-    // split. [Q175](../doc/open-questions.md) had called the first two unbound
+    // split. [Q175](../doc/questions/q175.md) had called the first two unbound
     // *citations*; they are statements, and its enumeration is corrected.
     ['README.md', /is pinned to \*\*(\d+\.\d+\.\d+)\*\* and installed from/g],
     ['doc/concept.md', /We pin \*\*(\d+\.\d+\.\d+)\*\* \(Q3\)/g],

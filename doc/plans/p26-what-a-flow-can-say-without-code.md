@@ -27,10 +27,10 @@ schemas are a built-in subset
 ([ADR 0053](../decisions/0053-the-schema-validator-is-a-built-in-subset-and-a-keyword-outside-it-is-refused.md)).
 **A decision's predicate is the one thing left that is code-only.**
 
-**The register does not have this.** [Q21](../open-questions.md) is the UI's READ side — an event
+**The register does not have this.** [Q21](../questions/q21.md) is the UI's READ side — an event
 family so a UI can show where a run is, which [P23](p23-what-a-run-needs-to-outlive-its-process.md) took
 the stream half of. The AUTHORING side is unwritten, which is why this plan raises
-[Q444](../open-questions.md) rather than taking an existing row. *The one plan in twenty-six whose
+[Q444](../questions/q444.md) rather than taking an existing row. *The one plan in twenty-six whose
 subject nobody had recorded.*
 
 **The maintainer framed both halves on 2026-10-02 and the plan does not reopen them**: a `when` that may
@@ -54,7 +54,7 @@ So a declared expression cannot be evaluated
 where a decision is made without making routing async, which reaches
 [ADR 0014](../decisions/0014-the-driver-produces-the-folds-ordered-input-sequence.md)'s ordered
 fold-input sequence. *That is why ADR 0051 put transforms in the worker wrapper, and it is why a
-predicate subset is NECESSARY rather than merely cheaper.* [Q251](../open-questions.md) is the row.
+predicate subset is NECESSARY rather than merely cheaper.* [Q251](../questions/q251.md) is the row.
 
 **Fact 2 — and it CORRECTS this plan's own premise. A predicate is NOT just a path, an operator and a
 literal.** The draft said *every predicate in both corpora is path + compare + literal*, measured on the
@@ -160,7 +160,7 @@ not wired to this case.*
 2. **The subset is SYNCHRONOUS and has no clock, no randomness and no I/O — by construction rather than
    by unbinding.** W62 had to unbind `$now`, `$millis`, `$random`, `$shuffle` and `$eval` BY NAME; a
    subset simply has none of them. This is strictly stronger than a JS function on
-   [Q9](../open-questions.md), where evaluating twice caught 1 impurity shape of 4: a data predicate
+   [Q9](../questions/q9.md), where evaluating twice caught 1 impurity shape of 4: a data predicate
    **cannot** be impure.
 
 3. **Fact 2 sizes the subset and the enumeration is CLOSED, refused outside by name** — ADR 0053's own
@@ -179,7 +179,7 @@ not wired to this case.*
    > gets stronger.** Two arms over one `map` computing the same N values, on a real `FyflowScheduler`,
    > warmed up, median of three, counts asserted steady: per item a tier-three node costs **+1 dispatch,
    > +4 CLONES and +2 log records**, identical at N = 4, 32 and 128. The four clones are named —
-   > `OR-R2`'s at the listener, the one `runtime.start` installs on every run ([Q320](../open-questions.md)'s,
+   > `OR-R2`'s at the listener, the one `runtime.start` installs on every run ([Q320](../questions/q320.md)'s,
    > paid again), the edge hop's, and the extra dispatch's envelope `settings`. **And the two pool modes
    > answer differently**: inline the ratio RISES with N — 1.26x / 1.73x / 1.93x — toward the 2x doubling
    > the task count predicts, because there the driver's own work IS the cost; threaded it is **FLAT at
@@ -241,7 +241,7 @@ the word. The two that matter most:
 **Decision 4's cited cost was wrong and the direction helps.** It priced a tier-three node at *a
 dispatch, an `OR-R2` clone and a log record* against W34's 2207 ms; measured on a real
 `FyflowScheduler` at three arities, it is **+1 dispatch, +4 CLONES and +2 log records** per node — one
-of the four being [Q320](../open-questions.md)'s, paid again — rising to **1.93x** of a tier-two run
+of the four being [Q320](../questions/q320.md)'s, paid again — rising to **1.93x** of a tier-two run
 inside a `map` at N = 128 inline and flat at **1.47x** threaded. *The two pool modes answer
 differently, and W34's figure is a clone per BRANCH over a 117 KiB payload, a different quantity.*
 
@@ -252,7 +252,7 @@ composition at all, so W110 is what tests it. **Prediction 2 was reversed by a D
 its named mechanism** (W108: the condition it names did not fire and the prediction is false anyway,
 because the maintainer's answer to stop-and-ask (b) retired the string form). **Prediction 4 is
 CONFIRMED and W109 built the function that makes it legible**: `sampledOutput` returns the departing
-verdicts — still `unchecked` — beside the sampled shape, so [Q446](../open-questions.md)'s residue
+verdicts — still `unchecked` — beside the sampled shape, so [Q446](../questions/q446.md)'s residue
 cannot be read as removed by the item that was most likely to be read that way.
 
 **Prediction 3, the plan's one REACH prediction, is CONFIRMED — and its reversal column told W110 to
@@ -270,7 +270,7 @@ which is the artifact's job to try*. It found **two**, and neither is a function
    registry, and it is the whole of the gap.
 2. **A comparison reads ONE path and compares it to ONE literal.** So *is the mean below the threshold
    the run carries* is not a comparison and neither is any arithmetic — and a `value` MEANT as a path
-   is accepted as a literal string and is false for ever ([Q456](../open-questions.md)). **The route
+   is accepted as a literal string and is false for ever ([Q456](../questions/q456.md)). **The route
    around it is DATA**: W110's `rollup` is a tier-three `Transform` node computing `weak`, and the
    `when` reads `outcome.result.weak`. So the reach holds at the cost of a NODE rather than of a
    function, which is ADR 0075's three-tier rule doing precisely what it was written for.
@@ -375,7 +375,7 @@ the widened `stray()` glob, the stale *62 of 76* premise in `check-markdown-self
 carries **473 anchored links over 181 documents**), and the `check:questions` clause that would have
 caught the register's own stale headline.
 
-**[Q142](../open-questions.md) measured BEFORE this retro's edits and it does NOT fire**: `M3`'s floor
+**[Q142](../questions/q142.md) measured BEFORE this retro's edits and it does NOT fire**: `M3`'s floor
 is `< 142`, probe 1's fixture (the tree minus `doc/decisions`) is **137** and the whole tree **182**,
 so the margin is **five files** and a retro adds no document. **It is PREDICTED to fire at P27's
 FOURTH item document**, every one of which lands outside `doc/decisions`.

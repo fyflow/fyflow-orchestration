@@ -20,7 +20,7 @@
  * **The two halves are TWO COPIES of one grammar, on purpose.** The registry half is the function
  * below; the worker half is the `data:` URL module whose source is the string below, which every
  * runtime this suite runs in can `import()`. ADR 0051 rule 2 says the halves may disagree
- * ([Q264](../../doc/open-questions.md)) and the conformance suite asserts they do not; a fixture
+ * ([Q264](../../doc/questions/q264.md)) and the conformance suite asserts they do not; a fixture
  * whose two halves were one object would make that clause vacuous, so this one keeps them apart.
  */
 import type { LanguageAdapter } from '../../src/definition/types.ts';

@@ -29,10 +29,10 @@ tree being shared** and everything to do with `dev-dist/` being one flat namespa
    body and deleted the FIXED `dev-dist/docs`, and a staged `check-spec.mjs` launched the whole
    `check-spec` self-test, which deleted the FIXED `dev-dist/spec-selftest`.
 
-[Q182](../open-questions.md) recorded the residue and said what would close it — *a derived scratch
+[Q182](../questions/q182.md) recorded the residue and said what would close it — *a derived scratch
 path per check plus per process, and a clause that every write under `dev-dist/` goes through it* —
 and that **relocating where `check-wiring-selftest` stages would not fix it, because the copies it
-runs are the real checks and they write the real paths.** [Q181](../open-questions.md) recorded the
+runs are the real checks and they write the real paths.** [Q181](../questions/q181.md) recorded the
 other half: **the marker is bound to nothing.** A self-test that writes a fixed path and omits it runs
 concurrently and produces *a finding that is a fact about a neighbouring process*.
 
@@ -93,7 +93,7 @@ Three further facts, all measured at W105:
    STATEMENT as the window the pid must appear in. **What remains invisible is the needle SPLIT across a
    concatenation** (`'dev-' + 'dist'`), and deliberately: this clause and its self-test both use that trick
    on purpose, because a literal quoting the pattern it searches for is a false match for itself
-   ([Q178](../open-questions.md)), and a check cannot both use it and refuse it.
+   ([Q178](../questions/q178.md)), and a check cannot both use it and refuse it.
 5. **`check:wiring:selftest`'s exclusivity marker is RETIRED. `check:scheduler:selftest`'s STAYS.**
    Both were measured in the arrangement each marker exists for; **only the retired one has a control**,
    and this item's conformity reader is why that is stated rather than implied — the scheduler row is one
@@ -128,7 +128,7 @@ Three further facts, all measured at W105:
 
    **The two retired readings straddle the kept one**, so 851.3 s cannot be distinguished from either —
    the retired spread is 280 s wide where the kept-to-best difference is 62 s, which is
-   [Q179](../open-questions.md)'s band with a number on it. *The arithmetic that predicted a 228 s saving
+   [Q179](../questions/q179.md)'s band with a number on it. *The arithmetic that predicted a 228 s saving
    assumed a lane's wall clock is independent of how many lanes run beside it, and the
    serial-equivalent — 2000 s against 2751 and 3925 — says it is not.* **This decision therefore rests
    on CORRECTNESS and makes no speed claim**, which is also why the item did not reorder anything on the

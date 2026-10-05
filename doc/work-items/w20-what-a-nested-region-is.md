@@ -3,7 +3,7 @@
 **Status:** DONE - 2026-09-02. Both readers ran; all sixteen findings acted on
 **Plan:** [P7](../plans/p7-is-a-join-transitive-over-nested-fan-out.md) — the first of its four items.
 It **defines the shape** and takes no decision about the join: whether an outer join is transitive
-over an inner one is [Q6](../open-questions.md) and belongs to W22.
+over an inner one is [Q6](../questions/q6.md) and belongs to W22.
 
 ```
 Spec:       spec/flow-definition.md sections 2 and 5 — `FD-V15` lifted, and what
@@ -132,14 +132,14 @@ the resolver returns `undefined` or throws when two candidates are unrelated —
   > `r1:scoreC:1.0:0`, because nothing pushes a segment. **The intermediate state is *runs with the
   > wrong ids*, not *cannot run*** — which is better for this item (the driver seam is testable at
   > L2 now) and is a sharper statement of what W21 owes.
-- **Anything about the join.** Transitivity is [Q6](../open-questions.md) and **ADR 0030 is W22's**.
+- **Anything about the join.** Transitivity is [Q6](../questions/q6.md) and **ADR 0030 is W22's**.
   `arrival-count`'s refusal is W22's too, on P7's measured ground that `validateDefinition` does not
   know the policy.
 - **Whether `branchIndexOf` should return a PATH rather than an index.** At depth 2 the honest answer
   to *"which branch is this node in"* is `'1.0'`, and that is `spec/task-id.md`'s vocabulary —
   **W21's**. This item makes the existing signature correct, not different. Named because it is the
   seam between the two items and it is where a reader will expect one of them to have overreached.
-- **`FD-V13`, `FD-V19`, `FD-V22`** ([Q23](../open-questions.md), [Q27](../open-questions.md)). The
+- **`FD-V13`, `FD-V19`, `FD-V22`** ([Q23](../questions/q23.md), [Q27](../questions/q27.md)). The
   other liftable restrictions, and `FD-V19`/`FD-V22` are load-bearing *for* this item: they are what
   keep an inner region inside one outer branch.
 - **Depth 3.** The definition above is depth-agnostic and the tests are at depth 2. An item that
@@ -274,7 +274,7 @@ Closing it produced a fact worth carrying: **`regionOf` is read on exactly three
 `branch.arrived` finds its region by **`joinId`** and `branch.opened` by **`fanoutId`**, both keyed
 and both unambiguous. So the first version of the seam test, which drove the flow to a normal
 arrival, reached `regionOf` **nowhere** and passed with `.find` restored. **The innermost resolution
-is load-bearing on the non-success paths only**, which is [Q113](../open-questions.md) and which W22
+is load-bearing on the non-success paths only**, which is [Q113](../questions/q113.md) and which W22
 and W23 need before they design their rows. The test now suspends `scoreC` instead — the cheapest of
 the three, needing no fixture the corpus does not already have.
 
@@ -290,7 +290,7 @@ failures, so the clause the filter would hide is covered by two other routes. An
 provenance probes that **caught** (C2, C5, D1) all break the **input** or the **declared** value.
 
 **The obligation as v0.8 words it is right in aim and under-specified: it should say break the source
-of the ACTUAL value, or pair an expected-side probe with a code mutation.** [Q112](../open-questions.md),
+of the ACTUAL value, or pair an expected-side probe with a code mutation.** [Q112](../questions/q112.md),
 for P7's retro — the first rule in this document to be refined by its own first outing.
 
 **B5 is a real survivor and is the known refused class**: no check reads spec prose, so the whole
@@ -305,7 +305,7 @@ false.**
 
 Section 4's first draft said *"`FD-V19` and `FD-V22` are what make it unique"*. **`end` nodes are
 exempt from both** (section 2), so one `end` node may be shared by two **sibling** regions nested in
-neither — [Q45](../open-questions.md)'s shape, two sequential fan-outs sharing one `end`, which
+neither — [Q45](../questions/q45.md)'s shape, two sequential fan-outs sharing one `end`, which
 `validateDefinition` **accepts**. Measured: the same graph answered `f1` or `f2` depending on which
 `fanout` was declared first. **The exact defect this item exists to remove, surviving in the one case
 the rule claimed was unreachable.**
@@ -379,7 +379,7 @@ of what W21 owes. Corrected in Scope/Out in place.
 in `invalid/` because a rule refused it. Lifting the rule **moved a file** — and `check-spec`'s
 `deliberately absent` mechanism, written for `FD-V14` (a rule that never existed), serves a **retired**
 rule unchanged. **No script change and therefore no undeclared edit**, which is the opposite of W18's
-[Q102](../open-questions.md): a check that turned out to need one.
+[Q102](../questions/q102.md): a check that turned out to need one.
 
 **2. Keyed lookups hid the defect, and that is why it survived four plans.** `regionOf`'s
 order-dependence was invisible not only because `FD-V15` refused the input, but because the two most
@@ -390,15 +390,15 @@ function whose success paths do not use it is a defect nothing routine will reac
 
 ## Questions raised
 
-- **[Q112](../open-questions.md)** — v0.8's provenance obligation does not distinguish breaking the
+- **[Q112](../questions/q112.md)** — v0.8's provenance obligation does not distinguish breaking the
   **actual** side of an assertion from breaking the **expected** side, and the second always survives.
   Measured on the rule's first outing: 3 of 6 provenance probes survived and none was a hole.
-- **[Q113](../open-questions.md)** — `Driver.regionOf` is read on **four** identity-using paths
+- **[Q113](../questions/q113.md)** — `Driver.regionOf` is read on **four** identity-using paths
   (`branch.suspended`, `branch.lost`, `branch.resumed`, and `branch.exited`'s attribution);
   `branch.arrived` and `branch.opened` use keyed lookups. **Four, not the three this row first said**
   — corrected by the adequacy reader, and it matters because W22 and W23 are told to design their
   rows from the number. Whether the join needs innermost resolution **at all** is W22's to answer.
-- **[Q114](../open-questions.md)** — **`settleJoin` routes out of a join with no branch path at
+- **[Q114](../questions/q114.md)** — **`settleJoin` routes out of a join with no branch path at
   all.** `driver.ts` enters the join's successor as `this.enter(runId, edge.to, null)` — no
   `fromBranch`, no `fromRegion` — so on a nested flow the outer region records branch 1's arrival as
   `'-'`, and any task after an inner join would be dispatched `r1:X:-:0`, where `spec/task-id.md`

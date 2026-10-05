@@ -20,7 +20,7 @@ its rule 6's *a third key is the wrapper's to consume* is what this decision fil
 [ADR 0040](0040-what-a-node-can-reach-is-the-runs-own-outputs-and-a-node-id-names-them-relative-to-a-branch-path.md)
 rule 6 stands for every untyped node. **The placement — the type's worker wrapper, never the
 driver — and the language — JSONata, registered by name, the first and only adapter — are the
-maintainer's decisions of 2026-09-11 (P16, [Q251](../open-questions.md)) and are not reopened here.**
+maintainer's decisions of 2026-09-11 (P16, [Q251](../questions/q251.md)) and are not reopened here.**
 **Raised by:** P17, taken by [W61](../work-items/w61-what-a-transform-is.md)
 
 ## Context
@@ -31,7 +31,7 @@ whose whole job is to rename keys — which ADR 0040 exists to remove, and whose
 wrong answer rather than a refusal: [W43](../work-items/w43-the-two-blocked-flows-on-real-workers.md)'s
 three map instances each scored zero because every worker read `payload.confidence` and the payload
 was the object `needs` described. The successor of a join is where every consumer of a fan-out writes
-a reshaping node today, and [Q165](../open-questions.md)'s reducer on the join was refused by
+a reshaping node today, and [Q165](../questions/q165.md)'s reducer on the join was refused by
 [ADR 0037](0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md)
 rule 5 for a reason that has since expired — `JP-R12` has been specified since W34.
 
@@ -72,7 +72,7 @@ after F1 was measured and before the wrapper's final form was written:**
    the URL of a module whose default export is `compile(expr) → { evaluate(input, settings) →
    Promise<unknown> }`; **`check(expr, inputShape)`** is RESERVED for P18's pre-flight, optional and
    implemented by nothing. The JSONata adapter's two halves are ONE module (W62); the interface
-   admits two, and the two can DISAGREE ([Q264](../open-questions.md)) — so the worker half refusing
+   admits two, and the two can DISAGREE ([Q264](../questions/q264.md)) — so the worker half refusing
    what the registry half accepted is a TASK failure naming the disagreement, and the **adapter
    conformance suite** (`test/scheduler/adapter-conformance.ts`) asserts, for the adapter it is
    handed, that both halves refuse the same expressions, that every case evaluates to its expected
@@ -135,7 +135,7 @@ once and hands it to the helper and to the driver, as they do a node type.
 1. **An adapter is two halves, and only one module can make them one.** A consumer handing `compile`
    from one module and `worker` from another, or two versions of an engine on the two sides of a
    thread, has two languages under one name; the wrapper reports the disagreement as a task failure
-   and nothing catches it before a run ([Q264](../open-questions.md)).
+   and nothing catches it before a run ([Q264](../questions/q264.md)).
 2. **The helper reads the FLOWS.** It is the one reading of a definition the helper makes, and it is
    what keeps a pool from loading an engine its nodes never use; a consumer who runs a flow the
    helper was not shown gets a `TransformFailed` naming the language the pool does not carry.
@@ -144,12 +144,12 @@ once and hands it to the helper and to the driver, as they do a node type.
    strict mode can turn it into a refusal, and this decision says so rather than pretending an
    adapter can.
 4. **A transform's result changes TYPE with the region's arity** — `*.score` is an array at two
-   matches, a scalar at one, absent at zero ([Q263](../open-questions.md)); W63 runs all three.
+   matches, a scalar at one, absent at zero ([Q263](../questions/q263.md)); W63 runs all three.
 5. **The engine is a browser cost only where a transform is declared**: `jsonata` bundles at 242 KB
    (P17 fact 9), and the pure entry, the scheduler sub-path and every typed pool without a
    transforming node load none of it.
 6. **`$eval` re-compiles at run time**, so a syntax error inside it escapes `FD-V36` and lands as a
-   task failure ([Q265](../open-questions.md), W62's stop-and-ask).
+   task failure ([Q265](../questions/q265.md), W62's stop-and-ask).
 
 **What a future reader is likely to try that this forbids.** Evaluating the transform in the DRIVER
 *"so ladder L2 can see it"* — rule 3: the driver has no `await` and the evaluator is async, and the

@@ -44,9 +44,9 @@ the command. The history is `git`.*
 [ADR 0077](doc/decisions/0077-an-item-does-not-write-its-status-into-claude-md.md) — **nor into
 [doc/README.md](doc/README.md)**, which left the record step at
 [W115](doc/work-items/w115-the-exit-artifact-and-the-budget-met.md) by the maintainer's answer to
-[Q466](doc/open-questions.md), the question ADR 0077 consequence 4 raised. **The record step is
+[Q466](doc/questions/q466.md), the question ADR 0077 consequence 4 raised. **The record step is
 FOUR files and neither of these is one of them**: the plan's Record, `README.md`,
-`doc/open-questions.md` and `doc/decisions/**`. `npm run state` is where the state of the work is.
+`doc/questions/**` and `doc/decisions/**`. `npm run state` is where the state of the work is.
 
 ## The fact that reframes the whole repo
 
@@ -130,7 +130,7 @@ concept -> plan -> work items -> verify (ladder, spec conformity, retro) -> reco
 - **`npm run gate` runs `test:browser`, which is CHROMIUM ONLY**
   (`scripts/run-browser-tests.mjs`); firefox and webkit need `test:browser:all`.
 - **A count a Record calls "assertions" is a count of `test()` CASES**, except at L6, where it is a
-  real count of individual assertions. Do not add the two ([Q98](doc/open-questions.md)).
+  real count of individual assertions. Do not add the two ([Q98](doc/questions/q98.md)).
 - Ids (`P`, `W`, `Q`, `ADR`, `S`) are reserved in blocks before fan-out, and are **never reused or
   renumbered**. `npm run state` derives the next free one.
 
@@ -154,7 +154,7 @@ with a fresh context, spec first and code second, and it reports rather than fix
 is.** All four of `doc/concept.md` section 6's have landed — two as ADRs, one as P1's spike, and
 run-state-as-a-fold as Q14's answer — **and all four went to the leaning**, which section 6 now says
 in place rather than leaving to a reader to notice. The live example is elsewhere:
-**[Q33](doc/open-questions.md)'s leaning said *L6 in Node only*, on the stated ground that L6 *"needs
+**[Q33](doc/questions/q33.md)'s leaning said *L6 in Node only*, on the stated ground that L6 *"needs
 a real worker file per runtime"*, and that ground is false at Node 24.** W5 measured it in one
 command and the answer flipped. Citing a leaning as settled is the most likely way to get this wrong;
 inheriting the *reasoning* behind one without checking it is the second.
@@ -162,22 +162,21 @@ inheriting the *reasoning* behind one without checking it is the second.
 **A written claim nobody ran is this repository's most common defect.** `spec/run-state.md` section 5
 tabulates **five** — its own heading says *three things v0.1 claimed that its own inputs could not
 supply, and two found since*. Three were a spec asserting what its own inputs could not supply; the
-fourth is [Q43](doc/open-questions.md), a register entry written by a reader saying the data was
+fourth is [Q43](doc/questions/q43.md), a register entry written by a reader saying the data was
 already there when it was not; the fifth is a v0.1 claim that stayed true by accident for nine plans.
 `spec/` has a conformity pass; **the register has nothing.** *(This paragraph said FOUR until
 2026-10-04 — stale since that document reached v0.4, and carried forward verbatim by the cut that
 shortened everything around it.)*
 
-**`doc/open-questions.md` is a REFERENCE and is NOT read before every work item.** Read the row you
-need, the way you read `spec/`. It is **one line per question** since
-[W113](doc/work-items/w113-the-register-is-a-reference.md) — id, the question or the finding, status,
-owner, and a closing condition where the row states one — and every row's long body is in `git`.
-*(This document asserted the opposite until 2026-10-03: *"`doc/open-questions.md` is read before
-every work item and checked by nothing"*. The second half still holds. The first was true when 92
-rows fitted on a page and had not been literally followable for months at 357 rows and 721,528 bytes
-— [P27](doc/plans/p27-what-a-register-row-is.md) decision 1 withdraws it, and
-[Q465](doc/open-questions.md) is the half that remains: the budget `check:budget` holds names three
-documents and nothing in any document says which they are.)*
+**The register is `doc/questions/`, one file per question (Q17 is `q17.md`), and it is a REFERENCE,
+NOT read before every work item.** Look one up: `npm run q -- Q17`, and **`--fields id,status`
+prints only the fields named — ask for no more than you need.** `--where status=open`, `--search`
+and `npm run refs -- Q17` (the files citing it) do the rest. **`icebox` is left out of every list
+and search unless asked for** (`--include-icebox`), and the output says how many it hid. Link one as
+`[Q17](doc/questions/q17.md)` at the citing file's depth; [its README](doc/questions/README.md) says
+how to raise one. **A process word** — *probe*, *vacuity floor* — is in
+[doc/glossary.md](doc/glossary.md): `npm run term -- probe`. *(No document names the always-read set
+`check:budget` holds: [Q465](doc/questions/q465.md).)*
 
 **A wish for `fyflow-scheduler` goes in [doc/scheduler-upstream.md](doc/scheduler-upstream.md), not
 into a workaround comment.** Every item states what we do without it — an item with no workaround is
@@ -198,7 +197,7 @@ what it cannot close**: a specifier built at run time, `import('fyflow' + '-sche
 holding the name, survives. It raises the cost of the mistake; it does not make it impossible.
 
 **Writing documents:** dense and decided. Tables and numbered rules over narrative. Distinguish
-decided from open — open items get a Q id in `doc/open-questions.md`, not an inline TODO. Reference
+decided from open — open items get a Q id and a file in `doc/questions/`, not an inline TODO. Reference
 paths from the repo root in prose; only markdown links are relative. **And a count a check or a
 script can derive is not written down** ([P27](doc/plans/p27-what-a-register-row-is.md) decision 4):
 this file carried hundreds of copies of five such figures, each a snapshot that was true once, and
@@ -314,7 +313,7 @@ CP1252 and silently double-encodes every non-ASCII character. Use the Edit or Wr
 **And do not rewrite files with Python's TEXT mode either — `pathlib.Path.write_text` and
 `open(p, "w")` translate a newline to a carriage-return-newline pair on Windows**, so a
 read-modify-write converts the whole file to CRLF where the index is LF throughout, and the script
-cannot see it. **[Q123](doc/open-questions.md), three occurrences**, each turning a small edit into a
+cannot see it. **[Q123](doc/questions/q123.md), three occurrences**, each turning a small edit into a
 whole-file diff and each caught only by `check-wiring`'s `G2` going red with a message about a
 *dispatch block*. **Use `read_bytes()` and `write_bytes()`**, or the Edit and Write tools.
 `git ls-files --eol` is the check by hand: every tracked file here is `i/lf`.

@@ -22,7 +22,7 @@ Record:
 2. **[W62](w62-the-jsonata-adapter.md)'s dependency decision needs more than ADR 0052** — the
    maintainer wants the second-specifier rule and the manifests' shape as an item of its own, with
    `check-source` clauses beyond what W62 declared.
-3. **[W63](w63-a-transformed-join-on-real-workers.md) found that [Q263](../open-questions.md)'s
+3. **[W63](w63-a-transformed-join-on-real-workers.md) found that [Q263](../questions/q263.md)'s
    singleton rule needs an adapter-side normalisation** — the adapter wrapping every result in an
    array, or refusing a scalar where the input was a record — in a direction that changes what a
    transform RETURNS and therefore `FD-C6`.

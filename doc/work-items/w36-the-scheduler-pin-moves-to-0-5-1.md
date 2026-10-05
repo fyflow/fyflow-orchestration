@@ -146,7 +146,7 @@ readily as to a probe.
 2. **The eleven self-test probes**, re-anchored so the **next** bump does not reproduce this.
 3. **Every LIVE claim naming 0.3.0**, re-verified and re-dated.
 4. **S9's status at 0.5.1**, since the one live upstream item's evidence doubles.
-5. **[Q3](../open-questions.md)'s resolved row** — *which version do we pin* — which now answers
+5. **[Q3](../questions/q3.md)'s resolved row** — *which version do we pin* — which now answers
    0.5.1. **The DECISION is unchanged**: pin one exact version, from both registries, with `D3`
    comparing the halves. Only the number moves, so Q3 is **amended, not reopened**.
 
@@ -155,7 +155,7 @@ readily as to a probe.
 - **Consuming the new `worker.setup.*` / `worker.teardown.*` events.** They are additive and this
   library subscribes to three event types by design (`spec/outcome-record.md` section 1). Whether a
   driver should ever surface worker-lifecycle failures is a question, not a consequence of a bump —
-  raised as [Q167](../open-questions.md) rather than answered here.
+  raised as [Q167](../questions/q167.md) rather than answered here.
 - **Rewriting HISTORICAL citations.** **167 occurrences of `0.3.0` on 151 lines across 43 files** at `HEAD`, excluding the two lockfiles, and most are
   records of what an item measured *at the time*: W1's, W3's, W5's, W6's and W19's `Inputs` and
   Records, superseded [ADR 0013](../decisions/0013-the-scheduler-is-a-development-dependency-reached-from-the-working-tree.md),
@@ -212,7 +212,7 @@ it replaces.
 `scripts/check-scheduler.mjs`, `scripts/check-scheduler-selftest.mjs`, `spec/**`,
 `doc/scheduler-upstream.md`. **Declared exceptions, all taken deliberately:** `examples/l6.ts` and
 `examples/README.md` (the printed banner and the two-halves paragraph — `examples/**` is **W35's**),
-`AGENTS.md` ([Q157](../open-questions.md): no item owns it), `doc/concept.md` (sections 2 and 3's
+`AGENTS.md` ([Q157](../questions/q157.md): no item owns it), `doc/concept.md` (sections 2 and 3's
 version claims). Record step: this file, `doc/open-questions.md`, `doc/decisions/**`, `CLAUDE.md`,
 `doc/README.md`, `README.md`.
 
@@ -274,7 +274,7 @@ and the discriminating test is checked in: with the npm manifest corrupted to `9
 **7. `D6` immediately produced a live instance of a class this repository had killed as a
 hypothesis.** `ALL_CHECKS` in the self-test is a **closed allowlist**, so `D6:` failure lines were
 invisible to the id parse: both new probes reported `exited 1, wanted [D6], got []` while the report
-rows plainly said `D6`. That is [Q43](../open-questions.md)'s class — a second place the id
+rows plainly said `D6`. That is [Q43](../questions/q43.md)'s class — a second place the id
 vocabulary is written down — which **W29's declaration killed as a hypothesis for three other
 self-tests**. Here it was live, and the `agree` projection W29 added is what showed it.
 
@@ -284,7 +284,7 @@ distinctness bound stops it **duplicating** a neighbour; **neither stops it bein
 different edit that still trips the same check** — the probe passes, `D2` fires, and the `file:`
 specifier shape loses its only coverage. Closed by binding each uncited probe to **the one string its
 mutant must contain**, since a probe's NAME is prose and nothing can check that prose describes an
-edit ([Q162](../open-questions.md)'s class). Fixing *that* then produced two more of mine — the new
+edit ([Q162](../questions/q162.md)'s class). Fixing *that* then produced two more of mine — the new
 bound read the fixture directory before the fixture exists, and `r3`'s anchor moved when the list
 changed shape.
 
@@ -311,7 +311,7 @@ moved. It moved cleanly.
 
 **Questions raised.**
 
-- **[Q167](../open-questions.md)** — should a driver surface WORKER-lifecycle failures? 0.5.1 adds a
+- **[Q167](../questions/q167.md)** — should a driver surface WORKER-lifecycle failures? 0.5.1 adds a
   `worker.setup.*` / `worker.teardown.*` family this library subscribes to not at all. Raised
   **because a bump is exactly when a new event family is easiest to adopt by accident**. Its
   strongest against-argument came from the conformity reader: those events are dispatched by

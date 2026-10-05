@@ -29,7 +29,7 @@ import { spawn, spawnSync } from 'node:child_process';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 /**
- * **Per PROCESS, and [Q182](../doc/open-questions.md) is why — W105.** This was `dev-dist/docs` at a
+ * **Per PROCESS, and [Q182](../doc/questions/q182.md) is why — W105.** This was `dev-dist/docs` at a
  * fixed path, `rmSync`d on every run, so **two concurrent `check-docs` bodies destroyed each other**.
  * That is not hypothetical and it is not only about running this check twice: `check-wiring-selftest.mjs`
  * stages every `scripts/check-*.mjs` flat into `dev-dist/` and runs those copies with their dispatch
@@ -239,7 +239,7 @@ if (written.length) {
   //
   // Writing the flags by hand got this wrong on the first try: they pulled the
   // **DOM** lib into scope, and a real `FyflowScheduler` is not assignable to
-  // `SchedulerLike` when it is — see [Q71](../doc/open-questions.md), which this
+  // `SchedulerLike` when it is — see [Q71](../doc/questions/q71.md), which this
   // check found and does not cover.
   // The compiler is invoked through `process.execPath` and TypeScript's own entry
   // rather than through `npx`, which on Windows is a `.cmd` shim that `spawnSync`
@@ -288,7 +288,7 @@ if (written.length) {
 // the total by single digits.
 //
 // **Measured on the 32 snippets this tree ships, on a machine whose `node -e ''` is 49 ms**
-// ([Q180](../doc/open-questions.md)'s baseline is 54 ms, and [Q427](../doc/open-questions.md) is why
+// ([Q180](../doc/questions/q180.md)'s baseline is 54 ms, and [Q427](../doc/questions/q427.md) is why
 // the reading is stated with the machine): sequentially this loop is **4911 ms**, and at pool width
 // 4 / 8 / 16 / 20 / 32 it is **1614 / 1201 / 1048 / 1082 / 1128 ms**. So the curve is already flat at
 // 8, width 16 buys a further 13%, and **20 and 32 are measurably WORSE than 16** on twenty cores.
@@ -314,7 +314,7 @@ const X4_WIDTH = 8;
 // **A floor, because the deliverable is one integer edit from gone and the check is green without
 // it** — measured: `X4_WIDTH = 1` is `check:docs` EXIT 0 at 9084 ms, which is the pre-W104 9314 ms
 // back again, and all 51 of the self-test's probes still pass, because a serial pool computes the
-// same verdicts more slowly. [Q102](../doc/open-questions.md)'s shape, declared as `RUN_FLOOR` and
+// same verdicts more slowly. [Q102](../doc/questions/q102.md)'s shape, declared as `RUN_FLOOR` and
 // `README_SNIPPET_FLOOR` are.
 //
 // **AT the width and not below it, and W104's adequacy reader is why.** This shipped at **2**, with a
@@ -326,7 +326,7 @@ const X4_WIDTH = 8;
 // the self-test's bound EXIT 0, every probe still caught, and **half the saving gone** (+37% idle,
 // +32% under three real concurrent self-test lanes, +45% under twenty burners; roughly +170 s on a
 // 624 s lane). **Its limit is `RUN_FLOOR`'s**: the width and this floor are two edits in one diff
-// ([Q217](../doc/open-questions.md)), which is why `check-docs-selftest.mjs` reads BOTH out of this
+// ([Q217](../doc/questions/q217.md)), which is why `check-docs-selftest.mjs` reads BOTH out of this
 // file and holds the floor itself — the third edit, in another file.
 const X4_WIDTH_FLOOR = 8;
 if (X4_WIDTH < X4_WIDTH_FLOOR) {
@@ -337,7 +337,7 @@ if (X4_WIDTH < X4_WIDTH_FLOOR) {
 // **Unchanged at 30 s, and the headroom is measured rather than assumed**: the slowest snippet is
 // 251 ms sequentially and 341 ms at this width, so the cap is ~88x the worst case the pool produces.
 // Scaling it with the width was considered and refused — a hung snippet would then cost eight minutes,
-// and [Q425](../doc/open-questions.md)'s own row calls a scaled timeout the dearer road.
+// and [Q425](../doc/questions/q425.md)'s own row calls a scaled timeout the dearer road.
 //
 // **What W104 does change is the MESSAGE, which is the cheapest fix that row names.** Q425 is three
 // readings of one check over 32 snippets that never moved — 15 s, then 639 s, then 563 s — in which
@@ -456,7 +456,7 @@ const runnable = written.filter((x) => x.tag === 'run');
   // It matters more since [ADR 0070](../doc/decisions/0070-the-local-gate-is-the-ladder-and-proving-the-checks-can-fail-belongs-to-ci.md)
   // than it would have before: `npm run gate` carries no `:selftest` entry, so a clause whose only
   // observer is a probe is invisible to the local ladder and lives in CI alone
-  // ([Q431](../doc/open-questions.md)). This is a relation between the two halves, in the check.
+  // ([Q431](../doc/questions/q431.md)). This is a relation between the two halves, in the check.
   {
     const emitted = failures.length - emittedBefore;
     const failing = seats.filter((r) => r !== null && r.status !== 0).length;
@@ -544,9 +544,9 @@ const runnable = written.filter((x) => x.tag === 'run');
   // the right-hand side of both, narrowing `pump` AND re-pointing `expectedPeak` — two edits in ONE
   // file — was `check:docs` EXIT 0 with the note printing *pool 8 wide — peak 1 in flight* and the
   // cross-file bound passing, since that bound reads the two literals and not whether they are used.
-  // Two derivations of one formula is [Q217](../doc/open-questions.md)'s shape and is the cost;
+  // Two derivations of one formula is [Q217](../doc/questions/q217.md)'s shape and is the cost;
   // what it buys is that the mutation now needs three edits and the peak clause reads `X4_WIDTH`
-  // itself. **Neither is a clock BUDGET** — that would be [Q179](../doc/open-questions.md)'s error,
+  // itself. **Neither is a clock BUDGET** — that would be [Q179](../doc/questions/q179.md)'s error,
   // since wall time here is not reproducible — they are relations that hold at any speed, because
   // `pump` spawns `min(width, n)` children synchronously before the event loop can deliver a `close`.
   if (runnable.length > 0 && peak !== Math.min(X4_WIDTH, runnable.length)) {
@@ -578,7 +578,7 @@ const runnable = written.filter((x) => x.tag === 'run');
   // **Printed whether or not the clauses above passed, because it used to go silent exactly when
   // something was wrong** — W104's adequacy reader. Its guard required no skipped snippet and both
   // concurrency clauses satisfied, so the one artifact a person would read to see whether the pool
-  // worked was absent in every case where it had not. [Q100](../doc/open-questions.md)'s class says
+  // worked was absent in every case where it had not. [Q100](../doc/questions/q100.md)'s class says
   // nothing reads this line, which is the honest half; a diagnostic that disappears under the
   // condition it diagnoses is the other.
   if (runnable.length) {
@@ -591,7 +591,7 @@ const runnable = written.filter((x) => x.tag === 'run');
 // X5 — the same snippets under the lib set a BROWSER-targeting consumer compiles
 // with. **Reported, and since W57 FAILED at any count above zero.** It was written
 // *reported, never failed*, because the one snippet that broke under the DOM lib was
-// [Q71](../doc/open-questions.md) and W9 was not permitted to fix it; so it carried an
+// [Q71](../doc/questions/q71.md) and W9 was not permitted to fix it; so it carried an
 // allowance of exactly one, pinned so the caveat could not get worse unnoticed.
 //
 // **[W57](../doc/work-items/w57-the-scheduler-is-a-dependency.md) closed Q71** — a real
@@ -646,7 +646,7 @@ if (written.length) {
 // which added section 5's *what a join carries downstream* snippet — a `run` rather
 // than a `check`, because *"a claim a consumer writes code from belongs in an
 // assertion"* (P3's retro) and *what the join hands your next node* is that kind of
-// claim. **This is [Q102](../doc/open-questions.md)'s obligation firing for the
+// claim. **This is [Q102](../doc/questions/q102.md)'s obligation firing for the
 // third recorded time**, and the item that tripped it declared four `scripts/**`
 // files in advance and not this one: the obligation is created by the CONTENT of
 // the change — adding a runnable snippet — rather than by the file set, which is
@@ -915,8 +915,8 @@ const RUN_FLOOR = 34;
 // spelling is a failure too, for `X1`'s reason one document across: ```typescript would otherwise
 // skip in silence, and `X1`'s own pass reads `DOCS` and never the README.
 //
-// `README_SNIPPET_FLOOR` is [Q102](../doc/open-questions.md)'s shape, declared as `RUN_FLOOR` is.
-// The list is a literal — [Q217](../doc/open-questions.md) — so a README section and its entry here
+// `README_SNIPPET_FLOOR` is [Q102](../doc/questions/q102.md)'s shape, declared as `RUN_FLOOR` is.
+// The list is a literal — [Q217](../doc/questions/q217.md) — so a README section and its entry here
 // are two edits in ONE diff, and W69's adequacy reader measured exactly that diff green at
 // `check:docs` AND `check:markdown`. The floor is what makes the third edit visible. The README is
 // read through `CHECK_DOCS_README`, as AGENTS.md is through `CHECK_DOCS_DOC`, for the reason X6's
@@ -936,10 +936,10 @@ const README_SNIPPETS = [
 // section 20's pair — the same ratchet, and the three edits are one diff. **What this floor does NOT have is
 // `RUN_FLOOR`'s self-test probe**: W101's adequacy reader (F12) lowered it to 7 and `check:docs:selftest` was
 // EXIT 0 at 50/50 and 28/28, where lowering `RUN_FLOOR` is CAUGHT by name. A declared CEILING, and
-// [Q102](../doc/open-questions.md)'s shape on one of two floors that carry it.
+// [Q102](../doc/questions/q102.md)'s shape on one of two floors that carry it.
 // **3 since [W107](../doc/work-items/w107-the-readme-is-for-a-person-who-will-use-the-library.md), and it
 // went DOWN, which is the only time that has happened to a floor here.** A ratchet lowered is how a
-// deliverable leaves ([Q102](../doc/open-questions.md)), so this is legitimate only because the thing
+// deliverable leaves ([Q102](../doc/questions/q102.md)), so this is legitimate only because the thing
 // being counted CHANGED: [ADR 0073](../doc/decisions/0073-the-readme-is-for-a-person-the-reference-is-for-an-agent.md)
 // says `README.md` is for a PERSON who will use the library and `AGENTS.md` is the extensive reference,
 // where `X8` was built when the README was the showcase and mirrored all eight of its sections. Five
@@ -949,7 +949,7 @@ const README_SNIPPETS = [
 // **The residue, measured and unfixed**: W101's adequacy reader (F12) lowered this floor to 7 and
 // `check:docs:selftest` was EXIT 0 at 50/50 and 28/28, where lowering `RUN_FLOOR` is CAUGHT by name. So
 // nothing stops the next author lowering it again for a worse reason, and this item did not close that —
-// [Q439](../doc/open-questions.md).
+// [Q439](../doc/questions/q439.md).
 const README_SNIPPET_FLOOR = 3;
 /** The README's text above its first `## ` heading, which is a section for X8's purposes. */
 const README_OPENING = '(the opening, above the first ## heading)';
@@ -1184,7 +1184,7 @@ const README_OPENING = '(the opening, above the first ## heading)';
 
 // X10 — every CURRENT copy of ladder L6's counts IS what `examples/l6.ts` declares
 //
-// **[W96](../doc/work-items/w96-the-counts-and-the-index-a-check-can-compare-and-q394.md), and [Q171](../doc/open-questions.md)
+// **[W96](../doc/work-items/w96-the-counts-and-the-index-a-check-can-compare-and-q394.md), and [Q171](../doc/questions/q171.md)
 // is why** — named for a check by P20's retro, measured by P23's (`README.md`'s current cell read 1724 / 58 for SIX commits
 // while `DECLARED_TOTAL` read 1833), and stale again inside W94 (four copies at 2059 on a tree running 2060, found by a reader).
 // W96's declaration measured the hole: `README.md`'s current sentence moved to 2070 / 155 cost `check:docs` EXIT 0.
@@ -1192,7 +1192,7 @@ const README_OPENING = '(the opening, above the first ## heading)';
 // **Each copy is found by its OWN anchored sentence, never by searching for the number** — P23's retro: a check asking *does
 // the README contain the total* passes on a stale cell, because every copy also carries its predecessors' figures in
 // parentheses. So the anchors name WHICH copy is current, as `X7`'s does. **Its limit is the anchors'**: a new sentence stating
-// the counts that no anchor names is invisible here ([Q217](../doc/open-questions.md)'s regress, one layer on).
+// the counts that no anchor names is invisible here ([Q217](../doc/questions/q217.md)'s regress, one layer on).
 // The subjects are read through overrides for the self-test, obligation (e)'s second question.
 const EXAMPLES_README = process.env.CHECK_DOCS_EXAMPLES || join('examples', 'README.md');
 const L6_FILE = process.env.CHECK_DOCS_L6 || join('examples', 'l6.ts');
@@ -1221,7 +1221,7 @@ const L6_FILE = process.env.CHECK_DOCS_L6 || join('examples', 'l6.ts');
       // DELETING an entry was EXIT 0 with the note cheerfully printing *compared 1 copies*. W107 took
       // this list from four entries to two ([ADR 0073](../doc/decisions/0073-the-readme-is-for-a-person-the-reference-is-for-an-agent.md)
       // decision 5 records that reduction as deliberate) and added nothing to stop the next one, which
-      // is [Q171](../doc/open-questions.md)'s row — these counts going stale — reachable by deletion.
+      // is [Q171](../doc/questions/q171.md)'s row — these counts going stale — reachable by deletion.
       // So: a floor on the list, and a verdict per entry on every exit path, which is `X8`'s shape
       // above for the reasons stated there.
       const COPIES_FLOOR = 2;

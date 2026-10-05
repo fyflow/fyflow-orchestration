@@ -3,7 +3,7 @@
 **Status:** DONE - 2026-09-02. Both readers ran; all eighteen findings acted on
 **Plan:** [P7](../plans/p7-is-a-join-transitive-over-nested-fan-out.md) — the second of its four
 items. It makes a nested run **mint the ids the grammar reserved** and takes no decision about the
-join: transitivity is [Q6](../open-questions.md) and belongs to W22.
+join: transitivity is [Q6](../questions/q6.md) and belongs to W22.
 
 ```
 Spec:       spec/task-id.md section 1 — the `branchPath` segment, which has
@@ -33,7 +33,7 @@ Outputs:    (1) `buildTaskId` accepts a PATH, not just an index;
                 they open at the bare inner index and the outer prefix is
                 discarded;
             (3) the two `branchPath.split('.')[0]` sites read the whole path;
-            (4) [Q114](../open-questions.md) closed: a join routes out of
+            (4) [Q114](../questions/q114.md) closed: a join routes out of
                 itself carrying the path its region sits at, not `'-'`;
             (5) `spec/task-id.md`'s two stale sentences about `FD-V15`
                 finished — W20 corrected the citations; this item makes the
@@ -76,13 +76,13 @@ item's central design question rather than a detail of it.*
 | **The outer prefix is discarded in exactly one place** | `driver.ts:721` and `:723`, the `fanout` arm: `branchPath: String(i)` and `this.enter(runId, b, payload, String(i), region.fanoutId)`. `fromBranch` is in scope at both and is thrown away. On `valid/nested-fanout.flow.json` the inner branches therefore open at `0`/`1` and `scoreC` is dispatched `r1:scoreC:0:0` |
 | **`buildTaskId` cannot express a path, and its signature is public** | `branchIndex: number \| null`, so the dotted shape is unreachable from the minter. `branchIndices` is already its inverse and already returns `number[] \| null` — **the two halves of one conversion, and only one of them exists** |
 | **Three callers outside `src/driver/**` read that signature** | `test/driver/log.test.ts:239-240` asserts it directly; **`examples/run-flow.ts:619` calls `buildTaskId(runId, at, Number(branchPath), 0)`, which is `NaN` on a dotted path** — W23's file, and it is why the inbound step must be looked at before W23 rather than during it; and `test/driver/lifetime.test.ts:442` uses the three-argument form |
-| **[Q114](../open-questions.md) is real and it is the fork's whole weight** | `driver.ts:951`, `settleJoin`: `if (edge) this.enter(runId, edge.to, null)` — no `fromBranch`, no `fromRegion`. At depth 1 a join's successor is outside every region and `'-'` is right. **Inside a nested region it is wrong**, and the outer region records the arrival of branch 1 as `'-'` |
+| **[Q114](../questions/q114.md) is real and it is the fork's whole weight** | `driver.ts:951`, `settleJoin`: `if (edge) this.enter(runId, edge.to, null)` — no `fromBranch`, no `fromRegion`. At depth 1 a join's successor is outside every region and `'-'` is right. **Inside a nested region it is wrong**, and the outer region records the arrival of branch 1 as `'-'` |
 | **A path is derivable from the graph alone** | `innermostRegionOf` gives the region, `branchIndexOf` the index, and the region's own fanout is a node whose path is derivable the same way — so walking innermost-outward terminates at a node in no region. **`FD-V19` and `FD-V22` are what make it unique**, which is `spec/task-id.md` section 1's *"a property of the node"* claim being literally true rather than a description of how the driver happens to thread it |
 
 ### The fork, stated and NOT taken
 
 **Both options produce the same ids. They differ in whether the path is threaded or derived**, and
-therefore in what happens to [Q114](../open-questions.md).
+therefore in what happens to [Q114](../questions/q114.md).
 
 | | **A — thread it** | **B — derive it** |
 |---|---|---|
@@ -105,7 +105,7 @@ in.
 
 | File | What, and why |
 |---|---|
-| `src/driver/driver.ts` | **Declared LATE, and P7's own table had it.** Where the derivation replaces the threading: `advance`, `dispatch`, the `fanout` arm, `branchPathFor` → `pathOf`, and `settleJoin`'s exit ([Q114](../open-questions.md)) |
+| `src/driver/driver.ts` | **Declared LATE, and P7's own table had it.** Where the derivation replaces the threading: `advance`, `dispatch`, the `fanout` arm, `branchPathFor` → `pathOf`, and `settleJoin`'s exit ([Q114](../questions/q114.md)) |
 | `src/definition/regions.ts` | **Anticipated in the fork above and now taken.** `branchPathOf` lives with the containment relation W20 defined, because it is a walk over it. W20's file |
 | `test/driver/surface.test.ts` | W20's four seam cases settle `r1:scoreC:0:0`, which is the id this item changes; they move to `r1:scoreC:1.0:0`, and two new cases land beside them |
 | `test/definition/nesting.test.ts` | W20's file; one case, asserting the derived path and the widened minter together |
@@ -125,14 +125,14 @@ suite rather than in the minter's own file, because the claim is about what a **
    candidate and is a **breaking** change to public surface; the item states which it took and why.
 2. **A nested fan-out opens its branches at the dotted path**, and dispatches at it.
 3. **The two `split('.')[0]` sites read the whole path.**
-4. **[Q114](../open-questions.md)**, by whichever arm of the fork is taken.
+4. **[Q114](../questions/q114.md)**, by whichever arm of the fork is taken.
 5. **`spec/task-id.md` describes a shape that occurs**, rather than one it reserved.
 
 **Out** — named rather than left implicit, with where it goes instead
 
-- **The join.** Whether an outer join waits for grandchildren is [Q6](../open-questions.md) and
+- **The join.** Whether an outer join waits for grandchildren is [Q6](../questions/q6.md) and
   **ADR 0030 is W22's**. This item makes the ids right and changes no policy.
-  **[Q113](../open-questions.md) is W22's to answer before it declares**, and this item does not
+  **[Q113](../questions/q113.md) is W22's to answer before it declares**, and this item does not
   answer it — but it is the item most likely to *learn* the answer, so anything it learns goes in the
   Record for W22 rather than into a decision here.
 - **Real workers.** `examples/**` is W23's. **`examples/run-flow.ts:619`'s `Number(branchPath)` will
@@ -140,7 +140,7 @@ suite rather than in the minter's own file, because the claim is about what a **
   fix it**, because L6 is W23's gate and a fix here would be untested until W23 runs.
 - **Depth as a bound.** The grammar admits any depth and W20 asserted the resolver at depth 3. This
   item asserts minting at **depth 2**, and an item claiming depth 3 mints correctly owes a case.
-- **`attempt`.** [Q111](../open-questions.md) — the fourth segment is inert at every rung and
+- **`attempt`.** [Q111](../questions/q111.md) — the fourth segment is inert at every rung and
   hard-coding it to `0` survives the whole gate. Same file, different question, and lifting one
   reserved segment is not lifting two.
 
@@ -158,7 +158,7 @@ suite rather than in the minter's own file, because the claim is about what a **
 findings: the rule's clauses, the `Outputs` rows, **and the provenance of every value an assertion
 reads** — break the source of the ACTUAL value, and where a probe breaks an expected value, pair it
 with a code mutation or check whether that value also fixes the assertion's **domain**
-([Q112](../open-questions.md), which W20's adequacy reader corrected and which P7's retro rules on).
+([Q112](../questions/q112.md), which W20's adequacy reader corrected and which P7's retro rules on).
 **Re-run the whole set after acting on the readers**, and check their exact edits back in as probes.
 
 *Per the template:* a branch routed away from its join (Q4) — **applicable and covered**, an exit
@@ -192,7 +192,7 @@ eighteen acted on, and the set was re-run after — 19 probes, 2 survivors, both
 | **(1)** `buildTaskId` accepts a path | yes — `number \| readonly number[] \| null`, a **widening** | Taking only the first element of the array: **10** L1 failures. Truncating `branchIndices`: **9** |
 | **(2)** a nested fan-out opens at the dotted path | yes | The `fanout` arm back to `String(i)`: **3** |
 | **(3)** the `split('.')[0]` sites read the whole path | yes — and **both sites are gone**, not fixed: `advance` derives, and `dispatch` lost its `branchPath` parameter entirely | `advance` truncating again: **5**. `dispatch`'s: **6** |
-| **(4)** [Q114](../open-questions.md) closed | yes, **after two fixes and two reader findings** | Reverting to `enter(runId, edge.to, null)`: **3**. Dropping the region again: **1**. Truncating the path to its outermost segment: **1** |
+| **(4)** [Q114](../questions/q114.md) closed | yes, **after two fixes and two reader findings** | Reverting to `enter(runId, edge.to, null)`: **3**. Dropping the region again: **1**. Truncating the path to its outermost segment: **1** |
 | **(5)** `spec/task-id.md` describes a shape that occurs | yes — **v0.7**, and it took three corrections | **Nothing.** Deleting the whole v0.7 paragraph leaves the gate green — no check reads spec prose, which is the class six retros have refused to mechanise |
 
 **`Owns` audit**, by hand, after the record step.
@@ -262,10 +262,10 @@ rot: the reference told a consumer the shipped fix did not exist, and no check c
 
 **1. Deriving beat threading on the measurement, and the measurement was the whole argument.**
 `branchPathOf` is total over the valid corpus and agrees with the threaded value on every depth-1
-flow, so replacing the threading changed no existing id. It closed [Q114](../open-questions.md) with
+flow, so replacing the threading changed no existing id. It closed [Q114](../questions/q114.md) with
 **no new state** — a join's successor's path is the path its region sits at, and a region's fanout is
 a node. **The fork was decided on evidence and one of its stated costs was wrong**
-([Q119](../open-questions.md)): the walk is O(depth × |regions|²) with a doubled inner call, not
+([Q119](../questions/q119.md)): the walk is O(depth × |regions|²) with a doubled inner call, not
 O(depth). The decision stands on its other grounds, none of which depended on the cost.
 
 **2. A fix can make earlier guards dead, and only a re-run sees it.** Adding the `INDEX` test for
@@ -274,7 +274,7 @@ survived after. Three clauses collapsed to one, and the predicate is now exactly
 *what `parseTaskId` will accept back, tested on the string this will actually emit.*
 
 **3. The author's account of a rule needed correcting for the second item running** —
-[Q112](../open-questions.md). W20 corrected my *"expected-side probes prove nothing"*; W21 corrected
+[Q112](../questions/q112.md). W20 corrected my *"expected-side probes prove nothing"*; W21 corrected
 my *"a source choice cannot be proved by a single-file probe"*, with a counterexample at 1 failure:
 substituting **only the source expression** is caught, and my probe survived because it made a second
 edit. **A provenance probe changes the source expression and nothing else**; once it edits the
@@ -290,15 +290,15 @@ was written from its *title* rather than from its plan row.
 
 ## Questions raised
 
-- **[Q117](../open-questions.md)** — the L6 harness mints a **silently wrong** id on a nested flow,
+- **[Q117](../questions/q117.md)** — the L6 harness mints a **silently wrong** id on a nested flow,
   and this item's declaration described the failure incorrectly. `Number('1.0') === 1`, not `NaN`. At
   depth 3 it *is* `NaN` and the new refusal now **throws** at a call site outside its `try`, inside a
   `queueMicrotask` — an unhandled rejection rather than a reported failure. **W23's.**
-- **[Q118](../open-questions.md)** — two arguments the `fanout` arm passes to `enter` are
+- **[Q118](../questions/q118.md)** — two arguments the `fanout` arm passes to `enter` are
   unobservable, because `FD-V9` makes every branch entry a `task` and the `task` arm discards them.
   Dead code that becomes live if `FD-V9` is lifted. Said in place rather than removed.
-- **[Q119](../open-questions.md)** — the derivation's real cost, and whether it matters, which is
-  [Q19](../open-questions.md)'s measurement rather than an argument.
+- **[Q119](../questions/q119.md)** — the derivation's real cost, and whether it matters, which is
+  [Q19](../questions/q19.md)'s measurement rather than an argument.
 
 *(Q120 unused and **skipped, never reissued**. No ADR was needed: the fork was settled by measurement
 and P7's block held none for this item.)*

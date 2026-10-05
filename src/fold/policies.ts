@@ -3,7 +3,7 @@
  * `JP-R9`: every name in that table is a key here and every key is a name there,
  * which `scripts/check-policies.mjs` compares rather than trusting.
  *
- * > **Neither of the first two is the answer to [Q4](../../doc/open-questions.md).**
+ * > **Neither of the first two is the answer to [Q4](../../doc/questions/q4.md).**
  * > They are the two candidates the plan named; W4 ran them against each other and
  * > recorded the winner as ADR 0003. A work item that reports a winner has skipped
  * > the plan, and **arrival-counting winning was a real possible outcome.**
@@ -20,7 +20,7 @@
  * written INTO the policy it refines returns "the two policies are equivalent" as
  * a passing test.** That is still true and still forbidden.
  *
- * **[Q24](../../doc/open-questions.md) is answered by ADR 0025 and the two rules
+ * **[Q24](../../doc/questions/q24.md) is answered by ADR 0025 and the two rules
  * got different answers.** `JP-R8`'s refinement is built — as a THIRD policy under
  * its own id, `live-token-requiring-arrival`, which is what `JP-R8` asks for — and
  * `live-token` below is unchanged. `JP-R7`'s is **refused**: over all nine matrix
@@ -114,7 +114,7 @@ export const arrivalCount: JoinPolicy<ArrivalCountState> = {
   // the source of nothing: `branches` cannot answer *how many branches did this
   // region open* for a map, and a policy that read it for a fanout and counted for
   // a map would be branching on the node kind — which it cannot see
-  // ([Q159](../../doc/open-questions.md)) and, per that row, should not.
+  // ([Q159](../../doc/questions/q159.md)) and, per that row, should not.
   open: () => ({ need: 0, arrived: [] }),
 
   step: (s, e) => {
@@ -223,7 +223,7 @@ export interface LiveTokenRequiringArrivalState {
  * **This is not the library's recommendation.** ADR 0003 rule 1 is unchanged and
  * `liveToken` is still what an application passes; this is for a flow in which a
  * join reached by nothing should be reported rather than fired. Whether it should
- * *become* the recommendation is [Q96](../../doc/open-questions.md), and it is not
+ * *become* the recommendation is [Q96](../../doc/questions/q96.md), and it is not
  * answerable from fixtures.
  */
 export const liveTokenRequiringArrival: JoinPolicy<LiveTokenRequiringArrivalState> = {

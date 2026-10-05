@@ -15,7 +15,7 @@ resolves: Q53
 ## Context
 
 **`ID-R3` says a `Driver` serves exactly one run. Its public surface says otherwise, in three
-places**, and W5's conformity pass raised that as [Q53](../open-questions.md) rather than fixing it:
+places**, and W5's conformity pass raised that as [Q53](../questions/q53.md) rather than fixing it:
 
 | shape | what it implies |
 |---|---|
@@ -64,12 +64,12 @@ surface rather than about a mechanism.
    [ADR 0023](0023-an-inbound-settlement-is-this-runs-only-if-this-driver-dispatched-it.md) — that is
    now safe on the same scheduler.** The two ADRs are separable in mechanism and are not separable in
    advice: `MultipleRuns`' message tells a caller to construct a second `Driver`, and until 0023 that
-   advice produced [Q72](../open-questions.md)'s corruption.
+   advice produced [Q72](../questions/q72.md)'s corruption.
 
 ## Consequences
 
 **Easier.** The surface now says what `ID-R3` says. A `Driver`'s lifetime is a run's lifetime, which
-is the boundary durability would need if [Q15](../open-questions.md) is ever answered — a driver
+is the boundary durability would need if [Q15](../questions/q15.md) is ever answered — a driver
 constructed for a run is a thing that can be rehydrated for one. `hasFailed()` stops inviting the
 question *"whose run?"*.
 
@@ -97,6 +97,6 @@ answer is to hoist validation out of the constructor — **not** to loosen the l
 |---|---|
 | **Leave it, as Q53 did.** The shapes are redundant rather than wrong | The next reader does what W5's reviewer did. A surface is read more often than a rule is |
 | **Keep `start(runId, …)` and refuse a mismatch against a constructor `runId`** | Two places to say the same thing, and a refusal that only exists because the argument does. It is the overload with extra steps |
-| **Keep `hasFailed(runId)` as a real affordance a consumer may hold** — [Q53](../open-questions.md)'s own argument for leaving it | Measured: the only caller that could pass a *different* id is one serving two runs, which rule 4 refuses. The argument survives only if the surface it defends does |
-| **Make `runId` optional, defaulting to a generated id** | [Q34](../open-questions.md) — the driver generates no run id, deliberately, and portable id generation is unanswered. A default would answer it by accident |
-| **Do this and [ADR 0023](0023-an-inbound-settlement-is-this-runs-only-if-this-driver-dispatched-it.md) as one decision** | They are independent: the inbound guard was measured to work with **no** surface change, and the surface change fixes nothing about [Q72](../open-questions.md) on its own. One ADR would hide that |
+| **Keep `hasFailed(runId)` as a real affordance a consumer may hold** — [Q53](../questions/q53.md)'s own argument for leaving it | Measured: the only caller that could pass a *different* id is one serving two runs, which rule 4 refuses. The argument survives only if the surface it defends does |
+| **Make `runId` optional, defaulting to a generated id** | [Q34](../questions/q34.md) — the driver generates no run id, deliberately, and portable id generation is unanswered. A default would answer it by accident |
+| **Do this and [ADR 0023](0023-an-inbound-settlement-is-this-runs-only-if-this-driver-dispatched-it.md) as one decision** | They are independent: the inbound guard was measured to work with **no** surface change, and the surface change fixes nothing about [Q72](../questions/q72.md) on its own. One ADR would hide that |

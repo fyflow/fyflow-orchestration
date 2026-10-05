@@ -2,7 +2,7 @@
 
 **Status:** done — **ADR 0025 answers Q24, and the two rules got different answers**
 **Plan:** [P5](../plans/p5-a-third-and-fourth-policy-or-repairs-of-the-first-two.md) — the item that
-answers [Q24](../open-questions.md). **It is entitled to reach "neither", and P5 says so**: the plan
+answers [Q24](../questions/q24.md). **It is entitled to reach "neither", and P5 says so**: the plan
 records which way the measurements point and explicitly does not assert it.
 
 ```
@@ -92,7 +92,7 @@ fourth policy"* is not a one-line edit.
      over. ADR 0003 rule 2 keeps `arrival-count` shipped *"for as long as both columns can be run"*,
      and the ADR must say whether that still holds;
    - a **fourth policy** beside `live-token` costs a name rather than a mechanism, keeps `live-token`
-     byte-identical, and drags [Q5](../open-questions.md)'s per-join configuration question in
+     byte-identical, and drags [Q5](../questions/q5.md)'s per-join configuration question in
      behind it.
 3. **Whatever ships, ships under its own id**, which is `JP-R7`'s and `JP-R8`'s own wording: *"if it
    is built it is built under its own `id`"*. A refinement adopted **into** `live-token` is the other
@@ -116,7 +116,7 @@ fourth policy"* is not a one-line edit.
 - **Deleting `arrival-count`.** ADR 0003 rule 2 keeps it and this item does not reopen that;
   whether the two-column requirement survives a refinement is *inside* ADR 0025, but removing the
   column is not on the table.
-- **Per-join policy configuration.** [Q5](../open-questions.md)'s remainder. If a fourth policy
+- **Per-join policy configuration.** [Q5](../questions/q5.md)'s remainder. If a fourth policy
   ships, the ADR records that the question got sharper and does not answer it.
 - **`src/driver/**`.** Untaken by declaration. The seam is measured working; if the decision needs a
   driver change, that is a finding for the Record and its own item — the disposition P4 gave
@@ -125,7 +125,7 @@ fourth policy"* is not a one-line edit.
   silently-hung one, `spec/run-state.md` is **W2's** and is not in this item's `Owns`. That is a
   seventh outcome or a new field, and it is its own item with its own ADR (0026 is reserved for
   exactly this).
-- **[Q86](../open-questions.md) and [Q87](../open-questions.md).** P5's ruling sends them to P6.
+- **[Q86](../questions/q86.md) and [Q87](../questions/q87.md).** P5's ruling sends them to P6.
 
 ## Record
 
@@ -276,7 +276,7 @@ W15's finding reproduced exactly, in a different work item, with the amendment a
 - **What was done about `F` rather than written about it.** ADR 0025's table was verified **once,
   mechanically**, cell by cell against `runCell`: 9 rows × 4 columns, **all 36 reproduce**. That
   turns *"I transcribed it carefully"* into a measurement. It is deliberately **not** a checked-in
-  check: [Q94](../open-questions.md) resolved that each ADR carries the table it decided from, which
+  check: [Q94](../questions/q94.md) resolved that each ADR carries the table it decided from, which
   is stale-by-design, and a standing assertion would force a future item to edit a decided ADR. The
   spec-wording half has no mechanism at all and this Record does not pretend otherwise.
 
@@ -331,7 +331,7 @@ W15's finding reproduced exactly, in a different work item, with the amendment a
    `test/harness.ts` — not once per `equal`, `ok` or `throws`. *"386 assertions"* is 386 **cases**.
    Four plans have carried the wrong noun on the number they quote most often, which is this
    repository's own *"state the predicate that produces it"* failing on its most-quoted figure.
-   [Q98](../open-questions.md).
+   [Q98](../questions/q98.md).
 5. **Rule 7 (c) fired and it discriminated on its first real use** — third plan of carrying it. Nine
    of the ten probes trip exactly one check and the tenth declares a **structural** cascade: a name in
    `POLICIES` the spec does not fix can only be introduced by pointing at some existing policy
@@ -415,9 +415,9 @@ runs and `test:browser:all` cover that axis.
 
 | Q | |
 |---|---|
-| [Q96](../open-questions.md) | should `live-token-requiring-arrival` be what the library tells you to pass, rather than `liveToken`? ADR 0025 rule 4 says no — a run that stops is the more expensive mistake to make by accident — **and nothing has measured which reading of `all-exit` real flows want** |
-| [Q97](../open-questions.md) | `stuck` still does not distinguish a **reported** dead join from a silent one, and this decision ships the first policy that can reach the reported case at all |
-| [Q98](../open-questions.md) | the number every document here calls *"assertions"* is a count of test cases |
+| [Q96](../questions/q96.md) | should `live-token-requiring-arrival` be what the library tells you to pass, rather than `liveToken`? ADR 0025 rule 4 says no — a run that stops is the more expensive mistake to make by accident — **and nothing has measured which reading of `all-exit` real flows want** |
+| [Q97](../questions/q97.md) | `stuck` still does not distinguish a **reported** dead join from a silent one, and this decision ships the first policy that can reach the reported case at all |
+| [Q98](../questions/q98.md) | the number every document here calls *"assertions"* is a count of test cases |
 
 **Reserved and unused: ADR 0026**, held for Q97's run-state change and **not** reissued. A seventh
 outcome or a new field is its own item with its own evidence, and taking it here would have made a

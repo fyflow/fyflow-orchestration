@@ -90,7 +90,7 @@ be a different item with a `src/driver/**` takeover, and P5 would be a different
    is `stuck`. **The existing three stub tests stay** — this does not replace them, it connects them.
 4. **What a consumer without the callback learns.** Measured and written into the Record:
    `onUnsatisfiableJoin` is optional, so the only remaining channel is `joinStatusOf()`, which is a
-   poll nobody is obliged to call. That is [Q37](../open-questions.md), **reported and not fixed**.
+   poll nobody is obliged to call. That is [Q37](../questions/q37.md), **reported and not fixed**.
 
 **Out** — named rather than left implicit, with where it goes instead
 
@@ -144,7 +144,7 @@ shape P4's retro measured three times.**
 
 | Clause | Verdict | Notes |
 |---|---|---|
-| L0 | **green** | `npm run typecheck` — five projects (node, browser, deno, tests, examples) — and `deno lint src/ test/ examples/ index.ts`, **41 files** (39 before; the two new files are `test/matrix/variants.ts` and `test/matrix/chain.test.ts`). No reference edit, so `check:docs` is unchanged and still ran: **12/12** self-test probes, and `X5` still reports **"1 of 16"** under the DOM lib ([Q71](../open-questions.md)), which is the value that fails the gate if it ever exceeds one |
+| L0 | **green** | `npm run typecheck` — five projects (node, browser, deno, tests, examples) — and `deno lint src/ test/ examples/ index.ts`, **41 files** (39 before; the two new files are `test/matrix/variants.ts` and `test/matrix/chain.test.ts`). No reference edit, so `check:docs` is unchanged and still ran: **12/12** self-test probes, and `X5` still reports **"1 of 16"** under the DOM lib ([Q71](../questions/q71.md)), which is the value that fails the gate if it ever exceeds one |
 | L1-L2 | **green** | **370 assertions in 18 files, in all five runtimes** — node 24.20.0, deno 2.9.6, chromium, firefox, webkit, with browser parity asserted against node at 370. Baseline at `6ac8401` was 326 in 17 files, so this item adds **44 assertions** (361 before the readers, +9 from acting on them). The chain is **L2**: `test/matrix/chain.test.ts` drives a real `Driver` over W4's fake, with no workers, no threads and no timers |
 | L5 | **green** | `test/matrix/**` is **91 assertions in 4 files** (was 47 in 3), over **7 files** including the two new non-test modules. The matrix is **36 cells** — nine rows × four policies — every one carrying a status, a `describe` and a verdict, and the table renders at four columns |
 | L6 | **ran, green, and NOT claimed** | `npm run gate` was run whole rather than stopping at L5, and L6 passed unchanged: **240 assertions, 15 runs each in node and deno**. It is not this item's rung — nothing here reaches `examples/**` — and it is reported only because running it and not saying so is what `doc/workflow.md` section 1 rule 4 forbids in the other direction |
@@ -157,7 +157,7 @@ shape P4's retro measured three times.**
 | four-column render | **yes** — `renderMatrix()` in `test/matrix/table.ts`, printed by a two-line `render.ts` and **asserted field by field** in `matrix.test.ts`. *(Both readers found this row's first version overclaiming: the renderer was a script the gate never executed, holding a column list nobody compared. Seven mutations survived it.)* | Provocation **F1** — the fourth column silently made a copy of the second — fails **26** assertions; with two columns it would fail none, because nothing would be running `liveTokenRequiringArrival` on the seven rows neither `JP-R7`'s nor `JP-R8`'s claim test names. **The refinements were previously ASSERTED on three cells of a possible thirty-six** — `acd`/`routed-away`, `acd`/`lost-settled` and `ltra`/`all-exit` — plus one aggregate divergence list. *(Corrected after the conformity reader: `divergingRows` already **executed** `arrivalCountDecrementing` over all nine rows; what it did not do was assert any cell of the other eight. The claim about coverage survives; the sentence as first written did not.)* |
 | exact-list assertions | **yes** — `L5 — the fourth column: what each refinement changes` | Provocation **E1** (the variant also decrements on `branch.lost`) fails **9**, and **D1**/**D2** (a row leaves `JP-R7`'s list) fail **10** and **9** — each of the three trips the list assertion itself. **A count could not**: E1 leaves `JP-R7`'s three at three, so *"changes three rows"* stays true while the rows change |
 | the chain assertion | **yes** — `test/matrix/chain.test.ts`, **fifteen** assertions across four suites (8 + 2 + 2 + 3; the runner's unit is the `test()` block). The fourth suite is the adequacy reader's blocking findings 2 and 3: all nine rows × four columns folded for `RN-R6`, and the three dispatch channels asserted to agree on every cell | Provocation **D3** — the `all-exit` row altered so a branch arrives — fails **20**, of which **10 are the chain's**. It is the only thing that notices that *the one row in the repository where a policy can say `unsatisfiable` has stopped being that row*; without it the remaining failures read as the row's expected values changing, not as the seam going unreachable. **On the four links individually it is a second reader rather than the only one** — A1-A7 each also trip a pre-existing stub test, which is the honest result and is discussed below |
-| the Q37 measurement | **yes** — recorded in [Q37](../open-questions.md)'s row, and made executable as `Q37 — what a consumer WITHOUT the callback can learn` | Nothing in the gate; it is a measurement, not a guard. What it buys is that the two claims in the register row — *"neither shipped policy ever calls it"* and *"the poll answers `waiting` forever"* — are now assertions rather than sentences, and the register is the document `CLAUDE.md` says is checked by nothing |
+| the Q37 measurement | **yes** — recorded in [Q37](../questions/q37.md)'s row, and made executable as `Q37 — what a consumer WITHOUT the callback can learn` | Nothing in the gate; it is a measurement, not a guard. What it buys is that the two claims in the register row — *"neither shipped policy ever calls it"* and *"the poll answers `waiting` forever"* — are now assertions rather than sentences, and the register is the document `CLAUDE.md` says is checked by nothing |
 
 **`Owns` audit, by hand** (`doc/workflow.md` section 7 rule 2 — `check-owns.mjs` was retired by P4's
 retro, so `git diff --name-only` plus `git ls-files --others` is the whole check):
@@ -299,10 +299,10 @@ twenty-six survivors were in the renderer and five in the variants.
 | # | blocking family | what survived | closed by |
 |---|---|---|---|
 | **1** | **The rendered table — Output (1) and P5's exit artifact — was checked by almost nothing.** `test/matrix/render.ts` **is executed by no script in `package.json`**, not by `test` and not by `gate`. **Seven survivors**, including one that printed a **two-column table** with all 361 assertions and `deno lint` green | `renderTable`'s column order reversed; all four cells collapsed into one; the separator row broken; the event stream dropped; the title dropped; the id list sliced to two | **`test/matrix/table.ts`** — the render is now a function the suite imports and asserts, and `render.ts` is a two-line shim with no list, no slice and no logic. The table's shape is asserted **field by field after splitting the row**, not by `includes` over the whole line, which is what let the reader transpose the columns against their own asserted header |
-| **2** | **`fold()` ran on 2 of 36 cells, both on one row, and never on either new column.** The driver could stop appending region events to `foldInputs()` **for one policy id** and all 361 assertions passed — `Cell.events` comes from `onRegionEvent`, a *different channel*, and nothing compared them. `RN-R6` was asserted across four columns only on the raw event strings | `if (policy?.id !== 'arrival-count-decrementing') this.append({kind:'region', event})` — **0 failures** | a new suite in `chain.test.ts`: **all nine rows × all four columns folded**, asserting `RN-R6`'s `opened`/`settled`/`suspended` identical and `joined` differing — `all-exit` carries all three values of `joined` (`null`, `true`, `false`) from four policies over one event stream. **It lives beside the matrix rather than inside `Cell`**, so [Q92](../open-questions.md) stays open and W4's driver-surface-only `Cell` is intact |
+| **2** | **`fold()` ran on 2 of 36 cells, both on one row, and never on either new column.** The driver could stop appending region events to `foldInputs()` **for one policy id** and all 361 assertions passed — `Cell.events` comes from `onRegionEvent`, a *different channel*, and nothing compared them. `RN-R6` was asserted across four columns only on the raw event strings | `if (policy?.id !== 'arrival-count-decrementing') this.append({kind:'region', event})` — **0 failures** | a new suite in `chain.test.ts`: **all nine rows × all four columns folded**, asserting `RN-R6`'s `opened`/`settled`/`suspended` identical and `joined` differing — `all-exit` carries all three values of `joined` (`null`, `true`, `false`) from four policies over one event stream. **It lives beside the matrix rather than inside `Cell`**, so [Q92](../questions/q92.md) stays open and W4's driver-surface-only `Cell` is intact |
 | **3** | **The harness W15 owns could substitute the source of truth the chain reads.** `link 1a` exists to prove *whose* account the report is and read the **same channel** as `link 1`; a driver-invented summary that happened to match failed 3 assertions, **all pre-existing stubs and none of them the chain's** | the harness fabricating `describe`; `joinFired` re-sourced from the driver instead of the scheduler | `link 1a` now **recomputes the policy's state by stepping the policy over `driver.foldInputs()`** — a different channel at both ends — and cross-checks `joinStatusOf`, a third channel the harness never touches. Plus a whole-matrix assertion that `dispatchedIds()`, `scheduler.added` and `foldInputs()`' dispatches **all three agree, on every one of the 36 cells** |
 | **4** | **The two variants became columns and ADR 0025's evidence without inheriting one clause-level test.** `test/fold/policies.test.ts` holds the shipped pair to `JP-R1` purity, non-mutation, `JP-R3` totality, `JP-R2` `JsonValue` and *"describe does not hand out the policy's own array"*. **None of it came with them** | `step` mutating `S` in place; `describe` handing out its own array; the distinct-arrival guard deleted; `positive` set unconditionally — **four survivors, every one with a named test for `arrival-count` or `live-token`** | a new suite in `variants.test.ts` holding both variants to the same clauses. **`test/fold/policies.test.ts` is W2's file**, so the loop is written against the two policies this directory owns rather than by widening W2's — and if ADR 0025 ships either, W16 moves it into that loop and deletes the suite |
-| **5** | Non-blocking, and mostly **not W15's**: `emit` returning early once a join has settled (**0 failures** — the same shape as [Q95](../open-questions.md), one level out); `settleJoin` asked one event *early*; `seam-paths.test.ts:212`'s *"a throwing describe does not latch the region"* passing under both orders; `Verdict`'s `in-flight` and `run.ts`'s `'<no report>'` fallback both **dead**; the fake scheduler's `optional` refusal never provoked | | **recorded, not fixed** — they are W3's and W4's files. The `emit`-after-settle one is folded into [Q95](../open-questions.md)'s row, which already names the class |
+| **5** | Non-blocking, and mostly **not W15's**: `emit` returning early once a join has settled (**0 failures** — the same shape as [Q95](../questions/q95.md), one level out); `settleJoin` asked one event *early*; `seam-paths.test.ts:212`'s *"a throwing describe does not latch the region"* passing under both orders; `Verdict`'s `in-flight` and `run.ts`'s `'<no report>'` fallback both **dead**; the fake scheduler's `optional` refusal never provoked | | **recorded, not fixed** — they are W3's and W4's files. The `emit`-after-settle one is folded into [Q95](../questions/q95.md)'s row, which already names the class |
 
 **Re-run of the reader's survivor list against the repaired tree: 14 of 16 caught**, and the two that
 still survive are **equivalence, not holes**. `joinFired` re-sourced from `dispatchedIds()` and
@@ -325,8 +325,8 @@ Deleting `this.firedJoins.add(region.fanoutId)` from `settleJoin`'s `unsatisfiab
 **zero of 361 assertions**. It is unreachable rather than untested, and by construction: the only
 policy here that can say `unsatisfiable` says it at `live === 0`, which **is** the last terminal
 event, so nothing follows to re-enter `settleJoin`. A policy that reported a join dead *early* — what
-[Q7](../open-questions.md) wants and what [Q37](../open-questions.md) would need — makes the latch
-load-bearing on its first run. **[Q95](../open-questions.md)**, and it is `src/driver/**`, which no
+[Q7](../questions/q7.md) wants and what [Q37](../questions/q37.md) would need — makes the latch
+load-bearing on its first run. **[Q95](../questions/q95.md)**, and it is `src/driver/**`, which no
 P5 item owns. **This is the P2 shape again** — the join had never once been fired from the `lost` or
 `exited` path across twelve rows — and it was found the same way: by breaking the code rather than by
 reading it.
@@ -336,7 +336,7 @@ driver dropping them.** B5 and B6 fail **one** assertion each, and it is in `tes
 `test/matrix/**`; the other four events fail between 9 and 53. **The cause is a missing policy, not a
 missing test**: `arrival-count` ignores both by definition, `live-token` counts neither, and both of
 Q24's variants inherit that — so `JP-R4`'s *"the vocabulary is sized for the richer policy"* is true
-of a policy that does not exist. **[Q93](../open-questions.md)**.
+of a policy that does not exist. **[Q93](../questions/q93.md)**.
 
 **3. `JP-R7`'s variant fires a join with zero arrivals, which is the exact defect `JP-R8` removes.**
 Visible in the fourth column the moment it rendered: on `all-exit`, `arrival-count-decrementing`
@@ -344,7 +344,7 @@ reaches `need: 0` with `arrived: []`, so `0 >= 0` is satisfied and the join fire
 reached by nothing**. That is what [ADR 0003](../decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md)
 records as `live-token`'s cost. **The two refinements point in opposite directions** — `JP-R8`
 removes the zero-arrival join, `JP-R7` adds a second road to it — which the counts *three* and *one*
-did not show. **[Q91](../open-questions.md)**, and it is evidence W16 is entitled to and did not
+did not show. **[Q91](../questions/q91.md)**, and it is evidence W16 is entitled to and did not
 have.
 
 **4. The provocation harness's first run left an edit in the tree.** It reverted with
@@ -393,7 +393,7 @@ in `POLICIES`"*, which is W16's to falsify and only if ADR 0025 says so.
 3. **Two computations of `stuck` had never met.** `Cell.verdict` reads the driver's public surface and
    never calls `fold()`; `RunState.outcome` reads the fold and never sees the driver. The matrix has
    printed `stuck` in a column since P1 with the fold uninvolved. They agree on `all-exit` and that is
-   now asserted; whether every cell should carry both is **[Q92](../open-questions.md)**.
+   now asserted; whether every cell should carry both is **[Q92](../questions/q92.md)**.
 4. **`doc/workflow.md` rule 7 (c) goes unexercised for the third plan running.** Said here rather than
    left to the retro, as the item's `Out` list required: **this item adds no check script**, so a
    probe declaring the *set* of checks it trips still has no outing beyond `check-docs`' twelve.
@@ -408,11 +408,11 @@ in `POLICIES`"*, which is W16's to falsify and only if ADR 0025 says so.
 
 | Q | | Owner |
 |---|---|---|
-| [Q91](../open-questions.md) | `JP-R7`'s variant fires a join with **zero arrivals** — the exact cost `JP-R8` removes, reached by the other road. The two refinements point in opposite directions | **W16** — evidence for ADR 0025 |
-| [Q92](../open-questions.md) | `Cell.verdict` and `RunState.outcome` are two independent computations of `stuck`. **Narrowed by acting on the adequacy reader**: `RN-R6` is now folded across all nine rows × four columns and the three dispatch channels agree on all 36 cells, so what remains open is only the original question — should a `Cell` itself carry `RunState.outcome`? | no owner |
-| [Q93](../open-questions.md) | Two of the six region events reach no policy here, so L5 cannot see the driver dropping them. A missing policy, not a missing test | no owner |
-| [Q94](../open-questions.md) | ADR 0003 carries a hand-copied **two**-column matrix and `render.ts` now emits four. Divergence arriving because the artifact was extended | **W16** |
-| [Q95](../open-questions.md) | The `at most once` latch on the driver's `unsatisfiable` path is **unreachable**, and deleting it fails nothing. The author sweep's only survivor — **and the adequacy reader generalised it**: nothing here exercises a region *at all* after its join has settled, because on every row under every policy the join settles on the last region event | no owner |
+| [Q91](../questions/q91.md) | `JP-R7`'s variant fires a join with **zero arrivals** — the exact cost `JP-R8` removes, reached by the other road. The two refinements point in opposite directions | **W16** — evidence for ADR 0025 |
+| [Q92](../questions/q92.md) | `Cell.verdict` and `RunState.outcome` are two independent computations of `stuck`. **Narrowed by acting on the adequacy reader**: `RN-R6` is now folded across all nine rows × four columns and the three dispatch channels agree on all 36 cells, so what remains open is only the original question — should a `Cell` itself carry `RunState.outcome`? | no owner |
+| [Q93](../questions/q93.md) | Two of the six region events reach no policy here, so L5 cannot see the driver dropping them. A missing policy, not a missing test | no owner |
+| [Q94](../questions/q94.md) | ADR 0003 carries a hand-copied **two**-column matrix and `render.ts` now emits four. Divergence arriving because the artifact was extended | **W16** |
+| [Q95](../questions/q95.md) | The `at most once` latch on the driver's `unsatisfiable` path is **unreachable**, and deleting it fails nothing. The author sweep's only survivor — **and the adequacy reader generalised it**: nothing here exercises a region *at all* after its join has settled, because on every row under every policy the join settles on the last region event | no owner |
 
 **On the id block.** The declaration reserved **Q91-Q94** and five were needed; **Q95** is taken from
 [P5](../plans/p5-a-third-and-fourth-policy-or-repairs-of-the-first-two.md)'s own **Q91-Q100** reserve,

@@ -12,7 +12,7 @@ resolves: ""
 
 # ADR 0025 — The zero-arrival join is reportable, under a third policy id; arrival-counting is not repaired
 
-**Raised by:** [Q24](../open-questions.md), decided by
+**Raised by:** [Q24](../questions/q24.md), decided by
 [W16](../work-items/w16-the-decision-and-what-it-ships.md) under
 [P5](../plans/p5-a-third-and-fourth-policy-or-repairs-of-the-first-two.md), on
 [W15](../work-items/w15-the-fourth-column-and-the-chain-nothing-runs.md)'s evidence
@@ -52,7 +52,7 @@ the policy it blessed.
 
 P5 was declared believing the two refinements were symmetric measurements — a three-row change
 against a one-row change. **They are not symmetric. They point in opposite directions**
-([Q91](../open-questions.md)):
+([Q91](../questions/q91.md)):
 
 | | |
 |---|---|
@@ -107,7 +107,7 @@ policies, one caller choosing between them is what a policy `id` is for.
    rendered table was produced from both trees and is byte-identical, but *nothing in the gate can
    see this ADR's copy of it* — W16's own probes `F3` and `F4` deleted a column from the table above
    and the whole gate stayed green. A one-time measurement is what this is, and
-   [Q94](../open-questions.md) is why it is not a standing check.
+   [Q94](../questions/q94.md) is why it is not a standing check.
 3. **`JP-R7`'s refinement is refused.** It is not built, not exported, and **still run as a matrix
    column**, because a refusal that stops being executed is a refusal nobody can falsify. The reason
    is in `test/matrix/variants.test.ts` as an assertion over all nine rows, not as a sentence: it is
@@ -116,7 +116,7 @@ policies, one caller choosing between them is what a policy `id` is for.
    [ADR 0003](0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md) rule 1 is unchanged
    and is not weakened by a third option existing. A run that stops is the more expensive mistake to
    make by accident than a run that proceeds, and **nothing has measured which reading of `all-exit`
-   is more common in real flows** — [Q96](../open-questions.md).
+   is more common in real flows** — [Q96](../questions/q96.md).
 5. **[ADR 0003](0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md) rule 2 still holds
    and this decision does not strain it.** It keeps `arrival-count` shipped *"for as long as both
    columns can be run"*, and both columns are still run — on nine rows, unchanged, beside two more.
@@ -128,7 +128,7 @@ policies, one caller choosing between them is what a policy `id` is for.
    was ever compared to the document that fixes the names, and rules 1 and 3 above are an explicit
    invitation for the set to grow again.
 7. **Which policy applies is still one global choice per run.** Per-join configuration is
-   [Q5](../open-questions.md)'s remainder and this ADR does not answer it — it makes it sharper, which
+   [Q5](../questions/q5.md)'s remainder and this ADR does not answer it — it makes it sharper, which
    ADR 0003 predicted in terms: it called the question premature *"until Q24 produces a second policy
    that does not hang"*, and Q24 now has.
 
@@ -153,7 +153,7 @@ to `stuck`, so a run whose join was **reported** unsatisfiable and one whose joi
 waiting forever are the same outcome. The difference lives in `regions[…].joined` — `false` against
 `null` — and in whether `onUnsatisfiableJoin` fired. **This decision creates the first shipped way to
 reach the `false` case**, which makes the conflation reachable in practice rather than in principle.
-That is [Q97](../open-questions.md), and it is a run-state change: `spec/run-state.md` is W2's and
+That is [Q97](../questions/q97.md), and it is a run-state change: `spec/run-state.md` is W2's and
 ADR 0026 was reserved for exactly this and is **not** taken here.
 
 **What a future reader is likely to try that this forbids.** Folding the clause into `liveToken` and
@@ -163,12 +163,12 @@ them removes the caller's ability to give the other one. The second is reviving 
 *"repairs P1's row"* — it does, and `test/matrix/variants.test.ts` is what says the repair is a hang
 on three other rows and a zero-arrival join on a fourth.
 
-**What it does not decide.** Whether a join may time out ([Q7](../open-questions.md)) — this gives a
+**What it does not decide.** Whether a join may time out ([Q7](../questions/q7.md)) — this gives a
 join no clock; it makes one more class of dead join reportable without one. Whether the policy is
-per-join ([Q5](../open-questions.md)). What a satisfied join carries downstream
-([Q36](../open-questions.md)) — still `null`, and a policy that declines to fire carries nothing
+per-join ([Q5](../questions/q5.md)). What a satisfied join carries downstream
+([Q36](../questions/q36.md)) — still `null`, and a policy that declines to fire carries nothing
 either way. And whether `live-token-requiring-arrival` should become the recommendation
-([Q96](../open-questions.md)), which is a question about real flows and is not answerable from
+([Q96](../questions/q96.md)), which is a question about real flows and is not answerable from
 fixtures.
 
 ## Alternatives rejected

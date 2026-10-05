@@ -46,7 +46,7 @@ clauses over `spec/` — the directory `CLAUDE.md` calls the source of truth —
 were run by hand once and written into a Record. That is `doc/workflow.md` rule 7 (a)'s *"a probe that
 ran once is a claim about the past"*, over the oldest check here.
 
-**[Q132](../open-questions.md) says `check-spec` has 8 clauses and 0 probes, and the count is wrong.**
+**[Q132](../questions/q132.md) says `check-spec` has 8 clauses and 0 probes, and the count is wrong.**
 `C5` has **two** — `scripts/check-markdown-selftest.mjs:386-401`, *a dead link inside `spec/`* and *a
 dead ANCHOR inside `spec/`* — added by [W25](w25-a-link-is-a-link-and-an-anchor-is-an-anchor.md) one
 item **after** Q132 was written at W24. **The row is right about the file and wrong about the number**:
@@ -56,7 +56,7 @@ seven clauses, not eight, and `C5`'s probes live in another script. Measured at 
 `const id = c.slice(0, 2)` — **the exact expression W24 repaired in `check-source.mjs`**, where it
 made `S10`-`S13` all report as `S1` and a failing run printed `ok` on every row above its own listed
 failures. It is **inert today** because every C-id is two characters, and it goes live at `C10`. That
-is [Q137](../open-questions.md)'s stated shape — *a lift moves an implementation and does not move the
+is [Q137](../questions/q137.md)'s stated shape — *a lift moves an implementation and does not move the
 guards the two sides needed differently* — one file across and in the opposite direction: **W24 fixed
 its own copy and the sibling kept the defect.**
 
@@ -80,7 +80,7 @@ its own copy and the sibling kept the defect.**
 **Out** — named rather than left implicit, with where it goes instead
 
 - **Seven of the sixteen: `S1`, `S2`, `S3`, `S5`, `S6`, `S9`, `S10`.** The cap is P9's decision 3 and
-  it is stated because a silent cap reads as coverage. [Q132](../open-questions.md)'s own argument,
+  it is stated because a silent cap reads as coverage. [Q132](../questions/q132.md)'s own argument,
   checked and adopted: `S1`, `S2` and `S3` are guarded a second way by `typecheck:deno` and
   `typecheck:browser`; `S5`, `S6`, `S9` and `S10` are publish-set and reach bookkeeping with a second
   route. **`S4` and `S7` are the two the ladder has no rung for at all** — `S4` is Node's
@@ -89,7 +89,7 @@ its own copy and the sibling kept the defect.**
   [ADR 0013](../decisions/0013-the-scheduler-is-a-development-dependency-reached-from-the-working-tree.md)
   rule 1's only enforcement, which `CLAUDE.md` calls *"one autocomplete away from being broken"*.
   **The seven left out go into P9's exit artifact as *no probe*, not omitted from it.**
-- **[Q137](../open-questions.md) — `C5`'s missing `M3`-style floor.** Its own row names the blocker
+- **[Q137](../questions/q137.md) — `C5`'s missing `M3`-style floor.** Its own row names the blocker
   this item removes: *"`check-spec`'s `C1`-`C8` have no self-test at all, so a new clause there ships
   unprobed unless that gap is closed first."* **It is still out**, because adding a floor changes what
   `check-spec` **checks** and this item's subject is its **negative tests**. This item leaves it
@@ -128,7 +128,7 @@ written before the item starts: **both fire, the hole already has a check, and P
 obligation is therefore NOT earned.** If instead this item ships a wiring hole `S11` does not see,
 that is the second occurrence and the obligation stands.
 
-**[Q102](../open-questions.md) reproduces here for the third time, and it is predicted rather than
+**[Q102](../questions/q102.md) reproduces here for the third time, and it is predicted rather than
 discovered.** `S12` obliges the literal in `scripts/check-source.mjs` whenever `package.json`'s chain
 changes. W25 hit that as a **late** exception because P8's index row predated `S12`; this item's `Owns`
 names the file up front. **The direction is the finding W24 recorded**: `RUN_FLOOR` went stale
@@ -159,7 +159,7 @@ npm run test:l6                  # 23 row labels, 25 real runs, 489 assertions
 Baseline at `76bf5e6`: **474 `test()` cases** in 19 files across Node 24.20.0, Deno 2.9.6 and
 chromium; **489 assertions at L6** in Node and Deno; the gate chain is **18 entries** and becomes
 **19**. *(`npm run gate` runs `test:browser`, which is **chromium only**. The two counts count
-different things — [Q98](../open-questions.md) — and are never added.)*
+different things — [Q98](../questions/q98.md) — and are never added.)*
 
 **Rule 8's four obligations, on this item's own repairs**, written before the readers report and
 **re-run after acting on them**:
@@ -169,7 +169,7 @@ different things — [Q98](../open-questions.md) — and are never added.)*
 | the rule's clauses | each of `C1`-`C4`, `C6`-`C8`, `S4` and `S7` made **present but inert**, one at a time |
 | the `Outputs` rows | every row of the table below, including the report-id repair and the `GATE_CHAIN` entry |
 | **provenance** | each probe's expected set read from the run's own failure lines rather than from a literal the probe also writes — substitute the source expression and nothing else |
-| **loop bounds** | `PROBES` and `META` here; **and `check-spec.mjs`'s own `mdFiles` and `jsonFiles` walks**, which is [Q137](../open-questions.md)'s subject and which this item probes even though it does not add the floor |
+| **loop bounds** | `PROBES` and `META` here; **and `check-spec.mjs`'s own `mdFiles` and `jsonFiles` walks**, which is [Q137](../questions/q137.md)'s subject and which this item probes even though it does not add the floor |
 
 *Not applicable to this item: it touches no routing, so Q4, Q17, Q10, Q13 and Q6 are all outside it.*
 
@@ -197,8 +197,8 @@ was reachable by a probe that breaks a VALUE** — the pattern the last five ite
 | Clause | Verdict | Notes |
 |---|---|---|
 | L0 own coverage | **RAN, green** | `check:spec` exit 0, unchanged in behaviour. `check:spec:selftest` **18 probes / 21 gradings — 20 by the named probe, 1 by the failure COUNT** — exit 0. `check:source:selftest` **34 probes / 24 gradings / 10 SELF**, exit 0 |
-| L1-L6 regression | **RAN, unmoved** | `npm run gate` **exit 0, zero FAIL lines**, read from the log's own `GATE EXIT=` line rather than through a grep. **474 `test()` cases in 19 files** across node 24.20.0, deno 2.9.6 and chromium ([Q98](../open-questions.md) — the runner labels them *assertions* and they are cases; never added to the next figure). **489 assertions, 23 row labels, 25 real runs** at L6 in node and deno, both derived from the run's own log. The gate chain is **19 entries**, from 18 |
-| rule 8's four obligations | **RAN** | **33 provocations — 23 refused, 10 survive**, then **re-run after acting**, which moved three from SURVIVES to REFUSED. Eight of the ten survivors are the ceiling; one is the report-id repair, which has no discriminating case; one is [Q149](../open-questions.md) |
+| L1-L6 regression | **RAN, unmoved** | `npm run gate` **exit 0, zero FAIL lines**, read from the log's own `GATE EXIT=` line rather than through a grep. **474 `test()` cases in 19 files** across node 24.20.0, deno 2.9.6 and chromium ([Q98](../questions/q98.md) — the runner labels them *assertions* and they are cases; never added to the next figure). **489 assertions, 23 row labels, 25 real runs** at L6 in node and deno, both derived from the run's own log. The gate chain is **19 entries**, from 18 |
+| rule 8's four obligations | **RAN** | **33 provocations — 23 refused, 10 survive**, then **re-run after acting**, which moved three from SURVIVES to REFUSED. Eight of the ten survivors are the ceiling; one is the report-id repair, which has no discriminating case; one is [Q149](../questions/q149.md) |
 | conformity reader | **RAN** | **10 findings, 3 BLOCKING.** All six that carry a number were re-verified by the author before acting, and all six held. It also re-derived the `fail()` census, all 18 probe sets, the 21-entry mapping, the C10 case, the ceiling list (**"the first of the three that did not over-inherit"**), the census with its own aborting parser, and the `Owns` audit at 13 of 13 |
 | adequacy reader | **RAN** | **35 mutations, 17 survivors, 4 BLOCKING**, in an isolated copy verified green at exit 0 with zero symlinks and zero reparse points, and byte-identical to the main tree at the end. Every survivor came with a **second independent route**; four were labelled vacuous or behaviour-preserving rather than counted |
 | re-run after acting on the readers | **RAN** | **48 provocations — 27 refused, 20 survive, 1 matched nothing** (the author's 31 plus the readers' 17 exact edits). **9 of the readers' 17 are now REFUSED**, and the re-run found three things nobody had: one of the six new probes cannot discriminate, the `GRADED_IDS` fix MOVED the hole rather than closing it, and `MAX_WIDE` is itself unbounded |
@@ -208,9 +208,9 @@ was reachable by a probe that breaks a VALUE** — the pattern the last five ite
 | Declared output | Exists | What would fail without it |
 |---|---|---|
 | `scripts/check-spec-selftest.mjs`, 7 clauses probed | **yes — 17 `fail()` sites across `C1`-`C4`, `C6`-`C8`, one probe each** | everything: `check-spec` graded nothing and probed nothing before. Ignoring `CHECK_SPEC_DIR` costs **18 of 18** |
-| its META pass, in W28's named-probe form | **yes — 21 entries**: 17 clause, 2 report, 2 exit-path | ignoring `CHECK_SPEC_PROBE` costs **21**; dropping the import relocation costs 21 *(and see [Q150](../open-questions.md) — it costs them as `corpus`, which is a PASS until `MAX_CORPUS`)* |
+| its META pass, in W28's named-probe form | **yes — 21 entries**: 17 clause, 2 report, 2 exit-path | ignoring `CHECK_SPEC_PROBE` costs **21**; dropping the import relocation costs 21 *(and see [Q150](../questions/q150.md) — it costs them as `corpus`, which is a PASS until `MAX_CORPUS`)* |
 | `MIN_PROBES` and `MIN_META` | **yes — 18 and 21** | one probe out costs 1, one META entry out costs 1, either list emptied costs 1. **And both lists are bounded by CONTENT**: a duplicate entry costs 1, and a check id with no entry disabling any of its `fail()` sites costs 1 |
-| `--self-test` on `check-spec.mjs` | **yes**, dispatched BEFORE the checks run — `check-docs.mjs`'s form, because a META child spawns this script once per entry and the checks it would run first are waste | **nothing. [Q149](../open-questions.md), and it is this item's central finding** |
+| `--self-test` on `check-spec.mjs` | **yes**, dispatched BEFORE the checks run — `check-docs.mjs`'s form, because a META child spawns this script once per entry and the checks it would run first are waste | **nothing. [Q149](../questions/q149.md), and it is this item's central finding** |
 | `check:spec:selftest` in `package.json` **and** in `GATE_CHAIN` | **yes** | gutting ` --self-test` costs `[S11]`; removing the chain reference costs `[S11,S12]`; removing it from `GATE_CHAIN` alone costs `[S12]`; removing **both** the script entry and the chain reference costs `[S12]`. *(This row first read "removing it from the manifest costs `S12`", which describes the two-edit case and reads as the one-edit case — its conformity reader's finding.)* **And a FIFTH shape is covered by neither check**: the script entry removed with the chain left alone costs **0** — `S11` iterates DECLARED `check:*` scripts and `S12`'s two lists still agree. `npm run gate` goes red, but **npm** raises it, not a check |
 | probes for `S4` and `S7`, with their input overrides | **yes — four probes, one override (`CHECK_SOURCE_SRC`), four META entries** | ignoring the override costs **4 probes**; not resolving `rel()` against `SRC_ROOT` costs 4 as well, by `S6` and `S13` noise rather than by detection |
 | the report id read as the first word | **yes** | **nothing that this corpus can express.** Reported, not dressed up — below |
@@ -235,7 +235,7 @@ mid-item and 351 s at the close, with this item's own Record and index paragraph
 
 **The gate grew by about 35 s and the arithmetic checks out**: 19 s of new self-test plus 16 s on
 `check:source`. Self-tests are now ~87% of the gate. **That is reported rather than buried**, and it
-is [Q133](../open-questions.md)'s number moving in the wrong direction for the right reason —
+is [Q133](../questions/q133.md)'s number moving in the wrong direction for the right reason —
 this plan makes gradings cheaper *per entry* and this item adds entries.
 
 **What each clause cost when made inert, before and after.**
@@ -273,7 +273,7 @@ than typos.
 
 **What broke, and the first of these is the item's headline.**
 
-1. **[Q149](../open-questions.md) — the WIRING obligation is EARNED, and this item predicted it
+1. **[Q149](../questions/q149.md) — the WIRING obligation is EARNED, and this item predicted it
    would not be.** [P9](../plans/p9-when-a-check-stops-checking-what-notices.md) wrote the
    prediction down before this item started, so the verdict is not hindsight: *"`S11` catches it and
    the obligation is therefore NOT earned."* **`S11` catches the manifest half, four ways, all
@@ -288,7 +288,7 @@ than typos.
    one item later, in the file whose header opens *"a cap that undercounts reads as coverage"*.)* **Second occurrence, and it is
    the one `S11` does not cover.** Not fixed — P9 declares changes to what a check checks out of
    scope, and the measurement is the deliverable.
-2. **[Q150](../open-questions.md) — a `corpus` grading is a PASS, so a broken harness reads as full
+2. **[Q150](../questions/q150.md) — a `corpus` grading is a PASS, so a broken harness reads as full
    coverage.** Found by this item's own rule 8 set: dropping the import relocation makes all 21
    mutants non-inert, all 21 grade `corpus`, and the file exits **0** with the summary saying
    *"0 noticed by the named probe, 21 by the corpus"*. Closed here by a declared `MAX_CORPUS = 0`;
@@ -311,7 +311,7 @@ than typos.
   All three carry an ODD number of backticks (45, 83, and one used as an apostrophe), so a
   span-aware splitter leaves a span open and loses the rest of the row. **GFM cuts a table row on
   `|` FIRST and parses inline code afterwards**, which is also exactly why
-  [Q131](../open-questions.md)'s two rows really do render wrong. Split on unescaped pipes only.
+  [Q131](../questions/q131.md)'s two rows really do render wrong. Split on unescaped pipes only.
   The register's census is then **CONFIRMED: 109 questions — 73 open, 2 deferred, 34 resolved**,
   29 ids in both tables, with Q119 and Q71 as two **declared** exemptions carrying their reason.
 - **The cluster table had gone stale by FOUR and this item found three of them.**
@@ -342,7 +342,7 @@ than typos.
   reporting clause leaves
   nothing to report and `check-spec` exits 0 — while `exit0`'s meaning in the sibling files is *the
   right ids were found and the exit path lied*. Both verdicts pass, so **no grading changed and only
-  the reported reason did**, which is [Q147](../open-questions.md) exactly. Asking *did the declared
+  the reported reason did**, which is [Q147](../questions/q147.md) exactly. Asking *did the declared
   ids disappear* first gives 17 `disappeared`, 2 `disagreed`, 1 `caught`-by-count and **one**
   `exit0`. **The same conflation is live in `check-source-selftest.mjs` and
   `check-markdown-selftest.mjs` and is NOT swept here.**
@@ -358,7 +358,7 @@ than typos.
 
 **What is deliberately NOT done.**
 
-- **[Q137](../open-questions.md) is BUILDABLE and is not built.** `C5` still has no `M3`-style
+- **[Q137](../questions/q137.md) is BUILDABLE and is not built.** `C5` still has no `M3`-style
   floor, so `spec/`'s link check can pass vacuously. Its stated blocker — *"`check-spec`'s
   `C1`-`C8` have no self-test at all"* — is removed; adding a floor changes what `check-spec`
   **checks**, and this item's subject is its negative tests.
@@ -367,7 +367,7 @@ than typos.
   `S9`, `S10` (publish-set bookkeeping with a second route). P9 decision 3.
 - **`check-spec-selftest.mjs` has no `SELF` list**, so eight of this item's ten surviving
   provocations are the ceiling. W31 is narrowed to `check-policies`; nothing picks this file up.
-- **[Q131](../open-questions.md), [Q135](../open-questions.md), [Q123](../open-questions.md)** — the
+- **[Q131](../questions/q131.md), [Q135](../questions/q135.md), [Q123](../questions/q123.md)** — the
   register's three malformed rows stay unfixed on purpose, and Q119 and Q71 are carried as declared
   exemptions in the census parser rather than repaired.
 
@@ -378,7 +378,7 @@ than typos.
 | finding | what it was | now |
 |---|---|---|
 | **"measured in all FIVE checks" is SIX** | six `:selftest` entries exist and deleting the dispatch leaves every one of them **unrun and green**. The author had enumerated the checks in a probe script instead of counting the manifest, and omitted `check-markdown`. Written into six documents including the register | corrected in all six, with the cause named beside it |
-| **an `Outputs` row attached a check id to an unmeasured case** | *"removing it from the manifest costs `S12`"* describes a two-edit mutation and reads as a one-edit one. Measured: the script entry removed with the chain left alone costs **0** — a **fifth** wiring shape neither `S11` nor `S12` covers, where only npm's own *"Missing script"* fails the gate | the row now gives all four measured sets and names the fifth as uncovered. [Q149](../open-questions.md) |
+| **an `Outputs` row attached a check id to an unmeasured case** | *"removing it from the manifest costs `S12`"* describes a two-edit mutation and reads as a one-edit one. Measured: the script entry removed with the chain left alone costs **0** — a **fifth** wiring shape neither `S11` nor `S12` covers, where only npm's own *"Missing script"* fails the gate | the row now gives all four measured sets and names the fifth as uncovered. [Q149](../questions/q149.md) |
 | **the cluster table was still stale** | the item said it had fixed a three-id gap; **Q131** was in no cluster cell either, raised by P8's declaration and never filed | filed; both halves now check out at **109 of 109 in exactly one cell** |
 
 **And three of its non-blocking findings were corrections to numbers the item had written down**: the
@@ -415,7 +415,7 @@ guard, the fingerprint's rule 7 (b) guard, `MAX_CORPUS` raised, and `tripped` re
 report rows. **The last is the one to carry**: it costs **0** here and is **REFUSED** in
 `check-source-selftest.mjs`, same mutation, same shape of file, one with a list beyond it. That
 single pair is the cleanest measurement anyone has of what a missing `SELF` list costs, and it is
-[Q147](../open-questions.md)'s own shape. **The ceiling list went from nine rows to eighteen.**
+[Q147](../questions/q147.md)'s own shape. **The ceiling list went from nine rows to eighteen.**
 
 **And the claim this file argued hardest for was FALSIFIED.** It read: *"the regress is not only
 'move the hole one list further out'; a bound whose authority is the checked artefact rather than a
@@ -450,7 +450,7 @@ across six items — and all three of these are about the FIXES, made in the hou
    mutation matched nothing"*, so rule 7 (b) is load-bearing. `+ Math.random()` costs **0**, because
    the guard can then never fire — but a genuinely vacuous probe is **still refused** under it, by
    its declared set (`exited 0, wanted [C8], got []`) rather than by the guard. **Behaviour-preserving,
-   and the right verdict by the wrong route**: [Q147](../open-questions.md)'s shape a third time.
+   and the right verdict by the wrong route**: [Q147](../questions/q147.md)'s shape a third time.
 
 **And one of the readers' edits is now unmatchable, which is rule 7 (b) reporting a fix rather than a
 hole.** `GRADED_IDS = []` matches nothing because the declaration is gone — the same shape as this
@@ -483,7 +483,7 @@ the block above: `package.json`, `scripts/check-source-selftest.mjs`, `scripts/c
 
 | file | why |
 |---|---|
-| `scripts/check-markdown.mjs` | **[Q142](../open-questions.md), second occurrence, and it turned the gate RED at this item's close.** The `M4` link floor is a two-sided window: the probe *"doc/decisions AND doc/plans removed"* must leave the fixture BELOW it, and this item's own Record and index paragraphs took that fixture from 1217 links to **1357** against a floor of 1350. `wanted [M1,M3,M4], got [M1,M3]`. Retuned to **1530** from a measurement — whole tree 67/1907/94, one directory removed 51/1709/94, two removed 41/1357/94 — which restores green and does not remove the ratchet. `M3` at 56 and `M5` at 60 are unchanged and were re-measured. **Q142 is NOT closed**: the window is two-sided by construction and the mitigation is the direction, which is that it fails **loudly, in the gate, naming the probe and the expected set** |
+| `scripts/check-markdown.mjs` | **[Q142](../questions/q142.md), second occurrence, and it turned the gate RED at this item's close.** The `M4` link floor is a two-sided window: the probe *"doc/decisions AND doc/plans removed"* must leave the fixture BELOW it, and this item's own Record and index paragraphs took that fixture from 1217 links to **1357** against a floor of 1350. `wanted [M1,M3,M4], got [M1,M3]`. Retuned to **1530** from a measurement — whole tree 67/1907/94, one directory removed 51/1709/94, two removed 41/1357/94 — which restores green and does not remove the ratchet. `M3` at 56 and `M5` at 60 are unchanged and were re-measured. **Q142 is NOT closed**: the window is two-sided by construction and the mitigation is the direction, which is that it fails **loudly, in the gate, naming the probe and the expected set** |
 | `scripts/check-markdown-selftest.mjs` | the same repair's other half: the META entry disabling that floor is pinned to the literal `if (r.links < 1350)`, so retuning it left the entry at *"the mutation matched nothing"* — **rule 7 (b) firing correctly**, and P9's *a mutation pinned to a magic number is unmutatable the moment the number is right to change*, reproduced one plan on. Re-anchored, and the probe's stale measured comment (37/1116/78 at W25, 40/1217/86 at P9's declaration) updated to 41/1357/94 |
 
 **Both were independently re-derived by the conformity reader**, which measured the interval itself — the floor must sit above the two-directory fixture (1357) and at or below the one-directory one (1709), and 1530 is in range — and reported the declaration accurate. **Both are exactly the exception P9's own declaration took for itself, for the same reason and on the
@@ -502,8 +502,8 @@ declined it as belonging to whoever owns `examples/**`, and this item declines i
 reasoning — **a stale count noticed by two consecutive items and fixed by neither is worth saying out
 loud**.)
 
-**Questions raised.** [Q149](../open-questions.md) — the `--self-test` dispatch is deletable from
+**Questions raised.** [Q149](../questions/q149.md) — the `--self-test` dispatch is deletable from
 any of the five checks for exit 0, and `S11` reads the manifest rather than the script.
-[Q150](../open-questions.md) — a `corpus` grading is a pass, so a harness bug reads as coverage.
+[Q150](../questions/q150.md) — a `corpus` grading is a pass, so a harness bug reads as coverage.
 **Both of the reserved block are used. No ADR: W30 reserved none**, as the plan predicted for an
 item that adds negative tests rather than an architecture.

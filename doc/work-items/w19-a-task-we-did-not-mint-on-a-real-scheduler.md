@@ -158,7 +158,7 @@ which is the whole of why `Depends on: W18` is hard.
 
 - **Any decision.** W18's. If this item's demonstration argues against ADR 0027, that is a **finding
   reported to P6's retro**, and the loop is: report, do not re-decide inside the demonstration.
-- **[Q90](../open-questions.md) — `ID-R4` tier 2's missing L6 coverage.** Out, per P6's Scope/Out.
+- **[Q90](../questions/q90.md) — `ID-R4` tier 2's missing L6 coverage.** Out, per P6's Scope/Out.
   **The register asks to be re-read here and this is that re-read**, recorded rather than skipped:
 
   > **The instrument is now shared, which P6 could not have known.** Q90 needs a settlement carrying
@@ -173,7 +173,7 @@ which is the whole of why `Depends on: W18` is hard.
 
 - **`src/`, `spec/`, `test/`.** None of them. An item that reached into `src/` to make its
   demonstration pass would be demonstrating the fix rather than the system.
-- **[Q99](../open-questions.md)'s three remaining harness knobs and [Q100](../open-questions.md)'s
+- **[Q99](../questions/q99.md)'s three remaining harness knobs and [Q100](../questions/q100.md)'s
   unread rendered table.** W17 raised both and left them honest; W19 inherits `examples/**` and does
   not close them. **Q100 is worth one line at the Record**: it is W15's renderer finding in a second
   file, and this item adds a row to that same unread table.
@@ -195,7 +195,7 @@ How each clause of `Gate:` is run.
 line, and it reported a red L0 as green for a round. Read the exit code.
 
 **And do not chain the two assertion counts.** `npm run test`'s number is `test()` **cases**
-([Q98](../open-questions.md), `test/runner.ts:62`); L6's is individual assertions. Same word,
+([Q98](../questions/q98.md), `test/runner.ts:62`); L6's is individual assertions. Same word,
 different nouns. Both are re-derived from a run.
 
 **Rule 8 — provocations, both obligations** (`doc/workflow.md` v0.7 change 1). The set is written to
@@ -241,7 +241,7 @@ section 2 is about, and they stay; a nested fan-out (Q6) — **not applicable**,
 | **(1)** the injection point in `run-flow.ts` | yes — `runPair`'s third argument, `foreign: readonly ForeignTask[]`, injected **after** the instrumentation and **before** `Promise.all` | Deleting the loop and ignoring `foreign`: **6** L6 failures. Injecting through the *uninstrumented* `addTask`, so `PairFacts` stops counting it: **1**. |
 | **(2)** the exit-artifact row | yes — `PAIR_ROWS[1]`, `two runs / one scheduler / tasks we did not mint`, runs `pc` and `pd` | Deleting the row: **1**. Keeping the row and emptying its `foreign`: **2**. Restoring ADR 0023 rule 2 so the row is not reachable at all: **13**. |
 | **(3)** the foreign settlement asserted from `PairFacts` | yes — `settlementIds` (order and duplicates kept), `listenersAtSettlement`, `addTaskCalls`, all from listeners registered before either driver exists | Reading the settlement set from the two drivers alone: **1**. Sourcing the **ordering** from a driver: **2** — and that one was worth **0** until the adequacy reader found it, see *What broke*. Making the consumer-side `parseTaskId` audit vacuous: **1**. Recording the listener count once rather than per settlement: **2**. |
-| **(4)** `examples/README.md` and the rendered table's counts | **partly, and the gap is [Q100](../open-questions.md)** — `l6.ts`'s counts are derived (`pairRunCount`, `pairLabel`, `wantSettlements`); `examples/README.md`'s are typed | **Nothing, in both halves.** Un-deriving `l6.ts`'s printed run count back to a literal **survives**; so does replacing `examples/README.md`'s *"373 assertions over 21 real runs"* with *"999 assertions over 4 real runs"*. A markdown file cannot derive a count. Two more occurrences of Q100, and the row says so rather than reading *yes*. |
+| **(4)** `examples/README.md` and the rendered table's counts | **partly, and the gap is [Q100](../questions/q100.md)** — `l6.ts`'s counts are derived (`pairRunCount`, `pairLabel`, `wantSettlements`); `examples/README.md`'s are typed | **Nothing, in both halves.** Un-deriving `l6.ts`'s printed run count back to a literal **survives**; so does replacing `examples/README.md`'s *"373 assertions over 21 real runs"* with *"999 assertions over 4 real runs"*. A markdown file cannot derive a count. Two more occurrences of Q100, and the row says so rather than reading *yes*. |
 
 **`Owns` audit.** `git diff --name-only` and `git ls-files --others --exclude-standard`, by hand,
 after the record step.
@@ -350,7 +350,7 @@ least-tested lines in the item:
 **The three survivors, each against v0.7 change 2's bar** — *a survivor is only a survivor once a
 second, independent route confirms the mutated clause was reachable*:
 
-1. **B4 and R5 are real and both are [Q100](../open-questions.md)**, in two files. `l6.ts`'s printed
+1. **B4 and R5 are real and both are [Q100](../questions/q100.md)**, in two files. `l6.ts`'s printed
    header can read *19 real runs* for a run of 21, and `examples/README.md`'s three counts can be
    falsified outright, both with the whole gate green. *Second route:* run either and the wrong
    number is printed, so the clause is plainly reachable. **Not closed** — closing them is Q100,
@@ -468,7 +468,7 @@ got from the other. **The absolute count is what to carry.**
 
 **Questions raised.** Q ids from Q107-Q110. They also go in `doc/open-questions.md`.
 
-- **[Q107](../open-questions.md)** — **`ID-R5` at L6 sees `task.completed` and nothing else, and both
+- **[Q107](../questions/q107.md)** — **`ID-R5` at L6 sees `task.completed` and nothing else, and both
   readers found it independently.** All five foreign tasks succeed, so the `event` field is pinned to
   one value: replacing `event: name` with the constant `'task.completed'` survives at L6, and so does
   guarding the report with `if (name === 'task.completed')`. Both are caught at L1-L5. **The
@@ -482,7 +482,7 @@ got from the other. **The absolute count is what to carry.**
   for a timing margin, which is the exact thing W17's finding was about. The neighbouring clause is
   the same shape: inserting `void normalizeEvent(...)` above tier 0 survives at L6 and costs one
   L1-L5 failure, so **tier 0's position above `normalizeEvent` has no L6 coverage either.**
-- **[Q108](../open-questions.md)** — **ADR 0027 names three producers that can never be ours and W19
+- **[Q108](../questions/q108.md)** — **ADR 0027 names three producers that can never be ours and W19
   demonstrates one of them; the second is demonstrated nowhere at all.** A worker calling
   `context.spawnTask()` mints a child id the caller invents — the scheduler's own reference spells it
   `` `${payload.id}-child` `` — and ADR 0023's *Correction* 3 found that case listed among that ADR's
@@ -497,18 +497,18 @@ got from the other. **The absolute count is what to carry.**
 **Recommendations to the register, made rather than acted on** (`doc/workflow.md` section 1 rule 3 —
 widening a scope the plan settled is not this item's call):
 
-- **[Q90](../open-questions.md)** asks to be re-read when W19 is declared in detail, and its stated
+- **[Q90](../questions/q90.md)** asks to be re-read when W19 is declared in detail, and its stated
   ground for having no home was that tier 2 *"needs a settlement carrying **this** run's id for a
   task the driver never dispatched, and a real scheduler produces one only if something **injects**
   it — which no L6 row does."* **One now does.** `ForeignTask.id` reaches the scheduler verbatim, and
   `pc:ingest:x:0` is already this run's id with a corrupted segment; `pc:notanode:-:0` **parses**,
   reaches tier 2, and is `UndispatchedTask`. The marginal cost is the string. The row is updated to
   say the instrument exists and to name the harness; **taking it is P6's retro's call.**
-- **[Q100](../open-questions.md)** gains two measured occurrences from this item: `l6.ts`'s printed
+- **[Q100](../questions/q100.md)** gains two measured occurrences from this item: `l6.ts`'s printed
   run count can be un-derived to a literal, and `examples/README.md`'s three counts can be falsified
   outright, both with the whole gate green. The second is the sharper one — a markdown file cannot
   derive a count, so *"derived rather than typed"* is not achievable there at all.
-- **[Q99](../open-questions.md)**'s three remaining harness knobs are untouched, as declared.
+- **[Q99](../questions/q99.md)**'s three remaining harness knobs are untouched, as declared.
 - **Not a Q, and not this item's file to fix:** `test/driver/lifetime.test.ts:324` says *"`ID-R5` is
   one guard over **SIX** refusals"*. `parseTaskId` has **five** (`src/driver/ids.ts:62,65,66,67,68`),
   which is what ADR 0027's producer table and `spec/outcome-record.md` section 6 both say, and what

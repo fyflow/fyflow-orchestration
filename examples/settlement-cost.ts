@@ -4,7 +4,7 @@
  * [P21](../doc/plans/p21-what-a-run-time-schema-check-buys-and-what-it-costs.md)'s price, both
  * halves: what `OR-R13`'s opt-in check costs against the clone `OR-R2` already pays, and what the
  * completion handle [ADR 0058](../doc/decisions/0058-runtime-start-returns-a-completion-handle-the-runtime-keeps.md)
- * installs on every run costs a consumer who never asked for it ([Q320](../doc/open-questions.md)).
+ * installs on every run costs a consumer who never asked for it ([Q320](../doc/questions/q320.md)).
  *
  * ```bash
  * node examples/settlement-cost.ts
@@ -17,7 +17,7 @@
  * `examples/retention.ts`'s precedent, one plan on: P15 decision 3 made a measured number an exit
  * artifact because a rung made of real runs cannot afford the scale the question is about. Here the
  * reason is different and the answer is the same — **a cost is a property of a machine**
- * ([Q179](../doc/open-questions.md)), so a gate entry over one would be a ratchet on hardware. This
+ * ([Q179](../doc/questions/q179.md)), so a gate entry over one would be a ratchet on hardware. This
  * file is covered by ladder **L0** — `npm run lint` lints `examples/` and `tsconfig.examples.json`
  * includes it — and by nothing else. **What binds its two claims is
  * `test/driver/result-schema-cost.test.ts`**, at L1-L2, where both are COUNTS.
@@ -123,7 +123,7 @@ function payloadFor(arity: number, kib: number): { confidence: number; text: str
  * cannot say 51 while the loop does 1 — the adequacy reader took it to 1 for free. */
 const REPS = 51;
 
-/** Median, because [Q179](../doc/open-questions.md) says a mean over readings this spread is a fiction. */
+/** Median, because [Q179](../doc/questions/q179.md) says a mean over readings this spread is a fiction. */
 function median(f: () => void, reps: number): number {
   const xs: number[] = [];
   for (let i = 0; i < reps; i++) {
@@ -156,7 +156,7 @@ const sizeOf = (v: unknown): number => {
  * settlement events — the driver's inputs, not its outputs — and the dispatched ids, which are
  * strings.
  *
- * Bounded, because [Q323](../doc/open-questions.md) is what a probe that stops a promise settling
+ * Bounded, because [Q323](../doc/questions/q323.md) is what a probe that stops a promise settling
  * costs when nothing bounds the wait: W77 ran for two and a half hours on one.
  */
 async function quiesce(driver: { dispatchedIds(): readonly string[] }, settled: Set<string>, budgetMs: number): Promise<boolean> {
@@ -411,7 +411,7 @@ async function checkPrice(failed: string[]): Promise<void> {
   // with a quantity the VALUE knows nothing about. ASSERTED as a direction with a MARGIN rather
   // than step by step: at the large value the adjacent steps sit inside the timer's own resolution
   // (0.07x against 0.07x), so a strict per-step monotonicity would be asserting the third decimal
-  // of a clock — which is [Q179](../doc/open-questions.md) in the file that quotes it. A
+  // of a clock — which is [Q179](../doc/questions/q179.md) in the file that quotes it. A
   // thousand-entry enum against a three-entry one on the same value is a factor this corpus reads
   // at 4x and 11x.
   for (const row of grid) {

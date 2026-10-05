@@ -50,7 +50,7 @@ and nobody can decline.*
 ### What this plan is NOT allowed to assume, because fact 3 measured it
 
 **The two defects this feature would have been argued from are both CLOSED, by two different
-mechanisms, and both are W73's.** [Q302](../open-questions.md) named them from the workers' code:
+mechanisms, and both are W73's.** [Q302](../questions/q302.md) named them from the workers' code:
 `split`'s per-item `confidence` of `word.length / 10` exceeding its declared `maximum: 1`, and
 `weigh`'s `score` of `confidence * run.confidence * 100` exceeding `maximum: 100`. Run through a real
 `createRuntime` at this declaration:
@@ -122,9 +122,9 @@ it was chosen over, so an item argues from the decision rather than re-deriving 
 4. **The twelve-keyword subset is the contract language and nothing is added to it.**
    [ADR 0053](../decisions/0053-the-schema-validator-is-a-built-in-subset-and-a-keyword-outside-it-is-refused.md)
    stands; `oneOf` is [P19](p19-what-a-schema-buys-an-author.md)'s slice 2 and its condition has not
-   fired ([Q311](../open-questions.md)).
+   fired ([Q311](../questions/q311.md)).
 5. **The cost is quoted as a RATIO to the clone, never as a millisecond.**
-   [Q179](../open-questions.md) says wall time here is not reproducible, and fact 4 is already
+   [Q179](../questions/q179.md) says wall time here is not reproducible, and fact 4 is already
    expressed that way. An item quoting a millisecond has quoted a machine.
 6. **Q320 is a FACT this plan carries, not a second headline.** The always-on completion handle costs
    **+1 `structuredClone` per settled task** (fact 2) — measured on the one road no harness here can
@@ -135,7 +135,7 @@ it was chosen over, so an item argues from the decision rather than re-deriving 
 8. **`examples/**` MAY hold a hand-built `Driver`, in the ONE file whose subject is what building
    one costs — and the exemption is granted in two places, not one.** *Over*: leaving
    [W67](../work-items/w67-a-flow-from-documents-on-real-workers.md)'s claim at `[]` and measuring
-   [Q320](../open-questions.md)'s opt-out only at L2. **Added after W81 shipped, because the
+   [Q320](../questions/q320.md)'s opt-out only at L2. **Added after W81 shipped, because the
    decision was made inside an item and belongs here** — `doc/workflow.md` section 1 rule 3, *a
    decision that is not in `spec/`, an ADR, or a plan did not happen*, and an assertion's own
    comment is none of the three.
@@ -177,7 +177,7 @@ files**, identical before the first probe and after the last, `git status` clean
 
 | # | fact | where |
 |---|---|---|
-| **1** | **The only instrument this repository has for retention CANNOT SEE what P20 added, and the road is closed.** `retainedBytes` takes its key list from `walkOf`, whose `NOT_RUN_STATE` skips **`opts` by name** — and `opts.onFoldInput`'s closure is the only thing holding the `RunState` ADR 0058 keeps. Measured: the walk reports **15.0 / 486.0 / 2426.3 KiB** at three shapes while a `RunState` of the same run is **13.0 / 481.9 / 2408.1 KiB**, and **`v8.serialize` REFUSES `driver.opts`** outright. *W77 measured by identity that the kept state's results are SHARED with `inputs`, so it is not a second copy — but no byte observer here can say so, and the field it would have to walk cannot be serialised.* [Q320](../open-questions.md) | `fact1-blind.ts`, `fact1.txt` |
+| **1** | **The only instrument this repository has for retention CANNOT SEE what P20 added, and the road is closed.** `retainedBytes` takes its key list from `walkOf`, whose `NOT_RUN_STATE` skips **`opts` by name** — and `opts.onFoldInput`'s closure is the only thing holding the `RunState` ADR 0058 keeps. Measured: the walk reports **15.0 / 486.0 / 2426.3 KiB** at three shapes while a `RunState` of the same run is **13.0 / 481.9 / 2408.1 KiB**, and **`v8.serialize` REFUSES `driver.opts`** outright. *W77 measured by identity that the kept state's results are SHARED with `inputs`, so it is not a second copy — but no byte observer here can say so, and the field it would have to walk cannot be serialised.* [Q320](../questions/q320.md) | `fact1-blind.ts`, `fact1.txt` |
 | **2** | **The always-on handle costs +1 clone per SETTLED TASK and no measurable time at the shapes reachable.** On the road no harness here can take — a consumer who passes **nothing** — clones go **46 → 52**, **94 → 106**, **414 → 466** against the pre-W77 conditional spread: exactly one per settlement, as Q320 says. Time in clone is **0.4 → 0.4**, **2.5 → 2.2**, **14 → 15.2 ms** — inside the noise, one reading falling. *The cost is P15's own quantity, (tasks settled) x bytes each RETURNED, and this corpus's workers return small values while the large payload sits at the entry.* **So Q320 is true in COUNT and unshown in COST**, and W81 is what has to reach a shape where it bites | `fact2-clones.mjs`, `fact2.txt` |
 | **3** | **The feature has NO live defect on the shipped corpus.** Q302's two violations, run through a real `createRuntime`: the first is **clamped in the code** by W73, the second **refused at `start()` by `FD-R4`** — `BoundaryRefused` naming `$.confidence above maximum 1`, nothing dispatched. The control run and the eleven-letter run both report **0 violating results of 5 checked**. *Q302's row records both corrections; what nobody had done is exercise them through a run.* | `fact3-violations.ts`, `fact3.txt` |
 | **4** | **A per-settlement check costs a SMALL and SHRINKING fraction of the clone the driver already pays.** Timed on the corpus's own results, median of 51 repetitions, both sides on the same values: validation is **92.9% / 14.7% / 5.9%** of `structuredClone` at 6 / 12 / 52 settlements, and the worst single settlement falls **1.52x → 0.22x → 0.14x**. `publish`'s big `joinPayload` is **0.00x** — 0.3647 ms to clone, 0.0006 ms to check. **12 of the 14 corpus workers declare an `outputSchema`**; the two that do not are the worker that throws and the one that returns a function. *The ratio falls because the clone is linear in the whole value and the check short-circuits on the schema's shape* | `fact4-cost.ts`, `fact4.txt` |
@@ -220,16 +220,16 @@ before anything was declared rather than after.
 
 **Out** — named rather than left implicit, with where each goes instead
 
-- **`oneOf` and any widening of the subset.** P19's slice 2; [Q311](../open-questions.md) is the live
+- **`oneOf` and any widening of the subset.** P19's slice 2; [Q311](../questions/q311.md) is the live
   subject and its condition has not fired.
-- **Node-type versioning** — [Q249](../open-questions.md), P18's leftover, P19 slice 3.
+- **Node-type versioning** — [Q249](../questions/q249.md), P18's leftover, P19 slice 3.
 - **Re-checking a node's INPUT at run time.** Decision 2: the wiring check decides it statically and
   `FD-R4` holds the two boundaries once each.
 - **Anything that moves `FD-R4`.** W73 settled the entry payload and a person's resolution; this plan
   adds a third site and reopens neither.
-- **The `X7`-shaped L6-count clause** P20's retro named ([Q171](../open-questions.md)). It is an
+- **The `X7`-shaped L6-count clause** P20's retro named ([Q171](../questions/q171.md)). It is an
   item's work and it is not this plan's subject; if an item here takes it, it is a declared exception.
-- **[Q219](../open-questions.md)** — a region's collection reachable by no reference. The untouched
+- **[Q219](../questions/q219.md)** — a region's collection reachable by no reference. The untouched
   capability gap, and the likeliest subject after this.
 
 ---
@@ -242,7 +242,7 @@ title (`doc/workflow.md` section 7 rule 2).*
 | | what it does | Owns | Depends on | Gate |
 |---|---|---|---|---|
 | **W80** | **What a run-time result check IS** — **ADR 0060**: the `DriverOptions` knob, OFF by default (stop-and-ask (a)); the site (one, named, and it is where `OR-R2`'s clone already happens); the finding **REPORTED and never routed** (stop-and-ask (b)) — no record, no terminal state, `OR-R12`'s precedent; the `spec/` rule and its id; the subset unchanged. **Fact 3 says there is no live defect, so the item must CONSTRUCT the case that makes it fire** and say what the wiring check and `FD-R4` cannot reach | `src/driver/**`, `src/definition/**`, `spec/**`, `test/driver/**`, `doc/decisions/0060-*` | nothing | L0 under all five typecheckers; L1-L2; `check:spec`; L6 UNMOVED |
-| **W81** | **The price, both halves** — fact 4's ratio re-taken with the check ON at L6's scale, and **[Q320](../open-questions.md) reached at a shape where it BITES**: fact 2 measured +1 clone per settlement and no time, so this item needs workers that RETURN large results, which the corpus does not have. Whether a consumer can decline the always-on handle is decided here or declared unreachable | `examples/**`, `test/**` as the measurement needs | W80 | L1-L5; a measurement, not a rung; both figures as RATIOS (decision 5) |
+| **W81** | **The price, both halves** — fact 4's ratio re-taken with the check ON at L6's scale, and **[Q320](../questions/q320.md) reached at a shape where it BITES**: fact 2 measured +1 clone per settlement and no time, so this item needs workers that RETURN large results, which the corpus does not have. Whether a consumer can decline the always-on handle is decided here or declared unreachable | `examples/**`, `test/**` as the measurement needs | W80 | L1-L5; a measurement, not a rung; both figures as RATIOS (decision 5) |
 | **W82** | **The exit artifact** — one L6 row where a worker returns a value its own `outputSchema` refuses and the run reports it BY NAME, in both runtimes, with the check's cost for the whole rung measured on and off; the reference teaching the knob. **L6 MOVES and this row says so** | `examples/**`, `AGENTS.md`, `README.md`, `examples/README.md` | W81 | L6 in **both** runtimes; `check:docs`; `check:markdown`; the full `npm run gate` |
 
 **W83 is reserved and expected unused**, on P19's W75 and P20's W79 precedent.
@@ -268,11 +268,11 @@ of — so these say what was measured and make no claim beyond it.*
 
 | Q | | Owner |
 |---|---|---|
-| [Q302](../open-questions.md) | *a bound a producer does not keep past its declared domain* — the row this plan's capability half rests on. **Both its named instances are CLOSED** (fact 3), so W80 owes a constructed one | W80 |
-| [Q320](../open-questions.md) | *the always-on handle's unconditional clone and retention* — fact 2 measures the count and finds no cost; W81 must reach a shape where it bites or declare it unreachable | W81 |
-| [Q186](../open-questions.md) | *how large is too large* — P19 named the per-settlement cost as this plan's measurement and fact 4 takes it; the row's *nothing warns* half is untouched | W81 |
-| [Q179](../open-questions.md) | *wall time here is not reproducible* — decision 5 is this plan's answer, and every figure it states is a ratio | all three |
-| [Q171](../open-questions.md) | *the L6 counts nothing compares* — P20's retro NAMED an `X7`-shaped clause for the next plan. **Declared OUT** above; it is an item's work and not this plan's subject | out, no owner |
+| [Q302](../questions/q302.md) | *a bound a producer does not keep past its declared domain* — the row this plan's capability half rests on. **Both its named instances are CLOSED** (fact 3), so W80 owes a constructed one | W80 |
+| [Q320](../questions/q320.md) | *the always-on handle's unconditional clone and retention* — fact 2 measures the count and finds no cost; W81 must reach a shape where it bites or declare it unreachable | W81 |
+| [Q186](../questions/q186.md) | *how large is too large* — P19 named the per-settlement cost as this plan's measurement and fact 4 takes it; the row's *nothing warns* half is untouched | W81 |
+| [Q179](../questions/q179.md) | *wall time here is not reproducible* — decision 5 is this plan's answer, and every figure it states is a ratio | all three |
+| [Q171](../questions/q171.md) | *the L6 counts nothing compares* — P20's retro NAMED an `X7`-shaped clause for the next plan. **Declared OUT** above; it is an item's work and not this plan's subject | out, no owner |
 | Q330-Q344 | *reserved for the items* | |
 
 ---
@@ -296,7 +296,7 @@ of — so these say what was measured and make no claim beyond it.*
   the +1 clone per settlement costs nothing measurable here.
 - **(d) Whether the check reads EVERY declared example or only the first — ANSWERED: the FIRST
   only.** `check:workers` is unchanged, and **that REFUSES the cheap half of
-  [Q302](../open-questions.md)'s own *what would close it***, leaving that row the
+  [Q302](../questions/q302.md)'s own *what would close it***, leaving that row the
   bounds-generating road, which is W74's territory and is out of this plan.
 
   *The answer is coherent because of what this plan IS.* Q302 is *a bound a producer does not keep
@@ -320,13 +320,13 @@ first commit and is added with stop-and-ask (c)'s answer.*
 |---|---|---|
 | `examples/**` | **W81**, by stop-and-ask (c) | a worker whose RESULT is large, because fact 2 measured that this corpus's large values sit at the ENTRY and the +1 clone per settlement therefore costs nothing measurable. It moves **no existing row** |
 | `AGENTS.md`, `README.md` | W82 | the knob has to be taught where a consumer reads. **`X8` holds THREE README fences byte-equal** to the AGENTS sections they name, so a section edited in one moves in the other or the check goes red — and `README_SNIPPETS` / `README_SNIPPET_FLOOR` are two more literals beside it |
-| `examples/README.md` | W82 | its L6 row table gains a line and its counts move — **W71's, W72's, W74's and W78's late exception on the same two paragraphs, four items running**, and [Q171](../open-questions.md)'s row |
-| `scripts/check-docs.mjs` and its self-test | W82 | `RUN_FLOOR` is a ratchet an item that ADDS a `run` snippet must raise ([Q102](../open-questions.md), live for six plans) — **and W78 found the second half the hard way**: `check:docs:selftest`'s `X4` probe anchors on a literal inside `AGENTS.md` §7, so an item that edits the text a probe anchors on takes this file whether or not it moves the floor |
+| `examples/README.md` | W82 | its L6 row table gains a line and its counts move — **W71's, W72's, W74's and W78's late exception on the same two paragraphs, four items running**, and [Q171](../questions/q171.md)'s row |
+| `scripts/check-docs.mjs` and its self-test | W82 | `RUN_FLOOR` is a ratchet an item that ADDS a `run` snippet must raise ([Q102](../questions/q102.md), live for six plans) — **and W78 found the second half the hard way**: `check:docs:selftest`'s `X4` probe anchors on a literal inside `AGENTS.md` §7, so an item that edits the text a probe anchors on takes this file whether or not it moves the floor |
 | `test/definition/l4-corpus.test.ts` | **W80 or W81, whichever adds a suite** | the suite CENSUS is a standing obligation on any item adding one — W76 took it LATE, W77 declared it UP FRONT and needed it, W78 predicted it UNNEEDED and was right. Declare it, do not discover it |
 | `scripts/build-browser-tests.mjs` | **W80, conditionally** | the browser bundle carries only what this script inlines, so a suite reading any file outside `spec/examples/` needs an entry. **W76 and W77 both took it LATE and W77's row says *PREDICTED ZERO EDITS AND THE PREDICTION WAS WRONG*** |
 | `src/scheduler/index.ts` | **W80, conditionally** | the sub-path's type export is an explicit ALLOWLIST and a `export type` is erased, so a new exported type is invisible to all five typecheckers. **W77 shipped `RunHandle` declared and unexported for a whole author pass, and binding the list then found two more** |
-| `scripts/check-markdown.mjs` | **PREDICTED NEEDED, and it is the tight one** | [Q142](../open-questions.md)'s `M4` margin is **26** after this declaration's record step and `M3`'s is **2**. *An ordinary record step spends more than 26 links* — P20's spent 31 — so the retune is likelier than not, and it is a scratch-copy retune as every one since W28 |
-| `package.json`, `deno.json` | **PREDICTED UNNEEDED** | a new `DriverOptions` member is ADDITIVE, so no version moves. [Q322](../open-questions.md) records that nothing binds the version to the API's shape either way |
+| `scripts/check-markdown.mjs` | **PREDICTED NEEDED, and it is the tight one** | [Q142](../questions/q142.md)'s `M4` margin is **26** after this declaration's record step and `M3`'s is **2**. *An ordinary record step spends more than 26 links* — P20's spent 31 — so the retune is likelier than not, and it is a scratch-copy retune as every one since W28 |
+| `package.json`, `deno.json` | **PREDICTED UNNEEDED** | a new `DriverOptions` member is ADDITIVE, so no version moves. [Q322](../questions/q322.md) records that nothing binds the version to the API's shape either way |
 | `src/driver/driver.ts`, `spec/**` | **W80's `Owns`, not an exception** | named here because P20 made the driver a scope TRIPWIRE and this plan does not: W80's whole subject is a driver option and a `spec/` rule, and the tripwire does not transfer |
 
 ## A note on ids
@@ -345,7 +345,7 @@ ADRs, one expected taken (0060, the run-time check) and 0061 expected unused.
 
 ---
 
-## [Q142](../open-questions.md)'s window, measured BEFORE the record step — and it is the TIGHTEST a declaration has faced
+## [Q142](../questions/q142.md)'s window, measured BEFORE the record step — and it is the TIGHTEST a declaration has faced
 
 `dev-dist/w74/decl-q142.mjs` on this tree:
 
@@ -508,10 +508,10 @@ own printed line and rule 8 already requires reading it.
 `driver.snapshot()`'s own clones and put **17%** of a printed column into the harness; W82's patch
 script, which reported `ok` from a `str.replace` that matched nothing; W82's spike, which hung on a
 `done` that never settled because the corpus workers' relative urls resolved against the wrong base;
-and **W82's census parser, which DROPPED [Q87](../open-questions.md)'s five-line row and read 260 against
+and **W82's census parser, which DROPPED [Q87](../questions/q87.md)'s five-line row and read 260 against
 261 with ZERO aborts.** That last is the one to carry: this register already records two readings of
 that row and **both are MISREADINGS**, which a classifier can refuse. *A parser that aborts on what it
-cannot classify does not abort on what it never SEES* ([Q343](../open-questions.md)).
+cannot classify does not abort on what it never SEES* ([Q343](../questions/q343.md)).
 
 The remaining twenty-four are what two readers are for: **nineteen of them are claims that were
 false or bounds that were not there**, and every one was found by a reader or by an author asking
@@ -523,8 +523,8 @@ rule 8's own question of something it had just written.
 |---|---|
 | 1 | **REVERSED at the FIRST item, and its own reversal column is what directed the measurement.** The plan wrote *a schema shape whose check is superlinear where the clone is linear — the likeliest is a large `enum`*, and W80 built exactly that: one `enum` of a hundred allowed values is **1.65x** of the clone on a 4 KiB result and **3.08x** on a 0.5 KiB one, because its membership test canonicalises every entry on every check. W81 reproduced the direction and not the magnitude (**4.35x** where W80 read 3.08x) and W82 measured the shipped rung at **0.18x-0.37x**. *A reversal clause DIRECTS an item* — [P15](p15-what-a-run-retains-and-what-a-result-may-be.md)'s finding a second time — and this is the first plan where the reversal was taken deliberately BECAUSE the plan said the item could otherwise reverse it by accident. **The conclusion it was written to protect survives with its scope named**: the share falls as the VALUE grows and rises as the SCHEMA does, and the default is unmoved and better argued |
 | 2 | **CONFIRMED.** No record kind, no terminal state, no run outcome; `OR-R13` is a `DriverOptions` member and a rule in the document where `result` is defined. It is a DERIVED prediction — from decision 3 as answered plus `OR-R12`'s shipped precedent — so confirming it tested the inference rather than the world, which is [P10](p10-is-fan-out-one-feature-or-two.md)'s reading holding for the tenth plan |
-| 3 | **CONFIRMED, and it is the only one of the four about something nobody had measured** — its scope column says *none; this is a reach*. W80 confirmed it and found a SECOND leg the plan does not name (the check reads what the RECORD carries, so it and `check:workers` can lawfully disagree about one schema), and W82 gave both legs observers on real workers and measured the reach **from both sides**: `check:workers` is green on both workers with each defect PRESENT and green with each REMOVED. **Its SCOPE is narrower than three documents stated it**, which W82's conformity reader found: the two legs are unreachable for DIFFERENT reasons, and only the record half is structurally unreachable — the bound half is reachable by a bounds-generating tool, which is [Q302](../open-questions.md)'s own open road and which P21 stop-and-ask (d) declines deliberately |
-| 4 | **NEITHER, and it is the SECOND occurrence of [Q326](../open-questions.md)'s class.** In COUNT Q320 bites at every shape W81 could reach, so *does not bite* is false; in TIME it does not bite even at 24.0 MiB of settled results, so *bites* is false too; and *needs a shape built for it* is false twice over, because `map-alias` reaches megabyte results through its own DATA. **Stop-and-ask (c)'s permission to add a worker returning megabytes was granted and UNUSED** |
+| 3 | **CONFIRMED, and it is the only one of the four about something nobody had measured** — its scope column says *none; this is a reach*. W80 confirmed it and found a SECOND leg the plan does not name (the check reads what the RECORD carries, so it and `check:workers` can lawfully disagree about one schema), and W82 gave both legs observers on real workers and measured the reach **from both sides**: `check:workers` is green on both workers with each defect PRESENT and green with each REMOVED. **Its SCOPE is narrower than three documents stated it**, which W82's conformity reader found: the two legs are unreachable for DIFFERENT reasons, and only the record half is structurally unreachable — the bound half is reachable by a bounds-generating tool, which is [Q302](../questions/q302.md)'s own open road and which P21 stop-and-ask (d) declines deliberately |
+| 4 | **NEITHER, and it is the SECOND occurrence of [Q326](../questions/q326.md)'s class.** In COUNT Q320 bites at every shape W81 could reach, so *does not bite* is false; in TIME it does not bite even at 24.0 MiB of settled results, so *bites* is false too; and *needs a shape built for it* is false twice over, because `map-alias` reaches megabyte results through its own DATA. **Stop-and-ask (c)'s permission to add a worker returning megabytes was granted and UNUSED** |
 
 **So: one REVERSED, two CONFIRMED, one NEITHER** — and the reversal is the one the plan told an item
 to go and take. *Three of the four rest on measurements the declaration already had; only prediction
@@ -537,14 +537,14 @@ unmoved for the tenth plan running.
 retro's one change and the table is above. It is the fourth amendment to obligation (d) in eight
 plans — v0.14's *a count is not a membership*, v0.18's *a membership names the CONTROLS*, v0.21's
 *what a control must be able to do*, and now its TEST — and the sequence's own shape is unchanged:
-**each was the previous one FOLLOWED and short.** [Q217](../open-questions.md) gains its fourth
+**each was the previous one FOLLOWED and short.** [Q217](../questions/q217.md) gains its fourth
 instance, and this is the first amendment in the sequence that names a TEST rather than a thing to
 ADD (v0.14, v0.18) or a property to HAVE (v0.21).
 
 **v0.20's TAUTOLOGY clause: CONFIRMED on its second plan, and NARROWED by a measurement.** W81 and
 W82 both instantiated it; W82 declared `X4` a bare presence test for `throw` and was **CAUGHT AGAINST
 DECLARATION**, because `X4` refuses `if (false)` **by name** — W16's adequacy reader's own clause,
-which [Q310](../open-questions.md)'s row does not mention. *The check is stronger than the row that
+which [Q310](../questions/q310.md)'s row does not mention. *The check is stronger than the row that
 records its ceiling says it is*, and the tautology that reaches it is `x !== x`. The ceiling itself is
 real: with all eight of `AGENTS.md` section 16's guards made `x !== x` and the worker made to keep its
 bound, `check:docs` is **exit 0** and **L6 is what fires** — so the section now names L6 as its second
@@ -605,7 +605,7 @@ English. *The clause is right, the procedure is a grep, and the class it must ca
 is defined not to see.* The standing refusal is unchanged and its criterion is unmet again.
 
 **(ii) A rule for a corpus census pinned as a LITERAL outside the corpus** —
-[Q342](../open-questions.md), **one item, three sites, and the three behave differently**, which is the
+[Q342](../questions/q342.md), **one item, three sites, and the three behave differently**, which is the
 argument against a single rule. `scripts/check-workers-selftest.mjs`'s `CONTROL_LINES` regex took a
 **GATE ENTRY red while `check:workers` itself stayed green**, because the count lives in the GRADING;
 `test/definition/wiring.test.ts`'s is a literal a human retypes; and `spec/outcome-record.md`'s split
@@ -685,13 +685,13 @@ inside the document that refuses it for the twentieth time.
 
 **Census CONFIRMED for the TWENTY-THIRD plan running — 265 / 206 / 2 / 57, 265 of 265 in exactly one cluster cell, 0 aborts** (265 / 207 / 2 / 56 on arrival; this retro resolves one) — by a parser written from
 scratch that was wrong four times first and whose fourth wrong reading is
-[Q343](../open-questions.md). **[Q332](../open-questions.md) is RESOLVED by this retro's one change**: it
+[Q343](../questions/q343.md). **[Q332](../questions/q332.md) is RESOLVED by this retro's one change**: it
 asked whether the clause could be made to see a control entailed by its own claim, and the answer is
 that the clause stops prescribing an answer and starts requiring a TEST. *The residue is named rather
 than hidden — the test is an obligation on whoever writes the control, and nothing mechanical sees
 it, which is true of every clause in rule 8.*
 
-**[Q142](../open-questions.md) did not fire in any of the three items**, and the plan's seeded
+**[Q142](../questions/q142.md) did not fire in any of the three items**, and the plan's seeded
 prediction that it was a coin flip was stale when it was written: `M4`'s margin was quoted as 31,
 W80's midpoint retune had already moved both floors, and the tree this plan ships leaves `M3` at **14
 files** and `M4` at **951 links**. *It also names the wrong rung — `M3` is the tight one by three
@@ -707,6 +707,6 @@ ADR 0062** — derived by grep off the tree, never from this sentence.
 | item | status | |
 |---|---|---|
 | W80 | **DONE** | **[ADR 0060](../decisions/0060-a-run-time-result-check-is-a-reading-and-never-a-refusal.md)** and **`OR-R13`** in `spec/outcome-record.md` **v0.10** — a run-time result check is a READING and never a refusal, and the callback that receives it IS the switch. **L1-L2 45 files / 1290 cases in three runtimes** (from 44 / 1269), `check:spec` **7 / 61 / 108**, **L6 UNMOVED at 1639 / 55**. **Prediction 1 REVERSES, measured deliberately**: the clone is linear in the VALUE and the check in the SCHEMA, so the ratio is unbounded both ways and one `enum` of a hundred on a 4 KiB result is **1.65x** — fact 4's conclusion survives with its scope named. **Prediction 3 CONFIRMED with a second leg the plan does not name**: the check reads what the RECORD carries, after `OR-R2`'s clone, so it and `check:workers` can disagree about the same schema (seven shapes, three disagreeing). **Prediction 2 CONFIRMED.** Readers **20 / 4 blocking** and **34 mutations / 21 survivors / 12 blocking**, overlap **2** — the FIFTIETH measurement. Its conformity reader found the check could **STOP the run** on two values `OR-R11` calls INTACT, and its adequacy reader found that of decision 3's three consequences *writes a record* was **not bound**. Rule 8 final **49 probes, 37 caught, 11 declared ceilings RUN, 0 undeclared survivors, 0 crashes, 0 timeouts, 0 aborts, 0 against declaration**. Raises **Q330-Q333**; **Q334 spent** |
-| W81 | **DONE** | **`examples/settlement-cost.ts`, and [Q320](../open-questions.md) RESOLVED** — the always-on handle costs **exactly +1 `structuredClone` per settled task**, one more copy of everything `OR-R2` already copies, and **the opt-out EXISTS**: `new Driver(flow, { ...runtime.registry, … })`, at the price of having no `done`. **NO ADR — 0061 reserved and UNUSED.** L1-L5 **46 / 1295 in three runtimes**; **L6 UNMOVED at 1639 / 55**; `check:spec` unmoved. **Prediction 4 is NEITHER** — in COUNT it bites at every shape, in TIME at none, and *needs a shape built for it* is false twice, because `map-alias` reaches **24.0 MiB of settled results** through its own DATA: **stop-and-ask (c)'s permission granted and UNUSED**. **`z1` is a CATCH** at both rungs, and W80's other ten ceilings hold. **Decision 5 is necessary and not sufficient** ([Q335](../open-questions.md)): the same values on one tree read 58-95%, so the check's price is stated as a DIRECTION and the handle's as a COUNT. Readers **18 / 7 blocking** and **61 mutations / 39 survivors / 16 findings / 6 blocking**, overlap **3** — the FIFTY-FIRST measurement; the conformity reader's central obligation came back with **zero disagreements on the values** and found the clone counter counting `snapshot()`'s own clones, and the adequacy reader found the check ON decorative and each block deletable alone. Rule 8 final **51 probes, 36 caught, 14 declared ceilings RUN, 0 undeclared survivors, 0 crashes, 0 timeouts, 0 aborts, 0 against declaration**. **It also forced decision 8**: the opt-out is a hand-built `Driver`, which `examples/l6.ts` forbade, and a MARKER alone was measured as permission a file grants itself — so that claim is a THREE-way equality and the decision is here rather than in an assertion's comment. Raises **Q335-Q339**; census **261 / 203 / 2 / 56** |
+| W81 | **DONE** | **`examples/settlement-cost.ts`, and [Q320](../questions/q320.md) RESOLVED** — the always-on handle costs **exactly +1 `structuredClone` per settled task**, one more copy of everything `OR-R2` already copies, and **the opt-out EXISTS**: `new Driver(flow, { ...runtime.registry, … })`, at the price of having no `done`. **NO ADR — 0061 reserved and UNUSED.** L1-L5 **46 / 1295 in three runtimes**; **L6 UNMOVED at 1639 / 55**; `check:spec` unmoved. **Prediction 4 is NEITHER** — in COUNT it bites at every shape, in TIME at none, and *needs a shape built for it* is false twice, because `map-alias` reaches **24.0 MiB of settled results** through its own DATA: **stop-and-ask (c)'s permission granted and UNUSED**. **`z1` is a CATCH** at both rungs, and W80's other ten ceilings hold. **Decision 5 is necessary and not sufficient** ([Q335](../questions/q335.md)): the same values on one tree read 58-95%, so the check's price is stated as a DIRECTION and the handle's as a COUNT. Readers **18 / 7 blocking** and **61 mutations / 39 survivors / 16 findings / 6 blocking**, overlap **3** — the FIFTY-FIRST measurement; the conformity reader's central obligation came back with **zero disagreements on the values** and found the clone counter counting `snapshot()`'s own clones, and the adequacy reader found the check ON decorative and each block deletable alone. Rule 8 final **51 probes, 36 caught, 14 declared ceilings RUN, 0 undeclared survivors, 0 crashes, 0 timeouts, 0 aborts, 0 against declaration**. **It also forced decision 8**: the opt-out is a hand-built `Driver`, which `examples/l6.ts` forbade, and a MARKER alone was measured as permission a file grants itself — so that claim is a THREE-way equality and the decision is here rather than in an assertion's comment. Raises **Q335-Q339**; census **261 / 203 / 2 / 56** |
 | W82 | **DONE** | **P21's EXIT ARTIFACT, and it had to CONSTRUCT its own case** — fact 3 re-taken at this item's declaration step is **0 violating results over 93 settled `done` across 19 corpus flows**, stronger than the plan's 0 of 5. `examples/workers/gauge.ts` declares a bound its own code does not keep past its declared example (Q302's arithmetic rebuilt) and `examples/workers/stamp.ts` has **no bug at all** — it returns a non-enumerable own property, so what `run()` returns CONFORMS and what `OR-R2`'s clone writes does not. **Both are GREEN at `check:workers` and every arc of the flow is `fits` at `checkWiring`**, which is ADR 0060 consequence 8 with an observer: *the reach is measured from both sides, because the corpus check cannot see either defect arriving OR leaving.* **L6 is 1724 assertions over 58 real runs in BOTH runtimes** (from 1639 / 55), L1-L5 **UNMOVED at 46 / 1295** in three runtimes, `check:spec` unmoved at **7 / 61 / 108**, `check:docs` **34 snippets: 28 run, 6 check** with `RUN_FLOOR` 27 → 28 and `X8` pairing **four** README fences. **The row carries THREE observers of one fact and the middle one is the RECORD** — the scheduler's live `detail.result` at the harness's own listener still has the key, the record does not, the finding says so — which is why `StampWorker` is INLINE and must be: *a thread hides the ATTRIBUTION and not the finding*, measured at both pool modes. **The two-word control is what makes `gauge`'s finding a function of the DATA**, and the **check-OFF pair** is decision 3 on real workers: the same run with the one option removed, identical dispatched ids, log record for record and every settled result, with the reports the one thing they differ in. **The cost ON and OFF is asserted as a COUNT and printed as a ratio** — 0.25x / 0.37x in node and 0.18x / 0.19x in deno over the rung's 204 settled results, a spread across runtimes that is decision 5's own argument. Readers **16 / 6 blocking** and **17 configurations / 13 green / 9 findings / 5 blocking**, overlap **1** — the **FIFTY-SECOND** measurement; the conformity reader's central obligation came back with **ZERO disagreements on the VALUES**, and the adequacy reader's central finding is that **every observer of the report was downstream of the report** — all three declared roads collapsed to it with every control green, after which a driver could report `$.NOTHING garbled` for every settlement and L6 stayed at 1720. **What refuses it is a property the LOG has and the report does not**: the walk reaches the CONFORMING settlements. Rule 8 final **52 probes, 39 caught, 12 declared ceilings RUN, 0 undeclared survivors, 0 crashes, 0 timeouts, 0 aborts, 0 against declaration**, digest identical at both ends, with all ten of the readers' exact edits checked in. **It corrects this plan in three places**: the seeded exceptions table is wrong in four ways, the `check-markdown.mjs` row is stale for the SECOND item running and names the wrong rung, and the **Exit artifact** line above carried a FOURTH standing copy of the claim commit `c869a4b` withdrew. Raises **Q340-Q343**; **Q344 spent**; census **265 / 207 / 2 / 56** |
 | W83 | **CLOSED unissued** | reserved at the declaration and never issued, on P19's W75 and P20's W79 precedent. **It is SKIPPED, never reused**, so the next plan starts at W84 |

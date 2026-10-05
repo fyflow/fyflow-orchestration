@@ -1,7 +1,7 @@
 /**
  * **`gauge` — a bound its own code does not keep past its declared domain, written DELIBERATELY.**
  *
- * This is [Q302](../../doc/open-questions.md)'s shape reconstructed, and it is here because
+ * This is [Q302](../../doc/questions/q302.md)'s shape reconstructed, and it is here because
  * [P21](../../doc/plans/p21-what-a-run-time-schema-check-buys-and-what-it-costs.md) fact 3 measured
  * that the corpus has none left: `split`'s per-item confidence was clamped in the code by W73 and
  * `weigh`'s score is refused at the entry boundary by `FD-R4`, so the feature

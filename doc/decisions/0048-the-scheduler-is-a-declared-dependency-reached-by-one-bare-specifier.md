@@ -60,7 +60,7 @@ this item on `3ab3f3f` from `dev-dist/p16/facts.mjs`:
 | fact | measured |
 |---|---|
 | **1. The driver hands the scheduler four fields and the scheduler accepts eight.** | `TaskFactory` is `{ id, workerType, payload, optional }`; `new FyflowTask(config)` at 0.5.2 destructures `retryPolicy`, `workerGroups`, `handleRejection` and `limitKey` as well. A node type that configures a task cannot exist behind a rule forbidding `src/` to name the class it configures |
-| **3. [Q71](../open-questions.md) — a real `FyflowScheduler` was not a `SchedulerLike` under the DOM lib.** | `TS2322 x1` under `lib: ["ES2022", "DOM"]`, `x0` under `["ES2022"]`, and the DOM lib is TypeScript's default when `lib` is unset. `AGENTS.md` section 12 documented a cast and called it *"a defect in our type, not in yours"* |
+| **3. [Q71](../questions/q71.md) — a real `FyflowScheduler` was not a `SchedulerLike` under the DOM lib.** | `TS2322 x1` under `lib: ["ES2022", "DOM"]`, `x0` under `["ES2022"]`, and the DOM lib is TypeScript's default when `lib` is unset. `AGENTS.md` section 12 documented a cast and called it *"a defect in our type, not in yours"* |
 | **4. The reference contradicted itself about the version, twenty-one sections apart.** | Section 1: *"Install whichever version you like."* Section 12: *"Pin the scheduler at 0.5.2."* The second was bound by `D7`; the first by nothing, because a manifest that declares no dependency has no place to state a range |
 | **5. The browser bundle argument was never about feasibility.** | `node_modules/fyflow-scheduler/package.json` exports `.` with `node`, `browser`, `types` and `default` conditions; esbuild has resolved the browser build into a test bundle since W5's readers measured it |
 
@@ -145,7 +145,7 @@ conformity reader; section 1 rule 5's WHEN clause.)*
    `"fyflow-scheduler": "0.5.2"` — and stays a `devDependencies` entry at the same pin, which is
    what the gate installs. Exact rather than a range because the driver's listener boundary is
    written against one version's event shapes and there is no upstream changelog to read a wider
-   range from ([Q3](../open-questions.md)); the cost is stated in *Consequences*.
+   range from ([Q3](../questions/q3.md)); the cost is stated in *Consequences*.
 2. **The JSR package declares it in `deno.json`'s `imports`** — `"fyflow-scheduler":
    "jsr:@fyflow/scheduler@0.5.2"` — because a published Deno module's dependency is declared exactly
    there and nowhere else. `examples/deno-import-map.json` keeps its role as the map ladder L6 passes
@@ -197,7 +197,7 @@ statement of what the driver was written against, and `D8` keeps it true.
 1. **A consumer ahead of the pin is refused.** npm 7 and later treat a peer conflict as `ERESOLVE`,
    so the day upstream publishes 0.5.3 a consumer wanting it waits for this repository to re-pin,
    or passes `--legacy-peer-deps`. That is the exact pin's price and it is paid on purpose: the
-   driver's event-shape sensitivity is real ([Q3](../open-questions.md)) and unannounced upstream.
+   driver's event-shape sensitivity is real ([Q3](../questions/q3.md)) and unannounced upstream.
    *Measured with npm 11.19.0 only; pnpm and yarn resolve peers differently and were not run.*
 2. **Every consumer installs the scheduler.** npm 7+ installs a peer automatically; a consumer who
    already holds it at the pin installs nothing new. The published bundle for the browser loads the
@@ -224,11 +224,11 @@ ground that reading the source under Deno is what has twice surfaced defects `di
 the peer to `^0.5.2` *"because that is what everyone does"* — `D8` refuses anything but `PIN`, and
 the row below says why.
 
-**What it does not decide.** Which version to pin next ([Q3](../open-questions.md)) — a bump is
+**What it does not decide.** Which version to pin next ([Q3](../questions/q3.md)) — a bump is
 its own item on W36's and W37's precedent, now touching `D8`'s two sites as well. Whether the
 JSR publish should be exercised by the gate — nothing here runs `deno publish --dry-run`, and this
 item measured that its verdict depends on `package.json` in a way `S8` cannot see
-([Q252](../open-questions.md)).
+([Q252](../questions/q252.md)).
 
 ## Alternatives rejected
 

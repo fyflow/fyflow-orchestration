@@ -19,7 +19,7 @@ stored by appending events — completing exactly as a run nobody killed, with t
 resume asserted as a COUNT. *(**"With its scheduler thrown away" is FALSE and stood here until P23's
 retro** (pass 3 rule 6): `runtime.shutdown()` DRAINS — it runs the work in flight and what that work
 dispatches — so the KILL is the consumer's store freezing, and the shutdown is cleanup the store never
-sees. W90's declaration step measured it ([Q376](../open-questions.md)) and the artifact is built on the
+sees. W90's declaration step measured it ([Q376](../questions/q376.md)) and the artifact is built on the
 store.)*
 **Reserves:** W88-W91 (W91 expected unused), Q364-Q378, ADR 0064-0065.
 *Derived by grep off the tree, never from a sentence — see [A note on ids](#a-note-on-ids).*
@@ -33,14 +33,14 @@ the state is not this library's job; the API for it is.* The state must be avail
 **events** — to keep a stored copy current without repeatedly pulling snapshots, and later to drive
 a UI showing live status — and as a **snapshot**, and a run must be **resumable from a snapshot**.
 
-**This is [Q15](../open-questions.md), deferred since P1** — *is a run resumable across a process
+**This is [Q15](../questions/q15.md), deferred since P1** — *is a run resumable across a process
 restart?* — and it is the question `doc/concept.md` section 5 made the founding invariant for:
 *"if run state is already a fold, durability is writing the log down."* Twenty-two plans have kept
 that door open. **This plan measures whether it is actually open, and fact 1 says it is**: the
 driver's whole private state is regenerated from the settlements in its log, exactly, with no line of
 `src/` changed.
 
-**It is also the first half of [Q21](../open-questions.md)** — *do we emit an event family for a
+**It is also the first half of [Q21](../questions/q21.md)** — *do we emit an event family for a
 UI?* — because the stream persistence needs is the stream a live view needs, and the maintainer's
 framing is that both use ONE API. The other half — REDACTION, a structural view of the stream that
 omits task results — is **declared OUT on the maintainer's answer**: *not needed yet, maybe never.*
@@ -83,13 +83,13 @@ of 2026-09-24, each given after the alternatives were priced; 9-10 are what the 
 7. **A checkpoint whose `flowId` or `version` differs from the definition it is resumed against is
    REFUSED, by name.** No migration. *And the REGISTRY carries no version*, so a worker's code or a
    type's config changing under a checkpoint is the consumer's responsibility — declared out rather
-   than invented here ([Q249](../open-questions.md) stays open).
+   than invented here ([Q249](../questions/q249.md) stays open).
 8. **No option to stop the library keeping the events in memory.** Fact 6 measured what it would
    buy: the events a checkpoint adds on top of what routing must keep are **~240 B a task whatever
    the results weigh** — 16% of a run at 1 KiB results and 1.4% at 16 KiB — because the RESULTS
    are the memory and routing reads them (`needs`, `resolve()`), `done` resolves with them, and the
    event sequence SHARES rather than copies them. The lever that matters is result retention,
-   [Q19](../open-questions.md)'s unfinished half, and the maintainer's answer is *we will deal with
+   [Q19](../questions/q19.md)'s unfinished half, and the maintainer's answer is *we will deal with
    memory later, if needed.*
 9. **Resume REPLAYS the stored settlements through the driver's own routing, with every dispatch
    HELD, and REFUSES a log it cannot regenerate.** The stored events must be a PREFIX of what the
@@ -98,9 +98,9 @@ of 2026-09-24, each given after the alternatives were priced; 9-10 are what the 
    mid-step and the replay regenerates 1-7 events past it. A stored event the replay does not
    produce at the same index — a predicate that changed, a definition edited under the same version
    — is a refusal naming the index, never a silent divergence. **This is what turns
-   [Q9](../open-questions.md)'s unenforced predicate purity into a named refusal at the one moment it
+   [Q9](../questions/q9.md)'s unenforced predicate purity into a named refusal at the one moment it
    would matter.**
-10. **A stopped run is NOT resumable and is refused by name** — [Q38](../open-questions.md) is
+10. **A stopped run is NOT resumable and is refused by name** — [Q38](../questions/q38.md) is
     declared OUT. Fact 1 found the one class of run whose log cannot regenerate its own stop: a
     result `OR-R6` refuses never reaches the log, so the replay of such a run leaves that task in
     flight. A completed or `stuck` run resumes to itself and dispatches nothing.
@@ -115,7 +115,7 @@ surface from outside.*
 
 | # | fact | measured |
 |---|---|---|
-| 1 | **The log regenerates the run.** `Driver.prototype.start` wrapped, `examples/l6.ts` run UNCHANGED on real schedulers (1833 assertions, 0 failed), and every captured driver — at most six per flow id, **180 drivers over 30 flows** of the 1275 L6 starts — replayed into a FRESH driver on a fake scheduler that records `addTask` and runs nothing, fed ONLY its settlements and resolutions in log order *(**corrected by [W88](../work-items/w88-what-a-checkpoint-is.md)'s declaration step: L6 starts 62 drivers, not 1275** — the spike's exit handler iterated `captured` with `for…of` while the replay drivers it started were pushed onto it, so the sample was mostly the harness's own replays; re-taken on L6's own drivers it is **61 captured over 30 flows, 57 reproduce exactly, 324 prefixes, 261 / 261 payloads, 998 events**, the other four being two `FD-R4` refusals and two `OR-R6` stops — [Q366](../open-questions.md). The conclusion stands; the numbers beside it are the spike's.)* | **169 of 180 reproduce EXACTLY** — the whole fold-input sequence element for element, and every private stateful structure (`log`, `inputs`, `dispatched`, `joinState`, `firedJoins`, `arrivals`, `started`, `failed`) — **and at every one of 673 prefix cut points**, nested map instances, parked tasks and 8 resolutions among them. The eleven that do not: **nine** whose `start` was refused by `FD-R4`, where the replay refuses identically; **two** stopped by `OR-R6`, whose uncloneable result never reached the log (decision 10). **Only 493 of the 2015 events are stimuli**; the driver regenerates the other 1522 |
+| 1 | **The log regenerates the run.** `Driver.prototype.start` wrapped, `examples/l6.ts` run UNCHANGED on real schedulers (1833 assertions, 0 failed), and every captured driver — at most six per flow id, **180 drivers over 30 flows** of the 1275 L6 starts — replayed into a FRESH driver on a fake scheduler that records `addTask` and runs nothing, fed ONLY its settlements and resolutions in log order *(**corrected by [W88](../work-items/w88-what-a-checkpoint-is.md)'s declaration step: L6 starts 62 drivers, not 1275** — the spike's exit handler iterated `captured` with `for…of` while the replay drivers it started were pushed onto it, so the sample was mostly the harness's own replays; re-taken on L6's own drivers it is **61 captured over 30 flows, 57 reproduce exactly, 324 prefixes, 261 / 261 payloads, 998 events**, the other four being two `FD-R4` refusals and two `OR-R6` stops — [Q366](../questions/q366.md). The conclusion stands; the numbers beside it are the spike's.)* | **169 of 180 reproduce EXACTLY** — the whole fold-input sequence element for element, and every private stateful structure (`log`, `inputs`, `dispatched`, `joinState`, `firedJoins`, `arrivals`, `started`, `failed`) — **and at every one of 673 prefix cut points**, nested map instances, parked tasks and 8 resolutions among them. The eleven that do not: **nine** whose `start` was refused by `FD-R4`, where the replay refuses identically; **two** stopped by `OR-R6`, whose uncloneable result never reached the log (decision 10). **Only 493 of the 2015 events are stimuli**; the driver regenerates the other 1522 |
 | 2 | **The ENTRY PAYLOAD is the one thing the log does not carry.** A `dispatched` event holds a task id and no payload | the replay RECOMPUTES every dispatch's payload, and **all 616 equal what the real scheduler was sent** under that id — because the replay begins from the original entry payload. [W42](../work-items/w42-what-a-decision-sees.md) measured it first: the entry payload is *in no record at any moment*. So the header carries it (decision 4), and it carries the `runId`, because every task id embeds it |
 | 3 | **The events are serializable** | **all 2015 round-trip `structuredClone` EXACTLY**, and on this corpus JSON too; a failure's `error` is a STRING in the record, not an `Error`, so `OR-R11`'s lossy-`Error` row does not reach the log |
 | 4 | **KILL and RESUME on real schedulers.** Two flows — [W86](../work-items/w86-score-each-item-then-fan-out-per-item.md)'s nested-map exit artifact and `triage` — killed after K settlements for EVERY K, the scheduler shut down, and resumed on a FRESH runtime: replay through a scheduler wrapper that HOLDS every `addTask`, then the held tasks that never settled handed to the real scheduler | **14 of 14 kill points complete IDENTICALLY to a run nobody killed** (outcome, every node's state and result), re-dispatching **1 to 4 tasks** each — the at-least-once cost of decision 6 — **at the SAME task ids, with no refusal** from `ID-R1` or `ID-R4`, because the replay has already put them in the dispatched set. **Every stored log is an exact PREFIX of its replay, 1-7 events short** (decision 9) |
@@ -128,12 +128,12 @@ surface from outside.*
   from a counter that starts at zero PER RUNTIME (`src/scheduler/runtime.ts`), and a resumed run
   KEEPS its id, because its task ids embed it. So a process that resumes `r1` and then starts a new
   run mints `r1` again — two drivers of one run id on one scheduler, where `ID-R4`'s first tier
-  compares run ids and the scheduler silently overwrites a reused task id ([Q13](../open-questions.md)).
-  **[Q364](../open-questions.md)**, and stop-and-ask (b).
+  compares run ids and the scheduler silently overwrites a reused task id ([Q13](../questions/q13.md)).
+  **[Q364](../questions/q364.md)**, and stop-and-ask (b).
 - **A resumed task gets a FRESH retry budget.** The log records a task's `attempts` only when it
   SETTLES, so for a task in flight at the kill the attempts already spent are recorded nowhere — the
   re-dispatch starts again at zero on the new scheduler. **Not measured; derived from the record
-  shape** — [Q365](../open-questions.md), and a stated consequence of decision 6 rather than a fix.
+  shape** — [Q365](../questions/q365.md), and a stated consequence of decision 6 rather than a fix.
 - **The fake scheduler's replay is SYNCHRONOUS and the driver has no `async` anywhere**, so a replay
   of 493 stimuli ran inside a `process.on('exit')` handler. Resume costs no event-loop turn per event.
 
@@ -158,10 +158,10 @@ surface from outside.*
 
 - **Storage, serializers, and anything that writes a file.** Decision 1.
 - **Redaction and a UI.** Q21's second half; the maintainer's *not needed yet, maybe never*.
-- **Result retention and any memory option.** Decision 8; [Q19](../open-questions.md)'s remaining
+- **Result retention and any memory option.** Decision 8; [Q19](../questions/q19.md)'s remaining
   half is the follow-on plan if memory ever matters.
-- **Resuming a STOPPED run** ([Q38](../open-questions.md)), **migrating a checkpoint across flow
-  versions**, and **versioning the registry** ([Q249](../open-questions.md)). Decisions 7 and 10.
+- **Resuming a STOPPED run** ([Q38](../questions/q38.md)), **migrating a checkpoint across flow
+  versions**, and **versioning the registry** ([Q249](../questions/q249.md)). Decisions 7 and 10.
 - **Exactly-once.** Decision 6 makes resume at-least-once and says so; idempotence is the worker's.
 - **A scheduler that persists its own queue.** The scheduler has none, and
   `../fyflow-scheduler/PERSISTENCE_ANALYSIS.md` rates adding it *medium to high* — it is not this
@@ -198,12 +198,12 @@ tables; each item re-measures its row at its declaration step and says where it 
 | item | file, outside `Owns` | why it is predicted |
 |---|---|---|
 | W88 | `examples/l6.ts`, `examples/run-flow.ts`, `examples/retention.ts` | a NEW private field on `Driver` (the entry payload) reaches the byte walk's both-ways `DRIVER_FIELDS` lists — W55's universe binding, which fired on W59 and W61 for exactly this. ***Measured by W88: `examples/l6.ts` ONLY*** — `run-flow.ts` walks by exclusion and `retention.ts` carries no list |
-| W88 | `AGENTS.md` | `RunHandle` gains a member and `DriverOptions`/`StartOptions` may; the reference's executed snippets carry literals no typecheck lane reads ([Q348](../open-questions.md)). ***Measured by W88: needed, for a reason seeded against W89*** — `NotStarted` reached §9's executed error-class enumeration ([Q101](../open-questions.md)); no snippet broke on `RunHandle` |
+| W88 | `AGENTS.md` | `RunHandle` gains a member and `DriverOptions`/`StartOptions` may; the reference's executed snippets carry literals no typecheck lane reads ([Q348](../questions/q348.md)). ***Measured by W88: needed, for a reason seeded against W89*** — `NotStarted` reached §9's executed error-class enumeration ([Q101](../questions/q101.md)); no snippet broke on `RunHandle` |
 | W88 | `scripts/build-browser-tests.mjs` | only if a new suite reads a `spec/**` document the browser bundle does not inline — wrong in both directions across four items, so re-measured rather than assumed. ***Measured by W88: not needed*** |
 | W89 | `examples/l6.ts` | a `resumed` fold-input kind, if stop-and-ask (a) takes it, reaches every exhaustive walk over `FoldInput.kind` in the harness. ***Measured by W89: needed, for W88's reason and not this one*** — `examples/**` has no exhaustive walk over the kind; the new `replay` field reached `DRIVER_FIELDS` |
-| W89 | `AGENTS.md` | new refusal classes reach the executed error-class snippet, which ENUMERATES the package's `Error` subclasses ([Q101](../open-questions.md)). ***Measured by W89: needed, as seeded*** — `ResumeRefused` went red at `X4`; and W88's *"resuming from one is not built yet"* was found by W89's conformity reader |
+| W89 | `AGENTS.md` | new refusal classes reach the executed error-class snippet, which ENUMERATES the package's `Error` subclasses ([Q101](../questions/q101.md)). ***Measured by W89: needed, as seeded*** — `ResumeRefused` went red at `X4`; and W88's *"resuming from one is not built yet"* was found by W89's conformity reader |
 | W90 | `scripts/check-docs.mjs`, `scripts/check-docs-selftest.mjs` | `RUN_FLOOR`, `README_SNIPPET_FLOOR` and the `X8` pair list, for a new section and a new README fence. ***Measured by W90: needed, as seeded*** — and the self-test's `X9` probe anchors on the README's version literal, which the seed did not name |
-| W90 | `test/definition/wiring.test.ts`, `spec/outcome-record.md` section 4 | a new corpus flow document moves both CENSUSES pinned outside their corpus ([Q342](../open-questions.md), [Q360](../open-questions.md)) — only if W90 adds a flow rather than resuming an existing one. ***Measured by W90: not needed*** — three existing flows |
+| W90 | `test/definition/wiring.test.ts`, `spec/outcome-record.md` section 4 | a new corpus flow document moves both CENSUSES pinned outside their corpus ([Q342](../questions/q342.md), [Q360](../questions/q360.md)) — only if W90 adds a flow rather than resuming an existing one. ***Measured by W90: not needed*** — three existing flows |
 | W90 | `scripts/check-workers-selftest.mjs` | only if W90 adds a worker. ***Measured by W90: not needed*** |
 
 ---
@@ -216,7 +216,7 @@ tables; each item re-measures its row at its declaration step and says where it 
 |---|---|---|---|
 | 1 | **Resume needs NO change to routing** — every private structure is regenerated by the existing listener and `resolve()`, and the items add a replay road beside routing rather than inside it | fact 1: **180 drivers, 30 flows, 673 prefixes, on a FAKE scheduler** with inline dispatch; fact 4 on REAL schedulers for **two flows only** | a structure the replay cannot regenerate — something keyed by wall time, by scheduler state, or by a callback's side effect — which would put a resume branch inside routing |
 | 2 | **The at-least-once cost is EXACTLY the in-flight set at the stored prefix** — no task that settled in the stored events is re-run, and every task that did not is. ***W89: the SUBSTANCE confirmed and the WORDING reversed*** — no settled task was re-dispatched at any of 14 kill points, and the set is the in-flight set at the END of the replay: 14 of 29 re-dispatched tasks were dispatched only in the regenerated tail (`RN-R21`). ***W90: CONFIRMED on real workers in both L6 runtimes*** in that wording — 0 settled tasks re-dispatched at 14 kill points, 14 of 29 tail-only, and the stored events' set wrong at 8 of 14 | fact 4: 14 kill points, 1-4 re-dispatches each, all at the same task ids | a settled task re-dispatched, or an in-flight one lost — either means the held-dispatch road and the settled set disagree |
-| 3 | **REACH: a consumer that appends `onFoldInput` events after the header and resumes after a restart needs nothing but `runtime.resume` and its own store** ***W90: CONFIRMED for the store, three processes deep, with its exceptions named*** — a retry budget half spent ([Q365](../open-questions.md), re-measured in deno), and one the column did not name: the consumer's own `shutdown()` is not a kill ([Q376](../open-questions.md)); confirmed IN-PROCESS only ([Q378](../open-questions.md)) | **none — this is a reach.** No consumer-facing resume has been written; fact 4 drove the driver by hand | state that lives OUTSIDE the log — a retry budget half spent ([Q365](../open-questions.md)), a resource group's held slot, a transform's compiled cache, a person's resolution arriving while the process was down — making a resumed run differ from one nobody killed |
+| 3 | **REACH: a consumer that appends `onFoldInput` events after the header and resumes after a restart needs nothing but `runtime.resume` and its own store** ***W90: CONFIRMED for the store, three processes deep, with its exceptions named*** — a retry budget half spent ([Q365](../questions/q365.md), re-measured in deno), and one the column did not name: the consumer's own `shutdown()` is not a kill ([Q376](../questions/q376.md)); confirmed IN-PROCESS only ([Q378](../questions/q378.md)) | **none — this is a reach.** No consumer-facing resume has been written; fact 4 drove the driver by hand | state that lives OUTSIDE the log — a retry budget half spent ([Q365](../questions/q365.md)), a resource group's held slot, a transform's compiled cache, a person's resolution arriving while the process was down — making a resumed run differ from one nobody killed |
 | 4 | **The fold changes by at most ONE input kind, and no existing `spec/` rule moves** — only rules are ADDED | decision 9 plus fact 1: the replay regenerated every existing kind unchanged | a rule whose TEXT has to change for resume — `RN-R13`'s release moments or `OR-R10`'s stop — which would mean resume is not additive, and `doc/concept.md` section 5's promise was not kept |
 
 ---
@@ -225,12 +225,12 @@ tables; each item re-measures its row at its declaration step and says where it 
 
 | Q | | Owner |
 |---|---|---|
-| [Q15](../open-questions.md) | *is a run resumable across a process restart* — deferred since P1, and the row this plan exists to answer | W89 |
-| [Q21](../open-questions.md) | *an event family for a UI* — the STREAM half is W88's; REDACTION is declared out | W88, half |
-| [Q364](../open-questions.md) | *a fresh runtime mints a run id a resumed run already holds* — raised by this declaration | W89 |
-| [Q365](../open-questions.md) | *a resumed task gets a fresh retry budget* — raised by this declaration | W89 |
-| [Q38](../open-questions.md) | *is a stopped run resumable* — declared OUT, refused by name | out |
-| [Q19](../open-questions.md) | *result retention* — declared OUT; the follow-on plan if memory matters | out |
+| [Q15](../questions/q15.md) | *is a run resumable across a process restart* — deferred since P1, and the row this plan exists to answer | W89 |
+| [Q21](../questions/q21.md) | *an event family for a UI* — the STREAM half is W88's; REDACTION is declared out | W88, half |
+| [Q364](../questions/q364.md) | *a fresh runtime mints a run id a resumed run already holds* — raised by this declaration | W89 |
+| [Q365](../questions/q365.md) | *a resumed task gets a fresh retry budget* — raised by this declaration | W89 |
+| [Q38](../questions/q38.md) | *is a stopped run resumable* — declared OUT, refused by name | out |
+| [Q19](../questions/q19.md) | *result retention* — declared OUT; the follow-on plan if memory matters | out |
 | Q366-Q378 | *reserved for the items* | |
 
 ---
@@ -242,7 +242,7 @@ tables; each item re-measures its row at its declaration step and says where it 
 | | the question | recommendation — and the answer |
 |---|---|---|
 | **(a)** | **Is a resume RECORDED as an event?** A resumed run's events are otherwise indistinguishable from a run never interrupted, and the at-least-once re-dispatch of decision 6 is invisible to the consumer, the fold and a live view alike | **Yes — a `resumed` fold input naming the re-dispatched task ids**, appended after the replay and before the re-dispatch. *Its cost*: a new `FoldInput` kind breaks any consumer switching EXHAUSTIVELY on `kind`, exactly as `UnsatisfiableJoin.regionPath` broke a consumer constructing one — so the package moves to **`0.5.0`** at W90's close, on W77's and W86's precedent **ANSWERED: yes, as recommended** |
-| **(b)** | **What stops a fresh runtime minting a run id a resumed run holds?** ([Q364](../open-questions.md)) | **The runtime REFUSES a `start` or a `resume` whose run id is LIVE on it, and its minted counter SKIPS ids in use** — one `Set` the runtime already has reason to keep. *Over*: requiring every resumable run to carry a caller-chosen id (a rule a consumer can forget) and minting globally unique ids ([Q34](../open-questions.md), [Q85](../open-questions.md) — a larger question this plan should not answer by accident) **ANSWERED: refuse, as recommended** |
+| **(b)** | **What stops a fresh runtime minting a run id a resumed run holds?** ([Q364](../questions/q364.md)) | **The runtime REFUSES a `start` or a `resume` whose run id is LIVE on it, and its minted counter SKIPS ids in use** — one `Set` the runtime already has reason to keep. *Over*: requiring every resumable run to carry a caller-chosen id (a rule a consumer can forget) and minting globally unique ids ([Q34](../questions/q34.md), [Q85](../questions/q85.md) — a larger question this plan should not answer by accident) **ANSWERED: refuse, as recommended** |
 | **(c)** | **Does resume re-dispatch at the SAME task id or bump its attempt segment?** | **The same id** — measured working in fact 4, and it keeps the replay's dispatched set and the stored events equal. A bumped segment would make every resumed task a NEW node instance to the fold **ANSWERED: the same id, as recommended** |
 
 ---
@@ -268,7 +268,7 @@ chromium; `check:spec` **7 / 61 / 108**; `check:docs` **35 snippets: 29 run, 6 c
 `check:workers` **17 / 17**; `check:markdown` **147 documents, 6749 relative links, 355 anchored**;
 census **284 / 221 / 2 / 61** before this declaration's rows.
 
-**[Q142](../open-questions.md) was MEASURED at this declaration, on the tree it commits, and does NOT
+**[Q142](../questions/q142.md) was MEASURED at this declaration, on the tree it commits, and does NOT
 fire**: probe 1's cut tree (`doc/decisions` removed) is **114 documents against `M3`'s floor of 123 —
 margin 9** — and probe 2's (`doc/decisions` and `doc/plans` removed) **5030 links against `M4`'s 5270
 — margin 240**. This declaration adds one document to `doc/work-items/`, which neither probe cuts, and
@@ -353,7 +353,7 @@ firing by name, which is the design working rather than a defect. **TWENTY-FOUR 
 harness capturing its own replays and its prototype-blind `deepEqual` (W88, both at the declaration
 step), three probes and a probe declaration, two graders, the heredoc discipline broken twice, and
 **the exit artifact's own KILL**: P23 wrote *killed mid-run with its scheduler thrown away*, and
-`shutdown()` DRAINS ([Q376](../open-questions.md)). Of the forty-nine, **thirty-seven were found by a
+`shutdown()` DRAINS ([Q376](../questions/q376.md)). Of the forty-nine, **thirty-seven were found by a
 reader, four by a declaration step's re-take, and eight by an item reading its own files.**
 
 **And W90's twenty-two are ALL outside the product** — the harness, the reference, the counts and
@@ -366,7 +366,7 @@ W85 one plan on: *an item whose deliverable is a harness has defects of the kind
 |---|---|---|
 | 1 | derived, from fact 1 (a FAKE scheduler) and fact 4 (two flows) | **CONFIRMED, its wording narrowed by the item that met it** (W89). *No change to routing* is false in its letter — a dispatch HELD during a replay and a callback GATED by position are two new branches inside routing's own sites — and true of what it meant: neither decides a road. P18 prediction 2's shape, a derived prediction whose wording was stronger than its observable |
 | 2 | derived, from fact 4 | **SUBSTANCE CONFIRMED, WORDING REVERSED** (W89), then **CONFIRMED on real workers in both L6 runtimes in W89's wording** (W90). Its prediction column said *the in-flight set at the stored PREFIX*; its own harness computed `held − settled` — the set at the END of the replay — and 14 of 29 re-dispatched tasks were dispatched only in the lost tail. *A prediction that names a SELECTION its measurement did not make*: the stored-prefix set is the well-formed wrong selection that coincides with the right one at a QUIESCENT cut, the default position, and differs at 8 of 14 mid-step ones — v0.23's clause, inside a prediction's own sentence |
-| 3 | **the REACH** | **CONFIRMED for the store, three processes deep, with its exceptions named** (W90). Its reversal column's FIRST entry is a real exception — a retry budget half spent, measured three attempts against two ([Q365](../open-questions.md)) — two more differ in cost and not in result (a group slot, a compiled transform), the fourth (a person's resolution across the restart) is exercised by the parked kill, resolved on the resumed driver, and **one it did not name**: the consumer's own `shutdown()` is not a kill ([Q376](../open-questions.md)). Confirmed in-process only ([Q378](../open-questions.md)) |
+| 3 | **the REACH** | **CONFIRMED for the store, three processes deep, with its exceptions named** (W90). Its reversal column's FIRST entry is a real exception — a retry budget half spent, measured three attempts against two ([Q365](../questions/q365.md)) — two more differ in cost and not in result (a group slot, a compiled transform), the fourth (a person's resolution across the restart) is exercised by the parked kill, resolved on the resumed driver, and **one it did not name**: the consumer's own `shutdown()` is not a kill ([Q376](../questions/q376.md)). Confirmed in-process only ([Q378](../questions/q378.md)) |
 | 4 | derived, from decision 9 and fact 1 | **REVERSED at its first test** (W88), by RETENTION: `RN-R13`'s text moved for the header's copy of the entry payload; W89 then moved `RN-R15`, `RN-R18` and `ID-R3` by a clause each. **Its measurement answered a narrower question than its wording** — fact 1 is about which fold-input KINDS a replay regenerates, the prediction about which rules' TEXT moves — which is P13's reading of a derived reversal, a fourth plan |
 
 **So: two confirmed (one narrowed), one reversed, one split** — and **the one REACH is the one that
@@ -398,8 +398,8 @@ readers asked it.
 
 **(2) A rule that a plan's exit artifact names the INSTRUMENT that performs its event, and the
 declaration measures it.** Two occurrences in two plans — P22's real pool interleaving LESS than a fake
-([Q358](../open-questions.md), found at W86's build) and P23's `shutdown()` DRAINING
-([Q376](../open-questions.md), W90's declaration re-take 2). **Both were caught before anything
+([Q358](../questions/q358.md), found at W86's build) and P23's `shutdown()` DRAINING
+([Q376](../questions/q376.md), W90's declaration re-take 2). **Both were caught before anything
 shipped**, the second by P15 decision 5's re-take — prompted, W90's file says, by the item's own
 instructions. *The mechanism is the re-take and it fired*; the cost was a plan sentence, corrected here
 under pass 3 rule 6.
@@ -424,7 +424,7 @@ commits and three sibling *whole rung* claims — nothing to compare them agains
 against the directory it indexes — **measured over history: 29 of the 46 commits that touched
 `doc/decisions/` shipped an index missing at least one ADR on disk, in FIVE episodes** (0022-0029,
 0030-0036, 0039-0046, 0049-0058 — eight ADRs behind at its worst — and 0062), where W88 said *the fourth*;
-and [Q171](../open-questions.md)'s L6 count copies, which **P20's retro NAMED for the next plan and three
+and [Q171](../questions/q171.md)'s L6 count copies, which **P20's retro NAMED for the next plan and three
 plans have not built** — `README.md`'s current-count cell read **1724 / 58 for six commits** (W86 to W89)
 while `DECLARED_TOTAL` read 1833, and a check reading only *does README contain the total* passes all
 six, because the total appears in another sentence. **Both are a set or a number a check can derive from
@@ -474,7 +474,7 @@ cluster cell**, by W88's parser unchanged — which refuses ten rows by id (Q119
 Q135, Q204, Q215, Q301, Q343), classified by hand as eight open and two resolved. The retro raises no
 question and resolves none.
 
-**[Q142](../open-questions.md) did not fire in any of the three items** — measured before each record
+**[Q142](../questions/q142.md) did not fire in any of the three items** — measured before each record
 step at margins of 9 / 218, 8 / 177 and 7 / 104 (`M3` files / `M4` links) — **and measured at this
 retro, before its edits, on the shipped tree: `M3` 116 files against 123 — margin 7 — and `M4` 5193
 links against 5270 — margin 77**, where W90's file says *78 after the record step*: its last Record cell

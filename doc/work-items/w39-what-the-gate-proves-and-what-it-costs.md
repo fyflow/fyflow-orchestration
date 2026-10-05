@@ -145,7 +145,7 @@ of which reaches into a directory that does not exist yet and is in nobody's `Ow
 2. **A cost measure that survives being re-run.** Either repeated passes with a stated band, or the
    process-start count of fact 3, or both. **The measure is declared before the change**, so the
    after-measurement cannot be chosen to flatter it.
-3. **[Q133](../open-questions.md) and [Q148](../open-questions.md) corrected in the register**, from
+3. **[Q133](../questions/q133.md) and [Q148](../questions/q148.md) corrected in the register**, from
    facts 1 and 3 and from P11's fact 3, whether or not the decision moves anything.
 
 **Out** — named rather than left implicit, with where it goes instead
@@ -164,7 +164,7 @@ of which reaches into a directory that does not exist yet and is in nobody's `Ow
 
 | Clause | How it is run |
 |---|---|
-| **L0** | `npm run lint`, `npm run typecheck` — **and neither reaches `scripts/**`**, which is this item's whole `Owns`. [Q177](../open-questions.md), raised by W38's conformity reader; stated here rather than discovered again |
+| **L0** | `npm run lint`, `npm run typecheck` — **and neither reaches `scripts/**`**, which is this item's whole `Owns`. [Q177](../questions/q177.md), raised by W38's conformity reader; stated here rather than discovered again |
 | **the whole gate, before** | the table in fact 1, plus the pass-2 comparison in fact 2, both already taken and both above |
 | **the whole gate, after** | the same commands, the same number of passes, **and the process-start count of fact 3**, which is the half that does not need a band |
 | **the decision is implemented** | whatever ADR 0039 decides, provoked: the change must be visible as a failure when reverted, not only as a number |
@@ -176,7 +176,7 @@ definition, no driver and no policy. Stated rather than left silent, which is wh
 
 **Rule 8, all five obligations, plus v0.11's requirement on the harness.** The obligation that bites
 here is **(e) WIRING**, twice over: any arrangement that moves a self-test off the `&&` chain must
-leave something that fails when it does not run — which is [Q149](../open-questions.md) one level out,
+leave something that fails when it does not run — which is [Q149](../questions/q149.md) one level out,
 in the item that follows the item which closed it. And **(d) LOOP BOUNDS** is what candidate (d) is:
 reducing what a self-test proves IS lowering a bound, and every bound in those files was put there
 because lowering it cost zero.
@@ -198,7 +198,7 @@ optimising starts would move it least while it is the entry that moved most in f
 
 | Clause | Verdict | Notes |
 |---|---|---|
-| L0 | **pass** | `deno lint` and five typecheck projects clean — **and none of them reaches `scripts/**`**, which is this item's whole `Owns`, so this row says nothing about the deliverable. [Q177](../open-questions.md), stated in the declaration and true again |
+| L0 | **pass** | `deno lint` and five typecheck projects clean — **and none of them reaches `scripts/**`**, which is this item's whole `Owns`, so this row says nothing about the deliverable. [Q177](../questions/q177.md), stated in the declaration and true again |
 | the whole gate, before | **RAN** | **516.1 s over 21 entries**, every entry as `npm run <entry>` **three times**, reported as the median. 8.9 s of checks (1.7%), **488.9 s of self-test (94.7%)**, 18.3 s for all of L0-L6 in three runtimes. **2611 node starts, 2531 of them self-test.** Ratio **54.9x** |
 | the whole gate, after | **RAN** | **393.1 s over 15 entries**, same method, same machine, nothing else running. 9.5 s of checks, **365.0 s of self-test (92.8%)**, 18.6 s for the rest. **4466 starts.** Ratio **38.4x**. **At code-complete, before either reader reported, it was 318.2 s** — the twelve blocking findings cost **75 s**, all of it inside `check:wiring:selftest` and therefore all of it on the critical path. **Both totals are sums of per-entry medians, not wall clocks**: one end-to-end `npm run gate` on the finished tree reads **414 s**, `GATE EXIT=0`, **zero lines beginning `FAIL`**, 15 entries, `7/7 completed` |
 | the decision is implemented | **pass** | `G4` in `scripts/check-wiring.mjs`, `scripts/run-selftests.mjs`, the reordered chain and the two `SELFTEST-EXCLUSIVE:` markers — provoked below, so reverting any of them is a named failure rather than a slower number |
@@ -218,7 +218,7 @@ optimising starts would move it least while it is the entry that moved most in f
 **What broke.**
 
 **1. The decision was made by measurement, and one of its two halves was predicted by nothing.**
-`check:scheduler:selftest` cannot share the tree and [Q148](../open-questions.md) said so.
+`check:scheduler:selftest` cannot share the tree and [Q148](../questions/q148.md) said so.
 **`check:wiring:selftest` cannot either, and nothing had ever said so**: `stage()` writes every
 `scripts/check-*.mjs` **flat into `dev-dist/`** — the directory every other self-test uses for
 scratch — and runs those copies with their dispatch falsified, so one of them reaches the real
@@ -235,7 +235,7 @@ them.** `check-source-selftest.mjs` and `check-policies-selftest.mjs` wrote thei
 into the **tracked** `scripts/` directory, where `check-markdown-selftest.mjs` copies them into its
 fixture and `check-wiring-selftest.mjs` stages them flat into `dev-dist/` — as `dev-dist/.meta-NN.mjs`,
 which is `check-source-selftest.mjs`'s own mutant path, and wiring deletes what it stages. All three
-renamed. **[Q182](../open-questions.md)**: a latent path collision is invisible until the day it is
+renamed. **[Q182](../questions/q182.md)**: a latent path collision is invisible until the day it is
 not, and three green concurrent runs are not evidence against one.
 
 **3. Seven checked-in probes went vacuous on the reordered chain, and one had already been
@@ -251,7 +251,7 @@ anchor has to name the value as well as the shape.)*
 
 **4. `check-docs.mjs` writes `dev-dist/docs` at a fixed path and `rmSync`s it on every run**, so two
 concurrent `check-docs` bodies destroy each other. It is half of why `check:wiring:selftest` must run
-alone, and it is not fixed here — [Q182](../open-questions.md).
+alone, and it is not fixed here — [Q182](../questions/q182.md).
 
 **What this taught.**
 
@@ -276,7 +276,7 @@ once and not re-taken. **The item whose entire subject is measurement reported i
 the wrong scope**, in the section that names `doc/workflow.md` section 1 rule 5's writing clause by
 name — which is why P11's retro extends that clause with a WHEN, and why section 6 pass 3 now says a
 retro may correct the files of the items it reviews.)* And the band is wider than
-[Q179](../open-questions.md) measured — three **back-to-back** runs of `check:markdown:selftest`
+[Q179](../questions/q179.md) measured — three **back-to-back** runs of `check:markdown:selftest`
 alone spread **127.8 to 169.2 s, 32%** — so the variance is not a whole-pass drift that a per-entry
 method escapes.
 
@@ -287,7 +287,7 @@ seven entries reproduce the declaration's start counts **exactly**, three commit
 
 **And the binding for the saving cost 16% of it.** `check:wiring:selftest` went **65.5 s to 96.7 s**
 and **502 starts to 765** to buy `G4` — and because that entry is one of the two exclusives, every
-second of it is on the critical path. [Q176](../open-questions.md) reproducing inside the decision
+second of it is on the critical path. [Q176](../questions/q176.md) reproducing inside the decision
 that cites it: one `check-wiring` run costs 1.6 s and `G4` costs the gate 31.
 
 **Rule 8 — 16 provocations beyond the checked-in set, run TWICE**: once at the author pass and once
@@ -307,7 +307,7 @@ readers' section above, and they differ.*
 | (c) negative control — the runner drops an entry, `G4` untouched | caught |
 | (c) the runner's exclusive set comes from a literal, not the marker | **green** |
 | (c) **compound** — the literal list **with** the marker gone from one file | caught |
-| (c) negative control — **the marker alone is removed** | **green — [Q181](../open-questions.md), measured** |
+| (c) negative control — **the marker alone is removed** | **green — [Q181](../questions/q181.md), measured** |
 | (d) `G4` checks the command of every entry but the first | caught |
 | (d) the runner's accounting compares only the lengths it has | **SURVIVED → closed** |
 | (e) `G4` never records that it ran | caught, 21 report-row disagreements |
@@ -331,7 +331,7 @@ reported with its control: re-sourcing `owed` is green **because** the two sourc
 runner, and its negative control is red; the literal exclusive list is green for the same reason, and
 its compound is red. **The third green has no compound and is a question**: removing the
 `SELFTEST-EXCLUSIVE:` marker alone costs **zero** in `check:wiring` and in `check:source`, because
-`G4` derives its expectation from the marker. [Q181](../open-questions.md).
+`G4` derives its expectation from the marker. [Q181](../questions/q181.md).
 
 **And one catch is worth its own sentence, because the check did not make it.** Making the runner
 short-circuit whenever `CHECK_SELFTESTS_CMD` is set — the `G2` shape, where the override hides the
@@ -415,10 +415,10 @@ plus the six record-step files.)*
 - The record step: the plan's Record, `doc/README.md`, `CLAUDE.md`, `README.md`,
   `doc/open-questions.md`, `doc/decisions/**`.
 
-**Questions raised.** [Q181](../open-questions.md), [Q182](../open-questions.md) and
-[Q183](../open-questions.md) — the third after the readers reported, which is why P11's block was
-extended **twice**. [Q133](../open-questions.md) and [Q148](../open-questions.md) are
-**RESOLVED**; [Q179](../open-questions.md) and [Q180](../open-questions.md) are measured further and
+**Questions raised.** [Q181](../questions/q181.md), [Q182](../questions/q182.md) and
+[Q183](../questions/q183.md) — the third after the readers reported, which is why P11's block was
+extended **twice**. [Q133](../questions/q133.md) and [Q148](../questions/q148.md) are
+**RESOLVED**; [Q179](../questions/q179.md) and [Q180](../questions/q180.md) are measured further and
 left open.
 
 **Census — CONFIRMED for the seventh plan running: 140 questions, 97 open, 2 deferred, 41 resolved**,
@@ -436,4 +436,4 @@ read a different document, and its verdict was an ABORT on a healthy row rather 
 miscount. *An aborting parser is only as good as its agreement with the renderer, in both directions.*
 It also aborted twice on the Status cell before settling on the **first word**: equality aborts on
 `resolved by ADR 0003` and on `open - half answered by ADR 0003`, and a substring test reads
-`open - deferred by W32` as **deferred**, which is [Q156](../open-questions.md)'s own miscount.
+`open - deferred by W32` as **deferred**, which is [Q156](../questions/q156.md)'s own miscount.

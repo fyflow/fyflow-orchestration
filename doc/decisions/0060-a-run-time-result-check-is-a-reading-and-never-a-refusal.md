@@ -30,7 +30,7 @@ direction that flatters the feature — W80's conformity reader, finding 2, on t
 plan's declarability rests on.)* *The road that
 was deferred for cost is a shrinking fraction of a cost nobody chose and nobody can decline.*
 
-**And the feature has no live defect to point at.** [Q302](../open-questions.md)'s two violations are
+**And the feature has no live defect to point at.** [Q302](../questions/q302.md)'s two violations are
 both closed — one clamped in the worker's code, one refused at `start()` by `FD-R4` — so the case has
 to be made on CAPABILITY, and W80 had to construct the instance rather than find one. That is
 [P8](../plans/p8-what-can-be-deleted-with-the-gate-green.md)'s *a check written for a defect you have
@@ -97,7 +97,7 @@ repository has a name for:
 *A diagnostic whose channel is its own switch cannot be enabled and unheard.* It also makes the
 switch an **L0 assertion**: the callback is read once and handed to the reporting method as a
 non-optional parameter, so deleting the guard does not compile. That closes ONE direction (W43,
-[Q196](../open-questions.md)); the other — that a consumer who supplies nothing pays no `findings`
+[Q196](../questions/q196.md)); the other — that a consumer who supplies nothing pays no `findings`
 walk — is a COST, and W81 owns the rung that can see it.
 
 ### Why `OR-R13` and not an `FD-R`
@@ -191,4 +191,4 @@ structural reason rather than an omission: none of them holds a record.*
 | **A boolean switch beside the callback** | two sources that can disagree, and both disagreements are defects with names (table above). It also loses the L0 assertion |
 | **Checking the value `detail.result` holds, before `OR-R2`'s clone** | it would report on a value the run does not carry, and `OR-R11` measures that those are different values. It also duplicates what `check:workers` already does over the returned value, at run time |
 | **Also re-checking a node's INPUT per settlement** | the wiring check decides that statically and `FD-R4` holds the one value it cannot reach. P21 decision 2 |
-| **Adding a keyword to the subset so more results are describable** | ADR 0053 stands; `oneOf` is P19 slice 2 and its condition has not fired ([Q311](../open-questions.md)) |
+| **Adding a keyword to the subset so more results are describable** | ADR 0053 stands; `oneOf` is P19 slice 2 and its condition has not fired ([Q311](../questions/q311.md)) |

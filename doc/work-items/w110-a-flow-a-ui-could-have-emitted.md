@@ -83,7 +83,7 @@ the domain workers — and it can only be answered by trying.
 Measured on `5a6664c` (W109 committed and gated; the tree CLEAN, so the `Owns` audit will be
 exact). **Spawn health first**: `node -e ""` through `spawnSync` is a **55.3 ms** median over
 twelve (51.3 … 87.1), against the ~54 ms a healthy machine gives — so every figure below is about
-the change and not about the machine ([Q179](../open-questions.md)'s own precondition).
+the change and not about the machine ([Q179](../questions/q179.md)'s own precondition).
 
 **Baseline RE-TAKEN rather than transcribed, and it confirms to the number**: L1-L5 **56 files /
 1512 assertions** on node 24.20.0; `check:spec` **7 documents / 72 examples / 132 rules** with `C4`
@@ -139,7 +139,7 @@ so an author who writes a path where a literal belongs gets a comparison that is
 **nothing says so** — measured at the evaluator too, where `eq` against `"needs.cfg.threshold"` is
 `true` on a result whose score IS that string. ADR 0074 consequence 6 says *the grammar catches a
 wrong ROOT and nothing catches a wrong LEAF*; this is one step past it, because the wrong thing is
-in the `value` and the `path` is immaculate. [Q456](../open-questions.md).
+in the `value` and the `path` is immaculate. [Q456](../questions/q456.md).
 
 **So a decision between two of the run's OWN values is not a comparison**, and neither is one that
 needs arithmetic: the subset reads ONE path and compares it to ONE literal. That is the shape
@@ -282,7 +282,7 @@ measurements — the measurement is the build's, and it is recorded in the Recor
 `BUILT_IN_NODE_TYPES_L6` already exists for the third clause (the POOLS one, which W109 had to move
 because `bootstrap` builds a pool for every type `nodeTypesOf` returns) but it is declared INSIDE
 the (2b) block, so the first clause cannot see it. **The compensating observer W109 built for that
-literal was checked rather than cited** ([Q453](../open-questions.md)'s warning):
+literal was checked rather than cited** ([Q453](../questions/q453.md)'s warning):
 `test/definition/node-type.test.ts:221` holds `equal(Object.keys(BUILT_IN_NODE_TYPES), ['Transform'])`,
 so a second built-in added without these clauses moving is red there. It exists.
 
@@ -444,7 +444,7 @@ anywhere in its registry. Two things it does NOT cover, each measured rather tha
 2. **A comparison reads ONE path and compares it to ONE literal**, so *is the mean below the
    threshold the run carries* is not expressible and neither is any arithmetic — and a `value` that
    is MEANT to be a path is accepted as a literal string and is false for ever
-   ([Q456](../open-questions.md)). **The route around it is data**: `rollup` is a tier-three
+   ([Q456](../questions/q456.md)). **The route around it is data**: `rollup` is a tier-three
    `Transform` node that computes `weak`, and the `when` reads `outcome.result.weak`. So the reach
    holds at the cost of a NODE rather than of a function, which is the three-tier rule doing its job.
 
@@ -456,7 +456,7 @@ pass still read **thirteen probes against declaration**, of which **three were t
 arithmetic**: a declared `ceiling` is satisfied by a GREEN run, which the harness reports as `clean`,
 and the comparison was `got === expect`, so a correct ceiling could never be *as declared*.
 **A controlled grader proves the grader can SAY a verdict; it says nothing about whether its
-COMPARISON of verdicts is right** — which is [Q452](../open-questions.md) one step along, that row
+COMPARISON of verdicts is right** — which is [Q452](../questions/q452.md) one step along, that row
 having been about the grader's WINDOW rather than its equality.
 
 And the other ten were a second shape of the same thing: **five `says` strings had been written from
@@ -515,7 +515,7 @@ probe that fires on an arrangement is the only evidence that arrangement is asse
 2. **The two `spec/**` exceptions were both UNPREDICTED and neither was predictable from a file
    set** — which is P10's retro's own finding. `spec/outcome-record.md` section 4 carries a CORPUS
    CENSUS (19 of 210 arcs, 191 at 91%) pinned outside its corpus, which is
-   [Q360](../open-questions.md)'s class; and `spec/flow-definition.md` v0.27's note said *the package
+   [Q360](../questions/q360.md)'s class; and `spec/flow-definition.md` v0.27's note said *the package
    stays `0.6.0` here and moves at W110's close*, a sentence with an expiry date naming this item,
    corrected by the item that expired it.
 3. **The restore ASSERTION was wrong where the restore was right.** The harness reported
@@ -540,12 +540,12 @@ probe that fires on an arrangement is the only evidence that arrangement is asse
    baseline moved and the sentence that counts it did not.
 6. **Q456, Q457 and Q458 were cited in SIX files and present in none** — `AGENTS.md`, `CLAUDE.md`,
    `doc/README.md`, ADR 0075, `examples/l6.ts` and this file — which is
-   [Q453](../open-questions.md)'s class and the **THIRD consecutive occurrence**, after W108's five
+   [Q453](../questions/q453.md)'s class and the **THIRD consecutive occurrence**, after W108's five
    files citing a stop-and-ask list that existed nowhere and W109's five files citing an assertion
    that lived only in a comment. Written now, and the register is the only place a Q row counts.
 7. **The first cross-row block's controls passed v0.22's test and failed v0.21's.** Both readers
    reached it; identity is unavailable because every operand is freshly built and the values are equal
-   STRINGS ([Q447](../open-questions.md)), so the answer is W80's — **a LITERAL for each arm**.
+   STRINGS ([Q447](../questions/q447.md)), so the answer is W80's — **a LITERAL for each arm**.
    Measured after: emptying the block's universe gives **five named failures, each naming its own
    claim**, where before it was two integer edits at exit 0.
 8. **ADR 0075 rule 3 blessed a road the two registry roads disagreed about**, found by both readers
@@ -683,6 +683,6 @@ rather than trusted, and corrected. Six rows are declared EXEMPT from positional
 an unescaped pipe inside a code span makes them render wrong (Q119, Q71, Q87, Q343, Q411, Q415), and
 the list is compared both ways so a spent permission fails.
 
-**[Q456](../open-questions.md), [Q457](../open-questions.md) and [Q458](../open-questions.md) raised;
+**[Q456](../questions/q456.md), [Q457](../questions/q457.md) and [Q458](../questions/q458.md) raised;
 none resolved, which is what an exit artifact looks like in the register. No ADR — none was expected
 and none was needed. `Spec: NONE` HELD: `check:spec` is 7 / 72 / 132 unmoved and `C4` is 42.**

@@ -16,12 +16,12 @@ resolves: Q4
 *Correction* and *Correction 2*. **Rule 5 is superseded by
 [ADR 0025](0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md)**, which
 adopted one of the two refinements under its own id and refused the other. Rules 1-4 stand
-**Raised by:** [Q4](../open-questions.md), decided by [W4](../work-items/w4-the-join-failure-matrix.md)
+**Raised by:** [Q4](../questions/q4.md), decided by [W4](../work-items/w4-the-join-failure-matrix.md)
 under [P1](../plans/p1-what-satisfies-a-join.md)
 
 ## Context
 
-[Q4](../open-questions.md) is the hard question in this repository, and it was **deliberately not
+[Q4](../questions/q4.md) is the hard question in this repository, and it was **deliberately not
 decided by argument**. The argument for live-token accounting was strong when P1 was written and was
 **refused as sufficient**: P1 built both policies behind one interface
 ([spec/join-policy.md](../../spec/join-policy.md)) and settled it with an executable test, on the
@@ -89,7 +89,7 @@ nothing queued, nothing running and nobody to ask. That is character-for-charact
    branches must arrive, and nothing may be added that does — a written `N` reintroduces exactly
    the coupling this decision removes.
 5. **Neither of `JP-R7`'s and `JP-R8`'s refinements is adopted.** Both remain
-   [Q24](../open-questions.md), both remain unshipped, and either is built under its own `id` if a
+   [Q24](../questions/q24.md), both remain unshipped, and either is built under its own `id` if a
    flow needs it. See *Consequences*.
 
    > **Superseded 2026-08-31 by
@@ -112,7 +112,7 @@ fired"* would reasonably expect at least one branch to have arrived, and here no
 variant answers that case gracefully — it returns `unsatisfiable` — and this ADR **does not adopt
 it**, because doing so inside the comparison would have been the asymmetry `JP-R8` was written to
 forbid. Now that the comparison is over, that objection is spent: **whether a join with zero
-arrivals should fire is [Q24](../open-questions.md), and it is the first thing a reader of this ADR
+arrivals should fire is [Q24](../questions/q24.md), and it is the first thing a reader of this ADR
 should look at.** It is a smaller question than Q4 and it is no longer entangled with it.
 
 **What a future reader is likely to try that this forbids.** Reintroducing a count. It arrives in
@@ -135,10 +135,10 @@ withdrawn, exactly as `spec/join-policy.md` section 4 re-scoped the identical se
 W16's conformity reader, in the same document W16 had already corrected twice and while W16 was
 correcting the spec's copy of it — see* Correction 2 *.)* W4 showed the detection is decidable from the log alone — every dispatched task has an
 outcome, no branch is parked on a person, and the join has not fired — so a **timeout is not
-required for detection**, and [Q7](../open-questions.md) narrows to whether a join should time out
-for any other reason. Where that predicate should live is [Q42](../open-questions.md).
+required for detection**, and [Q7](../questions/q7.md) narrows to whether a join should time out
+for any other reason. Where that predicate should live is [Q42](../questions/q42.md).
 
-**A join still carries `null` downstream** ([Q36](../open-questions.md)). This decision does not
+**A join still carries `null` downstream** ([Q36](../questions/q36.md)). This decision does not
 touch it, and W4 found that nothing had been asserting it: replacing the driver's `null` with `{}`
 survived all 251 assertions in five runtimes. The matrix asserts it now.
 
@@ -147,9 +147,9 @@ survived all 251 assertions in five runtimes. The matrix asserts it now.
 | | why not |
 |---|---|
 | **`arrival-count`** — `N` fixed at `open` from `region.branches.length` | It hangs on six of the matrix's nine rows, and reports `waiting` while doing it. **Two of those six have nothing to do with the routed-away case Q4 was written about** — an `optional` failure with no edge opting into it, and a human declining a task — so an ordinary failure alone is enough. **It was a real candidate and it lost on evidence**, which is what P1 asked for |
-| **`arrival-count` with `N` decremented on `branch.exited`** (`JP-R7`) | A third policy, and one shaped like the single test it was written to pass. It still hangs on both `branch.lost` rows, because a lost branch is not an exited one — and `test/matrix/variants.test.ts` runs exactly that. Building it needs its own id and its own reason, which is [Q24](../open-questions.md). **Refused 2026-08-31 by [ADR 0025](0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md)**, which measured a second reason this row did not have: on `all-exit` it decrements `N` to zero against an empty arrival list and **fires a join no branch reached** |
-| **`live-token` requiring one arrival before `satisfied`** (`JP-R8`) | Very possibly the right answer, and **not decidable inside this comparison**: giving one side a graceful `unsatisfiable` that the other is structurally denied is not a comparison of the two. Deferred to [Q24](../open-questions.md) with the all-exit row as its motivating case. **Adopted 2026-08-31 by [ADR 0025](0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md) — as a third policy beside `live-token`, not inside it**, which is why the asymmetry this row names does not arise |
-| **Per-join configuration — the author picks a policy** | [Q5](../open-questions.md)'s remainder, and premature: it presumes there are two answers worth offering, and the matrix says one of them hangs. Revisit if Q24 produces a second policy that does not |
+| **`arrival-count` with `N` decremented on `branch.exited`** (`JP-R7`) | A third policy, and one shaped like the single test it was written to pass. It still hangs on both `branch.lost` rows, because a lost branch is not an exited one — and `test/matrix/variants.test.ts` runs exactly that. Building it needs its own id and its own reason, which is [Q24](../questions/q24.md). **Refused 2026-08-31 by [ADR 0025](0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md)**, which measured a second reason this row did not have: on `all-exit` it decrements `N` to zero against an empty arrival list and **fires a join no branch reached** |
+| **`live-token` requiring one arrival before `satisfied`** (`JP-R8`) | Very possibly the right answer, and **not decidable inside this comparison**: giving one side a graceful `unsatisfiable` that the other is structurally denied is not a comparison of the two. Deferred to [Q24](../questions/q24.md) with the all-exit row as its motivating case. **Adopted 2026-08-31 by [ADR 0025](0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md) — as a third policy beside `live-token`, not inside it**, which is why the asymmetry this row names does not arise |
+| **Per-join configuration — the author picks a policy** | [Q5](../questions/q5.md)'s remainder, and premature: it presumes there are two answers worth offering, and the matrix says one of them hangs. Revisit if Q24 produces a second policy that does not |
 | **Deciding by argument, without the matrix** | It would have reached the same policy and missed the finding: that the failure is ordinary rather than exotic, and that `branch.exited` — the event P1 was written around — is only *half* the reason. The argument P1 refused as sufficient was, in the end, right about the winner and wrong about the size of the effect |
 
 ## Correction — 2026-08-30
@@ -205,7 +205,7 @@ sentences, and both are in
 [ADR 0025](0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md).
 
 **And a second thing was stale rather than false, which is the harder class**
-([Q94](../open-questions.md)). This document carries a hand-copied **two**-column matrix and
+([Q94](../questions/q94.md)). This document carries a hand-copied **two**-column matrix and
 `test/matrix/render.ts` emits **four**. The divergence arrived because the artifact was extended, not
 because anyone edited this file — P3's retro's shape exactly. The table above is left at two columns
 **deliberately**, because it is the evidence *this* decision was made from, and it now says so; the

@@ -12,13 +12,13 @@ resolves: ""
 
 # ADR 0030 — A join is transitive over nested fan-out, and a join that can never fire ends the branch it sits in
 
-**Raised by:** [Q6](../open-questions.md), decided by
+**Raised by:** [Q6](../questions/q6.md), decided by
 [W22](../work-items/w22-what-an-inner-join-does-to-the-outer-one.md) under
 [P7](../plans/p7-is-a-join-transitive-over-nested-fan-out.md)
 
 ## Context
 
-**[Q6](../open-questions.md) has been open since P1 and was scheduled for P2 by two spec documents
+**[Q6](../questions/q6.md) has been open since P1 and was scheduled for P2 by two spec documents
 that were still saying so four plans later.** `FD-V15` refused nested fan-out, `spec/task-id.md`
 reserved the dotted `branchPath` for it, and `spec/join-policy.md` section 5 listed transitivity as
 something that document did not fix. [W20](../work-items/w20-what-a-nested-region-is.md) retired the
@@ -39,7 +39,7 @@ construction, beside `MissingJoinPolicy`. Its stated mechanism:
 **That is not a mechanism, and the correction is recorded in the plan rather than folded away.** `N`
 is per-region. An outer region's `branches` is `[scoreA, scoreB]` whatever nests inside it, and when
 the inner join fires, `settleJoin` enters the outer join carrying `pathOf(inner)` — which **is** outer
-branch 1's arrival. W21 built that for [Q114](../open-questions.md), for a different reason, and it
+branch 1's arrival. W21 built that for [Q114](../questions/q114.md), for a different reason, and it
 is the whole of transitivity.
 
 So the refusal would have rejected a definition on which the policy is measured to work, while
@@ -86,7 +86,7 @@ Measured on `nested-inner-all-exit` before the change:
 suspends and is never resolved … and neither does any branch in a run still in flight"*. **This is
 neither.** So the old behaviour was a rule violation rather than a design choice, and it was
 **unobservable rather than absent** at depth 1, where the region's `fanout` is in no region and there
-is nothing to emit. That is [Q114](../open-questions.md)'s shape one item earlier: a `settleJoin` exit
+is nothing to emit. That is [Q114](../questions/q114.md)'s shape one item earlier: a `settleJoin` exit
 that was right only because its wrong value could not be seen.
 
 ## Decision
@@ -107,8 +107,8 @@ that was right only because its wrong value could not be seen.
 
 3. **Nesting adds no mechanism.** No new state, no walk over the containment relation, no field on
    `Region`. `region(F).branches` is unchanged by what nests inside `F`, and an inner join's firing
-   enters the outer join at `pathOf(F)` — already built, for [Q114](../open-questions.md).
-   **It does depend on innermost region resolution** ([Q113](../open-questions.md)): `branch.exited`
+   enters the outer join at `pathOf(F)` — already built, for [Q114](../questions/q114.md).
+   **It does depend on innermost region resolution** ([Q113](../questions/q113.md)): `branch.exited`
    and `branch.lost` are the only two `regionOf`-sourced events any shipped policy acts on, and both
    decrement a live count. The dependency is named here rather than left as a property of
    `src/definition/regions.ts` that nothing points at.
@@ -164,7 +164,7 @@ section 5's transitivity bullet replaced. Section 3 is untouched.
 driver seam run at depth 2; the cascade in rule 4 is asserted at depth 3, and `test/driver/surface.test.ts`
 already carried a depth-3 sibling shape from W21. **What is not covered**: the `fromRegion` a join's
 **successor** is entered with cannot discriminate at depth 2 and does at depth 3, and nothing tests it
-([Q113](../open-questions.md)). An item claiming depth 3 works owes that row. *(That site is at
+([Q113](../questions/q113.md)). An item claiming depth 3 works owes that row. *(That site is at
 `driver.ts:1069` after this change and Q113's row names it at `:1022`, which is the line it was at
 when the row was written **one step earlier in this same item**. This decision's own first draft
 called it *"the fifth call site"*; `regionOf` now has **six**, because rule 4 added one. The count is
@@ -181,14 +181,14 @@ comparison survives — all four columns still see identical input **up to the i
 and the depth-2 rows assert a shared prefix and a per-column tail rather than one stream.
 
 **The refused variant's known defect launders itself upward.** `arrival-count-decrementing` reaches
-`need: 0` against an empty arrival list and fires a join no branch reached — [Q91](../open-questions.md),
+`need: 0` against an empty arrival list and fires a join no branch reached — [Q91](../questions/q91.md),
 and the cost [ADR 0025](0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md)
 refused it for. At depth 2 that bogus firing produces a **real** `arrived(outer:1)`, the outer join
 fires legitimately, and the run reports **`completed`**. At depth 1 the defect is confined to one
 join; nesting turns it into a run-level verdict. **ADR 0025's refusal is strengthened by a fact it
 did not have**, and the variant stays a matrix column so that stays falsifiable.
 
-**What is still open.** [Q5](../open-questions.md) — whether a policy may be chosen per join rather
+**What is still open.** [Q5](../questions/q5.md) — whether a policy may be chosen per join rather
 than per run — is louder with nesting and is not answered here: one policy per run stays, so an inner
-and an outer join cannot disagree about what satisfies them. [Q36](../open-questions.md), what a
+and an outer join cannot disagree about what satisfies them. [Q36](../questions/q36.md), what a
 satisfied join carries downstream, is untouched; a join still forwards `null`, at both depths.

@@ -14,7 +14,7 @@
  *   - `load` is how full a batch is against a ten-word budget, so the schema says `maximum: 1`
  *     because a fraction of a budget is a fraction. The code divides and never clamps, which is
  *     right for every input the declared example reaches and wrong at eleven words. That is
- *     [Q302](../../doc/open-questions.md)'s shape — *a bound a producer does not keep past its
+ *     [Q302](../../doc/questions/q302.md)'s shape — *a bound a producer does not keep past its
  *     declared domain* — and `npm run check:workers` cannot see it, because one example confirms a
  *     schema at ONE value.
  *   - `label` is attached with `Object.defineProperty` so it stays out of the serialised payload.

@@ -17,7 +17,7 @@ region open inside a `map` region?*
 **Supersedes:** nothing. It **removes a refusal**
 [W33](../work-items/w33-a-map-at-run-time-arity.md) put in the `Driver` constructor, which carried no
 rule id in `spec/` and so supersedes no rule.
-**Answers:** [Q160](../open-questions.md) (the mechanism) and [Q156](../open-questions.md) (the
+**Answers:** [Q160](../questions/q160.md) (the mechanism) and [Q156](../questions/q156.md) (the
 narrower case of it).
 
 ---

@@ -28,7 +28,7 @@ Reserves:   Q132-Q136, ADR 0032
 is the **only** expression in this repository that reads `scripts.gate`, and its loop opens
 `if (!name.startsWith('check:')) continue`. Measured at [P8](../plans/p8-what-can-be-deleted-with-the-gate-green.md)'s
 declaration: with ` && npm run test:l6:deno` deleted from the chain, **all eight `check:*` entries exit
-0** — [Q126](../open-questions.md).
+0** — [Q126](../questions/q126.md).
 
 **And one level down, three composed lists are unguarded and no register row reaches them:**
 
@@ -66,14 +66,14 @@ directories is a loop bound, and nothing counts it.
   `test:browser:all` to it is a cost decision and P8 declares it out.
 - **Any `src/` change.** This item reads no source. If a probe here turns red in `src/`, that is a
   finding rather than a fix.
-- **[Q100](../open-questions.md)'s class** — a derived count printed and asserted by nothing. `S12`'s
+- **[Q100](../questions/q100.md)'s class** — a derived count printed and asserted by nothing. `S12`'s
   list is asserted, not printed, which is deliberate; the L6 table is not this item's.
 
 ## The decision this item takes, and what it costs
 
 **S12 makes the gate chain an obligation**, and that is the point rather than a side effect: a plan
 that adds a runtime to the gate must add it to the list, in `scripts/check-source.mjs`, in the same
-commit. **That is [Q102](../open-questions.md)'s exact shape** — `check-docs`' `RUN_FLOOR` obliges the
+commit. **That is [Q102](../questions/q102.md)'s exact shape** — `check-docs`' `RUN_FLOOR` obliges the
 item that adds a snippet to raise it, sits in nobody's `Owns`, and **went stale silently in the
 direction of weakness**.
 
@@ -108,7 +108,7 @@ The expected numbers, to be re-derived rather than copied at the Record: **474 a
 × node, deno, chromium** and **489 assertions / 25 real runs at L6 × node and deno**. *(`npm run gate`
 runs `test:browser`, which is **chromium only**; firefox and webkit need `test:browser:all`, which the
 gate does not run. `474` counts `test()` **cases** and `489` counts individual assertions —
-[Q98](../open-questions.md) — so they are never added.)*
+[Q98](../questions/q98.md) — so they are never added.)*
 
 **Routing cases.** *Not applicable, and stated rather than left silent*: this item touches no routing,
 no definition and no driver. A branch routed away from its join (Q4), `user_action` (Q17), no matching
@@ -137,7 +137,7 @@ fired in all four of P7's items). Each probe declares the exact **set** of check
 inert*, which is what W15 and W16 found rule-written probes blind to.
 
 **(c) PROVENANCE — the source expression and NOTHING else** (v0.9's procedure, after
-[Q112](../open-questions.md) corrected this four times across three items). The value to attack is
+[Q112](../questions/q112.md) corrected this four times across three items). The value to attack is
 *"what the gate actually runs"*: **substitute the source** — read the chain from a literal, from
 `scripts.gate`'s **keys** rather than its text, or from a second copy of the list — and change nothing
 else. A probe that also edits the expected literal is a rewrite and its survival says nothing.
@@ -171,7 +171,7 @@ it**; the honest Record names which of its own guards are outside its reach.
 | Clause | Verdict | Notes |
 |---|---|---|
 | L0 own coverage | **pass** | `check:source` 13 checks / 13 published files / 16 gate entries; `check:source:selftest` **24 probes, 20 META gradings, 3 SELF gradings**, ~34 s; `lint` 43 files; `typecheck` 5 projects |
-| L1-L6 regression | **pass, and UNMOVED** | **474 assertions, 19 files**, in node 24.20.0, deno 2.9.6 and chromium; **489 assertions, 25 real runs, 23 row labels** at L6 in node and deno. Identical to the pre-item baseline in the same three commands. *(`npm run gate` runs `test:browser`, which is **chromium only**; firefox and webkit need `test:browser:all`, which the gate does not run and this item did not run. `474` counts `test()` **cases** and `489` counts individual assertions — [Q98](../open-questions.md) — so they are never added. 23 labels is derived: 25 rows minus the two **pair** rows, each of which is one label producing two runs.)* |
+| L1-L6 regression | **pass, and UNMOVED** | **474 assertions, 19 files**, in node 24.20.0, deno 2.9.6 and chromium; **489 assertions, 25 real runs, 23 row labels** at L6 in node and deno. Identical to the pre-item baseline in the same three commands. *(`npm run gate` runs `test:browser`, which is **chromium only**; firefox and webkit need `test:browser:all`, which the gate does not run and this item did not run. `474` counts `test()` **cases** and `489` counts individual assertions — [Q98](../questions/q98.md) — so they are never added. 23 labels is derived: 25 rows minus the two **pair** rows, each of which is one label producing two runs.)* |
 | conformity reader | **10 findings, 1 BLOCKING**, all acted on | Its blocking one was a claim W24 made **about its own work** — see *What broke* |
 | adequacy reader | **43 mutations, 11 survivors, 5 BLOCKING**, all acted on | Worked in an isolated copy verified green first; **zero symlinks, zero reparse points** before and after; copy left in place, not forced |
 | overlap | **3 of 16** | The `:selftest`-gutting hole, the false `lint`-row survivor, and *the report is a list nothing counts* were each reached by both, from different directions. Union 10 + 9 - 3; inside the 1-4 absolute band section 6 declares settled. The ordinal is not stated because it is not derivable without reading four P7 item files, and this is the line this repository miscounts |
@@ -194,7 +194,7 @@ it**; the honest Record names which of its own guards are outside its reach.
 *"a directory ADDED to lint's argument list"* is refused by that row and by nothing else. The
 measurement stopped one command early. Under rule 8's own definition a survivor needs a second route
 confirming the clause **unreachable**, and the second route showed it **refused**. It is a `META` entry
-now, and the register row was not written. **This is [Q43](../open-questions.md)'s class — a false
+now, and the register row was not written. **This is [Q43](../questions/q43.md)'s class — a false
 claim about a measurement — inside the file built to refuse it.**
 
 **2. `check-source.mjs`'s per-check report printed `ok` on every row of a failing run**, and had since
@@ -202,7 +202,7 @@ W1. `c.slice(0, 2)` took the id from a row label, so `S10` and `S11` both read a
 `S13` that would have been five rows reporting one check. Measured: exit 1, four failures listed, **all
 thirteen rows `ok`**. Fixed — and the conformity reader then found the fix **could not be broken**
 (reverting it cost 0 probes, and the whole `checks` array could be emptied for 0). Every probe now
-requires the report's `FAIL` rows and the failure lines to name the same set. [Q100](../open-questions.md)'s
+requires the report's `FAIL` rows and the failure lines to name the same set. [Q100](../questions/q100.md)'s
 class, and the first occurrence of it to be **closed** rather than recorded.
 
 **3. Four written claims in this item's own comments were false and were corrected by measurement.**
@@ -240,7 +240,7 @@ beside the line as a message-quality hole rather than dressed up as a grading th
 
 **What this taught.**
 
-**[Q102](../open-questions.md) — does an owner for `scripts/**` close it, or only move it?**
+**[Q102](../questions/q102.md) — does an owner for `scripts/**` close it, or only move it?**
 **It MOVES it, NARROWS it, and MULTIPLIES it. It does not close it**, and the conformity reader reached
 the same three parts independently.
 
@@ -274,19 +274,19 @@ asserts once it runs.** Two occurrences in one item is one item; whether it gene
 **Questions raised.** Q132-Q135, one line each, and written to `doc/open-questions.md`. **Q136 is
 unused and is skipped.**
 
-- **[Q132](../open-questions.md)** — the self-test covers **4 of `check-source`'s 13 checks**; the other
+- **[Q132](../questions/q132.md)** — the self-test covers **4 of `check-source`'s 13 checks**; the other
   nine are pattern lists each emptiable entirely for 0 failures, and `check-spec`'s 8 clauses still
   have none at all.
-- **[Q133](../open-questions.md)** — the gate now spends about a minute proving its own checks can
+- **[Q133](../questions/q133.md)** — the gate now spends about a minute proving its own checks can
   fail, ~34 s of it this item's, and nothing decided that it should.
-- **[Q134](../open-questions.md)** — `S12` now subsumes `S11`'s membership half, and `S11`'s prefix
+- **[Q134](../questions/q134.md)** — `S12` now subsumes `S11`'s membership half, and `S11`'s prefix
   lookahead is deletable for 0; a probe pins it, and whether the clause should be retired is open.
-- **[Q135](../open-questions.md)** — a **third** row of the register renders its cells wrong, by a
-  different mechanism than [Q131](../open-questions.md)'s two: `Q87` spans blank lines and its status
+- **[Q135](../questions/q135.md)** — a **third** row of the register renders its cells wrong, by a
+  different mechanism than [Q131](../questions/q131.md)'s two: `Q87` spans blank lines and its status
   cell sits on a line that does not begin with `|`, so GFM ends the table above it. Not fixed, so the
   check has all three shapes to fire on.
 
-**[Q126](../open-questions.md) is RESOLVED** — the gate chain is 16 of 16 guarded, plus the three
+**[Q126](../questions/q126.md) is RESOLVED** — the gate chain is 16 of 16 guarded, plus the three
 composed lists one level down. **No ADR taken: 0032 and 0033 are reserved by P8 and both are skipped**,
 which is what the plan predicted for an item that widens a list.
 

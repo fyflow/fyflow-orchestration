@@ -47,7 +47,7 @@
 // this file as shipped rather than copied from a sibling.
 //
 // ---------------------------------------------------------------------------
-// **W28: A META ENTRY NAMES THE PROBE IT MUST BREAK.** [Q138](../doc/open-questions.md).
+// **W28: A META ENTRY NAMES THE PROBE IT MUST BREAK.** [Q138](../doc/questions/q138.md).
 //
 // A grading was `r.status !== 0` — re-run all 37 probes against the broken check and
 // require a non-zero exit — which cannot tell *the clause I broke was caught* from
@@ -69,7 +69,7 @@
 // returned before META and no mutation of a grading was observable from here at
 // all.** All four new entries survived on exactly that.
 // `check-source-selftest.mjs` had already learned it and says so in place; the
-// sibling did not inherit it, which is [Q137](../doc/open-questions.md)'s shape a
+// sibling did not inherit it, which is [Q137](../doc/questions/q137.md)'s shape a
 // third time — a fix moves and its reason does not.
 //
 // **The four new entries edit the `META` LIST and leave the guards alone.** The
@@ -77,7 +77,7 @@
 // question backwards, because with the guard gone and the defect present the run
 // goes GREEN and `SELF`'s *"must exit non-zero"* then reads as *the floor did not
 // fire* either way. And an anchor that quotes a guard matches the entry's own
-// literal first: [Q143](../doc/open-questions.md).
+// literal first: [Q143](../doc/questions/q143.md).
 // ---------------------------------------------------------------------------
 
 import { readFileSync, writeFileSync, mkdirSync, rmSync, cpSync, existsSync } from 'node:fs';
@@ -119,9 +119,9 @@ const PROBES = [
     // three directories away.** This mutated `](work-items/w24-the-gates-own-wiring.md)`, which
     // lived in `doc/README.md`'s `## Current state` block — deleted by
     // [W115](../doc/work-items/w115-the-exit-artifact-and-the-budget-met.md) under
-    // [Q466](../doc/open-questions.md) — so the mutation matched NOTHING and rule 7 (b) aborted the
+    // [Q466](../doc/questions/q466.md) — so the mutation matched NOTHING and rule 7 (b) aborted the
     // lane at 36/37 while `npm run check:markdown` itself stayed green. **The FINDING is
-    // [Q482](../doc/open-questions.md)** — *a probe anchored on a document's PROSE is dated by
+    // [Q482](../doc/questions/q482.md)** — *a probe anchored on a document's PROSE is dated by
     // whoever edits that prose* — and Q466 is only what authorised the cut; W115's conformity
     // reader found this comment citing the cause where the finding belongs.
     // [ADR 0073](../doc/decisions/0073-the-readme-is-for-a-person-the-reference-is-for-an-agent.md)
@@ -341,7 +341,11 @@ const PROBES = [
     // cost **0**: only one probe touched a root document and it used README.md, so
     // two of the three could leave one at a time. Q121's own five original defects
     // included three in AGENTS.md.
-    mutate: (t) => t.replace('](doc/open-questions.md)', '](doc/open-questions-v2.md)'),
+    // **Re-anchored at [W118](../doc/work-items/w118-every-question-link-points-at-its-question.md)**:
+    // it anchored on `](doc/open-questions.md)`, and W118 pointed every one of those in AGENTS.md at
+    // its question file. The subject is still a register link, anchored on the SHAPE rather than one
+    // id, so no single question leaving AGENTS.md dates it.
+    mutate: (t) => t.replace('](doc/questions/q', '](doc/questions/no-such-q'),
   },
   {
     name: 'a dead link in spec/, seen by CHECK-MARKDOWN rather than by check-spec',
@@ -402,7 +406,7 @@ const PROBES = [
     // indented closer stops being recognised — so that enough links disappeared to trip a FLOOR.
     // **That observer was the 517 KB of `## Current state`**, and
     // [W115](../doc/work-items/w115-the-exit-artifact-and-the-budget-met.md) deleted it under
-    // [Q482](../doc/open-questions.md), the finding; [Q466](../doc/open-questions.md) is what
+    // [Q482](../doc/questions/q482.md), the finding; [Q466](../doc/questions/q466.md) is what
     // authorised the cut. At 50 KB the file's links all vanish and **no floor
     // moves**, because `M4` counts SOURCE DOCUMENTS since W112 and `M3` counts files — so the
     // entry graded *STILL CAUGHT*: the probe behaving exactly as declared against a check that
@@ -470,7 +474,7 @@ const PROBES = [
     // **56 files / 1947 links / 99 anchored** and the floor is **64**;
     // check-markdown.mjs carries why: a floor is one-sided for the CHECK and two-sided
     // for the PROBE.
-    // [Q142](../doc/open-questions.md). Still the only cut in this
+    // [Q142](../doc/questions/q142.md). Still the only cut in this
     // corpus that trips the FILE floor and neither of the other two. The README edit
     // is there so the rule 7 (b) guard has a change to see.
     //
@@ -504,7 +508,7 @@ const PROBES = [
     // 2400** — the fourth retune, and the third consecutive plan to meet this exact
     // line in the gate after the item was otherwise done. The entry is anchor-agnostic
     // so it does not go inert the next time that is right to change.
-    // [Q142](../doc/open-questions.md) is not fixed by retuning it — the window is
+    // [Q142](../doc/questions/q142.md) is not fixed by retuning it — the window is
     // two-sided by construction — and the mitigation is the direction: it fails
     // LOUDLY, in the gate, naming the probe and the expected set: the anchors are untouched, because
     // all 78 live in `doc/`'s top level **— which stopped being true at W113, when the register's
@@ -698,7 +702,7 @@ const META = [
     // this entry is the demonstration that the reason was general rather than a
     // property of the link floor. It stayed pinned for three plans because `M3`
     // never moved; the moment it did, this reported *"the mutation matched nothing"*
-    // and would have graded a live floor as unmutatable. [Q142](../doc/open-questions.md).
+    // and would have graded a live floor as unmutatable. [Q142](../doc/questions/q142.md).
     (t) => t.replace(/if \(r\.files < \d+\) fail\('M3'/, "if (false) fail('M3'")],
   ['M4`s link floor disabled',
     // **The probe's NAME moved at [W113](../doc/work-items/w113-the-register-is-a-reference.md) and
@@ -712,7 +716,7 @@ const META = [
     // **Anchor-agnostic since W33.** Pinned to the literal this reported *"the
     // mutation matched nothing"* every time the floor was right to change — twice
     // now, at P10's declaration and again here. Rule 7 (b) firing correctly, and
-    // [Q142](../doc/open-questions.md)'s own sentence: *a mutation pinned to a magic
+    // [Q142](../doc/questions/q142.md)'s own sentence: *a mutation pinned to a magic
     // number is unmutatable the moment the number is right to change.*
     //
     // **The FIELD moved at [W112](../doc/work-items/w112-the-budget-the-check-and-the-floors.md)**,
@@ -827,7 +831,7 @@ const SELF = [
   // whether the guard was load-bearing or not, and two of the four passed VACUOUSLY.
   // Editing only the defect asks it the right way round: with the guard in place,
   // does the run go red? Nothing self-matches, because `META` sits above `SELF`.
-  // [Q143](../doc/open-questions.md).
+  // [Q143](../doc/questions/q143.md).
   ['the probe name dropped from the child`s env, so the grading reads the whole suite again',
     (t) => t.replace('CHECK_MARKDOWN_SCRIPT: path, CHECK_MARKDOWN_FIXTURE: tree,\n            CHECK_MARKDOWN_PROBE: probeName }',
       'CHECK_MARKDOWN_SCRIPT: path, CHECK_MARKDOWN_FIXTURE: tree }')],
@@ -851,7 +855,7 @@ const SELF = [
   // measured** — `check-policies.mjs` ends with ``All checks passed — ${names.join(', ')}``,
   // reachable with `names === null` exactly when P3's first clause is disabled — but
   // no current entry in any of the three files produces one, so the guard is
-  // unprovoked and is on the ceiling list. [Q144](../doc/open-questions.md).
+  // unprovoked and is on the ceiling list. [Q144](../doc/questions/q144.md).
   //
   // What this entry provokes instead is rule 7 (b) at the META layer.
   ['one META mutation made VACUOUS — rule 7 (b) at the grading layer',
@@ -912,7 +916,7 @@ export async function selfTest(root) {
   if (!shared) rmSync(base, { recursive: true, force: true });
   mkdirSync(base, { recursive: true });
   /**
-   * **[Q426](../doc/open-questions.md), and this one line is the whole of it — W105.** `base` is created
+   * **[Q426](../doc/questions/q426.md), and this one line is the whole of it — W105.** `base` is created
    * UNCONDITIONALLY, three lines up, and every one of the eleven removals below is guarded on `!shared`:
    * so **every child that inherits a fixture leaked exactly one empty directory**, and this file spawns
    * one child per META entry and one per SELF entry. Measured at W105's declaration step: **112 directories
@@ -926,7 +930,7 @@ export async function selfTest(root) {
    * are: they remove the same path earlier, which is correct and now also redundant.
    *
    * **`process.on('exit')` rather than a twelfth `rmSync`**, because the road none of the eleven covers is
-   * a THROW — the abort path, which is [Q323](../doc/open-questions.md)'s class and how W103's finding 3
+   * a THROW — the abort path, which is [Q323](../doc/questions/q323.md)'s class and how W103's finding 3
    * left its stub behind. `SIGKILL` still leaks this one directory, and that is the stated limit rather
    * than an oversight: *one path per killed run, not one per probe*.
    */
@@ -1025,7 +1029,7 @@ export async function selfTest(root) {
     // fact.** W25's adequacy reader found the row list counted from nothing: deleting
     // `'M1 every relative link resolves…'` from `checks` cost **0**, and a run with a
     // real dead link then printed two `ok` rows above an `M1:` failure. That is
-    // [Q100](../doc/open-questions.md)'s class, and W24 answered it one item earlier
+    // [Q100](../doc/questions/q100.md)'s class, and W24 answered it one item earlier
     // by requiring the two projections to agree — this file said it should meet that
     // standard and did not. `runs: 'spec'` is exempt: `check-spec.mjs` is not this
     // item's report to constrain.
@@ -1069,7 +1073,7 @@ export async function selfTest(root) {
 
   // **Single-probe mode.** The META pass names ONE probe and this runs that one, in
   // place of re-running all 37 against every broken check — which is where both
-  // halves of [Q138](../doc/open-questions.md) lived: the credit went to whichever
+  // halves of [Q138](../doc/questions/q138.md) lived: the credit went to whichever
   // probe reacted first, and the pass cost a `PROBES.length` multiplier.
   const only = process.env.CHECK_MARKDOWN_PROBE;
   if (only !== undefined) {
@@ -1152,7 +1156,7 @@ export async function selfTest(root) {
   // were about the grading. `check-source-selftest.mjs` had already learned this and
   // says so in place — *"a guard whose only effect is inside META is invisible to a
   // child that skips it"* — and the sibling did not inherit it, which is
-  // [Q137](../doc/open-questions.md)'s shape a third time: a fix moves, its reason
+  // [Q137](../doc/questions/q137.md)'s shape a third time: a fix moves, its reason
   // does not.
   if (nestedScript) { if (!shared) rmSync(base, { recursive: true, force: true }); return 0; }
 

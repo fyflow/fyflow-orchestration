@@ -112,7 +112,7 @@ editor already read `examples`, so the annotation costs a consumer nothing to le
    eleven-letter word exceeds a `maximum: 1` the example never reached, and `weigh`'s `score` is a
    product with `run.confidence` unbounded by its input schema. Both corrected in the corpus (the
    bound dropped where the code does not keep it, the input bounded where the code assumes it), and
-   the shape recorded as [Q302](../open-questions.md): the check sees the example and not the domain.
+   the shape recorded as [Q302](../questions/q302.md): the check sees the example and not the domain.
 2. **The witness generator ships inside the check script and not in `src/`** — W74's assist lifts it
    if the sample-and-diff loop wants it; until then it is fact 5's harness, in one file.
    *(Both halves of that sentence are now false and are kept as the record of where the generator was

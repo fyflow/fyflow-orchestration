@@ -1,7 +1,7 @@
 /**
  * Ladder L2 — **the fold's input sequence**, which nothing produced before W5.
  * [ADR 0014](../../doc/decisions/0014-the-driver-produces-the-folds-ordered-input-sequence.md),
- * [Q41](../../doc/open-questions.md).
+ * [Q41](../../doc/questions/q41.md).
  *
  * The three things this file exists to hold down, none of which any earlier suite
  * could have noticed:
@@ -30,7 +30,7 @@ import { fold } from '../../src/fold/run-state.ts';
 import { liveToken } from '../../src/fold/policies.ts';
 // W4's local flow: the only one in the repository whose branch reaches
 // `branch.lost` by SETTLING rather than by a human resolving a suspended node.
-// The corpus cannot express it ([Q44](../../doc/open-questions.md)).
+// The corpus cannot express it ([Q44](../../doc/questions/q44.md)).
 import { optionalLost } from '../matrix/flows.ts';
 
 const EX = `${ROOT}spec/examples`;
@@ -305,7 +305,7 @@ suite('ADR 0014 — the ordering clauses no test reached', (test) => {
     // rather than being lost — so the branch under test was never entered. Found
     // by re-running the reviewer's own mutation against it. It uses W4's
     // `matrix-optional-lost`, which is the only flow in the repository that
-    // reaches `branch.lost` by settling ([Q44](../../doc/open-questions.md)).
+    // reaches `branch.lost` by settling ([Q44](../../doc/questions/q44.md)).
     const h = harness(optionalLost);
     h.driver.start({});
     h.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });

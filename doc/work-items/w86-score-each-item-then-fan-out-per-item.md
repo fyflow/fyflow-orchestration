@@ -63,7 +63,7 @@ Gate:       L6 in BOTH runtimes (it MOVES — this item says by how much); `chec
             `check:markdown`; the full `npm run gate`. **And L0 and L1-L5**, which the plan's
             row does not name and which this item needs: it edits `examples/**`, which
             `typecheck:examples` and `lint` read, and **L1-L5 must be UNMOVED at 47 / 1322** or
-            it has reached past its `Owns` ([Q348](../open-questions.md), W85's precedent).
+            it has reached past its `Owns` ([Q348](../questions/q348.md), W85's precedent).
 Reserves:   Q358-Q363, ADR 0063 (expected unused)
             **The block is EXTENDED from the two P22 left.** P22 reserved Q345-Q359; W84 took
             Q346-Q351 and W85 took Q352-Q357, leaving two for an exit artifact where the last
@@ -81,8 +81,8 @@ Reserves:   Q358-Q363, ADR 0063 (expected unused)
    (stop-and-ask (c)), so its arity comes from run-time data at both levels — the hard case, and the
    one [W33](w33-a-map-at-run-time-arity.md)'s refusal existed for.
 2. **The OVERLAP, derived and asserted.** W85's whole finding is aimed here: *a per-instance key is
-   observable ONLY where two instances are alive at once* ([Q349](../open-questions.md),
-   [Q353](../open-questions.md)), and ADR 0046's eager release is what takes that window away. A real
+   observable ONLY where two instances are alive at once* ([Q349](../questions/q349.md),
+   [Q353](../questions/q353.md)), and ADR 0046's eager release is what takes that window away. A real
    pool does not arrange it, so this item ARRANGES it, DERIVES it from the run and asserts it — with
    the arrangement's own effect asserted beside it, which is
    [W17](w17-the-all-exit-row-at-l6.md)'s lesson.
@@ -106,9 +106,9 @@ Reserves:   Q358-Q363, ADR 0063 (expected unused)
 - **Reopening ADR 0062's key, the lift, or what N = 0 means.** Decisions 1, 4 and 6, taken on
   measurements. This item may find any of them WRONG and say so; it may not re-argue them
   (`doc/workflow.md` section 6 pass 3 rule 1).
-- **[Q206](../open-questions.md)** — sibling regions nested inside ONE map region, and a region's
+- **[Q206](../questions/q206.md)** — sibling regions nested inside ONE map region, and a region's
   collection reachable by no reference. Declared OUT by the plan.
-- **[Q350](../open-questions.md)** — widening `RN-R6`'s cross-policy walk under nesting. W84 built
+- **[Q350](../questions/q350.md)** — widening `RN-R6`'s cross-policy walk under nesting. W84 built
   the repair, it is RED, and the red is right.
 
 ## What the declaration step re-took before anything was edited
@@ -155,10 +155,10 @@ declaration step and two were not, and which two is the datum.*
 
 | file | why | predicted? |
 |---|---|---|
-| `scripts/check-workers-selftest.mjs` | its `CONTROL_LINES` pin the whole `check:workers` tally as a REGEX LITERAL, so a seventeenth worker takes that gate entry RED while `check:workers` itself stays green. [Q342](../open-questions.md), at its second recorded firing | **yes** |
+| `scripts/check-workers-selftest.mjs` | its `CONTROL_LINES` pin the whole `check:workers` tally as a REGEX LITERAL, so a seventeenth worker takes that gate entry RED while `check:workers` itself stays green. [Q342](../questions/q342.md), at its second recorded firing | **yes** |
 | `scripts/check-docs.mjs` | `RUN_FLOOR` 28 → 29 and `README_SNIPPET_FLOOR` 4 → 5 (Q102's ratchet, the item that adds a snippet raises the floor); the `X8` pair list gains section 17; and **`X9` is a new check** — the version `README.md` states against both manifests, which this item's own probe `h1` measured at ZERO | the floors **yes**; `X9` **no** — it is a survivor the rule 8 pass found |
 | `scripts/check-docs-selftest.mjs` | `X9` needs a probe and a grading, because `ALL_CHECKS` is DERIVED from `check-docs.mjs`'s own `checks` array and the coverage bound refuses a check id with no grading; `MIN_PROBES` 33 → 34 and `MIN_META` 20 → 21 | **no** — it follows from `X9` |
-| `test/definition/wiring.test.ts` | its L6 corpus census is pinned as literals — 26 flows, 65 fits — and a new flow document moves both. [Q342](../open-questions.md)'s class outside the corpus | **yes** |
+| `test/definition/wiring.test.ts` | its L6 corpus census is pinned as literals — 26 flows, 65 fits — and a new flow document moves both. [Q342](../questions/q342.md)'s class outside the corpus | **yes** |
 | `spec/outcome-record.md` section 4 | its task-node split is pinned in PROSE and `test/fold/result-value.test.ts` DERIVES the same four figures from both corpora on every run, so a new flow document obliges the SENTENCE. **A `spec/` edit in an item whose `Spec:` line reads NONE** — and it moves no rule id, so `check:spec` is unmoved | **no** — the third census, and the only one in a normative document |
 
 ## Verification
@@ -171,20 +171,20 @@ How each clause of `Gate:` is run. Commands named, each RUN and redirected, neve
 | **L0** | `npm run lint`, then each typecheck lane SEPARATELY — `tsconfig.node.json`, `.browser`, `.tests`, `.examples`, and `deno check index.ts src/`. Separately, because `npm run typecheck` is five lanes chained by `&&` and a RED report names its FIRST failure and is silent downstream |
 | **L1-L5, three runtimes** | `npm test`, `npm run test:deno`, `npm run test:browser`. Expected **UNMOVED at 47 / 1322** — an item that adds no `test/**` case and no `src/` behaviour moves no rung below L6, and a moved count means it reached past its `Owns` |
 | **L6 in BOTH runtimes** | `npm run test:l6` and `npm run test:l6:deno`. **It MOVES and this item says by how much**, which is the plan's own wording for the exit artifact |
-| **`check:docs`** | `npm run check:docs` and `npm run check:docs:selftest`. **In the `Gate:` line from the START**, which is [Q348](../open-questions.md): W84 shipped with this rung unnamed and could have taken a gate entry red with its own gate green, because `AGENTS.md`'s executed snippets carry literals no typecheck lane reads. This item OWNS `AGENTS.md`, so the rung is load-bearing |
-| **`check:markdown`** | `npm run check:markdown` and its self-test. **[Q142](../open-questions.md) is measured BEFORE the record step**, on the CUT TREES themselves rather than on the whole one |
+| **`check:docs`** | `npm run check:docs` and `npm run check:docs:selftest`. **In the `Gate:` line from the START**, which is [Q348](../questions/q348.md): W84 shipped with this rung unnamed and could have taken a gate entry red with its own gate green, because `AGENTS.md`'s executed snippets carry literals no typecheck lane reads. This item OWNS `AGENTS.md`, so the rung is load-bearing |
+| **`check:markdown`** | `npm run check:markdown` and its self-test. **[Q142](../questions/q142.md) is measured BEFORE the record step**, on the CUT TREES themselves rather than on the whole one |
 | **the full `npm run gate`** | run whole, twice: once before the record step and once as the confirming gate over the final tree, with the tree held still by a content digest at both ends |
 | **conformity reader** | fresh context, `spec/` first and code second. Its central obligation: derive **every region instance's key, every collection's key set, every dispatched id, each inner branch's ROAD and the whole overlap sequence ON PAPER** — from `JP-R12`, `branchPathOf`, `isLowScore`'s threshold and `shardConfidence`'s scale — for both rows, before reading any output |
 | **adequacy reader** | isolated copy, TWO named targets. **(a)** Could the L6 row be green on a run in which the two region instances never overlapped — i.e. is the interleaving DERIVED from the run or hoped for? **(b)** Is the reference's snippet asserting the CAPABILITY, or only that a run completed? |
 | **re-run at `<sha>`** | rule 8's set re-run with both readers' exact edits checked in |
 
 **Routing cases this item covers** (`doc/workflow.md` section 7): **a nested fan-out**
-([Q6](../open-questions.md)) — two `map` regions, one inside the other's branch, on real workers, at
-widths two and three that no document carries; **a duplicate task id** ([Q13](../open-questions.md))
+([Q6](../questions/q6.md)) — two `map` regions, one inside the other's branch, on real workers, at
+widths two and three that no document carries; **a duplicate task id** ([Q13](../questions/q13.md))
 — `ID-R1` asserted per row, and the dotted ids `0.0`, `0.1`, `1.0`, `1.1`, `1.2` are minted at an
 arity the run chose. **Not applicable**: a branch routed away from its join
-([Q4](../open-questions.md)), `user_action` ([Q17](../open-questions.md)) and no matching decision
-edge ([Q10](../open-questions.md)) — every branch of this flow arrives and its one decision always
+([Q4](../questions/q4.md)), `user_action` ([Q17](../questions/q17.md)) and no matching decision
+edge ([Q10](../questions/q10.md)) — every branch of this flow arrives and its one decision always
 has an eligible edge, which is deliberate: the row's subject is the KEY, and a failure road would
 make a red row ambiguous between the nesting and the road. W85 drives all three at L2 under nesting.
 
@@ -199,8 +199,8 @@ make a red row ambiguous between the nesting and the road. W85 drives all three 
 | L1-L5, three runtimes | **RAN, EXIT 0 — 47 files / 1322 assertions, UNMOVED** in node 24.20.0, deno 2.9.6 and chromium, parity asserted | the declared result: an item that adds no `test/**` case and no `src/` behaviour moves no rung below L6. *(Its `Gate:` line offers this as the detector for having reached past `Owns`, and the conformity reader's finding 1 is that it is not one: L1-L5 is unmoved and the item reached past `Owns` in **five** files. The audit is the exceptions table, which that reader is why this item has.)* |
 | **L6 in BOTH runtimes — it MOVES** | **RAN, EXIT 0 — 1833 assertions over 60 real runs** in node 24.20.0 AND deno 2.9.6 | from **1724 / 58**. `1724 + 90 + 19`: 52 assertions for the artifact row (22 base + 30 extras), 38 for its control (22 + 16), and 19 cross-row — 17 before the derived-count check and 2 after it. **The first green run printed 1827**; the six between are the clauses the two readers forced |
 | `check:docs` | **RAN, EXIT 0 — 35 snippets: 29 run, 6 check**; self-test **34 probes / 21 gradings** | `X8` pairs FIVE README snippets now; **`X9` is new** — the version `README.md` states against both manifests, which this item's own probe `h1` measured at ZERO. `RUN_FLOOR` 28 → 29 and `README_SNIPPET_FLOOR` 4 → 5, both Q102's ratchet and the second found by both readers independently |
-| `check:workers` | **RAN, EXIT 0 — 17 workers: 17 ran on a declared example, 0 on the witness, 2 not checked, 0 refused** | from 16 / 16 / 0 / 2 / 0. The seventeenth is `shard.ts`, and it took `check:workers:selftest` RED on a tally pinned as a regex LITERAL — [Q342](../open-questions.md) at its second recorded firing, predicted and declared |
-| `check:markdown` | **RAN, EXIT 0 — 147 documents, 6638 relative links, 348 anchored** | **[Q142](../open-questions.md) measured BEFORE the record step and does NOT fire**, on the CUT TREES themselves rather than on the whole one: probe 1's tree (`doc/decisions` removed) is **112 files against `M3`'s floor of 123 — margin 11**, and probe 2's (`doc/decisions` and `doc/plans` removed) is **4927 links against `M4`'s 5270 — margin 343**. This item adds documents to `doc/work-items/`, which NEITHER probe cuts, so both margins narrow by them and neither floor is retuned |
+| `check:workers` | **RAN, EXIT 0 — 17 workers: 17 ran on a declared example, 0 on the witness, 2 not checked, 0 refused** | from 16 / 16 / 0 / 2 / 0. The seventeenth is `shard.ts`, and it took `check:workers:selftest` RED on a tally pinned as a regex LITERAL — [Q342](../questions/q342.md) at its second recorded firing, predicted and declared |
+| `check:markdown` | **RAN, EXIT 0 — 147 documents, 6638 relative links, 348 anchored** | **[Q142](../questions/q142.md) measured BEFORE the record step and does NOT fire**, on the CUT TREES themselves rather than on the whole one: probe 1's tree (`doc/decisions` removed) is **112 files against `M3`'s floor of 123 — margin 11**, and probe 2's (`doc/decisions` and `doc/plans` removed) is **4927 links against `M4`'s 5270 — margin 343**. This item adds documents to `doc/work-items/`, which NEITHER probe cuts, so both margins narrow by them and neither floor is retuned |
 | `check:spec` | **RAN, EXIT 0 — 7 / 61 / 108, UNMOVED** | no rule id is added or retired. One `spec/` SENTENCE moves and it is a COUNT — see the exceptions table |
 | the full `npm run gate` | **RAN, EXIT 0, ZERO `FAIL` lines, 31 chain entries** | `selftests` **8 / 8 completed, 8 ok, 978.1 s wall, 1996.8 s serial-equivalent, 6 lanes**. Run FOUR times: green before the readers at digest `3d192ccb6748fee1` over 387 files; **`GATE EXIT=2` with ZERO `FAIL` lines** on the first run over the post-reader tree — see *What broke*; green again whole after the type import; and a FINAL confirming gate over the tree this item ships at digest **`313f4befdfb4dafa` over 387 tracked-and-untracked-unignored files, IDENTICAL at both ends**, `selftests` 972.1 s wall over 6 lanes. The counts it printed: `check:spec` **7 / 61 / 108**, `check:docs` **35 — 29 run, 6 check**, `check:workers` **17**, `check:markdown` **147 / 6635 / 348**, L1-L5 **47 / 1322** in node, deno and chromium, L6 **1833** in BOTH runtimes. *The exit code is the predicate and the FAIL count is the secondary signal* (section 4, v0.15) — both are recorded, and the rung was RUN and redirected rather than piped |
 | conformity reader | **RAN** | **its central obligation came back with ZERO disagreements on the VALUES** — every dispatched id in order, every region instance's key, every collection's key set, each inner branch's ROAD, the full close order with `perShard@0` still holding at `perShard@1`'s close, what `publish` receives at two levels, and both run outcomes, all derived on paper from `spec/` before any output was read, for BOTH rows, and all agreeing. **Its headline is a finding about the AUTHOR** — see *What broke* |
@@ -230,7 +230,7 @@ them was obligatory and was also six edits under the other pass. The conformity 
 one, opened AND closed its report on it, and stated the consequence exactly: its `npm run gate`
 verdict is about a tree that no longer exists, and **three of its findings were fixed while it was
 writing them up**. *The clause is written for ONE reader and section 6 asks for two*
-([Q363](../open-questions.md)) — and what it costs to obey is the wall clock of a whole reader pass,
+([Q363](../questions/q363.md)) — and what it costs to obey is the wall clock of a whole reader pass,
 which is what this item should have paid.
 
 **The adequacy reader's named target (a) SURVIVED IN PART and it is the item's sharpest finding: the
@@ -239,7 +239,7 @@ headline clause could be made a TAUTOLOGY with all four declared controls green.
 different one — so emptying `othersAtClose` and keying one entry off how many regions the run closed
 cost **ZERO**. v0.22's clause is satisfied and short: each control does name a tree on which it fails
 and its claim passes, and *that tree fails the claim too*, so the control never had to discriminate
-([Q362](../open-questions.md)). Closed by a second EXPRESSION over the same sequence — its own
+([Q362](../questions/q362.md)). Closed by a second EXPRESSION over the same sequence — its own
 INDICES — which no projection of the walk can reach.
 
 **Its finding 2 is the same shape one clause over**: the detector's `map` arm could be hard-coded to
@@ -278,10 +278,10 @@ both readers had reported, which is the one thing this item did right about v0.1
 **The retention observer's PEAK was keyed by the OPENER and its peak is a max over TIME**, so under
 nesting it read **6** where the branches that arrived are **7** — the row's own first run is what said
 so. `arrivalsOf`'s flatten is lossless in the KEYS and was never lossless in TIME
-([Q359](../open-questions.md)).
+([Q359](../questions/q359.md)).
 
 **THREE corpus censuses pinned OUTSIDE their corpus fired and only TWO were predicted**
-([Q360](../open-questions.md)): `check-workers-selftest.mjs`'s tally, `test/definition/wiring.test.ts`'s
+([Q360](../questions/q360.md)): `check-workers-selftest.mjs`'s tally, `test/definition/wiring.test.ts`'s
 L6 census, and `spec/outcome-record.md` section 4 — the unpredicted one being the only one in a
 NORMATIVE document, in an item whose `Spec:` line reads NONE.
 
@@ -317,7 +317,7 @@ recorded alternative derivation of `regionPath`).
 | `arrivals` keyed by the OPENER ALONE, at all three sites (`x1b` / `x3b`) | **3** | **1** | the two that go are *what `publish` received* and `JP-R12` at two levels — **the wrong key gives the RIGHT answer** once the windows do not overlap, because ADR 0046 rule 3 releases eagerly. The one that remains is the per-INSTANCE retention peak |
 | every collection filed under the opener's FIRST OPENED instance — Q353 (`a2` / `a2b`) | **2** | **0** | the same two clauses, and nothing at all is left |
 
-*That is [Q349](../open-questions.md) and [Q353](../open-questions.md) turned from a sentence into a
+*That is [Q349](../questions/q349.md) and [Q353](../questions/q353.md) turned from a sentence into a
 pair of numbers, on real workers.* The overlap-removing edit is one field of one node type
 (`SecondPass`'s `delayMs`), so the two arms differ in the ROUTE and in nothing else. *(**The
 overlap-REMOVED column is the cost ABOVE `x2`'s own**, which every probe in that column pays for
@@ -355,7 +355,7 @@ re-run whole.
 every instance of its branch at once, so with one FIFO pool each instance's tasks are contiguous in
 the queue and each window closes before the next opens — *a real scheduler interleaves two region
 instances LESS than a fake does*, which is the opposite direction from the one P22 prediction 3's
-reversal clause imagined ([Q358](../open-questions.md)). What produced the overlap here is a ROAD that
+reversal clause imagined ([Q358](../questions/q358.md)). What produced the overlap here is a ROAD that
 differs per instance and a stagger in the node between the two maps, and W17's lesson is why the
 arrangement's own EFFECT is asserted beside it.
 

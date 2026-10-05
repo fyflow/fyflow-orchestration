@@ -15,7 +15,7 @@
  * thread and a URL can (P17 fact 7). **This module is both halves**: `jsonata.worker` is its own
  * `import.meta.url`, so a consumer who imports the sub-path holds the registry half and the worker
  * half from ONE file and ONE copy of the engine, and the two cannot disagree the way two modules
- * can ([Q264](../../doc/open-questions.md)). The default export is the worker half; the named export
+ * can ([Q264](../../doc/questions/q264.md)). The default export is the worker half; the named export
  * `jsonata` is the adapter.
  *
  * **What the expression sees** (P17 decision 7): `$` is the node's `input` — the value it receives,
@@ -52,7 +52,7 @@ import type { LanguageAdapter } from '../definition/types.ts';
  * static frame before its probe was written, which REVERSES P17 prediction 4 exactly as that row
  * said it would: the list grows, and the rule (*a transform is a function of what the run
  * produced*) was right to be stated as a property rather than as three names. **`eval` is unbound
- * for a DIFFERENT reason** — the maintainer's answer to [Q265](../../doc/open-questions.md) at
+ * for a DIFFERENT reason** — the maintainer's answer to [Q265](../../doc/questions/q265.md) at
  * W62: `$eval` re-compiles its argument at RUN time, so a syntax error inside it would land as a
  * task failure (`D3120`) that `FD-V36` never saw; a transform is declared text refused at
  * construction, and `$eval` is the one door that recompiles text the validator never read. What a

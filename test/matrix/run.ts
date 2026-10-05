@@ -83,7 +83,7 @@ export interface Scenario {
 /**
  * What a run looks like once nothing more will happen without an outside event.
  *
- * `stuck` is [Q7](../../doc/open-questions.md)'s detection half and it needs no
+ * `stuck` is [Q7](../../doc/questions/q7.md)'s detection half and it needs no
  * clock: every dispatched task has an outcome, no branch is parked on a person,
  * and the join has not fired — so nothing in the system can change, and a timeout
  * would only put a wall-clock guess on top of a decidable answer.

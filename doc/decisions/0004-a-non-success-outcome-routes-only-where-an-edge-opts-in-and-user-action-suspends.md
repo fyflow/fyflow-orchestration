@@ -26,7 +26,7 @@ implementers produce different run states from the same log, and neither breaks 
 
 That is the failure `doc/workflow.md` section 7 rule 1 exists to prevent, and it is worse than an
 ordinary ambiguity: **if failures route down an ordinary default edge, both join policies behave
-identically on most of [Q5](../open-questions.md)'s rows and P1's comparison collapses.**
+identically on most of [Q5](../questions/q5.md)'s rows and P1's comparison collapses.**
 
 Two facts about the substrate shape the answer. Both are read from `fyflow-scheduler` 0.3.0 source
 rather than from `AGENTS.md`:
@@ -52,7 +52,7 @@ and it does it through `optional`. This decision adopts that distinction rather 
    runs over the eligible edges alone.
 3. **A `user_action` settlement does not route. It suspends its path.** The node is not done, not
    failed, and not lost — it is parked, and the run is waiting on something outside this library.
-   `on` may not name `user_action` ([Q30](../open-questions.md)).
+   `on` may not name `user_action` ([Q30](../questions/q30.md)).
 4. **A suspended path resumes only when a resolution record is appended to the log.** A resolution
    states the terminal state the node is to be treated as having — `done` or `failed` — plus the
    result or error that goes with it. Routing then proceeds under rules 1 and 2 as though the node
@@ -86,12 +86,12 @@ stop being four indistinguishable words: a failing branch, a suspended branch an
 branch are three different region events, and the fourth — *optional-null* — is revealed to be the
 same scheduler outcome as *failed* rather than a separate case. **`user_action` gets a flow-level
 answer that is neither success nor failure**, which is the hole
-[Q17](../open-questions.md) names and which `fyflow-react-components` left open as their Q16.
+[Q17](../questions/q17.md) names and which `fyflow-react-components` left open as their Q16.
 
 **Rule 6 is what keeps the architecture intact.** A resolution is external input, and the obvious
 implementation is a method that reaches into run state and edits it. That would end the fold: run
 state would no longer be derivable from the log, ladder L3 would compare two different things, and
-[Q15](../open-questions.md) would be foreclosed. Making the resolution a log entry costs one record
+[Q15](../questions/q15.md) would be foreclosed. Making the resolution a log entry costs one record
 type and preserves all of it.
 
 **Hard.** The driver now has an inbound edge it did not have —
@@ -101,7 +101,7 @@ That is a wider surface to get wrong and the only place in the design where some
 process can change a run.
 
 **A path can now end without an `end` node**, when a node settles `failed` and no edge opts in.
-That is uncomfortably close to the answer [Q10](../open-questions.md) refused — *"the node is
+That is uncomfortably close to the answer [Q10](../questions/q10.md) refused — *"the node is
 terminal for that branch"* — and the difference is that this one is **declared and observable**: the
 author chose not to write an `on: ["failed"]` edge, an outcome record exists in the log saying what
 happened, and the path's end is attributable to a node. Q10's rejected answer was a *silent* stop
@@ -111,12 +111,12 @@ stated.
 **A suspended run waits forever by default.** Nothing times out, nothing escalates, and a join
 waiting on a suspended branch is indistinguishable from a slow one unless the driver says so. That
 is why `branch.suspended` exists in `spec/join-policy.md` rather than suspension being invisible:
-[Q7](../open-questions.md) needs a stuck join to be *reportable*, and *"waiting on a human"* must
+[Q7](../questions/q7.md) needs a stuck join to be *reportable*, and *"waiting on a human"* must
 not be reported as *"stuck"*.
 
 **What a future reader will try.** Adding `on: ["user_action"]` so a node can route straight to a
 manual-review sub-flow and skip suspension. It is a reasonable feature and it is refused for now
-([Q30](../open-questions.md)) because it gives one concept two mechanisms — a node in
+([Q30](../questions/q30.md)) because it gives one concept two mechanisms — a node in
 `user_action` would then be *sometimes* parked and *sometimes* routed, and no reader of the
 definition could tell which without evaluating the edges.
 

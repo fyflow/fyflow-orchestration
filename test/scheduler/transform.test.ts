@@ -14,7 +14,7 @@
  * **And on a REAL pool, inline and threaded.** Where a pool can load the envelope worker's script
  * — Node and Deno — the second suite runs it on a real `FyflowScheduler` and reads the two roads a
  * failure takes off the scheduler. In the browser a pool loads its script by URL and
- * `ENVELOPE_WORKER_URL` resolves beside the bundle ([Q261](../../doc/open-questions.md)), so the
+ * `ENVELOPE_WORKER_URL` resolves beside the bundle ([Q261](../../doc/questions/q261.md)), so the
  * same cases drive the wrapper CLASS directly and assert the wrapper's half of each claim; the
  * case count is the same in all five runtimes, which is what the browser runner's parity check
  * asks, and the header of every case says which backends ran.

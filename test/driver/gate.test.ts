@@ -17,7 +17,7 @@
  * | the memory's scope | one per gate per RUN | per region instance; per map item — duplicates put across two instances of the ENCLOSING map, never only in instance 0 |
  * | the resumed memory | the one the replay rebuilds | a fresh empty one; the killed driver's — cut where the three give three different routes |
  *
- * **Each case is named at its call site** — [Q382](../../doc/open-questions.md): a name read by index from a
+ * **Each case is named at its call site** — [Q382](../../doc/questions/q382.md): a name read by index from a
  * declared list can run two cases under each other's names, and W92's pass 2 measured it. The membership below
  * compares the NAMES that ran with the names declared, both ways and by count.
  */
