@@ -8,7 +8,7 @@ retitled question never breaks one. Ids are monotonic and **never reused and nev
 from it.
 
 **This is a REFERENCE, not required reading.** Look up the question you need, the way you read
-`spec/`. Until the lookup lands (W119), the file name is the lookup: Q17 is `q17.md`.
+`spec/`. `npm run q -- Q17` looks one up (W119), and the file name still works: Q17 is `q17.md`.
 
 **`npm run check:register` holds this folder** —
 [ADR 0079](../decisions/0079-a-register-is-files-with-front-matter-and-its-index-is-derived.md).
